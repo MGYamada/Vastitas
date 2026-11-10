@@ -1,0 +1,1 @@
+examples/reject/packages/affine-square/main.vast:15:1: E_AFFINE_RELATION: the comparison map and the declared inverse are not mutually inverse

@@ -1,0 +1,17 @@
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::Over;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+use std::geometry::scheme::affine::DualNumbers;
+use std::geometry::scheme::affine::same;
+
+// ANCHOR: program
+// A second line has the presentation of Line and is another object.
+indexed affine Copy(AffineQQ) = spec[t] over SpecQQ;
+indexed morphism p: Over<DualNumbers, Line, SpecQQ> = pullback(t -> e);
+indexed morphism r: Over<DualNumbers, Copy, SpecQQ> = pullback(t -> e);
+
+fn main() -> Int {
+    if same(p(), r()) { 1 } else { 0 }
+}
+// ANCHOR_END: program

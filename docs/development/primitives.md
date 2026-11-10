@@ -459,7 +459,7 @@ A primitive is documented in four places:
   [fiber primitives](../language/smooth-declarations.md#fiber-primitives),
   [reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives),
   [flat and sharp](../language/smooth-declarations.md#flat-and-sharp) or
-  [morphisms over a base](../affine-geometry.md#morphisms-over-a-base). A
+  [morphism primitives](../affine-geometry.md#morphism-primitives). A
   binding outside those constructs, as `compose` is, has a row in the
   inventory of
   [Declaration-driven indexed source](../indexed-source.md#closed-primitive-binding-inventory)

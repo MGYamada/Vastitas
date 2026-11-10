@@ -60,7 +60,7 @@ and of [metric forms](../appendix/glossary.md#metric-form) (`metric_form`).
 The `token`, `point` and `morphism` representations are in
 [indexed source](../indexed-source.md#declarations-and-source-example), and
 the `relative` representation is in
-[presented affine geometry](../affine-geometry.md#morphisms-over-a-base).
+[presented affine declarations](../affine-geometry.md#the-presented-profile).
 
 The standard library declares one smooth profile.
 `std::geometry::smooth::affine` declares the implementation `SmoothR`, the
@@ -132,9 +132,9 @@ dimension are different objects.
 
 `Affine(K, n)[g₁, …, gₙ]`, with a base `K`, is the algebraic spelling. It is
 the declaration `spec[g₁, …, gₙ] over K` of a presented object, and the rules
-of [presented objects](../affine-geometry.md#objects-and-bases) apply to it.
+of [presented affine objects](../affine-geometry.md#presented-affine-objects) apply to it.
 The other forms of `indexed affine` (`spec[…]`, `fiber(…)` and `localize(…)`)
-are in [presented affine geometry](../affine-geometry.md).
+are in [presented affine declarations](../affine-geometry.md#presented-affine-objects).
 
 Rules:
 
@@ -230,7 +230,7 @@ gives each target coordinate `yᵢ` of `Y` as a polynomial `pᵢ` in the source
 coordinates of `X`. It denotes the polynomial map x ↦ (p₁(x), …, pₘ(x)).
 `identity` is the identity map of `X`. The declaration defines a function of
 no operands: `f()` is the map, of type `Smooth<X, Y>`. The other definitions
-belong to [presented morphisms](../affine-geometry.md#morphisms-over-a-base).
+belong to [morphisms over a base](../affine-geometry.md#morphisms-over-a-base).
 
 Rules:
 
@@ -274,7 +274,8 @@ E_AFFINE_COORDINATE: unknown coordinate x
 >
 > ```text
 > PrimitiveDeclaration -> `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
-> PrimitiveBinding -> SmoothMapBinding | FiberBinding | ReverseBinding | MetricBinding
+> PrimitiveBinding -> RelativeBinding | SmoothMapBinding | FiberBinding
+>     | ReverseBinding | MetricBinding
 > SmoothMapBinding -> `smooth_compose` `(` Path `)`
 >     | `smooth_equal` `(` Path `)`
 >     | `smooth_composite` `(` Path `)`
@@ -288,7 +289,7 @@ a value of `S<P, X>`: a rational point of `X`. The primitive bindings of the
 `token`, `point` and `morphism` families are in
 [indexed source](../indexed-source.md#declarations-and-source-example), and
 the `relative_*` bindings are in
-[presented affine geometry](../affine-geometry.md#morphisms-over-a-base).
+[presented affine declarations](../affine-geometry.md#morphism-primitives).
 
 | Binding | Operands | Result | Value |
 | --- | --- | --- | --- |

@@ -68,6 +68,22 @@ A name without `::`. It resolves among the bindings in scope, the declarations
 and imports of the current module, and the built-in functions. See
 [Resolution](../language/names-and-paths.md#resolution).
 
+## Base chain
+
+The [presented affine object](#presented-affine-object) itself, its **base**,
+the base of that base, and so on. The base of an object is the object that
+its declaration names after `over`. A morphism over a base names an object
+on the base chains of its source and of its target. See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects)
+and the [guide](../guide/affine-geometry.md#objects-over-a-base).
+
+## Base isomorphism
+
+The two maps `via(…) inverse(…)` in the declaration of a
+[fiber product](#fiber-product) whose factors lie over two separately
+declared bases. The compiler checks that the maps are inverse to each other.
+See [Fiber products](../affine-geometry.md#fiber-products).
+
 ## Base object
 
 The object `Base(K)` over the coefficient marker `K`. The zero point
@@ -134,6 +150,14 @@ The word has two meanings:
    checker audits each primitive against the declared capabilities. See
    [Declarations and source example](../indexed-source.md#declarations-and-source-example).
 
+## Cartesian square
+
+An `indexed cartesian` declaration: the checked statement that the common
+source of two declared morphisms is a given [fiber product](#fiber-product).
+It names the inverse of the morphism into the fiber product. See
+[Cartesian squares](../affine-geometry.md#cartesian-squares) and the
+[guide](../guide/affine-geometry.md#the-fiber-over-a-point).
+
 ## Cell
 
 One element of an [allocation](#allocation): a binary64 number for `F64`, or
@@ -199,6 +223,13 @@ loan, and a contribution of the module that holds the generic's edit authority
 without a loan. See
 [Edit authority](../guide/modules-and-authority.md#edit-authority) and
 [Contributions](../language/edit-authority.md#contributions).
+
+## Coordinate ring
+
+The ring of a [presented affine object](#presented-affine-object): the
+polynomials in its **coordinates** with rational coefficients, modulo its
+**relations**. See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects).
 
 ## Core
 
@@ -401,7 +432,7 @@ markers, domains or natural numbers. `Point` and `Morphism` are families. See
 The presented affine object `fiber(X, Y)` of two presented affine objects over
 a common base. It is unrelated to a
 [tangent or cotangent fiber](#tangent-or-cotangent-fiber). See
-[Fiber products and base change](../affine-geometry.md#fiber-products-and-base-change).
+[Fiber products](../affine-geometry.md#fiber-products).
 
 ## Flat mode
 
@@ -509,6 +540,12 @@ The scalar involution of a linear implementation: the identity for real
 coefficients and complex conjugation for complex ones. `involution` declares
 a binding of it. See
 [Dual and conjugate spaces](../linalg/transforms-and-metrics.md#dual-and-conjugate-spaces).
+
+## Isomorphism
+
+An `indexed iso` declaration: the checked statement that two declared
+[morphisms over a base](#morphism-over-a-base) are inverse to each other. See
+[Isomorphisms](../affine-geometry.md#isomorphisms).
 
 ## Issuer
 
@@ -684,6 +721,16 @@ Method `a` is more specific than method `b` when its selectors are no
 broader, its requirements are no weaker, and one of these comparisons is
 strict. See [Selection](../stage1a.md#selection).
 
+## Morphism over a base
+
+A value of a [relative family](#relative-family), such as `Over<X, Y, S>`: a
+morphism from the [presented affine object](#presented-affine-object) `X` to
+`Y` that commutes with their [structure maps](#structure-map) to `S`. A
+declared morphism gives each coordinate of the target as a polynomial in the
+coordinates of the source. See
+[Morphisms over a base](../affine-geometry.md#morphisms-over-a-base) and the
+[guide](../guide/affine-geometry.md#morphisms-are-written-as-pullbacks).
+
 ## Network
 
 A graph of [occurrences](#occurrence) of numerical maps whose
@@ -714,6 +761,15 @@ matrix `G`. The kernel computes an inverse `B` of `G`, and it checks again that
 evidence. `sharp` requires nondegenerate evidence for its metric. See
 [Metric evidence](../language/smooth-declarations.md#metric-evidence) and the wire
 [metric forms](../protocol.md#protocol-9-metric-forms).
+
+## Normal form
+
+The canonical representative of a polynomial in the
+[coordinate ring](#coordinate-ring) of a presented affine object: its
+remainder on division by the reduced Gröbner basis of the relations. Two
+polynomials are equal in the coordinate ring exactly when their normal forms
+are equal. See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects).
 
 ## Numerical map
 
@@ -816,6 +872,18 @@ or the output of a map in a network, or one axis of a tensor in a contraction
 tree. See [Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
 
+## Presented affine object
+
+An object declared by `indexed affine` under an implementation with the
+`presented_affine` representation: `spec[…]` with coordinates and polynomial
+relations, a [fiber product](#fiber-product) or a
+[principal open](#principal-open). It stands for the affine scheme of its
+[coordinate ring](#coordinate-ring). Each declaration is one object. A
+presented affine object is distinct from a descriptor object and from a
+[smooth affine object](#smooth-affine-object). See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects)
+and the [guide](../guide/affine-geometry.md#objects-given-by-equations).
+
 ## Primitive
 
 An `indexed primitive` declaration. It binds a name, such as `origin` or
@@ -867,6 +935,13 @@ its operands, the relations between them and its result. A call of the
 binding allocates when the result is a fresh object. The argument hints and the
 [role table](#role-table) of the binding come from its shape. See
 [Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+
+## Principal open
+
+The presented affine object `localize(X, f) inverse u`: the open subset of
+`X` on which the polynomial `f` has the inverse `u`. See
+[Principal opens](../affine-geometry.md#principal-opens) and the
+[guide](../guide/affine-geometry.md#open-subsets).
 
 ## Private
 
@@ -940,6 +1015,13 @@ a `Bool` with the proof that they agree, its
 its [lowering](#lowering), its [shared literals](#shared-literal) and its
 [derivative rule](#derivative-rule). See
 [Add an indexed primitive](../development/primitives.md).
+
+## Relative family
+
+A [family](#family) with the `relative` representation, such as `Over`. Its
+application `Over<X, Y, S>` is the type of the
+[morphisms over a base](#morphism-over-a-base) from `X` to `Y` over `S`. See
+[The presented profile](../affine-geometry.md#the-presented-profile).
 
 ## Reserved name
 
@@ -1216,6 +1298,14 @@ spells them. See [Keywords](../language/lexical-structure.md#keywords).
 
 Text between double quotes. It is a token, but no construct accepts one. See
 [Other literals](../language/lexical-structure.md#other-literals).
+
+## Structure map
+
+The morphism from a [presented affine object](#presented-affine-object) to
+its base. `by(…)` in the declaration gives the image of each coordinate of
+the base. See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects)
+and the [guide](../guide/affine-geometry.md#objects-over-a-base).
 
 ## Tangent or cotangent fiber
 

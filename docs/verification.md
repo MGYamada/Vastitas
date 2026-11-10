@@ -1817,6 +1817,8 @@ the ideal formulas. No mathlib, custom axiom, numerical error bound, or native
 refinement claim is added. Native bit/cost and failure-preservation tests are
 separate evidence.
 
+<a id="presented-affine-geometry"></a>
+
 ## Exact affine algebra checker (Stage 2, #571)
 
 Stage 2's finite affine-geometry profile ([tracker](https://github.com/MGYamada/Vastitas/issues/571)) rests on an exact QQ polynomial core. It is internal for now: no source syntax or wire field reaches it until the protocol-9 surface lands.

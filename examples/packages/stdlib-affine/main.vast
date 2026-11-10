@@ -1,0 +1,115 @@
+// Presented affine geometry on the profile of the standard library: objects
+// given by coordinates and polynomial relations, and morphisms over a base.
+// Each observation has its own failure code, so `main` prints 42 only when
+// all of them hold.
+// ANCHOR: imports
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::Over;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+use std::geometry::scheme::affine::DualNumbers;
+use std::geometry::scheme::affine::compose;
+use std::geometry::scheme::affine::same;
+// ANCHOR_END: imports
+
+// ANCHOR: points
+// Two morphisms from the dual numbers to the line, and the point of the dual
+// numbers.
+indexed morphism p: Over<DualNumbers, Line, SpecQQ> = pullback(t -> e);
+indexed morphism q: Over<DualNumbers, Line, SpecQQ> = pullback(t -> 0);
+indexed morphism closed: Over<SpecQQ, DualNumbers, SpecQQ> = pullback(e -> 0);
+// ANCHOR_END: points
+
+// ANCHOR: coefficient
+// The coefficient of e in the image of t.
+indexed primitive eps = relative_coefficient(Over, DualNumbers, Line, t, e);
+// ANCHOR_END: coefficient
+
+// ANCHOR: composition
+indexed morphism sq: Over<Line, Line, SpecQQ> = pullback(t -> t^2);
+indexed morphism shift: Over<Line, Line, SpecQQ> = pullback(t -> t + 1);
+// The coefficient of t in the image of t.
+indexed primitive slope = relative_coefficient(Over, Line, Line, t, t);
+// ANCHOR_END: composition
+
+// ANCHOR: rational-points
+// A rational point of the line from an integer, and its coordinate.
+indexed primitive at = relative_int_point(Over, Line, SpecQQ);
+indexed primitive value = relative_coefficient(Over, SpecQQ, Line, t, 1);
+// ANCHOR_END: rational-points
+
+// ANCHOR: family
+// The curve x^2 = t lies over the line by (t, x) |-> t. The origin and a
+// double point lie over the line at t = 0.
+indexed affine Curve(AffineQQ) = spec[t, x] relations(x^2 - t) over Line by(t -> t);
+indexed affine Origin(AffineQQ) = spec[] over Line by(t -> 0);
+indexed affine DoublePoint(AffineQQ) = spec[e] relations(e^2) over Line by(t -> 0);
+indexed morphism toCurve: Over<DoublePoint, Curve, Line> = pullback(t -> 0, x -> e);
+indexed morphism curveToLine: Over<Curve, Line, Line> = structure;
+indexed morphism doubleToLine: Over<DoublePoint, Line, Line> = structure;
+// ANCHOR_END: family
+
+// ANCHOR: view
+// A morphism over the line is also a morphism over the base of the line. On
+// the curve t = x^2, so sq after curveToLine pulls t back to t^2 = x^4.
+indexed primitive overPoint = relative_view(Over, Line, SpecQQ);
+indexed morphism fourth: Over<Curve, Line, SpecQQ> = pullback(t -> x^4);
+// ANCHOR_END: view
+
+// ANCHOR: fiber
+// The fiber of the curve over the origin is the double point.
+indexed affine Fiber(AffineQQ) = fiber(Curve, Origin);
+indexed morphism toOrigin: Over<DoublePoint, Origin, Line> = pullback();
+indexed morphism fiberToCurve: Over<Fiber, Curve, Line> = first;
+indexed morphism back: Over<Fiber, DoublePoint, Line> = pullback(e -> Curve::x);
+indexed cartesian fiberIsDouble = square(toCurve, toOrigin) through Fiber inverse back;
+indexed primitive lift = relative_pair(Over, Fiber);
+// ANCHOR_END: fiber
+
+// ANCHOR: opens
+// The line without its origin, where t has the inverse u. Its preimage under
+// sq is the open where t^2 has an inverse.
+indexed affine Punctured(AffineQQ) = localize(Line, t) inverse u;
+indexed affine PuncturedSq(AffineQQ) = localize(Line, t^2) inverse v;
+indexed morphism sqOnOpens: Over<PuncturedSq, Punctured, SpecQQ> = restrict(sq);
+indexed primitive inverseImage = relative_coefficient(Over, PuncturedSq, Punctured, u, v);
+// ANCHOR_END: opens
+
+// ANCHOR: transition
+// On the punctured line, t |-> 1/t is its own inverse.
+indexed morphism invert: Over<Punctured, Punctured, SpecQQ> = pullback(t -> u, u -> t);
+indexed morphism stay: Over<Punctured, Punctured, SpecQQ> = identity;
+indexed iso inversion = forward invert inverse invert;
+// ANCHOR_END: transition
+
+// ANCHOR: helpers
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A coefficient reads n / d.
+fn reads(coefficient: Pair<Int>, n: Int, d: Int) -> Bool {
+    pair_first(coefficient) == n && pair_second(coefficient) == d
+}
+// ANCHOR_END: helpers
+
+// ANCHOR: main
+fn main() -> Int {
+    42 + verdict(!same(p(), q()), 1)
+       + verdict(same(compose(p(), closed()), compose(q(), closed())), 2)
+       + verdict(reads(eps(p()), 1, 1) && reads(eps(q()), 0, 1), 3)
+       // (t + 1)^2 = t^2 + 2t + 1, and t^2 + 1 has no term in t.
+       + verdict(reads(slope(compose(sq(), shift())), 2, 1), 4)
+       + verdict(reads(slope(compose(shift(), sq())), 0, 1), 5)
+       // sq sends the point 3 to the point 9.
+       + verdict(reads(value(compose(sq(), at(3))), 9, 1), 6)
+       // The triangle over the line commutes.
+       + verdict(same(compose(curveToLine(), toCurve()), doubleToLine()), 7)
+       // Over SpecQQ, sq after curveToLine is the morphism fourth.
+       + verdict(same(compose(sq(), overPoint(curveToLine())), fourth()), 8)
+       // The map into the fiber, followed by the projection, is toCurve.
+       + verdict(same(compose(fiberToCurve(), lift(toCurve(), toOrigin())), toCurve()), 9)
+       // On the opens, the inverse of t pulls back to the inverse of t^2.
+       + verdict(reads(inverseImage(sqOnOpens()), 1, 1), 10)
+       // Inverting twice is the identity.
+       + verdict(same(compose(invert(), invert()), stay()), 11)
+}
+// ANCHOR_END: main

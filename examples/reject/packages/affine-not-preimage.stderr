@@ -1,0 +1,1 @@
+examples/reject/packages/affine-not-preimage/main.vast:10:1: E_AFFINE_BASE: the source open is not the preimage of the target open

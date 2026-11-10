@@ -1,0 +1,9 @@
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::Line;
+
+// ANCHOR: declaration
+// The base has the coordinate t, and the declaration gives it no image.
+indexed affine Curve(AffineQQ) = spec[t, x] relations(x^2 - t) over Line;
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

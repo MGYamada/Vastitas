@@ -201,4 +201,5 @@ It does not implement coordinate rings, generalized points other than the
 points above, arbitrary algebraic or smooth maps, or a decision procedure for
 isomorphisms of schemes. Smooth affine geometry with coordinates, maps and
 covectors is in [Smooth affine declarations](smooth-declarations.md), and
-presented affine geometry in [Presented affine geometry](../affine-geometry.md).
+presented affine geometry in
+[Presented affine declarations](../affine-geometry.md).

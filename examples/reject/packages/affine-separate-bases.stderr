@@ -1,0 +1,1 @@
+examples/reject/packages/affine-separate-bases/main.vast:10:1: E_AFFINE_BASE: the fiber factors have different declared bases and no chosen isomorphism

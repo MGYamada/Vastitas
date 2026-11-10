@@ -1,0 +1,18 @@
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::Over;
+use std::geometry::scheme::affine::Line;
+
+indexed affine Curve(AffineQQ) = spec[t, x] relations(x^2 - t) over Line by(t -> t);
+indexed affine Origin(AffineQQ) = spec[] over Line by(t -> 0);
+indexed affine DoublePoint(AffineQQ) = spec[e] relations(e^2) over Line by(t -> 0);
+indexed morphism toCurve: Over<DoublePoint, Curve, Line> = pullback(t -> 0, x -> e);
+indexed morphism toOrigin: Over<DoublePoint, Origin, Line> = pullback();
+indexed affine Fiber(AffineQQ) = fiber(Curve, Origin);
+
+// ANCHOR: declarations
+// This map forgets x, so it does not invert the map into the fiber.
+indexed morphism collapse: Over<Fiber, DoublePoint, Line> = pullback(e -> 0);
+indexed cartesian bad = square(toCurve, toOrigin) through Fiber inverse collapse;
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

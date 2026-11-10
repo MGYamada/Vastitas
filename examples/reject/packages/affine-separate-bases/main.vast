@@ -1,0 +1,13 @@
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+
+// ANCHOR: declarations
+indexed affine Curve(AffineQQ) = spec[t, x] relations(x^2 - t) over Line by(t -> t);
+// A second line has the presentation of Line and is another object.
+indexed affine Line2(AffineQQ) = spec[t] over SpecQQ;
+indexed affine Origin2(AffineQQ) = spec[] over Line2 by(t -> 0);
+indexed affine Bad(AffineQQ) = fiber(Curve, Origin2);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

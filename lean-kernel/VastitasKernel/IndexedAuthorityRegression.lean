@@ -151,12 +151,38 @@ def repairedFixture : DispatchSource.Program := changeModule transferFixture bas
   (changeModule (changeModule transferFixture base [] fun m => { m with module := { m.module with
     abstractTypes := [⟨⟨"Arithmetic", [path "Number"], {}⟩, true⟩] } }) addon [] fun m =>
       { m with module := { m.module with subtypes := [⟨"Int", path "base::Arithmetic", {}⟩] } })
-#eval rejects "duplicate generic parameters independently validated" "E_DUPLICATE" {
+private def duplicateHeader : DispatchSource.Program := {
   file := "duplicate-header", root := app.source, extended := true, editable := true, authority := true,
   packages := [⟨app, [], [{ mod with
     functions := [fn "main" (block (num 0)) true],
     module := { mod.module with generics := [{
       name := "choose", params := [⟨"x", {}⟩, ⟨"x", {}⟩], domain := [], span := {}, isPublic := true }] } }], none⟩] }
+#eval rejects "duplicate generic parameters independently validated" "E_DUPLICATE" duplicateHeader
+
+/-- The rejection has this code and message, and neither the message nor a note
+holds an internal name (`Namespace.Owner.symbol`, `Namespace.localName`): a
+diagnostic names a declaration by its path and a binder as the source spells it. -/
+private def explains (name code message : String) (p : DispatchSource.Program) : IO Unit :=
+  match AuthoritySource.checkProgram p true with
+  | .ok _ => throw (IO.userError s!"indexed authority {name}: unexpectedly accepted")
+  | .error d =>
+    let texts := d.message :: d.notes.map (·.message)
+    unless d.code == code && d.message == message && texts.all (fun text => (text.splitOn "ns_").length == 1) do
+      throw (IO.userError s!"indexed authority {name}: expected {code}: {message}, got {d.code}: {texts}")
+#eval explains "a repeated generic parameter is named as written" "E_DUPLICATE"
+  "duplicate generic parameter 'x'" duplicateHeader
+#eval explains "an uncovered key names the generic by its path" "E_DISPATCH_COVERAGE"
+  "generic 'base::choose': declared domain key has no applicable method at key (Nat)"
+  (withEvents repairedFixture events)
+#eval explains "equal applied methods name the generic by its path" "E_DUPLICATE"
+  "generic 'base::choose': duplicate normalized method signature"
+  (withEvents (changeModule authorityFixture addon ["ops"] fun m => { m with contributions := m.contributions ++
+      [⟨"again", path "base::choose", [method "base::choose" "Int" (block (num 7))], {}, true⟩] })
+    (events.take 3 ++ [.apply ["addon", "ops", "again"] (some "child") {}] ++ events.drop 3))
+#eval explains "a call outside the domain names the generic by its path" "E_DISPATCH_DOMAIN"
+  "generic 'base::choose' does not admit call key (Bool)"
+  (changeModule authorityFixture app [] fun m =>
+    { m with functions := [fn "main" (block (call "base::choose" [.boolean true {}])) true] })
 
 private def orderedFixture (reverse : Bool) : DispatchSource.Program :=
   let p := changeModule authorityFixture base [] fun m => { m with module := { m.module with

@@ -64,8 +64,9 @@ def lookup (names : List String) (path : TypePath) : CheckM Nat := do
   if !names.contains path.name then fail path.span "E_NAME" s!"unknown abstract selector '{path.name}'"
   return names.idxOf path.name
 
+/-- `name` is how a note names a declaration: the identity for source names. -/
 def hierarchyDiagnostic (declarations : List RawAbstractType) (memberships : List RawSubtype)
-    (h : Dispatch.Hierarchy) (message : String) : Diagnostic := Id.run do
+    (h : Dispatch.Hierarchy) (message : String) (name : String → String := id) : Diagnostic := Id.run do
   let names := canonicalNames declarations
   for declaration in declarations do
     for parent in declaration.parents do
@@ -75,7 +76,7 @@ def hierarchyDiagnostic (declarations : List RawAbstractType) (memberships : Lis
           notes := declarations.filterMap fun other =>
             if h.subtype (names.idxOf declaration.name) (names.idxOf other.name) &&
                 h.subtype (names.idxOf other.name) (names.idxOf declaration.name) then
-              some { span := other.span, message := s!"'{other.name}' participates in this inheritance cycle" }
+              some { span := other.span, message := s!"'{name other.name}' participates in this inheritance cycle" }
             else none }
   for membership in memberships do
     let scalar := Dispatch.parseScalar membership.scalar |>.getD 0
@@ -84,11 +85,12 @@ def hierarchyDiagnostic (declarations : List RawAbstractType) (memberships : Lis
         code := "E_HIERARCHY", message, span := membership.span
         notes := declarations.filterMap fun declaration =>
           if h.subtype (names.idxOf membership.target.name) (names.idxOf declaration.name) then
-            some { span := declaration.span, message := s!"membership propagates through '{declaration.name}'" }
+            some { span := declaration.span, message := s!"membership propagates through '{name declaration.name}'" }
           else none }
   return { code := "E_HIERARCHY", message, span := (declarations.head?).map (·.span) |>.getD {} }
 
-def prepare (declarations : List RawAbstractType) (memberships : List RawSubtype) : CheckM Checked := do
+def prepare (declarations : List RawAbstractType) (memberships : List RawSubtype)
+    (name : String → String := id) : CheckM Checked := do
   let names := canonicalNames declarations
   if names.length > Limits.nominalTypes then
     fail ((declarations[Limits.nominalTypes - builtins.length]?).map (·.span) |>.getD {})
@@ -120,8 +122,8 @@ def prepare (declarations : List RawAbstractType) (memberships : List RawSubtype
   if valid : Dispatch.hierarchyValid h = true then
     if preserved : preservesBuiltins h = true then
       return { names, hierarchy := h, valid, preserved, concrete := rfl, facts := rfl }
-    else throw (hierarchyDiagnostic declarations memberships h "abstract declarations change a builtin subtype relation")
-  else throw (hierarchyDiagnostic declarations memberships h "abstract hierarchy contains a cycle or invalid nominal relation")
+    else throw (hierarchyDiagnostic declarations memberships h "abstract declarations change a builtin subtype relation" name)
+  else throw (hierarchyDiagnostic declarations memberships h "abstract hierarchy contains a cycle or invalid nominal relation" name)
 
 def selector (checked : Checked) (raw : RawType) (span : Span) : CheckM Nat :=
   match raw with

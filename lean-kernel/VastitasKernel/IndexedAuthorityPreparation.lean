@@ -30,6 +30,7 @@ def expandUnapplied {program : Program} (prepared : PreparedHeaders program) : N
       let normalized ← (Dispatch.normalizeMethod family.nominals.hierarchy family.raw.params.length
         { id := original.ordinal, selectors, requirements := method.requirements }).mapError fun error =>
           DispatchChecker.dispatchDiagnostic family.nominals (Surface.headers surface) family.raw error
+            (Namespace.sourceNames program.source.headers.indexed)
       let keys := family.checked.keys.filter (Dispatch.applicable family.nominals.hierarchy · normalized)
       if keys.isEmpty then Namespace.problem method.span "E_CAPABILITY" "unapplied method has no admitted concrete key"
       let ordinal := prepared.methods.size + methods.size

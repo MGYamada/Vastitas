@@ -192,7 +192,7 @@ mutual
           | .pure .nat => pure 0 | .pure .int => pure 1
           | .pure .bool => pure 2 | .pure .unit => pure 3
           | _ => error span "E_TYPE" "dispatch keys require Nat, Int, Bool or Unit"
-        let selected ← result (((DispatchChecker.selectTarget family key span).run {}).map Prod.fst)
+        let selected ← result (((DispatchChecker.selectTarget family key span resolved.owner.qualified).run {}).map Prod.fst)
         let some definition := input.dispatch.definitions[(selected.method, key)]?
           | error span "E_INTERNAL_DISPATCH" "winner has no checked source specialization"
         return ← emitCall input definition [] values [] span

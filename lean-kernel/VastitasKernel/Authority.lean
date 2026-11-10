@@ -389,7 +389,8 @@ def assemble (p : Indexed) : Result (Assembled p) := do
                 if sealed : state.edited.toList.all (state.sealed.contains ·) = true then
                   if authorized : DeclarationsAuthorized prepared state then
                     match completed : Edit.completeFamilies (finalSurface prepared state) with
-                    | .error error => throw error
+                    | .error error =>
+                      throw (sourceDiagnostic p (Edit.completeFamilies (finalSurface prepared state) ·) error)
                     | .ok families =>
                       if footprints : Edit.FootprintsAuthorized prepared.core state.core families then
                         match auditFrom : Edit.unappliedAudit prepared.core state.core families with

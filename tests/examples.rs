@@ -148,6 +148,7 @@ fn book_rejections_print_their_diagnostics() {
             expected,
             "{path}"
         );
+        common::assert_source_names(&expected);
         assert!(output.stdout.is_empty(), "{path}: no output on stdout");
     }
 }
@@ -175,6 +176,7 @@ fn book_rejected_packages_print_their_diagnostics() {
         }
         let expected = std::fs::read_to_string(root().join(format!("{directory}.stderr"))).unwrap();
         assert_eq!(stderr, expected, "{directory}");
+        common::assert_source_names(&expected);
     }
 }
 

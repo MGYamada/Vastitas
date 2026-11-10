@@ -13,13 +13,14 @@ has, and [Appendix B](../appendix/diagnostics.md) lists every code.
 
 ## Diagnostic lines
 
-A diagnostic has one of these forms:
+The lines of a diagnostic have these forms:
 
 ```text
 FILE:LINE:COLUMN: CODE: message
 FILE:LINE:COLUMN: note: message
 MANIFEST: E_MANIFEST: message
 CODE: message
+note: message
 ```
 
 | Form | Meaning |
@@ -28,6 +29,7 @@ CODE: message
 | `FILE:LINE:COLUMN: note: message` | A note of the diagnostic above it, with a place of its own |
 | `MANIFEST: E_MANIFEST: message` | A **manifest diagnostic**: an error in the text of the manifest `MANIFEST` |
 | `CODE: message` | A diagnostic without a place, about the command, an input as a whole or the build |
+| `note: message` | A note without a place. It follows the diagnostics of a run whose kernel does not match the compiler |
 
 Rules:
 
@@ -42,8 +44,9 @@ Rules:
 - A diagnostic with a place and each of its notes take one line.
 - A note belongs to the diagnostic above it. A note whose message begins with
   `help:` proposes a correction.
-- The message of a manifest diagnostic for invalid TOML takes several lines.
-  It quotes the line of the manifest, marks the error in it, and ends with an
+- The message of a manifest diagnostic that the TOML reader reports takes
+  several lines. This includes an unknown key, a missing key and a value of
+  the wrong type. It quotes the line of the manifest, marks the error in it, and ends with an
   empty line.
 - The message of a diagnostic without a place can continue on further lines.
   The usage of the command follows the `E_USAGE` of an invalid command line.
@@ -92,7 +95,7 @@ Rules:
   gives. A diagnostic in an inline module names the file that holds the
   module. `MANIFEST` in a manifest diagnostic is the absolute path of the
   manifest.
-- Where a reader may expect another place, the chapter of the construct says
+- Where a reader could expect another place, the chapter of the construct says
   which construct a diagnostic points to. Examples are
   [Static targets](../stage1b.md#static-targets) and the
   [diagnostics of resource programs](../storage/resource-programs.md#diagnostics).
@@ -137,6 +140,16 @@ Rules:
   at this place. It reports an invalid
   [function type](types.md#function-types) there too, in the programs that
   the rule of function types names.
+- The compiler reports two errors of a signature at this place (`E_TYPE`).
+  One is a type of the
+  [core geometry syntax](../indexed-source.md#core-geometry-syntax) in a
+  program without an export. The other is an integer literal as an argument
+  of an indexed type at a parameter that is not `natural`. The same errors in
+  a body have the place of their expression.
+- Two limits have this place (`E_LIMIT`): the number of indexed declarations
+  of a program, and the budget of name resolution.
+- The rules above name the cases that the chapters of the Reference state.
+  Another diagnostic of the checker can have this place.
 
 The function `main` of this package has a parameter. The diagnostic names the
 manifest of the package, not the function:
@@ -217,10 +230,9 @@ Rules:
   and parses the packages that a package depends on before the modules of
   that package.
 - Phase 3 reports every error of names and scopes that it finds. It reports
-  the items whose names repeat first. The errors inside functions follow, in
-  the order of the functions and then of the methods that hold them. One
-  cycle of calls (`E_RECURSION`) comes last. These diagnostics are not sorted
-  by place.
+  the errors of the declarations of items first, such as items whose names
+  repeat. The errors inside functions and methods follow. One cycle of calls
+  (`E_RECURSION`) comes last. These diagnostics are not sorted by place.
 - Manifest mode has no phase 3. The checker resolves the names of a package
   and reports one diagnostic.
 - The checker does not visit the items of a program in the order of the
@@ -247,9 +259,9 @@ This program has three errors of names, and one run reports them all:
 
 > **Implementation note.** The kernel returns one diagnostic for a rejected
 > request. The frontend reports the errors of phases 1 to 3 itself, and the
-> kernel checks the rules of phase 3 again. When the kernel comes from other
-> sources than the compiler, the driver adds a note without a place after the
-> diagnostic, as [Appendix A](../guide/cli.md) describes.
+> kernel checks the rules of phase 3 again. When the kernel does not match
+> the compiler, the driver adds a note without a place after the diagnostics.
+> The note says that they may come from a stale or foreign kernel.
 
 ## Exit status
 
@@ -275,7 +287,7 @@ Rules:
 
 - A run-time diagnostic has a code that begins with `E_NATIVE_` or
   `E_RUNTIME_`. [Appendix B](../appendix/diagnostics.md#native-runtime) lists
-  the messages.
+  the codes of the native runtime.
 - An executable that stops with a run-time diagnostic writes nothing to
   standard output and exits with an unsuccessful status.
 - An executable that ends without one prints its result and exits with
@@ -293,8 +305,11 @@ of the Reference gives the code of its error with the words of
 
 Rules:
 
-- The Reference specifies the code of every error and, where a chapter says
-  so, its place.
+- The Reference specifies the code of each error that a rule states and,
+  where a chapter says so, its place.
+- [Appendix B](../appendix/diagnostics.md) lists every code by the component
+  that reports it, including the codes that no rule of the Reference states,
+  such as the codes of the kernel's audits of its own results.
 - The Reference does not specify the text of a message or of a note. The text
   explains the error to a reader, and it can differ between versions of the
   compiler. The tests of the repository compare the diagnostics that this
@@ -306,9 +321,10 @@ Rules:
 
 ## Classes of codes
 
-The codes form classes by the construct whose rules they report. Each class
-has its rules in the chapters of the last column, and
-[Appendix B](../appendix/diagnostics.md) lists the codes of each class.
+The codes of the rules of the Reference form classes by the construct whose
+rules they report. Each class has its rules in the chapters of the last
+column. [Appendix B](../appendix/diagnostics.md) lists all codes, by the
+component that reports them.
 
 | Class | Codes | Reports | Rules |
 | --- | --- | --- | --- |
@@ -319,18 +335,20 @@ has its rules in the chapters of the last column, and
 | Dispatch | The codes that begin with `E_DISPATCH_` or `E_CONTRACT_`, `E_CAPABILITY`, `E_HIERARCHY` | A generic without one best method at a key, and invalid abstract types and abstract methods | [Generics and dispatch](../stage1a.md) |
 | Authority | `E_OWNER`, `E_BORROW`, `E_ASSEMBLY`, `E_IMPACT`, `E_PROVENANCE` | An edit of a generic that its owner did not permit, and an invalid assembly | [Edit authority](edit-authority.md) |
 | Declarations | The codes that begin with `E_AFFINE_`, `E_SMOOTH`, `E_METRIC` | An invalid `indexed` declaration of geometry | [Indexed declarations](../indexed-source.md), [Presented affine declarations](../affine-geometry.md), [Smooth affine declarations](smooth-declarations.md) |
-| Resources | The codes that begin with `E_RESOURCE_` | A resource function that breaks a rule on owners, loans, access, initialization or payloads | [Resource programs](../storage/resource-programs.md) |
+| Resources | The codes that begin with `E_RESOURCE_`, apart from `E_RESOURCE_LIMIT` | A resource function that breaks a rule on owners, loans, access, initialization or payloads | [Resource programs](../storage/resource-programs.md) |
 | Numerical | The codes that begin with `E_NUMERICAL_` or `E_TENSOR`, `E_NETWORK` | A numerical statement whose spaces, bases, metrics or ports do not fit | [Numerical maps](../linalg/maps-and-gemm.md) and the two chapters after it |
 | Runtime | The codes that begin with `E_RUNTIME_` or `E_NATIVE_` | A rule on runtime extents that the compiler decides, and a [run-time diagnostic](#run-time-diagnostics) of an executable | [Runtime extents](../storage/resource-programs.md#runtime-extents), [Running a resource program](../storage/resource-programs.md#running-a-resource-program) |
 | Limits | `E_LIMIT`, `E_RESOURCE_LIMIT` | A program beyond a limit of the compiler | [Limits](limits.md) |
 | Protocol | `E_PROTOCOL`, `E_ARGUMENT`, `E_CODEGEN` and the codes that begin with `E_INTERNAL_` | A request of the [wire protocol](../appendix/glossary.md#wire-protocol) that breaks a rule of the protocol, and a failed audit of the checker's own result | [Wire protocols](../protocol.md), [Verification boundaries](../verification.md) |
-| Input and output | `E_USAGE`, `E_INPUT`, `E_MANIFEST`, `E_LIBRARY`, `E_OUTPUT`, `E_INTERRUPTED` | A command line, an input file, a manifest or an output path that the compiler cannot use, and an interrupted run | [Programs](programs.md), [Packages](../packages.md), [Appendix A](../guide/cli.md) |
+| Input and output | `E_USAGE`, `E_INPUT`, `E_MANIFEST`, `E_LIBRARY`, `E_OUTPUT`, `E_INTERRUPTED` | A command line, an input file, a manifest or an output path that the compiler cannot use, and an interrupted run | [Source text](lexical-structure.md#source-text), [Modules](modules.md), [Programs](programs.md), [Packages](../packages.md), [Appendix A](../guide/cli.md) |
 | Build | `E_BACKEND`, `E_BUILD` | A kernel or a native build that is missing, does not match the compiler or fails | [Appendix A](../guide/cli.md) |
 
 Rules:
 
-- A code of the classes Input and output and Build reports a property of the
-  command and of its environment, not of the program.
+- A code of the class Build reports a property of the command and of its
+  environment, not of the program. A code of the class Input and output
+  reports a file or a path that the compiler cannot use. Some of its rules
+  are rules on a program, such as the rules on the file of a module.
 - The rules of the Reference give a code of the class Protocol for a source
   program only where the chapter of a construct says so.
 - A code of the class Runtime with the prefix `E_NATIVE_` appears only in a

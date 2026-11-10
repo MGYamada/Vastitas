@@ -2,14 +2,21 @@
 
 A **guarantee** is a property that every program that the compiler accepts
 has, or that every run of the compiler has. The compiler **accepts** a
-program when `vastitas check` or `vastitas build` reports no
-[diagnostic](diagnostics.md) for it. This chapter states the guarantees of the
+program when `vastitas check` reports no [diagnostic](diagnostics.md) for it.
+`vastitas build` checks the same rules, needs an
+[entry point](programs.md#the-entry-point) and then builds the executable. This chapter states the guarantees of the
 language as rules. Each section then says what backs its rules, with the
 status words Implemented, Tested, Proved and Planned of the
 [Introduction](../index.md#what-exists-today), and links the chapter that
 holds the evidence. A rule is a guarantee only as far as that evidence
 reaches. [Verification boundaries](../verification.md) states what each
 theorem assumes, and this chapter changes none of those statements.
+
+Two groups of guarantees stay with their constructs.
+[Selection](../stage1a.md#selection) says that every call of a generic has
+one best method, and [Edit authority](edit-authority.md) says which
+declarations may add a method to a generic.
+[Verification boundaries](../verification.md) holds their evidence.
 
 ## What acceptance means
 
@@ -20,7 +27,7 @@ program differ in what backs them, and the book keeps them apart.
 | Statement | What it says | What backs it |
 | --- | --- | --- |
 | Checker acceptance | The program breaks no rule that the checker enforces | The checker: Implemented, and Tested by the regressions of each construct |
-| Mathematical meaning | A construct denotes the mathematical object that its chapter describes | Proved for the properties that a theorem states, under its premises. A [specification](../specifications.md) lists such a property with a Proved claim. Nothing else is claimed |
+| Mathematical meaning | A construct denotes the mathematical object that its chapter describes | Proved for the properties that a theorem states, under its premises. [Verification boundaries](../verification.md) states the theorems, and the [specifications](../specifications.md) record some of them as Proved claims. Nothing else is claimed |
 | Floating-point behaviour | The values that an executable computes in binary64 arithmetic | Not guaranteed, apart from the rules of [Floating-point values](#floating-point-values) |
 | Native refinement | The executable computes what the checked program denotes | Not Proved. Tested by the executables that the tests build and run |
 
@@ -36,14 +43,17 @@ checker, and it generates the code.
 
 Rules:
 
-- The checker enforces the rules of the Reference that give a code, as
+- The compiler enforces the rules of the Reference that give a code, as
   [Rules](notation.md#rules) defines. A program that breaks such a rule is
   not accepted, unless the rule says that the executable checks it at run
   time.
+- The frontend enforces the rules on source text, files and manifests. The
+  kernel enforces every rule on names, types, dispatch, authority and
+  resources, including a rule that the frontend reports first.
 - Acceptance does not say that a program computes what its author intends.
 - Acceptance says that a mathematical property holds only where a theorem
-  states the property, under the premises of the theorem. A specification
-  records such a property with a Proved claim.
+  states the property, under the premises of the theorem. The
+  specifications record some of these properties as Proved claims.
   [Metric evidence](../spec/metric-evidence.md) is an example.
 - The language formalizes no general theory of schemes or of smooth
   manifolds. Acceptance certifies no numerical accuracy and no physical
@@ -51,8 +61,8 @@ Rules:
 - A theorem about an accepted program is a theorem about the request that the
   kernel checks, or about the program that the kernel builds from it.
 
-The evidence: that the checker enforces each rule is Implemented and Tested.
-The frontend writes the request from the source files, and that this request
+The evidence: the enforcement of the rules is Implemented, and Tested for
+the rules that the regressions exercise. The frontend writes the request from the source files, and that this request
 is the program that the source denotes is Tested, not Proved. The
 [assumption registry](../spec/assumptions.md) lists the trusted components.
 Among them are the Rust frontend, the Lean compiler and the C compiler, the
@@ -77,14 +87,16 @@ Rules:
   give these rules.
 - The kernel trusts no name, identity or annotation of the request. It
   resolves every name, assigns every identity and checks every body itself.
-- The kernel generates code from the program that it checked, and it checks
-  that program again before it generates.
+- The kernel generates code from the program that it checked. Before it
+  returns code, the generator of pure code checks the types of the
+  [Core](../appendix/glossary.md#core) module again, and the generator of
+  storage code audits the schedule again.
 - A `build` that fails leaves an existing output file as it was. Compilation
   never runs the generated program.
 
 The evidence: Implemented, and Tested by the tests of the driver and of the
-kernel. Proved: each code generator of the kernel repeats the check of the
-module that it receives, and it returns code only when that check succeeds.
+kernel. Proved: a code generator of the kernel returns code only when the
+check that it repeats on its input succeeds.
 [Current public checker routes](../verification.md#current-public-checker-routes)
 names the entry points, and
 [What is outside these claims](../verification.md#what-is-outside-these-claims)
@@ -102,8 +114,8 @@ commands.
 Rules:
 
 - The evaluation of every function of an accepted program ends, for every
-  argument. The language has no loops, and a cycle of calls is an error
-  (`E_RECURSION`). [Calls](functions.md#calls),
+  argument. The language has no loops, and a cycle of calls is an error.
+  [Calls](functions.md#calls),
   [Selection](../stage1a.md#selection) and
   [Specialization](../stage1b.md#specialization) give this rule for
   functions, for generics and for function values.
@@ -114,7 +126,7 @@ Rules:
   [Static targets](../stage1b.md#static-targets) says.
 - A resource function has no loops. An executable runs its statements in
   order, each at most once for each call of the function. A cycle of calls
-  of resource functions is an error (`E_RESOURCE_RECURSION`), as
+  of resource functions is an error, as
   [Resource functions](../storage/resource-programs.md#resource-functions)
   says.
 - Termination is no bound on the time, the memory or the stack of a run.
@@ -140,9 +152,9 @@ Rules:
   value of type `Nat` is negative.
 - A value of type `Nat` becomes a value of type `Int` only through `int`, and
   no function converts back.
-- A program that changes these integers into machine integers does not meet
-  the performance goal, as [Fast like C](../storage-ownership.md#fast-like-c)
-  says.
+- An implementation that changes these integers into machine integers does
+  not meet the performance goal, as
+  [Fast like C](../storage-ownership.md#fast-like-c) says.
 
 This program subtracts 5 from the `Nat` value 2 and compares the result with
 0. Its executable prints `-42`:
@@ -197,10 +209,10 @@ Rules:
 The evidence: Implemented and Tested. The rules on copies and allocations
 are rules of [Storage and ownership](../storage-ownership.md) on the
 compiler, and that chapter says that such a rule is not evidence. Proved:
-the operation that the checker schedules for a network or for an evaluation
-holds no conjugation that the source does not name. Also Proved: a
-declaration of a metric changes neither the validity nor the value of an
-operation that names no metric. [What is outside these claims](../verification.md#what-is-outside-these-claims)
+the request that the checker schedules for a network or for an evaluation has
+the conjugation flags of its operands. Also Proved, for smooth declarations:
+a declaration of a metric changes neither the validity nor the value of a
+primitive other than `flat` and `sharp`. [What is outside these claims](../verification.md#what-is-outside-these-claims)
 and [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
 state these theorems. They are facts about the checked program, not laws of
 the arithmetic that a native routine performs.
@@ -253,17 +265,19 @@ through every resource function.
 Rules:
 
 - A statement reads a cell only after a statement on every path to it wrote
-  the cell (`E_RESOURCE_INIT`).
-- Two live loans whose views may overlap are both `read` loans
-  (`E_RESOURCE_ALIAS`). A loan and its children are the exception: while a
-  child is live, its parent gives no access.
+  the cell.
+- Two live loans whose views may overlap are both `read` loans. A loan and
+  its children are the exception: while a child is live, its parent gives no
+  access.
 - No loan outlives the function that borrowed it, and no loan leaves a
   function through a result. The checker rejects every escaping loan, as
   [Ownership and explicit transitions](../storage-ownership.md#ownership-and-explicit-transitions)
   says.
 - A program frees every allocation once. At the end of a function, the body
   has dropped each owner, moved it, handed it to a call or returned it as an
-  owned result (`E_RESOURCE_ESCAPE`).
+  owned result.
+- [Resource statements](../storage/resource-programs.md#resource-statements)
+  gives the error of a program that breaks one of these rules.
 - The checker treats views that may overlap as overlapping, and it rejects
   some programs whose accesses are disjoint.
   [Resource statements](../storage/resource-programs.md#resource-statements)
@@ -282,7 +296,7 @@ This program writes one column of a view and then reads both:
 The evidence: Implemented and Tested. Four facts are Proved for the model of
 storage that the checker keeps. The bytes of every accepted access lie in its
 allocation. An accepted read finds initialized bytes. Two live loans of which
-one writes do not overlap. At the end of an accepted entry point the model
+one writes do not overlap, apart from a loan and its live children. At the end of an accepted entry point the model
 holds no allocation and no loan.
 [What is outside these claims](../verification.md#what-is-outside-these-claims)
 states the theorems, and
@@ -294,7 +308,7 @@ and tests exercise them.
 ## Run-time checks
 
 A **run-time check** is a check that an executable makes on values that the
-compiler does not know.
+compiler does not know, and whose failure stops the executable.
 
 Rules:
 
@@ -313,12 +327,12 @@ Rules:
   frees its allocations, as
   [Running a resource program](../storage/resource-programs.md#running-a-resource-program)
   says.
-- A program without resource functions has no run-time checks.
 
 The evidence: Implemented, and Tested by executables whose checks fail.
 [Resource checking](../internals/resource-checking.md#runtime-extent-proof-boundary)
-states what is Proved about the conditions on runtime extents. No theorem
-covers the native runtime that makes the checks.
+states what is Proved about the conditions on runtime extents, including the
+agreement of the runtime's Lean helpers with the checker on the layout
+conditions. No theorem covers the C code of the runtime.
 
 ## Determinism
 

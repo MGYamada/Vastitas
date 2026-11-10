@@ -21,8 +21,8 @@ See [Abstract types](../stage1a.md#abstract-types) and the
 
 ## Accept
 
-The compiler accepts a program when `vastitas check` or `vastitas build`
-reports no [diagnostic](#diagnostic) for it. Acceptance says that the program
+The compiler accepts a program when `vastitas check` reports no
+[diagnostic](#diagnostic) for it. Acceptance says that the program
 breaks no rule that the checker enforces; it is not
 [native refinement](#native-refinement). See
 [What acceptance means](../language/guarantees.md#what-acceptance-means).
@@ -165,14 +165,6 @@ The word has two meanings:
    checker audits each primitive against the declared capabilities. See
    [Implementations](../indexed-source.md#implementations).
 
-## Case
-
-One alternative of an `indexed package` declaration, `case(D, K) { … }`. It
-declares the type `P<D, K>` of the [existential packages](#existential-package)
-whose [witness type](#witness-type) is `Object<D, K>`, and it lists their
-[fields](#field). See
-[Existential packages](../indexed-source.md#existential-packages).
-
 ## Cartesian square
 
 An `indexed cartesian` declaration: the checked statement that the common
@@ -181,11 +173,27 @@ It names the inverse of the morphism into the fiber product. See
 [Cartesian squares](../affine-geometry.md#cartesian-squares) and the
 [guide](../guide/affine-geometry.md#the-fiber-over-a-point).
 
+## Case
+
+One alternative of an `indexed package` declaration, `case(D, K) { … }`. It
+declares the type `P<D, K>` of the [existential packages](#existential-package)
+whose [witness type](#witness-type) is `Object<D, K>`, and it lists their
+[fields](#field). See
+[Existential packages](../indexed-source.md#existential-packages).
+
 ## Cell
 
 One element of an [allocation](#allocation): a binary64 number for `F64`, or
 two for `Complex<F64>`. See
 [Storage types](../storage/resource-programs.md#storage-types).
+
+## Checker
+
+The part of the compiler that decides whether a program breaks a rule of the
+Reference: the [kernel](#kernel). The [frontend](#frontend) reports the errors
+of source text, files and manifests, and some errors of names, which the
+kernel checks again. See
+[What acceptance means](../language/guarantees.md#what-acceptance-means).
 
 ## Child
 
@@ -224,8 +232,8 @@ that it classifies. A child's domain lies inside each parent's domain. See
 ## Code
 
 The name of the kind of error that a [diagnostic](#diagnostic) reports, such
-as `E_TYPE`. The Reference specifies the code of every error and not the text
-of its message. See [Codes](../language/diagnostics.md#codes) and
+as `E_TYPE`. The Reference specifies the code of each error that a rule
+states, and not the text of its message. See [Codes](../language/diagnostics.md#codes) and
 [Appendix B](diagnostics.md).
 
 ## Compiled reverse Core
@@ -1228,7 +1236,8 @@ entry point and the assembly of the program. See
 ## Run-time check
 
 A check that an executable makes on values that the compiler does not know,
-such as an `expect` statement or a condition on [extents](#extent). See
+and whose failure stops the executable. Examples are an `expect` statement
+and a condition on [extents](#extent). See
 [Run-time checks](../language/guarantees.md#run-time-checks).
 
 ## Run-time diagnostic

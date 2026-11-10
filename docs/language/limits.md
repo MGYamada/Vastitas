@@ -5,7 +5,7 @@ the work of checking it. The limits keep every check finite. They are bounds
 of the implementation, not of the mathematics that a program describes. This
 chapter gives the rules that hold for every limit. The chapter of a construct
 states the limits that the construct meets in ordinary use, and
-[Appendix D](../appendix/limits.md) lists every limit with its value.
+[Appendix D](../appendix/limits.md) lists the limits with their values.
 
 ## Kinds of limits
 
@@ -15,7 +15,7 @@ states the limits that the construct meets in ordinary use, and
 | Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements of resource functions | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_TYPE` for the parts of one `indexed` declaration |
 | Size of a number | The digits or the bits of a number that the checker computes with | A literal of a polynomial expression, an entry of a Gram matrix, an integer of a storage type | `E_LIMIT`; `E_RESOURCE_LIMIT` for an integer of a storage type |
 | Size of data | The bytes of an input or of an allocation | One input file, all inputs of a program, one allocation | `E_LIMIT` for inputs; `E_RESOURCE_OVERFLOW` for an allocation |
-| Work budget | The units of work of one check | The elaboration of a program, the dispatch table of a generic, the resolution of names, the checking of resource functions, the exact algebra of a declaration | `E_LIMIT` |
+| Work budget | The units of work of one check | The elaboration of a program, the dispatch table of a generic, the resolution of names, the checking of resource functions, the exact algebra of a declaration | `E_LIMIT`; `E_RESOURCE_LIMIT` for the expansion of resource calls |
 | Depth of checking and of calls | The length of one path of the checker through a body, and of a chain of calls of resource functions | A long list of statements in one function, resource functions that call each other in a chain | `E_LIMIT` for a body; `E_RESOURCE_LIMIT` for calls of resource functions |
 
 A **work budget** counts units of work that the checker defines, such as the
@@ -32,9 +32,12 @@ Rules:
   parameters, the calls or the integers of resource functions is an error
   (`E_RESOURCE_LIMIT`).
   [Resource functions](../storage/resource-programs.md#resource-functions) and
-  [Storage types](../storage/resource-programs.md#storage-types) give these
-  limits. The work budget of the checking of resource functions has the code
-  `E_LIMIT`, like every other work budget.
+  [Storage types](../storage/resource-programs.md#storage-types) give the
+  limits on statements, `value` blocks and integers. A resource function also
+  has a limit on its parameters and results, and a chain of calls of resource
+  functions has a limit on its depth. The work budget of the checking of
+  resource functions has the code `E_LIMIT`, and the budget of the expansion
+  of resource calls has the code `E_RESOURCE_LIMIT`.
 - [Storage types](../storage/resource-programs.md#storage-types) gives the
   codes for an allocation and for a layout beyond their largest sizes, and
   [Spaces and bases](../linalg/maps-and-gemm.md#spaces-and-bases) the code
@@ -52,12 +55,16 @@ Rules:
   rejected program produces no executable.
 - A limit holds for the whole program. The checker checks every body, even
   one that no call reaches, and each of these checks counts.
-- The diagnostic points to the construct that exceeds the limit. For a
-  nesting limit this is the token that is nested too deeply. For a count or
-  a budget it is the declaration, the function or the statement that exceeds
-  it. A diagnostic for a limit on the inputs as a whole has no place, as
+- The diagnostic of most limits points to the construct that exceeds the
+  limit. For a nesting limit this is the token that is nested too deeply. For
+  a count or a budget it is the declaration, the function or the statement
+  that exceeds it.
+- Some limit diagnostics point to no construct. A diagnostic for a limit on
+  the inputs as a whole, or on a chain of package dependencies, has no place.
+  The diagnostics for the number of indexed declarations and for the budget
+  of name resolution have the place `FILE:1:1`.
   [Diagnostics](diagnostics.md#diagnostics-without-a-place-of-their-own)
-  describes.
+  describes both forms.
 
 This expression stands inside 64 pairs of parentheses, one more than the
 nesting limit admits there:
@@ -90,8 +97,8 @@ These limits do not follow from the length of the source.
 
 Rules:
 
-- The compiler decides the source limits before the checker runs. It
-  rejects a program beyond one without checking it.
+- The compiler decides the limits on nesting and on the inputs before the
+  checker runs. It rejects a program beyond one of them without checking it.
 - A generic with `n` parameters has 4ⁿ keys, one for each tuple of the four
   scalar types. The limit on keys therefore admits six parameters, as
   [Generic declarations](../stage1a.md#generic-declarations) says.
@@ -125,8 +132,9 @@ Rules:
   literal, as [Scalar types](types.md#scalar-types) and
   [Integer literals](lexical-structure.md#integer-literals) say. The limits on
   the size of a number hold only where a chapter gives one.
-- The limits do not bound the number of functions of a program or the length
-  of a chain of calls between functions. The input limits bound both.
+- No limit counts the functions of a program or the calls of a chain of calls
+  between functions. The work budgets of the whole program bound both,
+  because every function uses units of work.
 - The limits do not bound the time that a check takes or the memory that it
   uses. A work budget bounds the units of one kind of work.
 
@@ -172,7 +180,7 @@ Rules:
 > when they are built. The limits on the inputs are constants of the
 > frontend. The executable checks the sizes of the 64-bit native profile.
 
-## Limits that reject nothing
+## Bounds that reject nothing
 
 Some bounds of the compiler change what it does for a program and reject no
 program.

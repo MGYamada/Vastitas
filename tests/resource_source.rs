@@ -819,14 +819,8 @@ fn resource_source_keeps_nonwinning_pure_bodies_and_library_entry_rules() {
         "pure-kernel/lean-toolchain",
         include_str!("../lean-kernel/lean-toolchain"),
     );
-    s.write(
-        "pure-kernel/lakefile.toml",
-        "name = \"vastitas_kernel\"\n[[lean_lib]]\nname = \"VastitasKernel\"\n",
-    );
-    s.write(
-        "pure-kernel/VastitasKernel/IndexedRuntime.lean",
-        include_str!("../lean-kernel/VastitasKernel/IndexedRuntime.lean"),
-    );
+    common::copy_runtime_inputs(&runtime, false, false);
+    assert!(!runtime.join("native").exists());
     let executable = s.0.join("pure-program");
     success(
         &cli()

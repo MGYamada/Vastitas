@@ -36,7 +36,7 @@ codes come from the lexer, parser and lexical resolver.
 | `E_LIBRARY` | A flat-mode `--lib` library declares `main`, which only the entry file may do |
 | `E_OUTPUT` | The `-o` path is unusable, for example not a regular file or an alias of an input |
 | `E_BACKEND` | The kernel cannot be located or started, or reports a build identity other than this compiler's (`incompatible kernel`) |
-| `E_BUILD` | The native build cannot be prepared or fails, including a missing `--openblas-prefix` |
+| `E_BUILD` | The native build cannot be prepared or fails, including a missing `--openblas-prefix` and a kernel root whose runtime files differ from the compiler's |
 | `E_INTERRUPTED` | A signal cancelled the compilation |
 | `E_LEX`, `E_PARSE`, `E_UNSUPPORTED` | The source cannot be tokenized or parsed, or uses unimplemented syntax |
 | `E_RESOURCE_LITERAL` | A resource payload such as `f64(0.1)` is not an exact binary64 value ([rule](../storage/resource-programs.md#payloads)) |

@@ -1,5 +1,6 @@
 //! Host driver. Semantic acceptance always comes from the Lean backend.
 use crate::ir::Span;
+use crate::runtime_inputs::{self, ABSENT, Package};
 use crate::sources::Sources;
 use serde_json::{Value, json};
 use std::ffi::{OsStr, OsString};
@@ -273,7 +274,8 @@ const MAX_BACKEND_RESPONSE: usize = 256 * 1024 * 1024;
 
 /// Every kernel response reports the digest of the Lean sources it was compiled
 /// from and its Lean version. Protocol numbers stay fixed across releases, so
-/// only this identity ties the checker to this driver and its runtime sources.
+/// only this identity ties the checker to this driver. It says nothing about
+/// the root that a native build compiles; see `verify_runtime_inputs`.
 fn kernel_identity_problem(response: &Value) -> Option<String> {
     let identity = response.get("kernel");
     let field = |name| {
@@ -681,6 +683,95 @@ fn check_lean_version(directory: &Path, toolchain: &str) -> Result<(), String> {
     ))
 }
 
+/// Generated programs import only the runtime modules of the selected
+/// packages, so `verify_runtime_inputs` covers every module that Lake compiles
+/// for them. A response that imports any other module is refused.
+fn check_generated_imports(
+    source: &str,
+    selected: &[(&Package, &[(&str, &str)])],
+) -> Result<(), String> {
+    for module in runtime_inputs::header_imports(source) {
+        if !selected
+            .iter()
+            .any(|(package, _)| package.modules.contains(&module.as_str()))
+        {
+            return Err(format!(
+                "E_PROTOCOL: the generated program imports {module}, which is not a runtime module that this compiler verifies for this build"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The identity check ties the kernel executable to this compiler, but Lake
+/// compiles the runtime from the files of the selected root. A stale
+/// executable in a changed tree passes that check, and so does `VASTITAS_KERNEL`
+/// with another root. Digest the files that Lake reads for `package` and
+/// compare them with the ones this compiler was built from (the `build.rs`
+/// table), never with a value that the root states about itself.
+fn verify_runtime_inputs(
+    kernel_root: &Path,
+    package: &Package,
+    expected: &[(&str, &str)],
+) -> Result<(), String> {
+    let directory = package.directory_in(kernel_root);
+    let name = package.name;
+    let found = runtime_inputs::inputs(&directory, package).map_err(|error| {
+        format!(
+            "E_BUILD: cannot read the {name} inputs in {}: {error}",
+            directory.display()
+        )
+    })?;
+    let found: Vec<(&str, &str)> = found
+        .iter()
+        .map(|(path, digest)| (path.as_str(), digest.as_str()))
+        .collect();
+    if found == expected {
+        return Ok(());
+    }
+    fn digest_in<'a>(inputs: &[(&str, &'a str)], path: &str) -> &'a str {
+        inputs
+            .iter()
+            .find(|(name, _)| *name == path)
+            .map_or(ABSENT, |(_, digest)| *digest)
+    }
+    let mut paths: Vec<&str> = found
+        .iter()
+        .chain(expected)
+        .map(|(path, _)| *path)
+        .collect();
+    paths.sort_unstable();
+    paths.dedup();
+    let differing: Vec<String> = paths
+        .into_iter()
+        .filter_map(
+            |path| match (digest_in(&found, path), digest_in(expected, path)) {
+                (found, expected) if found == expected => None,
+                (ABSENT, _) => Some(format!("{path} (missing)")),
+                (_, ABSENT) => Some(format!("{path} (unexpected)")),
+                _ => Some(format!("{path} (changed)")),
+            },
+        )
+        .collect();
+    const LISTED: usize = 6;
+    let more = differing.len().saturating_sub(LISTED);
+    let mut list = differing[..differing.len() - more].join(", ");
+    if more > 0 {
+        list.push_str(&format!(" and {more} more"));
+    }
+    Err(format!(
+        "E_BUILD: kernel root {} provides {name} inputs {}, but this compiler requires {name} inputs {}\n\
+         note: differing inputs in {}: {list}\n\
+         Lake would compile the generated program against files other than the ones this compiler and its kernel were built with.\n\
+         Set VASTITAS_KERNEL_ROOT to the unmodified lean-kernel directory of this compiler's Vastitas sources, \
+         or rebuild this compiler and the kernel from the sources in that directory.",
+        kernel_root.display(),
+        runtime_inputs::summary(found.iter().copied()),
+        runtime_inputs::summary(expected.iter().copied()),
+        directory.display()
+    ))
+}
+
 fn build_native(
     kernel_root: &Path,
     source: &str,
@@ -707,6 +798,22 @@ fn build_native(
             expected_kernel::TOOLCHAIN,
             rebuild_advice(Some(kernel_root))
         ));
+    }
+    // Before anything is generated, built or installed: the selected root must
+    // hold the runtime that this compiler and its checked kernel were built with.
+    let mut selected = vec![(&runtime_inputs::KERNEL, expected_kernel::KERNEL_RUNTIME)];
+    if storage_runtime || numerical_prefix.is_some() {
+        selected.push((&runtime_inputs::STORAGE, expected_kernel::STORAGE_RUNTIME));
+    }
+    if numerical_prefix.is_some() {
+        selected.push((
+            &runtime_inputs::NUMERICAL,
+            expected_kernel::NUMERICAL_RUNTIME,
+        ));
+    }
+    check_generated_imports(source, &selected)?;
+    for (package, expected) in &selected {
+        verify_runtime_inputs(kernel_root, package, expected)?;
     }
     let root_text = manifest_text(kernel_root, "kernel root")?;
     let native_root = kernel_root.join("native");

@@ -401,6 +401,14 @@ the digest of the kernel's `Main.lean` and every kernel module it imports
 the Lean version it was built with. Drivers reject a success response whose
 identity is missing or differs from their own build, and add a note to failure
 diagnostics. The identity is a build-consistency check, not a semantic proof.
+It covers the kernel executable, not the files that a native build compiles.
+The driver compares those files of the selected kernel root with its own build
+before it runs Lake ([CLI reference](guide/cli.md)). It refuses (`E_PROTOCOL`)
+a `lean_source` that imports a module other than
+`VastitasKernel.IndexedRuntime`, `VastitasKernel.AlgebraRuntime` and
+`VastitasKernel.SmoothRuntime`, with `VastitasStorageNative` when the response
+selects the storage runtime and `VastitasGemmNative` when it selects the
+numerical runtime. These are the modules whose sources the driver compares.
 Notes carry related source locations, including object introduction sites. They
 are diagnostic metadata, not trusted identity evidence. Current backends emit
 an empty array when there are no notes; drivers also accept omitted notes.

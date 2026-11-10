@@ -68,6 +68,28 @@ updating the compiler or its sources. `build` also requires the package's
 `lean-toolchain` to equal the compiler's pin and `lean --version`, resolved as
 Lake resolves it, to report that version; otherwise it stops before Lake runs.
 
+The identity covers the kernel executable, and Lake compiles the runtime from
+the files of the kernel root. `build` therefore compares the files that Lake
+reads there with the files that the compiler was built from:
+
+- in the kernel package, the runtime modules that generated programs import
+  and the modules that those import, `lakefile.toml`, `lake-manifest.json` and
+  `compiler-limits.json`;
+- in the storage runtime and in the numerical runtime, when the checked entry
+  needs them, the Lake configuration, the manifest, `lean-toolchain`, the Lean
+  modules and the C sources and headers.
+
+A `lakefile.lean` in the kernel package must be absent, because Lake prefers it
+to `lakefile.toml`. A root whose files differ is an error (`E_BUILD`). `build`
+reports it before Lake runs and before it writes the output, and the diagnostic
+names the differing files and a digest of each side. The comparison rejects a
+root whose runtime files changed after its kernel executable was built. It also
+rejects a `VASTITAS_KERNEL` executable paired with the root of another source
+tree. Both pass the identity check. The comparison reads source files: it does
+not cover the build products under `.lake`, the OpenBLAS prefix or a file that
+changes while Lake runs. The digest detects a stale or mixed tree; it is not a
+cryptographic hash.
+
 ### Numerical builds
 
 A program whose checked entry runs GEMM or diagonal Hermitian pairing needs the

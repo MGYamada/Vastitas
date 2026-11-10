@@ -7,5 +7,6 @@ mod limits;
 mod packages;
 mod primitive_table;
 mod process;
+mod runtime_inputs;
 mod sources;
 pub mod storage;

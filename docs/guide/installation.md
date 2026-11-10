@@ -39,7 +39,8 @@ version:
 target/debug/vastitas --version
 ```
 
-It prints the name `vastitas` and the version of the compiler. The commands
+It prints a line that begins with `vastitas` and the version of the
+compiler. The commands
 of this book call the compiler by this path, from the root of the
 repository. You can also run it through Cargo, as in
 `cargo run --locked -- check FILE.vast`.
@@ -72,9 +73,12 @@ absolute path in each shell that you open.
 
 With this installation, write `vastitas` where the book writes
 `target/debug/vastitas`, and run the commands from the unpacked directory.
-The alpha release is older than this book. It has neither the programs
-under `examples/book/` nor the libraries of chapters 8 and 9. To follow the
-whole book, build from a checkout.
+The book writes its executables to the directory `target`, which the
+unpacked crate lacks, so make it first with `mkdir -p target`. The alpha
+release is older than this book. Of the programs of this chapter it has only
+`examples/pointed.vast`, and it has neither the other programs of the book
+nor the libraries of chapters 8 and 9. To follow the book, build from a
+checkout.
 
 ## Selecting a kernel
 
@@ -88,8 +92,8 @@ Two environment variables say which kernel `vastitas` starts:
   the compiler. With it, `check` needs no kernel directory, and `build`
   still needs one.
 
-When `vastitas` finds no built kernel, it stops with the code `E_BACKEND`
-and prints the `lake` command that builds one.
+When `vastitas` finds no built kernel, it reports `E_BACKEND` and prints the
+`lake` command that builds one.
 
 Keep the kernel directory as it is, and keep it writable. `build` compares
 its files with the files that the compiler was built from, and it rejects a

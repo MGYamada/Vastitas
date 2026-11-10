@@ -221,6 +221,9 @@ Each operator accepts the operand types in this table:
 | `<` `<=` `>` `>=` | Two `Nat`, or two `Int` | `Bool` |
 | `&&` `\|\|` | Two `Bool` | `Bool` |
 
+`!a` is `true` when `a` is `false`. `a && b` is `true` when both operands are
+`true`, and `a || b` is `true` when at least one operand is `true`.
+
 Rules:
 
 - The two operands of a binary operator must have the same type. Operands of

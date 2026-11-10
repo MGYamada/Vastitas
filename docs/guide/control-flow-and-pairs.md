@@ -53,6 +53,7 @@ target/debug/vastitas build examples/arithmetic.vast -o target/arithmetic
 ```
 
 ```text
+built target/arithmetic
 1234567890123456789012345678900
 ```
 
@@ -96,8 +97,9 @@ fn sign(x: Int) -> Int {
 
 ## No loops and no recursion
 
-The language has no loop. `while`, `for` and `loop` are reserved words, and
-the compiler rejects each of them.
+The language has no loop. `while`, `for` and `loop` are keywords for
+constructs that the language does not have, and the compiler rejects each of
+them.
 
 A function cannot stand in for a loop by calling itself.
 [`examples/reject/functions/mutual-recursion.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/reject/functions/mutual-recursion.vast)
@@ -196,7 +198,7 @@ the denominator of a fraction.
   of conditions, branches and `else if`.
 - [Operator expressions](../language/expressions.md#operator-expressions):
   comparisons, the Boolean operators and their grouping.
-- [Keywords](../language/lexical-structure.md#keywords): the reserved words
+- [Keywords](../language/lexical-structure.md#keywords): the keywords
   `while`, `for` and `loop`.
 - [Calls](../language/functions.md#calls): the rule against recursion.
 - [Pair types](../language/types.md#pair-types) and

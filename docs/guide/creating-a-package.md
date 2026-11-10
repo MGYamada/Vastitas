@@ -58,8 +58,8 @@ built target/hello-package
 42
 ```
 
-The compiler does not search for a manifest, so every command names one. A
-command that names a manifest runs in
+The compiler does not search for a manifest, so every command on a package
+names its manifest. A command that names a manifest runs in
 [*manifest mode*](../appendix/glossary.md#manifest-mode). A command that
 names a source file, as in the previous section, runs in
 [*flat mode*](../appendix/glossary.md#flat-mode). One command cannot do
@@ -107,7 +107,7 @@ The root source file imports the function and calls it:
 {{#include ../../examples/packages/dependency/ask/src/main.vast}}
 ```
 
-`answers::answer` is a [path](../appendix/glossary.md#path): the dependency
+`answers::answer` is a [*path*](../appendix/glossary.md#path): the dependency
 alias, then the name of a public function of that package's root file.
 `use` imports the function, so that the rest of the file can write `answer`
 alone. `answer()` is a call: the name of a function and its arguments in
@@ -141,18 +141,28 @@ The program is the one above:
 {{#include ../../examples/reject/packages/private-dependency/main.vast}}
 ```
 
+```sh
+target/debug/vastitas check --manifest-path examples/reject/packages/private-dependency/Vastitas.toml
+```
+
 ```text
 {{#include ../../examples/reject/packages/private-dependency.stderr}}
 ```
 
 The diagnostic points to the `use` declaration, the place where the program
-names the private function.
+names the private function. For a package, the compiler prints the absolute
+path of the file. The book shows such a path from the root of the
+repository.
 
 A mistake in a manifest has a diagnostic of another form. This manifest has
 a key that the compiler does not know:
 
 ```toml
 {{#include ../../examples/reject/packages/unknown-manifest-key/Vastitas.toml}}
+```
+
+```sh
+target/debug/vastitas check --manifest-path examples/reject/packages/unknown-manifest-key/Vastitas.toml
 ```
 
 ```text
@@ -180,9 +190,13 @@ explains paths, imports and visibility in full.
   [the commands](../packages.md#commands).
 - [Programs](../language/programs.md): flat mode, manifest mode and the
   entry point of a package.
-- [`use` declarations](../language/modules.md#use-declarations) and
+- [`use` declarations](../language/modules.md#use-declarations),
+  [Resolution](../language/names-and-paths.md#resolution) and
   [Visibility](../language/names-and-paths.md#visibility): the rules of
-  imports, `pub` and private items.
+  imports, of a path that begins with a dependency alias, of `pub` and of
+  private items.
+- [Kinds of items](../language/items.md#kinds-of-items): the items that
+  exist only in a package.
 - [Calls](../language/functions.md#calls): the rules of a call.
 - [Diagnostics](../language/diagnostics.md): the form of a diagnostic of a
   manifest.

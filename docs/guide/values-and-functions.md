@@ -38,7 +38,7 @@ Four properties hold for every function:
   function bodies, such as the other functions. A program has no variables
   there.
 - A function has no effects. Its result depends only on its arguments, so
-  two calls with the same arguments give the same value.
+  two calls with the same arguments compute the same number.
 - A function does not call itself, directly or through other functions.
   [Chapter 3](control-flow-and-pairs.md#no-loops-and-no-recursion) shows
   what the compiler reports for such a cycle.
@@ -104,6 +104,7 @@ target/debug/vastitas build examples/book/expressions/unbounded-integers.vast -o
 ```
 
 ```text
+built target/unbounded-integers
 15241578753238836750495351562536198787501905199875019052101
 ```
 
@@ -160,7 +161,8 @@ The two types do not mix in one operation. In
 {{#include ../../examples/reject/expressions/mixed-integers.stderr}}
 ```
 
-The second line is a note, which here says how to repair the program:
+The second line is a [*note*](../appendix/glossary.md#note), which here says
+how to repair the program:
 `int(count) + offset` adds two integers.
 
 ## The four scalar types
@@ -176,7 +178,7 @@ The second line is a note, which here says how to repair the program:
 | `Unit` | The single value `()` |
 
 [Chapter 3](control-flow-and-pairs.md) uses `Bool` for conditions. `Unit` is
-the type of a block without a result, such as the empty body of
+the type of a block without a final expression, such as the empty body of
 `fn nothing() -> Unit {}`. Functions have no floating-point numbers,
 characters or strings. Floating-point numbers appear only in the storage of
 [Chapter 10](storage.md).

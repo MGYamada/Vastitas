@@ -876,7 +876,8 @@ are equal. See
 ## Note
 
 A line of a [diagnostic](#diagnostic) that points to a related
-[place](#place), such as the construction that introduced an identity. See
+[place](#place), such as the construction that introduced an identity. A
+note whose message begins with `help:` proposes a correction. See
 [Diagnostic lines](../language/diagnostics.md#diagnostic-lines).
 
 ## Numerical map

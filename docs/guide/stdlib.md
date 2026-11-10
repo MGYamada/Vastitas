@@ -11,6 +11,11 @@ manifests and dependencies.
 
 ## What the library holds
 
+The library keeps its declarations in
+[*modules*](../appendix/glossary.md#module), named parts of a package, which
+[Chapter 6](modules-and-authority.md) explains. A path such as
+`std::arithmetic::integers` names a module through the modules that hold it.
+
 | Module | Content | Chapter |
 | --- | --- | --- |
 | `std::arithmetic` | Functions on `Int` and on `Nat`, and generic functions over both | This section, and [Chapter 4](dispatch.md) |
@@ -33,8 +38,8 @@ depends on the library:
 The path leads from the directory of this manifest to the directory
 `stdlib`.
 
-One step comes before the first use. A script generates the root source file
-of the library from the library's sources:
+One step comes before the first use. A script generates the source files of
+the library's package from the library's sources:
 
 ```sh
 python3 scripts/build_stdlib_package.py

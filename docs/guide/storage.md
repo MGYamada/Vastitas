@@ -313,8 +313,9 @@ conditions and the restrictions of these statements. One of them is that a
 > It also makes the run-time checks of `expect` and of the conditions on
 > extents. The [proofs](../language/guarantees.md#storage) cover the model
 > of storage that the checker keeps. In that model an accepted access lies
-> in its allocation, and an accepted read finds initialized cells. A live
-> writer overlaps no other live loan, apart from a loan and its children.
+> in its allocation, and an accepted read finds initialized cells. Two
+> loans that give access, of which one writes, do not overlap; a loan with
+> a live child gives no access.
 > No theorem states that the memory of an executable agrees with this
 > model; tests exercise it. The performance target is an aim of the design.
 > [Performance evidence and acceptance](../storage-ownership.md#performance-evidence-and-acceptance)

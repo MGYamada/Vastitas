@@ -66,7 +66,7 @@ The two commands differ in what they need and in what they leave behind:
   that fails leaves an existing file at the output path as it was.
 - Neither command runs the program.
 
-## When the checker says no
+## When the compiler says no
 
 In
 [`examples/reject/types/bool-result.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/reject/types/bool-result.vast)
@@ -112,7 +112,7 @@ target/debug/vastitas build examples/pointed.vast -o target/pointed
 The executable prints `42`. The program builds an affine space of dimension
 3 with its origin and passes the two around as one value. The type
 `Point<X, Base(QQ)>` of a point names the object `X` that the point lies on.
-The checker follows that object through every call. It accepts
+The compiler follows that object through every call. It accepts
 `preserve(X, x)` because `x` is a point of `X`, and it rejects a point of
 another object, even an object of the same dimension.
 

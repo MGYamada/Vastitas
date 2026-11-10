@@ -85,28 +85,31 @@ them apart:
 
 Every part of the language in the next table is Implemented and Tested: the
 compiler builds programs of that part, and the tests of the repository run
-them. The tests that call a matrix product run where the OpenBLAS library is
-installed. The table says what is Proved about each part. The linked
+them. The tests that call a matrix product run in the numerical jobs of the
+continuous integration, with the pinned OpenBLAS library. The table says what is Proved about each part. The linked
 sections state the theorems and their assumptions, and this summary adds
 nothing to them.
 
 | Part of the language | Guide | Proved |
 | --- | --- | --- |
-| Functions, integers, pairs, dispatch, abstract types and function values | Chapters 2 to 5 | In the kernel's evaluator, every function of a checked program ends with a value of its result type. The method that a call selects does not depend on the order of the methods. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Dispatch](verification.md#stage-1a-finite-dispatch-and-checker-composition) |
-| Packages, modules and edit authority | Chapters 1 and 6 | Theorems on the resolution of names and on the record of edit authority that the checker keeps. [Package namespace acceptance](verification.md#package-namespace-acceptance) · [Edit authority acceptance](verification.md#edit-authority-acceptance-protocol-6) |
+| Functions, integers, pairs, dispatch, abstract types and function values | Chapters 2 to 5 | In the kernel's evaluator, every function of the Core that the kernel builds from a checked program ends with a value of its result type. The method that a call selects does not depend on the order of the methods. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Dispatch](verification.md#stage-1a-finite-dispatch-and-checker-composition) |
+| Packages, modules and edit authority | Chapters 1 and 6 | Each grant, delegation and transfer that the checker records for an accepted program is issued by the module that declares it, and its recipient is the module that the declaration names. [Current public checker routes](verification.md#current-public-checker-routes) |
 | Indexed declarations and the geometry library | Chapter 7 | Evaluation preserves the type of a value, and in that type a point and a morphism keep both of their objects. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) |
 | Presented affine geometry over the rational numbers | Chapter 8 | Two polynomials that the compiler finds equal are the same function. A declared fiber product has the universal property of a fiber product, and a declared open subset is the localization of its object. [Presented affine geometry](verification.md#presented-affine-geometry) · [Acceptance record](stage2-acceptance.md) |
 | Smooth affine geometry with rational coefficients: polynomial smooth maps, covectors and vectors at rational points, reverse pullbacks, and named metrics with checked evidence. The kernel compiles each reverse pass that it can read and checks the result again | Chapter 9 | The chain rule for pullbacks, the agreement of the saved and the recomputing reverse pass, the comparison of the pullback with the derivative of real analysis, and the meaning of metric evidence. The theorems also state what each generated reverse function computes. That a whole compiled program agrees with its source is Tested, not Proved. [Smooth affine geometry](verification.md#smooth-affine-geometry-and-reverse-pullbacks) · [Acceptance record](stage3-acceptance.md) · [Compiled reverse passes](reverse-core-acceptance.md) |
-| Storage and resource programs | Chapter 10 | Four facts about the model of storage that the checker keeps. Every access lies in its allocation. A read finds initialized bytes. Two live loans of which one writes do not overlap, apart from a loan and its children. An accepted entry point leaves no allocation and no loan. [Storage](language/guarantees.md#storage) |
+| Storage and resource programs | Chapter 10 | Four facts about the model of storage that the checker keeps. Every access lies in its allocation. A read finds initialized bytes. Two active loans of which one writes do not overlap; a loan with a live child gives no access. An accepted entry point leaves no allocation and no loan. [Storage](language/guarantees.md#storage) · [What is outside these claims](verification.md#what-is-outside-these-claims) |
 | Numerical maps: real and complex matrix products, transforms, metrics, tensor networks and contraction trees | Chapter 11 | The checked operations keep the objects and the bases of their maps, and the checker schedules a network or an evaluation with the conjugation flags of its operands. No theorem states a property of a floating-point result or of the BLAS library. [What is outside these claims](verification.md#what-is-outside-these-claims) · [Acceptance record](stage1-acceptance.md) |
 
-Three limits hold for every row:
+Four limits hold for every row:
 
 - That an executable computes what the checked program denotes is not
   Proved. The Lean compiler and the C compiler are trusted for it, and the
   tests that build and run programs exercise it.
 - That the frontend sends the kernel the program that the source denotes is
   Tested, not Proved.
+- The kernel builds its Core from the checked program. That this Core
+  computes what the generics, the function values and the lambdas of the
+  source denote is Tested, not Proved.
 - A theorem about an accepted program is about the request that the kernel
   checks, or about the program that the kernel builds from it. No theorem
   is about the memory, the running time or the floating-point arithmetic of
@@ -122,8 +125,8 @@ Among the work that is Planned:
   a standalone C implementation of the same computation on a controlled
   host. [Performance evidence and acceptance](storage-ownership.md#performance-evidence-and-acceptance)
   states its conditions, and the
-  [delivery record](stage1-completion.md#remaining-acceptance-gates) lists
-  the measurements that exist and their gaps.
+  [delivery record](stage1-completion.md#existing-performance-evidence-and-unresolved-gaps)
+  lists the measurements that exist and their gaps.
 - The later targets of the [roadmap](guide/historical-roadmap.md): bundles
   and tensor diagrams, spectral observations, a first physical model and
   the gluing of geometric objects.
@@ -143,8 +146,10 @@ The book has four parts.
 The guide, chapters 1 to 12, teaches the language in order. Its complete
 programs are files under
 [`examples/`](https://github.com/MGYamada/Vastitas/tree/main/examples) that
-the tests build and run. A chapter ends with a See also list of the
-Reference sections that hold its rules.
+the tests build and run. Many chapters have a note "What is checked", which
+says what the compiler checks for the constructs of the chapter and what
+backs it. A chapter ends with a See also list of the Reference sections that
+hold its rules.
 
 The Vastitas Reference states the rules of each construct. Its chapters
 follow the guide:

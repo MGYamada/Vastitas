@@ -12,10 +12,13 @@ warningAsError = true
 name = "VastitasKernel"
 needs = ["compilerLimits"]
 
+# `Limits.lean` reads this file while it is elaborated, and the build identity
+# of the executable digests its bytes. Lake therefore tracks its bytes, not
+# its text with normalized line endings.
 [[input_file]]
 name = "compilerLimits"
 path = "compiler-limits.json"
-text = true
+text = false
 
 [[input_file]]
 name = "promotionFixture"
@@ -48,10 +51,29 @@ leanOptions = { autoImplicit = false }
 roots = ["VastitasPublicTest.AuthorityRegression"]
 needs = ["authorityFixture", "recipientFixture"]
 
+# `Main` embeds a digest of its own source, of the kernel modules it imports
+# and of the compiler limits (`VastitasKernel/BuildIdentity.lean`). Lake
+# elaborates `Main` again when the `.olean` of an imported module changes. A
+# change that leaves every `.olean` as it was does not reach `Main` that way:
+# a comment after the last declaration, or a limit that no module reads. The
+# executable therefore needs each digested file as an input, by its bytes, and
+# the embedded digest cannot go stale.
 [[lean_exe]]
 name = "vastitas-kernel"
 leanOptions = { autoImplicit = false }
 root = "Main"
+needs = ["compilerLimits", "mainSource", "kernelSources"]
+
+[[input_file]]
+name = "mainSource"
+path = "Main.lean"
+text = false
+
+[[input_dir]]
+name = "kernelSources"
+path = "VastitasKernel"
+filter.extension = ["lean"]
+text = false
 
 [[input_file]]
 name = "algebraFixture"

@@ -41,8 +41,8 @@ Rules:
   generics and take no methods.
 - A resource function must not call itself, directly or through other resource
   functions (`E_RESOURCE_RECURSION`).
-- The result type is a scalar type or a pair type. The `value` block must
-  have that type (`E_TYPE`).
+- The result type must be a scalar type or a pair type. Otherwise it is an
+  error (`E_TYPE`). The `value` block must have that type (`E_TYPE`).
 - The `value` block sees the scalar parameters and the scalar bindings of the
   body. An owner, a loan or another resource binding there is an error
   (`E_NAME`).
@@ -190,6 +190,10 @@ Rules:
   and so is a `borrow` from a released loan. `release` may also name a
   [map](../linalg/maps-and-gemm.md#maps) or a
   [vector](../linalg/transforms-and-metrics.md#vectors) in place of its loan.
+- `fill`, `store`, `expect` and `copy` may name a vector in place of its
+  loan. [Vectors](../linalg/transforms-and-metrics.md#vectors) gives the
+  rules of a vector there. The rules of this section then hold for the loan
+  of the vector.
 - Every cell of the view of a `read` or `read_write` loan must be initialized
   (`E_RESOURCE_INIT`). `fill` initializes its view, `store` one cell and
   `copy` its target. A `write` loan may cover uninitialized cells.
@@ -303,9 +307,9 @@ binding `c`.
 
 Rules:
 
-- The type of a scalar binding must be `Nat`, `Int`, `Bool` or `Unit`. A pair
-  type there is an error (`E_RESOURCE_VALUE`). The `value` block must have
-  the type of the binding (`E_TYPE`).
+- The type of a scalar binding must be `Nat`, `Int`, `Bool` or `Unit`.
+  Otherwise it is an error (`E_RESOURCE_VALUE`), even when it is a pair type.
+  The `value` block must have the type of the binding (`E_TYPE`).
 - A `value` block sees the scalar parameters and the earlier scalar bindings
   only (`E_NAME`).
 - A binding inside a `value` block must not reuse a name of the function that
@@ -529,6 +533,8 @@ A resource diagnostic points to the statement that fails, even in an arm that
 the program does not select. A failure inside a called function points to the
 statement of the callee and names the call in a note. A failed branch join
 points to its `if`, and a failure at the end of a body to its `value` block.
+A diagnostic for the type of a scalar binding points to the type, unless the
+type is a pair type.
 Notes name the owners and loans involved and where the program introduced
 them; a diagnostic has at most 32 notes.
 [Appendix B](../appendix/diagnostics.md) lists the `E_RESOURCE_` and

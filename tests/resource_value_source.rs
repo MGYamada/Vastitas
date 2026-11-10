@@ -323,6 +323,103 @@ fn scalar_value_flow_rejects_captures_types_scope_leaks_and_untaken_errors() {
     );
 }
 
+/// Asserts that `source` is rejected and that its first diagnostic line is
+/// `expected` (`CODE: message prefix`) at the first occurrence of `marker` in
+/// `main.vast`, with no wire error and no manifest position.
+#[track_caller]
+fn rejected_at(source: &str, marker: &str, expected: &str) {
+    let output = check(&fixture(source));
+    let stderr = common::expect_code(&output, expected.split(':').next().unwrap());
+    let before = &source[..source.find(marker).expect("marker")];
+    let line = before.matches('\n').count() + 1;
+    let column = before.rsplit('\n').next().unwrap().chars().count() + 1;
+    let first = stderr.lines().next().unwrap();
+    assert!(
+        first.contains(&format!("main.vast:{line}:{column}: {expected}")),
+        "expected {expected} at {line}:{column}\n{stderr}"
+    );
+    assert!(!stderr.contains("E_PROTOCOL"), "{stderr}");
+    assert!(!stderr.contains("Vastitas.toml:"), "{stderr}");
+}
+
+/// The wire carries only `Nat`, `Int`, `Bool`, `Unit`, `Pair<Nat>` and
+/// `Pair<Int>` in the scalar positions of a resource function. Another type
+/// there is a diagnostic at the type (#702). It used to reach the kernel's
+/// decoder and come back as `E_PROTOCOL` at the first character of the
+/// manifest.
+#[test]
+fn scalar_positions_report_other_types_at_the_type() {
+    const VALUE: &str = "E_RESOURCE_VALUE: resource values require Nat, Int, Bool or Unit";
+    const RESULT: &str =
+        "E_TYPE: resource result types require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>";
+    const PARAMETER: &str = "E_TYPE: resource parameters require Nat/Int/Bool/Unit values";
+    for ty in [
+        "Fn<Int, Int>",
+        "Fn<(Int, Bool), Fn<Int, Int>>",
+        "Scheme",
+        "CInfScheme",
+        "Point<X, Base(QQ)>",
+        "Morphism<X, Y>",
+        "Pointed<Scheme, QQ>",
+        "Object<Domain, Marker>",
+        "Family<X>",
+        "profile::Family<X, 2>",
+    ] {
+        let binding = format!(
+            "resource fn main() -> Int {{\n    let bound: {ty} = value {{ 1 }};\n    value {{ 42 }}\n}}\n"
+        );
+        rejected_at(&binding, ty, VALUE);
+        let call = format!(
+            "resource fn callee() -> Int {{ value {{ 1 }} }}\nresource fn main() -> Int {{\n    let bound: {ty} = call callee() -> ();\n    value {{ 42 }}\n}}\n"
+        );
+        rejected_at(&call, ty, VALUE);
+        let result = format!(
+            "resource fn helper() -> {ty} {{\n    value {{ 1 }}\n}}\nfn main() -> Int {{ 42 }}\n"
+        );
+        rejected_at(&result, ty, RESULT);
+    }
+    // A type closer may touch the `=` of the binding.
+    rejected_at(
+        "resource fn main() -> Int {\n    let bound: Fn<Int, Int>= value { 1 };\n    value { 42 }\n}\n",
+        "Fn<Int, Int>",
+        VALUE,
+    );
+    // A scalar name can begin an indexed path, in a parameter too.
+    for ty in ["Nat::Family<X>", "Unit::Family<X>"] {
+        let parameter = format!(
+            "resource fn helper(x: {ty}) -> Int {{ value {{ 1 }} }}\nfn main() -> Int {{ 42 }}\n"
+        );
+        rejected_at(&parameter, ty, PARAMETER);
+        let binding = format!(
+            "resource fn main() -> Int {{\n    let bound: {ty} = value {{ 1 }};\n    value {{ 42 }}\n}}\n"
+        );
+        rejected_at(&binding, ty, VALUE);
+    }
+    // Every type that the decoder admits still checks through the kernel.
+    for (ty, value) in [
+        ("Nat", "1"),
+        ("Int", "1"),
+        ("Bool", "true"),
+        ("Unit", "()"),
+        ("Pair<Nat>", "let a: Nat = 1; let b: Nat = 2; pair(a, b)"),
+        ("Pair<Int>", "pair(1, 2)"),
+    ] {
+        let result = format!(
+            "resource fn helper() -> {ty} {{ value {{ {value} }} }}\nresource fn main() -> Int {{\n    call helper() -> ();\n    value {{ 42 }}\n}}\n"
+        );
+        success(&check(&fixture(&result)));
+        let binding = format!(
+            "resource fn main() -> Int {{\n    let bound: {ty} = value {{ {value} }};\n    value {{ 42 }}\n}}\n"
+        );
+        if ty.starts_with("Pair") {
+            // The kernel decides where a pair is valid: not in a binding.
+            rejected_at(&binding, "let bound", VALUE);
+        } else {
+            success(&check(&fixture(&binding)));
+        }
+    }
+}
+
 #[test]
 fn forged_value_wire_cannot_bypass_scalar_audits_or_legacy_envelopes() {
     let raw = request(&fixture(&source(false)));
@@ -344,6 +441,23 @@ fn forged_value_wire_cannot_bypass_scalar_audits_or_legacy_envelopes() {
             "/3/body/4/type",
             json!({"kind":"named","name":"Int"}),
             "E_RESOURCE_VALUE",
+        ),
+        // The frontend sends no other type in a scalar position (#702); the
+        // decoder still refuses one in a binding, a call binding and a result.
+        (
+            "/3/body/0/type",
+            json!({"kind":"function","params":[],"return_type":{"kind":"named","name":"Bool"}}),
+            "E_PROTOCOL",
+        ),
+        (
+            "/3/body/4/type",
+            json!({"kind":"named","name":"Scheme"}),
+            "E_PROTOCOL",
+        ),
+        (
+            "/3/value_type",
+            json!({"kind":"function","params":[],"return_type":{"kind":"named","name":"Int"}}),
+            "E_PROTOCOL",
         ),
         ("/3/body/6/condition", json!("seed"), "E_RESOURCE_VALUE"),
         (

@@ -1,6 +1,7 @@
 //! Host driver. Semantic acceptance always comes from the Lean backend.
 use crate::ir::Span;
-use crate::sources::Sources;
+use crate::runtime_inputs::{self, Package};
+use crate::sources::{Sources, shown, shown_text};
 use serde_json::{Value, json};
 use std::ffi::{OsStr, OsString};
 use std::fs::{self, OpenOptions};
@@ -244,9 +245,9 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             openblas.as_deref(),
             native_cc.as_deref(),
         )?;
-        println!("built {}", output.display());
+        println!("built {}", shown(&output));
     } else {
-        println!("checked {}", display_input.display());
+        println!("checked {}", shown(&display_input));
     }
     Ok(())
 }
@@ -260,7 +261,7 @@ fn kernel_root() -> Result<PathBuf, String> {
         .map(PathBuf::from)
         .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("lean-kernel"));
     root.canonicalize()
-        .map_err(|error| format!("E_BACKEND: cannot locate {}: {error}", root.display()))
+        .map_err(|error| format!("E_BACKEND: cannot locate {}: {error}", shown(&root)))
 }
 
 // Build-time identity of the kernel sources next to this driver (see build.rs).
@@ -271,9 +272,11 @@ mod expected_kernel {
 // Responses may carry generated Lean for the whole program; bound them anyway.
 const MAX_BACKEND_RESPONSE: usize = 256 * 1024 * 1024;
 
-/// Every kernel response reports the digest of the Lean sources it was compiled
-/// from and its Lean version. Protocol numbers stay fixed across releases, so
-/// only this identity ties the checker to this driver and its runtime sources.
+/// Every kernel response reports the digest of the Lean sources and of the
+/// compiler limits it was built from, and its Lean version. Protocol numbers
+/// stay fixed across releases, so only this identity ties the checker to this
+/// driver. It says nothing about the root that a native build compiles; see
+/// `verify_runtime_inputs`.
 fn kernel_identity_problem(response: &Value) -> Option<String> {
     let identity = response.get("kernel");
     let field = |name| {
@@ -299,7 +302,7 @@ fn kernel_identity_problem(response: &Value) -> Option<String> {
 fn rebuild_advice(root: Option<&Path>) -> String {
     let build = root.map_or_else(
         || "lake -d <kernel root> build vastitas-kernel".to_string(),
-        |root| format!("lake -d {} build vastitas-kernel", root.display()),
+        |root| format!("lake -d {} build vastitas-kernel", shown(root)),
     );
     format!(
         "Rebuild the kernel from the same Vastitas sources as this compiler: {build}\n\
@@ -310,7 +313,7 @@ fn rebuild_advice(root: Option<&Path>) -> String {
 /// An installed driver falls back to its build-time source directory, which may be
 /// Cargo's registry cache; Cargo removes unused extracted sources automatically.
 fn missing_kernel(root: &Path, executable: &Path) -> String {
-    let build = format!("lake -d {} build vastitas-kernel", root.display());
+    let build = format!("lake -d {} build vastitas-kernel", shown(root));
     let advice = if std::env::var_os("VASTITAS_KERNEL_ROOT").is_some() {
         format!("Build it with: {build}")
     } else {
@@ -324,7 +327,7 @@ fn missing_kernel(root: &Path, executable: &Path) -> String {
     };
     format!(
         "E_BACKEND: kernel executable {} is not built\n{advice}",
-        executable.display()
+        shown(executable)
     )
 }
 
@@ -339,9 +342,8 @@ fn invoke_kernel(
     let mut command = Command::new(executable);
     command.arg(mode);
     let retention = crate::process::Retention::Complete(MAX_BACKEND_RESPONSE);
-    let output = crate::process::capture(command, Some(request), retention).map_err(|error| {
-        subprocess_error(error, "E_BACKEND", &executable.display().to_string(), true)
-    })?;
+    let output = crate::process::capture(command, Some(request), retention)
+        .map_err(|error| subprocess_error(error, "E_BACKEND", &shown(executable), true))?;
     let response: Value = serde_json::from_slice(&output.stdout).map_err(|error| {
         format!(
             "E_PROTOCOL: invalid backend response: {error}\n{}",
@@ -411,7 +413,7 @@ fn invoke_kernel(
     if let Some(problem) = identity_problem {
         return Err(format!(
             "E_BACKEND: incompatible kernel {}: {problem}\n{}",
-            executable.display(),
+            shown(executable),
             rebuild_advice(root)
         ));
     }
@@ -515,7 +517,7 @@ fn lock_package(path: &Path) -> Result<fs::File, String> {
     let directory = fs::File::open(path).map_err(|error| {
         format!(
             "E_BUILD: cannot open native package {}: {error}",
-            path.display()
+            shown(path)
         )
     })?;
     match acquire_lock(&directory) {
@@ -531,7 +533,7 @@ fn locking_error(error: std::io::Error, lock: &Path) -> String {
     } else {
         format!(
             "E_BUILD: cannot lock native package {}: {error}",
-            lock.display()
+            shown(lock)
         )
     }
 }
@@ -549,8 +551,8 @@ fn lock_file(package: &Path) -> Result<fs::File, String> {
         .map_err(|error| {
             format!(
                 "E_BUILD: directory locks are unsupported for native package {} and its lock file {} cannot be opened: {error}",
-                package.display(),
-                lock.display()
+                shown(package),
+                shown(&lock)
             )
         })?;
     acquire_lock(&file).map_err(|error| locking_error(error, &lock))?;
@@ -574,7 +576,7 @@ fn lock_native_packages(kernel_root: &Path, numerical: bool) -> Result<Vec<fs::F
             path.canonicalize().map_err(|error| {
                 format!(
                     "E_BUILD: cannot locate native package {}: {error}",
-                    path.display()
+                    shown(&path)
                 )
             })
         })
@@ -609,7 +611,7 @@ fn manifest_text<'a>(path: &'a Path, role: &str) -> Result<&'a str, String> {
     path.to_str().ok_or_else(|| {
         format!(
             "E_BUILD: {role} path is not valid UTF-8 and cannot be written to the generated Lake manifest: {}",
-            path.display()
+            shown(path)
         )
     })
 }
@@ -681,6 +683,130 @@ fn check_lean_version(directory: &Path, toolchain: &str) -> Result<(), String> {
     ))
 }
 
+/// Generated programs import only the runtime modules of the selected
+/// packages, so `verify_runtime_inputs` covers every module that Lake compiles
+/// for them. A response that imports any other module is refused. The name of
+/// that module is text of the response, so it is shown like a path.
+fn check_generated_imports(
+    source: &str,
+    selected: &[(&Package, &[(&str, &str)])],
+) -> Result<(), String> {
+    for module in runtime_inputs::header_imports(source) {
+        if !selected
+            .iter()
+            .any(|(package, _)| package.modules.contains(&module.as_str()))
+        {
+            return Err(format!(
+                "E_PROTOCOL: the generated program imports {}, which is not a runtime module that this compiler verifies for this build",
+                shown_text(&module)
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The identity check ties the kernel executable to this compiler, but Lake
+/// compiles the runtime from the files of the selected root. A stale
+/// executable in a changed tree passes that check, and so does `VASTITAS_KERNEL`
+/// with another root. Digest the files that Lake reads for `package` and
+/// compare them with the ones this compiler was built from (the `build.rs`
+/// table), never with a value that the root states about itself. The table
+/// holds only files that exist in the compiler's sources. A forbidden name of
+/// the package, the other name of its Lake configuration, is refused by rule,
+/// whatever the table holds.
+fn verify_runtime_inputs(
+    kernel_root: &Path,
+    package: &Package,
+    expected: &[(&str, &str)],
+) -> Result<(), String> {
+    let directory = package.directory_in(kernel_root);
+    let name = package.name;
+    let found = runtime_inputs::inputs(&directory, package).map_err(|error| {
+        format!(
+            "E_BUILD: cannot read the {name} inputs in {}: {error}",
+            shown(&directory)
+        )
+    })?;
+    let found: Vec<(&str, &str)> = found
+        .iter()
+        .map(|(path, digest)| (path.as_str(), digest.as_str()))
+        .collect();
+    let forbidden: Vec<&str> = found
+        .iter()
+        .map(|(path, _)| *path)
+        .filter(|path| package.forbidden.contains(path))
+        .collect();
+    if found == expected && forbidden.is_empty() {
+        return Ok(());
+    }
+    fn digest_in<'a>(inputs: &[(&str, &'a str)], path: &str) -> Option<&'a str> {
+        inputs
+            .iter()
+            .find(|(name, _)| *name == path)
+            .map(|(_, digest)| *digest)
+    }
+    let mut paths: Vec<&str> = found
+        .iter()
+        .chain(expected)
+        .map(|(path, _)| *path)
+        .collect();
+    paths.sort_unstable();
+    paths.dedup();
+    // The file of a module is named after an import in a source of the root,
+    // which can spell any character, so each input is shown like a path.
+    let mut other_differences = false;
+    let differing: Vec<String> = paths
+        .into_iter()
+        .filter_map(|path| {
+            let state = if forbidden.contains(&path) {
+                "unexpected"
+            } else {
+                let state = match (digest_in(&found, path), digest_in(expected, path)) {
+                    (found, expected) if found == expected => return None,
+                    (None, _) => "missing",
+                    (_, None) => "unexpected",
+                    _ => "changed",
+                };
+                other_differences = true;
+                state
+            };
+            Some(format!("{} ({state})", shown_text(path)))
+        })
+        .collect();
+    const LISTED: usize = 6;
+    let more = differing.len().saturating_sub(LISTED);
+    let mut list = differing[..differing.len() - more].join(", ");
+    if more > 0 {
+        list.push_str(&format!(" and {more} more"));
+    }
+    let mut message = format!(
+        "E_BUILD: kernel root {} provides {name} inputs {}, but this compiler requires {name} inputs {}\n\
+         note: differing inputs in {}: {list}",
+        shown(kernel_root),
+        runtime_inputs::summary(found.iter().copied()),
+        runtime_inputs::summary(expected.iter().copied()),
+        shown(&directory)
+    );
+    // No build of the compiler accepts a forbidden name, so the advice to
+    // rebuild is given only for a difference that a rebuild can resolve.
+    for path in &forbidden {
+        message.push_str(&format!(
+            "\nnote: {} must not exist in {}: it is the other name of the package's Lake configuration, \
+             and a rebuilt compiler rejects it as well. Remove it.",
+            shown_text(path),
+            shown(&directory)
+        ));
+    }
+    if other_differences {
+        message.push_str(
+            "\nLake would compile the generated program against files other than the ones this compiler and its kernel were built with.\n\
+             Set VASTITAS_KERNEL_ROOT to the unmodified lean-kernel directory of this compiler's Vastitas sources, \
+             or rebuild this compiler and the kernel from the sources in that directory.",
+        );
+    }
+    Err(message)
+}
+
 fn build_native(
     kernel_root: &Path,
     source: &str,
@@ -692,21 +818,38 @@ fn build_native(
 ) -> Result<(), String> {
     let toolchain_path = kernel_root.join("lean-toolchain");
     let toolchain = fs::read_to_string(&toolchain_path)
-        .map_err(|error| format!("E_BUILD: cannot read {}: {error}", toolchain_path.display()))?;
+        .map_err(|error| format!("E_BUILD: cannot read {}: {error}", shown(&toolchain_path)))?;
     if toolchain.trim().is_empty() {
         return Err(format!(
             "E_BUILD: empty toolchain in {}",
-            toolchain_path.display()
+            shown(&toolchain_path)
         ));
     }
     if toolchain.trim() != expected_kernel::TOOLCHAIN {
         return Err(format!(
             "E_BUILD: kernel root {} pins {}, but this compiler was built for {}\n{}",
-            kernel_root.display(),
-            toolchain.trim(),
+            shown(kernel_root),
+            // The pin is text of a file of the root.
+            shown_text(toolchain.trim()),
             expected_kernel::TOOLCHAIN,
             rebuild_advice(Some(kernel_root))
         ));
+    }
+    // Before anything is generated, built or installed: the selected root must
+    // hold the runtime that this compiler and its checked kernel were built with.
+    let mut selected = vec![(&runtime_inputs::KERNEL, expected_kernel::KERNEL_RUNTIME)];
+    if storage_runtime || numerical_prefix.is_some() {
+        selected.push((&runtime_inputs::STORAGE, expected_kernel::STORAGE_RUNTIME));
+    }
+    if numerical_prefix.is_some() {
+        selected.push((
+            &runtime_inputs::NUMERICAL,
+            expected_kernel::NUMERICAL_RUNTIME,
+        ));
+    }
+    check_generated_imports(source, &selected)?;
+    for (package, expected) in &selected {
+        verify_runtime_inputs(kernel_root, package, expected)?;
     }
     let root_text = manifest_text(kernel_root, "kernel root")?;
     let native_root = kernel_root.join("native");
@@ -726,7 +869,7 @@ fn build_native(
         let prefix = prefix.canonicalize().map_err(|error| {
             format!(
                 "E_BUILD: cannot locate OpenBLAS prefix {}: {error}",
-                prefix.display()
+                shown(prefix)
             )
         })?;
         let prefix = lean_string(manifest_text(&prefix, "OpenBLAS prefix")?);
@@ -858,16 +1001,12 @@ fn validate_output(output: &Path) -> Result<(), String> {
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    let metadata = fs::metadata(parent).map_err(|error| {
-        format!(
-            "E_OUTPUT: cannot inspect parent {}: {error}",
-            parent.display()
-        )
-    })?;
+    let metadata = fs::metadata(parent)
+        .map_err(|error| format!("E_OUTPUT: cannot inspect parent {}: {error}", shown(parent)))?;
     if !metadata.is_dir() {
         return Err(format!(
             "E_OUTPUT: parent is not a directory: {}",
-            parent.display()
+            shown(parent)
         ));
     }
     match fs::symlink_metadata(output) {
@@ -880,12 +1019,12 @@ fn validate_output(output: &Path) -> Result<(), String> {
         }
         Ok(_) => Err(format!(
             "E_OUTPUT: output must name a regular file: {}",
-            output.display()
+            shown(output)
         )),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(format!(
             "E_OUTPUT: cannot inspect {}: {error}",
-            output.display()
+            shown(output)
         )),
     }
 }
@@ -905,14 +1044,14 @@ fn install_target(output: &Path) -> Result<PathBuf, String> {
         Ok(metadata) if metadata.is_symlink() => output.canonicalize().map_err(|error| {
             format!(
                 "E_OUTPUT: cannot resolve symlink {}: {error}",
-                output.display()
+                shown(output)
             )
         }),
         Ok(_) => Ok(output.to_path_buf()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(output.to_path_buf()),
         Err(error) => Err(format!(
             "E_OUTPUT: cannot inspect {}: {error}",
-            output.display()
+            shown(output)
         )),
     }
 }
@@ -951,16 +1090,12 @@ fn probe_output_directory(output: &Path) -> Result<(), String> {
     let (staging, file) = create_staging(&target).map_err(|error| {
         format!(
             "E_OUTPUT: cannot write to output directory {}: {error}",
-            parent_directory(&target).display()
+            shown(parent_directory(&target))
         )
     })?;
     drop(file);
-    fs::remove_file(&staging).map_err(|error| {
-        format!(
-            "E_OUTPUT: cannot remove probe {}: {error}",
-            staging.display()
-        )
-    })
+    fs::remove_file(&staging)
+        .map_err(|error| format!("E_OUTPUT: cannot remove probe {}: {error}", shown(&staging)))
 }
 
 fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(), String> {
@@ -968,7 +1103,7 @@ fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(),
     sources.protect_output(output)?;
     let target = install_target(output)?;
     let (staging, mut file) = create_staging(&target)
-        .map_err(|error| format!("E_OUTPUT: cannot stage {}: {error}", output.display()))?;
+        .map_err(|error| format!("E_OUTPUT: cannot stage {}: {error}", shown(output)))?;
     let _staging_guard = StagingFile(staging.clone());
     let result = (|| {
         let mut compiled = fs::File::open(binary)?;
@@ -1002,7 +1137,7 @@ fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(),
         }
         return Err(format!(
             "E_OUTPUT: cannot install {}: {error}",
-            output.display()
+            shown(output)
         ));
     }
     Ok(())
@@ -1011,6 +1146,46 @@ fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(),
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // The tables that `build.rs` embedded hold a digest for each input that
+    // the lists name and for nothing else. They record no absence and no
+    // forbidden name, so the creation of a file cannot make an entry stale.
+    // They also equal the sources as they are when the test runs.
+    #[test]
+    fn embedded_runtime_tables_hold_only_inputs_that_exist() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("lean-kernel");
+        for (package, table) in [
+            (&runtime_inputs::KERNEL, expected_kernel::KERNEL_RUNTIME),
+            (&runtime_inputs::STORAGE, expected_kernel::STORAGE_RUNTIME),
+            (
+                &runtime_inputs::NUMERICAL,
+                expected_kernel::NUMERICAL_RUNTIME,
+            ),
+        ] {
+            let name = package.name;
+            for (path, digest) in table {
+                assert!(
+                    digest.len() == 16 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()),
+                    "{name}: {path} is recorded as {digest}"
+                );
+                assert!(!package.forbidden.contains(path), "{name}: {path}");
+            }
+            for file in package.files {
+                assert!(
+                    table.iter().any(|(path, _)| path == file),
+                    "{name}: no entry for {file}"
+                );
+            }
+            let directory = package.directory_in(&root);
+            let current = runtime_inputs::required_inputs(&directory, package)
+                .unwrap_or_else(|error| panic!("{name}: {error}"));
+            let current: Vec<(&str, &str)> = current
+                .iter()
+                .map(|(path, digest)| (path.as_str(), digest.as_str()))
+                .collect();
+            assert_eq!(current, table, "{name}");
+        }
+    }
 
     #[test]
     fn manifest_strings_use_their_own_syntax() {

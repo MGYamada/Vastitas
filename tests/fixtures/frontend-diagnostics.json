@@ -759,6 +759,30 @@
    "input": "flat",
    "source": "fn main() -> Int { let a = { let x = 1; x }; let b = { let x = 2; x }; let f = fn(y: Int) -> Int { let x = y; x }; a + b + f(if true { let x = 3; x } else { let x = 4; x }) }\n",
    "code": null
+  },
+  {
+   "issue": 702,
+   "input": "package",
+   "source": "generic g(x) { domain (Int); }\nmethod g(x: Int) -> Nat::Family<X> { 1 }\nfn main() -> Int { g(1) }\n",
+   "code": "E_TYPE",
+   "line": 2,
+   "column": 21,
+   "message": "method results require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>"
+  },
+  {
+   "issue": 702,
+   "input": "package",
+   "source": "generic g(x) { domain (Int); }\nabstract method g(x: Int) -> Pair::Family<X> { domain (Int); }\nfn main() -> Int { g(1) }\n",
+   "code": "E_TYPE",
+   "line": 2,
+   "column": 30,
+   "message": "method results require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>"
+  },
+  {
+   "issue": 702,
+   "input": "package",
+   "source": "generic g(x) { domain (Int); }\nmethod g(x: Int) -> Pair<Int> { pair(x, x) }\nfn main() -> Int { pair_first(g(1)) }\n",
+   "code": null
   }
  ]
 }

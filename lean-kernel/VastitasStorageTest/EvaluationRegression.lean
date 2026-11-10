@@ -96,4 +96,137 @@ private def finish : List Functions.Statement := [.action (.release 23),
       (preparation ++ [.branch condition branch [.numerical (.conjugateVector 40 30 6 4)]])).run {environment := env}).isOk)
   IO.println "Vector evaluation: dual/Hermitian roles, exact flags, scalar initialization, actual loans, branches and forged IR passed"
 
+/-! `fill`, `store`, `expect` and `copy` that name a vector act on its loan. -/
+
+/-- One body, with every cell statement naming either the vectors or their loans. -/
+private def cells (scalar : Scalar) (implementation : String) (dimension : Nat) (transposed viaVector : Bool) :
+    List Functions.Statement :=
+  let layout : Layout := if transposed then ⟨0, 1, dimension, 2, true⟩ else ⟨0, dimension, 1, max 1 dimension, false⟩
+  let name (vector loan : Symbol) := if viaVector then vector else loan
+  let value := payload scalar
+  [.numerical (.space 0 (id implementation) dimension), .numerical (.basis 1 0),
+    .action (.allocate 10 scalar (2 * dimension)), .action (.allocate 11 scalar (2 * dimension)),
+    .action (.borrow 20 (.owner 10) layout .write), .numerical (.vector 30 20 1),
+    .action (.fill (name 30 20) value)] ++
+  (if dimension == 0 then [] else [.action (.store (name 30 20) (dimension - 1) 0 value)]) ++
+  [.action (.release 20),
+    .action (.borrow 21 (.owner 10) layout .read), .numerical (.vector 31 21 1),
+    .action (.borrow 22 (.owner 11) layout .write), .numerical (.vector 32 22 1)] ++
+  (if dimension == 0 then [] else [.action (.expect (name 31 21) (dimension - 1) 0 value)]) ++
+  [.action (.copy (name 31 21) (name 32 22)),
+    .action (.release 22), .action (.release 21), .action (.drop 10), .action (.drop 11)]
+
+/-- A caller lends uninitialized cells as a vector; only the callee writes them. -/
+private def producer (scalar : Scalar) (implementation : String) (dimension : Nat) (access : Access)
+    (initializes : Bool) (body : List Functions.Statement) : Functions.Program :=
+  let layout := NumericalFixture.layout dimension 1
+  ⟨[⟨0, [], [], [.numerical (.space 0 (id implementation) dimension), .numerical (.basis 1 0),
+      .action (.allocate 10 scalar dimension), .action (.borrow 20 (.owner 10) layout .write),
+      .numerical (.vector 30 20 1), .call 1 [0, 1, 30] [], .action (.release 20),
+      .action (.borrow 21 (.owner 10) layout .read), .action (.release 21), .action (.drop 10)], none⟩,
+    ⟨1, [.space 0 (id implementation) dimension, .basis 1 0, .vector 2 1 access initializes], [], body, none⟩], 0⟩
+
+private def checkCode (program : Functions.Program) (env : Indexed.Environment) : Option String :=
+  match Functions.check program env with | .ok _ => none | .error error => some error.code
+
+private def expandCode (statements : List Functions.Statement) (env : Indexed.Environment) : Option String :=
+  match (Functions.expand 4096 [] [] [] statements).run {environment := env} with
+  | .ok _ => none
+  | .error error => some error.code
+
+#eval show IO Unit from do
+  let .ok declarations := Indexed.Source.checkDeclarations source | throw (IO.userError "invalid declaration fixture")
+  let env := declarations.resolved.declarations.indexed
+  for (scalar, implementation) in [(Scalar.f64, "Real"), (.complexF64, "Complex")] do
+    let value := payload scalar
+    for dimension in [0, 1, 3] do
+      for transposed in [false, true] do
+        let .ok viaVector := Functions.check (program (cells scalar implementation dimension transposed true)) env
+          | throw (IO.userError "cell statements through vectors rejected")
+        let .ok viaLoan := Functions.check (program (cells scalar implementation dimension transposed false)) env
+          | throw (IO.userError "cell statements through loans rejected")
+        check "a vector operand emits the schedule of its loan"
+          (decide (viaVector.statements = viaLoan.statements))
+        check "a vector operand leaves the resource state of its loan"
+          (viaVector.context.resources == viaLoan.context.resources)
+        check "vector cell statements allocate and conjugate nothing" (viaVector.statements.countP (fun s => match s with
+          | .action (.allocate ..) => true | _ => false) == 2 && viaVector.statements.all (fun s => match s with
+          | .action (.gemm ..) | .action (.borrow _ (.loan _) ..) => false | _ => true))
+      let stores := (List.range dimension).map fun row => Functions.Statement.action (.store 2 row 0 value)
+      let .ok filled := Functions.check (producer scalar implementation dimension .write true [.action (.fill 2 value)]) env
+        | throw (IO.userError "fill through an initializing vector parameter rejected")
+      -- The callee writes through the child loan of its vector parameter.
+      check "fill reaches the child loan of the parameter" (filled.statements.any fun statement => match statement with
+        | .action (.fill loan _) => filled.statements.any (fun prior => match prior with
+          | .action (.borrow child (.loan _) _ .write) => child == loan | _ => false)
+        | _ => false)
+      check "stores of every cell keep the promise"
+        ((checkCode (producer scalar implementation dimension .write true stores) env).isNone)
+      check "written cells are initialized for the caller without a promise"
+        ((checkCode (producer scalar implementation dimension .write false [.action (.fill 2 value)]) env).isNone)
+      check "an unwritten promise fails only where a cell exists"
+        (checkCode (producer scalar implementation dimension .write true []) env ==
+          if dimension == 0 then none else some "E_RESOURCE_INIT")
+      check "a missing cell breaks the promise"
+        (checkCode (producer scalar implementation dimension .write true (stores.drop 1)) env ==
+          if dimension == 0 then none else some "E_RESOURCE_INIT")
+      check "one arm cannot keep the promise"
+        (checkCode (producer scalar implementation dimension .write true
+          [.branch (.literal true) [.action (.fill 2 value)] []]) env ==
+          if dimension == 0 then none else some "E_RESOURCE_INIT")
+      check "both arms keep the promise"
+        ((checkCode (producer scalar implementation dimension .write true
+          [.branch (.literal true) [.action (.fill 2 value)] stores]) env).isNone)
+      check "a write-only vector parameter cannot be read"
+        (checkCode (producer scalar implementation dimension .write true
+          [.action (.fill 2 value), .action (.copy 2 2)]) env == some "E_RESOURCE_ACCESS")
+    -- A tampered schedule that writes through the suspended caller loan is refused.
+    let .ok accepted := Functions.check (producer scalar implementation 3 .write true [.action (.fill 2 value)]) env
+      | throw (IO.userError "vector producer rejected")
+    let parent := accepted.statements.findSome? fun statement => match statement with
+      | .action (.borrow _ (.loan parent) _ .write) => some parent | _ => none
+    let some parent := parent | throw (IO.userError "missing parameter child loan")
+    let forged := accepted.statements.map fun statement => match statement with
+      | .action (.fill _ value) => Storage.Statement.action (.fill parent value) | other => other
+    check "forged write through the suspended caller loan rejected"
+      ((checkPlan accepted.statements).isOk && !(checkPlan forged).isOk)
+  let value := payload .complexF64
+  let preparation := prepare .complexF64 "Complex" 3 false
+  let conjugated : Functions.Statement := .numerical (.conjugateVector 40 30 6 4)
+  let rejected : List (String × List Functions.Statement × String) := [
+    ("fill through a read vector", [.action (.fill 30 value)], "E_RESOURCE_ACCESS"),
+    ("store through a read vector", [.action (.store 30 0 0 value)], "E_RESOURCE_ACCESS"),
+    ("copy into a read vector", [.action (.copy 33 30)], "E_RESOURCE_ACCESS"),
+    ("copy onto the same read vector still needs write access", [.action (.copy 30 30)], "E_RESOURCE_ACCESS"),
+    ("fill through a conjugate vector", [conjugated, .action (.fill 40 value)], "E_RESOURCE_ACCESS"),
+    ("store through a conjugate vector", [conjugated, .action (.store 40 0 0 value)], "E_RESOURCE_ACCESS"),
+    ("copy into a conjugate vector", [conjugated, .action (.copy 33 40)], "E_RESOURCE_ACCESS"),
+    ("stored cells are not read through a conjugate vector", [conjugated, .action (.expect 40 0 0 value)], "E_NUMERICAL_TYPE"),
+    ("stored cells are not copied from a conjugate vector", [conjugated, .action (.copy 40 23)], "E_NUMERICAL_TYPE"),
+    ("a suspended vector gives no access", [conjugated, .action (.expect 30 0 0 value)], "E_NUMERICAL_TYPE"),
+    ("another vector of the suspended loan gives no access", [conjugated, .action (.expect 31 0 0 value)], "E_NUMERICAL_TYPE"),
+    ("a vector keeps the layout of its statement", [.action (.transpose 21), .action (.expect 30 0 0 value)], "E_NUMERICAL_TYPE"),
+    ("a vector ends with its loan", [.action (.release 21), .action (.expect 30 0 0 value)], "E_NUMERICAL_TYPE"),
+    ("a cell outside the vector", [.action (.expect 30 3 0 value)], "E_RESOURCE_BOUNDS"),
+    ("a vector has one column", [.action (.expect 30 0 1 value)], "E_RESOURCE_BOUNDS"),
+    ("the payload has the element type of the vector", [.action (.expect 30 0 0 (payload .f64))], "E_RESOURCE_TYPE"),
+    ("copy needs the shape of the vector", [.action (.copy 30 23)], "E_RESOURCE_TYPE"),
+    ("transpose rejects a vector", [.action (.transpose 30)], "E_RESOURCE_LOAN"),
+    ("drop rejects a vector", [.action (.drop 30)], "E_RESOURCE_MOVE"),
+    ("move rejects a vector", [.action (.move 30 50)], "E_RESOURCE_MOVE"),
+    ("borrow rejects a vector", [.action (.borrow 50 (.loan 30) (NumericalFixture.layout 1 1) .read)], "E_RESOURCE_LOAN"),
+    ("a map is not a loan", [.numerical (.space 50 (id "Complex") 1), .numerical (.basis 51 50),
+      .numerical (.map 52 23 51 51), .action (.fill 52 value)], "E_RESOURCE_LOAN"),
+    ("a basis is not a loan", [.action (.fill 1 value)], "E_RESOURCE_LOAN")]
+  for (label, tail, code) in rejected do
+    check label (expandCode (preparation ++ tail) env == some code)
+  let accepted : List (String × List Functions.Statement) := [
+    ("expect reads the stored cell of a read vector", [.action (.expect 30 2 0 value)]),
+    ("a covector presents the same stored cells", [.action (.expect 31 2 0 value)]),
+    ("two conjugations read the stored cells", [.numerical (.conjugateSpace 50 5 4), .numerical (.derivedBasis 51 6 50),
+      conjugated, .numerical (.conjugateVector 41 40 51 4), .action (.expect 41 0 0 value)])]
+  for (label, tail) in accepted do
+    check label ((expandCode (preparation ++ tail) env).isNone)
+  IO.println "Vector cells: loan schedules, initialization promises, access, conjugation, suspension, stale views and forged schedules passed"
+
 end VastitasKernel.Storage.EvaluationRegression

@@ -273,6 +273,82 @@ fn tensor_source_checks_real_axes_explicit_packing_and_ordered_boundaries() {
     }
 }
 
+/// `path:line:column` of the first occurrence of `marker` in the real module.
+fn real_location(source: &str, marker: &str) -> String {
+    let before = &source[..source.find(marker).expect("marker")];
+    let line = before.matches('\n').count() + 1;
+    let column = before.rsplit('\n').next().unwrap().chars().count() + 1;
+    format!("src/real/mod.vast:{line}:{column}")
+}
+
+#[test]
+fn grouping_axis_bound_is_reported_at_the_tensor() {
+    // The kernel's decoder admits the axis numbers 0, 1 and 2 in a grouping,
+    // for `view2` too. A larger number used to fail wire decoding with
+    // `E_PROTOCOL` at the manifest (#704).
+    const VIEW3: &str = "tensor t = view3(input_t, bu, bvd, bw, axes(0, 1, 2), 1);";
+    const VIEW2: &str = "tensor b = view2(input_b, bv, bxd);";
+    for (from, to, axis) in [
+        (
+            VIEW3,
+            "tensor t = view3(input_t, bu, bvd, bw, axes(0, 1, 3), 1);",
+            "3",
+        ),
+        (
+            VIEW3,
+            "tensor t = view3(input_t, bu, bvd, bw, axes(3, 1, 2), 1);",
+            "3",
+        ),
+        (
+            VIEW3,
+            "tensor t = view3(input_t, bu, bvd, bw, axes(0, 1, 18446744073709551615), 1);",
+            "18446744073709551615",
+        ),
+        (
+            VIEW2,
+            "tensor b = view2(input_b, bv, bxd, axes(0, 3), 1);",
+            "3",
+        ),
+    ] {
+        let source = common::checked_replace(REAL, from, to);
+        let output = command(&fixture(&source, COMPLEX), "check")
+            .output()
+            .unwrap();
+        let stderr = common::expect_code(&output, "E_TENSOR");
+        assert!(
+            stderr.lines().next().unwrap().contains(&format!(
+                "{}: E_TENSOR: grouping names axis {axis}; a tensor has at most three axes, numbered from 0",
+                real_location(&source, to)
+            )),
+            "{stderr}"
+        );
+        assert!(!stderr.contains("E_PROTOCOL"), "{stderr}");
+    }
+    // Axis 2 is the largest that the decoder admits. The kernel accepts it in
+    // a permutation of three axes and reports it at the statement of a tensor
+    // with two axes.
+    let explicit = "tensor b = view2(input_b, bv, bxd, axes(0, 1), 1);";
+    let source = common::checked_replace(REAL, VIEW2, explicit);
+    success(
+        &command(&fixture(&source, COMPLEX), "check")
+            .output()
+            .unwrap(),
+    );
+    let outside = "tensor b = view2(input_b, bv, bxd, axes(0, 2), 1);";
+    let source = common::checked_replace(REAL, VIEW2, outside);
+    let output = command(&fixture(&source, COMPLEX), "check")
+        .output()
+        .unwrap();
+    let stderr = common::expect_code(&output, "E_TENSOR");
+    assert!(
+        stderr.lines().next().unwrap().contains(&format!(
+            "{}: E_TENSOR: invalid tensor axes, profile or grouping permutation",
+            real_location(&source, outside)
+        )),
+        "{stderr}"
+    );
+}
+
 #[test]
 fn tensor_wire_rejects_forged_axes_groupings_authority_and_old_envelopes() {
     let raw = captured(&fixture(REAL, COMPLEX));
@@ -300,6 +376,19 @@ fn tensor_wire_rejects_forged_axes_groupings_authority_and_old_envelopes() {
     let mut changed = raw.clone();
     operation(&mut changed, "t")["grouping"]["order"] = json!([0, 1, 2, 3]);
     assert_rejected(changed, "E_PROTOCOL");
+    // The frontend sends no axis number above 2; the decoder still refuses one.
+    for (tensor, order) in [("t", json!([0, 1, 3])), ("b", json!([0, 3]))] {
+        let mut changed = raw.clone();
+        operation(&mut changed, tensor)["grouping"]["order"] = order;
+        let response = assert_rejected(changed, "E_PROTOCOL");
+        assert!(
+            response["diagnostics"][0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("tensor grouping axis exceeds rank bound"),
+            "{response}"
+        );
+    }
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);

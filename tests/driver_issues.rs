@@ -430,6 +430,7 @@ fn native_project_uses_the_selected_kernel_toolchain() {
     let pinned = include_str!("../lean-kernel/lean-toolchain").trim();
     let expected = format!("{pinned}\n\n\n");
     fs::write(root.join("lean-toolchain"), &expected).unwrap();
+    common::copy_runtime_inputs(&root, false, false);
     let bin = scratch.0.join("bin");
     fs::create_dir(&bin).unwrap();
     executable(

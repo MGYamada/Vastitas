@@ -61,12 +61,45 @@ writable. There is no self-contained relocatable installation, and
 cross-compilation is not provided: builds target the host.
 
 Every backend response reports the kernel's build identity: a digest of the
-kernel sources it was compiled from and its Lean version. The driver rejects a
-backend built from other sources or with another Lean (`E_BACKEND: incompatible
-kernel`), so rebuild the kernel (`lake -d <root> build vastitas-kernel`) after
-updating the compiler or its sources. `build` also requires the package's
+files it was built from and its Lean version. The digest covers the Lean
+sources of the kernel executable and `compiler-limits.json`, the file of the
+[checker limits](../appendix/limits.md#checker-limits) that those sources read
+when they are built. `check` and `build` reject a backend built from other
+sources, with another limits file or with another Lean (`E_BACKEND:
+incompatible kernel`), so rebuild the kernel
+(`lake -d <root> build vastitas-kernel`) after updating the compiler or its
+sources. `build` also requires the package's
 `lean-toolchain` to equal the compiler's pin and `lean --version`, resolved as
 Lake resolves it, to report that version; otherwise it stops before Lake runs.
+
+The identity covers the kernel executable, and Lake compiles the runtime from
+the files of the kernel root. `build` therefore compares the files that Lake
+reads there with the files that the compiler was built from:
+
+- in the kernel package, the runtime modules that generated programs import
+  and the modules that those import, `lakefile.toml`, `lake-manifest.json` and
+  `compiler-limits.json`;
+- in the storage runtime and in the numerical runtime, when the checked entry
+  needs them, the Lake configuration, the manifest, `lean-toolchain`, the Lean
+  modules and the C sources and headers.
+
+Each of these packages has one Lake configuration file. The other name of that
+file must not exist in the root: `lakefile.lean` in the kernel package, which
+Lake prefers to `lakefile.toml`, and `lakefile.toml` in the two runtimes.
+`build` applies this as a rule. It does not compare the name with the
+compiler's sources, so rebuilding the compiler does not make the file
+acceptable. Building the compiler fails when its own sources lack a compared
+file or hold a file with such a name.
+
+A root that breaks the rule, or whose files differ, is an error (`E_BUILD`).
+`build` reports it before Lake runs and before it writes the output, and the
+diagnostic names the differing files and a digest of each side. The comparison
+rejects a root whose runtime files changed after its kernel executable was
+built. It also rejects a `VASTITAS_KERNEL` executable paired with the root of
+another source tree. Both pass the identity check. The comparison reads source
+files: it does not cover the build products under `.lake`, the OpenBLAS prefix
+or a file that changes while Lake runs. The digest detects a stale or mixed
+tree; it is not a cryptographic hash.
 
 ### Numerical builds
 

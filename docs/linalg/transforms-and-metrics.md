@@ -98,8 +98,9 @@ Rules:
   zero, unless the space has dimension 0 (`E_NUMERICAL_TYPE`).
 - `diagonal` must list as many entries as the space has dimensions
   (`E_NUMERICAL_TYPE`).
-- `diagonal` lists at most 4096 entries. The compiler reports a longer list
-  at the root manifest (`E_PROTOCOL`).
+- `diagonal` must list at most 4096 entries. Otherwise it is an error
+  (`E_LIMIT`). [Appendix D](../appendix/limits.md#other-documented-bounds)
+  lists the limit.
 - A metric has **identity Gram data** when it is `orthonormal`, a
   `scaled_identity` with the entry 1 or a `diagonal` whose entries are all 1.
   `adjoint` and `hermitian` need such a metric.
@@ -222,6 +223,16 @@ a derived basis of the dual space. `vector xc = conjugate(x, bc, sigma);`
 declares the conjugate vector of `x`: a `read` child of the loan of `x` over
 the same cells, which a pairing reads conjugated.
 
+`fill`, `store`, `expect` and `copy` may name a vector in place of a loan.
+The statement then acts on the loan of the vector, with the meaning that
+[Resource statements](../storage/resource-programs.md#resource-statements)
+gives it. `fill(x, p);` writes the payload `p` to every cell of `x`,
+`store(x, i, 0, p);` writes the cell in row `i`, and `expect(x, i, 0, p);`
+checks that cell when the program runs. `copy` copies the cells of its source
+to its target, each of which may be a vector or a loan. These statements
+write and read stored cells. They conjugate nothing and convert nothing, and
+they allocate no storage.
+
 Rules:
 
 - In `view(l, b)`, `l` must be a live static loan and `b` a basis
@@ -244,15 +255,44 @@ Rules:
   (`E_RESOURCE_ESCAPE`) and, for a conjugate vector of an arm, in that arm
   (`E_RESOURCE_JOIN`). `release(x)` of a vector that `view` declared ends its
   loan.
-- A statement may use a vector only while its loan is live and has the layout
-  that it had at the `vector` statement (`E_NUMERICAL_TYPE`).
-- A vector is not a loan and not a map. `transpose`, `fill`, `store`,
-  `expect` and `copy` that name one are errors (`E_RESOURCE_LOAN`). So are
-  `drop` and `move` (`E_RESOURCE_MOVE`), a `borrow` from one
-  (`E_RESOURCE_TYPE`) and a vector as an operand of `gemm`
+- A statement may use a vector only while its loan is live, has no live child
+  and has the layout that it had at the `vector` statement
   (`E_NUMERICAL_TYPE`).
-- No statement writes through a vector. A program writes the cells of a
-  vector through its loan.
+- A `fill`, `store`, `expect` or `copy` that names a vector must satisfy the
+  rules that
+  [Resource statements](../storage/resource-programs.md#resource-statements)
+  gives for the loan of the vector. Otherwise it is an error with the code of
+  that rule: the access of the loan (`E_RESOURCE_ACCESS`), the cell of `store`
+  and `expect` (`E_RESOURCE_BOUNDS`), and the element type of a payload and
+  the shape of a `copy` (`E_RESOURCE_TYPE`).
+- A write through a vector is a write through its loan. It initializes the
+  cells that it writes, and it ends the validity of a
+  [cache](networks-and-packing.md#caches) of the allocation.
+- A conjugate vector is a `read` child. `fill` and `store` that name one are
+  errors, and so is `copy` with one as its target (`E_RESOURCE_ACCESS`).
+- `expect` and the source of `copy` read stored cells, so a vector that they
+  name must have its stored cells as coordinates (`E_NUMERICAL_TYPE`). The
+  coordinates of a `view` are its stored cells, even in a conjugate basis.
+  The coordinates of a conjugate vector are the conjugates of the coordinates
+  of its vector. The conjugate vector of a `view` is therefore an error
+  there, and the conjugate vector of that conjugate vector fits.
+- A vector is not a loan and not a map. A `transpose` that names one is an
+  error (`E_RESOURCE_LOAN`). So are `drop` and `move` (`E_RESOURCE_MOVE`), a
+  `borrow` from one (`E_RESOURCE_TYPE`), a vector as the argument for a
+  borrowed parameter (`E_RESOURCE_LOAN`) and a vector as an operand of `gemm`
+  (`E_NUMERICAL_TYPE`).
+
+These functions of
+[`examples/packages/vector-cells`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/vector-cells)
+write the cells of a vector and copy them to another vector:
+
+```vast
+{{#include ../../examples/packages/vector-cells/src/main.vast:cells}}
+```
+
+`main` of the example lends uninitialized cells as the vectors that the two
+functions write, and it reads the cells back with `expect`. The executable
+prints `42`.
 
 ## Pairings
 
@@ -385,9 +425,21 @@ Rules:
   parameters both (`E_RESOURCE_ALIAS`).
 - In the body, a vector parameter is a vector, not a loan. A body must not
   release it (`E_RESOURCE_LOAN`).
+- The loan of a vector parameter has the access of its type: `ReadVector`
+  permits reading, `WriteVector` writing and `ReadWriteVector` both. A
+  `fill`, `store`, `expect` or `copy` of the body that needs another access
+  is an error (`E_RESOURCE_ACCESS`), as [Vectors](#vectors) describes.
+- A call checks the body with the vector of the caller. An `expect` or a
+  `copy` of the body that reads a parameter is an error at a call that passes
+  the conjugate vector of a `view` (`E_NUMERICAL_TYPE`).
 - A `WriteVector` parameter with `initializes` promises that the body
-  initializes every cell (`E_RESOURCE_INIT`). No statement writes through a
-  vector, so a body can keep the promise only for a space of dimension 0.
+  initializes every cell. A body that leaves a cell unwritten on some path is
+  an error (`E_RESOURCE_INIT`). One `fill` keeps the promise, and so do
+  stores that cover every cell, within the bound that
+  [Resource statements](../storage/resource-programs.md#resource-statements)
+  gives. A space of dimension 0 has no cell to write.
+- Cells that a body writes through a vector parameter count as initialized
+  for the caller, with or without `initializes`.
 - The types of this chapter are parameter types only. None is the type of an
   owned result.
 

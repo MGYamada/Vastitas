@@ -23,6 +23,32 @@ Lines and columns are one-based; columns count Unicode scalars. A diagnostic
 reported by the Lean kernel is mapped back to the original file and its local
 position.
 
+A message names a declaration by its name or by its path
+`package::module::name`. The first component of the path is the name that the
+manifest of the declaring package gives it, even when the source reaches the
+package through a dependency alias. A message names a parameter as the source
+spells it.
+
+`FILE` and `MANIFEST` are paths. The compiler does not write every character
+of a path, or of text that comes from a manifest, as it is. It writes a
+control character, white space other than U+0020, or a character with the
+Unicode `Default_Ignorable_Code_Point` property as its code point in angle
+brackets. A file name that holds the escape character appears as
+`x<U+001B>[2J.vast`, for example. The rule covers every path and file name in
+a diagnostic and the message of a source diagnostic, including the package
+name that begins the path of a declaration. In a manifest diagnostic it also
+covers the line that a TOML error quotes and the keys that its message names.
+In a native build it covers the names that the driver reads from the kernel
+root and from the generated program. The line `checked FILE` or `built FILE`
+of a successful command writes its path by the same rule.
+
+> **Implementation note.** The driver formats every path with one function. A
+> TOML error keeps the layout of the `toml` crate, and its carets stay under
+> the place that they mark in the quoted line. The message of a TOML error
+> keeps its line breaks when the manifest holds no backslash and no
+> multi-line string. In any other manifest a line feed of the message may
+> come from the manifest, and the driver writes each one as `<U+000A>`.
+
 ## Driver and frontend
 
 The Rust driver reports these before or around kernel checking. Source position
@@ -36,7 +62,7 @@ codes come from the lexer, parser and lexical resolver.
 | `E_LIBRARY` | A flat-mode `--lib` library declares `main`, which only the entry file may do |
 | `E_OUTPUT` | The `-o` path is unusable, for example not a regular file or an alias of an input |
 | `E_BACKEND` | The kernel cannot be located or started, or reports a build identity other than this compiler's (`incompatible kernel`) |
-| `E_BUILD` | The native build cannot be prepared or fails, including a missing `--openblas-prefix` |
+| `E_BUILD` | The native build cannot be prepared or fails, including a missing `--openblas-prefix` and a kernel root whose runtime files differ from the compiler's |
 | `E_INTERRUPTED` | A signal cancelled the compilation |
 | `E_LEX`, `E_PARSE`, `E_UNSUPPORTED` | The source cannot be tokenized or parsed, or uses unimplemented syntax |
 | `E_RESOURCE_LITERAL` | A resource payload such as `f64(0.1)` is not an exact binary64 value ([rule](../storage/resource-programs.md#payloads)) |

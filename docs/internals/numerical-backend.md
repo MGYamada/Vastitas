@@ -852,6 +852,61 @@ occurrences, ports, edges and boundaries with explicit schedules and regrouping;
 General-rank networks, broader generative numerical packages, dynamic interfaces
 and equivalent-C acceptance remain open Stage 1 work.
 
+### Cell statements of vectors
+
+A `fill`, `store`, `expect` or `copy` that
+[names a vector](../linalg/transforms-and-metrics.md#vectors) reaches the
+checker as the resource action of
+[Resource statements](../storage/resource-programs.md#resource-statements),
+with the name of the vector in the `loan`, `source` or `target` field. The wire
+has no other form for it. The action decoder rejects a certificate, a flag or
+a resolved loan in such an action as an unknown field.
+
+`StorageFunctions.operation` resolves the operand of these four actions. For a
+name that is bound to a vector it requires `VectorView.Live`: the loan
+snapshot of the vector is the live loan, with the same layout and without a
+live child. A read also requires a vector without the conjugation flag. The
+operand of the primitive action is then the loan of the snapshot. That loan
+is the loan of the `vector` statement, the child loan that a call lends to a
+vector parameter, or the `read` child of a conjugate vector. `checkAction`
+decides access, bounds and element type on that loan. It records a write in
+the initialization, the version and the dependency stamps of the allocation,
+as it does for a statement that names the loan. Every other binding keeps its
+identity, so a map, a tensor or a basis in these statements stays an error.
+
+The schedule holds the `fill`, `store`, `expect` or `copy` of the loan. Native
+lowering and the storage runtime see no vector, and the statements add no
+allocation, borrow, copy or conjugation flag. An executable that uses vectors
+only in these statements builds without OpenBLAS.
+
+The oracle states nothing about the resolution of the operand. Its theorems
+about checked plans and call receipts apply to the emitted actions.
+
+`EvaluationRegression` compares the schedule and the final resource state of
+a body that names vectors with those of the same body that names their loans.
+It does so for real and complex vectors of dimensions 0, 1 and 3, in ordinary
+and transposed columns. It also covers the promise of `initializes` through a
+vector parameter, both arms of a branch, read and conjugate vectors,
+suspended, transposed and released loans, the statements that reject a
+vector, and a forged schedule that writes through the suspended loan of the
+caller. `tests/numerical_source.rs` checks, builds and runs
+[`examples/packages/vector-cells`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/vector-cells)
+for real and complex cells and for padded and transposed layouts of the
+caller. A changed write or a changed `expect` stops the executable with
+`E_NATIVE_EXPECT`. The tests pin the codes of the Reference rules and reject
+wire requests that name a vector where the checker refuses one.
+`tests/cached_packing.rs` checks that a write through a vector ends the
+validity of a cache.
+
+```sh
+cargo run --locked -- check --manifest-path examples/packages/vector-cells/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/vector-cells/Vastitas.toml \
+  -o /tmp/vector-cells
+/tmp/vector-cells
+```
+
+The program prints `42`.
+
 ### Diagonal metrics
 
 The scratch argument is a caller-owned allocation without outstanding loans.
@@ -1316,7 +1371,11 @@ corresponding bases and declared orthonormal metric evidence for direct adjoints
 raw component flags do not supply that authority.
 [Vector evaluation](../linalg/transforms-and-metrics.md#pairings) supplies bilinear dual evaluation and
 explicit orthonormal Hermitian pairing through actual vector loans and scalar
-destinations. The [two-map network profile](../linalg/networks-and-packing.md#two-map-networks) checks finite
+destinations. Since [issue #708](https://github.com/MGYamada/Vastitas/issues/708),
+`fill`, `store`, `expect` and `copy` accept a vector
+([Cell statements of vectors](#cell-statements-of-vectors)); before it, a body
+could keep the promise of a `WriteVector` parameter with `initializes` only for
+dimension 0. The [two-map network profile](../linalg/networks-and-packing.md#two-map-networks) checks finite
 occurrences, ports, the bilinear edge and ordered boundaries before invoking
 the same product/resource path.
 

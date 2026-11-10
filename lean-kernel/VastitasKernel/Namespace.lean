@@ -221,4 +221,14 @@ def Owner.symbol (owner : Owner) : String :=
 
 def localName (name : String) : String := "ns_b_" ++ name
 
+/-- The source path of a declaration, `package::module::name`. A diagnostic
+names a declaration by this path and never by `Owner.symbol`, which encodes
+the canonical location of the package. -/
+def Owner.qualified (owner : Owner) : String :=
+  String.intercalate "::" (owner.scope.package.name :: owner.scope.path ++ [owner.name])
+
+/-- The source spelling of a binder that `localName` lowered. -/
+def localSource (name : String) : String :=
+  if name.startsWith "ns_b_" then (name.drop 5).toString else name
+
 end VastitasKernel.Namespace

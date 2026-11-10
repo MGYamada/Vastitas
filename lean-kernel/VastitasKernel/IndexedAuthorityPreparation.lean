@@ -18,7 +18,6 @@ def expandUnapplied {program : Program} (prepared : PreparedHeaders program) : N
   let mut headers := #[]
   let mut work := 0
   let assembled := prepared.assembled
-  let surface := Authority.finalSurface assembled.prepared assembled.state
   for contribution in prepared.contributions do
     if assembled.state.applied.any (·.contribution.id == contribution.header.id) then continue
     for original in contribution.methods do
@@ -29,7 +28,9 @@ def expandUnapplied {program : Program} (prepared : PreparedHeaders program) : N
         Abstract.selector family.nominals param.ty.core param.span).run {}).map Prod.fst
       let normalized ← (Dispatch.normalizeMethod family.nominals.hierarchy family.raw.params.length
         { id := original.ordinal, selectors, requirements := method.requirements }).mapError fun error =>
-          DispatchChecker.dispatchDiagnostic family.nominals (Surface.headers surface) family.raw error
+          DispatchChecker.dispatchDiagnostic family.nominals
+            (Edit.auditHeaders assembled.prepared.core contribution.header) family.raw error
+            (Namespace.sourceNames program.source.headers.indexed)
       let keys := family.checked.keys.filter (Dispatch.applicable family.nominals.hierarchy · normalized)
       if keys.isEmpty then Namespace.problem method.span "E_CAPABILITY" "unapplied method has no admitted concrete key"
       let ordinal := prepared.methods.size + methods.size

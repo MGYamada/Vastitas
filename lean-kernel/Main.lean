@@ -60,8 +60,9 @@ private partial def readBounded (stream : IO.FS.Stream) (limit : Nat) (data : By
   if chunk.isEmpty then return data
   readBounded stream limit (data ++ chunk)
 
-/-- Every response identifies this build: the digest of `Main` and its kernel
-imports, and the Lean version. See `VastitasKernel.BuildIdentity`. -/
+/-- Every response identifies this build: the digest of `Main`, of its kernel
+imports and of the compiler limits, and the Lean version. See
+`VastitasKernel.BuildIdentity`. -/
 private def identity : Lean.Json :=
   Lean.Json.mkObj [("sources", Lean.Json.str kernel_source_digest%), ("lean", Lean.Json.str Lean.versionString)]
 

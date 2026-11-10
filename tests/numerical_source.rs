@@ -2112,6 +2112,505 @@ fn vector_evaluation_builds_executes_real_complex_empty_and_transposed() {
     }
 }
 
+const CELLS: &str = include_str!("../examples/packages/vector-cells/src/main.vast");
+
+// The evaluation profiles also declare the complex implementation.
+fn cells_fixture(source: &str) -> Scratch {
+    let s = Scratch::empty("vector cells");
+    s.write(
+        "Vastitas.toml",
+        include_str!("../examples/packages/vector-cells/Vastitas.toml"),
+    );
+    s.write("src/main.vast", source);
+    s.write(
+        "src/profiles/mod.vast",
+        include_str!("../examples/packages/vector-evaluation/src/profiles/mod.vast"),
+    );
+    s
+}
+
+fn cells_function<'a>(raw: &'a mut Value, name: &str) -> &'a mut Value {
+    raw["packages"][0]["modules"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|m| m["path"] == json!([]))
+        .unwrap()["resource_functions"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|f| f["name"] == name)
+        .unwrap()
+}
+
+/// `main` holds the `read_write` loan `cells` of two initialized cells, the
+/// vector `x` on it, the conjugate basis `bvc` and a second allocation
+/// `other`. `body` runs while they are live.
+fn cells_source(body: &str, functions: &str) -> String {
+    format!(
+        "mod profiles;
+resource fn main() -> Int {{
+    space v = linear(profiles::RealSmooth, 2);
+    basis bv = basis(v);
+    involution sigma = canonical(v);
+    space vc = conjugate(v, sigma);
+    basis bvc = derived(bv, vc);
+    allocate data: F64[2];
+    allocate other: F64[2];
+    borrow seed = write(data, layout(0, 2, 1, 2, false));
+    fill(seed, f64(1));
+    release(seed);
+    borrow cells = read_write(data, layout(0, 2, 1, 2, false));
+    vector x = view(cells, bv);
+    {body}
+    release(cells);
+    drop(data);
+    drop(other);
+    value {{ 42 }}
+}}
+{functions}"
+    )
+}
+
+/// A function with one vector parameter of `access` over a real space of
+/// dimension 2, called as `f(v, bv, x)`.
+fn cells_callee(access: &str, body: &str) -> String {
+    format!(
+        "resource fn f(v: Space<profiles::RealSmooth, 2>, bv: Basis<v>, out: {access}) -> Unit {{
+    {body}
+    value {{ () }}
+}}"
+    )
+}
+
+fn cells_run(source: &str) -> std::process::Output {
+    let s = cells_fixture(source);
+    success(
+        &command(&s, "build")
+            .args(["-o", "program"])
+            .output()
+            .unwrap(),
+    );
+    Command::new(s.0.join("program")).output().unwrap()
+}
+
+#[test]
+fn vector_cell_statements_write_and_read_stored_cells_and_run_without_openblas() {
+    let complex = CELLS
+        .replace("RealSmooth", "ComplexSmooth")
+        .replace("F64", "Complex<F64>")
+        .replace("f64(1)", "complex(0, 1)")
+        .replace("f64(0)", "complex(0, 0)");
+    assert!(complex.contains("store(out, 1, 0, complex(0, 1));"));
+    // The callee sees the caller's offset, padding and transposition.
+    let placed = |source: &str, first: &str, second: &str| {
+        let changed = source
+            .replace("[3];", "[8];")
+            .replace(
+                "(first, layout(0, 3, 1, 3, false))",
+                &format!("(first, {first})"),
+            )
+            .replace(
+                "(second, layout(0, 3, 1, 3, false))",
+                &format!("(second, {second})"),
+            );
+        assert!(!changed.contains("layout(0, 3, 1, 3, false)"));
+        changed
+    };
+    let mut sources = vec![CELLS.to_string(), complex.clone()];
+    for source in [CELLS, complex.as_str()] {
+        let width = if source == CELLS { 8 } else { 16 };
+        sources.push(placed(
+            source,
+            "layout(0, 1, 3, 1, true)",
+            "layout(0, 1, 3, 1, true)",
+        ));
+        sources.push(placed(
+            source,
+            &format!("layout({width}, 3, 1, 4, false)"),
+            &format!("layout({width}, 1, 3, 2, true)"),
+        ));
+    }
+    for source in &sources {
+        let s = cells_fixture(source);
+        success(&command(&s, "check").output().unwrap());
+        let response = kernel(captured(&s), "emit");
+        assert_eq!(response["ok"], true, "{response}");
+        // The statements lower to the cell instructions of the loans: no
+        // allocation, product or conjugation is added.
+        let generated = response["lean_source"].as_str().unwrap();
+        assert_eq!(generated.matches("allocate arena").count(), 2);
+        assert_eq!(generated.matches("fill arena").count(), 1);
+        assert_eq!(generated.matches("store arena").count(), 1);
+        assert_eq!(generated.matches("copy arena").count(), 1);
+        assert_eq!(generated.matches("expect arena").count(), 6);
+        assert!(!generated.contains("VastitasGemmNative"));
+        let result = cells_run(source);
+        success(&result);
+        assert_eq!(result.stdout, b"42\n");
+    }
+    // The wire names the vector in the fields of the existing actions.
+    let mut raw = captured(&cells_fixture(CELLS));
+    let unit = cells_function(&mut raw, "unit_vector");
+    assert_eq!(unit["parameters"][2]["kind"], "vector");
+    assert_eq!(
+        unit["body"][0]["action"],
+        json!({"op": "fill", "loan": "out", "value": {"kind": "f64", "bits": 0}})
+    );
+    assert_eq!(
+        cells_function(&mut raw, "duplicate")["body"][0]["action"],
+        json!({"op": "copy", "source": "x", "target": "y"})
+    );
+    // The caller observes at run time what the callees wrote.
+    for (old, new) in [
+        ("store(out, 1, 0, f64(1));", "store(out, 2, 0, f64(1));"),
+        ("fill(out, f64(0));", "fill(out, f64(2));"),
+        ("copy(x, y);", "fill(y, f64(0));"),
+        ("expect(x, 1, 0, f64(1));", "expect(x, 1, 0, f64(3));"),
+    ] {
+        let result = cells_run(&common::checked_replace(CELLS, old, new));
+        assert!(result.stdout.is_empty(), "{old} -> {new}");
+        common::expect_code(&result, "E_NATIVE_EXPECT");
+    }
+    // Statements of a caller and of every parameter access.
+    for (body, functions) in [
+        (
+            "store(x, 0, 0, f64(3)); expect(x, 0, 0, f64(3)); expect(cells, 1, 0, f64(1));"
+                .to_string(),
+            String::new(),
+        ),
+        (
+            "call f(v, bv, x) -> (); expect(x, 0, 0, f64(3)); expect(x, 1, 0, f64(1));".into(),
+            cells_callee(
+                "ReadWriteVector<bv>",
+                "expect(out, 0, 0, f64(1)); store(out, 0, 0, f64(3)); expect(out, 0, 0, f64(3));",
+            ),
+        ),
+        (
+            "call f(v, bv, x) -> (); expect(x, 0, 0, f64(5)); expect(x, 1, 0, f64(5));".into(),
+            cells_callee("WriteVector<bv>", "fill(out, f64(5));"),
+        ),
+        (
+            "call f(v, bv, x) -> ();".into(),
+            cells_callee("ReadVector<bv>", "expect(out, 1, 0, f64(1));"),
+        ),
+        (
+            "borrow t = write(other, layout(0, 2, 1, 2, false)); vector y = view(t, bv);
+             copy(x, y); copy(cells, y); copy(x, t); release(t);
+             borrow r = read(other, layout(0, 2, 1, 2, false)); expect(r, 1, 0, f64(1)); release(r);"
+                .into(),
+            String::new(),
+        ),
+        // A same-vector copy writes nothing; two transpositions restore the view.
+        (
+            "copy(x, x); transpose(cells); transpose(cells); fill(x, f64(1));".into(),
+            String::new(),
+        ),
+        // Two conjugations read the stored cells; a view in the conjugate
+        // basis does too.
+        (
+            "space vcc = conjugate(vc, sigma); basis bvcc = derived(bvc, vcc);
+             vector xc = conjugate(x, bvc, sigma); vector xcc = conjugate(xc, bvcc, sigma);
+             expect(xcc, 0, 0, f64(1)); release(xcc); release(xc);
+             vector stored = view(cells, bvc); expect(stored, 0, 0, f64(1));"
+                .into(),
+            String::new(),
+        ),
+        // Both arms initialize; an arm may use a vector of its own.
+        (
+            "borrow t = write(other, layout(0, 2, 1, 2, false)); vector y = view(t, bv);
+             if true { fill(y, f64(1)); } else { vector z = view(t, bv); store(z, 0, 0, f64(1)); store(z, 1, 0, f64(1)); }
+             release(t); borrow r = read(other, layout(0, 2, 1, 2, false)); release(r);"
+                .into(),
+            String::new(),
+        ),
+    ] {
+        let source = cells_source(&body, &functions);
+        let result = cells_run(&source);
+        success(&result);
+        assert_eq!(result.stdout, b"42\n", "{source}");
+    }
+}
+
+#[test]
+fn vector_cell_statements_keep_the_rules_of_loans_vectors_and_promises() {
+    let conjugate = "vector xc = conjugate(x, bvc, sigma);";
+    let other = "borrow t = write(other, layout(0, 2, 1, 2, false));";
+    let call = "call f(v, bv, x) -> ();";
+    let initializing = "borrow t = write(other, layout(0, 2, 1, 2, false)); vector y = view(t, bv); \
+                        call f(v, bv, y) -> (); release(t);";
+    let both = "resource fn g(v: Space<profiles::RealSmooth, 2>, bv: Basis<v>, \
+                out: WriteVector<bv>, input: ReadVector<bv>) -> Unit { copy(input, out); value { () } }";
+    let conjugate_reader = "resource fn g(v: Space<profiles::RealSmooth, 2>, bv: Basis<v>, \
+                            sigma: Involution<v>, vc: ConjugateSpace<v, sigma>, bvc: DerivedBasis<bv, vc>, \
+                            input: ReadVector<bvc>) -> Unit { expect(input, 0, 0, f64(1)); value { () } }";
+    let cases: Vec<(String, String, &str)> = vec![
+        // The access of the loan of the vector.
+        (call.into(), cells_callee("ReadVector<bv>", "fill(out, f64(2));"), "E_RESOURCE_ACCESS"),
+        (call.into(), cells_callee("ReadVector<bv>", "store(out, 0, 0, f64(2));"), "E_RESOURCE_ACCESS"),
+        (call.into(), cells_callee("ReadVector<bv>", "copy(out, out);"), "E_RESOURCE_ACCESS"),
+        (call.into(), cells_callee("WriteVector<bv>", "fill(out, f64(2)); expect(out, 0, 0, f64(2));"), "E_RESOURCE_ACCESS"),
+        (format!("{other} vector y = view(t, bv); expect(y, 0, 0, f64(1)); release(t);"), String::new(), "E_RESOURCE_ACCESS"),
+        // A conjugate vector is a read child; its stored cells are not its coordinates.
+        (format!("{conjugate} fill(xc, f64(2)); release(xc);"), String::new(), "E_RESOURCE_ACCESS"),
+        (format!("{conjugate} store(xc, 0, 0, f64(2)); release(xc);"), String::new(), "E_RESOURCE_ACCESS"),
+        (format!("{conjugate} {other} fill(t, f64(1)); release(t); borrow s = read(other, layout(0, 2, 1, 2, false)); copy(s, xc); release(s); release(xc);"), String::new(), "E_RESOURCE_ACCESS"),
+        (format!("{conjugate} expect(xc, 0, 0, f64(1)); release(xc);"), String::new(), "E_NUMERICAL_TYPE"),
+        (format!("{conjugate} {other} copy(xc, t); release(t); release(xc);"), String::new(), "E_NUMERICAL_TYPE"),
+        (format!("{conjugate} call g(v, bv, sigma, vc, bvc, xc) -> (); release(xc);"), conjugate_reader.into(), "E_NUMERICAL_TYPE"),
+        // A suspended, transposed or released loan gives no access through its vectors.
+        (format!("{conjugate} fill(x, f64(2)); release(xc);"), String::new(), "E_NUMERICAL_TYPE"),
+        (format!("{conjugate} expect(x, 0, 0, f64(1)); release(xc);"), String::new(), "E_NUMERICAL_TYPE"),
+        (format!("vector y = view(cells, bv); {conjugate} store(y, 0, 0, f64(2)); release(xc);"), String::new(), "E_NUMERICAL_TYPE"),
+        ("borrow child = read(cells, layout(0, 1, 1, 1, false)); fill(x, f64(2)); release(child);".into(), String::new(), "E_NUMERICAL_TYPE"),
+        (call.into(), "resource fn f(v: Space<profiles::RealSmooth, 2>, bv: Basis<v>, out: ReadWriteVector<bv>) -> Unit {
+            involution sigma = canonical(v); space vc = conjugate(v, sigma); basis bvc = derived(bv, vc);
+            vector c = conjugate(out, bvc, sigma); fill(out, f64(2)); release(c); value { () } }".into(), "E_NUMERICAL_TYPE"),
+        ("transpose(cells); fill(x, f64(2)); transpose(cells);".into(), String::new(), "E_NUMERICAL_TYPE"),
+        (format!("{other} vector y = view(t, bv); release(t); fill(y, f64(1));"), String::new(), "E_NUMERICAL_TYPE"),
+        // The rules of the statement on its view.
+        ("store(x, 2, 0, f64(2));".into(), String::new(), "E_RESOURCE_BOUNDS"),
+        ("expect(x, 0, 1, f64(1));".into(), String::new(), "E_RESOURCE_BOUNDS"),
+        ("fill(x, complex(1, 0));".into(), String::new(), "E_RESOURCE_TYPE"),
+        ("borrow t = write(other, layout(0, 1, 1, 1, false)); copy(x, t); release(t);".into(), String::new(), "E_RESOURCE_TYPE"),
+        // The promise of `initializes`.
+        (initializing.into(), cells_callee("WriteVector<bv> initializes", ""), "E_RESOURCE_INIT"),
+        (initializing.into(), cells_callee("WriteVector<bv> initializes", "store(out, 0, 0, f64(1));"), "E_RESOURCE_INIT"),
+        (initializing.into(), cells_callee("WriteVector<bv> initializes", "if true { fill(out, f64(1)); } else { store(out, 1, 0, f64(1)); }"), "E_RESOURCE_INIT"),
+        (format!("{initializing} borrow r = read(other, layout(0, 2, 1, 2, false)); release(r);"), cells_callee("WriteVector<bv>", "store(out, 0, 0, f64(1));"), "E_RESOURCE_INIT"),
+        // Overlapping arguments.
+        ("call g(v, bv, x, x) -> ();".into(), both.into(), "E_RESOURCE_ALIAS"),
+        ("vector y = view(cells, bv); call g(v, bv, x, y) -> ();".into(), both.into(), "E_RESOURCE_ALIAS"),
+        ("call g(v, bv, x, cells) -> ();".into(), "resource fn g(v: Space<profiles::RealSmooth, 2>, bv: Basis<v>, out: WriteVector<bv>, raw: Read<F64, 2, 1>) -> Unit { fill(out, f64(1)); value { () } }".into(), "E_RESOURCE_ALIAS"),
+        // A vector is not a loan for the other statements.
+        ("transpose(x);".into(), String::new(), "E_RESOURCE_LOAN"),
+        ("drop(x);".into(), String::new(), "E_RESOURCE_MOVE"),
+        ("move x -> moved;".into(), String::new(), "E_RESOURCE_MOVE"),
+        ("borrow child = read(x, layout(0, 1, 1, 1, false)); release(child);".into(), String::new(), "E_RESOURCE_TYPE"),
+        ("gemm(x, x, x, overwrite, NativeFast);".into(), String::new(), "E_NUMERICAL_TYPE"),
+        ("vector y = view(x, bv);".into(), String::new(), "E_NUMERICAL_TYPE"),
+        ("call g(x) -> ();".into(), "resource fn g(out: ReadWrite<F64, 2, 1>) -> Unit { fill(out, f64(1)); value { () } }".into(), "E_RESOURCE_LOAN"),
+        ("runtime_fill(x, f64(1));".into(), String::new(), "E_RUNTIME_TYPE"),
+        (call.into(), cells_callee("WriteVector<bv>", "fill(out, f64(1)); release(out);"), "E_RESOURCE_LOAN"),
+        // A map and a basis stay outside the cell statements.
+        ("space u = linear(profiles::RealSmooth, 1); basis bu = basis(u); map a = view(cells, bu, bv); fill(a, f64(1));".into(), String::new(), "E_RESOURCE_LOAN"),
+        ("fill(bv, f64(1));".into(), String::new(), "E_RESOURCE_LOAN"),
+    ];
+    for (body, functions, code) in cases {
+        let source = cells_source(&body, &functions);
+        let output = command(&cells_fixture(&source), "check").output().unwrap();
+        assert!(!output.status.success(), "accepted: {source}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(
+            common::diagnostic_codes(&stderr)
+                .first()
+                .map(String::as_str),
+            Some(code),
+            "{source}\n{stderr}"
+        );
+    }
+    // A note names the vector of the rejected statement.
+    let output = command(
+        &cells_fixture(&cells_source(
+            call,
+            &cells_callee("ReadVector<bv>", "fill(out, f64(2));"),
+        )),
+        "check",
+    )
+    .output()
+    .unwrap();
+    let stderr = common::expect_code(&output, "E_RESOURCE_ACCESS");
+    assert!(
+        stderr.contains("vector is `out`, introduced here"),
+        "{stderr}"
+    );
+    // A view in the conjugate basis holds stored cells, so the callee that
+    // rejects a conjugate vector accepts it.
+    success(
+        &command(
+            &cells_fixture(&cells_source(
+                "vector stored = view(cells, bvc); call g(v, bv, sigma, vc, bvc, stored) -> ();",
+                conjugate_reader,
+            )),
+            "check",
+        )
+        .output()
+        .unwrap(),
+    );
+}
+
+#[test]
+fn vector_cell_wire_rejects_vectors_that_the_checker_refuses() {
+    let raw = captured(&cells_fixture(CELLS));
+    assert_eq!(kernel(&raw, "emit")["ok"], true);
+    for version in 2..8 {
+        let mut changed = raw.clone();
+        changed["version"] = json!(version);
+        common::assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
+    }
+    let body = |raw: &mut Value, function: &str, op: &str| -> usize {
+        cells_function(raw, function)["body"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|statement| statement["action"]["op"] == op)
+            .unwrap()
+    };
+    type Tamper = fn(&mut Value);
+    let cases: &[(&str, &str, &str, Tamper, &str)] = &[
+        // A read vector as the destination, and a write-only vector as the source.
+        (
+            "duplicate",
+            "copy",
+            "target",
+            |action| action["target"] = json!("x"),
+            "E_RESOURCE_ACCESS",
+        ),
+        (
+            "duplicate",
+            "copy",
+            "source",
+            |action| action["source"] = json!("y"),
+            "E_RESOURCE_ACCESS",
+        ),
+        (
+            "unit_vector",
+            "store",
+            "loan",
+            |action| *action = json!({"op": "expect", "loan": "out", "row": 1, "column": 0, "value": {"kind": "f64", "bits": 0}}),
+            "E_RESOURCE_ACCESS",
+        ),
+        // A vector of a released loan, and a cell outside the vector.
+        (
+            "main",
+            "expect",
+            "loan",
+            |action| action["loan"] = json!("e"),
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "unit_vector",
+            "store",
+            "row",
+            |action| action["row"] = json!(3),
+            "E_RESOURCE_BOUNDS",
+        ),
+        (
+            "unit_vector",
+            "store",
+            "column",
+            |action| action["column"] = json!(1),
+            "E_RESOURCE_BOUNDS",
+        ),
+        (
+            "unit_vector",
+            "fill",
+            "value",
+            |action| action["value"] = json!({"kind": "complex_f64", "real": 0, "imaginary": 0}),
+            "E_RESOURCE_TYPE",
+        ),
+        // The statements that refuse a vector, and bindings that are no vectors.
+        (
+            "unit_vector",
+            "fill",
+            "loan",
+            |action| *action = json!({"op": "transpose", "loan": "out"}),
+            "E_RESOURCE_LOAN",
+        ),
+        (
+            "unit_vector",
+            "fill",
+            "loan",
+            |action| *action = json!({"op": "drop", "owner": "out"}),
+            "E_RESOURCE_MOVE",
+        ),
+        (
+            "unit_vector",
+            "fill",
+            "loan",
+            |action| *action = json!({"op": "move", "source": "out", "target": "moved"}),
+            "E_RESOURCE_MOVE",
+        ),
+        (
+            "unit_vector",
+            "fill",
+            "loan",
+            |action| *action = json!({"op": "borrow", "name": "child", "source": "out", "layout": {"offset": 0, "rows": 1, "columns": 1, "leading": 1, "transposed": false}, "access": "write"}),
+            "E_RESOURCE_TYPE",
+        ),
+        (
+            "unit_vector",
+            "fill",
+            "loan",
+            |action| action["loan"] = json!("bv"),
+            "E_RESOURCE_LOAN",
+        ),
+        (
+            "unit_vector",
+            "fill",
+            "loan",
+            |action| action["loan"] = json!("absent"),
+            "E_RESOURCE_NAME",
+        ),
+        // No certificate, flag or resolved loan enters with the action.
+        (
+            "unit_vector",
+            "fill",
+            "vector",
+            |action| action["vector"] = json!(true),
+            "E_PROTOCOL",
+        ),
+        (
+            "unit_vector",
+            "fill",
+            "access",
+            |action| action["access"] = json!("write"),
+            "E_PROTOCOL",
+        ),
+        (
+            "duplicate",
+            "copy",
+            "conjugate",
+            |action| action["conjugate"] = json!(false),
+            "E_PROTOCOL",
+        ),
+        (
+            "main",
+            "expect",
+            "checked",
+            |action| action["checked"] = json!(true),
+            "E_PROTOCOL",
+        ),
+    ];
+    for &(function, op, label, tamper, code) in cases {
+        let mut changed = raw.clone();
+        let at = body(&mut changed, function, op);
+        tamper(&mut cells_function(&mut changed, function)["body"][at]["action"]);
+        assert_ne!(
+            changed, raw,
+            "ineffective mutation: {function} {op} {label}"
+        );
+        let response = kernel(changed, "emit");
+        assert_eq!(response["ok"], false, "{function} {op} {label}: {response}");
+        assert_eq!(
+            response["diagnostics"][0]["code"], code,
+            "{function} {op} {label}: {response}"
+        );
+        assert!(response.get("lean_source").is_none(), "{response}");
+    }
+    // A header cannot widen the access of its body, and a removed write
+    // breaks the promise.
+    let mut downgraded = raw.clone();
+    cells_function(&mut downgraded, "unit_vector")["parameters"][2]["access"] = json!("read");
+    common::assert_wire_rejected(&kernel(downgraded, "emit"), "E_RESOURCE_ACCESS");
+    let mut unwritten = raw.clone();
+    cells_function(&mut unwritten, "unit_vector")["body"]
+        .as_array_mut()
+        .unwrap()
+        .remove(0);
+    common::assert_wire_rejected(&kernel(unwritten, "emit"), "E_RESOURCE_INIT");
+}
+
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn generated_owned_packages_feed_real_complex_gemm_without_copying() {

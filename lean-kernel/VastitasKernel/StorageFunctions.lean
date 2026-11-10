@@ -1137,6 +1137,25 @@ private def lowerCoefficient (frame : Frame) : Option Coefficient → Except Err
   | some (.literal value) => pure (some (.literal value))
   | some (.loan name) => return some (.loan (← resolve frame name))
 
+/-- The loan on which a cell statement acts. A vector stands for the loan of its
+`vector` statement or parameter, with the view that it had there: the snapshot
+must still be the live, unsuspended loan. The primitive transition on that loan
+then decides access, bounds, scalar, initialization, version and dependency
+invalidation. A conjugated vector denotes the conjugates of its stored cells,
+so no statement reads stored cells through it. Maps and every other binding
+keep their own identity, which is not a loan. -/
+private def cellLoan (frame : Frame) (localName : Symbol) (reads : Bool) : M Symbol := do
+  let name ← resolve frame localName
+  let context ← get
+  match Numerical.value? context.numerical name with
+  | some (.vector view) =>
+    unless view.Live context.resources do
+      throw {code := "E_NUMERICAL_TYPE", message := "vector no longer matches its live, unsuspended loan"}
+    if reads && view.conjugate then
+      throw {code := "E_NUMERICAL_TYPE", message := "a conjugated vector denotes the conjugates of its stored cells; read the cells through the original vector"}
+    return view.loan.name
+  | _ => return name
+
 def operation (frame : Frame) : Action → M Frame
   | .allocate name scalar elements => do
     let (frame, global) ← bindName frame name
@@ -1166,10 +1185,14 @@ def operation (frame : Frame) : Action → M Frame
     step (.release loan)
     return frame
   | .transpose name => do step (.transpose (← resolve frame name)); return frame
-  | .fill name value => do step (.fill (← resolve frame name) value); return frame
-  | .store name row column value => do step (.store (← resolve frame name) row column value); return frame
-  | .expect name row column value => do step (.expect (← resolve frame name) row column value); return frame
-  | .copy source target => do step (.copy (← resolve frame source) (← resolve frame target)); return frame
+  | .fill name value => do step (.fill (← cellLoan frame name false) value); return frame
+  | .store name row column value => do step (.store (← cellLoan frame name false) row column value); return frame
+  | .expect name row column value => do step (.expect (← cellLoan frame name true) row column value); return frame
+  | .copy source target => do
+    let source ← cellLoan frame source true
+    let target ← cellLoan frame target false
+    step (.copy source target)
+    return frame
   | .pack3 source target i k j => do
     step (.pack3 (← resolve frame source) (← resolve frame target) i k j)
     return frame

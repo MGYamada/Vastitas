@@ -2,6 +2,7 @@
 //! by the `nanoda_bin` checker that the pinned official Lean toolchain ships
 //! (#539). The checker runs out of process under `crate::process`. nanoda is not
 //! the official Lean kernel, and no result here confers Vastitas acceptance.
+use crate::sources::shown;
 use serde_json::{Map, Value};
 use std::ffi::OsString;
 use std::fs;
@@ -130,13 +131,13 @@ fn toolchain_directory() -> Result<PathBuf, String> {
     let canonical = directory.canonicalize().map_err(|error| {
         format!(
             "E_LEAN_AUDIT_CHECKER: the pinned Lean toolchain {LEAN_TOOLCHAIN} is not installed at {}: {error}\nhelp: elan toolchain install {LEAN_TOOLCHAIN}",
-            directory.display()
+            shown(&directory)
         )
     })?;
     if !canonical.is_dir() {
         return Err(format!(
             "E_LEAN_AUDIT_CHECKER: {} is not a Lean toolchain directory",
-            canonical.display()
+            shown(&canonical)
         ));
     }
     Ok(canonical)
@@ -148,13 +149,13 @@ fn toolchain_executable(directory: &Path, name: &str) -> Result<PathBuf, String>
     let metadata = fs::symlink_metadata(&path).map_err(|error| {
         format!(
             "E_LEAN_AUDIT_CHECKER: the pinned Lean toolchain {LEAN_TOOLCHAIN} at {} provides no {name}: {error}\nVastitas has no fallback checker; reinstall the official toolchain.",
-            directory.display()
+            shown(directory)
         )
     })?;
     if !metadata.file_type().is_file() || metadata.permissions().mode() & 0o111 == 0 {
         return Err(format!(
             "E_LEAN_AUDIT_CHECKER: {} is not a regular executable file of the pinned toolchain",
-            path.display()
+            shown(&path)
         ));
     }
     Ok(path)
@@ -182,7 +183,7 @@ fn run(command: Command, program: &str) -> Result<Output, String> {
 fn probe(program: &Path, argument: &str) -> Result<String, String> {
     let mut command = Command::new(program);
     command.arg(argument);
-    let name = program.display().to_string();
+    let name = shown(program);
     let output = run(command, &name)?;
     if !output.status.success() {
         return Err(format!(
@@ -228,7 +229,7 @@ fn resolve_checker() -> Result<PathBuf, String> {
     if !lean_identity_matches(&version, platform) {
         return Err(format!(
             "E_LEAN_AUDIT_CHECKER: {} is not the official Lean {LEAN_VERSION} release for {platform} (commit {LEAN_COMMIT}); it reports: {}",
-            lean.display(),
+            shown(&lean),
             diagnostics(version.as_bytes())
         ));
     }
@@ -237,7 +238,7 @@ fn resolve_checker() -> Result<PathBuf, String> {
     if help.lines().next() != Some(NANODA_IDENTITY) {
         return Err(format!(
             "E_LEAN_AUDIT_CHECKER: {} does not identify as {NANODA_IDENTITY}, the checker Lean {LEAN_VERSION} ships; it reports: {}",
-            nanoda.display(),
+            shown(&nanoda),
             diagnostics(help.lines().next().unwrap_or_default().as_bytes())
         ));
     }
@@ -278,16 +279,16 @@ fn checked_declarations(stdout: &[u8]) -> Option<u64> {
 pub fn run_cli(args: &[OsString]) -> Result<(), String> {
     let path = export_path(args)?;
     let export = std::path::absolute(&path)
-        .map_err(|error| format!("E_LEAN_AUDIT: cannot resolve {}: {error}", path.display()))?;
+        .map_err(|error| format!("E_LEAN_AUDIT: cannot resolve {}: {error}", shown(&path)))?;
     // Check the policy before starting any process.
     let config = configuration(&export)?;
     // `metadata` never opens the export, so FIFOs remain unread until nanoda runs.
     let metadata = fs::metadata(&export)
-        .map_err(|error| format!("E_LEAN_AUDIT: cannot read {}: {error}", path.display()))?;
+        .map_err(|error| format!("E_LEAN_AUDIT: cannot read {}: {error}", shown(&path)))?;
     if metadata.is_dir() {
         return Err(format!(
             "E_LEAN_AUDIT: {} is a directory, not a Lean export",
-            path.display()
+            shown(&path)
         ));
     }
     let nanoda = resolve_checker()?;
@@ -305,7 +306,7 @@ pub fn run_cli(args: &[OsString]) -> Result<(), String> {
     if !output.status.success() {
         return Err(format!(
             "E_LEAN_AUDIT: {NANODA_IDENTITY} rejected {} ({})\n{}",
-            path.display(),
+            shown(&path),
             output.status,
             diagnostics(&output.stderr)
         ));
@@ -327,8 +328,8 @@ pub fn run_cli(args: &[OsString]) -> Result<(), String> {
     }
     println!(
         "internal-only conditional Lean audit completed ({NANODA_IDENTITY} from the Lean {LEAN_VERSION} toolchain): {checked} declarations in {}\nChecker: {} (toolchain {LEAN_TOOLCHAIN}, commit {LEAN_COMMIT})\nResult is relative to the supplied environment. Axioms named {} are admitted by name only; their statements and dependencies are NOT authenticated as the standard Lean axioms.\nnanoda is not the official Lean kernel. This is NOT official Lean-kernel verification and confers no Vastitas Core or constitutional acceptance.",
-        path.display(),
-        nanoda.display(),
+        shown(&path),
+        shown(&nanoda),
         PERMITTED_AXIOMS.join(", ")
     );
     Ok(())

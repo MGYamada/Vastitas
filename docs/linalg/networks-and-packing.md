@@ -109,8 +109,7 @@ Rules:
   (`E_TENSOR`).
 - `axes(…)` must list each axis number of the tensor once, from 0, and the
   number after it must be at least 1 and less than the number of axes
-  (`E_TENSOR`). The compiler reports an axis number of 3 or more at the root
-  manifest (`E_PROTOCOL`).
+  (`E_TENSOR`).
 - The spaces of all axes must have one linear implementation, and the cells
   of the loan must have its element type (`E_TENSOR`).
 - The view of the loan must not be transposed. Its rows must be the product
@@ -220,8 +219,8 @@ Rules:
   another (`E_TENSOR_TREE`). They are local to the statement and may equal
   names of bindings.
 - Every port, one for each axis of every occurrence, must be used once, by an
-  edge or by the boundary (`E_TENSOR_TREE`). The compiler reports an axis
-  number of 3 or more at the root manifest (`E_PROTOCOL`).
+  edge or by the boundary (`E_TENSOR_TREE`). An axis number that the
+  occurrence does not have is an error (`E_TENSOR_TREE`).
 - The basis at the first port of an edge must be the derived basis of the
   basis at its second port in the dual of its space. The two ports must
   belong to different occurrences (`E_TENSOR_TREE`).

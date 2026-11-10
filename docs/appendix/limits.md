@@ -24,7 +24,10 @@ The reading of a site's maps charges at most `reverseLeaves` maps:
 The authoritative values are in
 [`lean-kernel/compiler-limits.json`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/compiler-limits.json).
 The Lean kernel and the Rust driver both take their values from this file when
-they are built. Distinct budgets stay distinct even when their values coincide.
+they are built. The file belongs to the kernel's build identity, so the driver
+rejects a kernel built with another limits file
+([Compiler commands and diagnostics](../guide/cli.md)). Distinct budgets stay
+distinct even when their values coincide.
 
 | Key | Value | What it bounds | Specified in |
 | --- | --- | --- | --- |
@@ -50,7 +53,7 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 | `namespaceImportWork` | 1,000,000 | Member visits across all import declarations | [Protocol 3](../protocol.md#protocol-3-package-namespaces) |
 | `namespaceProgramWork` | 4,000,000 | Wire input price plus namespace queries in the body passes | [Protocol 3](../protocol.md#protocol-3-package-namespaces) |
 | `dependencyGraph` | 4096 | Units for traversing the package dependency graph | Kernel source |
-| `assemblyEvents` | 4096 | Events in an edit assembly; exceeding it is reported as `E_PROTOCOL` | [Assemblies](../language/edit-authority.md#assemblies) · [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
+| `assemblyEvents` | 4096 | Events in an edit assembly | [Assemblies](../language/edit-authority.md#assemblies) · [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
 | `authorityTraceWork` | 200,000,000 | Audit work shared by one edit-assembly trace | [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
 | `contributionMethods` | 4096 | Methods in all contributions of the package graph | [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
 

@@ -282,6 +282,10 @@ The nested operation is strictly `{kind: "dual"}` or
 with `name`, `basis`, `access`, `initializes`, `span`. Actual vector and form
 provenance, child loans, scalar output and emitted flags are reconstructed by
 the independent checker; no supplied origin or native flag grants authority.
+The resource actions `fill`, `store` and `expect` may carry the local name of a
+vector in `loan`, and `copy` in `source` or `target`. They have no other form
+for a vector: the checker resolves the vector to its loan, as
+[Vectors](linalg/transforms-and-metrics.md#vectors) describes.
 
 [Diagonal metrics](linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics) add strict numerical operations
 `adjoint_into` (`input`, `output`, `source_metric`, `target_metric`, `policy`) and
@@ -396,11 +400,24 @@ Failure: `{ "version": 2, "ok": false, "diagnostics": [
 { "code": "E_TYPE", "message": "...", "span": Span,
   "notes": [{ "message": "...", "span": Span }] }] }`.
 Every response also carries `"kernel": { "sources": String, "lean": String }`:
-the digest of the kernel's `Main.lean` and every kernel module it imports
+the digest of the files that the kernel executable is elaborated from
 (`VastitasKernel/BuildIdentity.lean`, mirrored by the driver's `build.rs`) and
-the Lean version it was built with. Drivers reject a success response whose
+the Lean version it was built with. The digest covers the bytes of the kernel's
+`Main.lean`, of every kernel module it imports and of `compiler-limits.json`,
+which `VastitasKernel/Limits.lean` reads while it is elaborated. The kernel's
+`lakefile.toml` names each of these files as an input of the executable, so
+Lake elaborates `Main` again, with its digest, when one of them changes.
+Drivers reject a success response whose
 identity is missing or differs from their own build, and add a note to failure
 diagnostics. The identity is a build-consistency check, not a semantic proof.
+It covers the kernel executable, not the files that a native build compiles.
+The driver compares those files of the selected kernel root with its own build
+before it runs Lake ([CLI reference](guide/cli.md)). It refuses (`E_PROTOCOL`)
+a `lean_source` that imports a module other than
+`VastitasKernel.IndexedRuntime`, `VastitasKernel.AlgebraRuntime` and
+`VastitasKernel.SmoothRuntime`, with `VastitasStorageNative` when the response
+selects the storage runtime and `VastitasGemmNative` when it selects the
+numerical runtime. These are the modules whose sources the driver compares.
 Notes carry related source locations, including object introduction sites. They
 are diagnostic metadata, not trusted identity evidence. Current backends emit
 an empty array when there are no notes; drivers also accept omitted notes.

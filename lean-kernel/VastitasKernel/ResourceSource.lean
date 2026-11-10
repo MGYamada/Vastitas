@@ -857,7 +857,20 @@ private def statementSymbols : Functions.Statement → List Symbol
   | .callValue _ _ results name _ => results ++ [name]
   | _ => []
 
-private abbrev BindingSite := Symbol × String × Span
+/-- Symbol, source name, introducing span and whether the binding is a vector. -/
+private abbrev BindingSite := Symbol × String × Span × Bool
+
+private def introducesVector : Statement → Bool
+  | .numerical (.vector ..) _ | .numerical (.conjugateVector ..) _ => true
+  | _ => false
+
+/-- A cell statement or `release` may name a vector in place of its loan. The
+note then names the vector, not a loan that the source never bound. -/
+private def vectorRole : String → String
+  | "loan" => "vector"
+  | "source loan" => "source vector"
+  | "destination loan" => "destination vector"
+  | role => role
 
 /-- Recover names only on rejection, by pairing original statements with their
 actual lowered statements. Nothing is added to the accepted IR or runtime. -/
@@ -865,7 +878,7 @@ private def statementBindings : Nat → List Statement → List Functions.Statem
   | 0, _, _ | _, [], _ | _, _, [] => []
   | fuel + 1, source :: sources, lowered :: rest =>
     let here := (statementSymbols lowered).zip (statementNames source) |>.map fun (symbol, name) =>
-      (symbol, name, statementSpan source)
+      (symbol, name, statementSpan source, introducesVector source)
     let children := match source, lowered with
       | .branch _ yes no _, .branch _ left right
       | .branchValue _ yes no _, .branch _ left right =>
@@ -875,7 +888,9 @@ private def statementBindings : Nat → List Statement → List Functions.Statem
 
 private def functionBindings (source : Function) (lowered : Functions.Function) : List BindingSite :=
   ((source.parameters.zip lowered.parameters).map fun (original, parameter) =>
-    (parameter.name, original.name, original.span)) ++ statementBindings 4096 source.body lowered.body
+    (parameter.name, original.name, original.span,
+      match original with | .vector .. => true | _ => false)) ++
+    statementBindings 4096 source.body lowered.body
 
 private def siteSpan (source : Function) (place : ErrorPlace) : Span :=
   match place with
@@ -914,8 +929,9 @@ private def resourceError (program : Program) (lowered : Lowered) (error : Stora
           if let some function := lowered.functions.find? (·.id == site.function) then
             let bindings := functionBindings original function
             for entry in site.subjects do
-              if let some (_, name, introduced) := bindings.find? (·.1 == entry.name) then
-                let message := s!"{entry.role} is `{name}`, introduced here"
+              if let some (_, name, introduced, vector) := bindings.find? (·.1 == entry.name) then
+                let role := if vector then vectorRole entry.role else entry.role
+                let message := s!"{role} is `{name}`, introduced here"
                 unless notes.any (fun note => note.message == message && decide (note.span = introduced)) do
                   notes := notes ++ [⟨message, introduced⟩]
       return ⟨error.code, error.message, span, notes.take 32⟩

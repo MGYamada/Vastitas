@@ -54,9 +54,11 @@ Rules:
   `dual(v)` statements declare two spaces.
 - In `derived(b, s)`, `b` must be a basis, and `s` must be a space declared as
   the dual or as a conjugate of the space of `b` (`E_NUMERICAL_TYPE`).
+- Two `derived(b, s)` statements declare two different bases. Each of them
+  fits where a rule needs the derived basis of `b` in `s`.
 - `basis(s)` of a derived space `s` declares a basis that is derived from no
   basis. Where a rule needs a derived basis, it is an error
-  (`E_NUMERICAL_TYPE`).
+  (`E_NUMERICAL_TYPE`, or `E_NUMERICAL_METRIC` in `hermitian_diagonal`).
 - Two `involution` statements over spaces of one implementation declare one
   involution under two bindings. The rules of this chapter say where a
   statement needs the same binding and where any binding of the involution
@@ -103,6 +105,8 @@ Rules:
   `adjoint` and `hermitian` need such a metric.
 - `adjoint_into` and `hermitian_diagonal` accept every metric whose entries
   have an absolute value of at most 2⁵³.
+- Over a space of dimension 0, every metric has identity Gram data, and no
+  bound holds for the entry of a `scaled_identity`.
 
 ## Transformed maps
 
@@ -142,15 +146,17 @@ Rules:
   and `ht` a metric on its target basis, both with identity Gram data
   (`E_NUMERICAL_TYPE`). The two metrics may name different bindings of the
   involution.
-- While a transformed map is live, the map `a` gives no access
-  (`E_NUMERICAL_TYPE`).
+- While a transformed map is live, the loan of `a` is suspended. The map `a`
+  and every other map on that loan give no access (`E_NUMERICAL_TYPE`).
 - `release(m)` ends a transformed map `m`. It must come before the release of
   the loan of `a` (`E_RESOURCE_LOAN`) and before the end of the body
   (`E_RESOURCE_ESCAPE`). Nested transformed maps end from the inside out.
 - A transformed map is read-only. As the output of `gemm`, a `dual` map is an
-  error (`E_RESOURCE_ACCESS`), and a `conjugate` map is an error
-  (`E_NUMERICAL_TYPE`). A storage statement that names a transformed map is
-  an error (`E_RESOURCE_LOAN`).
+  error (`E_RESOURCE_ACCESS`), and a `conjugate` or `adjoint` map is an error
+  (`E_NUMERICAL_TYPE`).
+- A transformed map is not a loan. `transpose`, `fill`, `store`, `expect` and
+  `copy` that name one are errors (`E_RESOURCE_LOAN`). So are `drop` and
+  `move` (`E_RESOURCE_MOVE`) and a `borrow` from one (`E_RESOURCE_TYPE`).
 - A transformed map that an arm of a branch declares must be released in that
   arm (`E_RESOURCE_JOIN`).
 
@@ -230,15 +236,20 @@ Rules:
   (`E_NUMERICAL_TYPE`). `sigma` must be the binding that declared that
   conjugate space.
 - The loan of `x` must permit reading (`E_RESOURCE_ACCESS`). While the
-  conjugate vector is live, `x` gives no access (`E_NUMERICAL_TYPE`, or
+  conjugate vector is live, the loan of `x` is suspended: `x` and every other
+  vector on that loan give no access (`E_NUMERICAL_TYPE`, or
   `E_NUMERICAL_METRIC` in `hermitian_diagonal`).
 - `release(xc)` ends a conjugate vector. It must come before the release of
-  the loan of its vector (`E_RESOURCE_LOAN`). `release(x)` of a vector that
-  `view` declared ends its loan.
+  the loan of its vector (`E_RESOURCE_LOAN`), before the end of the body
+  (`E_RESOURCE_ESCAPE`) and, for a conjugate vector of an arm, in that arm
+  (`E_RESOURCE_JOIN`). `release(x)` of a vector that `view` declared ends its
+  loan.
 - A statement may use a vector only while its loan is live and has the layout
   that it had at the `vector` statement (`E_NUMERICAL_TYPE`).
-- A vector is not a loan and not a map. A storage statement that names one is
-  an error (`E_RESOURCE_LOAN`), and so is a vector as an operand of `gemm`
+- A vector is not a loan and not a map. `transpose`, `fill`, `store`,
+  `expect` and `copy` that name one are errors (`E_RESOURCE_LOAN`). So are
+  `drop` and `move` (`E_RESOURCE_MOVE`), a `borrow` from one
+  (`E_RESOURCE_TYPE`) and a vector as an operand of `gemm`
   (`E_NUMERICAL_TYPE`).
 - No statement writes through a vector. A program writes the cells of a
   vector through its loan.
@@ -275,7 +286,8 @@ the owner `o`, and then pairs `xc` with that view.
 Rules:
 
 - The first two operands must be vectors (`E_NUMERICAL_TYPE`, or
-  `E_NUMERICAL_METRIC` for `hermitian_diagonal`).
+  `E_NUMERICAL_METRIC` for `hermitian_diagonal`), and their loans must permit
+  reading (`E_RESOURCE_ACCESS`).
 - In `evaluate(phi, x, …)`, the basis of `phi` must be the derived basis of
   the basis of `x` in the dual of its space (`E_NUMERICAL_TYPE`). A conjugate
   basis is not a dual basis, even over a real implementation.
@@ -288,15 +300,19 @@ Rules:
 - In `hermitian_diagonal`, the metric and the bases must satisfy the rule of
   `hermitian` without the condition on identity Gram data, and every entry of
   the metric must have an absolute value of at most 2⁵³
-  (`E_NUMERICAL_METRIC`).
-- `out` must be a live loan (`E_RESOURCE_LOAN`, or `E_RESOURCE_DIAGONAL` in
-  `hermitian_diagonal`) that permits writing (`E_RESOURCE_ACCESS`).
+  (`E_NUMERICAL_METRIC`). A call that passes a metric to a function with a
+  `hermitian_diagonal` checks the same.
+- `out` must be a live loan (`E_RESOURCE_LOAN`) that permits writing
+  (`E_RESOURCE_ACCESS`).
 - The view of `out` must have one row and one column, the element type of
-  the vectors and no transposition (`E_RESOURCE_GEMM`). `hermitian_diagonal`
-  reports another element type as `E_RESOURCE_DIAGONAL`.
+  the vectors and no transposition (`E_RESOURCE_GEMM`).
 - With `accumulate`, `out` must be a `read_write` loan (`E_RESOURCE_GEMM`).
 - `out` must not be the loan of an operand (`E_RESOURCE_LOAN`) or a child of
   it (`E_NUMERICAL_TYPE`).
+- `hermitian_diagonal` reports four of these errors of `out` under other
+  codes: an owner, another element type and a transposed view as
+  `E_RESOURCE_DIAGONAL`, the loan of an operand as `E_RESOURCE_ALIAS`, and a
+  child of one as `E_NUMERICAL_METRIC`.
 - `scratch(o, layout(…))` must name an owner (`E_RESOURCE_DIAGONAL`) without
   a live loan (`E_RESOURCE_LOAN`). An owned map fits, and an owned-map
   package does not (`E_NUMERICAL_PACKAGE`).
@@ -308,6 +324,11 @@ Rules:
   (`E_PARSE`).
 - A pairing initializes the cell of `out`, and `hermitian_diagonal` also the
   scratch view. The scratch need not be initialized before.
+
+While a conjugate vector is live, its vector gives no access. To compute
+`h(x, x)`, a program passes one vector to two `ReadVector` parameters, as the
+caller of `hermitian_value` below does, or declares vectors on two `read`
+loans of the same cells.
 
 These functions of
 [`examples/packages/vector-evaluation`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/vector-evaluation)
@@ -338,7 +359,7 @@ evaluate a covector on a vector and pair a vector with a conjugate vector:
 | `ConjugateSpace<v, s>` | A space declared as `conjugate` of the argument for `v`, with the involution binding that is the argument for `s` |
 | `DerivedBasis<b, s>` | The basis declared as `derived` from the argument for `b` in the argument for `s` |
 | `Involution<v>` | An involution of the implementation of the argument for `v`; any binding of it |
-| `Metric<b, s>` | A metric on the argument for `b` whose involution is the argument for `s` |
+| `Metric<b, s>` | A metric on the argument for `b` whose involution is the involution of the argument for `s` |
 | `OrthonormalMetric<b, s>` | Such a metric with identity Gram data |
 | `ReadVector<b>`, `WriteVector<b>`, `ReadWriteVector<b>` | A vector in the argument for `b` whose loan permits the access |
 
@@ -354,6 +375,12 @@ Rules:
   `Space` is not a dual space, a basis of the type `Basis` is not a derived
   basis, and a metric of the type `Metric` has no identity Gram data
   (`E_NUMERICAL_TYPE`).
+- The argument for `s` in `Metric<b, s>` and `OrthonormalMetric<b, s>` may
+  be any binding of the involution of the metric. A metric keeps the binding
+  of its own `metric` statement, and a call checks the body again with the
+  bindings of the caller. A `hermitian` or `hermitian_diagonal` of the body
+  whose metric and conjugate space then name different bindings is an error
+  (`E_NUMERICAL_TYPE` or `E_NUMERICAL_METRIC`).
 - One vector passed to two parameters of one call must go to `ReadVector`
   parameters both (`E_RESOURCE_ALIAS`).
 - In the body, a vector parameter is a vector, not a loan. A body must not
@@ -379,9 +406,9 @@ These anchors keep older links working.
 - <a id="linear-transforms--wire-and-proof-boundary"></a><a id="wire-and-proof-boundary"></a>Wire and proof boundary: [Numerical backend](../internals/numerical-backend.md#wire-and-proof-boundary-of-transforms).
 - <a id="example-and-regression-evidence"></a>Example and regression evidence: [Numerical backend](../internals/numerical-backend.md#example-and-regression-evidence-of-transforms).
 - <a id="vector-evaluation"></a><a id="bilinear-vector-evaluation-and-explicit-hermitian-pairing"></a><a id="values-and-operations"></a>Vector evaluation: [Vectors](#vectors) and [Pairings](#pairings).
-- <a id="resources-calls-and-output"></a>Resources, calls and output: [Pairings](#pairings).
+- <a id="resources-calls-and-output"></a>Resources, calls and output: [Vectors](#vectors), [Pairings](#pairings) and [Parameter types](#parameter-types).
 - <a id="independent-checking-and-evidence"></a>Independent checking and evidence: [Numerical backend](../internals/numerical-backend.md#vector-evaluation).
 - <a id="diagonal-metrics"></a><a id="explicit-diagonal-metrics-protocol-8"></a>Explicit diagonal metrics: [Adjoints for diagonal metrics](#adjoints-for-diagonal-metrics) and [Pairings](#pairings).
-- <a id="realization-and-resource-contract"></a>Realization and resource contract: [Metrics](#metrics).
+- <a id="realization-and-resource-contract"></a>Realization and resource contract: [Metrics](#metrics), [Pairings](#pairings) and [Numerical backend](../internals/numerical-backend.md#diagonal-metrics).
 - <a id="native-costs-and-failure-boundary"></a>Native costs and failure boundary: [Numerical backend](../internals/numerical-backend.md#native-costs-and-failure-boundary-of-diagonal-metrics).
 - <a id="checking-proofs-and-examples"></a>Checking, proofs and examples: [Numerical backend](../internals/numerical-backend.md#checking-proofs-and-examples-of-diagonal-metrics).

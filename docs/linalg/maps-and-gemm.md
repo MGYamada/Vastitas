@@ -33,8 +33,11 @@ Rules:
   an error (`E_NUMERICAL_TYPE`), unless a rule of this chapter gives another
   code.
 - A space, a basis and a map are not scalars, owners or loans. A `value` block
-  does not see them (`E_NAME`), and a storage statement that names one is an
-  error (`E_RESOURCE_LOAN` or `E_RESOURCE_MOVE`, by the statement).
+  does not see them (`E_NAME`). A storage statement that names one is an
+  error (`E_RESOURCE_LOAN`, `E_RESOURCE_MOVE` or `E_RESOURCE_TYPE`, by the
+  statement), apart from the `release` of a map.
+- A space, a basis or a map that an arm of a branch declares is visible in
+  that arm only (`E_RESOURCE_NAME`).
 - The statements of this chapter name static bindings. The `runtime_`
   statements of [Runtime maps](../storage/resource-programs.md#runtime-maps)
   name runtime bindings, and one function may contain both.
@@ -85,13 +88,17 @@ Rules:
   the implementation of its base, and a `complex` one must have another marker
   (`E_TYPE`).
 - All implementations of one marker that state a coefficient kind must state
-  the same kind, even an implementation that nothing uses (`E_TYPE`).
+  the same kind, even an implementation that nothing uses (`E_TYPE`). A
+  `smooth_affine` implementation counts as `real`.
 - The capability list of both forms must be empty (`E_TYPE`).
-- A scalar base implementation and a linear implementation must not be the
-  implementation of a `descriptor` primitive (`E_TYPE`).
+  [Smooth affine declarations](../language/smooth-declarations.md#the-smooth-profile)
+  gives the production `Capabilities`.
+- A `descriptor` primitive, a `global` primitive and a `point` or `morphism`
+  family must not use a scalar base implementation or a linear implementation
+  (`E_TYPE`).
 
-The compiler reports an error of these rules at the root manifest, without the
-position of the declaration.
+The compiler reports most errors of these rules at the root manifest, without
+the position of the declaration.
 
 The examples of this chapter use these declarations:
 
@@ -122,7 +129,8 @@ Rules:
 
 - The path of `linear(P, n)` must name a linear implementation. Another
   `indexed` declaration is an error (`E_NUMERICAL_TYPE`), and a declaration
-  that is not `indexed` is an error (`E_TYPE`).
+  that is not `indexed` is an error (`E_TYPE`). A `use` alias of the
+  implementation names the same implementation.
 - The dimension must be an integer literal that fits in 64 bits
   (`E_RESOURCE_LIMIT`). It may be 0. A dimension that the program computes
   needs `runtime_space`.
@@ -162,8 +170,8 @@ gives `TransformedMapExpression`.
 
 Rules:
 
-- The first argument of `view(v, bs, bt)` must be a live static loan, and the
-  other two must be bases (`E_NUMERICAL_TYPE`).
+- The first argument of `view(v, bs, bt)` must be a live static loan without
+  a live child, and the other two must be bases (`E_NUMERICAL_TYPE`).
 - The spaces of the two bases must have the same linear implementation
   (`E_NUMERICAL_TYPE`). The same declaration text in another package is
   another implementation.
@@ -224,8 +232,9 @@ Rules:
   `beta` of zero (`E_RESOURCE_GEMM`).
 - The view of `c` must not be transposed (`E_RESOURCE_GEMM`). The views of
   `a` and `b` may be transposed.
-- `c` must not be a map of the loan of `a` or of `b` (`E_RESOURCE_GEMM`).
-  `a` and `b` may be one map, and their views may overlap.
+- The view of `c` must share no cell with the view of `a` or of `b`
+  (`E_RESOURCE_GEMM`). `a` and `b` may be one map, and their views may
+  overlap.
 - The mode must be `overwrite` or `accumulate` (`E_NUMERICAL_TYPE`), and the
   policy must be `NativeFast` (`E_PARSE`).
 - `alpha` and `beta` may each appear once, in either order (`E_DUPLICATE`).
@@ -239,9 +248,9 @@ Rules:
   view must have one row and one column and the element type of the maps, and
   it must share no cell with `c` (`E_RESOURCE_COEFFICIENT`). It may share
   cells with `a`, with `b` and with the other coefficient.
-- A dimension of 0 is no exception. A product whose output has no cell writes
-  nothing. A product with an inner dimension of 0 leaves `beta·C`: zeros for
-  `overwrite`.
+- The rules hold for a dimension of 0. A product whose output has no cell
+  writes nothing. A product with an inner dimension of 0 leaves `beta·C`,
+  whatever `alpha` is: zeros for `overwrite` and for a `beta` of zero.
 - The executable reads a `coefficient` cell when the statement runs, before
   it writes the output. It makes every check of the statement before the
   first write. A failing check stops the program with an `E_NATIVE_` message,
@@ -302,12 +311,14 @@ space of `bt` whose loan permits reading, writing or both.
 
 Rules:
 
-- The path of `Space<P, n>` must name a linear implementation
-  (`E_NUMERICAL_TYPE`), and `n` must be an integer literal (`E_PARSE`).
-- `Basis<u>` must name an earlier `Space` parameter, and a map type must name
-  two earlier `Basis` parameters. A name that is no earlier parameter is an
+- The rules of [Spaces and bases](#spaces-and-bases) on the path and on the
+  dimension of `linear(P, n)` hold for `Space<P, n>`. A dimension that is not
+  an integer literal is an error (`E_PARSE`).
+- `Basis<u>` must name an earlier space parameter, and a map type must name
+  two earlier basis parameters. A name that is no earlier parameter is an
   error (`E_RESOURCE_NAME`), and an earlier parameter of another kind is an
-  error (`E_NUMERICAL_TYPE`).
+  error (`E_NUMERICAL_TYPE`). The space and basis parameters of
+  [Parameter types](transforms-and-metrics.md#parameter-types) fit too.
 - The argument for `Space<P, n>` must be a static space of the implementation
   `P` and the dimension `n` (`E_NUMERICAL_TYPE`). One space may be the
   argument for two `Space` parameters.
@@ -324,7 +335,10 @@ Rules:
   writes count as initialized for the caller, with or without `initializes`.
 - One map may be the argument for several `ReadMap` parameters. A map passed
   to a `WriteMap` or `ReadWriteMap` parameter must not be the argument for
-  another map parameter (`E_RESOURCE_ALIAS`).
+  another map parameter (`E_RESOURCE_ALIAS`). The rule is the rule of
+  [Storage types](../storage/resource-programs.md#storage-types) on arguments
+  whose views may overlap: it also holds for two maps of one loan, and for a
+  map and its loan.
 - In the body, a map parameter is a map, not a loan. A body must not release
   it (`E_RESOURCE_LOAN`).
 - The compiler checks a function once on its own, with a different space for
@@ -376,12 +390,14 @@ Rules:
   need not be.
 - An owned map is an owner. The rules of
   [Resource statements](../storage/resource-programs.md#resource-statements)
-  on `move`, `drop`, calls and the end of a body hold for it.
+  on `move`, `drop`, calls and the end of a body hold for it. `move r -> s;`
+  makes `s` the owned map.
 - `borrow` without a layout must name an owned map (`E_NUMERICAL_TYPE`).
   `borrow` with a layout may name one too, and it lends the view that it
   states.
 - In `view(v, r)`, `r` must be an owned map, and `v` must be a live loan of
-  the allocation of `r` with the layout of `r` (`E_NUMERICAL_TYPE`).
+  the allocation of `r`, with the layout of `r` and without a live child
+  (`E_NUMERICAL_TYPE`).
 - A loan of an owned map is an ordinary loan. `view` with three arguments may
   present it in any bases that fit its shape and element type.
 - An owned map is not a map: as an operand of `gemm` it is an error
@@ -435,13 +451,17 @@ it is not an
 Rules:
 
 - `pack(r)` must name an owned map (`E_NUMERICAL_PACKAGE`) without a live
-  loan (`E_RESOURCE_LOAN`). The target space of `r` must come from
-  `linear(…)` and its target basis from `basis(…)` (`E_NUMERICAL_PACKAGE`).
-  `pack` ends `r`.
+  loan (`E_RESOURCE_LOAN`). The target space of `r` must not be a dual or a
+  conjugate space (`E_NUMERICAL_PACKAGE`). `pack` ends `r`.
 - An owned-map package is an owner. Only `move`, `drop`, `unpack`, an
-  `OwnedMapTo` parameter and an `OwnedMapTo` result may take it
-  (`E_NUMERICAL_PACKAGE`). At the end of the body it must have ended
+  `OwnedMapTo` parameter and an `OwnedMapTo` result may take it. `move` makes
+  its target the package. At the end of the body the package must have ended
   (`E_RESOURCE_ESCAPE`).
+- Another use of an owned-map package is an error. A `borrow` with a layout,
+  `owned`, `pack` and an `Owned<S, n>` parameter or result report
+  `E_NUMERICAL_PACKAGE`. A `borrow` without a layout, `view`, `gemm` and an
+  `OwnedMap` parameter or result report `E_NUMERICAL_TYPE`. A statement that
+  needs a loan reports `E_RESOURCE_LOAN`.
 - `unpack p as (w, bw, r)` must name a live owned-map package
   (`E_NUMERICAL_PACKAGE`) and three names that are not in use
   (`E_DUPLICATE`). It ends `p`.
@@ -474,7 +494,9 @@ Its caller moves the package, opens it and borrows the owned map:
 
 `vastitas check` needs no numerical library. `vastitas build` links the
 numerical runtime and OpenBLAS for a program whose entry point reaches a
-`gemm`:
+**product statement**: `gemm`, `runtime_gemm`, `evaluate`, `hermitian`,
+`hermitian_diagonal`, `contract`, `contract3`, `contract3_cached` or
+`contract_tree`.
 
 ```sh
 vastitas check --manifest-path examples/packages/numerical/Vastitas.toml
@@ -489,11 +511,12 @@ gives the pinned OpenBLAS version and the way to build it.
 Rules:
 
 - `vastitas build` needs `--openblas-prefix` for a program whose entry point
-  reaches a `gemm`: directly, through calls, or in an arm of a branch that the
-  program never selects (`E_BUILD`).
+  reaches a product statement: directly, through calls, or in an arm of a
+  branch that the program never selects (`E_BUILD`).
 - `--openblas-prefix` and `--native-cc` are errors (`E_USAGE`) for
   `vastitas check`, and for `vastitas build` of a program whose entry point
-  reaches no `gemm`. Such a program may declare spaces, bases and maps.
+  reaches no product statement. Such a program may declare spaces, bases and
+  maps, and it may use `adjoint_into` and `pack3`.
 - The compiler checks every numerical statement of the program, even in a
   function that the entry point never calls.
 
@@ -504,6 +527,7 @@ the wire forms, the native adapter and the evidence for these statements.
 
 These anchors keep older links working.
 
+- <a id="numerical-maps-ownership-and-gemm"></a>The chapter: [Numerical maps](#numerical-maps).
 - <a id="numerical-declarations"></a><a id="numerical-declaration-profiles-protocol-8"></a><a id="source-contract"></a>Numerical declaration profiles: [Linear implementations](#linear-implementations).
 - <a id="wire-and-checker-boundary"></a>Wire and checker boundary: [Numerical backend](../internals/numerical-backend.md#wire-and-checker-boundary).
 - <a id="validation-and-remaining-connection"></a>Validation: [Numerical backend](../internals/numerical-backend.md#validation-and-remaining-connection).

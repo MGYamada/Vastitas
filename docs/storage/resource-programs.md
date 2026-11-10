@@ -49,7 +49,8 @@ Rules:
 - Every owned result must name a binding of the body (`E_RESOURCE_NAME`).
   That binding must be a live owner that meets the type of the result
   (`E_RESOURCE_TYPE`), and no loan of it may be live at the end of the body
-  (`E_RESOURCE_ESCAPE`).
+  (`E_RESOURCE_ESCAPE`). Two owned results must not name one binding
+  (`E_RESOURCE_TYPE`).
 - At the end of the body, every other owner must have been dropped, moved or
   handed to a call (`E_RESOURCE_ESCAPE`). A body must not release a borrowed
   parameter (`E_RESOURCE_LOAN`).
@@ -187,7 +188,8 @@ Rules:
 - `release`, `transpose`, `fill`, `store`, `expect` and `copy` must name live
   loans. An owner or a released loan there is an error (`E_RESOURCE_LOAN`),
   and so is a `borrow` from a released loan. `release` may also name a
-  [map](../linalg/maps-and-gemm.md#maps) in place of its loan.
+  [map](../linalg/maps-and-gemm.md#maps) or a
+  [vector](../linalg/transforms-and-metrics.md#vectors) in place of its loan.
 - Every cell of the view of a `read` or `read_write` loan must be initialized
   (`E_RESOURCE_INIT`). `fill` initializes its view, `store` one cell and
   `copy` its target. A `write` loan may cover uninitialized cells.

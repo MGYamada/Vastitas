@@ -120,10 +120,13 @@ Rules:
   (`E_TENSOR`).
 - One basis may index several axes, several tensors may present one loan,
   and a tensor may present a `write` loan.
-- A tensor is not a loan and not a map: a storage statement that names one is
-  an error (`E_RESOURCE_LOAN`), and so is a tensor as an operand of `gemm`
+- A tensor is not a loan and not a map. `release`, `transpose`, `fill`,
+  `store`, `expect` and `copy` that name one are errors (`E_RESOURCE_LOAN`).
+  So are `drop` and `move` (`E_RESOURCE_MOVE`), a `borrow` from one
+  (`E_RESOURCE_TYPE`) and a tensor as an operand of `gemm`
   (`E_NUMERICAL_TYPE`).
-- A statement may use a tensor only while its loan is live (`E_TENSOR`).
+- A statement may use a tensor only while its loan is live, has no live child
+  and has the layout that it had at the `tensor` statement (`E_TENSOR`).
 
 ## Packing and contraction
 
@@ -206,6 +209,9 @@ Rules:
 - The graph must have from 2 to 64 occurrences, one edge fewer than
   occurrences, and 2 or 3 boundary ports. It has at most 128 declarations
   before `plan`, and a plan has at most 1024 steps (`E_TENSOR_TREE`).
+- Every plan step counts against the limit on the statements of a program,
+  which [Appendix D](../appendix/limits.md#other-documented-bounds) gives
+  (`E_RESOURCE_LIMIT`).
 - The output and every occurrence must name a tensor that the function
   declared before the statement (`E_TENSOR_TREE`). The loan of the tensor of
   an occurrence must permit reading, and its cells must be initialized
@@ -232,9 +238,12 @@ Rules:
   with the allocation, the layout, the bases and the grouping of the tensor
   of `c` (`E_TENSOR_TREE`). No statement may have written that allocation
   since `c` got its tensor.
-- The result of a `regroup` or a `join` is a tensor over a `write` loan. A
-  plan releases that loan, borrows a `read` loan of the same view, declares a
-  tensor on it and names it in `rebind`, before a `join` reads the component.
+- After a `regroup` or a `join`, the tensor of the component is the target.
+  A later `regroup` or `join` reads it, so its loan must be live
+  (`E_TENSOR_TREE`) and must permit reading (`E_RESOURCE_ACCESS`).
+- For a target on a `write` loan, the plan releases that loan, borrows a
+  `read` loan of the same view, declares a tensor on it and names it in
+  `rebind`. A target on a `read_write` loan needs none of this.
 - In `join c = (e, l, r, t)`, `e` must be an edge that no earlier `join` used,
   between a port of the component `l` and a port of another component `r`
   (`E_TENSOR_TREE`). The name `c` must differ from every component name
@@ -247,8 +256,9 @@ Rules:
   with the axes of `l` along the rows (`E_TENSOR`). Its loan must permit
   writing (`E_RESOURCE_ACCESS`).
 - At the end of the plan there must be one component. Its ports must be the
-  boundary ports in their order, and its tensor must be the output of the
-  statement (`E_TENSOR_TREE`).
+  boundary ports in their order. Its tensor must be the output of the
+  statement, or a tensor of the plan with the same loan, bases and grouping
+  (`E_TENSOR_TREE`).
 - `contract_tree` initializes the view of its output.
 
 This tree of
@@ -274,10 +284,10 @@ Rules:
   name that is not in use (`E_DUPLICATE`).
 - The first operand of `contract3_cached` must be a cache
   (`E_TENSOR_CACHE`).
-- A cache is valid until a statement writes a cell of the allocation of `s`
-  or of `t`, until one of the two allocations is dropped, and until the end
-  of a branch. A write to another part of the allocation counts, and so does
-  a write inside a called function.
+- A cache is valid until a statement writes the allocation of `s` or of
+  `t`, until one of the two allocations is dropped, and until the end of a
+  branch. A write to another part of the allocation counts, and so do a
+  `fill` of a view without cells and a write inside a called function.
 - `contract3_cached` must name a valid cache (`E_TENSOR`).
 - The operand `l` must be a tensor on the allocation of `t`, with the layout
   and the bases of `t` (`E_TENSOR`). It may present another loan than the
@@ -305,7 +315,7 @@ These anchors keep older links working.
 - <a id="graph-and-independent-acceptance"></a>Graph and independent acceptance: [Numerical backend](../internals/numerical-backend.md#two-map-networks-graph-and-independent-acceptance).
 - <a id="proof-and-validation-boundaries"></a>Proof and validation boundaries: [Numerical backend](../internals/numerical-backend.md#two-map-networks-proof-and-validation-boundaries).
 - <a id="remaining-scope"></a>Remaining scope: [Numerical backend](../internals/numerical-backend.md#history).
-- <a id="tensor-packing"></a><a id="finite-rank-three-contraction-and-explicit-packing"></a><a id="actual-axis-types-and-representation"></a>Rank-three contraction and packing: [Tensors](#tensors) and [Packing and contraction](#packing-and-contraction).
+- <a id="tensor-packing"></a><a id="finite-rank-three-contraction-and-explicit-packing"></a><a id="actual-axis-types-and-representation"></a><a id="public-source-1"></a>Rank-three contraction and packing: [Tensors](#tensors) and [Packing and contraction](#packing-and-contraction).
 - <a id="independent-checking-and-native-execution"></a>Independent checking and native execution: [Numerical backend](../internals/numerical-backend.md#tensor-packing-independent-checking-and-native-execution).
 - <a id="proof-and-cost-boundaries"></a>Proof and cost boundaries: [Numerical backend](../internals/numerical-backend.md#tensor-packing-proof-and-cost-boundaries).
 - <a id="bounded-finite-contraction-trees"></a><a id="source-and-explicit-execution-plan"></a>Bounded finite contraction trees: [Contraction trees](#contraction-trees).

@@ -110,8 +110,9 @@ reserved, and it is not a function value. See
 ## Cache
 
 A record, at compile time, that the cells of one [tensor](#tensor) hold the
-packing of the cells of another. `cache` declares one, and it is valid until
-a statement writes either allocation. See [Caches](../linalg/networks-and-packing.md#caches).
+packing of the cells of another. `cache` declares one. It is valid until a
+statement writes either allocation, until one of them is dropped, and until
+the end of a branch. See [Caches](../linalg/networks-and-packing.md#caches).
 
 ## Callable domain
 
@@ -248,7 +249,7 @@ of a tape is a reverse pass, and its call is a
 
 ## Derived basis
 
-The basis that `derived(b, s)` declares for the basis `b` in the
+A basis that `derived(b, s)` declares for the basis `b` in the
 [derived space](#derived-space) `s`: the dual basis in a dual space, and the
 conjugate basis in a conjugate space. See
 [Dual and conjugate spaces](../linalg/transforms-and-metrics.md#dual-and-conjugate-spaces).
@@ -475,7 +476,8 @@ A function with a function parameter or a function result. See
 
 The Gram data of a [metric](#metric) that is `orthonormal`, a
 `scaled_identity` with the entry 1 or a `diagonal` whose entries are all 1.
-`adjoint` and `hermitian` need it. See [Metrics](../linalg/transforms-and-metrics.md#metrics).
+`adjoint` and `hermitian` need it. Over a space of dimension 0 every metric
+has it. See [Metrics](../linalg/transforms-and-metrics.md#metrics).
 
 ## Implementation
 
@@ -748,9 +750,9 @@ it after `returns`. See
 
 ## Owned-map package
 
-An [owned map](#owned-map) whose target space and basis are hidden. `pack`
-makes one, `OwnedMapTo<bs, n>` is its type, and `unpack` opens it with a
-fresh space and basis. It is not a [package](#package) of source files. See
+An owner that `pack` makes from an [owned map](#owned-map) and that hides
+the target space and its basis. `OwnedMapTo<bs, n>` is its type. It is not
+usable as an owned map until `unpack` opens it with a fresh space and basis. It is not a [package](#package) of source files. See
 [Owned-map packages](../linalg/maps-and-gemm.md#owned-map-packages).
 
 ## Owner

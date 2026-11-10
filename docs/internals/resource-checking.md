@@ -92,7 +92,15 @@ Generation rechecks the original mixed schedule, its resource projection and
 every native instruction, plus the actual pure Core module, exact fragment
 targets and dependency order. A fragment is keyed by its canonical resource
 owner and structural source position. Its ordered scalar argument slots must
-match the actual checked Core signature. Runtime conditions are emitted from
+match the actual checked Core signature. A program has at most 4096
+fragments, one for each `value` statement and one for the `value` block that
+ends each resource function. The kernel's decoder reads the body of one
+resource function with 4096 units of fuel, which the arms of an `if` share
+with the statements up to that `if`. The frontend measures both bounds and
+reports a program beyond one at a function (`E_RESOURCE_LIMIT`). The kernel
+keeps both for a request that the frontend did not write: it refuses such a
+body as a malformed request (`E_PROTOCOL`) and such a table of fragments as
+invalid (`E_CAPTURE`). Runtime conditions are emitted from
 those checked Bool slots; neither arm is selected during resource checking. The same
 resource main supplies both the schedule and its pure return block. Native IO uses
 structured cleanup, including failure paths; a failed resource operation does not

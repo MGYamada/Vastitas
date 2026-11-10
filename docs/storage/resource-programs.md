@@ -57,6 +57,12 @@ Rules:
 - The checker checks every resource function of the program, even one that no
   call reaches. It checks a function once on its own and once more at every
   call, with the views that the caller passes.
+- The statements of all resource functions of a program have a limit, and so
+  have their `value` blocks.
+  [Appendix D](../appendix/limits.md#other-documented-bounds) gives both. The
+  statements of both arms of an `if` count, and the `value` block that ends a
+  function counts. A program beyond a limit is an error (`E_RESOURCE_LIMIT`),
+  reported at a function.
 - A resource function named `main` in the root module of the root package is
   the [entry point](../language/programs.md#the-entry-point). It must have no
   parameters and no owned results (`E_RESOURCE_ESCAPE`), and its result type

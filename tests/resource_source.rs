@@ -725,6 +725,188 @@ fn raw_resource_wire_cannot_supply_checked_owners_targets_or_alias_evidence() {
     );
 }
 
+const FILL: &str = "    fill(w, f64_bits(0));\n";
+
+/// A resource function with exactly `statements` statements: an allocation,
+/// a loan, fills, the release and the drop.
+fn filled(name: &str, statements: usize) -> String {
+    format!(
+        "resource fn {name}() -> Int {{\n    allocate d: F64[1];\n    borrow w = write(d, layout(0, 1, 1, 1, false));\n{}    release(w);\n    drop(d);\n    value {{ 42 }}\n}}\n",
+        FILL.repeat(statements - 4)
+    )
+}
+
+/// A resource function with `before` statements and then an `if` with `arm`
+/// statements in its first arm and one in its second.
+fn branching(before: usize, arm: usize) -> String {
+    format!(
+        "resource fn main() -> Int {{\n    let flag: Bool = value {{ true }};\n    allocate d: F64[1];\n    borrow w = write(d, layout(0, 1, 1, 1, false));\n{}    if flag {{\n{}    }} else {{\n{FILL}    }}\n    release(w);\n    drop(d);\n    value {{ 42 }}\n}}\n",
+        FILL.repeat(before - 3),
+        FILL.repeat(arm)
+    )
+}
+
+/// A resource function whose statements are `values` `value` statements.
+fn valued(name: &str, values: usize) -> String {
+    let statements: String = (0..values)
+        .map(|index| format!("    let k{index}: Int = value {{ {index} }};\n"))
+        .collect();
+    format!("resource fn {name}() -> Int {{\n{statements}    value {{ 42 }}\n}}\n")
+}
+
+fn packages(library: Option<&str>, main: &str) -> Scratch {
+    let s = Scratch::empty("resource limits");
+    if let Some(library) = library {
+        s.write_package("library", library, "");
+    }
+    let dependencies = if library.is_some() {
+        "library={path='../library'}"
+    } else {
+        ""
+    };
+    s.write_package("app", main, dependencies);
+    s
+}
+
+/// The whole rendered rejection of `app`, which must be one diagnostic line.
+#[track_caller]
+fn limit(s: &Scratch) -> String {
+    let error = common::expect_code(&check(s), "E_RESOURCE_LIMIT");
+    assert_eq!(error.lines().count(), 1, "{error}");
+    error
+}
+
+/// The kernel's decoder refuses a function body beyond its bound, and the
+/// checker refuses a program with more than 4096 `value` blocks, each without
+/// a place in the source. The frontend measures both and reports each at the
+/// function, as a limit of resource programs (#704).
+#[test]
+fn statement_and_value_block_limits_are_reported_at_the_function() {
+    const STATEMENTS: &str =
+        "E_RESOURCE_LIMIT: resource function exceeds the limit of 4096 statements\n";
+    const VALUES: &str = "E_RESOURCE_LIMIT: the resource functions of the program exceed the limit of 4096 `value` blocks\n";
+    let preamble = "fn helper() -> Int { 1 }\n\n";
+
+    // One statement more than the decoder reads.
+    let error = limit(&packages(
+        None,
+        &format!("{preamble}{}", filled("main", 4097)),
+    ));
+    assert!(
+        error.ends_with(&format!("app/main.vast:3:1: {STATEMENTS}")),
+        "{error}"
+    );
+    // The decoder reads 4096 statements. The checker then refuses the work
+    // of the function, at the function.
+    let error = limit(&packages(
+        None,
+        &format!("{preamble}{}", filled("main", 4096)),
+    ));
+    assert!(
+        error.contains("app/main.vast:3:1: E_RESOURCE_LIMIT: ") && error.contains("expanded steps"),
+        "{error}"
+    );
+    // The statements of an arm count with the statements up to its `if`:
+    // 2000 statements, the `if`, and 2096 statements of its arm.
+    let error = limit(&packages(None, &branching(2000, 2096)));
+    assert!(
+        error.ends_with(&format!("app/main.vast:1:1: {STATEMENTS}")),
+        "{error}"
+    );
+    let error = limit(&packages(None, &branching(2000, 2095)));
+    assert!(
+        error.contains("app/main.vast:1:1: E_RESOURCE_LIMIT: ") && !error.ends_with(STATEMENTS),
+        "{error}"
+    );
+
+    // 4096 `value` statements and the `value` block of the function.
+    let error = limit(&packages(
+        None,
+        &format!("{preamble}{}", valued("main", 4096)),
+    ));
+    assert!(
+        error.ends_with(&format!("app/main.vast:3:1: {VALUES}")),
+        "{error}"
+    );
+    // The limit holds for the program: 2049 blocks in a dependency and 2048
+    // in the root package. The function that passes the limit is reported.
+    let library = format!("pub {}", valued("helper", 2048));
+    let error = limit(&packages(
+        Some(&library),
+        &format!("{preamble}{}", valued("main", 2047)),
+    ));
+    assert!(
+        error.ends_with(&format!("app/main.vast:3:1: {VALUES}")),
+        "{error}"
+    );
+    // 4096 blocks are within the limit, in one function and in two.
+    for s in [
+        packages(None, &valued("main", 4095)),
+        packages(Some(&library), &valued("main", 2046)),
+    ] {
+        let output = check(&s);
+        assert!(!output.status.success());
+        let error = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !error.contains("`value` blocks") && !error.contains("Vastitas.toml:1:1"),
+            "{error}"
+        );
+    }
+}
+
+/// The kernel keeps both bounds for a request that the frontend did not
+/// write, and the frontend measures what the kernel measures.
+#[test]
+fn raw_resource_wire_keeps_the_statement_and_value_block_bounds() {
+    let body = "/packages/0/modules/0/resource_functions/0/body";
+    let decodes = |raw: &Value| {
+        let response = kernel(raw, "check");
+        assert_eq!(response["ok"], false, "{response}");
+        response["diagnostics"][0]["code"] != "E_PROTOCOL"
+    };
+    // The decoder's bound on one body, with and without a branch.
+    let mut raw = request(&packages(None, &filled("main", 4096)));
+    assert!(decodes(&raw));
+    let statements = raw.pointer_mut(body).unwrap().as_array_mut().unwrap();
+    statements.push(statements[2].clone());
+    let response = kernel(&raw, "check");
+    common::assert_wire_rejected(&response, "E_PROTOCOL");
+    assert_eq!(
+        response["diagnostics"][0]["message"],
+        "resource source exceeds decoding depth bound"
+    );
+    let mut raw = request(&packages(None, &branching(2000, 2095)));
+    assert!(decodes(&raw));
+    let branch = raw.pointer_mut(&format!("{body}/2000")).unwrap();
+    assert_eq!(branch["kind"], "branch_value");
+    let arm = branch["yes"].as_array_mut().unwrap();
+    assert_eq!(arm.len(), 2095);
+    arm.push(arm[0].clone());
+    assert!(!decodes(&raw));
+
+    // 4096 `value` blocks pass the bound of the checker, and 4097 do not.
+    let mut raw = request(&packages(None, &valued("main", 4095)));
+    let response = kernel(&raw, "check");
+    assert_eq!(response["ok"], false, "{response}");
+    assert_ne!(
+        response["diagnostics"][0]["code"], "E_CAPTURE",
+        "{response}"
+    );
+    let statements = raw.pointer_mut(body).unwrap().as_array_mut().unwrap();
+    let mut extra = statements[0].clone();
+    extra["name"] = json!("extra");
+    statements.push(extra);
+    let response = kernel(&raw, "check");
+    common::assert_wire_rejected(&response, "E_CAPTURE");
+    assert!(
+        response["diagnostics"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("pure-fragment"),
+        "{response}"
+    );
+}
+
 #[test]
 fn resource_source_enforces_move_borrow_initialization_and_name_scopes() {
     rejected(

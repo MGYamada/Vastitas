@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 mod exact_float;
 mod indexed_parser;
 mod resource_parser;
+pub(crate) use resource_parser::{MAX_RESOURCE_VALUE_BLOCKS, value_blocks};
 
 pub use crate::ir::Diagnostic;
 use crate::ir::{

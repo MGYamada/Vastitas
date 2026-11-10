@@ -22,6 +22,56 @@ const RESOURCE_PARAMETER_TYPES: &str = "resource parameters require Nat/Int/Bool
 const MAX_DIAGONAL_ENTRIES: usize = 4096;
 const MAX_TENSOR_AXES: u64 = 3;
 
+// The fuel with which the decoder (`statements`, called from `function`)
+// reads the body of one resource function. The value must equal the
+// decoder's.
+const MAX_RESOURCE_STATEMENTS: usize = 4096;
+
+// The bound of the kernel's checker on the pure fragments of a program
+// (`validFragments` in `ResourcePure.lean`): one for every `value` statement
+// and one for the `value` block that ends a resource function. The checker
+// refuses more as a malformed table of fragments, without a place in the
+// source. The value must equal the checker's.
+pub(crate) const MAX_RESOURCE_VALUE_BLOCKS: usize = 4096;
+
+/// Whether the kernel's decoder reads `statements` with `fuel`. Every
+/// statement of a block takes one unit of the fuel of its block, and both arms
+/// of an `if` start with what is left after the `if`. So a statement is read
+/// when it, the statements before it in its block, and for every enclosing
+/// `if` that `if` and the statements before it, are at most `fuel` together.
+fn decodable(statements: &[crate::storage::source::Statement], fuel: usize) -> bool {
+    use crate::storage::source::Statement;
+    statements.len() <= fuel
+        && statements
+            .iter()
+            .enumerate()
+            .all(|(index, statement)| match statement {
+                Statement::Branch { yes, no, .. } | Statement::BranchValue { yes, no, .. } => {
+                    let rest = fuel - index - 1;
+                    decodable(yes, rest) && decodable(no, rest)
+                }
+                _ => true,
+            })
+}
+
+/// The `value` blocks of a resource function: its `value` statements, in
+/// both arms of every `if`, and the block that ends it.
+pub(crate) fn value_blocks(function: &crate::storage::source::Function) -> usize {
+    use crate::storage::source::Statement;
+    fn statements(body: &[Statement]) -> usize {
+        body.iter()
+            .map(|statement| match statement {
+                Statement::Value { .. } => 1,
+                Statement::Branch { yes, no, .. } | Statement::BranchValue { yes, no, .. } => {
+                    statements(yes) + statements(no)
+                }
+                _ => 0,
+            })
+            .sum()
+    }
+    statements(&function.body) + 1
+}
+
 impl Parser {
     fn resource_number(&mut self) -> Result<u64, Diagnostic> {
         let token = self.advance();
@@ -1808,6 +1858,20 @@ impl Parser {
         self.expect("value")?;
         let value_body = self.block()?;
         self.expect("}")?;
+        let span = start.through(self.previous().span);
+        // A body that the decoder does not read is a malformed request for
+        // the kernel, which has no place for it. Such a body has more than
+        // `MAX_RESOURCE_STATEMENTS` statements, so the frontend reports the
+        // limit at the function (#704).
+        if !decodable(&body, MAX_RESOURCE_STATEMENTS) {
+            return Err(diagnostic(
+                "E_RESOURCE_LIMIT",
+                format!(
+                    "resource function exceeds the limit of {MAX_RESOURCE_STATEMENTS} statements"
+                ),
+                span,
+            ));
+        }
         Ok(crate::storage::source::Function {
             name,
             parameters,
@@ -1815,7 +1879,7 @@ impl Parser {
             body,
             value_type,
             value_body,
-            span: start.through(self.previous().span),
+            span,
         })
     }
 }

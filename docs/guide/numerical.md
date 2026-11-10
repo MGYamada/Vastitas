@@ -76,7 +76,7 @@ cargo run --locked -- build --manifest-path examples/packages/numerical/Vastitas
 
 On Linux, add `--native-cc cc`. The prefix must contain the pinned OpenBLAS
 headers and static archive; see
-[the adapter contract](../linalg/maps-and-gemm.md#numerical-adapter). A program
+[the adapter contract](../internals/numerical-backend.md#native-gemm-adapter). A program
 whose checked entry runs neither GEMM nor diagonal Hermitian pairing never
 links OpenBLAS.
 
@@ -132,7 +132,7 @@ resource fn adjoint_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profiles
 For diagonal metrics that are not orthonormal, the adjoint is not a view.
 Explicit statements materialize it into a caller's destination and evaluate
 Hermitian forms with caller scratch; see
-[Explicit diagonal metrics](../linalg/transforms-and-metrics.md#diagonal-metrics).
+[Explicit diagonal metrics](../linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics).
 
 ## Tensor networks
 
@@ -165,14 +165,15 @@ cargo run --locked -- build --manifest-path examples/packages/finite_network/Vas
 The program prints `42` after its coordinate checks. Larger networks use
 explicit execution plans:
 
-- [Finite rank-three contraction and explicit packing](../linalg/networks-and-packing.md#tensor-packing)
+- [Finite rank-three contraction and explicit packing](../linalg/networks-and-packing.md#packing-and-contraction)
 - [Bounded finite contraction trees](../linalg/networks-and-packing.md#contraction-trees)
-- [Checked reuse of packed tensor values](../linalg/networks-and-packing.md#cached-packing)
+- [Checked reuse of packed tensor values](../linalg/networks-and-packing.md#caches)
 
 > **What is checked.** Lean resolves every space, basis and metric itself; the
 > wire cannot supply a checked identity or a product receipt. Raw dimensions
 > never authorize a product. The native adapter rechecks layouts and aliases
 > before writing and then calls pinned OpenBLAS. Floating-point field laws,
 > numerical error bounds and source-to-native refinement are not proved. See
-> [Numerical maps, ownership and GEMM](../linalg/maps-and-gemm.md#numerical-adapter--responsibilities-along-the-implemented-path)
+> [Numerical maps](../linalg/maps-and-gemm.md), the responsibilities of each
+> layer in [Numerical backend](../internals/numerical-backend.md#responsibilities-along-the-implemented-path)
 > and the [proof boundary](../verification.md#what-is-outside-these-claims).

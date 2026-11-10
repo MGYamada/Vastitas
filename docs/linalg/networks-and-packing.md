@@ -1,659 +1,327 @@
-# Tensor networks, packing and contraction trees
+# Networks, packing and contraction trees
 
-Start with two-map wiring, then follow the ordered axes and caller-owned storage through packing, contraction trees and cache invalidation.
+This chapter gives the statements that contract [numerical maps](maps-and-gemm.md)
+and **tensors** along the edges of a graph: a network of two maps, tensors
+with two or three axes, their packing and contraction, contraction trees with
+an explicit plan, and caches of a packing. Nothing is implicit. An edge joins
+a basis with the same basis or with its derived dual basis, and equal
+dimensions prove nothing. No statement of this chapter conjugates, uses a
+metric or allocates, and only `pack3`, `cache` and `regroup` copy cells.
 
-<a id="finite-networks"></a>
+> **Syntax**
+>
+> ```text
+> TensorStatement -> TensorView `;`
+>     | `pack3` `(` IDENTIFIER `,` IDENTIFIER `)` `;`
+>     | `contract3` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,` `NativeFast` `)` `;`
+>     | `cache` IDENTIFIER `=` `pack3` `(` IDENTIFIER `,` IDENTIFIER `)` `;`
+>     | `contract3_cached` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,`
+>       IDENTIFIER `,` `NativeFast` `)` `;`
+> ```
 
-## Executable finite two-map networks
+The naming rules and the codes for a binding that is not in scope are those of
+[Numerical maps](maps-and-gemm.md). No parameter type takes a tensor, a
+network or a cache: a function receives loans and bases and declares its own
+tensors.
 
-Protocol 8 supports a deliberately finite profile of [#69](https://github.com/MGYamada/Vastitas/issues/69):
-two rank-two map occurrences, one bilinear evaluation edge, one input boundary,
-one output boundary and one caller-provided overwrite destination. It is connected
-to the independent Lean checker and the existing typed GEMM/storage/native path.
-This finite profile is part of the completed [Stage 1 delivery](../stage1-completion.md). Broader network constructions remain with #69.
+## Two-map networks
 
-### Public source
+> **Syntax**
+>
+> ```text
+> NetworkContraction -> `contract` `(` IDENTIFIER `,` `NativeFast` `)`
+>     `{` ( NetworkDeclaration `;` )* `}`
+> NetworkDeclaration -> `occurrence` IDENTIFIER `=` IDENTIFIER
+>     | `edge` `(` NetworkPort `,` NetworkPort `)`
+>     | `input` `(` NetworkPort `)`
+>     | `output` `(` NetworkPort `)`
+> NetworkPort -> IDENTIFIER `.` ( `input` | `output` )
+> ```
 
-For already constructed maps `left : V → W`, `right : U → V` and
-`destination : U → W`, with the same middle basis:
+A `contract` block writes the composition of two maps as a **network**. Each
+**occurrence** is a node that stands for one use of a map. It has two
+**ports**: `.input` stands for the dual of the source space of the map, and
+`.output` for its target space. The `edge` contracts the input port of one
+occurrence with the output port of the other. `input` and `output` name the
+two remaining ports, the **boundary**, which are the source and the target of
+the result. With `edge(a.input, b.output)` the destination receives the map of
+`a` after the map of `b`. The statement is the `overwrite` product of
+[Matrix products](maps-and-gemm.md#matrix-products) for the same three maps,
+without a coefficient. The order of the declarations has no effect.
+
+Rules:
+
+- The block must hold two `occurrence` declarations, one `edge`, one `input`
+  and one `output` (`E_NETWORK`).
+- The two occurrences must have different names (`E_NETWORK`). They may name
+  one map. An occurrence name is local to the block: it may equal the name of
+  a binding, and it must not be a reserved name (`E_RESERVED`).
+- An occurrence must name a map (`E_NETWORK`). It may name a
+  [transformed map](transforms-and-metrics.md#transformed-maps).
+- Each of the four ports must be used once, by the edge or by the boundary
+  (`E_NETWORK`).
+- The first port of the edge must be an input port and the second an output
+  port, of different occurrences (`E_NETWORK`).
+- `input` must name the input port of the occurrence whose output port is in
+  the edge, and `output` the output port of the other occurrence
+  (`E_NETWORK`).
+- The source basis of the map at the input port of the edge must be the
+  target basis of the map at its output port (`E_NETWORK`). Another basis of
+  that space, a basis of another space of the same dimension and a derived
+  basis do not fit.
+- The destination must be a map from the source basis of the map at the
+  output port of the edge to the target basis of the map at its input port
+  (`E_NUMERICAL_TYPE`).
+- The rules of [Matrix products](maps-and-gemm.md#matrix-products) on access,
+  transposition and overlap hold for the destination and the two maps.
 
 ```vast
-contract(destination, NativeFast) {
-    occurrence a = left;
-    occurrence b = right;
-    edge(a.input, b.output);
-    input(b.input);
-    output(a.output);
-}
+{{#include ../../examples/packages/finite_network/src/real/mod.vast:30:39}}
 ```
 
-`a.input` is the algebraic-dual factor of the source of `left`; `a.output`
-is its target factor. Thus the edge means `V∨ ⊗ V → K`, with the dual port
-written first. Boundaries retain the uncontracted input of `b` and output of
-`a`. The destination must have exactly those source/target objects **and bases**.
-In coordinates the requested result is `C[i,k] = Σ_j A[i,j]*B[j,k]`.
-Multiplication is bilinear; contraction inserts no conjugation, metric, adjoint,
-dual-space identification or basis transport.
+## Tensors
 
-Occurrence identifiers are local to this contraction. A repeated immutable map
-value may appear under two different occurrence names, for example `a = same`
-and `b = same` for an endomorphism squared. Their ports are different even though
-they read the same allocation. They do not grant separate mutable-buffer
-ownership. Output separation and all loan/access/initialization checks still
-come from the existing resource checker. A port must occur exactly once across
-the edge and boundaries. Duplicated occurrence names, duplicate port use,
-unconnected/unknown ports and reversed boundary roles are rejected.
+> **Syntax**
+>
+> ```text
+> TensorView -> `tensor` IDENTIFIER `=`
+>     ( `view2` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER ( `,` AxisGrouping )? `)`
+>     | `view3` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,`
+>       AxisGrouping `)` )
+> AxisGrouping -> `axes` `(` ( INTEGER_LITERAL ( `,` INTEGER_LITERAL )* `,`? )? `)`
+>     `,` INTEGER_LITERAL
+> ```
 
-Explicitly transformed operands use the existing checked
-[dual/conjugate/adjoint path](transforms-and-metrics.md#linear-transforms), including its exact nominal
-origins, basis evidence and active child loans. A graph cannot supply raw native
-flags or convert a conjugate space into an algebraic dual. Merely equal dimensions
-do not identify spaces, and distinct bases of one space are not silently identified.
+`tensor t = view3(l, b0, b1, b2, axes(p0, p1, p2), s);` presents the loan `l`
+as a **tensor** with three ordered axes, where the basis `bk` indexes axis
+`k`. The bases and their order are the type of the tensor. The **grouping**
+`axes(p0, p1, p2), s` says how the matrix of the loan stores the cells: the
+first `s` axes of the list index its rows and the others its columns, and
+within a group the first axis of the list runs fastest. With the dimensions
+`d0`, `d1`, `d2` and the grouping `axes(0, 2, 1), 2`, the cell `(i0, i1, i2)`
+is in row `i0 + d0·i2` and column `i1`. `view2` declares a tensor with two
+axes. Without a grouping it has `axes(0, 1), 1`: axis 0 along the rows and
+axis 1 along the columns. A tensor declares no loan and copies no cell.
 
-The [complete package](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/finite_network/Vastitas.toml) computes
-the rectangular real and complex products from the public GEMM example and checks
-every output coordinate. The complex product has entries `1+2i, 3i; 2, 2`;
-an inserted conjugation changes it.
+Rules:
 
-```sh
-cargo run --locked -- check --manifest-path examples/packages/finite_network/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/finite_network/Vastitas.toml \
-  --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/finite-network
-/tmp/finite-network
+- The first operand must be a live static loan and the others bases
+  (`E_TENSOR`).
+- `axes(…)` must list each axis number of the tensor once, from 0, and the
+  number after it must be at least 1 and less than the number of axes
+  (`E_TENSOR`). The compiler reports an axis number of 3 or more at the root
+  manifest (`E_PROTOCOL`).
+- The spaces of all axes must have one linear implementation, and the cells
+  of the loan must have its element type (`E_TENSOR`).
+- The view of the loan must not be transposed. Its rows must be the product
+  of the dimensions of the axes before the split, and its columns the product
+  of the others (`E_TENSOR`).
+- The dimension of the space of every axis must be at most 2³¹ − 1
+  (`E_TENSOR`).
+- One basis may index several axes, several tensors may present one loan,
+  and a tensor may present a `write` loan.
+- A tensor is not a loan and not a map. `release`, `transpose`, `fill`,
+  `store`, `expect` and `copy` that name one are errors (`E_RESOURCE_LOAN`).
+  So are `drop` and `move` (`E_RESOURCE_MOVE`), a `borrow` from one
+  (`E_RESOURCE_TYPE`) and a tensor as an operand of `gemm`
+  (`E_NUMERICAL_TYPE`).
+- A statement may use a tensor only while its loan is live, has no live child
+  and has the layout that it had at the `tensor` statement (`E_TENSOR`).
+
+## Packing and contraction
+
+`pack3(s, t);` copies a tensor with three axes from the grouping
+`axes(0, 1, 2), 1` to the grouping `axes(0, 2, 1), 2` in the view of `t`. It
+copies each cell bit for bit. `contract3(l, r, out, NativeFast);` contracts
+the middle axis of a tensor with three axes with the first axis of a tensor
+with two: the cell `(i, j, m)` of `out` is the sum over `k` of
+`l[i, k, j] · r[k, m]`. It is one `overwrite` product of the matrices that the
+groupings of the rules describe.
+
+Rules:
+
+- The operands of `pack3` must be tensors with three axes and the same bases
+  in the same order. The source must have the grouping `axes(0, 1, 2), 1` and
+  the target `axes(0, 2, 1), 2` (`E_TENSOR`).
+- The loan of the source of `pack3` must permit reading and the loan of the
+  target writing (`E_RESOURCE_ACCESS`). Their views must not overlap
+  (`E_RESOURCE_ALIAS`).
+- In `contract3(l, r, out, NativeFast)`, `l` must have the bases `[a, d, b]`,
+  `r` the bases `[v, c]` and `out` the bases `[a, b, c]`. `d` must be the
+  derived basis of `v` in the dual of its space (`E_TENSOR`).
+- `l` must have the grouping `axes(0, 2, 1), 2`, `r` the grouping
+  `axes(0, 1), 1` and `out` the grouping `axes(0, 1, 2), 2` (`E_TENSOR`). A
+  tensor that is stored in the grouping of `l` needs no `pack3`.
+- The loans of `l` and `r` must permit reading and the loan of `out` writing
+  (`E_RESOURCE_ACCESS`). The view of `out` must not overlap the view of `l`
+  or of `r` (`E_RESOURCE_GEMM`).
+- `pack3` initializes the view of its target, and `contract3` the view of its
+  output.
+
+This fragment of
+[`examples/packages/tensor-packing`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/tensor-packing)
+packs a tensor and contracts it with a matrix:
+
+```vast
+{{#include ../../examples/packages/tensor-packing/src/real/mod.vast:33:45}}
 ```
 
-On Linux add `--native-cc cc`, as for the existing numerical adapter. The program
-prints `42` after its coordinate checks. Source checking needs no OpenBLAS.
-The optional native runtime is linked only for executed GEMM; unused network
-bodies remain independently checked on the ordinary no-BLAS path.
+## Contraction trees
 
-### Graph and independent acceptance
+> **Syntax**
+>
+> ```text
+> TreeContraction -> `contract_tree` `(` IDENTIFIER `,` `NativeFast` `)`
+>     `{` ( TreeDeclaration `;` )* `plan` `{` PlanStep* `}` `}`
+> TreeDeclaration -> `occurrence` IDENTIFIER `=` IDENTIFIER
+>     | `edge` IDENTIFIER `=` `(` TreePort `,` TreePort `)`
+>     | `boundary` `(` ( TreePort ( `,` TreePort )* `,`? )? `)`
+> TreePort -> IDENTIFIER `[` INTEGER_LITERAL `]`
+> PlanStep -> BorrowStatement
+>     | `release` `(` IDENTIFIER `)` `;`
+>     | TensorView `;`
+>     | `regroup` `(` IDENTIFIER `,` IDENTIFIER `)` `;`
+>     | `rebind` `(` IDENTIFIER `,` IDENTIFIER `)` `;`
+>     | `join` IDENTIFIER `=`
+>       `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `)` `;`
+> ```
 
-Rust serializes an unresolved resource statement with `kind: "network"`, `graph`,
-`output`, `policy: "native_fast"` and `span`. The graph has:
+The graph of a `contract_tree` has one node for each `occurrence`, which
+names a tensor. The port `o[k]` is axis `k` of the occurrence `o`. An `edge`
+contracts a port whose basis is a derived dual basis with a port whose basis
+is the basis that it derives from. `boundary` lists the ports that stay free,
+in the order of the axes of the result. The `plan` gives the whole evaluation.
+A **component** is a set of occurrences that the plan has contracted, with
+the tensor that holds their product. At the start every occurrence is a
+component with the tensor that it names.
 
-| Field | Entries |
+| Step | Meaning |
 | --- | --- |
-| `occurrences` | Two `{name, value}` objects; `value` is a local map name |
-| `edges` | One `{dual, primal}` edge |
-| `inputs` | One explicit input boundary port |
-| `outputs` | One explicit output boundary port |
+| `regroup(c, t);` | Copy the tensor of the component `c` to the tensor `t`, which has the same axes in another grouping. `t` is then the tensor of `c` |
+| `rebind(c, t);` | Make `t`, another tensor over the same cells, the tensor of `c` |
+| `join c = (e, l, r, t);` | Contract the components `l` and `r` along the edge `e` into the tensor `t`, and name the result `c`. It is one `overwrite` product |
 
-Each port is `{occurrence, role}`, where `role` is `input` or `output`. Types,
-allocations, inferred conversions, certificates and schedules are not accepted
-from the frontend. The decoder bounds these lists before traversing them and
-rejects unknown fields at every level. Older protocols reject network statements;
-older protocol-8 kernels fail closed on the unknown tag.
+The plan fixes the order of the contractions, every copy and every buffer.
+The compiler searches for no order and inserts no copy.
 
-`ResourceSource.lowerStatements` independently resolves map names in the actual
-function scope. `Storage.Functions.networkOperation` resolves the current call's
-activation and passes the actual numerical environment, values and resource state
-to `TensorNetwork.check`. It validates occurrence identity, exact port coverage,
-edge variance, nominal edge type and ordered boundaries. It then calls the
-existing `Storage.Numerical.checkProduct` for the actual three maps. Storage and
-GEMM checking are shared with direct products, including stale views, initialization,
-output aliases and exact scalar/layout checks. All-body probes remain separate from executable expansion. Both branch arms
-are checked, and each arm's receipts are retained exactly once together with
-receipts before and after the branch, including nested branches. A branch receipt
-records its local schedule segment; it does not claim that both arms execute.
+Rules:
 
-The sole edge determines the left and right operands. Declaration order does not
-select a different schedule. Lowering emits exactly one overwrite GEMM with
-default alpha one, beta zero and explicit `NativeFast`. There is no order search,
-packing, intermediate allocation or copy inserted by the graph layer.
-`NetworkReceipt` retains the exact accepted graph, pre-state, mathematical product,
-emitted operation and actual accepted storage transition. The public checker audits
-that every executable network receipt uses its same accepted declaration environment.
+- The graph must have from 2 to 64 occurrences, one edge fewer than
+  occurrences, and 2 or 3 boundary ports. It has at most 128 declarations
+  before `plan`, and a plan has at most 1024 steps (`E_TENSOR_TREE`).
+- Every plan step counts against the limit on the statements of a program,
+  which [Appendix D](../appendix/limits.md#other-documented-bounds) gives
+  (`E_RESOURCE_LIMIT`).
+- The output and every occurrence must name a tensor that the function
+  declared before the statement (`E_TENSOR_TREE`). The loan of the tensor of
+  an occurrence must permit reading, and its cells must be initialized
+  (`E_TENSOR_TREE`).
+- Occurrence names must differ from one another, and edge names from one
+  another (`E_TENSOR_TREE`). They are local to the statement and may equal
+  names of bindings.
+- Every port, one for each axis of every occurrence, must be used once, by an
+  edge or by the boundary (`E_TENSOR_TREE`). The compiler reports an axis
+  number of 3 or more at the root manifest (`E_PROTOCOL`).
+- The basis at the first port of an edge must be the derived basis of the
+  basis at its second port in the dual of its space. The two ports must
+  belong to different occurrences (`E_TENSOR_TREE`).
+- A plan step must have one of the forms of `PlanStep`. Another statement
+  there, and a `borrow` without a layout, are errors (`E_TENSOR_TREE`).
+- A loan or a tensor of the plan must have a name that is not in use
+  (`E_DUPLICATE`). It is not visible after the statement.
+- The plan must release every loan that it borrows, and no loan of the
+  function (`E_TENSOR_TREE`).
+- In `regroup(c, t)`, `t` must be a tensor with the bases of `c` in the same
+  order (`E_TENSOR`). Its loan must permit writing (`E_RESOURCE_ACCESS`), and
+  its view must not overlap the view of `c` (`E_RESOURCE_ALIAS`).
+- In `rebind(c, t)`, `t` must be a tensor over a loan that permits reading,
+  with the allocation, the layout, the bases and the grouping of the tensor
+  of `c` (`E_TENSOR_TREE`). No statement may have written that allocation
+  since `c` got its tensor.
+- After a `regroup` or a `join`, the tensor of the component is the target.
+  A later `regroup` or `join` reads it, so its loan must be live
+  (`E_TENSOR_TREE`) and must permit reading (`E_RESOURCE_ACCESS`).
+- For a target on a `write` loan, the plan releases that loan, borrows a
+  `read` loan of the same view, declares a tensor on it and names it in
+  `rebind`. A target on a `read_write` loan needs none of this.
+- In `join c = (e, l, r, t)`, `e` must be an edge that no earlier `join` used,
+  between a port of the component `l` and a port of another component `r`
+  (`E_TENSOR_TREE`). The name `c` must differ from every component name
+  (`E_TENSOR_TREE`).
+- The tensor of `l` must store its other axes, in order, along the rows and
+  the joined axis along the columns. The tensor of `r` must store the joined
+  axis along the rows and its other axes, in order, along the columns
+  (`E_TENSOR`).
+- `t` must have the bases of the other axes of `l` followed by those of `r`,
+  with the axes of `l` along the rows (`E_TENSOR`). Its loan must permit
+  writing (`E_RESOURCE_ACCESS`).
+- At the end of the plan there must be one component. Its ports must be the
+  boundary ports in their order. Its tensor must be the output of the
+  statement, or a tensor of the plan with the same loan, bases and grouping
+  (`E_TENSOR_TREE`).
+- `contract_tree` initializes the view of its output.
 
-### Proof and validation boundaries
-
-`VastitasOracle.TensorNetwork` imports the actual implementation and proves:
-
-| Theorem | Guarantee |
-| --- | --- |
-| `ports_used_once` | Every declared occurrence port has exactly one use |
-| `admitted_bilinear_edge` | Both edge ends have the same exact basis with dual/vector roles |
-| `edge_product_basis` | The graph edge basis equals the actual GEMM inner basis |
-| `output_boundary` | Ordered boundaries and destination bases agree |
-| `no_implicit_conjugation` | Lowering preserves only the checked operand conjugation flags |
-| `same_input_plan` | The same accepted input produces the same GEMM request |
-| `actual_lowering` | Actual graph acceptance, emitted GEMM and storage acceptance agree |
-| `public_network_origin` | Public acceptance ties the receipt to the exact declaration environment |
-
-These are graph acceptance, nominal typing and exact lowering facts. They do not
-prove floating-point arithmetic, a general tensor-category denotation theorem,
-full source operational equivalence or native heap/toolchain refinement. They
-reuse the existing product/storage proofs rather than reimplementing those models.
-
-`NetworkRegression` checks actual internal expansion and mutated graphs/values/native
-instructions. `tests/numerical_source.rs` checks public source, strict raw-wire
-rejection, unused bodies, branches, declaration-order independence, alias rejection
-and immutable reuse. Its optional native test executes real/complex rectangular
-products, `(2+3i)^2 = -5+12i` through two occurrences of one map, and nested dependent
-calls. Both numerical CI jobs run the optional source tests. The direct pair emits
-six data allocations and two GEMMs, without copies; the reuse pair emits four data
-allocations and two GEMMs. These are structural costs, not C-parity measurements.
-
-### Remaining scope
-
-This profile has exactly two rank-two maps and one contraction, uses a caller-owned
-destination, and fixes overwrite with unit alpha. Network accumulation and scalar
-coefficients, arbitrary rank or multiple edges, scalar covector/vector evaluation,
-explicit Hermitian pairing nodes, trace/copy/diagonal/hyperedge nodes, general metric
-realization, rewrites and contraction-order optimization are not implemented here.
-The existing crossing-word `Graph` checker and its categorical obligations remain
-separate. The broader #69 checklist stays open.
-
-The delivery includes bounded runtime shapes, explicit scratch and packing dependencies. Stage 2 or later owns equivalent-C runtime and outstanding total-memory measurements. [Integrated evidence](../stage1-completion.md)
-
-The separate [rank-three contraction and packing profile](#tensor-packing)
-now supplies one fixed higher-rank coordinate contraction with explicit scratch.
-It does not extend this two-map graph schema or implement general graph rewriting.
-
-<a id="tensor-packing"></a>
-
-## Finite rank-three contraction and explicit packing
-
-Protocol 8 now has a closed real/complex coordinate-tensor increment:
-
-```text
-C[i,j,l] = sum_k T[i,k,j] * B[k,l]
-```
-
-The two inputs have ranks three and two; the output has rank three. The
-contracted axes are exactly `T[1]` and `B[0]`, and the ordered output boundary is
-`[T[0], T[2], B[1]]`. This is a fixed-axis operation, not general `einsum`, a graph
-optimizer, or a tensor-category implementation. General networks, structural
-nodes and rewrite laws remain open in #69. The separate
-[bounded contraction-tree profile](#contraction-trees) adds explicit multi-edge
-plans and selected-axis regrouping while retaining these fixed operations.
-
-### Actual axis types and representation
-
-A tensor view retains an ordered list of actual local bases, an exact live
-resource-loan snapshot, a physical axis permutation, and a split between the
-row and column groups of an existing rectangular layout. All axes use the same
-accepted numerical implementation, scalar base, coefficient kind and geometric
-setting. Rank is two or three; each extent fits the LP64 dimension bound.
-The accepted declaration environment and complete basis/space origins are
-rechecked. No grouped nominal object or basis is manufactured from a product
-of dimensions.
-
-For the example, the axis bases are `[bu, bvd, bw]` and `[bv, bxd]`.
-`bvd` must be the corresponding basis of the actual algebraic dual of `bv`'s
-space: its parent is `bv` and its space origin is that exact space's dual.
-A different basis of the same space, an unrelated equal-sized space, or a
-conjugate space cannot replace it. The destination axes must be exactly
-`[bu, bw, bxd]` in that order. Axes may reuse a basis; their positions remain
-distinct. Axis labels grant no storage ownership or disjointness evidence.
-
-`view2` defaults to physical groups `[0 | 1]`; the tree increment also accepts an
-explicit rank-two grouping. `view3` specifies a complete permutation
-and its row-group length. The first axis within each group is fastest:
-
-| Axes / groups | Rectangular coordinate |
-| --- | --- |
-| `T`, `[0 | 1,2]` | `(i, k + dim(V)*j)` |
-| Packed `T`, `[0,2 | 1]` | `(i + dim(U)*j, k)` |
-| `B`, `[0 | 1]` | `(k, l)` |
-| `C`, `[0,1 | 2]` | `(i + dim(U)*j, l)` |
-
-The underlying `Storage.Layout` remains a nontransposed column-major rectangle,
-including its byte offset and leading dimension. Group products must equal its
-actual row/column counts. Padding is outside the coordinate domain. These
-metadata describe storage order without changing mathematical axis order or
-assuming a structural symmetry law.
-
-### Public source
-
-The complete real/complex padded example is
-[`examples/packages/tensor-packing`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/tensor-packing/Vastitas.toml).
-Its key steps are:
+This tree of
+[`examples/packages/contraction-tree`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/contraction-tree)
+contracts a tensor with three axes with two matrices:
 
 ```vast
-// input_t is an initialized read loan, with rows=u and columns=v*w.
-tensor t = view3(input_t, bu, bvd, bw, axes(0, 1, 2), 1);
-tensor b = view2(input_b, bv, bxd);
-
-// The caller allocates scratch and supplies its write loan.
-borrow packing = write(scratch, layout(8, 4, 3, 5, false));
-tensor destination = view3(packing, bu, bvd, bw, axes(0, 2, 1), 2);
-pack3(t, destination);
-release(packing);
-
-// Initialization does not upgrade a write-only loan to readable access.
-borrow packed_read = read(scratch, layout(8, 4, 3, 5, false));
-tensor packed = view3(packed_read, bu, bvd, bw, axes(0, 2, 1), 2);
-tensor c = view3(output, bu, bw, bxd, axes(0, 1, 2), 2);
-contract3(packed, b, c, NativeFast);
+{{#include ../../examples/packages/contraction-tree/src/real/mod.vast:33:64}}
 ```
 
-`pack3` preserves the exact ordered axes and supports precisely
-`[0 | 1,2]` to `[0,2 | 1]`. It copies to an existing writable destination;
-it neither allocates nor conjugates. Both inputs and output of `contract3` must
-already have the prescribed grouping. No implicit packing, output permutation,
-metric, conjugation, alias-repair copy, or permission escalation is inserted.
-A caller whose input is already grouped can construct the corresponding view
-and omit packing explicitly.
+## Caches
 
-The first contraction profile uses overwrite, alpha one, absent beta and explicit
-`NativeFast`. It emits one ordinary resource GEMM with `M=u*w`, `K=v`, `N=x`.
-The existing resource checker validates input initialization, access, scalar
-representation and actual output-byte separation. Neither tensor factors nor
-separate source names can authorize overlapping writes.
+`cache c = pack3(s, t);` packs like `pack3` and binds the **cache** `c`: a
+record, at compile time, that the cells of `t` hold the packing of the cells
+of `s`. `contract3_cached(c, l, r, out, NativeFast);` is
+`contract3(l, r, out, NativeFast)` with two more conditions: `c` is valid, and
+`l` presents the cells that `c` recorded. A cache keeps no loan and no
+allocation alive, holds no cells and has no effect when the program runs.
 
-Tensor descriptors are local metadata. Existing dependent space/basis and
-borrowed rectangular parameters allow helpers to construct local tensor views,
-pack or contract, and return initialized caller destinations. Tensor-valued
-parameters/results and generative tensor packages are not added here.
-An existing `OwnedMapTo<bx, 3>` result can supply the rank-two operand: unpacking
-introduces its actual target `v` and basis `bv`; deriving `bvd` from that opening
-then supplies the corresponding contracted axis of the rank-three operand.
-Combined tests execute this path in both branch directions and reject replacing
-`bv` with a same-sized basis from a different opening.
+Rules:
 
-### Independent checking and native execution
-
-The strict protocol-8 `tensor` statement carries an unresolved operation:
-
-- `view`: `name`, `loan`, ordered `axes`, and `grouping` with `order` and `split`.
-- `pack`: `source` and `target` tensor names.
-- `contract3`: `left`, `right`, `output`, and `native_fast` policy.
-
-The decoder bounds axes and permutations before traversing them and rejects
-unknown fields. It accepts no allocation IDs, resolved bases, flags, proof
-objects or fabricated schedules. Older envelopes reject these statements.
-`TensorNumerical` reconstructs the actual values in the same declaration
-environment used by the full authority checker. `StorageFunctions` retains
-constructor, packing and contraction receipts with exact accepted states and
-emitted code. Both branch arms retain all receipts exactly once; local tensor
-bindings are restored at branch and call exits, separately from all-body probes.
-
-Raw `Storage.Action.pack3` records source/destination loans and the three extents.
-It checks the two precise rectangles, initialized input and byte separation,
-and initializes only the destination rectangle. `StorageCodegen` reconstructs
-allocation IDs and both layouts from that original schedule; modified packing
-dimensions, layouts or instructions fail regeneration.
-
-The native C operation preflights all descriptors, products, representations,
-aliases and accounting limits before writing. It uses bounded stack metadata
-and nested loops that copy contiguous first-axis blocks. No data or scratch
-allocation occurs inside packing. Nonempty overlapping envelopes are rejected,
-even for identical mappings; disjoint regions of one allocation are allowed.
-Empty cases still validate all metadata and form no element pointers. Source
-bytes and destination padding are preserved. The optional storage runtime
-remains independent of BLAS; contraction selects the existing numerical runtime.
-
-### Proof and cost boundaries
-
-`VastitasOracle.TensorNumerical` imports the actual checker and proves mixed-radix
-index injectivity, the accepted packing coordinates and their actual rectangular
-bounds, initialized destination bytes, actual nominal axes/dual origins, actual
-GEMM loans, inner extent and coordinate grouping, exact emitted transitions and public declaration origins.
-Its finite coordinate-reference theorem uses the same summation order and
-requires no field laws. These are not C/FFI memory refinement, floating-point
-arithmetic, general tensor-category laws or source/native operational equivalence.
-
-For extents `u,v,w,x` and scalar width `s`, the explicit pack reads and writes
-`u*v*w*s` bytes. It increments the existing copied and written counters by that
-amount. The caller's scratch capacity, including any padding, remains live until
-explicit release/drop. GEMM writes `u*w*x*s` output bytes. There is one packing
-operation and one GEMM per contraction in the example; grouping metadata adds
-no data allocation. The two example calls contain eight explicit data allocations,
-two packs and two GEMMs. These are structural costs, not C-parity measurements.
-Arena counters do not cover Lean allocation, allocator overhead, process RSS or
-OpenBLAS internal workspace. Compare the complete generated path and a competent
-C implementation using the same packing and pinned sequential BLAS, including
-full lifecycle and reused scratch/destination scopes. Packing time/bytes, peak
-live memory, raw paired samples and uncertainty remain required before any
-performance claim; see [the performance gate](../storage-ownership.md#performance-evidence-and-acceptance).
-
-The optional [tensor packing experiment](https://github.com/MGYamada/Vastitas/blob/main/experiments/tensor_packing/README.md)
-checks the canonical public executable, instruments its actual emitted resource
-instructions, and compares them with a matched explicit C pack plus direct CBLAS.
-It includes lifecycle, reused-buffer, packing-adapter and BLAS diagnostic scopes,
-exact arena counters, every-coordinate and padding checks, and raw paired samples.
-Instrumented reuse hoists setup/cleanup around repeated emitted pack/GEMM calls;
-it does not add source-level dynamic iteration. Local validation or exploratory
-timing alone does not close the controlled-host performance gate.
-
-Regression coverage includes public real/complex coordinate expectations, padding,
-each zero extent, nested dependent calls, both branch directions, forged raw and
-native metadata, wrong bases/dual origins, stale loans and explicit permission
-transitions. Source checking and unused-body auditing need no OpenBLAS; numerical
-CI executes the optional public tensor tests on both operating systems.
-
-The optional [checked packing cache](#cached-packing) binds an actual packing
-to source/scratch versions and rejects stale use in `contract3_cached`. Ordinary
-`pack3` and `contract3` continue to permit independently stored snapshots.
-
-<a id="contraction-trees"></a>
-
-## Bounded finite contraction trees
-
-Protocol 8 accepts explicit contraction trees with 2–64 occurrences, `n-1`
-internal edges and a rank-two or rank-three ordered boundary. Each occurrence
-and intermediate has rank two or three, and at most one original occurrence
-has rank three. This supports finite matrix chains and three-legged trees with
-matrix chains along the legs. It does not accept arbitrary rank, cycles,
-self-traces, disconnected outer products, structural copy nodes, metric
-insertion, or contraction-order search.
-
-Each occurrence refers to an actual tensor view with ordered nominal bases.
-Each port is an occurrence name and axis index. Occurrences may share an
-immutable tensor or allocation; their distinct ports confer no storage
-separation. Every port occurs exactly once in an edge or the ordered boundary.
-An edge explicitly names its dual and primal endpoints; those bases must have
-the actual corresponding parent and dual-space origin. Equal dimensions,
-conjugate spaces and unrelated bases cannot supply that evidence.
-
-### Source and explicit execution plan
-
-The complete padded real/complex example is
-[`examples/packages/contraction-tree`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/contraction-tree/Vastitas.toml).
-It computes, in the written order,
-
-```text
-M[u,w,a] = sum_v T[u,v,w] * A[v,a]
-C[u,a,b] = sum_w M[u,w,a] * B[w,b]
-```
-
-The logical axes of `T`, `A`, `B` and `C` are respectively
-`[bu,bvd,bwd]`, `[bv,bad]`, `[bw,bbd]` and `[bu,bad,bbd]`.
-The graph header is:
+- `cache c = pack3(s, t)` follows the rules of `pack3`, and `c` must be a
+  name that is not in use (`E_DUPLICATE`).
+- The first operand of `contract3_cached` must be a cache
+  (`E_TENSOR_CACHE`).
+- A cache is valid until a statement writes the allocation of `s` or of
+  `t`, until one of the two allocations is dropped, and until the end of a
+  branch. A write to another part of the allocation counts, and so do a
+  `fill` of a view without cells and a write inside a called function.
+- `contract3_cached` must name a valid cache (`E_TENSOR`).
+- The operand `l` must be a tensor on the allocation of `t`, with the layout
+  and the bases of `t` (`E_TENSOR`). It may present another loan than the
+  loan of the `cache` statement.
+- The other rules of `contract3` hold for `contract3_cached`.
+- A cache is not an owner, a loan or an argument of a call. A cache that an
+  arm of a branch declares is not visible after the branch
+  (`E_RESOURCE_NAME`).
+- `contract3` needs no cache. It accepts a packed tensor after a write to the
+  source of the packing.
 
 ```vast
-contract_tree(c, NativeFast) {
-    occurrence t = t;
-    occurrence a = right_a;
-    occurrence b = right_b;
-    edge ev = (t[1], a[0]);
-    edge ew = (t[2], b[0]);
-    boundary(t[0], a[1], b[1]);
-    plan {
-        // Explicit borrows, tensor views, regroup/rebind and named joins.
-    }
-}
+{{#include ../../examples/packages/cached-tensor-packing/src/real/mod.vast:33:47}}
 ```
 
-The plan contains at most 1024 events. Each event also consumes the global
-4096-statement resource source budget, including events in both branch arms.
-The source envelope checks this before lowering the plan and reports
-`E_RESOURCE_LIMIT` if the total is exceeded. `join result = (edge,left,right,output)`
-consumes two distinct active components and the named connecting edge. It emits
-one checked overwrite GEMM with alpha one, absent beta and `NativeFast`.
-The selected axis is the GEMM inner coordinate. Free left axes retain their
-order as the row group; free right axes retain their order as the column group.
-The output has exactly the ordered free-left followed by free-right bases.
-Primal-on-left contractions keep the written operand order. Conjugation,
-transposition and reassociation are never inferred.
+[Numerical backend](../internals/numerical-backend.md#networks-packing-and-contraction-trees)
+describes the checking, the native execution and the evidence of these
+statements.
 
-`regroup(component,destination)` explicitly copies that component to a
-caller-supplied writable tensor view with the **same ordered logical axes**.
-Its physical permutation/grouping may differ. The operation does not allocate.
-Rank-three views use all six axis permutations and either split. Rank-two
-views default to `[0 | 1]`; an explicit alternative is
-`view2(loan, first_basis, second_basis, axes(1,0), 1)`.
-Every rectangular descriptor includes its actual byte offset and leading
-dimension. The first listed axis is fastest within each row or column group.
+## Moved sections
 
-A regroup or contraction leaves its component attached to the exact written
-producer allocation, version, layout and view. To use a write-only result as
-an input, the plan must release that write loan, borrow a read loan, construct
-the corresponding tensor view and call `rebind(component,read_view)`.
-Rebinding checks the same producer allocation/version, ordered axes, grouping
-and layout. An unrelated initialized buffer of equal shape cannot substitute.
-The example reuses its one scratch allocation after releasing the first packed
-read loan. No alias-repair copy, hidden temporary or permission upgrade occurs.
+These anchors keep older links working.
 
-Plan preparation permits only explicit borrow/release and view construction.
-Allocations, initialization of original inputs and final drops belong to the
-surrounding resource program. Plan-local loans must be released; the exact
-caller loan list is restored. Plan-local names do not escape. Calls and both
-ordinary branch arms retain all tree receipts, while all-body probes remain
-separate from executable expansions. Tensor-valued parameters and results are
-not introduced; existing dependent space/basis and rectangular-loan parameters
-can construct local views.
-
-### Independent graph and producer checks
-
-Rust serializes unresolved graph names, ports, ordered boundaries and the
-explicit plan. Lean independently resolves local bindings, actual bases and
-loans against the public declaration environment. The strict additive protocol-8
-`tree` statement has `graph`, `output`, `policy`, `plan` and `span` fields.
-The graph has `occurrences` (`name`,`value`), `edges` (`name`,`dual`,`primal`)
-and `boundary`; a port has `occurrence` and `axis`.
-Plan `kind` values are `action`, `view`, `regroup`, `rebind` and `join`.
-Only borrow/release actions are admitted. Unknown fields, trusted-proof fields,
-allocation IDs and fabricated native flags are rejected.
-
-Local counts and single-use ports are insufficient for connectivity: a
-boundary component beside a disconnected cycle can satisfy them. The checker
-therefore reconstructs active components and a binary producer tree. Every
-join connects disjoint leaf sets through its actual declared edge. At every
-step it checks the occurrence partition, remaining port frontier, consumed
-edges and exact original port-to-basis mapping. Completion requires one
-producer tree containing every occurrence and edge exactly once, the precise
-ordered boundary and the caller's exact initialized output view. No component
-or cycle can be silently discarded. Declaration order does not choose execution
-order; the submitted named plan does.
-
-The checker retains each actual `CheckedRegroup` or `CheckedSingle` result,
-its accepted event, before/after resource state and exact action suffix.
-Each suffix and the whole tree schedule are independently replayed by the
-resource checker, then checked again during ordinary resource expansion and
-native code generation. Both branch arms preserve all receipts and public
-origin audits.
-
-### Physical regrouping and costs
-
-The existing optimized `pack3` handles `[0 | 1,2]` to `[0,2 | 1]` unchanged.
-Other explicit regroupings use `Storage.Action.regroup3` and the native bounded
-permutation loop. Its descriptor contains three physical extents and two
-encoded grouping permutations. For rank two, a trailing physical extent one
-and trailing index zero embed the same rectangle; this adds no logical axis,
-space or basis. The oracle proves that embedding preserves the actual rank-two
-coordinates.
-
-For logical dimensions `d` and a group `p`, flattening is first-axis-fastest:
-`index[p0] + d[p0] * (index[p1] + ...)`. Row and column groups determine the
-actual rectangle coordinate. Its byte address is
-`offset + scalar_width * (row + leading * column)`.
-The native code independently checks both permutations, all dimensions and
-products, complete rectangles, scalar agreement, nonempty envelope separation
-and accounting overflow before pointers or writes. Raw 8/16-byte cells are
-copied without conjugation; source bytes and destination padding are preserved.
-When the source's first axis occupies 16–64 bytes, has more than one element
-and has unit scalar stride in both prepared views, the native loop copies that
-entire axis with one `memcpy` per pair of remaining coordinates. The other
-groupings use exact 8/16-byte cell copies. Block widths from 16 through 64 bytes select fixed-size
-copies outside the loops, allowing the C compiler to inline them; larger blocks
-retain the cell loop. This decision uses actual physical strides after all
-preflight checks; equal dimensions or nominal factor identities do not justify
-coalescing, aliasing or skipping checks. No block includes padding and no
-temporary storage is added. Both paths preserve every payload bit, including
-signed zeros and signaling NaNs.
-Empty volume still validates all metadata and performs no pointer formation,
-copy or counter increment. Overlapping nonempty envelopes, including identity
-mapping in place, are rejected. Disjoint regions of one allocation are allowed.
-
-Each explicit regroup reads and writes `product(dimensions)*scalar_width`
-bytes and increments copied and written counters by that volume. Each GEMM
-writes its actual output rectangle. For the example dimensions `(u,v,w,a,b)`,
-packing copies `(u*v*w + u*w*a)*scalar_width` bytes, and GEMMs write
-`(u*w*a + u*a*b)*scalar_width` bytes. Both terms for the reused scratch remain
-visible; its capacity is the maximum required physical envelope, including
-padding. Each scalar profile has six caller allocations, two packs and two
-GEMMs. Metadata and proofs erase from generated code. Arena counters exclude
-Lean allocation, allocator overhead, RSS and BLAS internal workspace.
-
-The separate [matched C experiment](https://github.com/MGYamada/Vastitas/blob/main/experiments/contraction_trees/README.md)
-uses the actual emitted schedule and equivalent explicit C packing and GEMMs.
-Measurements and sanitizer runs are evidence about those cases, not a native
-refinement proof or a claim of C parity. Controlled-host performance acceptance
-remains subject to the [performance gate](../storage-ownership.md#performance-evidence-and-acceptance).
-The [short-block adapter comparison](https://github.com/MGYamada/Vastitas/blob/main/experiments/contraction_trees/results/2026-11-01-macos-regroup-blocks/RESULTS.md)
-retains both rejected variable-copy experiments and the final clean native
-comparison. It motivates the bounded 16–64-byte path without claiming a
-whole-program speedup or replacing the existing generated/C measurements.
-The [subsequent full Linux public-program record](https://github.com/MGYamada/Vastitas/blob/main/experiments/contraction_trees/results/2026-11-01-linux-regroup-blocks/RESULTS.md)
-measures clean main `7486d2c` after this optimization. All twelve public programs
-and native/output/cost checks passed. It reports adapter, FFI-inclusive reuse and
-lifecycle scopes separately, retains tiny overhead and fallback slow observations,
-and does not establish a causal old/new speedup or controlled-host acceptance.
-
-### Proofs, tests and remaining scope
-
-`VastitasOracle.TensorContraction` imports actual checked views and proves
-mixed-radix coordinate bounds/injectivity, initialized destination bytes,
-rank-two physical embedding, actual selected-axis coordinates, exact GEMM
-operands/inner extent and a finite coordinate-reference equality preserving
-summation and multiplication order. `VastitasOracle.TensorTree` proves actual
-single-use ports, corresponding dual origins, the reconstructed connected
-producer tree's full node/edge coverage, exact ordered boundary bases,
-submitted event order, actual numerical/resource transitions and public
-checker origins. `regroup_invalidates_dependencies` connects the actual
-destination-write certificate to invalidation of every mentioned cache entry. No field laws, custom axioms, categorical equalities or
-floating reassociations are used.
-
-Regression coverage includes more than two edges, rank-two chains, repeated
-immutable occurrences, every selected-axis/operand orientation of a rank-three
-and rank-two pair, padded real/complex execution, zero extents, scratch reuse,
-both branches, 64-node acceptance and 65-node rejection, unrelated cache
-survival and generic-regroup cache invalidation, unused bodies, stale/foreign producers, invalid ports,
-disconnected cycles, opaque packages and forged wire/native metadata. Native
-C tests independently cover all 144 rank-three grouping pairs, raw special
-bits, padding, same-allocation separation, invalid codes, overflow and failure
-preservation.
-
-General ranks, multiple rank-three nodes, arbitrary intermediate ranks,
-trace/copy nodes, metrics and Hermitian contractions, automatic planning,
-common-subexpression reuse and tensor-category rewrites remain outside this
-profile. The separate cached-pack increment supplies explicit version/dependency
-reuse receipts; it does not authorize implicit reuse inside this plan. Full
-source/native correspondence, C/FFI/BLAS refinement, floating laws and the
-historical Stage 1 performance gate remain open.
-
-<a id="cached-packing"></a>
-
-## Checked reuse of packed tensor values
-
-Protocol 8 supports a bounded logical-value dependency for the explicit rank-three
-packing profile. A named cache records an actual accepted packing into caller-owned
-scratch. Its consumer checks that both the source and scratch still represent the
-captured allocation versions before performing the ordinary checked contraction.
-
-```vast
-cache saved = pack3(t, destination);
-release(input_t);
-release(packing);
-borrow packed_read = read(scratch, layout(8, 4, 3, 5, false));
-tensor packed = view3(packed_read, bu, bvd, bw, axes(0, 2, 1), 2);
-contract3_cached(saved, packed, b, c, NativeFast);
-contract3_cached(saved, packed, b, c, NativeFast);
-```
-
-The [complete real/complex example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/cached-tensor-packing/src/main.vast)
-uses padded layouts, one explicit packing per scalar representation and two
-contractions. Scratch and output remain caller-owned. A cache is a lexical compiler
-witness; it is not a resource parameter/result, owned package, snapshot allocation,
-read loan, AD residual or runtime cache object.
-
-### Dependency and access contracts
-
-The checker records two stamps after the actual `pack3`: source and scratch
-allocation identities, logical versions, scalar representations and physical
-layouts. Both stamps use the post-pack state. In particular, disjoint source and
-scratch regions may belong to one allocation, whose version advances during packing.
-The nominal cache also records the accepted ordered axis bases and grouping.
-No source or wire input supplies allocation identities, versions, proof flags or
-a trusted packing relation.
-
-`contract3_cached` requires that both allocations are still live with the recorded
-versions. The actual packed operand must retain the recorded scratch allocation,
-layout, ordered nominal bases and grouping. Its current loan may have a new name
-and ancestry after explicit release/reborrow or owner transfer. It must be active,
-readable and initialized. The ordinary right operand, output, dual-axis contract,
-initialization and alias checks still apply.
-
-The source stamp grants no access and creates no hidden source read loan. The
-source can be moved, and a cached contraction can write its allocation using
-independent packed scratch when the ordinary GEMM separation checks permit it.
-That write invalidates subsequent cache use. Source/scratch drops also invalidate
-reuse. The checker never extends an allocation lifetime for a cache.
-
-Every actual fill, store, copy, pack or GEMM advances the written allocation's
-logical version and invalidates dependencies mentioning it. This is conservative
-for writes into disjoint regions, writes of the same bits and empty operations.
-The initial profile tracks whole allocations, not per-region version histories.
-
-Branch joins conservatively invalidate all incoming cache dependencies, even if
-neither branch writes them. Caches can be used inside both arms or created locally
-inside an arm; local handles are explicitly forgotten before the join. A cache
-cannot escape a function or branch. Function calls replay their actual primitive
-schedule, so writes through borrowed or owned arguments invalidate the caller's
-cache too. Lexical cleanup also forgets invalidated handles.
-
-To refresh a cache, explicitly perform another packing with fresh local names.
-There is no automatic repacking, alias-repair copy, hidden allocation or planner.
-
-### Snapshot use and retention
-
-Ordinary `pack3` and `contract3` retain their existing snapshot behavior. Changing
-the original source does not change coordinates already copied into scratch.
-Ordinary contraction of that old snapshot remains valid; cached contraction
-additionally requires its relation to the current original source.
-
-A real read loan already retains a region against overlapping writes, owner moves
-and drops for its checked scope. A versioned dependency instead detects that a
-previous relation became stale after access ended. It preserves no old bytes and
-cannot replace a retention loan. Retain/snapshot/recompute residual strategies,
-escaping lifetime contracts and AD execution remain later work; see
-[Chapter 7.10](../storage-ownership.md#residual-retention).
-
-### Actual schedule and generation boundary
-
-The internal resource schedule includes three metadata operations:
-
-| Operation | Independent requirement | Effect |
-| --- | --- | --- |
-| `captureDependency` | Fresh symbol; actual live initialized source/scratch loans | Reconstruct both stamps from the current state |
-| `requireDependency` | Named live dependency with matching current stamps | Validate use without granting memory access |
-| `forgetDependency` | Matching lexical dependency handle, including an invalidated one | End compiler metadata scope |
-
-The audited dependency table rejects duplicate identities, owner/loan collisions,
-invalid live stamps and unclosed lexical handles. Writes/drop leave invalidated
-entries for explicit cleanup; they cannot be reactivated by reusing a name. A
-raw capture asserts no nominal axes or packing equivalence. Only the public
-operation's accepted packing certificate can supply a cached contraction.
-
-The source checker records exact pack/capture and require/GEMM schedules, both-arm
-receipts, separate all-body probes and declaration origins. Code generation reruns
-the complete source checker and the original primitive schedule, including all
-dependency operations, before erasing them. Their native lowering is empty.
-
-Regressions cover stale source/scratch versions, disjoint updates, call effects,
-move/reborrow, branch invalidation and cleanup, refreshed packing, real/complex
-results, malformed wire inputs and forged native plans. The checked-native fixture
-executes one packing and two products with three allocations: real counters are
-24 peak data bytes, 32 written bytes and 8 copied bytes; complex counters double
-those byte counts. All data is freed. The sole copy is the explicit packing.
-These arena counters exclude Lean/allocator overhead and BLAS-private memory.
-They establish bounded cost evidence, not equivalent-C performance acceptance.
-
-`VastitasOracle.StorageDependencies` derives an earlier capture and an accepted
-entry-preserving action suffix from the exact accepted raw schedule prefix. It
-proves freshness, no resurrection after invalidation/forgetting, and write/join
-invalidation. Checked-cache and consumer-receipt corollaries take an explicit
-accepted intervening replay; a right-arm corollary includes the actual left run
-and exact allocator reseed. They do not assume branch-local `priorCode` starts
-from an empty state. Automatic replay-prefix extraction from arbitrary nested
-source receipts remains a source-correspondence obligation.
-
-`VastitasOracle.StorageCachedPacking` connects actual accepted packing/capture,
-current allocation versions, nominal packed operands, emitted schedules, public
-declaration origins and empty native metadata lowering to those same checker
-receipts. The oracle boundary is logical resource history and structural checking. Native byte copying, BLAS arithmetic, full source/native correspondence
-and ideal floating-point field laws remain separate trusted/tested or unproved
-boundaries. This increment does not complete general scratch pooling, retained
-numerical evidence, dynamic shapes, AD or the wider Stage 1 storage issue.
+- <a id="finite-networks"></a><a id="executable-finite-two-map-networks"></a><a id="public-source"></a>Executable finite two-map networks: [Two-map networks](#two-map-networks).
+- <a id="graph-and-independent-acceptance"></a>Graph and independent acceptance: [Numerical backend](../internals/numerical-backend.md#two-map-networks-graph-and-independent-acceptance).
+- <a id="proof-and-validation-boundaries"></a>Proof and validation boundaries: [Numerical backend](../internals/numerical-backend.md#two-map-networks-proof-and-validation-boundaries).
+- <a id="remaining-scope"></a>Remaining scope: [Numerical backend](../internals/numerical-backend.md#history).
+- <a id="tensor-packing"></a><a id="finite-rank-three-contraction-and-explicit-packing"></a><a id="actual-axis-types-and-representation"></a><a id="public-source-1"></a>Rank-three contraction and packing: [Tensors](#tensors) and [Packing and contraction](#packing-and-contraction).
+- <a id="independent-checking-and-native-execution"></a>Independent checking and native execution: [Numerical backend](../internals/numerical-backend.md#tensor-packing-independent-checking-and-native-execution).
+- <a id="proof-and-cost-boundaries"></a>Proof and cost boundaries: [Numerical backend](../internals/numerical-backend.md#tensor-packing-proof-and-cost-boundaries).
+- <a id="bounded-finite-contraction-trees"></a><a id="source-and-explicit-execution-plan"></a>Bounded finite contraction trees: [Contraction trees](#contraction-trees).
+- <a id="independent-graph-and-producer-checks"></a>Independent graph and producer checks: [Numerical backend](../internals/numerical-backend.md#contraction-trees-independent-graph-and-producer-checks).
+- <a id="physical-regrouping-and-costs"></a>Physical regrouping and costs: [Numerical backend](../internals/numerical-backend.md#contraction-trees-physical-regrouping-and-costs).
+- <a id="proofs-tests-and-remaining-scope"></a>Proofs, tests and remaining scope: [Numerical backend](../internals/numerical-backend.md#contraction-trees-proofs-tests-and-remaining-scope).
+- <a id="cached-packing"></a><a id="checked-reuse-of-packed-tensor-values"></a><a id="dependency-and-access-contracts"></a>Checked reuse of packed tensor values: [Caches](#caches).
+- <a id="snapshot-use-and-retention"></a>Snapshot use and retention: [Numerical backend](../internals/numerical-backend.md#cached-packing-snapshot-use-and-retention).
+- <a id="actual-schedule-and-generation-boundary"></a>Actual schedule and generation boundary: [Numerical backend](../internals/numerical-backend.md#cached-packing-schedule-and-generation-boundary).

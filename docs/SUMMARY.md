@@ -39,7 +39,7 @@
 - [Smooth affine declarations](language/smooth-declarations.md)
 - [Storage and ownership](storage-ownership.md)
   - [Resource programs](storage/resource-programs.md)
-- [Numerical maps, ownership and GEMM](linalg/maps-and-gemm.md)
+- [Numerical maps](linalg/maps-and-gemm.md)
   - [Transforms, evaluation and metrics](linalg/transforms-and-metrics.md)
   - [Networks, packing and contraction trees](linalg/networks-and-packing.md)
 
@@ -49,6 +49,7 @@
 - [Checking pipeline](internals/checking-pipeline.md)
 - [Resource checking](internals/resource-checking.md)
   - [Checked storage and resource calls](storage/checked-storage.md)
+- [Numerical backend](internals/numerical-backend.md)
 - [Wire protocols 2–9](protocol.md)
 - [Verification boundaries](verification.md)
   - [Pure evaluation and graph proofs](verification/core-models.md)

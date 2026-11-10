@@ -95,7 +95,7 @@ rejects both options, and so does a build whose entry needs no numerical
 runtime (`E_USAGE` in both cases). A numerical entry built without
 `--openblas-prefix` fails with `E_BUILD`. The 0.1.0-alpha crate does not include
 `scripts/build_openblas.py`; the README shows how to fetch it. The
-[adapter contract](../linalg/maps-and-gemm.md#numerical-adapter) describes the
+[adapter contract](../internals/numerical-backend.md#native-gemm-adapter) describes the
 build profile and its checks in full.
 
 ### Internal Lean proof audit (v0.1.0 gate)

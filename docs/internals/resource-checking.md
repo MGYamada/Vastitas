@@ -46,7 +46,7 @@ GEMM. Bounded partial-write coverage removes redundant input fills in the worked
 numerical examples; its actual-byte theorems and native operation counters are
 recorded in [the resource IR](../storage/checked-storage.md#storage-ir). Checked scalar value flow and the
 [whole-map runtime-extent profile](../storage/resource-programs.md#runtime-extents) connect immutable
-integral dimensions to caller-owned GEMM. [Explicit caches](../linalg/networks-and-packing.md#cached-packing)
+integral dimensions to caller-owned GEMM. [Explicit caches](../linalg/networks-and-packing.md#caches)
 and [contraction trees](../linalg/networks-and-packing.md#contraction-trees) cover bounded scratch/dependency
 consumers. General shape results, retention/pooling and equivalent-C acceptance
 remain pending.
@@ -117,7 +117,7 @@ The optional `lean-kernel/native` package is linked only for a resource entry.
 A protocol-8 program with only an ordinary pure entry still builds without that
 runtime. Neither route needs mathlib. A checked GEMM schedule additionally links
 the optional numerical package with explicit pinned OpenBLAS configuration;
-other entries remain BLAS-free. See [numerical source and build](../linalg/maps-and-gemm.md#numerical-values).
+other entries remain BLAS-free. See [numerical source and build](../linalg/maps-and-gemm.md#maps).
 Native code performs no runtime
 loan interpretation or implicit alias-repair copy; operation costs remain visible
 in the checked schedule.
@@ -168,12 +168,12 @@ metadata. The existing forged native-plan, sanitizer, failure-cleanup and alloca
 counter regressions remain required.
 
 Numerical inputs accept explicit static `Space`, dependent `Basis`, and
-`ReadMap`/`WriteMap`/`ReadWriteMap` contracts; see [the input contract](../linalg/maps-and-gemm.md#numerical-values--dependent-numerical-inputs).
+`ReadMap`/`WriteMap`/`ReadWriteMap` contracts; see [the input contract](../linalg/maps-and-gemm.md#map-parameters).
 `OwnedMap<source_basis,target_basis>` inputs/results additionally transfer initialized
-storage and input-dependent mathematical identities; see [owned results](../linalg/maps-and-gemm.md#numerical-values--owned-numerical-results).
+storage and input-dependent mathematical identities; see [owned results](../linalg/maps-and-gemm.md#owned-maps).
 Bounded generative owned-map packages, explicit rank-three packing/regrouping,
 versioned scratch reuse and connected rank-two/three contraction trees are
-implemented, as the numerical chapters describe. [Diagonal metrics](../linalg/transforms-and-metrics.md#diagonal-metrics) add explicit declared
+implemented, as the numerical chapters describe. [Diagonal metrics](../linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics) add explicit declared
 coefficient realization and scratch-backed pairing. Nat/Int/Bool/Unit value flow and runtime Bool branches compose with these
 operations. The separate [runtime-shape profile](../storage/resource-programs.md#runtime-extents) adds straight-line
 whole-map GEMM. Broader dynamic interfaces, floating scalar expression interfaces, general resource packages, dense
@@ -183,14 +183,14 @@ performance and total allocation acceptance remain unfinished. Escaping borrowed
 broader lifetime interfaces retain their separate scope. Protocol 8's static
 profile and native compilation alone do not establish **Fast like C**.
 
-[Typed transforms](../linalg/transforms-and-metrics.md#linear-transforms) add explicit dual/conjugate spaces,
+[Typed transforms](../linalg/transforms-and-metrics.md#dual-and-conjugate-spaces) add explicit dual/conjugate spaces,
 corresponding bases, canonical involutions, declared coordinate metrics and
 read-only dual/conjugate/orthonormal-adjoint operations. Dependent parameter
 contracts and actual reborrows preserve their evidence and conjugation through
 nested calls. The public checker also audits the exact transform receipt origins.
 
-[Vector evaluation](../linalg/transforms-and-metrics.md#vector-evaluation) adds bilinear dual evaluation and explicit
-orthonormal Hermitian pairing with scoped vector loans. [Finite two-map networks](../linalg/networks-and-packing.md#finite-networks)
+[Vector evaluation](../linalg/transforms-and-metrics.md#pairings) adds bilinear dual evaluation and explicit
+orthonormal Hermitian pairing with scoped vector loans. [Finite two-map networks](../linalg/networks-and-packing.md#two-map-networks)
 check occurrence identity, exact port usage, the bilinear edge and ordered boundaries.
 Both features reach the same resource/native path and retain their public origin
 audits through both branch arms; their broader metric and network contracts remain open.
@@ -205,7 +205,7 @@ full source/native refinement remain pending.
 
 `cache saved = pack3(source, scratch);` and
 `contract3_cached(saved, packed, right, output, NativeFast);` expose the bounded
-[packing dependency contract](../linalg/networks-and-packing.md#cached-packing). Cache names are lexical metadata
+[packing dependency contract](../linalg/networks-and-packing.md#caches). Cache names are lexical metadata
 with no parameter/result or escaping package form. All-body and both-branch checks
 include their capture, consumer and cleanup schedules.
 

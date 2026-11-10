@@ -107,7 +107,10 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
 /// by directory. `vastitas check --manifest-path <directory>/Vastitas.toml`,
 /// run from the repository root, must fail and print exactly the lines of
 /// `<directory>.stderr`, with the repository root removed from file names.
-const BOOK_REJECTED_PACKAGES: &[&str] = &["examples/reject/packages/private-function"];
+const BOOK_REJECTED_PACKAGES: &[&str] = &[
+    "examples/reject/packages/private-function",
+    "examples/reject/packages/other-space",
+];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {
     let mut inputs = vec![path];

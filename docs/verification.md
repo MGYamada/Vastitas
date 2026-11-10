@@ -496,7 +496,7 @@ transition: input and accumulate initialization, reconstructed allocation subjec
 output byte separation and initialized output bytes in its exact post-state.
 It does not establish nominal endpoint/basis/metric typing, ideal multiplication,
 floating-point accuracy, native no-read behavior or source/native refinement.
-The [generated numerical runtime checks](linalg/maps-and-gemm.md#numerical-adapter) provide separate
+The [generated numerical runtime checks](internals/numerical-backend.md#native-gemm-adapter) provide separate
 execution and cleanup evidence; the optional native package is not an oracle dependency.
 
 The separate [internal resource IR](storage/checked-storage.md#storage-ir) now has actual-checker
@@ -615,7 +615,7 @@ premises. This validation-only import does not add runtime/FFI dependencies to
 the oracle, interpret generated text, or prove source execution/native refinement.
 Shape results and floating scalar expression interfaces remain open.
 
-The [numerical declaration profiles](linalg/maps-and-gemm.md#numerical-declarations) use the same
+The [numerical declaration profiles](linalg/maps-and-gemm.md#linear-implementations) use the same
 complete declaration certificate. `IndexedSource.checked_implementation_contract`,
 `checked_linear_base`, `checked_smooth_complex_base`, `checked_coefficient_unique`
 and `checked_descriptor_is_affine` establish the actual accepted metadata
@@ -624,7 +624,7 @@ same decoded protocol-8 input and authority checker. These are structural type
 and provenance facts; by themselves they do not establish field/module laws,
 linear object construction, public GEMM, floating-point accuracy or native refinement.
 
-The [numerical-value compiler](linalg/maps-and-gemm.md#numerical-values) now has a separate
+The [numerical-value compiler](linalg/maps-and-gemm.md#maps) now has a separate
 `StorageNumerical` certificate composed with that resource checker.
 `accepted_profiles` derives each map endpoint's actual declaration contract;
 `nominal_endpoints` preserves exact objects and basis identities;
@@ -662,7 +662,7 @@ checks to the public request's accepted declaration environment. Callee-local
 identities and outstanding loans cannot become owned results. These are logical
 checker/transfer facts, not native heap or floating arithmetic proofs.
 
-For [typed map transforms](linalg/transforms-and-metrics.md#linear-transforms), `actual_transform` ties the
+For [typed map transforms](linalg/transforms-and-metrics.md#dual-and-conjugate-spaces), `actual_transform` ties the
 accepted operation to its original map, independently checked read reborrow,
 full provenance audit and exact emitted schedule. `transform_storage` retains
 the allocation, parent and physical layout; `dual_flags`, `conjugate_flags` and
@@ -676,7 +676,7 @@ native floating-point refinement. `TransformRegression` adds independent
 provenance/metric/loan/flag mutations; public source tests execute scalar and
 rectangular real/complex transforms, nested calls and owned materialized results.
 
-For [vector evaluation](linalg/transforms-and-metrics.md#vector-evaluation), `vector_space` and
+For [vector evaluation](linalg/transforms-and-metrics.md#pairings), `vector_space` and
 `vector_input_reborrow` retain actual profile/basis identity and the exact child
 borrow, including conjugation. `actual_vector_conjugation` connects the selected
 derived space/involution to the real resource transition. `actual_evaluation`
@@ -695,7 +695,7 @@ by `NumericalRegression`; generated real/complex fixtures provide separate nativ
 execution evidence. Raw internal GEMM operations retain only their resource
 certificate and do not acquire nominal authority from this optional typed path.
 
-The [finite two-map network profile](linalg/networks-and-packing.md#finite-networks) is independently checked
+The [finite two-map network profile](linalg/networks-and-packing.md#two-map-networks) is independently checked
 by `Storage.TensorNetwork` before reusing the existing typed product and exact
 GEMM emitter. `VastitasOracle.TensorNetwork.ports_used_once` derives exact single
 consumption of every occurrence port. `admitted_bilinear_edge`, `output_boundary`
@@ -1739,7 +1739,7 @@ correctness. [The migration map](indexed-source.md#geometry-migration) records h
 proofs and actual-source regressions fulfill #49/#58–63 without expanding their
 claims to arbitrary geometry or the complete native toolchain.
 
-The finite [rank-three tensor/packing profile](linalg/networks-and-packing.md#tensor-packing) adds actual
+The finite [rank-three tensor/packing profile](linalg/networks-and-packing.md#packing-and-contraction) adds actual
 ordered-axis and corresponding-dual certificates. `VastitasOracle.TensorNumerical`
 connects accepted physical groupings, coordinate bounds and initialized packing
 outputs to exact emitted transitions and public declaration origins. The finite
@@ -1785,12 +1785,12 @@ capture/require/GEMM schedules, public environment origins and metadata erasure.
 Closed plans require all dependency handles forgotten. These are logical
 resource/history and actual-checker facts; they do not prove copied heap contents,
 BLAS arithmetic, whole-source/native refinement or AD residual correctness.
-See [the bounded packing cache](linalg/networks-and-packing.md#cached-packing).
+See [the bounded packing cache](linalg/networks-and-packing.md#caches).
 
 
 ## Explicit diagonal metric certificates and ideal laws
 
-[Diagonal metrics](linalg/transforms-and-metrics.md#diagonal-metrics) use the actual `StorageMetric` acceptance
+[Diagonal metrics](linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics) use the actual `StorageMetric` acceptance
 certificates. `VastitasOracle.StorageMetric` links declared form/basis identity,
 exact bounded-Int realization, live original inputs, initialized output and
 precise emitted actions. Pairing includes acceptance of its full eight-action

@@ -49,7 +49,8 @@ Rules:
 - Every owned result must name a binding of the body (`E_RESOURCE_NAME`).
   That binding must be a live owner that meets the type of the result
   (`E_RESOURCE_TYPE`), and no loan of it may be live at the end of the body
-  (`E_RESOURCE_ESCAPE`).
+  (`E_RESOURCE_ESCAPE`). Two owned results must not name one binding
+  (`E_RESOURCE_TYPE`).
 - At the end of the body, every other owner must have been dropped, moved or
   handed to a call (`E_RESOURCE_ESCAPE`). A body must not release a borrowed
   parameter (`E_RESOURCE_LOAN`).
@@ -164,8 +165,9 @@ Rules:
 
 A `read` loan permits reading, a `write` loan writing only, and a `read_write`
 loan both. `borrow` without a layout lends the storage of an owned map, as
-[Numerical maps](../linalg/maps-and-gemm.md) describes, and that chapter gives
-the numerical statements.
+[Owned maps](../linalg/maps-and-gemm.md#owned-maps) describes.
+[Numerical maps](../linalg/maps-and-gemm.md) and the two chapters after it
+give the numerical statements.
 
 Rules:
 
@@ -185,7 +187,9 @@ Rules:
   call takes the owner (`E_RESOURCE_LOAN`).
 - `release`, `transpose`, `fill`, `store`, `expect` and `copy` must name live
   loans. An owner or a released loan there is an error (`E_RESOURCE_LOAN`),
-  and so is a `borrow` from a released loan.
+  and so is a `borrow` from a released loan. `release` may also name a
+  [map](../linalg/maps-and-gemm.md#maps) or a
+  [vector](../linalg/transforms-and-metrics.md#vectors) in place of its loan.
 - Every cell of the view of a `read` or `read_write` loan must be initialized
   (`E_RESOURCE_INIT`). `fill` initializes its view, `store` one cell and
   `copy` its target. A `write` loan may cover uninitialized cells.
@@ -441,9 +445,7 @@ Rules:
 >     | `runtime_map` IDENTIFIER `=`
 >       `view` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `)`
 >     | `runtime_gemm` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,`
->       ( `overwrite` | `accumulate` ) `,` `NativeFast` GemmCoefficient* `)`
-> GemmCoefficient -> `,` ( `alpha` | `beta` ) `=`
->     ( Payload | `coefficient` `(` IDENTIFIER `)` )
+>       GemmMode `,` `NativeFast` GemmCoefficient* `)`
 > ```
 
 `runtime_space u = linear(I, m);` declares a space of dimension `m` over the
@@ -452,7 +454,9 @@ it. `runtime_map a = view(v, bs, bt);` presents the runtime loan `v` as the
 matrix of a map from the space of the basis `bs` to the space of `bt`.
 `runtime_gemm(a, b, out, overwrite, NativeFast);` writes the product of the
 matrices `a` and `b` to `out`, times `alpha` when the statement gives one.
-With `accumulate` it adds that product to `beta` times `out`. A function
+With `accumulate` it adds that product to `beta` times `out`.
+[Matrix products](../linalg/maps-and-gemm.md#matrix-products) gives `GemmMode`
+and `GemmCoefficient` and the meaning of the product. A function
 receives spaces, bases and maps through parameters of the types
 `RuntimeSpace<I, m>`, `RuntimeBasis<u>` and `RuntimeMap<bs, bt, access>`.
 

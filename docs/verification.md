@@ -511,7 +511,12 @@ of contiguous writes, branch intersections and separate padded columns.
 `reach_sound`, `interval_sound` and `columns_sound` feed the actual
 `initialization_bytes` theorem used by read/GEMM safety; `remaining_nodes` and
 `checked_initialization_work_bound` relate the fallback work budget to the actual
-bounded metadata traversal. These are logical-byte and arithmetic bounds, not
+bounded metadata traversal. `rejected_cell_uninitialized` is a converse for one
+element: under a checked history, an element-aligned cell that the rectangular
+path rejects has an uninitialized first byte. `uncoveredCell_uninitialized`
+applies it to the cell that the explanation of a rejected read borrow names.
+Acceptance depends on neither theorem, and the search of the explanation has
+regression evidence only. These are logical-byte and arithmetic bounds, not
 native memory or elapsed-time theorems. The kernel's `Storage.auditState_eq_indexed`
 and `compatibleWith_eq_indexed` prove equality of the reconstructed indexed
 implementation and the original predicates for every state, including malformed

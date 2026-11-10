@@ -162,7 +162,11 @@ their own locations. Header and envelope failures still use the relevant header.
 
 Notes recover names and introduction sites from the original source paired with
 its actual lowering. Borrow/drop failures identify the allocation and, when
-available, the conflicting or outstanding loan. GEMM endpoint mismatches name
+available, the conflicting or outstanding loan. The diagnostic of a read
+borrow of a view that is not initialized also names an uncovered cell when the
+checker finds one, as
+[Layout and initialization](../storage/checked-storage.md#storage-ir--layout-and-initialization)
+describes. GEMM endpoint mismatches name
 the actual unequal spaces/bases; vector evaluation identifies its actual bases
 and explicit metric. Equal dimensions do not suppress these nominal checks.
 Other operations include their local operands. Compiler-created temporary loans

@@ -568,6 +568,111 @@ instance (resources : Storage.State) (values : Values) (input : Input) (value : 
     Decidable (input.Accepts resources values value) := by
   cases input <;> cases value <;> unfold Input.Accepts <;> infer_instance
 
+/-- Presentation only. One endpoint of a rejected value whose basis is not the
+basis that its contract requires: the role of the endpoint, the identity of
+the basis that the value has there, and the identity that the contract names.
+Both are nominal identities of `Values`, never dimensions. -/
+structure BasisMismatch where
+  endpoint : String
+  actual : Symbol
+  required : Symbol
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+/-- The endpoint roles, in the order in which a diagnostic states them. A
+vector and a metric have one basis and no endpoint name. -/
+def BasisMismatch.endpoints : List String := ["source basis", "target basis", "basis"]
+
+/-- The role of the basis that a rejected value has at an endpoint. -/
+def BasisMismatch.actualRole (endpoint : String) : String := s!"actual {endpoint}"
+
+/-- The role of the basis that the contract requires at an endpoint. -/
+def BasisMismatch.requiredRole (endpoint : String) : String := s!"required {endpoint}"
+
+/-- Diagnostic subjects of one endpoint: the actual basis, then the required
+one. The function compiler resolves both to names of the rejecting site. -/
+def BasisMismatch.subjects (mismatch : BasisMismatch) : List ErrorSubject :=
+  [⟨actualRole mismatch.endpoint, mismatch.actual, .basis⟩,
+   ⟨requiredRole mismatch.endpoint, mismatch.required, .basis⟩]
+
+/-- Presentation only: whether a rejection carries the subjects of an endpoint.
+No other diagnostic uses these roles. It reads an error that a check has
+already returned and decides no acceptance. -/
+def BasisMismatch.reported (error : Error) : Bool :=
+  error.context.subjects.any fun entry => endpoints.any fun endpoint =>
+    entry.role == actualRole endpoint || entry.role == requiredRole endpoint
+
+/-- Presentation only. Whether the basis `actual` of a value is another basis
+than the one that the contract names by `required`. An entry needs three
+facts: `required` is a basis of `values`, that basis is not `actual`, and the
+two identities differ. A contract symbol that is no basis gives no entry.
+Acceptance is `Input.Accepts` alone, and no check reads this result. -/
+def BasisMismatch.detect (values : Values) (endpoint : String) (required : Symbol) (actual : Basis) :
+    List BasisMismatch :=
+  match value? values required with
+  | some (.basis named) =>
+    if named = actual ∨ actual.brand = required then [] else [⟨endpoint, actual.brand, required⟩]
+  | _ => []
+
+/-- Presentation only: the endpoints at which `value` has another basis than
+`input` requires. Acceptance is `Input.Accepts` alone. `checkInput` calls this
+function only after that check has rejected, to choose the text of the error.
+Only a difference of two bases gives an entry: the bases of a map or an owned
+map, the source basis of an owned-map package, and the basis of a vector or a
+metric. A dimension, a stale loan, an uninitialized owner, an involution or a
+value of another kind gives none. The space of a basis and the parent of a
+derived basis are not compared here, so their rejections keep the message
+that states no cause. -/
+def Input.basisMismatches (values : Values) : Input → Value → List BasisMismatch
+  | .map source target, .map view =>
+    BasisMismatch.detect values "source basis" source view.source ++
+      BasisMismatch.detect values "target basis" target view.target
+  | .ownedMap source target, .ownedMap view =>
+    BasisMismatch.detect values "source basis" source view.source ++
+      BasisMismatch.detect values "target basis" target view.target
+  | .ownedMapTo source _, .ownedPackage view =>
+    BasisMismatch.detect values "source basis" source view.source
+  | .vector required, .vector view => BasisMismatch.detect values "basis" required view.basis
+  | .metric required _ _, .metric form => BasisMismatch.detect values "basis" required form.basis
+  | _, _ => []
+
+/-- A basis that the contract names is no mismatch. -/
+theorem BasisMismatch.detect_accepted {values : Values} {endpoint : String} {required : Symbol}
+    {actual : Basis} (accepted : value? values required = some (.basis actual)) :
+    BasisMismatch.detect values endpoint required actual = [] := by
+  simp [BasisMismatch.detect, accepted]
+
+/-- A reported basis mismatch is a failure of the acceptance check itself: no
+value that `Input.Accepts` admits has an entry. The explanation therefore
+never names a basis of a value that its contract admits. -/
+theorem Input.basisMismatches_accepted {resources : Storage.State} {values : Values}
+    {input : Input} {value : Value} (accepts : input.Accepts resources values value) :
+    input.basisMismatches values value = [] := by
+  cases input <;> cases value <;>
+    first
+    | rfl
+    | (simp only [Input.Accepts] at accepts
+       simp [Input.basisMismatches, BasisMismatch.detect_accepted accepts.1,
+         BasisMismatch.detect_accepted accepts.2.1])
+    | (simp only [Input.Accepts] at accepts
+       simp [Input.basisMismatches, BasisMismatch.detect_accepted accepts.1])
+
+/-- Presentation only: the error of a value that `Input.Accepts` has rejected.
+`checkInput` decides acceptance before it calls this function, and the result
+is never an acceptance. A rejection that `Input.basisMismatches` explains
+carries the two basis identities of each endpoint as diagnostic subjects.
+Every other rejection keeps the message that states no cause. The text speaks
+of a value and a contract because the same check serves call arguments and
+owned results. -/
+def Input.rejection (values : Values) (input : Input) (value : Value) : Error :=
+  match input.basisMismatches values value with
+  | [] => {
+      code := "E_NUMERICAL_TYPE"
+      message := "numerical argument violates its nominal, shape or live-loan contract"}
+  | mismatches => {
+      code := "E_NUMERICAL_TYPE"
+      message := "numerical value has a basis other than the basis that its contract requires"
+      context := {subjects := mismatches.flatMap BasisMismatch.subjects}}
+
 structure CheckedInput (env : Environment) (resources : Storage.State) (values : Values)
     (input : Input) (actual : Symbol) where
   valuesValid : Valid env values
@@ -578,7 +683,8 @@ structure CheckedInput (env : Environment) (resources : Storage.State) (values :
 
 /-- Check all actuals against the original caller state. Reborrowing one read
 input must not make a second compatible use of that same caller map stale. The
-resource checker independently checks the subsequently created sibling loans. -/
+resource checker independently checks the subsequently created sibling loans.
+`Input.Accepts` decides the contract; `Input.rejection` only words its failure. -/
 def checkInput (env : Environment) (resources : Storage.State) (values : Values)
     (input : Input) (actual : Symbol) : Except Error (CheckedInput env resources values input actual) := do
   if resourcesValid : auditState resources then
@@ -588,7 +694,7 @@ def checkInput (env : Environment) (resources : Storage.State) (values : Values)
       | some value =>
         if accepts : input.Accepts resources values value then
           return ⟨valuesValid, resourcesValid, value, fromActual, accepts⟩
-        else reject "numerical argument violates its nominal, shape or live-loan contract"
+        else .error (input.rejection values value)
     else reject "invalid numerical argument provenance"
   else reject "invalid numerical argument resource state"
 

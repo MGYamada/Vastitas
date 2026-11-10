@@ -87,6 +87,34 @@ private def withInputs (implementation : String) (body : List Functions.Statemen
         ("transposed map argument", setup scalar implementation ++ [.action (.transpose 24), callInputs] ++ cleanup),
         ("suspended map argument", setup scalar implementation ++ [.action (.borrow 40 (.loan 22) (layout 2 3) .read), callInputs] ++ cleanup)] do
       check label (!(Functions.check (withInputs implementation statements) env).isOk)
+    -- Presentation of a rejected argument. Parameter 30 requires a map from
+    -- basis 4 to basis 5 and receives map 31, from basis 3 to basis 4. Every
+    -- space has dimension 2, so only the bases differ.
+    let named (subjects : List ErrorSubject) := subjects.filter fun entry =>
+      entry.kind == .basis || entry.role == Functions.rejectedParameterRole
+    let marked (problem : Error) := problem.context.sites.flatMap fun site =>
+      (named site.subjects).map fun entry => (site.function, site.place == .header, entry)
+    match Functions.check (withInputs implementation (setup scalar implementation 2 ++
+        [.call 1 [0, 1, 2, 3, 4, 5, 31, 30, 32] []] ++ cleanup) [multiply] 2) env with
+    | .ok _ => throw (IO.userError "map argument in other bases accepted")
+    | .error problem =>
+      check "a map in other bases reports that its bases differ" (problem.code == "E_NUMERICAL_TYPE" &&
+        problem.message == "numerical value has a basis other than the basis that its contract requires")
+      check "both identities of each endpoint are named at the call, and the parameter at the callee"
+        (marked problem == [
+          (1, true, ⟨Functions.rejectedParameterRole, 30, .binding⟩),
+          (0, false, ⟨"actual source basis", 3, .basis⟩), (0, false, ⟨"required source basis", 4, .basis⟩),
+          (0, false, ⟨"actual target basis", 4, .basis⟩), (0, false, ⟨"required target basis", 5, .basis⟩)])
+    -- A released map has the bases that its parameter requires. Its rejection
+    -- keeps the message without a cause, names no basis and marks no parameter.
+    match Functions.check (withInputs implementation
+        (setup scalar implementation ++ [.action (.release 22), callInputs] ++ cleanup)) env with
+    | .ok _ => throw (IO.userError "released map argument accepted")
+    | .error problem =>
+      check "a rejection of another kind keeps its message and names no basis"
+        (problem.code == "E_NUMERICAL_TYPE" &&
+          problem.message == "numerical argument violates its nominal, shape or live-loan contract" &&
+          (marked problem).isEmpty)
     check "unused numerical parameter body still checked"
       (!(Functions.check (withInputs implementation [] [.numerical (.gemm 31 30 32 .overwrite .nativeFast)]) env).isOk)
     check "initializes postcondition checked even for unused function"

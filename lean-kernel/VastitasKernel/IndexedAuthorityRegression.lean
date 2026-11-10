@@ -111,6 +111,15 @@ def transferFixture : DispatchSource.Program := withEvents authorityFixture
   { m with body := block (.invoke (.lambda [⟨"n", int, {}⟩] int (block (var "x")) {}) [num 0] {}) })
 #eval rejects "unapplied out-of-domain specialization" "E_TYPE" (changeContribution authorityFixture "unused" fun m =>
   { m with body := block (.binary "+" (var "x") (num 1) {}) })
+/-- #727: the audit numbers a method by its place in its contribution, and the
+final surface holds the method of `base` under that number. The note of the
+rejection points at the audited method. -/
+private def auditedMethod : Span := { start := 727, «end» := 733, line := 7, column := 27 }
+#eval check "unapplied audit note points at the audited method" (
+  match AuthoritySource.checkProgram (changeContribution authorityFixture "unused" fun m =>
+    { m with params := m.params ++ [⟨"y", .data (.named "Int"), {}⟩], span := auditedMethod }) true with
+  | .ok _ => false
+  | .error d => d.code == "E_ARITY" && d.notes.map (·.span) == [auditedMethod])
 #eval rejects "applied indexed scope escape" "E_ESCAPE" (changeContribution authorityFixture "sum" fun m =>
   { m with body := block (num 0) [.letE "p" none (.block
       (block (call "geo::origin" [var "X"]) [.letE "X" none (call "geo::Affine" [num 2]) {}]) {}) {}] })

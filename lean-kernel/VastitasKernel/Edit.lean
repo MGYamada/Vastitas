@@ -374,6 +374,14 @@ def completeFamilies (surface : Surface.Program) (names : DispatchChecker.Source
     Result (List DispatchChecker.Family) :=
   (DispatchChecker.prepareFamilies (Surface.headers surface) names).run {} |>.map (·.1)
 
+/-- The headers in which a diagnostic of the unapplied audit looks up the
+methods that it names. The audit numbers a method by its place in its
+contribution. The final surface holds no method of an unapplied contribution,
+and the same number names another method there, so the methods of
+`contribution` stand in for those of the surface. -/
+def auditHeaders (prepared : Prepared p) (contribution : ContributionEntry) : RawProgram :=
+  Surface.headers { prepared.base.surface with methods := contribution.methods }
+
 /-- Unapplied bodies are specialized against final hierarchy/capability facts.
 They are checked as ordinary definitions in a discarded audit module, and never
 participate in final dispatch or executable lowering. -/
@@ -392,7 +400,7 @@ def unappliedAudit (prepared : Prepared p) (state : State)
       let _ ← (DispatchChecker.methodResult method.result.core method.span).run {}
       let normalized ← (Dispatch.normalizeMethod family.nominals.hierarchy family.raw.params.length
         { id := ordinal, selectors, requirements := method.requirements }).mapError fun error =>
-          DispatchChecker.dispatchDiagnostic family.nominals (Surface.headers (finalSurface prepared state)) family.raw error
+          DispatchChecker.dispatchDiagnostic family.nominals (auditHeaders prepared contribution) family.raw error
             (sourceNames p)
       let keys := family.checked.keys.filter (Dispatch.applicable family.nominals.hierarchy · normalized)
       if keys.isEmpty then problem method.span "E_CAPABILITY" "unapplied method conditions have no admitted concrete key"

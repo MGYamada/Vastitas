@@ -400,9 +400,14 @@ Failure: `{ "version": 2, "ok": false, "diagnostics": [
 { "code": "E_TYPE", "message": "...", "span": Span,
   "notes": [{ "message": "...", "span": Span }] }] }`.
 Every response also carries `"kernel": { "sources": String, "lean": String }`:
-the digest of the kernel's `Main.lean` and every kernel module it imports
+the digest of the files that the kernel executable is elaborated from
 (`VastitasKernel/BuildIdentity.lean`, mirrored by the driver's `build.rs`) and
-the Lean version it was built with. Drivers reject a success response whose
+the Lean version it was built with. The digest covers the bytes of the kernel's
+`Main.lean`, of every kernel module it imports and of `compiler-limits.json`,
+which `VastitasKernel/Limits.lean` reads while it is elaborated. The kernel's
+`lakefile.toml` names each of these files as an input of the executable, so
+Lake elaborates `Main` again, with its digest, when one of them changes.
+Drivers reject a success response whose
 identity is missing or differs from their own build, and add a note to failure
 diagnostics. The identity is a build-consistency check, not a semantic proof.
 It covers the kernel executable, not the files that a native build compiles.

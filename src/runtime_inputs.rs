@@ -3,8 +3,11 @@
 //! program. `build.rs` digests them in the sources this compiler is built
 //! from, and the driver digests them again in the selected kernel root before
 //! it runs Lake, so both sides come from the files and never from a value that
-//! a root states about itself. `build.rs`, the driver and the test harness
-//! share this file; it uses only the standard library.
+//! a root states about itself. The file also names what the kernel executable
+//! is elaborated from (`executable_inputs`): `build.rs` digests those files
+//! into the build identity that the driver expects from the kernel.
+//! `build.rs`, the driver and the test harness share this file; it uses only
+//! the standard library.
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -119,6 +122,56 @@ pub fn digest<'a>(entries: impl IntoIterator<Item = (&'a str, &'a [u8])>) -> Str
         hash = fnv1a(hash, bytes);
     }
     format!("{hash:016x}")
+}
+
+/// Files of the kernel root, other than Lean sources, that a module of the
+/// kernel executable reads while it is elaborated: `Limits.lean` reads the
+/// compiler limits (`compiler_limit%`). `VastitasKernel/BuildIdentity.lean`
+/// holds the same list.
+pub const ELABORATION_INPUTS: &[&str] = &["compiler-limits.json"];
+
+/// The files that the kernel executable of `kernel_root` is elaborated from,
+/// by relative path: `Main.lean`, each module of its import closure that has a
+/// source in the root, and `ELABORATION_INPUTS`. An imported module without a
+/// source there belongs to the toolchain.
+// `build.rs` and the tests call this; the compiler embeds the result.
+#[allow(dead_code)]
+pub fn executable_inputs(kernel_root: &Path) -> io::Result<BTreeMap<String, Vec<u8>>> {
+    let mut files = BTreeMap::new();
+    let mut pending = vec!["Main.lean".to_string()];
+    while let Some(relative) = pending.pop() {
+        let path = kernel_root.join(&relative);
+        if files.contains_key(&relative) || !path.is_file() {
+            continue;
+        }
+        let bytes = fs::read(&path)?;
+        let source = std::str::from_utf8(&bytes).map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{}: {error}", path.display()),
+            )
+        })?;
+        for module in header_imports(source) {
+            pending.push(module_file(&module));
+        }
+        files.insert(relative, bytes);
+    }
+    for name in ELABORATION_INPUTS {
+        files.insert(name.to_string(), fs::read(kernel_root.join(name))?);
+    }
+    Ok(files)
+}
+
+/// The `sources` digest of the kernel's build identity for the files that
+/// `executable_inputs` returns. The kernel computes it from the same files
+/// while `Main` is elaborated (`kernel_source_digest%`).
+#[allow(dead_code)]
+pub fn executable_digest(inputs: &BTreeMap<String, Vec<u8>>) -> String {
+    digest(
+        inputs
+            .iter()
+            .map(|(relative, bytes)| (relative.as_str(), bytes.as_slice())),
+    )
 }
 
 /// Modules named by a Lean file header (`import`, optionally `public`/`meta`

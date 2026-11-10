@@ -4,7 +4,7 @@ use std::{env, fs, path::Path, path::PathBuf};
 #[allow(dead_code)]
 #[path = "src/runtime_inputs.rs"]
 mod runtime_inputs;
-use runtime_inputs::{ABSENT, Package, executable_digest, executable_inputs, inputs};
+use runtime_inputs::{Package, executable_digest, executable_inputs, required_inputs};
 
 fn main() {
     let path = "lean-kernel/compiler-limits.json";
@@ -67,29 +67,31 @@ fn kernel_identity() -> String {
 /// The runtime inputs of one package in the sources this driver is built with,
 /// as a table of relative paths and digests. A native build compares it with
 /// the same files of the selected kernel root before Lake compiles them.
+///
+/// Every entry is a file that exists, and Cargo watches each one. Cargo cannot
+/// watch for a file that does not exist yet: it reruns this script on every
+/// build for a missing path, and it scans a watched directory with its build
+/// products. The table therefore records no absence. The sources must hold
+/// exactly what the lists of `src/runtime_inputs.rs` name, or the build fails
+/// here, and the driver applies the rule on forbidden names to the selected
+/// root itself.
 fn runtime_table(root: &Path, name: &str, package: &Package) -> String {
     let directory = package.directory_in(root);
-    let entries = inputs(&directory, package).expect("read runtime inputs");
+    let entries = required_inputs(&directory, package).unwrap_or_else(|error| {
+        panic!(
+            "the {} inputs in {} do not match the lists of src/runtime_inputs.rs: {error}. \
+             Restore the package, or change its lists together with its Lake configuration.",
+            package.name,
+            directory.display()
+        )
+    });
     let mut table = format!("pub const {name}: &[(&str, &str)] = &[\n");
     for (relative, digest) in &entries {
-        // Cargo treats a missing path as always changed, so name present files only.
-        if digest != ABSENT {
-            println!(
-                "cargo:rerun-if-changed={}",
-                directory.join(relative).display()
-            );
-        }
-        table.push_str(&format!("    ({relative:?}, {digest:?}),\n"));
-    }
-    for module in package.modules {
-        let file = runtime_inputs::module_file(module);
-        assert!(
-            entries
-                .iter()
-                .any(|(relative, digest)| *relative == file && digest != ABSENT),
-            "runtime module {module} has no source in {}",
-            directory.display()
+        println!(
+            "cargo:rerun-if-changed={}",
+            directory.join(relative).display()
         );
+        table.push_str(&format!("    ({relative:?}, {digest:?}),\n"));
     }
     table.push_str("];\n");
     table

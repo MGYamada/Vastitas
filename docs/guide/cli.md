@@ -83,16 +83,23 @@ reads there with the files that the compiler was built from:
   needs them, the Lake configuration, the manifest, `lean-toolchain`, the Lean
   modules and the C sources and headers.
 
-A `lakefile.lean` in the kernel package must be absent, because Lake prefers it
-to `lakefile.toml`. A root whose files differ is an error (`E_BUILD`). `build`
-reports it before Lake runs and before it writes the output, and the diagnostic
-names the differing files and a digest of each side. The comparison rejects a
-root whose runtime files changed after its kernel executable was built. It also
-rejects a `VASTITAS_KERNEL` executable paired with the root of another source
-tree. Both pass the identity check. The comparison reads source files: it does
-not cover the build products under `.lake`, the OpenBLAS prefix or a file that
-changes while Lake runs. The digest detects a stale or mixed tree; it is not a
-cryptographic hash.
+Each of these packages has one Lake configuration file. The other name of that
+file must not exist in the root: `lakefile.lean` in the kernel package, which
+Lake prefers to `lakefile.toml`, and `lakefile.toml` in the two runtimes.
+`build` applies this as a rule. It does not compare the name with the
+compiler's sources, so rebuilding the compiler does not make the file
+acceptable. Building the compiler fails when its own sources lack a compared
+file or hold a file with such a name.
+
+A root that breaks the rule, or whose files differ, is an error (`E_BUILD`).
+`build` reports it before Lake runs and before it writes the output, and the
+diagnostic names the differing files and a digest of each side. The comparison
+rejects a root whose runtime files changed after its kernel executable was
+built. It also rejects a `VASTITAS_KERNEL` executable paired with the root of
+another source tree. Both pass the identity check. The comparison reads source
+files: it does not cover the build products under `.lake`, the OpenBLAS prefix
+or a file that changes while Lake runs. The digest detects a stale or mixed
+tree; it is not a cryptographic hash.
 
 ### Numerical builds
 

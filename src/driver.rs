@@ -1,6 +1,6 @@
 //! Host driver. Semantic acceptance always comes from the Lean backend.
 use crate::ir::Span;
-use crate::runtime_inputs::{self, ABSENT, Package};
+use crate::runtime_inputs::{self, Package};
 use crate::sources::{Sources, shown, shown_text};
 use serde_json::{Value, json};
 use std::ffi::{OsStr, OsString};
@@ -710,7 +710,10 @@ fn check_generated_imports(
 /// executable in a changed tree passes that check, and so does `VASTITAS_KERNEL`
 /// with another root. Digest the files that Lake reads for `package` and
 /// compare them with the ones this compiler was built from (the `build.rs`
-/// table), never with a value that the root states about itself.
+/// table), never with a value that the root states about itself. The table
+/// holds only files that exist in the compiler's sources. A forbidden name of
+/// the package, the other name of its Lake configuration, is refused by rule,
+/// whatever the table holds.
 fn verify_runtime_inputs(
     kernel_root: &Path,
     package: &Package,
@@ -728,14 +731,19 @@ fn verify_runtime_inputs(
         .iter()
         .map(|(path, digest)| (path.as_str(), digest.as_str()))
         .collect();
-    if found == expected {
+    let forbidden: Vec<&str> = found
+        .iter()
+        .map(|(path, _)| *path)
+        .filter(|path| package.forbidden.contains(path))
+        .collect();
+    if found == expected && forbidden.is_empty() {
         return Ok(());
     }
-    fn digest_in<'a>(inputs: &[(&str, &'a str)], path: &str) -> &'a str {
+    fn digest_in<'a>(inputs: &[(&str, &'a str)], path: &str) -> Option<&'a str> {
         inputs
             .iter()
             .find(|(name, _)| *name == path)
-            .map_or(ABSENT, |(_, digest)| *digest)
+            .map(|(_, digest)| *digest)
     }
     let mut paths: Vec<&str> = found
         .iter()
@@ -746,14 +754,21 @@ fn verify_runtime_inputs(
     paths.dedup();
     // The file of a module is named after an import in a source of the root,
     // which can spell any character, so each input is shown like a path.
+    let mut other_differences = false;
     let differing: Vec<String> = paths
         .into_iter()
         .filter_map(|path| {
-            let state = match (digest_in(&found, path), digest_in(expected, path)) {
-                (found, expected) if found == expected => return None,
-                (ABSENT, _) => "missing",
-                (_, ABSENT) => "unexpected",
-                _ => "changed",
+            let state = if forbidden.contains(&path) {
+                "unexpected"
+            } else {
+                let state = match (digest_in(&found, path), digest_in(expected, path)) {
+                    (found, expected) if found == expected => return None,
+                    (None, _) => "missing",
+                    (_, None) => "unexpected",
+                    _ => "changed",
+                };
+                other_differences = true;
+                state
             };
             Some(format!("{} ({state})", shown_text(path)))
         })
@@ -764,17 +779,32 @@ fn verify_runtime_inputs(
     if more > 0 {
         list.push_str(&format!(" and {more} more"));
     }
-    Err(format!(
+    let mut message = format!(
         "E_BUILD: kernel root {} provides {name} inputs {}, but this compiler requires {name} inputs {}\n\
-         note: differing inputs in {}: {list}\n\
-         Lake would compile the generated program against files other than the ones this compiler and its kernel were built with.\n\
-         Set VASTITAS_KERNEL_ROOT to the unmodified lean-kernel directory of this compiler's Vastitas sources, \
-         or rebuild this compiler and the kernel from the sources in that directory.",
+         note: differing inputs in {}: {list}",
         shown(kernel_root),
         runtime_inputs::summary(found.iter().copied()),
         runtime_inputs::summary(expected.iter().copied()),
         shown(&directory)
-    ))
+    );
+    // No build of the compiler accepts a forbidden name, so the advice to
+    // rebuild is given only for a difference that a rebuild can resolve.
+    for path in &forbidden {
+        message.push_str(&format!(
+            "\nnote: {} must not exist in {}: it is the other name of the package's Lake configuration, \
+             and a rebuilt compiler rejects it as well. Remove it.",
+            shown_text(path),
+            shown(&directory)
+        ));
+    }
+    if other_differences {
+        message.push_str(
+            "\nLake would compile the generated program against files other than the ones this compiler and its kernel were built with.\n\
+             Set VASTITAS_KERNEL_ROOT to the unmodified lean-kernel directory of this compiler's Vastitas sources, \
+             or rebuild this compiler and the kernel from the sources in that directory.",
+        );
+    }
+    Err(message)
 }
 
 fn build_native(
@@ -1116,6 +1146,46 @@ fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(),
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // The tables that `build.rs` embedded hold a digest for each input that
+    // the lists name and for nothing else. They record no absence and no
+    // forbidden name, so the creation of a file cannot make an entry stale.
+    // They also equal the sources as they are when the test runs.
+    #[test]
+    fn embedded_runtime_tables_hold_only_inputs_that_exist() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("lean-kernel");
+        for (package, table) in [
+            (&runtime_inputs::KERNEL, expected_kernel::KERNEL_RUNTIME),
+            (&runtime_inputs::STORAGE, expected_kernel::STORAGE_RUNTIME),
+            (
+                &runtime_inputs::NUMERICAL,
+                expected_kernel::NUMERICAL_RUNTIME,
+            ),
+        ] {
+            let name = package.name;
+            for (path, digest) in table {
+                assert!(
+                    digest.len() == 16 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()),
+                    "{name}: {path} is recorded as {digest}"
+                );
+                assert!(!package.forbidden.contains(path), "{name}: {path}");
+            }
+            for file in package.files {
+                assert!(
+                    table.iter().any(|(path, _)| path == file),
+                    "{name}: no entry for {file}"
+                );
+            }
+            let directory = package.directory_in(&root);
+            let current = runtime_inputs::required_inputs(&directory, package)
+                .unwrap_or_else(|error| panic!("{name}: {error}"));
+            let current: Vec<(&str, &str)> = current
+                .iter()
+                .map(|(path, digest)| (path.as_str(), digest.as_str()))
+                .collect();
+            assert_eq!(current, table, "{name}");
+        }
+    }
 
     #[test]
     fn manifest_strings_use_their_own_syntax() {

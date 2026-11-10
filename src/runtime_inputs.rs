@@ -8,7 +8,7 @@
 //! into the build identity that the driver expects from the kernel.
 //! `build.rs`, the driver and the test harness share this file; it uses only
 //! the standard library.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
@@ -18,13 +18,19 @@ pub struct Package {
     pub name: &'static str,
     /// Directory relative to the kernel root; empty for the root itself.
     pub directory: &'static str,
-    /// Files that Lake reads by name. Both configuration names are listed:
-    /// Lake prefers `lakefile.lean`, so an added one replaces `lakefile.toml`.
-    /// A direct dependency's `lean-toolchain` and manifest can make Lake
-    /// restart itself with another toolchain.
+    /// Files that Lake reads by name. Each exists in the compiler's own
+    /// sources: `build.rs` fails without one. A direct dependency's
+    /// `lean-toolchain` and manifest can make Lake restart itself with another
+    /// toolchain.
     pub files: &'static [&'static str],
+    /// Names that must not exist in the package directory: the other name of
+    /// its Lake configuration. Lake prefers `lakefile.lean`, so an added one
+    /// replaces a listed `lakefile.toml`. This is a rule of the list and not a
+    /// recorded value: Cargo cannot watch for a file that does not exist yet,
+    /// so a recorded absence would outlive the creation of the file.
+    pub forbidden: &'static [&'static str],
     /// Modules that generated programs import. Their import closure inside the
-    /// package directory is an input as well.
+    /// package's own library is an input as well.
     pub modules: &'static [&'static str],
 }
 
@@ -37,6 +43,21 @@ impl Package {
             kernel_root.join(self.directory)
         }
     }
+
+    /// Whether `module` belongs to the library of the listed modules: a plain
+    /// module name with the same first component. Lake compiles such a module
+    /// from the package directory, so its source is an input. Any other
+    /// import names a module of the toolchain or of another package.
+    fn owns(&self, module: &str) -> bool {
+        let library = module.split('.').next();
+        module
+            .split('.')
+            .all(|part| !part.is_empty() && !part.contains('/'))
+            && self
+                .modules
+                .iter()
+                .any(|listed| listed.split('.').next() == library)
+    }
 }
 
 /// The kernel package. Its `lean-toolchain` is not listed: the driver compares
@@ -46,11 +67,11 @@ pub const KERNEL: Package = Package {
     name: "kernel runtime",
     directory: "",
     files: &[
-        "lakefile.lean",
         "lakefile.toml",
         "lake-manifest.json",
         "compiler-limits.json",
     ],
+    forbidden: &["lakefile.lean"],
     modules: &[
         "VastitasKernel.IndexedRuntime",
         "VastitasKernel.AlgebraRuntime",
@@ -64,7 +85,6 @@ pub const STORAGE: Package = Package {
     directory: "native",
     files: &[
         "lakefile.lean",
-        "lakefile.toml",
         "lake-manifest.json",
         "lean-toolchain",
         "storage.h",
@@ -74,6 +94,7 @@ pub const STORAGE: Package = Package {
         "diagonal.c",
         "diagonal.h",
     ],
+    forbidden: &["lakefile.toml"],
     modules: &["VastitasStorageNative"],
 };
 
@@ -86,18 +107,34 @@ pub const NUMERICAL: Package = Package {
     directory: "numerical",
     files: &[
         "lakefile.lean",
-        "lakefile.toml",
         "lake-manifest.json",
         "lean-toolchain",
         "gemm.h",
         "gemm.c",
         "ffi.c",
     ],
+    forbidden: &["lakefile.toml"],
     modules: &["VastitasGemmNative"],
 };
 
-/// Digest text of an input that is not a regular file in a package.
-pub const ABSENT: &str = "absent";
+/// Digest text of a forbidden name that exists and is not a regular file.
+pub const IRREGULAR: &str = "not a regular file";
+
+/// Libraries of the toolchain. A runtime source may import their modules.
+const TOOLCHAIN_LIBRARIES: &[&str] = &["Init", "Std", "Lean", "Lake"];
+
+/// Whether `library` is outside every package that imports it here: a library
+/// of the toolchain, or the library of a runtime package, whose sources are
+/// compared as that package's inputs.
+fn external(library: &str) -> bool {
+    TOOLCHAIN_LIBRARIES.contains(&library)
+        || [&KERNEL, &STORAGE, &NUMERICAL].iter().any(|package| {
+            package
+                .modules
+                .iter()
+                .any(|module| module.split('.').next() == Some(library))
+        })
+}
 
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 
@@ -250,48 +287,118 @@ fn regular_file(path: &Path) -> io::Result<Option<Vec<u8>>> {
     }
 }
 
-/// The inputs of `package` in `directory`, in path order: each listed file and
-/// each module file in the import closure, with the digest of its bytes. A
-/// listed file or a listed module that is missing is reported as `ABSENT`. An
-/// imported module without a source in the directory belongs to the toolchain
-/// or to another package and is not an input of this one.
-pub fn inputs(directory: &Path, package: &Package) -> io::Result<Vec<(String, String)>> {
+/// What `directory` holds for `package`: its inputs by relative path, each
+/// with the digest of its bytes, and what the directory lacks or adds against
+/// the lists. The inputs are the listed files, the listed modules and the
+/// modules of the package's library that those import. A forbidden name that
+/// exists is recorded as well, so that a comparison reports it. An import of
+/// any other module is not followed. With `strict`, such an import is a
+/// problem unless its library is `external`, and also when a file or a
+/// directory of the package has the library's name: its source could be an
+/// input that the lists do not name.
+fn survey(
+    directory: &Path,
+    package: &Package,
+    strict: bool,
+) -> io::Result<(BTreeMap<String, String>, Vec<String>)> {
     let mut found = BTreeMap::new();
-    let entry = |bytes: Option<&[u8]>| {
-        bytes.map_or_else(|| ABSENT.to_string(), |bytes| digest([("", bytes)]))
-    };
+    let mut problems = Vec::new();
+    let entry = |bytes: &[u8]| digest([("", bytes)]);
     for name in package.files {
-        let bytes = regular_file(&directory.join(name))?;
-        found.insert(name.to_string(), entry(bytes.as_deref()));
+        match regular_file(&directory.join(name))? {
+            Some(bytes) => {
+                found.insert(name.to_string(), entry(&bytes));
+            }
+            None => problems.push(format!("{name} is missing")),
+        }
     }
-    let mut pending: Vec<(String, bool)> = package
+    for name in package.forbidden {
+        let path = directory.join(name);
+        // A dangling link is present too: nothing may have this name.
+        if fs::symlink_metadata(&path).is_ok() {
+            let state =
+                regular_file(&path)?.map_or_else(|| IRREGULAR.to_string(), |bytes| entry(&bytes));
+            found.insert(name.to_string(), state);
+            problems.push(format!(
+                "{name} must not exist: it is the other name of the package's Lake configuration"
+            ));
+        }
+    }
+    let mut visited = BTreeSet::new();
+    let mut pending: Vec<(String, Option<String>)> = package
         .modules
         .iter()
-        .map(|module| (module_file(module), true))
+        .map(|module| (module.to_string(), None))
         .collect();
-    while let Some((relative, listed)) = pending.pop() {
-        if found.contains_key(&relative) {
+    while let Some((module, importer)) = pending.pop() {
+        let relative = module_file(&module);
+        if !visited.insert(relative.clone()) {
             continue;
         }
         let Some(bytes) = regular_file(&directory.join(&relative))? else {
-            if listed {
-                found.insert(relative, entry(None));
-            }
+            problems.push(match importer {
+                None => format!("module {module} has no source {relative}"),
+                Some(importer) => {
+                    format!("{importer} imports {module}, which has no source {relative}")
+                }
+            });
             continue;
         };
-        for module in header_imports(&String::from_utf8_lossy(&bytes)) {
-            // Only a plain module name can name a file of this package; any
-            // other spelling must not lead the walk out of the directory.
-            if module
-                .split('.')
-                .all(|part| !part.is_empty() && !part.contains('/'))
-            {
-                pending.push((module_file(&module), false));
+        for import in header_imports(&String::from_utf8_lossy(&bytes)) {
+            if package.owns(&import) {
+                pending.push((import, Some(relative.clone())));
+            } else if strict {
+                let library = import.split('.').next().unwrap_or_default();
+                if !external(library) {
+                    problems.push(format!(
+                        "{relative} imports {import}, which is not a module of this package's runtime library, of another runtime package or of the toolchain"
+                    ));
+                } else if directory.join(library).exists()
+                    || directory.join(format!("{library}.lean")).exists()
+                {
+                    problems.push(format!(
+                        "{relative} imports {import}, whose source is in this package and outside its runtime library"
+                    ));
+                }
             }
         }
-        found.insert(relative, entry(Some(&bytes)));
+        found.insert(relative, entry(&bytes));
     }
-    Ok(found.into_iter().collect())
+    Ok((found, problems))
+}
+
+/// The inputs of `package` that `directory` holds, in path order. A selected
+/// kernel root is read this way: a listed file or module that it lacks has no
+/// entry, and a forbidden name that it adds has one, so the comparison with
+/// the compiler's table reports the first as missing and the second as
+/// unexpected.
+pub fn inputs(directory: &Path, package: &Package) -> io::Result<Vec<(String, String)>> {
+    Ok(survey(directory, package, false)?.0.into_iter().collect())
+}
+
+/// The inputs of `package` in the compiler's own sources, in path order.
+/// `build.rs` builds its table from them and registers every one with Cargo.
+/// It is an error for `directory` to differ from the lists: a listed file or
+/// module without a source, a forbidden name, an import of the package's
+/// library without a source, or an import of any other module that is not
+/// external or whose library has a source in the package. Every entry
+/// therefore names a file that exists. The paths of the table follow from the
+/// lists and from the imports in files that are in it, so the creation of a
+/// file cannot change what the table has to hold: Lake compiles a module from
+/// a package only for a library of that package's configuration, which is in
+/// the table.
+// `build.rs` and the tests call this; the compiler embeds the result.
+#[allow(dead_code)]
+pub fn required_inputs(directory: &Path, package: &Package) -> io::Result<Vec<(String, String)>> {
+    let (found, problems) = survey(directory, package, true)?;
+    if problems.is_empty() {
+        Ok(found.into_iter().collect())
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            problems.join("; "),
+        ))
+    }
 }
 
 /// One digest for a list of inputs, for diagnostics that name both sides.

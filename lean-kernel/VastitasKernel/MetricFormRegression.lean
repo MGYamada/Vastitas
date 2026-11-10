@@ -271,14 +271,78 @@ private def evaluate (term : Core.Term) : Option Core.Semantics.Value :=
   (evaluate (prim "sharp_line" [prim "dline" [prim "line_at" [.integer 7] (smoothType "Pt" "Line"), .integer 5]
     (cotangentType "Line")] (tangentType "Line")) ==
     some (.indexed (.fiber .tangent (some ⟨[7], [5]⟩))))
-#eval check "flat and sharp lower to the shared smooth runtime with rendered matrices"
-  (match Core.Typing.checkModule metricFixture true with
-  | .ok checked => match Core.Codegen.generate checked with
-    | .ok source => (source.splitOn "(VastitasKernel.SmoothRuntime.sharp ([[(mkRat (1 : Int) 1), (mkRat (-1 : Int) 1)]").length > 1 &&
-        (source.splitOn "(VastitasKernel.SmoothRuntime.flat ([[(mkRat (2 : Int) 1), (mkRat (1 : Int) 1)]").length > 1 &&
-        (source.splitOn ": VastitasKernel.SmoothRuntime.Matrix)").length > 1
-    | .error _ => false
-  | .error _ => false)
+
+/-! ## Generated code declares each matrix and each map once
+
+A generated module declares each distinct matrix and each distinct declared
+map of the primitives that its functions call, and every call names the
+declaration (#629). The number of literals in the generated text does not
+depend on the number of calls, and a primitive that no function calls adds
+none. -/
+
+/-- The generated code of a module whose entry point is `function`. -/
+private def generatedCode (function : Core.Function) : Option String := do
+  let .ok checked := Core.Typing.checkModule ⟨resolved.getD default, [function], some 0⟩ true | none
+  (Core.Codegen.generate checked).toOption
+/-- The generated code of an entry point that returns 42 when every check holds. -/
+private def generatedChecks (checks : List Core.Term) : Option String :=
+  generatedCode { metricMain with body := checks.foldr (fun condition rest => guarded condition 1 rest) (.integer 42) }
+private def occurrences (part : String) (source : Option String) : Option Nat :=
+  source.map fun text => (text.splitOn part).length - 1
+
+private def matrixType : String := ": VastitasKernel.SmoothRuntime.Matrix)"
+private def matrixDefinition (index : Nat) (rows : String) : String :=
+  s!"def matrix_{index} : VastitasKernel.SmoothRuntime.Matrix :=\n  ([{rows}] {matrixType}\n"
+private def identityRows : String := "[(mkRat (1 : Int) 1), (mkRat (0 : Int) 1)], [(mkRat (0 : Int) 1), (mkRat (1 : Int) 1)]"
+private def skewRows : String := "[(mkRat (2 : Int) 1), (mkRat (1 : Int) 1)], [(mkRat (1 : Int) 1), (mkRat (1 : Int) 1)]"
+private def skewInverseRows : String :=
+  "[(mkRat (1 : Int) 1), (mkRat (-1 : Int) 1)], [(mkRat (-1 : Int) 1), (mkRat (2 : Int) 1)]"
+private def lorentzRows : String := "[(mkRat (1 : Int) 1), (mkRat (0 : Int) 1)], [(mkRat (0 : Int) 1), (mkRat (-1 : Int) 1)]"
+private def mapLiteral : String := "(VastitasKernel.AlgebraRuntime.Map.mk "
+private def sharpCall (index : Nat) : String := s!"(VastitasKernel.SmoothRuntime.sharp matrix_{index} "
+private def flatCall (index : Nat) : String := s!"(VastitasKernel.SmoothRuntime.flat matrix_{index} "
+private def mapCall : String := "(VastitasKernel.SmoothRuntime.Program.primitive map_0)"
+
+/-- One call of `sharp_skew` and one call of the declared map `g`. -/
+private def skewGradient : Core.Term := sameVector (gradient "sharp_skew") (vplane p 1 0)
+/-- One call of `sharp_lorentz` and one call of `g`. -/
+private def lorentzGradient : Core.Term := sameVector (gradient "sharp_lorentz") (vplane p 2 (-1))
+private def oneCall : Option String := generatedChecks [skewGradient]
+private def sixCalls : Option String := generatedChecks (List.replicate 6 skewGradient)
+private def twoMatrices : Option String := generatedChecks [skewGradient, lorentzGradient, skewGradient]
+
+#eval check "the generated modules hold one call and six calls of sharp_skew and of g"
+  ([oneCall, sixCalls].map (occurrences (sharpCall 0)) == [some 1, some 6] &&
+    [oneCall, sixCalls].map (occurrences mapCall) == [some 1, some 6])
+#eval check "one call and six calls of a sharp give one matrix literal"
+  ([oneCall, sixCalls].map (occurrences matrixType) == [some 1, some 1] &&
+    [oneCall, sixCalls].map (occurrences (matrixDefinition 0 skewInverseRows)) == [some 1, some 1])
+#eval check "one call and six calls of a declared map give one map literal"
+  ([oneCall, sixCalls].map (occurrences mapLiteral) == [some 1, some 1] &&
+    [oneCall, sixCalls].map (occurrences ("def map_0 : VastitasKernel.AlgebraRuntime.Map :=\n  " ++ mapLiteral)) ==
+      [some 1, some 1])
+#eval check "two different matrices give two definitions, in declaration order"
+  (occurrences (matrixDefinition 0 skewInverseRows) twoMatrices == some 1 &&
+    occurrences (matrixDefinition 1 lorentzRows) twoMatrices == some 1 &&
+    occurrences matrixType twoMatrices == some 2 &&
+    occurrences (sharpCall 0) twoMatrices == some 2 && occurrences (sharpCall 1) twoMatrices == some 1 &&
+    occurrences mapLiteral twoMatrices == some 1)
+#eval check "a declared matrix or map that no function calls is not generated"
+  (occurrences "matrix_" (generatedChecks []) == some 0 && occurrences "map_" (generatedChecks []) == some 0 &&
+    occurrences "matrix_1" oneCall == some 0 && occurrences "map_1" oneCall == some 0)
+#eval check "the equal matrices of two primitives are one definition"
+  (let source := generatedChecks [sameVector (raise "sharp_euclid" (lower "flat_euclid" (vplane p 5 (-7))))
+    (vplane p 5 (-7))]
+  occurrences (matrixDefinition 0 identityRows) source == some 1 && occurrences matrixType source == some 1 &&
+    occurrences (sharpCall 0 ++ flatCall 0) source == some 1)
+#eval check "flat and sharp lower to the shared smooth runtime and name the declared matrices"
+  (let source := generatedCode metricMain
+  -- Euclid's Gram matrix is its own inverse: `flat_euclid` and `sharp_euclid` name one matrix.
+  [matrixDefinition 0 identityRows, matrixDefinition 1 skewRows, matrixDefinition 2 skewInverseRows,
+    matrixDefinition 3 lorentzRows].all (occurrences · source == some 1) &&
+    occurrences matrixType source == some 4 && occurrences mapLiteral source == some 1 &&
+    [flatCall 0, flatCall 1, sharpCall 0, sharpCall 2, sharpCall 3].all fun call =>
+      (occurrences call source).any (· > 0))
 
 /-! ## Static rejections in Core -/
 

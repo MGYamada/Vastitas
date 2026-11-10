@@ -615,10 +615,12 @@ fn main() -> Int {{ if lies_over({binding}(sq(), line_at(3), dline(line_at(9), 1
 #[test]
 fn each_pullback_binding_compiles_to_its_own_residual_policy() {
     // The kernel compiles the pullback along the declared map sq into Core
-    // (#623): a generated backward function `f_1`, placed first, with one
-    // Jacobian step. Saved, the caller evaluates sq(3) and passes both points
-    // and the seed; recomputed, it passes the input point and the seed, and
-    // the function evaluates sq(3) again. Neither runs the runtime reverse pass.
+    // (#623): a generated backward function `f_1`, placed first among the
+    // functions, with one Jacobian step. The module declares the map of sq
+    // once, as `map_0`, before its functions. Saved, the caller evaluates
+    // sq(3) and passes both points and the seed; recomputed, it passes the
+    // input point and the seed, and the function evaluates sq(3) again.
+    // Neither runs the runtime reverse pass.
     for (binding, parameters, caller_images, function_images) in
         [("pullback", 3, 1, 0), ("pullback_recomputed", 2, 0, 1)]
     {
@@ -626,8 +628,12 @@ fn each_pullback_binding_compiles_to_its_own_residual_policy() {
         assert!(!source.contains("PullbackMode"), "{binding}: {source}");
         let definitions = common::lean_definitions(&source);
         let names: Vec<&str> = definitions.iter().map(|(name, _)| *name).collect();
-        assert_eq!(names, ["f_1", "f_0", "main"], "{binding}: {source}");
-        let (generated, caller) = (definitions[0].1, definitions[1].1);
+        assert_eq!(
+            names,
+            ["map_0", "f_1", "f_0", "main"],
+            "{binding}: {source}"
+        );
+        let (generated, caller) = (definitions[1].1, definitions[2].1);
         let header = generated.lines().next().unwrap();
         assert_eq!(header.matches(" (v_").count(), parameters, "{header}");
         assert_eq!(
@@ -968,11 +974,19 @@ fn metric_programs_lower_to_the_shared_smooth_runtime() {
     let source = emitted["lean_source"].as_str().unwrap();
     for expected in [
         "import VastitasKernel.SmoothRuntime\n",
+        // The module declares each distinct matrix once, in declaration
+        // order (#629). Euclid's Gram matrix is its own inverse, so
+        // flat_euclid and sharp_euclid name one declaration.
+        "def matrix_0 : VastitasKernel.SmoothRuntime.Matrix :=\n  ([[(mkRat (1 : Int) 1), (mkRat (0 : Int) 1)], [(mkRat (0 : Int) 1), (mkRat (1 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix)\n",
         // flat applies the declared Gram matrix of Skew.
-        "(VastitasKernel.SmoothRuntime.flat ([[(mkRat (2 : Int) 1), (mkRat (1 : Int) 1)], [(mkRat (1 : Int) 1), (mkRat (1 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix) ",
+        "def matrix_1 : VastitasKernel.SmoothRuntime.Matrix :=\n  ([[(mkRat (2 : Int) 1), (mkRat (1 : Int) 1)], [(mkRat (1 : Int) 1), (mkRat (1 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix)\n",
+        "(VastitasKernel.SmoothRuntime.flat matrix_1 ",
         // sharp applies the inverse that the kernel certified.
-        "(VastitasKernel.SmoothRuntime.sharp ([[(mkRat (1 : Int) 1), (mkRat (-1 : Int) 1)], [(mkRat (-1 : Int) 1), (mkRat (2 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix) ",
-        "(VastitasKernel.SmoothRuntime.sharp ([[(mkRat (1 : Int) 1), (mkRat (0 : Int) 1)], [(mkRat (0 : Int) 1), (mkRat (-1 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix) ",
+        "def matrix_2 : VastitasKernel.SmoothRuntime.Matrix :=\n  ([[(mkRat (1 : Int) 1), (mkRat (-1 : Int) 1)], [(mkRat (-1 : Int) 1), (mkRat (2 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix)\n",
+        "(VastitasKernel.SmoothRuntime.sharp matrix_2 ",
+        "def matrix_3 : VastitasKernel.SmoothRuntime.Matrix :=\n  ([[(mkRat (1 : Int) 1), (mkRat (0 : Int) 1)], [(mkRat (0 : Int) 1), (mkRat (-1 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix)\n",
+        "(VastitasKernel.SmoothRuntime.sharp matrix_3 ",
+        "(VastitasKernel.SmoothRuntime.sharp matrix_0 (VastitasKernel.SmoothRuntime.flat matrix_0 ",
         // The differential is compiled into Core (#623): a Jacobian step
         // along the declared g, and the runtime reverse pass along the parameter h
         // of each gradient function.
@@ -980,6 +994,14 @@ fn metric_programs_lower_to_the_shared_smooth_runtime() {
     ] {
         assert!(source.contains(expected), "{expected}\n{source}");
     }
+    // The five flat calls and the five sharp calls name four matrices, and
+    // the calls of g name one map: no call repeats a literal.
+    let count = |text: &str| source.matches(text).count();
+    assert_eq!(count("(VastitasKernel.SmoothRuntime.flat matrix_"), 5);
+    assert_eq!(count("(VastitasKernel.SmoothRuntime.sharp matrix_"), 5);
+    assert_eq!(count(": VastitasKernel.SmoothRuntime.Matrix)"), 4);
+    assert!(count("(VastitasKernel.SmoothRuntime.Program.primitive map_0)") > 1);
+    assert_eq!(count("(VastitasKernel.AlgebraRuntime.Map.mk "), 1);
     assert!(!source.contains("SmoothRuntime.differential "), "{source}");
     assert_eq!(
         source

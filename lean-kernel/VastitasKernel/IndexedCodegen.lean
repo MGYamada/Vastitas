@@ -4,18 +4,39 @@ import VastitasKernel.IndexedTypeAudit
 Generated modules import IndexedRuntime, and AlgebraRuntime or SmoothRuntime
 only when they use them. Names and representation choices come from numeric
 positions and validated contracts, never source spellings. The text of a
-primitive call comes from the registry entry of its binding, and the literals
-a module declares once come from the entries of all its primitives
-(`PrimitiveBinding.contract`), in the vocabulary of `Lowering`. -/
+primitive call comes from the registry entry of its binding
+(`PrimitiveBinding.contract`), in the vocabulary of `Lowering`. The literals
+a module declares once come from the same entries: the bases from the entries
+of all its primitives, the matrices and maps from the entries of the
+primitives that the generated functions call. A call names such a literal, so
+the size of a module does not grow by a literal per call. -/
 namespace VastitasKernel.Indexed.Core.Codegen
 open Typing
-open VastitasKernel.Indexed.Lowering (runtime algebra smooth application renderPolys basisName)
+open VastitasKernel.Indexed.Lowering (runtime algebra smooth application literalType literalValue)
+
+/-- The primitives that a term calls, once per call. -/
+private def primitiveIds : Term → List DeclId
+  | .primitive id arguments _ => id :: arguments.flatMap primitiveIds
+  | .call _ arguments _ _ => arguments.flatMap primitiveIds
+  | .unary _ operand _ | .project _ _ operand | .natToInt operand | .scope operand | .ascribe _ operand =>
+    primitiveIds operand
+  | .binary _ left right _ | .pair _ left right => primitiveIds left ++ primitiveIds right
+  | .branch condition yes no _ => primitiveIds condition ++ primitiveIds yes ++ primitiveIds no
+  | .pack _ witness fields => primitiveIds witness ++ fields.flatMap primitiveIds
+  | .unpack _ _ value body | .letE _ value body => primitiveIds value ++ primitiveIds body
+  | _ => []
 
 /-- What the lowering of a call reads from the module: the distinct literals
-that the entries of all its checked primitives share, in declaration order, each
-emitted once as `basis_k` and named by every map over that basis. -/
-def renderContext (env : Declarations) : RenderContext :=
-  ⟨PrimitiveDescriptor.sharedLiterals (env.primitives.map fun entry => entry.binding.contract)⟩
+that the module declares once and every call names. The bases are those that
+the entries of all its checked primitives share, in declaration order
+(`basis_k`). The matrices and maps are those that the entries of the `called`
+primitives share, in declaration order (`matrix_k`, `map_k`), so a primitive
+that no generated function calls adds neither. -/
+def renderContext (env : Declarations) (called : DeclId → Bool) : RenderContext :=
+  let shared := fun (primitives : List NamedPrimitive) =>
+    PrimitiveDescriptor.sharedLiterals (primitives.map fun entry => entry.binding.contract)
+  ⟨(shared env.primitives).filter (· matches .basis _) ++
+    (shared (env.primitives.filter fun entry => called entry.id)).filter fun literal => !(literal matches .basis _)⟩
 private def variableName (symbol : Nat) : String := s!"v_{symbol}"
 private def functionName (symbol : Nat) : String := s!"f_{symbol}"
 private def packageName (index : Nat) : String := s!"Package_{index}"
@@ -121,22 +142,27 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
         reachable := reachable.insert callee
   let packages ← (packageCases module.declarations).zipIdx.mapM fun (entry, index) =>
     renderPackage module.declarations entry.2 index
-  let ctx := renderContext module.declarations
-  let functions ← (module.functions.filter (fun function => reachable.contains function.id)).mapM
-    (renderFunction module.declarations ctx)
+  let emitted := module.functions.filter fun function => reachable.contains function.id
+  let called : Std.HashSet DeclId := Std.HashSet.ofList (emitted.flatMap fun function => primitiveIds function.body)
+  let ctx := renderContext module.declarations called.contains
+  let functions ← emitted.mapM (renderFunction module.declarations ctx)
+  -- Each shared literal is declared once, under the name that its calls write.
+  let declare := fun (literals : List SharedLiteral) => literals.filterMap fun literal =>
+    (ctx.name? literal).map fun name => s!"def {name} : {literalType literal} :=\n  {literalValue ctx literal}\n"
+  let (bases, calledLiterals) := ctx.literals.partition (· matches .basis _)
+  let literalDefinitions := declare calledLiterals
   -- Only programs that use exact algebra or smooth programs import those runtimes.
-  let usesAlgebra := (packages ++ functions).any fun text => (text.splitOn (algebra "")).length > 1
-  let usesSmooth := (packages ++ functions).any fun text => (text.splitOn (smooth "")).length > 1
+  let texts := literalDefinitions ++ packages ++ functions
+  let usesAlgebra := texts.any fun text => (text.splitOn (algebra "")).length > 1
+  let usesSmooth := texts.any fun text => (text.splitOn (smooth "")).length > 1
   let imports := "import VastitasKernel.IndexedRuntime\n" ++
     (if usesAlgebra then "import VastitasKernel.AlgebraRuntime\n" else "") ++
     (if usesSmooth then "import VastitasKernel.SmoothRuntime\n" else "")
-  let basisDefinitions := if usesAlgebra then
-      ctx.literals.zipIdx.map fun (basis, index) =>
-        s!"def {basisName index} : List {algebra "Poly"} :=\n  {renderPolys basis}\n"
-    else []
+  -- A map names its basis, so the bases come first.
+  let basisDefinitions := if usesAlgebra then declare bases else []
   return imports ++ "\nset_option maxRecDepth 32768\n" ++
     "set_option maxHeartbeats 2000000\nset_option linter.unusedVariables false\n\n" ++
-    "namespace VastitasGenerated\n\n" ++ String.intercalate "\n" (basisDefinitions ++ packages ++ functions) ++
+    "namespace VastitasGenerated\n\n" ++ String.intercalate "\n" (basisDefinitions ++ texts) ++
     "\nend VastitasGenerated\n"
 
 def functionReference (id : Nat) : String := "VastitasGenerated." ++ functionName id

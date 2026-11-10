@@ -255,19 +255,71 @@ private def callText : String :=
   (outcome (demo.render noLiterals []) == outcome Lowering.arityMismatch)
 
 /-- The basis of a relative constant on the plane. -/
-private def planeBasis : SharedLiteral := [AlgebraRuntime.Poly.var 2 0, AlgebraRuntime.Poly.var 2 1]
-/-- A relative constant, whose registry entry shares its basis. -/
+private def planeBasis : List AlgebraRuntime.Poly := [AlgebraRuntime.Poly.var 2 0, AlgebraRuntime.Poly.var 2 1]
+/-- A map over that basis. -/
+private def planeMap : AlgebraRuntime.Map := ⟨2, planeBasis, [AlgebraRuntime.Poly.var 2 0]⟩
+/-- A relative constant, whose registry entry shares its basis and its map. -/
 private def relativeConstant : PrimitiveDescriptor :=
-  (PrimitiveBinding.relativeConstant ⟨id "Over", []⟩ ⟨2, planeBasis, [AlgebraRuntime.Poly.var 2 0]⟩).contract
+  (PrimitiveBinding.relativeConstant ⟨id "Over", []⟩ planeMap).contract
+/-- A smooth constant with the same map, whose registry entry shares the map. -/
+private def smoothConstant : PrimitiveDescriptor :=
+  (PrimitiveBinding.smoothConstant ⟨id "Smooth", []⟩ planeMap).contract
+private def gram : SmoothRuntime.Matrix := [[2, 1], [1, 1]]
+private def inverse : SmoothRuntime.Matrix := [[1, -1], [-1, 2]]
+/-- `flat` shares the Gram matrix of its metric, `sharp` the certified inverse. -/
+private def flat : PrimitiveDescriptor :=
+  (PrimitiveBinding.metricFlat (id "Skew") (id "Plane") gram (id "Tangent") (id "Cotangent")).contract
+private def sharp : PrimitiveDescriptor :=
+  (PrimitiveBinding.metricSharp (id "Skew") (id "Invertible") (id "Plane") gram inverse (id "Cotangent")
+    (id "Tangent")).contract
 
 #eval checkEq "the demo shares no literal" (PrimitiveDescriptor.sharedLiterals [demo]) []
-#eval checkEq "a relative constant shares its basis" (PrimitiveDescriptor.sharedLiterals [relativeConstant])
-  [planeBasis]
+#eval checkEq "a relative constant shares its basis and its map" (PrimitiveDescriptor.sharedLiterals [relativeConstant])
+  [.basis planeBasis, .map planeMap]
+#eval checkEq "a smooth constant shares its map, flat the Gram matrix and sharp the inverse"
+  (PrimitiveDescriptor.sharedLiterals [smoothConstant, flat, sharp]) [.map planeMap, .matrix gram, .matrix inverse]
+#eval checkEq "equal literals of several entries are shared once"
+  (PrimitiveDescriptor.sharedLiterals [relativeConstant, flat, smoothConstant, sharp, flat, relativeConstant])
+  [.basis planeBasis, .map planeMap, .matrix gram, .matrix inverse]
 #eval checkEq "the demo leaves the literals a module shares as they are"
   (PrimitiveDescriptor.sharedLiterals [demo, relativeConstant, demo])
   (PrimitiveDescriptor.sharedLiterals [relativeConstant])
-#eval checkEq "the lowering reads no shared literal" (outcome (demo.render ⟨[planeBasis]⟩ ["v_0", "v_1", "v_2"]))
-  (none, some callText)
+#eval checkEq "the lowering reads no shared literal"
+  (outcome (demo.render ⟨[.basis planeBasis]⟩ ["v_0", "v_1", "v_2"])) (none, some callText)
+
+/-! A call names a literal that the module shares, by its kind and its
+position among the shared literals of that kind, and writes any other literal
+in place. A map in place names its basis when the module shares the basis. -/
+
+private def shared : RenderContext := ⟨[.basis planeBasis, .matrix inverse, .map planeMap, .matrix gram]⟩
+private def mapText (basis : String) : String :=
+  s!"(VastitasKernel.AlgebraRuntime.Map.mk 2 {basis} {Lowering.renderPolys planeMap.images})"
+private def matrixText (rows : String) : String := s!"([{rows}] : VastitasKernel.SmoothRuntime.Matrix)"
+private def inverseText : String :=
+  matrixText "[(mkRat (1 : Int) 1), (mkRat (-1 : Int) 1)], [(mkRat (-1 : Int) 1), (mkRat (2 : Int) 1)]"
+
+#eval checkEq "the names of shared literals"
+  (shared.literals.map shared.name?) [some "basis_0", some "matrix_0", some "map_0", some "matrix_1"]
+#eval checkEq "a literal that the module does not share has no name" (noLiterals.name? (.matrix gram)) none
+#eval checkEq "calls name the shared literals"
+  ([relativeConstant.render shared [], smoothConstant.render shared [], flat.render shared ["v_0"],
+    sharp.render shared ["v_0"]].map outcome)
+  ([.ok "map_0", .ok "(VastitasKernel.SmoothRuntime.Program.primitive map_0)",
+    .ok "(VastitasKernel.SmoothRuntime.flat matrix_1 v_0)",
+    .ok "(VastitasKernel.SmoothRuntime.sharp matrix_0 v_0)"].map outcome)
+#eval checkEq "a map that the module does not share is written in place and names its shared basis"
+  (outcome (relativeConstant.render ⟨[.basis planeBasis]⟩ [])) (none, some (mapText "basis_0"))
+#eval checkEq "without shared literals every literal is written in place"
+  ([relativeConstant.render noLiterals [], sharp.render noLiterals ["v_0"]].map outcome)
+  ([.ok (mapText (Lowering.renderPolys planeBasis)),
+    .ok s!"(VastitasKernel.SmoothRuntime.sharp {inverseText} v_0)"].map outcome)
+#eval checkEq "the module declares a shared literal with its type and its value in place"
+  (shared.literals.map fun literal => (Lowering.literalType literal, Lowering.literalValue shared literal))
+  [("List VastitasKernel.AlgebraRuntime.Poly", Lowering.renderPolys planeBasis),
+    ("VastitasKernel.SmoothRuntime.Matrix", inverseText),
+    ("VastitasKernel.AlgebraRuntime.Map", mapText "basis_0"),
+    ("VastitasKernel.SmoothRuntime.Matrix",
+      matrixText "[(mkRat (2 : Int) 1), (mkRat (1 : Int) 1)], [(mkRat (1 : Int) 1), (mkRat (1 : Int) 1)]")]
 
 /-! The lowered text elaborates as the body of a generated function whose
 parameters and result have the types that `renderType` in `IndexedCodegen`

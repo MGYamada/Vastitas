@@ -44,9 +44,10 @@ describes the registry's place in the checker, and
   a value of the checked result type.
 - The [**lowering**](../appendix/glossary.md#lowering) of a call is the Lean
   text that code generation writes for it, from the texts of its operands.
-- A [**shared literal**](../appendix/glossary.md#shared-literal) is a basis
-  that a generated module declares once, as `basis_k`, and that the lowering
-  of every map over that basis names.
+- A [**shared literal**](../appendix/glossary.md#shared-literal) is a basis,
+  a matrix or a map that a generated module declares once, as `basis_k`,
+  `matrix_k` or `map_k`, and that the lowering of every call that uses it
+  names.
 - The [**wire form**](../appendix/glossary.md#wire-form) of a binding is the
   record that the frontend sends for an `indexed primitive` declaration: an
   `op` and its named fields.
@@ -74,7 +75,7 @@ tables below take no case per constructor. Module paths are relative to
 | `PrimitiveFresh` | `IndexedSemantics.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `allocatedSerials` and the fresh brand of `emitPrimitive` | `IndexedTypeAudit.lean`, `IndexedSourceBodies.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `Codegen.renderPrimitive` | `IndexedCodegen.lean` | `render` |
-| `Codegen.renderContext` and the `basis_k` declarations of a generated module | `IndexedCodegen.lean` | `literals`, through `PrimitiveDescriptor.sharedLiterals` |
+| `Codegen.renderContext` and the `basis_k`, `matrix_k` and `map_k` declarations of a generated module | `IndexedCodegen.lean` | `literals`, through `PrimitiveDescriptor.sharedLiterals` |
 | The reverse sites of a module and the maps of each site | `IndexedReverse.lean` | `reverse` |
 
 The oracle states the semantic obligations of an entry once, for any
@@ -217,10 +218,17 @@ number of operands, and the checked operand count fixes it. The lowering
 writes runtime names with `Lowering.runtime`, `Lowering.algebra` and
 `Lowering.smooth`, and the checked data of the binding with
 `Lowering.renderMap`, `Lowering.renderPolys` and `Lowering.renderMatrix`. It
-uses no source spelling. `Lowering.renderMap` names the basis of a map as
-`basis_k` when the `RenderContext` lists it, and writes the basis in place
-otherwise. The context lists the bases that some entry of the module puts in
-`literals`, as `relativeConstant` does.
+uses no source spelling. `Lowering.renderMap` names a map as `map_k` and
+`Lowering.renderMatrix` names a matrix as `matrix_k` when the `RenderContext`
+lists it, and each writes the literal in place otherwise. A map in place
+names its basis as `basis_k` in the same way. The context lists the bases
+that some entry of the module puts in `literals`. It lists the matrices and
+maps that the entry of a primitive puts there when a generated function calls
+the primitive. `relativeConstant` lists its basis and its map,
+`smoothConstant` its map, `metricFlat` its Gram matrix and `metricSharp` its
+inverse. A literal that an entry writes without listing it is repeated at
+every call, as the Jacobian table that `cotangentJacobian` writes with
+`Lowering.renderJacobian` is.
 
 The entry grants no authority. The all-body audits and the public acceptance
 path do not change.

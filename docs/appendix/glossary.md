@@ -1078,8 +1078,10 @@ The kind of a core geometric object: `Scheme` for ordinary objects and
 
 ## Shared literal
 
-A basis that a generated module declares once, as `basis_k`, and that the
-[lowering](#lowering) of every map over that basis names. The `literals`
+A basis, a matrix or a map that a generated module declares once and that the
+[lowering](#lowering) of every call that uses it names. A basis is declared
+as `basis_k`, the Gram matrix of a metric or its inverse as `matrix_k`, and
+the map of a relative or smooth constant as `map_k`. The `literals`
 field of a [registry entry](#registry-entry) lists the shared literals of the
 binding's calls. See
 [Add an indexed primitive](../development/primitives.md#2-the-registry-entry).

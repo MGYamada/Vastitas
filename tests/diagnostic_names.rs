@@ -3,7 +3,8 @@
 //! headers of a package program under internal symbols that encode the canonical
 //! location of each package; no message may print one. Each test pins the
 //! complete message text of one rejection, without its `path:line:column:`
-//! locations.
+//! locations. The last test pins the locations as well: a note about a method
+//! must point at that method (#727).
 //!
 //! A program with a grant uses the latest wire protocol. A package program
 //! without edit declarations uses an earlier one, whose rejections also pass
@@ -43,16 +44,23 @@ fn packages(base: &str, addon: &str, events: &str, main: &str) -> Scratch {
 }
 
 /// Checks `app`, which must be rejected with `code` first, and returns the
-/// lines of the message text. No line may hold an internal symbol, the scratch
-/// directory or the encoding of that directory in an internal symbol.
+/// rendered diagnostics.
 #[track_caller]
-fn rejected(s: &Scratch, code: &str) -> Vec<String> {
+fn rendered(s: &Scratch, code: &str) -> String {
     let output = cli()
         .current_dir(&s.0)
         .args(["check", "--manifest-path", "app/Vastitas.toml"])
         .output()
         .unwrap();
-    let text = message_text(&expect_code(&output, code));
+    expect_code(&output, code)
+}
+
+/// Checks `app`, which must be rejected with `code` first, and returns the
+/// lines of the message text. No line may hold an internal symbol, the scratch
+/// directory or the encoding of that directory in an internal symbol.
+#[track_caller]
+fn rejected(s: &Scratch, code: &str) -> Vec<String> {
+    let text = message_text(&rendered(s, code));
     assert!(
         !text.contains("ns_f_") && !text.contains("ns_b_"),
         "an internal symbol names a declaration or a binder:\n{text}"
@@ -286,5 +294,81 @@ fn the_audit_of_an_unapplied_contribution_names_the_generic_by_its_path() {
             "E_ARITY: generic 'base::choose': method selector arity differs from its generic",
             "note: candidate method for generic 'base::choose' declared here",
         ]
+    );
+}
+
+/// Checks `app`, which must be rejected with `code` first, and returns each
+/// rendered line with its location relative to the scratch directory:
+/// `package/main.vast:line:column: text`.
+#[track_caller]
+fn located(s: &Scratch, code: &str) -> Vec<String> {
+    let directory = format!("{}/", s.0.canonicalize().unwrap().display());
+    rendered(s, code)
+        .lines()
+        .map(|line| {
+            line.strip_prefix(&directory)
+                .unwrap_or_else(|| panic!("no location in the scratch directory: {line}"))
+                .to_owned()
+        })
+        .collect()
+}
+
+// #727: the audit numbers a method by its place in its contribution. The final
+// surface holds no method of an unapplied contribution, and the same number
+// names another method there: first the method of `base`, then the method of
+// the applied `sum`. Every note must point at the method of `spare` that the
+// audit rejects; the diagnostic itself stays at the generic.
+#[test]
+fn the_audit_of_an_unapplied_contribution_points_at_the_method_it_rejects() {
+    const ARITY: &str = "base/main.vast:1:5: E_ARITY: generic 'base::choose': method selector arity differs from its generic";
+    const ACCEPTED: &str = "    method base::choose(a: Number, b: Int) -> Int { 0 }";
+    const UNARY: &str = "    method base::choose(c: Int) -> Int { c }";
+    // `sum` and its method are on line 1 of `addon`, the methods of `spare`
+    // on line 3 and after.
+    let spare = |methods: &[&str]| {
+        format!(
+            "{ADDON}\npub contribution spare : base::choose {{\n{}\n}}",
+            methods.join("\n")
+        )
+    };
+    let note = |line: usize| {
+        format!(
+            "addon/main.vast:{line}:5: note: candidate method for generic 'base::choose' declared here"
+        )
+    };
+    // Its first method: that number names the method of `base`.
+    assert_eq!(
+        located(&packages(BASE, &spare(&[UNARY]), EVENTS, CALL), "E_ARITY"),
+        [ARITY.to_string(), note(3)]
+    );
+    // Its second method: that number names the method of the applied `sum`.
+    assert_eq!(
+        located(
+            &packages(BASE, &spare(&[ACCEPTED, UNARY]), EVENTS, CALL),
+            "E_ARITY"
+        ),
+        [ARITY.to_string(), note(4)]
+    );
+    // Another code of the audit with a candidate note.
+    let unsupported = "    method base::choose(c: Int, d: Int) -> Int requires (Foo) { c }";
+    assert_eq!(
+        located(
+            &packages(BASE, &spare(&[unsupported]), EVENTS, CALL),
+            "E_CAPABILITY"
+        ),
+        [
+            "base/main.vast:1:5: E_CAPABILITY: generic 'base::choose': unsupported static capability 'Foo'"
+                .to_string(),
+            note(3)
+        ]
+    );
+    // No assembly applies a contribution: the final surface holds one method,
+    // and the number of the second method of `spare` names none.
+    assert_eq!(
+        located(
+            &packages(BASE, &spare(&[ACCEPTED, UNARY]), "", CALL),
+            "E_ARITY"
+        ),
+        [ARITY.to_string(), note(4)]
     );
 }

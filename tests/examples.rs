@@ -84,6 +84,7 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/indexed/Vastitas.toml", "42"),
     ("examples/packages/stdlib-geometry/Vastitas.toml", "42"),
     ("examples/packages/storage/app/Vastitas.toml", "42"),
+    ("examples/packages/vector-cells/Vastitas.toml", "42"),
 ];
 
 /// The rejected programs that the book includes from `examples/reject/`, with

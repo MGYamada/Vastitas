@@ -1,0 +1,49 @@
+mod profiles;
+
+// `main` lends uninitialized cells as vectors. The callees write the cells
+// through their vector parameters, and `main` reads them back. Nothing is
+// conjugated, converted or allocated: these are writes and reads of stored
+// coordinates.
+resource fn main() -> Int {
+    space v = linear(profiles::RealSmooth, 3);
+    basis bv = basis(v);
+    allocate first: F64[3];
+    allocate second: F64[3];
+    borrow cells = write(first, layout(0, 3, 1, 3, false));
+    vector e = view(cells, bv);
+    call unit_vector(v, bv, e) -> ();
+    release(cells);
+    borrow stored = read(first, layout(0, 3, 1, 3, false));
+    vector x = view(stored, bv);
+    expect(x, 0, 0, f64(0));
+    expect(x, 1, 0, f64(1));
+    expect(x, 2, 0, f64(0));
+    borrow target = write(second, layout(0, 3, 1, 3, false));
+    vector y = view(target, bv);
+    call duplicate(v, bv, x, y) -> ();
+    release(target);
+    release(stored);
+    borrow copied = read(second, layout(0, 3, 1, 3, false));
+    expect(copied, 0, 0, f64(0));
+    expect(copied, 1, 0, f64(1));
+    expect(copied, 2, 0, f64(0));
+    release(copied);
+    drop(first);
+    drop(second);
+    value { 42 }
+}
+
+// ANCHOR: cells
+resource fn unit_vector(v: Space<profiles::RealSmooth, 3>, bv: Basis<v>,
+    out: WriteVector<bv> initializes) -> Unit {
+    fill(out, f64(0));
+    store(out, 1, 0, f64(1));
+    value { () }
+}
+
+resource fn duplicate(v: Space<profiles::RealSmooth, 3>, bv: Basis<v>,
+    x: ReadVector<bv>, y: WriteVector<bv> initializes) -> Unit {
+    copy(x, y);
+    value { () }
+}
+// ANCHOR_END: cells

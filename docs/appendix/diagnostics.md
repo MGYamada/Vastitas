@@ -19,6 +19,25 @@ detail. The book does not yet give each code its own entry.
 | Interrupted compilation | `E_INTERRUPTED: compilation interrupted` | 128 + signal number |
 | Generated program, native runtime check | Standard error contains `E_NATIVE_*: message` | Unsuccessful |
 
+`FILE` and `MANIFEST` are paths. The compiler does not write every character
+of a path, or of text that comes from a manifest, as it is. It writes a
+control character, white space other than U+0020, or a character with the
+Unicode `Default_Ignorable_Code_Point` property as its code point in angle
+brackets. A file name that holds the escape character appears as
+`x<U+001B>[2J.vast`, for example. The rule covers every path in a diagnostic
+and the message of a source diagnostic, which can hold the name that a
+manifest gives its package. In a manifest diagnostic it also covers the line
+that a TOML error quotes and the keys that its message names. The line
+`checked FILE` or `built FILE` of a successful command writes its path by the
+same rule.
+
+> **Implementation note.** The driver formats every path with one function. A
+> TOML error keeps the layout of the `toml` crate, and its carets stay under
+> the place that they mark in the quoted line. The message of a TOML error
+> keeps its line breaks when the manifest holds no backslash and no
+> multi-line string. In any other manifest a line feed of the message may
+> come from the manifest, and the driver writes each one as `<U+000A>`.
+
 Lines and columns are one-based; columns count Unicode scalars. A diagnostic
 reported by the Lean kernel is mapped back to the original file and its local
 position.

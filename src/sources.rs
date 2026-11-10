@@ -11,6 +11,32 @@ use std::io::Read;
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
+/// Text as the compiler shows it on the terminal. A manifest, a file name and
+/// the names a manifest gives reach diagnostics, and a TOML escape or a file
+/// name can spell any character. A character that source diagnostics name by
+/// code point instead of echoing (`frontend::character`) is named the same
+/// way here, as `<U+001B>`, so neither a terminal control nor a forged line
+/// reaches the terminal. A space stays as it is, and so does every other
+/// character.
+pub(crate) fn shown_text(text: &str) -> String {
+    let mut named = String::with_capacity(text.len());
+    for ch in text.chars() {
+        if ch == ' ' || frontend::echoable(ch) {
+            named.push(ch);
+        } else {
+            named.push_str(&format!("<{}>", frontend::character(ch)));
+        }
+    }
+    named
+}
+
+/// A path as a diagnostic or a status line shows it; see `shown_text`. Every
+/// path is shown this way, whether a manifest, the command line or the
+/// environment chose it.
+pub(crate) fn shown(path: &Path) -> String {
+    shown_text(&path.to_string_lossy())
+}
+
 struct SourceFile {
     path: PathBuf,
     canonical: PathBuf,
@@ -46,12 +72,12 @@ impl OutputIdentity {
             Err(error) => {
                 return Err(format!(
                     "E_OUTPUT: cannot inspect {}: {error}",
-                    output.display()
+                    shown(output)
                 ));
             }
         };
         let metadata = fs::metadata(output)
-            .map_err(|error| format!("E_OUTPUT: cannot inspect {}: {error}", output.display()))?;
+            .map_err(|error| format!("E_OUTPUT: cannot inspect {}: {error}", shown(output)))?;
         Ok(Some(Self {
             canonical,
             identity: (metadata.dev(), metadata.ino()),
@@ -62,7 +88,7 @@ impl OutputIdentity {
         if source.canonical == self.canonical || source.identity == self.identity {
             return Err(format!(
                 "E_OUTPUT: output would overwrite input file {}",
-                source.path.display()
+                shown(&source.path)
             ));
         }
         Ok(())
@@ -86,7 +112,7 @@ impl Sources {
     ) -> Result<SourceInput<'_>, String> {
         let canonical = path
             .canonicalize()
-            .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
+            .map_err(|error| format!("E_INPUT: cannot read {}: {error}", shown(path)))?;
         self.push_file(path, canonical)?;
         let file = self.files.last().unwrap();
         if let Some(output) = output {
@@ -112,21 +138,21 @@ impl Sources {
             .read(true)
             .custom_flags(nix::libc::O_NONBLOCK)
             .open(&canonical)
-            .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
+            .map_err(|error| format!("E_INPUT: cannot read {}: {error}", shown(path)))?;
         let metadata = file
             .metadata()
-            .map_err(|error| format!("E_INPUT: cannot inspect {}: {error}", path.display()))?;
+            .map_err(|error| format!("E_INPUT: cannot inspect {}: {error}", shown(path)))?;
         if !metadata.is_file() {
             return Err(format!(
                 "E_INPUT: input must be a regular file: {}",
-                path.display()
+                shown(path)
             ));
         }
         let available = MAX_FILE_BYTES.min(MAX_INPUT_BYTES - self.bytes);
         let too_large = || {
             format!(
                 "E_LIMIT: input {} exceeds the 16 MiB file or 64 MiB compilation input budget",
-                path.display()
+                shown(path)
             )
         };
         if metadata.len() > available as u64 {
@@ -140,7 +166,7 @@ impl Sources {
                 Ok(count) => count,
                 Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(error) => {
-                    return Err(format!("E_INPUT: cannot read {}: {error}", path.display()));
+                    return Err(format!("E_INPUT: cannot read {}: {error}", shown(path)));
                 }
             };
             if count == 0 {
@@ -153,7 +179,7 @@ impl Sources {
             bytes.extend_from_slice(&buffer[..count]);
         }
         let text = String::from_utf8(bytes)
-            .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
+            .map_err(|error| format!("E_INPUT: cannot read {}: {error}", shown(path)))?;
         let offset = self
             .files
             .last()
@@ -184,16 +210,16 @@ impl Sources {
             if path.extension().is_none_or(|extension| extension != "vast") {
                 return Err(format!(
                     "E_INPUT: source filename must have the .vast extension: {}",
-                    path.display()
+                    shown(path)
                 ));
             }
             let canonical = path
                 .canonicalize()
-                .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
+                .map_err(|error| format!("E_INPUT: cannot read {}: {error}", shown(path)))?;
             if !seen.insert(canonical.clone()) {
                 return Err(format!(
                     "E_INPUT: source file supplied more than once: {}",
-                    path.display()
+                    shown(path)
                 ));
             }
             sources.push_file(path, canonical)?;
@@ -250,13 +276,48 @@ impl Sources {
             .unwrap_or(0)
     }
 
+    /// One diagnostic line. The message of a kernel diagnostic can name a
+    /// package as its manifest does, so the message is shown like the path.
     pub(crate) fn diagnostic(&self, code: &str, message: &str, span: Span) -> String {
         let file = &self.files[self.file_index(span.start)];
         format!(
-            "{}:{}:{}: {code}: {message}",
-            file.path.display(),
+            "{}:{}:{}: {code}: {}",
+            shown(&file.path),
             span.line,
-            span.column
+            span.column,
+            shown_text(message)
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    #[test]
+    fn shown_text_names_controls_formats_and_whitespace_other_than_spaces() {
+        let plain = "a b/é数 → `c`.vast";
+        assert_eq!(shown_text(plain), plain);
+        assert_eq!(
+            shown_text(
+                "\u{1b}[2J\u{7}\n\r\t\u{7f}\u{9b}\u{a0}\u{2028}\u{3000}\u{202e}\u{200b}\u{feff}"
+            ),
+            "<U+001B>[2J<U+0007><U+000A><U+000D><U+0009><U+007F><U+009B><U+00A0><U+2028><U+3000><U+202E><U+200B><U+FEFF>"
+        );
+        // A name holds no character that is named again.
+        let named = shown_text("x\u{1b}\u{e0001}y");
+        assert_eq!(named, "x<U+001B><U+E0001>y");
+        assert_eq!(shown_text(&named), named);
+        assert_eq!(
+            shown(Path::new("d\u{1b}[2J/a b.vast")),
+            "d<U+001B>[2J/a b.vast"
+        );
+        // A path that is not UTF-8 is shown with replacement characters.
+        assert_eq!(
+            shown(Path::new(OsStr::from_bytes(b"a\xff\x1b"))),
+            "a\u{fffd}<U+001B>"
+        );
     }
 }

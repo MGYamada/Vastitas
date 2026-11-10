@@ -6,7 +6,7 @@ use crate::ir::{
     Subtype,
 };
 use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
-use crate::sources::{OutputIdentity, Sources};
+use crate::sources::{OutputIdentity, Sources, shown, shown_text};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::OsString;
@@ -262,21 +262,90 @@ fn existence(
     Ok(Existence::Exact)
 }
 
-/// A path as an `E_INPUT` error shows it. A manifest chooses its root and
-/// dependency paths, and TOML escapes can spell any character in them. A
-/// character that source diagnostics name by code point instead of echoing
-/// (`frontend::character`) is named the same way here, as `<U+001B>`, so no
-/// terminal control reaches stderr. A space stays as it is.
-fn shown(path: &Path) -> String {
-    let mut text = String::new();
-    for ch in path.to_string_lossy().chars() {
-        if ch == ' ' || frontend::echoable(ch) {
-            text.push(ch);
-        } else {
-            text.push_str(&format!("<{}>", frontend::character(ch)));
+/// The message of a TOML error as an `E_MANIFEST` error shows it. toml puts
+/// the parts of a message on lines of their own, and a message can quote a key
+/// or a string of the manifest. A key or a string holds a line feed only
+/// through an escape or in a multi-line string. So in a manifest without a
+/// backslash and without a multi-line string, every line feed of the message
+/// is toml's own and stays a line break. In any other manifest a line feed may
+/// be manifest text, and each one is named like every other control.
+fn shown_message(source: &str, message: &str) -> String {
+    if source.contains('\\') || source.contains("\"\"\"") || source.contains("'''") {
+        shown_text(message)
+    } else {
+        let lines: Vec<String> = message.split('\n').map(shown_text).collect();
+        lines.join("\n")
+    }
+}
+
+/// The four lines that toml writes ahead of the message of an error with a
+/// position, shown as `shown_text` shows manifest text:
+///
+/// ```text
+/// TOML parse error at line 4, column 22
+///   |
+/// 4 | root = "main.vast" # …
+///   |                      ^
+/// ```
+///
+/// The third quotes the line of the manifest, and the carets of the fourth
+/// mark the place in it. A name such as `<U+001B>` is wider than the character
+/// it replaces. The carets therefore move right by what the names ahead of the
+/// place add, and widen by what the names under them add. A line without such
+/// characters is shown as toml renders it: toml counts the place in bytes, so
+/// its carets run past a place that holds characters of several bytes, and
+/// they still do. The carriage return of a CR LF line end is no part of the
+/// quoted line. `None` when `rendered` has another shape or does not quote
+/// the line of `source` that it numbers.
+fn shown_position(source: &str, rendered: &str) -> Option<String> {
+    let mut lines = rendered.splitn(5, '\n');
+    let (header, bar, quoted, marks) = (lines.next()?, lines.next()?, lines.next()?, lines.next()?);
+    // The message follows.
+    lines.next()?;
+    let (number, line) = quoted.split_once(" | ")?;
+    let (margin, marks) = marks.split_once('|')?;
+    let carets = marks.trim_start_matches(' ');
+    // The caret under the first character of the line follows one space.
+    let column = (marks.len() - carets.len()).checked_sub(1)?;
+    let index = number.parse::<usize>().ok()?.checked_sub(1)?;
+    if !header.starts_with(&format!("TOML parse error at line {number}, column "))
+        || bar.trim_start_matches(' ') != "|"
+        || !margin.bytes().all(|byte| byte == b' ')
+        || carets.is_empty()
+        || !carets.bytes().all(|byte| byte == b'^')
+        || source.split('\n').nth(index) != Some(line)
+    {
+        return None;
+    }
+    let line = line.strip_suffix('\r').unwrap_or(line);
+    let ahead: String = line.chars().take(column).collect();
+    let marked: String = line.chars().skip(column).take(carets.len()).collect();
+    let widening = |text: &str| shown_text(text).chars().count() - text.chars().count();
+    Some(format!(
+        "{}\n{bar}\n{number} | {}\n{margin}|{}{}",
+        shown_text(header),
+        shown_text(line),
+        " ".repeat(column + 1 + widening(&ahead)),
+        "^".repeat(carets.len() + widening(&marked)),
+    ))
+}
+
+/// A TOML error as an `E_MANIFEST` error shows it: toml's rendering, with the
+/// text of the manifest shown as `shown_text` shows it. A manifest without a
+/// character that `shown_text` names prints as toml renders it, apart from
+/// the carriage returns of CR LF line ends.
+fn manifest_error(source: &str, error: &toml::de::Error) -> String {
+    let rendered = error.to_string();
+    let position = error.span().and_then(|_| shown_position(source, &rendered));
+    match position {
+        Some(position) => format!("{position}\n{}\n", shown_message(source, error.message())),
+        // Without a position toml writes the message and the keys that lead
+        // to the place, which are manifest text as well.
+        None => {
+            let text = rendered.strip_suffix('\n').unwrap_or(&rendered);
+            format!("{}\n", shown_message(source, text))
         }
     }
-    text
 }
 
 fn canonical(path: &Path) -> Result<PathBuf, String> {
@@ -308,7 +377,7 @@ impl Loader {
         if self.active.contains(&manifest) {
             return Err(format!(
                 "E_CYCLE: cyclic package dependency at {}",
-                manifest.display()
+                shown(&manifest)
             ));
         }
         if self.loaded.contains(&source) {
@@ -321,18 +390,24 @@ impl Loader {
         }
         self.active.insert(manifest.clone());
         let input = self.sources.add(&manifest, self.output.as_ref())?;
-        let parsed: Manifest = toml::from_str(input.source)
-            .map_err(|error| format!("{}: E_MANIFEST: {error}", manifest.display()))?;
+        let parsed: Manifest = toml::from_str(input.source).map_err(|error| {
+            format!(
+                "{}: E_MANIFEST: {}",
+                shown(&manifest),
+                manifest_error(input.source, &error)
+            )
+        })?;
         if parsed.package.name.is_empty() {
             return Err(format!(
                 "{}: E_MANIFEST: package name must not be empty",
-                manifest.display()
+                shown(&manifest)
             ));
         }
         semver::Version::parse(&parsed.package.version).map_err(|error| {
             format!(
-                "{}: E_MANIFEST: invalid SemVer: {error}",
-                manifest.display()
+                "{}: E_MANIFEST: invalid SemVer: {}",
+                shown(&manifest),
+                shown_text(&error.to_string())
             )
         })?;
         let directory = manifest.parent().unwrap();
@@ -343,7 +418,7 @@ impl Loader {
             if !identifier(&alias) {
                 return Err(format!(
                     "{}: E_MANIFEST: dependency alias must be an ASCII identifier",
-                    manifest.display()
+                    shown(&manifest)
                 ));
             }
             if frontend::reserved(&alias)
@@ -354,7 +429,7 @@ impl Loader {
             {
                 return Err(format!(
                     "{}: E_MANIFEST: dependency alias '{alias}' is reserved",
-                    manifest.display()
+                    shown(&manifest)
                 ));
             }
             let target = self.package(&directory.join(dep.path).join("Vastitas.toml"))?;
@@ -426,13 +501,10 @@ impl Loader {
         let file = canonical(file)?;
         self.inside(&file, package)?;
         let metadata = std::fs::metadata(&file)
-            .map_err(|error| format!("E_INPUT: cannot inspect {}: {error}", file.display()))?;
+            .map_err(|error| format!("E_INPUT: cannot inspect {}: {error}", shown(&file)))?;
         let identity = (metadata.dev(), metadata.ino());
         if !seen.insert(identity) {
-            return Err(format!(
-                "E_CYCLE: cyclic module loading: {}",
-                file.display()
-            ));
+            return Err(format!("E_CYCLE: cyclic module loading: {}", shown(&file)));
         }
         let input = self.sources.add(&file, self.output.as_ref())?;
         let parsed =
@@ -485,7 +557,7 @@ impl Loader {
                         "E_INPUT",
                         &format!(
                             "module path {} matches a file only case-insensitively; module names are case-sensitive",
-                            spelled.display()
+                            shown(spelled)
                         ),
                         external.span,
                     ));
@@ -495,8 +567,8 @@ impl Loader {
                         "E_INPUT",
                         &format!(
                             "ambiguous module: both {} and {} exist",
-                            flat.display(),
-                            nested.display()
+                            shown(&flat),
+                            shown(&nested)
                         ),
                         external.span,
                     ));
@@ -504,7 +576,7 @@ impl Loader {
                 (Some(Missing), Some(Missing)) => {
                     return Err(self.sources.diagnostic(
                         "E_INPUT",
-                        &format!("module requires {} or {}", flat.display(), nested.display()),
+                        &format!("module requires {} or {}", shown(&flat), shown(&nested)),
                         external.span,
                     ));
                 }
@@ -621,4 +693,161 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         packages: loader.packages,
     };
     Ok((loader.sources, program))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const HEAD: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\n";
+
+    fn rejected(source: &str) -> toml::de::Error {
+        toml::from_str::<Manifest>(source)
+            .err()
+            .unwrap_or_else(|| panic!("an accepted manifest: {source:?}"))
+    }
+
+    /// The part of the quoted line that the carets are under.
+    fn marked(shown: &str) -> String {
+        let lines: Vec<&str> = shown.split('\n').collect();
+        let start = lines[3].find('^').unwrap();
+        let width = lines[3].len() - start;
+        lines[2].chars().skip(start).take(width).collect()
+    }
+
+    #[test]
+    fn manifest_errors_without_named_characters_print_as_toml_renders_them() {
+        for source in [
+            // No table, a missing key, and a value that is absent at the end
+            // of a line and at the end of the file.
+            "".to_string(),
+            HEAD.to_string(),
+            format!("{HEAD}root = \n"),
+            format!("{HEAD}root = \"main.vast"),
+            format!("{HEAD}root ="),
+            // Keys and values that the message quotes.
+            format!("{HEAD}root = \"main.vast\"\nextra = 1\n"),
+            format!("{HEAD}name = \"again\"\n"),
+            format!("{HEAD}root = 1\n"),
+            format!("{HEAD}root = \"main.vast\"\ngeometry_compat = \"none\"\n"),
+            // A message of two lines, and a place after the first line of
+            // an inline table.
+            format!("{HEAD}root = \"main.vast\"\n[dependencies]\ndep = {{ path = 1,\n}}\n"),
+            // Characters of more than one byte ahead of the place, in it and
+            // as the place itself.
+            format!("{HEAD}root = \"数学.vast\" x\n"),
+            format!("{HEAD}root = \"main.vast\"\n\"数学\" = 1\n"),
+            format!("{HEAD}root = 数\n"),
+            // A backslash that spells no named character, with a message of
+            // one line.
+            format!("{HEAD}root = \"main.vast\"\n\"a\\\\b\" = 1\n"),
+        ] {
+            let error = rejected(&source);
+            assert_eq!(
+                manifest_error(&source, &error),
+                error.to_string(),
+                "{source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn manifest_errors_name_controls_and_keep_the_carets_under_the_place() {
+        // toml marks the first control of the comment.
+        let source = format!("{HEAD}root = \"main.vast\" # \u{1b}[2J\u{1b}[H\n");
+        let shown = manifest_error(&source, &rejected(&source));
+        assert_eq!(
+            shown,
+            concat!(
+                "TOML parse error at line 4, column 22\n",
+                "  |\n",
+                "4 | root = \"main.vast\" # <U+001B>[2J<U+001B>[H\n",
+                "  |                      ^^^^^^^^\n",
+                "expected newline, `#`\n",
+            )
+        );
+        assert_eq!(marked(&shown), "<U+001B>");
+        // Names ahead of the place: a tab, a right-to-left override and a
+        // zero-width space.
+        let source = format!("{HEAD}\troot = \"a\u{202e}b\u{200b}.vast\" x\n");
+        let shown = manifest_error(&source, &rejected(&source));
+        assert_eq!(marked(&shown), "x");
+        assert_eq!(
+            shown.split('\n').nth(2),
+            Some("4 | <U+0009>root = \"a<U+202E>b<U+200B>.vast\" x")
+        );
+        // Names in the place: the carets cover the whole key.
+        let source = format!("{HEAD}root = \"main.vast\"\n\"a\tb\" = 1\n");
+        let shown = manifest_error(&source, &rejected(&source));
+        assert_eq!(marked(&shown), "\"a<U+0009>b\"");
+        assert!(
+            shown.ends_with(
+                "\nunknown field `a<U+0009>b`, expected one of `name`, `version`, `root`\n"
+            ),
+            "{shown:?}"
+        );
+        // The carriage return of a CR LF line end is not quoted.
+        let source = "[package]\r\nname = \r\n";
+        let shown = manifest_error(source, &rejected(source));
+        assert_eq!(
+            shown,
+            concat!(
+                "TOML parse error at line 2, column 8\n",
+                "  |\n",
+                "2 | name = \n",
+                "  |        ^\n",
+                "invalid string\n",
+                "expected `\"`, `'`\n",
+            )
+        );
+    }
+
+    #[test]
+    fn manifest_error_messages_name_the_line_feeds_that_a_manifest_can_spell() {
+        // The key holds a line feed. Without the name, the message would
+        // start a line of its own choice.
+        let source = format!("{HEAD}root = \"main.vast\"\n\"k\\nE_FORGED: x\" = 1\n");
+        let shown = manifest_error(&source, &rejected(&source));
+        assert!(
+            shown.ends_with("\nunknown field `k<U+000A>E_FORGED: x`, expected one of `name`, `version`, `root`\n"),
+            "{shown:?}"
+        );
+        assert_eq!(shown.split('\n').count(), 6, "{shown:?}");
+        // A backslash or a string of several lines anywhere in the manifest:
+        // the line feed between the two parts of toml's message is named as
+        // well, because the message does not say which line feeds are its own.
+        for root in [
+            "\"a\\\\b.vast\"",
+            "'''a\nb.vast'''",
+            "\"\"\"a\nb.vast\"\"\"",
+        ] {
+            let source = format!("{HEAD}root = {root}\nextra = \n");
+            let shown = manifest_error(&source, &rejected(&source));
+            assert!(
+                shown.ends_with("\ninvalid string<U+000A>expected `\"`, `'`\n"),
+                "{shown:?}"
+            );
+        }
+        // An error without a position has no quoted line.
+        let custom = <toml::de::Error as serde::de::Error>::custom("a\u{1b}\nb");
+        assert_eq!(manifest_error("", &custom), "a<U+001B>\nb\n");
+        assert_eq!(manifest_error("\\", &custom), "a<U+001B><U+000A>b\n");
+    }
+
+    #[test]
+    fn another_rendering_of_the_position_is_not_reshaped() {
+        let source = format!("{HEAD}root = \n");
+        let rendered = rejected(&source).to_string();
+        assert!(shown_position(&source, &rendered).is_some());
+        // Another shape, and a quoted line that is not the numbered line.
+        assert_eq!(shown_position(&source, "one line"), None);
+        assert_eq!(
+            shown_position(&source, &rendered.replace("  |", "  :")),
+            None
+        );
+        assert_eq!(
+            shown_position(&source.replace("root", "main"), &rendered),
+            None
+        );
+    }
 }

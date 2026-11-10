@@ -287,8 +287,8 @@ The two compiler scaling CSV files remain attached to their reported revision.
 | Declaration checker and geometry migration | [Indexed language and geometry](../indexed-source.md#indexed-declarations) |
 | Layout preflight, raw ownership IR, resource calls | [Checked storage](../storage/checked-storage.md) |
 | Public resource statements and runtime shapes | [Resource programs](../storage/resource-programs.md) |
-| Numerical declarations, owned maps and optional BLAS | [Maps and GEMM](../linalg/maps-and-gemm.md) |
-| Transforms, vectors and explicit metrics | [Transforms and metrics](../linalg/transforms-and-metrics.md) |
-| Network wiring, contraction trees and cached packing | [Networks and packing](../linalg/networks-and-packing.md) |
+| Numerical declarations, owned maps and optional BLAS | [Numerical maps](../linalg/maps-and-gemm.md) · [Numerical backend](../internals/numerical-backend.md) |
+| Transforms, vectors and explicit metrics | [Transforms, evaluation and metrics](../linalg/transforms-and-metrics.md) · [Numerical backend](../internals/numerical-backend.md#transforms-vectors-and-metrics) |
+| Network wiring, contraction trees and cached packing | [Networks, packing and contraction trees](../linalg/networks-and-packing.md) · [Numerical backend](../internals/numerical-backend.md#networks-packing-and-contraction-trees) |
 | Pure evaluator and categorical crossing-word checker | [Core and graph proofs](../verification/core-models.md) |
 | Standalone development and mathematical references | [Compiler tools](../reference/compiler-tools.md) · [Analysis and effects](../reference/analysis-and-effects.md) · [Geometry](../reference/geometry.md) |

@@ -81,7 +81,8 @@ and the [guide](../guide/indexed-geometry.md#objects-points-and-morphisms).
 A basis of a linear space, introduced by a `basis` declaration in a resource
 function. A basis is tied to one space. A map reads storage as coordinates in
 named bases. See
-[Spaces, bases and maps](../guide/numerical.md#spaces-bases-and-maps).
+[Spaces and bases](../linalg/maps-and-gemm.md#spaces-and-bases) and the
+[guide](../guide/numerical.md#spaces-bases-and-maps).
 
 ## Binding
 
@@ -92,12 +93,25 @@ that is visible where it is introduced. See
 [Scopes of bindings](../language/statements.md#scopes-of-bindings) and
 [Resource statements](../storage/resource-programs.md#resource-statements).
 
+## Boundary
+
+The ports of a [network](#network) or of a contraction tree that no edge
+contracts. They are the axes of the result. See
+[Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
+[Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
+
 ## Built-in function
 
 A function that the language defines: `int`, `pair`, `pair_first`,
 `pair_second` and the geometric operations such as `origin`. Its name is
 reserved, and it is not a function value. See
 [Built-in functions](../language/expressions.md#built-in-functions).
+
+## Cache
+
+A record, at compile time, that the cells of one [tensor](#tensor) hold the
+packing of the cells of another. `cache` declares one, and it is valid until
+a statement writes either allocation. See [Caches](../linalg/networks-and-packing.md#caches).
 
 ## Callable domain
 
@@ -170,6 +184,12 @@ compiling the source module again. Code generation receives the compiled
 module. See
 [Compiled reverse Core](../verification.md#compiled-reverse-core).
 
+## Component
+
+In the plan of a contraction tree, a set of occurrences that the plan has
+contracted, with the [tensor](#tensor) that holds their product. See
+[Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
+
 ## Contribution
 
 A `contribution` declaration that names a generic and holds methods for it. An
@@ -225,6 +245,19 @@ the maps of two operands. `linearize` builds a tape whose map and point a
 reverse pass of the tape reads. A pullback, a differential or the reverse pass
 of a tape is a reverse pass, and its call is a
 [reverse site](#reverse-site). The other bindings have the rule `none`. See [Add an indexed primitive](../development/primitives.md).
+
+## Derived basis
+
+The basis that `derived(b, s)` declares for the basis `b` in the
+[derived space](#derived-space) `s`: the dual basis in a dual space, and the
+conjugate basis in a conjugate space. See
+[Dual and conjugate spaces](../linalg/transforms-and-metrics.md#dual-and-conjugate-spaces).
+
+## Derived space
+
+The dual space or a conjugate space of a [space](#space), declared with
+`dual` or `conjugate`. It is a different space from every other space. See
+[Dual and conjugate spaces](../linalg/transforms-and-metrics.md#dual-and-conjugate-spaces).
 
 ## Descriptor object
 
@@ -427,10 +460,22 @@ that authority. The grant names the recipient by its package's manifest
 assembly borrows it to obtain an edit loan. See
 [Grants and delegations](../language/edit-authority.md#grants-and-delegations).
 
+## Grouping
+
+The part `axes(…), s` of a [tensor](#tensor) declaration. It says which axes
+index the rows and which the columns of the matrix that stores the cells. See
+[Tensors](../linalg/networks-and-packing.md#tensors).
+
 ## Higher-order function
 
 A function with a function parameter or a function result. See
 [Specialization](../stage1b.md#specialization).
+
+## Identity Gram data
+
+The Gram data of a [metric](#metric) that is `orthonormal`, a
+`scaled_identity` with the entry 1 or a `diagonal` whose entries are all 1.
+`adjoint` and `hermitian` need it. See [Metrics](../linalg/transforms-and-metrics.md#metrics).
 
 ## Implementation
 
@@ -455,6 +500,13 @@ A declaration that begins with `indexed`. Its kinds are `marker`,
 A type that applies a family of an `indexed` declaration to its arguments, such
 as `geo::Point<X, geo::Base>`, or the type `Object<D, M>` of an object. See
 [Indexed types](../language/types.md#indexed-types).
+
+## Involution
+
+The scalar involution of a linear implementation: the identity for real
+coefficients and complex conjugation for complex ones. `involution` declares
+a binding of it. See
+[Dual and conjugate spaces](../linalg/transforms-and-metrics.md#dual-and-conjugate-spaces).
 
 ## Issuer
 
@@ -520,6 +572,13 @@ A character that ends a line in another convention than LF or CR LF, such as
 a form feed or U+2028. A source file contains none. See
 [Source text](../language/lexical-structure.md#source-text).
 
+## Linear implementation
+
+An `indexed implementation` with a `linear_descriptor` representation. It
+says over which base object and with which coefficients, real or complex, its
+[spaces](#space) are. See
+[Linear implementations](../linalg/maps-and-gemm.md#linear-implementations).
+
 ## Logical evaluator
 
 The evaluator of a [registry entry](#registry-entry) that computes the value
@@ -578,6 +637,13 @@ result type and may require capabilities. See
 [Method declarations](../stage1a.md#method-declarations) and the
 [guide](../guide/dispatch.md#generics-and-methods).
 
+## Metric
+
+A Hermitian form on a numerical [space](#space), declared with `metric` by
+its diagonal Gram matrix in a basis. A program names a metric wherever an
+adjoint or a Hermitian pairing needs one. Compare
+[metric form](#metric-form). See [Metrics](../linalg/transforms-and-metrics.md#metrics).
+
 ## Metric form
 
 A family with the `metric_form` representation, such as `MetricForm<X>`, over
@@ -604,6 +670,12 @@ Method `a` is more specific than method `b` when its selectors are no
 broader, its requirements are no weaker, and one of these comparisons is
 strict. See [Selection](../stage1a.md#selection).
 
+## Network
+
+A graph of [occurrences](#occurrence) of numerical maps whose
+[ports](#port) an edge contracts. A `contract` block declares a network of
+two maps. See [Two-map networks](../linalg/networks-and-packing.md#two-map-networks).
+
 ## Nominal identity
 
 Identity that comes from a declaration or a construction, never from structure.
@@ -629,6 +701,20 @@ evidence. `sharp` requires nondegenerate evidence for its metric. See
 [Metric evidence](../language/smooth-declarations.md#metric-evidence) and the wire
 [metric forms](../protocol.md#protocol-9-metric-forms).
 
+## Numerical map
+
+A [view](#view) of storage presented as the matrix of a linear map between
+two [spaces](#space), in a named [basis](#basis) of each. A `map` statement
+declares one, and `gemm` multiplies two. Also called a **map**. See
+[Maps](../linalg/maps-and-gemm.md#maps).
+
+## Occurrence
+
+A node of a [network](#network) or of a contraction tree. It stands for one
+use of a map or of a [tensor](#tensor). See
+[Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
+[Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
+
 ## Opaque step
 
 A map of a [reverse site](#reverse-site) whose structure the compilation does
@@ -647,11 +733,25 @@ The Lean proof package in `lean/`. It proves theorems about the kernel's
 definitions. Compilation and generated programs never run it. See
 [Verification boundaries](../verification.md).
 
+## Owned map
+
+A storage [owner](#owner) whose allocation holds the initialized matrix of a
+map between two bases. `owned` makes one, and `OwnedMap<bs, bt>` is its type
+as a parameter or result. See
+[Owned maps](../linalg/maps-and-gemm.md#owned-maps).
+
 ## Owned result
 
 An owner that a resource function hands to its caller. The function declares
 it after `returns`. See
 [Resource functions](../storage/resource-programs.md#resource-functions).
+
+## Owned-map package
+
+An [owned map](#owned-map) whose target space and basis are hidden. `pack`
+makes one, `OwnedMapTo<bs, n>` is its type, and `unpack` opens it with a
+fresh space and basis. It is not a [package](#package) of source files. See
+[Owned-map packages](../linalg/maps-and-gemm.md#owned-map-packages).
 
 ## Owner
 
@@ -694,6 +794,13 @@ The value of one cell of storage in a resource statement, written `f64(…)`,
 `complex(…)`, `f64_bits(…)` or `complex_bits(…)`. A payload is one exact
 binary64 value, or two for a complex cell; the compiler never rounds one. See
 [Payloads](../storage/resource-programs.md#payloads).
+
+## Port
+
+An end of an [occurrence](#occurrence) that an edge may contract: the input
+or the output of a map in a network, or one axis of a tensor in a contraction
+tree. See [Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
+[Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
 
 ## Primitive
 
@@ -758,7 +865,7 @@ The word has three qualified uses:
 
 1. A **finite profile** is an explicitly bounded part of a broader feature
    that the compiler supports. For example, the
-   [two-map network profile](../linalg/networks-and-packing.md#finite-networks)
+   [two-map network profile](../linalg/networks-and-packing.md#two-map-networks)
    admits two rank-two map occurrences joined by one evaluation edge.
 2. An **indexed profile** is a set of indexed declarations that defines a
    geometric setting, such as the ordinary affine profile of
@@ -906,6 +1013,13 @@ program value: `SmoothRuntime.pullback`, `backward`, `differential` and
 compilation cannot read stays a call of it. See
 [reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives).
 
+## Scalar base
+
+An `indexed implementation` with a `scalar_base` representation: the base of
+a geometric setting with real or complex coefficients. A
+[linear implementation](#linear-implementation) names a global of one. See
+[Linear implementations](../linalg/maps-and-gemm.md#linear-implementations).
+
 ## Scalar type
 
 One of the types `Nat`, `Int`, `Bool` and `Unit`. Dispatch uses only scalar
@@ -995,7 +1109,8 @@ The object `X` of a morphism type `Morphism<X, Y>`. Compare
 A linear space declared with `space` in a resource function. Each `space`
 declaration makes a fresh nominal space, so two spaces of dimension 2 are
 different spaces. See
-[Spaces, bases and maps](../guide/numerical.md#spaces-bases-and-maps).
+[Spaces and bases](../linalg/maps-and-gemm.md#spaces-and-bases) and the
+[guide](../guide/numerical.md#spaces-bases-and-maps).
 
 ## Specialization
 
@@ -1112,6 +1227,12 @@ The object `X` of a point type `Point<X, S>`, which the point lies on, or the
 object `Y` of a morphism type `Morphism<X, Y>`, whose source is `X`. Compare
 [test object](#test-object). See [Geometric types](../language/geometric-types.md).
 
+## Tensor
+
+A [view](#view) of storage presented as an array with two or three ordered
+axes, each indexed by a [basis](#basis). `tensor` declares one. See
+[Tensors](../linalg/networks-and-packing.md#tensors).
+
 ## Test object
 
 The second index `S` of a point type `Point<X, S>`: the point is a point of
@@ -1133,6 +1254,19 @@ authority over a generic to a recipient module. An assembly performs the
 transfer. The generic keeps its [owner](#owner); only its current owner
 changes. See
 [Transfers](../language/edit-authority.md#transfers).
+
+## Transformed map
+
+The dual, the conjugate or the adjoint of a
+[numerical map](#numerical-map), declared with `map`. It reads the cells of
+that map transposed or conjugated and copies nothing. See
+[Transformed maps](../linalg/transforms-and-metrics.md#transformed-maps).
+
+## Vector
+
+A [view](#view) of storage presented as the column of coordinates of a
+vector of a [space](#space) in a [basis](#basis). `vector` declares one. See
+[Vectors](../linalg/transforms-and-metrics.md#vectors).
 
 ## View
 

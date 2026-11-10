@@ -129,7 +129,7 @@ remain invalid. This rule is about the same loan identity, not equal dimensions
 or a guessed correspondence between different views.
 
 Logical versions advance on writes; a branch join creates a version after both
-branches. The bounded [packing cache](../linalg/networks-and-packing.md#cached-packing) reconstructs post-pack
+branches. The bounded [packing cache](../linalg/networks-and-packing.md#caches) reconstructs post-pack
 source/scratch stamps and rejects stale reuse in actual contraction. Its erased
 capture/require/forget operations participate in schedule replay and final audits.
 This does not implement residual retention, snapshots, recomputation or AD.
@@ -180,7 +180,7 @@ to handle large padded rectangles directly.
 Interleaved views with overlapping envelopes are rejected
 when either writes, even if a stronger partition proof could separate them.
 Arbitrary strides, read-only broadcast, general partitions and general packing remain
-pending. The finite [rank-three packing profile](../linalg/networks-and-packing.md#tensor-packing) preserves these
+pending. The finite [rank-three packing profile](../linalg/networks-and-packing.md#packing-and-contraction) preserves these
 rectangular footprints while explicitly permuting the coordinate grouping.
 
 <a id="storage-ir--native-lowering-and-execution"></a>
@@ -332,7 +332,7 @@ above but no native refinement theorem. Pure indexed Core theorems do not imply
 these mutable-resource guarantees, and this increment does not close #183.
 
 
-The [diagonal metric path](../linalg/transforms-and-metrics.md#diagonal-metrics) adds independently checked raw
+The [diagonal metric path](../linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics) adds independently checked raw
 `diagonal_adjoint`, `diagonal_scale` and compound `diagonal_pair` transitions.
 Raw coefficient metadata establishes only representation/resource safety, not
 nominal metric authority. The public path additionally reconstructs coefficients
@@ -505,7 +505,7 @@ initialization, escape, capture, recursion and expansion limits.
 
 Calls expand synchronously at static call sites. Ordinary resource forms retain
 static shapes; explicit runtime forms have universally guarded symbolic frames. Public
-dependent numerical inputs compose through [protocol 8](../linalg/maps-and-gemm.md#numerical-values--dependent-numerical-inputs);
+dependent numerical inputs compose through [protocol 8](../linalg/maps-and-gemm.md#map-parameters);
 the older resource-only internal wire schema remains unchanged. Numerical
 input receipts supplement the existing exact call replay and loan-return checks.
 Initialized owned-map inputs/results additionally preserve input-dependent bases,
@@ -513,7 +513,7 @@ allocation identity and the actual coordinate layout. Their transfer emits only
 the existing checked move; temporary loans cannot escape. Result contracts are
 checked in the post-body state, and actual-layout loans permit padded/subregion
 results to be used inside a generic helper without guessing its physical layout.
-See [owned numerical results](../linalg/maps-and-gemm.md#numerical-values--owned-numerical-results).
+See [owned numerical results](../linalg/maps-and-gemm.md#owned-maps).
 General tensor types, general pure-Core/resource interoperation, general runtime
 shape results, floating scalar expression interfaces, general owned-result branch joins and escaping-loan
 lifetime contracts are not supplied by this component. General dynamic source
@@ -535,7 +535,7 @@ Dynamic package-result dimensions, general resource packages/closures, borrowed 
 full source/native refinement remain pending.
 
 
-The [bounded packing cache](../linalg/networks-and-packing.md#cached-packing) adds lexical dependency witnesses
+The [bounded packing cache](../linalg/networks-and-packing.md#caches) adds lexical dependency witnesses
 for actual rank-three packing and repeated contraction. Capture/require/forget
 remain in the exact replayed call schedule; local witnesses are forgotten before
 function and branch exits. Mutations through real dependent calls invalidate the

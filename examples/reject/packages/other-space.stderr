@@ -1,0 +1,9 @@
+examples/reject/packages/other-space/main.vast:32:5: E_NUMERICAL_TYPE: GEMM requires the exact middle and outer objects and bases
+examples/reject/packages/other-space/main.vast:8:1: note: while checking resource function `main`
+examples/reject/packages/other-space/main.vast:15:5: note: left source basis is `bv`, introduced here
+examples/reject/packages/other-space/main.vast:10:5: note: left source space is `v`, introduced here
+examples/reject/packages/other-space/main.vast:16:5: note: right target basis is `bother`, introduced here
+examples/reject/packages/other-space/main.vast:13:5: note: right target space is `other`, introduced here
+examples/reject/packages/other-space/main.vast:29:5: note: left map is `left`, introduced here
+examples/reject/packages/other-space/main.vast:30:5: note: right map is `right`, introduced here
+examples/reject/packages/other-space/main.vast:31:5: note: output map is `destination`, introduced here

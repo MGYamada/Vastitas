@@ -384,7 +384,7 @@ Rules:
   optimizations is not a prerequisite.
 
 > **Implementation note.** The
-> [packing cache](linalg/networks-and-packing.md#cached-packing) supplies one
+> [packing cache](linalg/networks-and-packing.md#caches) supplies one
 > bounded reuse contract: the versions of source and scratch after packing,
 > explicit invalidation and lexical cleanup, followed by the checked tensor
 > contraction. Its versions cover whole allocations and every join

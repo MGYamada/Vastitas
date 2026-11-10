@@ -160,7 +160,7 @@ A reused source file consumes the byte budget again.
 | Storage plan nodes and traversal depth | 4096 each | [Checked storage](../storage/checked-storage.md#storage-ir) |
 | Resource definitions, parameters/results each, initialized regions per owned type, source statements | 4096, 64, 64, 4096 | [Resource functions](../storage/checked-storage.md#storage-functions--all-body-checking-and-exact-expansion) |
 | Events in one contraction-tree plan | 1024 | [Contraction trees](../linalg/networks-and-packing.md#contraction-trees) |
-| Explicit diagonal metric entries | 4096 | [Declared Hermitian forms](../linalg/transforms-and-metrics.md#declared-hermitian-forms) |
+| Explicit diagonal metric entries | 4096 | [Declared Hermitian forms](../linalg/transforms-and-metrics.md#metrics) |
 | Notes on one resource diagnostic | 32 | [Diagnostics](../storage/resource-programs.md#diagnostics) |
 
 Runtime-shape programs have their own execution limits; see

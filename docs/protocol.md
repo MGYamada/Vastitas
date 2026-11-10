@@ -209,7 +209,7 @@ are reconstructed; no checked IDs or prevalidated shape metadata is accepted.
 The initial checker rejects coefficient loans and runtime events under resource
 branches, including through calls. Protocols 2–7 reject these forms.
 
-Protocol 8 also admits [numerical declaration profiles](linalg/maps-and-gemm.md#numerical-declarations)
+Protocol 8 also admits [numerical declaration profiles](linalg/maps-and-gemm.md#linear-implementations)
 in the existing `indexed_declarations` array: `scalar_base` and
 `linear_descriptor` representation objects preserve ideal coefficient kinds and
 unresolved nominal base paths. They require version 8 or 9 even without resource
@@ -220,7 +220,7 @@ Resource bodies also support `kind: "numerical"` statements carrying `operation`
 and `span`. Operations are `space` (name, unresolved implementation path,
 dimension), `basis` (name, space), `map` (name, loan, source/target bases), and
 `gemm` (left, right, output, mode, policy). Mode is `overwrite` or `accumulate`;
-policy is explicitly `native_fast`. See [the source contract](linalg/maps-and-gemm.md#numerical-values).
+policy is explicitly `native_fast`. See [the source contract](linalg/maps-and-gemm.md#maps).
 All names remain unresolved. Numeric IDs, trusted certificates, raw GEMM flags
 and extra fields are rejected. The old raw resource `action` schema does not
 acquire a public GEMM operation. Version 8 composes independent path resolution,
@@ -237,7 +237,7 @@ fields reject. Overwrite accepts no beta operand; accumulate requires initialize
 output even for beta zero. A coefficient loan must be a matching initialized
 readable 1x1 region disjoint from output. The checked allocation/offset reaches
 native execution, where the current scalar is read before output writes.
-See [coefficient semantics](linalg/maps-and-gemm.md#numerical-values--explicit-and-computed-coefficients).
+See [coefficient semantics](linalg/maps-and-gemm.md#matrix-products).
 
 Owned numerical inputs use parameter `kind:"owned_map"` with `name`, `source`,
 `target` and `span`. Result `type` may be `{kind:"owned_map",source,target}`;
@@ -248,7 +248,7 @@ initialized storage into the interpretation. `borrow_owned` supplies `name`,
 `owner` and `access`, using the actual stored layout; `owned_view` supplies `name`,
 `loan` and `owner`, retaining exact allocation/layout/bases. These forms are
 independently checked, contain no allocation IDs or trusted metadata, and are
-rejected by older decoders. See [owned results](linalg/maps-and-gemm.md#numerical-values--owned-numerical-results).
+rejected by older decoders. See [owned results](linalg/maps-and-gemm.md#owned-maps).
 The bounded generative form uses parameter `kind:"owned_map_to"` with `name`,
 `source`, `dimension`, `span`, and result `type:{kind:"owned_map_to",source,dimension}`.
 Numerical `pack_map` takes `name,owner`; `unpack_map` takes
@@ -260,12 +260,12 @@ Resource parameters additionally support `kind: "space"` with unresolved
 `implementation` and static `dimension`, `kind: "basis"` naming an earlier
 `space` parameter, and `kind: "map"` naming earlier `source`/`target` basis
 parameters plus `access` and `initializes`. Every parameter includes `name` and
-`span`. [Dependent input checking](linalg/maps-and-gemm.md#numerical-values--dependent-numerical-inputs)
+`span`. [Dependent input checking](linalg/maps-and-gemm.md#map-parameters)
 preserves actual caller identities and creates scoped child loans for maps.
 Unknown tags/fields fail closed on older kernels; these are additive protocol-8
 forms. They do not add a shape-polymorphic signature language.
 
-[Typed transforms](linalg/transforms-and-metrics.md#linear-transforms--wire-and-proof-boundary) add numerical
+[Typed transforms](internals/numerical-backend.md#wire-and-proof-boundary-of-transforms) add numerical
 operations `involution`, `dual_space`, `conjugate_space`, `derived_basis`, `metric`
 and `transform`. Their operands remain unresolved local names; `transform`
 contains a strict operation naming derived bases or explicit metrics, never raw
@@ -274,7 +274,7 @@ parameter tags retain earlier space/basis/involution relationships and an explic
 orthonormal requirement for direct adjunction. Rust and Lean decode these forms
 together; old envelopes and unknown nested metadata fail closed.
 
-[Vector evaluation](linalg/transforms-and-metrics.md#vector-evaluation) adds `vector` (`name`, `loan`, `basis`),
+[Vector evaluation](linalg/transforms-and-metrics.md#pairings) adds `vector` (`name`, `loan`, `basis`),
 `conjugate_vector` (`name`, `parent`, `basis`, `involution`) and `evaluate`
 (`left`, `right`, `output`, `operation`, `mode`, `policy`, optional `alpha`/`beta`).
 The nested operation is strictly `{kind: "dual"}` or
@@ -283,7 +283,7 @@ with `name`, `basis`, `access`, `initializes`, `span`. Actual vector and form
 provenance, child loans, scalar output and emitted flags are reconstructed by
 the independent checker; no supplied origin or native flag grants authority.
 
-[Diagonal metrics](linalg/transforms-and-metrics.md#diagonal-metrics) add strict numerical operations
+[Diagonal metrics](linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics) add strict numerical operations
 `adjoint_into` (`input`, `output`, `source_metric`, `target_metric`, `policy`) and
 `hermitian_diagonal` (`left`, `right`, `output`, `metric`, `scratch`, `layout`,
 `policy`). Source syntax also requires the explicit `overwrite` keyword for the
@@ -807,11 +807,11 @@ The Python reference and fixture regressions do not implement production driver
 receipts, doctest execution, or official package admission.
 
 The additive protocol-8 `network` resource statement and its strict finite graph
-schema are specified in [finite-networks.md](linalg/networks-and-packing.md#finite-networks). It is checked
+schema are specified in [finite-networks.md](linalg/networks-and-packing.md#two-map-networks). It is checked
 independently before lowering to the existing numerical/storage path.
 
 The additive protocol-8 `tensor` operations (`view`, `pack`, `contract3`) and their
-bounded ordered-axis/grouping schema are specified in [tensor-packing.md](linalg/networks-and-packing.md#tensor-packing).
+bounded ordered-axis/grouping schema are specified in [tensor-packing.md](linalg/networks-and-packing.md#packing-and-contraction).
 Packing is explicit and checked independently from nominal contraction authority.
 
 The additive protocol-8 `tree` statement carries a bounded unresolved finite graph
@@ -823,4 +823,4 @@ groupings; it is not a public nominal-authority certificate.
 Protocol-8 tensor operations also include strict `cached_pack`
 (`name`, `source`, `target`) and `cached_contract3`
 (`cache`, `left`, `right`, `output`, `policy`) envelopes. They carry unresolved
-local names, never stamps or certificates. See [cached packing](linalg/networks-and-packing.md#cached-packing).
+local names, never stamps or certificates. See [cached packing](linalg/networks-and-packing.md#caches).

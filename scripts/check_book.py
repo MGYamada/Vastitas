@@ -38,6 +38,10 @@ CONVERTED = frozenset({
     "storage-ownership.md",
     "storage/resource-programs.md",
     "internals/resource-checking.md",
+    "linalg/maps-and-gemm.md",
+    "linalg/transforms-and-metrics.md",
+    "linalg/networks-and-packing.md",
+    "internals/numerical-backend.md",
     "language/smooth-declarations.md",
     "specifications.md",
     "spec/std-differential.md",
@@ -75,9 +79,6 @@ REPOSITORY = "MGYamada/Vastitas"
 # chapter gains the production.
 PENDING_NONTERMINALS = {
     "IndexedDeclaration": "the geometry-declarations chapter",
-    "NumericalStatement": "linalg/maps-and-gemm.md",
-    "NumericalParameterType": "linalg/maps-and-gemm.md",
-    "NumericalResultType": "linalg/maps-and-gemm.md",
 }
 
 

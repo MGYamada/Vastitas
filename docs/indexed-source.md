@@ -16,9 +16,9 @@ and explicit `--lib` retain their existing geometry syntax and wire formats.
 `Indexed.LegacySource` adapts their decoded source into this same common checker
 with a separately validated closed compatibility declaration package.
 [Protocol 8 resource functions](storage/resource-programs.md#resource-functions) and
-[numerical declaration profiles](linalg/maps-and-gemm.md#numerical-declarations) compose with this same
+[numerical declaration profiles](linalg/maps-and-gemm.md#linear-implementations) compose with this same
 checker. Public numerical maps are available inside resource functions
-([numerical values](linalg/maps-and-gemm.md#numerical-values)); general public
+([numerical values](linalg/maps-and-gemm.md#maps)); general public
 numerical arrays and Fast like C performance acceptance remain pending.
 
 ## Legacy geometry syntax in packages

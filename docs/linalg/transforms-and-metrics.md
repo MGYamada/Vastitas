@@ -1,506 +1,387 @@
-# Transforms, vector evaluation and metrics
+# Transforms, evaluation and metrics
 
-Dual and conjugate spaces retain their origins. Vector evaluation and the supported metric operations require the corresponding bases, loans and explicit metric evidence.
+This chapter gives the statements that relate a space to its dual and to its
+conjugate: derived spaces and bases, involutions, **metrics**, the dual, the
+conjugate and the adjoint of a [numerical map](maps-and-gemm.md), **vectors**,
+and the pairings of vectors. Nothing is implicit. A conjugation happens only
+where a program writes `conjugate`, `adjoint` or `adjoint_into`, and a
+Hermitian form enters only where a program names a metric. A pairing is
+accepted only between a basis and a basis derived from it, and equal
+dimensions prove nothing.
 
-<a id="linear-transforms"></a>
+> **Syntax**
+>
+> ```text
+> TransformStatement -> InvolutionStatement | MetricStatement | VectorStatement
+>     | AdjointIntoStatement | EvaluateStatement | HermitianStatement
+>     | HermitianDiagonalStatement
+> ```
 
-## Typed dual, conjugate and metric adjoint (protocol 8)
+The naming rules and the codes for a binding that is not in scope or of
+another kind are those of [Numerical maps](maps-and-gemm.md). In this chapter
+`V` and `W` are spaces, `bv` and `bw` are bases of them, and `σ` is the scalar
+involution: the identity for a real linear implementation and complex
+conjugation for a complex one.
 
-Resource functions now construct selected dual and conjugate spaces, corresponding
-bases, explicit canonical scalar involutions, declared coordinate Hermitian forms,
-and read-only transformed maps. These operations compose with actual dependent
-function inputs, nested resource loans and checked GEMM. This is an implementation
-of finite coordinate operations, not general tensor evaluation or a proof of
-floating-point algebraic laws. [#67](https://github.com/MGYamada/Vastitas/issues/67)
-and [#91](https://github.com/MGYamada/Vastitas/issues/91) remain open.
+## Dual and conjugate spaces
 
-### Objects, involutions and bases
+> **Syntax**
+>
+> ```text
+> DerivedSpaceExpression -> `dual` `(` IDENTIFIER `)`
+>     | `conjugate` `(` IDENTIFIER `,` IDENTIFIER `)`
+> DerivedBasisExpression -> `derived` `(` IDENTIFIER `,` IDENTIFIER `)`
+> InvolutionStatement -> `involution` IDENTIFIER `=` `canonical` `(` IDENTIFIER `)` `;`
+> ```
 
-```vast
-space v = linear(profiles::ComplexSmooth, 3);
-basis bv = basis(v);
-involution sigma = canonical(v);
-space vd = dual(v);
-space vc = conjugate(v, sigma);
-basis bvd = derived(bv, vd);
-basis bvc = derived(bv, vc);
-```
+`involution sigma = canonical(v);` declares the **involution** of the linear
+implementation of the space `v`. `space vd = dual(v);` declares the dual space
+of `v`, and `space vc = conjugate(v, sigma);` its conjugate space by `sigma`.
+Each **derived space** has the implementation, the dimension and the element
+type of `v`. `basis bvd = derived(bv, vd);` declares the **derived basis** of
+the basis `bv` in the derived space `vd`: the dual basis in a dual space, and
+the conjugate basis in a conjugate space.
 
-`canonical` explicitly selects identity for an admitted real profile and complex
-conjugation for an admitted complex profile. Its declaration/profile, nominal
-scalar base, coefficient kind and geometric setting are reconstructed from the
-same independently accepted indexed environment. Equal dimensions cannot supply
-an involution or make real and complex profiles interchangeable.
+Rules:
 
-Each space constructor selects a fresh nominal representation object. Derived
-spaces retain their original space and operation, including the selected
-involution for conjugation. Reusing that value through a function argument
-preserves its identity; a second constructor does not implicitly identify two
-objects. Double duals/conjugates do not silently become their original object.
-General canonical transports and coherence laws are separate obligations.
-
-`derived` selects the corresponding coordinate basis from an actual parent
-basis and a matching derived space. An arbitrary `basis(vd)` is a basis on `vd`,
-but is not automatically the dual basis of `bv`. Dual and conjugate origins
-remain distinct even over real scalars. The full value audit checks every origin
-and rejects cyclic references, forged profile data, and mismatched parents.
-
-### Declared Hermitian forms
-
-```vast
-metric h = orthonormal(bv, sigma);
-metric scaled = scaled_identity(bv, sigma, 2);
-metric indefinite = diagonal(bv, sigma, [1, -2, 3]);
-```
-
-These declarations define coordinate forms by exact Gram data. In the ideal
-real/complex interpretation, the convention is conjugate-linear in the first
-ordinary-space argument and linear in the second: `h(x,y) = sigma(x)^T G y`.
-`orthonormal` defines `G = I`; it does not assert that a sampled float matrix
-has been measured orthonormal. The other constructors retain exact integer
-diagonal entries, not machine-float observations. Nonzero diagonal entries are
-required; their number must equal the dimension, with at most 4096 explicit
-entries. `scaled_identity` stores one entry without expanding a large diagonal.
-The zero-dimensional form has the usual empty, nondegenerate interpretation.
-
-Negative entries are allowed: positive-definiteness is separate from
-nondegeneracy. Direct adjoint lowering requires the declared Gram data to equal
-identity in the used basis. All-one diagonal data is accepted; a form with
-nonidentity Gram data is retained but requires an explicit supported Gram
-realization before adjunction. No tolerance-based evidence, hidden Gram solve,
-metric selection or conversion from conjugate space to dual space is inserted.
-
-The checker proves the exact declared-data conditions and their connection to
-the accepted operation. These conditions are not a theorem about an arbitrary
-native matrix or a completed formal model of all Hermitian-module laws.
-
-### Map operations and resources
-
-For `a: V@bv -> W@bw`:
-
-| Source operation | Effective endpoints | Coordinate operation |
-| --- | --- | --- |
-| `dual(a, bwd, bvd)` | `Wdual@bwd -> Vdual@bvd` | Transpose, with existing conjugation unchanged |
-| `conjugate(a, bvc, bwc, sigma)` | `Conj<V>@bvc -> Conj<W>@bwc` | Explicit scalar conjugation, with axes unchanged |
-| `adjoint(a, hv, hw)` | `W@bw -> V@bv` | Conjugate transpose for the declared orthonormal forms; real conjugation is identity |
+- The argument of `canonical`, the argument of `dual` and the first argument
+  of `conjugate` must be spaces (`E_NUMERICAL_TYPE`).
+- The involution of `conjugate(v, sigma)` must be an involution of the
+  implementation of `v` (`E_NUMERICAL_TYPE`). An involution that another
+  space of the same implementation declared fits.
+- A derived space is a different space from every other space. The dual of a
+  dual and the conjugate of a conjugate are not the original space, and two
+  `dual(v)` statements declare two spaces.
+- In `derived(b, s)`, `b` must be a basis, and `s` must be a space declared as
+  the dual or as a conjugate of the space of `b` (`E_NUMERICAL_TYPE`).
+- `basis(s)` of a derived space `s` declares a basis that is derived from no
+  basis. Where a rule needs a derived basis, it is an error
+  (`E_NUMERICAL_TYPE`).
+- Two `involution` statements over spaces of one implementation declare one
+  involution under two bindings. The rules of this chapter say where a
+  statement needs the same binding and where any binding of the involution
+  fits.
 
 ```vast
-map transformed = adjoint(a, hv, hw);
-gemm(transformed, right, output, overwrite, NativeFast);
-release(transformed);
+{{#include ../../examples/packages/linear-transforms/src/main.vast:6:20}}
 ```
 
-The source and target metrics must name the exact used bases and the same
-admitted involution. For example, `A=[i], Gv=[2], Gw=[3]` mathematically requires
-`adjoint(A)=[-3i/2]`; this implementation rejects direct lowering for those forms
-instead of incorrectly using `[-i]`. In orthonormal bases, the executable example
-distinguishes `dual([i])=[i]` from `adjoint([i])=[-i]` and `conjugate([i])=[-i]`.
+## Metrics
 
-Every map transformation creates a real checked read child loan of the original
-map loan. It retains the allocation, physical offset, leading dimension and byte
-region; dual/adjoint toggle only the logical transpose. The parent is suspended
-until the child is returned. Nested transformations require inside-out release.
-The parent must already be readable and initialized. A lazy transformed map
-cannot acquire write authority or escape as an owned result. Materializing its
-product into an explicitly supplied destination uses the ordinary checked GEMM
-and owned-result rules.
+> **Syntax**
+>
+> ```text
+> MetricStatement -> `metric` IDENTIFIER `=`
+>     ( `orthonormal` `(` IDENTIFIER `,` IDENTIFIER `)`
+>     | `scaled_identity` `(` IDENTIFIER `,` IDENTIFIER `,` GramEntry `)`
+>     | `diagonal` `(` IDENTIFIER `,` IDENTIFIER `,` `[` GramEntries? `]` `)` ) `;`
+> GramEntries -> GramEntry ( `,` GramEntry )* `,`?
+> GramEntry -> `-`? INTEGER_LITERAL
+> ```
 
-The operation record retains its original map, exact derived bases or metric
-references, conjugation and complete child-loan snapshot. Function argument
-reborrowing preserves this interpretation, including conjugation, and actual
-calls check the caller's layout, initialization and aliases. A later raw
-transpose/release cannot make a stale interpretation valid. The output of GEMM
-must be an ordinary writable coordinate view, not a lazy conjugated destination.
+A **metric** declares a Hermitian form `h` on the space of a basis by its
+Gram matrix `G` in that basis: `h(x, y)` is the sum of `σ(xᵢ) gᵢ yᵢ`. The form
+is conjugate-linear in `x` and linear in `y`. `orthonormal(b, sigma)` declares
+`G = I`, `scaled_identity(b, sigma, c)` declares `G = c·I`, and
+`diagonal(b, sigma, [g₁, …, gₙ])` declares the diagonal matrix of its entries.
+An entry may be negative, so the form need not be positive. A metric is
+declared data: the compiler never derives one from the cells of a buffer.
 
-Metadata, transforms and reborrows add no native allocation or copy. Only the
-checked physical layouts and explicit flags reach the pinned GEMM adapter.
-OpenBLAS may use internal packing/workspace; those costs and full-operation
-equivalent-C timings remain part of the [Fast like C gate](../storage-ownership.md#performance-evidence-and-acceptance).
+Rules:
 
-### Dependent function contracts
+- The first argument of a metric must be a basis and the second an involution
+  of the implementation of the space of that basis (`E_NUMERICAL_TYPE`). The
+  basis may be a derived basis.
+- The entry of `scaled_identity` and every entry of `diagonal` must not be
+  zero, unless the space has dimension 0 (`E_NUMERICAL_TYPE`).
+- `diagonal` must list as many entries as the space has dimensions
+  (`E_NUMERICAL_TYPE`).
+- `diagonal` lists at most 4096 entries. The compiler reports a longer list
+  at the root manifest (`E_PROTOCOL`).
+- A metric has **identity Gram data** when it is `orthonormal`, a
+  `scaled_identity` with the entry 1 or a `diagonal` whose entries are all 1.
+  `adjoint` and `hermitian` need such a metric.
+- `adjoint_into` and `hermitian_diagonal` accept every metric whose entries
+  have an absolute value of at most 2⁵³.
 
-The following types refer to earlier parameters:
+## Transformed maps
 
-| Contract | Checked relation |
+> **Syntax**
+>
+> ```text
+> TransformedMapExpression -> `dual` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `)`
+>     | `conjugate` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `)`
+>     | `adjoint` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `)`
+> ```
+
+A **transformed map** reads the cells of a map `a` as the matrix of another
+map. Let `a` be a map from `V` in `bv` to `W` in `bw`, with the matrix `A`:
+
+| Statement | Map | From, to | Matrix |
+| --- | --- | --- | --- |
+| `map d = dual(a, bwd, bvd);` | The dual map of `a` | The dual of `W` in `bwd` to the dual of `V` in `bvd` | The transpose of `A` |
+| `map c = conjugate(a, bvc, bwc, sigma);` | The conjugate map of `a` | The conjugate of `V` in `bvc` to the conjugate of `W` in `bwc` | `σ` of every entry of `A` |
+| `map h = adjoint(a, hv, hw);` | The adjoint of `a` for the metrics `hv` and `hw` | `W` in `bw` to `V` in `bv` | The conjugate transpose of `A` |
+
+No statement of the table copies a cell. A transformed map is a `read` child
+of the loan of `a`, and `gemm` reads its cells transposed or conjugated as
+the table says.
+
+Rules:
+
+- The first argument must be a map (`E_NUMERICAL_TYPE`) whose loan permits
+  reading (`E_RESOURCE_ACCESS`).
+- In `dual(a, bs, bt)`, `bs` must be the derived basis of the target basis of
+  `a` in the dual of its target space, and `bt` the derived basis of the
+  source basis of `a` in the dual of its source space (`E_NUMERICAL_TYPE`).
+- In `conjugate(a, bs, bt, sigma)`, `bs` must be the derived basis of the
+  source basis of `a` in the conjugate of its source space by `sigma`, and
+  `bt` the same for the target (`E_NUMERICAL_TYPE`). `sigma` must be the
+  binding that declared those conjugate spaces.
+- In `adjoint(a, hs, ht)`, `hs` must be a metric on the source basis of `a`
+  and `ht` a metric on its target basis, both with identity Gram data
+  (`E_NUMERICAL_TYPE`). The two metrics may name different bindings of the
+  involution.
+- While a transformed map is live, the map `a` gives no access
+  (`E_NUMERICAL_TYPE`).
+- `release(m)` ends a transformed map `m`. It must come before the release of
+  the loan of `a` (`E_RESOURCE_LOAN`) and before the end of the body
+  (`E_RESOURCE_ESCAPE`). Nested transformed maps end from the inside out.
+- A transformed map is read-only. As the output of `gemm`, a `dual` map is an
+  error (`E_RESOURCE_ACCESS`), and a `conjugate` map is an error
+  (`E_NUMERICAL_TYPE`). A storage statement that names a transformed map is
+  an error (`E_RESOURCE_LOAN`).
+- A transformed map that an arm of a branch declares must be released in that
+  arm (`E_RESOURCE_JOIN`).
+
+This function of
+[`examples/packages/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/linear-transforms)
+multiplies with the dual of a map:
+
+```vast
+{{#include ../../examples/packages/linear-transforms/src/main.vast:69:77}}
+```
+
+## Adjoints for diagonal metrics
+
+> **Syntax**
+>
+> ```text
+> AdjointIntoStatement -> `adjoint_into` `(` IDENTIFIER `,` IDENTIFIER `,`
+>     IDENTIFIER `,` IDENTIFIER `,` `NativeFast` `)` `;`
+> ```
+
+`adjoint_into(a, out, hv, hw, NativeFast);` writes to `out` the matrix of the
+adjoint of `a` for the metrics `hv` on the source basis and `hw` on the target
+basis. The adjoint `A†` satisfies `hw(A x, y) = hv(x, A† y)`. Its entry in row
+`i` and column `j` is `σ(A[j, i]) · gwⱼ / gvᵢ`, for the Gram entries `gv` and
+`gw` of the two metrics. The statement writes each cell of `out` once and
+uses no other storage.
+
+Rules:
+
+- The first two operands must be maps and the next two metrics
+  (`E_NUMERICAL_METRIC`).
+- `hv` must be a metric on the source basis of `a` and `hw` a metric on its
+  target basis. `out` must be a map from the target basis of `a` to its source
+  basis, and it must not be a `conjugate` or `adjoint` map
+  (`E_NUMERICAL_METRIC`).
+- Every entry of both metrics must have an absolute value of at most 2⁵³
+  (`E_NUMERICAL_METRIC`). A call that passes a metric to a function with an
+  `adjoint_into` checks the same.
+- The loan of `a` must permit reading, and the loan of `out` writing
+  (`E_RESOURCE_ACCESS`).
+- The view of `out` must not be transposed (`E_RESOURCE_DIAGONAL`). The view
+  of `a` may be.
+- The views of `a` and `out` must not overlap (`E_RESOURCE_ALIAS`).
+- `adjoint_into` initializes the view of `out`.
+
+```vast
+{{#include ../../examples/packages/diagonal-metrics/src/real/mod.vast:17:21}}
+```
+
+## Vectors
+
+> **Syntax**
+>
+> ```text
+> VectorStatement -> `vector` IDENTIFIER `=`
+>     ( `view` `(` IDENTIFIER `,` IDENTIFIER `)`
+>     | `conjugate` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `)` ) `;`
+> ```
+
+`vector x = view(l, b);` presents the loan `l` as the column of coordinates of
+a **vector** of the space of `b`, in the basis `b`. A covector is a vector in
+a derived basis of the dual space. `vector xc = conjugate(x, bc, sigma);`
+declares the conjugate vector of `x`: a `read` child of the loan of `x` over
+the same cells, which a pairing reads conjugated.
+
+Rules:
+
+- In `view(l, b)`, `l` must be a live static loan and `b` a basis
+  (`E_NUMERICAL_TYPE`).
+- The view of the loan must have as many rows as the space of `b` has
+  dimensions, one column, and the element type of that space
+  (`E_NUMERICAL_TYPE`).
+- Several vectors may present one loan, in different bases. A vector does not
+  suspend its loan.
+- In `conjugate(x, bc, sigma)`, `x` must be a vector, and `bc` must be the
+  derived basis of the basis of `x` in the conjugate of its space by `sigma`
+  (`E_NUMERICAL_TYPE`). `sigma` must be the binding that declared that
+  conjugate space.
+- The loan of `x` must permit reading (`E_RESOURCE_ACCESS`). While the
+  conjugate vector is live, `x` gives no access (`E_NUMERICAL_TYPE`, or
+  `E_NUMERICAL_METRIC` in `hermitian_diagonal`).
+- `release(xc)` ends a conjugate vector. It must come before the release of
+  the loan of its vector (`E_RESOURCE_LOAN`). `release(x)` of a vector that
+  `view` declared ends its loan.
+- A statement may use a vector only while its loan is live and has the layout
+  that it had at the `vector` statement (`E_NUMERICAL_TYPE`).
+- A vector is not a loan and not a map. A storage statement that names one is
+  an error (`E_RESOURCE_LOAN`), and so is a vector as an operand of `gemm`
+  (`E_NUMERICAL_TYPE`).
+- No statement writes through a vector. A program writes the cells of a
+  vector through its loan.
+
+## Pairings
+
+> **Syntax**
+>
+> ```text
+> EvaluateStatement -> `evaluate` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,`
+>     GemmMode `,` `NativeFast` GemmCoefficient* `)` `;`
+> HermitianStatement -> `hermitian` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,`
+>     IDENTIFIER `,` GemmMode `,` `NativeFast` GemmCoefficient* `)` `;`
+> HermitianDiagonalStatement -> `hermitian_diagonal` `(` IDENTIFIER `,` IDENTIFIER `,`
+>     IDENTIFIER `,` IDENTIFIER `,` `scratch` `(` IDENTIFIER `,` Layout `)` `,`
+>     `overwrite` `,` `NativeFast` `)` `;`
+> ```
+
+A pairing writes one cell.
+
+| Statement | Value |
 | --- | --- |
-| `Involution<v>` | Admitted canonical involution for `v`'s actual profile |
-| `DualSpace<v>` | Selected space with actual dual origin `v` |
-| `ConjugateSpace<v,sigma>` | Selected space with that conjugate origin and involution |
-| `DerivedBasis<bv,vd>` | Actual parent basis `bv` and selected derived space `vd` |
-| `Metric<bv,sigma>` | Nondegenerate declared coordinate form for that basis and involution |
-| `OrthonormalMetric<bv,sigma>` | The same contract, additionally requiring exact identity Gram data |
+| `evaluate(phi, x, out, mode, NativeFast);` | The sum of `phiᵢ xᵢ`, for a covector `phi` and a vector `x`. It is bilinear and conjugates nothing |
+| `hermitian(xc, y, out, h, mode, NativeFast);` | The sum of `xcᵢ yᵢ`, for a vector `xc` of the conjugate space and a metric `h` with identity Gram data. With `xc` the conjugate vector of `x`, it is `h(x, y)` |
+| `hermitian_diagonal(xc, y, out, g, scratch(o, layout(…)), overwrite, NativeFast);` | The sum of `xcᵢ gᵢ yᵢ`, for a metric `g` with the Gram entries `gᵢ` |
 
-Plain `Space<profile,n>` and `Basis<v>` remain usable for operations that need
-only those properties. Headers do not infer derived-basis or metric facts from
-them. All-body synthetic probes reconstruct the declared dependencies; a helper
-requiring direct adjunction must request the orthonormal contract. Probes never
-become executable receipts. Every actual call independently checks the real
-arguments and their borrowed or owned resources.
+With `overwrite` the cell of `out` becomes `alpha` times the value. With
+`accumulate` it becomes `beta` times the old cell plus `alpha` times the
+value. [Matrix products](maps-and-gemm.md#matrix-products) gives `GemmMode`,
+`GemmCoefficient` and the rules of coefficients, which hold here.
+`hermitian_diagonal` first writes the products `gᵢ yᵢ` to the scratch view of
+the owner `o`, and then pairs `xc` with that view.
 
-<a id="linear-transforms--wire-and-proof-boundary"></a>
+Rules:
 
-### Wire and proof boundary
+- The first two operands must be vectors (`E_NUMERICAL_TYPE`, or
+  `E_NUMERICAL_METRIC` for `hermitian_diagonal`).
+- In `evaluate(phi, x, …)`, the basis of `phi` must be the derived basis of
+  the basis of `x` in the dual of its space (`E_NUMERICAL_TYPE`). A conjugate
+  basis is not a dual basis, even over a real implementation.
+- In `hermitian(xc, y, out, h, …)`, `h` must be a metric with identity Gram
+  data on the basis of `y`. The basis of `xc` must be the derived basis of
+  the basis of `y` in the conjugate of its space, declared with the
+  involution binding of `h` (`E_NUMERICAL_TYPE`).
+- `xc` may be a conjugate vector or a `view` in that conjugate basis. The
+  cells of a `view` are read as stored.
+- In `hermitian_diagonal`, the metric and the bases must satisfy the rule of
+  `hermitian` without the condition on identity Gram data, and every entry of
+  the metric must have an absolute value of at most 2⁵³
+  (`E_NUMERICAL_METRIC`).
+- `out` must be a live loan (`E_RESOURCE_LOAN`, or `E_RESOURCE_DIAGONAL` in
+  `hermitian_diagonal`) that permits writing (`E_RESOURCE_ACCESS`).
+- The view of `out` must have one row and one column, the element type of
+  the vectors and no transposition (`E_RESOURCE_GEMM`). `hermitian_diagonal`
+  reports another element type as `E_RESOURCE_DIAGONAL`.
+- With `accumulate`, `out` must be a `read_write` loan (`E_RESOURCE_GEMM`).
+- `out` must not be the loan of an operand (`E_RESOURCE_LOAN`) or a child of
+  it (`E_NUMERICAL_TYPE`).
+- `scratch(o, layout(…))` must name an owner (`E_RESOURCE_DIAGONAL`) without
+  a live loan (`E_RESOURCE_LOAN`). An owned map fits, and an owned-map
+  package does not (`E_NUMERICAL_PACKAGE`).
+- The layout of the scratch must lie in the allocation
+  (`E_RESOURCE_LAYOUT`). It must have as many rows as the space has
+  dimensions, one column, no transposition and the element type of the
+  vectors (`E_RESOURCE_DIAGONAL`).
+- `hermitian_diagonal` takes `overwrite` only and no coefficient
+  (`E_PARSE`).
+- A pairing initializes the cell of `out`, and `hermitian_diagonal` also the
+  scratch view. The scratch need not be initialized before.
 
-Protocol 8 adds `dual_space`, `conjugate_space`, `derived_basis`, `involution`,
-`metric` and `transform` numerical operations. The last has an unresolved parent
-name and a strict nested operation (`dual`, `conjugate`, or `adjoint`), naming
-bases, an involution or metrics. Gram entries are exact decimal strings in a
-strict `identity`, `scaled_identity`, or `diagonal` object. The dependent
-parameter forms use the corresponding tags; metric headers explicitly record
-the orthonormal requirement. These are source names and declared data, never
-trusted IDs, raw native flags, prechecked tags or tolerance certificates. Unknown
-nested fields and old protocol envelopes are rejected. Older protocol-8 kernels
-reject the new operations; use a matching frontend/kernel revision.
-
-`StorageNumerical.checkTransform` checks the original live map, exact metric
-contract, actual resource borrow, full value provenance and returned live view.
-`StorageFunctions` replays the borrow and records its exact emitted schedule.
-The public checker audits transform receipt origins against the declaration
-environment of the same full authority/Fn/dispatch source check.
-
-The oracle's `actual_transform`, `transform_storage`, `dual_flags`,
-`conjugate_flags`, `adjoint_flags`, `adjoint_forms`, `declared_metric` and extended
-`input_map_reborrow` refer to these actual certificates.
-`public_numerical_transform_origin` connects them to the accepted public request.
-These prove structural types, explicit form selection, resource provenance and
-the exact lowering connection, not general source/native refinement, float field
-laws or all mathematical adjoint identities.
-
-### Example and regression evidence
-
-```sh
-cargo run --locked -- check --manifest-path examples/packages/linear-transforms/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/linear-transforms/Vastitas.toml \
-  --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/linear-transforms
-/tmp/linear-transforms
-```
-
-On Linux, add the explicit `--native-cc cc` numerical consumer option as in
-[the adapter guide](maps-and-gemm.md#numerical-adapter). The example uses three original
-buffers, padded layouts, two levels of function calls and one reused destination.
-It checks every one-dimensional output, then prints `42`.
-
-`TransformRegression` checks rectangular real/complex transformed composition,
-origin and metric mutations, actual allocation retention, parent suspension,
-nested loan returns and forged native flags. Public source/wire tests cover
-wrong nominal objects and bases, missing/degenerate forms, non-orthonormal bases,
-incompatible involutions, weak or forged contracts, unused invalid helpers,
-old envelopes and output-file preservation. Optional numerical CI executes
-real/complex rectangular examples through actual source check/build and native
-GEMM. A metadata-only entry with unused valid numerical helpers builds and runs
-without OpenBLAS.
-
-[Vector evaluation](#vector-evaluation) now executes bilinear dual evaluation
-and explicitly conjugated Hermitian pairing for declared orthonormal forms.
-[Explicit diagonal metrics](#diagonal-metrics) additionally support materialized
-adjoints and scratch-backed Hermitian pairing, with actual declared coefficient
-realization and conditional ideal laws. Dense metric realization/transport remains work, as do
-general generative numerical packages, dynamic scalar/shape interfaces, general
-networks and equivalent-C performance acceptance. Bounded [contraction trees](networks-and-packing.md#contraction-trees)
-and [packing caches](networks-and-packing.md#cached-packing) have their own implemented contracts. This increment does not close Stage 1.
-
-<a id="vector-evaluation"></a>
-
-## Bilinear vector evaluation and explicit Hermitian pairing
-
-Package-only protocol 8 checks coordinate vectors, explicit vector conjugation,
-algebraic dual evaluation and an orthonormal Hermitian pairing. The actual
-source checker connects nominal bases and derived-space origins to live storage
-loans, the exact GEMM schedule and native execution. This advances
-[#67](https://github.com/MGYamada/Vastitas/issues/67) and the finite-network
-foundation under [#69](https://github.com/MGYamada/Vastitas/issues/69); neither
-issue is completed by this increment.
-
-### Values and operations
+These functions of
+[`examples/packages/vector-evaluation`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/vector-evaluation)
+evaluate a covector on a vector and pair a vector with a conjugate vector:
 
 ```vast
-space v = linear(profiles::ComplexSmooth, 3);
-basis bv = basis(v);
-space vd = dual(v);
-basis bvd = derived(bv, vd);
-involution sigma = canonical(v);
-space vc = conjugate(v, sigma);
-basis bvc = derived(bv, vc);
-metric h = orthonormal(bv, sigma);
-vector x = view(vector_loan, bv);
-vector phi = view(covector_loan, bvd);
-evaluate(phi, x, scalar_output, overwrite, NativeFast);
+{{#include ../../examples/packages/vector-evaluation/src/main.vast:36:57}}
 ```
 
-A vector retains one actual basis and a complete loan snapshot. Its logical
-layout is a column with `dimension` rows and one column; physical offset,
-padding, leading dimension and transpose remain explicit. A covector uses a
-selected dual space and the corresponding dual basis. A raw column with the
-same dimension does not grant that role. Independent spaces/bases stay distinct.
+## Parameter types
 
-`evaluate` requires `phi`'s basis to originate from `x`'s exact basis and its
-space to have the actual dual origin. Its ideal target is `sum_i phi_i*x_i`,
-with no newly inserted conjugation. Two ordinary vectors or a conjugate-space
-vector used as a dual vector are rejected. Already explicit coordinate
-interpretations are preserved through calls.
+> **Syntax**
+>
+> ```text
+> TransformParameterType -> `DualSpace` `<` IDENTIFIER `>`
+>     | `ConjugateSpace` `<` IDENTIFIER `,` IDENTIFIER `>`
+>     | `DerivedBasis` `<` IDENTIFIER `,` IDENTIFIER `>`
+>     | `Involution` `<` IDENTIFIER `>`
+>     | `Metric` `<` IDENTIFIER `,` IDENTIFIER `>`
+>     | `OrthonormalMetric` `<` IDENTIFIER `,` IDENTIFIER `>`
+>     | ( `ReadVector` | `WriteVector` | `ReadWriteVector` )
+>       `<` IDENTIFIER `>` `initializes`?
+> ```
 
-```vast
-vector conjugated = conjugate(x, bvc, sigma);
-hermitian(conjugated, y, scalar_output, h, overwrite, NativeFast);
-release(conjugated);
-```
+| Type | The argument must be |
+| --- | --- |
+| `DualSpace<v>` | A space declared as `dual` of the argument for `v` |
+| `ConjugateSpace<v, s>` | A space declared as `conjugate` of the argument for `v`, with the involution binding that is the argument for `s` |
+| `DerivedBasis<b, s>` | The basis declared as `derived` from the argument for `b` in the argument for `s` |
+| `Involution<v>` | An involution of the implementation of the argument for `v`; any binding of it |
+| `Metric<b, s>` | A metric on the argument for `b` whose involution is the argument for `s` |
+| `OrthonormalMetric<b, s>` | Such a metric with identity Gram data |
+| `ReadVector<b>`, `WriteVector<b>`, `ReadWriteVector<b>` | A vector in the argument for `b` whose loan permits the access |
 
-`hermitian` consumes a vector in the selected `Conj<V>` and a vector in `V`,
-with corresponding bases and an explicit matching declared form. It does not
-insert `conjugate`. For identity Gram data, its ideal target on ordinary
-arguments is `h(x,y) = sum_i sigma(x_i)*y_i`. A value already in `Conj<V>` is
-also valid; constructing its coordinate view does not conjugate the payload.
+Rules:
 
-For complex `[i]` and `[i]`, algebraic evaluation returns `-1` while the explicit
-conjugation pairing returns `+1`. For `[1+2i]`, the results are `-3+4i` and `5`.
-These finite native regressions distinguish the operations; they do not prove
-floating-point bilinearity or exact field laws.
+- A parameter type must name earlier parameters of the kind that the table
+  gives. A name that is no earlier parameter is an error (`E_RESOURCE_NAME`),
+  and an earlier parameter of another kind is an error (`E_NUMERICAL_TYPE`).
+- An argument that is not what the table gives is an error
+  (`E_NUMERICAL_TYPE`). A vector whose loan lacks the access is an error
+  (`E_RESOURCE_ACCESS`).
+- A body knows only what its parameter types state. A space of the type
+  `Space` is not a dual space, a basis of the type `Basis` is not a derived
+  basis, and a metric of the type `Metric` has no identity Gram data
+  (`E_NUMERICAL_TYPE`).
+- One vector passed to two parameters of one call must go to `ReadVector`
+  parameters both (`E_RESOURCE_ALIAS`).
+- In the body, a vector parameter is a vector, not a loan. A body must not
+  release it (`E_RESOURCE_LOAN`).
+- A `WriteVector` parameter with `initializes` promises that the body
+  initializes every cell (`E_RESOURCE_INIT`). No statement writes through a
+  vector, so a body can keep the promise only for a space of dimension 0.
+- The types of this chapter are parameter types only. None is the type of an
+  owned result.
 
-The direct pairing requires identity Gram data in the used basis, including
-an all-one diagonal. Other nondegenerate forms remain valid declared data but
-need an explicit supported Gram realization; this lowering rejects them.
-General metric realization, transport and applicable ideal laws remain work.
+[Numerical backend](../internals/numerical-backend.md#transforms-vectors-and-metrics)
+describes the checking, the native execution and the evidence of these
+statements.
 
-### Resources, calls and output
+## Moved sections
 
-The output is an explicit raw scalar loan of matching real/complex storage and
-logical shape `1 x 1`, not an arbitrary one-dimensional mathematical object.
-`overwrite` requires write authority and never reads old output; `accumulate`
-requires initialized read/write output. Optional `alpha`/`beta` literals and
-`coefficient(loan)` use GEMM's scalar, initialization and output-separation
-rules. Accumulation realizes the scaled evaluation plus `beta*C_old`.
+These anchors keep older links working.
 
-Each evaluation checks the original live vectors, borrows a transposed read
-child for the left coordinates and an unchanged read child for the right,
-checks/emits GEMM, then releases the children inside out. The certificate
-rechecks the whole schedule, restored input snapshots and initialized scalar
-output. Shared readable inputs are allowed; output and coefficient aliases
-still need the actual byte-region checks.
-
-Conjugation itself creates a read child. Its parent stays suspended until
-release: `hermitian(conjugate_child, parent, ...)` cannot reuse that parent
-handle directly. For `h(x,x)`, pass the same readable vector as two function
-arguments. Actual binding creates compatible sibling read loans; conjugation
-of one leaves the other usable. Separate read loans of the same immutable
-allocation also work. No hidden copy repairs a conflict.
-
-`ReadVector<basis>` refers to an earlier basis parameter. Like map parameters,
-the wire carries explicit access/initialization contracts for vector borrowing
-(`WriteVector`, `ReadWriteVector`, `initializes`). These preserve basis,
-conjugation and allocation/layout but confer no operation or permission beyond
-the actual child loan. Unused bodies have separate probes; every executable
-call checks its real caller. Borrowed vectors cannot become owned results or
-escape branch scope. Owned vector/tensor packaging and general vector operations
-remain separate work; raw owned buffers retain existing return rules.
-
-Evaluation/conjugation introduce no data allocation, copy or packing buffer.
-The example reuses one output allocation. Its scalar results use the adapter's
-[fused scalar loop](maps-and-gemm.md#numerical-adapter--scalar-outputs) rather
-than BLAS. Full runtime remains part of the [Fast like C gate](../storage-ownership.md#performance-evidence-and-acceptance).
-
-### Independent checking and evidence
-
-Rust and Lean share strict unresolved protocol-8 forms: `vector`,
-`conjugate_vector`, and `evaluate` with a nested `dual` or `hermitian` operation.
-Headers use `kind: "vector"`, a basis name, access and initialization requirement.
-Native flags, allocation IDs, checked tags and origin certificates are not
-source authority. Old versions reject these payloads; older protocol-8 kernels
-reject the new operations. Use a matching frontend/kernel revision.
-
-`StorageEvaluation.checkVectorConjugate` validates actual origins, basis,
-involution and borrow. `checkEvaluation` connects the exact dual or explicit
-Hermitian contract to original live inputs, real child loans, `checkGemm`,
-replayed schedule, restored snapshots and initialized output. The function
-compiler independently replays that schedule and records exact emitted code.
-The public checker audits every receipt against the same full
-authority/Fn/dispatch check's accepted declaration environment.
-
-The oracle's `vector_space`, `vector_input_reborrow`,
-`actual_vector_conjugation`, `actual_evaluation`, `dual_evaluation_types`,
-`hermitian_evaluation_form`, `evaluation_preserves_interpretation` and
-`evaluation_returns_inputs_and_scalar` extract those actual-checker facts.
-`public_vector_conjugation_origin` and `public_evaluation_origin` connect them
-to the public request. These are structural/resource/lowering proofs, not
-general ideal-module laws or native numerical refinement.
-
-`EvaluationRegression` covers real/complex dimensions 0/1/3, ordinary and
-physically transposed columns, provenance/flag mutations, initialization,
-aliases, suspended parents, both branch states and native-plan audits. Public
-tests cover nested repeated read inputs, malformed wire, old versions, invalid
-unused helpers, artifact preservation and metadata-only execution without
-OpenBLAS. Numerical CI executes all shape/orientation cases, mixed complex
-components and explicit accumulation.
-
-```sh
-cargo run --locked -- check --manifest-path examples/packages/vector-evaluation/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/vector-evaluation/Vastitas.toml \
-  --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/vector-evaluation
-/tmp/vector-evaluation
-```
-
-On Linux add `--native-cc cc`, as in [the adapter guide](maps-and-gemm.md#numerical-adapter).
-The program checks both distinct complex results and prints `42`. Empty
-evaluation uses the adapter's documented zero-inner convention; it supplies
-no separate exact-field theorem.
-
-[Explicit diagonal metrics](#diagonal-metrics) extend Hermitian evaluation to
-non-orthonormal declared diagonal forms through caller scratch and a compound
-preflight, with conditional ideal pairing/adjoint laws. Dense forms and basis
-transport remain outside that increment.
-
-[Bounded contraction trees](networks-and-packing.md#contraction-trees) now validate rank-two/three
-occurrences, ports, edges and boundaries with explicit schedules and regrouping;
-[packing caches](networks-and-packing.md#cached-packing) check retained scratch dependencies.
-General-rank networks, broader generative numerical packages, dynamic interfaces
-and equivalent-C acceptance remain open Stage 1 work.
-
-<a id="diagonal-metrics"></a>
-
-## Explicit diagonal metrics (protocol 8)
-
-Resource functions can materialize metric adjoints into caller destinations and
-evaluate diagonal Hermitian forms using caller scratch. These operations use the
-actual declared `Metric` and its exact nominal basis/involution. A same-shaped
-buffer, a raw coefficient table, or matching dimensions does not supply a metric.
-The existing allocation-free, orthonormal `adjoint` view remains unchanged.
-
-```vast
-metric hv = diagonal(bv, sigma, [2, -4]);
-metric hw = diagonal(bw, sigma, [3, 5, -2]);
-adjoint_into(input, output, hv, hw, NativeFast);
-
-// xc explicitly interprets a conjugate-space vector, as in vector evaluation.
-hermitian_diagonal(xc, y, scalar_out, hv,
-    scratch(scratch_owner, layout(8, 2, 1, 3, false)), overwrite, NativeFast);
-```
-
-`input` is a readable map from `bv` to `bw`; `output` is a writable map with
-those exact bases reversed. Both forms must select the same involution.
-The output has ordinary coordinates; its declared view cannot already carry a
-conjugation. For an input coordinate matrix A, the intended ideal formula is
-`A†[i,j] = star(A[j,i]) * gw[j] / gv[i]`. An already conjugated input uses the
-opposite native conjugation flag. The materialized output is distinct from a
-transpose, and has no hidden inverse, Gram matrix, temporary matrix or BLAS call.
-
-The pairing takes a readable right vector in `hv`'s exact basis and an explicit
-left vector in the corresponding conjugate basis. Its intended coordinate
-formula is `sum(xc[i] * gv[i] * y[i])`; constructing `xc` from ordinary x by
-explicit conjugation gives the usual Hermitian formula. The output is one
-writable coefficient scalar of the same real/complex type. This initial
-operation supports default-alpha overwrite only; it does not read old output.
-
-### Realization and resource contract
-
-The existing forms are identity, scaled identity with an exact `Int`, or an
-explicit list of exact `Int` entries. Positive-dimensional realization requires
-every entry to be nonzero with absolute value at most 2^53, so it is exactly
-representable in binary64. Encoding and decoding use integer/bit arithmetic;
-there is no tolerance test or host-float rounding when admitting the metric.
-Explicit diagonals retain the existing 4,096-entry bound. Negative entries are
-allowed: nondegeneracy does not assert positivity. Empty spaces follow actual
-`Metric.nondegenerate`: even a zero or oversized scaled identity is vacuously
-valid, and its unused native coefficients canonicalize to identity.
-
-`Metric<bv,sigma>` dependent parameters remain general declared-form contracts.
-The concrete call rechecks the native realization bound. Synthetic body probes
-are separate from actual arguments and do not prove that every possible metric
-argument is realizable. Existing static dimensions and source nominal identities
-are preserved; no dynamic floating Core values or shape interface is added.
-
-The scratch argument is a caller-owned allocation without outstanding loans.
-It cannot be an opaque `OwnedMapTo` package or a borrowed handle. The checker
-reconstructs and accepts this exact sequence:
-
-1. Borrow scratch for writing; read and weight the right vector into it.
-2. Return that write loan; create a fresh initialized read loan of scratch.
-3. Create a read child of the left vector with the required row orientation.
-4. Execute the existing overwrite GEMM into the scalar output.
-5. Return both children, restoring caller loans and allocation owners.
-
-The public compiler also replays the sequence independently and records its
-equality with the single compound resource action. There is no access upgrade
-or invented source read loan. Scratch and output are marked written once each,
-invalidating cached dependencies on either allocation. Adjoint writes invalidate
-dependencies on its destination. Both branch arms, unused bodies, original
-caller arguments and the final schedule are independently checked.
-
-### Native costs and failure boundary
-
-`adjoint_into` executes one O(mn) pass and writes mn scalar-width bytes.
-`hermitian_diagonal` executes one O(n) weighting pass and one existing GEMM,
-writing (n+1) scalar-width bytes, or just the zero scalar when n=0. The adapter
-runs that 1×1 GEMM as its [fused scalar loop](maps-and-gemm.md#numerical-adapter--scalar-outputs)
-over the scratch vector, without a BLAS driver call. Both reuse
-caller storage and add no data allocation or data copy. They perform explicit
-`NativeFast` multiplication/division, with normal floating rounding, overflow
-and nonfinite propagation; exact metric coefficients do not imply exact results.
-
-Every returned preflight error preserves destination data, scratch, write
-counters and the GEMM report. The compound pairing validates the backend,
-all actual layouts/scalars, source/output and scratch separation, all diagonal
-entries, bounds and total write-counter overflow before its first write. After
-preflight it performs no fallible adapter operation between weighting and GEMM.
-This is a synchronous native implementation contract, not a theorem about
-backend crashes or arbitrary foreign pointers.
-
-Generated coefficient payloads are immutable Lean `ByteArray` constants borrowed
-for the duration of each FFI call. FFI retains no coefficient pointer afterward.
-Their payload is 8(n+m) bytes for two explicit adjoint diagonals and 8n bytes for
-pairing; identity/scaled identity uses eight bytes per form, plus Lean object
-and container overhead. A static hex string holds twice the payload bytes; a
-reserved linear decoder constructs each table once, with a temporary UTF-8 copy
-of that hex text. Generated C does not retain every array-literal prefix. These
-are metadata, not arena data allocations, and are
-not counted by arena data counters. Foreign C callers must provide readable
-immutable tables of the declared byte length for the complete synchronous call;
-concurrent mutation or forged pointer extents are outside the trusted ABI.
-The pinned Lean-generated C fixture initializes the two distinct closed tables
-once on first use and reuses them across repeated operations; the checked-native
-test audits this placement. Initial construction and retained metadata still
-cost memory/time, and this inspection is not a general native-refinement proof.
-
-Standalone adjoint uses only the optional storage native runtime, without
-OpenBLAS. Pairing links the pinned sequential LP64 OpenBLAS 0.3.34 adapter.
-The [prepared adapter/C experiment](https://github.com/MGYamada/Vastitas/blob/main/experiments/diagonal_metrics/README.md)
-reports actual costs and performance gaps. It excludes public-source/FFI and
-lifecycle costs and does not close the [Fast like C gate](../storage-ownership.md#performance-evidence-and-acceptance).
-
-### Checking, proofs and examples
-
-Rust and Lean strictly decode `adjoint_into` and `hermitian_diagonal` numerical
-operations in protocol 8. Operands are unresolved names and explicit scratch
-layout, never supplied Gram bytes, allocation identities or acceptance receipts.
-Protocols 2–7 and unknown fields reject these payloads. `StorageMetric` obtains
-metrics from the actual accepted value environment, retains exact realization,
-resource transition and replay evidence; `StorageFunctions` retains the precise
-emitted action, and `ResourceSource` audits every executable receipt's original
-declaration environment. `StorageCodegen` reconstructs and checks the native
-instruction against the original schedule before generating code.
-
-`VastitasOracle.StorageMetric` extracts those actual-checker guarantees.
-`StorageMetricLaws` interprets the exact certificate metric fields over a lawful
-characteristic-zero commutative field with an explicit additive/multiplicative
-involution. Nonzero coordinate weights follow from the actual selected metric
-validity, not an extra arbitrary nondegeneracy assumption. It proves pairing
-linearity/semilinearity and Hermitian symmetry, adjoint additivity/star scaling,
-the defining adjoint pairing equation and finite composition contravariance.
-Composition requires equality of the full intermediate `Metric`; equal shape
-does not suffice. These laws concern ideal coordinate formulas. They do not
-prove that an unrelated composite buffer holds a matrix product, source/native
-refinement, numerical error bounds, or floating-point field identities.
-
-```sh
-cargo run --locked -- check --manifest-path examples/packages/diagonal-metrics/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/diagonal-metrics/Vastitas.toml \
-  --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/diagonal-metrics
-/tmp/diagonal-metrics
-```
-
-The example checks real/complex padded rectangular adjoints and repeated
-scratch-backed pairings, then prints `42`. `MetricRegression`, source/wire tests,
-standalone native sanitizers and exact checked-schedule execution cover stale
-dependencies, incorrect metric/basis/loan provenance, malformed coefficients,
-zero dimensions, aliasing, forged native flags, resource restoration and costs.
-Dense Gram adoption, basis transport, solves, arbitrary runtime coefficients,
-dynamic interfaces, AD and complete native refinement remain outside this
-increment. #67, #91, #183 and historical Stage 1 remain open.
+- <a id="linear-transforms"></a><a id="typed-dual-conjugate-and-metric-adjoint-protocol-8"></a><a id="objects-involutions-and-bases"></a>Typed dual, conjugate and metric adjoint: [Dual and conjugate spaces](#dual-and-conjugate-spaces).
+- <a id="declared-hermitian-forms"></a>Declared Hermitian forms: [Metrics](#metrics).
+- <a id="map-operations-and-resources"></a>Map operations and resources: [Transformed maps](#transformed-maps).
+- <a id="dependent-function-contracts"></a>Dependent function contracts: [Parameter types](#parameter-types).
+- <a id="linear-transforms--wire-and-proof-boundary"></a><a id="wire-and-proof-boundary"></a>Wire and proof boundary: [Numerical backend](../internals/numerical-backend.md#wire-and-proof-boundary-of-transforms).
+- <a id="example-and-regression-evidence"></a>Example and regression evidence: [Numerical backend](../internals/numerical-backend.md#example-and-regression-evidence-of-transforms).
+- <a id="vector-evaluation"></a><a id="bilinear-vector-evaluation-and-explicit-hermitian-pairing"></a><a id="values-and-operations"></a>Vector evaluation: [Vectors](#vectors) and [Pairings](#pairings).
+- <a id="resources-calls-and-output"></a>Resources, calls and output: [Pairings](#pairings).
+- <a id="independent-checking-and-evidence"></a>Independent checking and evidence: [Numerical backend](../internals/numerical-backend.md#vector-evaluation).
+- <a id="diagonal-metrics"></a><a id="explicit-diagonal-metrics-protocol-8"></a>Explicit diagonal metrics: [Adjoints for diagonal metrics](#adjoints-for-diagonal-metrics) and [Pairings](#pairings).
+- <a id="realization-and-resource-contract"></a>Realization and resource contract: [Metrics](#metrics).
+- <a id="native-costs-and-failure-boundary"></a>Native costs and failure boundary: [Numerical backend](../internals/numerical-backend.md#native-costs-and-failure-boundary-of-diagonal-metrics).
+- <a id="checking-proofs-and-examples"></a>Checking, proofs and examples: [Numerical backend](../internals/numerical-backend.md#checking-proofs-and-examples-of-diagonal-metrics).

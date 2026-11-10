@@ -101,6 +101,9 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
     ("examples/reject/statements/nested-rebinding.vast", &[]),
     ("examples/reject/expressions/chained-comparison.vast", &[]),
     ("examples/reject/expressions/mixed-integers.vast", &[]),
+    ("examples/reject/diagnostics/several-names.vast", &[]),
+    ("examples/reject/limits/nested-parentheses.vast", &[]),
+    ("examples/reject/limits/seven-parameters.vast", &[]),
     ("examples/reject/geometric-types/wrong-endpoint.vast", &[]),
     ("examples/reject/geometric-types/escaping-point.vast", &[]),
     ("examples/reject/dispatch/incomparable-methods.vast", &[]),
@@ -114,6 +117,9 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
 /// `<directory>.stderr`, with the repository root removed from file names.
 const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/private-function",
+    "examples/reject/packages/entry-signature",
+    "examples/reject/packages/unknown-manifest-key",
+    "examples/reject/packages/uninitialized-read",
     "examples/reject/packages/other-basis",
     "examples/reject/packages/other-space",
     "examples/reject/packages/missing-capability",

@@ -1,0 +1,5 @@
+[package]
+name = "unknown_manifest_key"
+version = "0.1.0"
+root = "main.vast"
+edition = "2026"

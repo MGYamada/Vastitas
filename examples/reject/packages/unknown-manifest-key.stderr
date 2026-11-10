@@ -1,0 +1,6 @@
+examples/reject/packages/unknown-manifest-key/Vastitas.toml: E_MANIFEST: TOML parse error at line 5, column 1
+  |
+5 | edition = "2026"
+  | ^^^^^^^
+unknown field `edition`, expected one of `name`, `version`, `root`
+

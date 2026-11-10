@@ -1,0 +1,3 @@
+examples/reject/diagnostics/several-names.vast:2:1: E_DUPLICATE: function `area` is defined more than once
+examples/reject/diagnostics/several-names.vast:5:18: E_NAME: unknown function `perimeter`; calls require a declared function, generic, or supported builtin
+examples/reject/diagnostics/several-names.vast:5:36: E_NAME: unknown value `depth`

@@ -88,8 +88,8 @@ The rules of a construct use these words:
 In [Storage and ownership](../storage-ownership.md), **must** also states
 requirements on the compiler and on its measurements, as that chapter says.
 
-[Appendix B](../appendix/diagnostics.md) lists the diagnostic codes and the
-[format of a diagnostic line](../appendix/diagnostics.md#output-format).
+[Diagnostics](diagnostics.md) gives the form of a diagnostic, its place and
+its code, and [Appendix B](../appendix/diagnostics.md) lists the codes.
 
 ## Implementation notes
 

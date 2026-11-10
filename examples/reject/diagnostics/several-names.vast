@@ -1,0 +1,6 @@
+fn area(width: Int, height: Int) -> Int { width * height }
+fn area(side: Int) -> Int { side * side }
+
+fn main() -> Int {
+    area(2, 3) + perimeter(2, 3) + depth
+}

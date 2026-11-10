@@ -1,0 +1,27 @@
+// ANCHOR: table
+// Allocate a table of `rows` by `columns` cells, write 3 to every cell and
+// read one cell back.
+resource fn table(rows: Nat, columns: Nat) -> Unit {
+    let capacity: Nat = value { rows * columns };
+    runtime_allocate data: F64[capacity] runtime_layout(rows, columns, rows, false);
+    runtime_borrow output = write(data);
+    runtime_fill(output, f64(3));
+    runtime_release(output);
+    runtime_borrow input = read(data);
+    runtime_expect(input, 1, 2, f64(3));
+    runtime_release(input);
+    runtime_drop(data);
+    value { () }
+}
+// ANCHOR_END: table
+
+// ANCHOR: main
+resource fn main() -> Int {
+    let rows: Nat = value { 2 };
+    let columns: Nat = value { 3 };
+    call table(rows, columns) -> ();
+    let wide: Nat = value { columns + 4 };
+    call table(rows, wide) -> ();
+    value { 42 }
+}
+// ANCHOR_END: main

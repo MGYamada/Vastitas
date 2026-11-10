@@ -20,6 +20,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CONVERTED = frozenset({
     "guide/affine-geometry.md",
     "guide/smooth-geometry.md",
+    "guide/storage.md",
+    "guide/numerical.md",
+    "guide/diagnostics-and-cli.md",
     "language/notation.md",
     "language/lexical-structure.md",
     "language/programs.md",

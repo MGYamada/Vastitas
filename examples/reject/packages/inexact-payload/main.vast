@@ -1,0 +1,9 @@
+resource fn main() -> Int {
+    allocate data: F64[1];
+    borrow output = write(data, layout(0, 1, 1, 1, false));
+    // No binary64 number equals one tenth.
+    fill(output, f64(0.1));
+    release(output);
+    drop(data);
+    value { 42 }
+}

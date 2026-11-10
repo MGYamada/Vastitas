@@ -1,0 +1,4 @@
+examples/reject/packages/overlapping-writers/main.vast:5:5: E_RESOURCE_ALIAS: incompatible live loans may overlap
+examples/reject/packages/overlapping-writers/main.vast:1:1: note: while checking resource function `main`
+examples/reject/packages/overlapping-writers/main.vast:3:5: note: conflicting loan is `whole`, introduced here
+examples/reject/packages/overlapping-writers/main.vast:2:5: note: borrowed allocation is `data`, introduced here

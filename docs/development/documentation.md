@@ -213,6 +213,15 @@ next rewrite.
   directory in `BOOK_REJECTED_PACKAGES`. `<name>.stderr` next to the directory
   holds the lines of `vastitas check --manifest-path`, with the repository root
   removed from file names. A chapter need not include the manifest.
+- List a package whose build links OpenBLAS in `BOOK_NUMERICAL_PACKAGES`.
+  Its test builds and runs the package only where the pinned OpenBLAS is
+  available: `cargo test --locked --test examples -- --ignored` with
+  `VASTITAS_TEST_OPENBLAS_PREFIX`. A chapter states the output of such a
+  package only when a test of the numerical CI jobs also runs its sources.
+- Put a package whose executable stops with a run-time diagnostic under
+  `examples/packages/` and list its directory in `BOOK_RUNTIME_FAILURES`.
+  `<name>.stderr` next to the directory holds the line that the executable
+  writes to standard error.
 - Label a manifest with `toml`.
 
 ### What stays out

@@ -1313,18 +1313,25 @@ impl Parser {
     }
 
     fn method_result(&mut self) -> Result<Type, Diagnostic> {
+        let start = self.peek().span;
+        let mut span = start;
         if ["Nat", "Int", "Bool", "Unit", "Pair"]
             .iter()
             .any(|name| self.peek().is(name))
         {
-            self.ty()
-        } else {
-            Err(diagnostic(
-                "E_TYPE",
-                "method results require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>",
-                self.peek().span,
-            ))
+            let ty = self.ty()?;
+            // One of these names can also begin an indexed path, such as
+            // `Nat::Family<X>`, which the kernel's decoder refuses here.
+            if matches!(ty, Type::Named { .. } | Type::Pair { .. }) {
+                return Ok(ty);
+            }
+            span = start.through(self.previous().span);
         }
+        Err(diagnostic(
+            "E_TYPE",
+            "method results require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>",
+            span,
+        ))
     }
 
     fn method_header(&mut self) -> Result<MethodHeader, Diagnostic> {

@@ -649,6 +649,43 @@ fn assembly_event_limit_is_reported_at_the_assembly() {
 }
 
 #[test]
+fn forged_method_results_fail_wire_decoding() {
+    // The frontend sends a scalar or a pair type as the result of a method,
+    // also for a type that begins with a scalar name (#702). The decoder
+    // still refuses another type.
+    let scratch = package(
+        "generic g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\nresource fn main() -> Int { value { g(42) } }\n",
+    );
+    let raw = captured(&manifest(&scratch), 8);
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    let family =
+        json!({"path": ["Nat", "Family"], "span": raw["packages"][0]["modules"][0]["span"]});
+    for (result, message) in [
+        (
+            json!({"kind": "indexed_apply", "family": family, "arguments": []}),
+            "expected a scalar or homogeneous Pair type",
+        ),
+        (
+            json!({"kind": "function", "params": [], "return_type": {"kind": "named", "name": "Int"}}),
+            "expected a scalar or homogeneous Pair type",
+        ),
+        (
+            json!({"kind": "named", "name": "Scheme"}),
+            "expected a concrete scalar type",
+        ),
+    ] {
+        let mut forged = raw.clone();
+        let method = &mut forged["packages"][0]["modules"][0]["methods"][0];
+        assert_eq!(
+            method["return_type"],
+            json!({"kind": "named", "name": "Int"})
+        );
+        method["return_type"] = result;
+        assert_protocol(&kernel(&forged, "check"), message);
+    }
+}
+
+#[test]
 fn dispatch_table_construction_is_budgeted() {
     // #553: 7776 distinct arity-6 methods; previously O(keys × methods²)
     // before any other budget applied.

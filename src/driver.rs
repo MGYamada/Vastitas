@@ -1,8 +1,7 @@
 //! Host driver. Semantic acceptance always comes from the Lean backend.
 use crate::ir::Span;
 use crate::runtime_inputs::{self, ABSENT, Package};
-use crate::sources::Sources;
-use crate::sources::shown;
+use crate::sources::{Sources, shown, shown_text};
 use serde_json::{Value, json};
 use std::ffi::{OsStr, OsString};
 use std::fs::{self, OpenOptions};
@@ -685,7 +684,8 @@ fn check_lean_version(directory: &Path, toolchain: &str) -> Result<(), String> {
 
 /// Generated programs import only the runtime modules of the selected
 /// packages, so `verify_runtime_inputs` covers every module that Lake compiles
-/// for them. A response that imports any other module is refused.
+/// for them. A response that imports any other module is refused. The name of
+/// that module is text of the response, so it is shown like a path.
 fn check_generated_imports(
     source: &str,
     selected: &[(&Package, &[(&str, &str)])],
@@ -696,7 +696,8 @@ fn check_generated_imports(
             .any(|(package, _)| package.modules.contains(&module.as_str()))
         {
             return Err(format!(
-                "E_PROTOCOL: the generated program imports {module}, which is not a runtime module that this compiler verifies for this build"
+                "E_PROTOCOL: the generated program imports {}, which is not a runtime module that this compiler verifies for this build",
+                shown_text(&module)
             ));
         }
     }
@@ -719,7 +720,7 @@ fn verify_runtime_inputs(
     let found = runtime_inputs::inputs(&directory, package).map_err(|error| {
         format!(
             "E_BUILD: cannot read the {name} inputs in {}: {error}",
-            directory.display()
+            shown(&directory)
         )
     })?;
     let found: Vec<(&str, &str)> = found
@@ -742,16 +743,19 @@ fn verify_runtime_inputs(
         .collect();
     paths.sort_unstable();
     paths.dedup();
+    // The file of a module is named after an import in a source of the root,
+    // which can spell any character, so each input is shown like a path.
     let differing: Vec<String> = paths
         .into_iter()
-        .filter_map(
-            |path| match (digest_in(&found, path), digest_in(expected, path)) {
-                (found, expected) if found == expected => None,
-                (ABSENT, _) => Some(format!("{path} (missing)")),
-                (_, ABSENT) => Some(format!("{path} (unexpected)")),
-                _ => Some(format!("{path} (changed)")),
-            },
-        )
+        .filter_map(|path| {
+            let state = match (digest_in(&found, path), digest_in(expected, path)) {
+                (found, expected) if found == expected => return None,
+                (ABSENT, _) => "missing",
+                (_, ABSENT) => "unexpected",
+                _ => "changed",
+            };
+            Some(format!("{} ({state})", shown_text(path)))
+        })
         .collect();
     const LISTED: usize = 6;
     let more = differing.len().saturating_sub(LISTED);
@@ -765,10 +769,10 @@ fn verify_runtime_inputs(
          Lake would compile the generated program against files other than the ones this compiler and its kernel were built with.\n\
          Set VASTITAS_KERNEL_ROOT to the unmodified lean-kernel directory of this compiler's Vastitas sources, \
          or rebuild this compiler and the kernel from the sources in that directory.",
-        kernel_root.display(),
+        shown(kernel_root),
         runtime_inputs::summary(found.iter().copied()),
         runtime_inputs::summary(expected.iter().copied()),
-        directory.display()
+        shown(&directory)
     ))
 }
 
@@ -794,7 +798,8 @@ fn build_native(
         return Err(format!(
             "E_BUILD: kernel root {} pins {}, but this compiler was built for {}\n{}",
             shown(kernel_root),
-            toolchain.trim(),
+            // The pin is text of a file of the root.
+            shown_text(toolchain.trim()),
             expected_kernel::TOOLCHAIN,
             rebuild_advice(Some(kernel_root))
         ));

@@ -722,9 +722,26 @@ fn package_paths_in_diagnostics_carry_no_terminal_controls() {
     cases.finish();
 }
 
+/// The output of a command whose backend is a script that the test wrote. A
+/// child that another test spawned while the script was written holds it
+/// open for writing until its exec, and the script cannot start before that.
+fn settled(mut command: impl FnMut() -> Output) -> Output {
+    loop {
+        let output = command();
+        if !String::from_utf8_lossy(&output.stderr).contains("Text file busy") {
+            return output;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+/// The toolchain that this compiler pins.
+const PINNED: &str = include_str!("../lean-kernel/lean-toolchain");
+
 /// The compiler shows a path from the command line or from the environment
 /// like a path that a package chose (#718): the same file name reaches it
-/// through a shell glob.
+/// through a shell glob. A native build shows the names that it reads from
+/// the selected kernel root and from the generated program the same way.
 #[test]
 fn command_line_and_environment_paths_carry_no_terminal_controls() {
     let s = Scratch::empty("argument controls");
@@ -896,15 +913,7 @@ fn command_line_and_environment_paths_carry_no_terminal_controls() {
     )
     .unwrap();
     fs::set_permissions(&backend, fs::Permissions::from_mode(0o755)).unwrap();
-    let output = loop {
-        let output = with_kernel(&backend);
-        // A child that another test spawned while the script was written
-        // holds it open for writing until its exec; wait for that.
-        if !String::from_utf8_lossy(&output.stderr).contains("Text file busy") {
-            break output;
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    };
+    let output = settled(|| with_kernel(&backend));
     cases.rejected(
         "kernel identity",
         &output,
@@ -939,17 +948,106 @@ fn command_line_and_environment_paths_carry_no_terminal_controls() {
         "E_BUILD",
         whole(format!("E_BUILD: empty toolchain in {toolchain}\n")),
     );
-    fs::write(kernel_root.join("lean-toolchain"), "another\n").unwrap();
+    // The pin is text of a file of the root.
+    fs::write(kernel_root.join("lean-toolchain"), format!("{HOSTILE}\n")).unwrap();
     cases.rejected(
         "toolchain other",
         &build(),
         "E_BUILD",
         start(
-            format!("E_BUILD: kernel root {root}/root {NAMED} pins another, "),
+            format!("E_BUILD: kernel root {root}/root {NAMED} pins {NAMED}, "),
             3,
         )
         .with(format!(
             ": lake -d {root}/root {NAMED} build vastitas-kernel\n"
+        )),
+    );
+
+    // The runtime inputs of the root, which a native build compares with the
+    // ones of this compiler. A root with the pin alone has none of them.
+    fs::write(kernel_root.join("lean-toolchain"), PINNED).unwrap();
+    let differing =
+        format!("E_BUILD: kernel root {root}/root {NAMED} provides kernel runtime inputs ");
+    let listed = format!("\nnote: differing inputs in {root}/root {NAMED}: ");
+    cases.rejected(
+        "runtime inputs absent",
+        &build(),
+        "E_BUILD",
+        start(differing.as_str(), 4).with(listed.as_str()),
+    );
+    // With the inputs of this compiler and one more: a module that a runtime
+    // source imports, whose file the root holds. The name of a module holds
+    // no white space, so it leaves out the line feed and the tab.
+    const MODULE: &str = "x\u{1b}[2J\u{7}\u{9b}2J\u{202e}";
+    const MODULE_NAMED: &str = "x<U+001B>[2J<U+0007><U+009B>2J<U+202E>";
+    common::copy_runtime_inputs(&kernel_root, false, false);
+    let runtime = kernel_root.join("VastitasKernel/IndexedRuntime.lean");
+    let source = fs::read_to_string(&runtime).unwrap();
+    fs::write(
+        &runtime,
+        format!("import VastitasKernel.{MODULE}\n{source}"),
+    )
+    .unwrap();
+    fs::write(
+        kernel_root.join(format!("VastitasKernel/{MODULE}.lean")),
+        "",
+    )
+    .unwrap();
+    cases.rejected(
+        "runtime input name",
+        &build(),
+        "E_BUILD",
+        start(differing.as_str(), 4).with(format!(
+            "{listed}VastitasKernel/IndexedRuntime.lean (changed), VastitasKernel/{MODULE_NAMED}.lean (unexpected)\n"
+        )),
+    );
+    // An input that cannot be read, where the user may not read every file.
+    // SAFETY: geteuid has no preconditions and cannot fail.
+    if unsafe { nix::libc::geteuid() } != 0 {
+        fs::set_permissions(&runtime, fs::Permissions::from_mode(0o000)).unwrap();
+        let output = build();
+        fs::set_permissions(&runtime, fs::Permissions::from_mode(0o644)).unwrap();
+        cases.rejected(
+            "runtime input unreadable",
+            &output,
+            "E_BUILD",
+            whole(format!(
+                "E_BUILD: cannot read the kernel runtime inputs in {root}/root {NAMED}: Permission denied (os error 13)\n"
+            )),
+        );
+    }
+    // A backend whose generated program imports a module under such a name.
+    // The driver refuses the import ahead of the runtime inputs.
+    let identity: serde_json::Value = serde_json::from_str(&common::kernel_identity()).unwrap();
+    let response = serde_json::json!({
+        "version": 2,
+        "ok": true,
+        "kernel": identity,
+        "lean_source": format!("import {MODULE}\ndef main : IO Unit := pure ()\n"),
+    });
+    s.write("response.json", &response.to_string());
+    let importing = s.0.join("importing backend");
+    fs::write(
+        &importing,
+        "#!/bin/sh\ncat >/dev/null\ncat \"$(dirname \"$0\")/response.json\"\n",
+    )
+    .unwrap();
+    fs::set_permissions(&importing, fs::Permissions::from_mode(0o755)).unwrap();
+    let output = settled(|| {
+        bounded(
+            cli()
+                .current_dir(&s.0)
+                .args(["build", "main.vast", "-o", "program"])
+                .env("VASTITAS_KERNEL", &importing)
+                .env("VASTITAS_KERNEL_ROOT", &kernel_root),
+        )
+    });
+    cases.rejected(
+        "generated import",
+        &output,
+        "E_PROTOCOL",
+        whole(format!(
+            "E_PROTOCOL: the generated program imports {MODULE_NAMED}, which is not a runtime module that this compiler verifies for this build\n"
         )),
     );
     cases.finish();

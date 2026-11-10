@@ -262,9 +262,26 @@ fn existence(
     Ok(Existence::Exact)
 }
 
+/// A path as an `E_INPUT` error shows it. A manifest chooses its root and
+/// dependency paths, and TOML escapes can spell any character in them. A
+/// character that source diagnostics name by code point instead of echoing
+/// (`frontend::character`) is named the same way here, as `<U+001B>`, so no
+/// terminal control reaches stderr. A space stays as it is.
+fn shown(path: &Path) -> String {
+    let mut text = String::new();
+    for ch in path.to_string_lossy().chars() {
+        if ch == ' ' || frontend::echoable(ch) {
+            text.push(ch);
+        } else {
+            text.push_str(&format!("<{}>", frontend::character(ch)));
+        }
+    }
+    text
+}
+
 fn canonical(path: &Path) -> Result<PathBuf, String> {
     path.canonicalize()
-        .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))
+        .map_err(|error| format!("E_INPUT: cannot read {}: {error}", shown(path)))
 }
 
 fn identifier(name: &str) -> bool {
@@ -372,13 +389,13 @@ impl Loader {
         if !source.starts_with(package) {
             return Err(format!(
                 "E_INPUT: module file escapes package directory: {}",
-                source.display()
+                shown(source)
             ));
         }
         if source.extension().is_none_or(|ext| ext != "vast") {
             return Err(format!(
                 "E_INPUT: module filename must have the .vast extension: {}",
-                source.display()
+                shown(source)
             ));
         }
         Ok(())

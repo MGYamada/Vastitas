@@ -206,3 +206,74 @@ fn input_file_count_is_bounded_before_the_backend() {
         "{error}"
     );
 }
+
+/// A manifest chooses its root and dependency paths, and TOML escapes can
+/// spell any character in them (#680). An `E_INPUT` error names a control
+/// character by its code point: the path stays readable, and neither a
+/// terminal control nor a forged line reaches stderr.
+#[test]
+fn manifest_paths_in_errors_carry_no_terminal_controls() {
+    let s = Scratch::empty("manifest controls");
+    // As TOML escapes: clear the screen, home the cursor, ring the bell, start
+    // a line, and the one-character control sequence introducer.
+    let hostile = r"x\u001b[2J\u001b[H\u0007\nE_FORGED: \u009b2J";
+    let named = "x<U+001B>[2J<U+001B>[H<U+0007><U+000A>E_FORGED: <U+009B>2J";
+    let package = |name: &str, body: String| {
+        s.write(&format!("{name}/main.vast"), "fn main() -> Int { 0 }");
+        s.write(
+            &format!("{name}/Vastitas.toml"),
+            &format!("[package]\nname = \"probe\"\nversion = \"0.1.0\"\n{body}\n"),
+        );
+    };
+    package("root", format!("root = \"{hostile}.vast\""));
+    package(
+        "dependency",
+        format!("root = \"main.vast\"\n[dependencies]\ndep = {{ path = \"{hostile}\" }}"),
+    );
+    // A root that exists, under a name with a control character.
+    package("existing", r#"root = "x\u001b[2J.txt""#.to_string());
+    s.write("existing/x\u{1b}[2J.txt", "");
+    const MISSING: &str = "E_INPUT: cannot read ";
+    const EXTENSION: &str = "E_INPUT: module filename must have the .vast extension: ";
+    for (name, start, path) in [
+        (
+            "root",
+            MISSING,
+            format!("/root/{named}.vast: No such file or directory"),
+        ),
+        (
+            "dependency",
+            MISSING,
+            format!("/dependency/{named}/Vastitas.toml: No such file or directory"),
+        ),
+        (
+            "existing",
+            EXTENSION,
+            "/existing/x<U+001B>[2J.txt\n".to_string(),
+        ),
+    ] {
+        let output = bounded(
+            cli()
+                .current_dir(&s.0)
+                .args(["check", "--manifest-path"])
+                .arg(format!("{name}/Vastitas.toml"))
+                .env("VASTITAS_KERNEL", s.0.join("absent backend")),
+        );
+        let stderr = common::expect_code(&output, "E_INPUT");
+        assert!(stderr.starts_with(start), "{stderr:?}");
+        assert!(stderr.contains(&path), "{stderr:?}");
+        // The scratch directory's own name, spaces included, is not rewritten.
+        let scratch = s.0.file_name().unwrap().to_str().unwrap();
+        assert!(stderr.contains(scratch), "{stderr:?}");
+        // The only control byte or character is the newline that ends the line.
+        let controls: Vec<u8> = output
+            .stderr
+            .iter()
+            .copied()
+            .filter(u8::is_ascii_control)
+            .collect();
+        assert_eq!(controls, b"\n", "{stderr:?}");
+        assert!(output.stderr.ends_with(b"\n"), "{stderr:?}");
+        assert_eq!(stderr.chars().filter(|ch| ch.is_control()).count(), 1);
+    }
+}

@@ -1062,8 +1062,29 @@ mod tests {
             other.try_lock(),
             Err(fs::TryLockError::WouldBlock)
         ));
+        // Model a child that another test of this binary spawns at this moment.
+        // Between fork and exec it owns a copy of every descriptor, which
+        // `FD_CLOEXEC` closes only at exec.
+        let inherited = held.try_clone().unwrap();
+        let exec = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            drop(inherited);
+        });
         drop(held);
-        assert!(other.try_lock().is_ok());
+        // The flock belongs to the open file description, so dropping `held`
+        // releases it only once such a copy is closed too. Asserting at once
+        // failed under a concurrent spawn (#677), so wait for the release.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            match other.try_lock() {
+                Ok(()) => break,
+                Err(fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                error => panic!("the dropped package lock was not released: {error:?}"),
+            }
+        }
+        exec.join().unwrap();
         drop(other);
         // The lock file is reusable rather than a stale exclusive marker.
         drop(lock_file(&package).unwrap());

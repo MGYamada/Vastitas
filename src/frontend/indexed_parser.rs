@@ -315,7 +315,7 @@ impl Parser {
                 self.expect(",")?;
                 fields.push(("coordinate", WireValue::Coordinate(self.coordinate_name()?)));
                 self.expect(",")?;
-                fields.push(("monomial", WireValue::Polynomial(self.poly(0)?)));
+                fields.push(("monomial", WireValue::Polynomial(self.polynomial()?)));
                 fields
             }
             "relative_pair" => self.indexed_paths(&["family", "fiber"])?,
@@ -606,7 +606,7 @@ impl Parser {
             self.expect("(")?;
             let object = self.type_path()?;
             self.expect(",")?;
-            let element = self.poly(0)?;
+            let element = self.polynomial()?;
             self.expect(")")?;
             self.expect("inverse")?;
             return Ok(DeclarationBody::AffineLocalization {
@@ -640,7 +640,7 @@ impl Parser {
         self.expect("spec")?;
         let generators = self.indexed_list("[", "]", |p| Ok(p.name()?.0))?;
         let relations = if self.consume("relations") {
-            self.indexed_list("(", ")", |p| p.poly(0))?
+            self.indexed_list("(", ")", Self::polynomial)?
         } else {
             Vec::new()
         };
@@ -799,7 +799,8 @@ impl Parser {
         let gram = match self.indexed_tag()?.as_str() {
             "euclidean" => indexed::MetricGram::Euclidean,
             "gram" => indexed::MetricGram::Gram {
-                rows: self.indexed_list("(", ")", |p| p.indexed_list("(", ")", |q| q.poly(0)))?,
+                rows: self
+                    .indexed_list("(", ")", |p| p.indexed_list("(", ")", Self::polynomial))?,
             },
             _ => {
                 return Err(diagnostic(
@@ -836,6 +837,26 @@ impl Parser {
         self.type_path()
     }
 
+    /// One whole polynomial expression. The kernel's decoder spends one level
+    /// of `algebraNesting` on every node of the wire tree. The frontend counts
+    /// the same levels, so an expression that the decoder would refuse is an
+    /// `E_LIMIT` at its own span.
+    fn polynomial(&mut self) -> Result<indexed::PolyExpr, Diagnostic> {
+        let start = self.peek().span;
+        let expression = self.poly(0)?;
+        if poly_levels(&expression) > crate::limits::MAX_ALGEBRA_NESTING {
+            return Err(diagnostic(
+                "E_LIMIT",
+                "polynomial expression is nested too deeply",
+                start.through(self.previous().span),
+            ));
+        }
+        Ok(expression)
+    }
+
+    /// Bounds the parser's own recursion: `depth` counts the enclosing
+    /// parentheses and prefix `-`. Parentheses are not nodes of the wire
+    /// tree, so `polynomial` counts its levels separately.
     fn poly_nesting(&self, depth: usize) -> Result<(), Diagnostic> {
         if depth >= crate::limits::MAX_ALGEBRA_NESTING {
             Err(diagnostic(
@@ -978,8 +999,25 @@ impl Parser {
         self.expect("->")?;
         Ok(indexed::Binding {
             name,
-            image: self.poly(0)?,
+            image: self.polynomial()?,
         })
+    }
+}
+
+/// The levels that the kernel's `Wire.polyExpr` spends on an expression: the
+/// nodes on the longest path from its root to a leaf. Every literal,
+/// coordinate, sum, product, negation and power is a node. The recursion is
+/// bounded, because `poly_nesting` admits at most four nodes for each level of
+/// parentheses and one for each prefix `-`.
+fn poly_levels(expression: &indexed::PolyExpr) -> usize {
+    use indexed::PolyExpr::{Coordinate, Fraction, Natural, Neg, Pow, Product, Sum};
+    1 + match expression {
+        Natural { .. } | Fraction { .. } | Coordinate { .. } => 0,
+        Neg { operand } => poly_levels(operand),
+        Pow { base, .. } => poly_levels(base),
+        Sum { terms: operands } | Product { factors: operands } => {
+            operands.iter().map(poly_levels).max().unwrap_or(0)
+        }
     }
 }
 
@@ -1088,6 +1126,61 @@ mod tests {
             expected.push('}');
             assert_eq!(serde_json::to_string(&binding).unwrap(), expected);
         }
+    }
+
+    fn coefficient(monomial: &str) -> Result<Primitive, Diagnostic> {
+        parse_binding(&format!(
+            "indexed primitive p = relative_coefficient(Over, D, Line, t, {monomial});"
+        ))
+    }
+
+    /// The frontend counts the levels that the kernel's decoder spends on a
+    /// polynomial (#631): one for the leaf and one for every sum, product,
+    /// negation and power above it. A binary minus is a sum over a negation,
+    /// and parentheses are no level.
+    #[test]
+    fn polynomial_levels_count_every_wire_node() {
+        const TOO_DEEP: &str = "polynomial expression is nested too deeply";
+        let limit = crate::limits::MAX_ALGEBRA_NESTING;
+        // Each wrap puts `levels` nodes above its operand `@`.
+        for (wrap, levels) in [
+            ("(@ + 1)", 1),
+            ("(@ * 2)", 1),
+            ("(@)^1", 1),
+            ("(1 - @)", 2),
+            ("(@ * 1 + 1)", 2),
+            ("(1 - @ * 2)", 3),
+            ("(1 - 2 * (@)^1)", 4),
+        ] {
+            let wraps = (limit - 1) / levels;
+            let body = (0..wraps).fold("e".to_string(), |inner, _| wrap.replace('@', &inner));
+            // Prefix minus signs fill the path up to the limit, one level each.
+            let filled = format!("{}{body}", "-".repeat(limit - 1 - wraps * levels));
+            coefficient(&filled).unwrap_or_else(|error| panic!("`{wrap}`: {error:?}"));
+            let error = coefficient(&format!("-{filled}")).expect_err(wrap);
+            assert_eq!(
+                (error.code.as_str(), error.message.as_str()),
+                ("E_LIMIT", TOO_DEEP)
+            );
+        }
+        // The diagnostic covers the whole expression.
+        let entry = (0..33).fold("1".to_string(), |inner, _| format!("({inner}*1+1)"));
+        let source =
+            format!("indexed primitive p = relative_coefficient(Over, D, Line, t, {entry});");
+        let error = parse_binding(&source).expect_err("67 levels");
+        assert_eq!(
+            (error.code.as_str(), error.message.as_str()),
+            ("E_LIMIT", TOO_DEEP)
+        );
+        assert_eq!(&source[error.span.start..error.span.end], entry);
+        // Parentheses and prefix minus signs bound the parser's recursion.
+        let parentheses = |depth: usize| format!("{}e{}", "(".repeat(depth), ")".repeat(depth));
+        coefficient(&parentheses(limit - 1)).unwrap();
+        let error = coefficient(&parentheses(limit)).expect_err("64 parentheses");
+        assert_eq!(
+            (error.code.as_str(), error.message.as_str()),
+            ("E_LIMIT", TOO_DEEP)
+        );
     }
 
     #[test]

@@ -194,8 +194,15 @@ Rules:
 
 - A literal must have at most 64 decimal digits. Otherwise it is an error
   (`E_LIMIT`).
-- An expression must nest at most 64 levels deep. Otherwise it is an error
-  (`E_LIMIT`).
+- An expression must have at most 64 levels. Otherwise it is an error
+  (`E_LIMIT`). A literal, a fraction or a coordinate name is one level. A
+  sum, a product, a negation or a power is one level more than its deepest
+  operand. A chain of `+` and `-` is one sum, in which `- p` is the negation
+  of `p`, and a chain of `*` is one product. Parentheses add no level. For
+  example, `1 - x*2` has four levels: the sum, the negation, the product and
+  `x`.
+- Parentheses and unary `-` signs must nest at most 63 deep, counted
+  together. Otherwise it is an error (`E_LIMIT`).
 - Exponents and degrees must be at most 16, and the expanded polynomial must
   stay within the term and work budgets of
   [exact affine algebra](../appendix/limits.md#exact-affine-algebra-stage-2).

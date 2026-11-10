@@ -219,6 +219,69 @@ fn affine_source_rejections_are_specific() {
     rejects("mod profile;\nfn main() -> Int { 2 ^ 3 }", "E_PARSE");
 }
 
+/// The frontend counts the levels that the kernel decodes (#631): the leaf
+/// and every sum, product, negation and power above it, not only parentheses.
+/// A deeper expression is `E_LIMIT` at its source, where it used to fail wire
+/// decoding with `E_PROTOCOL` at the manifest.
+#[test]
+fn polynomial_nesting_is_bounded_at_the_expression() {
+    // Each wrap puts a sum and a product above the leaf.
+    let wrapped = |leaf: &str, wraps: usize| {
+        (0..wraps).fold(leaf.to_string(), |inner, _| format!("({inner}*1+1)"))
+    };
+    let relation = |entry: &str| {
+        let main = with(&format!(
+            "indexed affine Deep(AffineQQ) = spec[e] relations({entry}) over SpecQQ;"
+        ));
+        (fixture(&main), main)
+    };
+    // Gram entries and smooth images use the same parser.
+    let smooth = |declaration: String| {
+        let main = format!(
+            "mod profile;\nuse profile::Smooth;\nuse profile::MetricForm;\nuse profile::Line;\n{declaration}\nfn main() -> Int {{ 0 }}\n"
+        );
+        let s = fixture(&main);
+        s.write(
+            "src/profile.vast",
+            include_str!("../examples/packages/smooth-metric/src/profile.vast"),
+        );
+        (s, main)
+    };
+    let gram = |entry: &str| {
+        smooth(format!(
+            "indexed metric Deep: MetricForm<Line> = gram(({entry}));"
+        ))
+    };
+    let map = |entry: &str| {
+        smooth(format!(
+            "indexed morphism deep: Smooth<Line, Line> = pullback(t -> {entry});"
+        ))
+    };
+    // Each form builds a package around one expression and returns its main.
+    type Form<'a> = &'a dyn Fn(&str) -> (Scratch, String);
+    let forms: [(Form, &str); 3] = [(&relation, "e"), (&gram, "1"), (&map, "t")];
+    for (form, leaf) in forms {
+        // 31 wraps under one negation are 64 levels, which the kernel decodes.
+        success(&check(&form(&format!("-{}", wrapped(leaf, 31))).0));
+        // 32 wraps are 65 levels, and 33 wraps are the reported program.
+        for wraps in [32, 33] {
+            let entry = wrapped(leaf, wraps);
+            let (s, main) = form(&entry);
+            let stderr = common::expect_code(&check(&s), "E_LIMIT");
+            let before = &main[..main.find(&entry).unwrap()];
+            let line = before.matches('\n').count() + 1;
+            let column = before.rsplit('\n').next().unwrap().chars().count() + 1;
+            assert!(
+                stderr.contains(&format!(
+                    "src/main.vast:{line}:{column}: E_LIMIT: polynomial expression is nested too deeply"
+                )),
+                "{stderr}"
+            );
+            assert!(!stderr.contains("E_PROTOCOL"), "{stderr}");
+        }
+    }
+}
+
 #[test]
 fn degree_and_digit_boundaries_are_accepted() {
     let digits = "9".repeat(64);

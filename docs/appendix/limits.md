@@ -73,7 +73,7 @@ isomorphisms and evidence composites — runs within `algebraWork` and
 | `algebraDegree` | 16 | Degree and exponents of a source polynomial |
 | `algebraCoefficientDigits` | 64 | Digits of a source literal |
 | `algebraChain` | 16 | Length of a declared base chain |
-| `algebraNesting` | 64 | Nesting of a polynomial expression on the wire |
+| `algebraNesting` | 64 | Levels of a [polynomial expression](../language/smooth-declarations.md#polynomial-expressions): one for every literal, coordinate, sum, product, negation and power on a path. It also bounds the nesting of parentheses |
 
 ### Smooth objects and maps
 
@@ -87,7 +87,7 @@ smooth map within one `algebraWork` run. An input beyond a bound is an error
 | `algebraGenerators` | 16 | Coordinates of a smooth affine object, so the dimension of every smooth map, tangent or cotangent fiber, tape and Gram matrix |
 | `algebraCoefficientDigits` | 64 | Digits of an `Affine(n)` dimension, and of a literal in an image or a Gram entry |
 | `algebraDegree` | 16 | Degree and exponents of an image or a Gram entry |
-| `algebraNesting` | 64 | Nesting of an image or a Gram entry |
+| `algebraNesting` | 64 | Levels of an image or a Gram entry |
 | `algebraTerms` | 512 | Terms of each expanded image or Gram entry |
 | `algebraWork` | 8,000,000 | Work of elaborating one image, or all Gram entries of one metric |
 

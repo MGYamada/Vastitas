@@ -152,13 +152,19 @@ fn deceptive_in_comment(ch: char) -> bool {
     )
 }
 
+// Whether a diagnostic may echo `ch` to the terminal. Control, format and
+// whitespace characters are named by code point instead.
+pub(crate) fn echoable(ch: char) -> bool {
+    !(ch.is_control() || ch.is_whitespace() || default_ignorable(ch))
+}
+
 // Name a source character in a diagnostic without echoing control, format or
 // whitespace characters to the terminal.
-fn character(ch: char) -> String {
-    if ch.is_control() || ch.is_whitespace() || default_ignorable(ch) {
-        format!("U+{:04X}", ch as u32)
-    } else {
+pub(crate) fn character(ch: char) -> String {
+    if echoable(ch) {
         format!("`{ch}` (U+{:04X})", ch as u32)
+    } else {
+        format!("U+{:04X}", ch as u32)
     }
 }
 

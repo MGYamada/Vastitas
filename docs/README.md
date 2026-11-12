@@ -92,9 +92,9 @@ nothing to them.
 
 | Part of the language | Guide | Proved |
 | --- | --- | --- |
-| Functions, integers, pairs, dispatch, abstract types and function values | Chapters 2 to 5 | In the kernel's evaluator, every function of the Core that the kernel builds from a checked program ends with a value of its result type. The method that a call selects does not depend on the order of the methods. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Dispatch](verification.md#stage-1a-finite-dispatch-and-checker-composition) |
+| Functions, integers, pairs, dispatch, abstract types and function values | Chapters 2 to 5 | In the kernel's evaluator, every function of the Core that the kernel builds from a checked program ends with a value of its result type. The method that a call selects does not depend on the order of the method records that the checker receives. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Code generation entries](verification.md#code-generation-entries) · [Dispatch](verification.md#stage-1a-finite-dispatch-and-checker-composition) |
 | Packages, modules and edit authority | Chapters 1 and 6 | Each grant, delegation and transfer that the checker records for an accepted program is issued by the module that declares it, and its recipient is the module that the declaration names. [Current public checker routes](verification.md#current-public-checker-routes) |
-| Indexed declarations and the geometry library | Chapter 7 | Evaluation preserves the type of a value, and in that type a point and a morphism keep both of their objects. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) |
+| Indexed declarations and the geometry library | Chapter 7 | Evaluation preserves the type of a value, and in that type a point and a morphism keep both of their objects. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Code generation entries](verification.md#code-generation-entries) |
 | Presented affine geometry over the rational numbers | Chapter 8 | Two polynomials that the compiler finds equal are the same function. A declared fiber product has the universal property of a fiber product, and a declared open subset is the localization of its object. [Presented affine geometry](verification.md#presented-affine-geometry) · [Acceptance record](stage2-acceptance.md) |
 | Smooth affine geometry with rational coefficients: polynomial smooth maps, covectors and vectors at rational points, reverse pullbacks, and named metrics with checked evidence. The kernel compiles each reverse pass that it can read and checks the result again | Chapter 9 | The chain rule for pullbacks, the agreement of the saved and the recomputing reverse pass, the comparison of the pullback with the derivative of real analysis, and the meaning of metric evidence. The theorems also state what each generated reverse function computes. That a whole compiled program agrees with its source is Tested, not Proved. [Smooth affine geometry](verification.md#smooth-affine-geometry-and-reverse-pullbacks) · [Acceptance record](stage3-acceptance.md) · [Compiled reverse passes](reverse-core-acceptance.md) |
 | Storage and resource programs | Chapter 10 | Four facts about the model of storage that the checker keeps. Every access lies in its allocation. A read finds initialized bytes. Two active loans of which one writes do not overlap; a loan with a live child gives no access. An accepted entry point leaves no allocation and no loan. [Storage](language/guarantees.md#storage) · [What is outside these claims](verification.md#what-is-outside-these-claims) |
@@ -185,8 +185,9 @@ The appendices hold the [commands](guide/cli.md), the
 [compiler limits](appendix/limits.md), the independent
 [reference models](appendix/reference-models.md), the
 [roadmap with the delivery records](appendix/history.md), the
-[checks for contributors](appendix/contributing.md) and the
-[glossary](appendix/glossary.md).
+[checks for contributors](appendix/contributing.md), the
+[glossary](appendix/glossary.md) and the
+[grammar summary](appendix/grammar.md).
 
 | Task | Where to start |
 | --- | --- |
@@ -195,6 +196,7 @@ The appendices hold the [commands](guide/cli.md), the
 | Look up a rule | The Reference chapter of the construct, from the table above |
 | Look up a command, a diagnostic code or a limit | [Appendix A](guide/cli.md) · [Appendix B](appendix/diagnostics.md) · [Appendix D](appendix/limits.md) |
 | Look up a term | [Glossary](appendix/glossary.md) |
+| Look up the syntax of a construct | [Grammar summary](appendix/grammar.md) |
 | Find what a guarantee rests on | [Guarantees](language/guarantees.md) · [Verification boundaries](verification.md) |
 | Make a change to the compiler or the book | [Contributing and validation](appendix/contributing.md) |
 

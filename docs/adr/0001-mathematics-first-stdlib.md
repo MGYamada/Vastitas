@@ -1,18 +1,57 @@
-# ADR 0001 — Mathematics-first standard-library admission and trust boundary
+# Standard-library admission and trust
+
+This chapter is ADR 0001, the architecture decision record "Mathematics-first
+standard-library admission and trust boundary". It decides what the standard
+library `std` admits. It gives the test that a public mathematical family or
+operation must pass. It divides the work between the Core of the compiler,
+`std` and the algorithms of the ecosystem, and it gives the procedure of an
+admission. The record
+governs admission. It does not claim that an admitted contract is implemented
+or proved.
+
+The record keeps the wording of its adoption and of its dated amendments,
+apart from single words that the word rules of this book exclude. It
+writes its requirements with MUST and MUST NOT. What the compiler and the
+standard library hold of it:
+
+- Implemented, for the finite smooth affine profile: the families
+  `std::differential` and `std::geometry::metric` and the module
+  `std::geometry::smooth::affine`, which §10 admits.
+  [Smooth affine declarations](../language/smooth-declarations.md) gives their
+  rules. The [Stage 3 acceptance record](../stage3-acceptance.md) and the
+  [compiled reverse Core acceptance record](../reverse-core-acceptance.md)
+  state what is Tested and what is Proved.
+- Tested: the dependency boundary of §9. The kernel and the oracle depend on
+  no Mathlib package and do not import the bridge, and
+  `scripts/check_boundaries.py` checks it in the continuous integration.
+  [Verification boundaries](../verification.md) describes the packages.
+- Proved, in the bridge: the implementation correspondence. The bridge
+  requires the `lean-kernel/` and `lean/` packages by path, one way only. It
+  holds the correspondence with Mathlib of the kernel's exact affine algebra
+  checker and of its smooth affine definitions.
+  [The amendment of 12 November 2026](#implementation-correspondence-in-the-bridge-amendment-2026-11-12)
+  in §9 records the dependency and its conditions, and
+  [Verification boundaries](../verification.md) states the theorems and their
+  assumptions.
+- Planned: the families of §4 that the standard library does not hold, among
+  them `std::algebra`, `std::analysis` and `std::linalg`. The tracker
+  [#160](https://github.com/MGYamada/Vastitas/issues/160) follows them.
+
+## Record
 
 - **Status:** Adopted for standard-library admission in [PR #166](https://github.com/MGYamada/Vastitas/pull/166).
 - **Date:** 2026-10-28
 - **Scope:** Standard-library governance and mathematical contracts, **not** a claim of implemented or proved functionality
 - **Decision issue:** [#107](https://github.com/MGYamada/Vastitas/issues/107)
 - **Implementation tracker:** [#160](https://github.com/MGYamada/Vastitas/issues/160)
-- **Dependency boundary:** §9 records the merged local-kernel-only oracle and the separate mathematical bridge. [#285](https://github.com/MGYamada/Vastitas/issues/285) tracks the broader alignment work.
+- **Dependency boundary:** §9 records the merged local-kernel-only oracle and the separate mathematical bridge, and its amendment of 2026-11-12 records that the bridge reads the kernel and the oracle one way. [#285](https://github.com/MGYamada/Vastitas/issues/285) tracks the broader alignment work.
 - **Stage 3 admission:** §10 admits `std::differential`, `std::geometry::metric` and `std::geometry::smooth::affine` for the finite smooth affine profile ([#604](https://github.com/MGYamada/Vastitas/issues/604)).
 
 ## Context and decision
 
 Vastitas aims to make textbook mathematical objects directly usable in one language for Math 2.0 and Physics 2.0. This requires a substantial, coherent `std`, but does not imply that every useful numerical algorithm belongs there.
 
-**The standard library admits foundational mathematical denotations and the contracts needed to manipulate them; it does not become a catalogue of competing approximation schemes.** The policy below governs new public mathematical operations and families. It freezes **admission rules**, not a closed list of all future standard-library families and not a release deadline.
+**The standard library admits foundational mathematical denotations and the contracts needed to manipulate them; it does not become a catalogue of competing approximation schemes.** The policy below governs each public mathematical operation or family that enters `std`. It freezes **admission rules**, not a closed list of all future standard-library families and not a release deadline.
 
 The word `ε` in the exclusion rule means a numerical approximation tolerance, not a nilpotent element of a Weil algebra.
 
@@ -114,15 +153,15 @@ The checked source-to-IR/Core-to-codegen boundary cannot accept forged evidence,
 
 ### 8. Admission and amendment procedure
 
-A frozen charter and a growing mathematics-first standard library are compatible **only if admission is reviewable**. Adding a new `std` family or an operation with materially new semantics **MUST** come through an ADR/amendment proposal containing:
+A frozen charter and a growing mathematics-first standard library are compatible **only if admission is reviewable**. Adding a `std` family, or an operation whose semantics differ materially from the admitted ones, **MUST** come through an ADR/amendment proposal containing:
 
 1. **Contract and jurisdiction.** Proposed name/ownership, mathematical target, exact domain and hypotheses, input/output and basepoint identities, structural laws, intended other-`std` interactions, and an explicit Core/`std`/backend split.
 2. **Admission argument.** Apply A–D above and explain the denotation's uniqueness up to stated equivalence. Explain why the proposed API is foundational rather than one numerical approximation scheme; identify excluded algorithms and implicit-choice pitfalls.
 3. **Execution and evidence profile.** Give an executable reference implementation and independent conformance for **profiles claimed executable**, or explicitly mark an abstract structure as **specification-only** with a worked well-formedness example and unsupported-execution boundary. State checking/proof assumptions, native numerical trust and provenance obligations. Do **not** demand a universal reference evaluator for arbitrary Hilbert spaces, schemes or PDEs.
-4. **Negative tests.** Include rejected wrong domains, base/endpoint/coefficient/metric/equivariance/regularity, illicit authority escalation, hidden approximation choices and forged/certification-laundered evidence, as applicable. Identify which tests are proposed versus actually executed.
+4. **Negative tests.** Include rejected wrong domains, base/endpoint/coefficient/metric/equivariance/regularity, illicit authority escalation, hidden approximation choices and forged/certification-laundered evidence, as applicable. Identify which tests are proposed and which were executed.
 5. **Compatibility and public-name audit.** Check existing method/function owners, ambiguous dispatch, current public names and prior ADRs. Cross-link the implementation tracker, record version/migration effects and reconcile conflicting draft text without rewriting historical source records.
 
-The new family is admitted by an explicitly reviewed charter change; the prior charter is not silently expanded by an implementation PR, import, popular package, or an internal compiler convenience. The ADR itself can be superseded through a new recorded decision.
+The family is admitted by an explicitly reviewed charter change; the prior charter is not silently expanded by an implementation PR, import, popular package, or an internal compiler convenience. The ADR itself can be superseded through a later recorded decision.
 
 ### 9. Mathematical alignment and Oracle dependency independence
 
@@ -140,7 +179,7 @@ applicability hypotheses must still be checked. Machine floats do not acquire
 exact field laws. This migration retains mathlib v4.35.0, commit
 `56a005855ea17e0b0958f73ec801ae140b0a1679`, as the mathematical reference, not
 as an Oracle package requirement. An upstream semantic change requires review;
-removing an import is neither a new mathematical definition nor a conformance proof.
+removing an import is neither a different mathematical definition nor a conformance proof.
 
 The current executable kernel and proof-only Oracle **MUST NOT** depend directly
 or transitively on Mathlib. For this increment, `lean/` may require only the
@@ -149,8 +188,8 @@ Both stay on the pinned Lean v4.35.0 distribution. Core proofs replace the
 Oracle's rational-cast and sorted-permutation wrappers; the existing pointwise
 list correspondence uses a proof-local nil/cons relation instead of a transitive
 Batteries import. Existing theorem hypotheses, source-to-Core connections and
-proof scope must be preserved. Proof deletion, `sorry`, `admit` and new unproved
-axioms are not migration mechanisms.
+proof scope must be preserved. Proof deletion, `sorry`, `admit` and additional
+unproved axioms are not migration mechanisms.
 
 The official Lean kernel remains authoritative. The allowed axioms remain
 exactly `propext`, `Classical.choice`, and `Quot.sound`. An optional independent
@@ -161,7 +200,7 @@ deliberate direct and transitive dependency regressions. The separate ordinary
 compiler CI must continue to work with the Oracle directory absent.
 
 This amendment introduces no public `std` API, executable numerical profile or
-new mathematical family. The declaration-local `Forall₂` relation preserves
+mathematical family. The declaration-local `Forall₂` relation preserves
 length and positional correspondence; it does not claim a reusable mathematics
 library or occupy Batteries' global name. The associated regression checks and
 their execution status are recorded separately from mathematical conformance.
@@ -187,15 +226,112 @@ The documentation fixes the exact hypotheses and records the missing
 representation, cotangent-rule and source/native correspondence obligations.
 
 This increment introduces no public mathematical family or method authority,
-and does not complete #285's four-package architecture. `VastitasMath` and the
-implementation correspondence layer remain future work. The kernel/Oracle
-dependency policy in §9 stays closed; future bridge imports of implementation
-or independent mathematics packages require an explicit policy amendment.
+and does not complete #285's four-package architecture. `VastitasMath` and
+the implementation correspondence layer remain future work.
+The kernel/Oracle dependency policy in §9 stays closed; future bridge imports
+of implementation or independent mathematics packages require an explicit
+policy amendment.
 
-Independent `VastitasMath`, conformance manifests and new correspondence proofs
-remain subsequent work under #285. The first separate pinned-Mathlib
+Independent `VastitasMath`, conformance manifests and correspondence
+proofs remain subsequent work under #285. The first separate pinned-Mathlib
 `VastitasBridge` package is the bounded mathematical increment described above.
 The oracle dependency boundary and the mathematical correspondence obligations are verified separately.
+
+#### Implementation correspondence in the bridge (amendment, 2026-11-12)
+
+The bounded addition above requires an explicit policy amendment for a bridge
+import of an implementation package. This is that amendment, for two packages
+of the repository: the kernel, which is the implementation, and the oracle,
+which holds the proofs about it. The bridge has required them since
+4 November 2026 (commit `449b02d`). The acceptance records of
+[Stage 2](../stage2-acceptance.md) and [Stage 3](../stage3-acceptance.md)
+state the dependency, and no amendment of this record stated it before this
+one. The amendment records the dependency as it stands and sets its limits.
+It changes no code.
+
+**The bridge may read the kernel and the oracle, one way.** `lean-bridge/` may
+require the local packages `lean-kernel/` and `lean/` by path, and its modules
+may import `VastitasKernel` and `VastitasOracle`. The purpose is the
+implementation correspondence. A bridge theorem that speaks of the compiler
+**MUST** read the definitions of the kernel and of the oracle themselves. A
+copy or a model of them in the bridge is not a correspondence.
+
+The policy of §9 on the kernel and the oracle is unchanged, and these
+conditions hold for the bridge:
+
+1. **One direction.** The kernel, the oracle, the generated programs, the
+   native runtimes and the ordinary build **MUST NOT** depend on the bridge or
+   on Mathlib, directly or transitively. `lean-kernel/` has no Lake dependency,
+   and `lean/` requires `lean-kernel/` alone.
+2. **No part in acceptance.** The acceptance of a program by the compiler
+   **MUST NOT** depend on the bridge. No check, code generator or runtime
+   reads a bridge theorem.
+3. **A closed package graph.** The bridge **MUST** use the Lean toolchain of
+   the kernel. Its path dependencies are `../lean-kernel` and `../lean` and no
+   other. Its only direct Git dependency is the pinned Mathlib reference of
+   §9, and its manifest locks every transitive dependency to a commit.
+4. **Proof only.** The bridge **MUST NOT** have an executable target, and
+   every module of the bridge **MUST** be in the import closure of its root
+   module `VastitasBridge`. `sorry`, `admit` and an axiom outside `propext`,
+   `Classical.choice` and `Quot.sound` are not admitted.
+   `lean-bridge/Audit.lean` audits every declaration of that closure against
+   the list.
+5. **Changes.** A change to the kernel, to the oracle or to the bridge
+   **MUST** keep the bridge building and audited. A bridge theorem that a
+   specification cites keeps its statement, or the change updates the
+   citation and its pin under review. A bridge theorem that an acceptance
+   record cites keeps its name and its statement, because the acceptance
+   records are archived and are not edited. Proof deletion, `sorry`, `admit`
+   and additional unproved axioms are not migration mechanisms here either,
+   as §9 says of the oracle.
+
+A bridge theorem is a theorem of mathematics in Mathlib. A correspondence
+theorem among them states the mathematical meaning of a definition of the
+kernel. Neither is checker acceptance. Neither states anything about
+floating-point results, and neither is a proof that an executable computes
+what the checked program denotes.
+
+These checks enforce the conditions:
+
+- Conditions 1 and 3: `scripts/check_boundaries.py` checks the Lake graphs
+  and the Lean imports of the kernel, of the two runtimes, of the oracle and
+  of the bridge, with regressions in `scripts/test_check_boundaries.py`.
+- Conditions 1 and 2, for the ordinary build: the job
+  `compiler-without-mathlib` of the workflow `ci.yml` builds and tests the
+  compiler in a checkout that holds neither `lean/` nor `lean-bridge/`.
+- Condition 4: the workflow `lean-bridge.yml` builds the bridge, runs
+  `Audit.lean` and replays the bridge modules with the official kernel.
+  `Audit.lean` also requires the principal theorems of the bridge by name,
+  so a missing theorem fails the audit. It does not compare statements.
+- Condition 5, for a theorem that a specification cites: `docs/spec/pins/`
+  holds its name, its module, its kind and a hash of its statement.
+  `scripts/check_spec.py` checks that every cited theorem is pinned, and
+  `scripts/spec_resolve.lean`, which `lean-bridge.yml` runs for the bridge,
+  checks each pin against the declaration.
+
+No script checks that the bridge has no executable target, or that every
+file under `lean-bridge/VastitasBridge/` is in the import closure of the
+root module. At this date both hold. No check compares the statement of a
+theorem that only an acceptance record cites. Review keeps these three
+points.
+
+At this date the bridge holds three groups of theorems, by directory:
+
+- `VastitasBridge.Analysis`: the Daleckii–Krein foundation, which is not
+  about a definition of the kernel;
+- `VastitasBridge.AlgebraicGeometry`: the correspondence of the exact affine
+  algebra checker with Mathlib;
+- `VastitasBridge.Differential`: the correspondence of smooth affine
+  differentials, of the compiled reverse Core and of metrics.
+
+[Verification boundaries](../verification.md) states the theorems and their
+assumptions.
+
+This amendment admits no `std` family and no public API, and it changes no
+admission of §10. It does not complete the four-package architecture of #285:
+`VastitasMath` and the conformance manifests remain subsequent work. An import
+of any further package by the bridge, and any import in the other direction,
+requires its own amendment.
 
 ### 10. Smooth affine differentials and metrics (amendment, 2026-11-04)
 
@@ -597,3 +733,15 @@ what is implemented, tested and proved.
 - **Names and protocol.** `MetricSpace` belongs to
   [#382](https://github.com/MGYamada/Vastitas/issues/382), and the single-protocol policy
   to [#533](https://github.com/MGYamada/Vastitas/issues/533).
+
+The amendment of 2026-11-12 in §9, on the implementation correspondence in
+the bridge, records a dependency that commit `449b02d` introduced on
+2026-11-04 for the Stage 2 tracker
+[#571](https://github.com/MGYamada/Vastitas/issues/571). The Stage 3 tracker
+[#604](https://github.com/MGYamada/Vastitas/issues/604) used it for smooth
+affine geometry, and
+[#623](https://github.com/MGYamada/Vastitas/issues/623) for the compiled
+reverse Core. The rewrite of the book
+([#605](https://github.com/MGYamada/Vastitas/issues/605)) found that §9 asked
+for an amendment and that none existed. The amendment was written at the
+maintainer's request on 2026-11-12 and is delivered with that rewrite.

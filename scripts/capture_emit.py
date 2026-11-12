@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Capture, and compare, what the compiler emits for every example.
 
-For each documented single-file example, every package manifest under
-`examples/` and `stdlib/`, and every manifest under `tests/emit_corpus/`, the
-script records:
+For each documented single-file example, each rejected program of the book
+under `examples/reject/`, every package manifest under `examples/` and
+`stdlib/`, and every manifest under `tests/emit_corpus/`, the script records:
 
 - `wire.raw.json` and `wire.json`: the exact protocol request the frontend
   sends to the kernel (raw, and re-serialized for reading), captured with a
@@ -31,6 +31,16 @@ slot of a pullback, which lists the operand types), and a family that
 One package fails the operand shape (`E_TYPE`) and one the operand count
 (`E_ARITY`). `tests/rejected_diagnostics.rs` also pins these `cli.txt` texts in
 every `cargo test` run, against `tests/fixtures/rejected/`.
+
+The rejected examples of the book are the programs under
+`examples/reject/<construct>/` and the directories of
+`examples/reject/packages/`. The kernel rejects some of them, and the capture
+records those like any other case. The frontend rejects the others before it
+sends a request, so there is no wire: the capture records their `cli.txt`
+alone, and requires exit code 1. Any other case that does not reach the kernel
+stops the capture. That holds for a dependency nested in a rejected package
+too: it is an ordinary case, and if the frontend rejected it on its own the
+capture would stop there.
 
 The checkout root is written as `<ROOT>` so captures from different
 checkouts compare. `--compare BASELINE` reports every byte difference against
@@ -61,6 +71,24 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = ".capture_emit"
+# The rejected examples of the book. The frontend may reject one without a request.
+# - A program is a `.vast` file under REJECTED_EXAMPLES outside REJECTED_PACKAGES
+#   (BOOK_REJECTIONS in tests/examples.rs).
+# - A package is a directory of REJECTED_PACKAGES (BOOK_REJECTED_PACKAGES).
+# A package nested in a rejected package is a dependency, and an ordinary case:
+# it must reach the kernel, and a dependency that the frontend rejects on its
+# own stops the capture. No rejected package of the book has such a dependency.
+REJECTED_EXAMPLES = Path("examples/reject")
+REJECTED_PACKAGES = REJECTED_EXAMPLES / "packages"
+# The modules that scripts/check_indexed_codegen.lean imports, for --kernel-fixtures.
+KERNEL_FIXTURE_MODULES = [
+    "VastitasKernel.IndexedCoreRegression", "VastitasKernel.IndexedPackageSemanticRegression",
+    "VastitasKernel.IndexedSourceRegression", "VastitasKernel.IndexedSourceTypeRegression",
+    "VastitasKernel.IndexedSourceBodyRegression", "VastitasKernel.IndexedFunctionRegression",
+    "VastitasKernel.IndexedDispatchRegression", "VastitasKernel.IndexedAuthorityRegression",
+    "VastitasKernel.SmoothObjectRegression", "VastitasKernel.CotangentRegression",
+    "VastitasKernel.MetricFormRegression", "VastitasKernel.ReverseCoreRegression",
+    "VastitasKernel.IndexedCodegen"]
 STDLIB_INT = "stdlib/src/arithmetic/int.vast"
 STDLIB_NAT = "stdlib/src/arithmetic/nat.vast"
 STDLIB_GENERIC = "stdlib/src/arithmetic/generic.vast"
@@ -92,14 +120,22 @@ sys.exit(1)
 
 
 def corpus():
-    """(name, arguments after `check`) for every input, in a stable order."""
+    """(name, arguments after `check`, whether it is a rejected example) for every input, in a stable order."""
     cases = []
     for example in sorted((ROOT / "examples").glob("*.vast")):
-        cases.append((f"example/{example.stem}", [str(example.relative_to(ROOT))] + SINGLE_FILE.get(example.stem, [])))
+        arguments = [str(example.relative_to(ROOT))] + SINGLE_FILE.get(example.stem, [])
+        cases.append((f"example/{example.stem}", arguments, False))
     for example in sorted((ROOT / "examples/book").glob("**/*.vast")):
         relative = example.relative_to(ROOT / "examples/book").with_suffix("")
         libraries = BOOK_LIBRARIES.get(relative.as_posix(), [])
-        cases.append((f"book/{relative.as_posix().replace('/', '__')}", [str(example.relative_to(ROOT))] + libraries))
+        name = f"book/{relative.as_posix().replace('/', '__')}"
+        cases.append((name, [str(example.relative_to(ROOT))] + libraries, False))
+    for example in sorted((ROOT / REJECTED_EXAMPLES).glob("**/*.vast")):
+        relative = example.relative_to(ROOT)
+        if REJECTED_PACKAGES in relative.parents:
+            continue  # A source file of a rejected package: its manifest is the case.
+        name = "reject/" + relative.relative_to(REJECTED_EXAMPLES).with_suffix("").as_posix().replace("/", "__")
+        cases.append((name, [str(relative)], True))
     manifests = sorted(ROOT.glob("examples/**/Vastitas.toml")) + sorted(ROOT.glob("stdlib/**/Vastitas.toml"))
     manifests += sorted(ROOT.glob("tests/emit_corpus/**/Vastitas.toml"))
     for manifest in manifests:
@@ -107,7 +143,7 @@ def corpus():
         if "stdlib/target" in str(relative):
             continue
         name = "package/" + str(relative.parent).replace("examples/packages/", "").replace("/", "__")
-        cases.append((name, ["--manifest-path", str(relative)]))
+        cases.append((name, ["--manifest-path", str(relative)], relative.parent.parent == REJECTED_PACKAGES))
     return cases
 
 
@@ -127,7 +163,7 @@ def process_text(result):
     return f"exit {result.returncode}\n--- stderr ---\n{decoded(result.stderr)}"
 
 
-def capture_case(name, arguments, out, cli, kernel, stub, work):
+def capture_case(name, arguments, rejected_example, out, cli, kernel, stub, work):
     directory = out / name
     directory.mkdir(parents=True, exist_ok=True)
     for stale in directory.iterdir():
@@ -136,11 +172,17 @@ def capture_case(name, arguments, out, cli, kernel, stub, work):
     wire_path.unlink(missing_ok=True)
     stub_env = dict(os.environ, VASTITAS_KERNEL=str(stub), VASTITAS_CAPTURE_WIRE=str(wire_path))
     captured = run([cli, "check", *arguments], env=stub_env)
-    if b"E_CAPTURED" not in captured.stderr or not wire_path.exists():
+    reached = b"E_CAPTURED" in captured.stderr and wire_path.exists()
+    if not reached and not rejected_example:
         sys.exit(f"{name}: the capture stub was not reached; the frontend said:\n{process_text(captured)}")
     real = run([cli, "check", *arguments], env=dict(os.environ, VASTITAS_KERNEL=kernel))
     (directory / "cli.txt").write_text(
         f"exit {real.returncode}\n--- stdout ---\n{decoded(real.stdout)}--- stderr ---\n{decoded(real.stderr)}")
+    if not reached:
+        # The frontend rejects the package before it sends a request, so there is no wire.
+        if real.returncode != 1:
+            sys.exit(f"{name}: a frontend rejection ends with exit code 1; the compiler said:\n{process_text(real)}")
+        return "frontend rejected"
     wire = wire_path.read_bytes()
     (directory / "wire.raw.json").write_text(decoded(wire))
     (directory / "wire.json").write_text(normalize(json.dumps(json.loads(wire), indent=1, ensure_ascii=False)) + "\n")
@@ -167,14 +209,7 @@ def capture_case(name, arguments, out, cli, kernel, stub, work):
 def capture_kernel_fixtures(out):
     """The generated modules of the kernel's own codegen fixtures."""
     kernel_dir = ROOT / "lean-kernel"
-    modules = [
-        "VastitasKernel.IndexedCoreRegression", "VastitasKernel.IndexedPackageSemanticRegression",
-        "VastitasKernel.IndexedSourceRegression", "VastitasKernel.IndexedSourceTypeRegression",
-        "VastitasKernel.IndexedSourceBodyRegression", "VastitasKernel.IndexedFunctionRegression",
-        "VastitasKernel.IndexedDispatchRegression", "VastitasKernel.IndexedAuthorityRegression",
-        "VastitasKernel.SmoothObjectRegression", "VastitasKernel.CotangentRegression",
-        "VastitasKernel.MetricFormRegression", "VastitasKernel.IndexedCodegen"]
-    subprocess.run(["lake", "build", *modules], cwd=kernel_dir, check=True)
+    subprocess.run(["lake", "build", *KERNEL_FIXTURE_MODULES], cwd=kernel_dir, check=True)
     with tempfile.TemporaryDirectory() as work:
         subprocess.run(["lake", "env", "lean", "--run", str(ROOT / "scripts/check_indexed_codegen.lean"), work],
                        cwd=kernel_dir, check=True)
@@ -257,8 +292,9 @@ def main():
         stub = work / "capture-kernel"
         stub.write_text(STUB)
         stub.chmod(stub.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        for name, arguments in cases:
-            print(f"{name}: {capture_case(name, arguments, out, str(cli), str(kernel), stub, work)}")
+        for name, arguments, rejected_example in cases:
+            summary = capture_case(name, arguments, rejected_example, out, str(cli), str(kernel), stub, work)
+            print(f"{name}: {summary}")
     print(f"captured {len(cases)} case(s)")
     if args.kernel_fixtures:
         print(f"kernel fixtures: {capture_kernel_fixtures(out)} generated modules")

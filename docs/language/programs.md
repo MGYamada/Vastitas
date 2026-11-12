@@ -49,8 +49,11 @@ Rules:
 - The items of all files share one namespace, so the rule of
   [Names of items](items.md#names-of-items) on equal names applies across
   files.
-- A library must not define `main`. A `main` in a library is an error
-  (`E_LIBRARY`).
+- A library must not define `main`. A function `main` in a library is an
+  error (`E_LIBRARY`) when no other file defines one.
+- When two files define a function `main`, such as the entry file and a
+  library, the rule on equal names reports the second one
+  (`E_DUPLICATE`), and the compiler reports no `E_LIBRARY`.
 - A program contains only the files that the command names. The compiler
   loads no library without a `--lib` option.
 - Flat mode and `--manifest-path` must not be combined. Both together are an

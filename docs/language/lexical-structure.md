@@ -65,7 +65,7 @@ fn twice(x: Int) -> Int { x + x }
 
 An identifier names a function, a binding, a type, a module or another
 declaration. Identifiers are case sensitive. They have no length limit other
-than the [input limits](../appendix/limits.md#input-limits).
+than the [input limits](../appendix/limits.md#inputs).
 
 ## Keywords
 

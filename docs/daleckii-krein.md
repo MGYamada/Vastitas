@@ -1,7 +1,14 @@
-# Daleckii–Krein: an important theorem for spectral differentiation
+# Daleckii–Krein mathematical bridge
 
-**Status:** proved in Lean against Mathlib's actual continuous functional
-calculus, with repeated eigenvalues included. This is a reusable mathematical
+<a id="daleckiikrein-an-important-theorem-for-spectral-differentiation"></a>
+
+**Status: Proved (bridge).** The Daleckii–Krein theorem is an important
+theorem for spectral differentiation. It is proved in Lean against Mathlib's
+actual continuous functional
+calculus, with repeated eigenvalues included. It is about Mathlib's `cfc`,
+not about a definition of the kernel, and no
+[public checker route](appendix/glossary.md#public-checker-route) uses it.
+This is a reusable mathematical
 foundation for future spectral AD. A `.vast` implementation and its
 correspondence to this theorem are not yet supplied.
 
@@ -114,8 +121,8 @@ dependency closure. The normal kernel and Oracle builds remain Mathlib-free.
 
 This theorem provides the derivative formula needed for basis-independent
 spectral function rules, including at eigenvalue multiplicities. The remaining
-proof plan is [#471](https://github.com/MGYamada/Vastitas/issues/471); none of its
-five integration steps is discharged by the mathematical theorem alone:
+proof plan, whose issue [History](#history) names, has five integration
+steps; none of them is discharged by the mathematical theorem alone:
 
 1. **Typed linearization:** prove that the derivative preserves self-adjointness
    and lift the ambient codomain to `Herm_n(ℂ)`, keeping real scalars and the
@@ -138,12 +145,18 @@ five integration steps is discharged by the mathematical theorem alone:
 
 Floating/native refinement, approximation, conditioning and error bounds remain
 separate. The exact theorem does not prove a floating eigensolver or stable
-evaluation of divided differences. #471's proposed noncommuting composition
-regression is still a proposed compiler test, not an accepted-Core proof.
+evaluation of divided differences. The noncommuting composition
+regression that the proof plan proposes is still a proposed compiler test, not an accepted-Core proof.
 
 Arbitrary infinite-spectrum operator differentiation, higher derivatives,
 Hessians, singular functions and the derivative of a chosen eigenbasis are
 outside this result. See [ADR 0001 §9](adr/0001-mathematics-first-stdlib.md),
 [verification boundaries](verification.md#independent-mathematical-bridge),
-and the separately tracked mathematical architecture
-[#285](https://github.com/MGYamada/Vastitas/issues/285).
+and the separately tracked mathematical architecture that
+[History](#history) names.
+
+## History
+
+- **Connection to future Vastitas work.** The remaining proof plan is
+  [#471](https://github.com/MGYamada/Vastitas/issues/471). The mathematical architecture is tracked separately in
+  [#285](https://github.com/MGYamada/Vastitas/issues/285).

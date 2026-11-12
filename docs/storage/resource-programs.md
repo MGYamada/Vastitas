@@ -59,10 +59,11 @@ Rules:
   call, with the views that the caller passes.
 - The statements of all resource functions of a program have a limit, and so
   have their `value` blocks.
-  [Appendix D](../appendix/limits.md#other-documented-bounds) gives both. The
-  statements of both arms of an `if` count, and the `value` block that ends a
-  function counts. A program beyond a limit is an error (`E_RESOURCE_LIMIT`),
-  reported at a function.
+  [Appendix D](../appendix/limits.md#resource-functions) gives both. The
+  statements of both arms of an `if` count as statements. The `value` block
+  that ends a function counts as a `value` block and not as a statement. A
+  program beyond a limit is an error (`E_RESOURCE_LIMIT`), reported at a
+  function.
 - A resource function named `main` in the root module of the root package is
   the [entry point](../language/programs.md#the-entry-point). It must have no
   parameters and no owned results (`E_RESOURCE_ESCAPE`), and its result type
@@ -117,8 +118,10 @@ Rules:
 - An owned parameter or result with `initialized [layout(…), …]` states that
   the cells of those views are initialized. An argument or result that does
   not meet the element type, the size or this contract is an error
-  (`E_RESOURCE_TYPE`), and so is an invalid layout in the contract. Capacity
-  and padding imply no initialization.
+  (`E_RESOURCE_TYPE`), and so is an invalid layout in the contract. The
+  number of views of a contract has a limit, which
+  [Appendix D](../appendix/limits.md#resource-functions) gives
+  (`E_RESOURCE_TYPE`). Capacity and padding imply no initialization.
 - An argument for a borrowed parameter must be a live loan (`E_RESOURCE_LOAN`)
   with the element type and the shape of the parameter (`E_RESOURCE_TYPE`).
   The callee sees the caller's view, with its offset, padding and

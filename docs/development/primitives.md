@@ -471,10 +471,13 @@ A primitive is documented in four places:
   [smooth](../protocol.md#protocol-9-smooth-forms) or
   [metric](../protocol.md#protocol-9-metric-forms) forms for an algebraic
   one;
-- its diagnostics in the row of its construct in
-  [Appendix B](../appendix/diagnostics.md#lean-kernel), such as the rows of
+- its diagnostics as rules with their codes in that Reference section. The
+  row of its construct in [Appendix B](../appendix/diagnostics.md#kernel),
+  such as the rows of
   [fibers and tapes](../appendix/diagnostics.md#e-smooth-fibers) and of
-  [metrics](../appendix/diagnostics.md#e-metric);
+  [metrics](../appendix/diagnostics.md#e-metric), links the section and
+  names the kinds of errors, so a kind of error that the row does not name
+  goes there too;
 - the theorem tables of [Verification boundaries](../verification.md).
 
 ## The demonstration

@@ -717,7 +717,7 @@ inverts `t^2`:
 ## Limits
 
 The compiler checks the declarations of this chapter by exact polynomial
-arithmetic. [Appendix D](appendix/limits.md#exact-affine-algebra-stage-2)
+arithmetic. [Appendix D](appendix/limits.md#exact-affine-algebra)
 lists the bounds of that arithmetic with their values.
 
 Rules:
@@ -802,4 +802,4 @@ These anchors keep older links working.
 - <a id="fiber-products-and-base-change"></a>Fiber products and base change: [Fiber products](#fiber-products), [Isomorphisms](#isomorphisms) and [Cartesian squares](#cartesian-squares).
 - <a id="principal-opens-and-the-structure-sheaf"></a>Principal opens and the structure sheaf: [Principal opens](#principal-opens) and [Scope of presented affine geometry](#scope-of-presented-affine-geometry).
 - <a id="diagnostics"></a>Diagnostics: the rules of each section, [Limits](#limits), [Operand checks](#operand-checks), [Appendix B](appendix/diagnostics.md) and, for `E_PROTOCOL`, [the wire forms](protocol.md#protocol-9-algebraic-affine-forms).
-- <a id="what-is-checked-tested-and-proved"></a>What is checked, tested and proved: [Exact affine algebra checker](verification.md#exact-affine-algebra-checker-stage-2-571) and the [proof boundary](stage2-acceptance.md#proof-boundary) of the acceptance record.
+- <a id="what-is-checked-tested-and-proved"></a>What is checked, tested and proved: [Exact affine algebra checker](verification.md#exact-affine-algebra-checker) and the [proof boundary](stage2-acceptance.md#proof-boundary) of the acceptance record.

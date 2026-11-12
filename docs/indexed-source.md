@@ -77,7 +77,7 @@ Rules:
   (`E_TYPE`). [Names and paths](language/names-and-paths.md) gives the rules
   of resolution and visibility.
 - A program has a limit on the number of its indexed declarations, which
-  [Appendix D](appendix/limits.md#other-documented-bounds) gives. More
+  [Appendix D](appendix/limits.md#indexed-declarations) gives. More
   declarations are an error (`E_LIMIT`).
 - An indexed declaration grants no
   [edit authority](language/edit-authority.md).
@@ -206,7 +206,7 @@ Rules:
 - The parents must not form a cycle. A classification that reaches itself
   through `parents` is an error (`E_TYPE`).
 - The length of a domain has a limit, which
-  [Appendix D](appendix/limits.md#other-documented-bounds) gives (`E_TYPE`).
+  [Appendix D](appendix/limits.md#indexed-declarations) gives (`E_TYPE`).
 - The implementations of one domain may have different markers.
 - `parents` states a relation that the compiler checks. It gives `C` no
   implementation and no capability. The other rules of this chapter compare
@@ -391,7 +391,7 @@ Rules:
   `morphism` family must have the representation `affine_descriptor`
   (`E_TYPE`).
 - The number of parameters has a limit, which
-  [Appendix D](appendix/limits.md#other-documented-bounds) gives (`E_TYPE`).
+  [Appendix D](appendix/limits.md#indexed-declarations) gives (`E_TYPE`).
 
 The module `geo` declares one family of each of the two representations with
 values:
@@ -489,7 +489,7 @@ Rules:
   an error (`E_TYPE`).
 - A case may have no field, and a field may leave out `witness`.
 - The numbers of cases and of fields have limits, which
-  [Appendix D](appendix/limits.md#other-documented-bounds) gives (`E_TYPE`).
+  [Appendix D](appendix/limits.md#indexed-declarations) gives (`E_TYPE`).
 - A type `P<D, K>` must name the `D` and the `K` of one case (`E_TYPE`).
 
 The module `geo` declares one case, whose field is a point of the witness

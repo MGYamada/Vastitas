@@ -1,18 +1,26 @@
 # Appendix
 
-The appendices collect reference material that the teaching chapters link to.
+The appendices hold material that a reader looks up: the commands, the
+diagnostic codes and the limits of the compiler, the independent reference
+models, the records of the project, the procedures of a contributor, the
+glossary and the grammar summary. The guide and the Vastitas Reference link
+to them.
 
 - [A: CLI reference](../guide/cli.md) covers every command, input and output
   rule, signals, concurrent native builds and the internal proof-export audit.
 - [B: Diagnostics reference](diagnostics.md) lists the diagnostic codes by the
   component that reports them.
-- [C: Reference models](reference-models.md) collects the independent Python
-  models that study proposed features outside the compiler.
+- [C: Reference models](reference-models.md) describes the independent Python
+  models. Each models a proposed construct or a component that the compiler
+  has, and none is a part of the compiler.
 - [D: Compiler limits](limits.md) lists every published bound and work budget.
-- [E: Historical roadmap and Stage 1 records](history.md) holds the roadmap for
+- [E: Historical roadmap and delivery records](history.md) holds the roadmap for
   Stages 2–7, the delivery and acceptance records of Stages 1 to 3, and the
   source migrations.
 - [F: Contributing and validation](contributing.md) lists the checks to run
-  before changing the compiler, the proofs or this book.
+  before changing the compiler, the proofs or this book. It also holds the
+  decision record that governs what enters the standard library.
 - [G: Glossary](glossary.md) defines the terms that the book uses with a
   specific meaning.
+- [H: Grammar summary](grammar.md) collects the productions of the Vastitas
+  Reference by chapter.

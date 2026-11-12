@@ -1,15 +1,21 @@
-# Pure evaluation and graph checker proofs
+# Pure evaluation and graph proofs
 
-The pure evaluator and the finite crossing-word checker have separate inputs and theorems. Each section identifies the definitions used by its proofs and the remaining correspondence obligations.
+<a id="pure-evaluation-and-graph-checker-proofs"></a>
+
+The pure evaluator and the finite crossing-word checker have separate inputs and theorems. Each section identifies the definitions used by its proofs and the remaining correspondence obligations. Neither checker is a [public checker route](../appendix/glossary.md#public-checker-route): no command reaches it, as [Verification boundaries](../verification.md#how-to-read-this-chapter) explains. The theorems of both sections are Proved (oracle).
 
 <a id="universe-totality"></a>
 
 ## Least-fuel meaning for accepted scalar Core
 
-This is the first finite implementation of the totality obligations in
-[#350](https://github.com/MGYamada/Vastitas/issues/350). It is independent of the
-unmerged universe admission model in
-[#368](https://github.com/MGYamada/Vastitas/pull/368). It does not complete the
+**Internal observer.** The theorems of this section are about
+`ScalarFuel`, an observer that no command reaches. It reads the Core audit
+`Typing.checkModule`, a component of the current routes, and the kernel's
+Core evaluator `Semantics.eval`.
+
+This is the first finite implementation of the totality obligations that
+[History](#history) names. It is independent of the
+unmerged universe admission model. It does not complete the
 Universe Charter, general stateful semantics, or CF.
 
 ### Profile and connection to the implementation
@@ -99,13 +105,13 @@ the required proof-irrelevance regression is literally `rfl`.
 ### Validation
 
 `VastitasOracle.ScalarFuelRegression` is imported by the normal oracle root,
-so the existing oracle build and transitive axiom CI audit cover the new
+so the existing oracle build and transitive axiom CI audit cover these
 definitions and proofs. The search and its two specifications depend only on
 the permitted `propext` and `Quot.sound`; the axiom audit additionally rejects
 `Classical.choice` in those three declarations. The connected Core evaluator
 and totality bridge retain the existing transitive `propext`, `Classical.choice`,
 `Quot.sound` assumptions, as does the original `Semantics.eval`. There are no
-new logical axioms. Kernel-checked examples include a selected branch with
+further logical axioms. Kernel-checked examples include a selected branch with
 least fuel 2 for `true` and 3 for `false`, its derived mathematical value,
 terminal failures, exhaustion, `letE`/pair evaluation, saturating subtraction,
 mixed-type rejection and certificate proof irrelevance. A concrete admission
@@ -115,7 +121,7 @@ regressions exercise stage acceptance, wrong signatures, an absent function
 and an invalid unused branch; these tests do not provide proof authority.
 
 Relevant checks: the kernel, oracle and audit sequence in
-[Validate the compiler and proofs](../development/validation.md), and
+[Run compiler, proof and native checks](../development/validation.md), and
 `python3 scripts/check_boundaries.py`.
 
 ### Remaining obligations
@@ -131,7 +137,8 @@ Relevant checks: the kernel, oracle and audit sequence in
   `letE_budget` is an operational sequencing lemma, not those category laws.
 - Extend the pure `TotalHom` bridge to the Charter's target/context/representation
   boundary and additional runtime codes. This local `PureType`/`El` instance
-  does not supersede #368's universe admission model.
+  does not supersede the universe admission model that
+  [History](#history) names.
 - Connect the exact source/selected-method/environment/revision identities,
   staging and proof erasure through the compiler and cache, then establish
   native refinement under explicit backend assumptions.
@@ -143,16 +150,20 @@ Relevant checks: the kernel, oracle and audit sequence in
 
 ## Internal Graph crossing checker
 
+**Internal checker.** The theorems of this section are about
+`VastitasKernel.Graph`, a checker that no command reaches: only
+`GraphRegression` and the oracle read it.
+
 The first executable Graph fragment checks finite, ordered, oriented crossing
-words and proposed local rewrites. It implements part of [#201](https://github.com/MGYamada/Vastitas/issues/201)
+words and proposed local rewrites. It is implemented
 in `VastitasKernel.Graph`, with regressions in `GraphRegression` and conditional
 soundness theorems in `VastitasOracle.Graph`.
 
-This is internal infrastructure. It is not a public `std::monoidal` API, a new
+This is internal infrastructure. It is not a public `std::monoidal` API, a
 wire protocol, a source tensor lowering path, or an extension of
 `Indexed.Core.Term`. `Graph.Core` is the actual structural Core returned by this
 checker; connecting it to compiler-returned indexed terms remains pending.
-It does not add a release target or a new Stage 1 completion condition.
+It does not add a release target or a Stage 1 completion condition.
 
 ### Data and authority
 
@@ -229,8 +240,9 @@ an associator with equality of nominal tensor objects.
 
 ### Proved scope
 
-The proof oracle imports the actual kernel implementation. There are no new
-unproved axioms, `sorry` declarations or copied checker implementations.
+The proof oracle imports the actual kernel implementation. No axiom beyond
+the three that the audit admits is used, and there are no `sorry`
+declarations or copied checker implementations.
 
 | Theorem | Scope |
 | --- | --- |
@@ -255,7 +267,7 @@ In particular, `Authority.verified` and the oracle's `Interpretation` have not
 yet been joined by a production law provider. The conditional theorem does not
 derive braid relations from hexagons, prove that an arbitrary implementation
 realizes a tensor, or identify this word denotation with compiler/native
-execution. The intended-model coherence and source correspondence remain open in [#201](https://github.com/MGYamada/Vastitas/issues/201). Model-owned tensor binding follows [#387](https://github.com/MGYamada/Vastitas/issues/387).
+execution. The intended-model coherence and source correspondence remain open, and model-owned tensor binding is separate work. [History](#history) names both issues.
 
 ### Exact Python reference and regressions
 
@@ -264,7 +276,7 @@ using `Fraction` and `χ_q(a,b)=q^(ab)` for graded rational lines. Negative
 crossings explicitly use `1/χ_q(b,a)`. The closed fixture registry models
 authority binding; it does not verify Lean certificates.
 
-The 45 reference tests in `scripts/test_graph_reference.py` include:
+The reference tests in `scripts/test_graph_reference.py` include:
 
 - Degrees `[-2,2]`: 25 inverse/symmetric pairs, 125 braid triples in both signs,
   both bicharacter multiplicativities and 625 distant-commutation quadruples.
@@ -296,10 +308,22 @@ python3 scripts/demo_graph_reference.py
 ```
 
 Then run the kernel, oracle and audit sequence in
-[Validate the compiler and proofs](../development/validation.md).
+[Run compiler, proof and native checks](../development/validation.md).
 
 Existing CI discovers the Python tests, runs `GraphRegression` through the
 kernel regression script, and builds/audits `VastitasOracle.Graph` through the
 oracle root. Python is a development reference, not a compiler/runtime
 dependency. The existing 8 Domain Checkers plus independent Ownership/Borrow
 architecture and historical Stage 1 completion criteria are unchanged.
+
+## History
+
+- **Least-fuel meaning for accepted scalar Core.** The section is the first
+  finite implementation of the totality obligations in
+  [#350](https://github.com/MGYamada/Vastitas/issues/350). It is independent of the unmerged universe admission
+  model in [#368](https://github.com/MGYamada/Vastitas/pull/368), and its local `PureType`/`El` instance does
+  not supersede that model.
+- **Internal Graph crossing checker.** The fragment implements part of
+  [#201](https://github.com/MGYamada/Vastitas/issues/201). The intended-model coherence and source correspondence
+  remain open in that issue. Model-owned tensor binding follows
+  [#387](https://github.com/MGYamada/Vastitas/issues/387).

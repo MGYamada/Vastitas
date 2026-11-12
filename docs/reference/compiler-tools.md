@@ -1,6 +1,20 @@
-# Development references for diagnostics and identifiers
+# Diagnostics, doctests and identifiers
 
-These independent reference tools exercise diagnostic reports, expected rejection and identifier conversion. Each section states its relationship to the public compiler.
+This chapter describes three [reference models](../appendix/reference-models.md)
+of tools around the compiler. The first is a record for diagnostics that names
+every participant of a failed obligation and blames none. The second judges
+the result of a doctest that expects a rejection. The third converts Unicode
+identifiers to ASCII and back. Each is a Python program with tests under
+`scripts/`, and none is a part of the compiler.
+
+| Model | In the compiler |
+| --- | --- |
+| [Non-punitive diagnostics](#diagnostic-reference) | Implemented: a diagnostic has a code, a message, a place and notes, as [Diagnostics](../language/diagnostics.md) specifies. The record of the model, with its obligation, participants, holder and identity keys, is a model only. Planned: [#229](https://github.com/MGYamada/Vastitas/issues/229) to [#233](https://github.com/MGYamada/Vastitas/issues/233) |
+| [Expected-rejection doctest results](#doctest-result-reference) | The compiler has no doctest command. Tested: `tests/examples.rs` compares the rejected programs of this book with the diagnostics that the compiler prints for them, as [Examples](../development/documentation.md#examples) describes. The result contract of the model is Planned: [#236](https://github.com/MGYamada/Vastitas/issues/236) |
+| [Identifier ASCII round-trip](#identifier-ascii-reference) | Implemented: an [identifier](../language/lexical-structure.md#identifiers) consists of ASCII letters, digits and `_`. Unicode identifiers and their ASCII spelling are Planned: [#219](https://github.com/MGYamada/Vastitas/issues/219) |
+
+Each section keeps the record of the change that added its model. Its
+statements about the compiler describe the repository at that change.
 
 <a id="diagnostic-reference"></a>
 
@@ -92,7 +106,7 @@ serializer does not claim the reversed trace is a valid program. Presentation
 paths, spans, messages, suggested actions and external hints are outside identity.
 No timestamps, machine identities or maintenance policies are identity inputs.
 Unknown semantic fields and duplicate JSON object keys are rejected instead of
-being silently discarded. This is a deliberately restricted encoding, not an
+being silently discarded. This encoding is restricted by design. It is not an
 implementation of a general JSON canonicalization standard.
 
 `semantic_issue_key` uses a separate `vastitas-reference-issue-v1:` namespace.
@@ -100,7 +114,7 @@ It retains profile, diagnostic code, obligation kind, nominal function and
 conflicting declarations, while dropping revisions, environment, custody and
 history. It is **advisory**: equal keys can group different occurrences and do
 not establish the same bug, unique cause or reusable evidence. Changes to the
-grouping policy require a new grouping version independently of exact encoding.
+grouping policy require another grouping version independently of exact encoding.
 
 ### Join, return and repair
 
@@ -148,8 +162,8 @@ facts**, tied to the same input/environment and actual returned diagnostic:
 - `Edit.prepare`, `Edit.runTrace` and `Edit.assemble` already reconstruct declaration
   origins, grants, applied contributions and ordered transitions. The
   `completeFamilies (finalSurface prepared state)` rejection branch is a concrete
-  attachment point for the join failure; it currently throws a plain diagnostic
-  and does not return the valid prefix state as a diagnostic ledger.
+  attachment point for the join failure; at the inspected base it throws a plain
+  diagnostic and does not return the valid prefix state as a diagnostic ledger.
 - `Authority.assemble` extends that path for protocol 6; protocol 7 uses the
   `Indexed.AuthoritySource` composition via `Indexed.Wire.check`. Each needs the
   corresponding checked facts, never a successful-assembly certificate invented
@@ -177,7 +191,7 @@ from an ordinary `.vast` check; it does not parse, type-check, interpret, or pro
 the example. **The current implementation consumes synthetic result records,
 not authenticated driver receipts.** Production doctest extraction/execution,
 structured driver result export, and official package admission remain unimplemented.
-There is no new Domain Checker, compiler acceptance rule, constitutional theorem,
+It adds no Domain Checker, compiler acceptance rule, constitutional theorem,
 registry implementation, or Vastitas release/version requirement.
 
 Inspected base: `e01fe1d51fa5faf089e52a7b5a07223031db1b7c` (29 October 2026).
@@ -277,7 +291,7 @@ the following binding fields. All must agree; absent/unknown pins do not match.
 | `dependencies_sha256` | SHA-256 of the complete pinned dependency/lock/assembly/model-resolution environment description |
 | `toolchain_sha256` | SHA-256 of a descriptor pinning compiler and configured kernel executable content, toolchain revision, edition, and relevant adapter/diagnostic schema versions |
 | `profile_sha256` | SHA-256 of a descriptor pinning `check` mode, target/capabilities, supported protocol/checker profile, relevant flags, environment settings, and resource limits |
-| `policy` | `expected-rejection/1`; changes to comparison/classification rules require a new policy |
+| `policy` | `expected-rejection/1`; changes to comparison/classification rules require another policy identifier |
 
 The runner must freeze these inputs and derive the observation from the actual
 invocation, not copy an expectation's hashes into an unrelated response. Hashes
@@ -308,6 +322,10 @@ status **before** matching diagnostics:
    responses, differing payloads, and protocol mismatches cannot pass.
 5. Require at least one diagnostic and exclude operational/unsupported/internal
    failures. Compare the full diagnostic code multisets exactly.
+
+The range of versions in step 4 is that of the inspected driver. Today the
+driver supports the versions 2–9, and `scripts/doctest_result_reference.py`
+accepts that range.
 
 **Matching rule:** compare `Counter(actual_top_level_codes)` with
 `Counter(declared_codes)`. Order is irrelevant; **multiplicity matters**. Extra
@@ -340,7 +358,7 @@ exact failed-obligation identities; it does not claim otherwise.
 Reuse `src/ir.rs::Diagnostic` and
 `lean-kernel/VastitasKernel/Protocol.lean::diagnosticJson`: code, message, span,
 and Lean's existing notes. The historical sentinel omits span; the reference
-preserves that omission instead of inventing a location. No new diagnostic ID,
+preserves that omission instead of inventing a location. No diagnostic ID,
 participant/owner ledger, or semantic attribution scheme is introduced.
 
 [PR #238](https://github.com/MGYamada/Vastitas/pull/238) already wraps this same
@@ -359,10 +377,10 @@ or fingerprint implementation; it has no dependency on that attribution module.
 | `src/packages.rs::load` and `src/sources.rs` loading/validation | Preserve language rejection versus file/manifest/environment failure while pinning the source/dependency snapshot; never classify every early return as a frontend rejection |
 | `driver::run`, before request serialization/invocation | Carry the same invocation/binding through the ordinary `check` path and record a frontend rejection without a fabricated backend version |
 | `process::capture` / `driver::invoke_kernel` | Carry spawn/wait/I/O/interruption/cleanup state and process exit status alongside the decoded response; retain version mismatch as machine data as well as the current human note |
-| `Main.process` / `Protocol.failureJson` | Expose structured cause/coverage of failure where needed; `ok: false` currently also covers decode/internal/unsupported failures and is insufficient alone |
+| `Main.process` / `Protocol.failureJson` | Expose structured cause/coverage of failure where needed; `ok: false` also covers decode/internal/unsupported failures and is insufficient alone |
 | Driver error renderer / `src/main.rs` | Render the original diagnostics from the same result; retain the current human message/note behavior and exit semantics |
 
-`driver::run` and `invoke_kernel` currently return `Result<..., String>`. There is
+`driver::run` and `invoke_kernel` return `Result<..., String>`. There is
 no production structured end-to-end result emission in this change. A tap of
 kernel stdout misses frontend failures and cannot establish full driver integrity.
 Do not fill this gap with stderr searching, a second semantic checker, or a JSON
@@ -468,8 +486,8 @@ owner, grant, or proof.
 
 ### 3. ASCII printing and common reader
 
-Candidate escape prefix `P = __vastitas_id_` (14 ASCII bytes), deliberately inside
-the existing reserved `__vastitas_` namespace. **This is not an adopted spelling.**
+Candidate escape prefix `P = __vastitas_id_` (14 ASCII bytes). The prefix lies
+inside the existing reserved `__vastitas_` namespace by design. **This is not an adopted spelling.**
 Integration must reserve this subnamespace against generated-name allocation as
 well; user names and internal generated symbols must remain distinct categories.
 
@@ -547,7 +565,7 @@ For `n` occupying `b` UTF-8 bytes, output length is `b` for ASCII and exactly
 tables (membership uses binary searches of fixed ranges). Python integers avoid
 size arithmetic overflow; a Rust port must use checked size arithmetic.
 
-There is no new unconditional name-length cap in the reference, preserving old
+The reference adds no unconditional name-length cap, preserving old
 ASCII names. Optional `max_name_bytes = B` applies to the **decoded** name on both
 input paths. Check escaped payload length before unhex allocation; its accepted
 wire spelling may require `14 + 2B` bytes. A host must budget this expansion in
@@ -614,8 +632,8 @@ map. Synthesized identifiers and multi-origin macro output require host-owned
 origin/expansion records; do not invent contiguous source bytes that never existed.
 
 **Plain ASCII text recovers the name, not the original file position or hygiene.**
-On an external reimport, use the new source file's locations and ordinary host
-lexical contexts. An origin map may help display diagnostics but cannot grant
+On an external reimport, use the locations of the reimported source file and
+ordinary host lexical contexts. An origin map may help display diagnostics but cannot grant
 owner rights. Do not deserialize caller-supplied hygiene marks as trusted context.
 Meaning preservation for post-expansion canonical source requires either retained
 in-process syntax contexts or a separately specified, checked reconstruction
@@ -634,7 +652,7 @@ printer must separately define semantics-preserving literal/comment handling.
 
 | Item | Status |
 | --- | --- |
-| Fixed lexical profile, exact name identity, E/R/C functions | Implemented in this Python reference |
+| Fixed lexical profile, exact name identity, E/R/C functions | Computed by this Python reference |
 | Every accepted scalar's basic round-trip; complete code-point profile comparison | Tested against the bundled UCD data |
 | ASCII compatibility, malformed escapes, strict UTF-8, reservations, budgets | Regression-tested within this codec |
 | Original spans/context/trace retained in a syntax tape | Tested in an in-process adapter |
@@ -652,7 +670,7 @@ connected to actual checked IR and the existing Lean gate. Replacing a glyph by
 its ASCII escape alone does not establish any of these broader theorems.
 
 The prefix/profile require an explicit language decision. Future Unicode-table
-changes require a new profile/edition rule rather than silently following the
+changes require another profile/edition rule rather than silently following the
 runtime. See [the validation report](#identifier-ascii-validation) for actual commands, results, and bounded evidence.
 
 ### 8. Reproduction and follow-up integration acceptance
@@ -724,13 +742,13 @@ The host Python Unicode database is not used for identifier membership.
 | `python3 scripts/check_boundaries.py` | Compiler/oracle dependency boundaries verified; exit 0 |
 
 Run these commands from the repository root. Existing CI's Python discovery
-includes all 34 new tests. No compiler, Rust, or Lean sources were changed, and
+includes all 34 tests of this model. No compiler, Rust, or Lean sources were changed, and
 no local Vastitas `check`/`build`, Cargo suite, or Lean proof build was run.
 
 The lexical and reserved-prefix rules cited at the original `7d6515a` baseline
 were rechecked against this repository base. Local Markdown file links and
 `git diff --cached --check` were also checked. No rendered book/HTML check was
-run; the repository's mdBook migration remains planned separately.
+run: at that revision the repository had no mdBook.
 
 ### Coverage
 

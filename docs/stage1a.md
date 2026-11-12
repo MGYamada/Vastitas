@@ -37,7 +37,7 @@ Rules:
 - A key must not occur twice in a domain (`E_DUPLICATE`).
 - A generic has at most six parameters, because the compiler enumerates every
   key of its parameters, at most 4096. A seventh parameter is an error
-  (`E_LIMIT`). [Appendix D](appendix/limits.md#checker-limits) lists these
+  (`E_LIMIT`). [Appendix D](appendix/limits.md#generics-and-abstract-types) lists these
   limits.
 - A generic is not a function value, as
   [Path expressions](language/expressions.md#path-expressions) says.
@@ -147,7 +147,7 @@ Rules:
   recursion of [Calls](language/functions.md#calls) after selection
   (`E_RECURSION`).
 - The work of building the dispatch table of one generic has a limit, which
-  [Appendix D](appendix/limits.md#checker-limits) gives (`dispatchWork`).
+  [Appendix D](appendix/limits.md#generics-and-abstract-types) gives (`dispatchWork`).
   Exceeding it is an error (`E_LIMIT`).
 
 Capabilities hold for single types, not for relations between arguments. A
@@ -202,7 +202,7 @@ Rules:
   twice (`E_DUPLICATE`).
 - A program has at most 64 nominal types, counting `Nat`, `Int`, `Bool`, `Unit`,
   `Number` and `Any` (`E_LIMIT`), as
-  [Appendix D](appendix/limits.md#checker-limits) lists.
+  [Appendix D](appendix/limits.md#generics-and-abstract-types) lists.
 - In manifest mode, only the module that defines an abstract type may declare
   `subtype` memberships of it (`E_OWNER`). For each scalar type that an
   abstract type holds, its defining module must declare that scalar type into

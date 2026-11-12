@@ -1,6 +1,22 @@
 # Execution and planning reference models
 
-These independent finite models exercise planning questions that the compiler does not implement: reuse of GPU storage, sparse patterns, reduction trees, incremental invalidation, and the split between `Float` and `SafeFloat`. Each has its own hypotheses, verifier and regression examples.
+This chapter describes five [reference models](../appendix/reference-models.md)
+of execution and planning. They are finite: the reuse of GPU storage, sparse
+patterns and their products, reduction plans, the split between `Float` and
+`SafeFloat`, and the invalidation of dependent modules. Each is a Python
+program with tests under `scripts/`, and each section states its hypotheses,
+its verifier and its regression examples. None is a part of the compiler.
+
+| Model | In the compiler |
+| --- | --- |
+| [CUDA storage reuse](#cuda-reuse-reference) | Model only. Implemented: storage on the host, with the checks of allocation, initialization, loans and release that [Storage and ownership](../storage-ownership.md) and [Resource programs](../storage/resource-programs.md) specify. The compiler generates no GPU code. Planned: [#266](https://github.com/MGYamada/Vastitas/issues/266), [#210](https://github.com/MGYamada/Vastitas/issues/210) |
+| [CSR patterns and SpGEMM](#sparse-reference) | Model only. Implemented: dense [numerical maps](../linalg/maps-and-gemm.md) and their matrix products. Planned: [#243](https://github.com/MGYamada/Vastitas/issues/243) |
+| [Reduction plans](#reduction-reference) | Model only. Implemented: the [contraction trees](../linalg/networks-and-packing.md#contraction-trees) that a program declares for a tensor network. The reassociation of a reduction under declared laws is a model only. Planned: [#303](https://github.com/MGYamada/Vastitas/issues/303) |
+| [Float and SafeFloat](#float-reference) | Model only. Planned: [#318](https://github.com/MGYamada/Vastitas/issues/318), [#322](https://github.com/MGYamada/Vastitas/issues/322) |
+| [Dependency invalidation](#incremental-reference) | Model only. Planned: [#339](https://github.com/MGYamada/Vastitas/issues/339) |
+
+Each section keeps the record of the change that added its model. Its
+statements about the compiler describe the repository at that change.
 
 <a id="cuda-reuse-reference"></a>
 
@@ -76,8 +92,8 @@ aliases, borrowed views and all workspace tickets. A caller setting a Boolean or
 writing matching labels cannot satisfy that production obligation.
 
 The #210 provider is assumed to have validated each `event_wait` receipt's exact
-recording frontier, event generation, stream/context epochs and actually enqueued
-wait chain. This reference deliberately does not repeat that verification. It
+recording frontier, event generation, stream/context epochs and enqueued
+wait chain. This reference does not repeat that verification, by design. It
 checks endpoint/binding identity and requires definite enqueue outcomes for every
 operation and ordering receipt. Partial, unknown, not-enqueued, cancellation,
 stream-destruction and host-enqueue observations never establish reusable order.
@@ -127,7 +143,7 @@ grant reuse. This conservative fragment does not check arbitrary byte offsets,
 partial overlap, writes, initialization or loans. Those remain the mandatory
 [#183 storage obligations](../storage-ownership.md), separately preserved by #210.
 In particular, reuse does **not** inherit old contents as initialized data in a
-new generation. There is no numeric reassociation or operation rewriting here.
+fresh generation. There is no numeric reassociation or operation rewriting here.
 
 ### Reproduced experiments and cost interpretation
 
@@ -140,7 +156,7 @@ all `6!` permutations. Only the fully joined, ordered-reuse case is admitted.
 For two independent 64-byte workspaces with hypothetical operation durations 3
 and 5:
 
-| Candidate | Peak live slot bytes | Hypothetical makespan | Newly ordered work pair |
+| Candidate | Peak live slot bytes | Hypothetical makespan | Work pair that only the candidate orders |
 | --- | ---: | ---: | --- |
 | Separate allocations, preserve parallelism | 128 | 5 | None |
 | Reuse one slot, A then B | 64 | 8 | `use_A` before `use_B` |
@@ -171,7 +187,7 @@ same JSON. The payload carries:
 | --- | --- |
 | Expected subject | Exact fixture binding, operations/streams, allocations/generations/owners, workspace access roles, concrete size/alignment/layout/pool profile |
 | Candidate | Added dependencies, slot assignments and exact subject; always separate from facts |
-| Candidate costs | Max-of-stage-byte-sums expression AST (constant leaves in this fragment), estimated time, newly ordered work pairs, added edges, assumptions, unknown overhead/pool reservation |
+| Candidate costs | Max-of-stage-byte-sums expression AST (constant leaves in this fragment), estimated time, the work pairs that only the candidate orders (`newly_ordered_work_pairs`), added edges, assumptions, unknown overhead/pool reservation |
 | Verified reference facts | Complete uses, recomputed last-use frontiers, allocate/release positions, slot groups, exact order edges/kinds and receipt identities |
 | Unresolved fields | Logical retire node (`null`, owned by #210), real Core/source provenance, adapter realization, actual pool bytes, symbolic dimensions, region/initialization/loan facts and runtime measurements |
 | Diagnostics/integration | Stable reference codes; candidate analysis and contract-audit failures kept distinct; actual accepted Core, CUDA adapter and common emitter explicitly unconnected |
@@ -198,8 +214,8 @@ promise eventual reclamation on a stalled device.
 An admitted reference plan still returns `production_reuse_permission: false`.
 Mandatory ownership and async lifetime safety are independent of this optional
 analysis. There is no package-registration gate, language-level optimization or
-performance obligation, new Domain Checker, constitutional theorem, release
-milestone, or new public acceptance route.
+performance obligation, added Domain Checker, constitutional theorem, release
+milestone, or added public acceptance route.
 
 <a id="sparse-reference"></a>
 
@@ -227,7 +243,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/check_boundaries.py
 ```
 
-Existing CI discovers `test_*.py`; no new workflow or dependency is needed.
+Existing CI discovers `test_*.py`; no further workflow or dependency is needed.
 
 ### Representation and arithmetic contract
 
@@ -286,11 +302,11 @@ It records every pair of input slots contributing to each output slot, in
 increasing `k` order. It never reads values. Under this exact coefficient
 model, absent positions are zero and zero annihilates multiplication, giving
 `support(AB) subset P_C`. This is the mathematical argument implemented and
-tested here, **not a newly machine-checked Lean theorem**.
+tested here, **not a machine-checked Lean theorem**.
 
 `require_structural_bound` allows a candidate superset of `P_C`, and rejects
-any missing candidate position even when its current result is zero. There is
-deliberately no interface for caller-supplied cancellation certificates. In
+any missing candidate position even when its current result is zero. By design
+there is no interface for caller-supplied cancellation certificates. In
 particular, the empty pattern is rejected for `[1] * [1]`, and also for a
 stored `[0] * [1]`. Checking only `candidate subset P_C` would be unsound.
 
@@ -334,8 +350,8 @@ that must be revalidated. Every successful execution still recomputes the
 full product using current values and the unchanged structural schedule.
 Cached factors would require their own complete numerical dependencies.
 
-For a transparent tamper regression, execution deliberately **recomputes the
-symbolic audit** and compares the complete output layout and contribution
+For a transparent tamper regression, execution **recomputes the
+symbolic audit** by design and compares the complete output layout and contribution
 schedule. The same plan object is reused logically, but this is not an
 optimized amortized inspector/executor. Python dataclass validation is not a
 hostile-code security boundary. No externally authored plan may reach native
@@ -364,7 +380,7 @@ The demo prints text only and cannot be imported as checked graph data.
 | Work | Exact scalar multiplication contribution count | Shared cost AST constant or degree-sum expression with units/convention; not timing or Float FLOPs |
 | Numerical nonzeros | Exact value-snapshot observation | Explicit current-value dependency; never a structure-only omission permission |
 | Plan dependencies | Input snapshots, binding, optional pivot guard | Core/graph occurrence, method/profile, layout/target/algorithm revisions and every evidence dependency |
-| Missing/stale evidence and denied omissions | Local `S_*` exception codes/reasons | Reconcile with shared diagnostics catalog and statuses; these are reference codes, not a new canonical catalog |
+| Missing/stale evidence and denied omissions | Local `S_*` exception codes/reasons | Reconcile with shared diagnostics catalog and statuses; these are reference codes, not a canonical catalog |
 | Output/workspace bytes, aliasing, initialization, lifetime | Unknown | Existing Storage/Ownership validation over actual allocations and accesses |
 | Allocations, transfers, peak live memory, synchronization, inspect cost and speed | Unknown/unmeasured | Explicit cost model or runtime observations under #242; never fabricated from slot counts |
 | Checked acceptance and export coverage | No production acceptance/export | Actual kernel outcome and honest partial/unsupported coverage; no synthetic `verified` status |
@@ -376,7 +392,7 @@ Checked against main `2d6a86ce4c8a44bd883d879035aa9c924ed8fc71`:
 - [`Graph`](../verification/core-models.md#graph-crossings) checks the internal crossing-word fragment.
   Public tensor/source lowering and its bridge to `Indexed.Core.Term` remain
   pending; this reference adds no sparse operation to either Core.
-- [Protocol 8](../storage/resource-programs.md) now connects the initial static package
+- At that revision, [protocol 8](../storage/resource-programs.md) connects the initial static package
   resource profile to the existing [Storage checker](../storage/checked-storage.md#storage-ir). That
   connection does not establish CSR support, initialized index/value buffers,
   sparse destination/scratch alias rights or this plan's physical validity.
@@ -416,7 +432,7 @@ revision and exact value, a selected operation/revision, carrier, coefficient
 model, numerical profile and contract. The candidate contains only its target
 ID, selected binding, a binary tree and references to the closed law fixtures.
 The checker never infers the requested target from the candidate. The caller must
-actually control the target input; two filenames alone do not establish authority.
+control the target input; two filenames alone do not establish authority.
 
 The checker separately compares:
 
@@ -445,7 +461,7 @@ rational addition and multiplication. No binary64 associativity fixture exists.
 The table cannot be extended by candidate JSON. Every submitted reference,
 including unused evidence, must match both its independent catalog record and
 the full selected binding. Candidate tags cannot upgrade a law. The matrix v2
-fixture deliberately has v1's arithmetic but a different revision identity.
+fixture has v1's arithmetic but a different revision identity, on purpose.
 
 For an exact reduction, reassociation preserves the leaf order unless the
 independent target explicitly permits permutation and matching commutativity
@@ -595,7 +611,7 @@ python3 -m unittest discover -s scripts -p 'test_*float_reference.py' -v
 python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-The existing CI unittest discovery includes both new test files; no compiler,
+The existing CI unittest discovery includes both test files; no compiler,
 Lean, BLAS or third-party Python dependency is needed for these reference tests.
 
 ### Two layers, one primitive definition
@@ -608,7 +624,7 @@ Lean, BLAS or third-party Python dependency is needed for these reference tests.
 | [test_safe_float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_safe_float_reference.py) | Separate unit/associativity, flag monoid, morphism, equality, failure, and operational-trace tests. |
 
 There is no general Reader/Writer/Except/State or transformer API. `Ok` and `Err`
-are ordinary tagged reference Result values, not a new production exception
+are ordinary tagged reference Result values, not a production exception
 runtime. Python callbacks/closures express test programs; they do not change
 Vastitas's capture/ownership rules. The laws admit deterministic, effect-closed
 callbacks only. Python does not establish this admissibility for arbitrary code;
@@ -739,7 +755,7 @@ failure changes retained flags and is detectable even without a trace.
 
 Repeated raw zero division executes twice but sets just one sticky flag bit;
 repeated underflow similarly leaves one bit while the trace has two occurrences.
-Subtracting old from new flags cannot recover such repetitions. These diagnostic
+Subtracting the earlier flags from the later ones cannot recover such repetitions. These diagnostic
 trace checks are not extra failing-site identity in #310's public error or a
 proof that a future optimized backend must preserve an unobserved site. A future
 site-observing profile requires its own explicit trace-refinement theorem.
@@ -748,7 +764,7 @@ site-observing profile requires its own explicit trace-refinement theorem.
 
 | Layer | Status of this increment |
 | --- | --- |
-| Executable reference | Implemented and regression-tested Python primitive and sequencing layers; fixed binary64 real profile only. |
+| Executable reference | Python primitive and sequencing layers with regression tests; fixed binary64 real profile only. |
 | Lean monad/lift proofs | **Not implemented.** Prove flag-union laws, both unit laws and associativity by failure cases, and both lift equations extensionally at representation equality. Establish equality congruence for admitted continuations and the trace projection separately. |
 | Lean arithmetic proofs | **Not implemented.** Prove finite decoding/rounding and each operation's result/flag contract under the selected NaN, underflow and rounding policy; monad laws alone cannot prove these. |
 | Production Source/Core connection | **Not implemented.** Preserve operation identities, computational presentation, model/profile/revision provenance, accepted Core, branch schedule and guard evidence. No parser/protocol/checker/stdlib admission change here. |
@@ -783,14 +799,14 @@ python3 -m unittest discover -s scripts -p 'test_incremental_reference.py' -v
 ```
 
 The existing CI discovery command `python3 -m unittest discover -s scripts -p
-'test_*.py'` includes the regressions. No new compiler dependency or workflow is
+'test_*.py'` includes the regressions. No further compiler dependency or workflow is
 needed. The [implementation](https://github.com/MGYamada/Vastitas/blob/main/scripts/incremental_reference.py),
 [tests](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_incremental_reference.py) and
 [demo](https://github.com/MGYamada/Vastitas/blob/main/scripts/demo_incremental_reference.py) are independent of compiler APIs.
 
 ### Finite semantic model
 
-Inputs are Python dataclass ASTs, not `.vast` source or a new public wire protocol.
+Inputs are Python dataclass ASTs, not `.vast` source or a public wire protocol.
 The caller constructs the finite, JSON-representable input profile. This is not
 a hostile-source parser or a Python object security boundary.
 
@@ -808,7 +824,7 @@ a hostile-source parser or a Python object security boundary.
 - The synthetic dispatch profile has the nominal selectors `Any`, `Linear` and
   `Scalar`, and four feasible keys (`Linear`/`Scalar`, with/without `HasMetric`).
   The nominal/capability **product order**, not equality of observed key sets,
-  determines specificity. These are fixtures from the design proposal, not new
+  determines specificity. These are fixtures from the design proposal, not
   production scalar selectors or metric witnesses.
 - A family is identified by its exact declaring module and name. Owner methods
   are active; an assembly explicitly selects external contributions. Every body,
@@ -848,7 +864,7 @@ Vastitas Core or native behavior**.
 | Missing/malformed cache snapshot | Entire selected closure |
 | Missing entry or stale/corrupt/forged candidate, context or receipt | Recompute the affected candidate after current-input checking |
 
-The broad fallback deliberately includes modules with no direct import of a
+The broad fallback includes, by design, modules with no direct import of a
 contributor: a selected assembly can alter a generic used by an unchanged consumer.
 It also invalidates unrelated modules **inside** the selected closure when the
 model cannot justify narrower reuse. Ordinary body/interface changes can retain
@@ -880,12 +896,12 @@ an independent reachability computation supplement clean/incremental comparison.
 `trace.reused` counts **candidate reuse after full rechecking**; `trace.checked`
 lists every module rechecked. These counts do not measure skipped checker work or
 establish a speedup. The cache is an in-memory, JSON-roundtrippable return value.
-Builds do not mutate their supplied prior cache, and new records retain rejection
+Builds do not mutate their supplied prior cache, and the records that a build adds retain rejection
 as rejection. There are no persistent writes or published native outputs here.
 
 ### Regression coverage and expected demo
 
-The demo follows cold/warm builds, a new winner, an ambiguous family, its repair
+The demo follows cold/warm builds, a changed winner, an ambiguous family, its repair
 and an unrelated body edit. For `f(Linear, {})` and `f(Any, {HasMetric})`, the
 `Linear`+`HasMetric` key has two undominated methods; adding
 `f(Linear, {HasMetric})` resolves that ambiguity. The consumer's source does not

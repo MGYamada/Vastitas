@@ -12,9 +12,9 @@ states the limits that the construct meets in ordinary use, and
 | Kind | Bounds | Examples | Code |
 | --- | --- | --- | --- |
 | Nesting | The depth of a construct inside constructs of its kind | Nested expressions, types and branches, modules inside modules, a chain of package dependencies, the levels of a polynomial expression | `E_LIMIT` |
-| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements of resource functions | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_TYPE` for the parts of one `indexed` declaration |
-| Size of a number | The digits or the bits of a number that the checker computes with | A literal of a polynomial expression, an entry of a Gram matrix, an integer of a storage type | `E_LIMIT`; `E_RESOURCE_LIMIT` for an integer of a storage type |
-| Size of data | The bytes of an input or of an allocation | One input file, all inputs of a program, one allocation | `E_LIMIT` for inputs; `E_RESOURCE_OVERFLOW` for an allocation |
+| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements and the `value` blocks of resource functions | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_TYPE` for the parts of one `indexed` declaration; `E_RESOURCE_TYPE` for the views of one `initialized` contract |
+| Size of a number | The digits or the bits of a number that the checker computes with | A literal of a polynomial expression, an entry of a Gram matrix, a position in a constraint of a family, an integer of a storage type, the numbers of a layout, the dimension of an axis of a tensor, an entry of a metric of a numerical map | `E_LIMIT`; `E_RESOURCE_LIMIT` for an integer of a storage type; `E_RESOURCE_LAYOUT` for a layout; `E_TENSOR` for an axis; `E_NUMERICAL_METRIC` for an entry of a metric |
+| Size of data | The bytes of an input, of an allocation or of a space | One input file, all inputs of a program, one allocation, one static space | `E_LIMIT` for inputs; `E_RESOURCE_OVERFLOW` for an allocation; `E_NUMERICAL_TYPE` for a space |
 | Work budget | The units of work of one check | The elaboration of a program, the dispatch table of a generic, the resolution of names, the checking of resource functions, the exact algebra of a declaration | `E_LIMIT`; `E_RESOURCE_LIMIT` for the expansion of resource calls |
 | Depth of checking and of calls | The length of one path of the checker through a body, and of a chain of calls of resource functions | A long list of statements in one function, resource functions that call each other in a chain | `E_LIMIT` for a body; `E_RESOURCE_LIMIT` for calls of resource functions |
 
@@ -27,21 +27,34 @@ Rules:
 - The compiler has no option that changes a limit.
 - A program beyond a limit is an error. Its code is `E_LIMIT`, unless the
   chapter of the construct gives another code. The table gives the codes of
-  each kind, and the next four rules name the chapters with other codes.
+  each kind, and the next six rules name the chapters with other codes.
 - A program beyond a limit on the statements, the `value` blocks, the
   parameters, the calls or the integers of resource functions is an error
   (`E_RESOURCE_LIMIT`).
   [Resource functions](../storage/resource-programs.md#resource-functions) and
   [Storage types](../storage/resource-programs.md#storage-types) give the
   limits on statements, `value` blocks and integers. A resource function also
-  has a limit on its parameters and results, and a chain of calls of resource
+  has a limit on its parameters and on its owned results, a call has the same
+  limit on its arguments and results, and a chain of calls of resource
   functions has a limit on its depth. The work budget of the checking of
   resource functions has the code `E_LIMIT`, and the budget of the expansion
   of resource calls has the code `E_RESOURCE_LIMIT`.
-- [Storage types](../storage/resource-programs.md#storage-types) gives the
-  codes for an allocation and for a layout beyond their largest sizes, and
-  [Spaces and bases](../linalg/maps-and-gemm.md#spaces-and-bases) the code
-  for a space beyond its largest size.
+- An `initialized` contract of an owned parameter or result beyond the limit
+  on its views is an error (`E_RESOURCE_TYPE`), as
+  [Storage types](../storage/resource-programs.md#storage-types) says.
+- An allocation beyond its largest size is an error
+  (`E_RESOURCE_OVERFLOW`), and so is a layout beyond its largest numbers
+  (`E_RESOURCE_LAYOUT`), as
+  [Storage types](../storage/resource-programs.md#storage-types) says. A
+  space beyond its largest size is an error (`E_NUMERICAL_TYPE`), as
+  [Spaces and bases](../linalg/maps-and-gemm.md#spaces-and-bases) says.
+- A tensor with an axis beyond the largest dimension is an error
+  (`E_TENSOR`), as [Tensors](../linalg/networks-and-packing.md#tensors)
+  says. A metric with an entry beyond the largest value that
+  `adjoint_into` and `hermitian_diagonal` accept is an error
+  (`E_NUMERICAL_METRIC`), as
+  [Adjoints for diagonal metrics](../linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics)
+  and [Pairings](../linalg/transforms-and-metrics.md#pairings) say.
 - A contraction tree beyond a limit on its occurrences, its declarations or
   the steps of its plan is an error (`E_TENSOR_TREE`), as
   [Contraction trees](../linalg/networks-and-packing.md#contraction-trees)
@@ -76,6 +89,16 @@ nesting limit admits there:
 ```text
 {{#include ../../examples/reject/limits/nested-parentheses.stderr}}
 ```
+
+> **Implementation note.** Two bounds of the compiler have diagnostics that
+> no rule of the Reference gives. The kernel refuses a request of the wire
+> protocol beyond a largest size (`E_PROTOCOL`), and a program within the
+> limits on its inputs can make such a request. A write beyond the limit on
+> the records that the checker keeps of the initialized cells of one
+> allocation has the code `E_RESOURCE_STATE`.
+> [Request](../appendix/limits.md#request) and
+> [Resource functions](../appendix/limits.md#resource-functions) of
+> Appendix D describe both bounds and name the issues that track them.
 
 ## Source limits and limits of the checked program
 
@@ -135,6 +158,9 @@ Rules:
 - No limit counts the functions of a program or the calls of a chain of calls
   between functions. The work budgets of the whole program bound both,
   because every function uses units of work.
+- Resource functions differ. Each ends with a `value` block, so the limit on
+  `value` blocks bounds their number, and a chain of their calls has a limit
+  on its depth.
 - The limits do not bound the time that a check takes or the memory that it
   uses. A work budget bounds the units of one kind of work.
 
@@ -191,7 +217,8 @@ Rules:
   keeps the [runtime reverse pass](../appendix/glossary.md#runtime-reverse-pass):
   the compiler compiles less of the pass and rejects nothing.
   [Reverse-pass primitives](smooth-declarations.md#reverse-pass-primitives)
-  and [Appendix D](../appendix/limits.md) describe these budgets.
+  and [Appendix D](../appendix/limits.md#bounds-that-reject-nothing)
+  describe these budgets.
 - A diagnostic of a resource program has a largest number of notes. The
   search for the cell that such a diagnostic names has a bound.
   [Diagnostics of resource programs](../storage/resource-programs.md#diagnostics)

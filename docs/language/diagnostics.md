@@ -269,7 +269,7 @@ This program has three errors of names, and one run reports them all:
 | --- | --- |
 | The command succeeds | 0 |
 | The compiler rejects the program or cannot carry out the command | 1 |
-| A signal interrupts the compiler, which reports `E_INTERRUPTED` | 128 plus the number of the signal |
+| A signal interrupts the compiler. It reports `E_INTERRUPTED`, or another error that it found before it noticed the signal | 128 plus the number of the signal |
 
 `vastitas --help` and `vastitas --version` write to standard output and exit
 with status 0. [Appendix A](../guide/cli.md) names the signals that interrupt

@@ -54,6 +54,7 @@
 # How the compiler is checked
 
 - [Compiler architecture](development/architecture.md)
+- [The driver](internals/driver.md)
 - [Checking pipeline](internals/checking-pipeline.md)
 - [The indexed checker](internals/indexed-checker.md)
 - [Resource checking](internals/resource-checking.md)
@@ -70,7 +71,6 @@
   - [Metric evidence](spec/metric-evidence.md)
   - [std::arithmetic::generic](spec/std-arithmetic-generic.md)
   - [Assumptions](spec/assumptions.md)
-- [Standard-library admission and trust](adr/0001-mathematics-first-stdlib.md)
 
 # Appendices
 
@@ -84,7 +84,7 @@
     - [Algebra, order and symmetry reference models](reference/algebra-and-symmetry.md)
     - [Execution and planning reference models](reference/execution-plans.md)
   - [D: Compiler limits](appendix/limits.md)
-  - [E: Historical roadmap and Stage 1 records](appendix/history.md)
+  - [E: Historical roadmap and delivery records](appendix/history.md)
     - [Historical Stages 2–7](guide/historical-roadmap.md)
     - [Stage 1 delivery and performance handoff](stage1-completion.md)
     - [Finite-profile acceptance and evidence](stage1-acceptance.md)
@@ -95,4 +95,6 @@
     - [Run compiler, proof and native checks](development/validation.md)
     - [Maintain the documentation](development/documentation.md)
     - [Add an indexed primitive](development/primitives.md)
+    - [Standard-library admission and trust](adr/0001-mathematics-first-stdlib.md)
   - [G: Glossary](appendix/glossary.md)
+  - [H: Grammar summary](appendix/grammar.md)

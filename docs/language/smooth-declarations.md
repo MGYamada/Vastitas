@@ -206,7 +206,7 @@ Rules:
   together. Otherwise it is an error (`E_LIMIT`).
 - Exponents and degrees must be at most 16, and the expanded polynomial must
   stay within the term and work budgets of
-  [exact affine algebra](../appendix/limits.md#exact-affine-algebra-stage-2).
+  [exact affine algebra](../appendix/limits.md#exact-affine-algebra).
   Otherwise it is an error (`E_LIMIT`).
 - A fraction with a zero denominator is an error (`E_AFFINE_COORDINATE`).
 - A coordinate name that the object does not have is an error

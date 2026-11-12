@@ -39,6 +39,14 @@ A method that **applies** at a [key](#dispatch-key): each type of the key
 belongs to the matching selector of the method and has the capabilities that
 the method requires. See [Selection](../stage1a.md#selection).
 
+## Arena
+
+An object of the storage runtime that holds buffers of a generated program.
+The generated `main` creates an arena at its start, when an operation of the
+checked entry needs one, and closes it at its end. See
+[Components](../development/architecture.md#components) and
+[All-body checking and generation](../internals/resource-checking.md#all-body-checking-and-generation).
+
 ## Arm
 
 One of the two lists of statements of a branch in a resource function. See
@@ -130,6 +138,17 @@ The ports of a [network](#network) or of a contraction tree that no edge
 contracts. They are the axes of the result. See
 [Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
+
+## Build identity
+
+What a kernel executable was built from: a digest of its Lean sources and of
+the file of limits, and the version of Lean. Every response of the kernel
+carries it, and the compiler accepts a response only from a kernel with the
+build identity of its own build. See
+[The kernel and its build identity](../guide/cli.md#the-kernel-and-its-build-identity)
+for the rules and
+[The build identity](../internals/driver.md#the-build-identity) for the
+digest.
 
 ## Built-in function
 
@@ -236,6 +255,12 @@ as `E_TYPE`. The Reference specifies the code of each error that a rule
 states, and not the text of its message. See [Codes](../language/diagnostics.md#codes) and
 [Appendix B](diagnostics.md).
 
+## Code generator
+
+A function of the [kernel](#kernel) that writes the Lean source of a checked
+program. It checks its input again before it returns source. See
+[The three checker routes](../development/architecture.md#the-three-checker-routes).
+
 ## Compiled reverse Core
 
 The [Core](#core) that the kernel generates for the
@@ -298,6 +323,12 @@ delegation. It names a recipient module and a region inside the parent loan's
 region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
 parent loan stays suspended until the nested loan returns. See
 [Grants and delegations](../language/edit-authority.md#grants-and-delegations).
+
+## Delivery record
+
+An archived chapter that maps the acceptance conditions of a delivery, such as
+a [Stage](#stage), to their evidence at recorded revisions. It keeps the
+wording of its delivery. See [Appendix E](history.md).
 
 ## Dependency alias
 
@@ -376,6 +407,12 @@ The word has two meanings:
    that implementation alone. See
    [Classifications](../indexed-source.md#classifications) and the
    [guide](../guide/indexed-profile.md#a-classification).
+
+## Driver
+
+The part of the [frontend](#frontend) that reads the command line and the
+input files, starts the kernel, shows the diagnostics, runs the native build
+and writes the output file. See [The driver](../internals/driver.md).
 
 ## Edit authority
 
@@ -667,6 +704,16 @@ the frontend. It resolves names, allocates identities, checks every body and
 generates code from the checked result. It depends on the Lean
 distribution only. See [Compiler architecture](../development/architecture.md).
 
+## Kernel root
+
+The directory of the Lake package of the [kernel](#kernel): its sources, its
+built executable, the [storage runtime](#storage-runtime) and the
+[numerical runtime](#numerical-runtime). `VASTITAS_KERNEL_ROOT` names it. The
+driver finds the kernel executable there, and a native build reads its
+[runtime inputs](#runtime-input) there. See
+[The kernel and its build identity](../guide/cli.md#the-kernel-and-its-build-identity)
+and [Starting the kernel](../internals/driver.md#starting-the-kernel).
+
 ## Key
 
 See [dispatch key](#dispatch-key).
@@ -833,6 +880,12 @@ program that the checker accepted. It is not proved: it rests on the Lean
 compiler and the C compiler, and tests exercise it. See
 [What acceptance means](../language/guarantees.md#what-acceptance-means).
 
+## Native runtime
+
+A library that a generated program links: the runtime modules of the kernel
+package, the storage runtime or the numerical runtime. See
+[Compiler architecture](../development/architecture.md#components).
+
 ## Network
 
 A graph of [occurrences](#occurrence) of numerical maps whose
@@ -880,12 +933,27 @@ A line of a [diagnostic](#diagnostic) that points to a related
 note whose message begins with `help:` proposes a correction. See
 [Diagnostic lines](../language/diagnostics.md#diagnostic-lines).
 
+## Numerical build
+
+A `vastitas build` of a program whose entry point reaches a
+[product statement](#product-statement). It links the
+[numerical runtime](#numerical-runtime) and the OpenBLAS library, and it
+needs `--openblas-prefix`. See
+[Numerical builds](../guide/cli.md#numerical-builds).
+
 ## Numerical map
 
 A [view](#view) of storage presented as the matrix of a linear map between
 two [spaces](#space), in a named [basis](#basis) of each. A `map` statement
 declares one, and `gemm` multiplies two. Also called a **map**. See
 [Maps](../linalg/maps-and-gemm.md#maps).
+
+## Numerical runtime
+
+The package `numerical` of the [kernel root](#kernel-root). An executable
+whose entry point reaches a [product statement](#product-statement) links
+it, together with the OpenBLAS library. See
+[What `check` and `build` start](../guide/cli.md#what-check-and-build-start).
 
 ## Object type
 
@@ -908,7 +976,7 @@ use of a map or of a [tensor](#tensor). See
 A map of a [reverse site](#reverse-site) whose structure the compilation does
 not open. Function parameters, values of branches and calls and
 `composite(…)` are opaque steps, and so are maps that the `reverseLeaves`
-[limit](limits.md#checker-limits) does not reach: a `let`-bound map beyond
+[bound](limits.md#bounds-that-reject-nothing) does not reach: a `let`-bound map beyond
 the remaining budget, or a whole map operand whose `compose` calls exceed it.
 [Backward Core](#backward-core) pulls the seed back along an opaque step with
 the [runtime reverse pass](#runtime-reverse-pass) in the site's residual
@@ -1076,7 +1144,7 @@ descendants only. See [Visibility](../language/names-and-paths.md#visibility).
 ## Product statement
 
 A numerical statement that multiplies when the program runs: `gemm`,
-`runtime_gemm`, a pairing or a contraction. `vastitas build` needs the
+`runtime_gemm`, `evaluate`, a pairing or a contraction. `vastitas build` needs the
 OpenBLAS library for a program whose entry point reaches one. See
 [Building a numerical program](../linalg/maps-and-gemm.md#building-a-numerical-program).
 
@@ -1114,6 +1182,16 @@ recorded in a [specification](#specification) with an example and one or more
 Declared with `pub`: nameable from every module that can reach the declaring
 module. See [Visibility](../language/names-and-paths.md#visibility).
 
+## Public checker route
+
+One of the entry points that the kernel executable calls for a request of the
+[wire protocol](#wire-protocol): `Indexed.LegacySource.check` for protocols 2
+to 6, `Indexed.Wire.check` for protocol 7, and `ResourceSource.Wire.check`
+and `ResourceSource.Wire.emit` for protocols 8 and 9. `Wire.emit` runs that
+check and then generates code. A theorem about a route holds for the
+requests that the kernel accepts through it. See
+[Current public checker routes](../verification.md#current-public-checker-routes).
+
 ## Recipient
 
 The module that a grant, delegation or transfer names after `to`: the manifest
@@ -1125,6 +1203,14 @@ name of its package followed by its logical path. See
 A `pub use` declaration, which makes a public declaration of another module
 nameable through the current module. The declaration keeps its [owner](#owner), and
 the reexport grants no edit authority. See [`use` declarations](../language/modules.md#use-declarations).
+
+## Reference model
+
+An independent Python program under `scripts/` with its own tests. It models
+a construct or a certificate format that an issue proposes, or a component
+that the compiler has; a kernel regression uses some models of the second
+kind as an oracle. It is not a part of the compiler, and its results are not
+compiler acceptance. See [Appendix C](reference-models.md).
 
 ## Region
 
@@ -1196,6 +1282,14 @@ The expression at the end of a block, without a semicolon. The value of the
 block is the value of its result. See
 [Block expressions](../language/expressions.md#block-expressions).
 
+## Retained composition
+
+An older checker entry of the kernel, or an internal adapter, that no command
+reaches. Kernel regressions and oracle modules still call it. A theorem about
+a retained composition says nothing about a program that the compiler accepts
+today. See
+[How to read this chapter](../verification.md#how-to-read-this-chapter).
+
 ## Reverse site
 
 A call whose [derivative rule](#derivative-rule) is a reverse pass: a
@@ -1253,6 +1347,13 @@ and a condition on [extents](#extent). See
 The line that an executable writes to standard error when a
 [run-time check](#run-time-check) fails. See
 [Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics).
+
+## Runtime input
+
+A file that Lake reads from the [kernel root](#kernel-root) when it compiles a
+generated program. The driver compares the runtime inputs with the files of
+its own build before a native build. See
+[The native build](../internals/driver.md#the-native-build).
 
 ## Runtime reverse pass
 
@@ -1371,6 +1472,13 @@ different spaces. See
 [Spaces and bases](../linalg/maps-and-gemm.md#spaces-and-bases) and the
 [guide](../guide/numerical.md#spaces-bases-and-maps).
 
+## Span
+
+The position of one node of a wire request: a start and an end as byte
+offsets, a line and a column. A span holds no path. The driver finds the
+file of a span by its start offset. See
+[Reading inputs](../internals/driver.md#reading-inputs).
+
 ## Specialization
 
 The compilation step that erases function values. The compiler checks each
@@ -1417,6 +1525,12 @@ A numbered milestone of the development roadmap. Stage 1 is the finite
 compiler, and Stage 2 is finite affine geometry over QQ. See
 [Historical Stages 2–7](../guide/historical-roadmap.md).
 
+## Staging file
+
+A file beside the final place of the output of `vastitas build`. The driver
+copies the executable to it and then renames it onto that place. See
+[Output files](../internals/driver.md#output-files).
+
 ## Standard library
 
 The package in the directory `stdlib` of the repository. It is written in
@@ -1455,6 +1569,14 @@ apart from a loan and its [children](#child). A
 storage loan grants no edit authority; compare [edit loan](#edit-loan). See
 [Storage types](../storage/resource-programs.md#storage-types) and
 [Ownership and explicit transitions](../storage-ownership.md#ownership-and-explicit-transitions).
+
+## Storage runtime
+
+The package `native` of the [kernel root](#kernel-root). An executable links
+it when its entry point is a resource function with an operation on an
+allocation or on runtime extents. Its checks report the
+[run-time diagnostics](#run-time-diagnostic) with the prefix `E_NATIVE_`. See
+[What `check` and `build` start](../guide/cli.md#what-check-and-build-start).
 
 ## Strict keyword
 
@@ -1578,7 +1700,7 @@ in wire order. See
 
 The versioned JSON request that the frontend sends to the kernel, and the
 kernel's response. Each request carries a protocol version. See
-[Compiler protocols](../protocol.md).
+[Wire protocols 2–9](../protocol.md).
 
 ## Witness
 

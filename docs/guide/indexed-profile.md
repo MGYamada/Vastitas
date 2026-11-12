@@ -279,5 +279,5 @@ objects by coordinates and polynomial equations.
   of primitives.
 - [Core geometry syntax](../indexed-source.md#core-geometry-syntax): the
   entries of an export.
-- [Appendix D](../appendix/limits.md#other-documented-bounds): the limits on
+- [Appendix D](../appendix/limits.md#indexed-declarations): the limits on
   indexed declarations.

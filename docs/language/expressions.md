@@ -148,7 +148,7 @@ Rules:
 - Both branches must have the same type, which is the type of the expression.
   Branches of different types are an error (`E_TYPE`).
 - A chain of `else if` branches has a length limit, which
-  [Appendix D](../appendix/limits.md#parser-and-checker-budgets) gives.
+  [Appendix D](../appendix/limits.md#source-text) gives.
 
 ```vast
 fn sign(x: Int) -> Int {

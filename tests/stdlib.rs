@@ -316,6 +316,23 @@ fn library_cannot_supply_the_application_entrypoint() {
         .output()
         .unwrap();
     failure(&result, "E_LIBRARY");
+    // When the entry file defines `main` as well, the two functions have one
+    // name. The rule on equal names reports the second one, at the library.
+    let entry = scratch.write("with-main.vast", "fn main() -> Int { 0 }");
+    let second = scratch.write("second.vast", "fn main() -> Int { 1 }");
+    let result = cli()
+        .arg("check")
+        .arg(entry)
+        .arg("--lib")
+        .arg(&second)
+        .output()
+        .unwrap();
+    let error = failure(&result, "E_DUPLICATE");
+    assert!(
+        error.starts_with(&format!("{}:1:1: E_DUPLICATE:", second.display())),
+        "{error}"
+    );
+    assert!(!error.contains("E_LIBRARY"), "{error}");
 }
 
 #[test]

@@ -284,6 +284,158 @@ class SyntaxTests(Fixture):
         self.assertTrue({"fn", "pub", "use", "indexed", "generic"} <= names)
 
 
+class GrammarTests(Fixture):
+    LEXER = SyntaxTests.LEXER
+    ITEMS = """
+        # Items
+
+        > **Syntax**
+        >
+        > ```text
+        > Item -> Function
+        > ```
+
+        ## `fn` items
+
+        > **Syntax**
+        >
+        > ```text
+        > Function -> `pub`? `fn` IDENTIFIER `(` `)`
+        >     `;`
+        > IDENTIFIER -> ASCII_LETTER+
+        > ASCII_LETTER -> `a` | `b`
+        > ```
+
+        ## Rules
+
+        ```text
+        ## Not a heading
+        ```
+
+        ## Rules
+
+        > **Syntax**
+        >
+        > ```text
+        > Module -> `mod` IDENTIFIER `;`
+        > ```
+        """
+    NOTATION = """
+        # Notation
+
+        > **Syntax**
+        >
+        > ```text
+        > Item -> `fn`
+        > ```
+        """
+
+    def setUp(self):
+        super().setUp()
+        import grammar_summary
+        self.grammar = grammar_summary
+        write(self.root, {"src/frontend.rs": self.LEXER, "src/frontend/items.rs": 'consume("mod")\n'})
+        self.source = self.root / "docs"
+        write(self.source, {"language/notation.md": self.NOTATION, "language/items.md": self.ITEMS,
+                            "guide/a.md": "# A\n"})
+        self.chapters = [Chapter("A", "guide/a.md", "guide"),
+                         Chapter("Notation", "language/notation.md", "reference"),
+                         Chapter("Items", "language/items.md", "reference"),
+                         Chapter("H: Grammar summary", "appendix/grammar.md", "appendix")]
+
+    def generate(self):
+        text, count = self.grammar.render(self.source, self.chapters)
+        write(self.source, {"appendix/grammar.md": text})
+        return text, count
+
+    def test_the_summary_holds_the_productions_by_chapter_and_section(self):
+        text, count = self.generate()
+        self.assertEqual(count, 5)
+        self.assertTrue(text.startswith("# Appendix H: Grammar summary\n"))
+        self.assertIn("## Items\n\nChapter: [Items](../language/items.md).\n\n```text\nItem -> Function\n```\n", text)
+        self.assertIn("[`fn` items](../language/items.md#fn-items):\n\n```text\n"
+                      "Function -> `pub`? `fn` IDENTIFIER `(` `)`\n    `;`\n", text)
+        # A repeated heading has the id that mdBook gives it, and a heading in a code block is none.
+        self.assertIn("[Rules](../language/items.md#rules-1):\n\n```text\nModule -> `mod` IDENTIFIER `;`\n```\n", text)
+        # The illustration of the notation chapter is no production of the language.
+        self.assertNotIn("notation.md)", text.replace("notation.md#grammar)", ""))
+        self.assertTrue(text.endswith("```\n"))
+
+    def test_a_fresh_summary_passes_and_defines_nothing(self):
+        self.generate()
+        self.assertEqual(self.grammar.errors(self.source, self.chapters), [])
+        check_book.check_grammar(self.source, self.chapters)
+        # The summary holds no Syntax block, so its productions are no second definitions.
+        self.assertEqual(list(check_book.syntax_blocks((self.source / "appendix/grammar.md").read_text())), [])
+        self.assertEqual(check_book.syntax_errors(self.chapters, self.source, self.root), ([], 5))
+
+    def test_a_stale_or_missing_summary_fails(self):
+        self.assertEqual(self.grammar.errors(self.source, self.chapters),
+                         ["appendix/grammar.md: missing; run `python3 scripts/grammar_summary.py --write`"])
+        self.generate()
+        write(self.source, {"language/items.md": self.ITEMS.replace("`mod` IDENTIFIER", "`pub`? `mod` IDENTIFIER")})
+        self.assertEqual(self.grammar.errors(self.source, self.chapters),
+                         ["appendix/grammar.md: out of date; run `python3 scripts/grammar_summary.py --write`"])
+        with self.assertRaisesRegex(ValueError, "the grammar summary is not fresh"):
+            check_book.check_grammar(self.source, self.chapters)
+        self.generate()
+        # An edit of the generated chapter by hand is stale too.
+        path = self.source / "appendix/grammar.md"
+        path.write_text(path.read_text() + "\nItem -> Module\n")
+        self.assertEqual(len(self.grammar.errors(self.source, self.chapters)), 1)
+
+    def test_the_summary_must_be_listed(self):
+        self.assertEqual(self.grammar.errors(self.source, self.chapters[:-1]),
+                         ["SUMMARY.md does not list appendix/grammar.md"])
+
+
+class LimitTests(unittest.TestCase):
+    LIMITS = {"parseNesting": 64, "elaborationWork": 1000000}
+    TABLE = """
+        | Limit | Value | Counts |
+        | --- | --- | --- |
+        | `parseNesting` | 64 | Levels |
+        | `value` blocks | 4096 | Blocks |
+        | Loaded files | 8192 | Files |
+        | `elaborationWork` | 1,000,000 | Units |
+        | `elaborationWork` | 1,000,000 | The same limit in a second table |
+        """
+
+    def errors(self, table, limits=None):
+        return check_book.limit_errors(textwrap.dedent(table), limits or self.LIMITS)
+
+    def test_rows_with_the_values_of_the_file_pass(self):
+        self.assertEqual(self.errors(self.TABLE), [])
+
+    def test_another_value_fails(self):
+        self.assertEqual(self.errors(self.TABLE.replace("| 64 |", "| 65 |")),
+                         ["appendix/limits.md:4: `parseNesting` is 64 in lean-kernel/compiler-limits.json, not 65"])
+
+    def test_every_row_of_a_key_carries_the_value_of_the_file(self):
+        second = "| `elaborationWork` | 1,000,000 | The same limit in a second table |"
+        self.assertEqual(self.errors(self.TABLE.replace(second, second.replace("1,000,000", "2,000,000"))),
+                         ["appendix/limits.md:8: `elaborationWork` is 1000000 in lean-kernel/compiler-limits.json, "
+                          "not 2000000"])
+        # A value in another form is no value of the file: the row is not skipped.
+        for form in ("1 million", "10^6", "1,000,000 units", "1000,000", ""):
+            found = self.errors(self.TABLE.replace(second, second.replace("1,000,000", form)))
+            self.assertEqual(found, ["appendix/limits.md:8: the value of `elaborationWork` must be the number "
+                                     f"1000000 of lean-kernel/compiler-limits.json, not {form!r}"], form)
+        # A row of a name that is no key and has no number is not a row of a limit.
+        self.assertEqual(self.errors(self.TABLE + "| `E_LIMIT` | A program beyond a limit | Code |\n"), [])
+
+    def test_a_missing_or_an_unknown_key_fails(self):
+        self.assertEqual(self.errors(self.TABLE, {**self.LIMITS, "astDepth": 128}),
+                         ["appendix/limits.md: no row gives the limit `astDepth` of lean-kernel/compiler-limits.json"])
+        self.assertEqual(self.errors(self.TABLE.replace("`parseNesting`", "`parseDepth`")), [
+            "appendix/limits.md:4: `parseDepth` is no key of lean-kernel/compiler-limits.json",
+            "appendix/limits.md: no row gives the limit `parseNesting` of lean-kernel/compiler-limits.json",
+        ])
+
+    def test_the_appendix_agrees_with_the_limits_file(self):
+        check_book.check_limits(check_book.ROOT / "docs")
+
+
 class RedirectTests(Fixture):
     def setUp(self):
         super().setUp()

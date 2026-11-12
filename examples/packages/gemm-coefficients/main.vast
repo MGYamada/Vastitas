@@ -1,0 +1,50 @@
+indexed marker RealCoefficients;
+indexed implementation SmoothScalar(RealCoefficients, scalar_base(smooth, real)) capabilities();
+indexed global SmoothBase(SmoothScalar);
+indexed implementation RealSmooth(RealCoefficients, linear_descriptor(SmoothBase, real)) capabilities();
+
+// Products of the matrices (2) and (3) with coefficients.
+resource fn main() -> Int {
+    space u = linear(RealSmooth, 1);
+    basis bu = basis(u);
+    allocate a: F64[1];
+    allocate b: F64[1];
+    allocate c: F64[1];
+    allocate s: F64[1];
+    borrow init_a = write(a, layout(0, 1, 1, 1, false));
+    fill(init_a, f64(2));
+    release(init_a);
+    borrow init_b = write(b, layout(0, 1, 1, 1, false));
+    fill(init_b, f64(3));
+    release(init_b);
+    borrow init_s = write(s, layout(0, 1, 1, 1, false));
+    fill(init_s, f64(4));
+    release(init_s);
+    borrow input_a = read(a, layout(0, 1, 1, 1, false));
+    borrow input_b = read(b, layout(0, 1, 1, 1, false));
+    borrow scale = read(s, layout(0, 1, 1, 1, false));
+    borrow output = write(c, layout(0, 1, 1, 1, false));
+    map left = view(input_a, bu, bu);
+    map right = view(input_b, bu, bu);
+    map destination = view(output, bu, bu);
+    // ANCHOR: overwrite
+    gemm(left, right, destination, overwrite, NativeFast, alpha=f64(0x1p-1));
+    // ANCHOR_END: overwrite
+    release(output);
+    borrow updated = read_write(c, layout(0, 1, 1, 1, false));
+    expect(updated, 0, 0, f64(3));
+    map accumulated = view(updated, bu, bu);
+    // ANCHOR: accumulate
+    gemm(left, right, accumulated, accumulate, NativeFast, alpha=coefficient(scale), beta=f64(2));
+    // ANCHOR_END: accumulate
+    expect(updated, 0, 0, f64(30));
+    release(updated);
+    release(scale);
+    release(input_b);
+    release(input_a);
+    drop(s);
+    drop(c);
+    drop(b);
+    drop(a);
+    value { 42 }
+}

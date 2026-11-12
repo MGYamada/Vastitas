@@ -672,7 +672,10 @@ Rules:
   is an error (`E_ENDPOINT`), even when the declaration of the primitive is
   valid.
 - A call of a name that is an indexed declaration and not a primitive is an
-  error (`E_TYPE`).
+  error (`E_TYPE`). A declared map is the exception: a
+  [smooth map](language/smooth-declarations.md#smooth-maps) or a
+  [morphism over a base](affine-geometry.md#morphisms-over-a-base) is called
+  without operands, as those sections say.
 
 [A complete program](#a-complete-program) calls five of the seven primitives
 of the module `geo`.
@@ -702,7 +705,8 @@ Rules:
 ## Core geometry syntax
 
 The [geometric core](language/geometric-types.md) has built-in types and
-operations, such as `Point<X, Base(QQ)>` and `origin(X)`. In manifest mode an
+operations, such as `Point<X, Base(QQ)>` and `origin(X)`. The **core syntax**
+is the spelling of these types and operations. In manifest mode an
 [export](packages.md#geometry-compatibility-exports), the `[geometry_compat]`
 table of a manifest, maps each of them to an indexed declaration.
 [Geometry compatibility exports](packages.md#geometry-compatibility-exports)
@@ -755,6 +759,13 @@ Rules:
   every module of the program.
 - An export declares nothing, and it grants no
   [edit authority](language/edit-authority.md).
+
+The manifest of the geometry package of the standard library holds this
+export. Its paths begin with `self`, the root module of that package:
+
+```toml
+{{#include ../stdlib/src/geometry/Vastitas.toml}}
+```
 
 ### Meaning of the core syntax
 
@@ -851,8 +862,8 @@ module `geo` through paths:
 ```
 
 ```sh
-vastitas check --manifest-path examples/packages/indexed/Vastitas.toml
-vastitas build --manifest-path examples/packages/indexed/Vastitas.toml -o target/indexed-demo
+target/debug/vastitas check --manifest-path examples/packages/indexed/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/indexed/Vastitas.toml -o target/indexed-demo
 ./target/indexed-demo
 ```
 

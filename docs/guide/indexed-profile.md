@@ -187,6 +187,13 @@ rejects the same binding over `Shape`, at its declaration:
 {{#include ../../examples/reject/packages/missing-capability.stderr}}
 ```
 
+The module also declares the package `Hidden`. It has one case for each
+classification, and no case has a field:
+
+```vast
+{{#include ../../examples/packages/indexed-objects/shapes.vast:package}}
+```
+
 The type of an object is an
 [*object type*](../appendix/glossary.md#object-type) `Object<D, K>`, where
 `D` names a classification or an implementation and `K` a marker. The root
@@ -199,7 +206,7 @@ module of `indexed-objects` uses two object types:
 `shapes::grid(42)` gives an object of type
 `Object<shapes::Grid, shapes::QQ>`. `Grid` is in the domains of `Measured`
 and of `Shape`, so both `measure` and `hide` accept `X`. The witness `Y` has
-the type that the case of `Hidden` declares,
+the type that the first case of `Hidden` declares,
 `Object<shapes::Shape, shapes::QQ>`. The program prints `42`.
 
 The object type belongs to a binding, not to the object: two bindings of
@@ -236,9 +243,10 @@ reexport one family `Point` from their parent module.
 
 ## Beyond this profile
 
-The geometry package of the standard library is a profile like `geo`, with
-one implementation, one classification and one base object for each setting.
-Its
+The module `std::geometry` of the standard library holds a profile like
+`geo`, with one implementation, one classification and one base object for
+each setting, and with one private classification that holds the objects of
+both settings. The library keeps this module in a package of its own, whose
 [manifest](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/Vastitas.toml)
 also holds the export that gives the core syntax its meaning in a package.
 [Core geometry syntax](../indexed-source.md#core-geometry-syntax) lists the

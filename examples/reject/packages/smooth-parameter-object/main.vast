@@ -1,0 +1,10 @@
+use std::geometry::smooth::CInfReal;
+use std::geometry::smooth::affine::CInfAffine;
+use std::geometry::smooth::affine::Cotangent;
+
+// ANCHOR: function
+// X is a parameter, not a declared smooth affine object.
+fn probe(X: Object<CInfAffine, CInfReal>, covector: Cotangent<X>) -> Int { 0 }
+// ANCHOR_END: function
+
+fn main() -> Int { 0 }

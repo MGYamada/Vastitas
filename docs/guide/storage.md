@@ -60,8 +60,10 @@ statement by statement:
 The first line of `make` declares an
 [*owned result*](../appendix/glossary.md#owned-result) after `returns`: the
 function hands the owner `data` to its caller. `Owned<F64, 8>` is the type of
-an owner of eight `F64` cells. The words `initialized [layout(…)]` tell the
-caller which cells hold a value.
+an owner of eight `F64` cells. The words `initialized [layout(…)]` state
+which cells hold a value when the function ends. The compiler checks this
+statement against the body: it rejects `make` if the body leaves one of
+these cells unwritten.
 
 ## Layouts
 
@@ -98,7 +100,10 @@ runs, it stops unless the cell in row 0 and column 0 holds the bits of `p`.
 
 `round_trip` takes an owner and hands it back. Its body has no statements:
 the owned result names the parameter. The parameter states that the cells of
-the view are initialized, and so does the result.
+the view are initialized. The compiler rejects a call that passes an owner
+whose cells are not, and inside the function it counts these cells, and no
+others, as initialized. The result states the same, and the compiler checks
+it against the body.
 
 ## Calling resource functions
 
@@ -112,8 +117,9 @@ function `main` without parameters:
 - `call make() -> (data);` calls `make` and binds its owned result to the
   owner `data`.
 - `borrow input = read(data, layout(8, 2, 2, 4, false));` lends the view for
-  reading. A `read` loan needs initialized cells, and the contract of `make`
-  promises them.
+  reading. A `read` loan needs initialized cells. At the call the compiler
+  follows the statements of `make`, which fill this view, so it accepts the
+  loan. The clause `initialized […]` of `make` is not what permits the read.
 - `call inspect(input) -> ();` passes the loan. The callee sees the view of
   the caller, with its offset and its padding. The loan of the caller gives
   no access until the call returns.
@@ -320,7 +326,7 @@ conditions and the restrictions of these statements. One of them is that a
 > No theorem states that the memory of an executable agrees with this
 > model; tests exercise it. The performance target is an aim of the design.
 > [Performance evidence and acceptance](../storage-ownership.md#performance-evidence-and-acceptance)
-> states what a measurement must show, and that acceptance is open.
+> states what a measurement must show.
 
 ## See also
 

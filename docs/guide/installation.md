@@ -4,9 +4,10 @@ The compiler has two parts, and you build both. The
 [*frontend*](../appendix/glossary.md#frontend) is the command `vastitas`, a
 Rust program that reads your source files. The
 [*kernel*](../appendix/glossary.md#kernel) is `vastitas-kernel`, a Lean program
-that checks every program and generates its code. `vastitas` starts the
-kernel for every check and every build, and it accepts no program without
-it.
+that checks every program and generates its code. It decides whether a
+program keeps the rules of the language, so this book also calls it the
+[*checker*](../appendix/glossary.md#checker). `vastitas` starts the kernel
+for every check and every build, and it accepts no program without it.
 
 ## What you need
 
@@ -92,8 +93,10 @@ Two environment variables say which kernel `vastitas` starts:
   the compiler. With it, `check` needs no kernel directory, and `build`
   still needs one.
 
-When `vastitas` finds no built kernel, it reports `E_BACKEND` and prints the
-`lake` command that builds one.
+When `vastitas` finds no built kernel, it accepts no program. It prints a
+message that begins with the word `E_BACKEND` and that names the `lake`
+command that builds a kernel. [The next section](hello-vastitas.md#when-the-compiler-says-no)
+shows how the compiler reports that it refuses a program.
 
 Keep the kernel directory as it is, and keep it writable. `build` compares
 its files with the files that the compiler was built from, and it rejects a
@@ -111,5 +114,10 @@ executables for your machine only.
   checks that `build` makes on the kernel directory.
 - [Numerical builds](cli.md#numerical-builds): how to build OpenBLAS and
   pass it to `build`.
+- [Programs](../language/programs.md): what `check` and `build` take as a
+  program.
+- [Classes of codes](../language/diagnostics.md#classes-of-codes): the class
+  Build, with the codes of a kernel or of a native build that is missing or
+  that does not match the compiler.
 - [Run compiler, proof and native checks](../development/validation.md):
   the checks for a change to the compiler.

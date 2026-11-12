@@ -14,11 +14,13 @@ pub resource fn exercise() -> Unit {
     store(wa,1,1,f64_bits(4616189618054758400));
     store(wa,2,1,f64_bits(4618441417868443648));
     release(wa);
+    // ANCHOR: adjoint-into
     borrow ra = read(a, layout(8,3,2,4,false));
     borrow wo = write(out, layout(8,2,3,3,false));
     map input = view(ra,bv,bw); map output = view(wo,bw,bv);
     adjoint_into(input,output,hv,hw,NativeFast);
     release(wo);
+    // ANCHOR_END: adjoint-into
     borrow ro = read(out, layout(8,2,3,3,false));
     expect(ro,0,0,f64_bits(4609434218613702656));
     expect(ro,1,0,f64_bits(13832806255468478464));

@@ -44,8 +44,7 @@ Rules:
 `m` of the package `p` to edit the generic `f`. The path after `to` is the
 **recipient**: its first segment is the name in the `[package]` table of the
 recipient's manifest, and the rest is the logical path of its module. `to p`
-names the root module of `p`. A package whose name is not an identifier cannot
-be a recipient. The **region** lists the
+names the root module of `p`. The **region** lists the
 [keys](../stage1a.md#generic-declarations) at which the recipient's methods
 may win. It has the form of the domain of a generic; `domain;` is an empty
 region. A grant is a permission, not an active edit: it takes effect only
@@ -73,6 +72,10 @@ Rules:
 - A dependency alias does not name a recipient, and a declaration never adds a
   package to the package graph. The package of the issuer need not depend on
   the package of the recipient.
+- The recipient must be a path, so the name of the recipient package must be
+  an identifier. A name that is no identifier forms no path: `to my-addon` is
+  an error (`E_PARSE`). No grant, delegation or transfer names a package with
+  such a name as its recipient.
 - Every key of a region must have one type per parameter of the generic
   (`E_ARITY`), and each type must be a scalar type (`E_TYPE`). A key must not
   occur twice in a region (`E_DUPLICATE`). An empty region permits no win.
@@ -112,6 +115,11 @@ Rules:
   contribution is an error (`E_PARSE`).
 - Every method of a contribution must be a method of the contribution's
   generic. A method of another generic is an error (`E_OWNER`).
+- The body of a method of a contribution names declarations by the rules of
+  the module that declares the contribution. It may call a private function
+  of that module, under a loan and after a
+  [transfer](#transfers) alike. Applying the contribution makes no private
+  declaration visible to another module (`E_VISIBILITY`).
 - The compiler checks every method of a contribution, even when no event
   applies the contribution. It checks an unapplied method against the final
   set of methods, at every key at which the method applies, but the method
@@ -185,8 +193,8 @@ Rules:
   not active.
 - Returning a loan keeps the methods that it installed. The generic stays open,
   and the current owner may still apply contributions before the seal.
-- No loan of `f` may be active at `seal f` (`E_BORROW`). A sealed generic
-  cannot be edited, borrowed, transferred or sealed again (`E_ASSEMBLY`).
+- No loan of `f` may be active at `seal f` (`E_BORROW`). A later event must
+  not edit, borrow, transfer or seal a sealed generic (`E_ASSEMBLY`).
 - At the end of the assembly, every loan must be returned (`E_BORROW`).
 - Every generic to which the assembly applied a contribution must be sealed
   (`E_ASSEMBLY`). So must every generic that it transferred, even when the
@@ -199,7 +207,9 @@ Rules:
   package graph must hold at most 4096 methods. Otherwise it is an error
   (`E_LIMIT`). The checks of the methods of the contributions that the
   assembly does not apply have a limit too (`E_LIMIT`).
-  [Appendix D](../appendix/limits.md#edit-authority) lists the three limits.
+  [Appendix D](../appendix/limits.md#edit-authority) gives these three
+  limits and the two other limits of edit authority: on the keys that the
+  domain of a grant lists and on the work of the audit of the assembly.
 - `borrow`, `reborrow`, `via`, `using`, `seal`, `to`, `delegable`, `grant`,
   `delegation`, `transfer`, `contribution` and `assembly` are keywords only in
   these declarations, and a binding may use them as names. `apply` is a
@@ -255,9 +265,9 @@ Rules:
 - A transfer declaration that no event runs must still come from a module that
   is the current owner at some point of the assembly (`E_OWNER`).
 - No loan of the generic may be active when its transfer runs (`E_BORROW`).
-- After a transfer, the former current owner can no longer apply a
-  contribution without a loan or transfer the generic. The grants that it
-  declared stay usable.
+- After a transfer, the former current owner must not apply a contribution
+  without a loan, and it must not transfer the generic (`E_OWNER`). The
+  grants that it declared stay usable.
 - The recipient applies its contributions without a loan. The `method`
   declarations of the generic stay in the defining module; the recipient adds
   methods only through contributions.

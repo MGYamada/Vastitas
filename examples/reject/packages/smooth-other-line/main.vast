@@ -1,0 +1,20 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Pt;
+use std::differential::differential;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+
+// ANCHOR: program
+// A second line is declared like the library's Line and is another object.
+indexed affine Axis(SmoothR) = Affine(1)[t];
+indexed morphism height: Smooth<Plane, Axis> = pullback(t -> x^2 + y);
+
+fn bad() -> Cotangent<Plane> {
+    differential(height(), plane_at(1, 2))
+}
+// ANCHOR_END: program
+
+fn main() -> Int { 0 }

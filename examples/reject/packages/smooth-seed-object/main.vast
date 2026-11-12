@@ -1,0 +1,21 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Line;
+use std::geometry::smooth::affine::line_at;
+use std::differential::pullback;
+
+// ANCHOR: program
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+
+// ANCHOR: function
+// f leads from Line to Plane, and the seed is a covector on Line.
+fn bad() -> Cotangent<Line> {
+    pullback(f(), line_at(3), dline(line_at(9), 1))
+}
+// ANCHOR_END: function
+// ANCHOR_END: program
+
+fn main() -> Int { 0 }

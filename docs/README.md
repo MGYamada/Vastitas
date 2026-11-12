@@ -43,9 +43,11 @@ implementation of the same computation. The goal constrains the design from
 the start. It asks for explicit layouts and aliases, for destinations and
 scratch space that a caller supplies and reuses, and for visible costs of
 allocation, packing and retention. Fast like C does not assert that programs
-reach the performance of C, and its acceptance on a controlled host is open.
+reach the performance of C.
 [Storage and ownership](storage-ownership.md#fast-like-c) states the goal
-and its rules.
+and its rules, and
+[Performance evidence and acceptance](storage-ownership.md#performance-evidence-and-acceptance)
+says what a comparison with C must show.
 
 ## Principles
 
@@ -92,13 +94,13 @@ nothing to them.
 
 | Part of the language | Guide | Proved |
 | --- | --- | --- |
-| Functions, integers, pairs, dispatch, abstract types and function values | Chapters 2 to 5 | In the kernel's evaluator, every function of the Core that the kernel builds from a checked program ends with a value of its result type. The method that a call selects does not depend on the order of the method records that the checker receives. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Code generation entries](verification.md#code-generation-entries) · [Dispatch](verification.md#stage-1a-finite-dispatch-and-checker-composition) |
-| Packages, modules and edit authority | Chapters 1 and 6 | Each grant, delegation and transfer that the checker records for an accepted program is issued by the module that declares it, and its recipient is the module that the declaration names. [Current public checker routes](verification.md#current-public-checker-routes) |
+| Functions, integers, pairs, dispatch, abstract types and function values | Chapters 2 to 5 | In the kernel's evaluator, every function of the Core that the kernel builds from a checked program ends with a value of its result type. The method that a call selects does not depend on the order of the method records that the kernel receives. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Code generation entries](verification.md#code-generation-entries) · [Dispatch](verification.md#stage-1a-finite-dispatch-and-checker-composition) |
+| Packages, modules and edit authority | Chapters 1 and 6 | Each grant, delegation and transfer that the kernel records for an accepted program is issued by the module that declares it, and its recipient is the module that the declaration names. [Current public checker routes](verification.md#current-public-checker-routes) |
 | Indexed declarations and the geometry library | Chapter 7 | Evaluation preserves the type of a value, and in that type a point and a morphism keep both of their objects. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Code generation entries](verification.md#code-generation-entries) |
 | Presented affine geometry over the rational numbers | Chapter 8 | Two polynomials that the compiler finds equal are the same function. A declared fiber product has the universal property of a fiber product, and a declared open subset is the localization of its object. [Presented affine geometry](verification.md#exact-affine-algebra-checker) · [Acceptance record](stage2-acceptance.md) |
 | Smooth affine geometry with rational coefficients: polynomial smooth maps, covectors and vectors at rational points, reverse pullbacks, and named metrics with checked evidence. The kernel compiles each reverse pass that it can read and checks the result again | Chapter 9 | The chain rule for pullbacks, the agreement of the saved and the recomputing reverse pass, the comparison of the pullback with the derivative of real analysis, and the meaning of metric evidence. The theorems also state what each generated reverse function computes. That a whole compiled program agrees with its source is Tested, not Proved. [Smooth affine geometry](verification.md#smooth-affine-geometry-and-reverse-pullbacks) · [Acceptance record](stage3-acceptance.md) · [Compiled reverse passes](reverse-core-acceptance.md) |
-| Storage and resource programs | Chapter 10 | Four facts about the model of storage that the checker keeps. Every access lies in its allocation. A read finds initialized bytes. Two active loans of which one writes do not overlap; a loan with a live child gives no access. An accepted entry point leaves no allocation and no loan. [Storage](language/guarantees.md#storage) · [What is outside these claims](verification.md#what-is-outside-these-claims) |
-| Numerical maps: real and complex matrix products, transforms, metrics, tensor networks and contraction trees | Chapter 11 | The checked operations keep the objects and the bases of their maps, and the checker schedules a network or an evaluation with the conjugation flags of its operands. No theorem states a property of a floating-point result or of the BLAS library. [What is outside these claims](verification.md#what-is-outside-these-claims) · [Acceptance record](stage1-acceptance.md) |
+| Storage and resource programs | Chapter 10 | Four facts about the model of storage that the kernel keeps. Every access lies in its allocation. A read finds initialized bytes. Two active loans of which one writes do not overlap; a loan with a live child gives no access. An accepted entry point leaves no allocation and no loan. [Storage](language/guarantees.md#storage) · [What is outside these claims](verification.md#what-is-outside-these-claims) |
+| Numerical maps: real and complex matrix products, transforms, metrics, tensor networks and contraction trees | Chapter 11 | The checked operations keep the objects and the bases of their maps, and the kernel schedules a network or an evaluation with the conjugation flags of its operands. No theorem states a property of a floating-point result or of the BLAS library. [What is outside these claims](verification.md#what-is-outside-these-claims) · [Acceptance record](stage1-acceptance.md) |
 
 Four limits hold for every row:
 
@@ -119,17 +121,9 @@ Four limits hold for every row:
 with its evidence, and [Verification boundaries](verification.md) each
 theorem with its assumptions.
 
-Among the work that is Planned:
-
-- The acceptance of Fast like C: the comparison of generated programs with
-  a standalone C implementation of the same computation on a controlled
-  host. [Performance evidence and acceptance](storage-ownership.md#performance-evidence-and-acceptance)
-  states its conditions, and the
-  [delivery record](stage1-completion.md#existing-performance-evidence-and-unresolved-gaps)
-  lists the measurements that exist and their gaps.
-- The later targets of the [roadmap](guide/historical-roadmap.md): bundles
-  and tensor diagrams, spectral observations, a first physical model and
-  the gluing of geometric objects.
+Planned are the later targets of the [roadmap](guide/historical-roadmap.md):
+bundles and tensor diagrams, spectral observations, a first physical model
+and the gluing of geometric objects.
 
 [Specifications](specifications.md) record properties of the standard
 library and of language constructs, apart from their code. Each claim about

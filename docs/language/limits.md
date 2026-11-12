@@ -12,10 +12,10 @@ states the limits that the construct meets in ordinary use, and
 | Kind | Bounds | Examples | Code |
 | --- | --- | --- | --- |
 | Nesting | The depth of a construct inside constructs of its kind | Nested expressions, types and branches, modules inside modules, a chain of package dependencies, the levels of a polynomial expression | `E_LIMIT` |
-| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements and the `value` blocks of resource functions | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_TYPE` for the parts of one `indexed` declaration; `E_RESOURCE_TYPE` for the views of one `initialized` contract |
+| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements and the `value` blocks of resource functions, the occurrences, the declarations and the steps of a contraction tree | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_TYPE` for the parts of one `indexed` declaration; `E_RESOURCE_TYPE` for the views of one `initialized` contract; `E_TENSOR_TREE` for a contraction tree |
 | Size of a number | The digits or the bits of a number that the checker computes with | A literal of a polynomial expression, an entry of a Gram matrix, a position in a constraint of a family, an integer of a storage type, the numbers of a layout, the dimension of an axis of a tensor, an entry of a metric of a numerical map | `E_LIMIT`; `E_RESOURCE_LIMIT` for an integer of a storage type; `E_RESOURCE_LAYOUT` for a layout; `E_TENSOR` for an axis; `E_NUMERICAL_METRIC` for an entry of a metric |
 | Size of data | The bytes of an input, of an allocation or of a space | One input file, all inputs of a program, one allocation, one static space | `E_LIMIT` for inputs; `E_RESOURCE_OVERFLOW` for an allocation; `E_NUMERICAL_TYPE` for a space |
-| Work budget | The units of work of one check | The elaboration of a program, the dispatch table of a generic, the resolution of names, the checking of resource functions, the exact algebra of a declaration | `E_LIMIT`; `E_RESOURCE_LIMIT` for the expansion of resource calls |
+| Work budget | The units of work of one check | The elaboration of a program, the dispatch table of a generic, the resolution of names, the checking of resource functions, the exact algebra of a declaration, the query of the initialized cells of a view | `E_LIMIT`; `E_RESOURCE_LIMIT` for the expansion of resource calls; `E_RESOURCE_INIT` for the initialization query |
 | Depth of checking and of calls | The length of one path of the checker through a body, and of a chain of calls of resource functions | A long list of statements in one function, resource functions that call each other in a chain | `E_LIMIT` for a body; `E_RESOURCE_LIMIT` for calls of resource functions |
 
 A **work budget** counts units of work that the checker defines, such as the
@@ -27,7 +27,7 @@ Rules:
 - The compiler has no option that changes a limit.
 - A program beyond a limit is an error. Its code is `E_LIMIT`, unless the
   chapter of the construct gives another code. The table gives the codes of
-  each kind, and the next six rules name the chapters with other codes.
+  each kind, and the next seven rules name the chapters with other codes.
 - A program beyond a limit on the statements, the `value` blocks, the
   parameters, the calls or the integers of resource functions is an error
   (`E_RESOURCE_LIMIT`).
@@ -59,6 +59,11 @@ Rules:
   the steps of its plan is an error (`E_TENSOR_TREE`), as
   [Contraction trees](../linalg/networks-and-packing.md#contraction-trees)
   says.
+- A `borrow` for reading whose query of the initialized cells is beyond its
+  bound is an error (`E_RESOURCE_INIT`), even when the stores of the program
+  write every cell, as
+  [Resource statements](../storage/resource-programs.md#resource-statements)
+  says.
 - An `indexed` declaration beyond a limit on the implementations of a
   classification, the parameters of a family, or the cases or the fields of a
   package declaration is an error (`E_TYPE`), as
@@ -75,7 +80,9 @@ Rules:
 - Some limit diagnostics point to no construct. A diagnostic for a limit on
   the inputs as a whole, or on a chain of package dependencies, has no place.
   The diagnostics for the number of indexed declarations and for the budget
-  of name resolution have the place `FILE:1:1`.
+  on the work of the names of the whole program have the place `FILE:1:1`.
+  The two other budgets of name resolution have the place of a path or of a
+  `use` declaration.
   [Diagnostics](diagnostics.md#diagnostics-without-a-place-of-their-own)
   describes both forms.
 
@@ -188,6 +195,13 @@ Rules:
 - An allocation whose size the compiler accepts can still fail when the
   program runs.
 
+> **Implementation note.** The storage runtime counts the bytes of the live
+> allocations of an executable, with one count for the static allocations and
+> one for the allocations with runtime extents. An allocation that would bring
+> a count above 2⁶³ − 1 bytes fails (`E_NATIVE_ALLOCATION`), before the
+> runtime asks the system for memory. The bound is the largest size of one
+> allocation, so only several live allocations together reach it.
+
 ## Limits and platforms
 
 Rules:
@@ -216,9 +230,10 @@ Rules:
 - The compilation of reverse passes has budgets. A reverse pass beyond one
   keeps the [runtime reverse pass](../appendix/glossary.md#runtime-reverse-pass):
   the compiler compiles less of the pass and rejects nothing.
+  [Appendix D](../appendix/limits.md#bounds-that-reject-nothing) gives these
+  budgets with their values and says what the compiler does at each.
   [Reverse-pass primitives](smooth-declarations.md#reverse-pass-primitives)
-  and [Appendix D](../appendix/limits.md#bounds-that-reject-nothing)
-  describe these budgets.
+  gives the rules of reverse passes, which no budget changes.
 - A diagnostic of a resource program has a largest number of notes. The
   search for the cell that such a diagnostic names has a bound.
   [Diagnostics of resource programs](../storage/resource-programs.md#diagnostics)

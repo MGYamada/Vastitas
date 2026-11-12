@@ -58,6 +58,13 @@ Rules:
   remains a strict keyword, so a `use` of a module named `generic` must give
   it an alias, as in `use std::arithmetic::generic as arithmetic;`. Without
   the alias the `use` is an error (`E_RESERVED`).
+- Two constructs do not take a path that begins with `generic`. A
+  [path expression](expressions.md#path-expressions) must not be `generic`
+  alone, and the family of an [indexed type](types.md#indexed-types) must
+  not begin with `generic` (`E_PARSE`). Another path that names a
+  declaration may begin with it. Its first segment then names a module
+  `generic` of the current module, and without such a module the path is an
+  error (`E_NAME`).
 - The order of declarations and `use` declarations does not change how a name
   resolves.
 - In flat mode a path with `::` is an error. Its code depends on the place:
@@ -95,6 +102,11 @@ Rules:
   checked like any other path.
 - Visibility allows naming and calling a declaration. It never allows adding
   methods to a generic, as [Edit authority](edit-authority.md) says.
+- Visibility restricts paths, not values. A public function may return a
+  private function of a module that it may name, as a
+  [function value](../stage1b.md). A module that must not name the private
+  function may call the value that it receives. Naming the private function
+  there, in a call or as a value, is an error (`E_VISIBILITY`).
 
 Here `area` is private in the module `geometry`, and `main` is outside it:
 

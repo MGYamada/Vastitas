@@ -2,8 +2,11 @@
 
 A **statement** binds names for the rest of a block. Statements occur only at
 the beginning of a [block expression](expressions.md#block-expressions), before
-its result. The language has two statements, `let` and `unpack`, and no
-expression statements.
+its result. A block has two kinds of statements, `let` and `unpack`, and no
+expression statements. The body of a resource function consists of other
+statements, the
+[resource statements](../storage/resource-programs.md#resource-statements),
+which this chapter does not cover.
 
 > **Syntax**
 >
@@ -24,6 +27,11 @@ Rules:
 - A binding must not reuse a name that is visible at its statement: another
   parameter, or a binding of the same block or of an enclosing block. Reuse is
   an error (`E_DUPLICATE`). The language has no shadowing.
+- A lambda is the exception to the code of the previous rule. A parameter or
+  a binding of a lambda that reuses a name that is visible outside the lambda
+  is an error (`E_SHADOW`), as
+  [Lambdas](../stage1b.md#lambdas-and-their-names) says. Among the parameters
+  and bindings of one lambda, the previous rule holds (`E_DUPLICATE`).
 - A binding with a name of the namespace of its module is an error
   (`E_SHADOW`). [Names of items](items.md#names-of-items) lists that
   namespace: the items with a name, and in manifest mode the child modules,
@@ -33,8 +41,8 @@ Rules:
 - Blocks that do not contain one another may bind the same name. The two
   branches of an `if` are such blocks.
 
-A lambda has further rules for the names it binds, which
-[Lambdas](../stage1b.md#lambdas-and-their-names) gives.
+[Lambdas](../stage1b.md#lambdas-and-their-names) also gives the rule against
+a reference from a lambda to a binding outside it.
 
 In this program the two blocks bind `step` once each:
 
@@ -71,9 +79,9 @@ Rules:
   expression, which decides the type of an
   [integer literal](expressions.md#literal-expressions).
 - Without an annotation, the binding has the type of its expression.
-- The binding begins after its expression, so the expression cannot refer to
-  the name that the statement binds. Such a reference is an unknown name
-  (`E_NAME`).
+- The binding begins after its expression. An expression that refers to the
+  name that its own statement binds is an error (`E_NAME`): the name is
+  unknown there.
 - `let mut` is an error (`E_UNSUPPORTED`). Bindings are immutable.
 
 ```vast
@@ -114,3 +122,13 @@ Rules:
 - The names that an `unpack` statement binds follow the rules of
   [Scopes of bindings](#scopes-of-bindings), and they must differ from one
   another (`E_DUPLICATE`).
+
+`main` in this program opens the existential package that `make_origin`
+returns. `X` is the object of the opening, and `p` is a point of `X`:
+
+```vast
+{{#include ../../examples/book/geometric-types/pointed-origin.vast}}
+```
+
+The executable prints `42`. [Opening](../indexed-source.md#opening) shows
+the form with `witness`.

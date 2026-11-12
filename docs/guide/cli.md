@@ -290,12 +290,16 @@ Rules:
   whether it is changed, missing or unexpected, and gives a digest of each
   side.
 - Each of the three packages has one Lake configuration file. The other name
-  of that file must not exist: `lakefile.lean` in the kernel package, and
-  `lakefile.toml` in the two runtimes. Such a file is an error (`E_BUILD`).
-  In the kernel package, `lake` prefers `lakefile.lean`, so such a file would
-  replace the configuration that `build` compares. In the two runtimes, the
-  rule keeps the configuration of each package in one file. No build of the
-  compiler accepts a file of either name.
+  of that file must not exist in a package that `build` compares:
+  `lakefile.lean` in the kernel package, and `lakefile.toml` in the two
+  runtimes. Such a file is an error (`E_BUILD`). In the kernel package,
+  `lake` prefers `lakefile.lean`, so such a file would replace the
+  configuration that `build` compares. In the two runtimes, the rule keeps
+  the configuration of each package in one file.
+- `build` compares the kernel package for every program. It compares the
+  storage runtime only for a program that needs it, and the numerical
+  runtime only for a numerical build. A file of the other name in a runtime
+  that the build does not compare is no error of that build.
 - A generated program that imports another module than a runtime module of
   the packages that the build compares is an error (`E_PROTOCOL`).
 - The path of the kernel root must be valid UTF-8 (`E_BUILD`), and so must
@@ -441,7 +445,7 @@ prefix. Its options:
 Pass the prefix to `build`:
 
 ```sh
-vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
+target/debug/vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
   --openblas-prefix "$PWD/target/openblas-0.3.34" -o target/numerical-example
 ```
 

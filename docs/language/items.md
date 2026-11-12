@@ -48,6 +48,15 @@ Rules:
 - Items may appear in any order. An item may refer to an item that a later
   part of the program declares.
 
+This program of flat mode has eight items of six kinds: an abstract type,
+two subtypes, a generic, an abstract method, two methods and a function:
+
+```vast
+{{#include ../../examples/abstract-contracts.vast}}
+```
+
+The executable prints `42`.
+
 ## Visibility
 
 In manifest mode, `pub` makes an item public, and an item without `pub` is
@@ -59,6 +68,16 @@ Rules:
 - `pub` before an item is an error in flat mode (`E_UNSUPPORTED`).
 - `pub` before a method, an abstract method, a subtype or an assembly is an
   error (`E_PARSE`). These items have no visibility of their own.
+
+The root module of this package has three items: a module, an import and a
+function. `pub` makes `increment` public, so that the root module may import
+it:
+
+```vast
+{{#include ../../examples/packages/inline-module/main.vast}}
+```
+
+The executable prints `42`.
 
 ## Names of items
 

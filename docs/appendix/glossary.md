@@ -27,6 +27,28 @@ breaks no rule that the checker enforces; it is not
 [native refinement](#native-refinement). See
 [What acceptance means](../language/guarantees.md#what-acceptance-means).
 
+## Active
+
+An access to storage is active while its [storage loan](#storage-loan) is
+[live](#live) and not suspended. A loan with a live [child](#child) is
+suspended. See
+[Regions, overlap and alias evidence](../storage-ownership.md#regions-overlap-and-alias-evidence).
+
+## Alias
+
+The word has four meanings:
+
+1. A [dependency alias](#dependency-alias) is the name under which a manifest
+   declares a dependency.
+2. A `use` declaration with `as` binds a declaration under another name, an
+   alias of the declaration. See
+   [`use` declarations](../language/modules.md#use-declarations).
+3. A second binding of one object, such as `Y` in `let Y = X;`, is an alias
+   of the object. It denotes the same object. See
+   [Object identity](../language/geometric-types.md#object-identity).
+4. In storage, two views alias when they may share cells. See
+   [Regions, overlap and alias evidence](../storage-ownership.md#regions-overlap-and-alias-evidence).
+
 ## Allocation
 
 A buffer of [cells](#cell) that one storage [owner](#owner) owns. `allocate`
@@ -108,6 +130,12 @@ marker and from a [basis](#basis). See
 [Settings and markers](../language/geometric-types.md#settings-and-markers)
 and the [guide](../guide/indexed-geometry.md#objects-points-and-morphisms).
 
+## Baseline
+
+A competent C implementation of the same computation, against which a
+comparison measures a Vastitas program. See
+[Performance evidence and acceptance](../storage-ownership.md#performance-evidence-and-acceptance).
+
 ## Basis
 
 A basis of a linear space, introduced by a `basis` declaration in a resource
@@ -118,12 +146,17 @@ named bases. See
 
 ## Binding
 
-A name that a `let` or `unpack` statement or a parameter list introduces. In a
-[resource function](#resource-function), owners, loans and the results of
-calls are bindings too. A binding is immutable, and no binding reuses a name
-that is visible where it is introduced. See
-[Scopes of bindings](../language/statements.md#scopes-of-bindings) and
-[Resource statements](../storage/resource-programs.md#resource-statements).
+The word has two meanings:
+
+1. A binding is a name that a `let` or `unpack` statement or a parameter list
+   introduces. In a [resource function](#resource-function), owners, loans
+   and the results of calls are bindings too. A binding is immutable, and no
+   binding reuses a name that is visible where it is introduced. See
+   [Scopes of bindings](../language/statements.md#scopes-of-bindings) and
+   [Resource statements](../storage/resource-programs.md#resource-statements).
+2. The binding of a [primitive](#primitive) is the form after `=` in its
+   declaration, which fixes its operands and its result. See
+   [primitive binding](#primitive-binding).
 
 ## Bound index
 
@@ -278,6 +311,13 @@ In the plan of a contraction tree, a set of occurrences that the plan has
 contracted, with the [tensor](#tensor) that holds their product. See
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
 
+## Contraction tree
+
+The graph of a `contract_tree` statement together with its plan. Its nodes
+are [occurrences](#occurrence) of [tensors](#tensor), its edges are
+contractions, and the plan contracts it step by step. See
+[Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
+
 ## Contribution
 
 A `contribution` declaration that names a generic and holds methods for it. An
@@ -301,6 +341,20 @@ builds while it checks a program. Code generation for pure functions starts
 from the checked Core and checks it again. Storage operations are not part of
 Core. See
 [Verification boundaries](../verification.md#current-public-checker-routes).
+
+## Core syntax
+
+The spelling of the built-in types and operations of the geometric core, such
+as `Point<X, Base(QQ)>` and `origin(X)`. In a package with indexed
+declarations, an [export](#export) gives the core syntax its meaning. See
+[Core geometry syntax](../indexed-source.md#core-geometry-syntax).
+
+## Cotangent family
+
+A family with the `cotangent` representation, such as `Cotangent` of the
+standard library. Its values are covectors at the rational points of a
+[smooth affine object](#smooth-affine-object). See
+[Fiber primitives](../language/smooth-declarations.md#fiber-primitives).
 
 ## Cotangent pullback
 
@@ -368,6 +422,11 @@ such as an object of type `Scheme` or `CInfScheme`, which `Affine(QQ, n)` or
 [Implementations](../indexed-source.md#implementations) and
 [Geometric types](../language/geometric-types.md).
 
+## Destination
+
+Storage of the caller to which an operation writes its result. See
+[Destination passing, scratch and local mutation](../storage-ownership.md#destination-passing-scratch-and-local-mutation).
+
 ## Diagnostic
 
 The report that the compiler writes for a program that it rejects, or for a
@@ -375,6 +434,17 @@ command that it cannot carry out. It has a [code](#code) and a message, and it
 may have a [place](#place) and [notes](#note). See
 [Diagnostics](../language/diagnostics.md) and the
 [guide](../guide/diagnostics-and-cli.md#reading-a-diagnostic).
+
+## Differential
+
+The covector that a function gives at a point. For a
+[smooth map](#smooth-map) `φ` from an object `X` to a 1-dimensional
+[smooth affine object](#smooth-affine-object) and a point `x` of `X`, the
+differential of `φ` at `x` is the [cotangent pullback](#cotangent-pullback)
+of the coordinate covector at `φ(x)`. Its components are the partial
+derivatives of `φ` at `x`. It needs no metric. See
+[Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
+and the [guide](../guide/smooth-geometry.md#the-differential).
 
 ## Dispatch
 
@@ -495,11 +565,17 @@ See [Literal expressions](../language/expressions.md#literal-expressions).
 
 ## Export
 
-The `[geometry_compat]` table of a manifest. It maps the syntax of the
-geometric core, such as `Point<X, Base(QQ)>` and `origin(X)`, to indexed
-declarations for a program in manifest mode. See
+The `[geometry_compat]` table of a manifest. It maps the
+[core syntax](#core-syntax), such as `Point<X, Base(QQ)>` and `origin(X)`, to
+indexed declarations for a program in manifest mode. See
 [Geometry compatibility exports](../packages.md#geometry-compatibility-exports)
 and [Core geometry syntax](../indexed-source.md#core-geometry-syntax).
+
+## Expression
+
+A construct that computes a value, such as a literal, a call, a block or an
+`if`. Evaluating an expression has no effects. See
+[Expressions](../language/expressions.md).
 
 ## Extent
 
@@ -565,12 +641,29 @@ images that its steps read. The last image is the primal value, and the other
 points are the [residuals](#residual). Compare [backward Core](#backward-core). See
 [Compiled reverse Core](../verification.md#compiled-reverse-core).
 
+## Forward pass
+
+The first part of a [cotangent pullback](#cotangent-pullback) along a
+composite of [smooth maps](#smooth-map): the evaluation of the image of the
+point along each map, first map first. The [reverse pass](#reverse-pass)
+reads these points. See
+[Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
+and the [guide](../guide/smooth-geometry.md#the-forward-pass-and-the-reverse-pass).
+
 ## Frontend
 
 The Rust part of the compiler, in `src/`. It provides the command line, parses
 source, resolves lexical scopes and sends a wire request to the kernel. The
 kernel trusts none of its names or annotations. See
 [Compiler architecture](../development/architecture.md).
+
+## Function
+
+An item that declares typed parameters, a result type and a body, with `fn`.
+A function has no effects: its result depends only on its arguments. Compare
+[generic](#generic), [lambda](#lambda) and
+[resource function](#resource-function). See
+[Functions](../language/functions.md).
 
 ## Function value
 
@@ -595,6 +688,25 @@ The one object that an `indexed global` declaration declares. Types name it by
 its path, and a primitive with the binding `global(G)` gives it as a value.
 Two global objects are different objects. See
 [Global objects](../indexed-source.md#global-objects).
+
+## Gradient
+
+The vector that `sharp` gives for the [differential](#differential) of a
+function at a point, under a named [smooth metric](#smooth-metric) with
+[nondegenerate evidence](#nondegenerate-evidence). It depends on the metric.
+No primitive computes a gradient: a program writes it as an ordinary
+function. See [Flat and sharp](../language/smooth-declarations.md#flat-and-sharp)
+and the [guide](../guide/smooth-geometry.md#metrics-and-gradients).
+
+## Gram matrix
+
+The matrix `G` of a [smooth metric](#smooth-metric) `g` in the coordinates of
+its object, so that `g(v, w) = vᵀGw`. `gram(…)` gives its rows, and
+`euclidean` is the identity matrix. It is constant and symmetric, and its
+entries are rational numbers. See
+[Metrics](../language/smooth-declarations.md#metrics). The
+[metric](#metric) of a numerical space has a Gram matrix too, which is
+diagonal. See [Metrics](../linalg/transforms-and-metrics.md#metrics).
 
 ## Grant
 
@@ -621,6 +733,13 @@ evidence. See [Guarantees](../language/guarantees.md).
 
 A function with a function parameter or a function result. See
 [Specialization](../stage1b.md#specialization).
+
+## Identity
+
+What makes an object, a space, a basis or an allocation the one that it is,
+apart from every other. The checker tracks identities, and an identity never
+comes from structure. See [nominal identity](#nominal-identity) and
+[Geometric types](../language/geometric-types.md).
 
 ## Identity Gram data
 
@@ -754,6 +873,14 @@ says over which base object and with which coefficients, real or complex, its
 [spaces](#space) are. See
 [Linear implementations](../linalg/maps-and-gemm.md#linear-implementations).
 
+## Live
+
+An [owner](#owner) of storage or a [storage loan](#storage-loan) is live from
+the parameter or the statement that binds it to the statement that ends it:
+a `move`, a `drop` or a call that takes an owner, and the `release` of a
+loan. See
+[Resource functions](../storage/resource-programs.md#resource-functions).
+
 ## Logical evaluator
 
 The evaluator of a [registry entry](#registry-entry) that computes the value
@@ -799,8 +926,8 @@ declarations appear only in this mode. Compare [flat mode](#flat-mode). See
 ## Marker
 
 A coefficient marker, such as `QQ`. A package declares a marker with
-`indexed marker`, and the core geometry syntax spells the markers `QQ` and
-`CInfReal`. An implementation records its marker. A marker is not an object:
+`indexed marker`, and the [core syntax](#core-syntax) spells the markers
+`QQ` and `CInfReal`. An implementation records its marker. A marker is not an object:
 `QQ` and the [base object](#base-object) `Base(QQ)` differ. See
 [Markers](../indexed-source.md#markers) and the
 [guide](../guide/indexed-profile.md#a-marker-and-an-implementation).
@@ -814,8 +941,8 @@ A claim with status Proved (bridge) cites its theorems. See
 
 ## Matrix bound
 
-A number that bounds the size of the Gram matrix of a
-[metric form](#metric-form) as a whole: the product of the Euclidean norms of
+A number that bounds the size of the [Gram matrix](#gram-matrix) of a
+[smooth metric](#smooth-metric) as a whole: the product of the Euclidean norms of
 its rows, each cleared of its denominators, and of the largest least common
 denominator of a row. It limits the size of the certificates of
 [nondegenerate evidence](#nondegenerate-evidence) and
@@ -832,10 +959,16 @@ result type and may require capabilities. See
 
 ## Metric
 
-A Hermitian form on a numerical [space](#space), declared with `metric` by
-its diagonal Gram matrix in a basis. A program names a metric wherever an
-adjoint or a Hermitian pairing needs one. Compare
-[metric form](#metric-form). See [Metrics](../linalg/transforms-and-metrics.md#metrics).
+The word has two meanings:
+
+1. A numerical metric is a Hermitian form on a numerical [space](#space),
+   declared with `metric` by its diagonal Gram matrix in a basis. A program
+   names a metric wherever an adjoint or a Hermitian pairing needs one. See
+   [Metrics](../linalg/transforms-and-metrics.md#metrics).
+2. A [smooth metric](#smooth-metric) is a metric of a
+   [smooth affine object](#smooth-affine-object), declared with
+   `indexed metric` at a [metric form](#metric-form) by a constant symmetric
+   Gram matrix. See [Metrics](../language/smooth-declarations.md#metrics).
 
 ## Metric form
 
@@ -862,6 +995,16 @@ block, or a **file module**, a file that `mod name;` loads. Each module has a
 Method `a` is more specific than method `b` when its selectors are no
 broader, its requirements are no weaker, and one of these comparisons is
 strict. See [Selection](../stage1a.md#selection).
+
+## Morphism
+
+A value of a type `Morphism<X, Y>`: a map from the object `X`, its
+[source](#source), to the object `Y`, its [target](#target). In an indexed
+profile it is a value of a family with the representation `morphism`. An
+`indexed morphism` declaration declares a [smooth map](#smooth-map) or a
+[morphism over a base](#morphism-over-a-base). See
+[Geometric types](../language/geometric-types.md) and
+[Families](../indexed-source.md#families).
 
 ## Morphism over a base
 
@@ -955,6 +1098,19 @@ whose entry point reaches a [product statement](#product-statement) links
 it, together with the OpenBLAS library. See
 [What `check` and `build` start](../guide/cli.md#what-check-and-build-start).
 
+## Object
+
+A value on which points lie and between which morphisms run. In the geometric
+core an object is an affine space of a fixed dimension over a coefficient
+marker, a value of the type `Scheme` or `CInfScheme`. In an indexed profile
+an object is a value of an [object type](#object-type). Every object has
+[nominal identity](#nominal-identity). Compare
+[descriptor object](#descriptor-object), [global object](#global-object),
+[presented affine object](#presented-affine-object) and
+[smooth affine object](#smooth-affine-object). See
+[Geometric types](../language/geometric-types.md) and
+[Object types](../indexed-source.md#object-types).
+
 ## Object type
 
 A type `Object<D, K>`, where `D` names a classification or an implementation
@@ -1038,6 +1194,15 @@ The packages that a root manifest reaches through its dependencies. The
 compiler checks every package of the graph. See
 [The package graph](../packages.md#the-package-graph).
 
+## Packing
+
+The copy of the cells of a view into another layout or into another grouping
+of the axes of a [tensor](#tensor). A packing step is explicit, as `pack3` is,
+and its target is storage that the program names. See
+[Views, transpose, conjugation and packing](../storage-ownership.md#views-transpose-conjugation-and-packing)
+and
+[Packing and contraction](../linalg/networks-and-packing.md#packing-and-contraction).
+
 ## Path
 
 A sequence of names separated by `::` that names a declaration, such as
@@ -1056,12 +1221,46 @@ binary64 value, or two for a complex cell; the compiler never rounds one. See
 The position that a [diagnostic](#diagnostic) or a [note](#note) names: a
 file, a line and a column. See [Places](../language/diagnostics.md#places).
 
+## Point
+
+The word has two meanings:
+
+1. In the geometric core and in an indexed profile, a point is a value of a
+   type `Point<X, S>`, or of a family with the representation `point`. It
+   lies on the object `X`, its [target](#target), and has values in the
+   [test object](#test-object) `S`. `point` is also the name of the second
+   field of `pack` and `unpack` in the [core syntax](#core-syntax). See
+   [Geometric types](../language/geometric-types.md).
+2. A point of a [smooth affine object](#smooth-affine-object), a
+   [rational point](#rational-point), has one
+   rational coordinate for each coordinate of the object. Tangent and
+   cotangent fibers lie over such a point. See
+   [Smooth affine declarations](../language/smooth-declarations.md).
+## Polynomial expression
+
+An expression that denotes a polynomial with rational coefficients in the
+coordinates of an object. It is built from integer literals, fractions
+`frac(n, d)`, coordinate names, `+`, `-`, `*` and `^` with a literal
+exponent. The images of a [smooth map](#smooth-map) and of a
+[morphism over a base](#morphism-over-a-base), the relations of a
+[presented affine object](#presented-affine-object) and the entries of a
+[Gram matrix](#gram-matrix) are polynomial expressions. See
+[Polynomial expressions](../language/smooth-declarations.md#polynomial-expressions).
+
 ## Port
 
 An end of an [occurrence](#occurrence) that an edge may contract: the input
 or the output of a map in a network, or one axis of a tensor in a contraction
 tree. See [Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
+
+## Preflight
+
+The checks that an operation makes before its first write: shapes, endpoints,
+layouts, aliasing, initialization, the narrowing of sizes and the support of
+the backend, together with the allocation of its scratch. A failure in
+preflight preserves the output. See
+[Initialization, branches and failure](../storage-ownership.md#initialization-branches-and-failure).
 
 ## Presented affine object
 
@@ -1192,6 +1391,37 @@ check and then generates code. A theorem about a route holds for the
 requests that the kernel accepts through it. See
 [Current public checker routes](../verification.md#current-public-checker-routes).
 
+## Pullback
+
+The word has two meanings:
+
+1. `pullback(…)` defines a [smooth map](#smooth-map) or a
+   [morphism over a base](#morphism-over-a-base) by the image of each
+   coordinate of its target, a polynomial in the coordinates of its source.
+   See [Morphisms over a base](../affine-geometry.md#morphisms-over-a-base).
+2. The pullback of a covector along a smooth map is the
+   [cotangent pullback](#cotangent-pullback).
+## Pullback mode
+
+The word `saved` or `recomputed` of a `cotangent_pullback` binding. It says
+where the [reverse pass](#reverse-pass) takes the points of the
+[forward pass](#forward-pass) from. A `saved` pullback keeps them from one
+forward pass, and a `recomputed` pullback evaluates them again. Both modes
+give the same value. See
+[Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
+and the [guide](../guide/smooth-geometry.md#the-forward-pass-and-the-reverse-pass).
+
+## Rational point
+
+A point of a [smooth affine object](#smooth-affine-object) `X` whose
+coordinates are rational numbers: a [smooth map](#smooth-map) to `X` from a
+0-dimensional smooth affine object. A primitive with the binding
+`smooth_int_point` builds one from integers. See
+[Smooth map primitives](../language/smooth-declarations.md#smooth-map-primitives)
+and the [guide](../guide/smooth-geometry.md#objects-maps-and-points). For the points
+of a presented affine object, see
+[Morphism primitives](../affine-geometry.md#morphism-primitives).
+
 ## Recipient
 
 The module that a grant, delegation or transfer names after `to`: the manifest
@@ -1269,12 +1499,24 @@ values. A saved site passes them, and the primal value, to its
 and the backward Core evaluates again the points that it reads. See
 [Reverse residual retention and mutation](../storage-ownership.md#residual-retention).
 
+## Resource diagnostic
+
+A diagnostic for a rule on resource functions or on numerical statements. It
+points to the statement that breaks the rule, and its notes name the calls
+that lead to the statement and the bindings of its operands. See
+[Diagnostics of resource programs](../storage/resource-programs.md#diagnostics).
+
 ## Resource function
 
 A function declared with `resource fn`. Its body is a sequence of resource
 statements followed by a pure `value { ... }` block. See
 [Resource functions](../storage/resource-programs.md#resource-functions) and
 the [guide](../guide/storage.md#resource-functions).
+
+## Resource program
+
+A program that declares a [resource function](#resource-function). See
+[Resource programs](../storage/resource-programs.md).
 
 ## Result
 
@@ -1289,6 +1531,25 @@ reaches. Kernel regressions and oracle modules still call it. A theorem about
 a retained composition says nothing about a program that the compiler accepts
 today. See
 [How to read this chapter](../verification.md#how-to-read-this-chapter).
+
+## Reverse pass
+
+The second part of a [cotangent pullback](#cotangent-pullback) along a
+composite of [smooth maps](#smooth-map). It pulls the [seed](#seed) back
+along each map, last map first, at the points of the
+[forward pass](#forward-pass). The reverse pass over a [tape](#tape) reads
+the points that the tape holds. Compare
+[runtime reverse pass](#runtime-reverse-pass). See
+[Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
+and the [guide](../guide/smooth-geometry.md#the-forward-pass-and-the-reverse-pass).
+
+## Reverse pullback
+
+A [cotangent pullback](#cotangent-pullback), named for its direction. It
+carries a covector from the target of a smooth map back to its source, and
+along a composite it visits the maps last map first, in a
+[reverse pass](#reverse-pass). See the
+[guide](../guide/smooth-geometry.md#pulling-a-covector-back).
 
 ## Reverse site
 
@@ -1355,6 +1616,13 @@ generated program. The driver compares the runtime inputs with the files of
 its own build before a native build. See
 [The native build](../internals/driver.md#the-native-build).
 
+## Runtime owner
+
+The storage [owner](#owner) of an allocation that `runtime_allocate` creates,
+whose size the program computes. Its loans are runtime loans. Every other
+owner and loan is static. See
+[Runtime extents](../storage/resource-programs.md#runtime-extents).
+
 ## Runtime reverse pass
 
 The verified routine of the smooth runtime that runs a reverse pass over a
@@ -1385,6 +1653,12 @@ is not a [smooth affine object](#smooth-affine-object). See
 [Geometric types](../language/geometric-types.md) and the
 [guide](../guide/indexed-geometry.md#objects-points-and-morphisms).
 
+## Scratch
+
+Storage that an operation uses for intermediate values, and that holds no
+value of the program after the operation. See
+[Destination passing, scratch and local mutation](../storage-ownership.md#destination-passing-scratch-and-local-mutation).
+
 ## Seal
 
 The `seal` [event](#event) of an assembly. Sealing a generic checks its final
@@ -1409,10 +1683,14 @@ The type that a method gives a parameter for dispatch: a concrete scalar type,
 
 ## Setting
 
-The kind of a core geometric object: `Scheme` for ordinary objects and
-`CInfScheme` for smooth ones. Each setting has one coefficient
-[marker](#marker). See [Scheme](#scheme) and
-[Settings and markers](../language/geometric-types.md#settings-and-markers).
+The kind of a geometric object: the ordinary setting or the smooth setting.
+The geometric core spells the two settings `Scheme` and `CInfScheme`, and
+each has one coefficient [marker](#marker). A
+[scalar base](#scalar-base) implementation spells them `scheme` and `smooth`.
+See [Scheme](#scheme),
+[Settings and markers](../language/geometric-types.md#settings-and-markers)
+and
+[Linear implementations](../linalg/maps-and-gemm.md#linear-implementations).
 
 ## Shared literal
 
@@ -1437,7 +1715,8 @@ calls, and signature probes never enter it or the generated code. See
 
 An object declared as `Affine(n)[c₁, …, cₙ]` under an implementation with the
 `smooth_affine` representation. It stands for the smooth real affine space
-ℝⁿ with the named coordinates. Each declaration is one canonical object. A
+ℝⁿ with the named coordinates. Each declaration is an object of its own: two
+declarations with the same dimension and coordinates are two objects. A
 smooth affine object is distinct from a descriptor object, such as a
 `CInfScheme` object, and from a presented affine object. See
 [Smooth affine objects](../language/smooth-declarations.md#smooth-affine-objects) and the wire
@@ -1452,6 +1731,17 @@ gives each target coordinate as a polynomial in the source coordinates.
 `compose` builds a program from smooth maps and does not expand it. See
 [Smooth maps](../language/smooth-declarations.md#smooth-maps) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
+
+## Smooth metric
+
+A constant symmetric bilinear form on a
+[smooth affine object](#smooth-affine-object), which an `indexed metric`
+declaration declares at a [metric form](#metric-form) with its
+[Gram matrix](#gram-matrix). The chapters on smooth geometry call it a
+metric. `flat` and `sharp` name their metric, and no operation selects one by
+default. It is distinct from the [metric](#metric) of a numerical space. See
+[Metrics](../language/smooth-declarations.md#metrics) and the
+[guide](../guide/smooth-geometry.md#metrics-and-gradients).
 
 ## Source
 
@@ -1539,6 +1829,19 @@ names it as a dependency, by convention under the alias `std`, or names its
 arithmetic files with `--lib`. See the [guide](../guide/stdlib.md) and its
 [README](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md).
 
+## Statement
+
+The word has two meanings:
+
+1. A statement of a block is a `let` or an `unpack` statement. It binds
+   names for the rest of the block. See
+   [Statements](../language/statements.md).
+2. A resource statement is a statement of the body of a
+   [resource function](#resource-function), such as `allocate`, `borrow` or
+   `call`. The numerical statements, such as `gemm`, are resource statements
+   too. See
+   [Resource statements](../storage/resource-programs.md#resource-statements).
+
 ## Statement pin
 
 The recorded defining module and kind of a theorem or kernel definition that a
@@ -1546,6 +1849,13 @@ The recorded defining module and kind of a theorem or kernel definition that a
 statement fails the [specification resolver](#specification-resolver) until
 someone reviews the change and regenerates the pin. See
 [Statement pins](../specifications.md#statement-pins).
+
+## Static owner
+
+A storage [owner](#owner) whose allocation has a size that the source fixes:
+every owner that is no [runtime owner](#runtime-owner). Its loans are static
+loans. See
+[Runtime extents](../storage/resource-programs.md#runtime-extents).
 
 ## Static target
 
@@ -1597,6 +1907,13 @@ the base. See
 [Presented affine objects](../affine-geometry.md#presented-affine-objects)
 and the [guide](../guide/affine-geometry.md#objects-over-a-base).
 
+## Tangent family
+
+A family with the `tangent` representation, such as `Tangent` of the
+standard library. Its values are vectors at the rational points of a
+[smooth affine object](#smooth-affine-object). See
+[Fiber primitives](../language/smooth-declarations.md#fiber-primitives).
+
 ## Tangent or cotangent fiber
 
 A value of a family with the `tangent` or `cotangent` representation, such as
@@ -1614,8 +1931,8 @@ A value of a family with the `tape` representation, such as `Tape<X, Y>`: the
 forward values that one evaluation of a [smooth map](#smooth-map) saves at a
 point. Only `linearize` builds a tape; a tape has no source or wire form.
 `cotangent_backward` runs the reverse pass over a tape. It returns the
-[failure value](#failure-value) for a covector that is not at the tape's
-output point. See [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
+[failure value](#failure-value) for a covector that does not lie over the
+image that the tape holds. See [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Target
@@ -1658,6 +1975,14 @@ The dual, the conjugate or the adjoint of a
 [numerical map](#numerical-map), declared with `map`. It reads the cells of
 that map transposed or conjugated and copies nothing. See
 [Transformed maps](../linalg/transforms-and-metrics.md#transformed-maps).
+
+## Type
+
+What every expression, parameter and binding has, and what decides where a
+value may stand. The checker infers the types of expressions, and parameters
+and results declare theirs. See [Types](../language/types.md),
+[Geometric types](../language/geometric-types.md) and
+[Storage types](../storage/resource-programs.md#storage-types).
 
 ## Vector
 

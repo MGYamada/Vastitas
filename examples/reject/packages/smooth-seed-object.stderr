@@ -1,0 +1,1 @@
+examples/reject/packages/smooth-seed-object/main.vast:16:5: E_ENDPOINT: pullback requires a seed with object Plane (the map's target), but the supplied seed has object Line

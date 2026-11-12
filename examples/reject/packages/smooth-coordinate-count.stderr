@@ -1,0 +1,1 @@
+examples/reject/packages/smooth-coordinate-count/main.vast:5:1: E_SMOOTH: Affine(2) needs 2 coordinates, but 1 are given

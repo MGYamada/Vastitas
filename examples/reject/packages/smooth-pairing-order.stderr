@@ -1,0 +1,1 @@
+examples/reject/packages/smooth-pairing-order/main.vast:6:1: E_SMOOTH: `fiber_pairing` needs a cotangent family, but `Tangent` is a tangent family

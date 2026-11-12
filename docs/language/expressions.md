@@ -33,7 +33,11 @@ type that its position requires:
 - for the body of a function or a lambda, its result type;
 - for the result of a block and for each branch of an `if`, the expected type
   of the block or of the `if`;
+- for the left operand of `+`, of binary `-` and of `*`, the expected type
+  of the operation, where it has one;
 - for the dimension argument of `Affine`, `Nat`.
+
+The operands of a comparison have no expected type from the comparison.
 
 Rules:
 
@@ -48,7 +52,9 @@ Rules:
   expression of the previous two rules and the other side is not, the other
   side supplies the expected type instead: `1 + n` has type `Nat` for
   `n: Nat`. A literal nested in a block or in an `if` on the left takes no type
-  from the right: `{ 1 } + n` is an error (`E_TYPE`).
+  from the right. For `n: Nat`, `let c = { 1 } + n;` is an error (`E_TYPE`):
+  the operation has no expected type, so the block has type `Int`. With an
+  expected type the block takes it, and `let c: Nat = { 1 } + n;` is valid.
 - These rules assign types. They do not evaluate the expression. A binding
   keeps its type, and unary minus requires `Int`, so
   `let n: Nat = -1;` is an error (`E_TYPE`).
@@ -66,12 +72,15 @@ let c = a + 5;           // Nat: the literal takes the type of a
 > **Syntax**
 >
 > ```text
-> PathExpression -> Path
+> PathExpression -> IDENTIFIER ( `::` PathSegment )*
+>     | `generic` ( `::` PathSegment )+
 > ```
 
-A path expression names a parameter, a binding or a function.
-[Names and paths](names-and-paths.md) defines `Path`; a path of one segment is
-a bare name, and a path with `::` names a declaration of another module. The
+A path expression names a parameter, a binding or a function. It is a
+[path](names-and-paths.md) that is not the keyword `generic` alone, and
+[Names and paths](names-and-paths.md) defines `PathSegment`. A path of one
+segment is a bare name, and a path with `::` names a declaration of another
+module. The
 value of a function name is the function, as
 [Function values](functions.md#function-values) describes. A coefficient marker
 is not a value, as [Settings and markers](geometric-types.md#settings-and-markers)
@@ -84,6 +93,9 @@ Rules:
   (`E_NAME`).
 - A path with `::` is valid only in manifest mode. In flat mode it is an error
   (`E_PARSE`).
+- `generic` alone is not a path expression. Where an expression begins, it is
+  an error (`E_PARSE`) in both modes, as
+  [Keywords](lexical-structure.md#keywords) says of a strict keyword.
 - The name of a generic is not a value. A generic as a value is an error
   (`E_TYPE`). A function or lambda that calls the generic is a value.
 - The name of an abstract type or of a module is not a value. An abstract type
@@ -147,8 +159,9 @@ Rules:
 - `else` is required. An `if` without `else` is an error (`E_PARSE`).
 - Both branches must have the same type, which is the type of the expression.
   Branches of different types are an error (`E_TYPE`).
-- A chain of `else if` branches has a length limit, which
-  [Appendix D](../appendix/limits.md#source-text) gives.
+- A chain of `else if` branches must not have more conditions than the limit
+  that [Appendix D](../appendix/limits.md#source-text) gives. A longer chain
+  is an error (`E_LIMIT`).
 
 ```vast
 fn sign(x: Int) -> Int {
@@ -339,3 +352,13 @@ Rules:
   field name is an error (`E_PARSE`).
 - The form with a type must not occur in flat mode, where it is an error
   (`E_PARSE`).
+
+`make_origin` in this program packs an object with its origin, and `main`
+packs the object that it opened with another point of it:
+
+```vast
+{{#include ../../examples/pointed.vast}}
+```
+
+The executable prints `42`.
+[Packing](../indexed-source.md#packing) shows the form with a type.

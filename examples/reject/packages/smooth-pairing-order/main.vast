@@ -1,0 +1,9 @@
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Tangent;
+
+// ANCHOR: declaration
+// A pairing names the cotangent family first.
+indexed primitive bad = fiber_pairing(Tangent, Cotangent);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

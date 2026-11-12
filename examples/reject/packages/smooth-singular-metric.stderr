@@ -1,0 +1,1 @@
+examples/reject/packages/smooth-singular-metric/main.vast:9:1: E_METRIC: the metric `smooth_singular_metric::Flattened` is singular, so it has no nondegenerate evidence

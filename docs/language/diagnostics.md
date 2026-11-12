@@ -99,6 +99,14 @@ Rules:
   which construct a diagnostic points to. Examples are
   [Static targets](../stage1b.md#static-targets) and the
   [diagnostics of resource programs](../storage/resource-programs.md#diagnostics).
+- In manifest mode, two errors of the names of a module have the place of the
+  declaration of the module, and not of the construct inside it. One is a
+  name that a declaration of the module shares with an import or with a
+  dependency alias (`E_DUPLICATE`). The other is a reserved name of an
+  `indexed` declaration (`E_RESERVED`). The declaration of a module is its
+  `mod` item in the file of its parent module. For the root module of the
+  root package, the place is line 1, column 1 of the root source file. Two
+  items of one name have the place of the second item.
 
 The examples of this book show an absolute path without its part up to the
 root of the repository. In this package `main` calls a private function of a
@@ -142,12 +150,14 @@ Rules:
   the rule of function types names.
 - The compiler reports two errors of a signature at this place (`E_TYPE`).
   One is a type of the
-  [core geometry syntax](../indexed-source.md#core-geometry-syntax) in a
-  program without an export. The other is an integer literal as an argument
+  [core syntax](../indexed-source.md#core-geometry-syntax) in a program
+  without an export. The other is an integer literal as an argument
   of an indexed type at a parameter that is not `natural`. The same errors in
   a body have the place of their expression.
 - Two limits have this place (`E_LIMIT`): the number of indexed declarations
-  of a program, and the budget of name resolution.
+  of a program, and the budget on the work of the names of the whole
+  program. The two other budgets of name resolution have the place of a path
+  or of a `use` declaration that exceeds them.
 - The rules above name the cases that the chapters of the Reference state.
   Another diagnostic of the checker can have this place.
 
@@ -225,6 +235,11 @@ Rules:
 - A command that rejects a program reports at least one diagnostic.
 - Phases 1, 2, 4 and 5 stop at their first error and report one diagnostic.
   The diagnostic of the checker can have notes.
+- One error of the command line belongs to phase 5: a numerical option of
+  `build` for a program that needs none (`E_USAGE`), which
+  [Building a numerical program](../linalg/maps-and-gemm.md#building-a-numerical-program)
+  gives. Only the checked program says whether it needs the option, so the
+  compiler reports an error of the checker first.
 - In flat mode the compiler reads every file and then parses the entry file
   and the libraries, in the order of the command. In manifest mode it reads
   and parses the packages that a package depends on before the modules of
@@ -322,24 +337,26 @@ Rules:
 ## Classes of codes
 
 The codes of the rules of the Reference form classes by the construct whose
-rules they report. Each class has its rules in the chapters of the last
-column. [Appendix B](../appendix/diagnostics.md) lists all codes, by the
-component that reports them.
+rules they report. The chapters of the last column hold the rules of a class.
+A code that serves many constructs, such as `E_TYPE`, `E_NAME`, `E_DUPLICATE`
+or `E_PARSE`, also reports rules of other chapters, and each of those rules
+names the code. [Appendix B](../appendix/diagnostics.md) lists all codes, by
+the component that reports them, with the sections that give each code.
 
 | Class | Codes | Reports | Rules |
 | --- | --- | --- | --- |
 | Parse | `E_LEX`, `E_PARSE`, `E_UNSUPPORTED` | Text that forms no program, and syntax that the language or the mode of the command does not have | [Lexical structure](lexical-structure.md), [Items](items.md#kinds-of-items) and every Syntax block |
-| Names | `E_NAME`, `E_DUPLICATE`, `E_RESERVED`, `E_SHADOW`, `E_VISIBILITY`, `E_CYCLE` | A name that nothing declares, that repeats, that the language reserves or that is not visible, and a cycle of modules, imports or packages | [Names and paths](names-and-paths.md), [Items](items.md#names-of-items), [Scopes of bindings](statements.md#scopes-of-bindings), [Modules](modules.md) |
-| Types | `E_TYPE`, `E_ARITY`, `E_OPERATOR`, `E_MAIN`, `E_RECURSION` and the codes of object identity, such as `E_ENDPOINT` | A value, a call or an operator that its types do not permit, an invalid entry point and a cycle of calls | [Types](types.md), [Expressions](expressions.md), [Functions](functions.md), [Geometric types](geometric-types.md), [Programs](programs.md#the-entry-point) |
+| Names | `E_NAME`, `E_DUPLICATE`, `E_RESERVED`, `E_SHADOW`, `E_VISIBILITY`, `E_CYCLE` | A name that nothing declares, that repeats, that the language reserves or that is not visible, and a cycle of modules, imports or packages | [Names and paths](names-and-paths.md), [Reserved names](lexical-structure.md#reserved-names), [Items](items.md#names-of-items), [Scopes of bindings](statements.md#scopes-of-bindings), [Modules](modules.md), [The package graph](../packages.md#the-package-graph) |
+| Types | `E_TYPE`, `E_ARITY`, `E_OPERATOR`, `E_MAIN`, `E_RECURSION` and the four codes of geometric values, `E_ENDPOINT`, `E_ESCAPE`, `E_BASE` and `E_RING` | A value, a call or an operator that its types do not permit, an invalid entry point, a cycle of calls, and an object, a setting or a marker in the place of another | [Types](types.md), [Expressions](expressions.md), [Functions](functions.md), [Geometric types](geometric-types.md), [Programs](programs.md#the-entry-point) |
 | Capture | `E_CAPTURE`, `E_STATIC_CALL` | A lambda that uses a binding from outside, and a call of a function value without one target | [Function values](../stage1b.md) |
-| Dispatch | The codes that begin with `E_DISPATCH_` or `E_CONTRACT_`, `E_CAPABILITY`, `E_HIERARCHY` | A generic without one best method at a key, and invalid abstract types and abstract methods | [Generics and dispatch](../stage1a.md) |
+| Dispatch | `E_DISPATCH_DOMAIN`, `E_DISPATCH_COVERAGE`, `E_DISPATCH_AMBIGUOUS`, the codes that begin with `E_CONTRACT_`, `E_CAPABILITY`, `E_HIERARCHY` | A generic without one winner at a key, and invalid abstract types and abstract methods | [Generics and dispatch](../stage1a.md) |
 | Authority | `E_OWNER`, `E_BORROW`, `E_ASSEMBLY`, `E_IMPACT`, `E_PROVENANCE` | An edit of a generic that its owner did not permit, and an invalid assembly | [Edit authority](edit-authority.md) |
 | Declarations | The codes that begin with `E_AFFINE_`, `E_SMOOTH`, `E_METRIC` | An invalid `indexed` declaration of geometry | [Indexed declarations](../indexed-source.md), [Presented affine declarations](../affine-geometry.md), [Smooth affine declarations](smooth-declarations.md) |
-| Resources | The codes that begin with `E_RESOURCE_`, apart from `E_RESOURCE_LIMIT` | A resource function that breaks a rule on owners, loans, access, initialization or payloads | [Resource programs](../storage/resource-programs.md) |
-| Numerical | The codes that begin with `E_NUMERICAL_` or `E_TENSOR`, `E_NETWORK` | A numerical statement whose spaces, bases, metrics or ports do not fit | [Numerical maps](../linalg/maps-and-gemm.md) and the two chapters after it |
-| Runtime | The codes that begin with `E_RUNTIME_` or `E_NATIVE_` | A rule on runtime extents that the compiler decides, and a [run-time diagnostic](#run-time-diagnostics) of an executable | [Runtime extents](../storage/resource-programs.md#runtime-extents), [Running a resource program](../storage/resource-programs.md#running-a-resource-program) |
+| Resources | `E_RESOURCE_NAME`, `E_RESOURCE_TYPE`, `E_RESOURCE_LAYOUT`, `E_RESOURCE_OVERFLOW`, `E_RESOURCE_LOAN`, `E_RESOURCE_ACCESS`, `E_RESOURCE_ALIAS`, `E_RESOURCE_REGION`, `E_RESOURCE_BOUNDS`, `E_RESOURCE_INIT`, `E_RESOURCE_MOVE`, `E_RESOURCE_ESCAPE`, `E_RESOURCE_JOIN`, `E_RESOURCE_VALUE`, `E_RESOURCE_ARITY`, `E_RESOURCE_RECURSION`, `E_RESOURCE_LITERAL` | A resource function that breaks a rule on owners, loans, access, initialization, scalar values, calls or payloads | [Resource programs](../storage/resource-programs.md). The numerical chapters give the same codes for the owners and loans of their statements |
+| Numerical | `E_NUMERICAL_TYPE`, `E_NUMERICAL_PACKAGE`, `E_NUMERICAL_METRIC`, `E_RESOURCE_GEMM`, `E_RESOURCE_COEFFICIENT`, `E_RESOURCE_DIAGONAL`, `E_NETWORK`, `E_TENSOR`, `E_TENSOR_CACHE`, `E_TENSOR_TREE` | A numerical statement whose spaces, bases, metrics, views, coefficients or ports do not fit | [Numerical maps](../linalg/maps-and-gemm.md) and the two chapters after it |
+| Runtime | `E_RUNTIME_EXTENT`, `E_RUNTIME_GUARD`, `E_RUNTIME_TYPE`, `E_RUNTIME_SHAPE`, `E_RUNTIME_BRANCH`, `E_RUNTIME_CALL`, `E_RUNTIME_COEFFICIENT`, `E_RUNTIME_NUMERICAL` and the codes that begin with `E_NATIVE_` | A rule on runtime extents that the compiler decides, and a [run-time diagnostic](#run-time-diagnostics) of an executable | [Runtime extents](../storage/resource-programs.md#runtime-extents), [Runtime maps](../storage/resource-programs.md#runtime-maps), [Running a resource program](../storage/resource-programs.md#running-a-resource-program) |
 | Limits | `E_LIMIT`, `E_RESOURCE_LIMIT` | A program beyond a limit of the compiler | [Limits](limits.md) |
-| Protocol | `E_PROTOCOL`, `E_ARGUMENT`, `E_CODEGEN` and the codes that begin with `E_INTERNAL_` | A request of the [wire protocol](../appendix/glossary.md#wire-protocol) that breaks a rule of the protocol, and a failed audit of the checker's own result | [Wire protocols](../protocol.md), [Verification boundaries](../verification.md) |
+| Protocol | `E_PROTOCOL`, `E_ARGUMENT`, `E_CODEGEN`, the codes that begin with `E_INTERNAL_`, and the other codes of [Requests and audits](../appendix/diagnostics.md#requests-and-audits) in Appendix B. Among them are `E_RESOURCE_STATE`, `E_RESOURCE_FUNCTION`, `E_RUNTIME_ESCAPE`, `E_NUMERICAL_ORIGIN` and `E_DISPATCH_HIERARCHY`, whose prefixes are those of other classes | A request of the [wire protocol](../appendix/glossary.md#wire-protocol) that breaks a rule of the protocol, and a failed audit of the checker's own result | [Wire protocols](../protocol.md), [Verification boundaries](../verification.md) |
 | Input and output | `E_USAGE`, `E_INPUT`, `E_MANIFEST`, `E_LIBRARY`, `E_OUTPUT`, `E_INTERRUPTED` | A command line, an input file, a manifest or an output path that the compiler cannot use, and an interrupted run | [Source text](lexical-structure.md#source-text), [Modules](modules.md), [Programs](programs.md), [Packages](../packages.md), [Appendix A](../guide/cli.md) |
 | Build | `E_BACKEND`, `E_BUILD` | A kernel or a native build that is missing, does not match the compiler or fails | [Appendix A](../guide/cli.md) |
 
@@ -353,3 +370,8 @@ Rules:
   program only where the chapter of a construct says so.
 - A code of the class Runtime with the prefix `E_NATIVE_` appears only in a
   run-time diagnostic.
+- The prefix of a code does not decide its class. `E_RESOURCE_GEMM` reports a
+  rule of a numerical statement, and `E_RESOURCE_STATE` an audit of the
+  checker.
+- The codes of the command `vastitas audit-lean` belong to no class.
+  [Appendix B](../appendix/diagnostics.md#audit-lean) lists them.

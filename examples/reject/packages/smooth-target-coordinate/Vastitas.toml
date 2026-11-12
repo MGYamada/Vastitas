@@ -1,0 +1,7 @@
+[package]
+name = "smooth_target_coordinate"
+version = "0.1.0"
+root = "main.vast"
+
+[dependencies]
+std = { path = "../../../../stdlib" }

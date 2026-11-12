@@ -62,20 +62,24 @@ fn gradient(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
 }
 // ANCHOR_END: metric
 
+// ANCHOR: helpers
 fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
 
 // A component reads n / d.
 fn reads(component: Pair<Int>, n: Int, d: Int) -> Bool {
     pair_first(component) == n && pair_second(component) == d
 }
+// ANCHOR_END: helpers
 
 // ANCHOR: main
 fn main() -> Int {
+    // ANCHOR: pullbacks
     let x: Smooth<Pt, Line> = line_at(3);
     let seed: Cotangent<Line> = dline(line_at(18), 1);
     let gAfterF: Smooth<Line, Line> = compose_smooth(g(), f());
     // Pull the seed back along g at f(3) = (3, 9), then along f at 3.
     let stepped: Cotangent<Line> = pullback(f(), x, pullback(g(), compose_smooth(f(), x), seed));
+    // ANCHOR_END: pullbacks
     let p: Smooth<Pt, Plane> = plane_at(1, 2);
     let dg: Cotangent<Plane> = differential(g(), p);
     let grad: Tangent<Plane> = gradient(g(), p);

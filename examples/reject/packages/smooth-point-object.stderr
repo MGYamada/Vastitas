@@ -1,0 +1,1 @@
+examples/reject/packages/smooth-point-object/main.vast:9:1: E_SMOOTH: the point object `Line` of `smooth_int_point` must be 0-dimensional, but it has dimension 1

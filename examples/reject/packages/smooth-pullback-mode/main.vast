@@ -1,0 +1,9 @@
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Cotangent;
+
+// ANCHOR: declaration
+// The modes are saved and recomputed.
+indexed primitive bad = cotangent_pullback(Smooth, Cotangent, cached);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

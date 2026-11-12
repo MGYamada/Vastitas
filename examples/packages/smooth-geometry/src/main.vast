@@ -1,0 +1,144 @@
+mod profile;
+
+// Smooth affine geometry on the profile of `profile.vast`: polynomial maps,
+// covectors and vectors at rational points, pullbacks, a tape, and three
+// metrics on the plane. f(t) = (t, t^2) and g(x, y) = x^2 + y, so
+// g(f(t)) = 2t^2. Each observation has its own failure code, so `main`
+// prints 42 only when all of them hold.
+use profile::Smooth;
+use profile::Cotangent;
+use profile::Tangent;
+use profile::MetricForm;
+use profile::Pt;
+use profile::Line;
+use profile::Plane;
+use profile::compose;
+use profile::same;
+use profile::composite;
+use profile::line_at;
+use profile::plane_at;
+use profile::lies_over;
+use profile::same_covector;
+use profile::same_vector;
+use profile::pairing;
+use profile::pullback;
+use profile::pullback_recomputed;
+use profile::differential;
+use profile::linearize;
+use profile::backward;
+
+// ANCHOR: maps
+indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+indexed morphism idP: Smooth<Plane, Plane> = identity;
+indexed morphism shear: Smooth<Plane, Plane> = pullback(x -> x + y, y -> y);
+// The same shear, with its images in the other order.
+indexed morphism shearYFirst: Smooth<Plane, Plane> = pullback(y -> y, x -> x + y);
+// ANCHOR_END: maps
+// g after f, declared as one map.
+indexed morphism gf: Smooth<Line, Line> = pullback(t -> 2*t^2);
+
+// ANCHOR: polynomials
+// t^3/2 - (t + 1)^2, and -(t^2).
+indexed morphism cubic: Smooth<Line, Line> = pullback(t -> frac(1, 2)*t^3 - (t + 1)^2);
+indexed morphism negSquare: Smooth<Line, Line> = pullback(t -> -t^2);
+// ANCHOR_END: polynomials
+
+// ANCHOR: fibers
+// A covector or a vector at a point, from one integer for each coordinate.
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed primitive dplane = fiber_vector(Cotangent, Smooth, Plane);
+indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+// One component, as a numerator and a denominator.
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+indexed primitive dx = fiber_component(Cotangent, Plane, x);
+indexed primitive dy = fiber_component(Cotangent, Plane, y);
+indexed primitive vx = fiber_component(Tangent, Plane, x);
+indexed primitive vy = fiber_component(Tangent, Plane, y);
+// ANCHOR_END: fibers
+
+// ANCHOR: stepwise
+// The pullback along g at f(x), then along f at x.
+fn stepwise(x: Smooth<Pt, Line>, seed: Cotangent<Line>) -> Cotangent<Line> {
+    pullback(f(), x, pullback(g(), compose(f(), x), seed))
+}
+// ANCHOR_END: stepwise
+
+// ANCHOR: metrics
+indexed metric Euclid: MetricForm<Plane> = euclidean;
+indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
+indexed metric Lorentz: MetricForm<Plane> = gram((1, 0), (0, -1));
+// ANCHOR_END: metrics
+
+// ANCHOR: evidence
+indexed evidence SkewInvertible = nondegenerate(Skew);
+indexed evidence SkewPositive = riemannian(Skew);
+indexed evidence LorentzInvertible = nondegenerate(Lorentz);
+// ANCHOR_END: evidence
+
+// ANCHOR: musical
+indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
+indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible);
+
+// A gradient is sharp applied to a differential.
+fn gradient_skew(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_skew(differential(h, p))
+}
+// ANCHOR_END: musical
+indexed primitive sharp_lorentz = sharp(Cotangent, Tangent, using = Lorentz, evidence = LorentzInvertible);
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A component or a pairing reads n / d.
+fn reads(value: Pair<Int>, n: Int, d: Int) -> Bool {
+    pair_first(value) == n && pair_second(value) == d
+}
+
+fn main() -> Int {
+    let x: Smooth<Pt, Line> = line_at(3);
+    // dt at g(f(3)) = 18, and dt at another point.
+    let seed: Cotangent<Line> = dline(line_at(18), 1);
+    let gAfterF: Smooth<Line, Line> = compose(g(), f());
+    let stepped: Cotangent<Line> = stepwise(x, seed);
+    let wrong: Cotangent<Line> = pullback(gAfterF, x, dline(line_at(17), 1));
+    let p: Smooth<Pt, Plane> = plane_at(1, 2);
+    let dg: Cotangent<Plane> = differential(g(), p);
+    let v: Tangent<Plane> = vplane(p, 5, -7);
+    // A covector at another point of the plane has no pullback at p.
+    let lost: Cotangent<Plane> = pullback(idP(), p, dplane(plane_at(0, 0), 1, 0));
+    // Maps: composition, equality, the order of images and points.
+    42 + verdict(same(gAfterF, gf()) && same(composite(gAfterF), gf()), 1)
+       + verdict(same(shearYFirst(), shear()) && !same(shear(), idP()), 2)
+       + verdict(same(compose(f(), x), plane_at(3, 9)), 3)
+       // Polynomials: 8/2 - 9 = -5 at 2, and -(3^2) = -9 at 3.
+       + verdict(same(compose(cubic(), line_at(2)), line_at(-5)), 4)
+       + verdict(same(compose(negSquare(), x), line_at(-9)), 5)
+       // Fibers: dt at 18, and the pairing of dg = (2, 1) with (5, -7).
+       + verdict(lies_over(seed, line_at(18)) && !lies_over(seed, x) && reads(dt(seed), 1, 1), 6)
+       + verdict(reads(dx(dg), 2, 1) && reads(dy(dg), 1, 1), 7)
+       + verdict(reads(pairing(dg, v), 3, 1), 8)
+       + verdict(reads(pairing(dg, vplane(plane_at(0, 0), 5, -7)), 0, 0), 9)
+       // The derivative of cubic is 3t^2/2 - 2(t + 1): -5/2 at 1 and 0 at 2.
+       + verdict(reads(dt(differential(cubic(), line_at(1))), -5, 2), 22)
+       + verdict(reads(dt(differential(cubic(), line_at(2))), 0, 1), 23)
+       // The stepwise pullback is 12 dt at 3, and it is the pullback along the composite.
+       + verdict(reads(dt(stepped), 12, 1) && lies_over(stepped, x), 10)
+       + verdict(same_covector(stepped, pullback(gAfterF, x, seed)), 11)
+       + verdict(same_covector(stepped, pullback_recomputed(gAfterF, x, seed)), 12)
+       + verdict(same_covector(stepped, backward(linearize(gAfterF, x), seed)), 13)
+       // A seed over another point gives the failure value, and so does its pullback.
+       + verdict(!lies_over(wrong, x) && !same_covector(wrong, wrong) && reads(dt(wrong), 0, 0), 14)
+       + verdict(!lies_over(pullback(f(), x, pullback(g(), compose(f(), x), wrong)), x), 15)
+       + verdict(!lies_over(backward(linearize(gAfterF, x), dline(line_at(17), 1)), x), 16)
+       // The identity pulls a covector back to itself.
+       + verdict(same_covector(pullback(idP(), p, dplane(p, 5, 7)), dplane(p, 5, 7)), 17)
+       // Metrics: the gradient under Skew is (1, 0) and under Lorentz (2, -1).
+       + verdict(reads(vx(gradient_skew(g(), p)), 1, 1) && reads(vy(gradient_skew(g(), p)), 0, 1), 18)
+       + verdict(same_vector(sharp_lorentz(dg), vplane(p, 2, -1)), 19)
+       // flat (5, -7) under Skew is (3, -2), and flat and sharp are inverse.
+       + verdict(same_covector(flat_skew(v), dplane(p, 3, -2)), 20)
+       + verdict(same_vector(sharp_skew(flat_skew(v)), v) && same_covector(flat_skew(sharp_skew(dg)), dg), 21)
+       // sharp and flat send the failure value to the failure value, and it pairs to (0, 0).
+       + verdict(!lies_over(lost, p) && !same_vector(sharp_skew(lost), sharp_skew(lost)), 24)
+       + verdict(!lies_over(flat_skew(sharp_skew(lost)), p) && reads(pairing(lost, v), 0, 0), 25)
+}

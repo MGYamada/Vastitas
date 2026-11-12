@@ -376,6 +376,17 @@ may have a [place](#place) and [notes](#note). See
 [Diagnostics](../language/diagnostics.md) and the
 [guide](../guide/diagnostics-and-cli.md#reading-a-diagnostic).
 
+## Differential
+
+The covector that a function gives at a point. For a
+[smooth map](#smooth-map) `φ` from an object `X` to a 1-dimensional
+[smooth affine object](#smooth-affine-object) and a point `x` of `X`, the
+differential of `φ` at `x` is the [cotangent pullback](#cotangent-pullback)
+of the coordinate covector at `φ(x)`. Its components are the partial
+derivatives of `φ` at `x`. It needs no metric. See
+[Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
+and the [guide](../guide/smooth-geometry.md#the-differential).
+
 ## Dispatch
 
 The static selection of one method of a generic from the argument types. The
@@ -565,6 +576,15 @@ images that its steps read. The last image is the primal value, and the other
 points are the [residuals](#residual). Compare [backward Core](#backward-core). See
 [Compiled reverse Core](../verification.md#compiled-reverse-core).
 
+## Forward pass
+
+The first part of a [cotangent pullback](#cotangent-pullback) along a
+composite of [smooth maps](#smooth-map): the evaluation of the image of the
+point along each map, first map first. The [reverse pass](#reverse-pass)
+reads these points. See
+[Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
+and the [guide](../guide/smooth-geometry.md#the-forward-pass-and-the-reverse-pass).
+
 ## Frontend
 
 The Rust part of the compiler, in `src/`. It provides the command line, parses
@@ -595,6 +615,25 @@ The one object that an `indexed global` declaration declares. Types name it by
 its path, and a primitive with the binding `global(G)` gives it as a value.
 Two global objects are different objects. See
 [Global objects](../indexed-source.md#global-objects).
+
+## Gradient
+
+The vector that `sharp` gives for the [differential](#differential) of a
+function at a point, under a named [smooth metric](#smooth-metric) with
+[nondegenerate evidence](#nondegenerate-evidence). It depends on the metric.
+No primitive computes a gradient: a program writes it as an ordinary
+function. See [Flat and sharp](../language/smooth-declarations.md#flat-and-sharp)
+and the [guide](../guide/smooth-geometry.md#metrics-and-gradients).
+
+## Gram matrix
+
+The matrix `G` of a [smooth metric](#smooth-metric) `g` in the coordinates of
+its object, so that `g(v, w) = vᵀGw`. `gram(…)` gives its rows, and
+`euclidean` is the identity matrix. It is constant and symmetric, and its
+entries are rational numbers. See
+[Metrics](../language/smooth-declarations.md#metrics). The
+[metric](#metric) of a numerical space has a Gram matrix too, which is
+diagonal. See [Metrics](../linalg/transforms-and-metrics.md#metrics).
 
 ## Grant
 
@@ -1056,6 +1095,17 @@ binary64 value, or two for a complex cell; the compiler never rounds one. See
 The position that a [diagnostic](#diagnostic) or a [note](#note) names: a
 file, a line and a column. See [Places](../language/diagnostics.md#places).
 
+## Polynomial expression
+
+An expression that denotes a polynomial with rational coefficients in the
+coordinates of an object. It is built from integer literals, fractions
+`frac(n, d)`, coordinate names, `+`, `-`, `*` and `^` with a literal
+exponent. The images of a [smooth map](#smooth-map) and of a
+[morphism over a base](#morphism-over-a-base), the relations of a
+[presented affine object](#presented-affine-object) and the entries of a
+[Gram matrix](#gram-matrix) are polynomial expressions. See
+[Polynomial expressions](../language/smooth-declarations.md#polynomial-expressions).
+
 ## Port
 
 An end of an [occurrence](#occurrence) that an edge may contract: the input
@@ -1192,6 +1242,27 @@ check and then generates code. A theorem about a route holds for the
 requests that the kernel accepts through it. See
 [Current public checker routes](../verification.md#current-public-checker-routes).
 
+## Pullback mode
+
+The word `saved` or `recomputed` of a `cotangent_pullback` binding. It says
+where the [reverse pass](#reverse-pass) takes the points of the
+[forward pass](#forward-pass) from. A `saved` pullback keeps them from one
+forward pass, and a `recomputed` pullback evaluates them again. Both modes
+give the same value. See
+[Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
+and the [guide](../guide/smooth-geometry.md#the-forward-pass-and-the-reverse-pass).
+
+## Rational point
+
+A point of a [smooth affine object](#smooth-affine-object) `X` whose
+coordinates are rational numbers: a [smooth map](#smooth-map) to `X` from a
+0-dimensional smooth affine object. A primitive with the binding
+`smooth_int_point` builds one from integers. See
+[Smooth map primitives](../language/smooth-declarations.md#smooth-map-primitives)
+and the [guide](../guide/smooth-geometry.md#objects-maps-and-points). For the points
+of a presented affine object, see
+[Morphism primitives](../affine-geometry.md#morphism-primitives).
+
 ## Recipient
 
 The module that a grant, delegation or transfer names after `to`: the manifest
@@ -1289,6 +1360,25 @@ reaches. Kernel regressions and oracle modules still call it. A theorem about
 a retained composition says nothing about a program that the compiler accepts
 today. See
 [How to read this chapter](../verification.md#how-to-read-this-chapter).
+
+## Reverse pass
+
+The second part of a [cotangent pullback](#cotangent-pullback) along a
+composite of [smooth maps](#smooth-map). It pulls the [seed](#seed) back
+along each map, last map first, at the points of the
+[forward pass](#forward-pass). The reverse pass over a [tape](#tape) reads
+the points that the tape holds. Compare
+[runtime reverse pass](#runtime-reverse-pass). See
+[Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
+and the [guide](../guide/smooth-geometry.md#the-forward-pass-and-the-reverse-pass).
+
+## Reverse pullback
+
+A [cotangent pullback](#cotangent-pullback), named for its direction. It
+carries a covector from the target of a smooth map back to its source, and
+along a composite it visits the maps last map first, in a
+[reverse pass](#reverse-pass). See the
+[guide](../guide/smooth-geometry.md#pulling-a-covector-back).
 
 ## Reverse site
 
@@ -1452,6 +1542,17 @@ gives each target coordinate as a polynomial in the source coordinates.
 `compose` builds a program from smooth maps and does not expand it. See
 [Smooth maps](../language/smooth-declarations.md#smooth-maps) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
+
+## Smooth metric
+
+A constant symmetric bilinear form on a
+[smooth affine object](#smooth-affine-object), which an `indexed metric`
+declaration declares at a [metric form](#metric-form) with its
+[Gram matrix](#gram-matrix). The chapters on smooth geometry call it a
+metric. `flat` and `sharp` name their metric, and no operation selects one by
+default. It is distinct from the [metric](#metric) of a numerical space. See
+[Metrics](../language/smooth-declarations.md#metrics) and the
+[guide](../guide/smooth-geometry.md#metrics-and-gradients).
 
 ## Source
 

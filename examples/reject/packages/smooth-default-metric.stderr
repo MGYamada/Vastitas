@@ -1,0 +1,1 @@
+examples/reject/packages/smooth-default-metric/main.vast:11:56: E_PARSE: `flat` needs an explicit metric: write `using = …`

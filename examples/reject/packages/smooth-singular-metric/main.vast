@@ -1,0 +1,12 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declarations
+// The second row is twice the first, so the Gram matrix has no inverse.
+indexed metric Flattened: MetricForm<Plane> = gram((1, 2), (2, 4));
+indexed evidence FlattenedInvertible = nondegenerate(Flattened);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

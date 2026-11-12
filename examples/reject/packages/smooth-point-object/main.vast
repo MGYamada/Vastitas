@@ -1,0 +1,12 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Line;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declaration
+// The source of a point has dimension 0, and Line has dimension 1.
+indexed primitive bad = smooth_int_point(Smooth, Plane, Line);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

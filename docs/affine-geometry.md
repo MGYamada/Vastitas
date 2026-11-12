@@ -717,7 +717,7 @@ inverts `t^2`:
 ## Limits
 
 The compiler checks the declarations of this chapter by exact polynomial
-arithmetic. [Appendix D](appendix/limits.md#exact-affine-algebra-stage-2)
+arithmetic. [Appendix D](appendix/limits.md#exact-affine-algebra)
 lists the bounds of that arithmetic with their values.
 
 Rules:

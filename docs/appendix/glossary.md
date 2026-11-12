@@ -131,6 +131,13 @@ contracts. They are the axes of the result. See
 [Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
 
+## Build identity
+
+What a kernel executable was built from: a digest of its Lean sources and of
+the file of limits, and the version of Lean. The compiler accepts an answer
+only from a kernel with the build identity that it expects. See
+[The kernel and its build identity](../guide/cli.md#the-kernel-and-its-build-identity).
+
 ## Built-in function
 
 A function that the language defines: `int`, `pair`, `pair_first`,
@@ -667,6 +674,13 @@ the frontend. It resolves names, allocates identities, checks every body and
 generates code from the checked result. It depends on the Lean
 distribution only. See [Compiler architecture](../development/architecture.md).
 
+## Kernel root
+
+The directory of the kernel package: the sources of the [kernel](#kernel),
+its built executable and the two runtime packages. `VASTITAS_KERNEL_ROOT`
+names it. See
+[The kernel and its build identity](../guide/cli.md#the-kernel-and-its-build-identity).
+
 ## Key
 
 See [dispatch key](#dispatch-key).
@@ -887,6 +901,13 @@ two [spaces](#space), in a named [basis](#basis) of each. A `map` statement
 declares one, and `gemm` multiplies two. Also called a **map**. See
 [Maps](../linalg/maps-and-gemm.md#maps).
 
+## Numerical runtime
+
+The package `numerical` of the [kernel root](#kernel-root). An executable
+whose entry point reaches a [product statement](#product-statement) links
+it, together with the OpenBLAS library. See
+[What `check` and `build` start](../guide/cli.md#what-check-and-build-start).
+
 ## Object type
 
 A type `Object<D, K>`, where `D` names a classification or an implementation
@@ -908,7 +929,7 @@ use of a map or of a [tensor](#tensor). See
 A map of a [reverse site](#reverse-site) whose structure the compilation does
 not open. Function parameters, values of branches and calls and
 `composite(…)` are opaque steps, and so are maps that the `reverseLeaves`
-[limit](limits.md#checker-limits) does not reach: a `let`-bound map beyond
+[bound](limits.md#bounds-that-reject-nothing) does not reach: a `let`-bound map beyond
 the remaining budget, or a whole map operand whose `compose` calls exceed it.
 [Backward Core](#backward-core) pulls the seed back along an opaque step with
 the [runtime reverse pass](#runtime-reverse-pass) in the site's residual
@@ -1455,6 +1476,14 @@ apart from a loan and its [children](#child). A
 storage loan grants no edit authority; compare [edit loan](#edit-loan). See
 [Storage types](../storage/resource-programs.md#storage-types) and
 [Ownership and explicit transitions](../storage-ownership.md#ownership-and-explicit-transitions).
+
+## Storage runtime
+
+The package `native` of the [kernel root](#kernel-root). An executable links
+it when its entry point is a resource function with an operation on an
+allocation or on runtime extents. Its checks report the
+[run-time diagnostics](#run-time-diagnostic) with the prefix `E_NATIVE_`. See
+[What `check` and `build` start](../guide/cli.md#what-check-and-build-start).
 
 ## Strict keyword
 

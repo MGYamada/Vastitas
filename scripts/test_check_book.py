@@ -389,6 +389,40 @@ class GrammarTests(Fixture):
                          ["SUMMARY.md does not list appendix/grammar.md"])
 
 
+class LimitTests(unittest.TestCase):
+    LIMITS = {"parseNesting": 64, "elaborationWork": 1000000}
+    TABLE = """
+        | Limit | Value | Counts |
+        | --- | --- | --- |
+        | `parseNesting` | 64 | Levels |
+        | `value` blocks | 4096 | Blocks |
+        | Loaded files | 8192 | Files |
+        | `elaborationWork` | 1,000,000 | Units |
+        | `elaborationWork` | 1,000,000 | The same limit in a second table |
+        """
+
+    def errors(self, table, limits=None):
+        return check_book.limit_errors(textwrap.dedent(table), limits or self.LIMITS)
+
+    def test_rows_with_the_values_of_the_file_pass(self):
+        self.assertEqual(self.errors(self.TABLE), [])
+
+    def test_another_value_fails(self):
+        self.assertEqual(self.errors(self.TABLE.replace("| 64 |", "| 65 |")),
+                         ["appendix/limits.md:4: `parseNesting` is 64 in lean-kernel/compiler-limits.json, not 65"])
+
+    def test_a_missing_or_an_unknown_key_fails(self):
+        self.assertEqual(self.errors(self.TABLE, {**self.LIMITS, "astDepth": 128}),
+                         ["appendix/limits.md: no row gives the limit `astDepth` of lean-kernel/compiler-limits.json"])
+        self.assertEqual(self.errors(self.TABLE.replace("`parseNesting`", "`parseDepth`")), [
+            "appendix/limits.md:4: `parseDepth` is no key of lean-kernel/compiler-limits.json",
+            "appendix/limits.md: no row gives the limit `parseNesting` of lean-kernel/compiler-limits.json",
+        ])
+
+    def test_the_appendix_agrees_with_the_limits_file(self):
+        check_book.check_limits(check_book.ROOT / "docs")
+
+
 class RedirectTests(Fixture):
     def setUp(self):
         super().setUp()

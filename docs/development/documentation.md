@@ -69,6 +69,9 @@ The generated site is in `target/book/`. `scripts/check_book.py` checks that:
 - the [grammar summary](../appendix/grammar.md) is the text that
   `scripts/grammar_summary.py` generates from the Syntax blocks of the
   Reference;
+- [Appendix D](../appendix/limits.md) has a table row with the value of
+  each key of `lean-kernel/compiler-limits.json`, and no row with a key
+  that the file lacks;
 - the first line of a converted chapter is `#` and its title in `SUMMARY.md`,
   where an appendix title `G: Glossary` becomes `Appendix G: Glossary`;
 - a converted chapter keeps the rules of the [style guide](#style-guide) that

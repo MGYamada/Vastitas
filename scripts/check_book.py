@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Verify the book: its contents, rendering, links, includes, titles, style, Syntax blocks and grammar summary."""
+"""Verify the book: its contents, rendering, links, includes, titles, style, Syntax blocks, grammar summary and limits."""
 
 from collections import Counter
 from dataclasses import dataclass
 from html.parser import HTMLParser
 import os
+import json
 import re
 import subprocess
 import tomllib
@@ -79,6 +80,9 @@ CONVERTED = frozenset({
     "development/primitives.md",
     "appendix/glossary.md",
     "appendix/grammar.md",
+    "guide/cli.md",
+    "appendix/diagnostics.md",
+    "appendix/limits.md",
 })
 
 # Delivery records keep their original wording, as the style guide says.
@@ -494,6 +498,41 @@ def check_grammar(source, chapters):
     print(f"Checked that the generated chapter {grammar_summary.CHAPTER} is fresh")
 
 
+# --- Limits ---------------------------------------------------------------------
+
+LIMITS_CHAPTER = "appendix/limits.md"
+LIMITS_FILE = "lean-kernel/compiler-limits.json"
+# A table row whose first cell is one name in code font and whose second cell is a number.
+LIMIT_ROW = re.compile(r"^\| `([A-Za-z][A-Za-z0-9]*)` \| ([0-9][0-9,]*) \|")
+
+
+def limit_errors(text, limits):
+    """Each key of the limits file has a row with its value, and each such row names a key of the file."""
+    errors = []
+    listed = set()
+    for number, line in enumerate(text.splitlines(), 1):
+        row = LIMIT_ROW.match(line)
+        if not row:
+            continue
+        key, value = row[1], int(row[2].replace(",", ""))
+        listed.add(key)
+        if key not in limits:
+            errors.append(f"{LIMITS_CHAPTER}:{number}: `{key}` is no key of {LIMITS_FILE}")
+        elif limits[key] != value:
+            errors.append(f"{LIMITS_CHAPTER}:{number}: `{key}` is {limits[key]} in {LIMITS_FILE}, not {value}")
+    errors += [f"{LIMITS_CHAPTER}: no row gives the limit `{key}` of {LIMITS_FILE}"
+               for key in limits if key not in listed]
+    return errors
+
+
+def check_limits(source, root=ROOT):
+    limits = json.loads((root / LIMITS_FILE).read_text(encoding="utf-8"))
+    errors = limit_errors((source / LIMITS_CHAPTER).read_text(encoding="utf-8"), limits)
+    if errors:
+        raise ValueError("Appendix D disagrees with the limits file:\n  " + "\n  ".join(errors))
+    print(f"Checked the {len(limits)} limits of {LIMITS_FILE} against Appendix D")
+
+
 # --- Rendered pages and links ---------------------------------------------------
 
 class Page(HTMLParser):
@@ -671,6 +710,7 @@ if __name__ == "__main__":
     check_includes(source, chapters)
     check_syntax(source, chapters)
     check_grammar(source, chapters)
+    check_limits(source)
     pages = check_html(output)
     check_redirects(pages, output)
     check_references(pages, ROOT, output)

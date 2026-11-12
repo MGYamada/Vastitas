@@ -209,7 +209,7 @@ Rules:
   occurrences, and 2 or 3 boundary ports. It has at most 128 declarations
   before `plan`, and a plan has at most 1024 steps (`E_TENSOR_TREE`).
 - Every plan step counts against the limit on the statements of a program,
-  which [Appendix D](../appendix/limits.md#other-documented-bounds) gives
+  which [Appendix D](../appendix/limits.md#resource-functions) gives
   (`E_RESOURCE_LIMIT`).
 - The output and every occurrence must name a tensor that the function
   declared before the statement (`E_TENSOR_TREE`). The loan of the tensor of

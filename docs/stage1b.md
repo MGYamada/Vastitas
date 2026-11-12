@@ -102,7 +102,7 @@ Rules:
   error (`E_LIMIT`). A function that is not higher-order has no specialized
   instance.
 - The elaboration of a program has a work budget, which
-  [Appendix D](appendix/limits.md#checker-limits) gives (`elaborationWork`).
+  [Appendix D](appendix/limits.md#functions) gives (`elaborationWork`).
   Exceeding it is an error (`E_LIMIT`). The compiler never accepts part of a
   program or skips an unused body to stay within a budget.
 - A cycle of calls through specialized instances is an error (`E_RECURSION`).

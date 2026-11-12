@@ -192,5 +192,5 @@ budget of the check.
   functions are values.
 - [Lambda expressions](../language/expressions.md#lambda-expressions): the
   syntax of a lambda.
-- [Appendix D](../appendix/limits.md#checker-limits): the limits on
+- [Appendix D](../appendix/limits.md#functions): the limits on
   specialized instances and on the work of the check.

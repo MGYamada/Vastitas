@@ -135,7 +135,8 @@ The evidence: Implemented and Tested. Proved for pure functions: every
 function of the Core that the checker returns evaluates in finitely many
 steps to a value of its result type, and `main` to an integer.
 [Indexed term, function and checked-program evaluation](../verification.md#indexed-term-function-and-checked-program-evaluation)
-states the theorems. They are about the kernel's evaluator of
+and [Code generation entries](../verification.md#code-generation-entries)
+state the theorems. They are about the kernel's evaluator of
 [Core](../appendix/glossary.md#core), not about native code. No theorem
 states that the statements of a resource function end, and a native routine
 such as a matrix product is outside every theorem.
@@ -252,7 +253,8 @@ that the checker returns preserves its typing, in which a point and a
 morphism keep both endpoints. The checked numerical operations keep the
 objects and the bases of their maps.
 [Verification boundaries](../verification.md#indexed-term-function-and-checked-program-evaluation)
-states the first, and
+and [Code generation entries](../verification.md#code-generation-entries)
+state the first, and
 [What is outside these claims](../verification.md#what-is-outside-these-claims)
 the second.
 

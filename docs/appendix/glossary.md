@@ -1156,9 +1156,10 @@ module. See [Visibility](../language/names-and-paths.md#visibility).
 
 One of the entry points that the kernel executable calls for a request of the
 [wire protocol](#wire-protocol): `Indexed.LegacySource.check` for protocols 2
-to 6, `Indexed.Wire.check` for protocol 7 and `ResourceSource.Wire.check` for
-protocols 8 and 9. A theorem about a route holds for the requests that the
-kernel accepts through it. See
+to 6, `Indexed.Wire.check` for protocol 7, and `ResourceSource.Wire.check`
+and `ResourceSource.Wire.emit` for protocols 8 and 9. `Wire.emit` runs that
+check and then generates code. A theorem about a route holds for the
+requests that the kernel accepts through it. See
 [Current public checker routes](../verification.md#current-public-checker-routes).
 
 ## Recipient

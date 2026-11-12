@@ -1,8 +1,9 @@
 # Verification boundaries
 
-This chapter states every theorem about the compiler: what it proves, what it
-assumes and what it does not cover. Other chapters cite it for what is
-Proved. [Guarantees](language/guarantees.md) summarizes it for readers of the
+This chapter states the theorems about the compiler that the book cites: what
+each proves, what it assumes and what it does not cover. The oracle modules
+hold further theorems that the chapter does not name. Other chapters cite it
+for what is Proved. [Guarantees](language/guarantees.md) summarizes it for readers of the
 Reference, and the [specifications](specifications.md) record some of its
 theorems as claims.
 
@@ -58,7 +59,11 @@ sections that hold its route theorems and its component theorems.
   [Indexed term, function and checked-program evaluation](#indexed-term-function-and-checked-program-evaluation)
   holds the route theorems of protocols 2 to 7 and the component theorems
   behind them. [Code generation entries](#code-generation-entries) holds
-  the theorems on the pure Core of protocols 8 and 9.
+  the theorems on the pure Core of protocols 8 and 9: the route theorem
+  `IndexedReverseCore.public_resource_compiled`, and the theorems on the
+  certificate of `ResourceSource.check`. A package that depends on the
+  shipped standard library selects protocol 9, and
+  [Protocol selection](protocol.md#protocol-selection) states the rule.
 - **Generics, dispatch, abstract types and abstract methods.**
   [Dispatch over indexed bodies](#dispatch-over-indexed-bodies) holds the
   route theorems. The components are the
@@ -69,8 +74,17 @@ sections that hold its route theorems and its component theorems.
   [Function values and specialization](#function-values-and-specialization).
 - **Packages, modules and names.**
   [Package namespace acceptance](#package-namespace-acceptance).
-- **Edit authority.** The route theorems are in
-  [Current public checker routes](#current-public-checker-routes),
+- **Edit authority.** A program with a grant, a delegation or a transfer
+  selects protocol 9. For protocols 8 and 9,
+  [Current public checker routes](#current-public-checker-routes) holds the
+  route theorem on recipients, `public_named_recipients`.
+  [Storage and resource programs](#storage-and-resource-programs) holds the
+  trace theorem `ResourceSource.original_authority`, which takes the
+  certificate of `ResourceSource.check`. No theorem states the footprints
+  for this route: `IndexedAuthority.final_footprints`, in
+  [Authority over indexed bodies](#authority-over-indexed-bodies), applies
+  to the field `pureProgram` of that certificate. The route theorems of
+  protocols 2 to 7 are in
   [Public acceptance of protocol 7](#public-acceptance-of-protocol-7) and
   [Legacy translation and public acceptance of protocols 2 to 6](#legacy-translation-and-public-acceptance-of-protocols-2-to-6).
   The components are in
@@ -86,6 +100,7 @@ sections that hold its route theorems and its component theorems.
   [Smooth affine geometry and reverse pullbacks](#smooth-affine-geometry-and-reverse-pullbacks).
 - **Storage, resource programs, numerical maps, networks and code
   generation.** [What is outside these claims](#what-is-outside-these-claims),
+  the [tensor packing profile](#tensor-packing-profile),
   [Generative owned-map packages](#generative-owned-map-packages) and
   [Explicit diagonal metric certificates and ideal laws](#explicit-diagonal-metric-certificates-and-ideal-laws).
 
@@ -235,9 +250,15 @@ has its own section,
 
 ## Current public checker routes
 
-The theorems of this section are about the current public checker routes.
-This section is the entry to the chapter: it names the entry points, and the
-sections on each construct state the theorems about them.
+**Current routes and their components.** This section is the entry to the
+chapter: it names the entry points, and the sections on each construct state
+the theorems about them. Of the theorems that this section names,
+`public_named_recipients` is about a route: it takes the `CheckedInput` of
+protocols 8 and 9. The other theorems of `EditRecipients` are about
+components: the recipient resolver `recipientPackage` and the lowering and
+reconstruction functions of the authority assembly. The kernel lemmas
+`ContextIndex.get?_eq` and `letTyped_iff` are about a component, the type
+audit of Core.
 
 The kernel executable has two modes. `vastitas check` sends a request in the
 mode `check`, and `vastitas build` sends it in the mode `emit`, which also
@@ -260,16 +281,26 @@ plan. The indexed Core generator repeats the Core audit, and
 calls `generateChecked`, is an internal entry that `Main` does not call.
 [Code generation entries](#code-generation-entries) states the theorems.
 
-The oracle modules `LegacySource`, `IndexedWire` and `ResourceSource` state
-the route theorems of the three rows: each takes the `CheckedInput` that the
-entry point returns for a request. `IndexedAuthority` states the theorems
+The oracle modules `LegacySource` and `IndexedWire` state the route
+theorems of the first two rows: each of their theorems takes the
+`CheckedInput` that the entry point returns for a request. In the oracle
+module `ResourceSource`, `namespace_work_bound` and the theorems named
+`public_…` take the `CheckedInput` of protocols 8 and 9. Its other theorems,
+such as `original_authority`, `pure_entry_main_total` and
+`actual_entry_closed`, take the certificate `Checked` of
+`ResourceSource.check`, which that `CheckedInput` holds as its field
+`checked`. `IndexedAuthority` states the theorems
 about `Indexed.AuthoritySource.checkProgram`, the checker of pure bodies that
 all three entry points call.
 
-Protocol 9 changes only edit recipient identity syntax within the full resource
-wire composition. `VastitasOracle.EditRecipients.named_recipient_iff` characterizes
+Protocol 9 keeps the composition of protocol 8. It changes the recipient
+identity of grants, delegations and transfers, and it admits the presented
+affine, smooth and metric forms.
+`VastitasOracle.EditRecipients.named_recipient_iff` characterizes
 actual acceptance by exactly one root-reachable manifest-name candidate.
 `named_recipient_preserves_identity` retains the original package record.
+`legacy_recipient_iff` states that a recipient given by a source location
+resolves exactly by location lookup.
 `lower_grant_resolves` and `lower_transfer_resolves` connect the real lowering
 functions to that resolver, their exact returned scope and their issuing module.
 `reconstruct_declared` is proved by induction over the actual `for` loops of
@@ -289,7 +320,9 @@ proof of Rust parsing/native refinement.
 The current pure Core typing and terminating-evaluation chain is
 `IndexedCore` → `IndexedEvaluationSafety` → `IndexedFunctionSafety` →
 `IndexedArgumentSafety` → `IndexedProgramSafety`, with the public receipt
-connections in `IndexedAcceptance`, `IndexedWire` and `LegacySource`.
+connections in the oracle modules `IndexedWire` and `LegacySource`. The
+kernel module `IndexedAcceptance` defines the entry point `Indexed.Wire.check`
+that `IndexedWire` reads.
 The actual promotion/add/maximum fixture is covered by `IndexedPromotion`.
 The indexed Core type audit builds a first-match symbol table from each
 function's ordered lexical context. A `let` extends only its body and an
@@ -534,7 +567,8 @@ application, or that lambda lifting, abstract signature probes and erasure
 preserve the full surface-language meaning. The audit checking pass and the
 executable specialization pass use separate state; probes never reach codegen.
 Regressions test unused-body checking, static selection and native results
-across the remaining correspondence boundary. No unproved axiom is used.
+across the remaining correspondence boundary. No axiom beyond the three that
+the audit admits is used.
 
 ## Independent internal Lean export audit (v0.1.0 gate)
 
@@ -648,10 +682,17 @@ subsection states limits of the retained Stage 0 theorems.
 
 ### Storage and resource programs
 
-**Current route and its components.** The theorems of `ResourceSource` and
+**Current route, its components and two internal entries.** The theorems of
+`ResourceSource` and
 `ResourceValueFlow` are about `ResourceSource.check` and about the entry
 point of protocols 8 and 9, which calls it. The other theorems of this
-subsection are about the storage checker that it uses.
+subsection are about the storage checker that it uses, with one exception.
+The "exact decoder/checker certificates" of the internal resource IR are
+those of the internal wire entries `Storage.Wire.check` and
+`Storage.Functions.Wire.check`, in `StorageSafety.decoded_plan` and
+`StorageFunctions.decoded_executable`. No entry point of `Main` calls these
+entries; only regression and test modules do. The two theorems are about
+retained compositions.
 
 The [dense layout/preflight reference](storage/checked-storage.md#storage-layout-preflight) separates
 byte bounds, alignment, write injectivity, native narrowing and loan conflicts.
@@ -712,7 +753,9 @@ checker, independently resolved resource calls, every resource-body probe and ex
 entry schedule. `VastitasOracle.ResourceSource` proves complete resource identities,
 actual call provenance, original authority trace, typed totality of its returned
 pure Core and closed logical entry resources. The public decoder/checker equations
-refer to that same input. `VastitasOracle.ResourceValueFlow` additionally connects
+of `public_input` refer to that same input: the request decodes to the
+program, `ResourceSource.check` returns the certificate for it, and the
+lowering equation of the program holds. `VastitasOracle.ResourceValueFlow` additionally connects
 actual mixed-run slot typing and branch scope, exact source fragment/Core target
 reconstruction, and demanded scalar returns after completed resource calls.
 Both-arm resource acceptance and scalar typing are separate certificates; the
@@ -723,9 +766,16 @@ resource projection alone does not establish their operational equivalence.
 **Current routes and their components.**
 `ResourceCodegen.public_generated_checked` and `public_resource_plan` are
 about `ResourceSource.Wire.emit` and its check, the entry point that `Main`
-calls for protocols 8 and 9 in the mode `emit`. `generated_pure_entry` and
+calls for protocols 8 and 9 in the mode `emit`.
+`IndexedReverseCore.public_resource_compiled` takes the `CheckedInput` of
+protocols 8 and 9. `ResourceSource.pure_entry_functions_total`,
+`pure_entry_main_total` and `pure_value_functions_total` take the
+certificate `Checked` of `ResourceSource.check`, which that `CheckedInput`
+holds. `generated_pure_entry` and
 `generated_pure_entry_total` have the internal entry
-`ResourceSource.Codegen.generate` as their hypothesis;
+`ResourceSource.Codegen.generate` as their hypothesis, as do
+`generated_resource_plan` and `generated_resource_closed`, which state the
+compiled plan and its audited, closed final state for that entry.
 `IndexedReverseCore.public_pure_entry_compiled`, in
 [Oracle theorems](#oracle-theorems), states the generated module for
 `Wire.emit`. The theorems of `IndexedCodegen` and
@@ -758,6 +808,24 @@ while `pure_value_functions_total` covers the value library of the mixed path
 before it.
 These theorems establish acceptance and identify the exact
 inputs to native generation. Native heap and floating-point refinement remain open.
+
+`IndexedReverseCore.public_resource_compiled` states three facts for every
+accepted request of protocols 8 and 9. The compiled module of the pure
+program and the compiled module of the value library are the compilations of
+their executable Core. Every entry of their ledgers resolves. Every function
+of both compiled modules has typed, finite evaluation.
+[Oracle theorems](#oracle-theorems) lists it with the other theorems on
+compiled reverse Core.
+
+`generated_pure_entry` and `generated_pure_entry_total` may be cited for
+`Wire.emit`. `public_generated_checked` gives the successful
+`generateChecked` call on the certificate of the request. The kernel theorem
+`generate_eq_checked` turns that call into the hypothesis of the two
+theorems, a successful `Codegen.generate` on the decoded program. The proof
+of `IndexedReverseCore.public_pure_entry_compiled` composes them in this
+way. No single theorem states for `Wire.emit` that every function of the
+generated module has typed, finite evaluation and that its `main` evaluates
+to an `Int`.
 
 ### Numerical operations and runtime extents
 
@@ -880,7 +948,8 @@ and successful replay; `dual_evaluation_types` and `hermitian_evaluation_form`
 recover the actual corresponding bases and explicit identity Gram form.
 `evaluation_preserves_interpretation` shows that the request inserts no extra
 conjugation, and `evaluation_returns_inputs_and_scalar` states restored input
-loans and initialized scalar output. The public origin theorems bind these
+loans and initialized scalar output. The public origin theorems
+`public_vector_conjugation_origin` and `public_evaluation_origin` bind these
 receipts to the same accepted declaration environment. Native bit examples and
 forged-IR regressions are separate evidence, not ideal-module or float laws.
 
@@ -943,7 +1012,9 @@ AD engine, integral-enclosure verifier or variational compiler feature is added.
 
 This subsection states what the theorems do not cover. Its statements on
 Stage 0 and Stage 1 are about the retained compositions, and its last
-paragraphs hold for every theorem of the chapter.
+paragraphs hold for every theorem of the chapter. The paragraph on resource
+diagnostic wrappers states kernel theorems about a component of the route of
+protocols 8 and 9, the checker of resource functions.
 
 The retained Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
 The full Stage 1 rewriting pass from decoded surface `Program` (or legacy
@@ -987,7 +1058,11 @@ are tracked in the README and the Stage 1 acceptance/completion ledgers.
 
 ## Validation
 
-This section states no theorem. It lists the regressions and the commands,
+This section states no theorem of its own. Its first paragraph cites the
+promotion theorems of `IndexedPromotion`. They are about a reflected module:
+that this module equals the result of `Indexed.LegacySource.check` is a
+build-time comparison, not a theorem, so they are about neither a route nor
+a component. The rest of the section lists the regressions and the commands,
 and says which regressions exercise the current routes and which the
 retained compositions.
 
@@ -1351,8 +1426,8 @@ Core or the legacy annotation-only certificate is insufficient. This is a
 proof-only `Prop` with proof-requiring constructors, not a serialized success
 flag or a runtime `AcceptedProgram` API.
 
-This is a **limited first composition** toward the acceptance theorem of
-the issue that [History](#history) names, not completion of that issue,
+This is a **limited first composition** for the issue that
+[History](#history) names, not completion of that issue,
 all eight Domain Checkers, or the independent Ownership/Borrow checker. It adds
 no release condition. The stable architecture remains **8 Domain Checkers + 1
 independent Ownership/Borrow Core Safety Checker**. Only the finite dispatch,
@@ -1513,7 +1588,11 @@ declaration environment.
 `IndexedSourceBodies` are about the internal type-elaboration certificate
 `CheckedDataType` and the internal data-function adapter
 `Source.Bodies.checkProgram`. No entry point of `Main` builds either; kernel
-regressions do.
+regressions do. The routes run `elaborateDataType`, which the lowering inside
+the certificate also calls, through `Source.Bodies.type`.
+`local_argument_exact` is a component theorem: it is an equation on
+`resolveTypeArgument` with no certificate among its hypotheses, and
+`elaborateDataType` reaches `resolveTypeArgument`.
 
 `VastitasOracle.IndexedSourceTypes` connects internal type elaboration to the
 same declaration certificate, raw annotation, requesting scope and supplied
@@ -1553,8 +1632,9 @@ take a `CheckedProgram` of `FunctionSource.Compiler` are about the internal
 Fn adapter `FunctionSource.Compiler.checkProgram`, which no command reaches:
 `pipeline_reconstructed`, `both_passes`, `source_body_checked`,
 `lifted_definition_checked` and `lambda_scope`.
-[Authority over indexed bodies](#authority-over-indexed-bodies) states the
-corresponding theorems for the checker that the routes call.
+[Authority over indexed bodies](#authority-over-indexed-bodies) states
+`both_passes`, `lambda_scope` and the body-coverage theorems of
+`IndexedAuthority`, for the checker that the routes call.
 
 `VastitasOracle.IndexedFunctions` adds structural acceptance for the internal
 Fn adapter. `pipeline_reconstructed` connects the actual declaration input,
@@ -1660,6 +1740,21 @@ the certificate `CheckedProgram` of `Indexed.AuthoritySource.checkProgram`.
 Every entry point of `Main` calls this checker, and the certificate of each
 route holds its result.
 
+`IndexedAuthority.both_passes` states four facts about the two Core modules
+of the certificate. The audit Core is a typed module. The executable Core is
+a typed module. The functions of the executable Core are in dependency
+order. The executable Core satisfies the entrypoint contract for the
+`requireMain` of the check.
+
+`IndexedAuthority.lambda_scope` states `FunctionSource.ScopeSafe` for every
+lambda in the bodies of the program's functions, of its methods and of the
+methods of its contributions. The lambda has a callable signature. Each name
+that its signature uses and each free name of its body is one of the
+checker's builtin names or resolves through the namespace resolver from the
+scope of the declaration that holds the lambda. No parameter and no binder
+of the lambda's own blocks has the name of a binding of its enclosing
+lexical context.
+
 `VastitasOracle.IndexedAuthority` connects rich contribution bodies to the
 actual `Authority.assemble` certificate. `authority_trace`, `applied_authorized`
 and `final_footprints` retain the existing independent loan/transfer/history and
@@ -1699,10 +1794,24 @@ refinement and C-level performance remain unproved or unmeasured.
 
 ### Declaration audits, packages and the Core audit
 
-**Component of the current routes.** The theorems of this subsection are
-about the declaration audit, the package and primitive contracts and the
-Core audit `Indexed.Core.Typing.checkModule`, which the shared passes and
-the code generator run.
+**Component of the current routes, and retained wrappers.** The kernel
+theorems `validEnvironment_iff` and `validApplication_iff`,
+`inheritance_acyclic` and the theorems of `IndexedCore` are about the
+declaration audit and the Core audit `Indexed.Core.Typing.checkModule`,
+which the shared passes and the code generator run. The other theorems of
+this subsection take a certificate that only a wrapper builds.
+`checkEnvironment_input` and `checkApplication_input` have an acceptance by
+`checkEnvironment` and by `checkApplication` as their hypothesis. The
+theorems of
+`IndexedPackages` and `IndexedPrimitives` take `CheckedPackageShape`,
+`CheckedPackagePayload`, `CheckedPackageOpening` and `CheckedPrimitive`. No
+entry point of `Main` calls these wrappers; kernel regressions do, so these
+theorems are about retained compositions. Each certificate holds the
+acceptance equation of a validity function. Of those functions, the routes
+run `validEnvironment` in the declaration audit and `validPrimitive` in the
+elaboration of bodies. For a typed Core node,
+`IndexedCore.typed_primitive_contract` and `typed_package_association`
+state the primitive contract and the package contract.
 
 `VastitasOracle.Indexed` exports the kernel theorems `validEnvironment_iff` and
 `validApplication_iff` of `IndexedAudit`, which relate the actual kernel
@@ -1755,7 +1864,9 @@ remains unproved. See [the indexed checker](internals/indexed-checker.md#indexed
 `LegacyIndexed.check_acceptance` is about the retained translator
 `LegacyIndexed.check`, which no command reaches. The theorems of
 `LegacySource` take the `CheckedInput` that `Indexed.LegacySource.check`
-returns for a request of protocols 2 to 6.
+returns for a request of protocols 2 to 6. The last paragraph of the
+subsection is about components: the signature table of the Core audit and
+the distinctness check that the audits share.
 
 `VastitasOracle.LegacyIndexed.check_acceptance` connects the exact legacy input
 to the actual translated indexed module, with complete typing and actual
@@ -2015,6 +2126,10 @@ Core that also includes unapplied/unused bodies. Native generation receives
 checked again and validated. `IndexedReverseCore.compiled_codegen_input` and
 `legacy_compiled_codegen_input` identify that module, and
 `compiled_functions_total` gives its functions typed, finite evaluation.
+`compiled_main_total` states that the `main` of a compiled module evaluates
+to an `Int` when its source Core was checked with a required `main`, and
+`public_compiled_main_total` states it for an accepted request of protocol
+7.
 
 These are theorems about the actual indexed Core evaluator, not equality with a
 source interpreter or the retained legacy evaluator, native-code refinement,
@@ -2024,15 +2139,31 @@ complete the historical Stage 1 plan or establish Fast like C.
 
 ## Geometry standard-library migration regressions
 
-**Current routes and their components.** `wire_profile` and
-`compiler_uses_checked_profile` are about `Indexed.Wire.check`, and
-`LegacySource.checked_profile` is about `Indexed.LegacySource.check`. The
-other theorems of `GeometryCompatibility` are about the geometry profile of
-the declaration certificate and of the function compiler.
+**Current routes and their components.** `wire_profile`,
+`compiler_uses_checked_profile` and `wire_dimension_result` take the
+`CheckedInput` of `Indexed.Wire.check`. They are about the route of protocol
+7 and have no form for protocols 8 and 9. `LegacySource.checked_profile` and
+`LegacySource.compiler_uses_checked_profile` are about
+`Indexed.LegacySource.check`. The other theorems of `GeometryCompatibility`
+are about components. `checked_profile` takes the declaration certificate
+`Source.CheckedDeclarations`. `prepared_profile` takes a successful
+`prepareProgram` of the function compiler, and `lowered_profile` a
+successful `Source.lower`. The closure of the shipped library selects
+protocol 9, whose entry point is `ResourceSource.Wire.check`. For that route
+the component theorems apply to fields of its certificate: `checked_profile`
+to `checked.pureProgram.authority.headers.declarations`, `lowered_profile`
+to the field `lowered` of that declaration certificate, and
+`prepared_profile` to `checked.pureProgram.prepareFrom`.
 
 The ordinary `.vast` modules behind `std::geometry::scheme` and
-`std::geometry::smooth` use the existing public `Indexed.Wire.check` acceptance
-path. The single `stdlib` entrypoint re-exports their canonical declarations and
+`std::geometry::smooth` use the public source checker. The closure of the
+shipped library selects protocol 9, because its module `scheme::affine`
+declares presented affine forms, so its entry point is
+`ResourceSource.Wire.check`. A package with indexed declarations and none of
+the declarations that select protocol 8 or 9 selects protocol 7 and
+`Indexed.Wire.check`;
+[Protocol selection](protocol.md#protocol-selection) states the rule. The
+single `stdlib` entrypoint re-exports their canonical declarations and
 arithmetic. Its explicit
 `geometry_compat` export supplies old syntax through independently resolved and
 validated declaration roles, without runtime forwarding or further editing rights.
@@ -2057,6 +2188,12 @@ family constraints that would invalidate the legacy interface.
 - `prepared_profile`, `lowered_profile`, `compiler_uses_checked_profile`: the
   actual function compiler uses the exact profile certified by declaration
   checking, through their shared path resolver.
+  `compiler_uses_checked_profile` states the equality of the two profiles
+  for a request of protocol 7, and
+  `LegacySource.compiler_uses_checked_profile` for protocols 2 to 6. No
+  theorem states it for protocols 8 and 9. `prepared_profile` and
+  `lowered_profile` state the two resolver equations from which those
+  proofs derive it.
 - `wire_profile`: the exact decoded protocol-7 input is accepted by the actual
   authority checker, has that validated profile, and yields a typed executable
   Core. Existing all-body, authority, capture and codegen audits still apply.
@@ -2072,7 +2209,11 @@ performance measurements are not established by these theorems or tests. See the
 
 **Component of the current routes.** The theorems of `GeometryResults` are
 about a validated geometry profile, read through the evaluators of its
-primitive bindings. `wire_dimension_result` is about `Indexed.Wire.check`.
+primitive bindings. `wire_dimension_result` takes the `CheckedInput` of
+`Indexed.Wire.check`, the route of protocol 7, and has no form for protocols
+8 and 9. For those protocols `GeometryCompatibility.checked_profile`
+supplies the premise of the role theorems, the validity of the profile,
+from the declaration certificate.
 
 `VastitasOracle.GeometryResults` connects the actual validated profile's seven
 primitive roles to the retained finite `Runtime` operations after descriptor
@@ -2085,7 +2226,7 @@ singleton implementation domains or any specific library spelling.
 `IndexedSemantics.primitive_runtime_erasure` theorem. It requires successful
 logical primitive evaluation; typed total evaluation of accepted Core is supplied
 independently by `IndexedProgramSafety`. `wire_dimension_result` instantiates the
-role contract from the exact public checker. `GeometryCompatibility.checked_profile`
+role contract from the exact public checker of protocol 7. `GeometryCompatibility.checked_profile`
 and `LegacySource.checked_profile` supply the same premise for the other roles.
 
 Erasure drops nominal/marker tags. These equations do not permit mixing bases,
@@ -2097,6 +2238,18 @@ proofs and actual-source regressions fulfill the migration issues that
 [History](#history) names without expanding their
 claims to arbitrary geometry or the complete native toolchain.
 
+<a id="tensor-packing-profile"></a>
+
+The next paragraph is about the tensor packing profile, not about the
+geometry library. **Current route and its components.**
+`TensorNumerical.public_tensor_view_origin`, `public_tensor_packing_origin`
+and `public_tensor_contraction_origin` take the `CheckedInput` of protocols
+8 and 9. Each states that the declaration environment of a receipt of the
+accepted entry is the numerical environment of the accepted pure program,
+and the first also that the receipt's values bind its view under its name.
+The other theorems of `TensorNumerical` are about the tensor checker that
+this route uses.
+
 The finite [rank-three tensor/packing profile](linalg/networks-and-packing.md#packing-and-contraction) adds actual
 ordered-axis and corresponding-dual certificates. `VastitasOracle.TensorNumerical`
 connects accepted physical groupings, coordinate bounds and initialized packing
@@ -2107,8 +2260,13 @@ are separate obligations; the tensor source and native tests do not prove them.
 
 ### Generative owned-map packages
 
-**Current route and its components.** `public_operation_origin` and
-`public_result_origin` take the `CheckedInput` of protocols 8 and 9. The
+**Current route and its components.** `public_operation_origin`,
+`public_result_origin` and `TensorTree.public_tree_origin` take the
+`CheckedInput` of protocols 8 and 9. `StorageCachedPacking.public_capture_origin`
+and `public_consumer_origin` take the certificate `Checked` of
+`ResourceSource.check` for a required entry point. Each of the five
+states that the declaration environment of a receipt of the accepted entry
+is the numerical environment of the accepted pure program. The
 other theorems of this subsection are about the resource checker that this
 route uses.
 
@@ -2189,6 +2347,12 @@ separate evidence.
 about the exact algebra runtime, the declaration audit `validAffine` and the
 bindings of the `relative` family. Presented affine declarations reach them
 through wire protocol 9, whose entry point is `ResourceSource.Wire.check`.
+The certificate of an accepted request holds its declaration certificate as
+`checked.pureProgram.authority.headers.declarations`.
+`IndexedSource.checked_declarations` states that the declaration environment
+of that certificate is valid. In a valid environment each `affine` entry
+satisfies `validAffine`, the hypothesis of `validAffine_sound`. No theorem
+states this chain for a request as one statement.
 The theorems of the last subsection are Proved (bridge) and read these
 kernel and oracle definitions.
 
@@ -2769,8 +2933,15 @@ kept their former anchors:
 - "Internal indexed declaration foundation" is
   [Indexed declarations, bodies and public acceptance](#indexed-declarations-bodies-and-public-acceptance).
 - "Exact affine algebra checker (Stage 2, #571)" is
-  [Exact affine algebra checker](#exact-affine-algebra-checker), and its
-  subsections lost their Stage 2 step numbers.
+  [Exact affine algebra checker](#exact-affine-algebra-checker).
+- "Presented affine declarations (internal, Stage 2 S2)" is
+  [Presented affine declarations](#presented-affine-declarations).
+- "Morphisms over a base (Stage 2 S4)" is
+  [Morphisms over a base](#morphisms-over-a-base).
+- "Fiber products and Cartesian evidence (Stage 2 S5)" is
+  [Fiber products and Cartesian evidence](#fiber-products-and-cartesian-evidence).
+- "Principal opens and restriction (Stage 2 S6)" is
+  [Principal opens and restriction](#principal-opens-and-restriction).
 - "Polynomial symplectic reference (#211)" is
   [Polynomial symplectic reference](#polynomial-symplectic-reference), and
   "Rational SOS cover reference (#244 / #237)" is

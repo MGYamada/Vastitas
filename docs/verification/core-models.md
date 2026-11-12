@@ -1,5 +1,7 @@
 # Pure evaluation and graph proofs
 
+<a id="pure-evaluation-and-graph-checker-proofs"></a>
+
 The pure evaluator and the finite crossing-word checker have separate inputs and theorems. Each section identifies the definitions used by its proofs and the remaining correspondence obligations. Neither checker is a [public checker route](../appendix/glossary.md#public-checker-route): no command reaches it, as [Verification boundaries](../verification.md#how-to-read-this-chapter) explains. The theorems of both sections are Proved (oracle).
 
 <a id="universe-totality"></a>
@@ -238,8 +240,9 @@ an associator with equality of nominal tensor objects.
 
 ### Proved scope
 
-The proof oracle imports the actual kernel implementation. There are no
-unproved axioms, `sorry` declarations or copied checker implementations.
+The proof oracle imports the actual kernel implementation. No axiom beyond
+the three that the audit admits is used, and there are no `sorry`
+declarations or copied checker implementations.
 
 | Theorem | Scope |
 | --- | --- |

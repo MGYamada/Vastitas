@@ -1,15 +1,24 @@
 # Checked storage and resource calls
 
-Follow an allocation from layout and initialization checks through the resource plan, native preflight and function-call replay.
+This chapter describes the internal resource IR that the kernel checks behind
+every resource program. It follows an allocation from the layout and
+initialization checks through the resource plan, the native lowering and the
+replay of function calls, and it ends with a reference model of layout
+preflight. The rules of the language are in
+[Storage and ownership](../storage-ownership.md) and
+[Resource programs](resource-programs.md).
+[Resource checking](../internals/resource-checking.md) describes how the
+public checker composes this IR with the package checker, and
+[Verification boundaries](../verification.md) states what is proved.
 
 <a id="storage-ir"></a>
 
 ## Internal storage resource IR
 
-This is an internal foundation for [#183](https://github.com/MGYamada/Vastitas/issues/183),
-implementing part of the [Storage and ownership](../storage-ownership.md) contract. Its raw component envelope is not
-a public protocol. [Protocol 8](resource-programs.md#resource-functions) composes it with independently
-checked package resource source. The exact checked component can now
+This is an internal foundation that implements part of the
+[Storage and ownership](../storage-ownership.md) contract ([History](#history)). Its raw component envelope is not
+a public protocol. [Protocols 8 and 9](resource-programs.md#resource-functions) compose it with independently
+checked package resource source. The exact checked component can
 produce standalone native buffer executables through the optional runtime below.
 The [delivery record](../stage1-completion.md) distinguishes the implemented bounded runtime and numerical consumers from broader interfaces and the Stage 2 performance requirements.
 
@@ -20,9 +29,12 @@ in `VastitasKernel.StorageProtocol` rejects unknown fields, unsupported operatio
 and integer narrowing: symbols fit unsigned 32 bits, sizes and literal payloads
 fit unsigned 64 bits. The checker derives allocation identities and state; callers
 cannot supply an allocation identity, initialization flag or checked certificate.
-The shared `tests/fixtures/storage.json` exercises every action, both scalar
+The shared `tests/fixtures/storage.json` exercises the ten buffer actions
+(`allocate`, `move`, `drop`, `borrow`, `release`, `transpose`, `fill`, `store`,
+`expect` and `copy`), both scalar
 representations, all access modes, nested borrowing and both branch arms through
-Rust serialization and Lean decoding/checking. This is a component fixture, not
+Rust serialization and Lean decoding/checking. `tests/fixtures/storage-gemm.json`
+adds `gemm`. This is a component fixture, not
 an actual-source lowering fixture.
 
 `Storage.checkPlan` starts from an empty environment, checks both branch arms
@@ -32,7 +44,7 @@ closed-resource equations. `Wire.CheckedInput` additionally records the decoder
 and checker equations. Neither certificate is a public wire input. Protocols
 2–7 do not execute this component; protocol 2 explicitly rejects the reserved
 top-level `resources` field while retaining unrelated legacy hint compatibility.
-Protocol 8 reconstructs named resource source through the combined package checker.
+Protocols 8 and 9 reconstruct named resource source through the combined package checker.
 
 There is a 4096-node global plan budget as well as a 4096 traversal-depth bound.
 Both arms consume the node budget. Every allocation's initialization metadata
@@ -46,7 +58,8 @@ the history at each join. Overlapping or more complex histories still use an
 explicit intersection under the same bound; a join that exceeds it reports
 `E_RESOURCE_LIMIT: branch join initialization metadata budget exceeded`.
 These are metadata bounds, not limits on buffer elements. This normalization
-does not resolve the separate whole-state audit scaling issue (#422).
+bounds initialization metadata only. The reconstructed indexes below bound the
+cost of the whole-state audit.
 
 #### Reconstructed audit indexes
 
@@ -56,9 +69,9 @@ next loan in the list, and the final loan has no parent. Under those conditions,
 every pair is related by ancestry and a parent cannot reach its own child.
 This takes expected linear work in the number of live loans.
 Each loan still needs the correct allocation, a contained layout, compatible
-permissions and established initialization. When checking a new borrow, the
-same shortcut also requires the supplied loan and comparison list to equal
-the actual state's complete loan list.
+permissions and established initialization. When checking a borrow that adds
+a loan, the same shortcut also requires the supplied loan and comparison list
+to equal the actual state's complete loan list.
 
 For other loan tables, including valid tables in a different order, the
 checker builds bounded ancestor sets. It skips read/read pairs and checks
@@ -83,7 +96,7 @@ and `--kernel-root` to compare identical public inputs under its per-case
 deadline. The [earlier measurements](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-02-macos-storage/RESULTS.md)
 record the previous 512-deep timeout. The
 [chain comparison](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-reborrow-chains/RESULTS.md)
-records the new outcomes and controls.
+records the later outcomes and controls.
 
 ### Resources and operations
 
@@ -104,13 +117,19 @@ records the new outcomes and controls.
 | GEMM coefficients | Matching explicit scalar bits or live initialized readable 1x1 loans disjoint from output; overwrite rejects beta operands, and beta zero does not relax accumulate initialization |
 | Branch join | Same owners, allocations and loan structure; intersect initialization guarantees and merge logical versions |
 
+The component has seven more actions, which the text below describes:
+`regroup3`, `diagonal_adjoint`, `diagonal_scale` and `diagonal_pair` at the
+end of [Proofs and regression evidence](#proofs-and-regression-evidence), and
+the dependency actions `capture_dependency`, `require_dependency` and
+`forget_dependency` of the packing cache.
+
 Symbols cannot be reused or shadowed, including after move or release. Fresh
 allocations in different branches get different identities and must be dropped
 within the branch under this initial closed-plan profile. The
 [internal function component](#storage-functions) additionally checks owned
 arguments/results and call-scoped borrowed arguments with caller-owned output
 reuse. The public static function profile is described in [resource source](resource-programs.md#resource-functions);
-dynamic value flow and escaping-loan lifetime contracts remain pending.
+escaping-loan lifetime contracts remain pending.
 
 Write-only access never reads, and cannot gain read authority by creating a
 child loan. An initialized region can instead be reborrowed through an owner
@@ -146,7 +165,7 @@ must be a multiple of its element width relative to the allocation origin:
 rejected; it cannot pair one element's imaginary component with the next real
 component. This typed-element rule is separate from the native ABI's 8-byte
 binary64 component alignment.
-Scalar literals are raw IEEE payloads, not a new public floating-point type or a
+Scalar literals are raw IEEE payloads, not a public floating-point type or a
 claim about floating-point arithmetic. The native adapter checks its matching
 representation, base alignment and allocator contract separately.
 
@@ -256,16 +275,18 @@ Successful Unit-returning storage and numerical FFI operations share one immutab
 marked persistent with `lean_mark_persistent`. The first successful Unit return
 constructs it, while later returns use the initialized once cell without creating
 another FFI result object. The singleton lives for the process lifetime and
-contains only Unit: it retains no arena, array or error. New-arena results,
-statistics arrays and errors retain their ordinary fresh result objects.
+contains only Unit: it retains no arena, array or error. Results that hold a
+fresh arena, statistics arrays and errors retain their ordinary fresh result objects.
 
 The [bounded allocation record](https://github.com/MGYamada/Vastitas/blob/main/experiments/allocation_audit/results/2026-11-01-macos/RESULTS.md)
 motivated this change and reports 16 object bytes for this result in the recorded
 64-bit ABI, not a portable size or total heap cost. That historical experiment
 published its private alternative through `pthread_once`; production uses Lean's
-supported once API instead. A persistent constructor is nonexclusive, so generated
-continuations and `finally` may allocate their own replacement result rather than
-resetting the shared one. First-touch initialization, repeated FFI returns and
+supported once API instead. A persistent constructor is nonexclusive, so a
+generated continuation may allocate its own replacement result rather than
+resetting the shared one. The `finally` envelope of the retained records did
+so; generated code has no `finally` envelope, as the Unit-only cleanup above
+describes. First-touch initialization, repeated FFI returns and
 these caller allocations are separate costs. Neither the historical counts nor
 this implementation establishes zero total allocation, a speedup, C parity or
 native refinement.
@@ -345,14 +366,16 @@ The internal state audit validates initialization metadata; only a plan checked
 from the empty state reconstructs its history. Arbitrary externally supplied
 audited states are not trusted execution histories.
 
-Public/source integration must preserve all existing function, dispatch,
-authority and all-body checks, then compose with this exact resource schedule
-and its pre-codegen audit. Public owned arguments/results, caller-owned buffers,
-dynamic shapes, broader pooling/retained-evidence contracts and controlled-host
+The public resource source preserves all function, dispatch,
+authority and all-body checks, and composes them with this exact resource schedule
+and its pre-codegen audit. Owned arguments and results, call-scoped caller-owned
+buffers and guarded runtime extents are public
+([resource source](resource-programs.md#resource-functions)). Broader
+pooling/retained-evidence contracts and controlled-host
 performance acceptance remain open. Explicit packing/regrouping and bounded
 source/scratch dependency reuse are implemented by the linked numerical checkers. Native liveness, writes and cleanup have the tests
 above but no native refinement theorem. Pure indexed Core theorems do not imply
-these mutable-resource guarantees, and this increment does not close #183.
+these mutable-resource guarantees.
 
 
 The [diagonal metric path](../linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics) adds independently checked raw
@@ -374,9 +397,9 @@ proved neutral physical extent and creates no nominal third axis.
 
 ## Internal affine resource functions
 
-This is the function component of [storage ownership](#storage-ir), advancing
-[#183](https://github.com/MGYamada/Vastitas/issues/183). Its raw component schema is not `.vast` syntax or a replacement for package/Fn/dispatch/edit
-checks. [Protocol 8 resource source](resource-programs.md#resource-functions) composes this component
+This is the function component of [storage ownership](#storage-ir)
+([History](#history)). Its raw component schema is not `.vast` syntax or a replacement for package/Fn/dispatch/edit
+checks. [The resource source of protocols 8 and 9](resource-programs.md#resource-functions) composes this component
 with the complete package checker, including bounded Nat/Int/Bool/Unit value
 flow and a separate [guarded runtime-shape frame](resource-programs.md#runtime-extents). Broader numerical interfaces remain open beyond the delivered finite profile. [Stage 1 scope](../stage1-completion.md)
 
@@ -386,7 +409,10 @@ flow and a separate [guarded runtime-shape frame](resource-programs.md#runtime-e
 component schema. A program has finite definitions and a closed entry. Function
 IDs and local symbols are 32-bit component identifiers; they confer no package
 visibility or edit authority. Unknown fields, unsupported parameter kinds and
-integer narrowing are independently rejected.
+integer narrowing are independently rejected. The shared component schema
+carries owned and borrowed parameters. The rows of the table on scalar
+values and on numerical spaces, bases and maps apply to the kernel component
+as the resource source of protocols 8 and 9 reaches it.
 
 | Contract | Actual-call behavior |
 | --- | --- |
@@ -420,7 +446,8 @@ that exact function list, declaration environment and scalar signatures. It
 checks the entry contract, expands the real closed call and audits the resulting
 scalar flow, symbolic events and static storage schedule. Its result, including
 any diagnostic, equals the standalone function check by
-`checkWithLibrary_eq_check`. The public theorem `entry_uses_checked_library`
+`checkWithLibrary_eq_check`. The oracle theorem
+`VastitasOracle.ResourceSource.entry_uses_checked_library`
 identifies both the shared probe list and that separate executable expansion.
 Nested callees each retain their own replay equation and caller exit audit. The
 [public compiler observations](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-resource-probes/RESULTS.md)
@@ -445,12 +472,15 @@ Branch-local bindings cannot escape; both arms receive distinct fresh allocation
 and symbol identities. Definition order is irrelevant. Disconnected recursive
 cycles and invalid unused bodies are rejected.
 
-Each call records its exact newly appended schedule and preserves the preceding
+Each call records the exact schedule that it appends and preserves the preceding
 operations. A forwarding call can reuse the last nested call's independent
 replay when the complete starting resource state and complete action list
 compare equal. On a mismatch or in the absence of a nested receipt it runs the
-slice from its own caller state. `replayWithEvidence_eq` identifies the complete
-result, including failures, with the original replay for all inputs.
+slice from its own caller state. The call path uses `replayMeteredWithEvidence`.
+Its result carries the equation with the original replay, for a reused receipt
+and for a fresh replay alike; an exhausted work budget reports `E_LIMIT`
+instead. `replayWithEvidence_eq` proves the same identity, including failures,
+for the unmetered `replayWithEvidence` and all inputs.
 The [matched public checks](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-nested-replay/RESULTS.md)
 measure identical forwarding slices at depths 0, 10 and 30.
 The receipt checks the same resulting state, restored caller loans, distinct
@@ -498,7 +528,8 @@ has its own ceiling, so a failing root cannot start an unbounded tail of probes.
 The price measures compiler metadata exposure. Native operand sizes and wall
 time are separate quantities.
 
-`ResourceSource.library_work_bound` and `ResourceSource.entry_work_bound`
+The oracle theorems `VastitasOracle.ResourceSource.library_work_bound` and
+`entry_work_bound`
 connect both admissions to the actual checked public program and original
 body list. `Storage.runMetered` and `Shapes.runMetered` return equations for
 the original unmetered schedules and the runtime guard sequence. The two
@@ -517,18 +548,20 @@ requires that certificate. These facts do not prove arbitrary parametric functio
 contracts, full source correspondence or native refinement.
 
 `tests/fixtures/storage-functions.json` crosses Rust serialization, independent
-Lean acceptance and native generation. It covers moved/returned owners, nested
-calls, shifted/padded views, callee-local transpose, shared read aliases, repeated
+Lean acceptance and native generation. It covers moved/returned owners,
+shifted/padded views, callee-local transpose, shared read aliases, repeated
 destination reuse, unused functions and both branch arms. Its success executable
 records three allocations/frees, zero live bytes, 128 peak bytes, 128 written bytes
 and 64 copied bytes. Two copies reuse one destination; probes add no allocation.
-Assertion/allocation failures also close all buffers. `FunctionRegression` covers
-tampering, actual alias conflicts, probe/caller layout disagreement, incomplete
+Assertion/allocation failures also close all buffers.
+`VastitasStorageTest.FunctionRegression` covers
+tampering, a nested forwarding call with separate receipts, actual alias
+conflicts, probe/caller layout disagreement, incomplete
 initialization, escape, capture, recursion and expansion limits.
 
 Calls expand synchronously at static call sites. Ordinary resource forms retain
 static shapes; explicit runtime forms have universally guarded symbolic frames. Public
-dependent numerical inputs compose through [protocol 8](../linalg/maps-and-gemm.md#map-parameters);
+dependent numerical inputs compose through [protocols 8 and 9](../linalg/maps-and-gemm.md#map-parameters);
 the older resource-only internal wire schema remains unchanged. Numerical
 input receipts supplement the existing exact call replay and loan-return checks.
 Initialized owned-map inputs/results additionally preserve input-dependent bases,
@@ -540,8 +573,10 @@ See [owned numerical results](../linalg/maps-and-gemm.md#owned-maps).
 General tensor types, general pure-Core/resource interoperation, general runtime
 shape results, floating scalar expression interfaces, general owned-result branch joins and escaping-loan
 lifetime contracts are not supplied by this component. General dynamic source
-composition, general generative numerical result packages, general scratch/dependency handling and equivalent-C
-measurements remain in Stage 1. Independent compilation caching and broader
+composition, general generative numerical result packages and general
+scratch/dependency handling remain open. The
+[delivery record](../stage1-completion.md) assigns the remaining equivalent-C
+verdict to Stage 2 or later. Independent compilation caching and broader
 lifetime extensions retain their separate scope.
 
 Function bodies are not transactions. Initialization postconditions describe
@@ -549,7 +584,7 @@ successful return; native failure after earlier writes does not roll those write
 back, and publishes no initialized success value. Mathematical meaning, physical
 writes and native failure behavior remain distinct from logical resource proofs.
 
-[Owned-map packages](../linalg/maps-and-gemm.md#owned-map-packages) now add the bounded
+[Owned-map packages](../linalg/maps-and-gemm.md#owned-map-packages) add the bounded
 `OwnedMapTo<source_basis,target_dimension>` profile: one hidden primal target and
 direct basis, initialized affine storage, fresh consuming unpack and explicit
 repack. The source basis remains an actual caller dependency. Pack/open/transfer
@@ -570,20 +605,27 @@ completed actual resource call replay, and the appended pure call. Its
 `RuntimeReturn` additionally retains the exact runtime event/action slice and
 restored symbolic caller frame before that scalar return. Public
 acceptance independently checks the source function and signature-table origins.
-The older internal resource-only JSON decoder does not acquire these new public
+The older internal resource-only JSON decoder does not acquire these public
 source forms and still rejects extra fields.
 
 <a id="storage-layout-preflight"></a>
 
 ## Dense layout/preflight reference for Ownership/Borrow
 
-Status: executable Python reference and finite regression evidence for
-[#183](https://github.com/MGYamada/Vastitas/issues/183), following
-[Storage/Ownership §§7.3–7.7, 7.12](../storage-ownership.md). The Lean statements
+Status: executable Python reference and finite regression evidence
+([History](#history)). It follows the sections
+[Allocation and layout records](../storage-ownership.md#allocation-and-layout-records)
+to
+[Views, transpose, conjugation and packing](../storage-ownership.md#views-transpose-conjugation-and-packing)
+of Storage and ownership, and
+[Independent checking and proof boundary](../internals/resource-checking.md#independent-checking-and-proof-boundary).
+The Lean statements
 below are **proposed proof obligations**, not implemented or proved theorems.
 This is a component specification for the existing Ownership/Borrow Checker
 (Core Safety), not a ninth Domain Checker or a second public acceptance path.
-The public resource checker composes this internal profile. Performance acceptance continues in [#183](https://github.com/MGYamada/Vastitas/issues/183) and [#222](https://github.com/MGYamada/Vastitas/issues/222).
+The public resource checker composes the kernel's own dense layout check,
+`Storage.checkLayout` with column-major layouts and an explicit transpose. It
+does not compose this Python reference.
 
 ### Run and inspect
 
@@ -615,7 +657,7 @@ representation, kind and a dense-source descriptor. Supported kinds are:
 | Kind | Reconstruction and restrictions |
 | --- | --- |
 | Column-major dense | Source `(m,n,ld)`, shape `(m,n)`, strides `(w,ld*w)`; `ld >= max(1,m)` |
-| Explicit transpose | That same source, shape `(n,m)`, strides `(ld*w,w)`; no conjugation or new allocation |
+| Explicit transpose | That same source, shape `(n,m)`, strides `(ld*w,w)`; no conjugation and no allocation |
 | Read-only broadcast | A dense source with singleton axes explicitly expanded; expanded strides are zero. Both axes may broadcast. Writes are rejected, including empty broadcasts |
 | Other strided descriptors | Diagnostic input only; require additional evidence, even when their envelope is in bounds |
 
@@ -623,8 +665,8 @@ The leading-dimension rule also applies to empty metadata in this initial
 profile. Negative strides, packed bits, rank other than two, arbitrary
 permutations/partitions, foreign device storage, reshape and adjoint are not
 admitted. Malformed rank/element metadata is invalid; a well-shaped negative
-stride descriptor needs a separately specified extension. This is deliberately
-incomplete, not a decision procedure for arbitrary strided layouts.
+stride descriptor needs a separately specified extension. This profile is
+incomplete by design, not a decision procedure for arbitrary strided layouts.
 
 `Mode.READ`, `WRITE` and `READ_WRITE` denote requested access. WRITE does not
 grant initialized-read rights. READ_WRITE still needs the separate initialization
@@ -693,7 +735,7 @@ dimensions (LP64). Tests also instantiate smaller limits. The checker validates
 `index_bits <= offset_bits <= pointer_bits`; indices are widened to the offset
 type before multiplication. It validates
 every dimension, stored stride, width, alignment, capacity, offset and final
-exclusive end, plus `base + capacity` fitting the address type. This deliberately
+exclusive end, plus `base + capacity` fitting the address type. This
 conservative contract excludes a one-past address equal to `2^pointer_bits`.
 
 For the exact access expression `((offset + i*s0) + j*s1)` and the final byte
@@ -752,14 +794,14 @@ The reference flow is `Prepared(ir)` → `PreflightSession.preflight` → either
 report are not receipts. Only completed SAFE preflight issues a receipt in that
 session; neither INVALID nor NEEDS_EVIDENCE issues one.
 
-`Success.ir` is the **same immutable LayoutIR actually returned** by this path,
+`Success.ir` is the **same immutable LayoutIR that this path returns**,
 with every access, mode, layout kind/source, allocation generation, operation
 identity and revision. The receipt also binds the exact allocation/active-loan
 snapshot, epoch and native target. `audit_for_bounds_elision` checks issuance,
 full equality against the supplied actual returned IR/current environment,
 and independently recomputes preflight. It rejects changed layouts even if
 their byte sets happen to agree, including a square transpose. It rejects
-new generations at the same address, changed capacities, modes, targets,
+other generations at the same address, changed capacities, modes, targets,
 operations, loans or epochs. `end_scope` expires the receipt; a different
 session or copied/forged receipt cannot consume it.
 
@@ -779,14 +821,20 @@ the resource transition checker must establish stability through the last use.
 
 ### Lean soundness targets
 
-These are specification signatures for the future **actual** resource checker.
-The names below are proposed, not current Lean declarations. They must be
+These are specification signatures for a checker of the wider profile of this
+reference. The theorem names below are proposed, not Lean declarations. The
+kernel's `Storage.checkLayout` and `Layout.InDomain` exist with other
+signatures, and `VastitasOracle.StorageLayout` and `VastitasOracle.StorageSafety`
+prove the corresponding facts for the kernel's dense profile
+([Proofs and regression evidence](#proofs-and-regression-evidence)). A checker
+of the wider profile must be
 implemented in `lean-kernel/` and proved by importing those exact definitions
 into `lean/`; copying the Python model into an unrelated proof is insufficient.
 No unproved axiom, assumed `AllAccessesSafe`, or enumeration-based acceptance
 may substitute for the closed-form proof.
 
-1. `checkLayout` returns finite reconstruction and integer inequalities. Prove
+1. `checkLayout`, with the proposed signature below, returns finite
+   reconstruction and integer inequalities. Prove
    the universal address/alignment and injectivity lemmas from those facts.
 2. `checkNative` proves the specified native address expression equals its
    integer denotation and every intermediate/conversion fits.
@@ -894,9 +942,31 @@ matrix that must finish preflight without enumerating its `10^18` elements.
 The subprocess deadline tests the absence of element enumeration; it is not
 a native performance benchmark.
 
-Pending: Lean implementation and universal soundness proofs above; actual
-Ownership/Borrow/Core composition and protocol-8 integration; initialized reads
-and resource transitions; compiler/code-generation correspondence; native
-failure-before-write tests and generated-code check-elision regressions; and
-equivalent C/C++ runtime/memory measurements. The #183 and #222 completion
-conditions stay open. These reference tests establish none of those claims.
+Implemented in the kernel, and proved as
+[Proofs and regression evidence](#proofs-and-regression-evidence) lists: the
+dense layout check, loan compatibility, initialized reads, resource
+transitions and their composition with the resource source of protocols 8
+and 9. The tests of the native runtime cover rejection before the first write.
+
+Pending: Lean counterparts of the parts that only this reference has. These
+are read-only broadcast, the alignment of absolute base addresses, the
+NEEDS_EVIDENCE verdict, preflight receipts, and the obligations
+`preflight_returned_ir_safe` and `dominated_access_safe`. Also pending are
+refinement from source to native code, regressions for generated code that
+omits a check, and controlled-host acceptance against equivalent C/C++
+([History](#history)). These reference tests establish none of those claims.
+
+## History
+
+- The internal storage IR, its function component and the layout reference
+  were built under [#183](https://github.com/MGYamada/Vastitas/issues/183),
+  which is closed. The [delivery record](../stage1-completion.md) names
+  [#183](https://github.com/MGYamada/Vastitas/issues/183) and
+  [#222](https://github.com/MGYamada/Vastitas/issues/222) for the performance
+  follow-up: the controlled-host verdict against equivalent C/C++ belongs to
+  Stage 2 or later.
+- [#422](https://github.com/MGYamada/Vastitas/issues/422) reported the cost of
+  the whole-state audit. It is closed.
+  [Reconstructed audit indexes](#reconstructed-audit-indexes) and
+  [Resource checking work](#storage-functions--resource-checking-work)
+  describe the indexed audit and the work budget.

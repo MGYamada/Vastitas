@@ -16,3 +16,5 @@ The appendices collect reference material that the teaching chapters link to.
   before changing the compiler, the proofs or this book.
 - [G: Glossary](glossary.md) defines the terms that the book uses with a
   specific meaning.
+- [H: Grammar summary](grammar.md) collects the productions of the Vastitas
+  Reference by chapter.

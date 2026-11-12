@@ -185,8 +185,9 @@ The appendices hold the [commands](guide/cli.md), the
 [compiler limits](appendix/limits.md), the independent
 [reference models](appendix/reference-models.md), the
 [roadmap with the delivery records](appendix/history.md), the
-[checks for contributors](appendix/contributing.md) and the
-[glossary](appendix/glossary.md).
+[checks for contributors](appendix/contributing.md), the
+[glossary](appendix/glossary.md) and the
+[grammar summary](appendix/grammar.md).
 
 | Task | Where to start |
 | --- | --- |
@@ -195,6 +196,7 @@ The appendices hold the [commands](guide/cli.md), the
 | Look up a rule | The Reference chapter of the construct, from the table above |
 | Look up a command, a diagnostic code or a limit | [Appendix A](guide/cli.md) · [Appendix B](appendix/diagnostics.md) · [Appendix D](appendix/limits.md) |
 | Look up a term | [Glossary](appendix/glossary.md) |
+| Look up the syntax of a construct | [Grammar summary](appendix/grammar.md) |
 | Find what a guarantee rests on | [Guarantees](language/guarantees.md) · [Verification boundaries](verification.md) |
 | Make a change to the compiler or the book | [Contributing and validation](appendix/contributing.md) |
 

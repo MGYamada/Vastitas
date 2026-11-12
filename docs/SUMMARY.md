@@ -96,3 +96,4 @@
     - [Maintain the documentation](development/documentation.md)
     - [Add an indexed primitive](development/primitives.md)
   - [G: Glossary](appendix/glossary.md)
+  - [H: Grammar summary](appendix/grammar.md)

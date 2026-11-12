@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the book: its contents, rendering, links, includes, titles, style and Syntax blocks."""
+"""Verify the book: its contents, rendering, links, includes, titles, style, Syntax blocks and grammar summary."""
 
 from collections import Counter
 from dataclasses import dataclass
@@ -78,6 +78,7 @@ CONVERTED = frozenset({
     "development/documentation.md",
     "development/primitives.md",
     "appendix/glossary.md",
+    "appendix/grammar.md",
 })
 
 # Delivery records keep their original wording, as the style guide says.
@@ -482,6 +483,17 @@ def check_syntax(source, chapters, root=ROOT):
     print(f"Checked the Syntax blocks of the Reference ({count} productions) against the parser")
 
 
+# --- Grammar summary ------------------------------------------------------------
+
+def check_grammar(source, chapters):
+    """The grammar summary holds the productions of the Syntax blocks of the Reference, as generated."""
+    import grammar_summary
+    errors = grammar_summary.errors(source, chapters)
+    if errors:
+        raise ValueError("the grammar summary is not fresh:\n  " + "\n  ".join(errors))
+    print(f"Checked that the generated chapter {grammar_summary.CHAPTER} is fresh")
+
+
 # --- Rendered pages and links ---------------------------------------------------
 
 class Page(HTMLParser):
@@ -658,6 +670,7 @@ if __name__ == "__main__":
     check_style(source, chapters)
     check_includes(source, chapters)
     check_syntax(source, chapters)
+    check_grammar(source, chapters)
     pages = check_html(output)
     check_redirects(pages, output)
     check_references(pages, ROOT, output)

@@ -1,0 +1,14 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::metric::MetricForm;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed metric Euclid: MetricForm<Plane> = euclidean;
+
+// ANCHOR: declaration
+// Euclid is the only metric of the program, and flat does not name it.
+indexed primitive flat_euclid = flat(Tangent, Cotangent);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

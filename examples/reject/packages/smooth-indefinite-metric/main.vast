@@ -1,0 +1,13 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declarations
+// diag(1, -1) has an inverse, and it is not positive definite.
+indexed metric Lorentz: MetricForm<Plane> = gram((1, 0), (0, -1));
+indexed evidence LorentzInvertible = nondegenerate(Lorentz);
+indexed evidence LorentzPositive = riemannian(Lorentz);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

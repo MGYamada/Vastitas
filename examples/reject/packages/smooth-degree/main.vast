@@ -1,0 +1,9 @@
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Line;
+
+// ANCHOR: declaration
+// An exponent is at most 16.
+indexed morphism bad: Smooth<Line, Line> = pullback(t -> t^17);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

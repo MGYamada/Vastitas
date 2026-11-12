@@ -1,0 +1,1 @@
+examples/reject/packages/smooth-other-line/main.vast:16:5: E_ENDPOINT: differential requires a function with target Line (the primitive's declared line), but the supplied function has target Axis

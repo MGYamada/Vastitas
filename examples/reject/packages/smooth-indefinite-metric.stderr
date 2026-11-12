@@ -1,0 +1,1 @@
+examples/reject/packages/smooth-indefinite-metric/main.vast:10:1: E_METRIC: the metric `smooth_indefinite_metric::Lorentz` is not positive definite, so it has no Riemannian evidence

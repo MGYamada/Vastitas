@@ -1,0 +1,12 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Line;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declaration
+// The source is Line, whose only coordinate is t, and the first image names x.
+indexed morphism bad: Smooth<Line, Plane> = pullback(x -> x, y -> t);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

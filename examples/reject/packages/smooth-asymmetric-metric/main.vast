@@ -1,0 +1,11 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declaration
+// The entry in row 1, column 2 is 1, and the entry in row 2, column 1 is 0.
+indexed metric Bad: MetricForm<Plane> = gram((2, 1), (0, 1));
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

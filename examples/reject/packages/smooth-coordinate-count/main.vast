@@ -1,0 +1,8 @@
+use std::geometry::smooth::affine::SmoothR;
+
+// ANCHOR: declaration
+// The dimension is 2, and the declaration lists one coordinate.
+indexed affine Bad(SmoothR) = Affine(2)[t];
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

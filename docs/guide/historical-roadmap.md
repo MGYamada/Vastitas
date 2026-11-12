@@ -1,15 +1,23 @@
 # Historical Stages 2–7
 
-The historical roadmap has six stages after the first executable core. They answer a sequence of mathematical questions. What structure does a
+This chapter is the roadmap of the language after its first executable core,
+the finite Stage 1. It has six Stages and keeps their historical numbers. Each
+Stage states a mathematical target and an acceptance example, an example that
+could establish the completion of the Stage. Stages 2 and 3 are Implemented as
+finite profiles over the rational numbers: each has a Status paragraph, a
+Reference chapter and a [delivery record](../appendix/history.md). Stages 4
+to 7 are Planned.
+
+The Stages answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
 survive a change of coordinates, an eigenvalue collision, or a change of
 physical convention?
 
-This chapter keeps the historical stage numbers. Current GitHub issue
-decisions govern the plan, including changes to earlier proposals. The examples
-below are mathematical targets. Implementation claims refer to the finite
-Stage 1 delivery at `7d612a4`. Issue decisions were checked on 4 November
-2026 (JST). [Stage 1 acceptance map](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/stage1-acceptance.md)
+The GitHub issues that the chapter links govern the plan, including changes to
+earlier proposals. Their states were checked on 12 November 2026 (JST). The
+Status paragraphs of Stages 2 and 3 describe the delivered profiles. Every
+other implementation claim refers to the finite Stage 1 delivery at `7d612a4`.
+[Stage 1 acceptance map](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/stage1-acceptance.md)
 
 ## Stage 2. Ordinary affine geometry
 
@@ -35,12 +43,12 @@ universal property. Reject a candidate square over a different base.
 **Status.** A finite, checked profile over QQ implements these examples:
 presented objects, morphisms over a base with their triangles, fiber products
 with Cartesian evidence, and principal opens with the action on the structure
-sheaf ([chapter](../affine-geometry.md),
-[acceptance map](../stage2-acceptance.md), tracker #571). The acceptance example
-runs natively. The mathlib bridge proves Buchberger's criterion and connects the
+sheaf ([guide](affine-geometry.md), [Reference](../affine-geometry.md),
+[acceptance map](../stage2-acceptance.md), closed tracker #571). The acceptance
+example runs natively. The mathlib bridge proves Buchberger's criterion and connects the
 accepted data to `MvPolynomial`, `Spec.map`, `IsPullback` and
-`Localization.Away`. Module presentations (#259, #261), Ω (#381), ZZ and F_p
-coefficients (#251–#253), and gluing (#104, #151) remain open.
+`Localization.Away`. Planned, in open issues: module presentations (#259,
+#261), Ω (#381), ZZ and F_p coefficients (#251–#253), and gluing (#104, #151).
 
 ## Stage 3. Smooth affine geometry and reverse AD
 
@@ -51,7 +59,7 @@ Smooth real affine space is declared as `Affine(n)[c₁, …, cₙ]`, and ordina
 affine space over an explicit algebraic base as `Affine(K, n)[…]`. ADR 0001
 decides that a smooth manifold is a `CInfScheme` with checked local and
 topological evidence and has no type of its own; that evidence and gluing are
-planned. [Affine constructors, #103](https://github.com/MGYamada/Vastitas/issues/103) · [Geometric refinements, #360](https://github.com/MGYamada/Vastitas/issues/360) · [Implemented geometry migration](../internals/indexed-checker.md#geometry-migration)
+Planned (#606). [Affine constructors, #103](https://github.com/MGYamada/Vastitas/issues/103) · [Geometric refinements, #360](https://github.com/MGYamada/Vastitas/issues/360) · [Implemented geometry migration](../internals/indexed-checker.md#geometry-migration)
 
 **Acceptance example.** Given smooth maps f and g, start with a covector at
 g(f(x)). Pull it back first along g at f(x), then along f at x. Check that
@@ -67,8 +75,8 @@ derivatives and the comparison with polynomial Kähler differentials are
 distinct proof obligations. [Cotangent semantics, #381](https://github.com/MGYamada/Vastitas/issues/381) · [Compiled pullbacks, #361](https://github.com/MGYamada/Vastitas/issues/361) · [Explicit metric operations, #264](https://github.com/MGYamada/Vastitas/issues/264)
 
 **Status.** A finite, checked profile over QQ implements this example
-([reference](../language/smooth-declarations.md),
-[acceptance map](../stage3-acceptance.md), tracker #604): smooth affine
+([guide](smooth-geometry.md), [Reference](../language/smooth-declarations.md),
+[acceptance map](../stage3-acceptance.md), closed tracker #604): smooth affine
 objects and exact polynomial maps, covectors and vectors at rational points,
 a reverse pass with saved or recomputed forward values over the program that
 checked Core builds, and named constant metrics with checked nondegeneracy and
@@ -77,11 +85,13 @@ the chain rule without mathlib, and the mathlib bridge proves the Fréchet and
 Kähler comparisons as separate theorems. The kernel compiles each reverse
 pass that it can read into Core and checks that Core again. The oracle and
 the bridge prove what each generated function computes, and each compiled
-site under premises that no theorem discharges yet; whole modules agree with
-their source in tests (#665;
-[compiled reverse Core acceptance](../reverse-core-acceptance.md), tracker
-#623). Forward mode and Hessian-vector products (#161), custom rules (#163),
-gluing (#606), position-dependent metrics and performance (#222) remain open.
+site under premises that no theorem discharges yet (#668). Whole modules agree
+with their source in tests; a proof is Planned (#665;
+[compiled reverse Core acceptance](../reverse-core-acceptance.md), closed
+tracker #623). Planned, in open issues: forward mode and Hessian-vector
+products (#161), custom rules (#163), gluing (#606), position-dependent
+metrics (#264), a `gradient` that the standard library exports (#626) and
+performance (#222).
 Compiled reverse Core keeps its residuals as immutable pure Core values,
 retained or recomputed, as
 [storage ownership §7.10](../storage-ownership.md#residual-retention)
@@ -188,11 +198,15 @@ issues name work a version must ship.
   certified scope. The basis work can enter a release only through an
   explicitly admitted fragment. [Constitutional plan, #192](https://github.com/MGYamada/Vastitas/issues/192) · [Theorem transfer, #518](https://github.com/MGYamada/Vastitas/issues/518)
 
-**Fast like C remains the primary performance goal.** Stage 1 closed with
-its finite safety and execution evidence and its known performance differences.
-Stage 2 or later owns the controlled Linux comparison with equivalent
-standalone C, the absolute tiny-call overhead budget set before acceptance,
-and the remaining Lean, allocator and OpenBLAS cost attribution. Preserve
+**Fast like C** names the C/C++-class performance target of the language.
+Stage 1 closed with its finite safety and execution evidence and its known
+performance differences. Stages 2 and 3 closed without a performance claim.
+The acceptance of the target is Planned (#222): the controlled Linux
+comparison with equivalent standalone C, the absolute tiny-call overhead
+budget set before acceptance, and the remaining Lean, allocator and OpenBLAS
+cost attribution.
+[Performance evidence and acceptance](../storage-ownership.md#performance-evidence-and-acceptance)
+states the conditions of that comparison. Preserve
 both full-lifecycle and prepared/reuse measurements with matching algorithms,
 layouts, scalar types, thread counts and output contracts. Shared-host
 observations retain their original comparator and uncertainty.

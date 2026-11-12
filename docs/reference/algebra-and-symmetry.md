@@ -1,6 +1,22 @@
 # Algebra, order and symmetry reference models
 
-These independent exact models exercise finite algebraic structures: canonical anticommutation relations and spin, antiunitary time reversal, spectral pairs of small Hamiltonians, and finite orders and lattices. Each has its own hypotheses, verifier and regression examples.
+This chapter describes four [reference models](../appendix/reference-models.md)
+of finite algebraic structures. They compute with exact arithmetic: canonical
+anticommutation relations and spin, finite orders and lattices, antiunitary
+time reversal, and the spectral pairs of rank-two matrices. Each is a Python
+program with tests under `scripts/`, and each section states its hypotheses,
+its verifier and its regression examples. None is a part of the compiler.
+
+| Model | In the compiler |
+| --- | --- |
+| [CAR and ordinary spin](#car-spin-reference) | Model only. Planned: [#246](https://github.com/MGYamada/Vastitas/issues/246) |
+| [Orders, lattices and Galois connections](#order-reference) | Model only. Implemented: the capability `HasOrder` of the scalar types `Nat` and `Int`, which [Generics and dispatch](../stage1a.md) specifies. It is no order or lattice structure that a program declares. Planned: [#294](https://github.com/MGYamada/Vastitas/issues/294) |
+| [Time reversal](#time-reversal-reference) | Model only. Planned: [#301](https://github.com/MGYamada/Vastitas/issues/301) |
+| [Finite spectral pairs](#finite-spectral-reference) | Model only. Planned: [#337](https://github.com/MGYamada/Vastitas/issues/337) |
+
+Each section keeps the record of the change that added its model. Its
+statements about the compiler and about pull requests describe the repository
+at that change.
 
 <a id="car-spin-reference"></a>
 
@@ -115,7 +131,7 @@ the eight images `1,X,Y,Z,XY,XZ,YZ,XYZ` for `Cl3` are not. Gaussian elimination
 uses Q(i) throughout. Under the recorded field embedding, the matrix ranks
 are unchanged by extension to C: the same minors vanish or remain nonzero.
 The universal Clifford construction and PBW basis theorem are mathematical
-inputs to that interpretation, not newly proved by listing these words.
+inputs to that interpretation, not proved by listing these words.
 `require_independent_images` is only a necessary rank check, not an
 isomorphism verifier.
 
@@ -130,10 +146,10 @@ for separate spin sites.
 
 `MatrixObservation.all_hold` means exactly that these finite matrices satisfy
 the listed equations. Nothing in `car_reference` issues Graph evidence,
-defines a new rewrite, or consumes/produces `Indexed.Core`.
+defines a rewrite, or consumes/produces `Indexed.Core`.
 
 The existing structural whitelist and fixture evidence checker remain in
-[`graph_reference.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/graph_reference.py). The new tests use
+[`graph_reference.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/graph_reference.py). The tests of this model use
 them directly for same-profile double cancellation, rejection of single
 crossing deletion, and cross-profile evidence rejection. A matrix report
 cannot substitute for `FixtureEvidence`. Tests disable both matrix and
@@ -178,8 +194,8 @@ not the completed theorem set:
    refinement and Ownership/Borrow obligations retain their separate scope.
 
 General Clifford normal forms, arbitrary rank, exterior/PBW implementations,
-infinite-mode CAR and C*-completions are outside this change. There is no
-new top-level Domain Checker, public wire protocol, or release condition.
+infinite-mode CAR and C*-completions are outside this change. It adds no
+top-level Domain Checker, public wire protocol, or release condition.
 
 <a id="order-reference"></a>
 
@@ -295,7 +311,7 @@ This is an in-process reference, not a hostile-Python or authenticated namespace
 boundary. The caller must obtain the expected subject independently of the
 candidate. Passing the candidate as its own expected target cannot establish
 provenance. Strings do not establish ownership or actual Core identity.
-Rebinding a lawful candidate and recomputing all laws for a new expected target
+Rebinding a lawful candidate and recomputing all laws for another expected target
 is a fresh finite check, not transfer of an existing proof. Python mutation
 bypasses, production decoding, cryptographic receipts and namespace resolution
 remain outside the reference.
@@ -361,7 +377,7 @@ sampling, general decision procedures or proofs of the Python implementation.
    exact subject/law binding and complete enumeration. Prove that the *actual*
    checker acceptance establishes each advertised law for its full finite
    domain, including the empty-family cases and counterexample meanings.
-   No Lean file or new axiom is introduced here.
+   No Lean file or axiom is introduced here.
 2. **General order theory.** Establish the selected Lean/mathlib counterparts
    (`Preorder`, `PartialOrder`, `LinearOrder`, `Lattice`, `CompleteLattice`,
    `Monotone`, `Antitone`, `OrderHom`, `OrderIso`, `GaloisConnection`) under
@@ -381,7 +397,7 @@ sampling, general decision procedures or proofs of the Python implementation.
    #263 and #257 through declared lawful models without duplicating sets,
    sorting or topology. A lawful finite table does not establish native
    comparator correctness, IEEE field/order laws, compiler soundness, or a
-   new constitutional theorem. These obligations remain open with #294.
+   constitutional theorem. These obligations remain open with #294.
 
 <a id="time-reversal-reference"></a>
 
@@ -398,7 +414,8 @@ feature, accepted-Core connection, empirical verification or classification.
 
 At preparation, [PR #275](https://github.com/MGYamada/Vastitas/pull/275) was
 still an open draft at `6b9a6dd92c2f302b6dccabfc15080c516b2142a7` with no
-follow-up discussion. This change is stacked on that exact head. It imports
+follow-up discussion. This change is stacked on that exact head. PR #275 merged
+on 10 November 2026. It imports
 `Qi`, `Matrix`, matrix validation/construction, multiplication, scaling and
 conjugate transpose directly from `car_reference.py`. It does not copy those
 operations or rebuild the CAR, Clifford, crossing or Koszul regressions.
@@ -431,7 +448,7 @@ its generator to the positive imaginary unit. The rational inclusion and
 generator conjugation are recorded separately. Float, Python complex and
 Boolean coefficients do not enter the arithmetic. Only this embedding is
 supported; a changed embedding payload must not reuse its identity string.
-This is exact calculation in a subfield, not a new implementation of C.
+This is exact calculation in a subfield, not an implementation of C.
 
 Coordinates are column vectors. The Hermitian form is conjugate-linear in
 its first argument. Each basis has an ordered pair of labels, a nominal
@@ -510,11 +527,11 @@ cannot be changed while retaining its name.
 Observations contain the actual candidate, expected selection and equality
 operands. Any supplied report is compared with a freshly recomputed report;
 `all_hold`, a profile name or an action name is not accepted as evidence.
-The independent selection is trusted *input to this reference API*, not a
-newly authenticated source resolver. Python fixture identities and exact
+The independent selection is trusted *input to this reference API*, not an
+authenticated source resolver. Python fixture identities and exact
 record comparison are not production proof capabilities or cryptographic
 tokens. The API does not defend against arbitrary code modifying its own
-trusted registry or passing a different target deliberately.
+trusted registry or passing a different target on purpose.
 
 | Negative case | Why it fails despite superficially plausible data |
 | --- | --- |
@@ -601,7 +618,7 @@ sheaf objects. No metric, conjugation, root ordering or eigenvectors enter it.
 rational 2×2 helpers in [metric_free_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/metric_free_reference.py).
 Only its scalar/matrix arithmetic is reused, not that module's real-plane
 geometric profile. The tests reuse shared polynomial substitution/evaluation.
-No new matrix class, polynomial representation, optional CAS, numerical library
+No matrix class, polynomial representation, optional CAS, numerical library
 or general matrix/module algebra is added. `QuadraticAlgebra` is a small
 monic-degree-two remainder adapter over shared Poly. It makes no field claim;
 normal forms have degree less than two, including nonzero nilpotents.
@@ -723,7 +740,8 @@ operator-associated modules.
 The broader Laurent/fan work remains in
 [#247](https://github.com/MGYamada/Vastitas/issues/247) and the separate SSH
 reference [PR #274](https://github.com/MGYamada/Vastitas/pull/274), which was
-still an unmerged draft when this increment was prepared. This increment
+still an unmerged draft when this increment was prepared, and which merged on
+10 November 2026. This increment
 does not import/copy that PR's Laurent or dual-number types or depend on its
 merge. The tests establish a compatible concrete consumer at the exact
 presentation level, not production interoperability between two stdlib APIs.
@@ -763,7 +781,7 @@ No Rust or Lean changes/build/proof completion are claimed.
 | --- | --- |
 | Python reference | Exact instance calculations and mutation rejections in the stated finite profile. No general soundness theorem follows from test counts. |
 | Mathematical descriptor | The stated characteristic algebra, quotient action and identified pushforward; sheaf semantics remain a specification. No generic schemes, modules or matrix theory are introduced. |
-| Lean | Formalize the actual arithmetic/checker and prove acceptance implies the specified characteristic/module facts, similarity and base change. Under #285, distinguish mathematical definitions, implementation soundness and pinned-mathlib correspondence. No new Lean code, axiom or completed proof is supplied. |
+| Lean | Formalize the actual arithmetic/checker and prove acceptance implies the specified characteristic/module facts, similarity and base change. Under #285, distinguish mathematical definitions, implementation soundness and pinned-mathlib correspondence. No Lean code, axiom or completed proof is supplied. |
 | Actual accepted Core | Authenticate nominal endpoints, coefficient maps, bases, revisions and evidence from the actual environment; compose existing Domain Checkers and Ownership/Borrow; bind results to the exact returned Core and test forged IR. None of this is established by Python fixture labels. No ninth checker. |
 | Numerical/native realization | Optional eigenvalue observations require separate scalar, residual/enclosure, gauge/ordering, error and refinement contracts. No LAPACK call, floating eigensolver, tolerance, performance result or native proof is added. |
 

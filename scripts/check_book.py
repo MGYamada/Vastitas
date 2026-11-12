@@ -78,6 +78,18 @@ CONVERTED = frozenset({
     "development/documentation.md",
     "development/primitives.md",
     "appendix/glossary.md",
+    "appendix/README.md",
+    "appendix/reference-models.md",
+    "reference/compiler-tools.md",
+    "reference/analysis-and-effects.md",
+    "reference/geometry.md",
+    "reference/algebra-and-symmetry.md",
+    "reference/execution-plans.md",
+    "appendix/history.md",
+    "guide/historical-roadmap.md",
+    "appendix/contributing.md",
+    "development/validation.md",
+    "adr/0001-mathematics-first-stdlib.md",
 })
 
 # Delivery records keep their original wording, as the style guide says.

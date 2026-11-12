@@ -70,7 +70,6 @@
   - [Metric evidence](spec/metric-evidence.md)
   - [std::arithmetic::generic](spec/std-arithmetic-generic.md)
   - [Assumptions](spec/assumptions.md)
-- [Standard-library admission and trust](adr/0001-mathematics-first-stdlib.md)
 
 # Appendices
 
@@ -95,4 +94,5 @@
     - [Run compiler, proof and native checks](development/validation.md)
     - [Maintain the documentation](development/documentation.md)
     - [Add an indexed primitive](development/primitives.md)
+    - [Standard-library admission and trust](adr/0001-mathematics-first-stdlib.md)
   - [G: Glossary](appendix/glossary.md)

@@ -1,6 +1,25 @@
-# Mathematical geometry reference models
+# Exact geometry reference models
 
-These independent exact models exercise plane metrics, symplectic maps, first variations, finite Čech covers, Bloch and Fermi schemes of the SSH chain, addition on an elliptic curve, and the pointwise Hodge star. Each has its own hypotheses, verifier and regression examples.
+This chapter describes seven [reference models](../appendix/reference-models.md)
+from geometry. They compute with exact rational or integral arithmetic: metrics
+on the real plane, polynomial symplectic maps, first variations, finite Čech
+covers, the Bloch and Fermi schemes of the SSH chain, addition on an elliptic
+curve, and the pointwise Hodge star. Each is a Python program with tests under
+`scripts/`, and each section states its hypotheses, its verifier and its
+regression examples. None is a part of the compiler.
+
+| Model | In the compiler |
+| --- | --- |
+| [Real-plane metrics](#metric-reference) | Implemented: constant rational [metrics](../language/smooth-declarations.md#metrics) on declared smooth affine objects, with [evidence](../language/smooth-declarations.md#metric-evidence), [`flat` and `sharp`](../language/smooth-declarations.md#flat-and-sharp), and pullbacks that use no metric. Tested: a kernel regression compares the smooth runtime of the kernel with a fixture that is written from the two modules of this model, as the [Stage 3 acceptance record](../stage3-acceptance.md#c16) states. That record also states what is Proved. The coordinate changes and the transport checks of the model are a model only. Planned: position-dependent metrics, [#264](https://github.com/MGYamada/Vastitas/issues/264) |
+| [Polynomial symplectic maps](#symplectic-reference) | Model only. Planned: [#211](https://github.com/MGYamada/Vastitas/issues/211) |
+| [First variations](#variational-reference) | Model only. Planned: [#305](https://github.com/MGYamada/Vastitas/issues/305) |
+| [Finite Čech covers](#cech-reference) | Model only. Planned: [#265](https://github.com/MGYamada/Vastitas/issues/265), [#258](https://github.com/MGYamada/Vastitas/issues/258) |
+| [SSH Bloch and Fermi schemes](#ssh-toric-reference) | Model only. Implemented: [presented affine objects](../affine-geometry.md) over the rational numbers and their principal opens. The toric constructions of the model are Planned: [#247](https://github.com/MGYamada/Vastitas/issues/247) |
+| [Elliptic addition](#elliptic-reference) | Model only. Planned: [#253](https://github.com/MGYamada/Vastitas/issues/253) |
+| [Pointwise Hodge star](#hodge-reference) | Model only. Proved: the proof oracle holds the finite basis identities of `VastitasOracle.HodgeFinite`, which are about no construct of the language. Planned: [#375](https://github.com/MGYamada/Vastitas/issues/375) |
+
+Each section keeps the record of the change that added its model. Its
+statements about the compiler describe the repository at that change.
 
 <a id="metric-reference"></a>
 
@@ -8,9 +27,9 @@ These independent exact models exercise plane metrics, symplectic maps, first va
 
 This is an executable **Python reference with regression tests** for the thin
 metric layer in [#264](https://github.com/MGYamada/Vastitas/issues/264). It is not
-Vastitas execution, a Lean theorem, production stdlib registration, a new AD
-primitive, or a new Domain Checker. General Riemannian geometry is outside its
-scope. No release or completion condition is added.
+Vastitas execution, a Lean theorem or production stdlib registration, and it
+adds no AD primitive and no Domain Checker. General Riemannian geometry is
+outside its scope. No release or completion condition is added.
 
 The implementation baseline is main `d783b5a6e393214a54cb408501963b1e42a7be94`.
 It reuses `Poly`, exact differentiation and arithmetic from the existing
@@ -171,9 +190,10 @@ geometric base object.
 Two metrics with identical matrices and different IDs cannot reuse each other's
 evidence. Stale revisions, changed matrices, different bases/frames/model
 snapshots and different basepoints are rejected. Evidence for a transformed
-metric must be checked for its new presentation. These fiber-bound certificates
-are deliberately conservative: one may recheck the same constant inverse at a
-new point, but cannot silently replay the old point's result record.
+metric must be checked for the transformed presentation. These fiber-bound
+certificates are conservative by design: one may recheck the same constant
+inverse at another point, but cannot silently replay the old point's result
+record.
 
 `FlatResult` and `SharpResult` retain the entire selected subject, argument and
 result; `SharpResult` also retains the inverse evidence. The contained vector
@@ -184,8 +204,8 @@ transfer the record's authority or turn evidence about `g` into evidence about
 This is an in-process reference API, not a hostile-code boundary or an
 authenticated namespace system. The caller must supply the expected identities
 independently; strings do not prove ownership, chart provenance or accepted
-Core identity. If a caller constructs a newly bound candidate and the checker
-recomputes all algebra for the new subject, that is a fresh reference check,
+Core identity. If a caller binds a candidate to another subject and the checker
+recomputes all algebra for that subject, that is a fresh reference check,
 not an authorization transfer. Python object tampering and production wire
 decoding are outside this model. The reused arithmetic and Python runtime are
 part of the reference's trusted implementation, not Lean-checked machinery.
@@ -218,11 +238,13 @@ Schematically, the future metric-free route must establish
 `denote(actual_pullback_core)(p,eta) = D(denote(F))_p^*(eta)` for a seed at the
 actual `F(p)`. The selected sharp route additionally needs
 `denote(actual_sharp_core)(alpha) = inverse(G) alpha` for that exact `G` and
-certified fiber. These are future correspondence statements, not current
-theorems or results of running this script. The tests do not prove compiler
+certified fiber. At the revision that this section names, these are future
+correspondence statements, not theorems or results of running this script.
+The [Stage 3 acceptance record](../stage3-acceptance.md) states what is Proved
+for the profile that the compiler implements. The tests do not prove compiler
 soundness, native refinement, all-input Python correctness, or any general
 smooth/geometric theorem. No connection, curvature, geodesic, Hodge operator,
-default Euclidean metric, implicit adjoint or new AD primitive is introduced.
+default Euclidean metric, implicit adjoint or AD primitive is introduced.
 
 <a id="symplectic-reference"></a>
 
@@ -231,14 +253,14 @@ default Euclidean metric, implicit adjoint or new AD primitive is introduced.
 This is an **executable Python reference verifier with regression tests** for a
 small fragment of [#211](https://github.com/MGYamada/Vastitas/issues/211).
 It is not Vastitas execution, a Lean proof, production std registration, or an
-additional Domain Checker. No release version or new completion condition is
+additional Domain Checker. No release version or completion condition is
 assigned. The compiler, kernel, oracle and stdlib are unchanged.
 
 The implementation baseline is main
 `f56edd4be0010312c24a13bd66a6e43521638a19`. That tree and the related PR search
 contained no symplectic reference implementation. This follows the existing
 `scripts/graph_reference.py` / `test_graph_reference.py` convention; the existing
-Python test discovery picks up the new tests without a workflow change.
+Python test discovery picks up these tests without a workflow change.
 
 ### Run
 
@@ -288,7 +310,7 @@ have exact rational coefficients and nonnegative integral exponents. The
 geometric interpretation is in **real** coordinates via `Q → R`, not a manifold
 over `Q` and not Float64 execution. A context may explicitly permute these four
 coordinate labels; every monomial, frame position, derivative and `h` then uses
-that exact ordering. Changing the order requires a new certificate with all
+that exact ordering. Changing the order requires another certificate with all
 coefficients reindexed; there is no implicit coordinate transport.
 
 The only domains are the entire declared `R^4` object and its principal open
@@ -379,7 +401,7 @@ from enormous finite inputs; a production decoder needs independent limits.
 | `h^0 != 0` on all `R^4` | It is exactly `1`; polynomial inverse witnesses are allowed globally |
 | `h^k != 0` on all `R^4`, `k>0` | Rejected **before clearing denominators**; `q1=-1` is outside the witness's validity |
 | Global validity after cancellation of `h/h` | Not inferred. Supply a polynomial witness with `k=0`; removable-singularity proofs are outside this fragment |
-| `1+q1^2 != 0`, arbitrary positivity/inequalities, other opens | Additional real-algebraic/domain evidence and a checked interpretation would be required; no proof hook currently accepts these claims |
+| `1+q1^2 != 0`, arbitrary positivity/inequalities, other opens | Additional real-algebraic/domain evidence and a checked interpretation would be required; no proof hook accepts these claims |
 | Cover inclusion, overlap agreement, coordinate changes or extension to a larger open | Additional restriction/transition/descent evidence required; not implemented |
 
 For example, `(1+q1^2)dq1∧dp1 + dq2∧dp2` is globally closed and nondegenerate,
@@ -505,7 +527,7 @@ must extract its data from **one actual public acceptance result**. The current
 records the exact decoded input and `AuthoritySource.checkProgram` result; it has
 no symplectic consumer today. The finite edit theorem's exact-input/returned-Core
 discipline is relevant, but its existing conclusion does not contain this
-geometric contract. The following new obligations remain:
+geometric contract. The following obligations remain:
 
 1. Obtain the expected subject from the accepted environment, nominal objects,
    selected model/operations, actual source occurrence and **actual returned
@@ -522,7 +544,7 @@ geometric contract. The following new obligations remain:
    do not fill missing domains with `Verified=True`. A native/FFI or numerical
    lowering additionally needs its own refinement and safety argument.
 
-In proposed notation, not a new implemented API:
+In proposed notation, not an implemented API:
 
 ```text
 ActualAccept(P,E,Q) = ok accepted
@@ -537,14 +559,14 @@ ActualAccept(P,E,Q) = ok accepted
        ∧ IndependentCoreSafety(P,E,Q,C)
 ```
 
-This implication is for a future acceptance route that **actually includes a
+This implication is for a future acceptance route that **includes a
 symplectic occurrence and the relevant checks**, not for every program or for
 the current public acceptance function. Other occurrences must be separately
 indexed. Certificates for a different Core, domain, environment revision or
 unrelated named model cannot satisfy it by relabelling.
 
 No general smoothness decision procedure, cover solver, Kähler construction,
-complex integrability guarantee, new checker or production `std::geometry`
+complex integrability guarantee, checker or production `std::geometry`
 implementation is supplied here. The refined std/ecosystem boundary of #211 is
 preserved; the historical ratified ADR is not silently rewritten.
 
@@ -609,7 +631,7 @@ simultaneous substitution, exact evaluation and coefficientwise integration
 using the same Poly. Integration removes the selected variable and preserves
 the order of the remaining parameters. It uses the monomial rule
 `c*(b^(n+1)-a^(n+1))/(n+1)`. Its arithmetic primitive supports rational endpoints;
-the variational consumer deliberately accepts **only `[0,1]`**.
+the variational consumer accepts **only `[0,1]`**, by design.
 
 This is no integral-enclosure verifier, approximation/error-bound framework,
 adaptive quadrature or additional AD engine. Differentiation uses the existing
@@ -686,8 +708,8 @@ python3 scripts/check_boundaries.py
 git diff --check
 ```
 
-The demo emits exact rational strings in JSON. Existing CI discovers the new
-tests through its current `test_*.py` pattern.
+The demo emits exact rational strings in JSON. Existing CI discovers these
+tests through its `test_*.py` pattern.
 
 | L; q; eta | EL along q | Direct first variation | Bulk | Boundary |
 | --- | --- | --- | --- | --- |
@@ -717,8 +739,8 @@ same endpoint traces still has its interior contribution recomputed.
 | Finite Python reference | Exact coefficient/endpoint calculations and instance equality for tested inputs, plus mutation rejections. This is executable evidence, not a universal formal proof. |
 | Polynomial mathematical semantics | Prove soundness of substitution, partial/total differentiation and integration over the real interpretation; prove coefficient extraction gives the derivative of the finite polynomial action and the bulk-plus-boundary identity with its sign. |
 | General function spaces | Separately select configuration/test-function spaces, topology, regularity, integrability, continuity/linearity of the derivative, boundary traces and justified differentiation under the integral/integration by parts. No extension from finite tests is automatic. |
-| Lean soundness | Formalize the actual supported implementation and prove acceptance implies the independently defined first-variation statement and the actual endpoint premises. Under #285, separate mathematical definitions, implementation soundness and pinned-mathlib correspondence. No new axioms or proof completion are supplied here. |
-| Actual accepted Core | Resolve/authenticate definitions, revisions, ordered roles, domain and admissible spaces from the real environment; bind the verified result to the exact returned Core; reject forged, stale and swapped evidence through real source/IR acceptance. No source or Core variational feature currently follows from this reference. |
+| Lean soundness | Formalize the actual supported implementation and prove acceptance implies the independently defined first-variation statement and the actual endpoint premises. Under #285, separate mathematical definitions, implementation soundness and pinned-mathlib correspondence. No axioms or proof completion are supplied here. |
+| Actual accepted Core | Resolve/authenticate definitions, revisions, ordered roles, domain and admissible spaces from the real environment; bind the verified result to the exact returned Core; reject forged, stale and swapped evidence through real source/IR acceptance. No source or Core variational feature follows from this reference. |
 | Native realization | Any later backend needs a separate refinement/rounding contract. Exact Python arithmetic says nothing about native numerical error or performance. |
 
 No ODE/PDE solving, general jet-bundle construction, Noether theorem, constrained
@@ -760,7 +782,7 @@ python3 scripts/check_boundaries.py
 Validation: all 28 focused tests passed; full Python discovery ran 237 tests
 with 236 passes and one existing live compiler integration skip (the Rust CLI
 and Lean kernel binaries are not built in this environment). The dependency
-boundary checker passed. No Rust or Lean source changed; no new compiler or
+boundary checker passed. No Rust or Lean source changed; no compiler or
 Lean build result is claimed.
 
 ### Fixed semantic profile and independent checks
@@ -868,7 +890,7 @@ do not determine which space/site/cover they represent.
 
 ### Integral kernel, image and quotient witnesses
 
-The executable witness routine is deliberately restricted to the two displayed
+The executable witness routine is restricted by design to the two displayed
 triangle presentations. It is not a general Smith normal form or homology
 implementation. It verifies the following **integer** matrices and their
 explicit integer inverses:
@@ -993,7 +1015,7 @@ Domain Checker. Storage/native refinement remains a separate obligation.
 | Finite topology/cover, sections/restrictions and integer matrices | Implemented and regression-tested Python reference |
 | Kernel/image/quotient for the two fixed complexes | Explicit integral identities checked; argument above |
 | General homological algebra | Remains #258's responsibility; not implemented here |
-| Lean soundness and actual accepted-Core connection | Obligations only; no new Lean build/proof claimed |
+| Lean soundness and actual accepted-Core connection | Obligations only; no Lean build/proof claimed |
 | Acyclicity, sheaf/singular/circle comparisons | Require additional evidence/theorems; not certified |
 | General sites, characteristic classes, spectral sequences | Outside this increment |
 
@@ -1023,7 +1045,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 The demo emits JSON containing exact equations, quotient multiplication matrices,
 the three counterexamples, and named checks; it exits nonzero if a check fails.
 Its status is explicitly `external_exact_reference_only`. The existing Python
-CI discovery includes the new tests without adding SymPy or a compiler dependency.
+CI discovery includes these tests without adding SymPy or a compiler dependency.
 
 Files: [arithmetic and presentations](https://github.com/MGYamada/Vastitas/blob/main/scripts/ssh_toric_reference.py),
 [demo](https://github.com/MGYamada/Vastitas/blob/main/scripts/demo_ssh_toric_reference.py), and
@@ -1207,7 +1229,7 @@ These are specifications, not completed Lean declarations or `.vast` fixtures.
    serialization and lowering; a point set or square-free equation is insufficient.
 4. Prove the actual restricted saturation verifier implies the stated
    extension/contraction result under its `QQ[E,z]`/principal hypotheses.
-   New coefficient rings or ideals need separately justified algorithms and
+   Other coefficient rings or ideals need separately justified algorithms and
    certificates. Prove polynomial-boundary evaluation is distinct from the
    Laurent ring map; do not infer closure/base-change commutation.
 5. Keep spectral action/module data when claiming kernel/Jordan properties.
@@ -1255,7 +1277,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 | File | Responsibility |
 | --- | --- |
 | [elliptic_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/elliptic_reference.py) | Fixed fields and curve, nominal handles, exact points, guarded addition, evidence replay, exhaustive finite group audit |
-| [demo_elliptic_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/demo_elliptic_reference.py) | Human-readable table/JSON report and two deliberately invalid slope mutations |
+| [demo_elliptic_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/demo_elliptic_reference.py) | Human-readable table/JSON report and two slope mutations that are invalid on purpose |
 | [test_elliptic_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_elliptic_reference.py) | Independent group-table oracle, projective enumeration, exception/identity/evidence regressions |
 | [f5-y2-x3-minus-x.json](https://github.com/MGYamada/Vastitas/blob/main/tests/fixtures/elliptic/f5-y2-x3-minus-x.json) | Complete ordered 8-by-8 addition table, law counts, mutation witnesses, rational boundary results |
 
@@ -1381,7 +1403,7 @@ bad residuals, foreign result points and Boolean scalar claims.
 This is an in-process reference API, not serialization of declaration authority
 or a hostile-Python security boundary. Bypassing frozen dataclasses or changing
 the Python implementation is outside its trust model. Rebuilding a claim for
-a new subject and recomputing every obligation is a fresh reference check, not
+another subject and recomputing every obligation is a fresh reference check, not
 transport of the old evidence. The JSON report is an observation with display
 labels; it cannot be imported as nominal authority. `Model` denotes a coordinate
 presentation here; it is **not** the future named `Group` model.
@@ -1416,7 +1438,7 @@ this reference. The Python branches and arithmetic make no constant-time claim.
 This is a **Python reference calculator and independent candidate verifier** for
 [#375](https://github.com/MGYamada/Vastitas/issues/375). It adds no public Vastitas
 syntax, registered stdlib operation, actual-Core proof, native numerical
-adapter, or physical guarantee. A **separate, newly added Lean kernel-reduced
+adapter, or physical guarantee. A **separate Lean kernel-reduced
 finite basis theorem** is described below; the Python calculator is not itself
 that proof. The issue remains open. This first stage uses
 exact rational coordinates on real Euclidean three-space and real Lorentz
@@ -1424,7 +1446,7 @@ four-space. It does not implement differential geometry or global Hodge theory.
 
 ### Lean-first finite mathematical seed (separate from the Python reference)
 
-`lean/VastitasOracle/HodgeFinite.lean` is imported by the mathlib-free Lean Oracle library and defines oriented standard Euclidean rank-three and Minkowski `diag(-1,+1,+1,+1)` rank-four **integral-coefficient basis fragments**. It states and proves with `decide +kernel` (not `native_decide`) the selected Hodge wedge-pairing equation on each complete basis-pair set, `star²=+id` for Euclidean 1-forms, `star²=-id` for Minkowski 2-forms, and orientation/sign counterexamples. Build validation is tracked by the PR CI; do not assume this addition proves any general rational-coefficient, global or source/Core theorem.
+`lean/VastitasOracle/HodgeFinite.lean` is imported by the mathlib-free Lean Oracle library and defines oriented standard Euclidean rank-three and Minkowski `diag(-1,+1,+1,+1)` rank-four **integral-coefficient basis fragments**. It states and proves with `decide +kernel` (not `native_decide`) the selected Hodge wedge-pairing equation on each complete basis-pair set, `star²=+id` for Euclidean 1-forms, `star²=-id` for Minkowski 2-forms, and orientation/sign counterexamples. The oracle job of the continuous integration builds and audits the module. It proves no general rational-coefficient, global or source/Core theorem.
 
 The existing Python suite independently tests more metric/volume/coefficients, twisted signs and active isometries than the Lean fragment; those tests remain **finite observations**, not the general mathematical authority. A future independent `VastitasMath` definition/Bridge and actual-Core refinement remain pending under #285/#375.
 
@@ -1442,7 +1464,7 @@ python3 scripts/check_boundaries.py
 The demo emits JSON with exact rational strings and expected rejection codes;
 it exits successfully only when every expectation passes. This is a demo report,
 not a compiler wire format or proof certificate. Existing CI's Python test
-discovery runs the new regressions without workflow changes.
+discovery runs these regressions without workflow changes.
 
 | File | Responsibility |
 | --- | --- |

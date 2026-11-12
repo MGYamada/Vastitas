@@ -1,4 +1,33 @@
-# ADR 0001 — Mathematics-first standard-library admission and trust boundary
+# Standard-library admission and trust
+
+This chapter is ADR 0001, the architecture decision record "Mathematics-first
+standard-library admission and trust boundary". It decides what the standard
+library `std` admits: the test that a public mathematical family or operation
+must pass, the division of work between the Core of the compiler, `std` and
+the algorithms of the ecosystem, and the procedure of an admission. The record
+governs admission. It does not claim that an admitted contract is implemented
+or proved.
+
+The record keeps the wording of its adoption and of its dated amendments. It
+writes its requirements with MUST and MUST NOT. What the compiler and the
+standard library hold of it:
+
+- Implemented, for the finite smooth affine profile: the families
+  `std::differential` and `std::geometry::metric` and the module
+  `std::geometry::smooth::affine`, which §10 admits.
+  [Smooth affine declarations](../language/smooth-declarations.md) gives their
+  rules. The [Stage 3 acceptance record](../stage3-acceptance.md) and the
+  [compiled reverse Core acceptance record](../reverse-core-acceptance.md)
+  state what is Tested and what is Proved.
+- Implemented and Tested: the dependency boundary of §9. The kernel and the
+  oracle depend on no Mathlib package, and `scripts/check_boundaries.py`
+  checks it in the continuous integration.
+  [Verification boundaries](../verification.md) describes the packages.
+- Planned: the families of §4 that the standard library does not hold, among
+  them `std::algebra`, `std::analysis` and `std::linalg`. The tracker
+  [#160](https://github.com/MGYamada/Vastitas/issues/160) follows them.
+
+## Record
 
 - **Status:** Adopted for standard-library admission in [PR #166](https://github.com/MGYamada/Vastitas/pull/166).
 - **Date:** 2026-10-28
@@ -12,7 +41,7 @@
 
 Vastitas aims to make textbook mathematical objects directly usable in one language for Math 2.0 and Physics 2.0. This requires a substantial, coherent `std`, but does not imply that every useful numerical algorithm belongs there.
 
-**The standard library admits foundational mathematical denotations and the contracts needed to manipulate them; it does not become a catalogue of competing approximation schemes.** The policy below governs new public mathematical operations and families. It freezes **admission rules**, not a closed list of all future standard-library families and not a release deadline.
+**The standard library admits foundational mathematical denotations and the contracts needed to manipulate them; it does not become a catalogue of competing approximation schemes.** The policy below governs each public mathematical operation or family that enters `std`. It freezes **admission rules**, not a closed list of all future standard-library families and not a release deadline.
 
 The word `ε` in the exclusion rule means a numerical approximation tolerance, not a nilpotent element of a Weil algebra.
 
@@ -114,15 +143,15 @@ The checked source-to-IR/Core-to-codegen boundary cannot accept forged evidence,
 
 ### 8. Admission and amendment procedure
 
-A frozen charter and a growing mathematics-first standard library are compatible **only if admission is reviewable**. Adding a new `std` family or an operation with materially new semantics **MUST** come through an ADR/amendment proposal containing:
+A frozen charter and a growing mathematics-first standard library are compatible **only if admission is reviewable**. Adding a `std` family, or an operation whose semantics differ materially from the admitted ones, **MUST** come through an ADR/amendment proposal containing:
 
 1. **Contract and jurisdiction.** Proposed name/ownership, mathematical target, exact domain and hypotheses, input/output and basepoint identities, structural laws, intended other-`std` interactions, and an explicit Core/`std`/backend split.
 2. **Admission argument.** Apply A–D above and explain the denotation's uniqueness up to stated equivalence. Explain why the proposed API is foundational rather than one numerical approximation scheme; identify excluded algorithms and implicit-choice pitfalls.
 3. **Execution and evidence profile.** Give an executable reference implementation and independent conformance for **profiles claimed executable**, or explicitly mark an abstract structure as **specification-only** with a worked well-formedness example and unsupported-execution boundary. State checking/proof assumptions, native numerical trust and provenance obligations. Do **not** demand a universal reference evaluator for arbitrary Hilbert spaces, schemes or PDEs.
-4. **Negative tests.** Include rejected wrong domains, base/endpoint/coefficient/metric/equivariance/regularity, illicit authority escalation, hidden approximation choices and forged/certification-laundered evidence, as applicable. Identify which tests are proposed versus actually executed.
+4. **Negative tests.** Include rejected wrong domains, base/endpoint/coefficient/metric/equivariance/regularity, illicit authority escalation, hidden approximation choices and forged/certification-laundered evidence, as applicable. Identify which tests are proposed and which were executed.
 5. **Compatibility and public-name audit.** Check existing method/function owners, ambiguous dispatch, current public names and prior ADRs. Cross-link the implementation tracker, record version/migration effects and reconcile conflicting draft text without rewriting historical source records.
 
-The new family is admitted by an explicitly reviewed charter change; the prior charter is not silently expanded by an implementation PR, import, popular package, or an internal compiler convenience. The ADR itself can be superseded through a new recorded decision.
+The family is admitted by an explicitly reviewed charter change; the prior charter is not silently expanded by an implementation PR, import, popular package, or an internal compiler convenience. The ADR itself can be superseded through a later recorded decision.
 
 ### 9. Mathematical alignment and Oracle dependency independence
 
@@ -140,7 +169,7 @@ applicability hypotheses must still be checked. Machine floats do not acquire
 exact field laws. This migration retains mathlib v4.35.0, commit
 `56a005855ea17e0b0958f73ec801ae140b0a1679`, as the mathematical reference, not
 as an Oracle package requirement. An upstream semantic change requires review;
-removing an import is neither a new mathematical definition nor a conformance proof.
+removing an import is neither a different mathematical definition nor a conformance proof.
 
 The current executable kernel and proof-only Oracle **MUST NOT** depend directly
 or transitively on Mathlib. For this increment, `lean/` may require only the
@@ -149,8 +178,8 @@ Both stay on the pinned Lean v4.35.0 distribution. Core proofs replace the
 Oracle's rational-cast and sorted-permutation wrappers; the existing pointwise
 list correspondence uses a proof-local nil/cons relation instead of a transitive
 Batteries import. Existing theorem hypotheses, source-to-Core connections and
-proof scope must be preserved. Proof deletion, `sorry`, `admit` and new unproved
-axioms are not migration mechanisms.
+proof scope must be preserved. Proof deletion, `sorry`, `admit` and additional
+unproved axioms are not migration mechanisms.
 
 The official Lean kernel remains authoritative. The allowed axioms remain
 exactly `propext`, `Classical.choice`, and `Quot.sound`. An optional independent
@@ -161,7 +190,7 @@ deliberate direct and transitive dependency regressions. The separate ordinary
 compiler CI must continue to work with the Oracle directory absent.
 
 This amendment introduces no public `std` API, executable numerical profile or
-new mathematical family. The declaration-local `Forall₂` relation preserves
+mathematical family. The declaration-local `Forall₂` relation preserves
 length and positional correspondence; it does not claim a reusable mathematics
 library or occupy Batteries' global name. The associated regression checks and
 their execution status are recorded separately from mathematical conformance.
@@ -187,15 +216,24 @@ The documentation fixes the exact hypotheses and records the missing
 representation, cotangent-rule and source/native correspondence obligations.
 
 This increment introduces no public mathematical family or method authority,
-and does not complete #285's four-package architecture. `VastitasMath` and the
-implementation correspondence layer remain future work. The kernel/Oracle
-dependency policy in §9 stays closed; future bridge imports of implementation
-or independent mathematics packages require an explicit policy amendment.
+and does not complete #285's four-package architecture. At its date,
+`VastitasMath` and the implementation correspondence layer were future work.
+The kernel/Oracle dependency policy in §9 stays closed; future bridge imports
+of implementation or independent mathematics packages require an explicit
+policy amendment.
 
-Independent `VastitasMath`, conformance manifests and new correspondence proofs
-remain subsequent work under #285. The first separate pinned-Mathlib
+Independent `VastitasMath`, conformance manifests and further correspondence
+proofs remain subsequent work under #285. The first separate pinned-Mathlib
 `VastitasBridge` package is the bounded mathematical increment described above.
 The oracle dependency boundary and the mathematical correspondence obligations are verified separately.
+
+Since the Stage 2 delivery the bridge also requires the `lean-kernel/` and
+`lean/` packages by path, one way only, and holds the correspondence of the
+kernel's presented affine and smooth affine checks with Mathlib. The
+[Stage 2](../stage2-acceptance.md) and [Stage 3](../stage3-acceptance.md)
+acceptance records state this dependency. No amendment of this record states
+it; the kernel and the oracle still import neither the bridge nor Mathlib, and
+`scripts/check_boundaries.py` checks both directions.
 
 ### 10. Smooth affine differentials and metrics (amendment, 2026-11-04)
 
@@ -321,8 +359,8 @@ that this section refers to.
     error. A wrong basepoint gives ⊥.
   - Polynomial maps are smooth on all of ℝⁿ, so the profile has no domain or
     regularity hypothesis.
-  - The planned Stage 3 acceptance map must keep four kinds of claim
-    apart:
+  - The [Stage 3 acceptance map](../stage3-acceptance.md) must keep four
+    kinds of claim apart:
     - structural facts about the runtime, whose proofs belong in the oracle;
     - the Fréchet comparison, whose proof belongs in the mathlib bridge;
     - the polynomial Kähler comparison, whose proof belongs in the mathlib

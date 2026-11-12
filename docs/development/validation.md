@@ -1,15 +1,54 @@
-# Validate the compiler and proofs
+# Run compiler, proof and native checks
+
+This chapter lists the checks for a change to the compiler, the kernel, the
+proofs or the native adapters. Each section gives the commands in the form
+that the continuous integration (CI) runs, and
+[What CI runs](#what-ci-runs) names the job of each. Run the commands from the
+root of the repository. `AGENTS.md` says which checks each kind of change
+needs, and [Maintain the documentation](documentation.md#build-check-and-preview)
+gives the checks for a change to this book.
+
+A check that passes is a test result. It is not a proof, and a report keeps
+the two apart: state the commands that ran, their results and the checks that
+did not run.
+
+## Compiler and kernel
 
 ```sh
+python3 scripts/check_docs.py
 lake -d lean-kernel build vastitas-kernel
+python3 scripts/check_boundaries.py
 bash scripts/check_kernel_regressions.sh
+bash scripts/check_indexed_native.sh
+bash scripts/check_storage_native.sh
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
+python3 scripts/build_stdlib_package.py
 cargo test --locked --all-targets
-python3 scripts/check_boundaries.py
+python3 scripts/check_resource_cleanup.py
 python3 scripts/check_spec.py
 python3 scripts/check_primitive_table.py
+python3 -m unittest discover -s scripts -p 'test_*.py'
+cargo package --locked
 ```
+
+| Command | What it checks |
+| --- | --- |
+| `check_docs.py` | `AGENTS.md` and `CLAUDE.md` are identical and within their size limits |
+| `check_boundaries.py` | The dependency boundaries: the kernel and the oracle do not depend on Mathlib, the bridge depends on the pinned Mathlib alone, and the packages share one Lean toolchain and keep their lockfiles |
+| `check_kernel_regressions.sh` | The regression modules of the kernel: checked IR, dispatch, function values, edit authority and the indexed, affine and smooth checkers |
+| `check_indexed_native.sh` | The code that the kernel generates from indexed Core: it compiles each generated module, runs it and compares its output |
+| `check_storage_native.sh` | The native storage adapter and the cleanup after a failure, without BLAS |
+| `cargo test --locked --all-targets` | The unit tests and the integration tests, which run `check` and `build` and the built executables. Build the kernel first |
+| `check_resource_cleanup.py` | The cleanup of resource programs and the precedence of nested failures, without BLAS |
+| `check_spec.py` | The files of the [specifications](../specifications.md) and their generated chapters |
+| `check_primitive_table.py` | The generated primitive table, as described below |
+| `unittest discover -s scripts` | The tests of the checkers and of the [reference models](../appendix/reference-models.md) |
+| `cargo package --locked` | The registry distribution builds from its packaged sources |
+
+`build_stdlib_package.py` generates the standard-library package under the
+ignored directory `stdlib/target/package/`. With `--check` it compares that
+directory with a fresh build instead of writing it.
 
 `src/primitive_table.rs` is generated from the kernel's primitive families
 (`lean-kernel/VastitasKernel/IndexedPrimitiveFamilies.lean`).
@@ -18,9 +57,24 @@ any difference. After a change to the families, run
 `python3 scripts/check_primitive_table.py --write` and review the diff of the
 table.
 
-To build the separate proof oracle and audit every kernel and oracle module
-(the audit needs every kernel library root, executable and regression module
-built first; it checks that each `.olean` exists, not that it is current):
+After the build of the compiler, CI also runs two checks against it:
+
+```sh
+target/debug/vastitas audit-lean tests/fixtures/lean_audit/id_prop.ndjson
+python3 -m unittest discover -s scripts -p 'test_diagnostic_reference.py' -v
+```
+
+The first runs the `nanoda_bin` of the pinned Lean toolchain on an exported
+proof, as [Appendix A](../guide/cli.md) describes. The second runs the
+[diagnostics model](../reference/compiler-tools.md#diagnostic-reference)
+against the built compiler.
+
+## Proof oracle and axiom audit
+
+The oracle in `lean/` is a separate, proof-only package. The audit reads every
+kernel and oracle module, so build every kernel library root, executable and
+regression module first. The audit checks that each `.olean` exists, not that
+it is current.
 
 ```sh
 lake -d lean-kernel build VastitasKernel VastitasPromotion VastitasPublicTest VastitasStorageTest VastitasAlgebraTest \
@@ -29,12 +83,46 @@ bash scripts/check_kernel_regressions.sh
 lake -d lean build VastitasOracle
 (cd lean && lake env lean -DwarningAsError=true ../scripts/audit_axioms.lean)
 (cd lean && lake env lean -DwarningAsError=true ../scripts/check_chain_rule_free.lean)
-lake -d lean env python3 scripts/check_axiom_audit.py
-(cd lean && lake env lean -DwarningAsError=true ../scripts/check_oracle_core.lean)
 (cd lean && VASTITAS_SPEC_INPUT=../docs/spec/pins/oracle.json lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean)
-lake -d lean env python3 scripts/check_spec_lean.py
+bash experiments/iterator_prefix/check_lean.sh
 bash scripts/replay_lean.sh lean VastitasOracle
 bash scripts/replay_lean.sh lean VastitasKernel
+lake -d lean env python3 scripts/check_axiom_audit.py
+lake -d lean env python3 scripts/check_spec_lean.py
+(cd lean && lake env lean -DwarningAsError=true ../scripts/check_oracle_core.lean)
+(cd lean && lake env lean -DwarningAsError=true ../scripts/check_edit_acceptance.lean)
+```
+
+| Command | What it checks |
+| --- | --- |
+| `audit_axioms.lean` | The axioms and the opaque code of every kernel and oracle module |
+| `check_chain_rule_free.lean` | The compiled reverse Core theorems that the specification states without the chain rule reach no chain-rule theorem |
+| `spec_resolve.lean` | Each pinned oracle theorem and kernel definition of the specifications: its module, kind, axioms and statement hash |
+| `experiments/iterator_prefix/check_lean.sh` | The Lean draft of the iterator-prefix experiment and its axioms |
+| `replay_lean.sh` | Every built module, replayed with `leanchecker` against its imported environment |
+| `check_axiom_audit.py` | The audit itself, on fixture packages that it must reject: its coverage, its provenance rules and substituted code |
+| `check_spec_lean.py` | The resolver itself, on fixture claims |
+| `check_oracle_core.lean` | The migrated Core proofs, on coordinate spaces, names and positional lists |
+| `check_edit_acceptance.lean` | The indices of the finite edit acceptance |
+
+The replay is not an independent verifier. It also reads stale `.olean` files
+that renamed modules leave in `.lake`, so run it on a clean build. CI sets
+`VASTITAS_REPLAY_THREADS=4` for these two replays;
+[Memory budget for local verification](#memory-budget-for-local-verification)
+gives the setting for a local run.
+
+CI also builds the external axiom auditor `leanprover-community/axiom-audit`
+at a pinned commit and runs it on `VastitasOracle` with the allowed axioms
+`propext`, `Classical.choice` and `Quot.sound`. At the end of the job it
+updates the Lake manifests, runs `check_boundaries.py` again and fails on a
+manifest that differs from the committed one:
+
+```sh
+lake -d lean update
+lake -d lean-kernel/native update
+lake -d lean-kernel/numerical update
+python3 scripts/check_boundaries.py
+git diff --exit-code -- lean/lake-manifest.json lean-kernel/lake-manifest.json lean-kernel/native/lake-manifest.json lean-kernel/numerical/lake-manifest.json
 ```
 
 No library root imports `VastitasKernel.IndexedDescriptorExample`, the
@@ -44,18 +132,94 @@ The regression `IndexedDescriptorRegression` and the oracle module
 `IndexedDescriptorDemo` import it, so the regression script and the oracle
 build both build it before the audit.
 
+## Specifications
+
 `check_spec.py` and `spec_resolve.lean` check the claims of the
 [specifications](../specifications.md). After a change to the statement of a
 cited theorem, review the change, run
 `python3 scripts/check_spec.py --update-statements oracle` (or `bridge`) and
-review the diff of the statement pins. After `(cd lean-bridge && lake build)`,
-run the bridge resolver, a heavy check, with
-`(cd lean-bridge && VASTITAS_SPEC_INPUT=../docs/spec/pins/bridge.json lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean)`.
+review the diff of the statement pins.
 
-The last two lines replay every built Oracle and kernel module with the official
-`leanchecker` against its imported environment, as CI does. It is not an
-independent verifier, and it also reads stale `.olean` files left in `.lake`
-by renamed modules, so run it on a clean build.
+## Mathematical bridge
+
+The bridge in `lean-bridge/` is a separate package that depends on Mathlib.
+Its workflow runs for a change to the bridge, to the kernel or oracle sources
+that the bridge reads, or to the scripts below. For such a change run:
+
+```sh
+python3 scripts/check_boundaries.py
+python3 -m unittest discover -s scripts -p 'test_check_boundaries.py'
+(cd lean-bridge && lake build)
+(cd lean-bridge && lake env lean Audit.lean)
+(cd lean-bridge && VASTITAS_SPEC_INPUT=../docs/spec/pins/bridge.json lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean)
+bash scripts/replay_lean.sh lean-bridge -v VastitasBridge
+```
+
+`Audit.lean` audits every bridge declaration and its transitive axioms. CI
+fetches the Mathlib cache of the modules that the bridge imports before the
+build, and sets `LEAN_NUM_THREADS=2` for the job and
+`VASTITAS_REPLAY_THREADS=2` for the replay. At its end the job runs
+`check_boundaries.py` again and fails on a Lake manifest that differs from the
+committed one. Each of the last four commands is a heavy check: read
+[Memory budget for local verification](#memory-budget-for-local-verification)
+first.
+
+## Numerical adapters
+
+The numerical checks need the pinned sequential LP64 OpenBLAS 0.3.34.
+`<prefix>` is the directory of that installation and `<output>` a directory
+for the records of the C baselines.
+
+```sh
+python3 scripts/build_openblas.py --prefix <prefix> --jobs 4
+python3 scripts/check_gemm_native.py --prefix <prefix>
+python3 scripts/check_plain_c_baselines.py --prefix <prefix> --output <output> --no-leak-sanitizer
+lake -d lean-kernel build vastitas-kernel storage-native-fixture
+python3 scripts/check_gemm_checked.py --prefix <prefix>
+OPENBLAS_NUM_THREADS=1 VASTITAS_TEST_OPENBLAS_PREFIX=<prefix> \
+  cargo test --locked --test examples --test numerical_source --test tensor_source --test tree_source \
+  --test cached_packing --test diagonal_metrics --test runtime_shape_source -- --ignored
+```
+
+These are the commands of the macOS job. The Linux job differs in five
+places:
+
+- `build_openblas.py` takes `--target HASWELL`, a supported CPU target;
+- `check_gemm_native.py` takes `--valgrind`;
+- `check_plain_c_baselines.py` takes `--valgrind` in place of
+  `--no-leak-sanitizer`;
+- `check_gemm_checked.py` takes `--lean-cc cc`;
+- the `cargo test` step sets `VASTITAS_TEST_NATIVE_CC=cc`.
+
+| Command | What it checks |
+| --- | --- |
+| `check_gemm_native.py` | The optional GEMM adapter: sanitizers, the ABI and, with `--valgrind`, uninitialized memory |
+| `check_plain_c_baselines.py` | The standalone C baselines: their output, their cost records and their cleanup after a failure. It is no performance acceptance |
+| `check_gemm_checked.py` | The checked GEMM schedules through the Lean FFI, and the cleanup of the generated native code |
+| `cargo test … -- --ignored` | The tests that build and run programs with a matrix product, among them the numerical packages of this book in `--test examples` |
+
+Between these steps the job calibrates three observations of the Lean
+allocator, without timing: `experiments/stock_allocation_capabilities`,
+`experiments/lean_allocation_diagnostic` and
+`experiments/lean_allocation_lifetimes`. Each has a `run.py` and a
+`verify.py`, and the workflow gives their arguments.
+
+## Experiment harnesses
+
+The job of the formatting and lint checks also runs the tests of the
+experiment harnesses and verifies one retained record:
+
+```sh
+python3 -m unittest discover -s experiments/source_workspace -p test_fetch.py
+python3 -m unittest discover -s experiments/contraction_trees -p 'test_*.py'
+python3 -m unittest discover -s experiments/allocation_audit -p 'test_*.py'
+python3 -m unittest discover -s experiments/stock_allocation_capabilities -p 'test_*.py'
+python3 -m unittest discover -s experiments/lean_allocation_diagnostic -p 'test_*.py'
+python3 -m unittest discover -s experiments/lean_allocation_lifetimes -p 'test_*.py'
+python3 -m unittest discover -s experiments/runtime_shapes -p 'test_*.py'
+python3 -m unittest discover -s experiments/iterator_prefix -p 'test_*.py'
+python3 experiments/allocation_audit/verify.py experiments/allocation_audit/results/2026-11-01-macos-production/evidence.zip
+```
 
 ## Pinned generated code
 
@@ -73,11 +237,23 @@ VASTITAS_UPDATE_EMIT_FIXTURES=1 cargo test --locked --test emit_golden
 ```
 
 When `CI` is set, the test fails instead of regenerating the fixtures.
-Regenerate them locally and commit them. For every example and manifest,
-`scripts/capture_emit.py` records the wire request, the `check` and `emit`
-responses and the generated Lean, and `--compare` reports every byte that
-differs from an earlier capture. A change that promises identical generated
-code, diagnostics or wire format runs it before and after.
+Regenerate them locally and commit them.
+
+`scripts/capture_emit.py` records what the compiler emits for every example
+and every package manifest under `examples/`, `stdlib/` and
+`tests/emit_corpus/`: the wire request, the `check` and `emit` responses and
+the generated Lean. For a rejected package of the book that the frontend
+rejects, it records the diagnostics alone, because the frontend sends no
+request. `--compare` reports every byte that differs from an earlier capture.
+A change that promises identical generated code, diagnostics or wire format
+runs the script before and after, each time with the binaries of that tree:
+
+```sh
+python3 scripts/capture_emit.py --out <before> --kernel-fixtures
+python3 scripts/capture_emit.py --out <after> --kernel-fixtures --compare <before>
+```
+
+CI does not run the capture.
 
 The packages under `tests/emit_corpus/rejected/` reach the kernel and are
 rejected there, so the capture also records the diagnostics of rejected
@@ -161,33 +337,46 @@ that means one heavy check at a time. This resolves
 [#600](https://github.com/MGYamada/Vastitas/issues/600), where three
 replays and audits ran at once.
 
-Both Lean packages pin Lean v4.35.0. The oracle manifest contains only the
-local kernel; Mathlib and its transitive packages are forbidden in both packages.
-This build boundary preserves the separate mathematical-definition alignment
-principle in [ADR 0001](../adr/0001-mathematics-first-stdlib.md#9-mathematical-alignment-and-oracle-dependency-independence).
-CI runs Rust formatting and strict Clippy once, tests native compilation and
-the arithmetic standard library on macOS and Linux with the oracle directory
-absent, and builds/audits proofs without Mathlib in a separate job. On both
-hosts, `audit-lean` runs the `nanoda_bin` from the pinned Lean toolchain. It runs on pull requests,
-pushes to `main`, and manual dispatch; a pull request's branch pushes are checked once
-through its `pull_request` run. Superseded runs for the same event and branch/PR are
-cancelled; push and pull-request runs do not cancel each other.
-Action revisions and language toolchains are pinned. CI installs elan 4.2.4
-from a release archive whose SHA-256 is checked before its installer runs;
-it does not execute elan's moving `master` bootstrap script. The isolated
-installation does not modify shell profiles. Python is pinned to 3.15.2 and
-checked without setup-python's extra loader path before native calibration;
-unexpected loader overrides remain errors. Checkout credentials are not
-persisted, and the external axiom auditor is
-checked out at its exact commit in addition to the repository's own audit.
-The optional OpenBLAS packing/workspace observations and the GEMM, tensor-packing
-and contraction-tree experiment smokes run on pushes to `main` that touch their
-source, harness and build inputs, and on manual dispatch. They do not run on pull
-requests, so pull-request CI does not rebuild OpenBLAS for them; the required
-compiler, proof and GEMM-adapter jobs continue to run on every pull request.
+## What CI runs
 
-The dependency-boundary checker has its own regression tests:
+The workflows are in
+[`.github/workflows/`](https://github.com/MGYamada/Vastitas/tree/main/.github/workflows).
+The first four jobs below are the workflow `ci.yml`.
 
-```sh
-python3 -m unittest discover -s scripts -p 'test_*.py'
-```
+| Job | Hosts | Runs |
+| --- | --- | --- |
+| Rust formatting and lint | Linux | `check_docs.py`, `check_primitive_table.py`, `check_spec.py`, `cargo fmt`, `cargo clippy`, `cargo package`, the Python tests under `scripts/`, `check_boundaries.py`, the [experiment harnesses](#experiment-harnesses), and the generation and `--check` of the standard-library package |
+| Native compiler, no mathlib | Linux and macOS | The kernel build, `check_boundaries.py` with the directory `lean/` absent, the three regression scripts, `cargo test --locked --all-targets`, `audit-lean`, `check_resource_cleanup.py` and the diagnostics model against the built compiler |
+| Optional GEMM adapter | Linux and macOS | The commands of [Numerical adapters](#numerical-adapters) |
+| Lean proofs and axiom audit | Linux | The commands of [Proof oracle and axiom audit](#proof-oracle-and-axiom-audit), without Mathlib |
+| Mathematical bridge | Linux | The commands of [Mathematical bridge](#mathematical-bridge) |
+| Documentation book | Linux | `mdbook build` with the pinned release and `scripts/check_book.py` |
+
+- `ci.yml` and the documentation workflow run on pull requests, on pushes to
+  `main` and on manual dispatch. A push to the branch of a pull request is
+  checked once, through its `pull_request` run. The bridge workflow runs on
+  pushes and pull requests that touch its paths, and on manual dispatch.
+- In `ci.yml` and the bridge workflow, a later run for the same event and
+  branch or pull request cancels the earlier one. Push runs and pull-request
+  runs do not cancel each other.
+- The workflows pin the revisions of their actions and the language
+  toolchains. Every Lean package pins Lean v4.35.0, and Python is pinned to
+  3.15.2.
+- CI installs elan 4.2.4 from a release archive and checks the SHA-256 of the
+  archive before the installer runs. It does not execute elan's moving
+  `master` bootstrap script, and the installation does not modify shell
+  profiles.
+- `scripts/check_ci_python.sh` checks Python without the extra loader path of
+  `setup-python` before the native calibration. Another loader override is an
+  error.
+- A checkout does not persist its credentials.
+- The observations of OpenBLAS packing and workspace, and the smoke runs of
+  the GEMM, tensor-packing and contraction-tree experiments, have workflows of
+  their own. They run on pushes to `main` that touch their inputs and on
+  manual dispatch, not on pull requests, so pull-request CI does not rebuild
+  OpenBLAS for them.
+
+The oracle manifest contains only the local kernel, and Mathlib and its
+transitive packages are forbidden in the kernel and in the oracle. This build boundary
+preserves the separate mathematical-definition alignment principle in
+[ADR 0001](../adr/0001-mathematics-first-stdlib.md#9-mathematical-alignment-and-oracle-dependency-independence).

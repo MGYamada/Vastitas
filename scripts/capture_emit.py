@@ -32,6 +32,12 @@ One package fails the operand shape (`E_TYPE`) and one the operand count
 (`E_ARITY`). `tests/rejected_diagnostics.rs` also pins these `cli.txt` texts in
 every `cargo test` run, against `tests/fixtures/rejected/`.
 
+Each directory of `examples/reject/packages/` is a rejected package of the
+book. The kernel rejects some of them, and the capture records those like any
+other case. The frontend rejects the others before it sends a request, so
+there is no wire: the capture records their `cli.txt` alone, and requires exit
+code 1. Any other case that does not reach the kernel stops the capture.
+
 The checkout root is written as `<ROOT>` so captures from different
 checkouts compare. `--compare BASELINE` reports every byte difference against
 an earlier capture and exits 1 when there is one. A change that promises
@@ -61,6 +67,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = ".capture_emit"
+# Each directory in it is a rejected package of the book (BOOK_REJECTED_PACKAGES in
+# tests/examples.rs): the frontend may reject it without a request. A package
+# nested in such a directory is a dependency, and an ordinary case.
+REJECTED_PACKAGES = Path("examples/reject/packages")
 STDLIB_INT = "stdlib/src/arithmetic/int.vast"
 STDLIB_NAT = "stdlib/src/arithmetic/nat.vast"
 STDLIB_GENERIC = "stdlib/src/arithmetic/generic.vast"
@@ -92,14 +102,16 @@ sys.exit(1)
 
 
 def corpus():
-    """(name, arguments after `check`) for every input, in a stable order."""
+    """(name, arguments after `check`, whether it is a rejected example) for every input, in a stable order."""
     cases = []
     for example in sorted((ROOT / "examples").glob("*.vast")):
-        cases.append((f"example/{example.stem}", [str(example.relative_to(ROOT))] + SINGLE_FILE.get(example.stem, [])))
+        arguments = [str(example.relative_to(ROOT))] + SINGLE_FILE.get(example.stem, [])
+        cases.append((f"example/{example.stem}", arguments, False))
     for example in sorted((ROOT / "examples/book").glob("**/*.vast")):
         relative = example.relative_to(ROOT / "examples/book").with_suffix("")
         libraries = BOOK_LIBRARIES.get(relative.as_posix(), [])
-        cases.append((f"book/{relative.as_posix().replace('/', '__')}", [str(example.relative_to(ROOT))] + libraries))
+        name = f"book/{relative.as_posix().replace('/', '__')}"
+        cases.append((name, [str(example.relative_to(ROOT))] + libraries, False))
     manifests = sorted(ROOT.glob("examples/**/Vastitas.toml")) + sorted(ROOT.glob("stdlib/**/Vastitas.toml"))
     manifests += sorted(ROOT.glob("tests/emit_corpus/**/Vastitas.toml"))
     for manifest in manifests:
@@ -107,7 +119,7 @@ def corpus():
         if "stdlib/target" in str(relative):
             continue
         name = "package/" + str(relative.parent).replace("examples/packages/", "").replace("/", "__")
-        cases.append((name, ["--manifest-path", str(relative)]))
+        cases.append((name, ["--manifest-path", str(relative)], relative.parent.parent == REJECTED_PACKAGES))
     return cases
 
 
@@ -127,7 +139,7 @@ def process_text(result):
     return f"exit {result.returncode}\n--- stderr ---\n{decoded(result.stderr)}"
 
 
-def capture_case(name, arguments, out, cli, kernel, stub, work):
+def capture_case(name, arguments, rejected_example, out, cli, kernel, stub, work):
     directory = out / name
     directory.mkdir(parents=True, exist_ok=True)
     for stale in directory.iterdir():
@@ -136,11 +148,17 @@ def capture_case(name, arguments, out, cli, kernel, stub, work):
     wire_path.unlink(missing_ok=True)
     stub_env = dict(os.environ, VASTITAS_KERNEL=str(stub), VASTITAS_CAPTURE_WIRE=str(wire_path))
     captured = run([cli, "check", *arguments], env=stub_env)
-    if b"E_CAPTURED" not in captured.stderr or not wire_path.exists():
+    reached = b"E_CAPTURED" in captured.stderr and wire_path.exists()
+    if not reached and not rejected_example:
         sys.exit(f"{name}: the capture stub was not reached; the frontend said:\n{process_text(captured)}")
     real = run([cli, "check", *arguments], env=dict(os.environ, VASTITAS_KERNEL=kernel))
     (directory / "cli.txt").write_text(
         f"exit {real.returncode}\n--- stdout ---\n{decoded(real.stdout)}--- stderr ---\n{decoded(real.stderr)}")
+    if not reached:
+        # The frontend rejects the package before it sends a request, so there is no wire.
+        if real.returncode != 1:
+            sys.exit(f"{name}: a frontend rejection ends with exit code 1; the compiler said:\n{process_text(real)}")
+        return "frontend rejected"
     wire = wire_path.read_bytes()
     (directory / "wire.raw.json").write_text(decoded(wire))
     (directory / "wire.json").write_text(normalize(json.dumps(json.loads(wire), indent=1, ensure_ascii=False)) + "\n")
@@ -257,8 +275,9 @@ def main():
         stub = work / "capture-kernel"
         stub.write_text(STUB)
         stub.chmod(stub.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        for name, arguments in cases:
-            print(f"{name}: {capture_case(name, arguments, out, str(cli), str(kernel), stub, work)}")
+        for name, arguments, rejected_example in cases:
+            summary = capture_case(name, arguments, rejected_example, out, str(cli), str(kernel), stub, work)
+            print(f"{name}: {summary}")
     print(f"captured {len(cases)} case(s)")
     if args.kernel_fixtures:
         print(f"kernel fixtures: {capture_kernel_fixtures(out)} generated modules")

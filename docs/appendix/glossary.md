@@ -299,6 +299,12 @@ region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
 parent loan stays suspended until the nested loan returns. See
 [Grants and delegations](../language/edit-authority.md#grants-and-delegations).
 
+## Delivery record
+
+An archived chapter that maps the acceptance conditions of a delivery, such as
+a [Stage](#stage), to their evidence at recorded revisions. It keeps the
+wording of its delivery. See [Appendix E](history.md).
+
 ## Dependency alias
 
 The name under which a manifest declares a dependency. As the first segment
@@ -1134,6 +1140,13 @@ name of its package followed by its logical path. See
 A `pub use` declaration, which makes a public declaration of another module
 nameable through the current module. The declaration keeps its [owner](#owner), and
 the reexport grants no edit authority. See [`use` declarations](../language/modules.md#use-declarations).
+
+## Reference model
+
+An independent Python program under `scripts/` with its own tests, which
+studies a proposed construct or a certificate format outside the compiler. It
+is not a part of the compiler, and its results are not compiler acceptance.
+See [Appendix C](reference-models.md).
 
 ## Region
 

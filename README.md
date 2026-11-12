@@ -6,10 +6,10 @@ affine geometry, scoped edit authority, checked storage ownership, real and
 complex GEMM, and finite contraction trees. An independent Lean kernel
 checks the program before generation. [Delivery record](https://github.com/MGYamada/Vastitas/blob/main/docs/stage1-completion.md)
 Historical Stage 2 adds a checked finite profile of presented affine geometry
-over QQ. [Chapter](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage2-acceptance.md)
+over QQ. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/affine-geometry.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage2-acceptance.md)
 Historical Stage 3 adds a checked finite profile of smooth real affine geometry
 over QQ: polynomial smooth maps, covectors and vectors at rational points, the
-metric-free reverse cotangent pullback, and named metrics with checked evidence. [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/smooth-declarations.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage3-acceptance.md)
+metric-free reverse cotangent pullback, and named metrics with checked evidence. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/smooth-geometry.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/smooth-declarations.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage3-acceptance.md)
 The kernel compiles each of these reverse passes that it can read into Core and checks that Core again. [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/reverse-core-acceptance.md)
 
 ## Build and use
@@ -67,7 +67,7 @@ vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
 ```
 
 [Numerical builds](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/cli.md#numerical-builds) ·
-[Adapter contract](https://github.com/MGYamada/Vastitas/blob/main/docs/linalg/maps-and-gemm.md#numerical-adapter)
+[Adapter contract](https://github.com/MGYamada/Vastitas/blob/main/docs/internals/numerical-backend.md#native-gemm-adapter)
 
 ## Documentation
 

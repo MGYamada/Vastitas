@@ -1,6 +1,29 @@
-# Analysis, certificate and effect reference models
+# Analysis, certificates and random supplies
 
-These bounded reference programs test infinite-tail certificates, polynomial enclosures, sum-of-squares coverage and explicit random supplies. Their commands, exact inputs and scope are recorded below.
+This chapter describes five [reference models](../appendix/reference-models.md)
+from analysis and from effects. Four of them check a finite certificate with
+exact rational arithmetic: a tail bound that places a sequence in ℓ², an
+enclosure of the integral of a polynomial, a sum-of-squares certificate that
+cozero sets cover real affine space, and the agreement of two derivative rules
+for one function. The fifth models an explicit supply of random bits. Each is
+a Python program with tests under `scripts/`, and none is a part of the
+compiler.
+
+| Model | In the compiler |
+| --- | --- |
+| [ℓ² tail certificates](#l2-tail-reference) | Model only. Planned: [#208](https://github.com/MGYamada/Vastitas/issues/208), [#209](https://github.com/MGYamada/Vastitas/issues/209) |
+| [Polynomial integral enclosures](#integral-reference) | Model only. Planned: [#293](https://github.com/MGYamada/Vastitas/issues/293) |
+| [SOS covers](#sos-reference) | Model only. Implemented: the [principal opens](../affine-geometry.md#principal-opens) of a presented affine object. The language has no declaration of a cover. Planned: [#244](https://github.com/MGYamada/Vastitas/issues/244), [#237](https://github.com/MGYamada/Vastitas/issues/237) |
+| [Random supplies](#rand-reference) | Model only. Planned: [#249](https://github.com/MGYamada/Vastitas/issues/249) |
+| [Derivative-rule coherence](#derivative-coherence-reference) | Implemented: the reverse pullback of a polynomial smooth map. The kernel computes its derivative from the polynomial, as [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) specifies, and the [Stage 3 acceptance record](../stage3-acceptance.md) states what is Proved about it. A program cannot declare a derivative rule, so the coherence of two rules is a model only. Planned: [#163](https://github.com/MGYamada/Vastitas/issues/163), [#164](https://github.com/MGYamada/Vastitas/issues/164) |
+
+Each section keeps the record of the change that added its model. Its
+statements about the compiler describe the repository at that change.
+The sections name three Lean packages of
+[#285](https://github.com/MGYamada/Vastitas/issues/285). Of these, the proof
+oracle `VastitasOracle` and the mathematical bridge `VastitasBridge` exist,
+and [Verification boundaries](../verification.md) describes them.
+`VastitasMath` is Planned.
 
 <a id="l2-tail-reference"></a>
 
@@ -71,7 +94,7 @@ $0\le\iota(q)<1$, $B(N)\to0$. The producer chooses $c=a^2/(1-r^2)$, for which
 the interval inequality is equality; larger valid coefficients also pass.
 The zero-ratio case retains $r^0=1$, so the initial term is not discarded.
 Ratios with $|r|\ge1$ are outside this rule, including zero-amplitude cases;
-`unsupported` is deliberately not a proof of nonmembership.
+`unsupported` is not a proof of nonmembership.
 
 #### Reciprocal-square comparison
 
@@ -263,7 +286,7 @@ acceptance records. They reproduce the common first-eight-term squared norm
 `21845/16384`, the invalid borrowed `B(8) = 1/49152` against a term of square 1,
 and the missing `4/3` factor counterexample `5/4 > 1`.
 
-One deliberately understated geometric coefficient is `4/3 - 10^(-100)`.
+One geometric coefficient is understated on purpose: `4/3 - 10^(-100)`.
 Every sampled interval still obeys its weak finite bound, yet the exact rule
 rejects it. Tests also disable the observation functions and candidate producer
 while checking certificates. These regressions guard against sampling-based
@@ -273,7 +296,7 @@ acceptance; they do not establish universal analytic statements.
 | --- | --- |
 | Closed rational rule checking and reference return/snapshot audit | Implemented; focused tests executed |
 | Finite rational observations | Executed as regressions only |
-| General analytic implication and two rule soundness propositions | Specified above; no new Lean proof or build |
+| General analytic implication and two rule soundness propositions | Specified above; no Lean proof or build |
 | Actual compiler generator extraction, returned-Core/ledger composition | Pending; reference records are not compiler certificates |
 | Ordinary compiler dependency isolation | No dependency/import changes; boundary checker executed; existing no-mathlib CI retained |
 | ℓ² completeness, general inner products/operators, iterator memory safety | Outside this fragment; no guarantee added |
@@ -317,12 +340,12 @@ python3 scripts/check_boundaries.py
 git diff --check
 ```
 
-Existing CI discovers `scripts/test_*.py`, including the new tests. The demo's
+Existing CI discovers `scripts/test_*.py`, including these tests. The demo's
 principal candidates and expected totals are hand-supplied; it performs no
 partition, approximation or error-bound search.
 
 Validation recorded on 2026-10-31 JST against the dependency head above: all
-39 new integral regressions passed. Full Python discovery ran 274 tests:
+39 integral regressions passed. Full Python discovery ran 274 tests:
 273 passed and one existing live diagnostic integration test was skipped because
 the Rust CLI and Lean kernel were not built. The demo, dependency-boundary check
 and staged whitespace check also passed. No Lean build or native error test is
@@ -534,7 +557,7 @@ does not refute the cover. A cover need not have a uniform positive lower bound;
 this condition is intentionally sufficient, not necessary.
 
 The compiler, Lean kernel, proof oracle and stdlib are unchanged. This is not
-Vastitas execution, Lean certification, std admission, or a new Domain Checker.
+Vastitas execution, Lean certification or std admission, and it adds no Domain Checker.
 The implementation was prepared against main
 `2d6a86ce4c8a44bd883d879035aa9c924ed8fc71`; it does not complete #244 or #237.
 
@@ -630,8 +653,8 @@ exponents, zero denominators, float literals (including `0.0`), NaN/Infinity,
 string expressions and solver-success flags are rejected. Coefficients are
 normalized with `Fraction`, and zero terms removed after input validation.
 
-The existing symplectic `Poly` was extracted, not duplicated. It now records
-arity and rejects mixed-arity arithmetic even for zero polynomials. Sorted sparse
+The existing symplectic `Poly` was extracted, not duplicated. The shared class
+records arity and rejects mixed-arity arithmetic even for zero polynomials. Sorted sparse
 terms give canonical coefficientwise equality; this is a representation order,
 not a claimed Gröbner-basis implementation. The explicit Gram basis order is
 never sorted or inferred. The legacy default arity remains four, and the
@@ -693,7 +716,7 @@ No `sorry`, custom axiom or success-name string discharges them.
 | Core2 | Prove that occurrence of that returned Core denotes these precise `f_i`, variable order and real domain. Retain dependency revisions and authority; reject stale or foreign evidence and preserve/recheck correspondence through specialization and optimization. |
 | Core3 | Import the actual executable kernel checker into the proof-only oracle and compose its successful result with SOS1–SOS4 and the existing applicable Domain Checker / independent Core Safety obligations under #184. A proof of a copied checker is insufficient. |
 
-The intended future conclusion, for a production acceptance route that actually
+The intended future conclusion, for a production acceptance route that
 includes this SOS consumer, is evidence indexed by its actual returned Core `C`
 and extracted subject `S`, together with
 `DenoteCoreGenerators(C, occurrence) = DenoteRequestedGenerators(S)` and
@@ -741,7 +764,7 @@ regressions: [test_rand_reference.py](https://github.com/MGYamada/Vastitas/blob/
 `compose_dist` is a finite mathematical sum/product calculation, not a proposed
 operational `std` API. Python callbacks and closures are convenient test notation;
 they do not relax Vastitas's closure-free/ownership rules. No `State` or `Except`
-package, new Domain Checker, or named certified Monad instance is installed by
+package, Domain Checker, or named certified Monad instance is installed by
 this reference.
 
 ### State transitions and explicit splitting
@@ -774,7 +797,7 @@ Production opacity, legal moves, disjoint-domain ownership, and compiler checkin
 remain separate obligations. The reference does not certify arbitrary callbacks
 as admissible samplers.
 
-The deliberately incorrect `bad_split_bind` splits by syntax-tree position. Its
+`bad_split_bind` is incorrect on purpose: it splits by syntax-tree position. Its
 two bracketings produce `(LL, LR, R)` and `(L, RL, RR)`. A single six-address
 bit table witnesses different outputs, while exhaustive uniform enumeration of
 that same table gives the same three-bit output law for both. Equal distributions
@@ -878,13 +901,13 @@ backwards. It refines the design obligations in [#163](https://github.com/MGYama
 [#192](https://github.com/MGYamada/Vastitas/issues/192).
 It is not production AD, a Lean theorem, an authenticated rule registry,
 actual-Core derivative acceptance, or a general differentiability decision
-procedure. No new checker, release target or CF completion is claimed.
+procedure. It claims no checker, release target or CF completion.
 
 The reviewed implementation baseline is
 `e026b89cbdbe6ea2f766cde7d18bdd959f48a007`. The examples follow #278's pinned
 mathlib semantics, #279's independent proof-route principle, and #285's intended
 independent mathematical semantics / Bridge architecture. The latter is not a
-claim that the proposed packages or migration already exist.
+claim that the proposed packages or migration existed at that revision.
 
 PR #270 already supplies the [metric reference](geometry.md#metric-reference). This
 reference has no metric, musical-map or coordinate-conversion implementation.
@@ -1088,7 +1111,7 @@ The shared result is 4x; the dual action is multiplication by 4x. Polynomial
 coefficient identities certify the reference's supported symbolic formulas;
 the displayed finite basepoint/seed checks are regression observations only.
 
-The branch normalizer has two deliberately small rules: for `if x==0`, compare
+The branch normalizer has two small rules: for `if x==0`, compare
 the exceptional values exactly and then use the other polynomial everywhere;
 for `if x>=0`, either both branch polynomials agree identically or an explicit
 nonnegative domain chooses that branch. This is not a general branch AD engine.
@@ -1114,7 +1137,7 @@ acceptance; neither is implemented by these files.
 
 ### 6. Required Lean results (separate from reference test success)
 
-These are proof obligations and reviewed API dependencies, not newly completed
+These are proof obligations and reviewed API dependencies, not completed
 theorems. At the pinned mathlib revision the following building blocks exist:
 
 | Dependency | Location | Role |
@@ -1176,7 +1199,8 @@ Required additional proofs are:
 Under #285's intended split, reusable propositions belong in `VastitasMath`,
 pinned-mathlib models and congruence/uniqueness correspondence in `VastitasBridge`,
 and actual-checker soundness in `VastitasOracle`. Ordinary `lean-kernel/` remains
-mathlib-free. This does not claim those packages or migrations already exist.
+mathlib-free. This does not claim that those packages or migrations existed at
+the revision that this section names.
 
 ### 7. Actual accepted-Core obligations (#163 / #192)
 

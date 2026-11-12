@@ -488,8 +488,10 @@ to the image xₖ. The **reverse pass** pulls the seed back along Fₖ at xₖ�
 then along each earlier map, and along F₁ at x last. The **pullback mode** of
 a `cotangent_pullback` binding says where the reverse pass takes the points
 from. With `saved`, it reads the points that one forward pass kept. With
-`recomputed`, it evaluates again the points that it reads. A **tape** of F at
-x is a value that holds the points of one forward pass of F at x.
+`recomputed`, it evaluates again the points that it reads. These are the
+strategies Retain and Recompute of
+[Residual retention](../storage-ownership.md#residual-retention). A **tape**
+of F at x is a value that holds the points of one forward pass of F at x.
 
 In the table, `C` is a cotangent family, `T` a family with the `tape`
 representation, and `L` a 1-dimensional smooth affine object. F is the map

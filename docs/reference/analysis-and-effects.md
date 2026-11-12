@@ -19,11 +19,12 @@ compiler.
 
 Each section keeps the record of the change that added its model. Its
 statements about the compiler describe the repository at that change.
-The sections name three Lean packages of
-[#285](https://github.com/MGYamada/Vastitas/issues/285). Of these, the proof
-oracle `VastitasOracle` and the mathematical bridge `VastitasBridge` exist,
-and [Verification boundaries](../verification.md) describes them.
-`VastitasMath` is Planned.
+The sections name the four Lean packages of
+[#285](https://github.com/MGYamada/Vastitas/issues/285). Of these, the kernel
+`VastitasKernel`, the proof oracle `VastitasOracle` and the mathematical
+bridge `VastitasBridge` exist, and
+[Verification boundaries](../verification.md) describes them. `VastitasMath`
+is Planned.
 
 <a id="l2-tail-reference"></a>
 
@@ -159,8 +160,9 @@ evidence must satisfy the independent compiler obligations below.
 The following Lean-shaped specification defines **proof obligations**, not
 inhabited proofs. It is documentation, has not been Lean-built, and introduces
 no `sorry`, custom axiom, or executable compiler import. A future proof module
-belongs in `lean/`, with the actual executable checker imported from
-`lean-kernel/` once implemented there.
+that imports Mathlib, as this sketch does, belongs in `lean-bridge/`: the
+oracle in `lean/` may not depend on Mathlib. Such a module imports the
+executable checker from `lean-kernel/` once the checker exists there.
 
 ```lean
 import Mathlib.Analysis.Normed.Lp.lpSpace
@@ -294,7 +296,7 @@ acceptance; they do not establish universal analytic statements.
 
 | Layer | Status in this increment |
 | --- | --- |
-| Closed rational rule checking and reference return/snapshot audit | Implemented; focused tests executed |
+| Closed rational rule checking and reference return/snapshot audit | In the Python model; focused tests executed |
 | Finite rational observations | Executed as regressions only |
 | General analytic implication and two rule soundness propositions | Specified above; no Lean proof or build |
 | Actual compiler generator extraction, returned-Core/ledger composition | Pending; reference records are not compiler certificates |
@@ -304,8 +306,9 @@ acceptance; they do not establish universal analytic statements.
 Existing CI already discovers `scripts/test_*.py`. Python remains development
 infrastructure. Neither ordinary compilation nor generated programs invoke
 this reference or mathlib. A future Lean implementation must keep executable
-checks in the mathlib-free kernel and analysis proofs in the proof-only oracle;
-it must compose the frozen 8+1 architecture rather than add another checker.
+checks in the mathlib-free kernel and the analysis proofs that import Mathlib
+in the bridge; it must compose the frozen 8+1 architecture rather than add
+another checker.
 
 <a id="integral-reference"></a>
 
@@ -515,7 +518,7 @@ directly computed integral of `f` to replace those obligations.
 
 | Boundary | Status and remaining obligation |
 | --- | --- |
-| Python reference | Implemented finite constructor/verifier and executable regressions. Python, `Fraction`, codecs and implementation are not formally verified. |
+| Python reference | The model has a finite constructor/verifier and executable regressions. Python, `Fraction`, codecs and the model's code are not formally verified. |
 | Independent mathematical theorems | **Pending.** Define real polynomial evaluation and the Lebesgue integral independently; prove polynomial continuity/integrability, coefficient integration, the quadratic extremum reduction, finite additivity and error accumulation, including the empty case. |
 | Actual executable checker soundness | **Pending.** Prove the real admitted constructor's arithmetic, decoding, binding and fail-closed checks refine those definitions, and relate its exact returned enclosure to the request. A theorem about a copied Python model would not suffice. |
 | Actual accepted Core | **Unconnected.** Derive the target from authenticated source/environment identities, revisions, selected interpretation and the exact returned Core occurrence; preserve/recheck that correspondence across specialization and optimization through the existing public acceptance path. |
@@ -901,7 +904,7 @@ backwards. It refines the design obligations in [#163](https://github.com/MGYama
 [#192](https://github.com/MGYamada/Vastitas/issues/192).
 It is not production AD, a Lean theorem, an authenticated rule registry,
 actual-Core derivative acceptance, or a general differentiability decision
-procedure. It claims no checker, release target or CF completion.
+procedure. It claims no further checker, release target or CF completion.
 
 The reviewed implementation baseline is
 `e026b89cbdbe6ea2f766cde7d18bdd959f48a007`. The examples follow #278's pinned

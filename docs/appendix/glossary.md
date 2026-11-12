@@ -1198,10 +1198,11 @@ the reexport grants no edit authority. See [`use` declarations](../language/modu
 
 ## Reference model
 
-An independent Python program under `scripts/` with its own tests, which
-studies a proposed construct or a certificate format outside the compiler. It
-is not a part of the compiler, and its results are not compiler acceptance.
-See [Appendix C](reference-models.md).
+An independent Python program under `scripts/` with its own tests. It models
+a construct or a certificate format that an issue proposes, or a component
+that the compiler has; a kernel regression uses some models of the second
+kind as an oracle. It is not a part of the compiler, and its results are not
+compiler acceptance. See [Appendix C](reference-models.md).
 
 ## Region
 

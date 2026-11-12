@@ -35,8 +35,8 @@ cargo package --locked
 | Command | What it checks |
 | --- | --- |
 | `check_docs.py` | `AGENTS.md` and `CLAUDE.md` are identical and within their size limits |
-| `check_boundaries.py` | The dependency boundaries: the kernel and the oracle do not depend on Mathlib, the bridge depends on the pinned Mathlib alone, and the packages share one Lean toolchain and keep their lockfiles |
-| `check_kernel_regressions.sh` | The regression modules of the kernel: checked IR, dispatch, function values, edit authority and the indexed, affine and smooth checkers |
+| `check_boundaries.py` | The dependency boundaries: the kernel and the oracle do not depend on Mathlib. The bridge depends on the pinned Mathlib and, one way, on the kernel and the oracle, as the [amendment of ADR 0001](../adr/0001-mathematics-first-stdlib.md#implementation-correspondence-in-the-bridge-amendment-2026-11-12) admits. The packages share one Lean toolchain and keep their lockfiles |
+| `check_kernel_regressions.sh` | The regression modules that the script lists. Among others they cover the type audit, dispatch, function values, namespaces, edit authority, the indexed, affine and smooth checkers, the wire, storage, the numerical statements, exact algebra and promotion |
 | `check_indexed_native.sh` | The code that the kernel generates from indexed Core: it compiles each generated module, runs it and compares its output |
 | `check_storage_native.sh` | The native storage adapter and the cleanup after a failure, without BLAS |
 | `cargo test --locked --all-targets` | The unit tests and the integration tests, which run `check` and `build` and the built executables. Build the kernel first |
@@ -99,7 +99,7 @@ lake -d lean env python3 scripts/check_spec_lean.py
 | `check_chain_rule_free.lean` | The compiled reverse Core theorems that the specification states without the chain rule reach no chain-rule theorem |
 | `spec_resolve.lean` | Each pinned oracle theorem and kernel definition of the specifications: its module, kind, axioms and statement hash |
 | `experiments/iterator_prefix/check_lean.sh` | The Lean draft of the iterator-prefix experiment and its axioms |
-| `replay_lean.sh` | Every built module, replayed with `leanchecker` against its imported environment |
+| `replay_lean.sh` | Every built oracle and kernel module, a module whose name begins with `VastitasOracle` or `VastitasKernel`, replayed with `leanchecker` against its imported environment. The modules of `VastitasPromotion`, `VastitasPublicTest`, `VastitasStorageTest`, `VastitasAlgebraTest` and `Main` are not replayed |
 | `check_axiom_audit.py` | The audit itself, on fixture packages that it must reject: its coverage, its provenance rules and substituted code |
 | `check_spec_lean.py` | The resolver itself, on fixture claims |
 | `check_oracle_core.lean` | The migrated Core proofs, on coordinate spaces, names and positional lists |
@@ -142,23 +142,27 @@ review the diff of the statement pins.
 
 ## Mathematical bridge
 
-The bridge in `lean-bridge/` is a separate package that depends on Mathlib.
-Its workflow runs for a change to the bridge, to the kernel or oracle sources
+The bridge in `lean-bridge/` is a separate package. It depends on the pinned
+Mathlib and, one way, on the kernel and the oracle. Its workflow runs for a change to the bridge, to the kernel or oracle sources
 that the bridge reads, or to the scripts below. For such a change run:
 
 ```sh
 python3 scripts/check_boundaries.py
 python3 -m unittest discover -s scripts -p 'test_check_boundaries.py'
+(cd lean-bridge && lake exe cache get <modules>)
 (cd lean-bridge && lake build)
 (cd lean-bridge && lake env lean Audit.lean)
 (cd lean-bridge && VASTITAS_SPEC_INPUT=../docs/spec/pins/bridge.json lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean)
 bash scripts/replay_lean.sh lean-bridge -v VastitasBridge
 ```
 
+`lake exe cache get` fetches the Mathlib cache before the build. `<modules>`
+is the list of Mathlib modules in the step "Fetch only the required Mathlib
+cache" of the
+[bridge workflow](https://github.com/MGYamada/Vastitas/blob/main/.github/workflows/lean-bridge.yml).
 `Audit.lean` audits every bridge declaration and its transitive axioms. CI
-fetches the Mathlib cache of the modules that the bridge imports before the
-build, and sets `LEAN_NUM_THREADS=2` for the job and
-`VASTITAS_REPLAY_THREADS=2` for the replay. At its end the job runs
+sets `LEAN_NUM_THREADS=2` for the job and `VASTITAS_REPLAY_THREADS=2` for the
+replay. At its end the job runs
 `check_boundaries.py` again and fails on a Lake manifest that differs from the
 committed one. Each of the last four commands is a heavy check: read
 [Memory budget for local verification](#memory-budget-for-local-verification)
@@ -239,12 +243,13 @@ VASTITAS_UPDATE_EMIT_FIXTURES=1 cargo test --locked --test emit_golden
 When `CI` is set, the test fails instead of regenerating the fixtures.
 Regenerate them locally and commit them.
 
-`scripts/capture_emit.py` records what the compiler emits for every example
-and every package manifest under `examples/`, `stdlib/` and
-`tests/emit_corpus/`: the wire request, the `check` and `emit` responses and
-the generated Lean. For a rejected package of the book that the frontend
-rejects, it records the diagnostics alone, because the frontend sends no
-request. `--compare` reports every byte that differs from an earlier capture.
+`scripts/capture_emit.py` records what the compiler emits for every example.
+Its cases are the single-file programs under `examples/`, among them the
+rejected programs of the book, and every package manifest under `examples/`,
+`stdlib/` and `tests/emit_corpus/`. For each case it records the wire request,
+the `check` and `emit` responses and the generated Lean. For a rejected
+program or package of the book that the frontend rejects, it records the
+diagnostics alone, because the frontend sends no request. `--compare` reports every byte that differs from an earlier capture.
 A change that promises identical generated code, diagnostics or wire format
 runs the script before and after, each time with the binaries of that tree:
 
@@ -291,7 +296,7 @@ diagnostics that name a declaration of a package.
 Run the heavy checks one at a time, and not while another process builds
 Lean. A heavy check is the bridge build, `Audit.lean`, the bridge
 specification resolver, `check_spec.py --update-statements`, a `leanchecker`
-replay, or `scripts/check_axiom_audit.py`.
+replay, `audit_axioms.lean`, or `scripts/check_axiom_audit.py`.
 
 Always replay through `scripts/replay_lean.sh`. Do not call `leanchecker`
 directly:
@@ -341,16 +346,18 @@ replays and audits ran at once.
 
 The workflows are in
 [`.github/workflows/`](https://github.com/MGYamada/Vastitas/tree/main/.github/workflows).
-The first four jobs below are the workflow `ci.yml`.
+The table names each job as its workflow does. In a job name, "host" stands
+for the runner image of the job's matrix. The job of the documentation
+workflow has no name, so the table gives its identifier.
 
-| Job | Hosts | Runs |
-| --- | --- | --- |
-| Rust formatting and lint | Linux | `check_docs.py`, `check_primitive_table.py`, `check_spec.py`, `cargo fmt`, `cargo clippy`, `cargo package`, the Python tests under `scripts/`, `check_boundaries.py`, the [experiment harnesses](#experiment-harnesses), and the generation and `--check` of the standard-library package |
-| Native compiler, no mathlib | Linux and macOS | The kernel build, `check_boundaries.py` with the directory `lean/` absent, the three regression scripts, `cargo test --locked --all-targets`, `audit-lean`, `check_resource_cleanup.py` and the diagnostics model against the built compiler |
-| Optional GEMM adapter | Linux and macOS | The commands of [Numerical adapters](#numerical-adapters) |
-| Lean proofs and axiom audit | Linux | The commands of [Proof oracle and axiom audit](#proof-oracle-and-axiom-audit), without Mathlib |
-| Mathematical bridge | Linux | The commands of [Mathematical bridge](#mathematical-bridge) |
-| Documentation book | Linux | `mdbook build` with the pinned release and `scripts/check_book.py` |
+| Workflow | Job | Hosts | Runs |
+| --- | --- | --- | --- |
+| CI, `ci.yml` | Rust formatting and lint | Linux | `check_docs.py`, `check_primitive_table.py`, `check_spec.py`, `cargo fmt`, `cargo clippy`, `cargo package`, the Python tests under `scripts/`, `check_boundaries.py`, the [experiment harnesses](#experiment-harnesses), and the generation and `--check` of the standard-library package |
+| CI, `ci.yml` | Native compiler (host, no mathlib) | Linux and macOS | The kernel build, `check_boundaries.py` with the directory `lean/` absent, the three regression scripts, `cargo test --locked --all-targets`, `audit-lean`, `check_resource_cleanup.py` and the diagnostics model against the built compiler |
+| CI, `ci.yml` | Optional GEMM adapter (host, OpenBLAS 0.3.34) | Linux and macOS | The commands of [Numerical adapters](#numerical-adapters) |
+| CI, `ci.yml` | Lean proofs and axiom audit | Linux | The commands of [Proof oracle and axiom audit](#proof-oracle-and-axiom-audit), without Mathlib |
+| Mathematical bridge, `lean-bridge.yml` | Daleckii–Krein proof and axiom audit | Linux | The commands of [Mathematical bridge](#mathematical-bridge) |
+| Documentation book, `documentation.yml` | `book` | Linux | `mdbook build` with the pinned release and `scripts/check_book.py` |
 
 - `ci.yml` and the documentation workflow run on pull requests, on pushes to
   `main` and on manual dispatch. A push to the branch of a pull request is
@@ -359,9 +366,12 @@ The first four jobs below are the workflow `ci.yml`.
 - In `ci.yml` and the bridge workflow, a later run for the same event and
   branch or pull request cancels the earlier one. Push runs and pull-request
   runs do not cancel each other.
-- The workflows pin the revisions of their actions and the language
-  toolchains. Every Lean package pins Lean v4.35.0, and Python is pinned to
-  3.15.2.
+- The workflows pin the revisions of their actions. `rust-toolchain.toml`
+  pins Rust to 1.99.1, and every Lean package pins Lean v4.35.0. `ci.yml` and
+  the OpenBLAS and experiment workflows pin Python to 3.15.2 with
+  `setup-python`. The bridge workflow and the documentation workflow have no
+  `setup-python` step: `check_boundaries.py` and `check_book.py` run there
+  with the Python of the runner.
 - CI installs elan 4.2.4 from a release archive and checks the SHA-256 of the
   archive before the installer runs. It does not execute elan's moving
   `master` bootstrap script, and the installation does not modify shell

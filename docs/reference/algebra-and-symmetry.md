@@ -3,7 +3,7 @@
 This chapter describes four [reference models](../appendix/reference-models.md)
 of finite algebraic structures. They compute with exact arithmetic: canonical
 anticommutation relations and spin, finite orders and lattices, antiunitary
-time reversal, and the spectral pairs of rank-two matrices. Each is a Python
+time reversal, and the spectral pairs of 2×2 rational matrices. Each is a Python
 program with tests under `scripts/`, and each section states its hypotheses,
 its verifier and its regression examples. None is a part of the compiler.
 
@@ -408,18 +408,18 @@ This implements **two selected two-dimensional models over Q(i)** for
 and a separately selected spinless two-orbital model. It is Python reference
 calculation and regression coverage. It adds no Lean theorem, public `.vast`
 feature, accepted-Core connection, empirical verification or classification.
-##301's wider design checklist remains open.
+The wider design checklist of #301 remains open.
 
 ### Dependency and reproduction
 
 At preparation, [PR #275](https://github.com/MGYamada/Vastitas/pull/275) was
 still an open draft at `6b9a6dd92c2f302b6dccabfc15080c516b2142a7` with no
-follow-up discussion. This change is stacked on that exact head. PR #275 merged
-on 10 November 2026. It imports
+follow-up discussion. This change is stacked on that exact head. It imports
 `Qi`, `Matrix`, matrix validation/construction, multiplication, scaling and
 conjugate transpose directly from `car_reference.py`. It does not copy those
 operations or rebuild the CAR, Clifford, crossing or Koszul regressions.
 The two models here select time reversal independently of tensor statistics.
+PR #275 merged on 10 November 2026.
 
 ```sh
 python3 scripts/demo_time_reversal_reference.py
@@ -570,8 +570,8 @@ claim of thermodynamic spontaneous symmetry breaking.
 | Production Core | No source resolver, Core certificate, checker authority, lowering or native-refinement connection. A future bridge must bind independently resolved identities and methods to the exact accepted Core and preserve all coefficient/basis/profile/subject data. |
 | Physical assumptions | Explicitly chosen interpretations of the two finite actions; mathematical acceptance verifies no experimental identification. |
 
-These obligations retain #301's boundary with #204/#223, #278/#279 and
-##285 and the existing checker architecture. They do not add a Domain Checker,
+These obligations retain #301's boundary with #204/#223, with #278/#279 and #285,
+and with the existing checker architecture. They do not add a Domain Checker,
 constitutional theorem or release gate. Space-group databases, general
 projective classifications, magnetic groups and arbitrary physical symmetry
 discovery are outside this change.

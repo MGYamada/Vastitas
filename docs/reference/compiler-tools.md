@@ -316,12 +316,16 @@ status **before** matching diagnostics:
    and normal driver failure termination (1).
 3. A frontend rejection requires the exact not-reached backend record above.
 4. A kernel rejection requires completed capture, normal backend failure
-   termination (1), a request version that the driver supports (2–9),
+   termination (1), a request version supported by the inspected driver (2–7),
    exactly matching response version, `ok: false`, and the same complete diagnostic
    payload in the response and result. Unknown versions/statuses, malformed
    responses, differing payloads, and protocol mismatches cannot pass.
 5. Require at least one diagnostic and exclude operational/unsupported/internal
    failures. Compare the full diagnostic code multisets exactly.
+
+The range of versions in step 4 is that of the inspected driver. Today the
+driver supports the versions 2–9, and `scripts/doctest_result_reference.py`
+accepts that range.
 
 **Matching rule:** compare `Counter(actual_top_level_codes)` with
 `Counter(declared_codes)`. Order is irrelevant; **multiplicity matters**. Extra
@@ -648,7 +652,7 @@ printer must separately define semantics-preserving literal/comment handling.
 
 | Item | Status |
 | --- | --- |
-| Fixed lexical profile, exact name identity, E/R/C functions | Implemented in this Python reference |
+| Fixed lexical profile, exact name identity, E/R/C functions | Computed by this Python reference |
 | Every accepted scalar's basic round-trip; complete code-point profile comparison | Tested against the bundled UCD data |
 | ASCII compatibility, malformed escapes, strict UTF-8, reservations, budgets | Regression-tested within this codec |
 | Original spans/context/trace retained in a syntax tape | Tested in an in-process adapter |

@@ -156,7 +156,7 @@ all `6!` permutations. Only the fully joined, ordered-reuse case is admitted.
 For two independent 64-byte workspaces with hypothetical operation durations 3
 and 5:
 
-| Candidate | Peak live slot bytes | Hypothetical makespan | Work pair that the candidate orders |
+| Candidate | Peak live slot bytes | Hypothetical makespan | Work pair that only the candidate orders |
 | --- | ---: | ---: | --- |
 | Separate allocations, preserve parallelism | 128 | 5 | None |
 | Reuse one slot, A then B | 64 | 8 | `use_A` before `use_B` |
@@ -187,7 +187,7 @@ same JSON. The payload carries:
 | --- | --- |
 | Expected subject | Exact fixture binding, operations/streams, allocations/generations/owners, workspace access roles, concrete size/alignment/layout/pool profile |
 | Candidate | Added dependencies, slot assignments and exact subject; always separate from facts |
-| Candidate costs | Max-of-stage-byte-sums expression AST (constant leaves in this fragment), estimated time, the work pairs that the candidate orders (`newly_ordered_work_pairs`), added edges, assumptions, unknown overhead/pool reservation |
+| Candidate costs | Max-of-stage-byte-sums expression AST (constant leaves in this fragment), estimated time, the work pairs that only the candidate orders (`newly_ordered_work_pairs`), added edges, assumptions, unknown overhead/pool reservation |
 | Verified reference facts | Complete uses, recomputed last-use frontiers, allocate/release positions, slot groups, exact order edges/kinds and receipt identities |
 | Unresolved fields | Logical retire node (`null`, owned by #210), real Core/source provenance, adapter realization, actual pool bytes, symbolic dimensions, region/initialization/loan facts and runtime measurements |
 | Diagnostics/integration | Stable reference codes; candidate analysis and contract-audit failures kept distinct; actual accepted Core, CUDA adapter and common emitter explicitly unconnected |
@@ -764,7 +764,7 @@ site-observing profile requires its own explicit trace-refinement theorem.
 
 | Layer | Status of this increment |
 | --- | --- |
-| Executable reference | Implemented and regression-tested Python primitive and sequencing layers; fixed binary64 real profile only. |
+| Executable reference | Python primitive and sequencing layers with regression tests; fixed binary64 real profile only. |
 | Lean monad/lift proofs | **Not implemented.** Prove flag-union laws, both unit laws and associativity by failure cases, and both lift equations extensionally at representation equality. Establish equality congruence for admitted continuations and the trace projection separately. |
 | Lean arithmetic proofs | **Not implemented.** Prove finite decoding/rounding and each operation's result/flag contract under the selected NaN, underflow and rounding policy; monad laws alone cannot prove these. |
 | Production Source/Core connection | **Not implemented.** Preserve operation identities, computational presentation, model/profile/revision provenance, accepted Core, branch schedule and guard evidence. No parser/protocol/checker/stdlib admission change here. |

@@ -1,12 +1,14 @@
 # Exact geometry reference models
 
 This chapter describes seven [reference models](../appendix/reference-models.md)
-from geometry. They compute with exact rational or integral arithmetic: metrics
-on the real plane, polynomial symplectic maps, first variations, finite Čech
-covers, the Bloch and Fermi schemes of the SSH chain, addition on an elliptic
-curve, and the pointwise Hodge star. Each is a Python program with tests under
-`scripts/`, and each section states its hypotheses, its verifier and its
-regression examples. None is a part of the compiler.
+from geometry. They compute with exact arithmetic over the rational numbers,
+over the integers and, for the elliptic curve, over the field of five
+elements. Their subjects are metrics on the real plane, polynomial symplectic
+maps, first variations, finite Čech covers, the Bloch and Fermi schemes of the
+SSH chain, addition on an elliptic curve, and the pointwise Hodge star. Each
+is a Python program with tests under `scripts/`, and each section states its
+hypotheses, its verifier and its regression examples. None is a part of the
+compiler.
 
 | Model | In the compiler |
 | --- | --- |
@@ -16,7 +18,7 @@ regression examples. None is a part of the compiler.
 | [Finite Čech covers](#cech-reference) | Model only. Planned: [#265](https://github.com/MGYamada/Vastitas/issues/265), [#258](https://github.com/MGYamada/Vastitas/issues/258) |
 | [SSH Bloch and Fermi schemes](#ssh-toric-reference) | Model only. Implemented: [presented affine objects](../affine-geometry.md) over the rational numbers and their principal opens. The toric constructions of the model are Planned: [#247](https://github.com/MGYamada/Vastitas/issues/247) |
 | [Elliptic addition](#elliptic-reference) | Model only. Planned: [#253](https://github.com/MGYamada/Vastitas/issues/253) |
-| [Pointwise Hodge star](#hodge-reference) | Model only. Proved: the proof oracle holds the finite basis identities of `VastitasOracle.HodgeFinite`, which are about no construct of the language. Planned: [#375](https://github.com/MGYamada/Vastitas/issues/375) |
+| [Pointwise Hodge star](#hodge-reference) | Model only. Proved: seven theorems of `VastitasOracle.HodgeFinite` in the proof oracle. On basis vectors with integer coefficients they state the defining identity and the square laws of the star, for Euclidean one-forms in rank three and for Minkowski two-forms in rank four. They are about no construct of the language. Planned: [#375](https://github.com/MGYamada/Vastitas/issues/375) |
 
 Each section keeps the record of the change that added its model. Its
 statements about the compiler describe the repository at that change.
@@ -566,8 +568,8 @@ indexed. Certificates for a different Core, domain, environment revision or
 unrelated named model cannot satisfy it by relabelling.
 
 No general smoothness decision procedure, cover solver, Kähler construction,
-complex integrability guarantee, checker or production `std::geometry`
-implementation is supplied here. The refined std/ecosystem boundary of #211 is
+complex integrability guarantee, additional Domain Checker or production
+`std::geometry` implementation is supplied here. The refined std/ecosystem boundary of #211 is
 preserved; the historical ratified ADR is not silently rewritten.
 
 <a id="variational-reference"></a>
@@ -1012,7 +1014,7 @@ Domain Checker. Storage/native refinement remains a separate obligation.
 
 | Layer | Status of this increment |
 | --- | --- |
-| Finite topology/cover, sections/restrictions and integer matrices | Implemented and regression-tested Python reference |
+| Finite topology/cover, sections/restrictions and integer matrices | Python reference with regression tests |
 | Kernel/image/quotient for the two fixed complexes | Explicit integral identities checked; argument above |
 | General homological algebra | Remains #258's responsibility; not implemented here |
 | Lean soundness and actual accepted-Core connection | Obligations only; no Lean build/proof claimed |
@@ -1286,7 +1288,7 @@ CI already discovers `scripts/test_*.py`; no compiler dependency is introduced.
 
 ### Total inversion and formula applicability
 
-The project's [mathlib lock](https://github.com/MGYamada/Vastitas/blob/main/lean/lake-manifest.json) pins revision
+The project's [mathlib lock](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/lake-manifest.json) pins revision
 `56a005855ea17e0b0958f73ec801ae140b0a1679`. Its
 [field definitions](https://github.com/leanprover-community/mathlib4/blob/56a005855ea17e0b0958f73ec801ae140b0a1679/Mathlib/Algebra/Field/Defs.lean)
 include `DivisionRing.inv_zero`. The reference preserves `inv0(0)=0` in both

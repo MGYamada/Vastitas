@@ -23,14 +23,14 @@ standard library hold of it:
   oracle depend on no Mathlib package, and `scripts/check_boundaries.py`
   checks it in the continuous integration.
   [Verification boundaries](../verification.md) describes the packages.
-- Implemented, and not yet in the record: since the Stage 2 delivery the
-  bridge requires the `lean-kernel/` and `lean/` packages by path, one way
-  only, and holds the correspondence of the kernel's presented affine and
-  smooth affine checks with Mathlib. The [Stage 2](../stage2-acceptance.md)
-  and [Stage 3](../stage3-acceptance.md) acceptance records state this
-  dependency. §9 asks for a policy amendment for such an import, and no
-  amendment records it. The kernel and the oracle import neither the bridge
-  nor Mathlib, and `scripts/check_boundaries.py` checks both directions.
+- Implemented and Tested: the implementation correspondence in the bridge.
+  The bridge requires the `lean-kernel/` and `lean/` packages by path, one
+  way only, and holds the correspondence of the kernel's presented affine and
+  smooth affine checks with Mathlib.
+  [The amendment of 12 November 2026](#implementation-correspondence-in-the-bridge-amendment-2026-11-12)
+  in §9 records the dependency and its conditions. The kernel and the oracle
+  import neither the bridge nor Mathlib, and `scripts/check_boundaries.py`
+  checks both directions.
 - Planned: the families of §4 that the standard library does not hold, among
   them `std::algebra`, `std::analysis` and `std::linalg`. The tracker
   [#160](https://github.com/MGYamada/Vastitas/issues/160) follows them.
@@ -42,7 +42,7 @@ standard library hold of it:
 - **Scope:** Standard-library governance and mathematical contracts, **not** a claim of implemented or proved functionality
 - **Decision issue:** [#107](https://github.com/MGYamada/Vastitas/issues/107)
 - **Implementation tracker:** [#160](https://github.com/MGYamada/Vastitas/issues/160)
-- **Dependency boundary:** §9 records the merged local-kernel-only oracle and the separate mathematical bridge. [#285](https://github.com/MGYamada/Vastitas/issues/285) tracks the broader alignment work.
+- **Dependency boundary:** §9 records the merged local-kernel-only oracle and the separate mathematical bridge, and its amendment of 2026-11-12 records that the bridge reads the kernel and the oracle one way. [#285](https://github.com/MGYamada/Vastitas/issues/285) tracks the broader alignment work.
 - **Stage 3 admission:** §10 admits `std::differential`, `std::geometry::metric` and `std::geometry::smooth::affine` for the finite smooth affine profile ([#604](https://github.com/MGYamada/Vastitas/issues/604)).
 
 ## Context and decision
@@ -234,6 +234,77 @@ Independent `VastitasMath`, conformance manifests and further correspondence
 proofs remain subsequent work under #285. The first separate pinned-Mathlib
 `VastitasBridge` package is the bounded mathematical increment described above.
 The oracle dependency boundary and the mathematical correspondence obligations are verified separately.
+
+#### Implementation correspondence in the bridge (amendment, 2026-11-12)
+
+The bounded addition above requires an explicit policy amendment for a bridge
+import of an implementation package. This is that amendment, for the two
+implementation packages of the repository. The bridge has required them since
+4 November 2026 (commit `449b02d`). The acceptance records of
+[Stage 2](../stage2-acceptance.md) and [Stage 3](../stage3-acceptance.md)
+state the dependency, and no amendment of this record stated it before this
+one. The amendment records the dependency as it stands and sets its limits.
+It changes no code.
+
+**The bridge may read the kernel and the oracle, one way.** `lean-bridge/` may
+require the local packages `lean-kernel/` and `lean/` by path, and its modules
+may import `VastitasKernel` and `VastitasOracle`. The purpose is the
+implementation correspondence. A bridge theorem that speaks of the compiler
+**MUST** read the definitions of the kernel and of the oracle themselves. A
+copy or a model of them in the bridge is not a correspondence.
+
+The policy of §9 on the kernel and the oracle is unchanged, and these
+conditions hold for the bridge:
+
+1. **One direction.** The kernel, the oracle, the generated programs, the
+   native runtimes and the ordinary build **MUST NOT** depend on the bridge or
+   on Mathlib, directly or transitively. `lean-kernel/` has no Lake dependency,
+   and `lean/` requires `lean-kernel/` alone.
+2. **No part in acceptance.** The acceptance of a program by the compiler
+   **MUST NOT** depend on the bridge. No check, code generator or runtime
+   reads a bridge theorem.
+3. **A closed package graph.** The bridge **MUST** use the Lean toolchain of
+   the kernel. Its path dependencies are `../lean-kernel` and `../lean` and no
+   other. Its only direct Git dependency is the pinned Mathlib reference of
+   §9, and its manifest locks every transitive dependency to a commit.
+4. **Proof only.** The bridge has no executable target. `sorry`, `admit` and
+   an axiom outside `propext`, `Classical.choice` and `Quot.sound` are not
+   admitted, and `lean-bridge/Audit.lean` audits every bridge declaration
+   against that list.
+5. **Changes.** A change to the kernel, to the oracle or to the bridge
+   **MUST** keep the bridge building and audited. A bridge theorem that a
+   specification or an acceptance record cites keeps its statement, or the
+   change updates the citation and its pin under review. Proof deletion,
+   `sorry`, `admit` and additional unproved axioms are not migration
+   mechanisms here either, as §9 says of the oracle.
+
+A bridge theorem is evidence of one kind. It states the mathematical meaning,
+in Mathlib, of a definition that the kernel checks. It is not checker
+acceptance, it states nothing about floating-point results, and it is not a
+proof that an executable computes what the checked program denotes.
+
+`scripts/check_boundaries.py` checks the Lake graphs and the source imports
+of the kernel, of the oracle and of the bridge for conditions 1 and 3, with
+regressions in `scripts/test_check_boundaries.py`. The workflow `lean-bridge.yml` builds the
+bridge, runs `Audit.lean` and replays the bridge modules with the official
+kernel. For condition 5, the pins under `docs/spec/pins/` hold the statements
+that the specifications cite, and `scripts/check_spec.py` compares them.
+`lean-bridge/Audit.lean` requires the theorems that the acceptance records
+name.
+
+At this date the bridge holds three groups of theorems: the Daleckii–Krein
+foundation (`VastitasBridge.Analysis`), the correspondence of the exact affine
+algebra checker with Mathlib (`VastitasBridge.AlgebraicGeometry`), and the
+correspondence of smooth affine differentials, of the compiled reverse Core
+and of metrics (`VastitasBridge.Differential`).
+[Verification boundaries](../verification.md) states the theorems and their
+assumptions.
+
+This amendment admits no `std` family and no public API, and it changes no
+admission of §10. It does not complete the four-package architecture of #285:
+`VastitasMath` and the conformance manifests remain subsequent work. An import
+of any further package by the bridge, and any import in the other direction,
+requires its own amendment.
 
 ### 10. Smooth affine differentials and metrics (amendment, 2026-11-04)
 
@@ -629,6 +700,14 @@ what is implemented, tested and proved.
   and [#290](https://github.com/MGYamada/Vastitas/issues/290) keep the general
   cases, and [#164](https://github.com/MGYamada/Vastitas/issues/164) the
   optimizer obligation.
+- **Implementation correspondence in the bridge.** The amendment of
+  2026-11-12 in §9 records a dependency that commit `449b02d` introduced on
+  2026-11-04 for the Stage 2 tracker
+  [#571](https://github.com/MGYamada/Vastitas/issues/571). The Stage 3
+  tracker [#604](https://github.com/MGYamada/Vastitas/issues/604) used it for
+  smooth affine geometry. The rewrite of the book
+  ([#605](https://github.com/MGYamada/Vastitas/issues/605)) found that §9
+  asked for an amendment and that none existed.
 - **Gradient export.** Exporting a generic `gradient` from
   `std::differential` needs object-polymorphic signatures and metric
   parameters: [#626](https://github.com/MGYamada/Vastitas/issues/626).

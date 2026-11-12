@@ -198,7 +198,7 @@ uses one selects protocol 9. Protocols 7 and 8 reject each form with
   - `fiber_component` with `family`, `object` and `coordinate` (a name);
   - `fiber_pairing` with `cotangent` and `tangent`;
   - `cotangent_pullback` with `map_family`, `cotangent` and `mode`, the string
-    `"saved"` or `"recomputed"`;
+    `"saved"` or `"recomputed"`; another string is an error (`E_PROTOCOL`);
   - `differential` with `map_family`, `cotangent` and `line`;
   - `linearize` with `map_family` and `tape`;
   - `cotangent_backward` with `tape` and `cotangent`.
@@ -238,10 +238,11 @@ protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`.
 - **Metric.** `kind: "metric"` carries `family` (path), `indices` (paths) and
   `gram`, besides the common `name`, `public` and `span`. `gram` is
   `{"kind": "euclidean"}` or `{"kind": "gram", "rows": [[poly, …], …]}`, where
-  each entry is a polynomial expression in the form above.
+  each entry is a polynomial expression in the form above. Another `kind` is
+  an error (`E_PROTOCOL`).
 - **Evidence.** `kind: "evidence"` carries `metric` (path) and `evidence`, the
   string `"nondegenerate"` or `"riemannian"`, besides the common `name`,
-  `public` and `span`.
+  `public` and `span`. Another string is an error (`E_PROTOCOL`).
 - **Primitives.** The binding `op` may be `flat` with `tangent`, `cotangent`
   and `metric`, or `sharp` with `cotangent`, `tangent`, `metric` and
   `evidence`. Each value is a path.

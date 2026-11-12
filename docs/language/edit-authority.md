@@ -197,8 +197,9 @@ Rules:
   error (`E_PROVENANCE`).
 - An assembly must have at most 4096 events, and the contributions of the
   package graph must hold at most 4096 methods. Otherwise it is an error
-  (`E_LIMIT`). [Appendix D](../appendix/limits.md#edit-authority) lists both
-  limits.
+  (`E_LIMIT`). The checks of the methods of the contributions that the
+  assembly does not apply have a limit too (`E_LIMIT`).
+  [Appendix D](../appendix/limits.md#edit-authority) lists the three limits.
 - `borrow`, `reborrow`, `via`, `using`, `seal`, `to`, `delegable`, `grant`,
   `delegation`, `transfer`, `contribution` and `assembly` are keywords only in
   these declarations, and a binding may use them as names. `apply` is a

@@ -737,7 +737,10 @@ predicate remains the premise of the safety theorems. `Finite.firstIndex_lookup`
 `countIndex_lookup` and `Storage.AuditIndex.lineage_contains` connect actual hash
 tables/sets to first-match lookup, exact multiplicities and bounded ancestry.
 These equations neither eliminate repeated audits/replay nor prove a global
-compiler work bound; the issue that tracks that bound is open ([History](#history)). Exact decoder/checker certificates start from an
+compiler work bound. The issue that reported the cost of the audit is closed
+([History](#history)), and
+[Resource checking work](storage/checked-storage.md#storage-functions--resource-checking-work)
+describes the budget that bounds resource checking. Exact decoder/checker certificates start from an
 empty logical environment. `StorageCodegen` proves that successful native-plan
 lowering follows those actual transitions, has unique instructions for the same
 input, and requires the rechecked schedule before returning code. The optional
@@ -2926,8 +2929,10 @@ each comes from.
   to the accepted source/Core and the generated artifact, see
   [#159](https://github.com/MGYamada/Vastitas/issues/159) and [#184](https://github.com/MGYamada/Vastitas/issues/184) and the release gate #282.
 - **Storage and resource programs.** The index equations of the storage
-  audit prove no global compiler work bound;
-  [#422](https://github.com/MGYamada/Vastitas/issues/422) remains open.
+  audit prove no global compiler work bound.
+  [#422](https://github.com/MGYamada/Vastitas/issues/422), which reported the
+  cost of that audit, is closed. The resource work budget bounds resource
+  checking.
 - **Scoped edit assembly acceptance (protocol 5).** The first finite edit
   composition contract is a limited first composition for
   [#184](https://github.com/MGYamada/Vastitas/issues/184), not completion of that issue. The title of the

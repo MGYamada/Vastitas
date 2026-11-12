@@ -58,8 +58,11 @@ the history at each join. Overlapping or more complex histories still use an
 explicit intersection under the same bound; a join that exceeds it reports
 `E_RESOURCE_LIMIT: branch join initialization metadata budget exceeded`.
 These are metadata bounds, not limits on buffer elements. This normalization
-bounds initialization metadata only. The reconstructed indexes below bound the
-cost of the whole-state audit.
+bounds initialization metadata only. The reconstructed indexes below are
+another computation of the whole-state audit. Their theorems are equations
+with the original predicates and state no bound. The bound on the work of
+resource checking is the budget of
+[Resource checking work](#storage-functions--resource-checking-work).
 
 #### Reconstructed audit indexes
 
@@ -477,10 +480,11 @@ operations. A forwarding call can reuse the last nested call's independent
 replay when the complete starting resource state and complete action list
 compare equal. On a mismatch or in the absence of a nested receipt it runs the
 slice from its own caller state. The call path uses `replayMeteredWithEvidence`.
-Its result carries the equation with the original replay, for a reused receipt
-and for a fresh replay alike; an exhausted work budget reports `E_LIMIT`
-instead. `replayWithEvidence_eq` proves the same identity, including failures,
-for the unmetered `replayWithEvidence` and all inputs.
+Its result carries the equation with the original replay for a reused receipt
+and for a fresh replay that succeeds. A fresh replay that fails returns its
+diagnostic without the equation, and so does an exhausted work budget
+(`E_LIMIT`). `replayWithEvidence_eq` proves the same identity, including
+failures, for the unmetered `replayWithEvidence` and all inputs.
 The [matched public checks](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-nested-replay/RESULTS.md)
 measure identical forwarding slices at depths 0, 10 and 30.
 The receipt checks the same resulting state, restored caller loans, distinct
@@ -944,9 +948,18 @@ a native performance benchmark.
 
 Implemented in the kernel, and proved as
 [Proofs and regression evidence](#proofs-and-regression-evidence) lists: the
-dense layout check, loan compatibility, initialized reads, resource
-transitions and their composition with the resource source of protocols 8
-and 9. The tests of the native runtime cover rejection before the first write.
+dense layout check, loan compatibility, initialized reads and resource
+transitions. Their composition with the resource source of protocols 8 and 9
+is implemented as well. Two theorems of the oracle module
+`VastitasOracle.ResourceSource` are about it. `entry_uses_checked_library`
+states that the certificate of an accepted entry holds the result of
+`Functions.checkWithLibrary` on the lowered functions and the checked
+library, with the probes of that library. `actual_entry_closed` states that
+this result is the result of `Functions.check`, and that the schedule of the
+entry runs from the empty state and ends with no allocation and no loan.
+[Storage and resource programs](../verification.md#storage-and-resource-programs)
+describes the theorems of the module. The tests of the native runtime cover
+rejection before the first write.
 
 Pending: Lean counterparts of the parts that only this reference has. These
 are read-only broadcast, the alignment of absolute base addresses, the
@@ -958,13 +971,13 @@ omits a check, and controlled-host acceptance against equivalent C/C++
 
 ## History
 
-- The internal storage IR, its function component and the layout reference
-  were built under [#183](https://github.com/MGYamada/Vastitas/issues/183),
-  which is closed. The [delivery record](../stage1-completion.md) names
-  [#183](https://github.com/MGYamada/Vastitas/issues/183) and
-  [#222](https://github.com/MGYamada/Vastitas/issues/222) for the performance
-  follow-up: the controlled-host verdict against equivalent C/C++ belongs to
-  Stage 2 or later.
+- [#183](https://github.com/MGYamada/Vastitas/issues/183) delivered the
+  internal storage IR, its function component and the layout reference, and
+  is closed. The remaining performance acceptance, the controlled-host
+  verdict against equivalent C/C++, is Planned under
+  [#222](https://github.com/MGYamada/Vastitas/issues/222), which is open. The
+  [performance handoff](../stage1-completion.md#stage-2-or-later-performance-acceptance)
+  lists its measurements.
 - [#422](https://github.com/MGYamada/Vastitas/issues/422) reported the cost of
   the whole-state audit. It is closed.
   [Reconstructed audit indexes](#reconstructed-audit-indexes) and

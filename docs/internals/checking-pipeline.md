@@ -135,7 +135,11 @@ pass carries its accumulated work and independently checks the upper bound.
 Protocols 2–9 use this common pure-function path, including pure resource
 fragments. This does not bound resource-plan expansion/replay, all namespace
 resolution, quadratic local-context operations, or total compiler wall time.
-The [History](#history) section names the issues that track these remaining
+Separate budgets bound two of these:
+[Resource checking work](../storage/checked-storage.md#storage-functions--resource-checking-work)
+bounds resource checking, and the limits of
+[Protocol 3](../protocol.md#protocol-3-package-namespaces) bound namespace
+work. The [History](#history) section names the issues that reported these
 limits. Existing per-body, dispatch-key and higher-order-instance limits remain
 in force.
 
@@ -318,10 +322,12 @@ manifest location and logical module owners are unchanged.
   [#50](https://github.com/MGYamada/Vastitas/issues/50), and promotion
   completed the initial scope of [#55](https://github.com/MGYamada/Vastitas/issues/55).
   The standard-library sources were consolidated by #72–#76.
-- The work limits that the elaboration budget leaves open, and their indexing
-  costs, are tracked in [#422](https://github.com/MGYamada/Vastitas/issues/422),
+- The work that the elaboration budget does not bound, and its indexing
+  costs, were reported in [#422](https://github.com/MGYamada/Vastitas/issues/422),
   [#423](https://github.com/MGYamada/Vastitas/issues/423) and
-  [#426](https://github.com/MGYamada/Vastitas/issues/426).
+  [#426](https://github.com/MGYamada/Vastitas/issues/426). The three issues
+  are closed: the resource work budget bounds resource checking, and the
+  import and namespace budgets bound namespace work.
 
 ### Retained pipeline: lowering type information
 

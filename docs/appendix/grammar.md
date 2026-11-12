@@ -224,7 +224,8 @@ FunctionInputs -> Type | `(` ( Type ( `,` Type )* `,`? )? `)`
 [Indexed types](../language/types.md#indexed-types):
 
 ```text
-IndexedType -> Path `<` IndexedArguments? `>` | `Object` `<` Path `,` Path `>`
+IndexedType -> IDENTIFIER ( `::` PathSegment )* `<` IndexedArguments? `>`
+    | `Object` `<` Path `,` Path `>`
 IndexedArguments -> IndexedArgument ( `,` IndexedArgument )* `,`?
 IndexedArgument -> INTEGER_LITERAL | Path
 ```

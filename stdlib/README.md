@@ -158,7 +158,7 @@ Int-to-Nat conversion or conversion-path search. Negative and arbitrary-size
 values are preserved. Expected results never change selection; bare literals
 select Int. The library's intended value preservation, identity, reversal and
 idempotence contracts are stronger than typing: ordinary user code returning
-`pair(0, 0)` can typecheck. The [numerical oracle contracts](https://github.com/MGYamada/Vastitas/blob/main/docs/stage1a.md#promotion)
+`pair(0, 0)` can typecheck. The [numerical oracle contracts](https://github.com/MGYamada/Vastitas/blob/main/docs/internals/checking-pipeline.md#promotion-proofs-and-fixture)
 prove the actual checked stdlib bodies for arbitrary inputs; CI compares their
 fixture with real frontend output. Contract regressions reject value-changing
 or wrong-policy mutations separately from compiler type errors.

@@ -26,8 +26,8 @@ A [*smooth affine object*](../appendix/glossary.md#smooth-affine-object) is
 the real affine space ℝⁿ with a name for each of its n coordinates. It is
 not one of the descriptor objects of the
 [smooth setting](indexed-geometry.md#two-settings), which record a dimension
-and have no coordinates. The standard library declares the types of this
-geometry and two objects, and the program imports them:
+and have no coordinates. The standard library declares an implementation,
+the types of this geometry and two objects, and the program imports them:
 
 ```vast
 {{#include ../../examples/packages/stdlib-differential/main.vast:imports}}
@@ -153,8 +153,8 @@ component 12, that it equals `pullback(gAfterF, x, seed)`, and that it lies
 over `x`.
 
 A pullback moves a covector against the maps: from the target of the
-composite back to its source, and along `g`, the last map, first. For this
-reason the pullback of a covector is also called a
+composite back to its source, and along `g`, the last map, first. This
+direction gives the pullback of a covector its other name, a
 [*reverse pullback*](../appendix/glossary.md#reverse-pullback).
 
 ## A seed must lie over the image point

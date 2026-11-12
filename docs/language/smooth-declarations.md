@@ -123,8 +123,8 @@ Example, from
 {{#include ../../examples/packages/smooth-geometry/src/profile.vast:profile}}
 ```
 
-In the following function on the profile of the standard library, the
-object `X` lies within `CInfAffine`, and it is a parameter:
+In the following function on the profile of the standard library, `X` is an
+object of the classification `CInfAffine`, and it is a parameter:
 
 ```vast
 {{#include ../../examples/reject/packages/smooth-parameter-object/main.vast:function}}
@@ -406,14 +406,15 @@ The following binding names `Line` as the source of its points:
 >     | `fiber_pairing` `(` Path `,` Path `)`
 > ```
 
-A **tangent or cotangent fiber** is a value of a type `T<X>` or `C<X>` of a
-family with the `tangent` or `cotangent` representation. It is a vector or a
-covector at a point of `X`, with one rational component for each coordinate
-of `X`, in the coordinate frame or coframe. It may also be the
-**failure value** ⊥, which stands for no vector and no covector. ⊥ lies over
-no point. This chapter calls a tangent or cotangent fiber a fiber. In the
-table, `F` is a cotangent or tangent family, `C` a cotangent family and `T` a
-tangent family.
+A tangent family is a family with the `tangent` representation, and a
+cotangent family is one with the `cotangent` representation. A
+**tangent or cotangent fiber** is a value of a type `F<X>` of such a family
+`F`. It is a vector or a covector at a point of `X`, with one rational
+component for each coordinate of `X`, in the coordinate frame or coframe. It
+may also be the **failure value** ⊥, which stands for no vector and no
+covector. ⊥ lies over no point. This chapter calls a tangent or cotangent
+fiber a fiber. In the table, `F` is a cotangent or tangent family, `C` a
+cotangent family and `T` a tangent family.
 
 | Binding | Operands | Result | Value |
 | --- | --- | --- | --- |
@@ -491,7 +492,9 @@ from. With `saved`, it reads the points that one forward pass kept. With
 x is a value that holds the points of one forward pass of F at x.
 
 In the table, `C` is a cotangent family, `T` a family with the `tape`
-representation, and `L` a 1-dimensional smooth affine object.
+representation, and `L` a 1-dimensional smooth affine object. F is the map
+of the first operand, or the function φ of a `differential` primitive. x is
+the point, and η is the seed.
 
 | Binding | Operands | Result | Value |
 | --- | --- | --- | --- |
@@ -830,3 +833,15 @@ In this program `Axis` is declared like the library's `Line`, and
 ```text
 {{#include ../../examples/reject/packages/smooth-other-line.stderr}}
 ```
+
+## Scope of smooth affine geometry
+
+Smooth affine geometry covers the declarations of this chapter. Its objects
+are the affine spaces ℝⁿ of dimension at most 16, and its maps are polynomial
+maps with rational coefficients. A metric is constant: its Gram matrix is
+the same at every point. A function body composes maps, builds points,
+covectors and vectors from integers, and pulls covectors back. It creates no
+object, and it declares no map and no metric. The language has no
+declaration of a manifold or of a chart. Presented affine geometry is in
+[Presented affine declarations](../affine-geometry.md), and the descriptor
+objects of the core are in [Geometric types](geometric-types.md).

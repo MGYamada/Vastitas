@@ -177,9 +177,10 @@ Rules:
 - `check` with `VASTITAS_KERNEL` needs no kernel root. `build` needs one in
   every case.
 - A kernel root that does not exist, a kernel executable that is not built
-  and a kernel that does not start are errors (`E_BACKEND`). So is a kernel
-  that fails without rejecting the program. The diagnostic for a kernel that
-  is not built gives the `lake` command that builds it.
+  and a kernel that does not start are errors (`E_BACKEND`). So are an answer
+  that neither accepts nor rejects the program, and a kernel that fails after
+  it accepts the program. The diagnostic for a kernel that is not built gives
+  the `lake` command that builds it.
 - A compiler that `cargo install` installed has no built kernel of its own.
   Set `VASTITAS_KERNEL_ROOT` to the kernel root of the unpacked crate, as
   [Install the alpha crate](installation.md#install-the-alpha-crate) shows.
@@ -201,8 +202,11 @@ Rules:
   from a stale or foreign kernel.
 - Build the kernel again after a change of the compiler or of its sources:
   `lake -d ROOT build vastitas-kernel`, where `ROOT` is the kernel root.
-- An answer that the compiler cannot read, or that speaks another version of
-  the wire protocol, is an error (`E_PROTOCOL`).
+- An answer that the compiler cannot read is an error (`E_PROTOCOL`). So are
+  a kernel that writes no answer, a rejection without a diagnostic, and an
+  answer of another version of the wire protocol that does not reject the
+  program. When a kernel rejects a program with an answer of another version,
+  the compiler shows its diagnostics and adds a note.
 
 > **Implementation note.** The digest is a 64-bit FNV-1a hash of `Main.lean`,
 > of the kernel modules that it imports and of `compiler-limits.json`. The
@@ -340,9 +344,9 @@ Rules:
 > process group of its own, and the compiler signals that group. Once the
 > program has ended and its group is empty, the compiler does not signal the
 > number of the group again, because another group can have it by then. A
-> program that ends while a process that it started still holds its output
-> is an error of the command: the compiler ends that process after a quarter
-> of a second.
+> program that ends while a process that it started still runs in its group,
+> with or without the output of the program, is an error of the command: the
+> compiler ends that process after a quarter of a second.
 
 ## Concurrent builds
 

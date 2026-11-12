@@ -35,7 +35,10 @@ Rules:
 ## Comments
 
 A line comment runs from `//` to the end of the line. It may contain Unicode
-text, apart from the characters that the rules exclude.
+text, apart from the characters that the rules exclude. This section gives
+the form of a comment in prose and not as a production, because the
+[notation](notation.md#grammar) has no class for the characters that a
+comment may hold.
 
 Rules:
 
@@ -111,7 +114,7 @@ use, apart from the exceptions that the rules give. These names are reserved:
 | `int`, `pair`, `pair_first`, `pair_second` | [Built-in functions](expressions.md#built-in-functions) |
 | `Affine`, `Base`, `origin`, `id`, `compose`, `apply`, `dimension` | [Geometric operations](geometric-types.md#operations) |
 | Every name that begins with `__vastitas_` | Names that the compiler generates |
-| `mod`, `use`, `pub`, `self`, `super` | [Modules](modules.md) and [paths](names-and-paths.md) |
+| `mod`, `use`, `pub`, `self`, `super` | [Modules](modules.md) and [paths](names-and-paths.md). The names are reserved in flat mode too |
 | `package`, as the name of a module or as a name that `use` binds | [Names and paths](names-and-paths.md#resolution) |
 
 Rules:
@@ -125,6 +128,12 @@ Rules:
   `origin`, as [Indexed declarations](../indexed-source.md) describes.
 - An expression that names an identifier beginning with `__vastitas_` is an
   error (`E_RESERVED`).
+- The diagnostic of a reserved name points to the name. For `mod`, `use`,
+  `pub`, `self` and `super` in flat mode, two places differ. The diagnostic
+  of a binding of a `let` statement points to the statement. The diagnostic
+  of the name of a function has the place `FILE:1:1`, as
+  [Diagnostics without a place of their own](diagnostics.md#diagnostics-without-a-place-of-their-own)
+  describes.
 
 ## Integer literals
 
@@ -169,13 +178,17 @@ A **floating-point literal** is a decimal number with a decimal point or an
 exponent, such as `1.5` or `125e-3`, or a hexadecimal number with a binary
 exponent, such as `0x1.8p0`. A **string literal** is text between double
 quotes, which may hold any character apart from the line separators. Each is
-a token.
+a token. A string literal has no production, for the reason that
+[Comments](#comments) gives for a comment.
 
 The lexer also reads some malformed numbers as one floating-point token: a
 number with the suffix `f32` or `f64`, such as `1.5f64`, and a number whose
 exponent has no digits, such as `1e` or `0x1p`. Such a token matches no
 production, and [Payloads](../storage/resource-programs.md#payloads) gives its
-error in a payload.
+error in a payload. A letter after the digits of an exponent is no error of
+the lexer: `1e5x` has the errors of a floating-point literal. A string
+literal without a closing quote runs to the end of the file, and it has the
+errors of a string literal.
 
 Rules:
 
@@ -189,6 +202,16 @@ Rules:
   both literals in and in place of a payload.
 
 ## Punctuation
+
+> **Syntax**
+>
+> ```text
+> PUNCTUATION -> `+` | `-` | `*` | `!` | `&&` | `||`
+>     | `==` | `!=` | `<` | `<=` | `>` | `>=`
+>     | `->` | `::` | `<:`
+>     | `(` | `)` | `{` | `}` | `[` | `]`
+>     | `,` | `:` | `;` | `=` | `.` | `^`
+> ```
 
 The tokens below are punctuation. The lexer reads the longest token that
 matches, so `<=` is one token, not `<` followed by `=`.

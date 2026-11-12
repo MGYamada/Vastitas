@@ -23,6 +23,9 @@ Rules:
 - Function types are not dispatch keys or selectors. Dispatch uses the four
   scalar types only, as [Generics and dispatch](stage1a.md) describes.
 - Generic methods, functions and lambdas may call one another.
+- A module may call a function value that it receives, even when the value is
+  a private function of another module, as
+  [Visibility](language/names-and-paths.md#visibility) says.
 
 ```vast
 {{#include ../examples/functions.vast}}
@@ -34,6 +37,8 @@ The executable prints `42`.
 
 A lambda is an independent definition. Its body refers only to its own
 parameters and bindings, to items and to the built-in functions.
+[Lambda expressions](language/expressions.md#lambda-expressions) gives the
+production `LambdaExpression`.
 
 Rules:
 
@@ -42,7 +47,10 @@ Rules:
   and an object that a type in the lambda names. Pass such a value as a
   parameter.
 - A parameter or binding of a lambda must not reuse a name that is visible
-  outside the lambda (`E_SHADOW`).
+  outside the lambda (`E_SHADOW`). Among the parameters and bindings of the
+  lambda itself, the rule of
+  [Scopes of bindings](language/statements.md#scopes-of-bindings) holds
+  (`E_DUPLICATE`).
 - Two lambdas that do not contain one another may bind the same names. A
   lambda inside a lambda follows the same rules.
 - Functions, generics and built-in functions remain callable in a lambda.

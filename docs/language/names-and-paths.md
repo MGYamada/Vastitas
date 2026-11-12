@@ -95,6 +95,11 @@ Rules:
   checked like any other path.
 - Visibility allows naming and calling a declaration. It never allows adding
   methods to a generic, as [Edit authority](edit-authority.md) says.
+- Visibility restricts paths, not values. A public function may return a
+  private function of a module that it may name, as a
+  [function value](../stage1b.md). A module that must not name the private
+  function may call the value that it receives. Naming the private function
+  there, in a call or as a value, is an error (`E_VISIBILITY`).
 
 Here `area` is private in the module `geometry`, and `main` is outside it:
 

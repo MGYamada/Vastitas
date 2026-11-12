@@ -129,6 +129,12 @@ Rules:
 
 ## Packing and contraction
 
+The production `TensorStatement` at the
+[head of this chapter](#networks-packing-and-contraction-trees) gives the
+forms of `pack3` and `contract3`.
+[Packing](../storage-ownership.md#views-transpose-conjugation-and-packing)
+is the copy of cells into another layout.
+
 `pack3(s, t);` copies a tensor with three axes from the grouping
 `axes(0, 1, 2), 1` to the grouping `axes(0, 2, 1), 2` in the view of `t`. It
 copies each cell bit for bit. `contract3(l, r, out, NativeFast);` contracts
@@ -162,7 +168,7 @@ This fragment of
 packs a tensor and contracts it with a matrix:
 
 ```vast
-{{#include ../../examples/packages/tensor-packing/src/real/mod.vast:33:45}}
+{{#include ../../examples/packages/tensor-packing/src/real/mod.vast:packing}}
 ```
 
 ## Contraction trees
@@ -185,8 +191,11 @@ packs a tensor and contracts it with a matrix:
 >       `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `)` `;`
 > ```
 
-The graph of a `contract_tree` has one node for each `occurrence`, which
-names a tensor. The port `o[k]` is axis `k` of the occurrence `o`. An `edge`
+A `contract_tree` statement declares a **contraction tree**: a graph of
+tensors whose edges are contractions, together with a plan that contracts it
+step by step. The rules make the graph a tree: it has one edge fewer than
+occurrences, and the plan must join them all. The graph has one node for each
+`occurrence`, which names a tensor. The port `o[k]` is axis `k` of the occurrence `o`. An `edge`
 contracts a port whose basis is a derived dual basis with a port whose basis
 is the basis that it derives from. `boundary` lists the ports that stay free,
 in the order of the axes of the result. The `plan` gives the whole evaluation.
@@ -212,9 +221,11 @@ Rules:
   which [Appendix D](../appendix/limits.md#resource-functions) gives
   (`E_RESOURCE_LIMIT`).
 - The output and every occurrence must name a tensor that the function
-  declared before the statement (`E_TENSOR_TREE`). The loan of the tensor of
-  an occurrence must permit reading, and its cells must be initialized
-  (`E_TENSOR_TREE`).
+  declared before the statement. A name that is not in scope there is an
+  error (`E_RESOURCE_NAME`), including the name of a tensor of the plan. A
+  binding in scope that is no tensor, such as a map or a loan, is an error
+  (`E_TENSOR_TREE`). The loan of the tensor of an occurrence must permit
+  reading, and its cells must be initialized (`E_TENSOR_TREE`).
 - Occurrence names must differ from one another, and edge names from one
   another (`E_TENSOR_TREE`). They are local to the statement and may equal
   names of bindings.
@@ -265,10 +276,14 @@ This tree of
 contracts a tensor with three axes with two matrices:
 
 ```vast
-{{#include ../../examples/packages/contraction-tree/src/real/mod.vast:33:64}}
+{{#include ../../examples/packages/contraction-tree/src/real/mod.vast:tree}}
 ```
 
 ## Caches
+
+The production `TensorStatement` at the
+[head of this chapter](#networks-packing-and-contraction-trees) gives the
+forms of `cache` and `contract3_cached`.
 
 `cache c = pack3(s, t);` packs like `pack3` and binds the **cache** `c`: a
 record, at compile time, that the cells of `t` hold the packing of the cells
@@ -299,7 +314,7 @@ Rules:
   source of the packing.
 
 ```vast
-{{#include ../../examples/packages/cached-tensor-packing/src/real/mod.vast:33:47}}
+{{#include ../../examples/packages/cached-tensor-packing/src/real/mod.vast:cache}}
 ```
 
 [Numerical backend](../internals/numerical-backend.md#networks-packing-and-contraction-trees)

@@ -125,9 +125,10 @@ object or any state at run time.
 
 Rules:
 
-- At every key of all scalar types, not only at the keys of the domain, the
-  applicable methods must not have two incomparable best methods. Such a key
-  is an error (`E_DISPATCH_AMBIGUOUS`).
+- At a key, at most one applicable method may be a method that no other
+  applicable method is more specific than. A key with two such methods has no
+  winner and is an error (`E_DISPATCH_AMBIGUOUS`). The rule holds at every
+  key of scalar types, not only at the keys of the domain.
 - Every key of the callable domain must have a winner. A key without one is an
   error (`E_DISPATCH_COVERAGE`).
 - The compiler checks the body of every method at every key at which it
@@ -276,11 +277,12 @@ The executable prints `42`.
 
 ## Promotion
 
-The arithmetic library `stdlib/src/arithmetic/generic.vast` defines the generic
-`promote`, which turns two values of the types `Nat` and `Int` into a pair of
-one common type, and uses it in `add` and `maximum`. These are library
-methods, not rules of the language: the only conversion that they perform is
-`int`. In manifest mode the module `std::arithmetic::generic` owns these
+This section describes generics of the standard library. It states no rule of
+the language. The arithmetic library `stdlib/src/arithmetic/generic.vast`
+defines the generic `promote`, which turns two values of the types `Nat` and
+`Int` into a pair of one common type, and uses it in `add` and `maximum`. The
+only conversion that these methods perform is `int`. In manifest mode the
+module `std::arithmetic::generic` owns these
 generics and their methods. The specification
 [std::arithmetic::generic](spec/std-arithmetic-generic.md) states their
 contract and its evidence.
@@ -297,7 +299,7 @@ contract and its evidence.
 ```
 
 ```sh
-vastitas build examples/promotion.vast \
+target/debug/vastitas build examples/promotion.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   --lib stdlib/src/arithmetic/generic.vast -o target/promotion

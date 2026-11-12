@@ -220,6 +220,9 @@ and transposes nothing, for real and for complex maps.
 `NativeFast` is the one numerical policy. It says that the native routine
 computes the product in binary64 arithmetic, in the order of operations of
 that routine. The result is not an exact product of real numbers.
+[The GEMM contract](../storage-ownership.md#the-gemm-contract) states the
+model behind the rules of this section: what a product reads and writes in
+each mode, and what the adapter must check before the first write.
 
 Rules:
 
@@ -272,11 +275,21 @@ multiplies a 2×3 matrix by a 3×2 matrix into a 2×2 output:
 {{#include ../../examples/packages/numerical/src/real/mod.vast:product}}
 ```
 
-A coefficient scales the product, and `accumulate` adds to the output:
+A coefficient scales the product, and `accumulate` adds to the output.
+[`examples/packages/gemm-coefficients`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/gemm-coefficients)
+multiplies the matrices (2) and (3). Its first product has a payload as
+`alpha` and writes 3:
 
 ```vast
-gemm(left, right, destination, overwrite, NativeFast, alpha=f64(0x1p-1));
-gemm(left, right, accumulated, accumulate, NativeFast, alpha=coefficient(scale), beta=f64(2));
+{{#include ../../examples/packages/gemm-coefficients/main.vast:overwrite}}
+```
+
+Its second product reads `alpha` from the cell of the loan `scale`, which
+holds 4, and adds the product to twice the old output. The output then holds
+30:
+
+```vast
+{{#include ../../examples/packages/gemm-coefficients/main.vast:accumulate}}
 ```
 
 In this program `other` has the implementation and the dimension of `v`, but
@@ -355,18 +368,13 @@ Rules:
   space or one basis is an error (`E_NUMERICAL_TYPE`), even when every call
   passes one space for both.
 
+This function of
+[`examples/packages/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/linear-transforms)
+receives two spaces, a basis of each and three maps, and multiplies two of
+the maps into the third:
+
 ```vast
-resource fn multiply_into(
-    u: Space<profiles::RealSmooth, 2>,
-    v: Space<profiles::RealSmooth, 3>,
-    w: Space<profiles::RealSmooth, 2>,
-    bu: Basis<u>, bv: Basis<v>, bw: Basis<w>,
-    left: ReadMap<bv, bw>, right: ReadMap<bu, bv>,
-    destination: WriteMap<bu, bw> initializes
-) -> Unit {
-    gemm(left, right, destination, overwrite, NativeFast);
-    value { () }
-}
+{{#include ../../examples/packages/linear-transforms/src/main.vast:multiply}}
 ```
 
 In this program `alternate_basis` is a basis of the space of `sensor_basis`,
@@ -447,7 +455,7 @@ This function of
 receives an owned map, writes its cells and hands it back:
 
 ```vast
-{{#include ../../examples/packages/generative-owned-map/src/real/mod.vast:37:43}}
+{{#include ../../examples/packages/generative-owned-map/src/real/mod.vast:update}}
 ```
 
 ## Owned-map packages
@@ -506,13 +514,13 @@ This function declares the target space itself and returns the map in an
 owned-map package:
 
 ```vast
-{{#include ../../examples/packages/generative-owned-map/src/real/mod.vast:17:27}}
+{{#include ../../examples/packages/generative-owned-map/src/real/mod.vast:create}}
 ```
 
 Its caller moves the package, opens it and borrows the owned map:
 
 ```vast
-{{#include ../../examples/packages/generative-owned-map/src/real/mod.vast:1:15}}
+{{#include ../../examples/packages/generative-owned-map/src/real/mod.vast:run}}
 ```
 
 ## Building a numerical program
@@ -524,8 +532,8 @@ numerical runtime and OpenBLAS for a program whose entry point reaches a
 `contract_tree`.
 
 ```sh
-vastitas check --manifest-path examples/packages/numerical/Vastitas.toml
-vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
+target/debug/vastitas check --manifest-path examples/packages/numerical/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
   --openblas-prefix /path/to/openblas -o target/numerical-example
 ./target/numerical-example
 ```

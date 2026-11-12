@@ -69,7 +69,7 @@ lists. This program calls `int_add` from that library:
 ```
 
 ```sh
-vastitas build examples/stdlib-arithmetic.vast \
+target/debug/vastitas build examples/stdlib-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast -o target/stdlib-arithmetic
 ```
@@ -82,8 +82,14 @@ In manifest mode the manifest names a root source file, and the
 [modules](modules.md) of each package form a tree under it. The **root
 package** is the package of the manifest that the command names. Names are
 visible across modules through `use` imports and `pub` visibility.
-[Packages](../packages.md) gives the rules. A program contains only the
-packages that its manifests name: neither mode has an implicit prelude.
+[Packages](../packages.md) gives the rules of manifests and of the package
+graph.
+
+Rules:
+
+- A program contains only the packages that its manifests name.
+- Neither mode has an implicit prelude: the compiler adds no library and no
+  import to a program.
 
 ## The entry point
 

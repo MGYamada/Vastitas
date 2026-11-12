@@ -51,6 +51,16 @@ HEX_FLOAT -> ( `0x` | `0X` ) ( HEX_DIGIT+ ( `.` HEX_DIGIT* )? | `.` HEX_DIGIT+ )
 HEX_DIGIT -> ASCII_DIGIT | [`a`-`f`] | [`A`-`F`]
 ```
 
+[Punctuation](../language/lexical-structure.md#punctuation):
+
+```text
+PUNCTUATION -> `+` | `-` | `*` | `!` | `&&` | `||`
+    | `==` | `!=` | `<` | `<=` | `>` | `>=`
+    | `->` | `::` | `<:`
+    | `(` | `)` | `{` | `}` | `[` | `]`
+    | `,` | `:` | `;` | `=` | `.` | `^`
+```
+
 ## Programs
 
 Chapter: [Programs](../language/programs.md).
@@ -128,7 +138,8 @@ UnitExpression -> `(` `)`
 [Path expressions](../language/expressions.md#path-expressions):
 
 ```text
-PathExpression -> Path
+PathExpression -> IDENTIFIER ( `::` PathSegment )*
+    | `generic` ( `::` PathSegment )+
 ```
 
 [Grouped expressions](../language/expressions.md#grouped-expressions):

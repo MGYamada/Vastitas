@@ -65,8 +65,10 @@ Rules:
   branches of an `if`. [Function types](#function-types) excludes pair types
   from function types, and [Function values](functions.md#function-values)
   from the signature of a function that takes or returns a function.
-- A pair is not a dispatch key, and `Pair` is not a method selector. A method
-  may return a pair, as [promotion](../stage1a.md#promotion) does.
+- A pair type must not stand in a key of the domain of a generic, a pair type
+  must not be a method selector, and a pair must not be an argument of a
+  generic. Each is an error (`E_TYPE`). A method may return a pair, as
+  [promotion](../stage1a.md#promotion) does.
 
 [`examples/pairs.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/pairs.vast)
 passes pairs to functions and returns them:

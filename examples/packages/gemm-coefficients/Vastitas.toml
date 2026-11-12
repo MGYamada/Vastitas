@@ -1,0 +1,4 @@
+[package]
+name = "gemm_coefficients"
+version = "0.1.0"
+root = "main.vast"

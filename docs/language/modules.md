@@ -91,6 +91,9 @@ Rules:
 - There are no wildcard imports. `use a::*;` is an error (`E_PARSE`).
 - The compiler checks every `use` declaration, even one that no expression
   uses.
+- A name that a `use` binds and that a declaration of the same module has too
+  is an error (`E_DUPLICATE`). Its diagnostic points to the declaration of
+  the module, as [Places](diagnostics.md#places) says.
 
 An inline module and a `use` with an alias:
 

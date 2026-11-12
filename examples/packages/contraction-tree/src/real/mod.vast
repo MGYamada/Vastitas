@@ -30,6 +30,7 @@ pub resource fn product() -> Unit {
     release(init_b);
     borrow input_b = read(matrix_b, layout(8, 4, 6, 5, false));
     borrow output = write(result, layout(8, 10, 6, 11, false));
+    // ANCHOR: tree
     tensor t = view3(input_t, bu, bvd, bwd, axes(0,1,2), 1);
     tensor right_a = view2(input_a, bv, bad);
     tensor right_b = view2(input_b, bw, bbd);
@@ -62,6 +63,7 @@ pub resource fn product() -> Unit {
             release(repacked_read);
         }
     }
+    // ANCHOR_END: tree
     release(output);
     borrow checked = read(result, layout(8, 10, 6, 11, false));
     expect(checked, 0, 0, f64_bits(4618441417868443648));

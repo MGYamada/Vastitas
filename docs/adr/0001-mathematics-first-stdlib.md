@@ -23,6 +23,14 @@ standard library hold of it:
   oracle depend on no Mathlib package, and `scripts/check_boundaries.py`
   checks it in the continuous integration.
   [Verification boundaries](../verification.md) describes the packages.
+- Implemented, and not yet in the record: since the Stage 2 delivery the
+  bridge requires the `lean-kernel/` and `lean/` packages by path, one way
+  only, and holds the correspondence of the kernel's presented affine and
+  smooth affine checks with Mathlib. The [Stage 2](../stage2-acceptance.md)
+  and [Stage 3](../stage3-acceptance.md) acceptance records state this
+  dependency. §9 asks for a policy amendment for such an import, and no
+  amendment records it. The kernel and the oracle import neither the bridge
+  nor Mathlib, and `scripts/check_boundaries.py` checks both directions.
 - Planned: the families of §4 that the standard library does not hold, among
   them `std::algebra`, `std::analysis` and `std::linalg`. The tracker
   [#160](https://github.com/MGYamada/Vastitas/issues/160) follows them.
@@ -226,14 +234,6 @@ Independent `VastitasMath`, conformance manifests and further correspondence
 proofs remain subsequent work under #285. The first separate pinned-Mathlib
 `VastitasBridge` package is the bounded mathematical increment described above.
 The oracle dependency boundary and the mathematical correspondence obligations are verified separately.
-
-Since the Stage 2 delivery the bridge also requires the `lean-kernel/` and
-`lean/` packages by path, one way only, and holds the correspondence of the
-kernel's presented affine and smooth affine checks with Mathlib. The
-[Stage 2](../stage2-acceptance.md) and [Stage 3](../stage3-acceptance.md)
-acceptance records state this dependency. No amendment of this record states
-it; the kernel and the oracle still import neither the bridge nor Mathlib, and
-`scripts/check_boundaries.py` checks both directions.
 
 ### 10. Smooth affine differentials and metrics (amendment, 2026-11-04)
 

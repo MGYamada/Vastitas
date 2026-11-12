@@ -198,7 +198,8 @@ issues name work a version must ship.
   certified scope. The basis work can enter a release only through an
   explicitly admitted fragment. [Constitutional plan, #192](https://github.com/MGYamada/Vastitas/issues/192) · [Theorem transfer, #518](https://github.com/MGYamada/Vastitas/issues/518)
 
-**Fast like C** names the C/C++-class performance target of the language.
+**Fast like C** is the primary performance goal: the C/C++-class target of
+the language.
 Stage 1 closed with its finite safety and execution evidence and its known
 performance differences. Stages 2 and 3 closed without a performance claim.
 The acceptance of the target is Planned (#222): the controlled Linux

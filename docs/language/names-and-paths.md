@@ -64,7 +64,7 @@ Rules:
   `E_PARSE` in an expression and in the name of a method, `E_NAME` in a
   selector, a parent or a `subtype`, and `E_UNSUPPORTED` in a type.
 - Resolution has work limits, which
-  [Appendix D](../appendix/limits.md#checker-limits) lists. Exceeding one is an
+  [Appendix D](../appendix/limits.md#names) lists. Exceeding one is an
   error (`E_LIMIT`).
 
 In this program the root module imports `increment` from the dependency

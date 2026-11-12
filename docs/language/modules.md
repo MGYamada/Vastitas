@@ -40,10 +40,9 @@ Rules:
   [Reserved names](lexical-structure.md#reserved-names).
 - One file that two `mod` declarations load at different logical paths makes
   two modules. Their declarations are different declarations.
-- The depth of module nesting has a limit, which
-  [Checker limits](../appendix/limits.md#checker-limits) gives, and the number
-  of modules has one, which [Input limits](../appendix/limits.md#input-limits)
-  gives. Exceeding either is an error (`E_LIMIT`).
+- The depth of module nesting has a limit, and so has the number of modules
+  of a program. [Appendix D](../appendix/limits.md#inputs) gives both.
+  Exceeding either is an error (`E_LIMIT`).
 
 [`examples/packages/arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/arithmetic)
 keeps part of its library in the file module `scalar`. Its root module,

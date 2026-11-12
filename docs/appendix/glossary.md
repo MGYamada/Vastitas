@@ -133,10 +133,14 @@ contracts. They are the axes of the result. See
 
 ## Build identity
 
-The digest of the files that the kernel executable is elaborated from, with
-the version of Lean. Every response of the kernel carries it, and the driver
-compares it with the identity of its own build. See
-[The build identity](../internals/driver.md#the-build-identity).
+What a kernel executable was built from: a digest of its Lean sources and of
+the file of limits, and the version of Lean. Every response of the kernel
+carries it, and the compiler accepts a response only from a kernel with the
+build identity of its own build. See
+[The kernel and its build identity](../guide/cli.md#the-kernel-and-its-build-identity)
+for the rules and
+[The build identity](../internals/driver.md#the-build-identity) for the
+digest.
 
 ## Built-in function
 
@@ -694,10 +698,13 @@ distribution only. See [Compiler architecture](../development/architecture.md).
 
 ## Kernel root
 
-The directory of the Lake package of the [kernel](#kernel). The driver finds
-the kernel executable there, and a native build reads its
+The directory of the Lake package of the [kernel](#kernel): its sources, its
+built executable, the [storage runtime](#storage-runtime) and the
+[numerical runtime](#numerical-runtime). `VASTITAS_KERNEL_ROOT` names it. The
+driver finds the kernel executable there, and a native build reads its
 [runtime inputs](#runtime-input) there. See
-[Starting the kernel](../internals/driver.md#starting-the-kernel).
+[The kernel and its build identity](../guide/cli.md#the-kernel-and-its-build-identity)
+and [Starting the kernel](../internals/driver.md#starting-the-kernel).
 
 ## Key
 
@@ -925,6 +932,13 @@ two [spaces](#space), in a named [basis](#basis) of each. A `map` statement
 declares one, and `gemm` multiplies two. Also called a **map**. See
 [Maps](../linalg/maps-and-gemm.md#maps).
 
+## Numerical runtime
+
+The package `numerical` of the [kernel root](#kernel-root). An executable
+whose entry point reaches a [product statement](#product-statement) links
+it, together with the OpenBLAS library. See
+[What `check` and `build` start](../guide/cli.md#what-check-and-build-start).
+
 ## Object type
 
 A type `Object<D, K>`, where `D` names a classification or an implementation
@@ -946,7 +960,7 @@ use of a map or of a [tensor](#tensor). See
 A map of a [reverse site](#reverse-site) whose structure the compilation does
 not open. Function parameters, values of branches and calls and
 `composite(…)` are opaque steps, and so are maps that the `reverseLeaves`
-[limit](limits.md#checker-limits) does not reach: a `let`-bound map beyond
+[bound](limits.md#bounds-that-reject-nothing) does not reach: a `let`-bound map beyond
 the remaining budget, or a whole map operand whose `compose` calls exceed it.
 [Backward Core](#backward-core) pulls the seed back along an opaque step with
 the [runtime reverse pass](#runtime-reverse-pass) in the site's residual
@@ -1524,6 +1538,14 @@ apart from a loan and its [children](#child). A
 storage loan grants no edit authority; compare [edit loan](#edit-loan). See
 [Storage types](../storage/resource-programs.md#storage-types) and
 [Ownership and explicit transitions](../storage-ownership.md#ownership-and-explicit-transitions).
+
+## Storage runtime
+
+The package `native` of the [kernel root](#kernel-root). An executable links
+it when its entry point is a resource function with an operation on an
+allocation or on runtime extents. Its checks report the
+[run-time diagnostics](#run-time-diagnostic) with the prefix `E_NATIVE_`. See
+[What `check` and `build` start](../guide/cli.md#what-check-and-build-start).
 
 ## Strict keyword
 

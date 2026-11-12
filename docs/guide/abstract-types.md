@@ -141,5 +141,5 @@ needs a winner at each of its keys.
   whose selectors are abstract types.
 - [Types](../language/types.md): the types of values, which exclude
   selectors.
-- [Appendix D](../appendix/limits.md#checker-limits): the limit on the number
+- [Appendix D](../appendix/limits.md#generics-and-abstract-types): the limit on the number
   of abstract types.

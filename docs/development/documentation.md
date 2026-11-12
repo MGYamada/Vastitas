@@ -17,7 +17,7 @@ parts:
 | Introduction and chapters 1–12 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md` |
 | Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `affine-geometry.md`, `storage-ownership.md`, `storage/resource-programs.md`, `linalg/` |
 | How the compiler is checked | Architecture, the driver, checking pipeline, wire protocols, proof boundaries and specifications | `development/architecture.md`, `internals/`, `storage/checked-storage.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/` |
-| Appendices A–G | CLI, diagnostics, reference models, limits, history and delivery records, contributing with the stdlib admission ADR, glossary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `development/` apart from `architecture.md`, `adr/` |
+| Appendices A–H | CLI, diagnostics, reference models, limits, history and delivery records, contributing with the stdlib admission ADR, glossary, grammar summary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `development/` apart from `architecture.md`, `adr/` |
 
 File paths stay stable when a chapter moves between parts, because tests,
 scripts, experiment records and external links name them.
@@ -66,6 +66,12 @@ The generated site is in `target/book/`. `scripts/check_book.py` checks that:
 - every nonterminal of a Syntax block has one production in the Reference, or
   a name in `PENDING_NONTERMINALS`. The Syntax block of
   [Notation](../language/notation.md) is an illustration and defines nothing;
+- the [grammar summary](../appendix/grammar.md) is the text that
+  `scripts/grammar_summary.py` generates from the Syntax blocks of the
+  Reference;
+- [Appendix D](../appendix/limits.md) has a table row with the value of
+  each key of `lean-kernel/compiler-limits.json`, and no row with a key
+  that the file lacks;
 - the first line of a converted chapter is `#` and its title in `SUMMARY.md`,
   where an appendix title `G: Glossary` becomes `Appendix G: Glossary`;
 - a converted chapter keeps the rules of the [style guide](#style-guide) that
@@ -78,6 +84,12 @@ the chapter that owns the construct defines them. Remove a name in the change
 that adds its production; the check fails on a pending name that has one.
 `python3 -m unittest discover -s scripts -p test_check_book.py` runs the
 checker's own tests.
+
+The grammar summary is a generated chapter. After a change of a Syntax block,
+run `python3 scripts/grammar_summary.py --write` and commit the chapter with
+the change. The chapter holds the productions in plain code blocks, not in
+Syntax blocks, so the check of nonterminals counts no production of it as a
+definition. Do not edit the chapter by hand.
 
 The documentation workflow runs on
 push and pull request, checks the downloaded Linux release against its SHA-256,

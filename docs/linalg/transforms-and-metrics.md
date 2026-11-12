@@ -99,7 +99,7 @@ Rules:
 - `diagonal` must list as many entries as the space has dimensions
   (`E_NUMERICAL_TYPE`).
 - `diagonal` must list at most 4096 entries. Otherwise it is an error
-  (`E_LIMIT`). [Appendix D](../appendix/limits.md#other-documented-bounds)
+  (`E_LIMIT`). [Appendix D](../appendix/limits.md#numerical-statements)
   lists the limit.
 - A metric has **identity Gram data** when it is `orthonormal`, a
   `scaled_identity` with the entry 1 or a `diagonal` whose entries are all 1.

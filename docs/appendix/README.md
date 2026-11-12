@@ -21,3 +21,5 @@ glossary. The guide and the Vastitas Reference link to them.
   decision record that governs what enters the standard library.
 - [G: Glossary](glossary.md) defines the terms that the book uses with a
   specific meaning.
+- [H: Grammar summary](grammar.md) collects the productions of the Vastitas
+  Reference by chapter.

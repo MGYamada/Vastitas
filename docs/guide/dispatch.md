@@ -241,5 +241,5 @@ the program with the same three libraries. It prints `42`.
   `maximum` at each key.
 - [Flat mode](../language/programs.md#flat-mode): programs with `--lib`
   libraries.
-- [Appendix D](../appendix/limits.md#checker-limits): the limits on the
+- [Appendix D](../appendix/limits.md#generics-and-abstract-types): the limits on the
   parameters and the keys of a generic.

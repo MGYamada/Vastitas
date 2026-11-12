@@ -933,6 +933,14 @@ A line of a [diagnostic](#diagnostic) that points to a related
 note whose message begins with `help:` proposes a correction. See
 [Diagnostic lines](../language/diagnostics.md#diagnostic-lines).
 
+## Numerical build
+
+A `vastitas build` of a program whose entry point reaches a
+[product statement](#product-statement). It links the
+[numerical runtime](#numerical-runtime) and the OpenBLAS library, and it
+needs `--openblas-prefix`. See
+[Numerical builds](../guide/cli.md#numerical-builds).
+
 ## Numerical map
 
 A [view](#view) of storage presented as the matrix of a linear map between

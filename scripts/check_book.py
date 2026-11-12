@@ -521,24 +521,41 @@ def check_grammar(source, chapters):
 
 LIMITS_CHAPTER = "appendix/limits.md"
 LIMITS_FILE = "lean-kernel/compiler-limits.json"
-# A table row whose first cell is one name in code font and whose second cell is a number.
-LIMIT_ROW = re.compile(r"^\| `([A-Za-z][A-Za-z0-9]*)` \| ([0-9][0-9,]*) \|")
+# A table row whose first cell is one name in code font; its second cell is the value.
+LIMIT_ROW = re.compile(r"^\| `([A-Za-z][A-Za-z0-9]*)` \| ([^|]*) \|")
+# A value as the appendix writes it: 4096 or 1,000,000.
+LIMIT_VALUE = re.compile(r"[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+")
+
+
+def limit_value(cell):
+    """The number that a value cell gives, or None for a cell that is no number."""
+    cell = cell.strip()
+    return int(cell.replace(",", "")) if LIMIT_VALUE.fullmatch(cell) else None
 
 
 def limit_errors(text, limits):
-    """Each key of the limits file has a row with its value, and each such row names a key of the file."""
+    """Each key of the limits file has a row, and every row of a key carries the value of the file.
+
+    A row whose first cell is another name in code font and whose value is a
+    number names no key of the file, which is an error too.
+    """
     errors = []
     listed = set()
     for number, line in enumerate(text.splitlines(), 1):
         row = LIMIT_ROW.match(line)
         if not row:
             continue
-        key, value = row[1], int(row[2].replace(",", ""))
-        listed.add(key)
-        if key not in limits:
-            errors.append(f"{LIMITS_CHAPTER}:{number}: `{key}` is no key of {LIMITS_FILE}")
-        elif limits[key] != value:
-            errors.append(f"{LIMITS_CHAPTER}:{number}: `{key}` is {limits[key]} in {LIMITS_FILE}, not {value}")
+        key, value = row[1], limit_value(row[2])
+        where = f"{LIMITS_CHAPTER}:{number}"
+        if key in limits:
+            listed.add(key)
+            if value is None:
+                errors.append(f"{where}: the value of `{key}` must be the number {limits[key]} "
+                              f"of {LIMITS_FILE}, not {row[2].strip()!r}")
+            elif limits[key] != value:
+                errors.append(f"{where}: `{key}` is {limits[key]} in {LIMITS_FILE}, not {value}")
+        elif value is not None:
+            errors.append(f"{where}: `{key}` is no key of {LIMITS_FILE}")
     errors += [f"{LIMITS_CHAPTER}: no row gives the limit `{key}` of {LIMITS_FILE}"
                for key in limits if key not in listed]
     return errors

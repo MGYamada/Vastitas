@@ -411,6 +411,19 @@ class LimitTests(unittest.TestCase):
         self.assertEqual(self.errors(self.TABLE.replace("| 64 |", "| 65 |")),
                          ["appendix/limits.md:4: `parseNesting` is 64 in lean-kernel/compiler-limits.json, not 65"])
 
+    def test_every_row_of_a_key_carries_the_value_of_the_file(self):
+        second = "| `elaborationWork` | 1,000,000 | The same limit in a second table |"
+        self.assertEqual(self.errors(self.TABLE.replace(second, second.replace("1,000,000", "2,000,000"))),
+                         ["appendix/limits.md:8: `elaborationWork` is 1000000 in lean-kernel/compiler-limits.json, "
+                          "not 2000000"])
+        # A value in another form is no value of the file: the row is not skipped.
+        for form in ("1 million", "10^6", "1,000,000 units", "1000,000", ""):
+            found = self.errors(self.TABLE.replace(second, second.replace("1,000,000", form)))
+            self.assertEqual(found, ["appendix/limits.md:8: the value of `elaborationWork` must be the number "
+                                     f"1000000 of lean-kernel/compiler-limits.json, not {form!r}"], form)
+        # A row of a name that is no key and has no number is not a row of a limit.
+        self.assertEqual(self.errors(self.TABLE + "| `E_LIMIT` | A program beyond a limit | Code |\n"), [])
+
     def test_a_missing_or_an_unknown_key_fails(self):
         self.assertEqual(self.errors(self.TABLE, {**self.LIMITS, "astDepth": 128}),
                          ["appendix/limits.md: no row gives the limit `astDepth` of lean-kernel/compiler-limits.json"])

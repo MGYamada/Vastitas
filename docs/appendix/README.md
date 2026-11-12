@@ -2,8 +2,9 @@
 
 The appendices hold material that a reader looks up: the commands, the
 diagnostic codes and the limits of the compiler, the independent reference
-models, the records of the project, the procedures of a contributor and the
-glossary. The guide and the Vastitas Reference link to them.
+models, the records of the project, the procedures of a contributor, the
+glossary and the grammar summary. The guide and the Vastitas Reference link
+to them.
 
 - [A: CLI reference](../guide/cli.md) covers every command, input and output
   rule, signals, concurrent native builds and the internal proof-export audit.

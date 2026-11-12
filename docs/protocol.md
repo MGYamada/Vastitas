@@ -1,4 +1,24 @@
-# Compiler protocols (versions 2–9)
+# Wire protocols 2–9
+
+This chapter describes the wire protocols between the driver and the kernel:
+the JSON request, the response, and the forms that each of the versions 2 to
+9 admits. It names the decoder and the checker of each version and says what
+a decoder refuses. The rules of the language are in the Vastitas Reference.
+[Programs](language/programs.md) gives the two modes of a compilation.
+[Packages](packages.md) and [Modules](language/modules.md) give manifests and
+names. Each construct has its chapter:
+[Generics and dispatch](stage1a.md), [Function values](stage1b.md),
+[Edit authority](language/edit-authority.md),
+[Indexed declarations](indexed-source.md),
+[Presented affine declarations](affine-geometry.md),
+[Smooth affine declarations](language/smooth-declarations.md),
+[Resource programs](storage/resource-programs.md) and
+[Numerical maps](linalg/maps-and-gemm.md).
+[The driver](internals/driver.md) describes how the Rust side writes a
+request and reads a response, and [Verification boundaries](verification.md)
+states what is proved about the result of each checker.
+
+## Requests, decoders and checkers
 
 The Rust frontend sends one JSON object on stdin to `vastitas-kernel check`
 or `vastitas-kernel emit`. The Lean backend writes one response on stdout;
@@ -6,12 +26,64 @@ tool logs belong on stderr. Neither the frontend's annotations nor names are
 trusted. The backend allocates nominal identities while checking lexical
 bindings; the wire format cannot supply a trusted object identity.
 
+`lean-kernel/Main.lean` reads the `version` of a request and selects the
+decoder and the checker:
+
+| Version | Input | Decoder | Checker |
+| --- | --- | --- | --- |
+| 2 | Flat | `decodeSurfaceModule` in `SurfaceProtocol.lean` | `Indexed.LegacySource.check` |
+| 3 | Package | `decodeNamespaceProgram` in `NamespaceProtocol.lean` | `Indexed.LegacySource.check` |
+| 4 | Flat or package, by the field `input` | `decodeSurfaceModule` or `decodeNamespaceProgram` | `Indexed.LegacySource.check` |
+| 5, 6 | Package | `decodeNamespaceProgram` | `Indexed.LegacySource.check` |
+| 7 | Package | `Indexed.Wire.program` in `IndexedProtocol.lean` | `Indexed.Wire.check` |
+| 8, 9 | Package | `ResourceSource.Wire.program` in `ResourceProtocol.lean` | `ResourceSource.Wire.check` |
+
+In the mode `emit`, `Main` passes the Core of the check result of protocols
+2 to 7 to `Indexed.Core.Codegen.generate`. For protocols 8 and 9 it calls
+`ResourceSource.Wire.emit`, which runs the check and passes its result to
+`ResourceSource.Codegen.generateChecked`.
+[The three checker routes](development/architecture.md#the-three-checker-routes)
+describes the routes.
+
 Request: `{ "version": 2, "file": "input.vast", "functions": [...],
 "generics": [...], "methods": [...] }`. All three declaration arrays are
 present, including when empty. Protocol 3 uses the separate namespace request
 below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assemblies,
 protocol 6 adds nested loans and permanent authority transfer, and package-only
 protocol 7 adds indexed declarations and rich bodies as described below.
+Package-only protocols 8 and 9 add resource functions, named recipients and
+the algebraic, smooth and metric forms.
+Package requests never fall back to protocol 2. Other versions are rejected.
+
+## Protocol selection
+
+The driver selects the protocol of a request from the declarations that the
+source contains. In flat mode it uses protocol 2, or protocol 4 when the
+program declares abstract types, subtypes or abstract methods. In manifest
+mode it takes the first match of this list:
+
+1. any grant, delegation or transfer, a presented affine declaration of
+   [Presented affine geometry](affine-geometry.md), or a smooth or metric
+   declaration of [Smooth affine declarations](language/smooth-declarations.md):
+   protocol 9;
+2. resource functions, or an indexed implementation other than an affine
+   descriptor: protocol 8;
+3. other indexed declarations, an indexed type annotation, a typed `pack`,
+   an `unpack` with ordered fields, or a `geometry_compat` export of a loaded
+   package: protocol 7;
+4. `reborrow` or `transfer` events in an assembly: protocol 6;
+5. contributions or an assembly: protocol 5;
+6. abstract declarations: protocol 4;
+7. none of these: protocol 3.
+
+A root package without an assembly selects an empty edit trace; the kernel
+still validates every grant and checks every unapplied contribution.
+The kernel accepts a `reborrow` event only with a delegation and a `transfer`
+event only with a transfer declaration, and each of these declarations
+selects protocol 9 by item 1. A request of protocol 6 that the driver writes
+therefore holds an event that the kernel rejects.
+
+## Protocols 8 and 9
 
 Package-only [protocol 8](storage/resource-programs.md#resource-functions) adds unresolved `resource_functions`
 to modules while preserving the full protocol-7 declaration/Fn/dispatch/authority
@@ -29,29 +101,6 @@ A numerical requirement
 also requires storage and explicit driver build configuration. The [internal storage component schema](storage/checked-storage.md#storage-ir)
 is not an alternative public envelope; top-level `resources` and downgraded
 `resource_functions` must not be silently discarded by legacy protocol 2.
-Package requests never fall back to protocol 2. Other versions are rejected.
-
-## Protocol selection
-
-The driver selects the protocol of a request from the declarations that the
-source contains. In flat mode it uses protocol 2, or protocol 4 when the
-program declares abstract types, subtypes or abstract methods. In manifest
-mode it takes the first match of this list:
-
-1. any grant, delegation or transfer, a presented affine declaration of
-   [Presented affine geometry](affine-geometry.md), or a smooth or metric
-   declaration of [Smooth affine declarations](language/smooth-declarations.md):
-   protocol 9;
-2. resource functions, or an indexed implementation other than an affine
-   descriptor: protocol 8;
-3. other indexed declarations, or a `geometry_compat` export: protocol 7;
-4. `reborrow` or `transfer` events in an assembly: protocol 6;
-5. contributions or an assembly: protocol 5;
-6. abstract declarations: protocol 4;
-7. none of these: protocol 3.
-
-A root package without an assembly selects an empty edit trace; the kernel
-still validates every grant and checks every unapplied contribution.
 
 Package-only protocol 9 retains that complete protocol-8 envelope and composition,
 and replaces `grantee_source` with `grantee_package: String` in `grants`,
@@ -63,10 +112,10 @@ the module path, and retains that record's full source/name/version identity.
 No match or several matches is `E_OWNER`, even for unused declarations. A name
 collision cannot be resolved by version, module availability or list order.
 
-New source recipient declarations select protocol 9 even without resources;
+Source recipient declarations select protocol 9 even without resources;
 pure-only emits return both optional-runtime flags as false. Protocols 5–8 retain
 `grantee_source` and reject `grantee_package`; protocol 9 rejects `grantee_source`
-even alongside the new field. Earlier versions retain their strict schemas.
+even alongside `grantee_package`. Earlier versions retain their strict schemas.
 [Source migrations](appendix/history.md#source-migrations) describes the
 source migration, and
 [Geometry compatibility exports](packages.md#geometry-compatibility-exports)
@@ -74,9 +123,9 @@ the explicit geometry compatibility requirement.
 
 <a id="protocol-9-algebraic-affine-forms"></a>
 
-**Protocol-9 algebraic affine forms (Stage 2).** Following the single schema epoch
-decision in #533, presented affine declarations are validated optional fields of
-protocol 9; no feature-level version is added. Any module using one selects
+**Protocol-9 algebraic affine forms (Stage 2).** Presented affine declarations
+are validated optional fields of protocol 9; no feature-level version is added
+([History](#history)). Any module using one selects
 protocol 9, and protocols 7 and 8 reject each form with `E_PROTOCOL`.
 
 - **Representation.** An implementation may use
@@ -92,6 +141,20 @@ protocol 9, and protocols 7 and 8 reject each form with `E_PROTOCOL`.
   `target`, `coordinate` (a name) and `monomial` (a polynomial in the form
   below); `relative_int_point` with `family`, `object` and `base`; or
   `relative_pair` with `family` and `fiber`. Every other value is a path.
+- **Family representation.** A family may use the string `"relative"`.
+- **Morphism.** `kind: "morphism"` carries `family` (path), `indices` (paths)
+  and `definition`, besides the common fields. The `definition` is
+  `{"kind": "pullback", "images": [{name, image}]}`, `{"kind": "identity"}`,
+  `{"kind": "structure"}`, `{"kind": "first"}`, `{"kind": "second"}` or
+  `{"kind": "restrict", "morphism": path}`.
+- **Fiber product.** `kind: "affine_fiber"` carries `implementation`, `left`
+  and `right` (paths) and `via`. The value of `via` is `null` or
+  `{"forward": [{name, image}], "inverse": [{name, image}]}`.
+- **Principal open.** `kind: "affine_localization"` carries `implementation`
+  and `object` (paths), `element` (a polynomial) and `inverse` (a name).
+- **Isomorphism.** `kind: "iso"` carries `forward` and `inverse` (paths).
+- **Cartesian evidence.** `kind: "cartesian"` carries `first`, `second`,
+  `fiber` and `inverse` (paths).
 
 Polynomials are tagged by `op`:
 
@@ -104,8 +167,8 @@ Polynomials are tagged by `op`:
 
 Literals are unsigned decimal strings of at most 64 digits, and nesting is at
 most 64. Unknown fields and operations are rejected. The wire never carries a
-basis, cofactor, normal form or structure image: Lean computes and verifies
-them. See [affine geometry](affine-geometry.md).
+basis, a cofactor, a normal form or an elaborated structure image: Lean
+computes and verifies them. See [affine geometry](affine-geometry.md).
 
 <a id="protocol-9-smooth-forms"></a>
 
@@ -190,11 +253,13 @@ operation: a gradient is an ordinary function that applies `sharp` to a
 differential. The [`E_METRIC` row](appendix/diagnostics.md#e-metric) of the
 diagnostics reference lists the declaration errors.
 
+### Resource statements and numerical forms
+
 Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
 statements add `kind: "value"` (`name`, `type`, pure `body`, `span`),
 `kind: "call_value"` (`callee`, named `arguments`, owned `results`, scalar `value`,
 `type`, `span`), and `kind: "branch_value"` (named `condition`, `yes`, `no`, `span`).
-The existing Bool-valued `kind: "branch"` remains unchanged. New scalar bindings
+The existing Bool-valued `kind: "branch"` remains unchanged. These scalar bindings
 accept only Nat/Int/Bool/Unit; the kernel independently reconstructs the pure Core
 fragments and their exact source positions, owners, types and runtime slots.
 No checked target, slot ID, trusted condition or resource handle is accepted in a
@@ -211,14 +276,15 @@ carry a strict resource `action`; `kind:"runtime_numerical"` carry an unresolved
 `operation` (`space`, `basis`, `map`, `gemm`) and `span`. Raw runtime actions do
 not admit GEMM. All authority, live slots, frame transitions, origins and guards
 are reconstructed; no checked IDs or prevalidated shape metadata is accepted.
-The initial checker rejects coefficient loans and runtime events under resource
-branches, including through calls. Protocols 2–7 reject these forms.
+The checker rejects a coefficient loan in a runtime GEMM. It rejects runtime
+events under resource branches, including through calls (`E_RUNTIME_BRANCH`).
+Protocols 2–7 reject these forms.
 
 Protocol 8 also admits [numerical declaration profiles](linalg/maps-and-gemm.md#linear-implementations)
 in the existing `indexed_declarations` array: `scalar_base` and
 `linear_descriptor` representation objects preserve ideal coefficient kinds and
 unresolved nominal base paths. They require version 8 or 9 even without resource
-functions. Protocol 7 retains only `"affine_descriptor"`; it rejects these new
+functions. Protocol 7 retains only `"affine_descriptor"`; it rejects these
 representations. Declaration acceptance alone does not enable GEMM.
 
 Resource bodies also support `kind: "numerical"` statements carrying `operation`
@@ -235,7 +301,7 @@ Numerical GEMM optionally carries `alpha`/`beta` operands, each either
 `{kind:"literal",value:<resource literal>}` or `{kind:"loan",loan:<local name>}`.
 Source `f64(...)`/`complex(...)` exact finite literals lower to the same unsigned
 64-bit payload fields as `f64_bits`/`complex_bits`; decimal or hex strings are not
-new wire values. See [literal admission](storage/resource-programs.md#resource-functions) for exactness and
+wire values. See [literal admission](storage/resource-programs.md#payloads) for exactness and
 the explicit-bit treatment of signed zero and nonfinite values.
 Absent fields retain alpha one and beta zero/one. Explicit null and unknown
 fields reject. Overwrite accepts no beta operand; accumulate requires initialized
@@ -276,8 +342,9 @@ and `transform`. Their operands remain unresolved local names; `transform`
 contains a strict operation naming derived bases or explicit metrics, never raw
 native flags. Exact Gram entries are decimal strings. Corresponding dependent
 parameter tags retain earlier space/basis/involution relationships and an explicit
-orthonormal requirement for direct adjunction. Rust and Lean decode these forms
-together; old envelopes and unknown nested metadata fail closed.
+orthonormal requirement for direct adjunction. Rust serializes these forms and
+Lean decodes them, each with a strict schema; old envelopes and unknown nested
+metadata fail closed.
 
 [Vector evaluation](linalg/transforms-and-metrics.md#pairings) adds `vector` (`name`, `loan`, `basis`),
 `conjugate_vector` (`name`, `parent`, `basis`, `involution`) and `evaluate`
@@ -287,19 +354,49 @@ The nested operation is strictly `{kind: "dual"}` or
 with `name`, `basis`, `access`, `initializes`, `span`. Actual vector and form
 provenance, child loans, scalar output and emitted flags are reconstructed by
 the independent checker; no supplied origin or native flag grants authority.
-The resource actions `fill`, `store` and `expect` may carry the local name of a
-vector in `loan`, and `copy` in `source` or `target`. They have no other form
+The resource actions `fill`, `store`, `expect` and `release` may carry the local
+name of a vector in `loan`, and `copy` in `source` or `target`. They have no other form
 for a vector: the checker resolves the vector to its loan, as
 [Vectors](linalg/transforms-and-metrics.md#vectors) describes.
 
 [Diagonal metrics](linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics) add strict numerical operations
 `adjoint_into` (`input`, `output`, `source_metric`, `target_metric`, `policy`) and
 `hermitian_diagonal` (`left`, `right`, `output`, `metric`, `scratch`, `layout`,
-`policy`). Source syntax also requires the explicit `overwrite` keyword for the
+`policy`), which [Pairings](linalg/transforms-and-metrics.md#pairings) specifies. Source syntax also requires the explicit `overwrite` keyword for the
 latter. Metric operands remain unresolved names; no raw realization coefficients,
 prechecked Gram tags, inverse matrix or native flags are admitted at this public
 boundary. The independent checker reconstructs exact coefficients and the full
-scratch write/release/read transition. Protocols 2–7 reject the new operations.
+scratch write/release/read transition. Protocols 2–7 reject these operations.
+
+The additive protocol-8 `network` resource statement checks a strict finite
+graph. [Two-map networks](linalg/networks-and-packing.md#two-map-networks)
+gives the source rules, and
+[Two-map networks: graph and independent acceptance](internals/numerical-backend.md#two-map-networks-graph-and-independent-acceptance)
+the wire schema. It is checked
+independently before lowering to the existing numerical/storage path.
+
+The additive protocol-8 `tensor` operations (`view`, `pack`, `contract3`) carry a
+bounded ordered-axis/grouping schema.
+[Packing and contraction](linalg/networks-and-packing.md#packing-and-contraction)
+gives the source rules, and
+[Tensor packing: independent checking and native execution](internals/numerical-backend.md#tensor-packing-independent-checking-and-native-execution)
+the wire schema.
+Packing is explicit and checked independently from nominal contraction authority.
+
+The additive protocol-8 `tree` statement carries a bounded unresolved finite graph
+and an explicit plan. A step of the plan has the `kind` `action`, `view`,
+`regroup`, `rebind` or `join`, and an `action` step admits `borrow` and
+`release`. Lean reconstructs producer
+connectivity, nominal ports and actual resource transitions; see
+[contraction trees](linalg/networks-and-packing.md#contraction-trees). The raw internal `regroup3` action
+contains source/target loans, three physical dimensions and explicit input/output
+groupings; it is not a public nominal-authority certificate.
+Protocol-8 tensor operations also include strict `cached_pack`
+(`name`, `source`, `target`) and `cached_contract3`
+(`cache`, `left`, `right`, `output`, `policy`) envelopes. They carry unresolved
+local names, never stamps or certificates. See [cached packing](linalg/networks-and-packing.md#caches).
+
+## Protocol 2: flat requests
 
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
@@ -336,6 +433,8 @@ Types use a `kind` tag:
 - `point`: `target: Index`, `source: Index`.
 - `morphism`: `source: Index`, `target: Index`.
 - `pointed`: `setting` is `Scheme` or `CInfScheme`; `base` is `QQ` or `CInfReal`.
+  The base must be the base of the setting: `QQ` for `Scheme` and `CInfReal`
+  for `CInfScheme` (`E_BASE`).
 - `function`: `params: [Type...]`, `return_type: Type`. The recursive contract
   contains only Nat, Int, Bool, Unit and function types. An empty `params` is
   `Fn<(), R>`; a single Unit element is `Fn<Unit, R>`. `Fn` is a reserved source
@@ -353,9 +452,10 @@ constructs the nominal hierarchy and capability facts itself; request metadata
 cannot add subtype edges, assert capabilities, or provide a trusted winner.
 It checks ambiguity on the complete concrete key space, coverage on the
 declared domain, and every applicable monomorphized body, including nonwinners.
-Each family's table is charged to a 16,000,000-unit dispatch-work budget before
-the work runs: keys × methods plus method pairs, then the squared number of
-applicable methods at each key. Exhaustion reports `E_LIMIT`.
+Each family's table is compared twice with a 16,000,000-unit dispatch-work
+bound, each time before the work that the bound covers: first keys × methods
+plus the squared number of methods, then the sum over all keys of the squared
+number of applicable methods. An amount above the bound reports `E_LIMIT`.
 [Selection](stage1a.md#selection) gives the rules, and
 [Dispatch checking](internals/checking-pipeline.md#dispatch-checking) the
 specialization order and limits.
@@ -365,8 +465,8 @@ Expressions use a `kind` tag and always include `span`:
 `pair`, `pair_first`, and `pair_second` use ordinary `call` nodes. Both constructor
 operands are inferred independently, with no expected-type conversion. Pair
 values can occur in ordinary function contracts and data expressions, but not
-in dispatch keys/selectors or recursive Fn contracts. These additions use the
-existing protocol-2 and protocol-3 envelopes; older kernels reject the new tag.
+in dispatch keys/selectors or recursive Fn contracts. These forms use the
+protocol-2 and protocol-3 envelopes.
 
 - `integer`: decimal unsigned `value` string (unary minus is separate).
 - `boolean`: boolean `value`.
@@ -395,12 +495,15 @@ Statements use a `kind` tag and always include `span`:
 - `unpack`: `value: Expr`, `scheme` binding name, `point` binding name.
 
 Builtins are `Affine(K, n)`, `Base(K)`, `origin(X)`, `id(X)`,
-`compose(g, f)`, `apply(f, p)`, `dimension(X)`, and `int(n)` (Nat to Int).
+`compose(g, f)`, `apply(f, p)`, `dimension(X)`, `int(n)` (Nat to Int),
+`pair(a, b)`, `pair_first(p)` and `pair_second(p)`.
 Only the ring argument of `Affine`/`Base` accepts the reserved variable
 `QQ` or `CInfReal`. Their use as ordinary values is invalid.
 
+## Responses
+
 Success: `{ "version": 2, "ok": true, "lean_source": "..." }` (the source
-is present for emit and may be absent for check).
+is present for emit and absent for check).
 Failure: `{ "version": 2, "ok": false, "diagnostics": [
 { "code": "E_TYPE", "message": "...", "span": Span,
   "notes": [{ "message": "...", "span": Span }] }] }`.
@@ -441,16 +544,20 @@ contains no `:`. Integer literal and Gram strings are ASCII decimal digits
 version list. Drivers display failure diagnostics before adding a version
 mismatch note; a mismatched success response is always rejected.
 
+## Codes, common checks and generated code
+
 Frontend and backend use the same codes for name violations: `E_SHADOW` for a
-binding conflicting with a function/generic, `E_RESERVED` for a reserved name,
+binding conflicting with a function/generic or with an enclosing binding,
+`E_RESERVED` for a reserved name,
 `E_NAME` for an invalid or unresolved name (including an undeclared generic),
 and `E_DUPLICATE` for repeated declarations or local bindings. `E_ARITY` and
 `E_TYPE` identify argument-count and type violations. `E_LIMIT` reports bounded
-implementation resources; core checking and dispatch lowering share the
-4096-unit per-function checking-budget diagnostic. Diagnostic wording does
+implementation resources; the check of source bodies and the function compiler
+share the 4096-unit per-function checking-budget diagnostic. Diagnostic wording does
 not change the acceptance rule or its proof boundary.
 `E_CAPTURE` rejects references to outer lambda bindings; `E_STATIC_CALL`
-rejects function values with unresolved or differing runtime targets.
+rejects an `if` whose function-valued branches resolve to different static
+targets.
 Higher-order specialization has a separate 4096-instance bound.
 
 The checker rejects recursion (including mutual recursion), duplicate function
@@ -461,9 +568,10 @@ Source declaration order does not constrain function calls.
 The `__vastitas_` prefix is reserved for hygienic specialization names and for
 the declarations (`__vastitas_rd…`) and generated functions (`__vastitas_rf…`)
 of compiled reverse Core. A source binder, or a declaration or function of a
-wire request, under that prefix is an error (`E_RESERVED`). The kernel
-declares the compiled reverse names only after acceptance, so a call of one
-in a request is an unbound name (`E_NAME`).
+wire request, under that prefix is an error (`E_RESERVED`). So is a reference
+to such a name in a flat source and in a request of protocols 2–6. In
+protocols 7–9 the kernel declares the compiled reverse names only after
+acceptance, so a call of one in a request is an unbound name (`E_NAME`).
 
 `decodeSurfaceModule` in `SurfaceProtocol.lean` decodes the extended request and
 `Indexed.LegacySource` converts its unresolved syntax into the common
@@ -479,16 +587,21 @@ finite engine still checks all applicable method bodies. See
 
 After the original wire decoder, protocols 2–6 adapt source functions, methods,
 contributions and namespace metadata before semantic elaboration. Flat input uses
-an adapter-owned module identity independent of the displayed filename. The
+an adapter-owned package identity independent of the displayed filename. The
 adapter supplies a closed, unresolved compatibility declaration package because
 these wire versions cannot carry indexed declarations. The original namespace
 must validate before injection; a source dependency cannot resolve through the
 private profile. The same declaration/profile, authority, Fn/dispatch and Core
 checks used by protocol 7 remain mandatory. Old wire versions continue to reject
-new declaration fields. Internal Core formats are not alternative wire protocols.
+the declaration fields of later versions. Internal Core formats are not
+alternative wire protocols.
 
-Runtime representation: generated Lean code imports only
-`VastitasKernel.IndexedRuntime`. Scalar types map to Lean `Nat`, `Int`, `Bool`,
+Runtime representation: generated Lean code imports
+`VastitasKernel.IndexedRuntime`, and `VastitasKernel.AlgebraRuntime` or
+`VastitasKernel.SmoothRuntime` only when it uses them. A program of protocol
+8 or 9 that selects the storage or the numerical runtime also imports
+`VastitasStorageNative` or `VastitasGemmNative`. A program of protocols 2–6
+imports `VastitasKernel.IndexedRuntime` alone. Scalar types map to Lean `Nat`, `Int`, `Bool`,
 `Unit`; geometric objects, indexed points/morphisms and existential payloads use
 the common runtime representations. Nominal typing is established before erasure.
 The old runtime remains for retained legacy evaluation proofs.
@@ -525,7 +638,8 @@ Lean validates package/module/declaration uniqueness, acyclic dependencies,
 imports and reexports (including unused ones), visibility on every traversed
 path, and exact-module generic method authority. Each resolution shares a
 4096-member work budget across path components and aliases, as well as a
-nesting bound; exhaustion returns `E_LIMIT` at the referring source span.
+nesting bound; exhaustion returns `E_LIMIT` at the referring source span or,
+inside a chain of aliases, at the import declaration where the bound ran out.
 Completed dependency nodes are memoized, so duplicate aliases do not cause
 repeated graph traversal. Unknown namespace metadata
 fields, including claimed owners, are rejected. Protocols 2–6 also reject unknown
@@ -542,14 +656,17 @@ must be accessible from the reexporting module. Private declarations are
 visible from their declaring module and descendants only. Parent names are
 not implicitly in scope. Dependency aliases are only initial path components.
 
-`Namespace.lower` assigns symbols from package identity + logical module path
-+ declaration name; it also renames local bindings hygienically, including
-geometric type indices. Only an ordinary root-package root-module `main`
-becomes the core entrypoint. It checks every dependency and body, then the
-existing surface/dispatch checker independently checks all applicable method
-specializations and the final core. Protocol 2 keeps its flat namespace.
-The namespace audit re-resolves recorded references and checks exact method
-owners before calling the existing surface acceptance path.
+Protocols 3–6 are accepted through `Indexed.LegacySource.check`. It validates
+the original namespace, adapts functions, methods and contributions to the
+source checker of protocol 7 and runs `Indexed.AuthoritySource.checkProgram`.
+That checker checks every body in an audit pass and in an executable pass,
+and then the Core. `Namespace.lower` assigns symbols from package identity +
+logical module path + declaration name. On this path it lowers the headers
+that the authority assembler and the dispatch families read, and it restores
+source names in diagnostics; it checks no source body. Only an ordinary
+root-package root-module `main` becomes the core entrypoint. Protocol 2 keeps
+its flat namespace. `checkNamespaceProgram` and `checkSurfaceProgram` remain
+internal APIs that `Main` does not call.
 
 A request admits at most 1,000,000 member visits across all import
 declarations. The kernel also limits the sum of the wire price of the request
@@ -582,9 +699,11 @@ when manifest mode selects protocol 3. See [Packages](packages.md) and
 
 ## Protocol 4: finite abstract declarations
 
-Existing sources retain version 2 (flat, including explicit `--lib`) or version 3
-(packages). Abstract declarations select version 4 with a required `input`
-field whose value is exactly `flat` or `package`. Flat input keeps the version-2
+Sources without abstract declarations retain version 2 (flat, including
+explicit `--lib`) or version 3 (packages). Abstract declarations select
+version 4 with a required `input` field whose value is exactly `flat` or
+`package`, unless a package holds a form of a later version
+([Protocol selection](#protocol-selection)). Flat input keeps the version-2
 `file`, `functions`, `generics`, and `methods` fields. Package input keeps the
 version-3 `file`, `root`, and `packages` graph. Responses echo version 4.
 
@@ -626,14 +745,16 @@ concrete winners retain the existing dispatch diagnostics.
 
 Protocol 5 extends the protocol-4 package envelope, requires `input: "package"`,
 and retains all package identities, declarations, hierarchy and unresolved paths.
-Inputs without edit declarations continue to use versions 2/3/4. There is no
+Inputs without edit declarations use versions 2/3/4, or the later version
+that [Protocol selection](#protocol-selection) gives them. There is no
 cached or pre-approved assembly input. See [Edit authority](language/edit-authority.md)
 for the source rules and
 [Edit authority acceptance](verification.md#edit-authority-acceptance-protocol-6)
 for the proof boundary.
 
 Each module additionally permits `grants: [Grant...]`,
-`contributions: [Contribution...]` and `assembly: Assembly | null` (each optional).
+`contributions: [Contribution...]` and `assembly: Assembly` (each optional; an
+explicit `null` is rejected).
 The decoded module determines each declaration's owner; the wire cannot assert
 an issuer, owner, accepted flag or stable identity independently of that module.
 
@@ -648,10 +769,15 @@ Event = { op: "borrow", grant: [identifier...], loan: identifier, span }
       | { op: "seal", target: [identifier...], span }
 ```
 
+This grammar is the decoder contract of protocols 5–8. The driver writes
+`grantee_package` and selects protocol 9 for every grant, delegation and
+transfer ([Protocol selection](#protocol-selection)). It writes protocol 5
+for contributions and an assembly in a program without a grant.
+
 Grant paths refer only to the selected dependency closure. Grant/contribution
 IDs derive from package identity, module path and declaration name; method
 ordinals distinguish methods within a contribution. Unknown fields in these
-new records and events are rejected. Ordinary expressions retain their existing
+records and events are rejected. Ordinary expressions retain their existing
 protocol decoder contract. A maximum of one assembly is permitted, exactly at
 the root package's root module. An omitted root assembly is an empty trace;
 all declaration, unapplied-body and completion audits still run.
@@ -664,13 +790,15 @@ completion in the final immutable environment, including domain-union coverage,
 contract results, all-key ambiguity and each installed method's final winning
 footprint. All applied bodies and every applicable ground instance of unapplied
 contributions are checked; unapplied declarations never become dispatch candidates.
-The resulting executable surface uses the common function lowerer and core audits.
+The executable Core comes from the source bodies through the function compiler
+and the Core audits of every other protocol.
 
 The shared limits allow 4096 assembly events, 4096 contribution methods in the
 whole closure, and 4096 ground functions in the separate unapplied-body audit.
 Every per-event state and transition audit runs; the audits of one trace share
 a 200,000,000-unit budget, charged before each audit, and exhaustion reports
-`E_LIMIT`.
+`E_LIMIT`. An assembly of more than 4096 events is a decoder error
+(`E_PROTOCOL`).
 Existing per-family key, hierarchy, type-depth and specialization bounds remain.
 No digest in this same input proves filesystem or author authenticity.
 
@@ -695,9 +823,11 @@ wire fields. All old event schemas remain unchanged. Protocol 2 also rejects
 semantic package/authority fields while retaining its unrelated hint metadata
 compatibility.
 
-`checkAuthorityProgram` reconstructs histories and complete delegation chains,
-audits each transition against an independent relation, and performs the same
+`Authority.assemble`, which `Indexed.AuthoritySource.checkProgram` calls,
+reconstructs histories and complete delegation chains and audits each
+transition against an independent relation. `checkProgram` performs the same
 namespace, membership, final dispatch, footprint, all-body and Core audits.
+`checkAuthorityProgram` remains an internal API that `Main` does not call.
 The original function identity never changes. A returned loan or transfer
 preserves contributions and unresolved completion obligations. The final
 winning region is contained in every ancestor's grant, and transfer requires
@@ -710,8 +840,10 @@ The package-only envelope is `{version:7,input:"package",file,root,packages}`.
 Package/module identity, dependencies, imports, abstract selectors/contracts and
 all protocol-6 authority metadata retain their existing schemas and checks.
 Each module may add `indexed_declarations`, defaulting to an empty array.
-Rust selects 7 when any loaded module uses an indexed declaration, annotation,
-typed pack or ordered-field unpack, or any package exports `geometry_compat`. Every body in that package closure then uses
+Rust selects 7 when no condition of protocol 8 or 9 holds
+([Protocol selection](#protocol-selection)) and any loaded module uses an
+indexed declaration, annotation, typed pack or ordered-field unpack, or any
+package exports `geometry_compat`. Every body in that package closure then uses
 the rich source path. Flat input and explicit `--lib` keep protocol 2/4.
 
 A declaration has `{kind,name,public,span,...}` with these additional fields:
@@ -821,28 +953,48 @@ See [source syntax and limitations](indexed-source.md).
 
 ## Expected-rejection doctest consumer (reference only)
 
-The [doctest result contract](reference/compiler-tools.md#doctest-result-reference) for #236 separates
+The [doctest result contract](reference/compiler-tools.md#doctest-result-reference) separates
 ordinary language rejection from protocol, transport, and execution failure.
 It reuses the diagnostic payload above without changing this wire protocol or
 the driver's preservation of diagnostics on incompatible failure responses.
 The Python reference and fixture regressions do not implement production driver
 receipts, doctest execution, or official package admission.
 
-The additive protocol-8 `network` resource statement and its strict finite graph
-schema are specified in [finite-networks.md](linalg/networks-and-packing.md#two-map-networks). It is checked
-independently before lowering to the existing numerical/storage path.
+## Tests
 
-The additive protocol-8 `tensor` operations (`view`, `pack`, `contract3`) and their
-bounded ordered-axis/grouping schema are specified in [tensor-packing.md](linalg/networks-and-packing.md#packing-and-contraction).
-Packing is explicit and checked independently from nominal contraction authority.
+- `tests/protocol_shape.rs::legacy_decoders_reject_unknown_fields_in_every_nested_record_shape`
+  adds a field to every record shape of requests of protocols 2 to 6. It
+  requires `E_PROTOCOL` with the version of the request. The envelope of
+  protocol 2 is the one exception.
+  `public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape`
+  does the same for the requests of protocols 7 to 9 that the driver writes
+  for the example packages.
+- `legacy_hint_tolerance_is_limited_to_the_v2_envelope`,
+  `invalid_membership_scalar_is_rejected_before_authority_analysis` and
+  `malformed_versions_and_non_utf8_input_return_protocol_json` of the same
+  file pin the envelope of protocol 2, the scalar names of memberships and
+  the responses to a request that the kernel cannot read.
+- `tests/stabilization.rs::unknown_wire_version_is_echoed_with_the_complete_supported_set`
+  pins the response to a version that the kernel does not support.
+- `tests/edit_authority.rs::named_recipient_wire_rejects_forged_locations_and_unselected_records`
+  and `recipient_source_migration_keeps_legacy_wire_and_optional_runtime_boundaries`
+  pin the recipient fields of protocols 6 to 9.
+- The kernel regressions `VastitasKernel.IndexedWireRegression`,
+  `VastitasKernel.LegacySourceRegression` and
+  `VastitasKernel.NamespaceRegression` decode and check requests without the
+  driver. `bash scripts/check_kernel_regressions.sh` builds them.
 
-The additive protocol-8 `tree` statement carries a bounded unresolved finite graph
-and explicit borrow/view/regroup/rebind/join plan. Lean reconstructs producer
-connectivity, nominal ports and actual resource transitions; see
-[contraction trees](linalg/networks-and-packing.md#contraction-trees). The raw internal `regroup3` action
-contains source/target loans, three physical dimensions and explicit input/output
-groupings; it is not a public nominal-authority certificate.
-Protocol-8 tensor operations also include strict `cached_pack`
-(`name`, `source`, `target`) and `cached_contract3`
-(`cache`, `left`, `right`, `output`, `policy`) envelopes. They carry unresolved
-local names, never stamps or certificates. See [cached packing](linalg/networks-and-packing.md#caches).
+## History
+
+- Presented affine declarations, smooth forms and metric forms are optional
+  fields of protocol 9 by the decision on a single schema epoch in
+  [#533](https://github.com/MGYamada/Vastitas/issues/533). That issue also
+  tracks the retirement of superseded protocol versions and their decoders.
+- The doctest result contract of
+  [Expected-rejection doctest consumer](#expected-rejection-doctest-consumer-reference-only)
+  belongs to [#236](https://github.com/MGYamada/Vastitas/issues/236).
+- The `pair` type tag and the `pair`, `pair_first` and `pair_second` calls
+  were added to the protocol-2 and protocol-3 envelopes without a version of
+  their own. A kernel that predates them rejects the tag.
+- [Source migrations](appendix/history.md#source-migrations) records the
+  change of the recipient syntax that protocol 9 carries.

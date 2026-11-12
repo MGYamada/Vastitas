@@ -182,9 +182,9 @@ two runtimes or for OpenBLAS.
   [product statement](../appendix/glossary.md#product-statement): the
   native plan of the entry then holds a `gemm` or a `diagonalPair`
   instruction, or its runtime-shape events hold a GEMM.
-- `build.rs` generates eight constants of the frontend from keys of
+- `build.rs` generates nine constants of the frontend from keys of
   `lean-kernel/compiler-limits.json`: `parseNesting`, `astDepth`,
-  `moduleNesting`, `packageNesting`, `algebraNesting`,
+  `moduleNesting`, `packageNesting`, `requestBytes`, `algebraNesting`,
   `algebraCoefficientDigits`, `algebraGenerators` and `assemblyEvents`. The
   kernel reads the same file when it is elaborated. Four bounds on the forms
   of resource functions are constants of `src/frontend/resource_parser.rs`.

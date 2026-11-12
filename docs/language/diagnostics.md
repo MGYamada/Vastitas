@@ -154,10 +154,12 @@ Rules:
   without an export. The other is an integer literal as an argument
   of an indexed type at a parameter that is not `natural`. The same errors in
   a body have the place of their expression.
-- Two limits have this place (`E_LIMIT`): the number of indexed declarations
-  of a program, and the budget on the work of the names of the whole
-  program. The two other budgets of name resolution have the place of a path
-  or of a `use` declaration that exceeds them.
+- Three limits have this place (`E_LIMIT`): the number of indexed
+  declarations of a program, the budget on the work of the names of the
+  whole program, and the size of the
+  [request](../appendix/limits.md#request) of the program. The two other
+  budgets of name resolution have the place of a path or of a `use`
+  declaration that exceeds them.
 - The rules above name the cases that the chapters of the Reference state.
   Another diagnostic of the checker can have this place.
 

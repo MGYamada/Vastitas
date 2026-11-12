@@ -79,8 +79,10 @@ Rules:
   that exceeds it.
 - Some limit diagnostics point to no construct. A diagnostic for a limit on
   the inputs as a whole, or on a chain of package dependencies, has no place.
-  The diagnostics for the number of indexed declarations and for the budget
-  on the work of the names of the whole program have the place `FILE:1:1`.
+  The diagnostics for the number of indexed declarations, for the budget on
+  the work of the names of the whole program and for the size of the
+  [request](../appendix/limits.md#request) of the program have the place
+  `FILE:1:1`.
   The two other budgets of name resolution have the place of a path or of a
   `use` declaration.
   [Diagnostics](diagnostics.md#diagnostics-without-a-place-of-their-own)
@@ -97,15 +99,17 @@ nesting limit admits there:
 {{#include ../../examples/reject/limits/nested-parentheses.stderr}}
 ```
 
-> **Implementation note.** Two bounds of the compiler have diagnostics that
-> no rule of the Reference gives. The kernel refuses a request of the wire
-> protocol beyond a largest size (`E_PROTOCOL`), and a program within the
-> limits on its inputs can make such a request. A write beyond the limit on
-> the records that the checker keeps of the initialized cells of one
-> allocation has the code `E_RESOURCE_STATE`.
-> [Request](../appendix/limits.md#request) and
+> **Implementation note.** The frontend writes a program as one request of
+> the wire protocol, and the request of a program within the limits on its
+> inputs can be larger than the kernel reads. The frontend rejects such a
+> program with the limit on the size of a request (`E_LIMIT`) before the
+> kernel runs, as [Request](../appendix/limits.md#request) of Appendix D
+> says. One bound of the compiler has a diagnostic that no rule of the
+> Reference gives: a write beyond the limit on the records that the checker
+> keeps of the initialized cells of one allocation has the code
+> `E_RESOURCE_STATE`.
 > [Resource functions](../appendix/limits.md#resource-functions) of
-> Appendix D describe both bounds and name the issues that track them.
+> Appendix D describes the bound and names the issue that tracks it.
 
 ## Source limits and limits of the checked program
 

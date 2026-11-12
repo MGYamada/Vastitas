@@ -320,7 +320,9 @@ proof of Rust parsing/native refinement.
 The current pure Core typing and terminating-evaluation chain is
 `IndexedCore` → `IndexedEvaluationSafety` → `IndexedFunctionSafety` →
 `IndexedArgumentSafety` → `IndexedProgramSafety`, with the public receipt
-connections in the oracle modules `IndexedWire` and `LegacySource`. The
+connections in the oracle modules `IndexedWire` for protocol 7 and
+`LegacySource` for protocols 2 to 6, and in `ResourceSource` and
+`IndexedReverseCore.public_resource_compiled` for protocols 8 and 9. The
 kernel module `IndexedAcceptance` defines the entry point `Indexed.Wire.check`
 that `IndexedWire` reads.
 The actual promotion/add/maximum fixture is covered by `IndexedPromotion`.
@@ -805,7 +807,11 @@ has typed, finite evaluation and that its `main` evaluates to an `Int`. `Resourc
 `pure_entry_main_total` state the same for `checked.pureProgram.executable`,
 the module before that compilation,
 while `pure_value_functions_total` covers the value library of the mixed path
-before it.
+before it. `pure_entry_functions_total` and `pure_value_functions_total`
+take a `Checked program requireMain`. `pure_entry_main_total` takes a
+`Checked program true`, the certificate of a check with a required `main`,
+and the hypothesis `program.entry = none`: the program has no resource
+entry. No theorem states a result for a `main` that is a resource function.
 These theorems establish acceptance and identify the exact
 inputs to native generation. Native heap and floating-point refinement remain open.
 
@@ -818,9 +824,10 @@ of both compiled modules has typed, finite evaluation.
 compiled reverse Core.
 
 `generated_pure_entry` and `generated_pure_entry_total` may be cited for
-`Wire.emit`. `public_generated_checked` gives the successful
+`Wire.emit` on a request without a resource entry: both have the hypothesis
+`program.entry = none`. `public_generated_checked` gives the successful
 `generateChecked` call on the certificate of the request. The kernel theorem
-`generate_eq_checked` turns that call into the hypothesis of the two
+`generate_eq_checked` turns that call into the other hypothesis of the two
 theorems, a successful `Codegen.generate` on the decoded program. The proof
 of `IndexedReverseCore.public_pure_entry_compiled` composes them in this
 way. No single theorem states for `Wire.emit` that every function of the
@@ -883,7 +890,7 @@ complete declaration certificate. `IndexedSource.checked_implementation_contract
 `checked_linear_base`, `checked_smooth_complex_base`, `checked_coefficient_unique`
 and `checked_descriptor_is_affine` establish the actual accepted metadata
 contracts. `ResourceSource.public_numerical_declaration` connects them to the
-same decoded protocol-8 input and authority checker. These are structural type
+same decoded input of protocols 8 and 9 and to the same authority checker. These are structural type
 and provenance facts; by themselves they do not establish field/module laws,
 linear object construction, public GEMM, floating-point accuracy or native refinement.
 
@@ -1753,7 +1760,11 @@ that its signature uses and each free name of its body is one of the
 checker's builtin names or resolves through the namespace resolver from the
 scope of the declaration that holds the lambda. No parameter and no binder
 of the lambda's own blocks has the name of a binding of its enclosing
-lexical context.
+lexical context. The statement does not cover a lambda in a `value` block of
+a resource function. For protocols 8 and 9 the kernel checks
+`FunctionSource.ScopeSafe` for those lambdas in `ResourcePure.validFragments`
+and keeps the result in the certificate field `values.fragmentHeaders`. No
+oracle theorem states that result.
 
 `VastitasOracle.IndexedAuthority` connects rich contribution bodies to the
 actual `Authority.assemble` certificate. `authority_trace`, `applied_authorized`
@@ -1805,13 +1816,20 @@ this subsection take a certificate that only a wrapper builds.
 theorems of
 `IndexedPackages` and `IndexedPrimitives` take `CheckedPackageShape`,
 `CheckedPackagePayload`, `CheckedPackageOpening` and `CheckedPrimitive`. No
-entry point of `Main` calls these wrappers; kernel regressions do, so these
-theorems are about retained compositions. Each certificate holds the
-acceptance equation of a validity function. Of those functions, the routes
-run `validEnvironment` in the declaration audit and `validPrimitive` in the
-elaboration of bodies. For a typed Core node,
-`IndexedCore.typed_primitive_contract` and `typed_package_association`
-state the primitive contract and the package contract.
+entry point of `Main` calls the wrappers that build these certificates;
+kernel regressions do. Each certificate holds the acceptance equation of a
+validity function, and the routes evaluate all of these functions except
+`validPackageOpening`. The declaration audit runs `validEnvironment` and,
+for each case of each package declaration, `validPackageShape`. The Core
+audit runs `validPackagePayload` for each `pack` node and `validPrimitive`
+for each primitive call, and the elaboration of bodies also runs
+`validPrimitive`. No theorem builds a wrapper certificate from an accepted
+program. `IndexedCore.typed_primitive_contract` and
+`typed_package_association` state the primitive contract and the payload
+contract of a typed Core node. The Core audit checks `unpack` by its own
+rule, so the theorems on `CheckedPackageOpening` (`opening_witness`,
+`opening_fresh`, `reopening_distinct` and `opening_field_scoped`) are about
+a retained composition.
 
 `VastitasOracle.Indexed` exports the kernel theorems `validEnvironment_iff` and
 `validApplication_iff` of `IndexedAudit`, which relate the actual kernel
@@ -2128,8 +2146,8 @@ checked again and validated. `IndexedReverseCore.compiled_codegen_input` and
 `compiled_functions_total` gives its functions typed, finite evaluation.
 `compiled_main_total` states that the `main` of a compiled module evaluates
 to an `Int` when its source Core was checked with a required `main`, and
-`public_compiled_main_total` states it for an accepted request of protocol
-7.
+`public_compiled_main_total` states it for a request of protocol 7 that is
+accepted with a required `main`, the mode of `emit`.
 
 These are theorems about the actual indexed Core evaluator, not equality with a
 source interpreter or the retained legacy evaluator, native-code refinement,
@@ -2139,9 +2157,9 @@ complete the historical Stage 1 plan or establish Fast like C.
 
 ## Geometry standard-library migration regressions
 
-**Current routes and their components.** `wire_profile`,
-`compiler_uses_checked_profile` and `wire_dimension_result` take the
-`CheckedInput` of `Indexed.Wire.check`. They are about the route of protocol
+**Current routes and their components.** `GeometryCompatibility.wire_profile`
+and `compiler_uses_checked_profile`, and `GeometryResults.wire_dimension_result`,
+take the `CheckedInput` of `Indexed.Wire.check`. They are about the route of protocol
 7 and have no form for protocols 8 and 9. `LegacySource.checked_profile` and
 `LegacySource.compiler_uses_checked_profile` are about
 `Indexed.LegacySource.check`. The other theorems of `GeometryCompatibility`
@@ -2276,8 +2294,8 @@ route uses.
 return contracts; `result_initialized_bytes` derives actual byte initialization.
 `move_has_no_native_instruction` states exact erasure by the
 existing native lowerer. `public_operation_origin` and `public_result_origin`
-connect receipts to the declaration environment of the same protocol-8 checker
-result. Both branch receipts and independent unused-body probes are retained.
+connect receipts to the declaration environment of the same checker result
+of protocols 8 and 9. Both branch receipts and independent unused-body probes are retained.
 See [the bounded package contract](linalg/maps-and-gemm.md#owned-map-packages) for rejection/native
 coverage and remaining general-package, dynamic-shape and refinement boundaries.
 

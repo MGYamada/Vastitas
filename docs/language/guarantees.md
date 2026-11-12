@@ -133,7 +133,8 @@ Rules:
 
 The evidence: Implemented and Tested. Proved for pure functions: every
 function of the Core that the checker returns evaluates in finitely many
-steps to a value of its result type, and `main` to an integer.
+steps to a value of its result type. In a program that `vastitas build`
+accepts, a `main` that is not a resource function evaluates to an integer.
 [Indexed term, function and checked-program evaluation](../verification.md#indexed-term-function-and-checked-program-evaluation)
 and [Code generation entries](../verification.md#code-generation-entries)
 state the theorems. They are about the kernel's evaluator of

@@ -1,0 +1,12 @@
+resource fn main() -> Int {
+    allocate data: F64[2];
+    borrow output = write(data, layout(0, 2, 1, 2, false));
+    fill(output, f64(3));
+    release(output);
+    borrow input = read(data, layout(0, 2, 1, 2, false));
+    // Both cells hold 3, so this check fails when the program runs.
+    expect(input, 1, 0, f64(4));
+    release(input);
+    drop(data);
+    value { 42 }
+}

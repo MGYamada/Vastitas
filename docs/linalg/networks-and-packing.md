@@ -76,7 +76,7 @@ Rules:
   transposition and overlap hold for the destination and the two maps.
 
 ```vast
-{{#include ../../examples/packages/finite_network/src/real/mod.vast:30:39}}
+{{#include ../../examples/packages/finite_network/src/real/mod.vast:network}}
 ```
 
 ## Tensors

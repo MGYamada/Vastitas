@@ -27,6 +27,7 @@ pub resource fn product() -> Unit {
     borrow input_a = read(a, layout(0, 2, 3, 2, false));
     borrow input_b = read(b, layout(0, 3, 2, 3, false));
     borrow output = write(c, layout(0, 2, 2, 2, false));
+    // ANCHOR: network
     map left = view(input_a, bv, bw);
     map right = view(input_b, bu, bv);
     map destination = view(output, bu, bw);
@@ -37,6 +38,7 @@ pub resource fn product() -> Unit {
         input(b.input);
         output(a.output);
     }
+    // ANCHOR_END: network
     release(output);
     borrow updated = read_write(c, layout(0, 2, 2, 2, false));
     expect(updated, 0, 0, f64_bits(4633359591634108416));

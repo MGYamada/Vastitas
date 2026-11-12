@@ -1,0 +1,10 @@
+fn carry(X: Scheme, p: Point<X, Base(QQ)>) -> Point<X, Base(QQ)> {
+    apply(compose(id(X), id(X)), p)
+}
+
+fn main() -> Int {
+    let X = Affine(QQ, 42);
+    let p = origin(X);
+    let q: Point<X, Base(QQ)> = carry(X, p);
+    int(dimension(X))
+}

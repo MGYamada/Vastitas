@@ -1,0 +1,15 @@
+abstract type Numeric;
+subtype Nat <: Numeric;
+subtype Int <: Numeric;
+
+generic widen(x) { domain; }
+abstract method widen(x: Numeric) -> Int {
+    domain (Numeric);
+}
+// At the key (Nat) this method wins, and its result type is not `Int`.
+method widen(x: Nat) -> Nat { x }
+method widen(x: Int) -> Int { x }
+
+fn main() -> Int {
+    widen(42)
+}

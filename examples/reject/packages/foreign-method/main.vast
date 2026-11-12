@@ -1,0 +1,12 @@
+mod scalar {
+    pub generic size(x) { domain (Int), (Bool); }
+    method size(x: Int) -> Int { x }
+}
+use scalar::size;
+
+// The import permits calls of `size`. It does not permit a method for it.
+method size(x: Bool) -> Int { 0 }
+
+fn main() -> Int {
+    size(42)
+}

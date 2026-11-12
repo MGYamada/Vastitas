@@ -1,0 +1,4 @@
+pub contribution first : base::choose {
+  // This method also wins at (Int, Nat), which the grant does not cover.
+  method base::choose(x: Int, y: Number) -> Int { x }
+}

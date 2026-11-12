@@ -1,0 +1,8 @@
+fn main() -> Int {
+    let n: Nat = 3;
+    // A Nat subtraction stops at zero.
+    let floor: Nat = n - 5;
+    // `int` turns a Nat into an Int, where a difference can be negative.
+    let below: Int = int(n) - 5;
+    int(floor) + below * -21
+}

@@ -25,7 +25,7 @@ target/debug/vastitas build examples/pointed.vast -o target/pointed
 ```
 
 The program prints `42`. [Getting started](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/getting-started.md) ·
-[CLI reference](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/cli.md) · [Packages and manifests](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/stdlib.md)
+[CLI reference](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/cli.md) · [Creating a package](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/creating-a-package.md)
 
 ## Install the alpha
 

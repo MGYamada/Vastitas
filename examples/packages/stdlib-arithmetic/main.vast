@@ -1,0 +1,6 @@
+use std::arithmetic::integers::int_abs;
+use std::arithmetic::integers::int_sub;
+
+fn main() -> Int {
+    int_abs(int_sub(8, 50))
+}

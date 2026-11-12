@@ -36,6 +36,21 @@ fn documented_build(inputs: &[&str], build_options: &[&str], expected: &str) {
     );
 }
 
+/// The build options of a numerical package in the numerical CI jobs: the
+/// pinned OpenBLAS prefix and the native compiler. The compiler is the one
+/// that the job names, or `default_cc` where the job names none.
+fn numerical_build_options(default_cc: Option<&str>) -> Vec<String> {
+    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix");
+    let mut options = vec!["--openblas-prefix".to_owned(), prefix];
+    let cc = std::env::var("VASTITAS_TEST_NATIVE_CC")
+        .ok()
+        .or_else(|| default_cc.map(str::to_owned));
+    if let Some(cc) = cc {
+        options.extend(["--native-cc".to_owned(), cc]);
+    }
+    options
+}
+
 fn documented(inputs: &[&str], expected: &str) {
     documented_build(inputs, &[], expected);
 }
@@ -46,6 +61,19 @@ fn documented(inputs: &[&str], expected: &str) {
 /// Examples).
 const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
     ("examples/book/programs/hello.vast", &[], "42"),
+    ("examples/book/programs/flat-library.vast", &[INT], "42"),
+    ("examples/book/functions/calls.vast", &[], "42"),
+    (
+        "examples/book/expressions/unbounded-integers.vast",
+        &[],
+        "15241578753238836750495351562536198787501905199875019052101",
+    ),
+    (
+        "examples/book/expressions/natural-subtraction.vast",
+        &[],
+        "42",
+    ),
+    ("examples/book/types/pair-result.vast", &[], "42"),
     ("examples/book/statements/bindings.vast", &[], "42"),
     ("examples/book/expressions/operators.vast", &[], "42"),
     (
@@ -59,6 +87,7 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
         &[],
         "42",
     ),
+    ("examples/book/geometric-types/objects.vast", &[], "42"),
     (
         "examples/arithmetic.vast",
         &[],
@@ -72,7 +101,22 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
         "42",
     ),
     ("examples/abstract-contracts.vast", &[], "42"),
+    ("examples/book/dispatch/methods.vast", &[], "42"),
+    ("examples/book/dispatch/selectors.vast", &[], "42"),
+    ("examples/book/dispatch/capabilities.vast", &[], "42"),
     ("examples/functions.vast", &[], "42"),
+    ("examples/book/function-values/signatures.vast", &[], "42"),
+    (
+        "examples/book/function-values/explicit-parameter.vast",
+        &[],
+        "42",
+    ),
+    (
+        "examples/book/function-values/static-targets.vast",
+        &[],
+        "42",
+    ),
+    ("examples/book/function-values/wrapper.vast", &[], "42"),
     ("examples/smooth.vast", &[], "2"),
 ];
 
@@ -80,7 +124,11 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
 /// of the built executable. Packages that other tests in this file run are
 /// not repeated.
 const BOOK_PACKAGES: &[(&str, &str)] = &[
+    ("examples/packages/hello/Vastitas.toml", "42"),
+    ("examples/packages/dependency/ask/Vastitas.toml", "42"),
+    ("examples/packages/stdlib-arithmetic/Vastitas.toml", "42"),
     ("examples/packages/inline-module/Vastitas.toml", "42"),
+    ("examples/packages/module-paths/Vastitas.toml", "42"),
     ("examples/packages/indexed/Vastitas.toml", "42"),
     ("examples/packages/indexed-objects/Vastitas.toml", "42"),
     ("examples/packages/geometry-compat/Vastitas.toml", "42"),
@@ -89,7 +137,24 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/stdlib-affine/Vastitas.toml", "42"),
     ("examples/packages/storage/app/Vastitas.toml", "42"),
     ("examples/packages/vector-cells/Vastitas.toml", "42"),
+    ("examples/packages/runtime-extents/Vastitas.toml", "42"),
 ];
+
+/// The package programs of the book whose build links OpenBLAS, by manifest,
+/// with the output of the built executable.
+/// `book_numerical_packages_print_their_output` builds and runs them where the
+/// pinned OpenBLAS is available.
+const BOOK_NUMERICAL_PACKAGES: &[(&str, &str)] = &[
+    ("examples/packages/numerical/Vastitas.toml", "42"),
+    ("examples/packages/linear-transforms/Vastitas.toml", "42"),
+    ("examples/packages/finite_network/Vastitas.toml", "42"),
+];
+
+/// The packages of the book whose executable stops with a run-time
+/// diagnostic, by directory. The package must build. Its executable must exit
+/// with status 1, write nothing to standard output and write exactly the
+/// lines of `<directory>.stderr` to standard error.
+const BOOK_RUNTIME_FAILURES: &[&str] = &["examples/packages/failed-expect"];
 
 /// The rejected programs that the book includes from `examples/reject/`, with
 /// their `--lib` inputs. `vastitas check`, run from the repository root, must
@@ -101,13 +166,22 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
     ("examples/reject/statements/nested-rebinding.vast", &[]),
     ("examples/reject/expressions/chained-comparison.vast", &[]),
     ("examples/reject/expressions/mixed-integers.vast", &[]),
+    ("examples/reject/expressions/if-without-else.vast", &[]),
+    ("examples/reject/types/pair-literals.vast", &[]),
     ("examples/reject/diagnostics/several-names.vast", &[]),
     ("examples/reject/limits/nested-parentheses.vast", &[]),
     ("examples/reject/limits/seven-parameters.vast", &[]),
     ("examples/reject/geometric-types/wrong-endpoint.vast", &[]),
     ("examples/reject/geometric-types/escaping-point.vast", &[]),
     ("examples/reject/dispatch/incomparable-methods.vast", &[]),
+    ("examples/reject/dispatch/crossed-selectors.vast", &[]),
+    ("examples/reject/dispatch/unused-key.vast", &[]),
+    ("examples/reject/dispatch/literal-key.vast", &[]),
+    ("examples/reject/abstract-types/value-type.vast", &[]),
+    ("examples/reject/abstract-types/same-members.vast", &[]),
+    ("examples/reject/abstract-types/contract-result.vast", &[]),
     ("examples/reject/function-values/capture.vast", &[]),
+    ("examples/reject/function-values/generic-value.vast", &[]),
     ("examples/reject/function-values/two-targets.vast", &[]),
 ];
 
@@ -117,15 +191,22 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
 /// `<directory>.stderr`, with the repository root removed from file names.
 const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/private-function",
+    "examples/reject/packages/foreign-method",
+    "examples/reject/packages/outside-region",
+    "examples/reject/packages/private-dependency",
     "examples/reject/packages/entry-signature",
     "examples/reject/packages/unknown-manifest-key",
     "examples/reject/packages/uninitialized-read",
+    "examples/reject/packages/moved-owner",
+    "examples/reject/packages/overlapping-writers",
+    "examples/reject/packages/inexact-payload",
     "examples/reject/packages/other-basis",
     "examples/reject/packages/other-space",
     "examples/reject/packages/missing-capability",
     "examples/reject/packages/lost-capability",
     "examples/reject/packages/other-witness",
     "examples/reject/packages/second-opening",
+    "examples/reject/packages/copied-profile",
     "examples/reject/packages/affine-off-chain",
     "examples/reject/packages/affine-missing-image",
     "examples/reject/packages/affine-relation",
@@ -207,6 +288,34 @@ fn book_rejected_packages_print_their_diagnostics() {
     }
 }
 
+#[test]
+fn book_runtime_failures_print_their_diagnostics() {
+    for directory in BOOK_RUNTIME_FAILURES {
+        let scratch = Scratch::empty("run-time failure");
+        let program = scratch.0.join("program");
+        let manifest = format!("{directory}/Vastitas.toml");
+        let mut build = cli();
+        build
+            .current_dir(root())
+            .args(["build", "--manifest-path", &manifest, "-o"])
+            .arg(&program);
+        success(&build.output().unwrap());
+        let output = Command::new(&program).output().unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "{directory} must stop when it runs"
+        );
+        assert!(output.stdout.is_empty(), "{directory}: no output on stdout");
+        let expected = std::fs::read_to_string(root().join(format!("{directory}.stderr"))).unwrap();
+        assert_eq!(
+            String::from_utf8(output.stderr).unwrap(),
+            expected,
+            "{directory}"
+        );
+    }
+}
+
 fn files_under(directory: &Path, found: &mut Vec<String>) {
     for entry in std::fs::read_dir(directory).unwrap() {
         let path = entry.unwrap().path();
@@ -262,8 +371,12 @@ fn book_examples_are_registered() {
     for (path, _, _) in BOOK_PROGRAMS {
         assert!(root().join(path).is_file(), "{path}");
     }
-    for (manifest, _) in BOOK_PACKAGES {
+    for (manifest, _) in BOOK_PACKAGES.iter().chain(BOOK_NUMERICAL_PACKAGES) {
         assert!(root().join(manifest).is_file(), "{manifest}");
+    }
+    for directory in BOOK_RUNTIME_FAILURES {
+        let manifest = format!("{directory}/Vastitas.toml");
+        assert!(root().join(&manifest).is_file(), "{manifest}");
     }
 }
 
@@ -290,7 +403,7 @@ fn flat_promotion() {
     );
 }
 
-// docs/guide/stdlib.md and stdlib/README.md.
+// docs/language/programs.md (Flat mode) and stdlib/README.md.
 #[test]
 fn stdlib_arithmetic() {
     documented(
@@ -324,6 +437,28 @@ fn arithmetic_and_demo_packages() {
         &["--manifest-path", "examples/packages/demo/Vastitas.toml"],
         "42",
     );
+}
+
+// docs/guide/creating-a-package.md: a library package has no entry point, so
+// `check` accepts it and `build` reports the missing entry point.
+#[test]
+fn library_package_checks_and_does_not_build() {
+    let manifest = "examples/packages/dependency/answers/Vastitas.toml";
+    success(
+        &cli()
+            .current_dir(root())
+            .args(["check", "--manifest-path", manifest])
+            .output()
+            .unwrap(),
+    );
+    let scratch = Scratch::empty("library package");
+    let output = cli()
+        .current_dir(root())
+        .args(["build", "--manifest-path", manifest, "-o"])
+        .arg(scratch.0.join("program"))
+        .output()
+        .unwrap();
+    common::expect_code(&output, "E_MAIN");
 }
 
 // docs/language/edit-authority.md: grants, contributions and assemblies.
@@ -425,14 +560,29 @@ fn runtime_shapes_package_checks_without_blas() {
 #[test]
 #[ignore = "requires pinned sequential LP64 OpenBLAS"]
 fn runtime_shapes_package_runs_with_openblas() {
-    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix");
-    let cc = std::env::var("VASTITAS_TEST_NATIVE_CC").unwrap_or_else(|_| "cc".into());
+    // As tests/runtime_shape_source.rs builds runtime shapes: with `cc` named.
+    let options = numerical_build_options(Some("cc"));
+    let options: Vec<&str> = options.iter().map(String::as_str).collect();
     documented_build(
         &[
             "--manifest-path",
             "examples/packages/runtime-shapes/Vastitas.toml",
         ],
-        &["--openblas-prefix", &prefix, "--native-cc", &cc],
+        &options,
         "0",
     );
+}
+
+// docs/guide/numerical.md: the numerical packages of the book, built in place
+// with the pinned OpenBLAS prefix. tests/numerical_source.rs builds and runs
+// copies of their sources in the numerical CI jobs.
+#[test]
+#[ignore = "requires pinned sequential LP64 OpenBLAS"]
+fn book_numerical_packages_print_their_output() {
+    // As tests/numerical_source.rs builds the same sources.
+    let options = numerical_build_options(None);
+    let options: Vec<&str> = options.iter().map(String::as_str).collect();
+    for (manifest, expected) in BOOK_NUMERICAL_PACKAGES {
+        documented_build(&["--manifest-path", manifest], &options, expected);
+    }
 }

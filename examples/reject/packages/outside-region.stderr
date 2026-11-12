@@ -1,0 +1,2 @@
+examples/reject/packages/outside-region/addon/main.vast:3:3: E_IMPACT: final winning footprint exceeds the approved grant region at (Int, Nat)
+examples/reject/packages/outside-region/addon/main.vast:1:5: note: contribution declared here

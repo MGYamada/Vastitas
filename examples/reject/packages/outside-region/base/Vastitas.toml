@@ -1,0 +1,4 @@
+[package]
+name = "region_base"
+version = "0.1.0"
+root = "main.vast"

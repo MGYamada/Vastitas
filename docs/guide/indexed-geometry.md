@@ -1,33 +1,116 @@
 # Indexed declarations and the geometry library
 
-Vastitas types can mention geometric objects. A point's type names the object
-it lies on, and a morphism's type names its source and target. This chapter
-starts with the built-in geometric core, moves to the standard geometry library
-and ends with declaring an indexed profile of your own.
+A type can name a geometric object. The type of a point names the object
+that the point lies on, and the type of a morphism names its source and its
+target. The checker uses these types to keep a point of one object away from
+every other object.
+
+This chapter first uses the geometric core that is built into the language.
+It then uses the same geometry from the standard library. The library
+declares it with
+[*indexed declarations*](../appendix/glossary.md#indexed-declaration):
+items that begin with `indexed` and give a package objects and types of its
+own.
 
 ## Objects, points and morphisms
 
-The core has a deliberately small set of forms:
+[`examples/book/geometric-types/objects.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/geometric-types/objects.vast)
+constructs an object, a point and a morphism:
 
-| Form | Meaning |
-| --- | --- |
-| `Affine(QQ, n)` | An ordinary affine object of dimension `n` over the rationals |
-| `Affine(CInfReal, n)` | A smooth affine object over the smooth reals |
-| `Base(K)` | The base object, distinct from the coefficient marker `K` |
-| `origin(X)` | The zero point of `X`, with test object `Base(K)` |
-| `id(X)` | The identity morphism on `X` |
-| `compose(g, f)` | `g` after `f`; the middle endpoint must agree |
-| `apply(f, p)` | Apply a morphism to a point on its source |
-| `dimension(X)` | The dimension of `X`, a `Nat` |
+```vast
+{{#include ../../examples/book/geometric-types/objects.vast}}
+```
 
-`Scheme` is the ordinary setting and `CInfScheme` the smooth one. There is no
-implicit bridge between them.
+`Affine(QQ, 42)` constructs an object: an affine space of dimension 42 over
+the rational numbers. `QQ` is a [*marker*](../appendix/glossary.md#marker),
+a name for the coefficients, and the type of the object is `Scheme`. The
+object is a [*descriptor object*](../appendix/glossary.md#descriptor-object):
+it records its dimension and nothing else. It has no coordinates.
+
+`origin(X)` is the zero point of `X`. Its type is `Point<X, Base(QQ)>`. The
+first argument is the object that the point lies on. The second is the
+[*test object*](../appendix/glossary.md#test-object) of the point, here the
+[*base object*](../appendix/glossary.md#base-object) `Base(QQ)`: the object
+of dimension zero over `QQ`.
+
+`id(X)` is the identity morphism of `X`, of type `Morphism<X, X>`.
+`compose(g, f)` is `g` after `f`, and `apply(f, p)` is the image of the point
+`p` under the morphism `f`. `dimension(X)` is the dimension of `X`, a `Nat`.
+
+The second parameter of `carry` has a type that names the first parameter.
+`p` is a point of the object that the caller passes as `X`, and the result
+is a point of the same object.
+
+```sh
+target/debug/vastitas check examples/book/geometric-types/objects.vast
+target/debug/vastitas build examples/book/geometric-types/objects.vast -o target/objects
+./target/objects
+```
+
+The program prints `42`. [Operations](../language/geometric-types.md#operations)
+lists the operations with their types.
+
+## Identity is nominal
+
+Every object has a
+[*nominal identity*](../appendix/glossary.md#nominal-identity): it is the
+object that one construction made. Two objects are the same object only when
+they come from the same construction. An equal dimension does not make them
+the same:
+
+```vast
+{{#include ../../examples/reject/geometric-types/wrong-endpoint.vast}}
+```
+
+```text
+{{#include ../../examples/reject/geometric-types/wrong-endpoint.stderr}}
+```
+
+The notes name the place that introduced each object. Three rules decide
+which object a name denotes:
+
+- A binding to an object, such as `let Y = X;`, names the same object as
+  `X`.
+- Each call of `Affine` constructs an object with a fresh identity.
+- A call of a function that returns an object gives an object with a fresh
+  identity, even when the function returns its argument.
+
+Objects have no `==`. [Object identity](../language/geometric-types.md#object-identity)
+gives the rules.
+
+## Two settings
+
+`Scheme` is the ordinary [*setting*](../appendix/glossary.md#setting), with
+the marker `QQ`. The smooth setting is `CInfScheme`, with the marker
+`CInfReal`: `Affine(CInfReal, n)` constructs an object of type `CInfScheme`,
+and `Base(CInfReal)` is its base object. The operations are the same in both
+settings. Nothing converts an object, a point or a morphism of one setting to
+the other.
+
+An object of type `CInfScheme` is a descriptor object too. A smooth space
+with coordinates, smooth maps and covectors is another kind of object, which
+the chapter [Smooth geometry and reverse pullbacks](smooth-geometry.md)
+declares.
+
+## Existential packages
+
+The result type of a function can name the parameters of the function and no
+object of its body. A function that constructs an object therefore cannot
+return a point of it as a `Point`. It returns an
+[*existential package*](../appendix/glossary.md#existential-package): a
+value that hides an object together with a point of it.
 [`examples/smooth.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/smooth.vast)
-works in the smooth setting:
+does this in the smooth setting:
 
 ```vast
 {{#include ../../examples/smooth.vast}}
 ```
+
+`Pointed<CInfScheme, CInfReal>` is the type of an existential package of the
+smooth setting, and `Pointed<Scheme, QQ>` is the type of the ordinary one.
+`pack { scheme: X, point: origin(X) }` builds the package. The `unpack`
+statement opens it: it binds `X` to the hidden object and `p` to its point,
+of type `Point<X, Base(CInfReal)>`.
 
 ```sh
 target/debug/vastitas build examples/smooth.vast -o target/smooth
@@ -36,96 +119,132 @@ target/debug/vastitas build examples/smooth.vast -o target/smooth
 
 The program prints `2`.
 
-`Affine(CInfReal, n)` builds a descriptor object that records only its
-dimension. Smooth real affine space with named coordinates, smooth maps and
-covectors is a separate declaration, `Affine(n)[c₁, …, cₙ]`; see
-[smooth affine declarations](../language/smooth-declarations.md).
+Each `unpack` gives the object a fresh identity, even when a program opens
+one package twice. The point is a point of that object, and it cannot leave
+the block of its object:
 
-## Identity is nominal
+```vast
+{{#include ../../examples/reject/geometric-types/escaping-point.vast}}
+```
 
-`Point<X, S>` is an `S`-valued point of `X`, and `Morphism<X, Y>` carries both
-endpoints. The checker compares **object identities**, never dimensions:
+```text
+{{#include ../../examples/reject/geometric-types/escaping-point.stderr}}
+```
 
-- Every `Affine(...)` construction has a fresh identity. An alias keeps it.
-- A function that returns an object gives each call a fresh identity.
-- Equal settings, bases, dimensions or descriptors never identify two objects.
+The type of `q` names `X`, and `X` exists only inside the block. A program
+that needs the point outside packs it with its object again.
+[Existential packages](../language/geometric-types.md#existential-packages)
+gives the rules.
 
-To return a point together with its object, pack them. `Pointed<Scheme, QQ>`
-hides an object with a point on it. Each `unpack` opens the package with a fresh
-scoped identity, even when the same package is opened twice. Returning a local
-point without its object is rejected; repacking the two together is fine.
-[Chapter 1](hello-vastitas.md#a-program-with-geometry) walks through
-`examples/pointed.vast`, which does exactly this.
+## The geometry library
 
-## The standard geometry library
-
-`std::geometry::scheme` and `std::geometry::smooth` declare the same finite
-profile as library code, through the indexed declarations shown below. This
-demo uses the explicit witness and field syntax of indexed packages.
-[`examples/packages/stdlib-geometry/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast):
+<a id="the-standard-geometry-library"></a>The compiler has the geometric core built in. The standard library declares
+the same objects, types and operations as ordinary declarations of a
+package, in the modules `std::geometry::scheme` and `std::geometry::smooth`.
+[`examples/packages/stdlib-geometry/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast)
+uses both modules through paths:
 
 ```vast
 {{#include ../../examples/packages/stdlib-geometry/main.vast}}
 ```
 
-It prints `42`; [Chapter 1](stdlib.md#using-the-standard-library) has the build
-commands. The two dimensions add, but nothing lets `p` be used in `Y`.
+The program reads like the programs above, with the names of the library:
 
-## Declaring an indexed profile
+- `scheme::pointed(20)` is a function of the library. It packs a fresh object
+  of dimension 20 with its origin. `smooth::pointed(22)` does the same in the
+  smooth setting.
+- `unpack ordinary as { witness: X, fields: [p] };` opens the package.
+  `witness` binds the hidden object, and `fields` lists the values that the
+  package holds beside it, here one point.
+- `scheme::Point<X, scheme::BaseQQ>` is an
+  [*indexed type*](../appendix/glossary.md#indexed-type). `Point` is a
+  [family](../appendix/glossary.md#family) of types that the library
+  declares. The type applies it to the object `X` and to `BaseQQ`, the base
+  object of the library.
+- `scheme::id`, `scheme::compose`, `scheme::apply` and `scheme::dimension`
+  are the operations of the library.
 
-The library is not privileged. Any package can declare its own markers,
-classifications, families, existential packages and primitives with `indexed`
-declarations.
-[`examples/packages/indexed/geo.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/indexed/geo.vast)
-declares a complete ordinary affine profile:
-
-```vast
-pub indexed marker QQ;
-pub indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
-pub indexed classification Scheme { parents(); domain(Grid); };
-pub indexed global Base(Grid);
-pub indexed family Point(object(Scheme), object(Scheme)) = point constraints(same_base(0, 1));
-pub indexed family Morphism(object(Scheme), object(Scheme)) = morphism constraints(same_base(0, 1));
-pub indexed package Pointed {
-    case(Scheme, QQ) { Point(witness, global(Base)); }
-};
-pub indexed primitive affine = descriptor(Grid);
-pub indexed primitive baseObject = global(Base);
-pub indexed primitive origin = origin((Scheme, QQ), Point, Base);
-pub indexed primitive identity = identity((Scheme, QQ), Morphism);
-pub indexed primitive dimension = dimension((Scheme, QQ));
-pub indexed primitive compose = compose(Morphism);
-pub indexed primitive apply = apply(Morphism, Point);
-```
-
-A declaration's identity is its defining package, module and name. Names such as
-`Scheme` or `Point` grant nothing by themselves. The checker audits each
-primitive against its declared representation, domain, arity and capabilities.
-
-The package root uses the profile through qualified paths:
-
-```vast
-{{#include ../../examples/packages/indexed/main.vast}}
-```
+The package depends on the standard library under the alias `std`. Generate
+the library's package root first, as
+[using the standard library](stdlib.md#using-the-standard-library) describes:
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/indexed/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/indexed/Vastitas.toml -o target/indexed-demo
-./target/indexed-demo
-# 42
+python3 scripts/build_stdlib_package.py
+target/debug/vastitas build --manifest-path examples/packages/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
+./target/stdlib-geometry
 ```
 
-A library can also export the legacy spellings (`Scheme`, `Point<X, Base(QQ)>`,
-`pack { scheme: ..., point: ... }`) to packages through an explicit, checked
-`[geometry_compat]` manifest entry. The standard geometry library's
-[manifest](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/Vastitas.toml)
-does this, so the older syntax keeps working in package mode.
+The program prints `42`, the sum of the two dimensions. The rules of identity
+are those of the core: `p` is a point of `X`, and no operation accepts it as
+a point of `Y`.
+[The standard geometry library](../indexed-source.md#the-standard-geometry-library)
+lists the declarations of both modules.
 
-> **What is checked.** Lean composes the declaration audit with the same
-> function, dispatch and edit-authority checkers on one input. The exact
-> declaration grammar, existential rules and legacy export are in
-> [Indexed declarations](../indexed-source.md). Typed total
-> evaluation of the returned Core is proved; source operational correspondence
-> and native refinement are not. See
-> [Acceptance and proof scope](../internals/indexed-checker.md#acceptance-and-proof-scope)
-> and the [geometry migration record](../internals/indexed-checker.md#geometry-migration).
+## The core syntax in a package
+
+A program can write the core syntax and the names of the library side by
+side. The manifest of the library's geometry package holds an
+[*export*](../appendix/glossary.md#export): a table that maps each form of
+the core syntax to a declaration of the library.
+[`examples/packages/geometry-compat/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry-compat/main.vast)
+depends on the standard library and uses both spellings:
+
+```vast
+{{#include ../../examples/packages/geometry-compat/main.vast}}
+```
+
+`Point<Y, Base(QQ)>` and `scheme::Point<Y, scheme::BaseQQ>` are the same
+type here, so `q` and `r` are points of one type. `Affine(QQ, n)` and
+`origin(X)` are calls of the library's operations.
+
+```sh
+target/debug/vastitas build --manifest-path examples/packages/geometry-compat/Vastitas.toml -o target/geometry-compat
+./target/geometry-compat
+```
+
+The program prints `42`.
+
+A flat program uses the built-in core, as the first sections of this chapter
+do. So does a package, until its program has an indexed declaration or one
+of the other declarations that
+[Geometry compatibility exports](../packages.md#geometry-compatibility-exports)
+lists. Such a program needs exactly one export among its packages to write
+the core syntax.
+[Core geometry syntax](../indexed-source.md#core-geometry-syntax) gives the
+meaning of each form under an export.
+
+<a id="declaring-an-indexed-profile"></a>The library has no special rights.
+It declares its markers, objects, types and operations with indexed
+declarations, and any package can do the same. The next chapter,
+[Defining an indexed profile](indexed-profile.md), writes such declarations.
+
+> **What is checked.** The checker compares the identities of objects and
+> never their dimensions. It rejects a program before the compiler generates
+> code, and it erases the identities only afterwards: at run time an object
+> is its dimension. In a package, the checker resolves the declarations of
+> the library and the entries of its export itself. The
+> [proofs](../internals/indexed-checker.md#acceptance-and-proof-scope) cover
+> the program that the checker hands to code generation: it is well typed,
+> and each of its functions evaluates to a value of its declared type. They
+> do not cover that this program computes what the source describes, or
+> that the executable does. Tests cover the diagnostics and native
+> execution.
+
+## See also
+
+- [Geometric types](../language/geometric-types.md): the types and
+  operations of the geometric core, with
+  [Object identity](../language/geometric-types.md#object-identity) and
+  [Existential packages](../language/geometric-types.md#existential-packages).
+- [Pack expressions](../language/expressions.md#pack-expressions) and
+  [`unpack` statements](../language/statements.md#unpack-statements): both
+  forms of each.
+- [Indexed types](../language/types.md#indexed-types): types that apply a
+  declared family.
+- [The standard geometry library](../indexed-source.md#the-standard-geometry-library):
+  the declarations of `std::geometry::scheme` and `std::geometry::smooth`.
+- [Core geometry syntax](../indexed-source.md#core-geometry-syntax) and
+  [Geometry compatibility exports](../packages.md#geometry-compatibility-exports):
+  the core syntax in a package.
+- [The geometry library](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/README.md):
+  the modules of the library and their sources.

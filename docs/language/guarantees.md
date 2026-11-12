@@ -295,8 +295,9 @@ This program writes one column of a view and then reads both:
 
 The evidence: Implemented and Tested. Four facts are Proved for the model of
 storage that the checker keeps. The bytes of every accepted access lie in its
-allocation. An accepted read finds initialized bytes. Two live loans of which
-one writes do not overlap, apart from a loan and its live children. At the end of an accepted entry point the model
+allocation. An accepted read finds initialized bytes. Two active loans of
+which one writes do not overlap; a loan with a live child is not active and
+gives no access. At the end of an accepted entry point the model
 holds no allocation and no loan.
 [What is outside these claims](../verification.md#what-is-outside-these-claims)
 states the theorems, and

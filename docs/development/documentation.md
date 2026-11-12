@@ -213,6 +213,14 @@ next rewrite.
   directory in `BOOK_REJECTED_PACKAGES`. `<name>.stderr` next to the directory
   holds the lines of `vastitas check --manifest-path`, with the repository root
   removed from file names. A chapter need not include the manifest.
+- List a package whose build links OpenBLAS in `BOOK_NUMERICAL_PACKAGES`.
+  Its test builds and runs the package only where the pinned OpenBLAS is
+  available: `cargo test --locked --test examples -- --ignored` with
+  `VASTITAS_TEST_OPENBLAS_PREFIX`. The numerical CI jobs run it.
+- Put a package whose executable stops with a run-time diagnostic under
+  `examples/packages/` and list its directory in `BOOK_RUNTIME_FAILURES`.
+  `<name>.stderr` next to the directory holds the line that the executable
+  writes to standard error.
 - Label a manifest with `toml`.
 
 ### What stays out
@@ -233,8 +241,7 @@ next rewrite.
 - The Introduction must state the tagline *A Language for Math 2.0 and
   Physics 2.0* and the five design goals: Syntax like Rust, Experience like
   Julia, Philosophy like Haskell, Verification like Lean and Performance like
-  C/C++. The design goals are aims, not claims about what exists. The
-  Introduction adopts this rule in its rewrite.
+  C/C++. The design goals are aims, not claims about what exists.
 - The Introduction states the performance goal **Fast like C** and the
   principle **Check before generating**, in at least one sentence each. **Fast
   like C** names the C/C++-class target of the Performance design goal; it is

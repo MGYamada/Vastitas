@@ -1,0 +1,1 @@
+examples/reject/packages/inexact-payload/main.vast:5:22: E_RESOURCE_LITERAL: decimal literal is not exactly representable in binary64; adjacent values are f64(0x1.9999999999999p-4) and f64(0x1.999999999999ap-4); choose an exact hex or explicit bits payload

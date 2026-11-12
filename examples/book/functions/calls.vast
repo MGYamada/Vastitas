@@ -1,0 +1,12 @@
+fn main() -> Int {
+    add_twice(2, 20)
+}
+
+// A call may name a function that the file declares later.
+fn add_twice(base: Int, step: Int) -> Int {
+    base + twice(step)
+}
+
+fn twice(x: Int) -> Int {
+    x + x
+}

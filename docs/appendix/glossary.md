@@ -1114,6 +1114,15 @@ recorded in a [specification](#specification) with an example and one or more
 Declared with `pub`: nameable from every module that can reach the declaring
 module. See [Visibility](../language/names-and-paths.md#visibility).
 
+## Public checker route
+
+One of the entry points that the kernel executable calls for a request of the
+[wire protocol](#wire-protocol): `Indexed.LegacySource.check` for protocols 2
+to 6, `Indexed.Wire.check` for protocol 7 and `ResourceSource.Wire.check` for
+protocols 8 and 9. A theorem about a route holds for the requests that the
+kernel accepts through it. See
+[Current public checker routes](../verification.md#current-public-checker-routes).
+
 ## Recipient
 
 The module that a grant, delegation or transfer names after `to`: the manifest
@@ -1195,6 +1204,14 @@ the [guide](../guide/storage.md#resource-functions).
 The expression at the end of a block, without a semicolon. The value of the
 block is the value of its result. See
 [Block expressions](../language/expressions.md#block-expressions).
+
+## Retained composition
+
+An older checker entry of the kernel, or an internal adapter, that no command
+reaches. Kernel regressions and oracle modules still call it. A theorem about
+a retained composition says nothing about a program that the compiler accepts
+today. See
+[How to read this chapter](../verification.md#how-to-read-this-chapter).
 
 ## Reverse site
 

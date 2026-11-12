@@ -814,7 +814,7 @@ forged/unused-branch annotations. They run without mathlib.
 
 The later checked-program theorem derives typed total evaluation and allocation
 freshness from the actual module audits, including dependent calls; see
-[the precise premises and remaining obligations](../verification.md#conditional-indexed-term-and-function-evaluation).
+[the precise premises and remaining obligations](../verification.md#indexed-term-function-and-checked-program-evaluation).
 Full source operational correspondence and native refinement remain unproved.
 These primitive lemmas alone do not establish the [migration acceptance](#geometry-migration)
 or assert storage safety, arbitrary geometry or floating-point properties.

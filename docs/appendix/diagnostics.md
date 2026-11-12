@@ -18,9 +18,12 @@ groups the codes by construct, and
 | The [kernel](glossary.md#kernel) | Every error of names, types, dispatch, authority, declarations and resources. It is the [checker](glossary.md#checker) | [Kernel](#kernel) |
 | The native runtime | The [run-time diagnostics](../language/diagnostics.md#run-time-diagnostics) of an executable | [Native runtime](#native-runtime) |
 
-A code can stand in two sections. The kernel checks again every rule of
-names, types and sizes that the frontend reports first, so that it accepts no
-program on the word of the frontend.
+A code can stand in two sections. The kernel checks again the rules of names
+and types that the frontend reports first, so that it accepts no program on
+the word of the frontend. Two kinds of checks belong to the frontend alone.
+One is the limits of [Source text](limits.md#source-text) and of
+[Inputs](limits.md#inputs). The other is the number of coordinates of
+`Affine(K, n)[…]`, a form that a request does not hold.
 
 In the tables, the column "Reports" names the kinds of errors that have the
 code, and the column "Rules" links the sections of the Reference that state
@@ -37,9 +40,12 @@ does not specify the text of a message, as
 These codes report the command and its environment. Only the frontend reports
 them, apart from `E_PROTOCOL`, which the kernel reports for a request, as
 [Requests and audits](#requests-and-audits) says. Their diagnostics have no
-place, apart from `E_LIBRARY` and from an `E_INPUT` for the file of a module,
-which has the place of the `mod` declaration. An `E_MANIFEST` names its
-manifest.
+place, with two exceptions. `E_LIBRARY` has the place of the function. An
+`E_INPUT` has the place of the `mod` declaration when the file of the module
+is missing, when both of its files exist, and when a file differs from the
+name of the module only in case. An `E_INPUT` for a module file that the
+compiler finds and cannot use, such as a directory or a file that is not
+UTF-8, has no place. An `E_MANIFEST` names its manifest.
 
 | Code | Reports | Rules |
 | --- | --- | --- |
@@ -62,7 +68,7 @@ never sees the text of a file.
 | --- | --- | --- |
 | `E_LEX` | Text that forms no token: a byte order mark, a line separator that the language excludes, a character outside ASCII in code, a character that begins no token, and a control or invisible character in a comment | [Source text](../language/lexical-structure.md#source-text) · [Comments](../language/lexical-structure.md#comments) · [Integer literals](../language/lexical-structure.md#integer-literals) |
 | `E_PARSE` | Tokens that do not form the construct that a Syntax block gives | The Syntax block of the construct, in the [grammar summary](grammar.md), and the rules that name the code, such as [Source files](../language/programs.md#source-files) and [Kinds of items](../language/items.md#kinds-of-items) |
-| `E_UNSUPPORTED` | Syntax that the language does not have, such as a block comment, a string literal or a mutable binding, and an item that the mode of the command does not have, such as a module in flat mode | [Keywords](../language/lexical-structure.md#keywords) · [Other literals](../language/lexical-structure.md#other-literals) · [Kinds of items](../language/items.md#kinds-of-items) · [`let` statements](../language/statements.md#let-statements) · [Types](../language/types.md) |
+| `E_UNSUPPORTED` | Syntax that the language does not have, such as a block comment, a string literal or a mutable binding, a type name that the language does not define, and an item that the mode of the command does not have, such as a module in flat mode | [Keywords](../language/lexical-structure.md#keywords) · [Other literals](../language/lexical-structure.md#other-literals) · [Kinds of items](../language/items.md#kinds-of-items) · [`let` statements](../language/statements.md#let-statements) · [Types](../language/types.md) |
 | `E_RESOURCE_LITERAL` | A payload that is not a binary64 value as written, such as `f64(0.1)` | [Payloads](../storage/resource-programs.md#payloads) |
 
 ### Errors that the frontend reports before the kernel
@@ -113,7 +119,7 @@ the source.
 | `E_NAME` | A name that no declaration or binding of its scope defines: a variable, a function, a type, a module, a component of a path, the generic of a method or an object in a type | [Resolution](../language/names-and-paths.md#resolution) · [Path expressions](../language/expressions.md#path-expressions) · [Calls](../language/functions.md#calls) · [Method declarations](../stage1a.md#method-declarations) |
 | `E_DUPLICATE` | A name that one scope declares twice, and a declaration that repeats another: two items of one name, a binding with the name of a binding of its block or of an enclosing block, a method with the signature of another, a key twice in a domain, a second assembly, a grant with a repeated key | [Names of items](../language/items.md#names-of-items) · [Scopes of bindings](../language/statements.md#scopes-of-bindings) · [Method declarations](../stage1a.md#method-declarations) · [Manifests](../packages.md#manifests) |
 | `E_RESERVED` | A reserved name as the name of a declaration or of a binding | [Reserved names](../language/lexical-structure.md#reserved-names) · [Keywords](../language/lexical-structure.md#keywords) |
-| `E_SHADOW` | A binding with a name of the namespace of its module, such as the name of a function, and a parameter or a binding of a lambda with a name that is visible outside the lambda | [Scopes of bindings](../language/statements.md#scopes-of-bindings) · [Lambdas and their names](../stage1b.md#lambdas-and-their-names) |
+| `E_SHADOW` | A binding with a name of the namespace of its module: the name of an item, and in manifest mode also of a child module, of an import or of a dependency alias. A parameter or a binding of a lambda with a name that is visible outside the lambda. A binding of a `value` block with the name of a binding of its resource function | [Scopes of bindings](../language/statements.md#scopes-of-bindings) · [Lambdas and their names](../stage1b.md#lambdas-and-their-names) · [Resource statements](../storage/resource-programs.md#resource-statements) · [Scalar values and calls](../storage/resource-programs.md#scalar-values-and-calls) |
 | `E_VISIBILITY` | A private declaration that another module names, and a `pub use` that reexports a private declaration | [Visibility](../language/names-and-paths.md#visibility) · [`use` declarations](../language/modules.md#use-declarations) |
 | `E_CYCLE` | A cycle of modules or of imports | [`use` declarations](../language/modules.md#use-declarations) · [The package graph](../packages.md#the-package-graph) |
 | `E_MAIN` | An entry point with another signature than `fn main() -> Int`, a generic named `main`, a resource function `main` with another result type, and a `build` of a program without an entry point | [The entry point](../language/programs.md#the-entry-point) · [Resource functions](../storage/resource-programs.md#resource-functions) |
@@ -126,7 +132,7 @@ the source.
 | `E_ARITY` | A call, an `unpack` or a declaration with another number of arguments, operands, fields or parameters than its rule fixes | [Calls](../language/functions.md#calls) · [Call expressions](../language/expressions.md#call-expressions) · [Built-in functions](../language/expressions.md#built-in-functions) · [Calls of primitives](../indexed-source.md#calls-of-primitives) |
 | `E_OPERATOR` | An operator whose operands have types that it does not accept, including `==` on geometric values | [Operator expressions](../language/expressions.md#operator-expressions) · [Object identity](../language/geometric-types.md#object-identity) |
 | `E_RECURSION` | A cycle of calls between functions, methods or specialized instances | [Calls](../language/functions.md#calls) · [Selection](../stage1a.md#selection) · [Specialization](../stage1b.md#specialization) |
-| `E_CAPTURE` | A lambda that uses a binding from outside, and a `value` block or a parameter with the name of a resource binding | [Lambdas and their names](../stage1b.md#lambdas-and-their-names) · [Scalar values and calls](../storage/resource-programs.md#scalar-values-and-calls) |
+| `E_CAPTURE` | A lambda that uses a binding from outside. In a `value` block, a lambda that names a binding of its resource function, or that has a parameter with the name of one | [Lambdas and their names](../stage1b.md#lambdas-and-their-names) · [Scalar values and calls](../storage/resource-programs.md#scalar-values-and-calls) |
 | `E_STATIC_CALL` | A function value without one target that the compiler knows, such as an `if` whose branches name different functions | [Static targets](../stage1b.md#static-targets) |
 
 ### Geometric types
@@ -148,7 +154,7 @@ the source.
 | `E_CAPABILITY` | A capability that the language does not have, and a method that applies to no key | [Method declarations](../stage1a.md#method-declarations) |
 | `E_HIERARCHY` | An abstract type or a `subtype` that its rules do not admit, such as a cycle of parents | [Abstract types](../stage1a.md#abstract-types) |
 | `E_CONTRACT_DOMAIN`, `E_CONTRACT_EMPTY`, `E_CONTRACT_RESULT` | An abstract method with a key that does not satisfy its selectors and requirements, with a key that stands for no key of scalar types, or with a key at which the selected method has another result type | [Abstract methods](../stage1a.md#abstract-methods) |
-| `E_OWNER` | A declaration that only the owner of a generic or of an abstract type may make, in another module: a method, a grant, a transfer or a `subtype` | [Owners](../language/edit-authority.md#owners) · [Grants and delegations](../language/edit-authority.md#grants-and-delegations) · [Abstract types](../stage1a.md#abstract-types) |
+| `E_OWNER` | A declaration or an event that needs edit authority which its module does not hold. A method or an abstract method outside the module that defines its generic, and a method for a function. A grant from a module that never holds the authority, and a grant to a recipient that its rule excludes. A method of a contribution for another generic. An `apply` or a `reborrow` whose loan, recipient or region does not fit, and an `apply` without a loan from a module that is not the current owner. A transfer that the current owner did not declare. A `subtype` outside the module that defines its abstract type, and `Number`, `Any` or a scalar type after `<:`. In manifest mode, a method or a `subtype` that names another kind of declaration | [Owners](../language/edit-authority.md#owners) · [Grants and delegations](../language/edit-authority.md#grants-and-delegations) · [Contributions](../language/edit-authority.md#contributions) · [Assemblies](../language/edit-authority.md#assemblies) · [Transfers](../language/edit-authority.md#transfers) · [Method declarations](../stage1a.md#method-declarations) · [Abstract types](../stage1a.md#abstract-types) · [Abstract methods](../stage1a.md#abstract-methods) |
 | `E_BORROW` | An event of an assembly that uses a loan against its rules: a second loan of a generic, a loan that is not active, or a loan that the assembly does not return | [Assemblies](../language/edit-authority.md#assemblies) · [Transfers](../language/edit-authority.md#transfers) |
 | `E_ASSEMBLY` | An assembly in another module than the root module of the root package, an empty contribution, an event on a sealed generic, and a generic that the assembly edits or transfers without sealing it | [Assemblies](../language/edit-authority.md#assemblies) · [Contributions](../language/edit-authority.md#contributions) |
 | `E_IMPACT` | A method of a contribution that wins at a key outside the region of its grant | [Sealing](../language/edit-authority.md#sealing) |
@@ -161,9 +167,9 @@ The errors of an `indexed` declaration that concern its type have the code
 
 | Code | Reports | Rules |
 | --- | --- | --- |
-| `E_AFFINE_BASE` | A base, a structure map or a declaration over a base that its rules do not admit: a missing or cyclic base, a base that is no presented object, images of the base coordinates that are missing or repeated, and a projection, a restriction or a Cartesian square that does not fit its objects | [Presented affine objects](../affine-geometry.md#presented-affine-objects) · [Morphisms over a base](../affine-geometry.md#morphisms-over-a-base) · [Fiber products](../affine-geometry.md#fiber-products) · [Cartesian squares](../affine-geometry.md#cartesian-squares) · [Principal opens](../affine-geometry.md#principal-opens) |
-| `E_AFFINE_COORDINATE` | A coordinate that an object does not have, a coordinate that repeats, a fraction with the denominator 0, and an image that is missing or repeated | [Presented affine objects](../affine-geometry.md#presented-affine-objects) · [Polynomial expressions](../language/smooth-declarations.md#polynomial-expressions) · [Smooth maps](../language/smooth-declarations.md#smooth-maps) · [Fiber primitives](../language/smooth-declarations.md#fiber-primitives) |
-| `E_AFFINE_RELATION` | A morphism that does not respect the relations of its target, and an isomorphism or a Cartesian square whose composites are not the identity | [Morphisms over a base](../affine-geometry.md#morphisms-over-a-base) · [Isomorphisms](../affine-geometry.md#isomorphisms) · [Cartesian squares](../affine-geometry.md#cartesian-squares) |
+| `E_AFFINE_BASE` | A base, a structure map or a declaration over a base that its rules do not admit: a missing or cyclic base, a base that is no presented object, images of the base coordinates that are missing or repeated, a morphism that does not name three objects or does not commute with the structure maps, and an isomorphism, a projection, a restriction or a Cartesian square that does not fit its objects. Also an object of `relative_coefficient` that is no presented affine object | [Presented affine objects](../affine-geometry.md#presented-affine-objects) · [Morphisms over a base](../affine-geometry.md#morphisms-over-a-base) · [Morphism primitives](../affine-geometry.md#morphism-primitives) · [Isomorphisms](../affine-geometry.md#isomorphisms) · [Fiber products](../affine-geometry.md#fiber-products) · [Cartesian squares](../affine-geometry.md#cartesian-squares) · [Principal opens](../affine-geometry.md#principal-opens) |
+| `E_AFFINE_COORDINATE` | A coordinate that an object does not have, a coordinate that repeats, a fraction with the denominator 0, and an image that is missing or repeated. A selector of `relative_coefficient` that is not one monomial with the coefficient one, a coordinate of a fiber product without its qualifiers, and a coordinate of a principal open that its object has already. `Affine(K, n)[…]` with another number of coordinates than `n` | [Presented affine objects](../affine-geometry.md#presented-affine-objects) · [Morphisms over a base](../affine-geometry.md#morphisms-over-a-base) · [Morphism primitives](../affine-geometry.md#morphism-primitives) · [Fiber products](../affine-geometry.md#fiber-products) · [Principal opens](../affine-geometry.md#principal-opens) · [Smooth affine objects](../language/smooth-declarations.md#smooth-affine-objects) · [Polynomial expressions](../language/smooth-declarations.md#polynomial-expressions) · [Smooth maps](../language/smooth-declarations.md#smooth-maps) · [Fiber primitives](../language/smooth-declarations.md#fiber-primitives) |
+| `E_AFFINE_RELATION` | A morphism that does not send the relations of its target to zero. A base isomorphism of a fiber product whose maps do not respect the relations of the two bases or whose composites are not identities. An isomorphism or a Cartesian square whose composites are not identities | [Morphisms over a base](../affine-geometry.md#morphisms-over-a-base) · [Isomorphisms](../affine-geometry.md#isomorphisms) · [Fiber products](../affine-geometry.md#fiber-products) · [Cartesian squares](../affine-geometry.md#cartesian-squares) · [Presented affine objects](../affine-geometry.md#presented-affine-objects) |
 | <a id="e-smooth"></a>`E_SMOOTH` in declarations | A declaration whose form does not fit its implementation, such as `spec[…]` under a `smooth_affine` implementation or `Affine(n)[…]` under another one. An `Affine(n)[…]` with another number of coordinates than `n` or with a repeated coordinate. A smooth map that does not name two smooth affine objects, or that is no `pullback(…)` and no `identity` of one object | [Smooth affine objects](../language/smooth-declarations.md#smooth-affine-objects) · [Smooth maps](../language/smooth-declarations.md#smooth-maps) · [Smooth map primitives](../language/smooth-declarations.md#smooth-map-primitives) |
 | <a id="e-smooth-fibers"></a>`E_SMOOTH` in primitives on tangent or cotangent fibers and tapes | A binding that names a family of the wrong variance, such as a tangent family where `cotangent_pullback` requires a cotangent family, and an object of a binding that is no smooth affine object of the required dimension. An operand of the wrong shape, family or object has the code `E_TYPE` or `E_ENDPOINT` | [Fiber primitives](../language/smooth-declarations.md#fiber-primitives) · [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) · [Flat and sharp](../language/smooth-declarations.md#flat-and-sharp) · [Operand checks](../language/smooth-declarations.md#operand-checks) |
 | <a id="e-metric"></a>`E_METRIC` | A metric that its rules do not admit: another family than a metric form, an object that is no smooth affine object, a Gram matrix of another size, an entry that is not constant, or a matrix that is not symmetric. Evidence that does not hold, such as `riemannian(g)` for a matrix that is not positive definite. A `flat` or a `sharp` that names no metric, or evidence for another metric | [Metrics](../language/smooth-declarations.md#metrics) · [Metric evidence](../language/smooth-declarations.md#metric-evidence) · [Flat and sharp](../language/smooth-declarations.md#flat-and-sharp) |
@@ -171,8 +177,18 @@ The errors of an `indexed` declaration that concern its type have the code
 The sections of the last column give every rule with its code, including the
 rules of these declarations that have the codes `E_TYPE`, `E_PARSE`,
 `E_ENDPOINT`, `E_DUPLICATE` and `E_LIMIT`.
-[Wire protocols](../protocol.md#protocol-9-smooth-forms) gives the errors of
-a request that holds such a declaration (`E_PROTOCOL`).
+[Exact affine algebra checker](../verification.md#exact-affine-algebra-checker)
+describes the checker of the presented affine declarations.
+
+In a request, three strings of these declarations have the code
+`E_PROTOCOL` where the source has `E_TYPE`: a mode of `cotangent_pullback`
+other than `saved` and `recomputed`, a Gram form other than `euclidean` and
+`gram`, and evidence other than `nondegenerate` and `riemannian`. A record of
+a request that holds a Gram matrix in normal form, a certificate or the
+object of a binding is an error (`E_PROTOCOL`) too.
+[Smooth forms](../protocol.md#protocol-9-smooth-forms) and
+[Metric forms](../protocol.md#protocol-9-metric-forms) give the forms of a
+request.
 
 ### Resource functions
 
@@ -184,7 +200,7 @@ loans and owners of their statements.
 
 | Code | Reports | Rules |
 | --- | --- | --- |
-| `E_RESOURCE_NAME` | A resource binding that the function does not have at that place, a name that a body uses twice, and an owned result that names no binding | [Resource functions](../storage/resource-programs.md#resource-functions) · [Resource statements](../storage/resource-programs.md#resource-statements) |
+| `E_RESOURCE_NAME` | A statement that names a resource binding which is not in scope at its place, such as a binding of an arm after its `if`. An owned result that names no binding of the body, and a parameter type that names a later parameter. A name that a body binds twice has the code `E_DUPLICATE` | [Resource functions](../storage/resource-programs.md#resource-functions) · [Resource statements](../storage/resource-programs.md#resource-statements) · [Runtime maps](../storage/resource-programs.md#runtime-maps) |
 | `E_RESOURCE_TYPE` | An argument, a result, a payload or a view whose element type, size or shape differs from the type that its place requires, and a contract of a parameter that is not valid | [Storage types](../storage/resource-programs.md#storage-types) · [Resource functions](../storage/resource-programs.md#resource-functions) · [Resource statements](../storage/resource-programs.md#resource-statements) |
 | `E_RESOURCE_LAYOUT` | A layout that does not lie inside its allocation, or whose numbers break the rules of layouts | [Storage types](../storage/resource-programs.md#storage-types) |
 | `E_RESOURCE_OVERFLOW` | An allocation beyond the largest number of bytes | [Storage types](../storage/resource-programs.md#storage-types) |
@@ -239,9 +255,21 @@ These codes report rules on runtime extents that the compiler decides.
 | --- | --- | --- |
 | `E_LIMIT` | A program beyond a limit of the compiler | [Limits](../language/limits.md) · [Appendix D](limits.md) |
 
-`E_RESOURCE_LIMIT`, `E_RESOURCE_OVERFLOW` and `E_TENSOR_TREE` report the
-limits of their constructs, as
-[Kinds of limits](../language/limits.md#kinds-of-limits) says.
+Other codes report the limits of their constructs, as
+[Kinds of limits](../language/limits.md#kinds-of-limits) says:
+
+- `E_RESOURCE_LIMIT`, `E_RESOURCE_OVERFLOW`, `E_RESOURCE_LAYOUT` and
+  `E_RESOURCE_TYPE` in resource functions;
+- `E_TYPE` in `indexed` declarations;
+- `E_NUMERICAL_TYPE`, `E_TENSOR`, `E_TENSOR_TREE` and `E_NUMERICAL_METRIC` in
+  numerical statements.
+
+Two codes report a bound that no rule of the Reference states: `E_PROTOCOL`
+for the size of a request, and `E_RESOURCE_STATE` for the records of the
+initialized cells of an allocation. `E_RESOURCE_INIT` reports the bound on
+the search of these records, which
+[Resource statements](../storage/resource-programs.md#resource-statements)
+names. [Appendix D](limits.md) gives the code of each limit.
 
 ### Requests and audits
 
@@ -254,11 +282,24 @@ an invalid function type in some programs. No other rule of the Reference
 gives one of these codes, as
 [Classes of codes](../language/diagnostics.md#classes-of-codes) says.
 
+A source program reaches two more diagnostics of this section, and no rule
+of the Reference states them:
+
+- A program whose request is beyond the largest size of a request has the
+  code `E_PROTOCOL`, even when the program is within the limits on its
+  inputs ([#740](https://github.com/MGYamada/Vastitas/issues/740)). [Request](limits.md#request) gives the
+  bound.
+- A write beyond the limit on the initialization records of an allocation
+  has the code `E_RESOURCE_STATE`
+  ([#739](https://github.com/MGYamada/Vastitas/issues/739)).
+  [Resource functions](limits.md#resource-functions) gives the limit.
+
 The tests of the repository reach none of the other codes of this section
 from a source program. They reach `E_LITERAL` with a request that they
 change, and the regressions of the kernel reach some of the codes with
-requests and plans that they build. A diagnostic with a code of the third
-table for a source program reports a defect of the compiler.
+requests and plans that they build. Apart from that case of
+`E_RESOURCE_STATE`, a diagnostic with a code of the third table for a source
+program reports a defect of the compiler.
 
 Codes of a request:
 
@@ -296,7 +337,7 @@ Codes of a check that the kernel repeats on its own result:
 | `E_DEPENDENCY` | A Core module whose functions do not stand after the functions that they call |
 | `E_CODEGEN` | A Core module that the generator of pure code rejects |
 | `E_RESOURCE_CODEGEN`, `E_RUNTIME_CODEGEN` | A storage plan that the generator of storage code rejects |
-| `E_RESOURCE_STATE` | A state of the storage checker that fails its audit, and a call whose expansion differs from its second run |
+| `E_RESOURCE_STATE` | A state of the storage checker that fails its audit, and a call whose expansion differs from its second run. A state with more initialization records than the limit fails the audit |
 | `E_NUMERICAL_ORIGIN` | Numerical instructions that differ from the statements that they come from |
 | `E_RUNTIME_NUMERICAL`, `E_RUNTIME_RETURN` | A statement on runtime extents whose record differs from the checked plan |
 | `E_DISPATCH_HIERARCHY` | A hierarchy of nominal types that the dispatch engine does not accept. The kernel rejects such a hierarchy first (`E_HIERARCHY`) |

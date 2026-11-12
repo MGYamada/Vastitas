@@ -8,7 +8,7 @@ ordinary use.
 
 ## How to read the tables
 
-Each table has these columns:
+Most tables have these columns:
 
 | Column | Content |
 | --- | --- |
@@ -19,10 +19,22 @@ Each table has these columns:
 | Code | The code of the error for a program beyond the limit |
 
 A limit that holds for a program counts the packages, modules and functions
-of the program together. A table without the column "Code" has one code,
-which the text above the table gives. Where a section gives a boundary in a
-sentence, such as "a body of 2048 such statements is within the limit", the
-compiler accepts a program at that boundary and rejects the next one.
+of the program together. The tables of
+[Exact affine algebra](#exact-affine-algebra) and of
+[Smooth metrics](#smooth-metrics) have no column "Code": every limit there
+has the one code that the text above the table gives. The table of
+[Numerical statements](#numerical-statements) adds a column for the rule of
+each limit. The tables of the last two sections of limits have no column
+"Holds for", because they list bounds on a request and bounds that reject
+nothing.
+
+Where a section gives a boundary in a sentence, such as "a body of 2048 such
+statements is within the limit", the compiler accepts a program at that
+boundary and rejects the next one. A diagnostic with the place `FILE:1:1`
+names the first input of the program: the entry file in flat mode and the
+root manifest in manifest mode, as
+[Diagnostics without a place of their own](../language/diagnostics.md#diagnostics-without-a-place-of-their-own)
+says.
 
 ### Sources of the values
 
@@ -55,8 +67,10 @@ a polynomial expression.
 ## Inputs
 
 The frontend decides these limits while it reads the files of a program.
-A diagnostic for one of the first four has no
+A diagnostic for one of them has no
 [place](../language/diagnostics.md#diagnostics-without-a-place-of-their-own).
+The one exception is `moduleNesting` for an inline module, whose diagnostic
+has the place of the module.
 
 | Limit | Value | Counts | Holds for | Code |
 | --- | --- | --- | --- | --- |
@@ -73,6 +87,25 @@ once. [Modules](../language/modules.md) and
 [The package graph](../packages.md#the-package-graph) give the rules of
 modules and of dependencies.
 
+## Request
+
+The frontend writes a program as one request of the
+[wire protocol](glossary.md#wire-protocol), and the kernel reads it.
+
+| Limit | Value | Counts | Holds for | Code |
+| --- | --- | --- | --- | --- |
+| Size of the request | 1024 MiB | The bytes of the request that the frontend writes for the program | A program | `E_PROTOCOL` |
+
+The frontend does not bound the request, and the kernel refuses a larger one
+without parsing it. The diagnostic has the place `FILE:1:1`. A program
+within the limits of [Inputs](#inputs) can be beyond this one, because the
+request holds a record with a place for every expression. A source file of
+11,926,914 bytes that holds 47,000 `let` statements of 120 operands each
+makes a request of 1,136,761,778 bytes
+([#740](https://github.com/MGYamada/Vastitas/issues/740)).
+[Limits that a source program does not reach](#limits-that-a-source-program-does-not-reach)
+gives the other bounds of a request.
+
 ## Functions
 
 The kernel decides these limits when it checks the bodies of functions,
@@ -81,7 +114,7 @@ the specialized instances.
 
 | Limit | Value | Counts | Holds for | Code |
 | --- | --- | --- | --- | --- |
-| `bodyChecking` | 4096 | The units of one path of the checker through a body. Each level of a nested expression takes a unit. So does each statement that stands before a statement in its block, and each argument that stands before an argument in a call of a function. The operands of an operator, the branches of an `if` and the fields of a `pack` are separate paths, and each starts with the units that remain | The body of a function, of a method or of a lambda, in each specialized instance | `E_LIMIT` |
+| `bodyChecking` | 4096 | The units of the longest path of the checker through a body. The second list below the table says which units a path takes | The body of a function, of a method or of a lambda, in each specialized instance | `E_LIMIT` |
 | `generatedLets` | 4096 | The bindings that the compiler generates for a body, in all its branches and nested expressions together | The body of a function, of a method or of a lambda, in each specialized instance | `E_LIMIT` |
 | `specializations` | 4096 | The specialized instances. Each lambda is one. Each higher-order function is one for its check on its own and one more for each combination of function values that the program passes to it. Lambdas and instances of higher-order functions count together | A program | `E_LIMIT` |
 | `elaborationWork` | 1,000,000 | The units of the bodies that the checker elaborates: one for each function and for each of its parameters, and one for each block, statement and expression of its body. A method counts at each key at which it applies, and a lambda or a higher-order function for each specialized instance. A `value` block of a resource function counts with the scalar bindings that it sees as its parameters | A program | `E_LIMIT` |
@@ -89,8 +122,8 @@ the specialized instances.
 The compiler generates these bindings for a body:
 
 - one for each `let` statement;
-- two for each `unpack` statement and one more for each of its fields, so
-  three for `unpack p as { scheme: X, point: x };`;
+- three for `unpack p as { scheme: X, point: x };`, and for the form with
+  `witness` two and one more for each name of `fields`;
 - one for each argument of a call of a function, of a generic or of a
   function value;
 - one more for a call whose callee is an expression other than a name, such
@@ -103,9 +136,28 @@ is within `generatedLets`, and a body of 2049 is beyond it. A body of 1364
 `unpack` statements of the three-binding form and four `let` statements
 whose values generate no binding is at the limit: 1364 × 3 + 4 = 4096.
 
-The path of `bodyChecking` through a body that is a list of statements grows
-with each statement. A body of 4093 `let` statements with literal values and
-a result is within the limit, and one more statement is beyond it.
+A path of the checker through a body takes these units of `bodyChecking`:
+
+- one for each block that it enters, and one for each statement of that
+  block up to and with the statement that it enters. The result of a block
+  counts as one statement more;
+- one for each expression that it enters. A pair of parentheses is no
+  expression of its own;
+- one more for each call;
+- for a call of a function, one more, and one for each argument up to and
+  with the argument that it enters, or one when the call has no argument. A
+  call of a function value takes one more than a call of a function.
+
+The value of a statement, an operand of an operator, an arm of an `if`, a
+field of a `pack` and an argument of a call are each on a path of their own.
+An argument of a call of a generic, of a built-in function or of a primitive
+takes no unit for its position among the arguments.
+
+A body of 4093 `let` statements with literal values and a literal as its
+result is within the limit, and one more statement is beyond it. A block or
+an `if` as the result takes three units more than a literal, so the body
+holds 4090 such statements. A call `f(1, 2, 3)` of a function as the result
+takes six units more than a literal, so the body holds 4087.
 
 `check` and `build` apply the same limits. The compilation of reverse passes
 also measures `generatedLets`, without rejecting a program, as
@@ -125,6 +177,8 @@ describes how the checker counts instances and units of work.
 [Generic declarations](../stage1a.md#generic-declarations),
 [Selection](../stage1a.md#selection) and
 [Abstract types](../stage1a.md#abstract-types) state the rules.
+[Protocol 2](../protocol.md#protocol-2-flat-requests) says how the kernel
+counts the units of `dispatchWork`.
 
 ## Names
 
@@ -135,7 +189,9 @@ describes how the checker counts instances and units of work.
 | `namespaceProgramWork` | 4,000,000 | The units of work of the names of the whole program: the size of the request that the frontend writes, and the lookups of names in all bodies | A program | `E_LIMIT` |
 
 The diagnostic for `namespaceProgramWork` has the place `FILE:1:1`.
-[Resolution](../language/names-and-paths.md#resolution) states the rule.
+[Resolution](../language/names-and-paths.md#resolution) states the rule, and
+[Protocol 3](../protocol.md#protocol-3-package-namespaces) says how the
+kernel counts the units of the three limits.
 
 ## Edit authority
 
@@ -145,8 +201,17 @@ The diagnostic for `namespaceProgramWork` has the place `FILE:1:1`.
 | `contributionMethods` | 4096 | The methods of all contributions of the package graph | A program | `E_LIMIT` |
 | `dispatchKeys` | 4096 | The keys that the `domain` of a grant lists. A generic has at most this many keys, so only a list with a repeated key is longer | A grant | `E_LIMIT` |
 | `authorityTraceWork` | 200,000,000 | The units of work of the audit of the assembly. The checker computes the units of each event from the live loans, the applied contributions and the declarations before it audits the event. All events share the budget | A program | `E_LIMIT` |
+| `specializations` | 4096 | The checks of the methods of the contributions that the assembly does not apply. The checker checks each such method once for each key at which the method applies, also for a key outside the domain of its generic. This count is separate from the specialized instances of [Functions](#functions) | A program | `E_LIMIT` |
 
-[Assemblies](../language/edit-authority.md#assemblies) states the rules.
+A contribution that the assembly does not apply, with one method whose six
+selectors are `Any` for a generic of six parameters, makes 4096 such checks
+and is within the limit. With a second such contribution whose method
+applies at 1024 keys, the program is beyond it.
+[Assemblies](../language/edit-authority.md#assemblies) and
+[Contributions](../language/edit-authority.md#contributions) state the
+rules, and
+[Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) says how
+the kernel counts the events, the methods and the units of the audit.
 
 ## Indexed declarations
 
@@ -176,7 +241,9 @@ of a check runs within `algebraWork` and `algebraTerms`: a structure map, a
 pullback, a base chain, a base isomorphism and the composites of an
 isomorphism or of a Cartesian square. A declaration beyond a limit of this
 section is an error (`E_LIMIT`).
-[Limits](../affine-geometry.md#limits) of that chapter states the rules.
+[Limits](../affine-geometry.md#limits) of that chapter states the rules, and
+[Exact affine algebra checker](../verification.md#exact-affine-algebra-checker)
+describes the checker and what is Proved about it.
 
 | Limit | Value | Counts | Holds for |
 | --- | --- | --- | --- |
@@ -187,7 +254,7 @@ section is an error (`E_LIMIT`).
 | `algebraCoefficientDigits` | 64 | The decimal digits of a literal of a polynomial expression | A literal |
 | `algebraNesting` | 64 | The levels of a polynomial expression, as [Polynomial expressions](../language/smooth-declarations.md#polynomial-expressions) counts them. Parentheses and unary `-` signs nest at most 63 deep | A polynomial expression |
 | `algebraTerms` | 512 | The terms of each polynomial that a check produces, including each intermediate product | A polynomial |
-| `algebraBasis` | 64 | The elements of the basis that the kernel computes for the relations of an object | An object |
+| `algebraBasis` | 64 | The elements of the basis that the kernel computes for the relations of an object. While it computes the basis, the kernel keeps at most four times as many elements, 256 | An object |
 | `algebraWork` | 8,000,000 | The units of work of one run of the arithmetic: the computation and the verification of a basis, or one substitution | A run |
 
 ### Smooth objects and maps
@@ -251,7 +318,7 @@ matrix within the entry bound is within the matrix bound.
 
 [Resource programs](../storage/resource-programs.md) gives the rules of
 resource functions. Most limits of this section have the code
-`E_RESOURCE_LIMIT`, and four have another code.
+`E_RESOURCE_LIMIT`, and the last column names the other codes.
 
 | Limit | Value | Counts | Holds for | Code |
 | --- | --- | --- | --- | --- |
@@ -261,30 +328,83 @@ resource functions. Most limits of this section have the code
 | Parameters and owned results | 64 each | The parameters of a resource function, and its owned results | A resource function | `E_RESOURCE_LIMIT` |
 | Arguments and results of a call | 64 each | The arguments of a `call` statement, and the bindings that take its owned results | A call | `E_RESOURCE_LIMIT` |
 | Views of a contract | 64 | The layouts of one `initialized […]` contract | An owned parameter or result | `E_RESOURCE_TYPE` |
-| Expansion of calls | 4096 | The units of work of one expansion. The checker expands the calls of each resource function once for the check of the function on its own, and those of the entry point once more. Each function that a call enters takes a unit, and each statement that the expansion reaches takes at least one | An expansion | `E_RESOURCE_LIMIT` |
-| Depth of calls | 4096 | The units of one chain of calls. A call takes two units, and each statement that stands before the call in its function takes one | A chain of calls | `E_RESOURCE_LIMIT` |
+| Expansion of calls | 4096 | The units of one expansion. The checker expands each resource function once for the check of the function on its own, and the entry point once more, each with the functions that it calls. The first list below the table says which units an expansion takes | An expansion | `E_RESOURCE_LIMIT` |
+| Depth of calls | 4096 | The units of one chain of calls: one for each function that the chain enters, and one for each statement of such a function up to and with its call. In the last function of the chain, every statement that the checker reaches counts | A chain of calls | `E_RESOURCE_LIMIT` |
 | `resourceWork` | 32,000,000 | The weighted units of work of checking all resource functions: the check of each function on its own and the check of the entry point | A program | `E_LIMIT` |
-| Storage plan | 4096 | The operations of the entry point after the expansion of its calls, with both arms of each branch, and the length of one path of the checker through them | A program | `E_RESOURCE_LIMIT` |
-| Initialization records | 4096 | The records that the checker keeps of the writes to one allocation, at a join of two arms | An allocation | `E_RESOURCE_LIMIT` |
+| Initialization records | 4096 | The nodes of the record that the checker keeps of the writes to one allocation: one for each write, one for each join of two arms that keeps the records of both arms, and one for the end of each record | An allocation | `E_RESOURCE_LIMIT` at a join, `E_RESOURCE_STATE` at a write |
+| Initialization query | 65,536 | The visits of the record of one allocation by one query of the cells of a view. Over a record of `n` nodes, a query passes at most the smaller of `n` and 65,536 / `n` recorded writes, so at most 256 | A read of a view | `E_RESOURCE_INIT` |
 | Integers | 2⁶⁴ − 1 | An integer of a storage type, of a layout, of an allocation size, of a cell index or of `f64_bits` | An integer | `E_RESOURCE_LIMIT` |
 | Bytes of an allocation | 2⁶³ − 1 | The cells of an allocation times the size of a cell, 8 bytes for `F64` and 16 for `Complex<F64>` | An allocation | `E_RESOURCE_OVERFLOW` |
 | Rows, columns and leading of a layout | 2³¹ − 1 | The three numbers of a `layout` | A layout | `E_RESOURCE_LAYOUT` |
 
-A resource function with 2046 `allocate` and `drop` statements has 4093
-steps and is within the limit on the steps of one function. A chain of
-resource functions in which each function only calls the next holds at most
-2048 functions, and a chain of 2049 is beyond the depth of calls. Where the
-functions of a chain hold other statements, the chain is shorter, and the
-expansion of calls can reach its limit first.
+An expansion of calls takes these units:
 
-The checker also bounds its search of the records of one allocation when it
-decides whether the cells of a view are initialized. A view whose cells the
-search does not find initialized is an error (`E_RESOURCE_INIT`), as
+- one for each function that it enters, and one for each statement that it
+  reaches;
+- one more for each storage operation of a statement. A statement such as
+  `allocate`, `borrow`, `store`, `release` or `drop` is one operation and
+  therefore takes two units. A declaration such as `space` has no operation
+  and takes one unit;
+- one more for each `value` statement;
+- one for the result of the function that the checker expands, unless the
+  result type is a pair type. The result of the entry point takes this
+  unit.
+
+An entry point that allocates an owner, borrows it, makes 2043 `store`
+statements, releases the loan and drops the owner takes 4096 units: one for
+the function, two for each of its 2047 statements and one for its result.
+One more `store` statement is beyond the expansion of calls. In a chain of
+functions that each make one `value` statement and then call the next,
+apart from the last, 1024 functions are within the limit and 1025 beyond
+it. The entry point is the first function of the chain. With two `value`
+statements in each function, 682 functions are within the limit and 683
+beyond it.
+
+Every step of one function is a unit of the expansion of the function, so
+the limit on the steps rejects no body that the expansion of calls admits.
+The checker counts the steps first, and the diagnostic names them where a
+body is beyond both limits. A resource function with 1023 pairs of an
+`allocate` and a `drop` statement has 4093 steps and is within both. With
+1024 pairs it is beyond the steps of one function.
+
+Every unit of the depth of calls is a unit of the expansion of calls too. A
+program is therefore beyond the depth only where it is beyond the
+expansion, and the diagnostic names the depth where the two limits end at
+one statement or call. A chain of resource functions in which each
+function only calls the next, with the entry point first, holds at most
+2048 functions, and the call of a 2049th is beyond the depth of calls. A
+chain of three functions with 1363, 1363 and 1364 `space` statements, in
+which the first two call the next after their statements, is within both
+limits. With 1365 `space` statements in the third function, the
+result of the entry point is beyond the expansion of calls. With 1366, the
+last statement is beyond the depth of calls.
+
+The record of the writes to an allocation grows at a join of two arms. A
+join adds no node in three cases: the two arms leave equal records, the
+record of one arm is that of the other with one more write, or each arm
+adds one write to the record before the `if` and the two writes are
+disjoint. Any other join keeps the records of both arms. Each of the two
+then holds the record before the `if`, so the count about doubles. In a
+function that makes two `store` statements and then nine `if` statements
+whose arms each store two cells, one of them in both arms, the record has
+4091 nodes. Five further `store` statements are within the limit. A sixth
+is an error with the code `E_RESOURCE_STATE`, and a tenth such `if` is an
+error with the code `E_RESOURCE_LIMIT`
+([#739](https://github.com/MGYamada/Vastitas/issues/739)).
+
+A query of the cells of a view first looks for one recorded write that
+covers the view, such as a `fill`. Otherwise it walks from write to write
+through the cells, within the bound of the table. A view of 255 cells that
+255 `store` statements write one by one can be borrowed for reading. With
+256 cells and 256 `store` statements the `borrow` is an error
+(`E_RESOURCE_INIT`), although the statements write every cell
+([#739](https://github.com/MGYamada/Vastitas/issues/739)).
 [Resource statements](../storage/resource-programs.md#resource-statements)
-says. [Checked storage](../storage/checked-storage.md#storage-ir) describes
-the storage plan and these records, and
+gives the rule, and
+[Checked storage](../storage/checked-storage.md#storage-ir) describes the
+records.
 [Resource checking work](../storage/checked-storage.md#storage-functions--resource-checking-work)
-the units of `resourceWork`.
+describes the units of `resourceWork`.
 
 ## Numerical statements
 
@@ -309,22 +429,22 @@ against the statements of the resource functions.
 
 The kernel checks a request of the
 [wire protocol](glossary.md#wire-protocol) without trusting the frontend, so
-it has limits of its own on the request. The limits of
-[Source text](#source-text), of [Inputs](#inputs) and of
-[Resource functions](#resource-functions) bound a source program first: the
-frontend reports one of them, and no source program is known to reach a limit
-of this table. A request beyond one is an error with the code of the last
-column.
+it has limits of its own on the request. A limit of an earlier section
+bounds a source program first, as the table says for each row, and no
+source program is known to reach a limit of this table. A request beyond
+one is an error with the code of the last column.
+[Request](#request) gives the one bound of a request that a source program
+does reach.
 
 | Limit | Value | Counts | Code |
 | --- | --- | --- | --- |
-| `typeNesting` | 64 | The nesting of a function type. The parser reads a type of 63 levels and reports `parseNesting` for the next | `E_LIMIT`, or `E_PROTOCOL` in the decoder of the request |
-| Size of a request | 1024 MiB, 16,384 levels, 64 digits | The bytes of a request, the nesting of its arrays and objects, and the digits of one of its numbers, as [Wire protocols](../protocol.md#protocol-selection) says | `E_PROTOCOL` |
-| `sourceNesting` | 512 | The steps of the recursion that decodes a body of the request and prepares it for checking | `E_LIMIT`, or `E_PROTOCOL` in the decoder of the request |
-| `namespaceNesting` | 1024 | The recursion of the checker of names through a body | `E_LIMIT` |
-| `dependencyGraph` | 4096 | The units of walking the graph of package dependencies | `E_LIMIT` |
-| Resource functions | 4096 | The resource functions of a request. The limit on `value` blocks bounds a source program | `E_RESOURCE_LIMIT` |
-| Requests of the specialization worklist | 2,000,001 | The requests for instances that one pass of the function checker handles, or a bound from the number of functions when that is smaller. `specializations` and `elaborationWork` bound a program first | `E_LIMIT` |
+| `typeNesting` | 64 | The steps of decoding a function type of a request. A function type nested 63 deep is within the limit, and the parser reports `parseNesting` for a deeper source type | `E_PROTOCOL` |
+| `sourceNesting` | 512 | The steps of decoding a body of a request. `parseNesting` and `astDepth` bound a source program first | `E_PROTOCOL` |
+| Nesting and numbers of a request | 16,384 levels, 64 digits | The nesting of the arrays and objects of a request, and the digits of one of its numbers, as [Responses](../protocol.md#responses) says | `E_PROTOCOL` |
+| `dependencyGraph` | 4096 | The packages on one chain of dependencies of a request. `packageNesting` bounds a source program first | `E_LIMIT` |
+| Resource functions | 4096 | The resource functions of a request. The limit on `value` blocks bounds a source program first | `E_RESOURCE_LIMIT` |
+| Storage plan | 4096 | The operations of one expansion, with both arms of each branch, and the length of one path of the checker through them. Each operation takes a unit of the expansion of calls, which bounds a source program first | `E_RESOURCE_LIMIT` |
+| Requests of the specialization worklist | 2,000,001 | The requests for instances that one pass of the function checker handles. The bound is smaller when a bound that the kernel computes from the number of definitions and of the calls in their bodies is smaller. `specializations` and `elaborationWork` bound a program first | `E_LIMIT` |
 
 ## Bounds that reject nothing
 
@@ -335,10 +455,11 @@ program, as [Limits](../language/limits.md#bounds-that-reject-nothing) says.
 | --- | --- | --- |
 | `generatedLets` | 4096 | The bindings of a function after the compilation of its reverse passes |
 | Declaration ids of a Core module | 4096 | The declarations that the compiled reverse passes add to a module |
-| `reverseLeaves` | 256 | The maps of one reverse pass that the compilation reads through `let` statements and `compose` |
+| `reverseLeaves` | 256 | The maps of one reverse pass that the compilation reads through `let` statements and `compose`, in [`IndexedReverse.lean`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedReverse.lean) |
 | Notes of a resource diagnostic | 32 | The notes that follow one diagnostic of a resource program |
 | Search for an uninitialized cell | 131,072 | The records that the checker visits to find the cell that a diagnostic names |
-| `captureDiagnostic` | 8192 | The steps of the search for the place of a capture in the request of a flat program. The frontend reports a capture of a source program itself (`E_CAPTURE`) |
+| `captureDiagnostic` | 8192 | The steps of a search for the place of a capture. No route of the kernel executable uses the search: its only use is in a checker that the executable holds and does not call |
+| `namespaceNesting` | 1024 | The recursion through a body of the pass that puts the names of the source into a diagnostic. On the routes of the kernel executable, no other pass of the checker of names reads a body, and this pass keeps the diagnostic as it is when it reaches the bound |
 | Lean options of a generated program | `maxRecDepth` 32768, `maxHeartbeats` 2000000 | The elaboration of the generated program by Lean in `build` |
 
 The compilation of reverse passes into [Core](glossary.md#core) compiles less

@@ -68,7 +68,9 @@ Rules:
 - `-o`, `--openblas-prefix` and `--native-cc` with `check` are errors
   (`E_USAGE`), and so are `build` without `-o`, an unknown command and an
   unknown option.
-- The usage follows the `E_USAGE` of an invalid command line.
+- The usage follows the `E_USAGE` of an invalid command line of `check` or
+  `build`. No usage follows the `E_USAGE` of `audit-lean`, or that of a
+  numerical option for a program that needs none.
 - [Building a numerical program](../linalg/maps-and-gemm.md#building-a-numerical-program)
   says which programs need `--openblas-prefix` and which must not have it.
 
@@ -101,8 +103,9 @@ section says.
 
 Rules:
 
-- `OUTPUT` must name a file. A path that ends in `/`, `.` or `..` is an error
-  (`E_OUTPUT`).
+- `OUTPUT` must name a file. A path whose last component is empty, `.` or
+  `..` is an error (`E_OUTPUT`), as in `dir/` and `dir/..`. A name that ends
+  in a dot, such as `prog.`, names a file.
 - The directory of `OUTPUT` must exist (`E_OUTPUT`). The compiler creates no
   directory.
 - An existing `OUTPUT` must be a regular file or a symbolic link to one.
@@ -116,7 +119,8 @@ Rules:
   compares each input with `OUTPUT` when it reads the input, before it
   parses that input, and all inputs once more before it writes `OUTPUT`.
 - Before it reads an input, the compiler also tests that the directory of
-  `OUTPUT` accepts a file (`E_OUTPUT`).
+  `OUTPUT` accepts a file (`E_OUTPUT`). Where `OUTPUT` is a symbolic link,
+  the directory is that of the file that the link names.
 - A `build` that fails leaves an existing `OUTPUT` as it was. A `build` that
   succeeds replaces it in one step: no reader sees a file that is partly
   written.
@@ -126,10 +130,13 @@ Rules:
 - The file has the permissions of the executable that the native build
   produces, whatever the permissions of the file that it replaces.
 
-> **Implementation note.** The compiler copies the executable to a file
-> `.vastitas-PID-N.tmp` next to its final place and renames that file onto
-> `OUTPUT`. It removes the staging file when the command fails. A symbolic
-> link that changes during the build is an error (`E_OUTPUT`).
+> **Implementation note.** The compiler copies the executable to a
+> [staging file](../appendix/glossary.md#staging-file) next to its final
+> place and renames that file onto `OUTPUT`. The staging file has the name
+> `.vastitas-PID-N.tmp`, where `PID` is the process number of the compiler
+> and `N` a number that the compiler counts up. The compiler removes the
+> staging file when the command fails. A symbolic link that changes during
+> the build is an error (`E_OUTPUT`).
 
 ## Exit status
 
@@ -196,7 +203,8 @@ Rules:
   accept an answer only from a kernel whose build identity is the one that
   the compiler expects. Another kernel is an error (`E_BACKEND`), even when
   it accepts the program. The diagnostic says `incompatible kernel` and gives
-  both identities.
+  both identities. For a kernel that states no build identity, it says so
+  and gives none.
 - When a kernel of another build identity rejects a program, the compiler
   shows its diagnostics and adds a note. The note says that they may come
   from a stale or foreign kernel.
@@ -245,7 +253,9 @@ Rules:
   It then needs the storage runtime too.
 - The first `build` that needs a runtime compiles it inside the kernel root,
   so that directory must be writable. This build compiles the C sources of
-  the runtime with the command `cc`. Later builds use the compiled runtime.
+  the runtime with the command `cc`, apart from the file `ffi.c` of each
+  runtime, which the C compiler of the Lean toolchain compiles. Later builds
+  use the compiled runtime.
 - `build` requires the file `lean-toolchain` of the kernel root to name the
   toolchain that the compiler was built for. It then asks `lean --version`,
   found as `lake` finds it, and requires the version of that toolchain. A
@@ -282,8 +292,10 @@ Rules:
 - Each of the three packages has one Lake configuration file. The other name
   of that file must not exist: `lakefile.lean` in the kernel package, and
   `lakefile.toml` in the two runtimes. Such a file is an error (`E_BUILD`).
-  `lake` prefers `lakefile.lean`, so the file would replace the configuration
-  that `build` compares. No build of the compiler accepts it.
+  In the kernel package, `lake` prefers `lakefile.lean`, so such a file would
+  replace the configuration that `build` compares. In the two runtimes, the
+  rule keeps the configuration of each package in one file. No build of the
+  compiler accepts a file of either name.
 - A generated program that imports another module than a runtime module of
   the packages that the build compares is an error (`E_PROTOCOL`).
 - The path of the kernel root must be valid UTF-8 (`E_BUILD`), and so must
@@ -309,7 +321,8 @@ directory. `audit-lean` writes the configuration of its checker to one.
 Rules:
 
 - The command makes the directory in the temporary directory of the system,
-  which `TMPDIR` names, with the name `vastitas-PID-N`. Only the user of the
+  which `TMPDIR` names, with the name `vastitas-PID-N`. `PID` and `N` are
+  the two numbers of the name of the staging file. Only the user of the
   command can enter it, whatever the file mode mask of the process.
 - The command removes the directory when it ends, also when it fails or a
   signal interrupts it.
@@ -328,9 +341,12 @@ interrupt a command.
 
 Rules:
 
-- An interrupted `check` or `build` reports `E_INTERRUPTED` and exits with
-  status 128 plus the number of the signal: 130 for `SIGINT`, 143 for
-  `SIGTERM`, 129 for `SIGHUP` and 131 for `SIGQUIT`.
+- A command that fails after a signal arrived exits with status 128 plus
+  the number of the signal: 130 for `SIGINT`, 143 for `SIGTERM`, 129 for
+  `SIGHUP` and 131 for `SIGQUIT`.
+- An interrupted `check` or `build` reports `E_INTERRUPTED`. A command that
+  finds another error before it notices the signal reports that error, with
+  the exit status of the signal.
 - The compiler passes the signal to the programs that it started and waits
   for them to end. It ends a program that does not end within a second.
 - The compiler removes its temporary directory and its staging file. An
@@ -384,7 +400,8 @@ bytes.
 | The answer of the kernel | 256 MiB | An error (`E_BACKEND`) |
 | The answer of `lean --version` and of `lean --print-prefix` | 64 KiB | An error (`E_BUILD`) |
 | Standard error of each program, and the output of `lake` | The last 1 MiB | The compiler shows the last 1 MiB after a line that gives the number of bytes that it left out |
-| The report of the checker of `audit-lean` | 2000 characters | The compiler shows the first 2000 characters |
+| The answers of the toolchain to `audit-lean`: the version of `lean`, the help text of `nanoda_bin` and the report of a success | 64 KiB | An error (`E_LEAN_AUDIT`) |
+| The report of the checker of `audit-lean` for a failure | 2000 characters | The compiler shows the first 2000 characters |
 
 The compiler writes the output of `lake` after `E_BUILD` as `lake` gives it.
 [Names and text in diagnostics](../language/diagnostics.md#names-and-text-in-diagnostics)
@@ -392,15 +409,16 @@ says how the compiler writes paths and names.
 
 ## Numerical builds
 
-A program whose entry point reaches a
-[product statement](../appendix/glossary.md#product-statement) needs the
-numerical runtime and the library OpenBLAS.
+A **numerical build** is a `build` of a program whose entry point reaches a
+[product statement](../appendix/glossary.md#product-statement). Such a
+program needs the numerical runtime and the library OpenBLAS.
 [Building a numerical program](../linalg/maps-and-gemm.md#building-a-numerical-program)
 lists the product statements and gives the rules on `--openblas-prefix` and
 `--native-cc`. This section describes the library and the two options.
 
-The library is OpenBLAS 0.3.34, built as a static library without threads and
-with 32-bit integers in its interface: the sequential LP64 build. Build it
+The library is OpenBLAS 0.3.34, built as a static library without threads,
+with locking and with 32-bit integers in its interface: the sequential,
+locked LP64 build. Build it
 once into an empty directory, the prefix, with Python 3.12 or later, Make and
 the C compiler of the machine:
 
@@ -436,7 +454,8 @@ Rules:
   with `COMPILER`. On Linux, pass `--native-cc cc`, so that the program links
   with the C library that built OpenBLAS.
 - A numerical executable checks the library when it runs. A library of
-  another version, with threads or with 64-bit integers stops the executable
+  another version, with threads, without locking or with 64-bit integers
+  stops the executable
   with a [run-time diagnostic](../language/diagnostics.md#run-time-diagnostics)
   (`E_NATIVE_ABI`).
 - `check` needs neither the library nor the numerical runtime.
@@ -470,7 +489,8 @@ elan toolchain install leanprover/lean4:v4.35.0
 Rules:
 
 - The command takes one argument, the export. Another number of arguments is
-  an error (`E_USAGE`).
+  an error (`E_USAGE`), and so is a path of the export that is not valid
+  UTF-8.
 - The command finds the toolchain in the directory of elan, which `ELAN_HOME`
   names and which is `.elan` in the home directory without the variable. It
   never uses a `nanoda_bin` or a `lean` from `PATH`.

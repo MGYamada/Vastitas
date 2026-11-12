@@ -140,6 +140,24 @@ private def ordinary : Namespace.Function := {
     module := { m.module with functions := [ordinary], imports := [⟨["ordinary"], "CInfScheme", false, {}⟩] }
     declarations := m.declarations.filter (·.name != "CInfScheme") }))
 
+-- #747: a reserved name of an `indexed` declaration, and an `indexed`
+-- declaration that shares its name with a function, are at the declaration
+-- in its file and not at the declaration of the module.
+private def placeOf (p : Program) : Option (String × Span × List Span) :=
+  match checkDeclarations p with
+  | .error d => some (d.code, d.span, d.notes.map (·.span))
+  | .ok _ => none
+private def place (start line : Nat) : Span := { start, «end» := start + 1, line, column := 1 }
+#eval check "reserved name of an indexed declaration" (placeOf (changeLibrary fun m =>
+  { m with module := { m.module with span := place 1 1 }
+           declarations := m.declarations ++ [{ decl "Nat" .marker with span := place 40 2 }] }) ==
+  some ("E_RESERVED", place 40 2, []))
+#eval check "an indexed declaration after a function of its name" (placeOf (changeLibrary fun m =>
+  { m with module := { m.module with span := place 1 1,
+                                     functions := [{ ordinary with name := "Twin", span := place 10 2 }] }
+           declarations := m.declarations ++ [{ decl "Twin" .marker with span := place 40 3 }] }) ==
+  some ("E_DUPLICATE", place 40 3, [place 10 2]))
+
 private def privateParent : Program := { file := "parent", root := lib.source, packages := [⟨lib, [], [
   mod [decl "Secret" .marker false],
   mod [decl "Child" (.implementation (path "super::Secret") .affineDescriptor [])] ["child"]], none⟩] }

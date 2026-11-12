@@ -540,3 +540,133 @@ fn duplicate_owners_point_to_the_declaring_external_source() {
     let error = s.rejects("E_DUPLICATE");
     assert!(error.contains("math.vast:2:1:"), "{error}");
 }
+
+/// #747: an error of the names of a module is at the second declaration of
+/// the name, in the file that holds it, with a note at the first. It is not
+/// at the declaration of the module in the parent's file.
+#[test]
+fn name_errors_of_a_module_point_to_the_second_declaration() {
+    let s = Scratch::new();
+    // Each case gives the root source, its module `a` if any, and the
+    // expected lines: the place of the error and of its note, if any.
+    let cases: &[(&str, Option<&str>, &str, &[&str])] = &[
+        // A `use` after a function of its name, in a module file.
+        (
+            "fn main() -> Int { 42 }\nmod a;\n",
+            Some(
+                "\n\npub fn q() -> Int { 1 }\nmod m { pub fn f() -> Int { 1 } }\nuse m::f as q;\n",
+            ),
+            "E_DUPLICATE",
+            &[
+                "a.vast:5:1: E_DUPLICATE: 'q' is already the name of a function of this module",
+                "a.vast:3:5: note: first declaration is here",
+            ],
+        ),
+        // The same in an inline module.
+        (
+            "fn main() -> Int { 42 }\n\n  mod a {\n    pub fn q() -> Int { 1 }\n    mod m { pub fn f() -> Int { 1 } }\n    use m::f as q;\n  }\n",
+            None,
+            "E_DUPLICATE",
+            &[
+                "main.vast:6:5: E_DUPLICATE:",
+                "main.vast:4:9: note: first declaration is here",
+            ],
+        ),
+        // A function after a `use` of its name.
+        (
+            "fn main() -> Int { 42 }\nmod a;\n",
+            Some("mod m { pub fn f() -> Int { 1 } }\nuse m::f as q;\n\npub fn q() -> Int { 1 }\n"),
+            "E_DUPLICATE",
+            &[
+                "a.vast:4:5: E_DUPLICATE: 'q' is already the name of an import of this module",
+                "a.vast:2:1: note: first declaration is here",
+            ],
+        ),
+        // Two items of one name and of two kinds: at the second in the file.
+        (
+            "fn main() -> Int { 42 }\n\ngeneric g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\nfn g() -> Int { 1 }\n",
+            None,
+            "E_DUPLICATE",
+            &[
+                "main.vast:5:1: E_DUPLICATE:",
+                "main.vast:3:1: note: first declaration is here",
+            ],
+        ),
+        (
+            "fn main() -> Int { 42 }\nmod a;\n",
+            Some("fn m() -> Int { 1 }\nmod m { pub fn f() -> Int { 1 } }\n"),
+            "E_DUPLICATE",
+            &[
+                "a.vast:2:1: E_DUPLICATE:",
+                "a.vast:1:1: note: first declaration is here",
+            ],
+        ),
+        // A reserved name of an `indexed` declaration of a module file.
+        (
+            "fn main() -> Int { 42 }\n\n  mod a;\n",
+            Some("pub indexed marker QQ;\npub indexed marker Nat;\n"),
+            "E_RESERVED",
+            &["a.vast:2:5: E_RESERVED: 'Nat' is reserved"],
+        ),
+    ];
+    for (root, module, code, expected) in cases {
+        s.package("app", root, "");
+        let _ = fs::remove_file(s.0.join("app/src/a.vast"));
+        if let Some(module) = module {
+            s.write("app/src/a.vast", module);
+        }
+        let error = s.rejects(code);
+        let lines: Vec<&str> = error.lines().collect();
+        assert_eq!(lines.len(), expected.len(), "{error}");
+        for (line, expected) in lines.iter().zip(expected.iter()) {
+            assert!(
+                line.contains(&format!("/src/{expected}")),
+                "{expected:?} in {error}"
+            );
+        }
+    }
+    // A function of the name of a dependency alias: at the function, and with
+    // no note, because a manifest declares the alias.
+    s.package("dep", "", "");
+    s.package(
+        "app",
+        "fn main() -> Int { 42 }\nmod a;\n",
+        "d = { path = '../dep' }",
+    );
+    s.write("app/src/a.vast", "\n\nfn d() -> Int { 1 }\n");
+    let error = s.rejects("E_DUPLICATE");
+    assert_eq!(error.lines().count(), 1, "{error}");
+    assert!(
+        error.contains(
+            "/app/src/a.vast:3:1: E_DUPLICATE: 'd' is already the name of a dependency alias of this package"
+        ),
+        "{error}"
+    );
+}
+
+/// #747: in flat mode the kernel decides that `mod`, `use`, `pub`, `self` and
+/// `super` are no names of declarations. Its diagnostic is at the declaration,
+/// not at line 1, column 1 of the file.
+#[test]
+fn reserved_module_words_in_flat_mode_point_to_the_declaration() {
+    let s = Scratch::new();
+    for (word, declaration) in [
+        ("mod", "fn mod() -> Int { 1 }"),
+        ("use", "fn use() -> Int { 1 }"),
+        ("self", "generic self(x) { domain (Int); }"),
+    ] {
+        let file = s.write(
+            "flat.vast",
+            &format!("fn main() -> Int {{ 0 }}\n\n{declaration}\n"),
+        );
+        let output = s.cli().arg("check").arg(&file).output().unwrap();
+        let error = common::expect_code(&output, "E_RESERVED");
+        assert!(
+            error.starts_with(&format!(
+                "{}:3:1: E_RESERVED: '{word}' is reserved for modules",
+                file.display()
+            )),
+            "{error}"
+        );
+    }
+}

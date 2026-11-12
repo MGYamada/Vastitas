@@ -194,6 +194,7 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
 /// `<directory>.stderr`, with the repository root removed from file names.
 const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/private-function",
+    "examples/reject/packages/import-collision",
     "examples/reject/packages/foreign-method",
     "examples/reject/packages/outside-region",
     "examples/reject/packages/private-dependency",

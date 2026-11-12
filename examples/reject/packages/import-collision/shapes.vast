@@ -1,0 +1,8 @@
+pub fn area(side: Int) -> Int { side * side }
+
+mod plane {
+    pub fn area(side: Int) -> Int { side * side }
+}
+
+// The name `area` of this `use` is the name of the function above.
+use plane::area;

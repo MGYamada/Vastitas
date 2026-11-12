@@ -97,6 +97,39 @@ private def ownerModule : Module := { mod [] with generics := [generic], methods
   (mod []) [{ ownerModule with path := ["generic"] },
     { mod ["generic", "child"] with methods := [method "super::choose"] }]))
 
+-- #747: an error of the names of a module is at the later of the two
+-- bindings in the source, with a note at the earlier one, and not at the
+-- declaration of the module. A dependency alias comes first and has no place.
+private def place (start line : Nat) : Span := { start, «end» := start + 1, line, column := 1 }
+private def placed (name : String) (start line : Nat) : Function :=
+  { fn name (.integer "0" {}) with span := place start line }
+private def placeOf (p : Program) : Option (String × Span × List Span) :=
+  match validate p.indexed with
+  | .error d => some (d.code, d.span, d.notes.map (·.span))
+  | .ok () => none
+private def inModule (m : Module) : Program :=
+  replaceRoot { mod [] with span := place 0 1 } [{ m with path := ["a"], span := place 1 2 }]
+#eval check "a use after a function of its name" (placeOf (inModule
+  { mod [] [placed "q" 10 3] with imports := [⟨["self", "q"], "q", false, place 20 5⟩] }) ==
+  some ("E_DUPLICATE", place 20 5, [place 10 3]))
+#eval check "a function after a use of its name" (placeOf (inModule
+  { mod [] [placed "q" 20 5] with imports := [⟨["self", "f"], "q", false, place 10 3⟩] }) ==
+  some ("E_DUPLICATE", place 20 5, [place 10 3]))
+#eval check "two uses of one name" (placeOf (inModule
+  { mod [] [placed "f" 5 2] with imports := [⟨["self", "f"], "q", false, place 10 3⟩,
+    ⟨["self", "f"], "q", false, place 20 4⟩] }) ==
+  some ("E_DUPLICATE", place 20 4, [place 10 3]))
+#eval check "a function of the name of a dependency alias" (placeOf (inModule
+  (mod [] [placed "other" 30 4])) == some ("E_DUPLICATE", place 30 4, []))
+#eval check "a child module of the name of a function" (placeOf (replaceRoot
+  (mod [] [placed "m" 10 1]) [{ mod ["m"] with span := place 5 1 }]) ==
+  some ("E_DUPLICATE", place 10 1, [place 5 1]))
+#eval check "a generic before a function of its name" (placeOf (replaceRoot
+  { mod [] [placed "g" 20 4] with generics := [{ generic with name := "g", span := place 10 3 }] }) ==
+  some ("E_DUPLICATE", place 20 4, [place 10 3]))
+#eval check "a reserved name of a function" (placeOf (replaceRoot
+  { mod [] [placed "use" 30 3] with span := {} }) == some ("E_RESERVED", place 30 3, []))
+
 private def callback : Program := replaceRoot { mod [] [
   fn "value" (.integer "42" {}),
   fn "main" (.invoke (.ite (.boolean true {}) (.mk [] (.variable "value" {}) {})

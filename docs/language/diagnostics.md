@@ -99,14 +99,15 @@ Rules:
   which construct a diagnostic points to. Examples are
   [Static targets](../stage1b.md#static-targets) and the
   [diagnostics of resource programs](../storage/resource-programs.md#diagnostics).
-- In manifest mode, two errors of the names of a module have the place of the
-  declaration of the module, and not of the construct inside it. One is a
-  name that a declaration of the module shares with an import or with a
-  dependency alias (`E_DUPLICATE`). The other is a reserved name of an
-  `indexed` declaration (`E_RESERVED`). The declaration of a module is its
-  `mod` item in the file of its parent module. For the root module of the
-  root package, the place is line 1, column 1 of the root source file. Two
-  items of one name have the place of the second item.
+- Two declarations of one name in one module have the place of the second
+  one in the file that holds them, whatever their kinds (`E_DUPLICATE`). In
+  manifest mode a note points to the first one. A `use` declaration and a
+  `mod` item count as declarations. A dependency alias of the package counts
+  as a declaration of each of its modules, before all others. A manifest
+  declares it, so the diagnostic has no note for it.
+- The diagnostic of a reserved name points to the name, as
+  [Reserved names](lexical-structure.md#reserved-names) says, or to the
+  declaration with that name.
 
 The examples of this book show an absolute path without its part up to the
 root of the repository. In this package `main` calls a private function of a

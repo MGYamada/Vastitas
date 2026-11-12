@@ -783,6 +783,33 @@
    "input": "package",
    "source": "generic g(x) { domain (Int); }\nmethod g(x: Int) -> Pair<Int> { pair(x, x) }\nfn main() -> Int { pair_first(g(1)) }\n",
    "code": null
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "fn main() -> Int { 0 }\n\ngeneric g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\nfn g() -> Int { 1 }\n",
+   "code": "E_DUPLICATE",
+   "line": 5,
+   "column": 1,
+   "message": "callable `g` is defined more than once"
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "fn main() -> Int { 0 }\nfn g() -> Int { 1 }\ngeneric g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\n",
+   "code": "E_DUPLICATE",
+   "line": 3,
+   "column": 1,
+   "message": "callable `g` is defined more than once"
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "abstract type A;\nfn A() -> Int { 1 }\nfn main() -> Int { 0 }\n",
+   "code": "E_DUPLICATE",
+   "line": 2,
+   "column": 1,
+   "message": "declaration `A` is defined more than once"
   }
  ]
 }

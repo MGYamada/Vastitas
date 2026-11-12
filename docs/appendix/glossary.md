@@ -39,6 +39,14 @@ A method that **applies** at a [key](#dispatch-key): each type of the key
 belongs to the matching selector of the method and has the capabilities that
 the method requires. See [Selection](../stage1a.md#selection).
 
+## Arena
+
+An object of the storage runtime that holds buffers of a generated program.
+The generated `main` creates an arena at its start, when an operation of the
+checked entry needs one, and closes it at its end. See
+[Components](../development/architecture.md#components) and
+[All-body checking and generation](../internals/resource-checking.md#all-body-checking-and-generation).
+
 ## Arm
 
 One of the two lists of statements of a branch in a resource function. See
@@ -1455,6 +1463,13 @@ different spaces. See
 [Spaces and bases](../linalg/maps-and-gemm.md#spaces-and-bases) and the
 [guide](../guide/numerical.md#spaces-bases-and-maps).
 
+## Span
+
+The position of one node of a wire request: a start and an end as byte
+offsets, a line and a column. A span holds no path. The driver finds the
+file of a span by its start offset. See
+[Reading inputs](../internals/driver.md#reading-inputs).
+
 ## Specialization
 
 The compilation step that erases function values. The compiler checks each
@@ -1500,6 +1515,12 @@ statement hash. See [What the checks verify](../specifications.md#what-the-check
 A numbered milestone of the development roadmap. Stage 1 is the finite
 compiler, and Stage 2 is finite affine geometry over QQ. See
 [Historical Stages 2–7](../guide/historical-roadmap.md).
+
+## Staging file
+
+A file beside the final place of the output of `vastitas build`. The driver
+copies the executable to it and then renames it onto that place. See
+[Output files](../internals/driver.md#output-files).
 
 ## Standard library
 

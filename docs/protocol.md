@@ -556,10 +556,16 @@ mismatch note; a mismatched success response is always rejected.
 ## Codes, common checks and generated code
 
 Frontend and backend use the same codes for name violations: `E_SHADOW` for a
-binding conflicting with a function/generic or with an enclosing binding,
-`E_RESERVED` for a reserved name,
-`E_NAME` for an invalid or unresolved name (including an undeclared generic),
-and `E_DUPLICATE` for repeated declarations or local bindings. `E_ARITY` and
+binding with a name of the namespace of its module, such as a function or a
+generic, and for a parameter or a binding of a lambda that repeats a name
+bound outside the lambda;
+`E_RESERVED` for a reserved name;
+`E_NAME` for an invalid or unresolved name (including an undeclared generic);
+and `E_DUPLICATE` for repeated declarations and for a binding that repeats a
+name of its block or of an enclosing block.
+[Scopes of bindings](language/statements.md#scopes-of-bindings) and
+[Lambdas and their names](stage1b.md#lambdas-and-their-names) give the rules.
+`E_ARITY` and
 `E_TYPE` identify argument-count and type violations. `E_LIMIT` reports bounded
 implementation resources; the check of source bodies and the function compiler
 share the 4096-unit per-function checking-budget diagnostic. Diagnostic wording does
@@ -671,8 +677,10 @@ source checker of protocol 7 and runs `Indexed.AuthoritySource.checkProgram`.
 That checker checks every body in an audit pass and in an executable pass,
 and then the Core. `Namespace.lower` assigns symbols from package identity +
 logical module path + declaration name. On this path it lowers the headers
-that the authority assembler and the dispatch families read, and it restores
-source names in diagnostics; it checks no source body. Only an ordinary
+that the authority assembler and the dispatch families read. For a rejected
+request `describeDiagnostic` lowers the original namespace once more, with
+its bodies, only to restore source names in the diagnostic; the result of
+that lowering decides nothing about acceptance. Only an ordinary
 root-package root-module `main` becomes the core entrypoint. Protocol 2 keeps
 its flat namespace. `checkNamespaceProgram` and `checkSurfaceProgram` remain
 internal APIs that `Main` does not call.
@@ -709,10 +717,10 @@ when manifest mode selects protocol 3. See [Packages](packages.md) and
 ## Protocol 4: finite abstract declarations
 
 Sources without abstract declarations retain version 2 (flat, including
-explicit `--lib`) or version 3 (packages). Abstract declarations select
-version 4 with a required `input` field whose value is exactly `flat` or
-`package`, unless a package holds a form of a later version
-([Protocol selection](#protocol-selection)). Flat input keeps the version-2
+explicit `--lib`) or version 3 (packages), and abstract declarations select
+version 4, when no earlier item of [Protocol selection](#protocol-selection)
+applies. A request of version 4 has a required `input` field whose value is
+exactly `flat` or `package`. Flat input keeps the version-2
 `file`, `functions`, `generics`, and `methods` fields. Package input keeps the
 version-3 `file`, `root`, and `packages` graph. Responses echo version 4.
 
@@ -781,7 +789,7 @@ Event = { op: "borrow", grant: [identifier...], loan: identifier, span }
 This grammar is the decoder contract of protocols 5–8. The driver writes
 `grantee_package` and selects protocol 9 for every grant, delegation and
 transfer ([Protocol selection](#protocol-selection)). It writes protocol 5
-for contributions and an assembly in a program without a grant.
+for contributions and an assembly when no earlier item of that list applies.
 
 Grant paths refer only to the selected dependency closure. Grant/contribution
 IDs derive from package identity, module path and declaration name; method
@@ -990,15 +998,21 @@ receipts, doctest execution, or official package admission.
   pin the recipient fields of protocols 6 to 9.
 - The kernel regressions `VastitasKernel.IndexedWireRegression`,
   `VastitasKernel.LegacySourceRegression` and
-  `VastitasKernel.NamespaceRegression` decode and check requests without the
-  driver. `bash scripts/check_kernel_regressions.sh` builds them.
+  `VastitasPublicTest.AuthorityRegression` decode and check requests without
+  the driver. `VastitasKernel.NamespaceRegression` tests the retained
+  `checkNamespaceProgram` on Lean values and decodes no request.
+  `bash scripts/check_kernel_regressions.sh` builds them.
 
 ## History
 
 - Presented affine declarations, smooth forms and metric forms are optional
-  fields of protocol 9 by the decision on a single schema epoch in
-  [#533](https://github.com/MGYamada/Vastitas/issues/533). That issue also
-  tracks the retirement of superseded protocol versions and their decoders.
+  fields of protocol 9 and have no version of their own, by a decision that
+  [#533](https://github.com/MGYamada/Vastitas/issues/533) records. That
+  issue is open. It records the policy of one wire protocol for the release
+  v0.1.0: the driver writes one schema, the kernel accepts that schema
+  alone, and the other versions with their decoders are retired in one
+  verified change. The change is not made: this chapter describes the
+  versions 2 to 9 that the kernel accepts.
 - The doctest result contract of
   [Expected-rejection doctest consumer](#expected-rejection-doctest-consumer-reference-only)
   belongs to [#236](https://github.com/MGYamada/Vastitas/issues/236).

@@ -2,10 +2,11 @@
 
 This chapter describes the [driver](../appendix/glossary.md#driver): what the
 Rust side of the compiler does between the command line and the kernel, and
-between the kernel's response and the output file. It covers reading and parsing the inputs, loading packages, choosing the
-wire protocol, starting the kernel, rendering diagnostics, the native build,
-output files, signals and locks. Each section names the source file that
-holds the code and the tests that pin it.
+between the kernel's response and the output file. It covers reading and
+parsing the inputs, loading packages, choosing the wire protocol, starting
+the kernel, rendering diagnostics, the native build, output files, signals
+and locks. Each section names the source file that holds the code and the
+tests that pin it.
 
 The rules that a user relies on are elsewhere, and this chapter does not
 restate them. [Appendix A](../guide/cli.md) gives the commands, the options
@@ -76,14 +77,25 @@ and inode numbers, the text and a byte offset.
 
 The byte offset of an entry is the offset of the entry before it, plus the
 length of that entry's text, plus one. The files of one compilation therefore
-occupy disjoint ranges of byte offsets. A span of the request holds such an
-offset with a line and a column that are local to the file. The kernel never
-sees a path. It returns spans, and `Sources::file_index` finds the file of a
-span by its start offset.
+occupy disjoint ranges of byte offsets. A **span** is the position of one
+node of the request: a start and an end as such byte offsets, and a line and
+a column that are local to the file. A span holds no path. The kernel returns
+spans, and `Sources::file_index` finds the file of a span by its start
+offset.
+
+The request names files only in its field `file` and, in
+[manifest mode](../appendix/glossary.md#manifest-mode), in `root`, in the
+`source` of each package and in the `target` of each dependency. In
+[flat mode](../appendix/glossary.md#flat-mode) `file` is the name of the
+entry file as the command spells it. In manifest mode all four hold
+canonical paths of manifests, and `source` is part of the identity of a
+package.
 
 In flat mode `Sources::load` reads the entry file and then the libraries, in
-the order of the command. Each name must end in `.vast`, and a file that the
-command names twice, by its canonical path, is `E_INPUT`.
+the order of the command. It rejects a
+name that does not end in `.vast`, and a file that the command names twice,
+which it finds by the canonical path (`E_INPUT`).
+[Flat mode](../language/programs.md#flat-mode) gives both rules.
 
 Tests:
 
@@ -97,8 +109,9 @@ Tests:
 ## Parsing
 
 `src/frontend.rs` holds the lexer, the recursive-descent parser and the
-resolver of lexical scopes. [Lexical structure](../language/lexical-structure.md)
-gives the rules of source text.
+resolver of lexical scopes.
+[Lexical structure](../language/lexical-structure.md) gives the rules of
+source text.
 
 - The lexer admits ASCII identifiers. It counts positions in UTF-8 bytes and
   columns in Unicode scalar values. It rejects a byte order mark, a line
@@ -165,8 +178,9 @@ rules. `packages::load` starts `Loader::package` at the root manifest.
 
 `Loader::package` handles one manifest:
 
-- The file must have the name `Vastitas.toml`. Its canonical path is the
-  `source` of the package in the request.
+- It rejects a manifest whose file name is not `Vastitas.toml` (`E_INPUT`),
+  as [Manifests](../packages.md#manifests) requires. The canonical path of
+  the manifest is the `source` of the package in the request.
 - A dependency that names a manifest on the current chain of dependencies
   is `E_CYCLE`. The loader loads a manifest once, so two dependency aliases
   of one location yield one package. `MAX_PACKAGE_NESTING` bounds the depth
@@ -179,17 +193,22 @@ rules. `packages::load` starts `Loader::package` at the root manifest.
 
 `Loader::module_file` handles one module file:
 
-- The canonical path of the file must lie in the directory of the manifest,
-  so a symbolic link that leaves the package is `E_INPUT`.
+- It compares the canonical path of the file with the directory of the
+  manifest, so it rejects a symbolic link that leaves the package
+  (`E_INPUT`).
 - The device and inode numbers of the files on the current chain of `mod`
   declarations form a set. A file that is in the set is `E_CYCLE`.
 - For each `mod name;` the loader looks for `name.vast` and `name/mod.vast`
   below the directory of the root file. `existence` compares each component
-  with the names that the directory lists, so the name must match byte for
-  byte on a file system that ignores case. Exactly one of the two files must
-  exist (`E_INPUT`).
+  with the names that the directory lists, so a file whose name differs only
+  in case does not count on a file system that ignores case. The loader
+  rejects a declaration for which neither file or both files exist
+  (`E_INPUT`).
 - The loader counts every module record, including inline modules and a file
   that two `mod` declarations load, against `MAX_LOADED_MODULES`.
+
+[Module declarations](../language/modules.md#module-declarations) gives the
+rules on module files that these checks enforce.
 
 The loader resolves no path of the source and loads no package for one. The
 recipient of a grant stays the name that the source writes.
@@ -204,8 +223,9 @@ Tests:
 
 ## Choosing the wire protocol
 
-The driver writes one request and chooses its version from the declarations
-that the program holds. [Protocol selection](../protocol.md#protocol-selection)
+The driver writes one request. It chooses the version from the declarations
+that the program holds and, in manifest mode, from the `geometry_compat`
+export of a manifest. [Protocol selection](../protocol.md#protocol-selection)
 gives the list.
 
 - In flat mode `frontend::parse_sources` writes version 2. It writes version
@@ -229,25 +249,27 @@ Tests:
 
 ## Starting the kernel
 
-The **kernel root** is the directory of the Lake package of the kernel:
-`VASTITAS_KERNEL_ROOT`, or the `lean-kernel` directory of the sources that
-the driver was built from. The kernel executable is `VASTITAS_KERNEL`, or
-`.lake/build/bin/vastitas-kernel` in the kernel root. `run` needs the root
-for the default executable and for every `build`. A `check` with
+`kernel_root` gives the [kernel root](../appendix/glossary.md#kernel-root):
+the value of `VASTITAS_KERNEL_ROOT`, or the `lean-kernel` directory of the
+sources that the driver was built from, as a canonical path. The kernel
+executable is the value of `VASTITAS_KERNEL`, or
+`.lake/build/bin/vastitas-kernel` in the kernel root. `run` computes the
+root for the default executable and for every `build`, so a `check` with
 `VASTITAS_KERNEL` reads no root. A default executable that does not exist is
 `E_BACKEND`, with the command that builds it.
+[The kernel and its build identity](../guide/cli.md#the-kernel-and-its-build-identity)
+gives the rules.
 
 `invoke_kernel` starts the executable with the mode as its only argument. It
-writes the request to standard input and reads one JSON object from standard
-output. It keeps at most `MAX_BACKEND_RESPONSE` bytes of standard output and
-fails beyond them. A response that is not JSON is `E_PROTOCOL`.
+writes the request to standard input and reads standard output. It keeps at
+most `MAX_BACKEND_RESPONSE` bytes of standard output and fails beyond them.
 
 ### The build identity
 
 The numbers of the wire protocols do not change between releases. A kernel
 of another revision can therefore answer a request of the same version. The
-**build identity** ties a kernel executable to a driver: a digest of the
-files that the executable is elaborated from, and the version of Lean.
+[build identity](../appendix/glossary.md#build-identity) ties a kernel
+executable to a driver. This section says how each side computes it.
 
 - The kernel computes the digest while Lean elaborates `Main.lean`
   (`kernel_source_digest%` in `VastitasKernel/BuildIdentity.lean`). The
@@ -258,23 +280,28 @@ files that the executable is elaborated from, and the version of Lean.
   that the driver is built from (`runtime_inputs::executable_inputs`). It
   reads the version of Lean from `lean-kernel/lean-toolchain`. Cargo runs
   `build.rs` again when one of these files changes.
-- The digest is FNV-1a over the path, the size and the bytes of each file in
-  the order of the paths. It detects a stale and a mixed tree. It is not a
-  cryptographic hash.
+- The digest is FNV-1a with 64 bits over the path, the size and the bytes
+  of each file, in the order of the paths.
 - `lean-kernel/lakefile.toml` names each digested file as an input of the
   executable. Lake therefore elaborates `Main` again, with its digest, when
   a file changes that changes no compiled module.
 
 `invoke_kernel` applies its checks in this order:
 
-1. A failure response must hold a diagnostic (`E_PROTOCOL`). The driver
-   renders the diagnostics. It adds a note for another version, and a note
-   that the diagnostics may come from a stale or foreign kernel when the
-   identity is missing or differs.
-2. A success response of another version is `E_PROTOCOL`.
-3. A response that is neither a failure nor a success, and a kernel that
-   exits with an unsuccessful status, are `E_BACKEND`.
-4. A success response whose identity is missing or differs is `E_BACKEND`.
+1. A kernel that does not start, and a failure of the capture other than
+   an interruption, are `E_BACKEND`.
+2. Standard output that is not one JSON value is `E_PROTOCOL`, followed by
+   the standard error of the kernel. A kernel that exits without a response
+   has this form, whatever its exit status.
+3. For a failure response, one whose `ok` is `false`, the driver renders the
+   diagnostics. It adds a note for another version, and a note that the
+   diagnostics may come from a stale or foreign kernel when the identity is
+   missing or differs. A failure response without a diagnostic is
+   `E_PROTOCOL`.
+4. Any other response of another version than the request is `E_PROTOCOL`.
+5. A response of the version of the request whose `ok` is not `true`, and a
+   kernel that exits with an unsuccessful status, are `E_BACKEND`.
+6. A success response whose identity is missing or differs is `E_BACKEND`.
 
 The identity covers the kernel executable. It does not cover the files that
 a native build compiles, which [The native build](#the-native-build)
@@ -301,11 +328,15 @@ form.
 - For a kernel diagnostic `invoke_kernel` reads `code`, `message` and `span`
   from the response. It renders each entry of `notes` as a line with the
   code `note` and the place of the note.
-- `sources::shown_text` writes every path and every message. It replaces a
-  control character, a format character and white space other than a space
-  by the name of its code point.
+- `sources::shown_text` writes every path, and the message of every
+  diagnostic with a place and of its notes. It writes some characters as
+  their code points.
   [Names and text in diagnostics](../language/diagnostics.md#names-and-text-in-diagnostics)
-  gives the rule.
+  gives the rule and the characters.
+- The driver writes three texts as the child process wrote them: the
+  standard error of the kernel after an `E_PROTOCOL` for a response that is
+  not JSON and after an `E_BACKEND` for a failed kernel, and the output of
+  Lake after `E_BUILD`.
 - `packages::manifest_error` renders an error of the `toml` crate. It shows
   the quoted line of the manifest through `shown_text` and moves the marks
   under the line by the width that the names add.
@@ -328,23 +359,34 @@ For `build` the driver reads three fields of the `emit` response:
 [Wire protocols 2–9](../protocol.md) describes them. The kernel generates
 `lean_source` from the result of the check of the same request, as
 [The three checker routes](../development/architecture.md#the-three-checker-routes)
-describes. The driver accepts the two runtime fields only in a response of
-protocol 8 or 9, and it accepts a numerical requirement only with a storage
-requirement (`E_PROTOCOL`).
+describes. After the kernel answers, `run` checks the response and the
+options in this order:
+
+1. A response without `lean_source` is `E_PROTOCOL`.
+2. The driver accepts the two runtime fields only in a response of protocol
+   8 or 9, and a numerical requirement only with a storage requirement
+   (`E_PROTOCOL`).
+3. A numerical requirement without `--openblas-prefix` is `E_BUILD`.
+4. `--openblas-prefix` or `--native-cc` for a response without a numerical
+   requirement is `E_USAGE`.
+
+[Numerical builds](../guide/cli.md#numerical-builds) gives the rules on the
+two options.
 
 A **runtime input** is a file that Lake reads from the kernel root when it
 compiles a generated program. `src/runtime_inputs.rs` lists the runtime
 inputs of three packages: the kernel package, the storage runtime in
 `native` and the numerical runtime in `numerical`. Each list names files,
 the modules that generated programs import, and the other name of the
-package's Lake configuration, which must not exist. `build.rs` digests the
-runtime inputs of the driver's own sources into a table, and fails when the
-sources do not hold what the lists name.
+package's Lake configuration, which the driver refuses. `build.rs` digests
+the runtime inputs of the driver's own sources into a table, and fails when
+the sources do not hold what the lists name.
 
 `build_native` works in this order:
 
-1. It reads `lean-toolchain` of the kernel root. The pin must equal the pin
-   that the driver was built for (`E_BUILD`).
+1. It reads `lean-toolchain` of the kernel root. It rejects a file that it
+   cannot read, an empty file and a pin other than the pin that the driver
+   was built for (`E_BUILD`).
 2. It selects the packages: the kernel package, and the storage runtime and
    the numerical runtime when the response requires them.
 3. `check_generated_imports` reads the imports of the generated source. An
@@ -359,25 +401,31 @@ sources do not hold what the lists name.
 5. It creates a private directory in the temporary directory of the system,
    with mode 0700 whatever the umask. A guard removes the directory when
    `build_native` returns.
-6. It writes a Lake configuration, a copy of `lean-toolchain` and the
-   generated source as `Main.lean`. The configuration is a `lakefile.toml`
+6. It composes a Lake configuration. The configuration is a `lakefile.toml`
    that requires the kernel package by its path and, when selected, the
    storage runtime. For a numerical program it is a `lakefile.lean` that
    requires the kernel package and the numerical runtime, and passes the
-   OpenBLAS prefix to the numerical runtime. `toml_string` and `lean_string`
-   escape each path for the syntax of its file. A path that is not UTF-8 is
+   canonical path of the OpenBLAS prefix to the numerical runtime. With
+   `--native-cc` the driver runs `lean --print-prefix` in the kernel root
+   and writes the `lib` directory of that installation into the
+   configuration as `moreLinkArgs`. `toml_string` and `lean_string` escape
+   each path for the syntax of its file. A path that is not UTF-8 is
    `E_BUILD`.
-7. `check_lean_version` runs `lean --version` in that directory, as Lake
+7. It writes the configuration, a copy of `lean-toolchain` and the generated
+   source as `Main.lean` into the directory.
+8. `check_lean_version` runs `lean --version` in that directory, as Lake
    resolves `lean` there. Another version than the pinned one is `E_BUILD`.
-8. It takes the locks of the selected runtime packages ([Locks](#locks)).
-9. It runs `lake build program`, with `LEAN_CC` set when the command names a
-   C compiler. It keeps the last `DIAGNOSTIC_TAIL` bytes of each output
-   stream. A failure of Lake is `E_BUILD` with that output.
-10. It installs the executable of the project ([Output files](#output-files)).
+9. It takes the locks of the selected runtime packages ([Locks](#locks)).
+10. It runs `lake build program`, with `LEAN_CC` set when the command names a
+    C compiler. It keeps the last `DIAGNOSTIC_TAIL` bytes of each output
+    stream. A failure of Lake is `E_BUILD` with that output.
+11. It installs the executable of the project ([Output files](#output-files)).
 
-Steps 1 to 4 write nothing. The comparison of step 4 reads source files. It
-does not cover the build products under `.lake`, the OpenBLAS prefix or a
-file that changes while Lake runs.
+Steps 1 to 4 write nothing.
+[What `check` and `build` start](../guide/cli.md#what-check-and-build-start)
+gives the rules on the toolchain, and
+[Checks on the kernel root](../guide/cli.md#checks-on-the-kernel-root) says
+what the comparison of step 4 covers and what it does not.
 
 Tests:
 
@@ -403,28 +451,36 @@ Tests:
 The driver replaces the output file in one step and leaves an existing file
 as it is until that step.
 
-- `validate_output` runs before the driver reads an input. The path must
-  name a file in a directory that exists. An existing output must be a
-  regular file or a symbolic link to one (`E_OUTPUT`).
-- `probe_output_directory` then creates and removes a staging file, so a
-  directory that admits no file fails before the kernel runs.
-- An output must not be an input. `OutputIdentity` holds the canonical path
-  and the device and inode numbers of an existing output, and the driver
-  compares each entry of `Sources` with both (`E_OUTPUT`). Manifest mode compares each
-  file when the loader reads it. Flat mode compares the files after it reads
-  them and before it parses them.
+- `validate_output` runs before the driver reads an input. It rejects a
+  path that names no file, a path whose directory does not exist, and an
+  existing output that is neither a regular file nor a symbolic link to one
+  (`E_OUTPUT`).
+- A **staging file** is a file beside the final place of the output, to
+  which the driver copies the executable before it renames the file onto
+  that place. `probe_output_directory` creates and removes one before the
+  driver reads an input, so a directory that admits no file fails before
+  the kernel runs.
+- The driver rejects an output that is an input (`E_OUTPUT`).
+  `OutputIdentity` holds the canonical path and the device and inode numbers
+  of an existing output, and the driver compares each entry of `Sources`
+  with both. Manifest mode compares each file when the loader reads it.
+  Flat mode compares the files after it reads them and before it parses
+  them.
 - `install_output` runs after Lake. It validates the path and compares the
-  inputs again. It creates a staging file beside the target, which only
-  the user can read and write, and copies the executable in blocks, with a
-  check for a signal before each block. It gives the staging file the mode of the
-  executable, flushes it to the disk and repeats the two checks. Then it
-  renames the staging file onto the target.
+  inputs again. It creates a staging file beside the target, which only the
+  user can read and write, and copies the executable in blocks, with a
+  check for a signal before each block. It gives the staging file the mode
+  of the executable, flushes it to the disk and repeats the two checks.
+  Then it renames the staging file onto the target.
 - For an output that is a symbolic link the target is the file that the
   link names. The link stays, and the driver fails when the link names
   another file after the copy.
 - A guard removes the staging file when a step fails. The name of a staging
   file holds the process number and a counter, and the driver tries the
   next name when one exists.
+
+[The output of `build`](../guide/cli.md#the-output-of-build) gives the rules
+that these checks enforce.
 
 Tests:
 
@@ -447,9 +503,11 @@ SIGQUIT. The handler stores the number of the signal and does nothing else.
 `process::check` reads the number. The driver calls it where it can wait:
 before each block that it reads from an input, while it waits for a lock
 and before each block that it copies to the staging file. `capture` reads
-the number in each turn of its loop. An interrupted step returns `E_INTERRUPTED`, and the guards remove
-the temporary directory and the staging file. `process::exit_code` gives 128
-plus the number of the signal.
+the number in each turn of its loop. An interrupted step of `check` or
+`build` returns `E_INTERRUPTED`, and the guards remove the temporary
+directory and the staging file. An interrupted checker of `audit-lean`
+returns `E_LEAN_AUDIT`. `process::exit_code` gives 128 plus the number of
+the signal.
 
 `process::capture` runs one child:
 
@@ -463,8 +521,10 @@ plus the number of the signal.
   tail.
 - After a signal the loop sends the same signal to the process group. It
   sends SIGKILL after `TERM_GRACE` and stops waiting after `KILL_GRACE`.
-- A child that exits while a descendant holds a pipe gets `DRAIN_GRACE`.
-  Then the loop ends the group in the same way, and the capture fails.
+- After the child exits, the loop goes on while a pipe is open or a process
+  of the group lives. A descendant that holds a pipe, and a descendant that
+  lives in the group without one, get `DRAIN_GRACE`. Then the loop ends the
+  group in the same way, and the capture fails.
 - After the loop reaps the child and finds its group empty, it sends no
   signal to that group number, which the system can give to another group.
 

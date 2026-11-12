@@ -177,9 +177,13 @@ budget of the check.
 > computes what the source with its lambdas describes. Tests cover that
 > step, the diagnostics and native execution.
 > [Function specialization](../internals/checking-pipeline.md#function-specialization)
-> describes the check, and
-> [Verification boundaries](../verification.md#indexed-term-function-and-checked-program-evaluation)
-> states the proofs.
+> describes the check. Verification boundaries states the proofs:
+> [the scope of lambdas](../verification.md#authority-over-indexed-bodies),
+> [the static targets](../verification.md#function-values-and-specialization),
+> and typing and termination in
+> [Indexed term, function and checked-program evaluation](../verification.md#indexed-term-function-and-checked-program-evaluation)
+> and
+> [Code generation entries](../verification.md#code-generation-entries).
 
 ## See also
 

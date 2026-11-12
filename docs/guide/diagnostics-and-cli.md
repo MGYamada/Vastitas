@@ -156,7 +156,7 @@ lists these cases.
 
 ## From a code to its chapter
 
-<a id="common-codes"></a>The codes form classes by the construct whose rules they report. The table
+The codes form classes by the construct whose rules they report. The table
 names the chapter of this guide that teaches each construct.
 
 | Codes | The compiler reports | Chapter |
@@ -203,7 +203,7 @@ limit. The values of `Nat` and `Int` have no limit.
 
 ## Kernel, inputs and outputs
 
-<a id="environment-and-outputs"></a>The compiler has two parts: a
+The compiler has two parts: a
 [frontend](../appendix/glossary.md#frontend), which reads the files, and a
 [kernel](../appendix/glossary.md#kernel), which checks the program. Both
 commands need a built kernel, and a command fails when the kernel is missing

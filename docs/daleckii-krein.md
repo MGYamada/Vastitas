@@ -1,7 +1,5 @@
 # Daleckii–Krein mathematical bridge
 
-<a id="daleckiikrein-an-important-theorem-for-spectral-differentiation"></a>
-
 **Status: Proved (bridge).** The Daleckii–Krein theorem is an important
 theorem for spectral differentiation. It is proved in Lean against Mathlib's
 actual continuous functional

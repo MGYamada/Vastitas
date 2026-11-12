@@ -72,13 +72,14 @@ The generated site is in `target/book/`. `scripts/check_book.py` checks that:
 - [Appendix D](../appendix/limits.md) has a table row with the value of
   each key of `lean-kernel/compiler-limits.json`, and no row with a key
   that the file lacks;
-- the first line of a converted chapter is `#` and its title in `SUMMARY.md`,
-  where an appendix title `G: Glossary` becomes `Appendix G: Glossary`;
-- a converted chapter keeps the rules of the [style guide](#style-guide) that
-  its part has, as [Checked rules](#checked-rules) lists.
+- the first line of a chapter is `#` and its title in `SUMMARY.md`, where an
+  appendix title `G: Glossary` becomes `Appendix G: Glossary`;
+- a chapter keeps the rules of the [style guide](#style-guide) that its part
+  has, as [Checked rules](#checked-rules) lists.
 
-The converted chapters are listed in `CONVERTED` in `scripts/check_book.py`.
-Add a chapter to the list in the change that rewrites it by the style guide.
+The last two checks apply to every chapter of `SUMMARY.md` apart from the
+archived delivery records, which `ARCHIVED` in `scripts/check_book.py` lists.
+A chapter that joins `SUMMARY.md` is checked from its first change.
 `PENDING_NONTERMINALS` names the nonterminals that a Syntax block uses before
 the chapter that owns the construct defines them. Remove a name in the change
 that adds its production; the check fails on a pending name that has one.
@@ -135,11 +136,14 @@ The book is built with mdBook 0.5.4 and its MathML is checked in the generated H
    before publishing a site. The build artifact is available independently of
    a public hosting destination.
 
-When a rewrite moves a section, keep its old anchor until the last step of
-the rewrite. End the chapter with a section "Moved sections" whose list has
-one line for each moved section: `<a id="old-anchor"></a>`, the old title and
-a link to the section that holds the content. Repoint the links of the book to
-the replacing sections in the same change.
+When a change moves or renames a section, repoint every link to it in the
+same change: the links of the book, and the links in `README.md`, `stdlib/`,
+`experiments/`, `scripts/` and `book.toml`. `scripts/check_book.py` fails on a
+link of the book to an anchor that does not exist. A rewrite in several steps
+may keep an old anchor for its duration, as `<a id="old-anchor"></a>` in a
+list "Moved sections" at the end of the chapter, with a link to the section
+that holds the content. Its last step removes these anchors. No chapter holds
+one.
 
 When a rewrite splits a chapter, the rules go to the Reference chapter and
 the description of the compiler to a chapter under `internals/`. That chapter
@@ -269,8 +273,8 @@ next rewrite.
 
 ### Checked rules
 
-`scripts/check_book.py` enforces these rules on the converted chapters. The
-other rules of this guide need a reviewer.
+`scripts/check_book.py` enforces these rules on every chapter apart from the
+archived delivery records. The other rules of this guide need a reviewer.
 
 | Rule | Guide | Reference | Compiler checked | Appendices |
 | --- | --- | --- | --- | --- |

@@ -1,6 +1,6 @@
 # Generics, methods and dispatch
 
-<a id="dispatch-and-abstract-contracts"></a>A function has one body. A [*generic*](../appendix/glossary.md#generic) is a
+A function has one body. A [*generic*](../appendix/glossary.md#generic) is a
 function with several bodies, its
 [*methods*](../appendix/glossary.md#method). For each call of a generic, the
 compiler chooses one method by the types of the arguments. This choice is
@@ -93,7 +93,7 @@ The other capability is `HasEq`, which holds for every scalar type. A program
 declares no capabilities of its own.
 [Method declarations](../stage1a.md#method-declarations) lists the selectors
 and the capabilities.
-<a id="abstract-types"></a><a id="abstract-method-contracts"></a>The next
+The next
 chapter, [Abstract types](abstract-types.md), declares selectors with names
 of their own, and methods without a body.
 

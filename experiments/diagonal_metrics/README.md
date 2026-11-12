@@ -42,4 +42,4 @@ addition to comparing output hashes. Earlier exploratory records retain hashes
 and samples but not complete intermediate source snapshots; use the validated
 record for reproducibility. None of these prepared C timings measures the later
 linear first-touch Lean hex decoder; its metadata costs remain explicit in the
-[metric guide](../../docs/linalg/transforms-and-metrics.md#diagonal-metrics).
+[numerical backend chapter](../../docs/internals/numerical-backend.md#native-costs-and-failure-boundary-of-diagonal-metrics).

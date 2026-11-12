@@ -790,16 +790,3 @@ affine geometry is in
 [Smooth affine declarations](language/smooth-declarations.md), and the
 descriptor objects of the core are in
 [Geometric types](language/geometric-types.md).
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="presented-affine-geometry-stage-2"></a>The chapter: [Presented affine declarations](#presented-affine-declarations) and the guide chapter [Presented affine geometry](guide/affine-geometry.md).
-- <a id="declaring-the-profile"></a>Declaring the profile: [The presented profile](#the-presented-profile).
-- <a id="the-standard-library-profile"></a>The standard-library profile: [The presented profile](#the-presented-profile) and the [guide](guide/affine-geometry.md).
-- <a id="objects-and-bases"></a>Objects and bases: [Presented affine objects](#presented-affine-objects), [Polynomial expressions](language/smooth-declarations.md#polynomial-expressions) and [Limits](#limits).
-- <a id="fiber-products-and-base-change"></a>Fiber products and base change: [Fiber products](#fiber-products), [Isomorphisms](#isomorphisms) and [Cartesian squares](#cartesian-squares).
-- <a id="principal-opens-and-the-structure-sheaf"></a>Principal opens and the structure sheaf: [Principal opens](#principal-opens) and [Scope of presented affine geometry](#scope-of-presented-affine-geometry).
-- <a id="diagnostics"></a>Diagnostics: the rules of each section, [Limits](#limits), [Operand checks](#operand-checks), [Appendix B](appendix/diagnostics.md) and, for `E_PROTOCOL`, [the wire forms](protocol.md#protocol-9-algebraic-affine-forms).
-- <a id="what-is-checked-tested-and-proved"></a>What is checked, tested and proved: [Exact affine algebra checker](verification.md#exact-affine-algebra-checker) and the [proof boundary](stage2-acceptance.md#proof-boundary) of the acceptance record.

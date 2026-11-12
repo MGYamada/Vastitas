@@ -68,23 +68,40 @@ class TitleTests(Fixture):
         write(self.root, {"language/notation.md": "# Notation\n", "appendix/glossary.md": "# Appendix G: Glossary\n"})
         chapters = [Chapter("Notation", "language/notation.md", "reference"),
                     Chapter("G: Glossary", "appendix/glossary.md", "appendix")]
-        check_book.check_titles(self.root, chapters, frozenset({"language/notation.md", "appendix/glossary.md"}))
+        check_book.check_titles(self.root, chapters, frozenset())
 
     def test_a_different_title_is_rejected(self):
         write(self.root, {"language/notation.md": "\n# Grammar notation\n"})
         chapters = [Chapter("Notation", "language/notation.md", "reference")]
         with self.assertRaisesRegex(ValueError, "must be '# Notation', found '# Grammar notation'"):
-            check_book.check_titles(self.root, chapters, frozenset({"language/notation.md"}))
+            check_book.check_titles(self.root, chapters, frozenset())
 
     def test_an_appendix_title_names_its_letter(self):
         write(self.root, {"appendix/glossary.md": "# Glossary\n"})
         chapters = [Chapter("G: Glossary", "appendix/glossary.md", "appendix")]
         with self.assertRaisesRegex(ValueError, "Appendix G: Glossary"):
-            check_book.check_titles(self.root, chapters, frozenset({"appendix/glossary.md"}))
+            check_book.check_titles(self.root, chapters, frozenset())
 
-    def test_a_converted_chapter_must_be_listed(self):
-        with self.assertRaisesRegex(ValueError, "absent from SUMMARY.md"):
-            check_book.check_titles(self.root, [], frozenset({"language/lexical-structure.md"}))
+    def test_an_archived_chapter_must_be_listed(self):
+        with self.assertRaisesRegex(ValueError, "archived chapters absent from SUMMARY.md"):
+            check_book.check_titles(self.root, [], frozenset({"stage1-completion.md"}))
+
+    def test_an_archived_chapter_keeps_its_title_and_its_wording(self):
+        write(self.root, {"stage1-completion.md": "# Historical Stage 1 delivery record\n\nThe checker now rejects it.\n",
+                          "language/notation.md": "# Notation\n\nA production names a construct.\n"})
+        chapters = [Chapter("Stage 1 delivery and performance handoff", "stage1-completion.md", "appendix"),
+                    Chapter("Notation", "language/notation.md", "reference")]
+        archived = frozenset({"stage1-completion.md"})
+        check_book.check_titles(self.root, chapters, archived)
+        check_book.check_style(self.root, chapters, archived)
+
+    def test_every_other_chapter_is_checked(self):
+        write(self.root, {"guide/later.md": "# Another title\n\nThe checker now rejects it.\n\n## See also\n"})
+        chapters = [Chapter("A later chapter", "guide/later.md", "guide")]
+        with self.assertRaisesRegex(ValueError, "must be '# A later chapter'"):
+            check_book.check_titles(self.root, chapters, frozenset())
+        with self.assertRaisesRegex(ValueError, "style guide violations"):
+            check_book.check_style(self.root, chapters, frozenset())
 
 
 class StyleTests(unittest.TestCase):

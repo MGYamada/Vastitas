@@ -304,18 +304,3 @@ vastitas build examples/promotion.vast \
 ```
 
 The executable prints `42`.
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="declarations"></a>Declarations: [Generic declarations](#generic-declarations) and [Method declarations](#method-declarations).
-- <a id="selectors-and-capabilities"></a>Selectors and capabilities: [Method declarations](#method-declarations).
-- <a id="selection-and-whole-program-checking"></a>Selection and whole-program checking: [Selection](#selection).
-- <a id="standard-library-and-use"></a>Standard library and use: [Promotion](#promotion).
-- <a id="scope"></a>Scope: the introduction of this chapter and [Checking pipeline, History](internals/checking-pipeline.md#history).
-- <a id="finite-abstract-scalar-selectors-and-contracts"></a>Finite abstract scalar selectors and contracts: [Abstract types](#abstract-types).
-- <a id="abstract-method-contracts"></a>Abstract method contracts: [Abstract methods](#abstract-methods).
-- <a id="inherited-membership-authority"></a>Inherited membership authority: [Abstract types](#abstract-types).
-- <a id="initial-natint-promotion"></a><a id="public-contract"></a>Promotion contract: [Promotion](#promotion).
-- <a id="actual-body-proofs-and-fixture-agreement"></a><a id="regression-and-maintenance"></a>Proofs, fixtures and regressions: [Checking pipeline](internals/checking-pipeline.md#promotion-proofs-and-fixture).

@@ -305,22 +305,3 @@ Rules:
 [Numerical backend](../internals/numerical-backend.md#networks-packing-and-contraction-trees)
 describes the checking, the native execution and the evidence of these
 statements.
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="finite-networks"></a><a id="executable-finite-two-map-networks"></a><a id="public-source"></a>Executable finite two-map networks: [Two-map networks](#two-map-networks).
-- <a id="graph-and-independent-acceptance"></a>Graph and independent acceptance: [Numerical backend](../internals/numerical-backend.md#two-map-networks-graph-and-independent-acceptance).
-- <a id="proof-and-validation-boundaries"></a>Proof and validation boundaries: [Numerical backend](../internals/numerical-backend.md#two-map-networks-proof-and-validation-boundaries).
-- <a id="remaining-scope"></a>Remaining scope: [Numerical backend](../internals/numerical-backend.md#history).
-- <a id="tensor-packing"></a><a id="finite-rank-three-contraction-and-explicit-packing"></a><a id="actual-axis-types-and-representation"></a><a id="public-source-1"></a>Rank-three contraction and packing: [Tensors](#tensors) and [Packing and contraction](#packing-and-contraction).
-- <a id="independent-checking-and-native-execution"></a>Independent checking and native execution: [Numerical backend](../internals/numerical-backend.md#tensor-packing-independent-checking-and-native-execution).
-- <a id="proof-and-cost-boundaries"></a>Proof and cost boundaries: [Numerical backend](../internals/numerical-backend.md#tensor-packing-proof-and-cost-boundaries).
-- <a id="bounded-finite-contraction-trees"></a><a id="source-and-explicit-execution-plan"></a>Bounded finite contraction trees: [Contraction trees](#contraction-trees).
-- <a id="independent-graph-and-producer-checks"></a>Independent graph and producer checks: [Numerical backend](../internals/numerical-backend.md#contraction-trees-independent-graph-and-producer-checks).
-- <a id="physical-regrouping-and-costs"></a>Physical regrouping and costs: [Numerical backend](../internals/numerical-backend.md#contraction-trees-physical-regrouping-and-costs).
-- <a id="proofs-tests-and-remaining-scope"></a>Proofs, tests and remaining scope: [Numerical backend](../internals/numerical-backend.md#contraction-trees-proofs-tests-and-remaining-scope).
-- <a id="cached-packing"></a><a id="checked-reuse-of-packed-tensor-values"></a><a id="dependency-and-access-contracts"></a>Checked reuse of packed tensor values: [Caches](#caches).
-- <a id="snapshot-use-and-retention"></a>Snapshot use and retention: [Numerical backend](../internals/numerical-backend.md#cached-packing-snapshot-use-and-retention).
-- <a id="actual-schedule-and-generation-boundary"></a>Actual schedule and generation boundary: [Numerical backend](../internals/numerical-backend.md#cached-packing-schedule-and-generation-boundary).

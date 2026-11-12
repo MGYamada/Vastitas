@@ -100,7 +100,8 @@ Rules:
 
 - A program has at most 4096 specialized instances. More instances are an
   error (`E_LIMIT`). A function that is not higher-order has no specialized
-  instance.
+  instance. [Appendix D](appendix/limits.md#functions) says what counts as
+  an instance.
 - The elaboration of a program has a work budget, which
   [Appendix D](appendix/limits.md#functions) gives (`elaborationWork`).
   Exceeding it is an error (`E_LIMIT`). The compiler never accepts part of a
@@ -109,16 +110,3 @@ Rules:
 
 [Checking pipeline](internals/checking-pipeline.md#function-specialization)
 describes how the compiler specializes and checks function values.
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="syntax-and-values"></a>Syntax and values: [Using function values](#using-function-values) and [Lambdas and their names](#lambdas-and-their-names).
-- <a id="static-target-rule"></a>Static target rule: [Static targets](#static-targets).
-- <a id="checking-and-specialization"></a>Checking and specialization: [Specialization](#specialization) and [Checking pipeline](internals/checking-pipeline.md#function-specialization).
-- <a id="homogeneous-data-pairs"></a>Homogeneous data pairs: [Pair types](language/types.md#pair-types).
-- <a id="regression-coverage"></a>Regression coverage: [Checking pipeline, Regression coverage](internals/checking-pipeline.md#regression-coverage).
-- <a id="lowering-type-information"></a>Lowering type information: [Checking pipeline, History](internals/checking-pipeline.md#retained-pipeline-lowering-type-information).
-- <a id="internal-identities-and-resource-limits"></a>Internal identities and resource limits: [Checking pipeline](internals/checking-pipeline.md#internal-identities-and-resource-limits).
-- <a id="stage1b-indexing"></a><a id="stage-1b-indexing-issue-141-follow-up"></a><a id="starting-point"></a><a id="correspondence-and-order"></a><a id="regression-and-reproduction"></a><a id="validation-record"></a><a id="measured-comparisons"></a>Indexing follow-up record: [Checking pipeline, History](internals/checking-pipeline.md#history).

@@ -138,7 +138,7 @@ gives the rules.
 
 ## The geometry library
 
-<a id="the-standard-geometry-library"></a>The compiler has the geometric core built in. The standard library declares
+The compiler has the geometric core built in. The standard library declares
 the same objects, types and operations as ordinary declarations of a
 package, in the modules `std::geometry::scheme` and `std::geometry::smooth`.
 [`examples/packages/stdlib-geometry/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast)
@@ -213,7 +213,7 @@ the core syntax.
 [Core geometry syntax](../indexed-source.md#core-geometry-syntax) gives the
 meaning of each form under an export.
 
-<a id="declaring-an-indexed-profile"></a>The library has no special rights.
+The library has no special rights.
 It declares its markers, objects, types and operations with indexed
 declarations, and any package can do the same. The next chapter,
 [Defining an indexed profile](indexed-profile.md), writes such declarations.

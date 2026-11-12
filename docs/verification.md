@@ -1174,7 +1174,6 @@ action selects `blob:none` when given those patterns. Its `filter` input would
 override them. Compiler jobs retain a separate no-oracle allowlist. The retrieval
 regression also checks which source-workspace ZIPs appear in the Git index.
 
-
 ## Package namespace acceptance
 
 **Component of the current routes, and a retained composition.** The
@@ -1247,7 +1246,6 @@ syntax preservation, native toolchain equivalence, or general
 abstract values. Package metadata identifies entries in the supplied IR graph; it does
 not certify the bytes on disk. The general Stage 1 design remains incomplete.
 
-
 ## Finite abstract selector acceptance
 
 **Component of the current routes.** The theorems of this section are about
@@ -1271,7 +1269,6 @@ inheritance, same-inhabitant ambiguity, uninhabited declarations, limits, cycles
 builtin changes, aliases, unauthorized membership edits, raw IR tampering,
 ordinary/Fn value-type rejection, and native execution. The source/core/native
 and mathematical-geometry proof boundaries described above remain unchanged.
-
 
 ## Abstract method contract acceptance
 
@@ -1490,8 +1487,6 @@ python3 scripts/check_boundaries.py
 These are reproduction commands, not a claim that a particular host or CI run
 executed them; report actual validation results with each change.
 
-<a id="polynomial-symplectic-reference-211"></a>
-
 ### Polynomial symplectic reference
 
 This subsection states no theorem: the reference is a Python model.
@@ -1503,8 +1498,6 @@ including same-determinant evidence replay and invalid global extension, but no
 Lean soundness proof or connection to the actual accepted Core. Its S1–S6 proof
 obligations and production bridge preserve Lawvere-first implementation and the
 existing 8+1 division. It does not extend the finite acceptance theorem above.
-
-<a id="rational-sos-cover-reference-244--237"></a>
 
 ### Rational SOS cover reference
 
@@ -1591,9 +1584,6 @@ The regression target runs without mathlib; the oracle and axiom audit remain
 separate. The trust boundary still excludes Rust parsing, JSON decoding, input
 authenticity and native/backend equivalence. This is edit authority, not storage
 borrow safety or a claim to have implemented all eight domain checkers.
-
-
-<a id="internal-indexed-declaration-foundation"></a>
 
 ## Indexed declarations, bodies and public acceptance
 
@@ -1876,10 +1866,9 @@ identity preservation are also proved for these internal records.
 
 These declaration-only lemmas are prerequisites for the public checker, not its
 entire acceptance theorem. Every public protocol uses the common indexed
-source checker and returned Core. See [the indexed checker](internals/indexed-checker.md#indexed-declarations)
-for exact checks and [migration acceptance](internals/indexed-checker.md#geometry-migration) for the complete
+source checker and returned Core. See [the indexed checker](internals/indexed-checker.md#indexed-declaration-foundation)
+for exact checks and [migration acceptance](internals/indexed-checker.md#finite-geometry-migration-acceptance) for the complete
 source/namespace/primitive/existential/Core evidence map.
-
 
 The internal package/primitive extension is proved in
 `VastitasOracle.IndexedPackages` and `VastitasOracle.IndexedPrimitives`. Its checked
@@ -1908,7 +1897,7 @@ only `IndexedRuntime`. The structural regressions of `IndexedCoreRegression` and
 native fixtures run without mathlib. This structural theorem alone is not a source
 acceptance, typed evaluation or native equivalence theorem. The public acceptance
 and program evaluation results described here compose with it; native equivalence
-remains unproved. See [the indexed checker](internals/indexed-checker.md#indexed-declarations).
+remains unproved. See [the indexed checker](internals/indexed-checker.md#indexed-declaration-foundation).
 
 ### Legacy translation and public acceptance of protocols 2 to 6
 
@@ -2285,7 +2274,7 @@ Erasure drops nominal/marker tags. These equations do not permit mixing bases,
 equating distinct brands or fabricating endpoint evidence; the typing and world
 theorems establish those obligations before erasure. This is operation-level
 finite result compatibility, not whole-source equivalence or native compilation
-correctness. [The migration map](internals/indexed-checker.md#geometry-migration) records how the separate
+correctness. [The migration map](internals/indexed-checker.md#finite-geometry-migration-acceptance) records how the separate
 proofs and actual-source regressions fulfill the migration issues that
 [History](#history) names without expanding their
 claims to arbitrary geometry or the complete native toolchain.
@@ -2360,7 +2349,6 @@ resource/history and actual-checker facts; they do not prove copied heap content
 BLAS arithmetic, whole-source/native refinement or AD residual correctness.
 See [the bounded packing cache](linalg/networks-and-packing.md#caches).
 
-
 ## Explicit diagonal metric certificates and ideal laws
 
 **Component of the current routes.** The theorems of `StorageMetric` are
@@ -2389,9 +2377,6 @@ unrelated buffer contains a matrix product or that NativeFast arithmetic refines
 the ideal formulas. No mathlib, custom axiom, numerical error bound, or native
 refinement claim is added. Native bit/cost and failure-preservation tests are
 separate evidence.
-
-<a id="presented-affine-geometry"></a>
-<a id="exact-affine-algebra-checker-stage-2-571"></a>
 
 ## Exact affine algebra checker
 
@@ -2427,8 +2412,6 @@ Stage 2's finite affine-geometry profile rests on an exact QQ polynomial core. [
   - the term and work budgets.
 
   `python3 scripts/affine_algebra_reference.py --check` keeps the fixture current, and `scripts/test_affine_algebra_reference.py` checks the Python model's own Buchberger, reducedness and divisor-order invariants.
-
-<a id="presented-affine-declarations-internal-stage-2-s2"></a>
 
 ### Presented affine declarations
 
@@ -2476,8 +2459,6 @@ A request of wire protocol 9 carries these declarations as records of kind
 `affine`. [Wire protocols 2–9](protocol.md#protocol-9-algebraic-affine-forms)
 states their fields.
 
-<a id="morphisms-over-a-base-stage-2-s4"></a>
-
 ### Morphisms over a base
 
 The sealed three-index `relative` family carries exact pullback maps between
@@ -2507,8 +2488,6 @@ this profile:
   a mutation that changes the native result, endpoint errors, and forged wire.
 
 Native execution is tested, not proved.
-
-<a id="fiber-products-and-cartesian-evidence-stage-2-s5"></a>
 
 ### Fiber products and Cartesian evidence
 
@@ -2559,8 +2538,6 @@ The following oracle theorems hold:
 rejects forged fiber and evidence wire. That the presented fiber is the
 categorical pullback, `IsPullback` for `Spec`, is a mathematical statement for
 the bridge.
-
-<a id="principal-opens-and-restriction-stage-2-s6"></a>
 
 ### Principal opens and restriction
 
@@ -2729,8 +2706,6 @@ claim below to its tests and theorems.
 - The compilation runs once, on source Core. An opaque step calls a
   `cotangent_pullback` declaration, so compiling generated Core again would
   compile that step again.
-
-<a id="stack-safe-runtime-code"></a>
 
 ### Stack-safe runtime code
 
@@ -2973,7 +2948,7 @@ each comes from.
   neither issue.
 - **Geometry standard-library migration regressions.** The separate proofs
   and actual-source regressions fulfill #49 and #58–63, as
-  [the migration map](internals/indexed-checker.md#geometry-migration)
+  [the migration map](internals/indexed-checker.md#finite-geometry-migration-acceptance)
   records. The migration removed the temporary `stdlib/indexed` facade.
 - **Exact affine algebra checker.** The tracker of Stage 2's finite
   affine-geometry profile is [#571](https://github.com/MGYamada/Vastitas/issues/571). The transition

@@ -31,8 +31,6 @@ them. The message of a diagnostic gives the particular error. The Reference
 does not specify the text of a message, as
 [Codes](../language/diagnostics.md#codes) says.
 
-<a id="driver-and-frontend"></a>
-
 ## Frontend
 
 ### Commands, files and builds
@@ -102,8 +100,6 @@ Only the command `vastitas audit-lean` reports these codes.
 | `E_LEAN_AUDIT` | An export that the command cannot read, that the checker rejects or that holds no declaration, a checker that fails, and a signal that interrupts the audit |
 | `E_LEAN_AUDIT_CHECKER` | A pinned Lean toolchain or a checker `nanoda_bin` that is missing or has another version |
 | `E_LEAN_AUDIT_POLICY` | A policy of the audit that the command cannot use. The policy is part of the compiler, so this code reports a defect of the compiler |
-
-<a id="lean-kernel"></a>
 
 ## Kernel
 
@@ -414,10 +410,3 @@ compiler: a
 related places and corrections, and a
 [contract for doctests](../reference/compiler-tools.md#doctest-result-reference)
 that expect a rejection. They define no code of this appendix.
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="output-format"></a>Output format: [Diagnostic lines](../language/diagnostics.md#diagnostic-lines), [Places](../language/diagnostics.md#places), [Names and text in diagnostics](../language/diagnostics.md#names-and-text-in-diagnostics), [Exit status](../language/diagnostics.md#exit-status) and [Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics).
-- <a id="development-references"></a>Development references: [Reference models](#reference-models).

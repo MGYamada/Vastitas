@@ -547,32 +547,3 @@ Rules:
 
 [Numerical backend](../internals/numerical-backend.md) describes the checker,
 the wire forms, the native adapter and the evidence for these statements.
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="numerical-maps-ownership-and-gemm"></a>The chapter: [Numerical maps](#numerical-maps).
-- <a id="numerical-declarations"></a><a id="numerical-declaration-profiles-protocol-8"></a><a id="source-contract"></a>Numerical declaration profiles: [Linear implementations](#linear-implementations).
-- <a id="wire-and-checker-boundary"></a>Wire and checker boundary: [Numerical backend](../internals/numerical-backend.md#wire-and-checker-boundary).
-- <a id="validation-and-remaining-connection"></a>Validation: [Numerical backend](../internals/numerical-backend.md#validation-and-remaining-connection).
-- <a id="numerical-values"></a><a id="nominal-numerical-values-and-typed-gemm-protocol-8"></a>Nominal numerical values and typed GEMM: [Maps](#maps) and [Matrix products](#matrix-products).
-- <a id="numerical-values--public-source-and-build"></a><a id="public-source-and-build"></a>Public source and build: [Building a numerical program](#building-a-numerical-program).
-- <a id="numerical-values--source-and-wire-compatibility"></a><a id="source-and-wire-compatibility"></a>Source and wire compatibility: [Numerical backend](../internals/numerical-backend.md#source-and-wire-compatibility).
-- <a id="numerical-values--explicit-and-computed-coefficients"></a><a id="explicit-and-computed-coefficients"></a>Coefficients: [Matrix products](#matrix-products).
-- <a id="numerical-values--dependent-numerical-inputs"></a><a id="dependent-numerical-inputs"></a>Dependent numerical inputs: [Map parameters](#map-parameters).
-- <a id="numerical-values--owned-numerical-results"></a><a id="owned-numerical-results"></a>Owned numerical results: [Owned maps](#owned-maps).
-- <a id="objects-bases-and-views"></a>Objects, bases and views: [Numerical backend](../internals/numerical-backend.md#objects-bases-and-views).
-- <a id="checked-product-and-native-schedule"></a>Checked product and native schedule: [Numerical backend](../internals/numerical-backend.md#checked-product-and-native-schedule).
-- <a id="evidence-and-remaining-boundaries"></a>Evidence and remaining boundaries: [Numerical backend](../internals/numerical-backend.md#evidence-and-remaining-boundaries).
-- <a id="generative-owned-map-packages"></a>Generative owned-map packages: [Owned-map packages](#owned-map-packages).
-- <a id="wire-and-independent-certificates"></a>Wire and independent certificates: [Numerical backend](../internals/numerical-backend.md#wire-and-independent-certificates).
-- <a id="execution-cost-and-validation"></a>Execution cost and validation: [Numerical backend](../internals/numerical-backend.md#execution-cost-and-validation).
-- <a id="numerical-adapter"></a><a id="optional-native-gemm-adapter"></a>Optional native GEMM adapter: [Numerical backend](../internals/numerical-backend.md#native-gemm-adapter).
-- <a id="numerical-adapter--responsibilities-along-the-implemented-path"></a><a id="responsibilities-along-the-implemented-path"></a>Responsibilities: [Numerical backend](../internals/numerical-backend.md#responsibilities-along-the-implemented-path).
-- <a id="build-and-dependency-boundary"></a>Build and dependency boundary: [Numerical backend](../internals/numerical-backend.md#build-and-dependency-boundary).
-- <a id="initial-operation-contract"></a>Initial operation contract: [Numerical backend](../internals/numerical-backend.md#initial-operation-contract).
-- <a id="numerical-adapter--scalar-outputs"></a>Scalar outputs: [Numerical backend](../internals/numerical-backend.md#numerical-adapter--scalar-outputs).
-- <a id="evidence-and-remaining-obligations"></a>Evidence and remaining obligations: [Numerical backend](../internals/numerical-backend.md#evidence-and-remaining-obligations).
-- <a id="checked-internal-resource-execution"></a>Checked internal resource execution: [Numerical backend](../internals/numerical-backend.md#checked-internal-resource-execution).
-- <a id="public-coverage-and-remaining-work"></a>Public coverage and remaining work: [Numerical backend](../internals/numerical-backend.md#history).

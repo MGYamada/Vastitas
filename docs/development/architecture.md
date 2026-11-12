@@ -126,7 +126,7 @@ states the guarantee and its evidence.
 | Lean toolchain, Lake and the C compiler | The kernel executable runs the definitions of the kernel, and a generated program runs its source | Trusted. [Native refinement](../appendix/glossary.md#native-refinement) is not Proved |
 | OpenBLAS | The matrix products of a numerical program | Trusted. Tested by the checks of the [native GEMM adapter](../internals/numerical-backend.md#native-gemm-adapter) |
 | Proof oracle | Nothing during a compilation. Its theorems say what acceptance implies | Lean's type checker checks each proof. An audit admits the axioms `propext`, `Classical.choice` and `Quot.sound` only |
-| Mathematical bridge | Nothing during a compilation. Its theorems give mathematical meaning to kernel definitions | Lean's type checker, the same audit, and mathlib at a pinned commit |
+| Mathematical bridge | Nothing during a compilation. Its theorems give mathematical meaning to kernel definitions | Lean's type checker, an audit of its own with the same three axioms, and mathlib at a pinned commit |
 
 A fault of the frontend can change which program the kernel checks. It cannot
 make the kernel accept a request that breaks a rule, because the kernel

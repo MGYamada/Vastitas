@@ -252,7 +252,10 @@ Two functions of the example multiply with the adjoint of a map:
 
 The parameter types state what the first function needs.
 `OrthonormalMetric<bv, sigma>` is the type of a metric on `bv` whose Gram
-matrix is the identity. `map transformed = adjoint(input, hv, hw);` declares
+matrix is the identity. `WriteMap<bw, bv> initializes` is the type of a map
+that the function writes: the word `initializes` promises that the body
+writes every cell of the map, so the caller may pass cells that hold no
+value and read them afterwards. `map transformed = adjoint(input, hv, hw);` declares
 the adjoint. While `transformed` is live, `input` gives no access, and
 `release(transformed);` ends it.
 
@@ -281,7 +284,7 @@ write the cells of a vector and copy them to another vector:
 ```
 
 `WriteVector<bv> initializes` promises that the function writes every cell
-of the vector. `main` of the example declares the vectors with
+of the vector, as `initializes` does for a map. `main` of the example declares the vectors with
 `vector e = view(cells, bv);`, calls the two functions and reads the cells
 back. The program has no product statement, so it builds without the
 library, and it prints `42`.
@@ -328,7 +331,9 @@ program prints `42`.
 Larger networks contract
 [*tensors*](../appendix/glossary.md#tensor). A tensor presents a loan as an
 array with two or three axes, each indexed by a basis. The program writes
-every step itself:
+every step itself. This chapter only names the statements for tensors. The
+linked sections of the Reference give their rules and show each of them in a
+tested program:
 
 - `pack3` copies a tensor to another arrangement of its axes, and
   `contract3` contracts a tensor of three axes with one of two.
@@ -357,14 +362,29 @@ multiplies two maps whose dimensions are parameters:
 
 `RuntimeSpace<L, m>` is the type of a space whose dimension is the extent
 `m`. `RuntimeBasis<u>` and `RuntimeMap<bs, bt, read>` are the types of a
-basis and of a map. The caller declares the spaces and bases from its
-extents:
+basis and of a map. The caller of `multiply` is the function `run`. It takes
+the three dimensions and a number `pad` of unused cells below each stored
+column. It begins with the numbers `leading` of its three layouts and with
+the capacities of its three buffers:
+
+```vast
+{{#include ../../examples/packages/runtime-shapes/src/main.vast:run}}
+```
+
+It declares the spaces and bases from its extents:
 
 ```vast
 {{#include ../../examples/packages/runtime-shapes/src/main.vast:spaces}}
 ```
 
-`main` runs the product at two sizes in one executable:
+It then allocates the buffers, fills the two inputs, presents the loans as
+maps and calls `multiply`:
+
+```vast
+{{#include ../../examples/packages/runtime-shapes/src/main.vast:maps}}
+```
+
+`main` calls `run` at two sizes in one executable:
 
 ```vast
 {{#include ../../examples/packages/runtime-shapes/src/main.vast:main}}

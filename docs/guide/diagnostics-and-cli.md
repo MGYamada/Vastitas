@@ -41,9 +41,9 @@ Lean proofs and checks no program; [Appendix A](cli.md) describes it.
 
 ## Reading a diagnostic
 
-A [*diagnostic*](../appendix/glossary.md#diagnostic) is the report that the
-compiler writes for a program that it rejects. The declared result of this
-function is `Int`, and its body is a Boolean:
+A diagnostic is the report that the compiler writes for a program that it
+rejects. The declared result of this function is `Int`, and its body is a
+Boolean:
 
 ```vast
 {{#include ../../examples/reject/types/bool-result.vast}}
@@ -71,9 +71,8 @@ The line has the form `FILE:LINE:COLUMN: CODE: message`:
 
 The compiler writes diagnostics to standard error and exits with status 1.
 
-A diagnostic can have [*notes*](../appendix/glossary.md#note), further lines
-that belong to it. In this function the operands of `+` have different
-types:
+A diagnostic can have notes, further lines that belong to it. In this
+function the operands of `+` have different types:
 
 ```vast
 {{#include ../../examples/reject/expressions/mixed-integers.vast}}
@@ -166,13 +165,13 @@ names the chapter of this guide that teaches each construct.
 | `E_TYPE`, `E_ARITY`, `E_RECURSION`, `E_MAIN` | A value or a call that its types do not permit, a cycle of calls and an invalid entry point | [Values and functions](values-and-functions.md), [control flow and pairs](control-flow-and-pairs.md) |
 | `E_ENDPOINT` and the other codes of object identity | An object in the place of another object | [Indexed declarations](indexed-geometry.md) |
 | `E_CAPTURE`, `E_STATIC_CALL` | A lambda that uses a binding from outside, and a call of a function value without one target | [Function values](function-values.md) |
-| Codes that begin with `E_DISPATCH_` or `E_CONTRACT_`, `E_CAPABILITY`, `E_HIERARCHY` | A generic without one best method, and an invalid abstract type or abstract method | [Dispatch](dispatch.md), [abstract types](abstract-types.md) |
+| Codes that begin with `E_DISPATCH_` or `E_CONTRACT_`, `E_CAPABILITY`, `E_HIERARCHY` | A generic without one winner at a key, and an invalid abstract type or abstract method | [Dispatch](dispatch.md), [abstract types](abstract-types.md) |
 | `E_OWNER`, `E_BORROW`, `E_IMPACT`, `E_ASSEMBLY` | An edit of a generic that its owner did not permit, and an invalid assembly | [Modules and edit authority](modules-and-authority.md#edit-authority), [edit authority across packages](edit-authority.md) |
 | Codes that begin with `E_AFFINE_`, `E_SMOOTH`, `E_METRIC` | An invalid declaration of geometry | [Presented affine geometry](affine-geometry.md), [smooth geometry](smooth-geometry.md) |
-| Codes that begin with `E_RESOURCE_` | A resource function that breaks a rule on owners, loans, initialization or payloads | [Storage](storage.md) |
-| Codes that begin with `E_NUMERICAL_` or `E_TENSOR`, `E_NETWORK` | A numerical statement whose spaces, bases, metrics or ports do not fit | [Numerical maps](numerical.md) |
+| Most codes that begin with `E_RESOURCE_` | A resource function that breaks a rule on owners, loans, initialization or payloads | [Storage](storage.md) |
+| Codes that begin with `E_NUMERICAL_` or `E_TENSOR`, `E_NETWORK`, and `E_RESOURCE_GEMM`, `E_RESOURCE_COEFFICIENT`, `E_RESOURCE_DIAGONAL` | A numerical statement whose spaces, bases, metrics, views or ports do not fit | [Numerical maps](numerical.md) |
 | Codes that begin with `E_RUNTIME_` or `E_NATIVE_` | A rule on sizes that a program computes, and a check that fails when the program runs | [Storage](storage.md#sizes-that-the-program-computes), [After the build](#after-the-build) |
-| `E_LIMIT` | A program beyond a limit of the compiler | [Limits](#limits) |
+| `E_LIMIT`, `E_RESOURCE_LIMIT` | A program beyond a limit of the compiler | [Limits](#limits) |
 | `E_USAGE`, `E_INPUT`, `E_MANIFEST`, `E_OUTPUT`, `E_BACKEND`, `E_BUILD` | A command line, a file, a manifest, an output path, a kernel or a build that the compiler cannot use | [The commands](#the-commands), [packages](creating-a-package.md), [installation](installation.md) |
 
 [Classes of codes](../language/diagnostics.md#classes-of-codes) gives each
@@ -226,25 +225,26 @@ the sizes of the inputs, the handling of signals and concurrent builds.
 An executable runs the program and prints the value of `main`. A program
 that the compiler accepts can still stop when it runs, because some checks
 need values that only the run has. The `expect` statement of
-[the storage chapter](storage.md#parameters) is such a
-[*run-time check*](../appendix/glossary.md#run-time-check). This program
-writes 3 to two cells and expects 4 in one of them:
+[the storage chapter](storage.md#parameters) is such a run-time check. This
+program writes 3 to two cells and expects 4 in one of them:
 
 ```vast
 {{#include ../../examples/packages/failed-expect/main.vast}}
 ```
 
-The compiler accepts the program and builds it. The executable writes one
-line to standard error and exits with status 1:
+The compiler accepts the program and builds it. The executable writes this
+line to standard error and exits with an unsuccessful status:
 
 ```text
 {{#include ../../examples/packages/failed-expect.stderr}}
 ```
 
 This [*run-time diagnostic*](../appendix/glossary.md#run-time-diagnostic)
-has a code and a message, and no place. The message names the cell, the
-payload that the cell holds and the payload that the statement expects. The
-words `uncaught exception:` begin every run-time diagnostic.
+has a code and a message, and no place. In the line above, the code follows
+the words `uncaught exception:`. The message names the cell, the payload
+that the cell holds and the payload that the statement expects.
+[Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics)
+gives the form of such a line.
 
 A program that stops in this way prints no result. The writes that it
 completed before it stopped are not undone, and it frees its allocations.
@@ -253,9 +253,8 @@ An executable makes other run-time checks too. It checks the
 conditions on [sizes that the program computes](storage.md#sizes-that-the-program-computes),
 and it checks the allocations, the views and the sizes of an operation
 before the first write of that operation.
-[Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics)
-gives their form, and
-[Appendix B](../appendix/diagnostics.md#native-runtime) lists their codes.
+[Appendix B](../appendix/diagnostics.md#native-runtime) lists the codes of
+these checks.
 
 ## What a successful check means
 
@@ -292,7 +291,9 @@ what the checked program denotes; tests exercise this. No guarantee bounds
 the time or the memory of a check or of a run. Performance is an aim of the
 design, the C/C++-class target of
 [Fast like C](../storage-ownership.md#fast-like-c), and not a property that
-acceptance gives a program.
+the acceptance of a program gives it.
+[Performance evidence and acceptance](../storage-ownership.md#performance-evidence-and-acceptance)
+states what a measurement of performance must show.
 
 ## See also
 

@@ -107,7 +107,7 @@ gluing (#606), position-dependent metrics (#264), a `gradient` that the
 standard library exports (#626) and performance (#222).
 Compiled reverse Core keeps its residuals as immutable pure Core values,
 retained or recomputed, as
-[storage ownership §7.10](../storage-ownership.md#residual-retention)
+[Residual retention](../storage-ownership.md#residual-retention) of the storage model
 records. Storage-backed residual retention, with its value versions and
 invalidation, remains open. The tape of this profile is an immutable runtime
 value that records none of that metadata.

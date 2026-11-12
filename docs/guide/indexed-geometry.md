@@ -183,7 +183,8 @@ lists the declarations of both modules.
 ## The core syntax in a package
 
 A program can write the core syntax and the names of the library side by
-side. The manifest of the library's geometry package holds an
+side. The library keeps its geometry in a package of its own, and the
+manifest of that package holds an
 [*export*](../appendix/glossary.md#export): a table that maps each form of
 the core syntax to a declaration of the library.
 [`examples/packages/geometry-compat/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry-compat/main.vast)

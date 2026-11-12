@@ -27,6 +27,28 @@ breaks no rule that the checker enforces; it is not
 [native refinement](#native-refinement). See
 [What acceptance means](../language/guarantees.md#what-acceptance-means).
 
+## Active
+
+An access to storage is active while its [storage loan](#storage-loan) is
+[live](#live) and not suspended. A loan with a live [child](#child) is
+suspended. See
+[Regions, overlap and alias evidence](../storage-ownership.md#regions-overlap-and-alias-evidence).
+
+## Alias
+
+The word has four meanings:
+
+1. A [dependency alias](#dependency-alias) is the name under which a manifest
+   declares a dependency.
+2. A `use` declaration with `as` binds a declaration under another name, an
+   alias of the declaration. See
+   [`use` declarations](../language/modules.md#use-declarations).
+3. A second binding of one object, such as `Y` in `let Y = X;`, is an alias
+   of the object. It denotes the same object. See
+   [Object identity](../language/geometric-types.md#object-identity).
+4. In storage, two views alias when they may share cells. See
+   [Regions, overlap and alias evidence](../storage-ownership.md#regions-overlap-and-alias-evidence).
+
 ## Allocation
 
 A buffer of [cells](#cell) that one storage [owner](#owner) owns. `allocate`
@@ -108,6 +130,12 @@ marker and from a [basis](#basis). See
 [Settings and markers](../language/geometric-types.md#settings-and-markers)
 and the [guide](../guide/indexed-geometry.md#objects-points-and-morphisms).
 
+## Baseline
+
+A competent C implementation of the same computation, against which a
+comparison measures a Vastitas program. See
+[Performance evidence and acceptance](../storage-ownership.md#performance-evidence-and-acceptance).
+
 ## Basis
 
 A basis of a linear space, introduced by a `basis` declaration in a resource
@@ -118,12 +146,17 @@ named bases. See
 
 ## Binding
 
-A name that a `let` or `unpack` statement or a parameter list introduces. In a
-[resource function](#resource-function), owners, loans and the results of
-calls are bindings too. A binding is immutable, and no binding reuses a name
-that is visible where it is introduced. See
-[Scopes of bindings](../language/statements.md#scopes-of-bindings) and
-[Resource statements](../storage/resource-programs.md#resource-statements).
+The word has two meanings:
+
+1. A binding is a name that a `let` or `unpack` statement or a parameter list
+   introduces. In a [resource function](#resource-function), owners, loans
+   and the results of calls are bindings too. A binding is immutable, and no
+   binding reuses a name that is visible where it is introduced. See
+   [Scopes of bindings](../language/statements.md#scopes-of-bindings) and
+   [Resource statements](../storage/resource-programs.md#resource-statements).
+2. The binding of a [primitive](#primitive) is the form after `=` in its
+   declaration, which fixes its operands and its result. See
+   [primitive binding](#primitive-binding).
 
 ## Bound index
 
@@ -278,6 +311,13 @@ In the plan of a contraction tree, a set of occurrences that the plan has
 contracted, with the [tensor](#tensor) that holds their product. See
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
 
+## Contraction tree
+
+The graph of a `contract_tree` statement together with its plan. Its nodes
+are [occurrences](#occurrence) of [tensors](#tensor), its edges are
+contractions, and the plan contracts it step by step. See
+[Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
+
 ## Contribution
 
 A `contribution` declaration that names a generic and holds methods for it. An
@@ -301,6 +341,13 @@ builds while it checks a program. Code generation for pure functions starts
 from the checked Core and checks it again. Storage operations are not part of
 Core. See
 [Verification boundaries](../verification.md#current-public-checker-routes).
+
+## Core syntax
+
+The spelling of the built-in types and operations of the geometric core, such
+as `Point<X, Base(QQ)>` and `origin(X)`. In a package with indexed
+declarations, an [export](#export) gives the core syntax its meaning. See
+[Core geometry syntax](../indexed-source.md#core-geometry-syntax).
 
 ## Cotangent pullback
 
@@ -367,6 +414,11 @@ such as an object of type `Scheme` or `CInfScheme`, which `Affine(QQ, n)` or
 `Affine(CInfReal, n)` builds. It records only its dimension. See
 [Implementations](../indexed-source.md#implementations) and
 [Geometric types](../language/geometric-types.md).
+
+## Destination
+
+Storage of the caller to which an operation writes its result. See
+[Destination passing, scratch and local mutation](../storage-ownership.md#destination-passing-scratch-and-local-mutation).
 
 ## Diagnostic
 
@@ -495,11 +547,17 @@ See [Literal expressions](../language/expressions.md#literal-expressions).
 
 ## Export
 
-The `[geometry_compat]` table of a manifest. It maps the syntax of the
-geometric core, such as `Point<X, Base(QQ)>` and `origin(X)`, to indexed
-declarations for a program in manifest mode. See
+The `[geometry_compat]` table of a manifest. It maps the
+[core syntax](#core-syntax), such as `Point<X, Base(QQ)>` and `origin(X)`, to
+indexed declarations for a program in manifest mode. See
 [Geometry compatibility exports](../packages.md#geometry-compatibility-exports)
 and [Core geometry syntax](../indexed-source.md#core-geometry-syntax).
+
+## Expression
+
+A construct that computes a value, such as a literal, a call, a block or an
+`if`. Evaluating an expression has no effects. See
+[Expressions](../language/expressions.md).
 
 ## Extent
 
@@ -572,6 +630,14 @@ source, resolves lexical scopes and sends a wire request to the kernel. The
 kernel trusts none of its names or annotations. See
 [Compiler architecture](../development/architecture.md).
 
+## Function
+
+An item that declares typed parameters, a result type and a body, with `fn`.
+A function has no effects: its result depends only on its arguments. Compare
+[generic](#generic), [lambda](#lambda) and
+[resource function](#resource-function). See
+[Functions](../language/functions.md).
+
 ## Function value
 
 A value of a type `Fn<A, R>`: a named function or a [lambda](#lambda).
@@ -621,6 +687,13 @@ evidence. See [Guarantees](../language/guarantees.md).
 
 A function with a function parameter or a function result. See
 [Specialization](../stage1b.md#specialization).
+
+## Identity
+
+What makes an object, a space, a basis or an allocation the one that it is,
+apart from every other. The checker tracks identities, and an identity never
+comes from structure. See [nominal identity](#nominal-identity) and
+[Geometric types](../language/geometric-types.md).
 
 ## Identity Gram data
 
@@ -754,6 +827,14 @@ says over which base object and with which coefficients, real or complex, its
 [spaces](#space) are. See
 [Linear implementations](../linalg/maps-and-gemm.md#linear-implementations).
 
+## Live
+
+An [owner](#owner) of storage or a [storage loan](#storage-loan) is live from
+the parameter or the statement that binds it to the statement that ends it:
+a `move`, a `drop` or a call that takes an owner, and the `release` of a
+loan. See
+[Resource functions](../storage/resource-programs.md#resource-functions).
+
 ## Logical evaluator
 
 The evaluator of a [registry entry](#registry-entry) that computes the value
@@ -799,8 +880,8 @@ declarations appear only in this mode. Compare [flat mode](#flat-mode). See
 ## Marker
 
 A coefficient marker, such as `QQ`. A package declares a marker with
-`indexed marker`, and the core geometry syntax spells the markers `QQ` and
-`CInfReal`. An implementation records its marker. A marker is not an object:
+`indexed marker`, and the [core syntax](#core-syntax) spells the markers
+`QQ` and `CInfReal`. An implementation records its marker. A marker is not an object:
 `QQ` and the [base object](#base-object) `Base(QQ)` differ. See
 [Markers](../indexed-source.md#markers) and the
 [guide](../guide/indexed-profile.md#a-marker-and-an-implementation).
@@ -832,10 +913,16 @@ result type and may require capabilities. See
 
 ## Metric
 
-A Hermitian form on a numerical [space](#space), declared with `metric` by
-its diagonal Gram matrix in a basis. A program names a metric wherever an
-adjoint or a Hermitian pairing needs one. Compare
-[metric form](#metric-form). See [Metrics](../linalg/transforms-and-metrics.md#metrics).
+The word has two meanings:
+
+1. A numerical metric is a Hermitian form on a numerical [space](#space),
+   declared with `metric` by its diagonal Gram matrix in a basis. A program
+   names a metric wherever an adjoint or a Hermitian pairing needs one. See
+   [Metrics](../linalg/transforms-and-metrics.md#metrics).
+2. A smooth metric is a metric of a
+   [smooth affine object](#smooth-affine-object), declared with
+   `indexed metric` at a [metric form](#metric-form) by a constant symmetric
+   Gram matrix. See [Metrics](../language/smooth-declarations.md#metrics).
 
 ## Metric form
 
@@ -862,6 +949,16 @@ block, or a **file module**, a file that `mod name;` loads. Each module has a
 Method `a` is more specific than method `b` when its selectors are no
 broader, its requirements are no weaker, and one of these comparisons is
 strict. See [Selection](../stage1a.md#selection).
+
+## Morphism
+
+A value of a type `Morphism<X, Y>`: a map from the object `X`, its
+[source](#source), to the object `Y`, its [target](#target). In an indexed
+profile it is a value of a family with the representation `morphism`. An
+`indexed morphism` declaration declares a [smooth map](#smooth-map) or a
+[morphism over a base](#morphism-over-a-base). See
+[Geometric types](../language/geometric-types.md) and
+[Families](../indexed-source.md#families).
 
 ## Morphism over a base
 
@@ -955,6 +1052,19 @@ whose entry point reaches a [product statement](#product-statement) links
 it, together with the OpenBLAS library. See
 [What `check` and `build` start](../guide/cli.md#what-check-and-build-start).
 
+## Object
+
+A value on which points lie and between which morphisms run. In the geometric
+core an object is an affine space of a fixed dimension over a coefficient
+marker, a value of the type `Scheme` or `CInfScheme`. In an indexed profile
+an object is a value of an [object type](#object-type). Every object has
+[nominal identity](#nominal-identity). Compare
+[descriptor object](#descriptor-object), [global object](#global-object),
+[presented affine object](#presented-affine-object) and
+[smooth affine object](#smooth-affine-object). See
+[Geometric types](../language/geometric-types.md) and
+[Object types](../indexed-source.md#object-types).
+
 ## Object type
 
 A type `Object<D, K>`, where `D` names a classification or an implementation
@@ -1038,6 +1148,15 @@ The packages that a root manifest reaches through its dependencies. The
 compiler checks every package of the graph. See
 [The package graph](../packages.md#the-package-graph).
 
+## Packing
+
+The copy of the cells of a view into another layout or into another grouping
+of the axes of a [tensor](#tensor). A packing step is explicit, as `pack3` is,
+and its target is storage that the program names. See
+[Views, transpose, conjugation and packing](../storage-ownership.md#views-transpose-conjugation-and-packing)
+and
+[Packing and contraction](../linalg/networks-and-packing.md#packing-and-contraction).
+
 ## Path
 
 A sequence of names separated by `::` that names a declaration, such as
@@ -1056,12 +1175,35 @@ binary64 value, or two for a complex cell; the compiler never rounds one. See
 The position that a [diagnostic](#diagnostic) or a [note](#note) names: a
 file, a line and a column. See [Places](../language/diagnostics.md#places).
 
+## Point
+
+The word has two meanings:
+
+1. In the geometric core and in an indexed profile, a point is a value of a
+   type `Point<X, S>`, or of a family with the representation `point`. It
+   lies on the object `X`, its [target](#target), and has values in the
+   [test object](#test-object) `S`. `point` is also the name of the second
+   field of `pack` and `unpack` in the [core syntax](#core-syntax). See
+   [Geometric types](../language/geometric-types.md).
+2. A point of a [smooth affine object](#smooth-affine-object) has one
+   rational coordinate for each coordinate of the object. Tangent and
+   cotangent fibers lie over such a point. See
+   [Smooth affine declarations](../language/smooth-declarations.md).
+
 ## Port
 
 An end of an [occurrence](#occurrence) that an edge may contract: the input
 or the output of a map in a network, or one axis of a tensor in a contraction
 tree. See [Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
+
+## Preflight
+
+The checks that an operation makes before its first write: shapes, endpoints,
+layouts, aliasing, initialization, the narrowing of sizes and the support of
+the backend, together with the allocation of its scratch. A failure in
+preflight preserves the output. See
+[Initialization, branches and failure](../storage-ownership.md#initialization-branches-and-failure).
 
 ## Presented affine object
 
@@ -1192,6 +1334,17 @@ check and then generates code. A theorem about a route holds for the
 requests that the kernel accepts through it. See
 [Current public checker routes](../verification.md#current-public-checker-routes).
 
+## Pullback
+
+The word has two meanings:
+
+1. `pullback(…)` defines a [smooth map](#smooth-map) or a
+   [morphism over a base](#morphism-over-a-base) by the image of each
+   coordinate of its target, a polynomial in the coordinates of its source.
+   See [Morphisms over a base](../affine-geometry.md#morphisms-over-a-base).
+2. The pullback of a covector along a smooth map is the
+   [cotangent pullback](#cotangent-pullback).
+
 ## Recipient
 
 The module that a grant, delegation or transfer names after `to`: the manifest
@@ -1269,12 +1422,24 @@ values. A saved site passes them, and the primal value, to its
 and the backward Core evaluates again the points that it reads. See
 [Reverse residual retention and mutation](../storage-ownership.md#residual-retention).
 
+## Resource diagnostic
+
+A diagnostic for a rule on resource functions or on numerical statements. It
+points to the statement that breaks the rule, and its notes name the calls
+that lead to the statement and the bindings of its operands. See
+[Diagnostics of resource programs](../storage/resource-programs.md#diagnostics).
+
 ## Resource function
 
 A function declared with `resource fn`. Its body is a sequence of resource
 statements followed by a pure `value { ... }` block. See
 [Resource functions](../storage/resource-programs.md#resource-functions) and
 the [guide](../guide/storage.md#resource-functions).
+
+## Resource program
+
+A program that declares a [resource function](#resource-function). See
+[Resource programs](../storage/resource-programs.md).
 
 ## Result
 
@@ -1355,6 +1520,13 @@ generated program. The driver compares the runtime inputs with the files of
 its own build before a native build. See
 [The native build](../internals/driver.md#the-native-build).
 
+## Runtime owner
+
+The storage [owner](#owner) of an allocation that `runtime_allocate` creates,
+whose size the program computes. Its loans are runtime loans. Every other
+owner and loan is static. See
+[Runtime extents](../storage/resource-programs.md#runtime-extents).
+
 ## Runtime reverse pass
 
 The verified routine of the smooth runtime that runs a reverse pass over a
@@ -1385,6 +1557,12 @@ is not a [smooth affine object](#smooth-affine-object). See
 [Geometric types](../language/geometric-types.md) and the
 [guide](../guide/indexed-geometry.md#objects-points-and-morphisms).
 
+## Scratch
+
+Storage that an operation uses for intermediate values, and that holds no
+value of the program after the operation. See
+[Destination passing, scratch and local mutation](../storage-ownership.md#destination-passing-scratch-and-local-mutation).
+
 ## Seal
 
 The `seal` [event](#event) of an assembly. Sealing a generic checks its final
@@ -1409,10 +1587,14 @@ The type that a method gives a parameter for dispatch: a concrete scalar type,
 
 ## Setting
 
-The kind of a core geometric object: `Scheme` for ordinary objects and
-`CInfScheme` for smooth ones. Each setting has one coefficient
-[marker](#marker). See [Scheme](#scheme) and
-[Settings and markers](../language/geometric-types.md#settings-and-markers).
+The kind of a geometric object: the ordinary setting or the smooth setting.
+The geometric core spells the two settings `Scheme` and `CInfScheme`, and
+each has one coefficient [marker](#marker). A
+[scalar base](#scalar-base) implementation spells them `scheme` and `smooth`.
+See [Scheme](#scheme),
+[Settings and markers](../language/geometric-types.md#settings-and-markers)
+and
+[Linear implementations](../linalg/maps-and-gemm.md#linear-implementations).
 
 ## Shared literal
 
@@ -1539,6 +1721,19 @@ names it as a dependency, by convention under the alias `std`, or names its
 arithmetic files with `--lib`. See the [guide](../guide/stdlib.md) and its
 [README](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md).
 
+## Statement
+
+The word has two meanings:
+
+1. A statement of a block is a `let` or an `unpack` statement. It binds
+   names for the rest of the block. See
+   [Statements](../language/statements.md).
+2. A resource statement is a statement of the body of a
+   [resource function](#resource-function), such as `allocate`, `borrow` or
+   `call`. The numerical statements, such as `gemm`, are resource statements
+   too. See
+   [Resource statements](../storage/resource-programs.md#resource-statements).
+
 ## Statement pin
 
 The recorded defining module and kind of a theorem or kernel definition that a
@@ -1546,6 +1741,13 @@ The recorded defining module and kind of a theorem or kernel definition that a
 statement fails the [specification resolver](#specification-resolver) until
 someone reviews the change and regenerates the pin. See
 [Statement pins](../specifications.md#statement-pins).
+
+## Static owner
+
+A storage [owner](#owner) whose allocation has a size that the source fixes:
+every owner that is no [runtime owner](#runtime-owner). Its loans are static
+loans. See
+[Runtime extents](../storage/resource-programs.md#runtime-extents).
 
 ## Static target
 
@@ -1658,6 +1860,14 @@ The dual, the conjugate or the adjoint of a
 [numerical map](#numerical-map), declared with `map`. It reads the cells of
 that map transposed or conjugated and copies nothing. See
 [Transformed maps](../linalg/transforms-and-metrics.md#transformed-maps).
+
+## Type
+
+What every expression, parameter and binding has, and what decides where a
+value may stand. The checker infers the types of expressions, and parameters
+and results declare theirs. See [Types](../language/types.md),
+[Geometric types](../language/geometric-types.md) and
+[Storage types](../storage/resource-programs.md#storage-types).
 
 ## Vector
 

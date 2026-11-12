@@ -148,10 +148,11 @@ one.
 When a rewrite splits a chapter, the rules go to the Reference chapter and
 the description of the compiler to a chapter under `internals/`. That chapter
 ends with a section "History", a heading of level one or two with exactly
-this title, which holds the issue links and the delivery record. A chapter
-under `internals/` that holds moved text keeps the wording of its source
-until its own rewrite; the checked rules apply to it, and the other rules of
-the style guide apply to the text that the rewrite changes. A change of
+this title, which holds the issue links and the delivery record. The
+chapters of the part "How the compiler is checked" that hold moved text keep
+the wording of their source. The [checked rules](#checked-rules) of the part
+apply to them, and the other rules of the style guide apply to the text that
+a change adds or rewrites. A change of
 source syntax that programs must follow goes under "Source migrations" in
 [Appendix E](../appendix/history.md).
 
@@ -164,8 +165,9 @@ Git retains the earlier revisions.
 
 These rules govern the text of every chapter. The archived delivery records,
 `stage1-completion.md` and the `stage*-acceptance.md` files, are exempt and keep
-their original wording. A chapter written before this guide adopts it in its
-next rewrite.
+their original wording. So do the chapters with moved text that
+[Author and retire a chapter](#author-and-retire-a-chapter) names, apart
+from the checked rules.
 
 ### Voice
 
@@ -249,6 +251,10 @@ next rewrite.
   wire-protocol numbers or theorem names.
 - Evidence ledgers and proof-boundary lists belong in the part "How the
   compiler is checked" and in the appendices. Other chapters link to them.
+  The Reference states a status in one place: the paragraph that begins "The
+  evidence:" at the end of each section of
+  [Guarantees](../language/guarantees.md). Such a paragraph is short. It
+  gives the status words and links the chapter that holds the detail.
 - The Vastitas Reference describes the language as it is. A section does not
   say which Stage or wire-protocol version introduced a construct.
 

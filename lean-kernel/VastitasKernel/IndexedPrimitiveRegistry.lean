@@ -302,10 +302,13 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
     { shape :=
         { operands := [], tail := some fun env => affineArity env object,
           result := .constant ⟨family, [.object (.global base), .object (.global object), .object (.global base)]⟩ }
+      -- The result type is fixed by the binding, so the declaration checks it (#737).
       validProp env := isRelativeFamily env family = true ∧ freeAffine env object = true ∧
-        pointBase env base = true
-      validBool env := isRelativeFamily env family && freeAffine env object && pointBase env base
-      valid_iff env := by simp [Bool.and_eq_true, and_assoc]
+        pointBase env base = true ∧
+        Application.Valid env ⟨family, [.object (.global base), .object (.global object), .object (.global base)]⟩
+      validBool env := isRelativeFamily env family && freeAffine env object && pointBase env base &&
+        validApplication env ⟨family, [.object (.global base), .object (.global object), .object (.global base)]⟩
+      valid_iff env := by simp [Bool.and_eq_true, validApplication_iff, and_assoc]
       eval := fun _ values => intPointValue values
       evalRuntime := intPointRuntime
       render := fun _ coordinates =>

@@ -40,6 +40,34 @@ fn rejected(source: &str, code: &str) -> String {
     common::expect_code(&result, code)
 }
 
+/// The result type of a call of `apply(M, P)` depends on its operands, so it
+/// stays a rule on calls (#737): the declaration is valid, and a call whose
+/// result `P<Y, S>` is not a type is `E_ENDPOINT`.
+#[test]
+fn an_apply_call_into_a_point_family_that_does_not_admit_the_target_is_rejected_at_the_call() {
+    let declarations = "indexed marker QQ;
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin);
+indexed implementation Plain(QQ, affine_descriptor) capabilities();
+indexed classification Scheme { parents(); domain(Grid); };
+indexed classification All { parents(); domain(Grid, Plain); };
+indexed global Base(Grid);
+indexed family Point(object(Scheme), object(Scheme)) = point constraints(same_base(0, 1));
+indexed family Mor(object(All), object(All)) = morphism constraints(same_base(0, 1));
+indexed primitive ap = apply(Mor, Point);
+fn main() -> Int { 0 }
+";
+    success(&check(&fixture(declarations)));
+    let call = format!(
+        "{declarations}fn f(X: Object<Grid, QQ>, Y: Object<Plain, QQ>, m: self::Mor<X, Y>, p: self::Point<X, Base>) -> Int {{ let q = ap(m, p); 0 }}\n"
+    );
+    let stderr = rejected(&call, "E_ENDPOINT");
+    assert!(
+        stderr.contains("main.vast:11:")
+            && stderr.contains("ap would produce Point<Y, Base>, which is not a valid type"),
+        "{stderr}"
+    );
+}
+
 #[test]
 fn declaration_package_and_static_fn_compile_to_native() {
     let adjacent = MAIN

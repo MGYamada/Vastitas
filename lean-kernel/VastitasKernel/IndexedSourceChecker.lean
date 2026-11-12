@@ -5,6 +5,7 @@ import VastitasKernel.IndexedTypeAudit
 import VastitasKernel.IndexedAlgebraSource
 import VastitasKernel.IndexedSmoothSource
 import VastitasKernel.IndexedMetricSource
+import VastitasKernel.IndexedDeclarationRules
 
 namespace VastitasKernel.Indexed.Source
 
@@ -380,13 +381,23 @@ def implementationRule (env : Environment) (entry : Entry) : Option String := do
     s!"but `{name}` {kindClause representation kind} and `{qualified other}` " ++
     s!"{kindClause otherRepresentation otherKind}"
 
+/-- How the source spells the binding of a primitive declaration. -/
+private def bindingSpelling : Option Body → String
+  | some (.primitive primitive) => primitive.op
+  | some (.morphism ..) => "morphism"
+  | some (.iso ..) => "iso"
+  | some (.cartesian ..) => "cartesian"
+  | _ => "primitive"
+
 /-- Presentation only: the diagnostic for declarations that
 `Core.validDeclarations` rejects. It is at the first declaration that fails
-its own check, and for an implementation its message is the rule that the
-declaration breaks. Acceptance is `Core.validDeclarations` alone. -/
+its own check, and its message is the rule that the declaration breaks, where
+`implementationRule` or `primitiveRule` finds one. Acceptance is
+`Core.validDeclarations` alone. -/
 def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
   let general := "invalid indexed declaration, package, or primitive contract"
-  let span (id : DeclId) : Span := ((p.owned.find? (·.1 == id)).map (·.2.span)).getD {}
+  let source (id : DeclId) : Option Declaration := (p.owned.find? (·.1 == id)).map (·.2)
+  let span (id : DeclId) : Span := ((source id).map (·.span)).getD {}
   let ranks := classRanks env.indexed
   match env.indexed.find? (fun entry => !validEntry env.indexed ranks entry) with
   | some entry =>
@@ -396,7 +407,10 @@ def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
     | some declaration => { code := "E_TYPE", message := general, span := span declaration.id }
     | none =>
       match env.primitives.find? (fun declaration => !validPrimitiveBinding env.indexed declaration.binding) with
-      | some declaration => { code := "E_TYPE", message := general, span := span declaration.id }
+      | some declaration =>
+        let op := bindingSpelling ((source declaration.id).map (·.body))
+        { code := "E_TYPE", span := span declaration.id,
+          message := (primitiveRule env.indexed declaration.id op declaration.binding).getD general }
       | none => { code := "E_TYPE", message := general }
 
 def checkDeclarations (p : Program) : Except Diagnostic (CheckedDeclarations p) := do

@@ -389,10 +389,19 @@ Rules:
 - In `relative_int_point(R, X, P)`, the relations of `X` must generate the
   zero ideal, and `P` must be such an object without coordinates. Otherwise
   it is an error (`E_TYPE`).
-- `P` must lie on the base chain of `X`. Otherwise each call of the primitive
-  is an error (`E_ENDPOINT`).
+- The result type `R<P, X, P>` of `relative_int_point(R, X, P)` must be an
+  indexed type by the rules of
+  [Indexed types of a family](indexed-source.md#indexed-types-of-a-family).
+  In particular, `P` must lie on the base chain of `X`. Otherwise the
+  declaration is an error (`E_TYPE`).
 - In `relative_pair(R, F)`, `F` must be a fiber product that is declared
   without `via`. Otherwise it is an error (`E_TYPE`).
+- The declaration does not check the result types of the calls of
+  `relative_view` and `relative_pair`. A call whose result type is not an
+  indexed type is an error (`E_ENDPOINT`), as
+  [Calls of primitives](indexed-source.md#calls-of-primitives) says. Such a
+  call has the result `R<X, Y, T>` or `R<T, F, B>`, and the parameter of `R`
+  at the position of `T` or `F` does not admit it.
 - The rules of [operand checks](#operand-checks) apply.
 
 > **Implementation note.** A generated program substitutes and reduces at

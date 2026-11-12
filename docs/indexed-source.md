@@ -669,8 +669,12 @@ Rules:
   `E_ENDPOINT` diagnostic names.
 - The result type of a call must be an indexed type by the rules of
   [Indexed types of a family](#indexed-types-of-a-family). Otherwise the call
-  is an error (`E_ENDPOINT`), even when the declaration of the primitive is
-  valid.
+  is an error (`E_ENDPOINT`). The declaration of the primitive does not check
+  the result types of its calls, so the error belongs to the call. Of the
+  bindings of this chapter, only `apply(M, P)` has such calls. A call with
+  the operands `f: M<X, Y>` and `p: P<X, S>` is an error when `P<Y, S>` is
+  not an indexed type, for example when the first parameter of `P` does not
+  admit `Y`.
 - A call of a name that is an indexed declaration and not a primitive is an
   error (`E_TYPE`). A declared map is the exception: a
   [smooth map](language/smooth-declarations.md#smooth-maps) or a

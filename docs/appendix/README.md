@@ -10,8 +10,8 @@ glossary. The guide and the Vastitas Reference link to them.
 - [B: Diagnostics reference](diagnostics.md) lists the diagnostic codes by the
   component that reports them.
 - [C: Reference models](reference-models.md) describes the independent Python
-  models. Each studies a proposed construct outside the compiler, and none is
-  a part of the language.
+  models. Each models a proposed construct or a component that the compiler
+  has, and none is a part of the compiler.
 - [D: Compiler limits](limits.md) lists every published bound and work budget.
 - [E: Historical roadmap and delivery records](history.md) holds the roadmap for
   Stages 2–7, the delivery and acceptance records of Stages 1 to 3, and the

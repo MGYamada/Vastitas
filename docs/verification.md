@@ -1018,6 +1018,11 @@ function-space differentiation, Lean soundness and the actual returned-Core
 connection remain separate obligations. No implicit metric or gradient,
 AD engine, integral-enclosure verifier or variational compiler feature is added.
 
+One oracle module holds theorems beside a reference model.
+[Finite pointwise Hodge reference](#finite-pointwise-hodge-reference) states
+the theorems of `VastitasOracle.HodgeFinite`, which are about no construct of
+the language.
+
 ### Source correspondence, evaluation order and native code
 
 This subsection states what the theorems do not cover. Its statements on
@@ -1333,7 +1338,7 @@ not count a synthesized Fn wrapper toward the 64-level declared-type limit.
 See [the indexing regression and measurement notes](internals/checking-pipeline.md#history).
 
 Run the axiom audit of every kernel and oracle module with the build sequence in
-[Validate the compiler and proofs](development/validation.md); it needs every
+[Run compiler, proof and native checks](development/validation.md); it needs every
 kernel library root, executable and regression module built first.
 
 `python3 scripts/benchmark_lowering.py` measures parameterized call chains. On
@@ -1474,7 +1479,7 @@ The existing executable regressions exercise the hypotheses of the composition:
 | `tests/edit_borrowing.rs` | Raw protocol-5 authority/target/stale-input mutations, unreturned loans, final footprints and unused/losing bodies exercise the actual source/IR route. These are executable regressions, not proofs of snapshot authenticity or full source correspondence. |
 
 Run the existing suites and the proof-index regressions with the audit
-sequence in [Validate the compiler and proofs](development/validation.md), then:
+sequence in [Run compiler, proof and native checks](development/validation.md), then:
 
 ```sh
 (cd lean && lake env lean -DwarningAsError=true ../scripts/check_edit_acceptance.lean)
@@ -1515,6 +1520,32 @@ have executable rejection regressions. SOS1–SOS4 and Core1–Core3 are **pendi
 Lean soundness and actual-returned-Core obligations. This Python-only experiment
 does not extend any public acceptance theorem or complete the issues that
 [History](#history) names.
+
+### Finite pointwise Hodge reference
+
+The seven theorems of `VastitasOracle.HodgeFinite` are about definitions of
+that oracle module. They are not about the compiler, and no route of the
+kernel reads the module.
+
+The module defines the star on basis forms with integer coefficients, for
+oriented Euclidean three-space and for Minkowski four-space with the
+signature (−, +, +, +). `euclidean3_defining_basis` and
+`lorentz4_defining_basis` state the defining identity of the star, the wedge
+of a form with the star of a form equals their pairing, on every pair of
+basis forms: 1-forms in rank three and 2-forms in rank four.
+`euclidean3_square_basis` states that the star twice is the identity on the
+basis 1-forms of rank three, and `lorentz4_square_basis` that it is minus
+the identity on the basis 2-forms of rank four.
+`euclidean3_reversed_square_basis` states the square law for the reversed
+orientation. `lorentz4_tdx_sign` and `reject_euclidean_twoform_sign` fix one
+sign of the Minkowski star and exclude the Euclidean sign. Each proof is a
+kernel reduction (`decide +kernel`).
+
+These theorems state nothing about forms with other coefficients, about a
+smooth or scheme-theoretic Hodge operator, about a source construct or
+about native code. The
+[Hodge reference](reference/geometry.md#hodge-reference) describes the
+Python model, which is a separate program.
 
 ## Edit authority acceptance (protocol 6)
 

@@ -121,7 +121,7 @@ regressions exercise stage acceptance, wrong signatures, an absent function
 and an invalid unused branch; these tests do not provide proof authority.
 
 Relevant checks: the kernel, oracle and audit sequence in
-[Validate the compiler and proofs](../development/validation.md), and
+[Run compiler, proof and native checks](../development/validation.md), and
 `python3 scripts/check_boundaries.py`.
 
 ### Remaining obligations
@@ -308,7 +308,7 @@ python3 scripts/demo_graph_reference.py
 ```
 
 Then run the kernel, oracle and audit sequence in
-[Validate the compiler and proofs](../development/validation.md).
+[Run compiler, proof and native checks](../development/validation.md).
 
 Existing CI discovers the Python tests, runs `GraphRegression` through the
 kernel regression script, and builds/audits `VastitasOracle.Graph` through the

@@ -15,96 +15,9 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Chapters written by the style guide (docs/development/documentation.md#style-guide).
-# The title and style checks apply to them. The last step of the book rewrite
-# applies both checks to every chapter and removes this list.
-CONVERTED = frozenset({
-    "README.md",
-    "guide/getting-started.md",
-    "guide/installation.md",
-    "guide/hello-vastitas.md",
-    "guide/creating-a-package.md",
-    "guide/stdlib.md",
-    "guide/values-and-functions.md",
-    "guide/control-flow-and-pairs.md",
-    "guide/dispatch.md",
-    "guide/abstract-types.md",
-    "guide/function-values.md",
-    "guide/modules-and-authority.md",
-    "guide/edit-authority.md",
-    "guide/indexed-geometry.md",
-    "guide/indexed-profile.md",
-    "guide/affine-geometry.md",
-    "guide/smooth-geometry.md",
-    "guide/storage.md",
-    "guide/numerical.md",
-    "guide/diagnostics-and-cli.md",
-    "language/notation.md",
-    "language/lexical-structure.md",
-    "language/programs.md",
-    "language/items.md",
-    "language/functions.md",
-    "language/statements.md",
-    "language/expressions.md",
-    "language/types.md",
-    "language/geometric-types.md",
-    "language/diagnostics.md",
-    "language/limits.md",
-    "language/guarantees.md",
-    "language/names-and-paths.md",
-    "language/modules.md",
-    "packages.md",
-    "language/edit-authority.md",
-    "indexed-source.md",
-    "stage1a.md",
-    "stage1b.md",
-    "development/architecture.md",
-    "internals/driver.md",
-    "internals/checking-pipeline.md",
-    "internals/indexed-checker.md",
-    "storage-ownership.md",
-    "storage/resource-programs.md",
-    "internals/resource-checking.md",
-    "storage/checked-storage.md",
-    "protocol.md",
-    "linalg/maps-and-gemm.md",
-    "linalg/transforms-and-metrics.md",
-    "linalg/networks-and-packing.md",
-    "internals/numerical-backend.md",
-    "affine-geometry.md",
-    "language/smooth-declarations.md",
-    "specifications.md",
-    "spec/std-differential.md",
-    "spec/reverse-core.md",
-    "spec/std-geometry-metric.md",
-    "spec/metric-evidence.md",
-    "spec/std-arithmetic-generic.md",
-    "spec/assumptions.md",
-    "verification.md",
-    "verification/core-models.md",
-    "daleckii-krein.md",
-    "development/documentation.md",
-    "development/primitives.md",
-    "appendix/glossary.md",
-    "appendix/README.md",
-    "appendix/reference-models.md",
-    "reference/compiler-tools.md",
-    "reference/analysis-and-effects.md",
-    "reference/geometry.md",
-    "reference/algebra-and-symmetry.md",
-    "reference/execution-plans.md",
-    "appendix/history.md",
-    "guide/historical-roadmap.md",
-    "appendix/contributing.md",
-    "development/validation.md",
-    "adr/0001-mathematics-first-stdlib.md",
-    "appendix/grammar.md",
-    "guide/cli.md",
-    "appendix/diagnostics.md",
-    "appendix/limits.md",
-})
-
-# Delivery records keep their original wording, as the style guide says.
+# The title and style checks apply to every chapter of SUMMARY.md apart from the
+# delivery records, which keep their original wording, as the style guide
+# (docs/development/documentation.md#style-guide) says.
 ARCHIVED = frozenset({
     "stage1-completion.md",
     "stage1-acceptance.md",
@@ -192,15 +105,17 @@ def expected_title(chapter):
     return chapter.title
 
 
-def check_titles(source, chapters, converted=CONVERTED):
+def check_titles(source, chapters, archived=ARCHIVED):
     listed = {chapter.path for chapter in chapters}
-    stale = sorted(converted - listed)
+    stale = sorted(archived - listed)
     if stale:
-        raise ValueError(f"converted chapters absent from SUMMARY.md: {stale}")
+        raise ValueError(f"archived chapters absent from SUMMARY.md: {stale}")
     errors = []
+    checked = 0
     for chapter in chapters:
-        if chapter.path not in converted:
+        if chapter.path in archived:
             continue
+        checked += 1
         lines = [line for line in (source / chapter.path).read_text(encoding="utf-8").splitlines() if line.strip()]
         title = f"# {expected_title(chapter)}"
         if not lines or lines[0] != title:
@@ -208,7 +123,7 @@ def check_titles(source, chapters, converted=CONVERTED):
             errors.append(f"{chapter.path}: the first line must be {title!r}, found {found!r}")
     if errors:
         raise ValueError("chapter titles differ from SUMMARY.md:\n  " + "\n  ".join(errors))
-    print(f"Checked the titles of {len(converted)} converted chapters against SUMMARY.md")
+    print(f"Checked the titles of {checked} chapters against SUMMARY.md")
 
 
 # --- Style ----------------------------------------------------------------------
@@ -302,14 +217,16 @@ def style_errors(path, text, part):
     return errors
 
 
-def check_style(source, chapters, converted=CONVERTED):
+def check_style(source, chapters, archived=ARCHIVED):
     errors = []
+    checked = 0
     for chapter in chapters:
-        if chapter.path in converted and chapter.path not in ARCHIVED:
+        if chapter.path not in archived:
+            checked += 1
             errors += style_errors(chapter.path, (source / chapter.path).read_text(encoding="utf-8"), chapter.part)
     if errors:
         raise ValueError("style guide violations:\n  " + "\n  ".join(errors))
-    print(f"Checked the style of {len(converted - ARCHIVED)} converted chapters by part")
+    print(f"Checked the style of {checked} chapters by part")
 
 
 # --- Includes -------------------------------------------------------------------

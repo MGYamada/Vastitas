@@ -1,12 +1,12 @@
 # The standard library
 
-<a id="packages-and-manifests"></a>The [*standard library*](../appendix/glossary.md#standard-library) is the
+The [*standard library*](../appendix/glossary.md#standard-library) is the
 package in the directory
 [`stdlib`](https://github.com/MGYamada/Vastitas/tree/main/stdlib) of the
 repository. It is written in Vastitas, and the compiler checks it like every
 other package. No program receives it automatically: a program names the
 library as a dependency, or names its files on the command line.
-<a id="a-manifest"></a>[Creating a package](creating-a-package.md) explains
+[Creating a package](creating-a-package.md) explains
 manifests and dependencies.
 
 ## What the library holds

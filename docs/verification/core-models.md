@@ -1,7 +1,5 @@
 # Pure evaluation and graph proofs
 
-<a id="pure-evaluation-and-graph-checker-proofs"></a>
-
 The pure evaluator and the finite crossing-word checker have separate inputs and theorems. Each section identifies the definitions used by its proofs and the remaining correspondence obligations. Neither checker is a [public checker route](../appendix/glossary.md#public-checker-route): no command reaches it, as [Verification boundaries](../verification.md#how-to-read-this-chapter) explains. The theorems of both sections are Proved (oracle).
 
 <a id="universe-totality"></a>

@@ -265,7 +265,7 @@ states with `indexed iso` that they are inverse to each other.
 > agreement with the maps to the base, and both composites of an
 > `indexed iso` or an `indexed cartesian` declaration. The compiler rejects
 > a check that grows too large with `E_LIMIT`, and it accepts nothing
-> unchecked. The [proofs](../verification.md#presented-affine-geometry) cover
+> unchecked. The [proofs](../verification.md#exact-affine-algebra-checker) cover
 > what an accepted declaration means. Two polynomials that the compiler
 > finds equal are the same function. A declared fiber product has the
 > universal property of a fiber product, and a declared open subset is the
@@ -296,5 +296,5 @@ states with `indexed iso` that they are inverse to each other.
   checks and the errors of a call.
 - [The geometry library](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/README.md):
   the module `std::geometry::scheme::affine`.
-- [Presented affine geometry](../verification.md#presented-affine-geometry)
+- [Presented affine geometry](../verification.md#exact-affine-algebra-checker)
   in the verification boundaries: what is proved and what is tested.

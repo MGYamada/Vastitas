@@ -30,5 +30,5 @@ runnable = false
 "/stage0.html#surface-language" = "language/functions.html"
 "/stage0.html#scalars" = "language/types.html#scalar-types"
 "/stage0.html#geometric-core" = "language/geometric-types.html"
-"/stage0.html#compiler-behavior-and-limits" = "appendix/limits.html#parser-and-checker-budgets"
+"/stage0.html#compiler-behavior-and-limits" = "appendix/limits.html"
 "/stage0.html#source-libraries" = "language/programs.html#flat-mode"

@@ -531,22 +531,3 @@ Rules:
 
 > **Implementation note.** Execution is synchronous on one CPU. No
 > asynchronous or device profile is implemented.
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="71-fast-like-c-the-primary-design-goal"></a>7.1: [Fast like C](#fast-like-c).
-- <a id="72-four-distinct-identities-and-rights"></a>7.2: [Identities and rights](#identities-and-rights).
-- <a id="73-allocation-and-layout-records"></a>7.3: [Allocation and layout records](#allocation-and-layout-records).
-- <a id="74-regions-overlap-and-alias-evidence"></a>7.4: [Regions, overlap and alias evidence](#regions-overlap-and-alias-evidence).
-- <a id="75-affine-ownership-and-explicit-transitions"></a>7.5: [Ownership and explicit transitions](#ownership-and-explicit-transitions).
-- <a id="76-initialization-branches-and-failure"></a>7.6: [Initialization, branches and failure](#initialization-branches-and-failure).
-- <a id="77-views-transpose-conjugation-and-packing"></a>7.7: [Views, transpose, conjugation and packing](#views-transpose-conjugation-and-packing).
-- <a id="78-destination-passing-scratch-and-local-mutation"></a>7.8: [Destination passing, scratch and local mutation](#destination-passing-scratch-and-local-mutation).
-- <a id="79-the-first-gemm-contract"></a>7.9: [The GEMM contract](#the-gemm-contract).
-- <a id="710-reverse-residual-retention-and-mutation"></a>7.10: [Residual retention](#residual-retention).
-- <a id="711-tensor-ports-and-execution-scheduling"></a>7.11: [Tensor ports and execution scheduling](#tensor-ports-and-execution-scheduling).
-- <a id="712-independent-checking-and-proof-boundary"></a>7.12: [Independent checking](internals/resource-checking.md#independent-checking-and-proof-boundary).
-- <a id="713-performance-evidence-and-acceptance"></a>7.13: [Performance evidence and acceptance](#performance-evidence-and-acceptance).
-- <a id="714-delivery-and-regression-obligations"></a>7.14: [Delivery obligations](internals/resource-checking.md#delivery-and-regression-obligations).

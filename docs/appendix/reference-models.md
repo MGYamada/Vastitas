@@ -11,7 +11,7 @@ two things:
   appendix describe these models, and
   [the table below](#the-models-and-the-compiler) lists them;
 - a component that the compiler has.
-  [Models of components of the compiler](#models-described-in-other-chapters)
+  [Models of components of the compiler](#models-of-components-of-the-compiler)
   lists these models. A kernel regression uses two of them as an oracle.
 
 A reference model is not a part of the compiler. The compiler does not run
@@ -43,8 +43,6 @@ native compiler jobs run it after their build.
 | [Exact geometry reference models](../reference/geometry.md) | [Real-plane metrics](../reference/geometry.md#metric-reference) · [Polynomial symplectic maps](../reference/geometry.md#symplectic-reference) · [First variations](../reference/geometry.md#variational-reference) · [Finite Čech covers](../reference/geometry.md#cech-reference) · [SSH Bloch and Fermi schemes](../reference/geometry.md#ssh-toric-reference) · [Elliptic addition](../reference/geometry.md#elliptic-reference) · [Pointwise Hodge star](../reference/geometry.md#hodge-reference) | Implemented: constant rational [metrics](../language/smooth-declarations.md#metrics) with evidence, `flat` and `sharp` on smooth affine objects, and [presented affine objects](../affine-geometry.md) over the rational numbers with their principal opens. Tested: the smooth runtime of the kernel against a fixture of the metric model. Proved: seven theorems on the Hodge star of basis vectors in the proof oracle. The coordinate changes of the metric model and the other six models are models only |
 | [Algebra, order and symmetry reference models](../reference/algebra-and-symmetry.md) | [CAR and ordinary spin](../reference/algebra-and-symmetry.md#car-spin-reference) · [Orders, lattices and Galois connections](../reference/algebra-and-symmetry.md#order-reference) · [Time reversal](../reference/algebra-and-symmetry.md#time-reversal-reference) · [Finite spectral pairs](../reference/algebra-and-symmetry.md#finite-spectral-reference) | Implemented: the capability `HasOrder` of the scalar types `Nat` and `Int`, which [Generics and dispatch](../stage1a.md) specifies. The four models are models only |
 | [Execution and planning reference models](../reference/execution-plans.md) | [CUDA storage reuse](../reference/execution-plans.md#cuda-reuse-reference) · [CSR patterns and SpGEMM](../reference/execution-plans.md#sparse-reference) · [Reduction plans](../reference/execution-plans.md#reduction-reference) · [Float and SafeFloat](../reference/execution-plans.md#float-reference) · [Dependency invalidation](../reference/execution-plans.md#incremental-reference) | Implemented: [storage](../storage-ownership.md) on the host, dense [numerical maps](../linalg/maps-and-gemm.md) with their matrix products, and the [contraction trees](../linalg/networks-and-packing.md#contraction-trees) that a program declares. The five models are models only |
-
-<a id="models-described-in-other-chapters"></a>
 
 ## Models of components of the compiler
 

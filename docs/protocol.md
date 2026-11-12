@@ -621,7 +621,7 @@ imports `VastitasKernel.IndexedRuntime` alone. Scalar types map to Lean `Nat`, `
 `Unit`; geometric objects, indexed points/morphisms and existential payloads use
 the common runtime representations. Nominal typing is established before erasure.
 The old runtime remains for retained legacy evaluation proofs.
-The [finite migration acceptance map](internals/indexed-checker.md#geometry-migration) records checked
+The [finite migration acceptance map](internals/indexed-checker.md#finite-geometry-migration-acceptance) records checked
 primitive result compatibility, source regressions and the limits of the
 source/native proof claims. The compatibility adapter is not an additional wire
 version or a privileged semantic checker.

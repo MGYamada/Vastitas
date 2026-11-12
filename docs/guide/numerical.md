@@ -201,7 +201,7 @@ of both bases and of the parameter.
 
 ## Duals, conjugates and adjoints
 
-<a id="duals-conjugates-adjoints-and-metrics"></a>A product never transposes or conjugates a matrix. A program that needs the
+A product never transposes or conjugates a matrix. A program that needs the
 transpose or the conjugate transpose declares the map that has this matrix.
 Such a map lies between other spaces, and the program declares them too.
 [`examples/packages/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/linear-transforms)

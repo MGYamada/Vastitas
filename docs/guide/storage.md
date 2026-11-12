@@ -102,7 +102,7 @@ the view are initialized, and so does the result.
 
 ## Calling resource functions
 
-<a id="the-statements"></a>The package `app` imports the three functions. Its entry point is a resource
+The package `app` imports the three functions. Its entry point is a resource
 function `main` without parameters:
 
 ```vast
@@ -210,7 +210,7 @@ states these rules.
 
 ## Payloads
 
-<a id="exact-floating-point-payloads"></a>A [*payload*](../appendix/glossary.md#payload) is the value of one cell.
+A [*payload*](../appendix/glossary.md#payload) is the value of one cell.
 `f64(x)` denotes the binary64 number `x`, and `complex(x, y)` the complex
 number with the real part `x` and the imaginary part `y`, for a cell of
 `Complex<F64>`. The number is a decimal or a hexadecimal literal:
@@ -269,7 +269,7 @@ this chapter build and run the program with the manifest
 
 ## Sizes that the program computes
 
-<a id="runtime-shapes"></a>The statements above fix every size in the source. The statements with the
+The statements above fix every size in the source. The statements with the
 prefix `runtime_` take their sizes from scalars. Such a size is an
 [*extent*](../appendix/glossary.md#extent): a literal, or a `Nat` or `Int`
 binding. This function of

@@ -574,19 +574,3 @@ search has a bound. When the search finds no cell, the diagnostic says so and
 names none. This does not show that a cell is uninitialized. The checker also
 rejects a view whose cells are all written when it does not join the writes,
 as the rules of [Resource statements](#resource-statements) state.
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="resource-source"></a><a id="package-resource-functions-protocol-8"></a>Package resource functions: [Resource functions](#resource-functions).
-- <a id="resource-source--explicit-source-contracts"></a><a id="explicit-source-contracts"></a>Explicit source contracts: [Storage types](#storage-types), [Resource statements](#resource-statements) and [Payloads](#payloads).
-- <a id="pure-values-and-executable-boundaries"></a>Pure values and executable boundaries: [Scalar values and calls](#scalar-values-and-calls) and [Running a resource program](#running-a-resource-program).
-- <a id="resource-diagnostics"></a>Resource diagnostics: [Diagnostics](#diagnostics).
-- <a id="evidence-and-remaining-work"></a>Evidence and remaining work: [Resource checking](../internals/resource-checking.md#evidence-and-remaining-work).
-- <a id="runtime-shapes"></a><a id="runtime-extents-and-caller-owned-maps"></a>Runtime extents and caller-owned maps: [Runtime extents](#runtime-extents).
-- <a id="public-interface"></a>Public interface: [Runtime maps](#runtime-maps).
-- <a id="exact-frame-and-guard-contract"></a>Frame and guard contract: [Resource checking](../internals/resource-checking.md#runtime-extent-frames-and-guards).
-- <a id="proof-boundary"></a>Proof boundary: [Resource checking](../internals/resource-checking.md#runtime-extent-proof-boundary).
-- <a id="execution-costs-and-limits"></a>Execution costs and limits: [Resource checking](../internals/resource-checking.md#execution-costs-and-limits).
-- <a id="validation"></a>Validation: [Resource checking](../internals/resource-checking.md#validation).

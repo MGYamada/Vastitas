@@ -133,24 +133,3 @@ Rules:
 > checks every export itself. It trusts no owner, capability or validity claim
 > from the manifest. The request that the kernel receives holds no position
 > in a manifest, so the kernel names the manifest in the message.
-
-## Moved sections
-
-The sections of this chapter on modules, paths, visibility and edit authority
-are separate chapters. These anchors keep older links working.
-
-- <a id="manifest-and-commands"></a>Manifest and commands: [Manifests](#manifests) and [Commands](#commands).
-- <a id="modules-and-paths"></a>Modules and paths: [Modules](language/modules.md) and [Names and paths](language/names-and-paths.md).
-- <a id="visibility-and-ownership"></a>Visibility and ownership: [Visibility](language/names-and-paths.md#visibility) and [Owners](language/edit-authority.md#owners).
-- <a id="validation-and-boundary"></a>Validation and boundary: [Package namespace acceptance](verification.md#package-namespace-acceptance).
-- <a id="finite-abstract-declarations"></a>Finite abstract declarations: [Abstract types](stage1a.md#abstract-types).
-- <a id="explicit-edit-authority"></a><a id="edit-borrowing"></a><a id="scoped-edit-borrowing-and-validated-assemblies"></a>Edit borrowing: [Edit authority](language/edit-authority.md).
-- <a id="source-declarations"></a>Source declarations: [Grants and delegations](language/edit-authority.md#grants-and-delegations), [Contributions](language/edit-authority.md#contributions) and [Assemblies](language/edit-authority.md#assemblies).
-- <a id="edit-borrowing--migrating-recipients-for-v010"></a><a id="migrating-recipients-for-v010"></a>Migrating recipients: [Source migrations](appendix/history.md#source-migrations).
-- <a id="state-and-completion"></a>State and completion: [Assemblies](language/edit-authority.md#assemblies) and [Sealing](language/edit-authority.md#sealing).
-- <a id="wire-extension"></a>Wire extension: [Scoped edits and assembly](protocol.md#protocol-5-scoped-edits-and-assembly).
-- <a id="edit-authority"></a><a id="nested-edit-loans-and-permanent-authority-transfer"></a>Nested loans and transfer: [Edit authority](language/edit-authority.md).
-- <a id="explicit-delegation"></a>Explicit delegation: [Grants and delegations](language/edit-authority.md#grants-and-delegations).
-- <a id="permanent-transfer"></a>Permanent transfer: [Transfers](language/edit-authority.md#transfers).
-- <a id="completion-provenance-and-proof-boundary"></a>Completion, provenance and proof boundary: [Sealing](language/edit-authority.md#sealing) and [Edit authority acceptance](verification.md#edit-authority-acceptance-protocol-6).
-- <a id="indexed-geometry-compatibility-exports"></a>Indexed geometry compatibility exports: [Geometry compatibility exports](#geometry-compatibility-exports).

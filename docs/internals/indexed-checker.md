@@ -18,14 +18,14 @@ function values that this checker composes, and
 Protocol 7 adds package-only indexed declarations and typed existential payloads.
 Rust serializes unresolved references; Lean composes declaration validation,
 actual edit-authority assembly, finite dispatch, independent Fn specialization
-and both Core audits on that same input. See [the foundation](#indexed-declarations)
+and both Core audits on that same input. See [the foundation](#indexed-declaration-foundation)
 for the internal contracts and [protocol](../protocol.md) for the wire format.
 
 The [geometry stdlib](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/README.md) exposes `std::geometry::scheme`
 and `std::geometry::smooth` through `stdlib`, declaring the finite ordinary/smooth
 affine profile through this path. An explicit checked `geometry_compat` library
 export maps legacy syntax to those same declarations. The
-[migration acceptance map](#geometry-migration) separates
+[migration acceptance map](#finite-geometry-migration-acceptance) separates
 finite compatibility from broader source/native proof limits. Protocols 2–6
 and explicit `--lib` retain their existing geometry syntax and wire formats.
 `Indexed.LegacySource` adapts their decoded source into this same common checker
@@ -65,7 +65,7 @@ Profile resolution has no generated runtime operation. The returned Core has
 typed total evaluation and finite primitive result compatibility; full source
 operational correspondence, native equivalence and C performance measurements
 are separate unproved or unmeasured claims. Protocols 2–6 use the source adapter described in
-[indexed declarations](#indexed-declarations--compatibility-adapter-for-protocols-26).
+[indexed declarations](#compatibility-adapter-for-protocols-26).
 
 ## Composition and limits
 
@@ -104,8 +104,6 @@ prove whole-source rewriting correspondence, equality with the retained legacy
 evaluator or native code-generation correctness. None of these proofs establishes the [Fast like C](../storage-ownership.md)
 performance goal.
 
-<a id="indexed-declarations"></a>
-
 ## Indexed declaration foundation
 
 `VastitasKernel.Indexed` supplies the finite declaration environment and
@@ -116,7 +114,7 @@ exposes unresolved declarations and rich source bodies through the full authorit
 composition; see [source syntax](../indexed-source.md). The [geometry stdlib package](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/README.md)
 supplies the finite affine declarations and an explicit checked compatibility
 export for legacy syntax in protocol 7. Typed total evaluation covers the exact
-returned Core. [Migration acceptance](#geometry-migration) maps the migration issues to
+returned Core. [Migration acceptance](#finite-geometry-migration-acceptance) maps the migration issues to
 implementation, proofs and regressions, including finite primitive compatibility
 and the limits of the source/native guarantees.
 The compatibility adapter is described below.
@@ -474,7 +472,6 @@ unresolved namespace provenance. All public protocols use the common checker and
 native generator. Their exact returned Core is covered by `IndexedProgramSafety`;
 the migration acceptance map separates this from full source/native equivalence.
 
-
 ### Single-witness existential contracts
 
 `IndexedPackages.lean` gives package contracts one explicit object witness and
@@ -704,9 +701,7 @@ the independently validated profile in the function compiler, with distinct
 markers and matching origin/package roles. The program theorem supplies whole-term
 Core evaluation; `GeometryResults` connects declared primitive results to the
 retained finite runtime. Protocols 2–6 use the source adapter below. See the
-[acceptance map](#geometry-migration) for the full migration boundary.
-
-<a id="indexed-declarations--compatibility-adapter-for-protocols-26"></a>
+[acceptance map](#finite-geometry-migration-acceptance) for the full migration boundary.
 
 ### Compatibility adapter for protocols 2–6
 
@@ -816,7 +811,7 @@ The later checked-program theorem derives typed total evaluation and allocation
 freshness from the actual module audits, including dependent calls; see
 [the precise premises and remaining obligations](../verification.md#indexed-term-function-and-checked-program-evaluation).
 Full source operational correspondence and native refinement remain unproved.
-These primitive lemmas alone do not establish the [migration acceptance](#geometry-migration)
+These primitive lemmas alone do not establish the [migration acceptance](#finite-geometry-migration-acceptance)
 or assert storage safety, arbitrary geometry or floating-point properties.
 
 ### Existential payload preservation
@@ -859,8 +854,6 @@ native-toolchain refinement remain pending.
   ([#605](https://github.com/MGYamada/Vastitas/issues/605)) moved it here and
   put the rules of the language into the Reference chapter
   [Indexed declarations](../indexed-source.md).
-
-<a id="geometry-migration"></a>
 
 ### Finite geometry migration acceptance
 
@@ -956,7 +949,7 @@ arbitrary schemes, all points/maps, or smooth geometry.
 
 | Issue / obligation | Implementation, proof and regression evidence |
 | --- | --- |
-| #58 declarations, kinds, finite domains, versioned unresolved IR | [declaration audits](#indexed-declarations) and the [source reference](../indexed-source.md), `IndexedSource` and `IndexedSourceTypes`; `tests/indexed.rs`, `IndexedRegression`, `IndexedSourceRegression`, `IndexedSourceTypeRegression` cover missing/duplicate IDs, sorts/arity, marker metadata, inheritance and order. |
+| #58 declarations, kinds, finite domains, versioned unresolved IR | [declaration audits](#indexed-declaration-foundation) and the [source reference](../indexed-source.md), `IndexedSource` and `IndexedSourceTypes`; `tests/indexed.rs`, `IndexedRegression`, `IndexedSourceRegression`, `IndexedSourceTypeRegression` cover missing/duplicate IDs, sorts/arity, marker metadata, inheritance and order. |
 | #58/#63 no privileged library spelling | `tests/stdlib_geometry.rs`: `coherent_renaming_retains_contracts_without_privileged_geometry_names`, `legacy_profile_paths_can_be_coherently_renamed`, `missing_or_ambiguous_profiles_do_not_supply_legacy_meaning`; `tests/indexed.rs::nongeometric_indexed_family_uses_the_same_annotation_checker`. Renaming source, references and profile together preserves native results. |
 | #59 nominal identities, substitutions and package association | `IndexedCore`, `IndexedSubstitution`, `IndexedPackageSemantics`, `IndexedWorld`, `IndexedCallTransport`, `IndexedArgumentSafety`; `IndexedCoreRegression` rejects reused brands, forged call substitutions, global rewriting and erased index obligations; package regressions test wrong witnesses and repeated openings. |
 | #60 explicit primitives and trust | Registry table above, `IndexedPrimitiveRegression` and actual wire mutations in `tests/stdlib_geometry.rs`; unknown bindings, false roles/capabilities, purported owner/trusted fields and invalid constructors are rejected. No arbitrary evidence registration. |

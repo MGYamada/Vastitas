@@ -83,7 +83,7 @@ The program prints `42`.
 
 ## Paths
 
-<a id="paths-and-imports"></a>A path names a declaration through the modules that hold it. The package
+A path names a declaration through the modules that hold it. The package
 `module-paths` begins its paths in four ways:
 
 | Path | Written in | Begins at |
@@ -126,7 +126,7 @@ names one declaration, and there are no wildcard imports.
 
 ## Visibility
 
-<a id="visibility-and-ownership"></a>A declaration without `pub` is [*private*](../appendix/glossary.md#private):
+A declaration without `pub` is [*private*](../appendix/glossary.md#private):
 its own module and the modules below it see it. In `module-paths`, `scale` is
 private in `shapes`, and the child `shapes::area` calls it. `unit` is private
 in the root module, so every module of the package can name it as

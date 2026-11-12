@@ -230,8 +230,6 @@ family, which [Families](../indexed-source.md#families) requires; the limit
 bounds the integer that the frontend reads.
 [Indexed declarations](../indexed-source.md) states the rules.
 
-<a id="exact-affine-algebra-stage-2"></a>
-
 ## Exact affine algebra
 
 The kernel checks [presented affine declarations](../affine-geometry.md) by
@@ -496,12 +494,3 @@ rules, and
 describes the costs of an executable with runtime extents.
 [Appendix A](../guide/cli.md#output-of-the-tools) gives the bounds of the
 compiler on the output of the programs that it starts.
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="checker-limits"></a>Checker limits: [Functions](#functions), [Generics and abstract types](#generics-and-abstract-types), [Names](#names), [Edit authority](#edit-authority), [Inputs](#inputs) and [Limits that a source program does not reach](#limits-that-a-source-program-does-not-reach).
-- <a id="parser-and-checker-budgets"></a>Parser and checker budgets: [Source text](#source-text) and [Functions](#functions).
-- <a id="input-limits"></a>Input limits: [Inputs](#inputs).
-- <a id="other-documented-bounds"></a>Other documented bounds: [Indexed declarations](#indexed-declarations), [Resource functions](#resource-functions), [Numerical statements](#numerical-statements) and [Bounds that reject nothing](#bounds-that-reject-nothing).

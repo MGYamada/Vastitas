@@ -449,21 +449,3 @@ Rules:
 [Numerical backend](../internals/numerical-backend.md#transforms-vectors-and-metrics)
 describes the checking, the native execution and the evidence of these
 statements.
-
-## Moved sections
-
-These anchors keep older links working.
-
-- <a id="linear-transforms"></a><a id="typed-dual-conjugate-and-metric-adjoint-protocol-8"></a><a id="objects-involutions-and-bases"></a>Typed dual, conjugate and metric adjoint: [Dual and conjugate spaces](#dual-and-conjugate-spaces).
-- <a id="declared-hermitian-forms"></a>Declared Hermitian forms: [Metrics](#metrics).
-- <a id="map-operations-and-resources"></a>Map operations and resources: [Transformed maps](#transformed-maps).
-- <a id="dependent-function-contracts"></a>Dependent function contracts: [Parameter types](#parameter-types).
-- <a id="linear-transforms--wire-and-proof-boundary"></a><a id="wire-and-proof-boundary"></a>Wire and proof boundary: [Numerical backend](../internals/numerical-backend.md#wire-and-proof-boundary-of-transforms).
-- <a id="example-and-regression-evidence"></a>Example and regression evidence: [Numerical backend](../internals/numerical-backend.md#example-and-regression-evidence-of-transforms).
-- <a id="vector-evaluation"></a><a id="bilinear-vector-evaluation-and-explicit-hermitian-pairing"></a><a id="values-and-operations"></a>Vector evaluation: [Vectors](#vectors) and [Pairings](#pairings).
-- <a id="resources-calls-and-output"></a>Resources, calls and output: [Vectors](#vectors), [Pairings](#pairings) and [Parameter types](#parameter-types).
-- <a id="independent-checking-and-evidence"></a>Independent checking and evidence: [Numerical backend](../internals/numerical-backend.md#vector-evaluation).
-- <a id="diagonal-metrics"></a><a id="explicit-diagonal-metrics-protocol-8"></a>Explicit diagonal metrics: [Adjoints for diagonal metrics](#adjoints-for-diagonal-metrics) and [Pairings](#pairings).
-- <a id="realization-and-resource-contract"></a>Realization and resource contract: [Metrics](#metrics), [Pairings](#pairings) and [Numerical backend](../internals/numerical-backend.md#diagonal-metrics).
-- <a id="native-costs-and-failure-boundary"></a>Native costs and failure boundary: [Numerical backend](../internals/numerical-backend.md#native-costs-and-failure-boundary-of-diagonal-metrics).
-- <a id="checking-proofs-and-examples"></a>Checking, proofs and examples: [Numerical backend](../internals/numerical-backend.md#checking-proofs-and-examples-of-diagonal-metrics).

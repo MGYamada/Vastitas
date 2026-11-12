@@ -312,6 +312,13 @@ def check_mathematical_bridge(root, kernel_toolchain, errors):
         names = [p.get("name") for p in packages]
         if len(set(map(str, names))) != len(names):
             errors.append("lean-bridge manifest must not contain duplicate package names")
+        # Proof only (ADR 0001, section 9, condition 4): one library whose root
+        # is the module that Audit.lean imports, and no executable.
+        if "lean_exe" in config:
+            errors.append("lean-bridge must not declare an executable target (lean_exe)")
+        if config.get("lean_lib") != [{"name": "VastitasBridge"}]:
+            errors.append("lean-bridge must declare exactly the library VastitasBridge, "
+                          "with its default root")
     except (OSError, ValueError) as error:
         errors.append(f"lean-bridge: cannot check pinned dependencies: {error}")
     for source in bridge.rglob("*.lean"):
@@ -328,6 +335,46 @@ def check_mathematical_bridge(root, kernel_toolchain, errors):
                 "VastitasKernel", "VastitasOracle",  # one-way implementation correspondence
             }):
                 errors.append(f"{source.relative_to(root)}: forbidden import {name}")
+    check_bridge_closure(root, bridge, errors)
+
+
+def bridge_module_path(bridge, name):
+    """The source file of a VastitasBridge module, or None for another package."""
+    parts = [part[1:-1] if part.startswith("«") else part for part in _SEGMENTS.findall(name)]
+    if not parts or parts[0] != "VastitasBridge":
+        return None
+    return bridge.joinpath(*parts).with_suffix(".lean")
+
+
+def check_bridge_closure(root, bridge, errors):
+    """Every bridge source is in the import closure of the root module.
+
+    `Audit.lean` audits the declarations that `import VastitasBridge` reaches. A
+    source under `VastitasBridge/` that the root does not reach is neither built
+    nor audited, so a `sorry` in it would pass unseen.
+    """
+    start = bridge / "VastitasBridge.lean"
+    if not start.exists():
+        errors.append("lean-bridge: missing root module VastitasBridge.lean")
+        return
+    reached, pending = set(), [start]
+    while pending:
+        source = pending.pop()
+        if source in reached:
+            continue
+        reached.add(source)
+        try:
+            imports = lean_imports(source.read_text())
+        except (OSError, ValueError):
+            continue  # reported by the import check above
+        for name in imports:
+            path = bridge_module_path(bridge, name)
+            if path is not None and path.exists():
+                pending.append(path)
+    for source in sorted((bridge / "VastitasBridge").rglob("*.lean")):
+        if ".lake" not in source.parts and source not in reached:
+            errors.append(f"{source.relative_to(root)}: not imported by VastitasBridge.lean, "
+                          "so neither built nor audited")
 
 
 def check_executable_lake_dependencies(package, label, required, errors):

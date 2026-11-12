@@ -315,6 +315,14 @@ root module. At this date both hold. No check compares the statement of a
 theorem that only an acceptance record cites. Review keeps these three
 points.
 
+> **Update, 2026-11-13.** `scripts/check_boundaries.py` checks the first two
+> points ([#743](https://github.com/MGYamada/Vastitas/issues/743)): the
+> bridge declares one library, `VastitasBridge`, with its default root, and
+> no executable, and every file under `lean-bridge/VastitasBridge/` is in the
+> import closure of the root module. `Audit.lean` requires by name the
+> bridge theorems that the acceptance records cite. Review keeps the third
+> point: the statement of a theorem that only an acceptance record cites.
+
 At this date the bridge holds three groups of theorems, by directory:
 
 - `VastitasBridge.Analysis`: the Daleckii–Krein foundation, which is not

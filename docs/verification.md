@@ -230,14 +230,20 @@ correspondence below. The boundary checker additionally checks several things:
 - the bridge's toolchain;
 - its direct dependencies: the pinned Mathlib commit and exactly those two path packages;
 - its pinned Git manifest;
-- its imports: Mathlib, the bridge itself, the kernel and the Oracle.
+- its imports: Mathlib, the bridge itself, the kernel and the Oracle;
+- its targets: one library, `VastitasBridge`, with its default root, and no
+  executable;
+- its sources: every file under `lean-bridge/VastitasBridge/` is in the import
+  closure of the root module, so `Audit.lean` audits it.
 
 Its negative regressions cover bridge leakage into kernel/Oracle, unpinned or
-redirected dependencies, extra or redirected path packages and Lake overrides.
+redirected dependencies, extra or redirected path packages, Lake overrides, an
+executable or a second library, and a source outside the closure of the root.
 
 `.github/workflows/lean-bridge.yml` builds and checks this package independently,
 using only the Mathlib cache needed by its imports. `lean-bridge/Audit.lean`
-requires the principal theorem names to exist and audits the transitive axiom
+requires the principal theorem names to exist, among them every bridge
+theorem that an acceptance record names, and audits the transitive axiom
 dependencies of every declaration defined in a `VastitasBridge` module,
 selected by defining module so private names are included; only `propext`,
 `Classical.choice` and `Quot.sound` are allowed. Official `leanchecker` replays

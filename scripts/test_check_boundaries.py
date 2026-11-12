@@ -448,6 +448,9 @@ path = "../lean-kernel"
 [[require]]
 name = "vastitas_oracle"
 path = "../lean"
+
+[[lean_lib]]
+name = "VastitasBridge"
 ''')
         local = [{
             "type": "path", "scope": "", "name": name,
@@ -481,6 +484,7 @@ path = "../lean"
     def test_bridge_may_read_kernel_and_oracle_one_way(self):
         self.oracle_package()
         self.bridge_package()
+        self.write("lean-bridge/VastitasBridge.lean", "import Mathlib\nimport VastitasBridge.Kernel\n")
         self.write("lean-bridge/VastitasBridge/Kernel.lean",
                    "import VastitasKernel.AlgebraRuntime\nimport VastitasOracle.AlgebraBasis\n"
                    "import Mathlib\n")
@@ -573,6 +577,41 @@ path = "../lean"
                 self.assert_boundary_error("lean-bridge")
         path.unlink()
         self.assert_boundary_error("lean-bridge: cannot check pinned dependencies")
+
+    def test_bridge_has_no_executable_and_one_library(self):
+        self.bridge_package()
+        self.assertEqual(check_boundaries(self.root), [])
+        path = self.root / "lean-bridge/lakefile.toml"
+        original = path.read_text()
+        for extra, message in [
+            ('\n[[lean_exe]]\nname = "audit"\nroot = "Audit"\n', "must not declare an executable target"),
+            ('\n[[lean_lib]]\nname = "Other"\n', "exactly the library VastitasBridge"),
+        ]:
+            with self.subTest(extra=extra):
+                path.write_text(original + extra)
+                self.assert_boundary_error(message)
+        for library in ['name = "VastitasBridge"\nroots = ["Other"]\n',
+                        'name = "VastitasBridge"\nglobs = ["VastitasBridge.+"]\n',
+                        'name = "Other"\n']:
+            with self.subTest(library=library):
+                path.write_text(original.replace('name = "VastitasBridge"\n', library))
+                self.assert_boundary_error("exactly the library VastitasBridge")
+        path.write_text(original)
+        self.assertEqual(check_boundaries(self.root), [])
+
+    def test_every_bridge_source_is_in_the_root_closure(self):
+        self.bridge_package()
+        self.write("lean-bridge/VastitasBridge.lean", "import Mathlib\nimport VastitasBridge.A\n")
+        self.write("lean-bridge/VastitasBridge/A.lean", "import VastitasBridge.B.C\n")
+        self.write("lean-bridge/VastitasBridge/B/C.lean", "import Mathlib\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-bridge/VastitasBridge/Loose.lean", "import Mathlib\ntheorem t : False := sorry\n")
+        self.assert_boundary_error(
+            "lean-bridge/VastitasBridge/Loose.lean: not imported by VastitasBridge.lean")
+        self.write("lean-bridge/VastitasBridge/B/C.lean", "import Mathlib\nimport VastitasBridge.Loose\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        (self.root / "lean-bridge/VastitasBridge.lean").unlink()
+        self.assert_boundary_error("missing root module VastitasBridge.lean")
 
 
 if __name__ == "__main__":

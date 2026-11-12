@@ -54,6 +54,7 @@
 # How the compiler is checked
 
 - [Compiler architecture](development/architecture.md)
+- [The driver](internals/driver.md)
 - [Checking pipeline](internals/checking-pipeline.md)
 - [The indexed checker](internals/indexed-checker.md)
 - [Resource checking](internals/resource-checking.md)

@@ -131,6 +131,13 @@ contracts. They are the axes of the result. See
 [Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
 
+## Build identity
+
+The digest of the files that the kernel executable is elaborated from, with
+the version of Lean. Every response of the kernel carries it, and the driver
+compares it with the identity of its own build. See
+[The build identity](../internals/driver.md#the-build-identity).
+
 ## Built-in function
 
 A function that the language defines: `int`, `pair`, `pair_first`,
@@ -235,6 +242,12 @@ The name of the kind of error that a [diagnostic](#diagnostic) reports, such
 as `E_TYPE`. The Reference specifies the code of each error that a rule
 states, and not the text of its message. See [Codes](../language/diagnostics.md#codes) and
 [Appendix B](diagnostics.md).
+
+## Code generator
+
+A function of the [kernel](#kernel) that writes the Lean source of a checked
+program. It checks its input again before it returns source. See
+[The three checker routes](../development/architecture.md#the-three-checker-routes).
 
 ## Compiled reverse Core
 
@@ -376,6 +389,12 @@ The word has two meanings:
    that implementation alone. See
    [Classifications](../indexed-source.md#classifications) and the
    [guide](../guide/indexed-profile.md#a-classification).
+
+## Driver
+
+The part of the [frontend](#frontend) that reads the command line and the
+input files, starts the kernel, shows the diagnostics, runs the native build
+and writes the output file. See [The driver](../internals/driver.md).
 
 ## Edit authority
 
@@ -667,6 +686,13 @@ the frontend. It resolves names, allocates identities, checks every body and
 generates code from the checked result. It depends on the Lean
 distribution only. See [Compiler architecture](../development/architecture.md).
 
+## Kernel root
+
+The directory of the Lake package of the [kernel](#kernel). The driver finds
+the kernel executable there, and a native build reads its
+[runtime inputs](#runtime-input) there. See
+[Starting the kernel](../internals/driver.md#starting-the-kernel).
+
 ## Key
 
 See [dispatch key](#dispatch-key).
@@ -832,6 +858,12 @@ The statement that the executable of a program computes the value of the
 program that the checker accepted. It is not proved: it rests on the Lean
 compiler and the C compiler, and tests exercise it. See
 [What acceptance means](../language/guarantees.md#what-acceptance-means).
+
+## Native runtime
+
+A library that a generated program links: the runtime modules of the kernel
+package, the storage runtime or the numerical runtime. See
+[Compiler architecture](../development/architecture.md#components).
 
 ## Network
 
@@ -1254,6 +1286,13 @@ The line that an executable writes to standard error when a
 [run-time check](#run-time-check) fails. See
 [Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics).
 
+## Runtime input
+
+A file that Lake reads from the [kernel root](#kernel-root) when it compiles a
+generated program. The driver compares the runtime inputs with the files of
+its own build before a native build. See
+[The native build](../internals/driver.md#the-native-build).
+
 ## Runtime reverse pass
 
 The verified routine of the smooth runtime that runs a reverse pass over a
@@ -1578,7 +1617,7 @@ in wire order. See
 
 The versioned JSON request that the frontend sends to the kernel, and the
 kernel's response. Each request carries a protocol version. See
-[Compiler protocols](../protocol.md).
+[Wire protocols 2–9](../protocol.md).
 
 ## Witness
 

@@ -84,7 +84,7 @@
     - [Algebra, order and symmetry reference models](reference/algebra-and-symmetry.md)
     - [Execution and planning reference models](reference/execution-plans.md)
   - [D: Compiler limits](appendix/limits.md)
-  - [E: Historical roadmap and Stage 1 records](appendix/history.md)
+  - [E: Historical roadmap and delivery records](appendix/history.md)
     - [Historical Stages 2–7](guide/historical-roadmap.md)
     - [Stage 1 delivery and performance handoff](stage1-completion.md)
     - [Finite-profile acceptance and evidence](stage1-acceptance.md)

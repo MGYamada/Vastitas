@@ -13,7 +13,7 @@ glossary. The guide and the Vastitas Reference link to them.
   models. Each studies a proposed construct outside the compiler, and none is
   a part of the language.
 - [D: Compiler limits](limits.md) lists every published bound and work budget.
-- [E: Historical roadmap and Stage 1 records](history.md) holds the roadmap for
+- [E: Historical roadmap and delivery records](history.md) holds the roadmap for
   Stages 2–7, the delivery and acceptance records of Stages 1 to 3, and the
   source migrations.
 - [F: Contributing and validation](contributing.md) lists the checks to run

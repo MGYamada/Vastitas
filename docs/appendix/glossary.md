@@ -1128,7 +1128,7 @@ descendants only. See [Visibility](../language/names-and-paths.md#visibility).
 ## Product statement
 
 A numerical statement that multiplies when the program runs: `gemm`,
-`runtime_gemm`, a pairing or a contraction. `vastitas build` needs the
+`runtime_gemm`, `evaluate`, a pairing or a contraction. `vastitas build` needs the
 OpenBLAS library for a program whose entry point reaches one. See
 [Building a numerical program](../linalg/maps-and-gemm.md#building-a-numerical-program).
 

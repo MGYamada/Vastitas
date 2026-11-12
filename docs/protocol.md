@@ -216,10 +216,15 @@ only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
 wire carries names, a declared dimension and polynomial expressions. It never
 carries a map, a program or an image in normal form. The kernel elaborates
 every map, and it checks the declared dimension against the coordinates and
-the generator limit. The [`E_SMOOTH` row](appendix/diagnostics.md#e-smooth) of
-the diagnostics reference lists the declaration errors. The
-[tangent or cotangent fiber row](appendix/diagnostics.md#e-smooth-fibers) lists
-the errors of the primitives on tangent or cotangent fibers and tapes. The frontend spelling
+the generator limit.
+[Smooth affine objects](language/smooth-declarations.md#smooth-affine-objects)
+and [Smooth maps](language/smooth-declarations.md#smooth-maps) give the errors
+of the declarations.
+[Fiber primitives](language/smooth-declarations.md#fiber-primitives) and
+[Reverse-pass primitives](language/smooth-declarations.md#reverse-pass-primitives)
+give the errors of the primitives on tangent or cotangent fibers and tapes.
+The [`E_SMOOTH` rows](appendix/diagnostics.md#e-smooth) of the diagnostics
+reference link these sections. The frontend spelling
 `Affine(K, n)[…]` has no record of its own: it produces the `kind: "affine"`
 record of `spec[…] over K`.
 
@@ -250,8 +255,12 @@ certificate and checks it again before acceptance. It copies the metric's object
 into each `flat` and `sharp`, and the declaration audit checks that each copy
 equals its declaration. The list of primitive operations has no `gradient`
 operation: a gradient is an ordinary function that applies `sharp` to a
-differential. The [`E_METRIC` row](appendix/diagnostics.md#e-metric) of the
-diagnostics reference lists the declaration errors.
+differential. [Metrics](language/smooth-declarations.md#metrics),
+[Metric evidence](language/smooth-declarations.md#metric-evidence) and
+[Flat and sharp](language/smooth-declarations.md#flat-and-sharp) give the
+errors of the declarations, and the
+[`E_METRIC` row](appendix/diagnostics.md#e-metric) of the diagnostics
+reference links these sections.
 
 ### Resource statements and numerical forms
 

@@ -53,10 +53,11 @@ that import the combined standard library, run
 optional `vastitas audit-lean` diagnostic needs Lean 4.35.0 installed by elan
 and runs that toolchain's `nanoda_bin`.
 
-Programs that run GEMM or diagonal Hermitian pairing also need sequential LP64
-OpenBLAS 0.3.34, built with Python 3.12 or later, Make and the host C
-toolchain. The 0.1.0-alpha crate does not ship the build script, so fetch it
-from the release tag. On Linux, add `--native-cc cc` to the build command.
+Programs whose entry point runs a matrix product, an evaluation, a pairing or
+a contraction also need sequential LP64 OpenBLAS 0.3.34, built with Python
+3.12 or later, Make and the host C toolchain. The 0.1.0-alpha crate does not
+ship the build script, so fetch it from the release tag. On Linux, add
+`--native-cc cc` to the build command.
 
 ```sh
 curl -fLsS https://raw.githubusercontent.com/MGYamada/Vastitas/v0.1.0-alpha/scripts/build_openblas.py -o build_openblas.py

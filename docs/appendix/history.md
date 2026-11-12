@@ -1,4 +1,4 @@
-# Appendix E: Historical roadmap and Stage 1 records
+# Appendix E: Historical roadmap and delivery records
 
 The compiler is developed in numbered Stages. This appendix holds the plan for
 the Stages ahead, the records of the Stages that are delivered, and the

@@ -115,7 +115,7 @@ Rules:
 - The compiler checks the first three rules before it reads an input. It
   compares each input with `OUTPUT` when it reads the input, before it
   parses that input, and all inputs once more before it writes `OUTPUT`.
-- Before it reads an input, the compiler also proves that the directory of
+- Before it reads an input, the compiler also tests that the directory of
   `OUTPUT` accepts a file (`E_OUTPUT`).
 - A `build` that fails leaves an existing `OUTPUT` as it was. A `build` that
   succeeds replaces it in one step: no reader sees a file that is partly

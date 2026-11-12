@@ -41,8 +41,8 @@ with the status of `process::exit_code`.
 7. It locates and starts the kernel.
 8. For `build` it runs the native build and installs the output.
 
-The steps before step 7 need no kernel. A wrong output path and a syntax
-error are therefore reported without one.
+The steps before step 7 need no kernel. The driver therefore reports a wrong
+output path and a syntax error without one.
 
 Tests:
 
@@ -68,9 +68,9 @@ and inode numbers, the text and a byte offset.
   driver therefore reads no byte of a FIFO or a device.
 - It compares the size of the file with what is left of the budgets of
   `MAX_FILE_BYTES` and `MAX_INPUT_BYTES`, before it reads and again for each
-  block that it reads, because a file can grow. The number of entries is
-  bounded by `MAX_INPUT_FILES`. A file that two modules load has two entries
-  and counts twice. An exceeded budget is `E_LIMIT`.
+  block that it reads, because a file can grow. `MAX_INPUT_FILES` bounds the
+  number of entries. A file that two modules load has two entries and counts
+  twice. An exceeded budget is `E_LIMIT`.
 - It requires UTF-8 text (`E_INPUT`).
 - It checks for a signal before each block.
 
@@ -167,10 +167,10 @@ rules. `packages::load` starts `Loader::package` at the root manifest.
 
 - The file must have the name `Vastitas.toml`. Its canonical path is the
   `source` of the package in the request.
-- A manifest that is being loaded when a dependency names it again is
-  `E_CYCLE`. A manifest that is already loaded is not loaded again, so two
-  dependency aliases of one location yield one package. The depth of the
-  dependencies is bounded by `MAX_PACKAGE_NESTING`.
+- A dependency that names a manifest on the current chain of dependencies
+  is `E_CYCLE`. The loader loads a manifest once, so two dependency aliases
+  of one location yield one package. `MAX_PACKAGE_NESTING` bounds the depth
+  of the dependencies.
 - The `toml` crate decodes the manifest into records that admit no unknown
   key. An error of the manifest is `E_MANIFEST`.
 - The loader loads the dependencies in the order of their aliases and then
@@ -409,8 +409,8 @@ as it is until that step.
 - `probe_output_directory` then creates and removes a staging file, so a
   directory that admits no file fails before the kernel runs.
 - An output must not be an input. `OutputIdentity` holds the canonical path
-  and the device and inode numbers of an existing output, and each entry of
-  `Sources` is compared with both (`E_OUTPUT`). Manifest mode compares each
+  and the device and inode numbers of an existing output, and the driver
+  compares each entry of `Sources` with both (`E_OUTPUT`). Manifest mode compares each
   file when the loader reads it. Flat mode compares the files after it reads
   them and before it parses them.
 - `install_output` runs after Lake. It validates the path and compares the
@@ -465,7 +465,7 @@ plus the number of the signal.
   sends SIGKILL after `TERM_GRACE` and stops waiting after `KILL_GRACE`.
 - A child that exits while a descendant holds a pipe gets `DRAIN_GRACE`.
   Then the loop ends the group in the same way, and the capture fails.
-- After the child is reaped and its group is found empty, the loop sends no
+- After the loop reaps the child and finds its group empty, it sends no
   signal to that group number, which the system can give to another group.
 
 A live compiler has no time limit. Only the steps after a signal and after
@@ -490,12 +490,12 @@ Two builds that share a root would write the same files.
 - It sorts the canonical paths and removes a repeated one, so every build
   takes the locks of shared packages in the same order.
 - `acquire_lock` tries the lock, sleeps and checks for a signal, so a
-  waiting build can be interrupted.
+  signal interrupts a waiting build.
 - On a file system that cannot lock a directory, `lock_file` locks the file
   `.vastitas-build.lock` in the package instead.
 - The driver clears the close-on-exec flag of each lock descriptor. Lake and
   its descendants inherit the lock, and the lock holds while one of them
-  lives, also after the driver is killed.
+  lives, also after a signal kills the driver.
 
 A generated program takes no lock. The lock excludes other builds of the
 driver. It does not exclude a `lake` that a user starts in the same package.

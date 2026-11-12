@@ -150,9 +150,12 @@ lists what no theorem covers.
   file, and each keeps its `lake-manifest.json`.
 - The kernel and the oracle import neither mathlib nor the bridge. The
   dependency of the bridge on them is one way.
-- A compilation needs neither mathlib nor OpenBLAS. A program links the
-  storage runtime when its checked entry uses an arena, and the numerical
-  runtime and OpenBLAS when its checked entry runs a numerical operation.
+- The storage runtime and the numerical runtime are packages of their own.
+  Neither the kernel package nor the oracle depends on them.
+- No compilation needs mathlib, and `check` needs no OpenBLAS. A build
+  links the storage runtime when the checked entry uses an arena. It links
+  the numerical runtime and OpenBLAS when the checked entry runs a numerical
+  operation.
 - The frontend takes the limits that it shares with the kernel from
   `lean-kernel/compiler-limits.json` when the crate is built. The kernel
   reads the same file when it is elaborated.

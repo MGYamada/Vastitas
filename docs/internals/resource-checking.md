@@ -448,8 +448,10 @@ defines the required work; it is not evidence that any unchecked item has passed
 ## History
 
 The finite Stage 1 compiler implements the ownership profiles mapped in the
-[acceptance record](../stage1-acceptance.md). The remaining performance
-acceptance is tracked in [#183](https://github.com/MGYamada/Vastitas/issues/183)
-and the [performance handoff](../stage1-completion.md#stage-2-or-later-performance-acceptance).
-The unmeasured cost of residual encodings in compiled reverse Core is tracked
-in [#222](https://github.com/MGYamada/Vastitas/issues/222).
+[acceptance record](../stage1-acceptance.md).
+[#183](https://github.com/MGYamada/Vastitas/issues/183) delivered the checked
+storage profile and is closed. The remaining performance acceptance is Planned
+under [#222](https://github.com/MGYamada/Vastitas/issues/222), and the
+[performance handoff](../stage1-completion.md#stage-2-or-later-performance-acceptance)
+lists its measurements. #222 also tracks the unmeasured cost of residual
+encodings in compiled reverse Core.

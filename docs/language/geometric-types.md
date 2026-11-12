@@ -1,10 +1,13 @@
 # Geometric types
 
-The core language has a finite fragment of affine geometry. It has affine
-objects over a coefficient marker, the points of an object and the morphisms
-between objects. An existential package hides an object together with a point
-on it. The checker tracks the **identity** of every object, so that a point of
-one object is never used as a point of another.
+The core language has a finite fragment of affine geometry. An **object** is
+an affine space of a fixed dimension over a coefficient marker: a value of
+the type `Scheme` or `CInfScheme`. A **point** is a value of a type
+`Point<X, S>` for two objects `X` and `S`, and a **morphism** is a value of a
+type `Morphism<X, Y>`, a map from the object `X` to the object `Y`. An
+existential package hides an object together with a point on it. The checker
+tracks the **identity** of every object, so that a point of one object is
+never used as a point of another.
 
 > **Syntax**
 >
@@ -55,7 +58,8 @@ Rules:
 
 - The first argument of `Affine` and of `Base` must be the name `QQ` or
   `CInfReal`. A call without arguments, or another expression there, is an
-  error (`E_RING`).
+  error (`E_RING`). A name there that nothing declares, such as `ZZ`, is an
+  error with the code `E_NAME` in flat mode and `E_RING` in manifest mode.
 - A marker is not a value. A marker in any other place is an error (`E_RING`
   in flat mode, `E_NAME` in manifest mode), and a call of a marker is an error
   (`E_NAME`).
@@ -103,9 +107,9 @@ Rules:
   point nor a morphism.
 - A point where `compose` or `apply` requires a morphism, and a morphism where
   `apply` requires a point, are errors (`E_ENDPOINT`).
-- An `E_ENDPOINT` diagnostic names the first requirement that fails: the
-  family of an argument, `Point` or `Morphism`, then an endpoint, a marker or
-  a classification. It gives the required and the supplied value.
+- An `E_ENDPOINT` diagnostic of `compose` or of `apply` reports the first
+  requirement that fails: the family of an argument, `Point` or `Morphism`,
+  then an endpoint, a marker or a classification.
 
 ## Object identity
 
@@ -132,8 +136,9 @@ Rules:
   identity, even when the function returns its argument. The checker infers no
   identities across functions.
 - An `if` expression whose branches are different objects gives an object with
-  a fresh identity. An `if` expression whose branches are the same object gives
-  that object.
+  a fresh identity, even when its condition is the literal `true` or `false`.
+  The checker does not evaluate a condition to choose an identity. An `if`
+  expression whose branches are the same object gives that object.
 
 In this program `X` and `Y` have the same dimension, but `p` is a point of `X`:
 
@@ -173,7 +178,12 @@ Rules:
   different objects. A point or morphism that leaves without its object is an
   error (`E_ESCAPE`), as in `{ origin(Affine(QQ, 2)) }`. Packing the object
   with its point is valid.
-- An object itself is an immutable value, and it may leave its block.
+- An object itself is an immutable value, and it may leave its block. It
+  keeps its identity: an object that an `unpack` opened is, outside the
+  block, the object of that `unpack`. This holds through other bindings of
+  the object too, such as `let Z = X;` in the block and a `let` that binds
+  the value of the block. A diagnostic names the `unpack` as the place that
+  introduced the identity.
 
 This program builds an existential package, opens it and keeps the point on
 its object:

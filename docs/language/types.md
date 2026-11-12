@@ -65,8 +65,10 @@ Rules:
   branches of an `if`. [Function types](#function-types) excludes pair types
   from function types, and [Function values](functions.md#function-values)
   from the signature of a function that takes or returns a function.
-- A pair is not a dispatch key, and `Pair` is not a method selector. A method
-  may return a pair, as [promotion](../stage1a.md#promotion) does.
+- A pair type must not stand in a key of the domain of a generic, a pair type
+  must not be a method selector, and a pair must not be an argument of a
+  generic. Each is an error (`E_TYPE`). A method may return a pair, as
+  [promotion](../stage1a.md#promotion) does.
 
 [`examples/pairs.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/pairs.vast)
 passes pairs to functions and returns them:
@@ -127,7 +129,8 @@ function types.
 > **Syntax**
 >
 > ```text
-> IndexedType -> Path `<` IndexedArguments? `>` | `Object` `<` Path `,` Path `>`
+> IndexedType -> IDENTIFIER ( `::` PathSegment )* `<` IndexedArguments? `>`
+>     | `Object` `<` Path `,` Path `>`
 > IndexedArguments -> IndexedArgument ( `,` IndexedArgument )* `,`?
 > IndexedArgument -> INTEGER_LITERAL | Path
 > ```
@@ -135,7 +138,7 @@ function types.
 In manifest mode, a program declares its own families of types with `indexed`
 declarations. An **indexed type** applies such a family to its arguments, as in
 `geo::Point<X, geo::Base>`. Its family and its arguments are
-[paths](names-and-paths.md). `Object<D, K>` is the type of an object of the
+[paths](names-and-paths.md), which defines `Path` and `PathSegment`. `Object<D, K>` is the type of an object of the
 [classification](../appendix/glossary.md#classification) or implementation
 `D` with the coefficient marker `K`.
 [Object types](../indexed-source.md#object-types) gives the rules of
@@ -150,3 +153,7 @@ Rules:
   not a type name of this chapter or of [Geometric types](geometric-types.md).
 - Indexed types are valid only in manifest mode. In flat mode an indexed type
   is an error (`E_UNSUPPORTED`).
+- The path of the family must not begin with the keyword `generic`. A type
+  such as `generic::Point<X, generic::Base>` is an error (`E_PARSE`). A later
+  segment of that path may be `generic`, and so may a segment of an
+  argument or of the two paths of `Object<…>`.

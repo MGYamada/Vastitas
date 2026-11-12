@@ -6,9 +6,10 @@ frees them. The checker follows every owner and every loan through the body.
 It rejects a program whose statements could read an unwritten cell, write
 through two overlapping views, or leave an allocation that is not freed once.
 Resource functions exist only in
-[manifest mode](../language/programs.md#manifest-mode).
+[manifest mode](../language/programs.md#manifest-mode). A **resource
+program** is a program that declares a resource function.
 [Storage and ownership](../storage-ownership.md) states the model behind these
-rules.
+rules, and the sections of that chapter link the rules of this one.
 
 ## Resource functions
 
@@ -30,15 +31,20 @@ A resource function has parameters, optional **owned results** after
 [resource statements](#resource-statements) followed by a `value` block, a
 [block expression](../language/expressions.md#block-expressions) that computes
 the result. An owned result names an owner of the body, which the function
-hands to its caller.
+hands to its caller. [Storage types](#storage-types) defines owners and loans.
+An owner or a loan is **live** from the parameter or the statement that
+binds it to the statement that ends it: a `move`, a `drop` or a call that
+takes an owner, and the `release` of a loan.
 
 Rules:
 
 - The name of a resource function follows
   [Names of items](../language/items.md#names-of-items).
-- A resource function is not a value. A function, a method, a lambda and a
-  `value` block must not call one (`E_TYPE`). Resource functions are not
-  generics and take no methods.
+- The name of a resource function must not stand as a value, and a function,
+  a method, a lambda and a `value` block must not call a resource function
+  (`E_TYPE`). Only a `call` statement calls one.
+- A `method` declaration must not name a resource function (`E_OWNER`). A
+  resource function is no generic and has no methods.
 - A resource function must not call itself, directly or through other resource
   functions (`E_RESOURCE_RECURSION`).
 - The result type must be a scalar type or a pair type. Otherwise it is an
@@ -122,6 +128,14 @@ Rules:
   number of views of a contract has a limit, which
   [Appendix D](../appendix/limits.md#resource-functions) gives
   (`E_RESOURCE_TYPE`). Capacity and padding imply no initialization.
+- The contract of an owned parameter is what the body may rely on: in the
+  check of the function on its own, the cells of its views count as
+  initialized and no other cell does. The checker checks the contract of an
+  owned result against the body.
+- A caller needs no contract to read an owned result. At a call the checker
+  follows the statements of the callee, so the cells that the callee
+  initialized count as initialized for the caller, with or without a
+  contract.
 - An argument for a borrowed parameter must be a live loan (`E_RESOURCE_LOAN`)
   with the element type and the shape of the parameter (`E_RESOURCE_TYPE`).
   The callee sees the caller's view, with its offset, padding and
@@ -183,8 +197,11 @@ Rules:
 - A binding of a resource function is a parameter, an owner, a loan, a scalar
   binding or a result of a call. It must not reuse a name that is visible at
   its statement, even after the owner or loan of that name has ended
-  (`E_DUPLICATE`). It must not have the name of an item or import of its
-  module (`E_SHADOW`) or a
+  (`E_DUPLICATE`). It must not have a name of the namespace of its module
+  (`E_SHADOW`): the name of an item, of a child module, of an import or of a
+  dependency alias, as
+  [Scopes of bindings](../language/statements.md#scopes-of-bindings) says. It
+  must not have a
   [reserved name](../language/lexical-structure.md#reserved-names).
 - A statement that names a binding which is not in scope is an error
   (`E_RESOURCE_NAME`).
@@ -208,9 +225,13 @@ Rules:
   `copy` its target. A `write` loan may cover uninitialized cells.
   [Diagnostics](#diagnostics) describes the cell that the diagnostic of a
   `borrow` names.
-- Stores that cover every cell of a view initialize it, up to the bound of
-  [Layout and initialization](checked-storage.md#storage-ir--layout-and-initialization).
-  Fills of the stored columns of a view also initialize it.
+- Stores that cover every cell of a view initialize it, within the bound on
+  the initialization query that
+  [Appendix D](../appendix/limits.md#resource-functions) gives. Beyond the
+  bound, the `borrow` is an error (`E_RESOURCE_INIT`), although the stores
+  write every cell. Fills of the stored columns of a view also initialize it.
+  [Layout and initialization](checked-storage.md#storage-ir--layout-and-initialization)
+  describes the records of the checker.
 - Fills of the stored rows of a view with several stored columns do not
   initialize it. The cells of a stored row have gaps between them, and the
   checker does not join the fill of such a view with another fill.
@@ -288,11 +309,20 @@ Rules:
 - A number or a string literal in place of a payload, as in `fill(v, 1.5);`,
   is an error (`E_TYPE`).
 
+[`examples/packages/payloads`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/payloads)
+writes three payloads as numbers:
+
 ```vast
-fill(output, f64(0x1.8p1));                      // 3.0
-store(output, 0, 0, f64(-0x1p-2));               // -0.25
-fill(complex_output, complex(0x1.8p0, -0x1p1));  // 1.5 - 2i
+{{#include ../../examples/packages/payloads/main.vast:payloads}}
 ```
+
+It then reads the cells back and expects the bits of the same numbers:
+
+```vast
+{{#include ../../examples/packages/payloads/main.vast:bits}}
+```
+
+The executable prints `42`.
 
 ## Scalar values and calls
 
@@ -334,8 +364,11 @@ Rules:
   argument is an error (`E_PARSE`); bind it with `let` first.
 - A scalar argument must have the type of its parameter, and the type of
   `let x: T = call …` must be the result type of the callee
-  (`E_RESOURCE_VALUE`). A pair result cannot be bound (`E_RESOURCE_VALUE`); a
-  call without `let` discards the result.
+  (`E_RESOURCE_VALUE`). A `let` must not bind the result of a callee whose
+  result type is a pair type (`E_RESOURCE_VALUE`).
+- A call without `let` discards the result of the callee, of a scalar type or
+  of a pair type. The compiler checks the `value` block of the callee all the
+  same, as it checks every resource function.
 - The number of bindings after `->` must be the number of owned results of the
   callee (`E_RESOURCE_ARITY`).
 - A call ends the owners that it hands to owned parameters, and it suspends
@@ -362,8 +395,9 @@ The executable prints `42`.
 
 ## Running a resource program
 
-An executable runs the statements of its entry point in order and then prints
-the value of its `value` block.
+The executable of a resource program whose entry point is a resource function
+runs the statements of the entry point in order and then prints the value of
+its `value` block. A `call` statement runs the statements of its callee.
 
 Rules:
 
@@ -376,6 +410,17 @@ Rules:
 - A program that stops prints no result. Writes that it completed before it
   stopped are not undone.
 - The program frees its allocations when it ends, even when it stops early.
+
+> **Implementation note.** A call that binds the result of its callee
+> evaluates the `value` block of the callee after the statements of the callee
+> have run. A call without `let` does not evaluate that block: the executable
+> runs the statements of the callee only. The text of a failed `expect`, from
+> the code `E_NATIVE_EXPECT` to the end of the line, is ASCII text of at most
+> 361 bytes, and the executable builds it only after the comparison of the
+> bits has failed. The generated program frees its allocations in a cleanup
+> step that also runs after a failed statement. When that step fails too, the
+> executable reports the failure of the cleanup and not the failure of the
+> statement.
 
 ## Runtime extents
 
@@ -419,7 +464,8 @@ Rules:
 - The conditions on extents are capacity, layout bounds, dimensions that must
   be equal, and the cells of `runtime_expect`. The capacity and the layout of
   one `runtime_allocate` form one condition, and so do the layout and the
-  cell of one `runtime_expect`.
+  cell of one `runtime_expect`. The condition on a capacity includes the
+  largest size of an allocation, 2⁶³ − 1 bytes.
 - The compiler decides a condition in which every extent is a literal. One
   that fails is an error (`E_RUNTIME_GUARD`), reported at the statement that
   the condition belongs to. A condition between an argument and a parameter
@@ -432,8 +478,9 @@ Rules:
   (`E_RUNTIME_TYPE`). A statement without the prefix must name static
   bindings (`E_RESOURCE_TYPE`, `E_RESOURCE_MOVE` or `E_RESOURCE_LOAN`, by the
   statement).
-- A runtime owner is not an owned result or an owned argument, and a runtime
-  loan is not an argument for a borrowed parameter.
+- A runtime owner must not be an owned result or an owned argument
+  (`E_RESOURCE_TYPE`), and a runtime loan must not be an argument for a
+  borrowed parameter (`E_RESOURCE_LOAN`).
 - The rules of [Resource statements](#resource-statements) on owners, loans,
   access and initialization hold for runtime owners and loans. A violation is
   an error (`E_RUNTIME_SHAPE`).
@@ -481,6 +528,23 @@ receives spaces, bases and maps through parameters of the types
 Rules:
 
 - A parameter type must name earlier parameters only (`E_RESOURCE_NAME`).
+- The path of `runtime_space u = linear(P, m)` and of `RuntimeSpace<P, m>`
+  must name a linear implementation. Another `indexed` declaration there,
+  such as a marker or a scalar base implementation, is an error
+  (`E_RUNTIME_NUMERICAL`).
+- The argument of `runtime_basis b = basis(u)` must be a runtime space
+  (`E_RUNTIME_TYPE`).
+- In `runtime_map m = view(v, bs, bt)`, `v` must be a runtime loan
+  (`E_RUNTIME_TYPE`), and `bs` and `bt` must be runtime bases
+  (`E_RUNTIME_NUMERICAL`). The cells of `v` must have the element type of the
+  linear implementation of the two spaces (`E_RUNTIME_NUMERICAL`).
+- A statement may use a runtime map only while the loan of the map is live.
+  A map whose loan the function has released is an error
+  (`E_RUNTIME_NUMERICAL`).
+- The three operands of `runtime_gemm(a, b, out, …)` must be runtime maps
+  (`E_RUNTIME_TYPE`). The source basis of `a` must be the target basis of
+  `b`, and `out` must be a map from the source basis of `b` to the target
+  basis of `a` (`E_RUNTIME_NUMERICAL`). Equal extents are not enough.
 - An extent of a parameter type must be a literal or a `Nat` or `Int`
   parameter (`E_RUNTIME_EXTENT`). `RuntimeBasis<u>` must name a space
   (`E_RUNTIME_TYPE`), and `RuntimeMap<bs, bt, …>` two bases
@@ -504,73 +568,113 @@ Rules:
   for a `beta` of zero (`E_RUNTIME_SHAPE`).
 - The `runtime_` statements multiply matrices only. Transforms, metrics,
   vectors and tensors have no statements with runtime extents.
-- `vastitas build` needs the option `--openblas-prefix` for a program that
-  runs `runtime_gemm`, as [Numerical builds](../guide/cli.md#numerical-builds)
-  describes.
+- `runtime_gemm` is a product statement.
+  [Building a numerical program](../linalg/maps-and-gemm.md#building-a-numerical-program)
+  gives the rule on the option `--openblas-prefix` of `vastitas build` for a
+  program whose entry point reaches one.
 
-This function multiplies two maps into a destination of its caller, at any
-three dimensions:
-
-```vast
-resource fn multiply(
-    m: Nat, k: Nat, n: Nat,
-    u: RuntimeSpace<profiles::RealSmooth, m>,
-    v: RuntimeSpace<profiles::RealSmooth, k>,
-    w: RuntimeSpace<profiles::RealSmooth, n>,
-    bu: RuntimeBasis<u>, bv: RuntimeBasis<v>, bw: RuntimeBasis<w>,
-    left: RuntimeMap<bv, bu, read>,
-    right: RuntimeMap<bw, bv, read>,
-    output: RuntimeMap<bw, bu, write> initializes
-) -> Unit {
-    runtime_gemm(left, right, output, overwrite, NativeFast);
-    value { () }
-}
-```
-
-Its caller declares the spaces and bases, allocates the storage and presents a
-loan as a map:
-
-```vast
-runtime_space u = linear(profiles::RealSmooth, m);
-runtime_basis bu = basis(u);
-let capacity: Nat = value { leading * columns };
-runtime_allocate data: F64[capacity] runtime_layout(rows, columns, leading, false);
-runtime_borrow c = write(data);
-runtime_map output = view(c, bw, bu);
-```
-
+This function of
 [`examples/packages/runtime-shapes`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/runtime-shapes)
-holds the whole program. It multiplies matrices at two sizes in one
-executable.
+multiplies two maps into a destination of its caller, at any three
+dimensions:
+
+```vast
+{{#include ../../examples/packages/runtime-shapes/src/main.vast:multiply}}
+```
+
+Its caller `run` receives the three dimensions and a padding of the leading
+dimensions. It computes the leading dimensions and the capacities in `value`
+blocks:
+
+```vast
+{{#include ../../examples/packages/runtime-shapes/src/main.vast:run}}
+```
+
+It declares the spaces and bases from the dimensions:
+
+```vast
+{{#include ../../examples/packages/runtime-shapes/src/main.vast:spaces}}
+```
+
+It then allocates the storage, writes the two inputs, presents the loans as
+maps and calls `multiply`:
+
+```vast
+{{#include ../../examples/packages/runtime-shapes/src/main.vast:maps}}
+```
+
+`main` of the example calls `run` at two sizes in one executable.
 
 ## Diagnostics
 
-A resource diagnostic points to the statement that fails, even in an arm that
-the program does not select. A failure inside a called function points to the
-statement of the callee and names the call in a note. A failed branch join
-points to its `if`, and a failure at the end of a body to its `value` block.
-A diagnostic for the type of a scalar binding points to the type, unless the
-type is a pair type.
-Notes name the owners and loans involved and where the program introduced
-them; a diagnostic has at most 32 notes. For a call argument in another basis
-than its parameter requires, the diagnostic names both bases, as
-[Map parameters](../linalg/maps-and-gemm.md#map-parameters) describes.
+A **resource diagnostic** is a diagnostic for a rule of this chapter or of
+the numerical chapters. [Diagnostics](../language/diagnostics.md) gives the
+form of a diagnostic and of its notes, and
 [Appendix B](../appendix/diagnostics.md) lists the `E_RESOURCE_` and
 `E_RUNTIME_` codes.
 
-The diagnostic of a `borrow` whose `read` or `read_write` view has an
-uninitialized cell (`E_RESOURCE_INIT`) names such a cell when the checker
-finds one. Its "logical" row and column are the row and column of the cell in
-the view, which `store` and `expect` take. Its "physical" row and column are
-the stored row and the stored column of the cell. Rows and columns count
-from 0. Its "allocation bytes" are the bytes of the cell, counted from the
-first byte of the allocation; the range includes its first number and
-excludes its second. In the view `layout(8, 3, 2, 4, true)` of cells of
-`F64`, logical row 0, column 2 is physical row 2, column 0 and has the
-allocation bytes `[24, 32)`.
+Rules:
 
-The checker searches for the cell after it has rejected the `borrow`, and the
-search has a bound. When the search finds no cell, the diagnostic says so and
-names none. This does not show that a cell is uninitialized. The checker also
-rejects a view whose cells are all written when it does not join the writes,
-as the rules of [Resource statements](#resource-statements) state.
+- A resource diagnostic points to the statement that breaks the rule. This
+  holds even in an arm that the program does not select and in a function
+  that no call reaches.
+- A statement of a callee that breaks a rule with the views of a caller has
+  its diagnostic at the statement of the callee. A note names the `call`
+  statement.
+- An argument that does not meet the type or the contract of its parameter
+  has its diagnostic at the `call` statement.
+- A failed branch join points to its `if`. A failure at the end of a body
+  points to the block of the `value` that ends the body, at its `{`. Examples
+  are an owner that the body leaves live and an owned result that does not
+  meet its type.
+- An error of the signature of a resource function points to the function.
+  Examples are a contract that is not valid and an entry point with
+  parameters.
+- A diagnostic for the type of a scalar binding points to the type, unless
+  the type is a pair type.
+- The notes of the context come first. They name the function of the
+  statement and then, from the callee outwards, each call that leads to the
+  statement and the function of that call. For a statement or a call in an
+  arm of a branch, a note names each `if` around it, from the inside out,
+  before the note of its function.
+- The notes on the operands follow. They name the owners, the loans and the
+  other bindings of the statement, each with the place that introduced it.
+- A diagnostic has at most 32 notes. For a longer chain of calls the compiler
+  leaves out the notes of the outermost calls and keeps the notes on the
+  operands.
+- For a call argument in another basis than its parameter requires, the
+  diagnostic names both bases, as
+  [Map parameters](../linalg/maps-and-gemm.md#map-parameters) describes.
+- The diagnostic of a `borrow` whose `read` or `read_write` view has an
+  uninitialized cell (`E_RESOURCE_INIT`) names such a cell when the checker
+  finds one.
+- The checker searches for the cell after it has rejected the `borrow`, and
+  the search has a bound, which
+  [Appendix D](../appendix/limits.md#bounds-that-reject-nothing) gives. When
+  the search finds no cell, the diagnostic says so and names none. This does
+  not show that a cell is uninitialized: the checker also rejects a view
+  whose cells are all written when it does not join the writes, as the rules
+  of [Resource statements](#resource-statements) state.
+
+The diagnostic of an uninitialized cell uses three words. The "logical" row
+and column are the row and column of the cell in the view, which `store` and
+`expect` take. The "physical" row and column are the stored row and the
+stored column of the cell. Rows and columns count from 0. The "allocation
+bytes" are the bytes of the cell, counted from the first byte of the
+allocation; the range includes its first number and excludes its second. In
+the view `layout(8, 3, 2, 4, true)` of cells of `F64`, logical row 0, column
+2 is physical row 2, column 0 and has the allocation bytes `[24, 32)`.
+
+In this program the view that `main` passes begins at byte 8 of its
+allocation, and the layout of the `borrow` in `peek` begins at byte 0:
+
+```vast
+{{#include ../../examples/reject/packages/callee-region/main.vast}}
+```
+
+```text
+{{#include ../../examples/reject/packages/callee-region.stderr}}
+```
+
+The diagnostic points to the `borrow` of the callee. Its notes name the
+callee, the `call` statement, the caller and then the loan of the parameter.

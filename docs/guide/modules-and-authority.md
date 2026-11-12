@@ -1,9 +1,8 @@
 # Packages, modules and edit authority
 
-A package holds its declarations in
-[*modules*](../appendix/glossary.md#module). This chapter divides a package
+A package holds its declarations in modules. This chapter divides a package
 into modules and names declarations of other modules and of other packages by
-[*paths*](../appendix/glossary.md#path). It then controls with `pub` which
+paths. It then controls with `pub` which
 declarations other modules see. The chapter ends with the rule on who may add
 methods to a generic.
 
@@ -126,14 +125,14 @@ names one declaration, and there are no wildcard imports.
 
 ## Visibility
 
-A declaration without `pub` is [*private*](../appendix/glossary.md#private):
-its own module and the modules below it see it. In `module-paths`, `scale` is
+A declaration without `pub` is private: its own module and the modules below
+it see it. In `module-paths`, `scale` is
 private in `shapes`, and the child `shapes::area` calls it. `unit` is private
 in the root module, so every module of the package can name it as
 `package::unit`.
 
-A declaration with `pub` is [*public*](../appendix/glossary.md#public):
-every module that can reach its module sees it. A path from outside needs
+A declaration with `pub` is public: every module that can reach its module
+sees it. A path from outside needs
 `pub` at each step, on each module that it passes through and on the
 declaration that it names:
 

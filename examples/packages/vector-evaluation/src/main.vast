@@ -33,6 +33,7 @@ resource fn main() -> Int {
     value { 42 }
 }
 
+// ANCHOR: pairings
 resource fn algebraic(v: Space<profiles::ComplexSmooth, 1>, bv: Basis<v>,
     vd: DualSpace<v>, bvd: DerivedBasis<bv, vd>, phi: ReadVector<bvd>, x: ReadVector<bv>,
     output: Write<Complex<F64>, 1, 1> initializes) -> Unit {
@@ -55,3 +56,4 @@ resource fn pairing_into(v: Space<profiles::ComplexSmooth, 1>, bv: Basis<v>,
     hermitian(x, y, output, h, overwrite, NativeFast);
     value { () }
 }
+// ANCHOR_END: pairings

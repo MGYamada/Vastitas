@@ -1,3 +1,4 @@
+// ANCHOR: run
 pub resource fn run() -> Unit {
     space u = linear(super::profiles::RealSmooth, 2);
     basis bu = basis(u);
@@ -13,7 +14,9 @@ pub resource fn run() -> Unit {
     drop(final);
     value { () }
 }
+// ANCHOR_END: run
 
+// ANCHOR: create
 resource fn create(u: Space<super::profiles::RealSmooth, 2>, bu: Basis<u>) returns (boxed: OwnedMapTo<bu, 3>) -> Unit {
     space w = linear(super::profiles::RealSmooth, 3);
     basis bw = basis(w);
@@ -25,6 +28,7 @@ resource fn create(u: Space<super::profiles::RealSmooth, 2>, bu: Basis<u>) retur
     map boxed = pack(result);
     value { () }
 }
+// ANCHOR_END: create
 
 resource fn relay(u: Space<super::profiles::RealSmooth, 2>, bu: Basis<u>, input: OwnedMapTo<bu, 3>)
     returns (boxed: OwnedMapTo<bu, 3>) -> Unit {
@@ -34,6 +38,7 @@ resource fn relay(u: Space<super::profiles::RealSmooth, 2>, bu: Basis<u>, input:
     value { () }
 }
 
+// ANCHOR: update
 resource fn update(u: Space<super::profiles::RealSmooth, 2>, bu: Basis<u>, w: Space<super::profiles::RealSmooth, 3>, bw: Basis<w>, input: OwnedMap<bu, bw>)
     returns (input: OwnedMap<bu, bw>) -> Unit {
     borrow coordinates = read_write(input);
@@ -41,6 +46,7 @@ resource fn update(u: Space<super::profiles::RealSmooth, 2>, bu: Basis<u>, w: Sp
     release(coordinates);
     value { () }
 }
+// ANCHOR_END: update
 
 resource fn inspect(u: Space<super::profiles::RealSmooth, 2>, bu: Basis<u>, w: Space<super::profiles::RealSmooth, 3>, bw: Basis<w>, input: OwnedMap<bu, bw>)
     returns (input: OwnedMap<bu, bw>) -> Unit {

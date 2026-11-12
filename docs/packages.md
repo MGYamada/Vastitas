@@ -92,8 +92,8 @@ Rules:
   when a `use` of the root module imports it.
 
 ```sh
-vastitas check --manifest-path examples/packages/demo/Vastitas.toml
-vastitas build --manifest-path examples/packages/demo/Vastitas.toml -o target/demo
+target/debug/vastitas check --manifest-path examples/packages/demo/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/demo/Vastitas.toml -o target/demo
 ./target/demo
 ```
 
@@ -101,14 +101,17 @@ The executable prints `42`.
 
 ## Geometry compatibility exports
 
-The optional `[geometry_compat]` table of a manifest maps the syntax of the
-[geometric core](language/geometric-types.md), such as `Point<X, Base(QQ)>`
-and `origin(X)`, to `indexed` declarations, for a program in manifest mode.
+The optional `[geometry_compat]` table of a manifest maps the
+[core syntax](indexed-source.md#core-geometry-syntax), such as
+`Point<X, Base(QQ)>` and `origin(X)`, to `indexed` declarations, for a
+program in manifest mode.
 Its `scheme` and `smooth` subtables map the two settings. Each path of the
 table is resolved in the root module of the exporting package, so it may name
 a declaration of a dependency.
 [Core geometry syntax](indexed-source.md#core-geometry-syntax) gives the
-entries of the table and the meaning of the core syntax under an export.
+entries of the table and the meaning of the core syntax under an export, and
+[Entries of an export](indexed-source.md#entries-of-an-export) shows the
+table of the standard library.
 
 Rules:
 
@@ -116,8 +119,8 @@ Rules:
   function, grant, delegation, transfer or export uses the built-in geometric
   core, as in flat mode.
 - Every other program must have exactly one export in its package graph to
-  use the syntax of the geometric core. With no export or with several, that
-  syntax is an error (`E_TYPE`). The `unpack` statement with `scheme` and
+  use the core syntax. With no export or with several, the core syntax is an
+  error (`E_TYPE`). The `unpack` statement with `scheme` and
   `point` is the exception: it needs no export, as
   [Opening](indexed-source.md#opening) says.
 - The compiler checks every export, even one that no program uses. An invalid

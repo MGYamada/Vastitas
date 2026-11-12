@@ -24,9 +24,9 @@ of the program together. The tables of
 [Smooth metrics](#smooth-metrics) have no column "Code": every limit there
 has the one code that the text above the table gives. The table of
 [Numerical statements](#numerical-statements) adds a column for the rule of
-each limit. The tables of the last two sections of limits have no column
-"Holds for", because they list bounds on a request and bounds that reject
-nothing.
+each limit. The tables of the last three sections of limits have no column
+"Holds for", because they list bounds on a request, bounds that reject
+nothing and bounds of the native runtime.
 
 Where a section gives a boundary in a sentence, such as "a body of 2048 such
 statements is within the limit", the compiler accepts a program at that
@@ -384,11 +384,13 @@ adds one write to the record before the `if` and the two writes are
 disjoint. Any other join keeps the records of both arms. Each of the two
 then holds the record before the `if`, so the count about doubles. In a
 function that makes two `store` statements and then nine `if` statements
-whose arms each store two cells, one of them in both arms, the record has
-4091 nodes. Five further `store` statements are within the limit. A sixth
+whose arms each store two cells, of which the second is the same cell in
+both arms, the record has 4091 nodes. Five further `store` statements are within the limit. A sixth
 is an error with the code `E_RESOURCE_STATE`, and a tenth such `if` is an
 error with the code `E_RESOURCE_LIMIT`
-([#739](https://github.com/MGYamada/Vastitas/issues/739)).
+([#739](https://github.com/MGYamada/Vastitas/issues/739)). The order of the
+stores in an arm matters: where each arm stores the shared cell first, the
+checker accepts a tenth such `if`.
 
 A query of the cells of a view first looks for one recorded write that
 covers the view, such as a `fill`. Otherwise it walks from write to write
@@ -482,6 +484,21 @@ gives the rules of reverse passes, and
 [Diagnostics of resource programs](../storage/resource-programs.md#diagnostics)
 those of the notes and of the cell that a diagnostic names. A build that the
 Lean options stop is an error of the build (`E_BUILD`), not of the program.
+
+## Bounds of the native runtime
+
+The storage runtime of an executable has two bounds of its own. Neither
+changes which programs the compiler accepts.
+
+| Bound | Value | What it bounds |
+| --- | --- | --- |
+| Live bytes | 2⁶³ − 1 | The bytes of the live allocations of an executable, with one count for the static allocations and one for the allocations with runtime extents. An allocation that would bring a count above the bound stops the executable (`E_NATIVE_ALLOCATION`) |
+| Message of a failed `expect` | 361 bytes | The text of the run-time diagnostic of a failed `expect` or `runtime_expect`, from the code `E_NATIVE_EXPECT` to the end of the line |
+
+[Limits at run time](../language/limits.md#limits-at-run-time) describes the
+count of live bytes, and
+[Running a resource program](../storage/resource-programs.md#running-a-resource-program)
+the message.
 
 ## What the limits do not bound
 

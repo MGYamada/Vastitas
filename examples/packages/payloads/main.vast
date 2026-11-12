@@ -1,0 +1,26 @@
+// Payloads in the number spellings, read back as bits.
+resource fn main() -> Int {
+    allocate reals: F64[2];
+    allocate pairs: Complex<F64>[1];
+    borrow output = write(reals, layout(0, 2, 1, 2, false));
+    borrow complex_output = write(pairs, layout(0, 1, 1, 1, false));
+    // ANCHOR: payloads
+    fill(output, f64(0x1.8p1));                      // 3.0
+    store(output, 1, 0, f64(-0x1p-2));               // -0.25
+    fill(complex_output, complex(0x1.8p0, -0x1p1));  // 1.5 - 2i
+    // ANCHOR_END: payloads
+    release(output);
+    release(complex_output);
+    borrow input = read(reals, layout(0, 2, 1, 2, false));
+    borrow complex_input = read(pairs, layout(0, 1, 1, 1, false));
+    // ANCHOR: bits
+    expect(input, 0, 0, f64_bits(4613937818241073152));
+    expect(input, 1, 0, f64_bits(13821547256400052224));
+    expect(complex_input, 0, 0, complex_bits(4609434218613702656, 13835058055282163712));
+    // ANCHOR_END: bits
+    release(input);
+    release(complex_input);
+    drop(reals);
+    drop(pairs);
+    value { 42 }
+}

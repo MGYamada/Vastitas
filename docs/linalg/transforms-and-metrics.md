@@ -204,7 +204,7 @@ Rules:
 - `adjoint_into` initializes the view of `out`.
 
 ```vast
-{{#include ../../examples/packages/diagonal-metrics/src/real/mod.vast:17:21}}
+{{#include ../../examples/packages/diagonal-metrics/src/real/mod.vast:adjoint-into}}
 ```
 
 ## Vectors
@@ -349,10 +349,12 @@ Rules:
 - With `accumulate`, `out` must be a `read_write` loan (`E_RESOURCE_GEMM`).
 - `out` must not be the loan of an operand (`E_RESOURCE_LOAN`) or a child of
   it (`E_NUMERICAL_TYPE`).
-- `hermitian_diagonal` reports four of these errors of `out` under other
+- `hermitian_diagonal` reports some of these errors of `out` under other
   codes: an owner, another element type and a transposed view as
-  `E_RESOURCE_DIAGONAL`, the loan of an operand as `E_RESOURCE_ALIAS`, and a
-  child of one as `E_NUMERICAL_METRIC`.
+  `E_RESOURCE_DIAGONAL`, the loan of the second operand as
+  `E_RESOURCE_ALIAS`, and a child of the loan of an operand as
+  `E_NUMERICAL_METRIC`. The loan of the first operand keeps the code
+  `E_RESOURCE_LOAN`.
 - `scratch(o, layout(…))` must name an owner (`E_RESOURCE_DIAGONAL`) without
   a live loan (`E_RESOURCE_LOAN`). An owned map fits, and an owned-map
   package does not (`E_NUMERICAL_PACKAGE`).
@@ -375,7 +377,7 @@ These functions of
 evaluate a covector on a vector and pair a vector with a conjugate vector:
 
 ```vast
-{{#include ../../examples/packages/vector-evaluation/src/main.vast:36:57}}
+{{#include ../../examples/packages/vector-evaluation/src/main.vast:pairings}}
 ```
 
 ## Parameter types
@@ -438,9 +440,10 @@ Rules:
 - A `WriteVector` parameter with `initializes` promises that the body
   initializes every cell. A body that leaves a cell unwritten on some path is
   an error (`E_RESOURCE_INIT`). One `fill` keeps the promise, and so do
-  stores that cover every cell, within the bound that
+  stores that cover every cell, within the bound on the initialization
+  query that [Appendix D](../appendix/limits.md#resource-functions) gives, as
   [Resource statements](../storage/resource-programs.md#resource-statements)
-  gives. A space of dimension 0 has no cell to write.
+  says. A space of dimension 0 has no cell to write.
 - Cells that a body writes through a vector parameter count as initialized
   for the caller, with or without `initializes`.
 - The types of this chapter are parameter types only. None is the type of an

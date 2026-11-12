@@ -1,0 +1,5 @@
+examples/reject/packages/callee-region/main.vast:3:5: E_RESOURCE_REGION: child region is not contained in its parent
+examples/reject/packages/callee-region/main.vast:1:1: note: while checking resource function `peek`
+examples/reject/packages/callee-region/main.vast:15:5: note: resource callee was invoked here
+examples/reject/packages/callee-region/main.vast:8:1: note: while checking resource function `main`
+examples/reject/packages/callee-region/main.vast:1:18: note: parent loan is `input`, introduced here

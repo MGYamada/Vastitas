@@ -30,6 +30,7 @@ pub resource fn product() -> Unit {
     store(init_b, 1, 1, f64_bits(4607182418800017408));
     store(init_b, 2, 1, f64_bits(4607182418800017408));
     release(init_b);
+    // ANCHOR: packing
     borrow input_t = read(original, layout(8, 2, 6, 3, false));
     borrow input_b = read(right, layout(8, 3, 2, 4, false));
     tensor t = view3(input_t, bu, bvd, bw, axes(0, 1, 2), 1);
@@ -43,6 +44,7 @@ pub resource fn product() -> Unit {
     borrow output = write(result, layout(8, 4, 2, 5, false));
     tensor c = view3(output, bu, bw, bxd, axes(0, 1, 2), 2);
     contract3(packed, b, c, NativeFast);
+    // ANCHOR_END: packing
     release(output);
     borrow checked = read(result, layout(8, 4, 2, 5, false));
     expect(checked, 0, 0, f64_bits(4618441417868443648));

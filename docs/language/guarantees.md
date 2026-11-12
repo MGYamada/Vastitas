@@ -14,7 +14,7 @@ theorem assumes, and this chapter changes none of those statements.
 
 Two groups of guarantees stay with their constructs.
 [Selection](../stage1a.md#selection) says that every call of a generic has
-one best method, and [Edit authority](edit-authority.md) says which
+one winner, and [Edit authority](edit-authority.md) says which
 declarations may add a method to a generic.
 [Verification boundaries](../verification.md) holds their evidence.
 
@@ -35,11 +35,8 @@ program differ in what backs them, and the book keeps them apart.
 the native build produces computes the value of the program that the checker
 accepted.
 
-The compiler has two parts. The
-[frontend](../appendix/glossary.md#frontend) reads the source files and sends
-the program to the [kernel](../appendix/glossary.md#kernel) as a request of
-the [wire protocol](../appendix/glossary.md#wire-protocol). The kernel is the
-checker, and it generates the code.
+The [checker](../appendix/glossary.md#checker) is the part of the compiler
+that decides whether a program breaks a rule.
 
 Rules:
 
@@ -47,9 +44,6 @@ Rules:
   [Rules](notation.md#rules) defines. A program that breaks such a rule is
   not accepted, unless the rule says that the executable checks it at run
   time.
-- The frontend enforces the rules on source text, files and manifests. The
-  kernel enforces every rule on names, types, dispatch, authority and
-  resources, including a rule that the frontend reports first.
 - Acceptance does not say that a program computes what its author intends.
 - Acceptance says that a mathematical property holds only where a theorem
   states the property, under the premises of the theorem. The
@@ -58,18 +52,25 @@ Rules:
 - The language formalizes no general theory of schemes or of smooth
   manifolds. Acceptance certifies no numerical accuracy and no physical
   adequacy.
-- A theorem about an accepted program is a theorem about the request that the
-  kernel checks, or about the program that the kernel builds from it.
+- A theorem about an accepted program is a theorem about the program that
+  the checker reads, or about the program that the checker builds from it.
 
 The evidence: the enforcement of the rules is Implemented, and Tested for
-the rules that the regressions exercise. The frontend writes the request from the source files, and that this request
-is the program that the source denotes is Tested, not Proved. The
-[assumption registry](../spec/assumptions.md) lists the trusted components.
-Among them are the Rust frontend, the Lean compiler and the C compiler, the
-arithmetic of the Lean runtime, and mathlib for the theorems of the
-mathematical bridge.
+the rules that the regressions exercise. That the program which the checker
+reads is the program that the source denotes is Tested, not Proved. The
+[assumption registry](../spec/assumptions.md) lists the trusted components,
+and
 [What is outside these claims](../verification.md#what-is-outside-these-claims)
 gives the boundary of the theorems.
+
+> **Implementation note.** The compiler has two parts. The
+> [frontend](../appendix/glossary.md#frontend) reads the source files and
+> sends the program to the [kernel](../appendix/glossary.md#kernel) as a
+> request of the [wire protocol](../appendix/glossary.md#wire-protocol). The
+> kernel is the checker, and it generates the code. The frontend enforces
+> the rules on source text, files and manifests. The kernel enforces every
+> rule on names, types, dispatch, authority and resources, including a rule
+> that the frontend reports first.
 
 ## Check before generating
 
@@ -85,12 +86,10 @@ Rules:
   [Specialization](../stage1b.md#specialization) and
   [Resource functions](../storage/resource-programs.md#resource-functions)
   give these rules.
-- The kernel trusts no name, identity or annotation of the request. It
-  resolves every name, assigns every identity and checks every body itself.
-- The kernel generates code from the program that it checked. Before it
-  returns code, the generator of pure code checks the types of the
-  [Core](../appendix/glossary.md#core) module again, and the generator of
-  storage code audits the schedule again.
+- The checker resolves every name, assigns every identity and checks every
+  body itself. It takes no name, identity or annotation on trust.
+- The compiler generates code from the program that the checker checked, and
+  from no other.
 - A `build` that fails leaves an existing output file as it was. Compilation
   never runs the generated program.
 
@@ -103,9 +102,13 @@ names the entry points, and
 the theorems on generation. [Appendix A](../guide/cli.md) describes the
 commands.
 
-> **Implementation note.** For wire protocols 8 and 9 an oracle theorem
-> states that the generator receives the result of the check of the same
-> request. For protocols 2 to 7 the entry point of the kernel passes the
+> **Implementation note.** The kernel trusts no name, identity or annotation
+> of the request that the frontend sends. Before it returns code, the
+> generator of pure code checks the types of the
+> [Core](../appendix/glossary.md#core) module again, and the generator of
+> storage code audits the schedule again. For wire protocols 8 and 9 an
+> oracle theorem states that the generator receives the result of the check
+> of the same request. For protocols 2 to 7 the entry point of the kernel passes the
 > result of the check to the generator, and the oracle does not import that
 > entry point.
 
@@ -354,16 +357,14 @@ Rules:
 - Every `build` of one accepted program by one compiler generates the same
   program text.
 
-The evidence: Implemented and Tested. The tests compare diagnostics and
-generated programs with recorded text, on macOS and on Linux. The kernel is a
-function of the request that it reads. An audit rejects a declaration of the
-kernel whose compiled code is not its logical definition, and
-[Verification boundaries](../verification.md) lists the exceptions. Proved:
-the selection of methods does not depend on the order of the method records,
-as [Verification boundaries](../verification.md#stage-1a-finite-dispatch-and-checker-composition)
-states. No theorem states the determinism of the whole compiler. The native
-build of an executable runs the Lean and C toolchains, and these rules do not
-cover it.
+The evidence: Implemented, and Tested on macOS and on Linux by tests that
+compare diagnostics and generated programs with recorded text. Proved: the
+selection of methods does not depend on the order of the method records, as
+[Verification boundaries](../verification.md#stage-1a-finite-dispatch-and-checker-composition)
+states. No theorem states the determinism of the whole compiler, and these
+rules do not cover the native build of an executable.
+[Verification boundaries](../verification.md) describes the audit of the
+compiled code of the checker.
 
 ## Floating-point values
 
@@ -404,7 +405,9 @@ An accepted program cannot rely on the following.
 - Performance. Fast like C is an aim of the design, and
   [Storage and ownership](../storage-ownership.md#fast-like-c) states it as a
   C/C++-class target. It does not assert that programs reach that
-  performance, and its acceptance on a controlled host is open.
+  performance.
+  [Performance evidence and acceptance](../storage-ownership.md#performance-evidence-and-acceptance)
+  holds the conditions of its acceptance and their status.
 - The text of a diagnostic, as [Codes](diagnostics.md#codes) says.
 - Anything that the book marks Planned. A Planned feature is not available,
   and a Planned claim of a specification has no evidence.

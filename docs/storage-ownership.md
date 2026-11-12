@@ -15,7 +15,15 @@ well as programs. A rule that begins "By design" states a design target: a
 change must meet it or record the departure as an unresolved gap. A rule is
 not evidence that the compiler meets it. An implementation note says what the
 compiler implements.
-[Resource checking](internals/resource-checking.md) describes how the compiler
+
+This chapter gives no diagnostic codes and no examples. Each section names
+the sections of [Resource programs](storage/resource-programs.md) and of the
+numerical chapters that hold the rules on programs for its subject, with the
+code of each error and with tested examples.
+[Independent checking and proof boundary](internals/resource-checking.md#independent-checking-and-proof-boundary)
+holds the requirements on the compiler that concern its wire protocol, its
+repeated checks and its proofs. The other chapters on
+[resource checking](internals/resource-checking.md) describe how the compiler
 checks these rules and what is proved about its checks.
 
 ## Performance contract
@@ -147,6 +155,13 @@ Rules:
 - A numerical logical value may reuse storage only after every dependency on
   its previous contents has ended or has been retained explicitly.
 
+[Storage types](storage/resource-programs.md#storage-types) gives the rules
+of owners and loans, [Spaces and bases](linalg/maps-and-gemm.md#spaces-and-bases)
+those of the identities of spaces and bases, and
+[Two-map networks](linalg/networks-and-packing.md#two-map-networks) and
+[Contraction trees](linalg/networks-and-packing.md#contraction-trees) those of
+occurrences and ports.
+
 ## Allocation and layout records
 
 An owned allocation records a fresh identity, a live generation, an element
@@ -192,6 +207,9 @@ Rules:
 - Transposition and reborrowing do not authorize reinterpreting half of a
   complex element. An empty view forms no pointer.
 
+[Storage types](storage/resource-programs.md#storage-types) gives the rules
+of layouts and of the sizes of allocations with their codes.
+
 > **Implementation note.** The checker records for an allocation its identity,
 > owner, element type, capacity in bytes, initialization and a version. It has
 > one allocator, one address space and one alignment per element type. Its
@@ -209,8 +227,8 @@ Rules:
 ## Regions, overlap and alias evidence
 
 A **region** is a set of accessible byte intervals in one allocation. A view
-covers a region. An access is **active** while its loan is live and not
-suspended.
+covers a region. An access is **active** while its loan is
+[live](storage/resource-programs.md#resource-functions) and not suspended.
 
 Rules:
 
@@ -229,14 +247,17 @@ Rules:
   implicit defensive copy repairs it. The caller may request a copy or a
   packing operation, supply partition evidence that the checker supports, or
   choose a schedule in which the loans are not live at once.
-- Overlap of two reads is permitted. Overlap of a write with a read or with
-  another write is forbidden for accesses that are active at once, including
-  aliases through views.
+- Two accesses that are active at once may overlap when both are reads. A
+  write must not overlap a read or another write that is active at the same
+  time, including an access through another view of the same cells.
 - A backend alias attribute such as C `restrict` needs a translation argument
   for its entire access scope. Pairwise checks at one instruction do not
   authorize stronger alias promises for a surrounding function. Without the
   argument, the attribute must be omitted: an invalid native alias contract
   must never buy speed.
+
+[Resource statements](storage/resource-programs.md#resource-statements)
+gives the rules of overlapping loans and of child loans with their codes.
 
 > **Implementation note.** The checker compares, for each view, the byte
 > interval from its first cell to its last. Views whose intervals are disjoint
@@ -276,13 +297,24 @@ Rules:
 - A last use may shorten a loan only when the checked resource schedule
   records that shortening.
 
+[Resource statements](storage/resource-programs.md#resource-statements)
+gives the rules of `allocate`, `move`, `borrow`, `release` and `drop` with
+their codes, [Resource functions](storage/resource-programs.md#resource-functions)
+those of owned results and of the end of a body, and
+[Scalar values and calls](storage/resource-programs.md#scalar-values-and-calls)
+those of calls.
+
 > **Implementation note.** No lifetime contract for results is implemented:
 > the checker rejects every escaping loan. No schedule shortens a loan. A loan
 > that a program borrows ends at its `release`. A loan that a call receives
 > ends for the callee when the call returns, and the loan of the caller
 > resumes. A loan that the compiler creates for one statement ends inside
-> that statement. The dependencies that the checker tracks are those of the
-> packing cache: a `drop` is not rejected for them, and it makes them invalid.
+> that statement. The checker implements no retained dependency in the sense
+> of the row "Drop" of the table. The one dependency that it records is that
+> of a [cache](linalg/networks-and-packing.md#caches) on the allocations of
+> its packing. A cache keeps no allocation alive: the checker accepts a
+> `drop` of such an allocation, and the `drop` ends the validity of the
+> cache.
 
 ## Initialization, branches and failure
 
@@ -292,8 +324,8 @@ Rules:
 
 - A write-only loan may cover uninitialized storage. Any read needs
   initialized cells. A partial write initializes only its checked write set.
-- Moving an owner preserves the state of initialization. Reading padding or an
-  unwritten part of a view is invalid.
+- Moving an owner preserves the state of initialization. A program must not
+  read padding or an unwritten part of a view.
 - At the join of a branch, ownership and live loans must agree after explicit
   normalization. An owner that one arm moved is not silently live after the
   join.
@@ -317,6 +349,14 @@ Rules:
   storage and a commit, and its cost contract carries that extra storage and
   copy.
 
+[Resource statements](storage/resource-programs.md#resource-statements)
+gives the rules of initialization with their codes,
+[Scalar values and calls](storage/resource-programs.md#scalar-values-and-calls)
+those of branches, and
+[Running a resource program](storage/resource-programs.md#running-a-resource-program)
+those of a program that stops. [Matrix products](linalg/maps-and-gemm.md#matrix-products)
+states the preflight of a product.
+
 > **Implementation note.** A branch has no owner result bindings: an owner
 > that an arm allocates ends in that arm. No operation with staging storage
 > and a commit is implemented.
@@ -325,8 +365,10 @@ Rules:
 
 A view changes metadata and access rights and keeps the provenance of its
 allocation. A transpose permutes the axes and their strides. As a view it
-allocates no buffer; an explicit packing step does, where a backend needs
-one. An adjoint also conjugates complex elements.
+allocates no buffer. **Packing** is the copy of the cells of a view into
+another layout, which a backend may need; a packing step is explicit, and its
+target is storage that the plan names. An adjoint also conjugates complex
+elements.
 
 Rules:
 
@@ -345,18 +387,29 @@ Rules:
 - No high-level operation silently introduces copy-on-write, reference-count
   traffic per element, a layout conversion or a temporary whose size is
   proportional to the input.
-- A declared allocating operation is allowed, but its allocation must be
-  visible in the checked plan. Several references to immutable data demand no
-  copies of elements.
+- An operation may allocate when it declares the allocation, and the
+  allocation must be visible in the checked plan. Several references to
+  immutable data demand no copies of elements.
 - The provenance of a view must not be erased because the native operation
   accepts pointers.
 
+[Resource statements](storage/resource-programs.md#resource-statements)
+gives the rules of `transpose`,
+[Transformed maps](linalg/transforms-and-metrics.md#transformed-maps) those
+of dual, conjugate and adjoint maps, and
+[Packing and contraction](linalg/networks-and-packing.md#packing-and-contraction)
+those of packing.
+
 > **Implementation note.** No reshape as a view is implemented. The
-> statements `pack3` and `regroup3` of
+> statements `pack3` and `regroup` of
 > [Networks, packing and contraction trees](linalg/networks-and-packing.md)
 > materialize a regrouping of axes explicitly.
 
 ## Destination passing, scratch and local mutation
+
+A **destination** is storage of the caller to which an operation writes its
+result. **Scratch** is storage that an operation uses for intermediate
+values, and that holds no value of the program after the operation.
 
 Rules:
 
@@ -382,6 +435,14 @@ Rules:
   evaluation.
 - The schedule of the resource profile is deterministic. A search for
   optimizations is not a prerequisite.
+
+[Map parameters](linalg/maps-and-gemm.md#map-parameters) gives the rules of
+a destination that a function receives,
+[Pairings](linalg/transforms-and-metrics.md#pairings) those of the scratch of
+`hermitian_diagonal`, and
+[Contraction trees](linalg/networks-and-packing.md#contraction-trees) and
+[Caches](linalg/networks-and-packing.md#caches) those of the buffers of a
+plan and of the reuse of a packing.
 
 > **Implementation note.** The
 > [packing cache](linalg/networks-and-packing.md#caches) supplies one
@@ -432,6 +493,13 @@ Rules:
 - Numerical CI uses one backend thread. Programs without numerical operations,
   and the compiler itself, must remain usable without OpenBLAS.
 
+[Matrix products](linalg/maps-and-gemm.md#matrix-products) gives the rules of
+the `gemm` statement with their codes and an example, and
+[Runtime maps](storage/resource-programs.md#runtime-maps) those of
+`runtime_gemm`.
+[Building a numerical program](linalg/maps-and-gemm.md#building-a-numerical-program)
+says which programs need OpenBLAS.
+
 ## Residual retention
 
 Residual retention is an obligation on the design of every reverse pass.
@@ -477,6 +545,9 @@ Rules:
   same type.
 - Geometric and numerical descriptors that carry invariants follow the same
   rule on dependencies.
+
+[Reverse-pass primitives](language/smooth-declarations.md#reverse-pass-primitives)
+gives the rules of the reverse passes that programs write.
 
 > **Implementation note.** No reverse pass is backed by storage, so the rules
 > on allocations, regions and loans have no instance.
@@ -528,6 +599,10 @@ Rules:
   of memory.
 - Asynchronous execution and device transfers need profiles with explicit
   contracts of completion and lifetime.
+
+[Two-map networks](linalg/networks-and-packing.md#two-map-networks) and
+[Contraction trees](linalg/networks-and-packing.md#contraction-trees) give
+the rules of occurrences, ports and plans with their codes.
 
 > **Implementation note.** Execution is synchronous on one CPU. No
 > asynchronous or device profile is implemented.

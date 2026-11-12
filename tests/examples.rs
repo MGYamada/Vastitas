@@ -138,6 +138,7 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/storage/app/Vastitas.toml", "42"),
     ("examples/packages/vector-cells/Vastitas.toml", "42"),
     ("examples/packages/runtime-extents/Vastitas.toml", "42"),
+    ("examples/packages/payloads/Vastitas.toml", "42"),
 ];
 
 /// The package programs of the book whose build links OpenBLAS, by manifest,
@@ -148,6 +149,7 @@ const BOOK_NUMERICAL_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/numerical/Vastitas.toml", "42"),
     ("examples/packages/linear-transforms/Vastitas.toml", "42"),
     ("examples/packages/finite_network/Vastitas.toml", "42"),
+    ("examples/packages/gemm-coefficients/Vastitas.toml", "42"),
 ];
 
 /// The packages of the book whose executable stops with a run-time
@@ -216,6 +218,7 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/affine-square",
     "examples/reject/packages/affine-not-preimage",
     "examples/reject/packages/affine-other-object",
+    "examples/reject/packages/callee-region",
 ];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {

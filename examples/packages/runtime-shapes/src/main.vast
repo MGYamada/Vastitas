@@ -14,6 +14,7 @@ resource fn multiply(
     value { () }
 }
 // ANCHOR_END: multiply
+// ANCHOR: run
 resource fn run(m: Nat, k: Nat, n: Nat, pad: Nat) -> Unit {
     let lda: Nat = value { m + pad };
     let ldb: Nat = value { k + pad };
@@ -21,12 +22,14 @@ resource fn run(m: Nat, k: Nat, n: Nat, pad: Nat) -> Unit {
     let cap_a: Nat = value { lda * k };
     let cap_b: Nat = value { ldb * n };
     let cap_c: Nat = value { ldc * n };
+    // ANCHOR_END: run
     // ANCHOR: spaces
     runtime_space u = linear(profiles::RealSmooth, m);
     runtime_space v = linear(profiles::RealSmooth, k);
     runtime_space w = linear(profiles::RealSmooth, n);
     runtime_basis bu = basis(u); runtime_basis bv = basis(v); runtime_basis bw = basis(w);
     // ANCHOR_END: spaces
+    // ANCHOR: maps
     runtime_allocate data_a: F64[cap_a] runtime_layout(m, k, lda, false);
     runtime_allocate data_b: F64[cap_b] runtime_layout(k, n, ldb, false);
     runtime_allocate data_c: F64[cap_c] runtime_layout(m, n, ldc, false);
@@ -35,6 +38,7 @@ resource fn run(m: Nat, k: Nat, n: Nat, pad: Nat) -> Unit {
     runtime_borrow a = read(data_a); runtime_borrow b = read(data_b); runtime_borrow c = write(data_c);
     runtime_map left = view(a, bv, bu); runtime_map right = view(b, bw, bv); runtime_map output = view(c, bw, bu);
     call multiply(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();
+    // ANCHOR_END: maps
     call multiply(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();
     runtime_release(c);
     runtime_borrow checked = read(data_c);

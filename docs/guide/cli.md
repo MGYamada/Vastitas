@@ -504,3 +504,9 @@ authorizes no `.vast` source.
 states the boundary of this audit, and
 [issue #282](https://github.com/MGYamada/Vastitas/issues/282) records its
 purpose.
+
+## Moved sections
+
+These anchors keep older links working.
+
+- <a id="internal-lean-proof-audit-v010-gate"></a>Internal Lean proof audit: [`audit-lean`](#audit-lean).

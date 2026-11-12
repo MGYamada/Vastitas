@@ -100,13 +100,13 @@ Rules:
   [Linear implementations](../linalg/maps-and-gemm.md#linear-implementations)
   says.
 - A family with the `smooth` or `tape` representation must have exactly two
-  parameters, both of the form `object(C)`, and exactly the constraints
+  parameters, both of the form `object(K)`, and exactly the constraints
   `canonical(0), canonical(1)`, in this order. Otherwise it is an error
   (`E_TYPE`).
 - A family with the `cotangent`, `tangent` or `metric_form` representation
-  must have exactly one parameter, of the form `object(C)`, and exactly the
+  must have exactly one parameter, of the form `object(K)`, and exactly the
   constraint `canonical(0)`. Otherwise it is an error (`E_TYPE`).
-- Every implementation in the domain of each `C` must have the `smooth_affine`
+- Every implementation in the domain of each `K` must have the `smooth_affine`
   representation. Otherwise it is an error (`E_TYPE`). In particular, these
   families never range over presented affine objects or descriptor objects.
 - The position of `canonical(i)` must be the position of an `object(…)`
@@ -406,8 +406,8 @@ The following binding names `Line` as the source of its points:
 >     | `fiber_pairing` `(` Path `,` Path `)`
 > ```
 
-A tangent family is a family with the `tangent` representation, and a
-cotangent family is one with the `cotangent` representation. A
+A **tangent family** is a family with the `tangent` representation, and a
+**cotangent family** is one with the `cotangent` representation. A
 **tangent or cotangent fiber** is a value of a type `F<X>` of such a family
 `F`. It is a vector or a covector at a point of `X`, with one rational
 component for each coordinate of `X`, in the coordinate frame or coframe. It
@@ -493,7 +493,7 @@ strategies Retain and Recompute of
 [Residual retention](../storage-ownership.md#residual-retention). A **tape**
 of F at x is a value that holds the points of one forward pass of F at x.
 
-In the table, `C` is a cotangent family, `T` a family with the `tape`
+In the table, `C` is a cotangent family, `W` a family with the `tape`
 representation, and `L` a 1-dimensional smooth affine object. F is the map
 of the first operand, or the function φ of a `differential` primitive. x is
 the point, and η is the seed.
@@ -502,8 +502,8 @@ the point, and η is the seed.
 | --- | --- | --- | --- |
 | `cotangent_pullback(S, C, mode)` | `S<X, Y>`, `S<P, X>`, `C<Y>` | `C<X>` | Jᵀη at x when the seed η lies over F(x); otherwise ⊥ |
 | `differential(S, C, L)` | `S<X, L>`, `S<P, X>` | `C<X>` | The differential of φ at x |
-| `linearize(S, T)` | `S<X, Y>`, `S<P, X>` | `T<X, Y>` | The tape of F at x |
-| `cotangent_backward(T, C)` | `T<X, Y>`, `C<Y>` | `C<X>` | The reverse pass over the tape; ⊥ unless the seed lies over the image that the tape holds |
+| `linearize(S, W)` | `S<X, Y>`, `S<P, X>` | `W<X, Y>` | The tape of F at x |
+| `cotangent_backward(W, C)` | `W<X, Y>`, `C<Y>` | `C<X>` | The reverse pass over the tape; ⊥ unless the seed lies over the image that the tape holds |
 
 A pullback of ⊥ is ⊥. The modes `saved` and `recomputed` give the same value
 for all operands. For a seed η, the reverse pass over the tape of F at x is
@@ -513,7 +513,7 @@ their value.
 
 Rules:
 
-- `S` must have the `smooth` representation, and `T` the `tape`
+- `S` must have the `smooth` representation, and `W` the `tape`
   representation. Otherwise it is an error (`E_TYPE`).
 - `C` must have the `cotangent` representation. A tangent family is an error
   (`E_SMOOTH`). A family that is neither is an error (`E_TYPE`).
@@ -595,7 +595,7 @@ metric form `M`: a constant symmetric bilinear form on the smooth affine
 object `X`. This chapter calls it a metric. Its **Gram matrix** G gives the
 form in the coordinates of `X`, so that g(v, w) = vᵀGw. Each parenthesized
 group of `gram(…)` is one row of G. `euclidean` is the identity matrix of
-dimension `dim X`. A metric is a declaration. No primitive produces a value
+dimension `dim X`, the number of coordinates of `X`. A metric is a declaration. No primitive produces a value
 of the type `M<X>`, and no operation selects a metric by default, not even
 the Euclidean metric.
 
@@ -791,27 +791,36 @@ Rules:
 - An operand that the table of its binding gives as `Int` must have type
   `Int`. Otherwise it is an error (`E_TYPE`).
 - An operand whose kind does not fit the table of its binding is an error
-  (`E_TYPE`). This covers a value that is not a value of a family, such as an
-  `Int` or a `Bool`, in the place of a map, a point, a fiber or a tape,
-  except as the point of a `fiber_vector` primitive. It also covers a value
-  of a family with a number of object arguments other than two as a map of
-  `smooth_compose`, `cotangent_pullback`, `differential` or `linearize`, or
-  as the tape of `cotangent_backward`.
+  (`E_TYPE`). Two kinds of operand have this error:
+  - a value that is not a value of a family, such as an `Int` or a `Bool`,
+    in the place of a map, a point, a fiber or a tape. The point of a
+    `fiber_vector` primitive is the exception: it has the next rule;
+  - a value of a family with a number of object arguments other than two,
+    as a map of `smooth_compose`, `cotangent_pullback`, `differential` or
+    `linearize`, or as the tape of `cotangent_backward`.
 - Any other operand from the wrong family or over the wrong object is an
   error (`E_ENDPOINT`). Examples are a vector in the place of a covector, a
   seed over the wrong object, two maps whose middle objects differ, and a
   function into a second declaration of the object `L` of a `differential`
   primitive.
-- When each operand has the number of object arguments that the table gives,
-  two for a map, a point or a tape and one for a covector or a vector, the
-  `E_ENDPOINT` message names the first failed check: the operand, the family
-  or object that the binding expects, and the one supplied. The compiler
-  checks families before objects. One check has no such message: the source
-  of a point must be a 0-dimensional smooth affine object.
-- The message lists the types of the operands instead for a point whose
-  source is not such an object, for a covector as the point of a
-  `cotangent_pullback` or `fiber_vector` primitive, and for a value that is
-  not a value of a family as the point of a `fiber_vector` primitive.
+- The source of a point must be a 0-dimensional smooth affine object.
+  Otherwise it is an error (`E_ENDPOINT`).
+
+> **Implementation note.** The message of an `E_ENDPOINT` has one of two
+> forms. It names the first failed check: the operand, the family or object
+> that the binding expects, and the one supplied. The compiler checks
+> families before objects. Or it lists the types of the operands. The
+> message has the second form in these cases:
+>
+> - the only failed check is the one on the source of a point;
+> - the source of a point operand is a local object, such as an object that
+>   `let X = Affine(CInfReal, 1);` binds;
+> - a covector stands as the point of a `cotangent_pullback` or
+>   `fiber_vector` primitive;
+> - a value that is not a value of a family stands as the point of a
+>   `fiber_vector` primitive.
+>
+> In the other cases, over declared objects, the message has the first form.
 
 In this program `f` leads from `Line` to `Plane`, and the seed is a covector
 on `Line`:

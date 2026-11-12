@@ -349,6 +349,13 @@ as `Point<X, Base(QQ)>` and `origin(X)`. In a package with indexed
 declarations, an [export](#export) gives the core syntax its meaning. See
 [Core geometry syntax](../indexed-source.md#core-geometry-syntax).
 
+## Cotangent family
+
+A family with the `cotangent` representation, such as `Cotangent` of the
+standard library. Its values are covectors at the rational points of a
+[smooth affine object](#smooth-affine-object). See
+[Fiber primitives](../language/smooth-declarations.md#fiber-primitives).
+
 ## Cotangent pullback
 
 The pullback of a covector along a [smooth map](#smooth-map) at a point. For a
@@ -934,8 +941,8 @@ A claim with status Proved (bridge) cites its theorems. See
 
 ## Matrix bound
 
-A number that bounds the size of the Gram matrix of a
-[metric form](#metric-form) as a whole: the product of the Euclidean norms of
+A number that bounds the size of the [Gram matrix](#gram-matrix) of a
+[smooth metric](#smooth-metric) as a whole: the product of the Euclidean norms of
 its rows, each cleared of its denominators, and of the largest least common
 denominator of a row. It limits the size of the certificates of
 [nondegenerate evidence](#nondegenerate-evidence) and
@@ -1708,7 +1715,8 @@ calls, and signature probes never enter it or the generated code. See
 
 An object declared as `Affine(n)[c₁, …, cₙ]` under an implementation with the
 `smooth_affine` representation. It stands for the smooth real affine space
-ℝⁿ with the named coordinates. Each declaration is one canonical object. A
+ℝⁿ with the named coordinates. Each declaration is an object of its own: two
+declarations with the same dimension and coordinates are two objects. A
 smooth affine object is distinct from a descriptor object, such as a
 `CInfScheme` object, and from a presented affine object. See
 [Smooth affine objects](../language/smooth-declarations.md#smooth-affine-objects) and the wire
@@ -1899,6 +1907,13 @@ the base. See
 [Presented affine objects](../affine-geometry.md#presented-affine-objects)
 and the [guide](../guide/affine-geometry.md#objects-over-a-base).
 
+## Tangent family
+
+A family with the `tangent` representation, such as `Tangent` of the
+standard library. Its values are vectors at the rational points of a
+[smooth affine object](#smooth-affine-object). See
+[Fiber primitives](../language/smooth-declarations.md#fiber-primitives).
+
 ## Tangent or cotangent fiber
 
 A value of a family with the `tangent` or `cotangent` representation, such as
@@ -1916,8 +1931,8 @@ A value of a family with the `tape` representation, such as `Tape<X, Y>`: the
 forward values that one evaluation of a [smooth map](#smooth-map) saves at a
 point. Only `linearize` builds a tape; a tape has no source or wire form.
 `cotangent_backward` runs the reverse pass over a tape. It returns the
-[failure value](#failure-value) for a covector that is not at the tape's
-output point. See [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
+[failure value](#failure-value) for a covector that does not lie over the
+image that the tape holds. See [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Target

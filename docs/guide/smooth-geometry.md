@@ -92,7 +92,7 @@ component 1 is dt. On the plane, the covector with the components `a` and
 `b` is a dx + b dy. The values of the types `Cotangent<X>` and `Tangent<X>`
 are covectors and vectors at rational points of `X`, the
 [*cotangent and tangent fibers*](../appendix/glossary.md#tangent-or-cotangent-fiber)
-of the library.
+of the library. A covector or a vector at the point `x` lies over `x`.
 
 The program declares primitives that build covectors and vectors and
 primitives that read their components:
@@ -189,11 +189,14 @@ it applies the maps in order, `f` first. The
 [*reverse pass*](../appendix/glossary.md#reverse-pass) then pulls the seed
 back along each map in the opposite order, `g` first.
 
-The library's `pullback` runs the forward pass once and keeps its points for
-the reverse pass. A pullback with the mode `recomputed` does not keep them:
-its reverse pass computes each point again when it reads it. The library
-declares a pullback with the mode `saved` only, and the program declares the
-other one itself:
+A pullback primitive has a
+[*mode*](../appendix/glossary.md#pullback-mode), the last word of its
+binding. The library declares `pullback` with the binding
+`cotangent_pullback(Smooth, Cotangent, saved)`. With the mode `saved`, a
+pullback runs the forward pass once and keeps its points for the reverse
+pass. With the mode `recomputed`, it does not keep them: its reverse pass
+computes each point again when it reads it. The library declares no pullback
+with the mode `recomputed`, and the program declares one itself:
 
 ```vast
 {{#include ../../examples/packages/stdlib-differential/main.vast:recomputed}}
@@ -311,12 +314,14 @@ chapter, `Axis` is declared like the library's `Line`. The library's
 > only programs that it has checked. It then turns each reverse pass that it
 > can read into ordinary code and checks that code again. The
 > [proofs](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
-> cover the generated reverse functions and the reverse pass over the checked
-> program. They also cover the chain rule, the agreement of the saved and
-> the recomputing passes, the comparison with the derivative of real
-> analysis, and the meaning of metric evidence. Tests cover native execution,
-> the diagnostics, the agreement of the tested programs with their source,
-> and agreement with independent reference programs. A seed over the wrong
+> cover the generated reverse functions, the reverse pass of one accepted
+> call and the run-time pass over a composite map. No theorem joins them
+> into one statement about a whole program. They also cover the chain rule,
+> the agreement of the saved and the recomputing passes, the comparison with
+> the derivative of real analysis, and the meaning of metric evidence. Tests
+> cover native execution, the diagnostics, the agreement of the compiled
+> reverse code with its source calls in the tested programs, and agreement
+> with independent reference programs. A seed over the wrong
 > point of the right object gives the failure value at run time, not an error
 > of the compiler.
 

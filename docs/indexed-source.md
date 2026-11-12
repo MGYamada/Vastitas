@@ -672,7 +672,10 @@ Rules:
   is an error (`E_ENDPOINT`), even when the declaration of the primitive is
   valid.
 - A call of a name that is an indexed declaration and not a primitive is an
-  error (`E_TYPE`).
+  error (`E_TYPE`). A declared map is the exception: a
+  [smooth map](language/smooth-declarations.md#smooth-maps) or a
+  [morphism over a base](affine-geometry.md#morphisms-over-a-base) is called
+  without operands, as those sections say.
 
 [A complete program](#a-complete-program) calls five of the seven primitives
 of the module `geo`.

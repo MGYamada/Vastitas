@@ -181,6 +181,93 @@ class StyleTests(unittest.TestCase):
                          ["guide/a.md: a guide chapter ends with a '## See also' section"])
         self.assertEqual(self.errors("# Introduction\n", "guide", "README.md"), [])
 
+    def test_see_also_links_a_reference_chapter(self):
+        reference = {"language/items.md", "stage1a.md"}
+        check = lambda text, path="guide/a.md": check_book.style_errors(  # noqa: E731
+            path, textwrap.dedent(text).lstrip("\n"), "guide", reference)
+        self.assertEqual(check("""
+            # A
+
+            ## See also
+
+            - [Items](../language/items.md#kinds-of-items) and [dispatch](../stage1a.md)
+            """), [])
+        self.assertEqual(check("""
+            # A
+
+            [Items](../language/items.md) in the body is no See also link.
+
+            ## See also
+
+            - [Another guide chapter](b.md), [the glossary](../appendix/glossary.md#item)
+              and [the source](https://github.com/MGYamada/Vastitas/blob/main/src/frontend.rs)
+            """), ["guide/a.md: the See also section links no chapter of the Vastitas Reference"])
+
+    def test_intensifiers_are_banned_in_the_guide_and_the_reference(self):
+        text = "The actual call is very simple, and it really runs.\nIt simply works.\n"
+        for part, path in (("reference", "language/items.md"), ("guide", "README.md")):
+            self.assertEqual([error.split(": ", 1)[1] for error in self.errors(text, part, path)], [
+                "the style guide bans the intensifier 'actual'",
+                "the style guide bans the intensifier 'very'",
+                "the style guide bans the intensifier 'really'",
+                "the style guide bans the intensifier 'simply'",
+            ])
+        # Code, quoted mentions and the other parts are not checked.
+        self.assertEqual(self.errors('The word "very" and `actual_size` are mentions.\n'), [])
+        self.assertEqual(self.errors(text, "internals", "verification.md"), [])
+        self.assertEqual(self.errors(text, "appendix", "appendix/a.md"), [])
+
+
+class DefinitionTests(unittest.TestCase):
+    GLOSSARY = """
+        # Appendix G: Glossary
+
+        ## Bound index
+
+        An argument of a field.
+
+        ## Runtime owner
+
+        Its loans are **runtime** loans.
+
+        ## Capability
+
+        A static fact.
+        """
+
+    def errors(self, text, part="reference"):
+        glossary = check_book.glossary_terms(textwrap.dedent(self.GLOSSARY))
+        return check_book.definition_errors("language/items.md", textwrap.dedent(text).lstrip("\n"), part, glossary)
+
+    def test_a_defined_term_has_a_glossary_entry(self):
+        self.assertEqual(self.errors("""
+            A field applies the family to its **bound indices**. It may require
+            **capabilities**, and **`Capability`** is the same term. These loans are **runtime**.
+            """), [])
+
+    def test_a_term_without_an_entry_fails(self):
+        self.assertEqual(self.errors("A **loan** gives access to a view.\n\n```text\n**not prose**\n```\n"),
+                         ["language/items.md:1: the bold term 'loan' has no entry in the glossary "
+                          "(appendix/glossary.md)"])
+
+    def test_labels_and_rule_words_are_no_definitions(self):
+        self.assertEqual(self.errors("""
+            > **Syntax**
+
+            > **Implementation note.** The kernel checks it.
+
+            - **must** and **must not** state a requirement, and **may** a permission.
+            - **is an error (`E_CODE`)** gives the code.
+            """), [])
+
+    def test_only_the_reference_is_checked(self):
+        self.assertEqual(self.errors("A **loan** gives access.\n", "guide"), [])
+        self.assertEqual(self.errors("**Acceptance example.** A loan.\n", "appendix"), [])
+
+    def test_the_book_glossary_reads_its_entries(self):
+        terms = check_book.glossary_terms((check_book.ROOT / "docs" / check_book.GLOSSARY).read_text())
+        self.assertTrue({"abstract method", "loan", "fast like c", "lies within"} <= terms)
+
 
 class IncludeTests(Fixture):
     def setUp(self):
@@ -215,6 +302,42 @@ class IncludeTests(Fixture):
                "\n```vast\npub resource fn main() -> Int { 0 }\n```\n"
         self.assertEqual([error.split(": ")[0] for error in check_book.program_errors("guide/a.md", text)],
                          ["guide/a.md:1", "guide/a.md:5", "guide/a.md:17"])
+
+    def test_a_complete_function_must_be_included(self):
+        text = "```vast\nfn sign(x: Int) -> Int {\n    x\n}\n```\n\n" \
+               "```vast\nresource fn copy() -> Unit {\n    value { () }\n}\n```\n\n" \
+               "```vast\nlet f = fn(x: Int) -> Int { x };\nlet s = if x < 0 { -1 } else { 1 };\n```\n\n" \
+               "```vast\n{{#include ../../examples/book/a.vast:main}}\n```\n\n" \
+               "```toml\nfn = 1\n```\n"
+        self.assertEqual([error.split(": ")[0] for error in check_book.program_errors("guide/a.md", text)],
+                         ["guide/a.md:1", "guide/a.md:7"])
+        self.assertIn("a complete function is included", check_book.program_errors("guide/a.md", text)[0])
+
+    def test_a_diagnostic_must_be_included_from_its_stderr_file(self):
+        typed = "```text\nexamples/reject/a.vast:2:5: E_TYPE: expected Int, found Nat\n```\n"
+        found = check_book.program_errors("guide/a.md", typed)
+        self.assertEqual(found, ["guide/a.md:1: the diagnostic of a rejected program is included from its "
+                                 ".stderr file (style guide, Examples)"])
+        for text in (
+            "```text\n{{#include ../../examples/reject/a.stderr}}\n```\n",
+            # The forms of the diagnostic lines and a diagnostic without a place, about a command.
+            "```text\nFILE:LINE:COLUMN: CODE: message\nMANIFEST: E_MANIFEST: message\n"
+            "E_USAGE: unknown option --fast\n```\n",
+            # A diagnostic in prose or in a shell block is no typed output.
+            "The line `a.vast:1:1: E_TYPE: x` names the place.\n\n```sh\necho 'a.vast:1:1: E_X: y'\n```\n",
+        ):
+            self.assertEqual(check_book.program_errors("guide/a.md", text), [], text)
+        manifest = "> ```text\n> examples/reject/packages/p/Vastitas.toml: E_MANIFEST: TOML parse error\n> ```\n"
+        self.assertEqual(len(check_book.program_errors("guide/a.md", manifest)), 1)
+
+    def test_an_include_selects_by_anchor(self):
+        text = "{{#include ../../examples/book/a.vast:main}}\n{{#include ../../examples/book/a.vast}}\n" \
+               "{{#include ../../examples/book/a.vast:2:3}}\n{{#include ../../examples/book/a.vast:2}}\n" \
+               "\\{{#include ../../examples/book/a.vast:4:5}}\n"
+        found = check_book.program_errors("guide/a.md", text)
+        self.assertEqual(len(found), 2)
+        self.assertIn("{{#include ../../examples/book/a.vast:2:3}} selects lines", found[0])
+        self.assertIn("{{#include ../../examples/book/a.vast:2}} selects lines", found[1])
 
     def test_every_book_example_is_included(self):
         write(self.source, {"guide/a.md": "```vast\n{{#include ../../examples/book/a.vast}}\n```\n"})

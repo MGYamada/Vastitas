@@ -137,6 +137,7 @@ def check_titles(source, chapters, archived=ARCHIVED):
 FENCE = re.compile(r"^(`{3,}|~{3,})")
 CODE_SPAN = re.compile(r"(`+)(.+?)\1")
 WORDS = re.compile(r"\b(now|currently|new|newly|deliberately|actually)\b", re.I)
+INTENSIFIERS = re.compile(r"\b(actual|simply|very|really)\b", re.I)
 SHOULD = re.compile(r"\bshould\b", re.I)
 STAGE = re.compile(r"\bStages? \d")
 PROTOCOL = re.compile(r"\b[Pp]rotocols? (?:versions? )?\d")
@@ -188,8 +189,12 @@ def prose(line):
     return line
 
 
-def style_errors(path, text, part):
-    """Return the style-guide violations of one chapter in the given part."""
+def style_errors(path, text, part, reference=None):
+    """Return the style-guide violations of one chapter in the given part.
+
+    reference is the set of the paths of the Reference chapters, which the
+    See also section of a guide chapter links; None skips that rule.
+    """
     errors = []
     generated = path.startswith("spec/")
 
@@ -200,6 +205,9 @@ def style_errors(path, text, part):
         words = prose(line)
         for match in WORDS.finditer(words):
             report(number, f"the style guide bans {match[0]!r}")
+        if part in ("guide", "reference"):
+            for match in INTENSIFIERS.finditer(words):
+                report(number, f"the style guide bans the intensifier {match[0]!r}")
         linked = ISSUE_LINK.search(line) or ISSUE_NUMBER.search(words)
         if part in ("guide", "reference") and linked:
             report(number, "issue and pull request references belong in the appendices and internals History sections")
@@ -218,21 +226,95 @@ def style_errors(path, text, part):
                 report(number, "the guide does not cite commit hashes")
             if THEOREM.search(line):
                 report(number, "the guide does not name theorems")
-    if part == "guide" and path != "README.md" and not re.search(r"^## See also\s*$(?![\s\S]*^## )", text, re.M):
-        errors.append(f"{path}: a guide chapter ends with a '## See also' section")
+    if part == "guide" and path != "README.md":
+        see_also = re.search(r"^## See also\s*$(?![\s\S]*^## )([\s\S]*)", text, re.M)
+        if not see_also:
+            errors.append(f"{path}: a guide chapter ends with a '## See also' section")
+        elif reference is not None and not linked_chapters(path, see_also[1]) & reference:
+            errors.append(f"{path}: the See also section links no chapter of the Vastitas Reference")
+    return errors
+
+
+def linked_chapters(path, text):
+    """The chapters that the Markdown links of a text in the chapter at path name, as paths in the book."""
+    targets = set()
+    for target in re.findall(r"\]\(([^)\s]+)\)", text):
+        url = urlsplit(target)
+        if not url.scheme and not url.netloc and url.path.endswith(".md"):
+            targets.add(os.path.normpath(os.path.join(os.path.dirname(path), unquote(url.path))).replace(os.sep, "/"))
+    return {"README.md" if target == "index.md" else target for target in targets}
+
+
+# --- Definitions and the glossary -------------------------------------------------
+
+GLOSSARY = "appendix/glossary.md"
+BOLD = re.compile(r"\*\*([^*]+?)\*\*")
+# Bold text in a Reference chapter that defines no term, with the reason.
+NOT_DEFINITIONS = {
+    "Syntax": "the label of a Syntax block",
+    "Implementation note.": "the label of an implementation note",
+    "must": "a rule word, which Notation defines",
+    "must not": "a rule word, which Notation defines",
+    "may": "a rule word, which Notation defines",
+    "is an error (`E_CODE`)": "a rule word, which Notation defines",
+}
+
+
+def term_forms(term):
+    """The forms of a term under which the glossary may list it: as written, without code marks, singular."""
+    key = re.sub(r"\s+", " ", term.replace("`", "")).strip().rstrip(".:,;").lower()
+    forms = {key}
+    if key.endswith("ices"):
+        forms |= {key[:-4] + "ex", key[:-4] + "ix"}
+    if key.endswith("ies"):
+        forms.add(key[:-3] + "y")
+    if key.endswith("es"):
+        forms.add(key[:-2])
+    if key.endswith("s") and not key.endswith("ss"):
+        forms.add(key[:-1])
+    return forms
+
+
+def glossary_terms(text):
+    """The terms of the glossary: the title of each entry and the terms that an entry sets in bold."""
+    terms = set()
+    for heading in re.findall(r"^## (.+?)\s*$", text, re.M):
+        terms |= term_forms(heading)
+    for _, line, _, _ in scan(text):
+        for match in BOLD.finditer(line):
+            terms |= term_forms(match[1])
+    return terms
+
+
+def definition_errors(path, text, part, glossary):
+    """A term that a Reference chapter sets in bold, where it defines the term, has a glossary entry."""
+    if part != "reference":
+        return []
+    errors = []
+    for number, line, _, _ in scan(text):
+        for match in BOLD.finditer(line):
+            term = match[1].strip()
+            if term not in NOT_DEFINITIONS and not term_forms(term) & glossary:
+                errors.append(f"{path}:{number}: the bold term {term!r} has no entry in the glossary ({GLOSSARY})")
     return errors
 
 
 def check_style(source, chapters, archived=ARCHIVED):
     errors = []
     checked = 0
+    reference = {chapter.path for chapter in chapters if chapter.part == "reference"}
+    glossary_file = source / GLOSSARY
+    glossary = glossary_terms(glossary_file.read_text(encoding="utf-8")) if glossary_file.is_file() else set()
     for chapter in chapters:
         if chapter.path not in archived:
             checked += 1
-            errors += style_errors(chapter.path, (source / chapter.path).read_text(encoding="utf-8"), chapter.part)
+            text = (source / chapter.path).read_text(encoding="utf-8")
+            errors += style_errors(chapter.path, text, chapter.part, reference)
+            errors += definition_errors(chapter.path, text, chapter.part, glossary)
     if errors:
         raise ValueError("style guide violations:\n  " + "\n  ".join(errors))
-    print(f"Checked the style of {checked} chapters by part")
+    print(f"Checked the style of {checked} chapters by part; bold text that defines no term: "
+          + ", ".join(repr(term) for term in NOT_DEFINITIONS))
 
 
 # --- Includes -------------------------------------------------------------------
@@ -290,15 +372,34 @@ def code_blocks(text):
 
 
 MAIN = re.compile(r"\s*(?:pub\s+)?(?:resource\s+)?fn\s+main\s*\(")
+FUNCTION = re.compile(r"\s*(?:pub\s+)?(?:resource\s+)?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\(")
+# A diagnostic line of a program: a place in a file, with an optional line and
+# column, and a code. A form such as `MANIFEST: E_MANIFEST: message` names no
+# file, and a diagnostic without a place is about a command, which no
+# rejected program records.
+DIAGNOSTIC_LINE = re.compile(r"^\s*[^\s:]*\.[A-Za-z0-9]+(?::\d+:\d+)?: E_[A-Z][A-Z0-9_]*: ")
 
 
 def program_errors(chapter, text):
-    """A complete program in a chapter comes from a tested file through an include directive."""
+    """A complete program, function or diagnostic in a chapter comes from a tested file through an include."""
     errors = []
     for number, label, content in code_blocks(text):
-        if label in ("", "vast", "text") and any(MAIN.match(line) for line in content):
+        typed = [line for line in content if not INCLUDE.search(line)]
+        if label in ("", "vast", "text") and any(MAIN.match(line) for line in typed):
             errors.append(f"{chapter}:{number}: a complete program is included from a tested file "
                           "under examples/ (style guide, Examples)")
+        elif label in ("", "vast") and any(FUNCTION.match(line) and "{" in "".join(typed[index:])
+                                           for index, line in enumerate(typed)):
+            errors.append(f"{chapter}:{number}: a complete function is included from a tested file "
+                          "under examples/ with an ANCHOR (style guide, Examples)")
+        if label == "text" and any(DIAGNOSTIC_LINE.match(line) for line in typed):
+            errors.append(f"{chapter}:{number}: the diagnostic of a rejected program is included from its "
+                          ".stderr file (style guide, Examples)")
+    for match in INCLUDE.finditer(text):
+        selector = match[3].partition(":")[2]
+        if not match[1] and selector and re.fullmatch(r"\d*(?::\d*)?", selector):
+            errors.append(f"{chapter}: {{{{#{match[2]} {match[3]}}}}} selects lines; mark the part with "
+                          "ANCHOR comments and include it by name (style guide, Examples)")
     return errors
 
 

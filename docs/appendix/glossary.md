@@ -600,6 +600,15 @@ markers, domains or natural numbers. `Point` and `Morphism` are families. See
 [Families](../indexed-source.md#families) and the
 [guide](../guide/indexed-profile.md#families-of-types).
 
+## Fast like C
+
+The performance goal of Vastitas, which has the highest priority among its
+design goals. It names a C/C++-class target: a mathematical abstraction must
+admit native code with the storage access, the allocation and the numerical
+kernel calls of a competent C implementation of the same computation. See
+[Fast like C](../storage-ownership.md#fast-like-c) and the
+[Introduction](../index.md#design-goals).
+
 ## Fiber product
 
 The presented affine object `fiber(X, Y)` of two presented affine objects over
@@ -881,6 +890,17 @@ a `move`, a `drop` or a call that takes an owner, and the `release` of a
 loan. See
 [Resource functions](../storage/resource-programs.md#resource-functions).
 
+## Loan
+
+The word has two meanings:
+
+1. An [edit loan](#edit-loan) is edit authority over a region of a generic
+   that an assembly borrows. See
+   [Assemblies](../language/edit-authority.md#assemblies).
+2. A [storage loan](#storage-loan) is access to one view of an allocation for
+   a limited time. See
+   [Storage types](../storage/resource-programs.md#storage-types).
+
 ## Logical evaluator
 
 The evaluator of a [registry entry](#registry-entry) that computes the value
@@ -925,7 +945,7 @@ declarations appear only in this mode. Compare [flat mode](#flat-mode). See
 
 ## Marker
 
-A coefficient marker, such as `QQ`. A package declares a marker with
+A **coefficient marker**, such as `QQ`. A package declares a marker with
 `indexed marker`, and the [core syntax](#core-syntax) spells the markers
 `QQ` and `CInfReal`. An implementation records its marker. A marker is not an object:
 `QQ` and the [base object](#base-object) `Base(QQ)` differ. See
@@ -1115,7 +1135,7 @@ an object is a value of an [object type](#object-type). Every object has
 
 A type `Object<D, K>`, where `D` names a classification or an implementation
 and `K` a marker. Its implementations are the implementations in the
-[domain](#domain) of `D` whose marker is `K`. One object type lies within
+[domain](#domain) of `D` whose marker is `K`. One object type **lies within**
 another when both name the same marker and every implementation of the first
 is an implementation of the second. See
 [Object types](../indexed-source.md#object-types).
@@ -1619,8 +1639,8 @@ its own build before a native build. See
 ## Runtime owner
 
 The storage [owner](#owner) of an allocation that `runtime_allocate` creates,
-whose size the program computes. Its loans are runtime loans. Every other
-owner and loan is static. See
+whose size the program computes. Its loans are **runtime** loans. Every
+other owner and loan is **static**. See
 [Runtime extents](../storage/resource-programs.md#runtime-extents).
 
 ## Runtime reverse pass

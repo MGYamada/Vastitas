@@ -12,10 +12,11 @@ describes the constructs in the chapters `language/frames.md` and
 [Verification boundaries](verification.md#frames-and-physical-dimensions)
 states the theorems with their premises.
 
-Conditions C1–C22 have their evidence below. C23 (continuous integration)
-and C24 (the independent whole-stage review) are Planned until the
-integration pull request runs CI and a session other than the implementers
-reviews the stage.
+Conditions C1–C21 have their evidence below. C22 has native evidence
+besides the acceptance program, whose entries are marked PENDING(E) until it
+lands. C23 (continuous integration) and C24 (the independent whole-stage
+review) are Planned until the integration pull request runs CI and a session
+other than the implementers reviews the stage.
 
 ## Scope and decisions
 

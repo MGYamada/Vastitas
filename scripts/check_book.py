@@ -651,6 +651,11 @@ PARSE_EXCEPTIONS = {
     "examples/reject/packages/smooth-pullback-mode/main.vast": (
         False, "Smooth affine declarations, Reverse-pass primitives: a mode other than saved or recomputed is "
                "an error (E_TYPE); the production lists the two modes"),
+    # Stage 4 (#759): the Reference gains the productions of the frame families
+    # with the tracker's documentation step, which then removes this entry.
+    "stdlib/src/geometry/frame/mod.vast": (
+        False, "std::geometry::frame declares the frame families of Stage 4 (#759), which have no production "
+               "in the Reference yet"),
 }
 RECORDED = re.compile(r"^(\S+?\.vast):\d+:\d+: (E_[A-Z][A-Z0-9_]*): ", re.M)
 

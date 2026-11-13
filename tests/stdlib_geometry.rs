@@ -24,6 +24,10 @@ const LIBRARY: &[(&str, &str)] = &[
         "metric/mod.vast",
         include_str!("../stdlib/src/geometry/metric/mod.vast"),
     ),
+    (
+        "frame/mod.vast",
+        include_str!("../stdlib/src/geometry/frame/mod.vast"),
+    ),
 ];
 const MANIFEST: &str = include_str!("../stdlib/src/geometry/Vastitas.toml");
 /// The `std::differential` package, which the `std` entrypoint re-exports.

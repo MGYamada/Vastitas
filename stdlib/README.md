@@ -8,8 +8,12 @@ The [geometry library](src/geometry/README.md) exposes the existing finite affin
 profile through `std::geometry::scheme` and `std::geometry::smooth`, and the
 Stage 2 presented affine profile through `std::geometry::scheme::affine`. It
 exposes the smooth affine profile through `std::geometry::smooth::affine` and
-`std::geometry::metric`. The [differential library](#differentiation)
+`std::geometry::metric`, and the ordered frames of smooth affine objects
+through `std::geometry::frame`. The [differential library](#differentiation)
 `std::differential` is a separate package that depends on the geometry package.
+No manifest of the standard library depends on a package outside `stdlib/`, so
+the standard library never depends on the physical interpretations of
+`nature` (ADR 0002); `scripts/check_boundaries.py` checks it.
 Select `stdlib` as the `std` dependency for the combined
 geometry/differential/arithmetic entrypoint. It re-exports the canonical
 declarations and uses protocol 9, the current schema epoch (#533), because the

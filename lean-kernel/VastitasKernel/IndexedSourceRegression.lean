@@ -144,6 +144,20 @@ private def fieldsOf (count : Nat) : Program := addAll [decl "Bare" (.family ⟨
   decl "Wide" (.package [⟨objectType, List.replicate count ⟨path "Bare", []⟩⟩])]
 #eval check "64 fields of a case; 65 are E_LIMIT" (accepts (fieldsOf 64) && limited (fieldsOf 65))
 #eval check "cross-category duplicate owner" (rejects "E_DUPLICATE" (add (decl "Grid" (.package [shape]))))
+-- A repeated owner is reported at its second declaration in the text, with its
+-- name, and the declaration beyond the limit has the place of its own (#735).
+#eval check "the place and the name of a repeated owner" (match checkDeclarations (addAll
+    [{ decl "Kind" .marker with span := { start := 40, line := 3 } },
+      { decl "Kind" .marker with span := { start := 20, line := 2 } }]) with
+  | .error error => error.code == "E_DUPLICATE" && error.span.start == 40 &&
+      error.message == "`Kind` is declared more than once in this module"
+  | .ok _ => false)
+#eval check "the place of the declaration beyond the limit" (
+  let existing := program.owned.length
+  match checkDeclarations (addAll ((List.range 4097).map fun i =>
+      { decl s!"M{i}" .marker with span := { start := i + 1 } })) with
+  | .error error => error.code == "E_LIMIT" && error.span.start == 4096 - existing + 1
+  | .ok _ => false)
 #eval check "reserved scalar and function types" (rejects "E_RESERVED" (add (decl "Nat" .marker)) &&
   rejects "E_RESERVED" (add (decl "Fn" .marker)))
 #eval check "private declaration cannot leak" (rejects "E_VISIBILITY" (changeLibrary fun m =>

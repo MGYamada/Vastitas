@@ -224,8 +224,8 @@ the kernel counts the events, the methods and the units of the audit.
 | Fields of a case | 64 | The fields of one case of an `indexed package` | A case | `E_LIMIT` |
 | Position in a constraint | 2³² − 1 | The integer that names a parameter in a constraint of a family, such as the `1` of `same_base(0, 1)` | A constraint | `E_LIMIT` |
 
-The diagnostic for the number of indexed declarations has the place
-`FILE:1:1`. A position in a constraint must also name a parameter of the
+The diagnostic for the number of indexed declarations has the place of the
+first declaration beyond the limit. A position in a constraint must also name a parameter of the
 family, which [Families](../indexed-source.md#families) requires; the limit
 bounds the integer that the frontend reads.
 [Indexed declarations](../indexed-source.md) states the rules.

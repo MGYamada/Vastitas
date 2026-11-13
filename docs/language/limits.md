@@ -79,9 +79,10 @@ Rules:
   that exceeds it.
 - Some limit diagnostics point to no construct. A diagnostic for a limit on
   the inputs as a whole, or on a chain of package dependencies, has no place.
-  The diagnostics for the number of indexed declarations and for the budget
-  on the work of the names of the whole program have the place `FILE:1:1`.
-  The two other budgets of name resolution have the place of a path or of a
+  The diagnostic for the budget on the work of the names of the whole program
+  has the place `FILE:1:1`. The diagnostic for the number of indexed
+  declarations has the place of the first declaration beyond the limit, and
+  the two other budgets of name resolution have the place of a path or of a
   `use` declaration.
   [Diagnostics](diagnostics.md#diagnostics-without-a-place-of-their-own)
   describes both forms.

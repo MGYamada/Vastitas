@@ -30,8 +30,11 @@ instance (program : Source.Program) (env : Core.Declarations)
   unfold ContextValid
   infer_instance
 
+/-- `span` is the place of the indexed type, for a literal, which has no place
+of its own. -/
 def resolveTypeArgument (program : Namespace.Indexed) (scope : Namespace.Scope)
-    (ctx : TypeContext) (expected : Indexed.Parameter) (argument : TypeArgument) : ResolveM Index := do
+    (ctx : TypeContext) (expected : Indexed.Parameter) (argument : TypeArgument) (span : Span := {}) :
+    ResolveM Index := do
   match expected, argument with
   | .natural, .natural value => return .natural value
   | .object _, .name path =>
@@ -46,7 +49,7 @@ def resolveTypeArgument (program : Namespace.Indexed) (scope : Namespace.Scope)
   | .domain, .name path => return .domain (← resolveId program scope path)
   | .marker, .name path => return .marker (← resolveId program scope path)
   | _, .name path => Namespace.problem path.span "E_TYPE" "natural index requires a literal"
-  | _, .natural _ => Namespace.problem {} "E_TYPE" "natural literal used at a non-natural index"
+  | _, .natural _ => Namespace.problem span "E_TYPE" "natural literal used at a non-natural index"
 
 def resolveTypeArguments (program : Namespace.Indexed) (scope : Namespace.Scope)
     (ctx : TypeContext) (parameters : List Indexed.Parameter) (arguments : List TypeArgument)
@@ -54,7 +57,7 @@ def resolveTypeArguments (program : Namespace.Indexed) (scope : Namespace.Scope)
   if parameters.length != arguments.length then
     Namespace.problem span "E_TYPE" "indexed type has the wrong number of arguments"
   (parameters.zip arguments).mapM fun (parameter, argument) =>
-    resolveTypeArgument program scope ctx parameter argument
+    resolveTypeArgument program scope ctx parameter argument span
 
 def geometryBase (name : String) : ResolveM BaseKind :=
   match name with

@@ -84,6 +84,11 @@ def higherFixture : Program := program [add1, twice, main
 #eval rejects "source Fn main argument cannot be erased" "E_MAIN" (program [add1,
   fn "main" [⟨"f", fnInt, {}⟩] int (block (num 0)), fn "caller" [] int (block (call "main" [var "add1"]))])
 #eval rejects "Fn main return" "E_MAIN" (program [add1, fn "main" [] fnInt (block (var "add1"))])
+-- An entry point with another signature is reported at its declaration (#735).
+#eval check "the place of an entry point with another signature" (match Compiler.checkProgram
+    (program [add1, { fn "main" [⟨"n", int, {}⟩] int (block (var "n")) with span := { start := 30, line := 3 } }]) true with
+  | .error diagnostic => diagnostic.code == "E_MAIN" && diagnostic.span.start == 30
+  | .ok _ => false)
 #eval rejects "outer scalar capture" "E_CAPTURE" (program [main (num 0)
   [bind "outer" (num 2), bind "f" (lambda (.binary "+" (var "x") (var "outer") {}))]])
 #eval rejects "outer Fn capture" "E_CAPTURE" (program [add1, main (num 0)

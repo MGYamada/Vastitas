@@ -246,6 +246,26 @@ def validVersion (s : String) : Bool := Id.run do
   return numbers.length == 3 && numbers.all versionNumber &&
     (pieces.length == 1 || versionIdentifiers (String.intercalate "-" (pieces.drop 1)) true)
 
+/-- Presentation only: a declaration that repeats the owner of another, and its
+place. Of the declarations of one owner it is the second in the text of the
+module, and of the repeated owners of the first module that has one, the one
+whose repetition comes first. -/
+def repeatedOwner (entries : List (Owner × Span)) : Option (Owner × Span) := Id.run do
+  let mut spans : Std.HashMap Owner (List Span) := {}
+  for (owner, span) in entries do
+    spans := spans.insert owner (span :: spans.getD owner [])
+  let repeated (owner : Owner) : Option Span :=
+    match (spans.getD owner []).mergeSort (fun left right => left.start ≤ right.start) with
+    | _ :: second :: _ => some second
+    | _ => none
+  let some (first, _) := entries.find? fun (owner, _) => (repeated owner).isSome | return none
+  let mut best : Option (Owner × Span) := none
+  for (owner, _) in entries do
+    if owner.scope == first.scope then
+      if let some span := repeated owner then
+        if best.all fun (_, other) => span.start < other.start then best := some (owner, span)
+  return best
+
 def duplicateSpan [BEq α] (entries : List (α × Span)) : Span := Id.run do
   let mut seen := []
   for (key, span) in entries do
@@ -254,7 +274,7 @@ def duplicateSpan [BEq α] (entries : List (α × Span)) : Span := Id.run do
   return {}
 
 def ownerLocations (p : Indexed) : List (Owner × Span) :=
-  p.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
+  p.locations ++ p.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
     let scope : Scope := ⟨pkg.id, m.path⟩
     (m.functions.map fun f => (⟨scope, f.name⟩, f.span)) ++
     (m.resourceFunctions.map fun f => (⟨scope, f.name⟩, f.span)) ++
@@ -329,7 +349,10 @@ def validateWithWork (p : Indexed) : Result ImportWork := do
   if !Finite.distinct p.scopes then
     problem (duplicateSpan (p.packages.flatMap fun pkg =>
       pkg.modules.map fun m => (Scope.mk pkg.id m.path, m.span))) "E_DUPLICATE" "duplicate logical module"
-  if !UniqueOwners p then problem (duplicateSpan (ownerLocations p)) "E_DUPLICATE" "duplicate declaration owner"
+  if !UniqueOwners p then
+    match repeatedOwner (ownerLocations p) with
+    | some (owner, span) => problem span "E_DUPLICATE" s!"`{owner.name}` is declared more than once in this module"
+    | none => problem {} "E_DUPLICATE" "duplicate declaration owner"
   if !Finite.distinct (p.declarations.map (symbol p.toProgram)) then problem {} "E_DUPLICATE" "conflicting generated declaration identities"
   validateGraph p
   for pkg in p.packages do

@@ -425,7 +425,9 @@ def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
       | none => { code := "E_TYPE", message := general }
 
 def checkDeclarations (p : Program) : Except Diagnostic (CheckedDeclarations p) := do
-  if p.owned.length > 4096 then Namespace.problem {} "E_LIMIT" "more than 4096 indexed declarations"
+  -- At the first declaration beyond the limit.
+  if p.owned.length > 4096 then
+    Namespace.problem ((p.owned[4096]?.map (·.2.span)).getD {}) "E_LIMIT" "more than 4096 indexed declarations"
   match namespaceAccepted : Namespace.validate p.indexed with
   | .error error => .error error
   | .ok () =>

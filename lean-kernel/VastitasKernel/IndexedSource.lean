@@ -306,7 +306,8 @@ are rebuilt from the input, not received as frontend lookup certificates. -/
 def Program.indexed (p : Program) : Namespace.Indexed := {
   toProgram := p.toNamespace, declarations := p.targets,
   byOwner := Namespace.ownerIndex p.targets, byScope := Namespace.scopeIndex p.targets,
-  byPackage := Namespace.packageIndex p.toNamespace.packages }
+  byPackage := Namespace.packageIndex p.toNamespace.packages,
+  locations := p.owned.map fun (owner, declaration) => (owner, declaration.span) }
 
 def Body.category : Body → Nat
   | .package _ => 1

@@ -78,7 +78,8 @@ Rules:
   of resolution and visibility.
 - A program has a limit on the number of its indexed declarations, which
   [Appendix D](appendix/limits.md#indexed-declarations) gives. More
-  declarations are an error (`E_LIMIT`).
+  declarations are an error (`E_LIMIT`), at the first declaration beyond the
+  limit.
 - The compiler reports a declaration that breaks a rule of this chapter at
   the declaration, or at the path that the rule is about. The message states
   the rule and names the declarations by their paths

@@ -8,11 +8,21 @@ such as L · T⁻¹, or the dimensionless dimension 1. It is unrelated to the
 dimension of an object, the number of its coordinates. The kernel checks the
 declarations of this chapter, and no declaration of another chapter and no
 primitive reads them. So they change neither the validity nor the generated
-code of the rest of a program. [Smooth affine declarations](smooth-declarations.md)
+code of the rest of a program, except in two ways: they count toward the
+limits of a whole program, such as the number of
+[indexed declarations](../appendix/limits.md#indexed-declarations), and
+their names can clash with other names of their module.
+[Smooth affine declarations](smooth-declarations.md)
 defines smooth affine objects and their metrics, and
 [Indexed declarations](../indexed-source.md) gives the general rules of
 `indexed` declarations. [Notation](notation.md) explains the Syntax blocks,
 and the [glossary](../appendix/glossary.md) defines the terms.
+
+A path in a declaration of this chapter that resolves to nothing is an error
+of [resolution](names-and-paths.md#resolution) (`E_NAME`), before the rules
+of this chapter apply. A rule below that requires a path to name a
+declaration of some kind, such as a quantity kind or a scale, concerns a
+path that names a declaration of another kind.
 
 The examples quote the tested package
 [`examples/packages/physical-dimensions/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/physical-dimensions),
@@ -186,9 +196,12 @@ quantity, such as the length of a ruler, and it names no unit system.
 
 Rules:
 
-- The magnitude must be a constant polynomial expression. The rules of
+- The magnitude must be a constant polynomial expression. The limits of
   [polynomial expressions](smooth-declarations.md#polynomial-expressions)
-  apply to it, and a coordinate name in it is an error (`E_DIMENSION`).
+  apply to it (`E_LIMIT`). A coordinate name in it is an error
+  (`E_DIMENSION`), even when it cancels, and so is a fraction with a zero
+  denominator, which is `E_AFFINE_COORDINATE` in other polynomial
+  expressions.
 - The magnitude must be positive. Otherwise it is an error (`E_DIMENSION`).
 - The numerator and the denominator of the magnitude must have at most
   `metricEntryBits` bits
@@ -275,17 +288,24 @@ Rules:
 - An entry must have at most 16 scale factors (`dimensionScaleFactors`), and
   each exponent must be at most 64 in absolute value (`dimensionExponent`).
   The numerator and the denominator of the coefficient must have at most
-  `metricEntryBits` bits. Otherwise it is an error (`E_LIMIT`).
+  `metricEntryBits` bits, and so must those of the entry multiplied out,
+  counted before its factors cancel as
+  [Appendix D](../appendix/limits.md#physical-dimensions) says. Otherwise it
+  is an error (`E_LIMIT`).
 - `normalized(…)` must name each coordinate of the object exactly once, each
   with a scale. Otherwise it is an error (`E_DIMENSION`).
 - The scale of a coordinate in `normalized(…)` must be of the quantity kind
   that the reading gives to the coordinate. Otherwise it is an error
   (`E_DIMENSION`), even when the dimensions agree. In `gram(…)` only the
   dimensions of the scales count.
+- The coefficient of each entry must be a constant rational number. A
+  fraction with a zero denominator in it is an error (`E_DIMENSION`).
 - Each entry, with the magnitudes of its scales, must equal the entry of the
   Gram matrix of the metric. Otherwise it is an error (`E_DIMENSION`).
 - Every term with a nonzero entry must have one dimension. Otherwise it is
-  an error (`E_DIMENSION`). A zero entry constrains nothing.
+  an error (`E_DIMENSION`). A zero entry constrains nothing. Each exponent of
+  that dimension must be at most 64 in absolute value (`dimensionExponent`),
+  as in a declared value. Otherwise it is an error (`E_LIMIT`).
 - A declared value must be a dimension by the rules of
   [base dimensions and quantity kinds](#base-dimensions-and-quantity-kinds),
   and it must equal the dimension of the terms. Otherwise it is an error
@@ -299,14 +319,17 @@ Rules:
 > dimensions of the terms, and the declaration audit checks every nature
 > declaration again (`NatureDimension.checkPhysicalMetric`). Messages write
 > a dimension as the powers of its base dimensions in their declaration
-> order, as in `L^2*T^-1`, and `1` for the dimensionless one. The oracle
+> order, as in `L^2*T^-1`, and `1` for the dimensionless one. A base
+> dimension appears by its full path when another base dimension of the
+> program has its name. A message writes a magnitude only within
+> `metricEntryBits`, and otherwise says that it is larger. The oracle
 > theorem `VastitasOracle.NatureDimension.physicalMetric_sound` states what an
 > accepted interpretation means, and `euclidean_rejected` and
 > `normalized_rejected_of_kind` state the two rejections of the examples
 > below. `VastitasOracle.NatureWeakening.entryValid_nature_weakening`,
 > `evalPrimitive_nature_weakening`, `metric_nature_free` and
-> `flat_sharp_nature_free` state that nature declarations change no other
-> declaration and no value.
+> `flat_sharp_nature_free` state that nature declarations change no
+> declaration of another kind and no value.
 
 Example, from `main.vast`:
 

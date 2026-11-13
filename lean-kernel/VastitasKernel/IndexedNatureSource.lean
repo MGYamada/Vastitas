@@ -15,10 +15,14 @@ metrics, which read them:
 - a reading and a normalized metric put their declarations in coordinate
   order, once every coordinate of the object is named exactly once;
 - a scale gets its magnitude and a scale monomial its coefficient, each a
-  constant expression evaluated within one run of `algebraWork`;
-- a physical metric is evaluated with `NatureDimension.entryValues`, and its
-  entries, the dimensions of its terms and its declared value are checked as
-  the declaration audit checks them.
+  constant expression evaluated within one run of `algebraWork`, and a scale
+  monomial multiplied out is bounded (`NatureDimension.monomialBounded`)
+  before any of its powers is computed;
+- a physical metric is evaluated with the functions of the declaration audit,
+  `NatureDimension.scaleMonomialValue` and `NatureDimension.entryValues`, each
+  entry is compared with the Gram entry as soon as it is evaluated, and the
+  dimensions of its terms, within the exponent bound, and its declared value
+  are checked as the declaration audit checks them.
 
 Every rejection is `E_DIMENSION` at the declaration, except the bounds of
 `Limits.dimensionBases`, `Limits.dimensionExponent`,
@@ -27,7 +31,9 @@ limits of a constant expression (`E_LIMIT`). The declaration audit checks
 every stored declaration again (`NatureDimension`). A program without nature
 declarations is unchanged. Messages name declarations by their full path and
 write dimensions as products of base dimensions in declaration order, such as
-`L^2*T^-1`, with `1` for a dimensionless one. -/
+`L^2*T^-1`, with `1` for a dimensionless one; a base dimension whose name
+another base dimension of the program shares is written by its full path. A
+message writes a magnitude only within `Limits.metricEntryBits`. -/
 namespace VastitasKernel.Indexed.Source
 
 def dimensionProblem {α : Type} (span : Span) (reason : String) : Namespace.Result α :=
@@ -45,14 +51,33 @@ private def firstRepeated {α : Type} [BEq α] : List α → Option α
   | x :: rest => if rest.contains x then some x else firstRepeated rest
 
 /-- A dimension as a diagnostic writes it: the powers of its base dimensions
-in their declaration order, `L^2*T^-1`, and `1` for a dimensionless one. -/
+in their declaration order, `L^2*T^-1`, and `1` for a dimensionless one. A
+base dimension has its short name, or its full path when another base
+dimension of the program has the same short name. -/
 private def dimensionText (env : Environment) (dimension : DimensionVector) : String :=
   let order := NatureDimension.baseDimensions env
   let rank (base : DeclId) : Nat := (order.idxOf? base).getD order.length
+  let name (base : DeclId) : String :=
+    if order.any fun other => other != base && other.name == base.name then qualified base else base.name
   let factors := (dimension.filter (·.2 != 0)).mergeSort fun a b => rank a.1 ≤ rank b.1
   if factors.isEmpty then "1"
   else String.intercalate "*" <| factors.map fun (base, exponent) =>
-    if exponent == 1 then base.name else s!"{base.name}^{exponent}"
+    if exponent == 1 then name base else s!"{name base}^{exponent}"
+
+/-- `count` things: `one` for one, otherwise `many`, after the number. -/
+private def countText (count : Nat) (one many : String) : String :=
+  s!"{count} {if count == 1 then one else many}"
+
+/-- A magnitude that a diagnostic writes: the number within the bound of a
+Gram entry, and otherwise only its size, so that the message stays short. -/
+private def magnitudeText (value : Rat) : String :=
+  if SmoothDeclarations.entryBounded value then s!"the magnitude {value}"
+  else s!"a magnitude with more than {Limits.metricEntryBits} bits in its numerator or denominator"
+
+/-- A Gram entry that a diagnostic writes, within the same bound. -/
+private def gramEntryText (value : Rat) : String :=
+  if SmoothDeclarations.entryBounded value then toString value
+  else s!"a number with more than {Limits.metricEntryBits} bits in its numerator or denominator"
 
 /-- How a diagnostic lists the coordinates of an object. -/
 private def coordinateText (coordinates : List String) : String :=
@@ -156,8 +181,10 @@ private def elaborateDeclaration (sources : List (DeclId × Span × Body)) (env 
 
 /-- One scale monomial of a physical metric, at row `row` and column `column`:
 at most `Limits.dimensionScaleFactors` factors, each a scale within the
-exponent bound, no scale twice, and a constant coefficient within the entry
-bound. Factors with exponent `0` are dropped. -/
+exponent bound, no scale twice, a constant coefficient within the entry
+bound, and the monomial multiplied out within the entry bound
+(`NatureDimension.monomialBounded`, before any power is computed). Factors
+with exponent `0` are dropped. -/
 private def elaborateMonomial (span : Span) (env : Environment) (what : String) (row column : Nat)
     (source : ScaleMonomial) (factors : List (DeclId × Int)) : Namespace.Result Indexed.ScaleMonomial := do
   let entry := s!"the entry in row {row + 1}, column {column + 1} of {what}"
@@ -176,6 +203,13 @@ private def elaborateMonomial (span : Span) (env : Environment) (what : String) 
   unless SmoothDeclarations.entryBounded coefficient do
     Namespace.problem span "E_LIMIT" <| s!"the coefficient of {entry} has more than {Limits.metricEntryBits} " ++
       "bits in its numerator or denominator"
+  let powers := factors.filterMap fun (scale, exponent) =>
+    (scaleData? env scale).map fun (_, magnitude) => (magnitude, exponent)
+  unless NatureDimension.monomialBounded coefficient powers do
+    let (numerator, denominator) := NatureDimension.monomialBits coefficient powers
+    Namespace.problem span "E_LIMIT" <| s!"{entry}, multiplied out, has up to {numerator} bits in its " ++
+      s!"numerator and {denominator} in its denominator, beyond the limit of {Limits.metricEntryBits} bits of a " ++
+      "Gram entry; the kernel adds the bits of the coefficient and of each magnitude, once per unit of its exponent"
   pure { coefficient, factors := factors.filter (·.2 != 0) }
 
 /-- The entries of a physical metric on an object with `coordinates` read as
@@ -188,12 +222,13 @@ private def elaborateEntries (span : Span) (env : Environment) (what : String) (
   match source, entries with
   | .gram sourceRows, .gram rows =>
     unless rows.length == n do
-      dimensionProblem span <| s!"{what} on the {n}-dimensional object `{qualified object}` needs {n} rows of " ++
-        s!"{n} entries, but it has {rows.length} rows"
+      dimensionProblem span <| s!"{what} on the {n}-dimensional object `{qualified object}` needs " ++
+        s!"{countText n "row" "rows"} of {countText n "entry" "entries"}, but it has " ++
+        countText rows.length "row" "rows"
     for (row, index) in rows.zipIdx do
       unless row.length == n do
-        dimensionProblem span <| s!"{what} on the {n}-dimensional object `{qualified object}` needs {n} " ++
-          s!"entries in each row, but row {index + 1} has {row.length}"
+        dimensionProblem span <| s!"{what} on the {n}-dimensional object `{qualified object}` needs " ++
+          s!"{countText n "entry" "entries"} in each row, but row {index + 1} has {row.length}"
     let rows ← (sourceRows.zip rows).zipIdx.mapM fun ((sourceRow, row), i) =>
       (sourceRow.zip row).zipIdx.mapM fun ((sourceMonomial, monomial), j) =>
         elaborateMonomial span env what i j sourceMonomial monomial.factors
@@ -210,9 +245,37 @@ private def elaborateEntries (span : Span) (env : Environment) (what : String) (
     pure (.normalized ordered)
   | _, entries => pure entries
 
+/-- The value and the dimension of every entry of a physical metric `what`
+on an object with `coordinates` read as `quantities`, row by row, each
+compared with the Gram entry of `metric` as soon as it is evaluated: the
+first entry that differs is the error. An entry of `gram(…)` is evaluated by
+`NatureDimension.scaleMonomialValue`, as the declaration audit evaluates it;
+`euclidean` and `normalized` give diagonals of `NatureDimension.entryValues`. -/
+private def evaluateEntries (span : Span) (env : Environment) (what : String) (metric : DeclId)
+    (gram : SmoothRuntime.Matrix) (coordinates : List String) (quantities : List DeclId)
+    (entries : Indexed.PhysicalGram) : Namespace.Result (List (List (Rat × DimensionVector))) := do
+  let compare (i j : Nat) (entry : Rat × DimensionVector) : Namespace.Result (Rat × DimensionVector) := do
+    let expected := SmoothDeclarations.entry gram i j
+    unless entry.1 == expected do
+      dimensionProblem span <| s!"{what} gives the {coordinates.getD i ""}·{coordinates.getD j ""} entry, " ++
+        s!"in row {i + 1}, column {j + 1}, {magnitudeText entry.1}, but the metric `{qualified metric}` " ++
+        s!"has {gramEntryText expected} there; the entries, evaluated with the magnitudes of their scales, equal " ++
+        "its Gram matrix"
+    pure entry
+  match entries with
+  | .gram rows =>
+    rows.zipIdx.mapM fun (row, i) => row.zipIdx.mapM fun (monomial, j) => do
+      let some entry := NatureDimension.scaleMonomialValue env monomial
+        | dimensionProblem span s!"the entries of {what} are not well formed"
+      compare i j entry
+  | entries =>
+    let some values := NatureDimension.entryValues env coordinates.length quantities entries
+      | dimensionProblem span s!"the entries of {what} are not well formed"
+    values.zipIdx.mapM fun (row, i) => row.zipIdx.mapM fun (entry, j) => compare i j entry
+
 /-- A physical metric: its object, metric, reading, value and entries, the
 entries evaluated against the Gram matrix of the metric, and one dimension of
-the nonzero terms, equal to a declared value. -/
+the nonzero terms, within the exponent bound and equal to a declared value. -/
 private def elaboratePhysical (span : Span) (env : Environment) (id family object metric reading : DeclId)
     (value : Option DimensionVector) (source : PhysicalGram) (entries : Indexed.PhysicalGram) :
     Namespace.Result Indexed.Declaration := do
@@ -233,15 +296,7 @@ private def elaboratePhysical (span : Span) (env : Environment) (id family objec
   -- The reading was elaborated before, so each quantity has a dimension.
   let some dimensions := quantities.mapM (quantityDimension? env)
     | dimensionProblem span s!"{what} names the reading `{qualified reading}`, which is not valid"
-  let some values := NatureDimension.entryValues env coordinates.length quantities entries
-    | dimensionProblem span s!"the entries of {what} are not well formed"
-  for (row, i) in values.zipIdx do
-    for ((magnitude, _), j) in row.zipIdx do
-      let expected := SmoothDeclarations.entry gram i j
-      unless magnitude == expected do
-        dimensionProblem span <| s!"{what} gives the {coordinates.getD i ""}·{coordinates.getD j ""} entry, " ++
-          s!"in row {i + 1}, column {j + 1}, the magnitude {magnitude}, but the metric `{qualified metric}` " ++
-          s!"has {expected} there; the entries, evaluated with the magnitudes of their scales, equal its Gram matrix"
+  let values ← evaluateEntries span env what metric gram coordinates quantities entries
   let term (i j : Nat) : String := s!"{coordinates.getD i ""}·{coordinates.getD j ""}"
   match NatureDimension.nonzeroTerms dimensions values with
   | [] =>
@@ -253,6 +308,11 @@ private def elaboratePhysical (span : Span) (env : Environment) (id family objec
       dimensionProblem span <| s!"in {what}, the term {term i j} has dimension {dimensionText env first} and the " ++
         s!"term {term k l} has dimension {dimensionText env other}; every nonzero term of an interpreted metric " ++
         "has one dimension"
+    if let some (base, exponent) := first.find? fun (_, exponent) => !NatureDimension.exponentBounded exponent then
+      Namespace.problem span "E_LIMIT" <| s!"the nonzero terms of {what} have dimension " ++
+        s!"{dimensionText env first}, which raises `{qualified base}` to the power {exponent}, beyond the limit of " ++
+        s!"{Limits.dimensionExponent} in absolute value; the value of an interpreted metric is a dimension that a " ++
+        "declaration can write"
     if let some declared := value then
       unless NatureDimension.sameDimension declared first do
         dimensionProblem span <| s!"{what} declares the value {dimensionText env declared}, but its nonzero " ++

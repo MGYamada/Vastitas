@@ -27,9 +27,11 @@ reserved-name checks. This grants no additional edit authority. -/
 def moduleName (name : String) (span : Span) : Result Unit :=
   if name == "generic" || geometricOperation name then pure () else sourceName name span
 
-/-- Compatibility spellings may name actual indexed declarations. They do not
-select a declaration kind, representation, or operation. Scalar/Fn/Pair and
-language keywords remain reserved. Public protocols 2–6 cannot create this kind. -/
+/-- Compatibility spellings may name actual indexed declarations: the
+declaration itself, and a `use` without `as` that imports one, whose alias is
+the last segment of its path. They do not select a declaration kind,
+representation, or operation. Scalar/Fn/Pair and language keywords remain
+reserved. Public protocols 2–6 cannot create this kind. -/
 def indexedSpelling (name : String) : Bool :=
   ["Scheme", "CInfScheme", "Point", "Morphism", "Pointed", "QQ", "CInfReal",
     "Affine", "Base", "origin", "id", "compose", "apply", "dimension"].contains name
@@ -473,16 +475,21 @@ def validateWithWork (p : Indexed) : Result ImportWork := do
         if let .error diagnostic := declarationName decl.kind decl.owner.name m.span then
           throw { diagnostic with span := (declarationPlace p decl.owner).getD m.span }
       for entry in m.imports do
-        -- Keep the legacy diagnostic order unless an indexed spelling can be
-        -- resolved in this declaration-aware namespace. The target is still
-        -- checked below, so a function cannot acquire a reserved alias.
-        if !(indexedSpelling entry.alias &&
+        -- An indexed spelling is the name of a `use` without `as` only: the
+        -- alias is the last segment of the path. A `use … as` alias keeps the
+        -- ordinary check, so a request cannot bind `origin` to another
+        -- declaration (#759). Keep the legacy diagnostic order unless such
+        -- a spelling can be resolved in this declaration-aware namespace. The
+        -- target is still checked below, so a function or a module cannot
+        -- acquire a reserved alias.
+        let implicit := entry.path.getLast? == some entry.alias
+        if !(implicit && indexedSpelling entry.alias &&
             p.declarations.any (·.kind == .indexedDeclaration)) then
           sourceName entry.alias entry.span
         if entry.alias == "package" then problem entry.span "E_RESERVED" "package is reserved as a path prefix"
         let (target, next) ← importWorkStep p scope entry work
         work := next
-        declarationName (if target.kind == .indexedDeclaration then target.kind else .function)
+        declarationName (if implicit && target.kind == .indexedDeclaration then target.kind else .function)
           entry.alias entry.span
   return work
 

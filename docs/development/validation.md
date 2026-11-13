@@ -151,7 +151,9 @@ python3 scripts/frame_reference.py --check
 bash scripts/check_kernel_regressions.sh
 bash scripts/check_indexed_native.sh
 cargo test --locked --test frame_primitives --test frame_dimension_declarations \
-  --test nature_dimension --test stdlib_frames --test emit_golden --test protocol_shape
+  --test nature_dimension --test stdlib_frames --test emit_golden --test protocol_shape \
+  --test frames_dimensions --test examples --test packages --test frame_limits \
+  --test nature_limits
 python3 scripts/check_boundaries.py
 python3 -m unittest discover -s scripts -p 'test_check_boundaries.py'
 ```
@@ -161,7 +163,7 @@ python3 -m unittest discover -s scripts -p 'test_check_boundaries.py'
 | `frame_reference.py --check` | The fixture `tests/fixtures/frames.json` is what the exact Python model of frames in the plane computes. `--write` regenerates it; review its diff |
 | `check_kernel_regressions.sh` | Among its modules, `FrameRuntimeRegression` (the runtime on frames of the plane and of the point), `FrameDeclarationRegression` (frame declarations through the decoders, the source checker and the declaration audit), `NatureRegression` (the declarations of `nature::dimension` likewise), `FrameRegression` (the frame bindings through the checker, the Core semantics, erasure, code generation and the decoder) and `VastitasAlgebraTest.FrameReferenceRegression` (the runtime against the fixture of the reference model) |
 | `check_indexed_native.sh` | The native fixture `frame_programs`, which links the frame runtime with the smooth and algebra runtimes and prints `42` |
-| The Rust tests | The frame primitives through the public path and forged wire records; the frame and physical-dimension declarations and their protocol; `nature::dimension` and `std::geometry::frame` from path packages, with their public names and the byte identity of generated code without nature declarations; the generated Lean of the frame primitives; the unknown fields of every frame and physical-dimension record |
+| The Rust tests | The frame primitives through the public path and forged wire records; the frame and physical-dimension declarations and their protocol; `nature::dimension` and `std::geometry::frame` from path packages, with their public names and the byte identity of generated code without nature declarations; the generated Lean of the frame primitives; the unknown fields of every frame and physical-dimension record; the acceptance program `frames-and-dimensions` with its mutations, older protocols and forged records; the book packages and rejected packages of frames and dimensions; modules that take the name of a geometric operation |
 | `check_boundaries.py` and its tests | No `std` manifest depends on `nature`, and `nature` depends on nothing outside `std` and `nature` |
 
 `scripts/test_frame_reference.py` tests the laws of the model itself:

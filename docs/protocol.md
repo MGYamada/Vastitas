@@ -272,9 +272,13 @@ reference links these sections.
 **Protocol-9 frame forms.** Frame declarations, the families of frames, frame
 arrays and frame matrices, the frame parameter and the frame primitives are
 validated optional fields of protocol 9. Any module that uses one selects
-protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`; for a
-declaration, a family representation and a parameter the decoder's message
-says that frame declarations require protocol 9.
+protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`. For a
+frame declaration, a frame parameter and a family with the representation
+`"frame_vector"`, `"frame_covector"` or `"frame_map"`, the decoder's message
+says that frame declarations require protocol 9. A valid family with the
+representation `"frame"` has the constraint `canonical(0)`, which the
+decoder reads before the representation, so its message says that smooth
+declarations require protocol 9.
 
 - **Family representation.** A family may use the string `"frame"` (the
   frames of a smooth object, `Frame<X>`), `"frame_vector"` (the arrays of
@@ -358,8 +362,12 @@ the laws of the forms.
 **Protocol-9 physical-dimension forms.** The declarations of
 `nature::dimension` and their families are validated optional fields of
 protocol 9. Any module that uses one selects protocol 9. Protocols 7 and 8
-reject each form with `E_PROTOCOL`, and the decoder's message says that
-physical dimension declarations require protocol 9.
+reject each form with `E_PROTOCOL`. For a declaration the decoder's message
+says that physical dimension declarations require protocol 9. A valid family
+with the representation `"reading"` or `"physical_metric"` has the
+constraint `canonical(0)`, which the decoder reads before the
+representation, so its message says that smooth declarations require
+protocol 9.
 
 - **Family representation.** A family may use the string `"reading"` or
   `"physical_metric"`.

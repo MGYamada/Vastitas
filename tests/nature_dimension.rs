@@ -228,16 +228,24 @@ indexed primitive sharp_e = sharp(Cotangent, Tangent, using = E, evidence = EInv
 }
 
 /// A magnitude mismatch and a scale of the wrong dimension are rejected, and
-/// dx² − c²dt² with a speed scale c is accepted (C18).
+/// dx² − c²dt² with a speed scale c is accepted (C18). The mismatch has
+/// consistent dimensions, (1/2)·t0⁻² = 1/8 in place of 1/4, so only the
+/// magnitude check rejects it.
 #[test]
 fn scaled_interpretations_must_match_the_metric_and_its_dimensions() {
     let stderr = rejects(
         &with(
-            "indexed physical Off: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^-2, 0), (0, l0^-2)));",
+            "indexed physical Off: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^-2, 0), (0, frac(1, 2) * t0^-2)));",
         ),
         "E_DIMENSION",
     );
-    assert!(stderr.contains("Off"), "{stderr}");
+    let message = common::message_text(&stderr);
+    assert!(
+        message.contains("Off")
+            && message.contains("the magnitude 1/8")
+            && message.contains("has 1/4 there"),
+        "{stderr}"
+    );
     let stderr = rejects(
         &with(
             "indexed scale t3 = 3 of Time;\nindexed physical Wrong: PhysicalMetric<C> = interpret(G, reading = phys, gram((t3^-2, 0), (0, t0^-2)));",

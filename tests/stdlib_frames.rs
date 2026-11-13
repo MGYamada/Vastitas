@@ -200,8 +200,8 @@ fn frames_from_the_library_check_build_and_run_from_a_path_package() {
 }
 
 /// Each observation can fail: a wrong component, a vector other than the
-/// decoded one, the transition in the wrong direction and a wrong entry
-/// change the printed number by their own codes.
+/// decoded one and an entry of another map array change the printed number
+/// by their own codes, 1, 4 and 7.
 #[test]
 fn mutated_frame_observations_change_the_native_result() {
     let main = common::checked_replace(MAIN, "reads(first(w), 2, 1)", "reads(first(w), 3, 1)");

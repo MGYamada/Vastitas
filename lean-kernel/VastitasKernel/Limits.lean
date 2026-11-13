@@ -73,8 +73,10 @@ def metricMatrixBits : Nat := compiler_limit% "metricMatrixBits"
 /-! Finite Stage 4 physical dimensions (`nature::dimension`, #759): the base
 dimensions of a program, the absolute value of an exponent of a dimension or
 of a scale, and the scale factors of one entry of a physical metric. A scale
-magnitude and the coefficient of an entry are bounded by `metricEntryBits`.
-Every exponent is bounded before any power is computed. -/
+magnitude, the coefficient of an entry and the entry multiplied out are
+bounded by `metricEntryBits`. Every exponent and the size of every entry are
+bounded before any power is computed. The dimension of the terms of a
+physical metric is bounded by `dimensionExponent`. -/
 /-- The base dimension declarations of a program. -/
 def dimensionBases : Nat := compiler_limit% "dimensionBases"
 /-- The absolute value of one exponent of a dimension or of a scale in an

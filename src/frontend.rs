@@ -102,6 +102,31 @@ pub(crate) fn reserved(name: &str) -> bool {
         || matches!(name, "QQ" | "CInfReal")
 }
 
+/// `E_RESERVED` at `span` when `name` may not be the name of a declaration or
+/// a binding, including a name that `use` binds.
+pub(crate) fn check_binding_name(name: &str, span: Span) -> Result<(), Diagnostic> {
+    if reserved(name) || ["mod", "use", "pub", "self", "super"].contains(&name) {
+        Err(diagnostic(
+            "E_RESERVED",
+            if BUILTINS.contains(&name) {
+                let reason = match name {
+                    "int" => "Nat-to-Int conversion",
+                    "pair" | "pair_first" | "pair_second" => "Pair construction or projection",
+                    _ => "geometry operations",
+                };
+                format!(
+                    "`{name}` is reserved for builtin {reason}; choose another declaration or binding name"
+                )
+            } else {
+                format!("`{name}` is reserved and cannot be used as a declaration or binding name")
+            },
+            span,
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 // Levenshtein distance over bytes; only used for short ASCII keyword hints.
 fn edit_distance(left: &str, right: &str) -> usize {
     let right = right.as_bytes();
@@ -667,28 +692,7 @@ impl Parser {
     // rejects them as well, at the declaration or the statement that binds
     // them; the frontend reports them at the name (#747).
     fn check_binding_name(&self, name: &str, span: Span) -> Result<(), Diagnostic> {
-        if reserved(name) || ["mod", "use", "pub", "self", "super"].contains(&name) {
-            Err(diagnostic(
-                "E_RESERVED",
-                if BUILTINS.contains(&name) {
-                    let reason = match name {
-                        "int" => "Nat-to-Int conversion",
-                        "pair" | "pair_first" | "pair_second" => "Pair construction or projection",
-                        _ => "geometry operations",
-                    };
-                    format!(
-                        "`{name}` is reserved for builtin {reason}; choose another declaration or binding name"
-                    )
-                } else {
-                    format!(
-                        "`{name}` is reserved and cannot be used as a declaration or binding name"
-                    )
-                },
-                span,
-            ))
-        } else {
-            Ok(())
-        }
+        check_binding_name(name, span)
     }
 
     fn flat_declarations(&mut self, module: &mut Module) -> Result<(), Diagnostic> {
@@ -937,17 +941,22 @@ impl Parser {
                 let (name, _) = self.reference_path()?;
                 let last = self.previous().span;
                 let components: Vec<String> = name.split("::").map(str::to_owned).collect();
-                let (alias, bound) = if self.consume("as") {
-                    self.binding_name()?
+                let (alias, bound, deferred_name) = if self.consume("as") {
+                    let (alias, bound) = self.binding_name()?;
+                    (alias, bound, None)
                 } else {
                     let alias = components.last().unwrap().clone();
                     // An implicit alias binds like `as`. Compatibility
-                    // spellings may still name imported indexed declarations;
-                    // the kernel decides those.
-                    if !INDEXED_SPELLINGS.contains(&alias.as_str()) {
+                    // spellings may still name imported indexed declarations.
+                    // Once every package is loaded, the loader rejects such a
+                    // `use` of a module at the name; the kernel decides the
+                    // rest.
+                    if INDEXED_SPELLINGS.contains(&alias.as_str()) {
+                        (alias, last, Some(last))
+                    } else {
                         self.check_binding_name(&alias, last)?;
+                        (alias, last, None)
                     }
-                    (alias, last)
                 };
                 // `package` is no name of a namespace: the kernel refuses it
                 // as the name that a `use` binds. It prices every import
@@ -966,6 +975,7 @@ impl Parser {
                     alias,
                     public,
                     span: start.through(end),
+                    deferred_name,
                 });
             } else {
                 return Err(diagnostic(

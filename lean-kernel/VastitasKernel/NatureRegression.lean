@@ -84,28 +84,36 @@ private def zero : Json := term (natural 0) []
 private def scaled (x t : String) : Json :=
   gram [[term (natural 1) [(x, "-2")], zero], [zero, term (natural 1) [(t, "-2")]]]
 
-private def mod (declarations : List Json) : Json := Json.mkObj [
-  ("path", toJson ([] : List String)), ("public", toJson true), ("span", span),
+/-- The module at `path` with `declarations`. -/
+private def modAt (path : List String) (declarations : List Json) : Json := Json.mkObj [
+  ("path", toJson path), ("public", toJson true), ("span", span),
   ("imports", toJson ([] : List Json)), ("generics", toJson ([] : List Json)),
   ("methods", toJson ([] : List Json)), ("functions", toJson ([] : List Json)),
   ("indexed_declarations", toJson declarations)]
 
-private def request (version : Nat) (declarations : List Json) : Json := Json.mkObj [
+private def mod (declarations : List Json) : Json := modAt [] declarations
+
+/-- A request whose one package has `modules`. -/
+private def requestOf (version : Nat) (modules : List Json) : Json := Json.mkObj [
   ("version", toJson version), ("input", toJson "package"), ("file", toJson "nature.vast"),
   ("root", toJson "/nature/Vastitas.toml"),
   ("packages", toJson [Json.mkObj [
     ("source", toJson "/nature/Vastitas.toml"), ("name", toJson "nature"), ("version", toJson "0.1.0"),
-    ("dependencies", toJson ([] : List Json)), ("modules", toJson [mod declarations])]])]
+    ("dependencies", toJson ([] : List Json)), ("modules", toJson modules)]])]
+
+private def request (version : Nat) (declarations : List Json) : Json := requestOf version [mod declarations]
 
 /-- The code and the message of a public request, or `accepted`: protocols 8
 and 9 through `ResourceSource.Wire`, protocol 7 through `Indexed.Wire`. -/
-private def outcome (version : Nat) (declarations : List Json) : String × String :=
-  let json := request version declarations
+private def outcomeOf (version : Nat) (json : Json) : String × String :=
   let result := if version == 7 then (Indexed.Wire.check json false).map fun _ => ()
     else (ResourceSource.Wire.check json false).map fun _ => ()
   match result with
   | .ok () => ("accepted", "")
   | .error diagnostic => (diagnostic.code, diagnostic.message)
+
+private def outcome (version : Nat) (declarations : List Json) : String × String :=
+  outcomeOf version (request version declarations)
 
 private def mentions (text part : String) : Bool := (text.splitOn part).length > 1
 
@@ -375,11 +383,17 @@ private def bases (count : Nat) : List Json := (List.range count).map fun i => b
       "is declared at a `physical_metric` family, but `nature::Reading` is not one" &&
     dimensionError [interpret "P" "l0" "E" "phys" none euclidean]
       "the physical metric `nature::P` is of `nature::l0`, which is not a smooth affine object")
-#eval check "a physical metric has n rows of n entries"
+#eval check "a physical metric has n rows of n entries, counted in the singular for one"
   (dimensionError [interpret "P" "Chart" "G" "phys" none (gram [[term (natural 1) [("l0", "-2")], zero]])]
-      "on the 2-dimensional object `nature::Chart` needs 2 rows of 2 entries, but it has 1 rows" &&
+      "on the 2-dimensional object `nature::Chart` needs 2 rows of 2 entries, but it has 1 row" &&
+    !(dimensionError [interpret "P" "Chart" "G" "phys" none (gram [[term (natural 1) [("l0", "-2")], zero]])]
+      "1 rows") &&
     dimensionError [interpret "P" "Chart" "G" "phys" none (gram [[term (natural 1) [("l0", "-2")], zero],
-      [term (natural 1) [("t0", "-2")]]])] "needs 2 entries in each row, but row 2 has 1")
+      [term (natural 1) [("t0", "-2")]]])] "needs 2 entries in each row, but row 2 has 1" &&
+    dimensionError [interpret "P" "Line" "EL" "line" none (gram [])]
+      "on the 1-dimensional object `nature::Line` needs 1 row of 1 entry, but it has 0 rows" &&
+    dimensionError [interpret "P" "Line" "EL" "line" none (gram [[zero, zero]])]
+      "on the 1-dimensional object `nature::Line` needs 1 entry in each row, but row 1 has 2")
 #eval check "an entry is a constant times powers of distinct scales"
   (accepts [interpret "P" "Chart" "G" "phys" none (gram [[term (natural 1) [("l0", "-2"), ("t0", "0")],
       term (natural 0) [("l0", "1")]], [zero, term (natural 1) [("t0", "-2")]]])] &&
@@ -405,6 +419,94 @@ private def bases (count : Nat) : List Json := (List.range count).map fun i => b
       [zero, zero]])] "raises `nature::l0` to the power 65, beyond the limit of 64 in absolute value" &&
     limitError [interpret "P" "Chart" "G" "phys" none (gram [[term huge [], zero], [zero, zero]])]
       "the coefficient of the entry in row 1, column 1 of the physical metric `nature::P` has more than 512 bits")
+/-! ## Physical metrics: the size of an entry and of the value
+
+Before it computes a power, the kernel adds the bits of the numerator and of
+the denominator of the coefficient and of each magnitude, once per unit of
+its exponent, and each sum must be within the 512 bits of a Gram entry. -/
+
+/-- `(2 ^ a) ^ b`, the constant `2 ^ (a · b)`. -/
+private def twoPower (a b : Nat) : Json := power (natural (2 ^ a)) b
+
+/-- Scales of `Ratio` with 256, 256, 255 and 2 bits, the reading of the line
+as a ratio, the metric `GB = (2^510)` on the line, and `extra`. -/
+private def sized (extra : List Json) : List Json := [
+  scale "big" "Ratio" (twoPower 85 3), scale "big2" "Ratio" (twoPower 85 3), scale "mid" "Ratio" (twoPower 127 2),
+  scale "two" "Ratio" (natural 2), reading "ratio" "Line" [("s", "Ratio")], metric "GB" "Line" [[twoPower 170 3]]] ++
+  extra
+
+/-- The physical metric `P` of `GB` with the one entry `entry`. -/
+private def onGB (entry : Json) : List Json := sized [interpret "P" "Line" "GB" "ratio" none (gram [[entry]])]
+
+#eval check "an entry multiplied out has at most 512 bits in its numerator: 512 is within, 513 beyond"
+  (accepts (onGB (term (natural 1) [("big", "2")])) &&
+    limitError (onGB (term (natural 2) [("big", "1"), ("mid", "1")]))
+      ("the entry in row 1, column 1 of the physical metric `nature::P`, multiplied out, has up to 513 bits in " ++
+        "its numerator and 0 in its denominator, beyond the limit of 512 bits of a Gram entry") &&
+    limitError (onGB (term (natural 1) [("big", "2"), ("two", "1")])) "has up to 514 bits in its numerator")
+#eval check "an entry multiplied out has at most 512 bits in its denominator"
+  (dimensionError (onGB (term (natural 1) [("big", "-2")]))
+      "gives the s·s entry, in row 1, column 1, the magnitude 1/" &&
+    limitError (onGB (term (natural 1) [("big", "-2"), ("two", "-1")]))
+      "has up to 0 bits in its numerator and 514 in its denominator, beyond the limit of 512 bits" &&
+    limitError (onGB (term (fraction 1 3) [("big", "-2")])) "has up to 0 bits in its numerator and 514 in its")
+#eval check "the size is counted before factors cancel, so a large cancelling entry is E_LIMIT"
+  (accepts (sized [interpret "P" "Line" "EL" "ratio" none (gram [[term (natural 1) [("big", "1"), ("big2", "-1")]]])]) &&
+    limitError (sized [interpret "P" "Line" "EL" "ratio" none (gram [[term (natural 1) [("big", "64"), ("big2", "-64")]]])])
+      "has up to 16384 bits in its numerator and 16384 in its denominator")
+#eval check "a diagnostic writes a magnitude only within 512 bits"
+  (let wide := [scale "wide" "Length" (twoPower 100 3),
+      interpret "P" "Chart" "G" "phys" none (normalized [("x", "wide"), ("t", "t0")])]
+    let (code, message) := outcome 9 (program wide)
+    code == "E_DIMENSION" && message.length < 400 &&
+      mentions message ("the physical metric `nature::P` gives the x·x entry, in row 1, column 1, a magnitude " ++
+        "with more than 512 bits in its numerator or denominator, but the metric `nature::G` has 1/9 there"))
+
+/-- Two scales of `Length` with magnitude 1. -/
+private def units : List Json := [scale "unit" "Length" (natural 1), scale "unit2" "Length" (natural 1)]
+
+/-- The physical metric `P` of `EP` under the reading `(x: Length, y: Length)`
+with `entry` on the diagonal: its terms have the dimension of `entry` plus `L^2`. -/
+private def diagonalOf (value : Option (List (String × String))) (entry : Json) : List Json :=
+  units ++ [interpret "P" "Plane" "EP" "plane" value (gram [[entry, zero], [zero, entry]])]
+
+#eval check "the value of a physical metric is within the exponent bound, so a declaration can write it"
+  (accepts (diagonalOf none (term (natural 1) [("unit", "62")])) &&
+    accepts (diagonalOf (some [("L", "64")]) (term (natural 1) [("unit", "62")])) &&
+    accepts (diagonalOf none (term (natural 1) [("unit", "-64"), ("unit2", "-2")])) &&
+    limitError (diagonalOf none (term (natural 1) [("unit", "63")]))
+      ("the nonzero terms of the physical metric `nature::P` have dimension L^65, which raises `nature::L` to the " ++
+        "power 65, beyond the limit of 64 in absolute value") &&
+    limitError (diagonalOf (some [("L", "64")]) (term (natural 1) [("unit", "64"), ("unit2", "64")]))
+      "have dimension L^130, which raises `nature::L` to the power 130" &&
+    limitError (diagonalOf none (term (natural 1) [("unit", "-64"), ("unit2", "-3")])) "to the power -65")
+
+/-- The module `mine` with its own base dimension `L` and the quantity
+`Len = L`. -/
+private def mine : Json := modAt ["mine"] [base "L", quantity "Len" [("L", "1")]]
+
+/-- `program extra` with the module `mine`. -/
+private def withMine (extra : List Json) : String × String := outcomeOf 9 (requestOf 9 [mod (program extra), mine])
+
+private def minePath (name : String) : Json := Json.mkObj [("path", toJson ["mine", name]), ("span", span)]
+
+#eval check "a message writes a base dimension by its full path when another one has its name"
+  (let mixed := decl "reading" "r" [("family", pathJson "Reading"), ("indices", toJson [pathJson "Chart"]),
+      ("quantities", toJson [entry "quantity" "x" "Length",
+        Json.mkObj [("coordinate", toJson "t"), ("quantity", minePath "Len")]])]
+    let (code, message) := withMine [mixed, interpret "P" "Chart" "E" "r" none euclidean]
+    let declared := decl "physical_metric" "Q" [("family", pathJson "PhysicalMetric"),
+      ("indices", toJson [pathJson "Plane"]), ("metric", pathJson "EP"), ("reading", pathJson "plane"),
+      ("value", toJson [Json.mkObj [("base", minePath "L"), ("exponent", toJson "2")]]), ("entries", euclidean)]
+    let (code', message') := withMine [declared]
+    (withMine []).1 == "accepted" && code == "E_DIMENSION" &&
+      mentions message "the term x·x has dimension nature::L^2 and the term t·t has dimension nature::mine::L^2" &&
+      code' == "E_DIMENSION" &&
+      mentions message' ("the physical metric `nature::Q` declares the value nature::mine::L^2, but its nonzero " ++
+        "terms have dimension nature::L^2") &&
+      dimensionError [interpret "P" "Plane" "EP" "plane" (some [("T", "2")]) euclidean]
+        "declares the value T^2, but its nonzero terms have dimension L^2")
+
 #eval check "a declared value names base dimensions, each once, within the bound"
   (dimensionError [interpret "P" "Plane" "EP" "plane" (some [("Length", "2")]) euclidean]
       "the value of the physical metric `nature::P` names `nature::Length`, which is not a base dimension" &&
@@ -541,6 +643,46 @@ private def appended (declaration : Declaration) : Environment := full ++ [⟨na
       (.gram [[mono (q (2 ^ 500)) [("tiny", 1)], mono 0 []], [mono 0 [], mono 1 []]]))) &&
     !validEnvironment (replaced "PE" (physical "Plane" "EP" "plane" none
       (.gram [[mono (q (2 ^ 1000)) [("tiny", 2)], mono 0 []], [mono 0 [], mono 1 []]]))))
+
+/-- `full` with `PE` replaced by `declaration` and with scales: `a300` and
+`b300` of `Ratio`, both `2 ^ 300` (301 bits), `c210` and `d210`, both
+`2 ^ 210` (211 bits), `c211` and `d211`, both `2 ^ 211` (212 bits), and
+`unitL` and `unitL2` of `Length`, both `1`. -/
+private def withSizes (declaration : Declaration) : Environment :=
+  let ratio (name : String) (exponent : Nat) : Entry := ⟨natureId name, .scale (natureId "Ratio") (q (2 ^ exponent))⟩
+  replaced "PE" declaration ++ [ratio "a300" 300, ratio "b300" 300, ratio "c210" 210, ratio "d210" 210,
+    ratio "c211" 211, ratio "d211" 211,
+    ⟨natureId "unitL", .scale (natureId "Length") 1⟩, ⟨natureId "unitL2", .scale (natureId "Length") 1⟩]
+
+/-- `PE` with `entry` on the diagonal of the plane. -/
+private def planeDiagonal (value : Option DimensionVector) (entry : ScaleMonomial) : Declaration :=
+  physical "Plane" "EP" "plane" value (.gram [[entry, mono 0 []], [mono 0 [], entry]])
+
+#eval check "the audit bounds an entry multiplied out, before its factors cancel: 512 bits within, 513 beyond"
+  (validEnvironment (withSizes (planeDiagonal none (mono 1 [("a300", 1), ("b300", -1)]))) &&
+    validEnvironment (withSizes (planeDiagonal none
+      (mono 1 [("a300", 1), ("c210", 1), ("b300", -1), ("d210", -1)]))) &&
+    !validEnvironment (withSizes (planeDiagonal none
+      (mono 1 [("a300", 1), ("c211", 1), ("b300", -1), ("d211", -1)]))) &&
+    !validEnvironment (withSizes (planeDiagonal none (mono 1 [("a300", 2), ("b300", -2)]))) &&
+    !validEnvironment (withSizes (planeDiagonal none (mono 1 [("a300", 64), ("b300", -64)]))))
+#eval check "monomialBits adds the bits of the coefficient and of each magnitude per unit of exponent"
+  (NatureDimension.monomialBits 1 [] == (0, 0) &&
+    NatureDimension.monomialBits (q (-3) 4) [(q 5 2, 2), (q 1 7, -1)] == (2 + 2 * 3 + 3, 3 + 2 * 2 + 0) &&
+    NatureDimension.monomialBits 0 [(q (2 ^ 511), 1)] == (512, 0) &&
+    NatureDimension.monomialBounded 1 [(q (2 ^ 511), 1)] &&
+    !NatureDimension.monomialBounded 1 [(q (2 ^ 512), 1)] &&
+    NatureDimension.monomialBounded 1 [(q 1 (2 ^ 255), -2)] &&
+    !NatureDimension.monomialBounded 3 [(q 1 (2 ^ 255), -2)] &&
+    NatureDimension.natBits 0 == 0 && NatureDimension.natBits 1 == 0 && NatureDimension.natBits 2 == 2 &&
+    NatureDimension.natBits 255 == 8 && NatureDimension.natBits 256 == 9)
+#eval check "the audit bounds the dimension of the terms of a physical metric"
+  (validEnvironment (withSizes (planeDiagonal none (mono 1 [("unitL", 62)]))) &&
+    validEnvironment (withSizes (planeDiagonal (some [(natureId "L", 64)]) (mono 1 [("unitL", 62)]))) &&
+    !validEnvironment (withSizes (planeDiagonal none (mono 1 [("unitL", 63)]))) &&
+    !validEnvironment (withSizes (planeDiagonal none (mono 1 [("unitL", 64), ("unitL2", 64)]))) &&
+    validEnvironment (withSizes (planeDiagonal none (mono 1 [("unitL", -64), ("unitL2", -2)]))) &&
+    !validEnvironment (withSizes (planeDiagonal none (mono 1 [("unitL", -64), ("unitL2", -3)]))))
 
 /-- `count` scales of magnitude 1 of `Ratio` and the identity on the plane as
 one entry with `count` factors. -/

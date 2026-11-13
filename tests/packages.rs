@@ -361,24 +361,64 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
         assert_eq!(error.lines().count(), 1, "{source}: {error}");
     }
     // A `use` of the module itself binds the reserved name. The path may name
-    // a module or an `indexed` declaration, so the kernel decides, also in a
-    // program with `indexed` declarations.
+    // a module or an `indexed` declaration, so the parser cannot decide. Once
+    // the packages are loaded, the frontend follows the path through modules,
+    // dependency aliases and imports and reports a module at the name
+    // (#759), also in a program with `indexed` declarations.
+    let reserved = "E_RESERVED: `dimension` is reserved for builtin geometry operations; choose another declaration or binding name";
     for lib in [
         "pub mod dimension { pub fn length() -> Int { 42 } }",
         "pub indexed marker M;\npub mod dimension { pub fn length() -> Int { 42 } }",
     ] {
         s.package("lib", lib, "");
-        s.package(
-            "app",
-            "use dep::dimension;\nfn main() -> Int { dimension::length() }",
-            dep,
-        );
-        let error = s.rejects("E_RESERVED");
-        assert!(
-            error.contains("app/src/main.vast:1:1: E_RESERVED: 'dimension' is reserved"),
-            "{lib}: {error}"
-        );
+        for (source, place) in [
+            (
+                "use dep::dimension;\nfn main() -> Int { dimension::length() }",
+                "1:10",
+            ),
+            (
+                "mod units { pub mod dimension {} }\nuse self::units::dimension;\nfn main() -> Int { 0 }",
+                "2:18",
+            ),
+            (
+                "mod units { pub mod dimension {} }\nmod child { use super::units::dimension; }\nfn main() -> Int { 0 }",
+                "2:31",
+            ),
+            (
+                "mod units { pub mod dimension {} }\nmod child { use package::units::dimension; }\nfn main() -> Int { 0 }",
+                "2:33",
+            ),
+            // Through the import of a dependency, and through a re-export.
+            (
+                "use dep as library;\nuse library::dimension;\nfn main() -> Int { 0 }",
+                "2:14",
+            ),
+            (
+                "mod units { pub use dep as library; }\nmod child { use super::units::library::dimension; }\nfn main() -> Int { 0 }",
+                "2:40",
+            ),
+        ] {
+            s.package("app", source, dep);
+            let error = s.rejects("E_RESERVED");
+            assert!(
+                error.contains(&format!("app/src/main.vast:{place}: {reserved}")),
+                "{lib}\n{source}: {error}"
+            );
+            assert_eq!(error.lines().count(), 1, "{source}: {error}");
+        }
     }
+    // A `use` without `as` of an `indexed` declaration binds its name.
+    s.package(
+        "lib",
+        "pub indexed marker origin;\npub mod dimension { pub fn length() -> Int { 42 } }",
+        "",
+    );
+    s.package(
+        "app",
+        "use dep::origin;\nuse dep::dimension::length;\nfn main() -> Int { length() }",
+        dep,
+    );
+    success(&s.check());
     for alias in GEOMETRIC_OPERATIONS {
         s.package("lib", "pub fn value() -> Int { 1 }", "");
         s.package(
@@ -394,10 +434,35 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
     }
 }
 
+/// The frontend follows the path of a `use` of a reserved name through a
+/// bounded number of imports (#759). A longer chain of distinct aliases is
+/// left to the kernel, which checks every `use` itself within its own work
+/// bounds, so the frontend never exhausts its stack on such a program.
+#[test]
+fn a_long_chain_of_imports_is_left_to_the_kernel() {
+    let s = Scratch::new();
+    const CHAIN: usize = 20_000;
+    let mut source = String::from("mod units { pub mod dimension {} }\n");
+    source.push_str(&format!("use self::units as a{CHAIN};\n"));
+    for i in (0..CHAIN).rev() {
+        source.push_str(&format!("use a{} as a{i};\n", i + 1));
+    }
+    source.push_str("use a0::dimension;\nfn main() -> Int { 0 }\n");
+    s.package("app", &source, "");
+    let output = s.check();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("E_RESERVED") || stderr.contains("E_LIMIT"),
+        "{stderr}"
+    );
+}
+
 /// The kernel decides module names independently of the frontend: it
 /// accepts a module named after a geometric operation and rejects the other
 /// reserved names of modules, a function of such a name and a `use` that binds
-/// one, in a request that the frontend did not write.
+/// one, to a module or with `as` to an `indexed` declaration, in a request
+/// that the frontend did not write.
 #[test]
 fn the_kernel_checks_geometric_module_names_independently() {
     let s = Scratch::new();
@@ -437,6 +502,56 @@ fn the_kernel_checks_geometric_module_names_independently() {
     assert_eq!(import["alias"], "metres");
     import["alias"] = "origin".into();
     common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
+    // #759: a `use … as` that binds a reserved spelling to an `indexed`
+    // declaration. Only a `use` without `as`, whose alias is the last segment
+    // of its path, binds such a name; the request has no other error.
+    s.package("lib", "pub indexed marker dimension;", "");
+    s.package(
+        "app",
+        "use dep::dimension as measure;\nfn main() -> Int { 42 }",
+        "dep = { path = '../lib' }",
+    );
+    let raw = common::captured_wire(
+        s.cli()
+            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
+        7,
+    );
+    assert_eq!(common::kernel(&raw, "check")["ok"], true, "{raw}");
+    let app = raw["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|package| package["source"] == raw["root"])
+        .unwrap();
+    let root = raw["packages"][app]["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|module| module["path"] == serde_json::json!([]))
+        .unwrap();
+    for alias in [
+        "dimension",
+        "origin",
+        "compose",
+        "id",
+        "Base",
+        "Point",
+        "QQ",
+    ] {
+        let mut forged = raw.clone();
+        let import = &mut forged["packages"][app]["modules"][root]["imports"][0];
+        assert_eq!(import["alias"], "measure");
+        import["alias"] = alias.into();
+        for mode in ["check", "emit"] {
+            let response = common::kernel(&forged, mode);
+            if alias == "dimension" {
+                // The request of `use dep::dimension;`.
+                assert_eq!(response["ok"], true, "{response}");
+            } else {
+                common::assert_wire_rejected(&response, "E_RESERVED");
+            }
+        }
+    }
 }
 
 #[test]

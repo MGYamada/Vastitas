@@ -19,8 +19,12 @@ check reads only the declaration, its family and its object:
   bounds of a Gram matrix), and `P·Q = I` and `Q·P = I` exactly over `ℚ`;
 * a *polynomial* frame has `P·Q = I` and `Q·P = I` as identities of
   canonical polynomials, with every product and sum charged to one
-  `Limits.algebraWork` budget and bounded by `Limits.algebraTerms`
-  (`AlgebraBasis.mul`, `AlgebraBasis.add`).
+  `Limits.algebraWork` budget and bounded by `Limits.algebraTerms`. A sum
+  is `AlgebraBasis.add`, charged `w(p) + w(q) + 1`. A product is `polyMul`,
+  charged `(|p| + 1)·w(p)·w(q) + |p| + 1` before it is computed, where `|p|`
+  is the number of terms of `p` and `w(p) = AlgebraBasis.cost p` is its
+  number of terms weighted by the size of their coefficients: an upper
+  bound of the steps of `Poly.mul` (`productWork`).
 
 So an accepted frame is invertible at every point. The kernel computes `Q`
 for a constant frame (`IndexedFrameSource`); a polynomial frame declares it.
@@ -55,9 +59,35 @@ def polyIdentity (n : Nat) : PolyMatrix :=
 /-- Column `j` of a matrix given as rows. -/
 def polyColumn (matrix : PolyMatrix) (j : Nat) : List Poly := matrix.map fun row => row.getD j []
 
+/-- The units of work that `polyMul p q` charges: an upper bound of the steps
+of `Poly.mul p q`, weighted by the size of the coefficients as
+`AlgebraBasis.cost` weighs a term.
+
+`Poly.mul p q` folds over the terms of `p`. Fold `i` (from 1) multiplies the
+`|q|` terms of `q` by term `i` of `p`, and merges them into the product of
+the first `i - 1` terms, which has at most `(i - 1)·|q|` terms; the merge
+takes at most `i·|q|` steps. The `|p|` folds take at most
+`|p|·|q| + |q|·|p|·(|p| + 1)/2 ≤ (|p| + 1)·|p|·|q|` steps, and `|p|` steps
+when `q` is zero. A step is one term product or one comparison of monomials
+with at most one sum of coefficients; the charge weighs `|p|·|q|` as
+`cost p * cost q`, as `AlgebraBasis.mul` weighs its term products, so large
+coefficients cost more. The charge also bounds the number of terms of every
+intermediate polynomial of the product, at most `|p|·|q|`, so no product is
+built beyond the budget. `AlgebraBasis.mul`, which the Stage 2 and 3 checks
+use, charges `cost p * cost q + 1`, which does not bound the merge steps;
+the frame products do not use it. -/
+def productWork (p q : Poly) : Nat :=
+  (p.length + 1) * (AlgebraBasis.cost p * AlgebraBasis.cost q) + p.length + 1
+
+/-- `Poly.mul p q`, charged `productWork p q` before it is computed and
+bounded by `Limits.algebraTerms`. -/
+def polyMul (p q : Poly) : AlgebraBasis.Work Poly := do
+  AlgebraBasis.charge (productWork p q)
+  AlgebraBasis.bounded (Poly.mul p q)
+
 /-- `Σₖ leftₖ · rightₖ`, every product and sum within the work budget. -/
 def polyDot (left right : List Poly) : AlgebraBasis.Work Poly :=
-  (left.zip right).foldlM (fun sum (a, b) => do AlgebraBasis.add sum (← AlgebraBasis.mul a b)) []
+  (left.zip right).foldlM (fun sum (a, b) => do AlgebraBasis.add sum (← polyMul a b)) []
 
 /-- The product of two matrices with `n` columns, given as rows, every
 product and sum within the work budget. -/

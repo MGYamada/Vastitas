@@ -204,7 +204,7 @@ Rules:
   [The frame profile](frames.md#the-frame-profile) and
   [The Gram matrix in a frame](frames.md#the-gram-matrix-in-a-frame) say.
 - A declaration of a physical dimension changes no declaration of another
-  kind. A
+  kind, apart from the limits of a whole program and name clashes. A
   metric is valid, and `flat` and `sharp` compute the same values, with and
   without readings, scales and physical interpretations of it, and a program
   without them has the same generated code, as
@@ -235,7 +235,10 @@ physical dimensions: no frame primitive reads a metric declaration, a frame
 declaration changes neither the validity of another declaration nor the
 validity of a primitive that names none of its frames, and a declaration of
 a physical dimension changes neither the validity of a declaration of another
-kind nor the validity or the value of any primitive. That the generated code stays the
+kind nor the validity or the value of any primitive. The two statements on
+the validity of declarations hold for every table of class ranks. That the
+table of class ranks stays the same is not proved, so they are not stated
+for the validity of a whole program. That the generated code stays the
 same is Tested. [What is outside these claims](../verification.md#what-is-outside-these-claims),
 [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
 and [Frames and physical dimensions](../verification.md#frames-and-physical-dimensions)

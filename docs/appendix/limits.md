@@ -340,6 +340,19 @@ rules.
 | `algebraTerms` | 512 | The terms of each polynomial of the two products of a frame and its declared inverse | A polynomial |
 | `algebraWork` | 8,000,000 | The units of work of expanding the entries of one frame and its inverse, and of computing the two products | A run |
 
+The kernel charges each product $pq$ of an entry of one matrix and an entry
+of the other $(t(p) + 1)\,w(p)\,w(q) + t(p) + 1$ units before it computes it.
+Here $t(p)$ is the number of terms of $p$, and $w(p)$ is the sum over the
+terms of $p$ of $1 + \lfloor (\lfloor \log_2 |a| \rfloor + \lfloor \log_2 b
+\rfloor) / 64 \rfloor$, for a coefficient $a/b$ in lowest terms. The charge
+bounds the steps of the product, which adds the products of the terms of $p$
+with $q$ to the sum of the earlier ones, one term of $p$ at a time. Adding a
+product $q$ to the sum $p$ of the earlier products of an entry costs
+$w(p) + w(q) + 1$ units. A frame whose
+products need more units is an error (`E_LIMIT`), and the kernel computes no
+product beyond the budget. The expansion of the entries is charged as in
+[Exact affine algebra](#exact-affine-algebra).
+
 These limits hold when the compiler checks a program. In an executable, the
 rational numbers of frame arrays and map arrays have no bound.
 
@@ -348,15 +361,30 @@ rational numbers of frame arrays and map arrays have no bound.
 The kernel checks the declarations that
 [Physical-dimension admission](../adr/0002-nature-dimension.md) admits: base
 dimensions, quantities, readings, scales and physical metrics. It checks the
-bound of every exponent before it computes a power. A scale magnitude and the
-coefficient of an entry of a physical metric have the bound of a Gram entry.
+bound of every exponent, and the size of every entry of a physical metric,
+before it computes a power. A scale magnitude, the coefficient of an entry
+and the entry multiplied out have the bound of a Gram entry.
+
+The kernel measures an entry multiplied out before its factors cancel. For
+the numerator of the entry, it adds the bits of the numerator of the
+coefficient, and the bits of the numerator of each magnitude once per unit
+of its exponent. For a negative exponent, it adds the bits of the
+denominator of the magnitude instead. It measures the denominator of the entry with
+numerators and denominators exchanged. A numerator or a denominator of 1 adds
+no bits. Take two scales `a` and `b` with one magnitude of 101 bits.
+`a^5 * b^-5` counts 505 bits in its numerator and in its denominator, within
+the bound. `a^6 * b^-6` counts 606 bits and is an error, although both
+entries are 1.
+
+The value of a physical metric, the dimension of its terms, has the
+exponent bound of a dimension, so that `value = …` can write it.
 
 | Limit | Value | Counts | Holds for | Code |
 | --- | --- | --- | --- | --- |
 | `dimensionBases` | 16 | The `indexed base_dimension` declarations of all packages | A program | `E_LIMIT` |
-| `dimensionExponent` | 64 | The absolute value of the exponent of a base dimension in a dimension, and of a scale in an entry of a physical metric | An exponent | `E_LIMIT` |
+| `dimensionExponent` | 64 | The absolute value of the exponent of a base dimension in a dimension and in the value of a physical metric, and of a scale in an entry of a physical metric | An exponent | `E_LIMIT` |
 | `dimensionScaleFactors` | 16 | The scale factors of one entry of a physical metric | An entry | `E_LIMIT` |
-| `metricEntryBits` | 512 | The bits of the numerator and of the denominator of a scale magnitude, and of the coefficient of an entry of a physical metric | A scale or an entry | `E_LIMIT` |
+| `metricEntryBits` | 512 | The bits of the numerator and of the denominator of a scale magnitude, of the coefficient of an entry of a physical metric, and of the entry multiplied out | A scale or an entry | `E_LIMIT` |
 
 ## Resource functions
 

@@ -360,6 +360,7 @@ IndexedDeclaration -> MarkerDeclaration | DescriptorImplementation
     | PackageDeclaration | PrimitiveDeclaration
     | ScalarBaseImplementation | LinearImplementation
     | SmoothDeclaration | AffineDeclaration
+    | FrameProfileDeclaration | DimensionDeclaration
 ```
 
 [Markers](../indexed-source.md#markers):
@@ -399,6 +400,7 @@ FamilyDeclaration -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
 FamilyRepresentation -> `token` | `point` | `morphism`
 Parameters -> Parameter ( `,` Parameter )* `,`?
 Parameter -> `domain` | `marker` | `natural` | `object` `(` Path `)`
+    | `frame` `(` Path `)`
 Constraints -> Constraint ( `,` Constraint )* `,`?
 Constraint -> `canonical` `(` INTEGER_LITERAL `)`
     | ConstraintKind `(` INTEGER_LITERAL `,` INTEGER_LITERAL `)`
@@ -421,6 +423,7 @@ BoundIndex -> `witness` | INTEGER_LITERAL | `global` `(` Path `)`
 ```text
 PrimitiveDeclaration -> `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
 PrimitiveBinding -> DescriptorBinding | SmoothBinding | RelativeBinding
+    | FrameBinding
 DescriptorBinding -> `descriptor` `(` Path `)`
     | `global` `(` Path `)`
     | `origin` `(` `(` Path `,` Path `)` `,` Path `,` Path `)`
@@ -604,6 +607,126 @@ EvidenceKind -> `nondegenerate` | `riemannian`
 MetricBinding -> `flat` `(` Path `,` Path `,` `using` `=` Path `)`
     | `sharp` `(` Path `,` Path `,` `using` `=` Path
       `,` `evidence` `=` Path `)`
+```
+
+## Frames
+
+Chapter: [Frames](../language/frames.md).
+
+```text
+FrameProfileDeclaration -> FrameFamily | FrameDeclaration
+```
+
+[The frame profile](../language/frames.md#the-frame-profile):
+
+```text
+FrameFamily -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
+    `=` FrameFamilyForm `;`
+FrameFamilyForm -> `frame` `constraints` `(` Constraints? `)`
+    | FrameArrayRepresentation ( `constraints` `(` Constraints? `)` )?
+FrameArrayRepresentation -> `frame_vector` | `frame_covector` | `frame_map`
+```
+
+[Frame declarations](../language/frames.md#frame-declarations):
+
+```text
+FrameDeclaration -> `indexed` `frame` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` FrameDefinition `;`
+FrameDefinition -> `coordinates` | FrameColumns ( `inverse` `=` FrameColumns )?
+FrameColumns -> `columns` `(` ( FrameColumn ( `,` FrameColumn )* `,`? )? `)`
+FrameColumn -> `(` ( Polynomial ( `,` Polynomial )* `,`? )? `)`
+```
+
+[Encoding and decoding](../language/frames.md#encoding-and-decoding):
+
+```text
+FrameBinding -> FrameEncodingBinding | FrameMapBinding
+    | FrameContractionBinding | FrameObservationBinding
+FrameEncodingBinding -> `frame_encode` `(` Path `,` Path `,` `frame` `=` Path `)`
+    | `frame_decode` `(` Path `,` Path `,` `frame` `=` Path `)`
+    | `frame_vector` `(` Path `,` Path `,` `frame` `=` Path `)`
+```
+
+[Map arrays and transitions](../language/frames.md#map-arrays-and-transitions):
+
+```text
+FrameMapBinding -> `frame_matrix` `(` Path `,` Path `,` `source` `=` Path `,` `target` `=` Path `)`
+    | `frame_transition` `(` Path `,` Path `,` `source` `=` Path `,` `target` `=` Path `)`
+```
+
+[Contraction in frames](../language/frames.md#contraction-in-frames):
+
+```text
+FrameContractionBinding -> `frame_apply` `(` Path `,` Path `)`
+    | `frame_coapply` `(` Path `,` Path `)`
+    | `frame_compose` `(` Path `)`
+    | `frame_pairing` `(` Path `,` Path `)`
+```
+
+[Components, entries and equality](../language/frames.md#components-entries-and-equality):
+
+```text
+FrameObservationBinding -> `frame_component` `(` Path `,` INTEGER_LITERAL `)`
+    | `frame_entry` `(` Path `,` INTEGER_LITERAL `,` INTEGER_LITERAL `)`
+    | `frame_equal` `(` Path `)`
+    | `frame_at` `(` Path `,` Path `)`
+```
+
+## Physical dimensions
+
+Chapter: [Physical dimensions](../language/physical-dimensions.md).
+
+```text
+DimensionDeclaration -> DimensionFamily | BaseDimensionDeclaration
+    | QuantityDeclaration | ReadingDeclaration | ScaleDeclaration
+    | PhysicalDeclaration
+```
+
+[Families of readings and interpretations](../language/physical-dimensions.md#families-of-readings-and-interpretations):
+
+```text
+DimensionFamily -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
+    `=` DimensionRepresentation `constraints` `(` Constraints? `)` `;`
+DimensionRepresentation -> `reading` | `physical_metric`
+```
+
+[Base dimensions and quantity kinds](../language/physical-dimensions.md#base-dimensions-and-quantity-kinds):
+
+```text
+BaseDimensionDeclaration -> `indexed` `base_dimension` IDENTIFIER `;`
+QuantityDeclaration -> `indexed` `quantity` IDENTIFIER `=` Dimension `;`
+Dimension -> INTEGER_LITERAL | DimensionFactor ( `*` DimensionFactor )*
+DimensionFactor -> Path ( `^` `-`? INTEGER_LITERAL )?
+```
+
+[Readings](../language/physical-dimensions.md#readings):
+
+```text
+ReadingDeclaration -> `indexed` `reading` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `(` ReadingEntries? `)` `;`
+ReadingEntries -> ReadingEntry ( `,` ReadingEntry )* `,`?
+ReadingEntry -> CoordinateName `:` Path
+```
+
+[Scales](../language/physical-dimensions.md#scales):
+
+```text
+ScaleDeclaration -> `indexed` `scale` IDENTIFIER `=` Polynomial `of` Path `;`
+```
+
+[Physical interpretations](../language/physical-dimensions.md#physical-interpretations):
+
+```text
+PhysicalDeclaration -> `indexed` `physical` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `interpret` `(` Path `,` `reading` `=` Path
+    `,` PhysicalEntries ( `,` `value` `=` Dimension )? `)` `;`
+PhysicalEntries -> `euclidean`
+    | `gram` `(` ( ScaleRow ( `,` ScaleRow )* `,`? )? `)`
+    | `normalized` `(` ( CoordinateScale ( `,` CoordinateScale )* `,`? )? `)`
+ScaleRow -> `(` ( ScaleMonomial ( `,` ScaleMonomial )* `,`? )? `)`
+ScaleMonomial -> `-`? ScaleFactor ( `*` ScaleFactor )*
+ScaleFactor -> INTEGER_LITERAL | Fraction | Path ( `^` `-`? INTEGER_LITERAL )?
+CoordinateScale -> CoordinateName `:` Path
 ```
 
 ## Resource programs

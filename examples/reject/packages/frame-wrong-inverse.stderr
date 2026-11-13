@@ -1,0 +1,1 @@
+examples/reject/packages/frame-wrong-inverse/main.vast:9:1: E_FRAME: the declared inverse Q of the frame `frame_wrong_inverse::r` on `frame_wrong_inverse::Plane` is not its inverse: P·Q ≠ I, where column j of P is frame vector j

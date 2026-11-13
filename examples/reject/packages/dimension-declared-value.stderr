@@ -1,0 +1,1 @@
+examples/reject/packages/dimension-declared-value/main.vast:17:1: E_DIMENSION: the physical metric `dimension_declared_value::PG` declares the value L^2, but its nonzero terms have dimension 1

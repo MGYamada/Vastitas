@@ -1,0 +1,12 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::frame::Frame;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declaration
+// The frame is constant, so the kernel computes its inverse. The declared
+// inverse is correct, and the declaration is still an error.
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2)) inverse = columns((1, 0), (frac(-1, 2), frac(1, 2)));
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

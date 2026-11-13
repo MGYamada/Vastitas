@@ -1,0 +1,1 @@
+examples/reject/packages/frame-encode-variance/main.vast:11:1: E_FRAME: `frame_encode` relates the vector family `vastitas_geometry::smooth::affine::Tangent` to `vastitas_geometry::frame::CoCoords`, which holds the arrays of covectors; both families must hold vectors, or both covectors

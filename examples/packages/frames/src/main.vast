@@ -1,0 +1,144 @@
+mod profile;
+
+// Frames on the profile of `profile.vast`: arrays of vectors and covectors in
+// frames of the plane, the matrices of f(x, y) = x^2 + y in two pairs of
+// frames, changes of frame and contraction in frames. At p = (1, 2) the
+// vector v = (3, 2) has the array (2, 1) in b and (1, 1) in c, and the
+// covector df = (2, 1) has the array (2, 4) in b. Each observation has its own
+// failure code, so `main` prints 42 only when all of them hold.
+use profile::Smooth;
+use profile::Cotangent;
+use profile::Tangent;
+use profile::Frame;
+use profile::Coords;
+use profile::CoCoords;
+use profile::FrameMap;
+use profile::MetricForm;
+use profile::Pt;
+use profile::Line;
+use profile::Plane;
+use profile::line_at;
+use profile::plane_at;
+use profile::dline;
+use profile::vplane;
+use profile::same_covector;
+use profile::same_vector;
+use profile::pullback;
+
+// ANCHOR: frames
+// b has the frame vectors (1, 0) and (1, 2), and c the frame vectors (2, 1)
+// and (1, 1), at every point of the plane.
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+indexed frame c: Frame<Plane> = columns((2, 1), (1, 1));
+// r has the frame vectors (1, 0) and (x, 1) at the point (x, y).
+indexed frame r: Frame<Plane> = columns((1, 0), (x, 1)) inverse = columns((1, 0), (-x, 1));
+// The coordinate frame of the plane, a frame of the line and the frame of
+// the point.
+indexed frame e: Frame<Plane> = coordinates;
+indexed frame l: Frame<Line> = columns((2));
+indexed frame z: Frame<Pt> = columns();
+// ANCHOR_END: frames
+
+indexed morphism f: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+
+// ANCHOR: encoding
+indexed primitive enc_b = frame_encode(Tangent, Coords, frame = b);
+indexed primitive dec_b = frame_decode(Coords, Tangent, frame = b);
+indexed primitive coenc_b = frame_encode(Cotangent, CoCoords, frame = b);
+indexed primitive codec_b = frame_decode(CoCoords, Cotangent, frame = b);
+indexed primitive enc_c = frame_encode(Tangent, Coords, frame = c);
+indexed primitive enc_e = frame_encode(Tangent, Coords, frame = e);
+indexed primitive coenc_l = frame_encode(Cotangent, CoCoords, frame = l);
+indexed primitive dec_r = frame_decode(Coords, Tangent, frame = r);
+// An array in r from a point and one integer for each frame vector.
+indexed primitive in_r = frame_vector(Coords, Smooth, frame = r);
+// ANCHOR_END: encoding
+
+// ANCHOR: maps
+indexed primitive matrix_bl = frame_matrix(Smooth, FrameMap, source = b, target = l);
+indexed primitive matrix_cl = frame_matrix(Smooth, FrameMap, source = c, target = l);
+indexed primitive move_bc = frame_transition(Smooth, FrameMap, source = b, target = c);
+indexed primitive move_rb = frame_transition(Smooth, FrameMap, source = r, target = b);
+// ANCHOR_END: maps
+
+// ANCHOR: contraction
+indexed primitive apply_map = frame_apply(FrameMap, Coords);
+indexed primitive coapply_map = frame_coapply(FrameMap, CoCoords);
+indexed primitive then = frame_compose(FrameMap);
+indexed primitive pair_in_frame = frame_pairing(CoCoords, Coords);
+// ANCHOR_END: contraction
+
+// ANCHOR: observations
+indexed primitive first = frame_component(Coords, 0);
+indexed primitive second = frame_component(Coords, 1);
+indexed primitive cofirst = frame_component(CoCoords, 0);
+indexed primitive cosecond = frame_component(CoCoords, 1);
+indexed primitive entry_00 = frame_entry(FrameMap, 0, 0);
+indexed primitive entry_01 = frame_entry(FrameMap, 0, 1);
+indexed primitive same_coords = frame_equal(Coords);
+indexed primitive same_cocoords = frame_equal(CoCoords);
+indexed primitive same_map = frame_equal(FrameMap);
+indexed primitive over = frame_at(Coords, Smooth);
+// ANCHOR_END: observations
+
+// ANCHOR: gram
+indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
+indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
+indexed primitive in_b = frame_vector(Coords, Smooth, frame = b);
+
+// Column j of the Gram matrix of Skew in b at p: frame vector j, after
+// flat, encoded in b. The array (j0, j1) in b selects the frame vector.
+fn gram_column(p: Smooth<Pt, Plane>, j0: Int, j1: Int) -> CoCoords<b> {
+    coenc_b(flat_skew(dec_b(in_b(p, j0, j1))))
+}
+// ANCHOR_END: gram
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A component, an entry or a pairing reads n / d.
+fn reads(value: Pair<Int>, n: Int, d: Int) -> Bool {
+    pair_first(value) == n && pair_second(value) == d
+}
+
+fn main() -> Int {
+    // ANCHOR: values
+    let p: Smooth<Pt, Plane> = plane_at(1, 2);
+    let v: Tangent<Plane> = vplane(p, 3, 2);
+    let w: Coords<b> = enc_b(v);
+    // df = (2, 1) is the pullback of dt at f(p) = 3 along f at p.
+    let dt: Cotangent<Line> = dline(line_at(3), 1);
+    let df: Cotangent<Plane> = pullback(f(), p, dt);
+    let alpha: CoCoords<b> = coenc_b(df);
+    // The array (1, 2) in r at p.
+    let a: Coords<r> = in_r(p, 1, 2);
+    // A matrix at p applied to an array at another point.
+    let lost: Coords<c> = apply_map(move_bc(p), enc_b(vplane(plane_at(0, 0), 3, 2)));
+    // ANCHOR_END: values
+    // Encoding and decoding.
+    42 + verdict(reads(first(w), 2, 1) && reads(second(w), 1, 1) && over(w, p), 1)
+       + verdict(same_vector(dec_b(w), v) && same_coords(enc_b(dec_b(w)), w), 2)
+       + verdict(reads(cofirst(alpha), 2, 1) && reads(cosecond(alpha), 4, 1), 3)
+       + verdict(same_covector(codec_b(alpha), df), 4)
+       + verdict(reads(first(enc_e(v)), 3, 1) && reads(second(enc_e(v)), 2, 1), 5)
+       + verdict(same_vector(dec_r(a), v), 6)
+       // Changes of frame.
+       + verdict(reads(first(enc_c(v)), 1, 1) && reads(second(enc_c(v)), 1, 1), 7)
+       + verdict(same_coords(apply_map(move_bc(p), w), enc_c(v)), 8)
+       + verdict(same_coords(apply_map(move_rb(p), a), w), 9)
+       + verdict(same_coords(apply_map(then(move_bc(p), move_rb(p)), a), enc_c(v)), 10)
+       // df(v) = 8 in the frame b.
+       + verdict(reads(pair_in_frame(alpha, w), 8, 1), 11)
+       // The matrix of f at p is (1, 2) in (b, l) and (5/2, 3/2) in (c, l).
+       + verdict(reads(entry_00(matrix_bl(f(), p)), 1, 1) && reads(entry_01(matrix_bl(f(), p)), 2, 1), 12)
+       + verdict(reads(entry_00(matrix_cl(f(), p)), 5, 2) && reads(entry_01(matrix_cl(f(), p)), 3, 2), 13)
+       + verdict(same_map(then(matrix_cl(f(), p), move_bc(p)), matrix_bl(f(), p)), 14)
+       // The image of v is the array 4 in l at f(p) = 3.
+       + verdict(reads(first(apply_map(matrix_bl(f(), p), w)), 4, 1) && over(apply_map(matrix_bl(f(), p), w), line_at(3)), 15)
+       // Coapplying the matrix is the pullback.
+       + verdict(same_cocoords(coapply_map(matrix_bl(f(), p), coenc_l(dt)), alpha), 16)
+       // The failure value lies over no point and equals nothing.
+       + verdict(!over(lost, p) && !same_coords(lost, lost) && reads(first(lost), 0, 0), 17)
+       // The Gram matrix of Skew in b is ((2, 4), (4, 10)).
+       + verdict(reads(cofirst(gram_column(p, 1, 0)), 2, 1) && reads(cosecond(gram_column(p, 1, 0)), 4, 1), 18)
+       + verdict(reads(cofirst(gram_column(p, 0, 1)), 4, 1) && reads(cosecond(gram_column(p, 0, 1)), 10, 1), 19)
+}

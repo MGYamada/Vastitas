@@ -53,8 +53,9 @@ compared at run time by `FrameRuntime`); `core_frame_pairing`,
 `frame_runtime_operations` states that the erased evaluator, which generated
 programs link, applies the same operations to the erased operands, and
 `frame_bindings_environment_free` that every frame binding other than
-`frame_vector` evaluates the same in every environment: the frame bindings
-read their embedded frames, never a declaration.
+`frame_vector`, which reads the variance of its array family, evaluates the
+same in every environment: it reads its embedded frames and no declaration,
+frame declarations included.
 
 These theorems state which runtime value checked Core computes. What the
 values mean (adequacy, transition laws, naturality, the chain rule, Gram

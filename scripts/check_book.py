@@ -660,6 +660,22 @@ PARSE_EXCEPTIONS = {
     "nature/dimension/mod.vast": (
         False, "nature::dimension declares the reading and physical-metric families, base dimensions and "
                "quantities of Stage 4 (#759), which have no production in the Reference yet"),
+    "examples/reject/packages/frame-singular/main.vast": (
+        False, "a frame declaration of Stage 4 (#759), which has no production in the Reference yet"),
+    "examples/reject/packages/frame-wrong-inverse/main.vast": (
+        False, "a frame declaration of Stage 4 (#759), which has no production in the Reference yet"),
+    "examples/reject/packages/frame-other-frame/main.vast": (
+        False, "frame declarations and frame primitives of Stage 4 (#759), which have no production in the "
+               "Reference yet"),
+    "examples/reject/packages/frame-other-object/main.vast": (
+        False, "frame declarations and a frame primitive of Stage 4 (#759), which have no production in the "
+               "Reference yet"),
+    "examples/reject/packages/dimension-dx2-dt2/main.vast": (
+        False, "a reading and a physical metric of Stage 4 (#759), which have no production in the Reference "
+               "yet"),
+    "examples/reject/packages/dimension-wrong-kind/main.vast": (
+        False, "a reading, scales and a physical metric of Stage 4 (#759), which have no production in the "
+               "Reference yet"),
 }
 RECORDED = re.compile(r"^(\S+?\.vast):\d+:\d+: (E_[A-Z][A-Z0-9_]*): ", re.M)
 

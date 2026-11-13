@@ -434,6 +434,30 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
     }
 }
 
+/// The frontend follows the path of a `use` of a reserved name through a
+/// bounded number of imports (#759). A longer chain of distinct aliases is
+/// left to the kernel, which checks every `use` itself within its own work
+/// bounds, so the frontend never exhausts its stack on such a program.
+#[test]
+fn a_long_chain_of_imports_is_left_to_the_kernel() {
+    let s = Scratch::new();
+    const CHAIN: usize = 20_000;
+    let mut source = String::from("mod units { pub mod dimension {} }\n");
+    source.push_str(&format!("use self::units as a{CHAIN};\n"));
+    for i in (0..CHAIN).rev() {
+        source.push_str(&format!("use a{} as a{i};\n", i + 1));
+    }
+    source.push_str("use a0::dimension;\nfn main() -> Int { 0 }\n");
+    s.package("app", &source, "");
+    let output = s.check();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("E_RESERVED") || stderr.contains("E_LIMIT"),
+        "{stderr}"
+    );
+}
+
 /// The kernel decides module names independently of the frontend: it
 /// accepts a module named after a geometric operation and rejects the other
 /// reserved names of modules, a function of such a name and a `use` that binds

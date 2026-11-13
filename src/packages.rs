@@ -643,6 +643,7 @@ fn reserved_module_uses(packages: &[Package], sources: &Sources) -> Result<(), S
         packages: packages.iter().map(|p| (p.source.as_str(), p)).collect(),
         modules,
         resolved: HashMap::new(),
+        depth: 0,
     };
     for package in packages {
         for module in &package.modules {
@@ -661,6 +662,13 @@ fn reserved_module_uses(packages: &[Package], sources: &Sources) -> Result<(), S
     Ok(())
 }
 
+/// How many `use` aliases one path may pass through before the frontend
+/// stops following it and leaves the `use` to the kernel, which checks every
+/// `use` itself within its own work bounds. It bounds the recursion of
+/// [`UseTargets::member`] and [`UseTargets::resolve`], so a long chain of
+/// imports cannot exhaust the stack (#759).
+const MAX_USE_CHAIN: usize = 256;
+
 /// The modules that `use` paths name, as the kernel's `resolveAt` resolves
 /// them, restricted to modules. Visibility is not checked: a `use` that binds
 /// a reserved name is an error whether or not its target is visible, as for
@@ -670,8 +678,11 @@ struct UseTargets<'a> {
     packages: HashMap<&'a str, &'a Package>,
     modules: ModuleImports<'a>,
     /// The module that a `use` names, by package, module and alias, once it
-    /// is followed: `None` while it is followed, so a cycle of imports ends.
+    /// is followed: `None` while it is followed, so a cycle of imports ends,
+    /// and `None` for a `use` past [`MAX_USE_CHAIN`], which the kernel checks.
     resolved: HashMap<(&'a str, &'a [String], &'a str), Option<ModuleTarget<'a>>>,
+    /// The number of `use` aliases that the path being followed passes through.
+    depth: usize,
 }
 
 impl<'a> UseTargets<'a> {
@@ -728,7 +739,12 @@ impl<'a> UseTargets<'a> {
             return target.clone();
         }
         self.resolved.insert(key, None);
+        if self.depth >= MAX_USE_CHAIN {
+            return None;
+        }
+        self.depth += 1;
         let target = self.resolve(package, scope, path);
+        self.depth -= 1;
         self.resolved.insert(key, target.clone());
         target
     }

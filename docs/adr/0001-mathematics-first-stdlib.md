@@ -28,13 +28,16 @@ standard library hold of it:
 - Proved, in the bridge: the implementation correspondence. The bridge
   requires the `lean-kernel/` and `lean/` packages by path, one way only. It
   holds the correspondence with Mathlib of the kernel's exact affine algebra
-  checker and of its smooth affine definitions.
+  checker, of its smooth affine definitions and of its frame runtime.
   [The amendment of 12 November 2026](#implementation-correspondence-in-the-bridge-amendment-2026-11-12)
   in §9 records the dependency and its conditions, and
   [Verification boundaries](../verification.md) states the theorems and their
   assumptions.
-- Admitted and Planned: the module `std::geometry::frame`, which §11 admits
-  for the finite profile of frames and change of frame.
+- Implemented, for the finite profile of frames and change of frame: the
+  module `std::geometry::frame`, which §11 admits. It declares the families;
+  the application declares its frames and frame primitives. The
+  [Stage 4 acceptance record](../stage4-acceptance.md) states what is Tested
+  and what is Proved, and lists the parts of §11 that stay outside.
 - Planned: the families of §4 that the standard library does not hold, among
   them `std::algebra`, `std::analysis` and `std::linalg`. The tracker
   [#160](https://github.com/MGYamada/Vastitas/issues/160) follows them.

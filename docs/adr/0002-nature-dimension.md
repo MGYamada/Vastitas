@@ -12,17 +12,22 @@ proved.
 It writes its requirements with MUST and MUST NOT. What the compiler and the
 libraries hold of it:
 
-- Admitted and Planned: the `nature` package and the module
-  `nature::dimension` (§3), for the profile of the Stage 4 tracker.
+- Implemented, for the profile of the Stage 4 tracker: the `nature` package
+  and the module `nature::dimension` (§3). The
+  [Stage 4 acceptance record](../stage4-acceptance.md) states what is Tested
+  and what is Proved.
+- Tested: the dependency rule of §1. No `std` manifest depends on `nature`,
+  and `scripts/check_boundaries.py` checks it in the continuous integration.
 - Planned: every other `nature` module, among them `nature::errorbar` and
   `nature::symmetry`, and the parts of `nature::dimension` that §3 leaves
   outside.
 
 ## Record
 
-- **Status:** Proposed with the Stage 4 tracker
-  [#759](https://github.com/MGYamada/Vastitas/issues/759); adopted when the
-  pull request that adds this chapter merges.
+- **Status:** Adopted with the Stage 4 tracker
+  [#759](https://github.com/MGYamada/Vastitas/issues/759), in pull request
+  [#760](https://github.com/MGYamada/Vastitas/pull/760), which added this
+  chapter.
 - **Date:** 2026-11-13
 - **Scope:** the admission of `nature::dimension` for one finite profile, and
   the dependency rule between `std` and `nature` that it needs. It is **not** a

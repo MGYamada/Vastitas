@@ -679,7 +679,7 @@ def main(argv=None):
     used, total = deriver.coverage(CONTEXTS)
     print(f"Derived {len(cases)} texts (seed {arguments.seed}, depth {arguments.depth}); they take {used} of "
           f"the {total} options of choices and repetitions that the contexts reach")
-    print(f"{forbidden} texts break a rule of RULES and give the code of a rule that they break:")
+    print(f"{forbidden} texts break a rule of RULES; each gives a code of its break first, or an earlier error:")
     for rule in RULES:
         count = sum(rule in case.rules for case in cases)
         print(f"  {rule.name} ({rule.code}): {count} texts; {rule.place}")

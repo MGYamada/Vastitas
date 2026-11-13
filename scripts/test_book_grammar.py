@@ -1,4 +1,6 @@
 """Regressions for scripts/book_grammar.py: the notation, the tokenizer and the recognizer."""
+from pathlib import Path
+import tempfile
 import textwrap
 import unittest
 
@@ -80,7 +82,7 @@ class TokenTests(unittest.TestCase):
         ])
 
     def test_comments_whitespace_and_strings_are_read_in_prose(self):
-        self.assertEqual(self.tokens('a // ✓ comment\n　"text ✓" b'), [
+        self.assertEqual(self.tokens('a // ✓ comment\n\u3000"text ✓" b'), [
             ("IDENTIFIER", "a"), ("STRING_LITERAL", '"text ✓"'), ("IDENTIFIER", "b")])
         self.assertEqual(self.tokens('"open'), [("STRING_LITERAL", '"open')])
 
@@ -89,10 +91,18 @@ class TokenTests(unittest.TestCase):
                                                         ("MALFORMED", "0x1")])
 
     def test_lexical_errors(self):
-        for source in ("﻿a", "a b", "a\rb", "é", "a // ‮", "a /* b */", "a @ b"):
+        for source in ("\ufeffa", "a\u2028b", "a\rb", "\u00e9", "a // \u202e", "a /* b */", "a @ b",
+                       "a // a\rb\n", "a // a\u2029b", 'a "a\rb"', 'a "a\x0bb"'):
             with self.assertRaises(book_grammar.LexError, msg=repr(source)):
                 self.grammar.tokenize(source)
-        self.assertEqual(self.tokens("a\r\nb"), [("IDENTIFIER", "a"), ("IDENTIFIER", "b")])
+        self.assertEqual(self.tokens("a // CR LF\r\nb\r\n"), [("IDENTIFIER", "a"), ("IDENTIFIER", "b")])
+        self.assertEqual(self.tokens('a "x\r\ny"'), [("IDENTIFIER", "a"), ("STRING_LITERAL", '"x\r\ny"')])
+
+    def test_a_file_keeps_its_carriage_returns(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "a.vast"
+            path.write_bytes(b"a // x\rb\r\n")
+            self.assertEqual(book_grammar.read(path), "a // x\rb\r\n")
 
     def test_a_terminal_must_be_a_token(self):
         bad = grammar("```text\nStart -> `=>` | `x y`\n```\n")

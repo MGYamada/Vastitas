@@ -580,6 +580,7 @@ def recorded_codes(root):
 
 def parse_errors(root, grammar, exceptions=PARSE_EXCEPTIONS, sources=PARSED_SOURCES):
     """Parse every source file with the productions; return (errors, parsed, rejected, skipped)."""
+    import book_grammar
     codes = recorded_codes(root)
     errors = []
     parsed = rejected = 0
@@ -589,7 +590,7 @@ def parse_errors(root, grammar, exceptions=PARSE_EXCEPTIONS, sources=PARSED_SOUR
     for file in files:
         name = file.relative_to(root).as_posix()
         recorded = codes.get(name, set())
-        source = file.read_text(encoding="utf-8")
+        source = book_grammar.read(file)
         failure = grammar.parse(source)
         if name in exceptions:
             expected, reason = exceptions[name]

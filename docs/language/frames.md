@@ -239,6 +239,16 @@ The following frame is constant and declares its inverse:
 {{#include ../../examples/reject/packages/frame-constant-inverse.stderr}}
 ```
 
+The columns of the following constant frame are linearly dependent:
+
+```vast
+{{#include ../../examples/reject/packages/frame-singular/main.vast:declarations}}
+```
+
+```text
+{{#include ../../examples/reject/packages/frame-singular.stderr}}
+```
+
 The following frame depends on the point and declares no inverse:
 
 ```vast
@@ -247,6 +257,16 @@ The following frame depends on the point and declares no inverse:
 
 ```text
 {{#include ../../examples/reject/packages/frame-missing-inverse.stderr}}
+```
+
+The inverse that the following frame declares is not its inverse:
+
+```vast
+{{#include ../../examples/reject/packages/frame-wrong-inverse/main.vast:declarations}}
+```
+
+```text
+{{#include ../../examples/reject/packages/frame-wrong-inverse.stderr}}
 ```
 
 ## Encoding and decoding
@@ -408,11 +428,11 @@ the rows (1, −1) and (−1, 3), and `matrix_cl(f(), p)` after `move_bc(p)` is
 The following transition names frames of two objects:
 
 ```vast
-{{#include ../../examples/reject/packages/frame-transition-objects/main.vast:declaration}}
+{{#include ../../examples/reject/packages/frame-other-object/main.vast:declarations}}
 ```
 
 ```text
-{{#include ../../examples/reject/packages/frame-transition-objects.stderr}}
+{{#include ../../examples/reject/packages/frame-other-object.stderr}}
 ```
 
 ## Contraction in frames
@@ -574,6 +594,17 @@ Rules:
 > the binding expects, and the one supplied. In other cases, such as a fiber
 > in the place of an array or two operands of `frame_equal` in different
 > frames, it lists the types of the operands.
+
+In this program `same_coords` compares an array in `b` with an array in
+`b2`, two frames of one object:
+
+```vast
+{{#include ../../examples/reject/packages/frame-other-frame/main.vast:program}}
+```
+
+```text
+{{#include ../../examples/reject/packages/frame-other-frame.stderr}}
+```
 
 ## The Gram matrix in a frame
 

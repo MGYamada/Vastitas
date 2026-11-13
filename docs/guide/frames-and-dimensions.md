@@ -184,15 +184,16 @@ of `nature::dimension`. `Length` has the
 The reading changes nothing about the chart. Its use is a
 [*physical interpretation*](../appendix/glossary.md#physical-interpretation)
 of a metric on the chart, which the compiler checks against the reading. The
-Euclidean metric dx² + dt² adds a squared length to a squared time, and the
-compiler rejects its interpretation under the reading:
+Euclidean metric dx² + dt² adds a squared length to a squared time. In the
+following program, with the chart and the reading of this chapter, the
+compiler rejects its interpretation:
 
 ```vast
-{{#include ../../examples/reject/packages/dimension-length-time/main.vast:declarations}}
+{{#include ../../examples/reject/packages/dimension-dx2-dt2/main.vast:declarations}}
 ```
 
 ```text
-{{#include ../../examples/reject/packages/dimension-length-time.stderr}}
+{{#include ../../examples/reject/packages/dimension-dx2-dt2.stderr}}
 ```
 
 The metric `E` itself stays valid. Only its interpretation is an error.

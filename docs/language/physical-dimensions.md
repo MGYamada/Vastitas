@@ -323,11 +323,11 @@ dx² − c² dt² with the speed c = 3, whose terms have the dimension L².
 The Euclidean metric of the chart adds a squared length to a squared time:
 
 ```vast
-{{#include ../../examples/reject/packages/dimension-length-time/main.vast:declarations}}
+{{#include ../../examples/reject/packages/dimension-dx2-dt2/main.vast:declarations}}
 ```
 
 ```text
-{{#include ../../examples/reject/packages/dimension-length-time.stderr}}
+{{#include ../../examples/reject/packages/dimension-dx2-dt2.stderr}}
 ```
 
 The following entry does not give the Gram matrix of `G`:
@@ -350,14 +350,14 @@ The following declared value differs from the dimension of the terms:
 {{#include ../../examples/reject/packages/dimension-declared-value.stderr}}
 ```
 
-`normalized` compares kinds, and `Torque` is not `Energy`:
+`normalized` compares kinds, and `Wavelength` is not `Length`:
 
 ```vast
-{{#include ../../examples/reject/packages/dimension-torque-scale/main.vast:declarations}}
+{{#include ../../examples/reject/packages/dimension-wrong-kind/main.vast:declarations}}
 ```
 
 ```text
-{{#include ../../examples/reject/packages/dimension-torque-scale.stderr}}
+{{#include ../../examples/reject/packages/dimension-wrong-kind.stderr}}
 ```
 
 ## The library nature::dimension

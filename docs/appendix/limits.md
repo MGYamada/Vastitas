@@ -348,15 +348,30 @@ rational numbers of frame arrays and map arrays have no bound.
 The kernel checks the declarations that
 [Physical-dimension admission](../adr/0002-nature-dimension.md) admits: base
 dimensions, quantities, readings, scales and physical metrics. It checks the
-bound of every exponent before it computes a power. A scale magnitude and the
-coefficient of an entry of a physical metric have the bound of a Gram entry.
+bound of every exponent, and the size of every entry of a physical metric,
+before it computes a power. A scale magnitude, the coefficient of an entry
+and the entry multiplied out have the bound of a Gram entry.
+
+The kernel measures an entry multiplied out before its factors cancel. For
+the numerator of the entry, it adds the bits of the numerator of the
+coefficient, and the bits of the numerator of each magnitude once per unit
+of its exponent. For a negative exponent, it adds the bits of the
+denominator of the magnitude instead. It measures the denominator of the entry with
+numerators and denominators exchanged. A numerator or a denominator of 1 adds
+no bits. Take two scales `a` and `b` with one magnitude of 101 bits.
+`a^5 * b^-5` counts 505 bits in its numerator and in its denominator, within
+the bound. `a^6 * b^-6` counts 606 bits and is an error, although both
+entries are 1.
+
+The value of a physical metric, the dimension of its terms, has the
+exponent bound of a dimension, so that `value = …` can write it.
 
 | Limit | Value | Counts | Holds for | Code |
 | --- | --- | --- | --- | --- |
 | `dimensionBases` | 16 | The `indexed base_dimension` declarations of all packages | A program | `E_LIMIT` |
-| `dimensionExponent` | 64 | The absolute value of the exponent of a base dimension in a dimension, and of a scale in an entry of a physical metric | An exponent | `E_LIMIT` |
+| `dimensionExponent` | 64 | The absolute value of the exponent of a base dimension in a dimension and in the value of a physical metric, and of a scale in an entry of a physical metric | An exponent | `E_LIMIT` |
 | `dimensionScaleFactors` | 16 | The scale factors of one entry of a physical metric | An entry | `E_LIMIT` |
-| `metricEntryBits` | 512 | The bits of the numerator and of the denominator of a scale magnitude, and of the coefficient of an entry of a physical metric | A scale or an entry | `E_LIMIT` |
+| `metricEntryBits` | 512 | The bits of the numerator and of the denominator of a scale magnitude, of the coefficient of an entry of a physical metric, and of the entry multiplied out | A scale or an entry | `E_LIMIT` |
 
 ## Resource functions
 

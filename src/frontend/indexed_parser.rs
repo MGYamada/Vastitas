@@ -161,9 +161,15 @@ impl Parser {
                 self.expect(")")?;
                 Ok(indexed::Parameter::Object { domain })
             }
+            "frame" => {
+                self.expect("(")?;
+                let family = self.type_path()?;
+                self.expect(")")?;
+                Ok(indexed::Parameter::Frame { family })
+            }
             _ => Err(diagnostic(
                 "E_TYPE",
-                "index parameters use domain, marker, natural, or object(Classification)",
+                "index parameters use domain, marker, natural, object(Classification), or frame(Family)",
                 span,
             )),
         }
@@ -453,16 +459,34 @@ impl Parser {
                     "tangent" => indexed::FamilyRepresentation::Tangent,
                     "tape" => indexed::FamilyRepresentation::Tape,
                     "metric_form" => indexed::FamilyRepresentation::MetricForm,
+                    "frame" => indexed::FamilyRepresentation::Frame,
+                    "frame_vector" => indexed::FamilyRepresentation::FrameVector,
+                    "frame_covector" => indexed::FamilyRepresentation::FrameCovector,
+                    "frame_map" => indexed::FamilyRepresentation::FrameMap,
+                    "reading" => indexed::FamilyRepresentation::Reading,
+                    "physical_metric" => indexed::FamilyRepresentation::PhysicalMetric,
                     _ => {
                         return Err(diagnostic(
                             "E_TYPE",
-                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape or metric_form",
+                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
                             span,
                         ));
                     }
                 };
-                self.expect("constraints")?;
-                let constraints = self.indexed_list("(", ")", Self::indexed_constraint)?;
+                // Frame arrays and frame maps have no constraints, so they may
+                // omit the clause. Every other family states it.
+                let constraints = if !self.peek().is("constraints")
+                    && matches!(
+                        representation,
+                        indexed::FamilyRepresentation::FrameVector
+                            | indexed::FamilyRepresentation::FrameCovector
+                            | indexed::FamilyRepresentation::FrameMap
+                    ) {
+                    Vec::new()
+                } else {
+                    self.expect("constraints")?;
+                    self.indexed_list("(", ")", Self::indexed_constraint)?
+                };
                 DeclarationBody::Family {
                     parameters,
                     constraints,
@@ -486,6 +510,25 @@ impl Parser {
             "affine" => self.indexed_affine()?,
             "morphism" => self.indexed_morphism()?,
             "metric" => self.indexed_metric()?,
+            "frame" => self.indexed_frame()?,
+            "base_dimension" => DeclarationBody::BaseDimension,
+            "quantity" => {
+                self.expect("=")?;
+                DeclarationBody::Quantity {
+                    dimension: self.indexed_dimension()?,
+                }
+            }
+            "reading" => self.indexed_reading()?,
+            "scale" => {
+                self.expect("=")?;
+                let magnitude = self.polynomial()?;
+                self.expect("of")?;
+                DeclarationBody::Scale {
+                    quantity: self.type_path()?,
+                    magnitude,
+                }
+            }
+            "physical" => self.indexed_physical()?,
             "evidence" => {
                 self.expect("=")?;
                 let span = self.peek().span;
@@ -747,8 +790,9 @@ impl Parser {
         })
     }
 
-    /// `: Family<X, Y, S> = pullback(y -> p, ...) | identity | structure`
-    fn indexed_morphism(&mut self) -> Result<DeclarationBody, Diagnostic> {
+    /// `: Family<X, ...> =`: the family and the indices of a declaration that
+    /// is declared at a family, up to its `=`.
+    fn indexed_application(&mut self) -> Result<(TypePath, Vec<TypePath>), Diagnostic> {
         self.expect(":")?;
         let family = self.type_path()?;
         self.expect("<")?;
@@ -758,6 +802,12 @@ impl Parser {
         }
         self.type_close()?;
         self.expect("=")?;
+        Ok((family, indices))
+    }
+
+    /// `: Family<X, Y, S> = pullback(y -> p, ...) | identity | structure`
+    fn indexed_morphism(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
         let span = self.peek().span;
         let definition = match self.indexed_tag()?.as_str() {
             "pullback" => indexed::MorphismDefinition::Pullback {
@@ -790,15 +840,7 @@ impl Parser {
 
     /// `: Family<X> = euclidean` or `: Family<X> = gram((a, b), (c, d))`.
     fn indexed_metric(&mut self) -> Result<DeclarationBody, Diagnostic> {
-        self.expect(":")?;
-        let family = self.type_path()?;
-        self.expect("<")?;
-        let mut indices = vec![self.type_path()?];
-        while self.consume(",") {
-            indices.push(self.type_path()?);
-        }
-        self.type_close()?;
-        self.expect("=")?;
+        let (family, indices) = self.indexed_application()?;
         let span = self.peek().span;
         let gram = match self.indexed_tag()?.as_str() {
             "euclidean" => indexed::MetricGram::Euclidean,
@@ -821,8 +863,256 @@ impl Parser {
         })
     }
 
+    /// `: Family<X> = columns((p, …), …) [inverse = columns((q, …), …)]` or
+    /// `: Family<X> = coordinates`. Each column is a parenthesized tuple of
+    /// polynomials in the coordinates of `X`, and the wire keeps the columns
+    /// in source order. The kernel computes the inverse of a constant frame;
+    /// a frame polynomial in the point declares its inverse.
+    fn indexed_frame(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        let span = self.peek().span;
+        let columns = match self.indexed_tag()?.as_str() {
+            "coordinates" => {
+                if self.peek().is("inverse") {
+                    return Err(diagnostic(
+                        "E_PARSE",
+                        "the coordinate frame `coordinates` declares no inverse",
+                        self.peek().span,
+                    ));
+                }
+                indexed::FrameColumns::Coordinates
+            }
+            "columns" => self.frame_columns()?,
+            "inverse" => {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "a frame declares its `columns(…)` first; `inverse = columns(…)` follows them",
+                    span,
+                ));
+            }
+            _ => {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "a frame is `coordinates` or `columns((…), …)` with one column per coordinate, optionally followed by `inverse = columns((…), …)`",
+                    span,
+                ));
+            }
+        };
+        let inverse = if self.consume("inverse") {
+            self.expect("=")?;
+            self.expect("columns")?;
+            Some(self.frame_columns()?)
+        } else {
+            None
+        };
+        Ok(DeclarationBody::Frame {
+            family,
+            indices,
+            columns,
+            inverse,
+        })
+    }
+
+    /// `((p, …), …)` after `columns`: the columns, each a parenthesized tuple
+    /// of polynomial entries. `columns()` has no columns.
+    fn frame_columns(&mut self) -> Result<indexed::FrameColumns, Diagnostic> {
+        let columns = self.indexed_list("(", ")", |p| {
+            if !p.peek().is("(") {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "a frame column is a parenthesized tuple of entries, as in `columns((1, 0), (0, 1))`",
+                    p.peek().span,
+                ));
+            }
+            p.indexed_list("(", ")", Self::polynomial)
+        })?;
+        Ok(indexed::FrameColumns::Columns { columns })
+    }
+
+    /// A physical dimension after `quantity … =` or `value =`: `1`, or base
+    /// dimensions with integer exponents, as in `L * T^-1`. There is no
+    /// division; the lexer already rejects `/`.
+    fn indexed_dimension(&mut self) -> Result<Vec<indexed::DimensionFactor>, Diagnostic> {
+        let token = self.peek().clone();
+        if let TokenKind::Number(value) = &token.kind {
+            if value == "1" {
+                self.advance();
+                return Ok(Vec::new());
+            }
+            return Err(diagnostic(
+                "E_PARSE",
+                "a dimension is `1` or a product of base dimensions with integer exponents, as in `L * T^-1`",
+                token.span,
+            ));
+        }
+        let mut factors = Vec::new();
+        loop {
+            let base = self.type_path()?;
+            let exponent = if self.consume("^") {
+                self.indexed_exponent()?
+            } else {
+                "1".into()
+            };
+            factors.push(indexed::DimensionFactor { base, exponent });
+            if !self.consume("*") {
+                return Ok(factors);
+            }
+        }
+    }
+
+    /// The integer exponent after `^`: `n` or `-n`. Its digits are bounded as
+    /// the kernel's decoder bounds them.
+    fn indexed_exponent(&mut self) -> Result<String, Diagnostic> {
+        let negative = self.consume("-");
+        let token = self.advance();
+        match token.kind {
+            TokenKind::Number(digits) if digits.len() <= crate::limits::MAX_ALGEBRA_DIGITS => {
+                Ok(if negative {
+                    format!("-{digits}")
+                } else {
+                    digits
+                })
+            }
+            TokenKind::Number(_) => Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "an exponent has at most {} decimal digits",
+                    crate::limits::MAX_ALGEBRA_DIGITS
+                ),
+                token.span,
+            )),
+            _ => Err(diagnostic(
+                "E_PARSE",
+                "an exponent is an integer, written `^n` or `^-n`; rational exponents are not supported",
+                token.span,
+            )),
+        }
+    }
+
+    /// `: Family<X> = (x: Quantity, …)`: the quantity of each coordinate of
+    /// `X`, in source order.
+    fn indexed_reading(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        let quantities = self.indexed_list("(", ")", |p| {
+            let coordinate = p.coordinate_name()?;
+            p.expect(":")?;
+            Ok(indexed::ReadingEntry {
+                coordinate,
+                quantity: p.type_path()?,
+            })
+        })?;
+        Ok(DeclarationBody::Reading {
+            family,
+            indices,
+            quantities,
+        })
+    }
+
+    /// `: Family<X> = interpret(G, reading = r, entries[, value = D])`, where
+    /// the entries are `euclidean`, `gram((m, …), …)` with rows of scale
+    /// monomials, or `normalized(x: s, …)` with one scale per coordinate.
+    fn indexed_physical(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("interpret")?;
+        self.expect("(")?;
+        let metric = self.type_path()?;
+        let reading = self.indexed_selection("interpret", "reading", "the reading of its chart")?;
+        self.expect(",")?;
+        let span = self.peek().span;
+        let entries = match self.indexed_tag()?.as_str() {
+            "euclidean" => indexed::PhysicalGram::Euclidean,
+            "gram" => indexed::PhysicalGram::Gram {
+                rows: self
+                    .indexed_list("(", ")", |p| p.indexed_list("(", ")", Self::scale_monomial))?,
+            },
+            "normalized" => indexed::PhysicalGram::Normalized {
+                scales: self.indexed_list("(", ")", |p| {
+                    let coordinate = p.coordinate_name()?;
+                    p.expect(":")?;
+                    Ok(indexed::CoordinateScale {
+                        coordinate,
+                        scale: p.type_path()?,
+                    })
+                })?,
+            },
+            _ => {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "a physical metric interprets `euclidean`, `gram((…), …)` with one row per coordinate, or `normalized(x: scale, …)`",
+                    span,
+                ));
+            }
+        };
+        let value = if self.consume(",") {
+            self.expect("value")?;
+            self.expect("=")?;
+            Some(self.indexed_dimension()?)
+        } else {
+            None
+        };
+        self.expect(")")?;
+        Ok(DeclarationBody::PhysicalMetric {
+            family,
+            indices,
+            metric,
+            reading,
+            value,
+            entries,
+        })
+    }
+
+    /// One entry of a physical Gram matrix, in its own small grammar rather
+    /// than as a polynomial: `['-'] factor ('*' factor)*`, where a factor is a
+    /// coefficient `n` or `frac(i, n)`, or a scale with an optional integer
+    /// exponent, `s^k`. The coefficient is the product of the coefficient
+    /// factors (`1` without any), negated by a leading `-`, so `-1 * c^2` and
+    /// `-c^2` are the same entry. `0` is the zero entry.
+    fn scale_monomial(&mut self) -> Result<indexed::ScaleMonomial, Diagnostic> {
+        let negative = self.consume("-");
+        let mut coefficients = Vec::new();
+        let mut factors = Vec::new();
+        loop {
+            if matches!(self.peek().kind, TokenKind::Number(_)) {
+                coefficients.push(indexed::PolyExpr::Natural {
+                    value: self.poly_literal()?,
+                });
+            } else if self.at_fraction() {
+                coefficients.push(self.fraction()?);
+            } else {
+                let scale = self.type_path()?;
+                let exponent = if self.consume("^") {
+                    self.indexed_exponent()?
+                } else {
+                    "1".into()
+                };
+                factors.push(indexed::ScaleFactor { scale, exponent });
+            }
+            if !self.consume("*") {
+                break;
+            }
+        }
+        let coefficient = match coefficients.len() {
+            0 => indexed::PolyExpr::Natural { value: "1".into() },
+            1 => coefficients.pop().unwrap(),
+            _ => indexed::PolyExpr::Product {
+                factors: coefficients,
+            },
+        };
+        Ok(indexed::ScaleMonomial {
+            coefficient: if negative {
+                indexed::PolyExpr::Neg {
+                    operand: Box::new(coefficient),
+                }
+            } else {
+                coefficient
+            },
+            factors,
+        })
+    }
+
     /// `, keyword = path`: the metric or evidence that `flat` and `sharp`
-    /// name explicitly. No default is ever selected.
+    /// name explicitly, and the reading that `interpret` names. No default is
+    /// ever selected.
     fn indexed_selection(
         &mut self,
         operation: &str,
@@ -960,30 +1250,39 @@ impl Parser {
         }
         // `frac(` starts a fraction literal; any other `frac` is a coordinate,
         // as in `frac^2` or `frac::t`.
-        if self.peek().is("frac")
+        if self.at_fraction() {
+            return self.fraction();
+        }
+        Ok(indexed::PolyExpr::Coordinate {
+            name: self.coordinate_name()?,
+        })
+    }
+
+    /// Whether the next tokens start a fraction literal, `frac(`.
+    fn at_fraction(&self) -> bool {
+        self.peek().is("frac")
             && self
                 .tokens
                 .get(self.position + 1)
                 .is_some_and(|next| next.is("("))
-        {
-            self.advance();
-            self.expect("(")?;
-            let negative = self.consume("-");
-            let numerator = self.poly_literal()?;
-            self.expect(",")?;
-            let denominator = self.poly_literal()?;
-            self.expect(")")?;
-            return Ok(indexed::PolyExpr::Fraction {
-                numerator: if negative {
-                    format!("-{numerator}")
-                } else {
-                    numerator
-                },
-                denominator,
-            });
-        }
-        Ok(indexed::PolyExpr::Coordinate {
-            name: self.coordinate_name()?,
+    }
+
+    /// `frac(i, n)`: a fraction literal whose numerator may carry a `-`.
+    fn fraction(&mut self) -> Result<indexed::PolyExpr, Diagnostic> {
+        self.expect("frac")?;
+        self.expect("(")?;
+        let negative = self.consume("-");
+        let numerator = self.poly_literal()?;
+        self.expect(",")?;
+        let denominator = self.poly_literal()?;
+        self.expect(")")?;
+        Ok(indexed::PolyExpr::Fraction {
+            numerator: if negative {
+                format!("-{numerator}")
+            } else {
+                numerator
+            },
+            denominator,
         })
     }
 
@@ -1073,11 +1372,12 @@ mod tests {
         ),
     ];
 
-    fn parse_binding(source: &str) -> Result<Primitive, Diagnostic> {
+    /// The one indexed declaration of a package module.
+    fn parse_declaration(source: &str) -> Result<indexed::Declaration, Diagnostic> {
         let parsed = parse_module_source(
             SourceInput {
                 source,
-                file: "primitive.vast",
+                file: "declaration.vast",
                 offset: 0,
             },
             vec![],
@@ -1090,8 +1390,12 @@ mod tests {
         let [declaration] = &module.indexed_declarations[..] else {
             panic!("one declaration expected");
         };
-        match &declaration.declaration.body {
-            DeclarationBody::Primitive { binding } => Ok(binding.clone()),
+        Ok(declaration.declaration.clone())
+    }
+
+    fn parse_binding(source: &str) -> Result<Primitive, Diagnostic> {
+        match parse_declaration(source)?.body {
+            DeclarationBody::Primitive { binding } => Ok(binding),
             body => panic!("primitive expected, got {body:?}"),
         }
     }
@@ -1193,5 +1497,497 @@ mod tests {
             .expect_err("`gradient` is not a primitive");
         assert_eq!(error.code, "E_TYPE");
         assert_eq!(error.message, "unknown indexed primitive contract");
+    }
+
+    use serde_json::{Value, json};
+
+    /// A value without its `span` fields, which the tables below omit.
+    fn without_spans(mut value: Value) -> Value {
+        fn strip(value: &mut Value) {
+            match value {
+                Value::Object(fields) => {
+                    fields.remove("span");
+                    fields.values_mut().for_each(strip);
+                }
+                Value::Array(items) => items.iter_mut().for_each(strip),
+                _ => {}
+            }
+        }
+        strip(&mut value);
+        value
+    }
+
+    fn p(name: &str) -> Value {
+        json!({ "path": [name] })
+    }
+
+    fn n(value: &str) -> Value {
+        json!({ "op": "natural", "value": value })
+    }
+
+    fn fraction(numerator: &str, denominator: &str) -> Value {
+        json!({ "op": "fraction", "numerator": numerator, "denominator": denominator })
+    }
+
+    fn coordinate(name: &str) -> Value {
+        json!({ "op": "coordinate", "name": name })
+    }
+
+    /// A scale monomial: a coefficient and `(scale, exponent)` factors.
+    fn monomial(coefficient: Value, factors: &[(&str, &str)]) -> Value {
+        let factors: Vec<Value> = factors
+            .iter()
+            .map(|(scale, exponent)| json!({ "scale": p(scale), "exponent": exponent }))
+            .collect();
+        json!({ "coefficient": coefficient, "factors": factors })
+    }
+
+    fn factor(base: &str, exponent: &str) -> Value {
+        json!({ "base": p(base), "exponent": exponent })
+    }
+
+    /// Every Stage 4 declaration form (#759) with the record that the kernel's
+    /// protocol-9 decoder reads, spans omitted. The shapes are S1's
+    /// (`indexed::tests::every_frame_and_dimension_form_serializes_to_its_wire_shape_and_is_algebraic`).
+    fn stage4_declarations() -> Vec<(&'static str, Value)> {
+        let family = |parameters: Value, constraints: Value, representation: &str| {
+            json!({ "kind": "family", "parameters": parameters,
+                "constraints": constraints, "representation": representation })
+        };
+        let object = json!([{ "kind": "object", "domain": p("CInfAffine") }]);
+        let canonical = json!([{ "kind": "canonical", "object": 0 }]);
+        let frame_parameter = json!({ "kind": "frame", "family": p("Frame") });
+        let frame = |columns: Value, inverse: Value| {
+            json!({ "kind": "frame", "family": p("Frame"), "indices": [p("X")],
+                "columns": columns, "inverse": inverse })
+        };
+        let columns = |columns: Value| json!({ "kind": "columns", "columns": columns });
+        let physical = |metric: &str, value: Value, entries: Value| {
+            json!({ "kind": "physical_metric", "family": p("PhysicalMetric"), "indices": [p("C")],
+                "metric": p(metric), "reading": p("phys"), "value": value, "entries": entries })
+        };
+        let one = || monomial(n("1"), &[]);
+        let zero = || monomial(n("0"), &[]);
+        let minus_one = json!({ "op": "neg", "operand": n("1") });
+        vec![
+            (
+                "indexed family Frame(object(CInfAffine)) = frame constraints(canonical(0));",
+                family(object.clone(), canonical.clone(), "frame"),
+            ),
+            (
+                "indexed family Coords(frame(Frame)) = frame_vector;",
+                family(json!([frame_parameter]), json!([]), "frame_vector"),
+            ),
+            (
+                "indexed family CoCoords(frame(Frame)) = frame_covector;",
+                family(json!([frame_parameter]), json!([]), "frame_covector"),
+            ),
+            (
+                "indexed family FrameMap(frame(Frame), frame(Frame)) = frame_map;",
+                family(
+                    json!([frame_parameter, frame_parameter]),
+                    json!([]),
+                    "frame_map",
+                ),
+            ),
+            // An empty clause is the same record.
+            (
+                "indexed family Coords(frame(Frame)) = frame_vector constraints();",
+                family(json!([frame_parameter]), json!([]), "frame_vector"),
+            ),
+            (
+                "indexed family Reading(object(CInfAffine)) = reading constraints(canonical(0));",
+                family(object.clone(), canonical.clone(), "reading"),
+            ),
+            (
+                "indexed family PhysicalMetric(object(CInfAffine)) = physical_metric constraints(canonical(0));",
+                family(object, canonical, "physical_metric"),
+            ),
+            (
+                "indexed frame b: Frame<X> = columns((1, 0), (1, 2));",
+                frame(
+                    columns(json!([[n("1"), n("0")], [n("1"), n("2")]])),
+                    Value::Null,
+                ),
+            ),
+            (
+                "indexed frame r: Frame<X> = columns((1, 0), (x, 2)) inverse = columns((1, 0), (frac(-1, 2) * x, frac(1, 2)));",
+                frame(
+                    columns(json!([[n("1"), n("0")], [coordinate("x"), n("2")]])),
+                    columns(json!([
+                        [n("1"), n("0")],
+                        [
+                            { "op": "product", "factors": [fraction("-1", "2"), coordinate("x")] },
+                            fraction("1", "2")
+                        ]
+                    ])),
+                ),
+            ),
+            (
+                "indexed frame e: Frame<X> = coordinates;",
+                frame(json!({ "kind": "coordinates" }), Value::Null),
+            ),
+            // `Affine(0)` has a frame without columns.
+            (
+                "indexed frame z: Frame<X> = columns();",
+                frame(columns(json!([])), Value::Null),
+            ),
+            (
+                "indexed base_dimension L;",
+                json!({ "kind": "base_dimension" }),
+            ),
+            (
+                "indexed quantity Length = L;",
+                json!({ "kind": "quantity", "dimension": [factor("L", "1")] }),
+            ),
+            (
+                "indexed quantity Speed = L * T^-1;",
+                json!({ "kind": "quantity", "dimension": [factor("L", "1"), factor("T", "-1")] }),
+            ),
+            (
+                "indexed quantity Ratio = 1;",
+                json!({ "kind": "quantity", "dimension": [] }),
+            ),
+            (
+                "indexed reading phys: Reading<C> = (x: Length, t: Time);",
+                json!({ "kind": "reading", "family": p("Reading"), "indices": [p("C")],
+                    "quantities": [{ "coordinate": "x", "quantity": p("Length") },
+                        { "coordinate": "t", "quantity": p("Time") }] }),
+            ),
+            (
+                "indexed scale l0 = 3 of Length;",
+                json!({ "kind": "scale", "quantity": p("Length"), "magnitude": n("3") }),
+            ),
+            (
+                "indexed scale h = frac(1, 2) of Length;",
+                json!({ "kind": "scale", "quantity": p("Length"), "magnitude": fraction("1", "2") }),
+            ),
+            (
+                "indexed physical PG: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^-2, 0), (0, t0^-2)));",
+                physical(
+                    "G",
+                    Value::Null,
+                    json!({ "kind": "gram", "rows": [
+                        [monomial(n("1"), &[("l0", "-2")]), zero()],
+                        [zero(), monomial(n("1"), &[("t0", "-2")])]
+                    ] }),
+                ),
+            ),
+            (
+                "indexed physical PE: PhysicalMetric<C> = interpret(E, reading = phys, euclidean);",
+                physical("E", Value::Null, json!({ "kind": "euclidean" })),
+            ),
+            (
+                "indexed physical PN: PhysicalMetric<C> = interpret(G, reading = phys, normalized(x: l0, t: t0), value = 1);",
+                physical(
+                    "G",
+                    json!([]),
+                    json!({ "kind": "normalized", "scales": [
+                        { "coordinate": "x", "scale": p("l0") },
+                        { "coordinate": "t", "scale": p("t0") }
+                    ] }),
+                ),
+            ),
+            (
+                "indexed physical PM: PhysicalMetric<C> = interpret(M, reading = phys, gram((1, 0), (0, -1 * c^2)), value = L^2);",
+                physical(
+                    "M",
+                    json!([factor("L", "2")]),
+                    json!({ "kind": "gram", "rows": [
+                        [one(), zero()],
+                        [zero(), monomial(minus_one.clone(), &[("c", "2")])]
+                    ] }),
+                ),
+            ),
+            // `-c^2` is `-1 * c^2`. Several coefficients are one product, and
+            // a scale without an exponent has exponent 1.
+            (
+                "indexed physical PM: PhysicalMetric<C> = interpret(M, reading = phys, gram((-c^2, 2 * frac(-1, 3) * l0 * t0^4)), value = L^2 * T^-2);",
+                physical(
+                    "M",
+                    json!([factor("L", "2"), factor("T", "-2")]),
+                    json!({ "kind": "gram", "rows": [[
+                        monomial(minus_one, &[("c", "2")]),
+                        monomial(
+                            json!({ "op": "product", "factors": [n("2"), fraction("-1", "3")] }),
+                            &[("l0", "1"), ("t0", "4")]
+                        )
+                    ]] }),
+                ),
+            ),
+        ]
+    }
+
+    /// Each Stage 4 declaration form parses to the record of its S1 wire
+    /// shape, which exists only in protocol 9.
+    #[test]
+    fn every_stage4_declaration_parses_to_its_wire_record() {
+        for (source, expected) in stage4_declarations() {
+            let declaration = parse_declaration(source)
+                .unwrap_or_else(|error| panic!("`{source}` does not parse: {error:?}"));
+            assert!(declaration.body.is_algebraic(), "{source}");
+            let record = without_spans(serde_json::to_value(&declaration.body).unwrap());
+            assert_eq!(record, expected, "{source}");
+            // The declaration's place runs from `indexed` to its `;`.
+            assert_eq!(
+                &source[declaration.span.start..declaration.span.end],
+                source
+            );
+        }
+    }
+
+    /// Malformed Stage 4 declarations are rejected at the offending token.
+    #[test]
+    fn malformed_stage4_declarations_are_rejected_at_their_place() {
+        let long = "9".repeat(crate::limits::MAX_ALGEBRA_DIGITS + 1);
+        let long_exponent = format!("indexed quantity Q = L^-{long};");
+        let long_scale_exponent = format!(
+            "indexed physical P: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^{long})));"
+        );
+        let cases: Vec<(&str, &str, &str, &str)> = vec![
+            // A scale names its quantity after `of`.
+            (
+                "indexed scale l0 = 3 Length;",
+                "E_PARSE",
+                "expected `of`, found `Length`",
+                "Length",
+            ),
+            // Exponents are integers.
+            (
+                "indexed quantity Q = L^frac(1, 2);",
+                "E_PARSE",
+                "an exponent is an integer, written `^n` or `^-n`; rational exponents are not supported",
+                "frac",
+            ),
+            (
+                "indexed quantity Q = L^1.5;",
+                "E_PARSE",
+                "rational exponents are not supported",
+                "1.5",
+            ),
+            (
+                "indexed quantity Q = L^-(1);",
+                "E_PARSE",
+                "rational exponents are not supported",
+                "(",
+            ),
+            (
+                "indexed physical P: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^frac(1, 2))));",
+                "E_PARSE",
+                "rational exponents are not supported",
+                "frac",
+            ),
+            (
+                &long_exponent,
+                "E_LIMIT",
+                "an exponent has at most 64 decimal digits",
+                &long,
+            ),
+            (
+                &long_scale_exponent,
+                "E_LIMIT",
+                "an exponent has at most 64 decimal digits",
+                &long,
+            ),
+            // A dimension has no division: the lexer rejects `/`.
+            (
+                "indexed quantity Speed = L / T;",
+                "E_UNSUPPORTED",
+                "division is not supported",
+                "/",
+            ),
+            (
+                "indexed physical P: PhysicalMetric<C> = interpret(G, reading = phys, euclidean, value = L / T);",
+                "E_UNSUPPORTED",
+                "division is not supported",
+                "/",
+            ),
+            (
+                "indexed quantity Q = 2;",
+                "E_PARSE",
+                "a dimension is `1` or a product of base dimensions with integer exponents, as in `L * T^-1`",
+                "2",
+            ),
+            // Columns are tuples, and `inverse` follows them.
+            (
+                "indexed frame b: Frame<X> = columns(1, 2);",
+                "E_PARSE",
+                "a frame column is a parenthesized tuple of entries, as in `columns((1, 0), (0, 1))`",
+                "1",
+            ),
+            (
+                "indexed frame b: Frame<X> = columns((1, 0), 2);",
+                "E_PARSE",
+                "a frame column is a parenthesized tuple of entries",
+                "2",
+            ),
+            (
+                "indexed frame r: Frame<X> = inverse = columns((1, 0), (0, 1)) columns((1, 0), (0, 1));",
+                "E_PARSE",
+                "a frame declares its `columns(…)` first; `inverse = columns(…)` follows them",
+                "inverse",
+            ),
+            (
+                "indexed frame e: Frame<X> = coordinates inverse = columns((1, 0), (0, 1));",
+                "E_PARSE",
+                "the coordinate frame `coordinates` declares no inverse",
+                "inverse",
+            ),
+            (
+                "indexed frame r: Frame<X> = columns((1, 0), (x, 1)) inverse = coordinates;",
+                "E_PARSE",
+                "expected `columns`, found `coordinates`",
+                "coordinates",
+            ),
+            (
+                "indexed frame b: Frame<X> = rows((1, 0), (0, 1));",
+                "E_TYPE",
+                "a frame is `coordinates` or `columns((…), …)` with one column per coordinate, optionally followed by `inverse = columns((…), …)`",
+                "rows",
+            ),
+            // The tags of families and parameters list the new ones.
+            (
+                "indexed family F(object(CInfAffine)) = frames constraints(canonical(0));",
+                "E_TYPE",
+                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                "frames",
+            ),
+            (
+                "indexed family Coords(frames(Frame)) = frame_vector;",
+                "E_TYPE",
+                "index parameters use domain, marker, natural, object(Classification), or frame(Family)",
+                "frames",
+            ),
+            // Only frame arrays and frame maps may omit their constraints.
+            (
+                "indexed family Frame(object(CInfAffine)) = frame;",
+                "E_PARSE",
+                "expected `constraints`, found `;`",
+                ";",
+            ),
+            (
+                "indexed family Reading(object(CInfAffine)) = reading;",
+                "E_PARSE",
+                "expected `constraints`, found `;`",
+                ";",
+            ),
+            // A reading pairs each coordinate with a quantity.
+            (
+                "indexed reading phys: Reading<C> = (x Length);",
+                "E_PARSE",
+                "expected `:`, found `Length`",
+                "Length",
+            ),
+            // `interpret` names its reading, then its entries.
+            (
+                "indexed physical P: PhysicalMetric<C> = interpret(G, phys, euclidean);",
+                "E_PARSE",
+                "`interpret` needs the reading of its chart: write `reading = …`",
+                ",",
+            ),
+            (
+                "indexed physical P: PhysicalMetric<C> = interpret(G, reading = phys, identity);",
+                "E_TYPE",
+                "a physical metric interprets `euclidean`, `gram((…), …)` with one row per coordinate, or `normalized(x: scale, …)`",
+                "identity",
+            ),
+            (
+                "indexed physical P: PhysicalMetric<C> = interpret(G, reading = phys, euclidean, dimension = L);",
+                "E_PARSE",
+                "expected `value`, found `dimension`",
+                "dimension",
+            ),
+            (
+                "indexed physical P: PhysicalMetric<C> = interpret(G, reading = phys, normalized(x = l0));",
+                "E_PARSE",
+                "expected `:`, found `=`",
+                "=",
+            ),
+        ];
+        for (source, code, message, place) in cases {
+            let error = parse_declaration(source).expect_err(source);
+            assert_eq!(error.code, code, "{source}: {error:?}");
+            assert!(error.message.contains(message), "{source}: {error:?}");
+            assert_eq!(
+                &source[error.span.start..error.span.end],
+                place,
+                "{source}: {error:?}"
+            );
+        }
+    }
+
+    /// The Stage 4 words are contextual: they are reserved nowhere, so
+    /// programs that use them as names keep parsing.
+    #[test]
+    fn stage4_words_remain_ordinary_names() {
+        const WORDS: [&str; 15] = [
+            "frame",
+            "quantity",
+            "reading",
+            "scale",
+            "physical",
+            "base_dimension",
+            "columns",
+            "coordinates",
+            "inverse",
+            "interpret",
+            "normalized",
+            "euclidean",
+            "of",
+            "value",
+            "frame_vector",
+        ];
+        for word in WORDS {
+            assert!(!super::super::reserved(word), "{word}");
+        }
+        // As function names, and as parameter and `let` names.
+        let functions: String = WORDS
+            .iter()
+            .map(|w| format!("fn {w}(n: Int) -> Int {{ n }}\n"))
+            .collect();
+        let calls: Vec<String> = WORDS.iter().map(|w| format!("{w}(1)")).collect();
+        let named = format!("{functions}fn main() -> Int {{ {} }}\n", calls.join(" + "));
+        let parameters: Vec<String> = WORDS.iter().map(|w| format!("{w}: Int")).collect();
+        let lets: String = WORDS.iter().map(|w| format!("let {w} = 1; ")).collect();
+        let bound = format!(
+            "fn all({}) -> Int {{ {} }}\nfn main() -> Int {{ {lets}all({}) }}\n",
+            parameters.join(", "),
+            WORDS.join(" + "),
+            WORDS.join(", ")
+        );
+        for flat in [named, bound] {
+            crate::frontend::parse(&flat, "names.vast")
+                .unwrap_or_else(|errors| panic!("{errors:?}\n{flat}"));
+        }
+        // In a package, the words also name indexed declarations, scales and
+        // quantities, next to declarations of the new kinds.
+        let package = "indexed marker frame;
+indexed base_dimension quantity;
+indexed quantity reading = quantity^2;
+indexed scale of = 3 of reading;
+indexed scale value = frac(1, 2) of reading;
+indexed physical inverse: PhysicalMetric<C> = interpret(coordinates, reading = columns, gram((of^-2 * value)), value = quantity);
+fn scale(physical: Int) -> Int { let interpret = physical; interpret }
+";
+        let parsed = parse_module_source(
+            SourceInput {
+                source: package,
+                file: "names.vast",
+                offset: 0,
+            },
+            vec![],
+            true,
+            None,
+        )
+        .unwrap_or_else(|error| panic!("{error:?}"));
+        let names: Vec<&str> = parsed.modules[0]
+            .indexed_declarations
+            .iter()
+            .map(|d| d.declaration.name.as_str())
+            .collect();
+        assert_eq!(
+            names,
+            ["frame", "quantity", "reading", "of", "value", "inverse"]
+        );
     }
 }

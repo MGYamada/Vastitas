@@ -44,18 +44,24 @@ fn package(flat: &Value, version: u64) -> Value {
     raw
 }
 
+/// The shape of a record: its keys and its `kind` and `op` tags.
+fn shape(fields: &serde_json::Map<String, Value>) -> String {
+    format!(
+        "{:?}:{:?}:{:?}",
+        fields.keys().collect::<Vec<_>>(),
+        fields.get("kind"),
+        fields.get("op")
+    )
+}
+
 // Select a representative of every distinct record shape/tag. This avoids
 // rerunning identical span mutations for every scalar leaf in a source file.
 fn record_paths(value: &Value, path: &str, records: &mut BTreeMap<String, String>) {
     match value {
         Value::Object(fields) => {
-            let shape = format!(
-                "{:?}:{:?}:{:?}",
-                fields.keys().collect::<Vec<_>>(),
-                fields.get("kind"),
-                fields.get("op")
-            );
-            records.entry(shape).or_insert_with(|| path.to_string());
+            records
+                .entry(shape(fields))
+                .or_insert_with(|| path.to_string());
             for (name, child) in fields {
                 let escaped = name.replace('~', "~0").replace('/', "~1");
                 record_paths(child, &format!("{path}/{escaped}"), records);
@@ -286,6 +292,117 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
             });
         }
     });
+}
+
+// #759: the frame and `nature::dimension` records of protocol 9, in the wire
+// that the frontend sends for `tests/fixtures/frame-dimension-declarations`.
+// Records of one shape can have different decoders (the Gram matrix of a
+// metric and of a physical metric), so the sweep also keeps one
+// representative per shape and declaration kind. Until batch 4 the kernel
+// decodes the baseline and then rejects its first frame (`E_FRAME`); every
+// forged field is a decoder rejection.
+#[test]
+fn frame_and_nature_records_reject_unknown_fields() {
+    let mut command = common::cli();
+    command
+        .args(["check", "--manifest-path"])
+        .arg(common::root().join("tests/fixtures/frame-dimension-declarations/Vastitas.toml"));
+    let raw = common::captured_wire(command, 9);
+    let baseline = kernel(&raw, "check");
+    assert!(
+        baseline["ok"] == true
+            || matches!(
+                baseline["diagnostics"][0]["code"].as_str(),
+                Some("E_FRAME" | "E_DIMENSION")
+            ),
+        "{baseline}"
+    );
+    let mut records = BTreeMap::new();
+    record_paths(&raw, "", &mut records);
+    let base = "/packages/0/modules/0/indexed_declarations";
+    for (index, declaration) in raw
+        .pointer(base)
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .iter()
+        .enumerate()
+    {
+        let mut own = BTreeMap::new();
+        record_paths(declaration, &format!("{base}/{index}"), &mut own);
+        for (record, path) in own {
+            records
+                .entry(format!("{}/{record}", declaration["kind"]))
+                .or_insert(path);
+        }
+    }
+    // Each Stage 4 record shape, under the declaration kind that holds it.
+    let header = json!({"kind": null, "name": null, "public": null, "span": null});
+    let declaration = |kind: &str, fields: &[&str]| {
+        let mut record = header.as_object().unwrap().clone();
+        record.insert("kind".into(), json!(kind));
+        for field in fields {
+            record.insert((*field).into(), Value::Null);
+        }
+        format!("{:?}/{}", kind, shape(&record))
+    };
+    let nested =
+        |kind: &str, record: Value| format!("{kind:?}/{}", shape(record.as_object().unwrap()));
+    for expected in [
+        declaration("family", &["parameters", "constraints", "representation"]),
+        nested("family", json!({"kind": "frame", "family": null})),
+        declaration("frame", &["family", "indices", "columns", "inverse"]),
+        nested("frame", json!({"kind": "columns", "columns": null})),
+        nested("frame", json!({"kind": "coordinates"})),
+        declaration("base_dimension", &[]),
+        declaration("quantity", &["dimension"]),
+        nested("quantity", json!({"base": null, "exponent": null})),
+        declaration("reading", &["family", "indices", "quantities"]),
+        nested("reading", json!({"coordinate": null, "quantity": null})),
+        declaration("scale", &["quantity", "magnitude"]),
+        nested(
+            "scale",
+            json!({"op": "fraction", "numerator": null, "denominator": null}),
+        ),
+        declaration(
+            "physical_metric",
+            &["family", "indices", "metric", "reading", "value", "entries"],
+        ),
+        nested("physical_metric", json!({"kind": "euclidean"})),
+        nested("physical_metric", json!({"kind": "gram", "rows": null})),
+        nested(
+            "physical_metric",
+            json!({"kind": "normalized", "scales": null}),
+        ),
+        nested(
+            "physical_metric",
+            json!({"coefficient": null, "factors": null}),
+        ),
+        nested("physical_metric", json!({"scale": null, "exponent": null})),
+        nested(
+            "physical_metric",
+            json!({"coordinate": null, "scale": null}),
+        ),
+        nested("physical_metric", json!({"base": null, "exponent": null})),
+        nested("physical_metric", json!({"op": "neg", "operand": null})),
+    ] {
+        assert!(records.contains_key(&expected), "no record {expected}");
+    }
+    let paths: std::collections::BTreeSet<String> = records.into_values().collect();
+    for path in &paths {
+        let mut changed = raw.clone();
+        changed.pointer_mut(path).unwrap()["forged_authority"] = json!("untrusted");
+        let response = kernel(changed, "emit");
+        assert_eq!(response["version"], 9, "{path}: {response}");
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
+        let message = response["diagnostics"][0]["message"].as_str().unwrap();
+        let tagged = path.ends_with("/representation")
+            && message == "expected exactly one concrete representation";
+        assert!(
+            message.contains("forged_authority") || tagged,
+            "{path}: {response}"
+        );
+    }
 }
 
 #[test]

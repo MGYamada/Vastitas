@@ -391,6 +391,10 @@ impl Parser {
                 name_span,
             ));
         }
+        // The kernel rejects the same names, but it has no span for the name.
+        if !super::INDEXED_SPELLINGS.contains(&name.as_str()) {
+            self.check_binding_name(&name, name_span)?;
+        }
         let body = match kind.as_str() {
             "marker" => DeclarationBody::Marker,
             "implementation" => {

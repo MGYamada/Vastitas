@@ -250,14 +250,13 @@ These codes report rules on runtime extents that the compiler decides.
 
 | Code | Reports | Rules |
 | --- | --- | --- |
-| `E_LIMIT` | A program beyond a limit of the compiler | [Limits](../language/limits.md) · [Appendix D](limits.md) |
+| `E_LIMIT` | A program beyond a limit of the compiler, including an `indexed` declaration beyond a limit on its implementations, parameters, cases or fields | [Limits](../language/limits.md) · [Appendix D](limits.md) · [Indexed declarations](../indexed-source.md) |
 
 Other codes report the limits of their constructs, as
 [Kinds of limits](../language/limits.md#kinds-of-limits) says:
 
 - `E_RESOURCE_LIMIT`, `E_RESOURCE_OVERFLOW`, `E_RESOURCE_LAYOUT` and
   `E_RESOURCE_TYPE` in resource functions;
-- `E_TYPE` in `indexed` declarations;
 - `E_NUMERICAL_TYPE`, `E_TENSOR`, `E_TENSOR_TREE` and `E_NUMERICAL_METRIC` in
   numerical statements.
 

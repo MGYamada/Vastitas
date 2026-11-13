@@ -224,14 +224,14 @@ the kernel counts the events, the methods and the units of the audit.
 | Limit | Value | Counts | Holds for | Code |
 | --- | --- | --- | --- | --- |
 | Indexed declarations | 4096 | The `indexed` declarations of all packages | A program | `E_LIMIT` |
-| Implementations of a classification | 64 | The implementations in the `domain` of a classification | A classification | `E_TYPE` |
-| Parameters of a family | 16 | The parameters of an `indexed family` | A family | `E_TYPE` |
-| Cases of a package declaration | 64 | The cases of an `indexed package` | A package declaration | `E_TYPE` |
-| Fields of a case | 64 | The fields of one case of an `indexed package` | A case | `E_TYPE` |
+| Implementations of a classification | 64 | The implementations in the `domain` of a classification | A classification | `E_LIMIT` |
+| Parameters of a family | 16 | The parameters of an `indexed family` | A family | `E_LIMIT` |
+| Cases of a package declaration | 64 | The cases of an `indexed package` | A package declaration | `E_LIMIT` |
+| Fields of a case | 64 | The fields of one case of an `indexed package` | A case | `E_LIMIT` |
 | Position in a constraint | 2³² − 1 | The integer that names a parameter in a constraint of a family, such as the `1` of `same_base(0, 1)` | A constraint | `E_LIMIT` |
 
-The diagnostic for the number of indexed declarations has the place
-`FILE:1:1`. A position in a constraint must also name a parameter of the
+The diagnostic for the number of indexed declarations has the place of the
+first declaration beyond the limit. A position in a constraint must also name a parameter of the
 family, which [Families](../indexed-source.md#families) requires; the limit
 bounds the integer that the frontend reads.
 [Indexed declarations](../indexed-source.md) states the rules.

@@ -12,7 +12,7 @@ states the limits that the construct meets in ordinary use, and
 | Kind | Bounds | Examples | Code |
 | --- | --- | --- | --- |
 | Nesting | The depth of a construct inside constructs of its kind | Nested expressions, types and branches, modules inside modules, a chain of package dependencies, the levels of a polynomial expression | `E_LIMIT` |
-| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements and the `value` blocks of resource functions, the records of the writes to an allocation, the occurrences, the declarations and the steps of a contraction tree | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_TYPE` for the parts of one `indexed` declaration; `E_RESOURCE_TYPE` for the views of one `initialized` contract; `E_TENSOR_TREE` for a contraction tree |
+| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements and the `value` blocks of resource functions, the records of the writes to an allocation, the occurrences, the declarations and the steps of a contraction tree | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_RESOURCE_TYPE` for the views of one `initialized` contract; `E_TENSOR_TREE` for a contraction tree |
 | Size of a number | The digits or the bits of a number that the checker computes with | A literal of a polynomial expression, an entry of a Gram matrix, a position in a constraint of a family, an integer of a storage type, the numbers of a layout, the dimension of an axis of a tensor, an entry of a metric of a numerical map | `E_LIMIT`; `E_RESOURCE_LIMIT` for an integer of a storage type; `E_RESOURCE_LAYOUT` for a layout; `E_TENSOR` for an axis; `E_NUMERICAL_METRIC` for an entry of a metric |
 | Size of data | The bytes of an input, of an allocation or of a space | One input file, all inputs of a program, one allocation, one static space | `E_LIMIT` for inputs; `E_RESOURCE_OVERFLOW` for an allocation; `E_NUMERICAL_TYPE` for a space |
 | Work budget | The units of work of one check | The elaboration of a program, the dispatch table of a generic, the resolution of names, the checking of resource functions, the exact algebra of a declaration, the query of the initialized cells of a view | `E_LIMIT`; `E_RESOURCE_LIMIT` for the expansion of resource calls; `E_RESOURCE_INIT` for the initialization query |
@@ -68,9 +68,9 @@ Rules:
   says.
 - An `indexed` declaration beyond a limit on the implementations of a
   classification, the parameters of a family, or the cases or the fields of a
-  package declaration is an error (`E_TYPE`), as
-  [Indexed declarations](../indexed-source.md) says. A program beyond the
-  limit on the number of its indexed declarations is an error (`E_LIMIT`).
+  package declaration is an error (`E_LIMIT`) at the declaration, as
+  [Indexed declarations](../indexed-source.md) says. So is a program beyond
+  the limit on the number of its indexed declarations.
 - The compiler never accepts a part of a program to stay within a limit. A
   rejected program produces no executable.
 - A limit holds for the whole program. The checker checks every body, even
@@ -81,11 +81,12 @@ Rules:
   that exceeds it.
 - Some limit diagnostics point to no construct. A diagnostic for a limit on
   the inputs as a whole, or on a chain of package dependencies, has no place.
-  The diagnostics for the number of indexed declarations, for the budget on
-  the work of the names of the whole program and for the size of the
+  The diagnostics for the budget on the work of the names of the whole
+  program and for the size of the
   [request](../appendix/limits.md#request) of the program have the place
-  `FILE:1:1`.
-  The two other budgets of name resolution have the place of a path or of a
+  `FILE:1:1`. The diagnostic for the number of indexed declarations has the
+  place of the first declaration beyond the limit, and the two other budgets
+  of name resolution have the place of a path or of a
   `use` declaration.
   [Diagnostics](diagnostics.md#diagnostics-without-a-place-of-their-own)
   describes both forms.

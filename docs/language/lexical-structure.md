@@ -128,9 +128,8 @@ Rules:
   `origin`, as [Indexed declarations](../indexed-source.md) describes.
 - An expression that names an identifier beginning with `__vastitas_` is an
   error (`E_RESERVED`).
-- The diagnostic of a reserved name points to the name. The diagnostic of a
-  reserved name of an `indexed` declaration points to the declaration,
-  unless the name begins with `__vastitas_`.
+- The diagnostic of a reserved name points to the name, also for an
+  `indexed` declaration.
 
 ## Integer literals
 

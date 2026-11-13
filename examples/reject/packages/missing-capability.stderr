@@ -1,1 +1,1 @@
-examples/reject/packages/missing-capability/main.vast:5:1: E_TYPE: invalid indexed declaration, package, or primitive contract
+examples/reject/packages/missing-capability/main.vast:5:1: E_TYPE: every implementation of `missing_capability::Shape<missing_capability::QQ>` must have the capability `dimension` for the `dimension` primitive `missing_capability::size`, but `missing_capability::Plain` lacks it

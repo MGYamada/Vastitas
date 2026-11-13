@@ -105,7 +105,11 @@ def bindName (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
 contexts here are built by parameter/let/unpack elaboration, not wire metadata. -/
 def type (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
     (raw : Source.DataType) (span : Span) : M Core.DataType := do
-  let (type, references) ← (elaborateDataType input.index input.declarations scope ctx raw input.geometry).run []
+  -- A diagnostic without a place of its own, such as one for a type of the
+  -- core syntax, has the place of the annotation.
+  let (type, references) ← match (elaborateDataType input.index input.declarations scope ctx raw input.geometry).run [] with
+    | .ok result => pure result
+    | .error diagnostic => throw (if diagnostic.span == {} then { diagnostic with span } else diagnostic)
   unless type.Valid input.declarations do
     let code := match raw with | .legacy (.point ..) | .legacy (.morphism ..) => "E_BASE" | _ => "E_TYPE"
     fail span code s!"invalid indexed annotation {← typeLabel input type}"

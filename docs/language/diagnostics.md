@@ -100,14 +100,23 @@ Rules:
   [Static targets](../stage1b.md#static-targets) and the
   [diagnostics of resource programs](../storage/resource-programs.md#diagnostics).
 - Two declarations of one name in one module have the place of the second
-  one in the file that holds them, whatever their kinds (`E_DUPLICATE`). In
-  manifest mode a note points to the first one. A `use` declaration and a
-  `mod` item count as declarations. A dependency alias of the package counts
-  as a declaration of each of its modules, before all others. A manifest
-  declares it, so the diagnostic has no note for it.
+  one in the file that holds them, whatever their kinds, and the message
+  names the declaration (`E_DUPLICATE`). In manifest mode a note points to
+  the first one. A `use` declaration and a `mod` item count as declarations.
+  A dependency alias of the package counts as a declaration of each of its
+  modules, before all others. A manifest declares it, so the diagnostic has
+  no note for it.
 - The diagnostic of a reserved name points to the name, in flat mode and in
-  manifest mode, with the one exception that
-  [Reserved names](lexical-structure.md#reserved-names) gives.
+  manifest mode (`E_RESERVED`). This holds for the name of an `indexed`
+  declaration too.
+- An error of a type in the signature of a function has the place of the
+  type when the type is an indexed type: the place of the path of its family.
+  An integer literal at a parameter of a family that is not `natural` is
+  such an error. A type of the
+  [core syntax](../indexed-source.md#core-geometry-syntax) has no place of
+  its own. An error of it, such as a type of the core syntax in a program
+  without an export, has the place of its parameter, or of the function for
+  its result type.
 
 The examples of this book show an absolute path without its part up to the
 root of the repository. In this package `main` calls a private function of a
@@ -138,34 +147,28 @@ Rules:
   flat mode, and the [root manifest](../packages.md#the-package-graph) in
   manifest mode. This place does not say that the first character of that
   file is wrong.
-- The compiler reports two errors of the entry point at this place
-  (`E_MAIN`). One is a program without an entry point under `vastitas build`.
-  The other is a function `main` with another signature than
-  [The entry point](programs.md#the-entry-point) gives. The compiler reports
-  a generic named `main`, and a resource function `main` with another result
-  type, at their declarations.
+- A program without an entry point under `vastitas build` has this place
+  (`E_MAIN`). A function `main` with another signature than
+  [The entry point](programs.md#the-entry-point) gives has the place of the
+  function, and so do a generic named `main` and a resource function `main`
+  with another result type.
 - The compiler reports an invalid
   [geometry compatibility export](../packages.md#geometry-compatibility-exports)
   at this place. It reports an invalid
   [function type](types.md#function-types) there too, in the programs that
   the rule of function types names.
-- The compiler reports two errors of a signature at this place (`E_TYPE`).
-  One is a type of the
-  [core syntax](../indexed-source.md#core-geometry-syntax) in a program
-  without an export. The other is an integer literal as an argument
-  of an indexed type at a parameter that is not `natural`. The same errors in
-  a body have the place of their expression.
-- Three limits have this place (`E_LIMIT`): the number of indexed
-  declarations of a program, the budget on the work of the names of the
-  whole program, and the size of the
-  [request](../appendix/limits.md#request) of the program. The two other
+- Two limits have this place (`E_LIMIT`): the budget on the work of the
+  names of the whole program, and the size of the
+  [request](../appendix/limits.md#request) of the program. Each counts the
+  program as a whole, so no construct passes the bound. The two other
   budgets of name resolution have the place of a path or of a `use`
-  declaration that exceeds them.
+  declaration that exceeds them, and the limit on the number of indexed
+  declarations has the place of the first declaration beyond it.
 - The rules above name the cases that the chapters of the Reference state.
   Another diagnostic of the checker can have this place.
 
-The function `main` of this package has a parameter. The diagnostic names the
-manifest of the package, not the function:
+The function `main` of this package has a parameter. The diagnostic has the
+place of the function, not of the manifest:
 
 ```vast
 {{#include ../../examples/reject/packages/entry-signature/main.vast}}

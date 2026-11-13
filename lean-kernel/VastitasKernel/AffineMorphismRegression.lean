@@ -117,6 +117,21 @@ private def mapOf (name : String) : Option Map :=
 #eval check "the constant coefficient selector is one"
   (code (with' [decl "constant" (coefficientOf "t" (n 1))]) == "accepted")
 
+-- The result type of `relative_int_point` is fixed by the declaration, so the
+-- declaration is checked against it (#737).
+private def intPoint (name object base : String) : Source.Declaration :=
+  decl name (.primitive ⟨"relative_int_point", [("family", .path (path "Over")), ("object", .path (path object)),
+    ("base", .path (path base))]⟩)
+private def diagnostic (p : Source.Program) : Option (String × String) :=
+  match Source.checkDeclarations p with
+  | .ok _ => none
+  | .error e => some (e.code, e.message)
+#eval check "a rational point of the line over its base" (code (with' [intPoint "at" "Line" "SpecQQ"]) == "accepted")
+#eval check "a point object off the base chain of the object"
+  (diagnostic (with' [affine "Pt2" [] [] "SpecQQ", intPoint "at2" "Line" "Pt2"]) == some ("E_TYPE",
+    "the result type `Over<Pt2, Line, Pt2>` of the `relative_int_point` primitive `morphisms::at2` is not a " ++
+      "valid type: `morphisms::Pt2` is not on the base chain of `morphisms::Line`"))
+
 -- Substitution is budgeted: small sources whose expansions are huge fail with E_LIMIT.
 private def coordinates : List String := (List.range 16).map (s!"x{·}")
 #eval check "substituting a 16-term image into t^16 exceeds the budget"

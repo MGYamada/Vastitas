@@ -1,1 +1,1 @@
-examples/reject/packages/entry-signature/Vastitas.toml:1:1: E_MAIN: entry point must have signature fn main() -> Int
+examples/reject/packages/entry-signature/main.vast:4:1: E_MAIN: entry point must have signature fn main() -> Int

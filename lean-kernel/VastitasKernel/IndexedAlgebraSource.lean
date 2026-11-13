@@ -142,6 +142,18 @@ def _root_.VastitasKernel.AlgebraDeclarations.AffineData.dependencies (data : Af
   | .fiber left right _ _ => [left, right]
   | .localization object _ _ _ => [object]
 
+/-- The paths of a declaration that name the objects it is built from, in the
+order of `AffineData.dependencies`. -/
+def Body.dependencyPaths : Body → List Path
+  | .affine _ _ _ base _ => base.toList
+  | .affineFiber _ left right _ => [left, right]
+  | .affineLocalization _ object _ _ => [object]
+  | _ => []
+
+/-- The span of the path at `position` of `paths`, or `span` when there is none. -/
+def pathSpan (paths : List Path) (position : Option Nat) (span : Span) : Span :=
+  ((position.bind (paths[·]?)).map (·.span)).getD span
+
 /-- Elaborate every presented object in dependency order. -/
 def elaborateAffine (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
     Namespace.Result Core.Declarations := do
@@ -151,9 +163,12 @@ def elaborateAffine (sources : List (DeclId × Span × Body)) (env : Core.Declar
   let spanOf (id : DeclId) : Span := ((sources.find? (·.1 == id)).map (·.2.1)).getD {}
   let bodyOf (id : DeclId) : Option Body := (sources.find? (·.1 == id)).map (·.2.2)
   for (id, data) in pending do
-    for dependency in data.dependencies do
+    for (dependency, position) in data.dependencies.zipIdx do
       unless pending.any (·.1 == dependency) do
-        Namespace.problem (spanOf id) "E_AFFINE_BASE" "the declared base or factor is not a presented affine object"
+        -- At the path that names the dependency.
+        let paths := ((bodyOf id).map Body.dependencyPaths).getD []
+        Namespace.problem (pathSpan paths (some position) (spanOf id)) "E_AFFINE_BASE"
+          "the declared base or factor is not a presented affine object"
   let rec loop : Nat → List (DeclId × AffineData) → List (DeclId × AffineData) →
       Namespace.Result (List (DeclId × AffineData))
     | _, done, [] => pure done
@@ -194,14 +209,17 @@ def monomialOf (coordinates : List String) (e : PolyExpr) : Except Error (List N
   | [⟨exponents, 1⟩] => pure exponents
   | _ => throw (.coordinate "a coefficient selector must be a single monomial with coefficient one")
 
-/-- Compute the exact pullback map of a declared morphism `X → Y` over `S`. -/
+/-- Compute the exact pullback map of a declared morphism `X → Y` over `S`.
+An error names the position of the object of the type `Over<X, Y, S>` that
+it is about, where it is about one: 0 for `X`, 1 for `Y` and 2 for `S`. -/
 def morphismMap (env : Environment) (application : Application) (definition : MorphismDefinition)
-    (restricted : Option (Application × Map) := none) : Except Error Map := do
+    (restricted : Option (Application × Map) := none) : Except (Error × Option Nat) Map := do
   let [.object (.global x), .object (.global y), .object (.global s)] := application.indices
-    | throw (.base "a morphism over a base names three declared objects")
-  let some dx := affineData? env x | throw (.base "the source is not a presented affine object")
-  let some dy := affineData? env y | throw (.base "the target is not a presented affine object")
-  let images ← match definition with
+    | throw (.base "a morphism over a base names three declared objects", none)
+  let some dx := affineData? env x | throw (.base "the source is not a presented affine object", some 0)
+  let some dy := affineData? env y | throw (.base "the target is not a presented affine object", some 1)
+  let images ← Except.mapError (·, none) <| show Except Error (List Poly) from do
+    match definition with
     | .identity =>
       unless x == y do throw (.base "an identity morphism needs the same source and target")
       pure (Map.identity dx.arity dx.basis).images
@@ -240,10 +258,10 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
         let some e := (bindings.find? (·.1 == name)).map (·.2)
           | throw (.coordinate s!"no image for target coordinate {name}")
         run do reduce dx.basis (← e.evaluate dx.generators)
-  let sx ← chainTo x s "the base is not on the source's base chain"
-  let sy ← chainTo y s "the base is not on the target's base chain"
+  let sx ← (chainTo x s "the base is not on the source's base chain").mapError (·, some 2)
+  let sy ← (chainTo y s "the base is not on the target's base chain").mapError (·, some 2)
   -- Exactly the audit's check and budget (`relativeConstantValid`).
-  run (AlgebraDeclarations.checkMorphism dx dy sx sy images)
+  (run (AlgebraDeclarations.checkMorphism dx dy sx sy images)).mapError (·, none)
   pure ⟨dx.arity, dx.basis, images⟩
 where
   /-- Structure images to the base, keeping a budget failure as `E_LIMIT`. -/
@@ -261,17 +279,20 @@ def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Decl
     let some (_, span, body) := sources.find? (·.1 == entry.id) | primitives := primitives ++ [entry]; continue
     match entry.binding, body with
     | .relativeConstant _ _, .morphism _ _ (.restrict _) => primitives := primitives ++ [entry]
-    | .relativeConstant application _, .morphism _ _ definition =>
+    | .relativeConstant application _, .morphism _ indices definition =>
       match morphismMap env.indexed application definition with
       | .ok map => primitives := primitives ++ [⟨entry.id, .relativeConstant application map⟩]
-      | .error error => algebraProblem span error
+      | .error (error, position) => algebraProblem (pathSpan indices position span) error
     | .relativeCoefficient family source target _ _, .primitive primitive =>
       let some (coordinate, monomial) := primitive.relativeCoefficientArguments?
         | primitives := primitives ++ [entry]; continue
+      let fieldSpan (field : String) : Span := match primitive.argument? WireName.relativeCoefficient field with
+        | some (.path path) => path.span
+        | _ => span
       let some dx := affineData? env.indexed source
-        | Namespace.problem span "E_AFFINE_BASE" "the source is not a presented affine object"
+        | Namespace.problem (fieldSpan "source") "E_AFFINE_BASE" "the source is not a presented affine object"
       let some dy := affineData? env.indexed target
-        | Namespace.problem span "E_AFFINE_BASE" "the target is not a presented affine object"
+        | Namespace.problem (fieldSpan "target") "E_AFFINE_BASE" "the target is not a presented affine object"
       let some index := dy.generators.idxOf? coordinate
         | Namespace.problem span "E_AFFINE_COORDINATE" s!"unknown target coordinate {coordinate}"
       match monomialOf dx.generators monomial with
@@ -307,7 +328,11 @@ def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Decl
         match morphismMap env.indexed application (.restrict ⟨[], {}⟩) (some phi) with
         | .ok map => primitives := primitives.map fun entry =>
             if entry.id == id then ⟨id, .relativeConstant application map⟩ else entry
-        | .error error => algebraProblem span error
+        | .error (error, position) =>
+          let indices := match (sources.find? (·.1 == id)).map (·.2.2) with
+            | some (.morphism _ indices _) => indices
+            | _ => []
+          algebraProblem (pathSpan indices position span) error
     if waiting.length == pending.length then
       match waiting with
       | (_, _, _, span) :: _ => Namespace.problem span "E_TYPE" "restrictions form a cycle"

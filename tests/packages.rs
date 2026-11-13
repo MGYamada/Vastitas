@@ -601,12 +601,15 @@ fn name_errors_of_a_module_point_to_the_second_declaration() {
                 "a.vast:1:1: note: first declaration is here",
             ],
         ),
-        // A reserved name of an `indexed` declaration of a module file.
+        // A reserved name of an `indexed` declaration of a module file. The
+        // frontend reports it at the name (#736).
         (
             "fn main() -> Int { 42 }\n\n  mod a;\n",
             Some("pub indexed marker QQ;\npub indexed marker Nat;\n"),
             "E_RESERVED",
-            &["a.vast:2:5: E_RESERVED: 'Nat' is reserved"],
+            &[
+                "a.vast:2:20: E_RESERVED: `Nat` is reserved and cannot be used as a declaration or binding name",
+            ],
         ),
     ];
     for (root, module, code, expected) in cases {

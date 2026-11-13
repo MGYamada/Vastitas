@@ -282,13 +282,13 @@ def declarationPlaces (p : Indexed) : List (Owner × Span) :=
 def declarationPlace (p : Indexed) (owner : Owner) : Option Span :=
   ((ownerLocations p ++ p.indexedPlaces).find? (·.1 == owner)).map (·.2)
 
-/-- The second of two declarations of one owner in source order, with a note
-at the first. `UniqueOwners` decides acceptance. -/
+/-- The second of two declarations of one owner in source order, with its name
+and a note at the first. `UniqueOwners` decides acceptance. -/
 def duplicateOwner (p : Indexed) : Diagnostic := Id.run do
   let mut seen : Std.HashMap Owner Span := {}
   for (owner, span) in declarationPlaces p do
     if let some first := seen[owner]? then
-      return { code := "E_DUPLICATE", message := "duplicate declaration owner", span,
+      return { code := "E_DUPLICATE", message := s!"`{owner.name}` is declared more than once in this module", span,
                notes := [{ span := first, message := "first declaration is here" }] }
     seen := seen.insert owner span
   return { code := "E_DUPLICATE", message := "duplicate declaration owner" }

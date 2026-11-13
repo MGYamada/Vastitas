@@ -318,6 +318,12 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
     cases smooth : isSmoothFamily small application.family
     · simp
     · simp only [validApplication_of_found ext (application := application) (found_of_isSmoothFamily smooth)]
+  | relativeIntPoint family object base =>
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, isRelativeFamily_append ext,
+      freeAffine_append ext, pointBase_append ext]
+    cases relative : isRelativeFamily small family
+    · simp
+    · simp only [validApplication_mk_of_found ext (found_of_isRelativeFamily relative)]
   | smoothIntPoint family object point =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
       smoothIntPointValid, isSmoothFamily_append ext,
@@ -367,8 +373,7 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
       PrimitiveDescriptor.evidence, implementationType_append ext, affineImplementation_append ext,
       objectTypeValid_append ext, affineGlobal_append ext, refValid_append ext, supports_append ext,
       relativeConstantValid_append ext, isRelativeFamily_append ext, onChain_append ext,
-      affineData_append ext, affineArity_append ext, freeAffine_append ext, pointBase_append ext,
-      plainFiber_append ext, relativeIsoValid_append ext, relativeCartesianValid_append ext,
+      affineData_append ext, affineArity_append ext, plainFiber_append ext, relativeIsoValid_append ext, relativeCartesianValid_append ext,
       isSmoothFamily_append ext, fiberAtValid, fiberEqualValid, fiberPairingValid, cotangentPullbackValid,
       differentialValid, linearizeValid, cotangentBackwardValid, smoothApplyValid, fiberVariance_append ext,
       isTapeFamily_append ext, smoothDimension_append ext]

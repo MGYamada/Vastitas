@@ -118,6 +118,7 @@ def checkProgram (program : Program) (requireMain : Bool := false) : Namespace.R
               else Namespace.problem {} "E_OWNER" "method/key specialization correspondence failed"
             else Namespace.problem {} "E_OWNER" "preparation changed source identities"
         else Namespace.problem {} "E_OWNER" "lifted source identity audit failed"
-    else Namespace.problem {} "E_MAIN" "entry point must have source signature fn main() -> Int"
+    else
+      Namespace.problem (Compiler.entrySpan program.source) "E_MAIN" "entry point must have source signature fn main() -> Int"
 
 end VastitasKernel.Indexed.DispatchSource

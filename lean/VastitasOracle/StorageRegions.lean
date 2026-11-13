@@ -367,7 +367,22 @@ theorem initialization_bytes {initialization : Initialization} {layout : Layout}
 independent of allocation capacity and matrix dimensions. -/
 theorem initialization_work_bound (nodes : Nat) :
     initializationSteps nodes * nodes ≤ initializationWorkLimit :=
-  Nat.div_mul_le_self initializationWorkLimit nodes
+  Nat.le_trans (Nat.mul_le_mul_right nodes (Nat.min_le_right _ _))
+    (Nat.div_mul_le_self initializationWorkLimit nodes)
+
+/-- One query also visits at most 256 times the nodes of its history, so that
+its cost is a fixed multiple of the history that the work price charges. -/
+theorem initialization_query_bound (nodes : Nat) :
+    initializationSteps nodes * nodes ≤ 256 * nodes := by
+  unfold initializationSteps initializationQuerySteps
+  exact Nat.mul_le_mul_right nodes (Nat.min_le_left _ _)
+
+/-- A history with fewer nodes never admits fewer interval traversals. A
+history has at least one node. -/
+theorem initializationSteps_antitone {fewer more : Nat} (positive : 0 < fewer) (order : fewer ≤ more) :
+    initializationSteps more ≤ initializationSteps fewer :=
+  Nat.le_min.mpr ⟨Nat.min_le_left _ _,
+    Nat.le_trans (Nat.min_le_right _ _) (Nat.div_le_div_left order positive)⟩
 
 theorem initialization_column_work_bound (nodes columns : Nat) :
     (initializationSteps nodes / columns * columns) * nodes ≤ initializationWorkLimit := by

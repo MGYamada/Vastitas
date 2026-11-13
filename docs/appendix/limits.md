@@ -335,8 +335,8 @@ resource functions. Most limits of this section have the code
 | Expansion of calls | 4096 | The units of one expansion. The checker expands each resource function once for the check of the function on its own, and the entry point once more, each with the functions that it calls. The first list below the table says which units an expansion takes | An expansion | `E_RESOURCE_LIMIT` |
 | Depth of calls | 4096 | The units of one chain of calls: one for each function that the chain enters, and one for each statement of such a function up to and with its call. In the last function of the chain, every statement that the checker reaches counts | A chain of calls | `E_RESOURCE_LIMIT` |
 | `resourceWork` | 32,000,000 | The weighted units of work of checking all resource functions: the check of each function on its own and the check of the entry point | A program | `E_LIMIT` |
-| Initialization records | 4096 | The nodes of the record that the checker keeps of the writes to one allocation: one for the end of the record, one for each write that the record keeps, and one for each join of two arms that keeps the records of both arms. The record keeps no write whose cells are initialized already, and no write that continues the last recorded write | An allocation | `E_RESOURCE_LIMIT` |
-| Initialization query | 65,536 | The visits of the record of one allocation by one query of the cells of a view. Over a record of `n` nodes, a query walks at most 65,536 / `n` steps from write to write, and a view with padding shares them among its stored columns | A read of a view | `E_RESOURCE_INIT` |
+| Initialization records | 4096 | The nodes of the record that the checker keeps of the writes to one allocation: one for the end of the record, one for each write that the record keeps, and one for each join of two arms that keeps the records of both arms. The record keeps no write that the bounded query of the table below shows covered already, and no write that continues the last recorded write | An allocation | `E_RESOURCE_LIMIT` |
+| Initialization query | 65,536 | The visits of the record of one allocation by one query of the cells of a view. Over a record of `n` nodes, a query walks at most the smaller of 256 and 65,536 / `n` steps from write to write, and a view with padding shares them among its stored columns | A read of a view | `E_RESOURCE_INIT` |
 | Integers | 2⁶⁴ − 1 | An integer of a storage type, of a layout, of an allocation size, of a cell index or of `f64_bits` | An integer | `E_RESOURCE_LIMIT` |
 | Bytes of an allocation | 2⁶³ − 1 | The cells of an allocation times the size of a cell, 8 bytes for `F64` and 16 for `Complex<F64>` | An allocation | `E_RESOURCE_OVERFLOW` |
 | Rows, columns and leading of a layout | 2³¹ − 1 | The three numbers of a `layout` | A layout | `E_RESOURCE_LAYOUT` |
@@ -422,7 +422,10 @@ of the table. Stores in an order in which no store continues the one before
 leave one node each. Take a view of 255 cells whose stores write first the
 cells of even index and then those of odd index. The view can be borrowed
 for reading. With 256 cells in this order the `borrow` is an error
-(`E_RESOURCE_INIT`), although the stores write every cell.
+(`E_RESOURCE_INIT`), although the stores write every cell. A write that the
+query shows covered adds no node. A `fill` of such stores adds none while the
+record is short enough for the query to pass them, and a later read of the
+cells walks the stores again, within the bound for the record of that time.
 [Resource statements](../storage/resource-programs.md#resource-statements)
 gives the rule, and
 [Checked storage](../storage/checked-storage.md#storage-ir) describes the

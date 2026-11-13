@@ -195,7 +195,22 @@ it never treats padding as initialized. A write records its actual rectangle,
 and a scalar store records only its single cell. A write whose footprint is one
 interval and that continues the last record, when that record is the canonical
 one-column record of an interval (`Layout.cells`), replaces it with the record
-of the joined interval; a padded record is never extended. Branch initialization is the
+of the joined interval; a padded record is never extended. A write that the
+bounded query already shows covered is not recorded at all.
+
+Merging does not only widen acceptance. A merged history has fewer nodes and
+so a larger step budget, which can show a write covered and skip it where the
+unmerged history would record it; a later read that needed that record as its
+rectangle then walks the writes again under the budget of a longer history.
+`StorageRegression` pins a history of this shape: two consecutive stores, 255
+stores of one view in an order that never extends a record (even cells, then
+odd cells), a `fill` of that view, one more store elsewhere and a read of the
+view. With the merge the history has 257 nodes at the `fill`, whose 255 steps
+show the view covered, and 258 at the read, whose 254 steps do not: the read is
+rejected (`E_RESOURCE_INIT`). Without the merge the history has 258 nodes at
+the `fill`, the `fill` is recorded, and the read is accepted through its
+rectangle. Such a history needs more than 256 unmerged nodes. Branch
+initialization is the
 intersection of both exits. Entailment first tries exact rectangular containment.
 Its bounded fallback combines contiguous write intervals in any order, takes the
 common covered interval at branch joins, and checks padded requests column by
@@ -205,9 +220,13 @@ actual bytes through the same `StorageRegions.initialization_bytes` theorem.
 
 The query checks at most 4096 history nodes before any full traversal. Fallback
 interval advancement has a 65,536-node-visit budget: over a history of n nodes
-it takes at most 65,536 / n steps, divided among requested columns; their count
-must fit that metadata-derived budget before constructing a range. A history
-with fewer nodes therefore admits more steps, also for a padded request. Large dimensions and allocation capacity do not set the traversal
+it takes at most min(256, 65,536 / n) steps, divided among requested columns;
+their count must fit that metadata-derived budget before constructing a range.
+A history with fewer nodes therefore never admits fewer steps, also for a
+padded request. One query visits at most 256 · n nodes, a fixed multiple of
+the n nodes that
+[Resource checking work](#storage-functions--resource-checking-work) prices
+for each read loan of a frame. Large dimensions and allocation capacity do not set the traversal
 budget. Exhaustion rejects conservatively. Combinations of padded write profiles
 that need stronger symbolic partition reasoning can still be rejected; this is
 not a complete geometric union solver. The existing rectangular path continues
@@ -1002,6 +1021,8 @@ omits a check, and controlled-host acceptance against equivalent C/C++
   write beyond the budget of the initialization records failed the state
   audit (`E_RESOURCE_STATE`), and that a read of 256 cells written by single
   stores exceeded the query. It is fixed by the change for #739: the write
-  reports the limit, and consecutive stores extend one record.
-  [Layout and initialization](#layout-and-initialization) describes the
-  records.
+  reports the limit, and consecutive stores extend one record. The merge also
+  narrows acceptance in some histories of more than 256 unmerged nodes, where
+  a write that the shorter history shows covered is no longer recorded, as
+  [Layout and initialization](#layout-and-initialization) describes with an
+  example of that shape.

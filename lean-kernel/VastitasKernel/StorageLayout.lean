@@ -280,9 +280,14 @@ turning an individual initialization query into unbounded repeated traversal. -/
 def initializationWorkLimit : Nat := 65536
 
 /-- Interval traversals of one query. Each visits every node of the history,
-so a smaller history admits more of them; a padded request shares them
-between its columns. -/
-def initializationSteps (nodes : Nat) : Nat := initializationWorkLimit / nodes
+and a padded request shares them between its columns. A smaller history never
+admits fewer of them, and at most 256, so that one query visits at most
+`256 * nodes` nodes: the audit repeats the query for every live read loan, and
+the work price of a frame charges each loan about one visit of the history. -/
+def initializationQuerySteps : Nat := 256
+
+def initializationSteps (nodes : Nat) : Nat :=
+  min initializationQuerySteps (initializationWorkLimit / nodes)
 
 /-- A padded request checks only its physical columns, not the padding. The
 column count must fit the metadata-derived budget before constructing its range;

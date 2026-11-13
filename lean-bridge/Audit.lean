@@ -244,7 +244,16 @@ run_cmd do
       `VastitasBridge.Differential.pairing_in_frame,
       `VastitasBridge.Differential.flat_in_frame_bilin,
       `VastitasBridge.Differential.gram_transport_frame,
-      `VastitasBridge.Differential.posDef_gram_in_frame] do
+      `VastitasBridge.Differential.posDef_gram_in_frame,
+      -- Accepted frame bindings (#759).
+      `VastitasBridge.Differential.declared_frame_inverse,
+      `VastitasBridge.Differential.accepted_frame_matrix_operands,
+      `VastitasBridge.Differential.checked_frame_matrix_fderiv,
+      `VastitasBridge.Differential.checked_frame_arrays_same_map,
+      `VastitasBridge.Differential.checked_frame_chain_rule,
+      `VastitasBridge.Differential.checked_frame_encode_repr,
+      `VastitasBridge.Differential.checked_frame_encode_dual_repr,
+      `VastitasBridge.Differential.checked_gram_in_frame] do
     unless env.contains name do
       throwError "missing required bridge theorem {name}"
   -- Select by defining module, as the oracle audit does: a name prefix would
@@ -358,7 +367,10 @@ run_cmd do
       `VastitasBridge.Differential.realVec_reverse,
       `VastitasBridge.Differential.frameMatrix_eq_toMatrix_fderiv,
       `VastitasBridge.Differential.frame_arrays_same_map,
-      `VastitasBridge.Differential.frameMatrix_comp_toMatrix]
+      `VastitasBridge.Differential.frameMatrix_comp_toMatrix,
+      `VastitasBridge.Differential.checked_frame_matrix_fderiv,
+      `VastitasBridge.Differential.checked_frame_arrays_same_map,
+      `VastitasBridge.Differential.checked_frame_chain_rule]
   for name in independent do
     unless env.contains name do
       throwError "missing theorem {name} of the independence check"

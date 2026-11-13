@@ -70,6 +70,8 @@ Rules:
 - In flat mode a path with `::` is an error. Its code depends on the place:
   `E_PARSE` in an expression and in the name of a method, `E_NAME` in a
   selector, a parent or a `subtype`, and `E_UNSUPPORTED` in a type.
+- In flat mode every segment is an identifier. `generic` as a segment, even
+  alone as in `subtype S <: generic;`, is an error (`E_PARSE`).
 - Resolution has work limits, which
   [Appendix D](../appendix/limits.md#names) lists. Exceeding one is an
   error (`E_LIMIT`).

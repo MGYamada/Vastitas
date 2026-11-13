@@ -90,9 +90,7 @@ let size = if n > 2 { 40 } else { 0 };
 whose result is another `if`:
 
 ```vast
-fn sign(x: Int) -> Int {
-    if x < 0 { -1 } else if x == 0 { 0 } else { 1 }
-}
+let sign = if x < 0 { -1 } else if x == 0 { 0 } else { 1 };
 ```
 
 ## No loops and no recursion

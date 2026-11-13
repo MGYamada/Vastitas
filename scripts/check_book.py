@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Verify the book: its contents, rendering, links, includes, titles, style, Syntax blocks, grammar summary and limits."""
+"""Verify the book: its contents, rendering, links, includes, titles, style, Syntax blocks, grammar summary and limits.
+
+The productions of the grammar summary must derive the source files of the
+examples, as `scripts/book_grammar.py` recognizes them;
+`scripts/check_grammar_derivations.py` checks the other direction with the
+compiler.
+"""
 
 from collections import Counter
 from dataclasses import dataclass
@@ -131,6 +137,7 @@ def check_titles(source, chapters, archived=ARCHIVED):
 FENCE = re.compile(r"^(`{3,}|~{3,})")
 CODE_SPAN = re.compile(r"(`+)(.+?)\1")
 WORDS = re.compile(r"\b(now|currently|new|newly|deliberately|actually)\b", re.I)
+INTENSIFIERS = re.compile(r"\b(actual|simply|very|really)\b", re.I)
 SHOULD = re.compile(r"\bshould\b", re.I)
 STAGE = re.compile(r"\bStages? \d")
 PROTOCOL = re.compile(r"\b[Pp]rotocols? (?:versions? )?\d")
@@ -182,8 +189,12 @@ def prose(line):
     return line
 
 
-def style_errors(path, text, part):
-    """Return the style-guide violations of one chapter in the given part."""
+def style_errors(path, text, part, reference=None):
+    """Return the style-guide violations of one chapter in the given part.
+
+    reference is the set of the paths of the Reference chapters, which the
+    See also section of a guide chapter links; None skips that rule.
+    """
     errors = []
     generated = path.startswith("spec/")
 
@@ -194,6 +205,9 @@ def style_errors(path, text, part):
         words = prose(line)
         for match in WORDS.finditer(words):
             report(number, f"the style guide bans {match[0]!r}")
+        if part in ("guide", "reference"):
+            for match in INTENSIFIERS.finditer(words):
+                report(number, f"the style guide bans the intensifier {match[0]!r}")
         linked = ISSUE_LINK.search(line) or ISSUE_NUMBER.search(words)
         if part in ("guide", "reference") and linked:
             report(number, "issue and pull request references belong in the appendices and internals History sections")
@@ -212,21 +226,95 @@ def style_errors(path, text, part):
                 report(number, "the guide does not cite commit hashes")
             if THEOREM.search(line):
                 report(number, "the guide does not name theorems")
-    if part == "guide" and path != "README.md" and not re.search(r"^## See also\s*$(?![\s\S]*^## )", text, re.M):
-        errors.append(f"{path}: a guide chapter ends with a '## See also' section")
+    if part == "guide" and path != "README.md":
+        see_also = re.search(r"^## See also\s*$(?![\s\S]*^## )([\s\S]*)", text, re.M)
+        if not see_also:
+            errors.append(f"{path}: a guide chapter ends with a '## See also' section")
+        elif reference is not None and not linked_chapters(path, see_also[1]) & reference:
+            errors.append(f"{path}: the See also section links no chapter of the Vastitas Reference")
+    return errors
+
+
+def linked_chapters(path, text):
+    """The chapters that the Markdown links of a text in the chapter at path name, as paths in the book."""
+    targets = set()
+    for target in re.findall(r"\]\(([^)\s]+)\)", text):
+        url = urlsplit(target)
+        if not url.scheme and not url.netloc and url.path.endswith(".md"):
+            targets.add(os.path.normpath(os.path.join(os.path.dirname(path), unquote(url.path))).replace(os.sep, "/"))
+    return {"README.md" if target == "index.md" else target for target in targets}
+
+
+# --- Definitions and the glossary -------------------------------------------------
+
+GLOSSARY = "appendix/glossary.md"
+BOLD = re.compile(r"\*\*([^*]+?)\*\*")
+# Bold text in a Reference chapter that defines no term, with the reason.
+NOT_DEFINITIONS = {
+    "Syntax": "the label of a Syntax block",
+    "Implementation note.": "the label of an implementation note",
+    "must": "a rule word, which Notation defines",
+    "must not": "a rule word, which Notation defines",
+    "may": "a rule word, which Notation defines",
+    "is an error (`E_CODE`)": "a rule word, which Notation defines",
+}
+
+
+def term_forms(term):
+    """The forms of a term under which the glossary may list it: as written, without code marks, singular."""
+    key = re.sub(r"\s+", " ", term.replace("`", "")).strip().rstrip(".:,;").lower()
+    forms = {key}
+    if key.endswith("ices"):
+        forms |= {key[:-4] + "ex", key[:-4] + "ix"}
+    if key.endswith("ies"):
+        forms.add(key[:-3] + "y")
+    if key.endswith("es"):
+        forms.add(key[:-2])
+    if key.endswith("s") and not key.endswith("ss"):
+        forms.add(key[:-1])
+    return forms
+
+
+def glossary_terms(text):
+    """The terms of the glossary: the title of each entry and the terms that an entry sets in bold."""
+    terms = set()
+    for heading in re.findall(r"^## (.+?)\s*$", text, re.M):
+        terms |= term_forms(heading)
+    for _, line, _, _ in scan(text):
+        for match in BOLD.finditer(line):
+            terms |= term_forms(match[1])
+    return terms
+
+
+def definition_errors(path, text, part, glossary):
+    """A term that a Reference chapter sets in bold, where it defines the term, has a glossary entry."""
+    if part != "reference":
+        return []
+    errors = []
+    for number, line, _, _ in scan(text):
+        for match in BOLD.finditer(line):
+            term = match[1].strip()
+            if term not in NOT_DEFINITIONS and not term_forms(term) & glossary:
+                errors.append(f"{path}:{number}: the bold term {term!r} has no entry in the glossary ({GLOSSARY})")
     return errors
 
 
 def check_style(source, chapters, archived=ARCHIVED):
     errors = []
     checked = 0
+    reference = {chapter.path for chapter in chapters if chapter.part == "reference"}
+    glossary_file = source / GLOSSARY
+    glossary = glossary_terms(glossary_file.read_text(encoding="utf-8")) if glossary_file.is_file() else set()
     for chapter in chapters:
         if chapter.path not in archived:
             checked += 1
-            errors += style_errors(chapter.path, (source / chapter.path).read_text(encoding="utf-8"), chapter.part)
+            text = (source / chapter.path).read_text(encoding="utf-8")
+            errors += style_errors(chapter.path, text, chapter.part, reference)
+            errors += definition_errors(chapter.path, text, chapter.part, glossary)
     if errors:
         raise ValueError("style guide violations:\n  " + "\n  ".join(errors))
-    print(f"Checked the style of {checked} chapters by part")
+    print(f"Checked the style of {checked} chapters by part; bold text that defines no term: "
+          + ", ".join(repr(term) for term in NOT_DEFINITIONS))
 
 
 # --- Includes -------------------------------------------------------------------
@@ -284,15 +372,34 @@ def code_blocks(text):
 
 
 MAIN = re.compile(r"\s*(?:pub\s+)?(?:resource\s+)?fn\s+main\s*\(")
+FUNCTION = re.compile(r"\s*(?:pub\s+)?(?:resource\s+)?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\(")
+# A diagnostic line of a program: a place in a file, with an optional line and
+# column, and a code. A form such as `MANIFEST: E_MANIFEST: message` names no
+# file, and a diagnostic without a place is about a command, which no
+# rejected program records.
+DIAGNOSTIC_LINE = re.compile(r"^\s*[^\s:]*\.[A-Za-z0-9]+(?::\d+:\d+)?: E_[A-Z][A-Z0-9_]*: ")
 
 
 def program_errors(chapter, text):
-    """A complete program in a chapter comes from a tested file through an include directive."""
+    """A complete program, function or diagnostic in a chapter comes from a tested file through an include."""
     errors = []
     for number, label, content in code_blocks(text):
-        if label in ("", "vast", "text") and any(MAIN.match(line) for line in content):
+        typed = [line for line in content if not INCLUDE.search(line)]
+        if label in ("", "vast", "text") and any(MAIN.match(line) for line in typed):
             errors.append(f"{chapter}:{number}: a complete program is included from a tested file "
                           "under examples/ (style guide, Examples)")
+        elif label in ("", "vast") and any(FUNCTION.match(line) and "{" in "".join(typed[index:])
+                                           for index, line in enumerate(typed)):
+            errors.append(f"{chapter}:{number}: a complete function is included from a tested file "
+                          "under examples/ with an ANCHOR (style guide, Examples)")
+        if label == "text" and any(DIAGNOSTIC_LINE.match(line) for line in typed):
+            errors.append(f"{chapter}:{number}: the diagnostic of a rejected program is included from its "
+                          ".stderr file (style guide, Examples)")
+    for match in INCLUDE.finditer(text):
+        selector = match[3].partition(":")[2]
+        if not match[1] and selector and re.fullmatch(r"\d*(?::\d*)?", selector):
+            errors.append(f"{chapter}: {{{{#{match[2]} {match[3]}}}}} selects lines; mark the part with "
+                          "ANCHOR comments and include it by name (style guide, Examples)")
     return errors
 
 
@@ -432,6 +539,101 @@ def check_grammar(source, chapters):
     if errors:
         raise ValueError("the grammar summary is not fresh:\n  " + "\n  ".join(errors))
     print(f"Checked that the generated chapter {grammar_summary.CHAPTER} is fresh")
+
+
+# --- The examples against the productions -----------------------------------------
+
+# The source files that the productions must derive from SourceFile: every
+# .vast file under these directories, apart from what the recorded
+# diagnostics of a rejected program decide.
+PARSED_SOURCES = ("examples", "stdlib/src")
+REJECTED = "examples/reject"
+# A file of a rejected program with one of these codes must not parse.
+PARSE_CODES = frozenset({"E_PARSE", "E_LEX"})
+# A file of a rejected program with one of these codes may parse or not, with the reason.
+UNDECIDED_CODES = {
+    "E_UNSUPPORTED": "the code reports syntax that the language does not have, such as a type name that no "
+                     "chapter defines, and also rules on text that the productions derive",
+    "E_RESERVED": "the code reports a reserved name, which the productions derive as an identifier, and a "
+                  "keyword such as while where a name stands, which they do not derive",
+}
+# Files whose recorded code does not follow from the productions, with the rule that gives the code.
+PARSE_EXCEPTIONS = {
+    "examples/reject/expressions/chained-comparison.vast": (
+        True, "Expressions, Operator expressions: a comparison must not be an operand of another comparison "
+              "without parentheses (E_PARSE); the productions derive the text"),
+    "examples/reject/packages/smooth-pullback-mode/main.vast": (
+        False, "Smooth affine declarations, Reverse-pass primitives: a mode other than saved or recomputed is "
+               "an error (E_TYPE); the production lists the two modes"),
+}
+RECORDED = re.compile(r"^(\S+?\.vast):\d+:\d+: (E_[A-Z][A-Z0-9_]*): ", re.M)
+
+
+def recorded_codes(root):
+    """{source file: the codes that the recorded diagnostics of the rejected programs give at it}."""
+    codes = {}
+    for record in sorted((root / REJECTED).rglob("*.stderr")):
+        for path, code in RECORDED.findall(record.read_text(encoding="utf-8")):
+            codes.setdefault(path, set()).add(code)
+    return codes
+
+
+def parse_errors(root, grammar, exceptions=PARSE_EXCEPTIONS, sources=PARSED_SOURCES):
+    """Parse every source file with the productions; return (errors, parsed, rejected, skipped)."""
+    codes = recorded_codes(root)
+    errors = []
+    parsed = rejected = 0
+    skipped = []
+    files = sorted(file for directory in sources for file in (root / directory).rglob("*.vast")
+                   if not any(part.startswith(".") for part in file.relative_to(root).parts))
+    for file in files:
+        name = file.relative_to(root).as_posix()
+        recorded = codes.get(name, set())
+        source = file.read_text(encoding="utf-8")
+        failure = grammar.parse(source)
+        if name in exceptions:
+            expected, reason = exceptions[name]
+            if (failure is None) != expected:
+                errors.append(f"{name}: PARSE_EXCEPTIONS says that the productions "
+                              f"{'derive' if expected else 'do not derive'} the file, which is no longer so; "
+                              "remove the entry")
+            skipped.append(f"{name}: {reason}")
+            continue
+        if recorded & PARSE_CODES:
+            rejected += 1
+            if failure is None:
+                errors.append(f"{name}: the compiler reports {sorted(recorded & PARSE_CODES)[0]}, "
+                              "but the productions derive the file")
+            continue
+        undecided = sorted(recorded & UNDECIDED_CODES.keys())
+        if undecided:
+            skipped.append(f"{name}: {undecided[0]}, {UNDECIDED_CODES[undecided[0]]}")
+            continue
+        parsed += 1
+        if failure:
+            errors.append(f"{name}:{failure.where(source)}: {failure.message}")
+    return errors, parsed, rejected, skipped
+
+
+def check_parse(source, root=ROOT):
+    """The productions of the grammar summary derive the source files of the examples from SourceFile."""
+    import book_grammar
+    grammar = book_grammar.Grammar(book_grammar.read_productions(
+        (source / book_grammar.GRAMMAR_CHAPTER).read_text(encoding="utf-8")))
+    if grammar.errors:
+        raise ValueError("the productions of the grammar summary do not form a grammar:\n  "
+                         + "\n  ".join(grammar.errors))
+    errors, parsed, rejected, skipped = parse_errors(root, grammar)
+    if errors:
+        raise ValueError("the productions disagree with the examples:\n  " + "\n  ".join(errors))
+    print(f"Parsed {parsed} source files of {' and '.join(PARSED_SOURCES)} with the productions from "
+          f"{book_grammar.START}; {rejected} rejected files with {' or '.join(sorted(PARSE_CODES))} do not parse")
+    print("  The tokenizer reads in prose: " + ", ".join(book_grammar.PROSE_FORMS) + "; it splits "
+          + ", ".join(f"{token} into {' '.join(parts)}" for token, (parts, _) in book_grammar.SPLIT_TOKENS.items())
+          + " after type arguments")
+    print(f"  Skipped {len(skipped)} files:")
+    for entry in skipped:
+        print(f"    {entry}")
 
 
 # --- Limits ---------------------------------------------------------------------
@@ -663,6 +865,7 @@ if __name__ == "__main__":
     check_includes(source, chapters)
     check_syntax(source, chapters)
     check_grammar(source, chapters)
+    check_parse(source)
     check_limits(source)
     pages = check_html(output)
     check_redirects(pages, output)

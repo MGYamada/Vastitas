@@ -51,7 +51,7 @@ Rules:
 
 ```vast
 // Point p lies on the object X. ✓
-fn twice(x: Int) -> Int { x + x }
+let answer: Int = 42;
 ```
 
 ## Identifiers

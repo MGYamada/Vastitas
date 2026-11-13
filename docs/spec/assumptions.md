@@ -6,10 +6,10 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 21 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 26 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 0 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
-| [mathlib](#assumption.mathlib) | 10 |
+| [mathlib](#assumption.mathlib) | 12 |
 | [Promotion fixture reflection](#assumption.promotion-reflection) | 7 |
 
 <a id="assumption.rust-frontend"></a>
@@ -39,6 +39,11 @@ Cited by:
 - [`arithmetic.mixed`](std-arithmetic-generic.md#arithmetic.mixed) (`oracle`)
 - [`frame.static-identity`](std-geometry-frame.md#frame.static-identity) (`binding`)
 - [`frame.embedded`](std-geometry-frame.md#frame.embedded) (`binding`)
+- [`frame.adequacy`](std-geometry-frame.md#frame.adequacy) (`oracle`)
+- [`frame.transitions`](std-geometry-frame.md#frame.transitions) (`oracle`)
+- [`frame.change-of-frame`](std-geometry-frame.md#frame.change-of-frame) (`oracle`)
+- [`frame.change-of-frame`](std-geometry-frame.md#frame.change-of-frame) (`bridge`)
+- [`frame.pairing`](std-geometry-frame.md#frame.pairing) (`oracle`)
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`binding`)
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`bridge`)
 - [`metric.flat-sharp`](std-geometry-metric.md#metric.flat-sharp) (`binding`)
@@ -82,6 +87,8 @@ Cited by:
 - [`reverse-core.sites`](reverse-core.md#reverse-core.sites) (`bridge`)
 - [`reverse-core.validation`](reverse-core.md#reverse-core.validation) (`bridge`)
 - [`differential.pullback.composition`](std-differential.md#differential.pullback.composition) (`bridge`)
+- [`frame.change-of-frame`](std-geometry-frame.md#frame.change-of-frame) (`bridge`)
+- [`frame.pairing`](std-geometry-frame.md#frame.pairing) (`bridge`)
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`bridge`)
 - [`metric.flat-sharp`](std-geometry-metric.md#metric.flat-sharp) (`bridge`)
 

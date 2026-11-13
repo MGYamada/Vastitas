@@ -186,7 +186,65 @@ run_cmd do
       `VastitasBridge.Differential.site_differential_rewrite_frechet,
       `VastitasBridge.Differential.site_tape_rewrite_frechet,
       `VastitasBridge.Differential.compiled_site_frechet,
-      `VastitasBridge.Differential.compiled_differential_site_frechet] do
+      `VastitasBridge.Differential.compiled_differential_site_frechet,
+      -- Frame prerequisites (pure Mathlib, #759).
+      `VastitasBridge.Differential.frameBasis,
+      `VastitasBridge.Differential.frameBasis_apply,
+      `VastitasBridge.Differential.frameBasis_repr,
+      `VastitasBridge.Differential.frameBasis_equivFun,
+      `VastitasBridge.Differential.basisFun_toMatrix_frameBasis,
+      `VastitasBridge.Differential.frameBasis_toMatrix_basisFun,
+      `VastitasBridge.Differential.frameBasis_dualBasis_apply,
+      `VastitasBridge.Differential.frameBasis_dualBasis_repr,
+      `VastitasBridge.Differential.frameBasis_dualBasis_equivFun,
+      `VastitasBridge.Differential.toMatrix_frameBasis,
+      `VastitasBridge.Differential.frameBasis_toMatrix_frameBasis,
+      `VastitasBridge.Differential.transition_self,
+      `VastitasBridge.Differential.transition_trans,
+      `VastitasBridge.Differential.transition_mul_transition,
+      `VastitasBridge.Differential.transition_mulVec,
+      `VastitasBridge.Differential.frameMatrix_change,
+      `VastitasBridge.Differential.pairing_frame,
+      `VastitasBridge.Differential.bilinToMatrix_frameBasis,
+      `VastitasBridge.Differential.toMatrix_toBilin'_frameBasis,
+      `VastitasBridge.Differential.bilinToMatrix_frameBasis_transport,
+      `VastitasBridge.Differential.gram_transport,
+      `VastitasBridge.Differential.posDef_frameGram,
+      `VastitasBridge.Differential.isUnit_frame,
+      `VastitasBridge.Differential.matrix_map_mul_eq_one,
+      `VastitasBridge.Differential.polyFrame_eval,
+      `VastitasBridge.Differential.realEval,
+      `VastitasBridge.Differential.realEval_apply,
+      `VastitasBridge.Differential.realEval_eq_aeval,
+      `VastitasBridge.Differential.realEval_ratCast,
+      `VastitasBridge.Differential.map_realEval_ratCast,
+      `VastitasBridge.Differential.polyFrame_realEval,
+      -- The frame runtime in Mathlib terms (#759).
+      `VastitasBridge.Differential.realMatrix_matrixProduct,
+      `VastitasBridge.Differential.realVec_matVec,
+      `VastitasBridge.Differential.realVec_transposeVec,
+      `VastitasBridge.Differential.realVec_reverse,
+      `VastitasBridge.Differential.frameAt_of_inverse,
+      `VastitasBridge.Differential.frameAt_apply,
+      `VastitasBridge.Differential.frameAt_repr,
+      `VastitasBridge.Differential.frame_basis,
+      `VastitasBridge.Differential.mvPolynomial_eq_zero_of_eval,
+      `VastitasBridge.Differential.polyMatrix_mul_eq_one,
+      `VastitasBridge.Differential.polyMatrix_map_realEval,
+      `VastitasBridge.Differential.frameAt_eq_realFrame,
+      `VastitasBridge.Differential.frame_realBasis,
+      `VastitasBridge.Differential.encodeTangent_repr,
+      `VastitasBridge.Differential.decodeTangent_sum,
+      `VastitasBridge.Differential.encodeCotangent_repr,
+      `VastitasBridge.Differential.decodeCotangent_sum,
+      `VastitasBridge.Differential.frameMatrix_eq_toMatrix_fderiv,
+      `VastitasBridge.Differential.frame_arrays_same_map,
+      `VastitasBridge.Differential.frameMatrix_comp_toMatrix,
+      `VastitasBridge.Differential.transition_eq_basis_toMatrix,
+      `VastitasBridge.Differential.pairing_in_frame,
+      `VastitasBridge.Differential.flat_in_frame_bilin,
+      `VastitasBridge.Differential.gram_transport_frame,
+      `VastitasBridge.Differential.posDef_gram_in_frame] do
     unless env.contains name do
       throwError "missing required bridge theorem {name}"
   -- Select by defining module, as the oracle audit does: a name prefix would
@@ -233,7 +291,9 @@ def vastitasClosure (env : Environment) (root : Name) : NameSet := Id.run do
 
 -- The compiled reverse Core theorems (#623) avoid the kernel chain rule. Their import closure
 -- contains the Oracle's `SmoothCalculus`, so check the constants their proofs use: none may
--- reach a chain-rule theorem of `ChainRule.lean` or of the Oracle, or `pderiv_aeval`.
+-- reach a chain-rule theorem of `ChainRule.lean` or of the Oracle, or `pderiv_aeval`. The frame
+-- matrix theorems of `Frame.lean` (#759) read the reverse pass the same way, and not through the
+-- Oracle's `FrameRuntime.frameMatrix_eq`, which uses `backward_eq_cot` (a positive control).
 run_cmd do
   let env ← getEnv
   let chainRule := #[
@@ -261,7 +321,9 @@ run_cmd do
       (`VastitasOracle.SmoothReverseCompiled.compiled_saved_entry_cot,
         `VastitasOracle.SmoothCalculus.cot_compose),
       (`VastitasBridge.Differential.checked_pullback_kaehler,
-        `VastitasBridge.Differential.cot_compose)] do
+        `VastitasBridge.Differential.cot_compose),
+      (`VastitasOracle.FrameRuntime.frameMatrix_eq,
+        `VastitasOracle.SmoothCalculus.backward_eq_cot)] do
     unless (vastitasClosure env name).contains uses do
       throwError "independence check control failed: {name} does not reach {uses}"
   let independent := #[
@@ -292,7 +354,11 @@ run_cmd do
       `VastitasBridge.Differential.site_differential_rewrite_frechet,
       `VastitasBridge.Differential.site_tape_rewrite_frechet,
       `VastitasBridge.Differential.compiled_site_frechet,
-      `VastitasBridge.Differential.compiled_differential_site_frechet]
+      `VastitasBridge.Differential.compiled_differential_site_frechet,
+      `VastitasBridge.Differential.realVec_reverse,
+      `VastitasBridge.Differential.frameMatrix_eq_toMatrix_fderiv,
+      `VastitasBridge.Differential.frame_arrays_same_map,
+      `VastitasBridge.Differential.frameMatrix_comp_toMatrix]
   for name in independent do
     unless env.contains name do
       throwError "missing theorem {name} of the independence check"

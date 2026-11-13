@@ -660,6 +660,12 @@ PARSE_EXCEPTIONS = {
     "nature/dimension/mod.vast": (
         False, "nature::dimension declares the reading and physical-metric families, base dimensions and "
                "quantities of Stage 4 (#759), which have no production in the Reference yet"),
+    "examples/packages/frames-and-dimensions/src/profile.vast": (
+        False, "the Stage 4 acceptance program declares frames, readings, scales and physical metrics (#759), "
+               "which have no production in the Reference yet"),
+    "examples/packages/frames-and-dimensions/src/main.vast": (
+        False, "the Stage 4 acceptance program declares the frame primitives (#759), which have no production "
+               "in the Reference yet"),
     "examples/reject/packages/frame-singular/main.vast": (
         False, "a frame declaration of Stage 4 (#759), which has no production in the Reference yet"),
     "examples/reject/packages/frame-wrong-inverse/main.vast": (

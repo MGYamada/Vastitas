@@ -15,6 +15,8 @@ check (`DeclaredFrame.checked`). This file composes the two, as `Accepted.lean` 
 so that every hypothesis is one an accepted program supplies: a valid environment, an accepted
 Core node with its binding and its operand and result types, and the values of its operands.
 
+* `declared_frame_inverse`: for valid environments, a declared frame is invertible at every point
+  in the dimension of its object. It names no Core node.
 * `accepted_frame_matrix_operands`: an accepted `frame_matrix(F, p)` node has a map checked as
   `ℝⁿ → ℝᵐ`, a point with `n` coordinates, a source frame invertible at every point in dimension
   `n` and a target frame invertible at every point in dimension `m`.
@@ -32,13 +34,15 @@ Core node with its binding and its operand and result types, and the values of i
 * `checked_frame_encode_repr` and `checked_frame_encode_dual_repr` (C4): an accepted
   `frame_encode` of a vector gives its coordinates `repr` in the declared frame, and of a covector
   its coordinates in the dual basis.
-* `checked_gram_in_frame` (C12): for accepted Riemannian evidence and a frame declared on the
-  metric's object, the Gram matrix in the frame is positive definite at every point, and lowering
-  an array in the frame multiplies it by that Gram matrix.
+* `checked_gram_in_frame` (C12): for valid environments, for Riemannian evidence and a frame
+  declared on the metric's object, the Gram matrix in the frame is positive definite at every
+  point, and lowering an array in the frame multiplies it by that Gram matrix. It is stated for
+  the runtime functions and names no Core node.
 
 The frame-matrix corollaries read the reverse pass through `frameMatrix_eq_toMatrix_fderiv`, and
 use no kernel chain rule (`Audit.lean` checks it). As in `Accepted.lean`, the operand types are
-premises: the theorems are about one accepted node.
+premises: the node theorems are about one accepted node. Transitions and pairing have only the
+runtime-level theorems of `Frame.lean` (`transition_eq_basis_toMatrix`, `pairing_in_frame`).
 
 Checked with Lean 4.35.0 and Mathlib commit
 56a005855ea17e0b0958f73ec801ae140b0a1679.

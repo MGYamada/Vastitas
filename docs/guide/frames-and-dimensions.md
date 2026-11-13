@@ -253,7 +253,7 @@ Each observation adds its code to 42 when it fails:
 > pairing in frames, Gram matrices in frames, and the meaning of a physical
 > interpretation. They also cover the comparison of frames and matrices with
 > bases and derivatives of real analysis, and the fact that the declarations
-> of `nature` change no other declaration and no value. Tests cover native
+> of `nature` change no declaration of another kind and no value. Tests cover native
 > execution, the diagnostics and agreement with an independent reference
 > program. An array over the wrong point of the right object gives the
 > failure value at run time, not an error of the compiler.

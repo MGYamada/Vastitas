@@ -97,6 +97,23 @@ private def ownerModule : Module := { mod [] with generics := [generic], methods
   (mod []) [{ ownerModule with path := ["generic"] },
     { mod ["generic", "child"] with methods := [method "super::choose"] }]))
 
+-- A module may take the name of a geometric operation; every other
+-- declaration and the name that a `use` binds may not.
+#eval check "geometric operation module paths" (
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension"].all fun name =>
+    (checkNamespaceProgram (replaceRoot
+      (mod [] [fn "main" (.call (name ++ "::value") [] {})])
+      [mod [name] [fn "value" (.integer "42" {})]])).isOk)
+#eval check "dimension remains a reserved function name" (rejects "E_RESERVED" (replaceRoot
+  (mod [] [fn "dimension" (.integer "0" {})])))
+#eval check "a use cannot bind a geometric operation to a module" (rejects "E_RESERVED" (replaceRoot
+  { mod [] [fn "main" (.call "dimension::value" [] {})] with
+    imports := [⟨["units", "dimension"], "dimension", false, {}⟩] }
+  [mod ["units"], mod ["units", "dimension"] [fn "value" (.integer "42" {})]]))
+#eval check "other reserved names are no module names" (
+  ["int", "Nat", "QQ", "Point", "self"].all fun name =>
+    rejects "E_RESERVED" (replaceRoot (mod []) [mod [name] [fn "value" (.integer "42" {})]]))
+
 -- #747: an error of the names of a module is at the later of the two
 -- bindings in the source, with a note at the earlier one, and not at the
 -- declaration of the module. A dependency alias comes first and has no place.

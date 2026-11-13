@@ -40,7 +40,9 @@ object (`physicalMetric_sound`, in a valid environment
   quantities of `xⁱ` and `xʲ` (`exponentOf_termDimension`). A declared value
   is that dimension, and needs a nonzero term. The order of the terms does not
   matter and a zero entry constrains nothing (`Interprets.oneDimension`,
-  `Interprets.declaredValue`).
+  `Interprets.declaredValue`). Every exponent of that dimension is within
+  `Limits.dimensionExponent`, so a declared value can write it
+  (`consistentValue_bounded`).
 The entries of each form: `euclidean` is the identity, dimensionless
 (`entryValues_euclidean`); an explicit entry `c · Π sᵢ^{eᵢ}` has the value
 `c · Π mᵢ^{eᵢ}` and the dimension `Σ eᵢ · dᵢ`, the law of ADR 0002 for the
@@ -84,7 +86,9 @@ validity and no binding": `NatureWeakening`.
 dimension check, the first level of #300. They do not establish a physical
 law or the truth of a reading; that the Gram matrix is a metric is the
 bridge's (`VastitasBridge.Differential.Metric`). The bounds of `Limits` are
-resource limits, and these theorems do not depend on them. -/
+resource limits, and the soundness theorems do not depend on them;
+`consistentValue_bounded` only states that the exponent bound holds for the
+value. -/
 namespace VastitasOracle.NatureDimension
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.NatureDimension
@@ -486,36 +490,25 @@ theorem guard_bind_eq_some {p : Prop} [Decidable p] {α : Type} {f : Unit → Op
   · simp only [guard, hp, ite_false, failure_option, Option.bind_eq_bind, Option.bind_none] at h
     nomatch h
 
-/-- The fold of `scaleMonomialValue`: each step multiplies by a valid scale's
-magnitude raised to its exponent and adds its dimension times the exponent. -/
-theorem foldlM_scales {env : Environment}
-    {F : Rat × DimensionVector → DeclId × Int → Option (Rat × DimensionVector)}
-    (spec : ∀ value dimension scale power result, F (value, dimension) (scale, power) = some result →
-      ∃ magnitude scaleDimension, scaleValue env scale = some (magnitude, scaleDimension) ∧
-        result = (value * magnitude ^ power, addScaled dimension power scaleDimension)) :
-    ∀ (factors : List (DeclId × Int)) (value : Rat) (dimension : DimensionVector) (result : Rat × DimensionVector),
-      factors.foldlM F (value, dimension) = some result →
-      ∃ scales, factors.mapM (fun factor => scaleValue env factor.1) = some scales ∧
-        result.1 = monomialMagnitude value (factors.zip scales) ∧
-        ∀ base, exponentOf result.2 base = exponentOf dimension base + monomialExponent (factors.zip scales) base
-  | [], value, dimension, result, h => by
-    simp only [List.foldlM_nil, Option.pure_def, Option.some.injEq] at h
-    subst h
-    exact ⟨[], rfl, rfl, fun base => by simp [monomialExponent]⟩
-  | (scale, power) :: rest, value, dimension, result, h => by
-    rw [List.foldlM_cons] at h
-    cases step : F (value, dimension) (scale, power) with
-    | none => simp [step] at h
-    | some next =>
-      simp only [step, Option.bind_eq_bind, Option.bind_some] at h
-      obtain ⟨magnitude, scaleDimension, found, rfl⟩ := spec _ _ _ _ _ step
-      obtain ⟨scales, mapped, magnitudeEq, exponentEq⟩ := foldlM_scales spec rest _ _ result h
-      refine ⟨(magnitude, scaleDimension) :: scales, ?_, ?_, fun base => ?_⟩
-      · simp [List.mapM_cons, found, mapped]
-      · simpa [monomialMagnitude] using magnitudeEq
-      · rw [exponentEq base, exponentOf_addScaled]
-        simp only [List.zip_cons_cons, monomialExponent]
-        omega
+/-- The fold of `scaleStep` in `scaleMonomialValue`: each step multiplies by
+a scale's magnitude raised to its exponent and adds its dimension times the
+exponent. -/
+theorem foldl_scaleStep :
+    ∀ (factors : List ((DeclId × Int) × (Rat × DimensionVector))) (value : Rat) (dimension : DimensionVector),
+      (factors.foldl scaleStep (value, dimension)).1 = monomialMagnitude value factors ∧
+      ∀ base, exponentOf (factors.foldl scaleStep (value, dimension)).2 base =
+        exponentOf dimension base + monomialExponent factors base
+  | [], value, dimension => ⟨rfl, fun base => by simp [monomialExponent]⟩
+  | ((scale, power), (magnitude, scaleDimension)) :: rest, value, dimension => by
+    have step : (((scale, power), (magnitude, scaleDimension)) :: rest).foldl scaleStep (value, dimension) =
+        rest.foldl scaleStep (value * magnitude ^ power, addScaled dimension power scaleDimension) := rfl
+    obtain ⟨magnitudeEq, exponentEq⟩ :=
+      foldl_scaleStep rest (value * magnitude ^ power) (addScaled dimension power scaleDimension)
+    rw [step]
+    refine ⟨magnitudeEq, fun base => ?_⟩
+    rw [exponentEq base, exponentOf_addScaled]
+    simp only [monomialExponent]
+    omega
 
 /-- **The dimension of a product of scales (ADR 0002 "Laws").** An entry
 `c · Π sᵢ^{eᵢ}` that the kernel evaluates has at most
@@ -537,23 +530,20 @@ theorem scaleMonomialValue_sound {env : Environment} {monomial : ScaleMonomial} 
   obtain ⟨bounded, h⟩ := guard_bind_eq_some h
   obtain ⟨distinct, h⟩ := guard_bind_eq_some h
   obtain ⟨exponents, h⟩ := guard_bind_eq_some h
-  have key := foldlM_scales (env := env) ?spec monomial.factors monomial.coefficient [] (value, dimension) h
-  case spec =>
-    intro v d scale power result step
-    simp only at step
-    cases found : scaleValue env scale with
-    | none => simp [found] at step
-    | some data =>
-      obtain ⟨magnitude, scaleDimension⟩ := data
-      simp only [found, Option.bind_eq_bind, Option.bind_some, Option.pure_def, Option.some.injEq] at step
-      exact ⟨magnitude, scaleDimension, rfl, step.symm⟩
-  obtain ⟨scales, mapped, magnitudeEq, exponentEq⟩ := key
-  refine ⟨count, bounded, distinct, ?_, scales, mapped, magnitudeEq, fun base => ?_⟩
-  · rintro ⟨scale, power⟩ member
-    have each := List.all_eq_true.mp exponents (scale, power) member
-    simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, exponentBounded, decide_eq_true_eq] at each
-    exact each
-  · simpa using exponentEq base
+  cases mapped : monomial.factors.mapM (fun factor => scaleValue env factor.1) with
+  | none => simp [mapped] at h
+  | some scales =>
+    simp only [mapped, Option.bind_eq_bind, Option.bind_some] at h
+    obtain ⟨_, h⟩ := guard_bind_eq_some h
+    simp only [Option.pure_def, Option.some.injEq] at h
+    obtain ⟨magnitudeEq, exponentEq⟩ := foldl_scaleStep (monomial.factors.zip scales) monomial.coefficient []
+    rw [h] at magnitudeEq exponentEq
+    refine ⟨count, bounded, distinct, ?_, scales, rfl, magnitudeEq, fun base => ?_⟩
+    · rintro ⟨scale, power⟩ member
+      have each := List.all_eq_true.mp exponents (scale, power) member
+      simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, exponentBounded, decide_eq_true_eq] at each
+      exact each
+    · simpa using exponentEq base
 
 /-- **Normalized entries.** `normalized scales` names one scale per
 coordinate, in coordinate order, of exactly the coordinate's quantity, and its
@@ -666,7 +656,7 @@ theorem consistentValue_sound {terms : List (Nat × Nat × DimensionVector)} {va
   | cons first rest =>
     obtain ⟨i, j, d⟩ := first
     simp only [consistentValue, Bool.and_eq_true, List.all_eq_true, sameDimension_iff] at h
-    obtain ⟨each, declared⟩ := h
+    obtain ⟨⟨_, each⟩, declared⟩ := h
     have toFirst : ∀ t ∈ (i, j, d) :: rest, SameDimension t.2.2 d := by
       intro t member
       rcases List.mem_cons.mp member with rfl | member
@@ -676,6 +666,34 @@ theorem consistentValue_sound {terms : List (Nat × Nat × DimensionVector)} {va
     subst hv
     simp only [Option.all_some, sameDimension_iff] at declared
     exact fun t member => (toFirst t member).trans declared
+
+/-- **The value can be declared.** When `consistentValue` holds, every
+exponent of the dimension of every term is within `Limits.dimensionExponent`
+in absolute value, so the value of an accepted physical metric is a
+dimension that `value = …` can write. -/
+theorem consistentValue_bounded {terms : List (Nat × Nat × DimensionVector)} {value : Option DimensionVector}
+    (h : consistentValue terms value = true) :
+    ∀ t ∈ terms, ∀ base, (exponentOf t.2.2 base).natAbs ≤ Limits.dimensionExponent := by
+  cases terms with
+  | nil => simp
+  | cons first rest =>
+    obtain ⟨i, j, d⟩ := first
+    simp only [consistentValue, dimensionBounded, Bool.and_eq_true, List.all_eq_true, sameDimension_iff] at h
+    obtain ⟨⟨bounded, each⟩, _⟩ := h
+    have own : ∀ base, (exponentOf d base).natAbs ≤ Limits.dimensionExponent := by
+      intro base
+      unfold exponentOf
+      cases found : d.find? (·.1 == base) with
+      | none => simp
+      | some factor =>
+        obtain ⟨b, e⟩ := factor
+        have bound := bounded (b, e) (List.mem_of_find?_eq_some found)
+        simpa [exponentBounded] using bound
+    intro t member base
+    rcases List.mem_cons.mp member with rfl | member
+    · exact own base
+    · rw [← each t member base]
+      exact own base
 
 /-- The evaluated entries equal the Gram matrix entry by entry, so as
 matrices. -/

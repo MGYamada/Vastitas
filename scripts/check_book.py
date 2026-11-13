@@ -248,7 +248,8 @@ def linked_chapters(path, text):
 # --- Definitions and the glossary -------------------------------------------------
 
 GLOSSARY = "appendix/glossary.md"
-BOLD = re.compile(r"\*\*([^*]+?)\*\*")
+# Strong emphasis, with asterisks or with underscores, inside a paragraph.
+BOLD = re.compile(r"\*\*(?=\S)(.+?)(?<=\S)\*\*|(?<!\w)__(?=\S)(.+?)(?<=\S)__(?!\w)")
 # Bold text in a Reference chapter that defines no term, with the reason.
 NOT_DEFINITIONS = {
     "Syntax": "the label of a Syntax block",
@@ -275,14 +276,56 @@ def term_forms(term):
     return forms
 
 
+BLOCK_START = re.compile(r"^(?:#{1,6} |[-*+] |\d+\. |\|)")
+
+
+def paragraphs(text):
+    """Yield the paragraphs outside code blocks as [(line number, text of the line)], quote marks removed.
+
+    A blank line, a code block, a heading, a list item, a table row and the
+    edge of a block quote end a paragraph.
+    """
+    current = []
+    for number, line, _, _ in scan(text):
+        body = unquote_prefix(line).strip()
+        quoted = line.lstrip().startswith(">")
+        if current and (not body or number != current[-1][0] + 1 or BLOCK_START.match(body)
+                        or quoted != current[-1][2]):
+            yield [(n, b) for n, b, _ in current]
+            current = []
+        if body:
+            current.append((number, body, quoted))
+            if re.match(r"^#{1,6} |\|", body):
+                yield [(number, body)]
+                current = []
+    if current:
+        yield [(n, b) for n, b, _ in current]
+
+
+def bold_terms(text):
+    """Yield (line number, term) for each term in strong emphasis outside code, also across line breaks."""
+    for paragraph in paragraphs(text):
+        joined = " ".join(body for _, body in paragraph)
+        # Asterisks and underscores in a code span mark no emphasis; keep the length of the text.
+        masked = CODE_SPAN.sub(lambda match: re.sub(r"[*_]", " ", match[0]), joined)
+        starts = []
+        offset = 0
+        for number, body in paragraph:
+            starts.append((offset, number))
+            offset += len(body) + 1
+        for match in BOLD.finditer(masked):
+            number = max(start for start in starts if start[0] <= match.start())[1]
+            yield number, joined[match.start(1) if match[1] else match.start(2):
+                                 match.end(1) if match[1] else match.end(2)].strip()
+
+
 def glossary_terms(text):
     """The terms of the glossary: the title of each entry and the terms that an entry sets in bold."""
     terms = set()
     for heading in re.findall(r"^## (.+?)\s*$", text, re.M):
         terms |= term_forms(heading)
-    for _, line, _, _ in scan(text):
-        for match in BOLD.finditer(line):
-            terms |= term_forms(match[1])
+    for _, term in bold_terms(text):
+        terms |= term_forms(term)
     return terms
 
 
@@ -291,11 +334,9 @@ def definition_errors(path, text, part, glossary):
     if part != "reference":
         return []
     errors = []
-    for number, line, _, _ in scan(text):
-        for match in BOLD.finditer(line):
-            term = match[1].strip()
-            if term not in NOT_DEFINITIONS and not term_forms(term) & glossary:
-                errors.append(f"{path}:{number}: the bold term {term!r} has no entry in the glossary ({GLOSSARY})")
+    for number, term in bold_terms(text):
+        if term not in NOT_DEFINITIONS and not term_forms(term) & glossary:
+            errors.append(f"{path}:{number}: the bold term {term!r} has no entry in the glossary ({GLOSSARY})")
     return errors
 
 

@@ -250,6 +250,31 @@ class DefinitionTests(unittest.TestCase):
                          ["language/items.md:1: the bold term 'loan' has no entry in the glossary "
                           "(appendix/glossary.md)"])
 
+    def test_a_term_that_wraps_across_lines_or_uses_underscores_is_found(self):
+        self.assertEqual(self.errors("""
+            A field applies the family to its **bound
+            indices**, and a **stray
+            loan** is a term.
+
+            > A quoted **wrapped
+            > term** and __another
+            > stray__ term.
+
+            A `**` or `__x__` in code marks nothing, and a list item ends the paragraph:
+
+            - one **item
+            - two** items
+            """), [
+            "language/items.md:2: the bold term 'stray loan' has no entry in the glossary (appendix/glossary.md)",
+            "language/items.md:5: the bold term 'wrapped term' has no entry in the glossary (appendix/glossary.md)",
+            "language/items.md:6: the bold term 'another stray' has no entry in the glossary (appendix/glossary.md)",
+        ])
+
+    def test_the_paragraphs_of_a_chapter(self):
+        text = "# Title\n\nOne\ntwo\n> quoted\n> on\n\n```text\ncode\n```\nafter\n| a | b |\n- item\n  wrapped\n"
+        self.assertEqual([[number for number, _ in paragraph] for paragraph in check_book.paragraphs(text)],
+                         [[1], [3, 4], [5, 6], [11], [12], [13, 14]])
+
     def test_labels_and_rule_words_are_no_definitions(self):
         self.assertEqual(self.errors("""
             > **Syntax**

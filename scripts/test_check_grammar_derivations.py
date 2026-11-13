@@ -94,7 +94,7 @@ class DerivationTests(unittest.TestCase):
 
 class RuleTests(unittest.TestCase):
     def names(self, tree, mode="manifest"):
-        return [rule.name for rule, _ in derivations.applicable(tree, mode, GRAMMAR)]
+        return [rule.name for rule, _, _ in derivations.applicable(tree, mode, GRAMMAR)]
 
     def test_chained_comparisons(self):
         self.assertEqual(self.names(expression("a", "<", "b", "+", "c", "<", "d")), ["chained comparison"])
@@ -118,6 +118,14 @@ class RuleTests(unittest.TestCase):
                          ["type name as the family of an indexed type"])
         self.assertEqual(self.names(indexed("Shape", "<", "X", ">")), [])
 
+    def test_a_path_that_begins_with_a_type_name_in_flat_mode(self):
+        tree = Node("Type", [Node("IndexedType", ["Nat", "::", Node("PathSegment", ["F"]), "<", ">"])])
+        self.assertEqual(self.names(tree), [])
+        self.assertEqual(self.names(tree, "flat"), ["path that begins with a type name in a type in flat mode",
+                                                    "indexed type in flat mode"])
+        other = Node("Type", [Node("IndexedType", ["x", "::", Node("PathSegment", ["F"]), "<", ">"])])
+        self.assertEqual(self.names(other, "flat"), ["indexed type in flat mode"])
+
     def test_flat_mode_rules(self):
         path = Node("Path", [Node("PathSegment", ["a"]), "::", Node("PathSegment", ["generic"])])
         tree = Node("Item", ["pub", Node("VisibleItem", [Node("SubtypeDeclaration", ["subtype", "S", "<:", path, ";"])])])
@@ -135,7 +143,8 @@ class VerdictTests(unittest.TestCase):
 
     def case(self, broken=()):
         context = derivations.CONTEXTS[3]
-        return Case(0, context, Node("Statement"), "", "", list(broken))
+        return Case(0, context, Node("Statement"), "", "",
+                    [(rule, place, frozenset({rule.code})) for rule, place in broken])
 
     def test_a_derived_text_gives_no_parse_code(self):
         self.assertIsNone(derivations.verdict(self.case(), [((2, 5), "E_NAME")]))
@@ -146,11 +155,29 @@ class VerdictTests(unittest.TestCase):
     def test_a_text_that_breaks_a_rule_gives_its_code(self):
         broken = [(self.RULE, (2, 9))]
         self.assertIsNone(derivations.verdict(self.case(broken), [((2, 11), "E_PARSE")]))
+        # An error of another class at or before the place stops the frontend there.
         self.assertIsNone(derivations.verdict(self.case(broken), [((2, 9), "E_RESERVED")]))
         self.assertIsNone(derivations.verdict(self.case(broken), [((1, 4), "E_LIMIT")]))
-        for found in ([((3, 1), "E_RESERVED")], [((1, 1), "E_NAME")], [(None, "E_PROTOCOL")], []):
+        self.assertIsNone(derivations.verdict(self.case(broken), [((2, 1), "E_TYPE"), ((3, 1), "E_NAME")]))
+        for found in ([((3, 1), "E_RESERVED")], [((2, 10), "E_TYPE")], [(None, "E_PROTOCOL")], []):
             self.assertIn("the text breaks the rules (chained comparison) at 2:9",
                           derivations.verdict(self.case(broken), found), found)
+        self.assertEqual(derivations.verdict(self.case(broken), [((1, 1), "E_UNSUPPORTED")]),
+                         "the compiler gives E_UNSUPPORTED")
+
+    def test_a_break_may_give_the_codes_of_the_rules_of_its_type(self):
+        def pair(*arguments):
+            leaves = ["Pair", "<", *arguments, ">"]
+            tree = Node("Type", [Node("IndexedType", [*leaves[:2], Node("IndexedArguments", leaves[2:-1]), ">"])])
+            return [(rule.name, codes) for rule, _, codes in derivations.applicable(tree, "manifest", GRAMMAR)]
+
+        self.assertEqual(pair("a"), [("type name as the family of an indexed type", {"E_PARSE", "E_TYPE"})])
+        context = derivations.CONTEXTS[6]
+        broken = [(derivations.RULES[6], (1, 17), frozenset({"E_PARSE", "E_TYPE"}))]
+        case = Case(0, context, Node("Type"), "", "", broken)
+        self.assertIsNone(derivations.verdict(case, [((1, 22), "E_TYPE")]))
+        self.assertIsNone(derivations.verdict(case, [((1, 22), "E_PARSE")]))
+        self.assertIsNotNone(derivations.verdict(case, [((1, 22), "E_NAME")]))
 
     def test_diagnostics_are_read_with_their_places(self):
         stderr = textwrap.dedent("""

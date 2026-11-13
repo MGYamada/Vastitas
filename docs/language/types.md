@@ -154,7 +154,11 @@ Rules:
   [Geometric types](geometric-types.md). `Point<>` and `Object<>` are errors
   (`E_PARSE`).
 - Indexed types are valid only in manifest mode. In flat mode an indexed type
-  is an error (`E_UNSUPPORTED`).
+  is an error (`E_UNSUPPORTED`). A path whose first segment is a type name of
+  this chapter or of [Geometric types](geometric-types.md), such as
+  `Nat::F<a>` or `Point::F`, is an error (`E_PARSE`) in flat mode instead,
+  because the type name begins its own type. In manifest mode such a path
+  resolves as any other path.
 - The path of the family must not begin with the keyword `generic`. A type
   such as `generic::Point<X, generic::Base>` is an error (`E_PARSE`). A later
   segment of that path may be `generic`, and so may a segment of an

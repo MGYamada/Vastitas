@@ -203,6 +203,29 @@ class StyleTests(unittest.TestCase):
               and [the source](https://github.com/MGYamada/Vastitas/blob/main/src/frontend.rs)
             """), ["guide/a.md: the See also section links no chapter of the Vastitas Reference"])
 
+    def test_see_also_reads_reference_links_and_skips_code_and_comments(self):
+        reference = {"language/items.md"}
+        check = lambda text: check_book.style_errors(  # noqa: E731
+            "guide/a.md", textwrap.dedent(text).lstrip("\n"), "guide", reference)
+        missing = ["guide/a.md: the See also section links no chapter of the Vastitas Reference"]
+        for linked in ("- [Items][items] and [the glossary][]", "- [Items][]", "- [Items]", "- [the rules] [items]"):
+            self.assertEqual(check(f"""
+                # A
+
+                ## See also
+
+                {linked}
+
+                [items]: ../language/items.md#kinds-of-items
+                [Items]: ../language/items.md
+                [the glossary]: ../appendix/glossary.md
+                """), [], linked)
+        for hidden in ("- `[Items](../language/items.md)` in code",
+                       "- <!-- [Items](../language/items.md) -->[Glossary](../appendix/glossary.md)",
+                       "- [Items][undefined]",
+                       "```text\n[Items](../language/items.md)\n```"):
+            self.assertEqual(check(f"# A\n\n## See also\n\n{hidden}\n"), missing, hidden)
+
     def test_intensifiers_are_banned_in_the_guide_and_the_reference(self):
         text = "The actual call is very simple, and it really runs.\nIt simply works.\n"
         for part, path in (("reference", "language/items.md"), ("guide", "README.md")):
@@ -249,6 +272,31 @@ class DefinitionTests(unittest.TestCase):
         self.assertEqual(self.errors("A **loan** gives access to a view.\n\n```text\n**not prose**\n```\n"),
                          ["language/items.md:1: the bold term 'loan' has no entry in the glossary "
                           "(appendix/glossary.md)"])
+
+    def test_a_term_that_wraps_across_lines_or_uses_underscores_is_found(self):
+        self.assertEqual(self.errors("""
+            A field applies the family to its **bound
+            indices**, and a **stray
+            loan** is a term.
+
+            > A quoted **wrapped
+            > term** and __another
+            > stray__ term.
+
+            A `**` or `__x__` in code marks nothing, and a list item ends the paragraph:
+
+            - one **item
+            - two** items
+            """), [
+            "language/items.md:2: the bold term 'stray loan' has no entry in the glossary (appendix/glossary.md)",
+            "language/items.md:5: the bold term 'wrapped term' has no entry in the glossary (appendix/glossary.md)",
+            "language/items.md:6: the bold term 'another stray' has no entry in the glossary (appendix/glossary.md)",
+        ])
+
+    def test_the_paragraphs_of_a_chapter(self):
+        text = "# Title\n\nOne\ntwo\n> quoted\n> on\n\n```text\ncode\n```\nafter\n| a | b |\n- item\n  wrapped\n"
+        self.assertEqual([[number for number, _ in paragraph] for paragraph in check_book.paragraphs(text)],
+                         [[1], [3, 4], [5, 6], [11], [12], [13, 14]])
 
     def test_labels_and_rule_words_are_no_definitions(self):
         self.assertEqual(self.errors("""
@@ -311,7 +359,33 @@ class IncludeTests(Fixture):
                "```toml\nfn = 1\n```\n"
         self.assertEqual([error.split(": ")[0] for error in check_book.program_errors("guide/a.md", text)],
                          ["guide/a.md:1", "guide/a.md:7"])
-        self.assertIn("a complete function is included", check_book.program_errors("guide/a.md", text)[0])
+        self.assertIn("a complete function or method is included", check_book.program_errors("guide/a.md", text)[0])
+
+    def test_a_complete_method_or_a_signature_with_a_body_is_found(self):
+        def found(block):
+            return check_book.program_errors("guide/a.md", f"```vast\n{block}\n```\n")
+
+        for block in ("method area(x: Int) -> Int requires (HasOrder) {\n    x\n}",
+                      "generic area(x) {\n    domain (Int);\n}\n\nmethod area(x: Int) -> Int { x }",
+                      "method geo::area(x: Int)\n    -> Int\n{\n    x\n}",
+                      "resource fn copy(\n    a: Read<F64, 1, 1>,\n) returns (b: Owned<F64, 1>) -> Unit {\n"
+                      "    value { () }\n}"):
+            self.assertEqual(len(found(block)), 1, block)
+            self.assertIn("a complete function or method is included", found(block)[0])
+        for block in ("abstract method area(x: Int) -> Int {\n    domain (Int);\n}",
+                      "generic area(x) {\n    domain (Int);\n}",
+                      "fn area(x: Int) -> Int\n\nlet y = { 1 };",
+                      "fn area(x: Int) -> Int;\n{ }",
+                      "fn area(x: Int) -> Int\nlet y = { 1 };",
+                      "let f = fn(x: Int) -> Int { x };"):
+            self.assertEqual(found(block), [], block)
+
+    def test_a_diagnostic_in_any_block_and_a_place_with_spaces(self):
+        for block in ("```\nexamples/reject/a.vast:2:5: E_TYPE: expected Int\n```\n",
+                      "```console\n$ vastitas check a.vast\na.vast:1:1: E_PARSE: expected `}`\n```\n",
+                      "```text\nmy examples/a b.vast:1:1: E_NAME: unknown name\n```\n"):
+            self.assertEqual(len(check_book.program_errors("guide/a.md", block)), 1, block)
+        self.assertEqual(check_book.program_errors("guide/a.md", "```sh\necho 'a.vast:1:1: E_X: y'\n```\n"), [])
 
     def test_a_diagnostic_must_be_included_from_its_stderr_file(self):
         typed = "```text\nexamples/reject/a.vast:2:5: E_TYPE: expected Int, found Nat\n```\n"

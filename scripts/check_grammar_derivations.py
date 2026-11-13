@@ -440,6 +440,13 @@ def flat_generic_segment(tree, mode, grammar):
 TYPE_NAMES = {"Nat": "ScalarType", "Int": "ScalarType", "Bool": "ScalarType", "Unit": "ScalarType",
               "Pair": "PairType", "Fn": "FunctionType", "Scheme": "SettingType", "CInfScheme": "SettingType",
               "Point": "PointType", "Morphism": "MorphismType", "Pointed": "PointedType", "Object": "ObjectType"}
+# The parser reads the arguments of such a type as the arguments of that type,
+# so the rules of the type give further codes: Pair types and Geometric types
+# give E_TYPE for an element of a pair, an endpoint that names no object and
+# the arguments of Pointed, and Types gives E_UNSUPPORTED for an input of Fn
+# that names no type.
+ARGUMENT_CODES = {"Pair": "E_TYPE", "Fn": "E_UNSUPPORTED", "Point": "E_TYPE", "Morphism": "E_TYPE",
+                  "Pointed": "E_TYPE"}
 
 
 def type_name_family(tree, mode, grammar):
@@ -454,7 +461,15 @@ def type_name_family(tree, mode, grammar):
             else:
                 fits = grammar.parse(words, start=own) is None
             if not fits:
-                yield node
+                extra = ARGUMENT_CODES.get(node.children[0])
+                yield node, frozenset({"E_PARSE", extra} if extra else {"E_PARSE"})
+
+
+def flat_type_name_path(tree, mode, grammar):
+    """In flat mode, a path in a type whose first segment is a type name, which begins that type."""
+    if mode == "flat":
+        yield from (node for node in tree.nodes() if node.name == "IndexedType" and node.children[1] == "::"
+                    and node.children[0] in TYPE_NAMES and node.children[0] != "Object")
 
 
 def flat_indexed_type(tree, mode, grammar):
@@ -474,6 +489,8 @@ def flat_unpack_witness(tree, mode, grammar):
 
 @dataclass(frozen=True)
 class Rule:
+    """A rule of the Reference: applies(tree, mode, grammar) yields each node that breaks it, or
+    (node, codes) where the codes of the break differ from code."""
     name: str
     place: str
     code: str
@@ -498,8 +515,12 @@ RULES = (
     Rule("generic as a path segment in flat mode", "Names and paths, Resolution: in flat mode a path "
          "segment is an identifier, and generic as a segment is an error", "E_PARSE", flat_generic_segment),
     Rule("type name as the family of an indexed type", "Types, Indexed types: a name followed by < is an "
-         "indexed type only when it is no type name of Types or Geometric types, and Object<…> has two paths",
+         "indexed type only when it is no type name of Types or Geometric types, and Object<…> has two paths; "
+         "the rules of the type that the name begins give E_TYPE or E_UNSUPPORTED for its arguments",
          "E_PARSE", type_name_family),
+    Rule("path that begins with a type name in a type in flat mode", "Types, Indexed types: in flat mode a "
+         "path in a type whose first segment is a type name of Types or Geometric types is an error",
+         "E_PARSE", flat_type_name_path),
     Rule("indexed type in flat mode", "Types, Indexed types: in flat mode an indexed type is an error",
          "E_UNSUPPORTED", flat_indexed_type),
     Rule("pack with a type in flat mode", "Expressions, Pack expressions: the form with a type must not "
@@ -510,12 +531,13 @@ RULES = (
 
 
 def applicable(tree, mode, grammar, rules=RULES):
-    """The rules that a derivation breaks, each with the first node that breaks it."""
+    """The rules that a derivation breaks, each with the first node that breaks it and the codes of the break."""
     found = []
     for rule in rules:
-        node = next(iter(rule.applies(tree, mode, grammar)), None)
-        if node is not None:
-            found.append((rule, node))
+        first = next(iter(rule.applies(tree, mode, grammar)), None)
+        if first is not None:
+            node, codes = first if isinstance(first, tuple) else (first, frozenset({rule.code}))
+            found.append((rule, node, codes))
     return found
 
 
@@ -528,12 +550,12 @@ class Case:
     tree: Node
     derived: str
     program: str
-    broken: list  # (rule, place in the program of the first node that breaks it)
+    broken: list  # (rule, place in the program of the first node that breaks it, codes of the break)
     goal: object = None
 
     @property
     def rules(self):
-        return [rule for rule, _ in self.broken]
+        return [rule for rule, _, _ in self.broken]
 
 
 def context_for(deriver, goal, contexts):
@@ -557,8 +579,8 @@ def derive_cases(grammar, count=COUNT, seed=SEED, depth=DEPTH, contexts=CONTEXTS
     def add(context, goal):
         tree = deriver.derive(context.start, goal=goal)
         derived, places = render(tree)
-        broken = [(rule, context.position(*places[id(node)]))
-                  for rule, node in applicable(tree, context.mode, grammar)]
+        broken = [(rule, context.position(*places[id(node)]), codes)
+                  for rule, node, codes in applicable(tree, context.mode, grammar)]
         cases.append(Case(len(cases), context, tree, derived, context.program(derived), broken, goal))
 
     for goal in deriver.goals():
@@ -574,10 +596,6 @@ def derive_cases(grammar, count=COUNT, seed=SEED, depth=DEPTH, contexts=CONTEXTS
 
 DIAGNOSTIC = re.compile(r"^(?:(?:(?:src/)?main\.vast:(\d+):(\d+)|[^\s:]+(?::\d+:\d+)?): )?(E_[A-Z][A-Z0-9_]*): ",
                         re.M)
-# Codes that the parser gives for a text that the productions derive, under
-# rules on names and limits; such an error at or before the place of a broken rule
-# stops the parser there.
-PARSER_CODES = frozenset({"E_RESERVED", "E_LIMIT"})
 
 
 def diagnostics(stderr):
@@ -590,19 +608,20 @@ def verdict(case, found):
     """None when the diagnostics agree with the productions and the rules, else the reason.
 
     A text that no rule forbids gives no code of the parse class. A text that
-    a rule forbids gives the code of one of the rules that it breaks, unless
-    the parser stops at an error of names or limits at or before the first place
-    that breaks a rule.
+    a rule forbids gives a code of a break of a rule as its first diagnostic,
+    unless that diagnostic is of another class and lies at or before the first
+    place that breaks a rule: the frontend checks some rules on names and types
+    while it parses, and it stops at the first error.
     """
     codes = [code for _, code in found]
-    allowed = {rule.code for rule in case.rules}
+    allowed = set().union(*(codes for _, _, codes in case.broken))
     wrong = [code for code in codes if code in PARSE_CODES and code not in allowed]
     if wrong:
         return f"the compiler gives {wrong[0]}"
     if case.broken:
-        first = min(place for _, place in case.broken)
+        first = min(place for _, place, _ in case.broken)
         place, code = found[0] if found else (None, None)
-        if code in allowed or (code in PARSER_CODES and place is not None and place <= first):
+        if code in allowed or (code not in PARSE_CODES and place is not None and place <= first):
             return None
         names = ", ".join(rule.name for rule in case.rules)
         return f"the text breaks the rules ({names}) at {first[0]}:{first[1]}, but the compiler gives " \
@@ -660,7 +679,7 @@ def main(argv=None):
     used, total = deriver.coverage(CONTEXTS)
     print(f"Derived {len(cases)} texts (seed {arguments.seed}, depth {arguments.depth}); they take {used} of "
           f"the {total} options of choices and repetitions that the contexts reach")
-    print(f"{forbidden} texts break a rule of RULES and give the code of a rule that they break:")
+    print(f"{forbidden} texts break a rule of RULES; each gives a code of its break first, or an earlier error:")
     for rule in RULES:
         count = sum(rule in case.rules for case in cases)
         print(f"  {rule.name} ({rule.code}): {count} texts; {rule.place}")

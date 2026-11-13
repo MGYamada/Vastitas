@@ -69,9 +69,15 @@ Rules:
   resolves.
 - In flat mode a path with `::` is an error. Its code depends on the place:
   `E_PARSE` in an expression and in the name of a method, `E_NAME` in a
-  selector, a parent or a `subtype`, and `E_UNSUPPORTED` in a type.
+  selector, a parent or a `subtype`, and `E_UNSUPPORTED` in a type. A path
+  in a type whose first segment is a type name is `E_PARSE`, as
+  [Indexed types](types.md#indexed-types) says.
 - In flat mode every segment is an identifier. `generic` as a segment, even
-  alone as in `subtype S <: generic;`, is an error (`E_PARSE`).
+  alone as in `subtype S <: generic;`, is an error (`E_PARSE`). In a path with
+  `::` this code takes the place of the code of the previous rule:
+  `subtype Int <: T::generic;` is an error (`E_PARSE`), while
+  `subtype Int <: T::U;` is an error (`E_NAME`). Where several paths are
+  wrong, the first of them gives the error.
 - Resolution has work limits, which
   [Appendix D](../appendix/limits.md#names) lists. Exceeding one is an
   error (`E_LIMIT`).

@@ -105,9 +105,13 @@ program as an item, a statement, an expression, a type or a resource
 statement, in flat mode and in manifest mode, and runs `vastitas check` on
 it. A derived text gives no `E_PARSE`, `E_LEX` or `E_UNSUPPORTED`, unless a
 rule of the Reference forbids it. `RULES` names each such rule with its
-section and its code, and a text that breaks a rule gives that code. Run it
-as `python3 scripts/check_grammar_derivations.py --compiler
-target/debug/vastitas` after a change of a Syntax block or of the parser.
+section and its codes. The first diagnostic of a text that breaks a rule has
+one of those codes, or it is an error of another class at or before the
+first place that breaks a rule, because the frontend checks some rules on
+names and types while it parses and stops at the first error. Run it as
+`python3 scripts/check_grammar_derivations.py --compiler
+target/debug/vastitas` after a change of a Syntax block or of the parser;
+`--seed` takes another fixed seed.
 
 The grammar summary is a generated chapter. After a change of a Syntax block,
 run `python3 scripts/grammar_summary.py --write` and commit the chapter with
@@ -316,7 +320,7 @@ archived delivery records. The other rules of this guide need a reviewer.
 | No commit hashes or theorem names | Yes | | | |
 | Ends with a See also section that links a Reference chapter | Yes, apart from the Introduction | | | |
 | A term set in bold has a glossary entry | | Yes | | |
-| A complete program or function comes from an `include` | Yes | Yes | Yes | Yes |
+| A complete program, function or method comes from an `include` | Yes | Yes | Yes | Yes |
 | The diagnostic of a rejected program comes from its `.stderr` file | Yes | Yes | Yes | Yes |
 | An `include` selects a part of a file by `ANCHOR`, not by lines | Yes | Yes | Yes | Yes |
 
@@ -326,17 +330,21 @@ delivery records are exempt from every rule. A generated specification chapter
 may link issues outside a History section, as
 [What stays out](#what-stays-out) says.
 
-The glossary rule finds a bold term under its own name or in the singular,
-among the titles of the glossary entries and the terms that an entry sets in
-bold. Bold text that defines no term is exempt: the labels **Syntax** and
-**Implementation note.**, and the rule words that
+The glossary rule reads each paragraph as a whole, so a bold term may wrap,
+and it reads `**term**` and `__term__`. It finds a term under its own name or
+in the singular, among the titles of the glossary entries and the terms that
+an entry sets in bold. Bold text that defines no term is exempt: the labels
+**Syntax** and **Implementation note.**, and the rule words that
 [Notation](../language/notation.md#rules) defines. `NOT_DEFINITIONS` in
-`scripts/check_book.py` lists them. A complete function is a named `fn` or
-`resource fn` with a body in a code block labelled `vast`. A diagnostic is a
-line `FILE:LINE:COLUMN: E_CODE: message` or `MANIFEST: E_CODE: message` in a
-code block labelled `text`, where the place names a file. A diagnostic without
+`scripts/check_book.py` lists them. A complete function or method is a named
+`fn`, `resource fn` or `method` whose signature a body follows, in a code block
+labelled `vast` or without a label. A diagnostic is a line
+`FILE:LINE:COLUMN: E_CODE: message` or `MANIFEST: E_CODE: message` in any code
+block, where the place names a file and may hold spaces. A diagnostic without
 a place is about a command, not a rejected program, and the forms of
 [Diagnostic lines](../language/diagnostics.md#diagnostic-lines) name no file.
+The See also rule reads inline links and reference links, and a link in code
+or in an HTML comment links nothing.
 
 ## Consolidation baseline
 

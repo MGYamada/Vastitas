@@ -326,6 +326,17 @@ def excluded_words(item):
     return frozenset(word.text for word in excluded)
 
 
+def separates(source, index):
+    """A line separator of the table of Source text at the index: one of LINE_SEPARATORS, or a CR without LF."""
+    return source[index] in LINE_SEPARATORS or (source[index] == "\r" and source[index + 1:index + 2] != "\n")
+
+
+def read(path):
+    """The text of a source file, with its line ends as they are: a CR stays a CR."""
+    with open(path, encoding="utf-8", newline="") as file:
+        return file.read()
+
+
 @dataclass(frozen=True)
 class Token:
     kind: str  # a class of LEXER_CLASSES, "KEYWORD", "IDENTIFIER", "STRING_LITERAL" or "MALFORMED"
@@ -408,11 +419,11 @@ class Grammar:
         """The tokens of a source text, as Lexical structure defines them."""
         tokens = []
         offset = 0
-        if source.startswith("﻿"):
+        if source.startswith("\ufeff"):
             raise LexError(0, "a byte order mark begins the file")
         while offset < len(source):
             ch = source[offset]
-            if ch in LINE_SEPARATORS or (ch == "\r" and source[offset + 1:offset + 2] != "\n"):
+            if separates(source, offset):
                 raise LexError(offset, f"the line separator U+{ord(ch):04X}")
             if ch in WHITE_SPACE:
                 offset += 1
@@ -421,7 +432,7 @@ class Grammar:
                 end = source.find("\n", offset)
                 end = len(source) if end < 0 else end
                 for index in range(offset, end):
-                    if source[index] in LINE_SEPARATORS or source[index] in DECEPTIVE:
+                    if separates(source, index) or source[index] in DECEPTIVE:
                         raise LexError(index, f"U+{ord(source[index]):04X} in a comment")
                 offset = end
                 continue
@@ -431,7 +442,7 @@ class Grammar:
                 end = source.find('"', offset + 1)
                 end = len(source) if end < 0 else end + 1
                 for index in range(offset, end):
-                    if source[index] in LINE_SEPARATORS:
+                    if separates(source, index):
                         raise LexError(index, f"U+{ord(source[index]):04X} in a string literal")
                 tokens.append(Token("STRING_LITERAL", source[offset:end], offset, end))
                 offset = end
@@ -676,7 +687,7 @@ def main(argv):
     grammar = load()
     failed = 0
     for name in argv:
-        source = Path(name).read_text(encoding="utf-8")
+        source = read(name)
         failure = grammar.parse(source)
         if failure:
             failed += 1

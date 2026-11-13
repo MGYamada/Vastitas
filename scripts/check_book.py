@@ -632,7 +632,7 @@ def check_grammar(source, chapters):
 # The source files that the productions must derive from SourceFile: every
 # .vast file under these directories, apart from what the recorded
 # diagnostics of a rejected program decide.
-PARSED_SOURCES = ("examples", "stdlib/src")
+PARSED_SOURCES = ("examples", "stdlib/src", "nature")
 REJECTED = "examples/reject"
 # A file of a rejected program with one of these codes must not parse.
 PARSE_CODES = frozenset({"E_PARSE", "E_LEX"})
@@ -651,6 +651,15 @@ PARSE_EXCEPTIONS = {
     "examples/reject/packages/smooth-pullback-mode/main.vast": (
         False, "Smooth affine declarations, Reverse-pass primitives: a mode other than saved or recomputed is "
                "an error (E_TYPE); the production lists the two modes"),
+    # Stage 4 (#759): the Reference gains the productions of the frame families
+    # and of the nature declarations with the tracker's documentation step,
+    # which then removes these entries.
+    "stdlib/src/geometry/frame/mod.vast": (
+        False, "std::geometry::frame declares the frame families of Stage 4 (#759), which have no production "
+               "in the Reference yet"),
+    "nature/dimension/mod.vast": (
+        False, "nature::dimension declares the reading and physical-metric families, base dimensions and "
+               "quantities of Stage 4 (#759), which have no production in the Reference yet"),
 }
 RECORDED = re.compile(r"^(\S+?\.vast):\d+:\d+: (E_[A-Z][A-Z0-9_]*): ", re.M)
 

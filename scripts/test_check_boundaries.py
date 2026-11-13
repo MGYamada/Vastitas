@@ -621,6 +621,90 @@ name = "VastitasBridge"
         (self.root / "lean-bridge/VastitasBridge.lean").unlink()
         self.assert_boundary_error("missing root module VastitasBridge.lean")
 
+    def manifest(self, directory, dependencies=""):
+        """A package manifest under `directory` with the given [dependencies] lines."""
+        self.write(f"{directory}/Vastitas.toml",
+                   f'[package]\nname = "p"\nversion = "0.1.0"\nroot = "mod.vast"\n\n[dependencies]\n{dependencies}')
+
+    def library_packages(self):
+        """The layout of the std and nature packages (ADR 0002 §1)."""
+        self.manifest("stdlib", 'geometry_library = { path = "src/geometry" }\n'
+                                'differential_library = { path = "src/differential" }\n')
+        self.manifest("stdlib/src/geometry")
+        self.manifest("stdlib/src/differential", 'geometry = { path = "../geometry" }\n')
+        self.manifest("nature", 'std = { path = "../stdlib" }\n')
+
+    def test_std_and_nature_manifests_follow_the_library_boundary(self):
+        self.library_packages()
+        self.assertEqual(check_boundaries(self.root), [])
+        # nature may depend on any package inside stdlib/ and nature/.
+        self.manifest("nature/extra", 'geometry = { path = "../../stdlib/src/geometry" }\n'
+                                      'nature = { path = ".." }\n')
+        self.assertEqual(check_boundaries(self.root), [])
+
+    def test_a_std_to_nature_edge_is_rejected(self):
+        self.library_packages()
+        for directory, path in [("stdlib", "../nature"), ("stdlib/src/differential", "../../../nature")]:
+            with self.subTest(directory=directory):
+                original = (self.root / directory / "Vastitas.toml").read_text()
+                self.write(f"{directory}/Vastitas.toml", original + f'nature = {{ path = "{path}" }}\n')
+                self.assert_boundary_error(
+                    f"{directory}/Vastitas.toml: dependency `nature` on {path} leaves stdlib/; "
+                    "a stdlib/ manifest may depend only on packages inside stdlib/")
+                self.write(f"{directory}/Vastitas.toml", original)
+        self.assertEqual(check_boundaries(self.root), [])
+
+    def test_nature_depends_on_nothing_outside_std_and_nature(self):
+        self.library_packages()
+        for path in ["../monad", "../lean-kernel", "../examples/packages/demo", "/"]:
+            with self.subTest(path=path):
+                self.manifest("nature", f'std = {{ path = "../stdlib" }}\nother = {{ path = "{path}" }}\n')
+                self.assert_boundary_error(
+                    f"nature/Vastitas.toml: dependency `other` on {path} leaves stdlib/ and nature/")
+
+    def test_relative_segments_and_symbolic_links_cannot_hide_an_edge(self):
+        self.library_packages()
+        self.manifest("stdlib/src/geometry", 'escape = { path = "../../../stdlib/../nature" }\n')
+        self.assert_boundary_error("dependency `escape` on ../../../stdlib/../nature leaves stdlib/")
+        self.manifest("stdlib/src/geometry")
+        (self.root / "stdlib/src/link").symlink_to(self.root / "nature", target_is_directory=True)
+        self.manifest("stdlib/src/geometry", 'linked = { path = "../link" }\n')
+        self.assert_boundary_error("dependency `linked` on ../link leaves stdlib/")
+        # The compiler locates a package by its canonical manifest, so a linked
+        # manifest in a directory inside stdlib/ is the package it links to.
+        (self.root / "stdlib/src/link").unlink()
+        (self.root / "stdlib/src/alias").mkdir()
+        (self.root / "stdlib/src/alias/Vastitas.toml").symlink_to(self.root / "nature/Vastitas.toml")
+        self.manifest("stdlib/src/geometry", 'aliased = { path = "../alias" }\n')
+        self.assert_boundary_error("dependency `aliased` on ../alias leaves stdlib/")
+
+    def test_malformed_library_manifests_fail_closed(self):
+        self.library_packages()
+        for dependencies, expected in [
+            ('nature = "../nature"\n', "dependency `nature` must have the form"),
+            ('nature = { version = "1" }\n', "dependency `nature` must have the form"),
+            ('nature = { path = 1 }\n', "dependency `nature` must have the form"),
+        ]:
+            with self.subTest(dependencies=dependencies):
+                self.manifest("stdlib/src/geometry", dependencies)
+                self.assert_boundary_error(f"stdlib/src/geometry/Vastitas.toml: {expected}")
+        self.write("stdlib/src/geometry/Vastitas.toml", "dependencies = 1\n[package]\n")
+        self.assert_boundary_error("stdlib/src/geometry/Vastitas.toml: [dependencies] must be a table")
+        self.write("stdlib/src/geometry/Vastitas.toml", "[package\n")
+        self.assert_boundary_error("stdlib/src/geometry/Vastitas.toml: cannot check library dependencies")
+
+    def test_actual_library_manifests_pass_and_reject_a_std_to_nature_edge(self):
+        repository = Path(__file__).resolve().parents[1]
+        manifests = [manifest for family in ("stdlib", "nature")
+                     for manifest in sorted((repository / family).rglob("Vastitas.toml"))]
+        self.assertTrue(any(m.relative_to(repository).as_posix() == "stdlib/Vastitas.toml" for m in manifests))
+        for manifest in manifests:
+            self.write(manifest.relative_to(repository).as_posix(), manifest.read_text())
+        self.assertEqual(check_boundaries(self.root), [])
+        original = (self.root / "stdlib/Vastitas.toml").read_text()
+        self.write("stdlib/Vastitas.toml", original + 'nature = { path = "../nature" }\n')
+        self.assert_boundary_error("stdlib/Vastitas.toml: dependency `nature` on ../nature leaves stdlib/")
+
 
 if __name__ == "__main__":
     unittest.main()

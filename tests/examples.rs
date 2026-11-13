@@ -131,6 +131,7 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/stdlib-arithmetic/Vastitas.toml", "42"),
     ("examples/packages/inline-module/Vastitas.toml", "42"),
     ("examples/packages/module-paths/Vastitas.toml", "42"),
+    ("examples/packages/module-names/Vastitas.toml", "42"),
     ("examples/packages/indexed/Vastitas.toml", "42"),
     ("examples/packages/indexed-objects/Vastitas.toml", "42"),
     ("examples/packages/geometry-compat/Vastitas.toml", "42"),
@@ -197,6 +198,8 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
 const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/private-function",
     "examples/reject/packages/import-collision",
+    "examples/reject/packages/geometric-use",
+    "examples/reject/packages/geometric-function",
     "examples/reject/packages/foreign-method",
     "examples/reject/packages/outside-region",
     "examples/reject/packages/private-dependency",

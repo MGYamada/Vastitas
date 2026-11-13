@@ -6,7 +6,7 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 15 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 21 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 0 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
 | [mathlib](#assumption.mathlib) | 10 |
@@ -27,12 +27,18 @@ Cited by:
 - [`evidence.nondegenerate`](metric-evidence.md#evidence.nondegenerate) (`bridge`)
 - [`evidence.riemannian`](metric-evidence.md#evidence.riemannian) (`oracle`)
 - [`evidence.riemannian`](metric-evidence.md#evidence.riemannian) (`bridge`)
+- [`dimension.consistent`](nature-dimension.md#dimension.consistent) (`oracle`)
+- [`dimension.euclid-rejected`](nature-dimension.md#dimension.euclid-rejected) (`oracle`)
+- [`dimension.kinds`](nature-dimension.md#dimension.kinds) (`oracle`)
+- [`dimension.std-independent`](nature-dimension.md#dimension.std-independent) (`oracle`)
 - [`arithmetic.promote.total`](std-arithmetic-generic.md#arithmetic.promote.total) (`oracle`)
 - [`arithmetic.promote.values`](std-arithmetic-generic.md#arithmetic.promote.values) (`oracle`)
 - [`arithmetic.promote.same-type`](std-arithmetic-generic.md#arithmetic.promote.same-type) (`oracle`)
 - [`arithmetic.promote.reversal`](std-arithmetic-generic.md#arithmetic.promote.reversal) (`oracle`)
 - [`arithmetic.promote.idempotence`](std-arithmetic-generic.md#arithmetic.promote.idempotence) (`oracle`)
 - [`arithmetic.mixed`](std-arithmetic-generic.md#arithmetic.mixed) (`oracle`)
+- [`frame.static-identity`](std-geometry-frame.md#frame.static-identity) (`binding`)
+- [`frame.embedded`](std-geometry-frame.md#frame.embedded) (`binding`)
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`binding`)
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`bridge`)
 - [`metric.flat-sharp`](std-geometry-metric.md#metric.flat-sharp) (`binding`)

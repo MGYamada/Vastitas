@@ -65,6 +65,12 @@ Rules:
   declaration may begin with it. Its first segment then names a module
   `generic` of the current module, and without such a module the path is an
   error (`E_NAME`).
+- A module of the current module may take the name of a
+  [geometric operation](geometric-types.md#operations), as
+  [Reserved names](lexical-structure.md#reserved-names) says. The module does
+  not hide the operation. In a call, the bare name, as in `dimension(X)`, is
+  the operation, and a path through the module, as in `dimension::length()`,
+  names an item of the module.
 - The order of declarations and `use` declarations does not change how a name
   resolves.
 - In flat mode a path with `::` is an error. Its code depends on the place:

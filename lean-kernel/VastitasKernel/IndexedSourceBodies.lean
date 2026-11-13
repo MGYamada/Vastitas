@@ -205,22 +205,31 @@ def legacyPackage (input : Input) (witness : Core.Term) (span : Span) : M Applic
 def legacyOperation (path : List String) : Bool :=
   [["Affine"], ["Base"], ["origin"], ["id"], ["dimension"], ["compose"], ["apply"]].contains path
 
-/-- Decided from the structured name tables, never from a diagnostic code. -/
+/-- Decided from the structured name tables, never from a diagnostic code. A
+module may take the name of a geometric operation; it does not hide the
+operation, because a module is not callable. -/
 def legacyFallback (input : Input) (scope : Namespace.Scope) (path : Path) : Bool :=
   match path.path with
-  | [name] => legacyOperation [name] && Namespace.unboundName input.index scope name
+  | [name] => legacyOperation [name] &&
+      (Namespace.unboundName input.index scope name || Namespace.childModule input.index scope name)
   | _ => false
 
-theorem legacyFallback_unresolved (input : Input) (scope : Namespace.Scope) (path : Path)
-    (fallback : legacyFallback input scope path = true) :
-    ∃ diagnostic, Namespace.resolve input.index scope path.path path.span = .error diagnostic := by
+/-- The fallback never hides a declaration that a call could reach: the name
+resolves to nothing, or to a module. -/
+theorem legacyFallback_uncallable (input : Input) (scope : Namespace.Scope) (path : Path)
+    (fallback : legacyFallback input scope path = true) (target : Namespace.Target)
+    (resolved : Namespace.resolve input.index scope path.path path.span = .ok target) :
+    target.kind = .module := by
   unfold legacyFallback at fallback
   split at fallback
   · rename_i name single
-    rw [single]
-    simp only [Bool.and_eq_true] at fallback
-    obtain ⟨diagnostic, failed, _⟩ := Namespace.resolve_unboundName _ _ _ path.span fallback.2
-    exact ⟨diagnostic, failed⟩
+    rw [single] at resolved
+    simp only [Bool.and_eq_true, Bool.or_eq_true] at fallback
+    rcases fallback.2 with unbound | child
+    · obtain ⟨diagnostic, failed, _⟩ := Namespace.resolve_unboundName _ _ _ path.span unbound
+      rw [failed] at resolved
+      cases resolved
+    · exact Namespace.resolve_childModule _ _ _ _ child target resolved
   · cases fallback
 
 def legacyMarker (name : String) (span : Span) : M BaseKind :=

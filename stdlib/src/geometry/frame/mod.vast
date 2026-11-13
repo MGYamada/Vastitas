@@ -1,0 +1,15 @@
+// Ordered frames of smooth affine objects (historical Stage 4). A frame of a
+// smooth affine object X is a global frame of the tangent bundle of X: an
+// ordered basis of every tangent fiber, given by columns in the coordinate
+// frame of X. Frame<X> indexes the frames of X. Coords<b> indexes the arrays of
+// vectors in the frame b, CoCoords<b> the arrays of covectors in its dual
+// coframe, and FrameMap<b, c> the matrices of linear maps from the fibers of
+// b to the fibers of c. Frames, objects and variance are static; points are
+// run-time values. This library declares the families only: the application
+// declares its frames and its frame primitives, which name their frames, as it
+// declares flat and sharp with their metric. See ADR 0001 §11.
+pub indexed family Frame(object(super::smooth::affine::CInfAffine))
+    = frame constraints(canonical(0));
+pub indexed family Coords(frame(Frame)) = frame_vector;
+pub indexed family CoCoords(frame(Frame)) = frame_covector;
+pub indexed family FrameMap(frame(Frame), frame(Frame)) = frame_map;

@@ -463,6 +463,7 @@ fn function_body_affine_spellings_still_use_the_geometry_compatibility_export() 
         "smooth/mod.vast",
         "smooth/affine/mod.vast",
         "metric/mod.vast",
+        "frame/mod.vast",
     ] {
         s.write(
             &format!("geo/{name}"),

@@ -52,7 +52,7 @@ below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assem
 protocol 6 adds nested loans and permanent authority transfer, and package-only
 protocol 7 adds indexed declarations and rich bodies as described below.
 Package-only protocols 8 and 9 add resource functions, named recipients and
-the algebraic, smooth and metric forms.
+the algebraic, smooth, metric, frame and physical-dimension forms.
 Package requests never fall back to protocol 2. Other versions are rejected.
 
 ## Protocol selection
@@ -63,8 +63,10 @@ program declares abstract types, subtypes or abstract methods. In manifest
 mode it takes the first match of this list:
 
 1. any grant, delegation or transfer, a presented affine declaration of
-   [Presented affine geometry](affine-geometry.md), or a smooth or metric
-   declaration of [Smooth affine declarations](language/smooth-declarations.md):
+   [Presented affine geometry](affine-geometry.md), a smooth or metric
+   declaration of [Smooth affine declarations](language/smooth-declarations.md),
+   or a [frame](#protocol-9-frame-forms) or
+   [physical-dimension](#protocol-9-physical-dimension-forms) declaration:
    protocol 9;
 2. resource functions, or an indexed implementation other than an affine
    descriptor: protocol 8;
@@ -262,6 +264,125 @@ differential. [Metrics](language/smooth-declarations.md#metrics),
 errors of the declarations, and the
 [`E_METRIC` row](appendix/diagnostics.md#e-metric) of the diagnostics
 reference links these sections.
+
+<a id="protocol-9-frame-forms"></a>
+
+**Protocol-9 frame forms.** Frame declarations, the families of frames, frame
+arrays and frame matrices, the frame parameter and the frame primitives are
+validated optional fields of protocol 9. Any module that uses one selects
+protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`, with the
+message "frame declarations require protocol 9" for a declaration, a family
+representation and a parameter.
+
+- **Family representation.** A family may use the string `"frame"` (the
+  frames of a smooth object, `Frame<X>`), `"frame_vector"` (the arrays of
+  vectors in a frame, `Coords<b>`), `"frame_covector"` (the arrays of
+  covectors, `CoCoords<b>`) or `"frame_map"` (the matrices of linear maps
+  between two frames, `FrameMap<b, c>`).
+- **Parameter.** `{"kind": "frame", "family": TypePath}` is a frame index of
+  the family `family`. A family with such a parameter is a protocol-9 form,
+  whatever its representation. An annotation passes a frame as an ordinary
+  argument `{"kind": "name", "reference": TypePath}`; the parameter's kind
+  makes the kernel resolve the name to a frame declaration.
+- **Declaration.** `kind: "frame"` carries `family` (path), `indices` (paths),
+  `columns` and `inverse`, besides the common `name`, `public` and `span`.
+  `columns` is `{"kind": "coordinates"}`, the coordinate frame, or
+  `{"kind": "columns", "columns": [[poly, …], …]}`. Each inner list is one
+  column, a frame vector in the coordinate frame of the object, and each
+  entry is a polynomial expression in the form above. `inverse` is `null` or
+  `{"kind": "columns", "columns": …}` of the same form. Another `kind` is an
+  error (`E_PROTOCOL`).
+- **Primitives.** The binding `op` may be one of the thirteen frame
+  operations below. A field of kind `natural` is an unsigned decimal string of
+  at most 64 digits; the decoder checks the length before it reads the digits,
+  and another value is an error (`E_PROTOCOL`). Every other field is a path.
+
+| Op | Fields |
+| --- | --- |
+| `frame_encode` | `fiber`, `coords`, `frame` |
+| `frame_decode` | `coords`, `fiber`, `frame` |
+| `frame_vector` | `coords`, `map_family`, `frame` |
+| `frame_matrix` | `map_family`, `frame_map`, `source`, `target` |
+| `frame_transition` | `map_family`, `frame_map`, `source`, `target` |
+| `frame_apply` | `frame_map`, `coords` |
+| `frame_coapply` | `frame_map`, `cocoords` |
+| `frame_compose` | `frame_map` |
+| `frame_pairing` | `cocoords`, `coords` |
+| `frame_component` | `family`, `index` (natural) |
+| `frame_entry` | `frame_map`, `row` and `column` (natural) |
+| `frame_equal` | `family` |
+| `frame_at` | `family`, `map_family` |
+
+`natural` is the sixth field kind of the family table, next to `path`,
+`object_type`, `coordinate`, `polynomial` and `pullback_mode`. The decoder
+functions are those of `lean-kernel/VastitasKernel/IndexedDeclarationProtocol.lean`:
+
+| Form | Decoder |
+| --- | --- |
+| Frame declaration | `declarationBody`, with `frameColumns` and `frameInverse` |
+| Frame family representations | `familyRepresentation` |
+| Frame parameter | `parameter` |
+| Natural field of a primitive | `naturalField`, through `wireArgument` |
+
+The wire never carries the rows of a frame matrix, a variance, a frame array,
+a frame matrix of a map or a transition. It never carries the inverse of a
+constant frame either: the kernel computes it, and a constant frame that
+declares an inverse is an error (`E_FRAME`), even when the inverse is
+correct. A frame primitive carries the names of its frames only. The kernel
+copies the object, the matrix and the inverse of each named frame into the
+binding, and the variance of an encoding or a decoding from its fiber family.
+The declaration audit checks that each copy equals its declaration. A
+binding record with any other field, such as a matrix, an inverse or an
+object, is an error (`E_PROTOCOL`). The kernel expands every column in the
+coordinates of the frame's object, within the limits of
+[smooth metrics](appendix/limits.md#smooth-metrics) for a constant frame and
+of [exact affine algebra](appendix/limits.md#exact-affine-algebra) for a
+polynomial one. It checks `P·Q = Q·P = I` before acceptance. The
+[specification of `std::geometry::frame`](spec/std-geometry-frame.md) states
+the laws of the forms, and the
+[`E_ENDPOINT` row](appendix/diagnostics.md#geometric-types) of the
+diagnostics reference covers frame and object mismatches of a call.
+
+<a id="protocol-9-physical-dimension-forms"></a>
+
+**Protocol-9 physical-dimension forms.** The declarations of
+`nature::dimension` and their families are validated optional fields of
+protocol 9. Any module that uses one selects protocol 9. Protocols 7 and 8
+reject each form with `E_PROTOCOL`, with the message "physical dimension
+declarations require protocol 9".
+
+- **Family representation.** A family may use the string `"reading"` or
+  `"physical_metric"`.
+- **Base dimension.** `kind: "base_dimension"` carries only the common
+  `name`, `public` and `span`.
+- **Quantity.** `kind: "quantity"` carries `dimension`, a list of factors
+  `{"base": TypePath, "exponent": String}`.
+- **Reading.** `kind: "reading"` carries `family` (path), `indices` (paths)
+  and `quantities`, a list of `{"coordinate": String, "quantity": TypePath}`
+  in source order.
+- **Scale.** `kind: "scale"` carries `quantity` (path) and `magnitude`, a
+  polynomial expression in the form above.
+- **Physical metric.** `kind: "physical_metric"` carries `family` (path),
+  `indices` (paths), `metric` (path), `reading` (path), `value` and
+  `entries`. `value` is `null` or a list of factors as in a quantity.
+  `entries` is `{"kind": "euclidean"}`,
+  `{"kind": "gram", "rows": [[monomial, …], …]}` or
+  `{"kind": "normalized", "scales": [{"coordinate": String, "scale": TypePath}, …]}`.
+  A monomial is `{"coefficient": poly, "factors": [{"scale": TypePath, "exponent": String}, …]}`.
+  Another `kind` is an error (`E_PROTOCOL`).
+
+An exponent is a decimal string with an optional leading `-` and at most 64
+digits. The decoder `exponent` checks the length before it reads the digits;
+another value is an error (`E_PROTOCOL`). `declarationBody`, `dimensionFactor`,
+`coordinateQuantity`, `scaleMonomial`, `physicalGram` and `dimensionValue` of
+`IndexedDeclarationProtocol.lean` decode the forms. The wire never carries a
+dimension in canonical form, the value of a magnitude or a coefficient, the
+coordinate order of a reading or a normalized metric, or an evaluated Gram
+matrix. The kernel computes each, within the
+[dimension limits](appendix/limits.md#physical-dimensions), and checks every physical metric
+against the Gram matrix of the metric it names. The
+[specification of `nature::dimension`](spec/nature-dimension.md) states what
+an accepted interpretation guarantees.
 
 ### Resource statements and numerical forms
 
@@ -988,7 +1109,16 @@ receipts, doctest execution, or official package admission.
   protocol 2 is the one exception.
   `public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape`
   does the same for the requests of protocols 7 to 9 that the driver writes
-  for the example packages.
+  for the example packages, and `frame_and_nature_records_reject_unknown_fields`
+  for every frame and physical-dimension record of the fixture package
+  `tests/fixtures/frame-dimension-declarations/`.
+- `tests/frame_dimension_declarations.rs::frame_and_nature_declarations_select_protocol_nine_only`
+  and `tests/frame_primitives.rs::frame_primitives_select_protocol_nine_and_decode_only_there`
+  pin the protocol of the frame and physical-dimension forms: protocol 9
+  decodes them, and protocols 7 and 8 reject each with `E_PROTOCOL`.
+  `raw_wire_rejects_forged_frame_bindings` of the second file rejects a
+  natural field that is not an unsigned decimal string of at most 64 digits,
+  and a frame binding without one of its fields.
 - `legacy_hint_tolerance_is_limited_to_the_v2_envelope`,
   `invalid_membership_scalar_is_rejected_before_authority_analysis` and
   `malformed_versions_and_non_utf8_input_return_protocol_json` of the same
@@ -1002,15 +1132,21 @@ receipts, doctest execution, or official package admission.
 - The kernel regressions `VastitasKernel.IndexedWireRegression`,
   `VastitasKernel.LegacySourceRegression` and
   `VastitasPublicTest.AuthorityRegression` decode and check requests without
-  the driver. `VastitasKernel.NamespaceRegression` tests the retained
-  `checkNamespaceProgram` on Lean values and decodes no request.
+  the driver. `VastitasKernel.FrameDeclarationRegression`,
+  `VastitasKernel.FrameRegression` and `VastitasKernel.NatureRegression`
+  decode every frame and physical-dimension form in protocol 9 and reject it
+  in protocols 7 and 8. `VastitasKernel.NamespaceRegression` tests the
+  retained `checkNamespaceProgram` on Lean values and decodes no request.
   `bash scripts/check_kernel_regressions.sh` builds them.
 
 ## History
 
-- Presented affine declarations, smooth forms and metric forms are optional
-  fields of protocol 9 and have no version of their own, by a decision that
-  [#533](https://github.com/MGYamada/Vastitas/issues/533) records. That
+- Presented affine declarations, smooth forms, metric forms, frame forms and
+  physical-dimension forms are optional fields of protocol 9 and have no
+  version of their own, by a decision that
+  [#533](https://github.com/MGYamada/Vastitas/issues/533) records. The frame
+  and physical-dimension forms belong to the Stage 4 tracker
+  [#759](https://github.com/MGYamada/Vastitas/issues/759). That
   issue is open. It records the policy of one wire protocol for the release
   v0.1.0: the driver writes one schema, the kernel accepts that schema
   alone, and the other versions with their decoders are retired in one

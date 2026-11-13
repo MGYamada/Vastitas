@@ -316,7 +316,7 @@ archived delivery records. The other rules of this guide need a reviewer.
 | No commit hashes or theorem names | Yes | | | |
 | Ends with a See also section that links a Reference chapter | Yes, apart from the Introduction | | | |
 | A term set in bold has a glossary entry | | Yes | | |
-| A complete program or function comes from an `include` | Yes | Yes | Yes | Yes |
+| A complete program, function or method comes from an `include` | Yes | Yes | Yes | Yes |
 | The diagnostic of a rejected program comes from its `.stderr` file | Yes | Yes | Yes | Yes |
 | An `include` selects a part of a file by `ANCHOR`, not by lines | Yes | Yes | Yes | Yes |
 
@@ -326,17 +326,21 @@ delivery records are exempt from every rule. A generated specification chapter
 may link issues outside a History section, as
 [What stays out](#what-stays-out) says.
 
-The glossary rule finds a bold term under its own name or in the singular,
-among the titles of the glossary entries and the terms that an entry sets in
-bold. Bold text that defines no term is exempt: the labels **Syntax** and
-**Implementation note.**, and the rule words that
+The glossary rule reads each paragraph as a whole, so a bold term may wrap,
+and it reads `**term**` and `__term__`. It finds a term under its own name or
+in the singular, among the titles of the glossary entries and the terms that
+an entry sets in bold. Bold text that defines no term is exempt: the labels
+**Syntax** and **Implementation note.**, and the rule words that
 [Notation](../language/notation.md#rules) defines. `NOT_DEFINITIONS` in
-`scripts/check_book.py` lists them. A complete function is a named `fn` or
-`resource fn` with a body in a code block labelled `vast`. A diagnostic is a
-line `FILE:LINE:COLUMN: E_CODE: message` or `MANIFEST: E_CODE: message` in a
-code block labelled `text`, where the place names a file. A diagnostic without
+`scripts/check_book.py` lists them. A complete function or method is a named
+`fn`, `resource fn` or `method` whose signature a body follows, in a code block
+labelled `vast` or without a label. A diagnostic is a line
+`FILE:LINE:COLUMN: E_CODE: message` or `MANIFEST: E_CODE: message` in any code
+block, where the place names a file and may hold spaces. A diagnostic without
 a place is about a command, not a rejected program, and the forms of
 [Diagnostic lines](../language/diagnostics.md#diagnostic-lines) name no file.
+The See also rule reads inline links and reference links, and a link in code
+or in an HTML comment links nothing.
 
 ## Consolidation baseline
 

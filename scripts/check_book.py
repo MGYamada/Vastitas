@@ -230,15 +230,41 @@ def style_errors(path, text, part, reference=None):
         see_also = re.search(r"^## See also\s*$(?![\s\S]*^## )([\s\S]*)", text, re.M)
         if not see_also:
             errors.append(f"{path}: a guide chapter ends with a '## See also' section")
-        elif reference is not None and not linked_chapters(path, see_also[1]) & reference:
+        elif reference is not None and not linked_chapters(path, see_also[1], text) & reference:
             errors.append(f"{path}: the See also section links no chapter of the Vastitas Reference")
     return errors
 
 
-def linked_chapters(path, text):
-    """The chapters that the Markdown links of a text in the chapter at path name, as paths in the book."""
+HTML_COMMENT = re.compile(r"<!--[\s\S]*?(?:-->|$)")
+INLINE_LINK = re.compile(r"\]\(\s*<?([^)\s>]+)>?(?:\s+[\"'(][^)]*)?\)")
+REFERENCE_LINK = re.compile(r"\[((?:[^\[\]]|\[[^\]]*\])+)\](?:\s?\[([^\]]*)\])?(?![(:])")
+LINK_DEFINITION = re.compile(r"^ {0,3}\[([^\]]+)\]:\s*<?(\S+?)>?(?:\s+.*)?$", re.M)
+
+
+def label_key(label):
+    return re.sub(r"\s+", " ", label).strip().lower()
+
+
+def linked_chapters(path, text, chapter=None):
+    """The chapters that the Markdown links of a text in the chapter at path name, as paths in the book.
+
+    The links are inline links and reference links, whose definitions may lie
+    anywhere in the chapter. A link in code or in an HTML comment links nothing.
+    """
+    def visible(markdown):
+        markdown = HTML_COMMENT.sub(" ", markdown)
+        markdown = "\n".join(line for _, line, _, _ in scan(markdown))
+        return CODE_SPAN.sub(" ", markdown)
+
+    definitions = {label_key(label): target for label, target in LINK_DEFINITION.findall(visible(chapter or text))}
+    shown = visible(text)
+    found = INLINE_LINK.findall(shown)
+    for match in REFERENCE_LINK.finditer(shown):
+        label = label_key(match[2] or match[1])
+        if label in definitions:
+            found.append(definitions[label])
     targets = set()
-    for target in re.findall(r"\]\(([^)\s]+)\)", text):
+    for target in found:
         url = urlsplit(target)
         if not url.scheme and not url.netloc and url.path.endswith(".md"):
             targets.add(os.path.normpath(os.path.join(os.path.dirname(path), unquote(url.path))).replace(os.sep, "/"))
@@ -413,12 +439,32 @@ def code_blocks(text):
 
 
 MAIN = re.compile(r"\s*(?:pub\s+)?(?:resource\s+)?fn\s+main\s*\(")
-FUNCTION = re.compile(r"\s*(?:pub\s+)?(?:resource\s+)?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\(")
-# A diagnostic line of a program: a place in a file, with an optional line and
-# column, and a code. A form such as `MANIFEST: E_MANIFEST: message` names no
-# file, and a diagnostic without a place is about a command, which no
-# rejected program records.
-DIAGNOSTIC_LINE = re.compile(r"^\s*[^\s:]*\.[A-Za-z0-9]+(?::\d+:\d+)?: E_[A-Z][A-Z0-9_]*: ")
+# The beginning of a named function, resource function or method; an abstract
+# method has no body, and a lambda has no name.
+DEFINITION = re.compile(r"^[ \t]*(?:pub\s+)?(?:resource\s+)?(?:fn|method)\s+"
+                        r"[A-Za-z_][A-Za-z0-9_]*(?:\s*::\s*[A-Za-z_][A-Za-z0-9_]*)*\s*\(", re.M)
+# What stands between the parameters and the body: a result type, `returns (…)`
+# and `requires (…)`, without a blank line, `;` or `=`.
+SIGNATURE_REST = re.compile(r"(?:[^{};=\n]|\n(?![ \t]*\n))*?\{")
+# A diagnostic line of a program: a place in a file, which may hold spaces but
+# no quotes, with an optional line and column, and a code. A form such as `MANIFEST:
+# E_MANIFEST: message` names no file, and a diagnostic without a place is
+# about a command, which no rejected program records.
+DIAGNOSTIC_LINE = re.compile(r"^\s*[^\s:'\"`$][^:\n'\"`$]*\.[A-Za-z0-9]+(?::\d+:\d+)?: E_[A-Z][A-Z0-9_]*: ")
+
+
+def complete_definitions(text):
+    """Yield the offset of each named function or method of a text whose signature a body follows."""
+    for match in DEFINITION.finditer(text):
+        depth = 0
+        for index in range(match.end() - 1, len(text)):
+            depth += {"(": 1, ")": -1}.get(text[index], 0)
+            if depth == 0:
+                break
+        else:
+            continue
+        if SIGNATURE_REST.match(text, index + 1):
+            yield match.start()
 
 
 def program_errors(chapter, text):
@@ -429,11 +475,10 @@ def program_errors(chapter, text):
         if label in ("", "vast", "text") and any(MAIN.match(line) for line in typed):
             errors.append(f"{chapter}:{number}: a complete program is included from a tested file "
                           "under examples/ (style guide, Examples)")
-        elif label in ("", "vast") and any(FUNCTION.match(line) and "{" in "".join(typed[index:])
-                                           for index, line in enumerate(typed)):
-            errors.append(f"{chapter}:{number}: a complete function is included from a tested file "
+        elif label in ("", "vast") and next(complete_definitions("\n".join(typed)), None) is not None:
+            errors.append(f"{chapter}:{number}: a complete function or method is included from a tested file "
                           "under examples/ with an ANCHOR (style guide, Examples)")
-        if label == "text" and any(DIAGNOSTIC_LINE.match(line) for line in typed):
+        if any(DIAGNOSTIC_LINE.match(line) for line in typed):
             errors.append(f"{chapter}:{number}: the diagnostic of a rejected program is included from its "
                           ".stderr file (style guide, Examples)")
     for match in INCLUDE.finditer(text):

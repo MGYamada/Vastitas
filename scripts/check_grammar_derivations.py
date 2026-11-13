@@ -629,7 +629,27 @@ def verdict(case, found):
     return None
 
 
+def exit_problem(status, found):
+    """None when the exit status agrees with the diagnostics, else the reason.
+
+    `vastitas check` exits with 0 when it accepts a program and with 1 when it
+    rejects it with at least one diagnostic. Any other status (a panic, a signal,
+    a time-out) or a rejection without a diagnostic is a failure of the compiler,
+    whatever the text derives.
+    """
+    if status == 0 or (status == 1 and found):
+        return None
+    if status == 1:
+        return "the compiler exits with status 1 and reports no diagnostic"
+    if status is None:
+        return "the compiler does not finish within the time-out"
+    if status < 0:
+        return f"the compiler ends by signal {-status}"
+    return f"the compiler ends abnormally with status {status}"
+
+
 def run(compiler, case, directory):
+    """Check the program of a case. The result is (exit status or None for a time-out, stderr)."""
     root = Path(directory) / f"case-{case.number}"
     root.mkdir()
     if case.context.mode == "manifest":
@@ -640,8 +660,14 @@ def run(compiler, case, directory):
     else:
         (root / "main.vast").write_text(case.program, encoding="utf-8")
         command = [compiler, "check", str(root / "main.vast")]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=300)
-    return result.stderr.replace(str(root.resolve()) + "/", "").replace(str(root) + "/", "")
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired as expired:
+        stderr = expired.stderr or ""
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", "replace")
+        return None, stderr
+    return result.returncode, result.stderr.replace(str(root.resolve()) + "/", "").replace(str(root) + "/", "")
 
 
 def main(argv=None):
@@ -666,9 +692,9 @@ def main(argv=None):
     with tempfile.TemporaryDirectory(prefix="vastitas-derived-") as directory:
         with ThreadPoolExecutor(arguments.jobs) as pool:
             outputs = list(pool.map(lambda case: run(compiler, case, directory), cases))
-    for case, stderr in zip(cases, outputs):
+    for case, (status, stderr) in zip(cases, outputs):
         found = diagnostics(stderr)
-        reason = verdict(case, found)
+        reason = exit_problem(status, found) or verdict(case, found)
         forbidden += bool(case.rules)
         if arguments.verbose:
             print(f"--- {case.number} {case.context.name} ({case.context.mode}): "
@@ -689,7 +715,8 @@ def main(argv=None):
                   file=sys.stderr)
             print(case.program.rstrip(), file=sys.stderr)
             print(stderr.rstrip(), file=sys.stderr)
-        print(f"\n{len(failures)} derived texts give a parse diagnostic that no rule allows", file=sys.stderr)
+        print(f"\n{len(failures)} derived texts give a parse diagnostic that no rule allows, "
+              "or make the compiler fail", file=sys.stderr)
         return 1
     print("No derived text gives a parse diagnostic that no rule allows")
     return 0

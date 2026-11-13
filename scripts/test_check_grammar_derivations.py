@@ -208,10 +208,39 @@ class RunTests(unittest.TestCase):
             flat = Case(1, derivations.CONTEXTS[1], Node("Item"), "", "fn f() -> Int { 0 }\n", [])
             manifest = Case(2, derivations.CONTEXTS[0], Node("Item"), "", "fn f() -> Int { 0 }\n", [])
             self.assertEqual(derivations.run(str(compiler), flat, work),
-                             "main.vast:1:1: E_NAME: check ['main.vast']\n")
+                             (0, "main.vast:1:1: E_NAME: check ['main.vast']\n"))
             self.assertEqual(derivations.run(str(compiler), manifest, work),
-                             "Vastitas.toml:1:1: E_NAME: check --manifest-path ['Vastitas.toml', 'src']\n")
+                             (0, "Vastitas.toml:1:1: E_NAME: check --manifest-path ['Vastitas.toml', 'src']\n"))
             self.assertEqual((work / "case-2/src/main.vast").read_text(), "fn f() -> Int { 0 }\n")
+
+    def test_a_crash_or_a_rejection_without_a_diagnostic_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            compiler = Path(directory) / "crashing-vastitas"
+            compiler.write_text(textwrap.dedent(f"""\
+                #!{sys.executable}
+                import sys
+                sys.stderr.write("thread 'main' panicked at src/frontend.rs:1:1\\n")
+                sys.exit(101)
+                """))
+            compiler.chmod(compiler.stat().st_mode | stat.S_IXUSR)
+            work = Path(directory) / "work"
+            work.mkdir()
+            case = Case(1, derivations.CONTEXTS[1], Node("Item"), "", "fn f() -> Int { 0 }\n", [])
+            status, stderr = derivations.run(str(compiler), case, work)
+            self.assertEqual(status, 101)
+            found = derivations.diagnostics(stderr)
+            self.assertEqual(found, [])
+            self.assertIsNone(derivations.verdict(case, found))
+            self.assertIn("status 101", derivations.exit_problem(status, found))
+
+    def test_the_exit_status_must_agree_with_the_diagnostics(self):
+        found = [((1, 1), "E_NAME")]
+        self.assertIsNone(derivations.exit_problem(0, []))
+        self.assertIsNone(derivations.exit_problem(1, found))
+        self.assertIn("no diagnostic", derivations.exit_problem(1, []))
+        self.assertIn("signal 9", derivations.exit_problem(-9, []))
+        self.assertIn("time-out", derivations.exit_problem(None, []))
+        self.assertIn("status 2", derivations.exit_problem(2, found))
 
 
 if __name__ == "__main__":

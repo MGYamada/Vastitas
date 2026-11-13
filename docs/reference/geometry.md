@@ -1,11 +1,12 @@
 # Exact geometry reference models
 
-This chapter describes seven [reference models](../appendix/reference-models.md)
+This chapter describes eight [reference models](../appendix/reference-models.md)
 from geometry. They compute with exact arithmetic over the rational numbers,
 over the integers and, for the elliptic curve, over the field of five
 elements. Their subjects are metrics on the real plane, polynomial symplectic
 maps, first variations, finite Čech covers, the Bloch and Fermi schemes of the
-SSH chain, addition on an elliptic curve, and the pointwise Hodge star. Each
+SSH chain, addition on an elliptic curve, the pointwise Hodge star, and
+standard étale charts with their spectral branches. Each
 is a Python program with tests under `scripts/`, and each section states its
 hypotheses, its verifier and its regression examples. None is a part of the
 compiler.
@@ -19,6 +20,7 @@ compiler.
 | [SSH Bloch and Fermi schemes](#ssh-toric-reference) | Model only. Implemented: [presented affine objects](../affine-geometry.md) over the rational numbers and their principal opens. The toric constructions of the model are Planned: [#247](https://github.com/MGYamada/Vastitas/issues/247) |
 | [Elliptic addition](#elliptic-reference) | Model only. Planned: [#253](https://github.com/MGYamada/Vastitas/issues/253) |
 | [Pointwise Hodge star](#hodge-reference) | Model only. Proved: seven theorems of `VastitasOracle.HodgeFinite` in the proof oracle. On basis vectors with integer coefficients they state the defining identity and the square laws of the star, for Euclidean one-forms in rank three and for Minkowski two-forms in rank four. They are about no construct of the language. Planned: [#375](https://github.com/MGYamada/Vastitas/issues/375) |
+| [Standard étale charts](#etale-reference) | Model only. Implemented: [presented affine objects](../affine-geometry.md) over the rational numbers with their principal opens and fiber products. The charts, the descent and the spectral identities of the model are Planned: [#765](https://github.com/MGYamada/Vastitas/issues/765) |
 
 Each section keeps the record of the change that added its model. Its
 statements about the compiler describe the repository at that change.
@@ -1618,3 +1620,224 @@ coefficients, on complete ordered basis sets. The kernel checks them by
 reduction (`decide +kernel`); they use no `native_decide`. This bounded
 fragment is not accepted Core, a general Hodge construction or a statement
 about any Vastitas program.
+
+<a id="etale-reference"></a>
+
+## Standard étale charts and spectral branches (#765)
+
+This is a **Python reference calculation with regression tests** for
+[#765](https://github.com/MGYamada/Vastitas/issues/765), the
+`etale-standard/v1` profile of the Descent Checker. It verifies supplied
+evidence for three statements over a polynomial base `A = QQ[x_1,…,x_m]`:
+
+- one chart `B = (A[t]/(p))[1/g]` is standard étale over `A`;
+- a function on a finite chart descends to the base;
+- the adjugate of `tI − H` gives the eigenprojector of an exact matrix `H` on
+  the chart of its simple eigenvalues.
+
+Its first regression is the acceptance example of
+[Stage 5](../guide/historical-roadmap.md#stage-5-spectral-observations): the
+symmetric matrix with rows `(x, y)` and `(y, −x)`.
+
+There is no root finder, eigensolver, Gröbner basis, witness search, cover
+decision for a family of charts, gluing of modules or objects, or choice of
+a branch by order. A rejected candidate does not refute the statement. The
+compiler, Lean kernel, proof oracle and stdlib are unchanged. This is not
+Vastitas execution, Lean certification or std admission, and it adds no
+Domain Checker. It completes none of #765,
+[#337](https://github.com/MGYamada/Vastitas/issues/337),
+[#471](https://github.com/MGYamada/Vastitas/issues/471) and
+[#204](https://github.com/MGYamada/Vastitas/issues/204). The implementation
+was prepared against main `d1e11ea470111b1f2cb2c253b8bcf931ba5c4aa0`.
+
+### Run and inspect
+
+Python 3.10+; standard library only. Acceptance uses arbitrary-precision
+integers and `fractions.Fraction`; no floats, samples or tolerance.
+
+```sh
+python3 scripts/demo_etale_reference.py
+python3 -m unittest discover -s scripts -p 'test_etale_reference.py' -v
+python3 -m unittest discover -s scripts -p 'test_*.py'
+python3 scripts/check_boundaries.py
+```
+
+| File | Role |
+| --- | --- |
+| [etale_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/etale_reference.py) | Independent request binding and the four verifiers |
+| [demo_etale_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/demo_etale_reference.py) | Stage 5, cubic and number-field examples with their expected rejection codes |
+| [test_etale_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_etale_reference.py) | Mutation, binding, specialization and two-route regressions |
+
+The demo emits JSON with every check outcome, and it exits successfully only
+when each case has its expected outcome. It is a demo report, not a wire
+format. The Python test discovery of the continuous integration runs the
+tests without a workflow change.
+
+The model reuses the shared
+[Poly](https://github.com/MGYamada/Vastitas/blob/main/scripts/rational_polynomial_reference.py)
+and adds no polynomial representation. Its arithmetic in `A[t]/(p)` is
+division with remainder by the monic `p`.
+
+### Charts and the unit witness
+
+Polynomials of `A[t]` list the base variables and then the fiber coordinate
+`t`. `verify_chart(expected, certificate)` never derives `expected` from the
+certificate. A subject mismatch reports `SUBJECT_MISMATCH`, and the later
+checks are `not_checked`, never successful.
+
+| Check | Requirement / failure code |
+| --- | --- |
+| `monic_relation` | `p` is monic in `t`, of degree 1 to 8. `RELATION_NOT_MONIC` |
+| `reduced_presentation` | `g` and `W` have degree in `t` below that of `p`. The verifier reduces nothing silently. `NOT_REDUCED` |
+| `nonzero_localizer` | `g` is not the zero polynomial. `EMPTY_CHART` |
+| `unit_witness` | `W·p′ = g^e` in `A[t]/(p)`, compared coefficientwise. `UNIT_WITNESS_MISMATCH` |
+
+The identity shows that `p′` is a unit of `B`, which defines a standard étale
+algebra. This is the mathematical argument that a Lean checker must prove;
+the Python implementation establishes no theorem.
+
+Acceptance proves neither that the chart is nonempty nor that it covers an
+open of the base. A **finite chart** has `g` in `A` and `g ≠ 0`. Then `B` is
+free of rank `deg p` over `A[1/g]`, and `Spec B → D(g)` is surjective: the
+chart alone is an étale cover of the principal open `D(g)`. Every other chart
+has an image that this model does not compute. #765 specifies the image opens
+and the cover witness of a family of charts; the model implements neither.
+
+### Self-overlap descent and the trace
+
+A chart is not a monomorphism, so its overlap with itself is not the chart.
+For a finite chart it is the spectrum of `A[t,s]/(p(t), p(s))` over `D(g)`,
+and the model computes normal forms there by two divisions. `verify_descent`
+takes a section `b/g^k` and a candidate function on `D(g)`:
+
+| Check | Requirement / failure code |
+| --- | --- |
+| `chart` | Replay the chart certificate on the expected chart. `CHART_NOT_VERIFIED` |
+| `finite_chart` | `g` lies in `A`. Otherwise the status is `unsupported`. `UNSUPPORTED_COVER` |
+| `reduced_section` | The numerator `b` is a normal form. `NOT_REDUCED` |
+| `self_overlap` | `b(t) = b(s)` in `A[t,s]/(p(t), p(s))`. `SELF_OVERLAP_DISAGREEMENT` |
+| `restriction` | The candidate numerator lies in `A` and equals `b`. `RESTRICTION_MISMATCH` |
+
+`divided_difference` gives `q` with `p(t) − p(s) = (t − s)·q(t,s)` and
+`q(t,t) = p′(t)`. Where `p′` is a unit, the self-overlap is the disjoint
+union of the diagonal and the zero scheme of `q`. A section that takes
+different values on two branches fails on the second part. The tests check on
+two finite families that a normal form passes `self_overlap` exactly when it
+lies in `A`. That equivalence is the exactness of `A → C ⇉ C ⊗ C` for the
+free module `C = A[t]/(p)`. The model observes it on those families and
+proves it nowhere.
+
+`trace` is a different operation. It computes the trace over `A` of
+multiplication by an element of `C`, which sums the element over the
+branches. It needs no chart and no gap between eigenvalues: `tr(t^k)` equals
+the trace of `H^k` for the two matrices of the examples and `k ≤ 5`,
+including the fiber over the origin.
+
+### Spectral chart
+
+For an exact endomorphism `H` of `A^n` with `1 ≤ n ≤ 4`, let
+`χ = det(tI − H)` and `C = A[t]/(χ)`. `propose_spectral` computes `χ` and
+`adj(tI − H)` by the Faddeev–LeVerrier recursion. `verify_spectral` does not
+call it. It recomputes both by cofactor expansion and then checks each
+identity on the candidate:
+
+| Check | Requirement / failure code |
+| --- | --- |
+| `characteristic` | `χ = det(tI − H)`. `CHARACTERISTIC_MISMATCH` |
+| `adjugate` | The signed minors of `tI − H`. `ADJUGATE_MISMATCH` |
+| `jacobi_trace` | `Σ_i adj_ii = χ′` in `A[t]`. `JACOBI_TRACE_MISMATCH` |
+| `eigen_columns` | `(tI − H)·adj = 0` in `C`. `EIGEN_COLUMN_MISMATCH` |
+| `idempotent` | `adj² = χ′·adj` in `C`. `PROJECTOR_NOT_IDEMPOTENT` |
+| `rank_one` | Every 2×2 minor of `adj` vanishes in `C`. `RANK_ONE_MINOR_NONZERO` |
+| `divided_difference` | `adj = q(t, H)` for the `q` of `χ`. `DIVIDED_DIFFERENCE_MISMATCH` |
+
+`simple_root_chart` returns the chart `D(χ′)` of `Spec C` with the witness
+`W = 1`, `e = 1`. On it `P = adj/χ′` is an idempotent of trace one with
+`HP = tP`. The trace identity is the unit-ideal witness that the opens
+`D(adj_ii)` cover `D(χ′)`. On `D(adj_ii)` the `i`-th column of `adj`
+generates the eigenline, and the vanishing minors give the transition
+functions between the columns. The scale of an eigenvector is therefore a
+question about a Zariski cover of `Spec C`. Only the labelling of the
+eigenvalues needs the étale chart.
+
+The identities hold over all of `A`, with no gap between eigenvalues. For
+`H = 0` and for the Jordan block with rows `(0, 1)` and `(0, 0)` over `QQ`,
+both candidates pass, and their adjugates differ: `tI`, and the matrix with
+rows `(t, 1)` and `(0, t)`. Their chart `D(2t)` of `Spec QQ[t]/(t²)` is
+empty. The model accepts it as a chart, and it supports no branch data.
+
+`verify_resolution` needs a finite chart over `D(g)` with `W·χ′ = g^e`. It
+checks `tr(W·adj) = g^e·I` and `tr(t·W·adj) = g^e·H`: the eigenprojectors of
+the branches sum to the identity, and the branches recover `H`. The model
+extracts no root.
+
+### Regression examples
+
+For the Stage 5 matrix over `QQ[x, y]`:
+
+```math
+\chi=t^2-x^2-y^2,\qquad
+\operatorname{adj}(tI-H)=\begin{pmatrix}t+x&y\\y&t-x\end{pmatrix},\qquad
+\chi'=2t.
+```
+
+Its finite chart has `g = x² + y²`, `W = t/2` and `e = 1`, because
+`(t/2)(2t) = t² = x² + y²` in `C`.
+
+| Case | Reference outcome |
+| --- | --- |
+| Stage 5 spectral candidate; chart `D(2t)`; finite chart over `D(x² + y²)` | Accept |
+| Section `t`, one eigenvalue, on the finite chart | `self_overlap` and `restriction` fail |
+| Section `x² + y²`, the normal form of `t²` | Accepts; `tr(t²) = 2(x² + y²)` equals the trace of `H²` |
+| Section `t²`, not a normal form | `reduced_section` and `restriction` fail, although `self_overlap` passes |
+| Descent or resolution on the chart `D(2t)` | `unsupported`: no cover evidence for a chart that is not finite |
+| The adjugate of `tI + H`, offered for `H` | Passes `characteristic`, `jacobi_trace`, `idempotent` and `rank_one`; `adjugate`, `eigen_columns` and `divided_difference` fail |
+| `p = t³ − 3t + x`, `g = p′`, `W = 1` | Accepts as a chart |
+| Same `p`, `g = x² − 4`, `W = −(2/3)t² − (1/3)xt + 4/3` | Accepts as a finite chart; the resolution of its companion matrix accepts |
+| Same `p`, `g = 1` | Every tested witness fails. At `x = 2` the root `t = 1` is double, so `p` and `p′` vanish together and no witness exists |
+| `QQ[t]/(t² − 2)` and `QQ[t]/(t² + t + 1)` over `Spec QQ` | Accept as finite charts; a rational constant descends, and `t + 1` does not |
+| `QQ[t]/(t²)` with `g = 1` | Every tested witness fails |
+| Witness changed by `10^-20`, wrong exponent, changed `g` | `UNIT_WITNESS_MISMATCH` |
+| Relation that is not monic, or constant; zero localizer | `RELATION_NOT_MONIC`; `EMPTY_CHART` |
+| Changed identity, revision, variable order or fiber name | Binding fails; nothing else is checked |
+| Zariski, real-cozero or fppf site; Float or real scalar profile | `UNSUPPORTED_PROFILE` |
+
+The 32 tests also compare reduction with evaluation at rational points of
+two curves, check Newton's identities for the trace, run both computation
+routes on 256 endomorphisms of `A²` and on endomorphisms of `A`, `A³` and
+`A⁴`, and evaluate the projector at rational points of the Stage 5 chart.
+Finite regressions establish observed reference behavior, not universal
+soundness.
+
+### Trust boundary
+
+Nominal IDs are synthetic labels. Comparing them does not authenticate a
+source object, a model law or returned Core. Rewriting both request and
+certificate changes the statement. The API does not authenticate who supplied
+a request, and it does not defend against reflective mutation of Python
+objects. A constructed `Report` is not evidence: a consumer must replay the
+verifier on its own expected subject. Python, `Fraction` and this model
+remain unproved. The bounds on degree, matrix size and exponent are limits
+of the model, not mathematical restrictions on #765.
+
+### Remaining Lean and accepted-Core obligations
+
+These are proposed proof obligations, **not implemented Lean declarations**.
+No `sorry`, custom axiom or success-name string discharges them.
+
+| ID | Obligation |
+| --- | --- |
+| E1 | Give independent semantics of `A[t]/(p)` and its localization on the presented affine algebra of the kernel. Prove that the unit witness implies a standard étale algebra, and connect that definition to Mathlib in the Bridge. |
+| E2 | Prove that a finite chart is faithfully flat over `D(g)`, and prove the exactness of `A[1/g] → C[1/g] ⇉ C[1/g] ⊗ C[1/g]` behind `self_overlap` and `restriction`. |
+| E3 | Prove the spectral identities for every `H` of an admitted size: Jacobi's trace formula, `(tI − H)·adj = χ·I`, the vanishing minors and `adj = q(t, H)`. |
+| E4 | Prove the two trace identities of `verify_resolution` from `W·χ′ = g^e`. |
+| E5 | Specify and prove the image opens and the cover witness of a family of charts, and derive overlaps as fiber products for every ordered pair of charts. |
+| Core1 | Derive each subject from the authenticated environment, base, model, chart or map occurrence and the returned Core. Synthetic matching tags cannot supply these facts. |
+| Core2 | Import the executable kernel checker into the proof-only oracle and compose its result with E1–E5 under the existing Domain Checkers. A proof about a copied checker is insufficient. |
+
+| Layer | Status of this increment |
+| --- | --- |
+| Charts, function descent, trace and spectral identities over `QQ[x_1,…,x_m]` | Python reference with regression tests |
+| Families of charts, cluster splits, quotient or localized bases, modules and objects | Specified in #765; not implemented |
+| Smooth sites and the choice of a branch by order | Outside the profile, as #765 records |
+| Lean soundness and accepted-Core connection | Obligations only; no Lean build or proof claimed |

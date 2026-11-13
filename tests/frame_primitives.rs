@@ -2,10 +2,7 @@
 //! source path, with the emit corpus program `tests/emit_corpus/frame-primitives`.
 //! The frontend parses each form into the binding that the kernel decodes;
 //! these tests capture the wire, check the protocol it selects and submit it
-//! to the kernel. At the frame wire-table commit the kernel decodes every
-//! frame binding and then rejects it, because the validity of the frame
-//! bindings is still a stub, so the acceptance test is ignored until the
-//! frame-primitive lane lands its contracts.
+//! to the kernel, which checks the frame bindings and runs the program.
 mod common;
 use common::{Scratch, assert_wire_rejected, cli, kernel, success};
 use serde_json::{Value, json};
@@ -137,8 +134,6 @@ fn raw_wire_rejects_forged_frame_bindings() {
 /// Once the kernel checks the frame bindings, the program checks, builds and
 /// prints 42: each observation of `main` adds its own power of two.
 #[test]
-#[ignore = "the kernel of the frame wire table rejects every frame binding (validity stub); \
-            re-enable once the frame-primitive lane lands its contracts (#759)"]
 fn frame_program_checks_builds_and_prints_42() {
     let s = package();
     success(

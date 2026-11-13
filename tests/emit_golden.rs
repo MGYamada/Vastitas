@@ -83,11 +83,7 @@ const CASES: &[(&str, &str, u64)] = &[
 /// and covectors in a constant and a polynomial frame, the matrices of a
 /// smooth map in two pairs of frames, a transition, contraction in frames and
 /// the observations (frame-primitives). `frame_lean_matches_the_emit_fixtures`
-/// checks them, apart from `CASES`: the kernel of the frame wire table (the
-/// first commit of the frame-primitive lane) decodes the bindings but rejects
-/// every one, because their validity is still a stub. Until that test is
-/// re-enabled, `-- --include-ignored` after the documented update command
-/// writes its fixture.
+/// checks them, apart from `CASES`.
 const FRAME_CASES: &[(&str, &str, u64)] = &[(
     "frame-primitives",
     "tests/emit_corpus/frame-primitives/Vastitas.toml",
@@ -387,8 +383,6 @@ fn generated_lean_matches_the_emit_fixtures() {
 /// they declare. With `generated_lean_matches_the_emit_fixtures`, every wire
 /// operation is lowered by some fixture.
 #[test]
-#[ignore = "the kernel of the frame wire table rejects every frame binding (validity stub); \
-            re-enable once the frame-primitive lane lands its contracts (#759)"]
 fn frame_lean_matches_the_emit_fixtures() {
     common::prepare_stdlib_package();
     let mut declared = BTreeSet::new();

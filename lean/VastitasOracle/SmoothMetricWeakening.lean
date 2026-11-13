@@ -152,6 +152,12 @@ theorem isTapeFamily_append (id : DeclId) : isTapeFamily big id = isTapeFamily s
 theorem isSmoothFamily_append (id : DeclId) : isSmoothFamily big id = isSmoothFamily small id := by
   view_append isSmoothFamily id
 
+theorem frameData_append (id : DeclId) : frameData? big id = frameData? small id := by
+  view_append frameData? id
+
+theorem frameFamily_append (id : DeclId) : frameFamily? big id = frameFamily? small id := by
+  simp only [frameFamily?, frameData_append ext]
+
 theorem affineGlobal_append (id : DeclId) : affineGlobal big id = affineGlobal small id := by
   rcases ext id with same | ⟨none, declaration, found, kind⟩
   · simp only [affineGlobal, same, affineImplementation_append ext]
@@ -251,7 +257,7 @@ theorem accepts_append (parameter : Indexed.Parameter) (index : Index) :
     parameter.Accepts big index ↔ parameter.Accepts small index := by
   cases parameter <;> cases index <;>
     simp only [Parameter.Accepts, isDomain_append ext, isMarker_append ext, type_append ext,
-      objectTypeValid_append ext, implementations_append ext, domain_append ext]
+      objectTypeValid_append ext, implementations_append ext, domain_append ext, frameFamily_append ext]
 
 theorem constraintHolds_append (indices : List Index) (constraint : Constraint) :
     constraintHolds big indices constraint = constraintHolds small indices constraint := by
@@ -376,7 +382,12 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
       affineData_append ext, affineArity_append ext, plainFiber_append ext, relativeIsoValid_append ext, relativeCartesianValid_append ext,
       isSmoothFamily_append ext, fiberAtValid, fiberEqualValid, fiberPairingValid, cotangentPullbackValid,
       differentialValid, linearizeValid, cotangentBackwardValid, smoothApplyValid, fiberVariance_append ext,
-      isTapeFamily_append ext, smoothDimension_append ext]
+      isTapeFamily_append ext, smoothDimension_append ext,
+      -- The frame entries of Stage 4 reject every binding.
+      FrameRegistry.frameEncode, FrameRegistry.frameDecode, FrameRegistry.frameVector,
+      FrameRegistry.frameMatrix, FrameRegistry.frameTransition, FrameRegistry.frameApply,
+      FrameRegistry.frameCoapply, FrameRegistry.frameCompose, FrameRegistry.framePairing,
+      FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt]
 
 /-- The propositional contract is unchanged as well. -/
 theorem primitiveBindingValid_of_extension {binding : PrimitiveBinding} (free : MetricFree binding) :
@@ -398,7 +409,12 @@ theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List V
     simp only [evalPrimitive, PrimitiveBinding.contract]
     split <;> rfl
   all_goals simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-    PrimitiveDescriptor.evidence, globalObject_append ext, fiberVectorValue_append ext]
+    PrimitiveDescriptor.evidence, globalObject_append ext, fiberVectorValue_append ext,
+    -- The frame entries of Stage 4 evaluate no call.
+    FrameRegistry.frameEncode, FrameRegistry.frameDecode, FrameRegistry.frameVector,
+    FrameRegistry.frameMatrix, FrameRegistry.frameTransition, FrameRegistry.frameApply,
+    FrameRegistry.frameCoapply, FrameRegistry.frameCompose, FrameRegistry.framePairing,
+    FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt]
 
 end Extension
 

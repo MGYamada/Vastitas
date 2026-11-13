@@ -35,6 +35,8 @@ inductive PolyExpr where
 inductive Parameter where
   | domain | marker | natural
   | object (domain : Path)
+  /-- A frame of the family `family` (Stage 4, protocol 9). -/
+  | frame (family : Path)
   deriving Repr, Inhabited
 
 structure Family where
@@ -138,6 +140,23 @@ inductive EvidenceKind where
   | riemannian
   deriving Repr, Inhabited, DecidableEq
 
+/-- A scale monomial before resolution (Stage 4): a constant coefficient
+times a product of powers of scales. -/
+structure ScaleMonomial where
+  coefficient : PolyExpr
+  factors : List (Path × Int)
+  deriving Repr, Inhabited
+
+/-- The Gram matrix of a physical metric before resolution (Stage 4). -/
+inductive PhysicalGram where
+  /-- The identity matrix of the object's dimension. -/
+  | euclidean
+  /-- Rows of scale monomials. -/
+  | gram (rows : List (List ScaleMonomial))
+  /-- One scale per coordinate, by coordinate name. -/
+  | normalized (scales : List (String × Path))
+  deriving Repr, Inhabited
+
 /-- How a declared morphism `X → Y` over `S` is given (Stage 2). -/
 inductive MorphismDefinition where
   /-- The images of `Y`'s coordinates, as polynomials in `X`'s coordinates. -/
@@ -183,6 +202,26 @@ inductive Body where
   | metric (family : Path) (indices : List Path) (gram : MetricGram)
   /-- `evidence name = kind(metric)`: the kernel computes the certificate. -/
   | evidence (metric : Path) (kind : EvidenceKind)
+  /-- `frame name : family<object> = columns(…)` (Stage 4): the columns of
+  `P` as polynomial expressions in the object's coordinates, or `none` for
+  `coordinates`, the coordinate frame, and the declared inverse `Q`, as
+  columns. -/
+  | frame (family : Path) (indices : List Path) (columns : Option (List (List PolyExpr)))
+      (inverse : Option (List (List PolyExpr)))
+  /-- `base_dimension name` (Stage 4). -/
+  | baseDimension
+  /-- `quantity name = dimension` (Stage 4): base dimensions with integer
+  exponents. -/
+  | quantity (dimension : List (Path × Int))
+  /-- `reading name : family<object> = (coordinate: quantity, …)` (Stage 4). -/
+  | reading (family : Path) (indices : List Path) (quantities : List (String × Path))
+  /-- `scale name = magnitude of quantity` (Stage 4): a constant polynomial
+  expression. -/
+  | scale (quantity : Path) (magnitude : PolyExpr)
+  /-- `physical name : family<object> = interpret(metric, reading = reading, entries)`
+  (Stage 4), with the dimension of its terms when declared. -/
+  | physicalMetric (family : Path) (indices : List Path) (metric reading : Path)
+      (value : Option (List (Path × Int))) (entries : PhysicalGram)
   deriving Repr, Inhabited
 
 structure Declaration where

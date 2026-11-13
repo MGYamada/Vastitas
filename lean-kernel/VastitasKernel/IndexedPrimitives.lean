@@ -62,6 +62,14 @@ def refAt (arguments : List ValueType) (position : Position) : Option ObjectRef 
     | _ => none
   | _ => none
 
+/-- The frame at an index of an indexed argument (Stage 4). -/
+def frameIndexAt (arguments : List ValueType) (position : Position) : Option DeclId :=
+  match arguments[position.operand]? with
+  | some (.indexed application) => match application.indices[position.slot]? with
+    | some (.frame frame) => some frame
+    | _ => none
+  | _ => none
+
 /-- The application of an indexed argument. -/
 def applicationAt (arguments : List ValueType) (operand : Nat) : Option Application :=
   match arguments[operand]? with
@@ -74,12 +82,15 @@ def objectAt (arguments : List ValueType) (operand : Nat) : Option (ObjectType �
   | some (.object type ref) => some (type, ref)
   | _ => none
 
-/-- One object reference per slot; fixed slots equal to their reference. -/
+/-- One object reference per object slot and one frame per frame slot; fixed
+slots equal to their reference or frame. -/
 def slotsMatch : List Slot → List Index → Bool
   | [], [] => true
   | .var _ :: slots, .object _ :: indices => slotsMatch slots indices
   | .any :: slots, .object _ :: indices => slotsMatch slots indices
   | .fixed ref _ _ :: slots, .object actual :: indices => ref == actual && slotsMatch slots indices
+  | .frameVar _ :: slots, .frame _ :: indices => slotsMatch slots indices
+  | .fixedFrame frame _ _ :: slots, .frame actual :: indices => frame == actual && slotsMatch slots indices
   | _, _ => false
 
 def operandMatches : Operand → ValueType → Bool
@@ -122,11 +133,20 @@ def _root_.VastitasKernel.Indexed.Relation.holds (env : Environment) (shape : Sh
     | some (.object _ expected), some (actual, _) => decide (actual.Refines env expected)
     | _, _ => false
   | .freshBrand => decide (FreshBrand allowed brand)
+  | .sameFrame first second => match frameIndexAt arguments first, frameIndexAt arguments second with
+    | some expected, some actual => expected == actual
+    | _, _ => false
+  | .frameObject frame object _ => match frameIndexAt arguments frame, refAt arguments object with
+    | some frame, some actual => match frameObject? env frame with
+      | some expected => actual == .global expected
+      | none => false
+    | _, _ => false
 
 def templateSlot (arguments : List ValueType) : TemplateSlot → Option Index
   | .index position => (refAt arguments position).map .object
   | .objectRef operand => (objectAt arguments operand).map fun (_, ref) => .object ref
   | .fixed ref => some (.object ref)
+  | .frameIndex position => (frameIndexAt arguments position).map .frame
 
 def _root_.VastitasKernel.Indexed.ResultTemplate.instantiate (env : Environment) (brand : Nat)
     (arguments : List ValueType) : ResultTemplate → Option ValueType
@@ -167,7 +187,7 @@ def operandLoose (reads : List Nat) (index : Nat) : Operand → ValueType → Bo
   | .object _ _, .object _ _ => true
   | .indexed _ _ slots, .indexed ⟨_, indices⟩ =>
       !reads.contains index ||
-        (indices.length == slots.length && indices.all fun | .object _ => true | _ => false)
+        (indices.length == slots.length && indices.all fun | .object _ | .frame _ => true | _ => false)
   | .application _ _, .indexed _ => true
   | _, _ => false
 
@@ -334,6 +354,41 @@ theorem slotsMatch_fixed_iff {ref : ObjectRef} {field reason : String} {slots : 
   | cons index rest =>
     cases index with
     | object actual =>
+      simp only [slotsMatch, Bool.and_eq_true, beq_iff_eq]
+      constructor
+      · rintro ⟨rfl, matched⟩
+        exact ⟨rest, rfl, matched⟩
+      · rintro ⟨_, equal, matched⟩
+        cases equal
+        exact ⟨rfl, matched⟩
+    | _ => simp [slotsMatch]
+
+theorem slotsMatch_frameVar_iff {field : String} {slots : List Slot} {indices : List Index} :
+    slotsMatch (.frameVar field :: slots) indices = true ↔
+      ∃ frame rest, indices = .frame frame :: rest ∧ slotsMatch slots rest = true := by
+  cases indices with
+  | nil => simp [slotsMatch]
+  | cons index rest =>
+    cases index with
+    | frame frame =>
+      simp only [slotsMatch]
+      constructor
+      · intro matched
+        exact ⟨frame, rest, rfl, matched⟩
+      · rintro ⟨_, _, equal, matched⟩
+        cases equal
+        exact matched
+    | _ => simp [slotsMatch]
+
+theorem slotsMatch_fixedFrame_iff {frame : DeclId} {field reason : String} {slots : List Slot}
+    {indices : List Index} :
+    slotsMatch (.fixedFrame frame field reason :: slots) indices = true ↔
+      ∃ rest, indices = .frame frame :: rest ∧ slotsMatch slots rest = true := by
+  cases indices with
+  | nil => simp [slotsMatch]
+  | cons index rest =>
+    cases index with
+    | frame actual =>
       simp only [slotsMatch, Bool.and_eq_true, beq_iff_eq]
       constructor
       · rintro ⟨rfl, matched⟩

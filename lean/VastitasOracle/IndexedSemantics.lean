@@ -6,6 +6,7 @@ import VastitasOracle.SmoothPrimitives
 import VastitasOracle.SmoothFibers
 import VastitasOracle.SmoothMetricForms
 import VastitasOracle.SmoothJacobian
+import VastitasOracle.FramePrimitives
 import VastitasOracle.IndexedPrimitiveSoundness
 
 /-! Runtime-value obligations for the actual indexed Core and its closed
@@ -66,6 +67,8 @@ theorem indexed_of_worldExtends {env : Indexed.Environment} {before after : Worl
   · intro ref member
     obtain ⟨object, denotes⟩ := typed ref member
     exact ⟨object, denotes_of_worldExtends extension denotes⟩
+  · exact typed
+  · exact typed
   · exact typed
   · exact typed
   · exact typed
@@ -834,6 +837,19 @@ theorem registry_sound : ∀ binding : PrimitiveBinding, Sound binding.contract
     SmoothMetricForms.metricFlat_sound metric object gram tangent cotangent
   | .metricSharp metric evidence object gram inverse cotangent tangent =>
     SmoothMetricForms.metricSharp_sound metric evidence object gram inverse cotangent tangent
+  | .frameEncode variance fiber coords frame => FramePrimitives.frameEncode_sound variance fiber coords frame
+  | .frameDecode variance coords fiber frame => FramePrimitives.frameDecode_sound variance coords fiber frame
+  | .frameVector coords smooth object frame => FramePrimitives.frameVector_sound coords smooth object frame
+  | .frameMatrix smooth map source target => FramePrimitives.frameMatrix_sound smooth map source target
+  | .frameTransition smooth map source target => FramePrimitives.frameTransition_sound smooth map source target
+  | .frameApply map coords => FramePrimitives.frameApply_sound map coords
+  | .frameCoapply map cocoords => FramePrimitives.frameCoapply_sound map cocoords
+  | .frameCompose map => FramePrimitives.frameCompose_sound map
+  | .framePairing cocoords coords => FramePrimitives.framePairing_sound cocoords coords
+  | .frameComponent family index => FramePrimitives.frameComponent_sound family index
+  | .frameEntry map row column => FramePrimitives.frameEntry_sound map row column
+  | .frameEqual family => FramePrimitives.frameEqual_sound family
+  | .frameAt family smooth => FramePrimitives.frameAt_sound family smooth
 
 /-- Every accepted registry operation has a typed runtime value. The only
 world mutation is allocation of a fresh local object brand. Whole-term proofs

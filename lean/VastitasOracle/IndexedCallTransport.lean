@@ -23,6 +23,27 @@ theorem rename_refs (application : Application) (substitution : List (ObjectRef 
     | cons index indices ih =>
       cases index <;> simp_all [Application.rename, Application.refs]
 
+/-- Renaming keeps a frame index (Stage 4). -/
+theorem mapIndexRefs_eq_frame {mapping : ObjectRef → ObjectRef} {index : Index} {frame : DeclId}
+    (equal : mapIndexRefs mapping index = .frame frame) : index = .frame frame := by
+  cases index <;> simp_all [mapIndexRefs]
+
+/-- An application whose renaming has only frame indices has exactly those
+indices: renaming never changes a frame. -/
+theorem renamed_frames {application : Application} {substitution : List (ObjectRef × ObjectRef)}
+    {frames : List DeclId} (shape : (application.rename substitution).indices = frames.map Index.frame) :
+    application.indices = frames.map Index.frame := by
+  rw [rename_indices] at shape
+  generalize application.indices = indices at shape ⊢
+  induction indices generalizing frames with
+  | nil => cases frames <;> simp_all
+  | cons index rest ih =>
+    cases frames with
+    | nil => simp at shape
+    | cons frame frames =>
+      simp only [List.map_cons, List.cons.injEq] at shape ⊢
+      exact ⟨mapIndexRefs_eq_frame shape.1, ih shape.2⟩
+
 theorem token_representation {env : Environment} {world : World} {application : Application}
     (typed : IndexedHasType env world .token application) :
     familyRepresentation env application.family = some .token := by
@@ -94,6 +115,17 @@ theorem indexed_rename_forward {env : Environment} {before after : World}
     obtain ⟨representation, x, y, n, m, indices, hx, hy, tapeTyped⟩ := SmoothFibers.tape_has_type typed
     exact SmoothFibers.tape_typed representation valid
       (by simp [Application.rename, indices, renameRef]) hx hy tapeTyped
+  | frameArray variance value =>
+    -- Frame indices are declarations, which renaming never changes.
+    obtain ⟨representation, frame, object, n, indices, found, dimension, fiberTyped⟩ :=
+      FramePrimitives.frameArray_has_type typed
+    exact FramePrimitives.frameArray_typed (application := application.rename substitution) representation valid
+      (by simp [Application.rename, indices]) found dimension fiberTyped
+  | frameMatrix value =>
+    obtain ⟨representation, source, target, x, y, n, m, indices, hx, hy, dx, dy, matrixTyped⟩ :=
+      FramePrimitives.frameMatrix_has_type typed
+    exact FramePrimitives.frameMatrix_typed (application := application.rename substitution) representation valid
+      (by simp [Application.rename, indices]) hx hy dx dy matrixTyped
 
 theorem renamed_two_objects {application : Application} {substitution : List (ObjectRef × ObjectRef)}
     {first second : ObjectRef} (shape : (application.rename substitution).indices = [.object first, .object second]) :
@@ -188,6 +220,16 @@ theorem indexed_rename_backward {env : Environment} {before after : World}
     simp only [List.cons.injEq, Index.object.injEq, ObjectRef.global.injEq, and_true] at indices
     obtain ⟨rfl, rfl⟩ := indices
     exact SmoothFibers.tape_typed representation valid original hx hy tapeTyped
+  | frameArray variance value =>
+    obtain ⟨representation, frame, object, n, indices, found, dimension, fiberTyped⟩ :=
+      FramePrimitives.frameArray_has_type typed
+    exact FramePrimitives.frameArray_typed (application := application) representation valid
+      (renamed_frames (frames := [frame]) indices) found dimension fiberTyped
+  | frameMatrix value =>
+    obtain ⟨representation, source, target, x, y, n, m, indices, hx, hy, dx, dy, matrixTyped⟩ :=
+      FramePrimitives.frameMatrix_has_type typed
+    exact FramePrimitives.frameMatrix_typed (application := application) representation valid
+      (renamed_frames (frames := [source, target]) indices) hx hy dx dy matrixTyped
 
 theorem package_rename_fixed {env : Declarations} {application : Application}
     (valid : (DataType.package application).Valid env) (substitution : List (ObjectRef × ObjectRef)) :

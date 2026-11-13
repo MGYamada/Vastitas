@@ -33,8 +33,15 @@ instance (env : Environment) (ty : ObjectType) (capability : Capability) : Decid
   unfold ObjectType.Supports
   infer_instance
 
-def familyRepresentation (env : Environment) (id : DeclId) : Option FamilyRepresentation :=
-  match lookup env id with | some (.family family) => some family.representation | _ => none
+/-- A frame as a binding embeds it (Stage 4): the frame declaration, its smooth
+object and its matrix `P` and inverse `Q`, as rows. The audit compares each
+embedded copy with the declaration. -/
+structure FrameRef where
+  frame : DeclId
+  object : DeclId
+  matrix : PolyMatrix
+  inverse : PolyMatrix
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- Explicit bindings to the closed registry. Family/base IDs are part of the
 binding contract; displayed names and arbitrary certificates are not inputs. -/
@@ -109,6 +116,48 @@ inductive PrimitiveBinding where
   the embedded inverse. The embedded Gram matrix identifies the metric. -/
   | metricSharp (metric evidence object : DeclId) (gram inverse : SmoothRuntime.Matrix)
       (cotangent tangent : DeclId)
+  /-- Encoding into the frame `frame` (Stage 4): a vector (`tangent`) or
+  covector (`cotangent`) of the fiber family `fiber` over the frame's object
+  to its coordinates in the frame, of the family `coords` (`Coords<b>` or
+  `CoCoords<b>`): `P(p)⁻¹v`, resp. `P(p)ᵀα`. -/
+  | frameEncode (variance : Variance) (fiber coords : DeclId) (frame : FrameRef)
+  /-- Decoding from the frame `frame`, the inverse of `frameEncode`: the
+  coordinates of the family `coords` to a vector or covector of the fiber
+  family `fiber`: `P(p)a`, resp. `Q(p)ᵀa`. -/
+  | frameDecode (variance : Variance) (coords fiber : DeclId) (frame : FrameRef)
+  /-- Coordinates of the family `coords` in the frame `frame` on `object`,
+  from a point in `smooth` and `dim object` integers. -/
+  | frameVector (coords smooth object frame : DeclId)
+  /-- The matrix of the tangent map of a map `F` in `smooth` at a point, in the
+  frame `source` on its source and `target` on its target:
+  `Q_target(F(p)) · J · P_source(p)`, of the family `map` (`FrameMap<b, c>`). -/
+  | frameMatrix (smooth map : DeclId) (source target : FrameRef)
+  /-- The change of frame from `source` to `target`, two frames on one object,
+  at a point in `smooth`: `⟨p, p, Q_target(p) · P_source(p)⟩`, of the family
+  `map`. -/
+  | frameTransition (smooth map : DeclId) (source target : FrameRef)
+  /-- A map of the family `map` (`FrameMap<b, c>`) applied to coordinates of the
+  family `coords` (`Coords<b>`), giving `Coords<c>`. -/
+  | frameApply (map coords : DeclId)
+  /-- The transpose of a map of the family `map` (`FrameMap<b, c>`) applied to
+  coordinates of the family `cocoords` (`CoCoords<c>`), giving `CoCoords<b>`. -/
+  | frameCoapply (map cocoords : DeclId)
+  /-- The composite of two maps of the family `map`: `FrameMap<c, d>` after
+  `FrameMap<b, c>`, giving `FrameMap<b, d>`. -/
+  | frameCompose (map : DeclId)
+  /-- The pairing of coordinates of `cocoords` (`CoCoords<b>`) with
+  coordinates of `coords` (`Coords<b>`), as a reduced fraction. -/
+  | framePairing (cocoords coords : DeclId)
+  /-- The component `index` of coordinates of `family`, as a reduced fraction. -/
+  | frameComponent (family : DeclId) (index : Nat)
+  /-- The entry in row `row` and column `column` of a map of `map`, as a
+  reduced fraction. -/
+  | frameEntry (map : DeclId) (row column : Nat)
+  /-- Equality of two coordinate arrays, or of two maps, of `family`. The
+  failure value equals nothing. -/
+  | frameEqual (family : DeclId)
+  /-- Whether coordinates of `family` lie over a point in `smooth`. -/
+  | frameAt (family smooth : DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 def isRelativeFamily (env : Environment) (family : DeclId) : Bool :=

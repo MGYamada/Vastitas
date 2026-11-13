@@ -22,19 +22,21 @@ namespace VastitasOracle.IndexedAssociations
 open VastitasKernel VastitasKernel.Indexed
 
 /-- The simp set that evaluates a derived association at one constructor and
-one operand list. -/
-local syntax "association_simp" : tactic
-local macro_rules
+one operand list. It and the operand tactics below are scoped, so that a module
+that opens this namespace states the association and shape lemmas of its own
+bindings with them. -/
+scoped syntax "association_simp" : tactic
+scoped macro_rules
   | `(tactic| association_simp) => `(tactic| simp only [PrimitiveAssociation, Shape.Association,
       PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, PrimitiveDescriptor.evidence, Shape.accepts,
       Shape.operandsMatch,
       Shape.operandMatches, Shape.slotsMatch, Shape.tailMatches_none_iff, Shape.tailMatches_some_iff,
-      Relation.holds, Shape.refAt, Shape.applicationAt, Shape.objectAt, ResultTemplate.instantiate,
-      Shape.templateSlot, List.forall_mem_cons, List.not_mem_nil, false_implies, implies_true,
+      Relation.holds, Shape.refAt, Shape.frameIndexAt, Shape.applicationAt, Shape.objectAt,
+      ResultTemplate.instantiate, Shape.templateSlot, List.forall_mem_cons, List.not_mem_nil, false_implies, implies_true,
       List.getElem?_cons_zero, List.getElem?_cons_succ, List.getElem?_nil, List.mapM_cons, List.mapM_nil,
       Option.bind_eq_bind, Option.bind_some, Option.map_some, Option.pure_def, Option.some.injEq,
       Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq, true_and, and_true, Bool.true_eq,
-      ValueType.indexed.injEq, Application.mk.injEq, List.cons.injEq, Index.object.injEq,
+      ValueType.indexed.injEq, Application.mk.injEq, List.cons.injEq, Index.object.injEq, Index.frame.injEq,
       ObjectRef.global.injEq, Option.isSome_some, Option.isSome_none, and_assoc])
 
 /-! ## Objects, points and morphisms -/
@@ -317,7 +319,7 @@ operands are the integer tail. -/
 
 /-- Reads one operand off a match `h : operandsMatch … (operand :: operands) arguments = true`:
 the argument `a`, its match `m`, and `h` for the rest. -/
-local macro "operand_cons" a:ident m:ident h:ident : tactic =>
+scoped macro "operand_cons" a:ident m:ident h:ident : tactic =>
   `(tactic| (obtain ⟨$a:ident, _, equal, $m:ident, next⟩ := Shape.operandsMatch_cons_iff.mp $h
              clear $h
              subst equal
@@ -325,40 +327,56 @@ local macro "operand_cons" a:ident m:ident h:ident : tactic =>
              clear next))
 /-- Ends the operands of a shape without a tail: `h : operandsMatch … [] arguments = true`
 substitutes the empty list. -/
-local macro "operands_end" h:ident : tactic =>
+scoped macro "operands_end" h:ident : tactic =>
   `(tactic| (obtain equal := Shape.tailMatches_none_iff.mp (Shape.operandsMatch_nil_iff.mp $h); subst equal))
 /-- Reads an indexed operand off its match `m`: the indices `i` and their slot match `s`. -/
-local macro "indexed_operand" i:ident s:ident m:ident : tactic =>
+scoped macro "indexed_operand" i:ident s:ident m:ident : tactic =>
   `(tactic| (obtain ⟨$i:ident, equal, $s:ident⟩ := Shape.operandMatches_indexed_iff.mp $m; clear $m; subst equal))
 /-- Reads a whole-application operand off its match `m`: the application `app`. -/
-local macro "application_operand" app:ident m:ident : tactic =>
+scoped macro "application_operand" app:ident m:ident : tactic =>
   `(tactic| (obtain ⟨$app:ident, equal, _⟩ := Shape.operandMatches_application_iff.mp $m; clear $m; subst equal))
 /-- Reads an object operand off its match `m`: its type `ty` and reference `r`. -/
-local macro "object_operand" ty:ident r:ident m:ident : tactic =>
+scoped macro "object_operand" ty:ident r:ident m:ident : tactic =>
   `(tactic| (obtain ⟨$ty:ident, $r:ident, equal⟩ := Shape.operandMatches_object_iff.mp $m; clear $m; subst equal))
 /-- Reads a free slot off a slot match `s`: the reference `r`, and `s` for the rest. -/
-local macro "slot_var" r:ident s:ident : tactic =>
+scoped macro "slot_var" r:ident s:ident : tactic =>
   `(tactic| (obtain ⟨$r:ident, _, equal, next⟩ := Shape.slotsMatch_var_iff.mp $s
              clear $s
              subst equal
              have $s:ident := next
              clear next))
 /-- Reads an ignored slot off a slot match `s`: the reference `r`, and `s` for the rest. -/
-local macro "slot_any" r:ident s:ident : tactic =>
+scoped macro "slot_any" r:ident s:ident : tactic =>
   `(tactic| (obtain ⟨$r:ident, _, equal, next⟩ := Shape.slotsMatch_any_iff.mp $s
              clear $s
              subst equal
              have $s:ident := next
              clear next))
 /-- Reads a fixed slot off a slot match `s`, substituting its reference; `s` for the rest. -/
-local macro "slot_fixed" s:ident : tactic =>
+scoped macro "slot_fixed" s:ident : tactic =>
   `(tactic| (obtain ⟨_, equal, next⟩ := Shape.slotsMatch_fixed_iff.mp $s
              clear $s
              subst equal
              have $s:ident := next
              clear next))
+/-- Reads a frame slot off a slot match `s` (Stage 4): the frame `f`, and `s`
+for the rest. -/
+scoped macro "slot_frame" f:ident s:ident : tactic =>
+  `(tactic| (obtain ⟨$f:ident, _, equal, next⟩ := Shape.slotsMatch_frameVar_iff.mp $s
+             clear $s
+             subst equal
+             have $s:ident := next
+             clear next))
+/-- Reads a fixed frame slot off a slot match `s` (Stage 4), substituting its
+frame; `s` for the rest. -/
+scoped macro "slot_fixed_frame" s:ident : tactic =>
+  `(tactic| (obtain ⟨_, equal, next⟩ := Shape.slotsMatch_fixedFrame_iff.mp $s
+             clear $s
+             subst equal
+             have $s:ident := next
+             clear next))
 /-- Ends the slots: `s : slotsMatch [] indices = true` substitutes the empty list. -/
-local macro "slots_end" s:ident : tactic => `(tactic| (obtain equal := Shape.slotsMatch_nil_iff.mp $s; subst equal))
+scoped macro "slots_end" s:ident : tactic => `(tactic| (obtain equal := Shape.slotsMatch_nil_iff.mp $s; subst equal))
 
 /-- The reference at a position whose dimension the shape fixes is a global
 object when that relation holds. -/

@@ -1,8 +1,14 @@
-import VastitasKernel.Indexed
+import VastitasKernel.FrameDeclarations
+import VastitasKernel.NatureDimension
 
 /-! The validity of indexed declaration entries (`Entry.Valid`, `validEntry`)
 and of the whole declaration environment (`Environment.Valid`,
-`validEnvironment`), over the data model of `Indexed`. -/
+`validEnvironment`), over the data model of `Indexed`.
+
+The checks of the frame declarations (`FrameDeclarations`) and of the nature
+declarations (`NatureDimension`) of Stage 4 (#759) read the environment
+through the views of `Indexed`, so this module imports them and they import
+`Indexed`. -/
 namespace VastitasKernel.Indexed
 
 /-- A presented object: its implementation is a presented representation, its
@@ -74,6 +80,14 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
   | .smoothAffine implementation coordinates => validSmoothAffine env implementation coordinates = true
   | .metric family object gram => validMetric env family object gram = true
   | .metricEvidence metric evidence => validMetricEvidence env metric evidence = true
+  | .frame family object matrix inverse =>
+      FrameDeclarations.checkFrame env family object matrix inverse = true
+  | .baseDimension => NatureDimension.checkBaseDimension env = true
+  | .quantity dimension => NatureDimension.checkQuantity env dimension = true
+  | .reading family object quantities => NatureDimension.checkReading env family object quantities = true
+  | .scale quantity magnitude => NatureDimension.checkScale env quantity magnitude = true
+  | .physicalMetric family object metric reading value entries =>
+      NatureDimension.checkPhysicalMetric env family object metric reading value entries = true
 
 /-- A separately structured executable parent check, avoiding unbounded search
 for a classification record in the finite validation procedure. -/
@@ -102,6 +116,13 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
   | .smoothAffine implementation coordinates => validSmoothAffine env implementation coordinates
   | .metric family object gram => validMetric env family object gram
   | .metricEvidence metric evidence => validMetricEvidence env metric evidence
+  | .frame family object matrix inverse => FrameDeclarations.checkFrame env family object matrix inverse
+  | .baseDimension => NatureDimension.checkBaseDimension env
+  | .quantity dimension => NatureDimension.checkQuantity env dimension
+  | .reading family object quantities => NatureDimension.checkReading env family object quantities
+  | .scale quantity magnitude => NatureDimension.checkScale env quantity magnitude
+  | .physicalMetric family object metric reading value entries =>
+      NatureDimension.checkPhysicalMetric env family object metric reading value entries
 
 structure Environment.Valid (env : Environment) : Prop where
   bounded : env.length ≤ 4096

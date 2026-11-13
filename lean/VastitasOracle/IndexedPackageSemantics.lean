@@ -157,6 +157,34 @@ theorem tape_field_transport {env : Environment} {before after : World}
   rw [instantiate_global_fixed newLocal field (by rw [indices]; simp)]
   exact SmoothFibers.tape_world typed
 
+/-- No bound index instantiates to a frame index (Stage 4): a package field
+never names a frame. -/
+theorem map_instantiate_ne_frame (witness : ObjectRef) (indices : List BoundIndex) (frame : DeclId)
+    (rest : List Index) : indices.map (BoundIndex.instantiate witness) ≠ .frame frame :: rest := by
+  cases indices with
+  | nil => simp
+  | cons index indices => cases index <;> simp [BoundIndex.instantiate]
+
+/-- A frame array never has the type of a package field. -/
+theorem frameArray_field_untyped {env : Environment} {world : World} (field : BoundApplication)
+    {old : ObjectRef} {variance : Variance} {value : VastitasKernel.SmoothRuntime.FiberValue}
+    (typed : IndexedHasType env world (.frameArray variance value) (field.instantiate old)) : False := by
+  obtain ⟨_, typed⟩ := typed
+  have shape := map_instantiate_ne_frame old field.indices
+  revert typed
+  simp only [BoundApplication.instantiate]
+  split <;> simp_all
+
+/-- A frame map never has the type of a package field. -/
+theorem frameMatrix_field_untyped {env : Environment} {world : World} (field : BoundApplication)
+    {old : ObjectRef} {value : VastitasKernel.FrameRuntime.FrameMatrixValue}
+    (typed : IndexedHasType env world (.frameMatrix value) (field.instantiate old)) : False := by
+  obtain ⟨_, typed⟩ := typed
+  have shape := map_instantiate_ne_frame old field.indices
+  revert typed
+  simp only [BoundApplication.instantiate]
+  split <;> simp_all
+
 theorem bound_field_transport {env : Environment} {before after : World}
     (envValid : env.Valid) {old new : ObjectRef} {witness : Object} (newLocal : new.isLocal = true)
     (oldDenotes : RefDenotes env before old witness) (newDenotes : RefDenotes env after new witness)
@@ -202,6 +230,8 @@ theorem bound_field_transport {env : Environment} {before after : World}
   | smooth program => exact smooth_field_transport envValid newLocal field program valid typed
   | fiber variance fiber => exact fiber_field_transport envValid newLocal field fiber valid typed
   | tape tape => exact tape_field_transport envValid newLocal field tape valid typed
+  | frameArray _ _ => exact (frameArray_field_untyped field typed).elim
+  | frameMatrix _ => exact (frameMatrix_field_untyped field typed).elim
 
 theorem bound_fields_transport {env : Environment} {before after : World}
     (envValid : env.Valid) {old new : ObjectRef} {witness : Object} (newLocal : new.isLocal = true)

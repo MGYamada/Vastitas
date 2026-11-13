@@ -25,12 +25,16 @@ def objectType (j : Json) : Except String Source.ObjectType := do
   fields j ["domain", "marker"]
   return ⟨← path (← field j "domain"), ← path (← field j "marker")⟩
 
-def parameter (j : Json) : Except String Source.Parameter := do
+def parameter (j : Json) (algebraic : Bool := false) : Except String Source.Parameter := do
   match ← str j "kind" with
   | "domain" => fields j ["kind"]; return .domain
   | "marker" => fields j ["kind"]; return .marker
   | "natural" => fields j ["kind"]; return .natural
   | "object" => fields j ["kind", "domain"]; return .object (← path (← field j "domain"))
+  | "frame" =>
+    unless algebraic do throw "frame declarations require protocol 9"
+    fields j ["kind", "family"]
+    return .frame (← path (← field j "family"))
   | _ => throw "unknown indexed parameter kind"
 
 def constraint (j : Json) (algebraic : Bool := false) : Except String Constraint := do
@@ -252,6 +256,24 @@ def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String 
   | "metric_form" =>
     unless algebraic do throw "metric declarations require protocol 9"
     return .metricForm
+  | "frame" =>
+    unless algebraic do throw "frame declarations require protocol 9"
+    return .frame
+  | "frame_vector" =>
+    unless algebraic do throw "frame declarations require protocol 9"
+    return .frameFiber .tangent
+  | "frame_covector" =>
+    unless algebraic do throw "frame declarations require protocol 9"
+    return .frameFiber .cotangent
+  | "frame_map" =>
+    unless algebraic do throw "frame declarations require protocol 9"
+    return .frameMap
+  | "reading" =>
+    unless algebraic do throw "physical dimension declarations require protocol 9"
+    return .reading
+  | "physical_metric" =>
+    unless algebraic do throw "physical dimension declarations require protocol 9"
+    return .physicalMetric
   | _ => throw "unsupported indexed family representation"
 
 /-- The Gram matrix of a metric: `euclidean`, or rows of polynomial
@@ -271,6 +293,91 @@ def evidenceKind (j : Json) : Except String Source.EvidenceKind := do
   | "riemannian" => return .riemannian
   | _ => throw "evidence is nondegenerate or riemannian"
 
+/-! ### Frames and physical dimensions (Stage 4, #759; protocol 9 only) -/
+
+/-- Rows of polynomial expressions under `name`: the columns of a frame. -/
+def polyRows (j : Json) (name : String) : Except String (List (List Source.PolyExpr)) := do
+  (← array j name).mapM fun row => do (← row.getArr?).toList.mapM (polyExpr Limits.algebraNesting)
+
+/-- The columns of a frame: `coordinates`, the coordinate frame (`none`), or
+explicit columns. -/
+def frameColumns (j : Json) : Except String (Option (List (List Source.PolyExpr))) := do
+  match ← str j "kind" with
+  | "coordinates" => fields j ["kind"]; return none
+  | "columns" => fields j ["kind", "columns"]; return some (← polyRows j "columns")
+  | _ => throw "the columns of a frame are coordinates or explicit columns"
+
+/-- The declared inverse of a frame: `null`, or explicit columns. The kernel
+computes the inverse of a constant frame; a frame polynomial in the point
+declares it. -/
+def frameInverse (j : Json) : Except String (Option (List (List Source.PolyExpr))) := do
+  match j with
+  | .null => return none
+  | value =>
+    match ← str value "kind" with
+    | "columns" => fields value ["kind", "columns"]; return some (← polyRows value "columns")
+    | _ => throw "the inverse of a frame is null or explicit columns"
+
+/-- An integer exponent: a decimal string with an optional leading `-` and at
+most `algebraCoefficientDigits` digits. The length is bounded before the
+string is read. -/
+def exponent (text : String) : Except String Int := do
+  if text.length > Limits.algebraCoefficientDigits + 1 then
+    throw s!"an exponent has at most {Limits.algebraCoefficientDigits} decimal digits"
+  let (negative, digits) := if text.startsWith "-" then (true, (text.drop 1).toString) else (false, text)
+  if digits.isEmpty || !digits.toList.all (fun c => '0' ≤ c && c ≤ '9') then
+    throw "an exponent is a decimal string with an optional leading `-`"
+  if digits.length > Limits.algebraCoefficientDigits then
+    throw s!"an exponent has at most {Limits.algebraCoefficientDigits} decimal digits"
+  match digits.toNat? with
+  | some n => return if negative then -(n : Int) else n
+  | none => throw "an exponent is a decimal string with an optional leading `-`"
+
+/-- One factor of a physical dimension: a base dimension and its exponent. -/
+def dimensionFactor (j : Json) : Except String (Source.Path × Int) := do
+  fields j ["base", "exponent"]
+  return (← path (← field j "base"), ← exponent (← str j "exponent"))
+
+/-- The quantity of one coordinate of a reading. -/
+def coordinateQuantity (j : Json) : Except String (String × Source.Path) := do
+  fields j ["coordinate", "quantity"]
+  return (← str j "coordinate", ← path (← field j "quantity"))
+
+/-- The scale of one coordinate of a normalized physical metric. -/
+def coordinateScale (j : Json) : Except String (String × Source.Path) := do
+  fields j ["coordinate", "scale"]
+  return (← str j "coordinate", ← path (← field j "scale"))
+
+/-- One factor of a scale monomial: a scale and its exponent. -/
+def scaleFactor (j : Json) : Except String (Source.Path × Int) := do
+  fields j ["scale", "exponent"]
+  return (← path (← field j "scale"), ← exponent (← str j "exponent"))
+
+/-- A constant coefficient times powers of scales. -/
+def scaleMonomial (j : Json) : Except String Source.ScaleMonomial := do
+  fields j ["coefficient", "factors"]
+  return ⟨← polyExpr Limits.algebraNesting (← field j "coefficient"), ← (← array j "factors").mapM scaleFactor⟩
+
+/-- The Gram matrix of a physical metric: `euclidean`, rows of scale
+monomials, or one scale per coordinate. -/
+def physicalGram (j : Json) : Except String Source.PhysicalGram := do
+  match ← str j "kind" with
+  | "euclidean" => fields j ["kind"]; return .euclidean
+  | "gram" =>
+    fields j ["kind", "rows"]
+    return .gram (← (← array j "rows").mapM fun row => do (← row.getArr?).toList.mapM scaleMonomial)
+  | "normalized" =>
+    fields j ["kind", "scales"]
+    return .normalized (← (← array j "scales").mapM coordinateScale)
+  | _ => throw "a physical Gram matrix is euclidean, explicit rows of scale monomials or normalized"
+
+/-- The declared dimension of the terms of a physical metric: `null`, or a
+dimension. -/
+def dimensionValue (j : Json) : Except String (Option (List (Source.Path × Int))) := do
+  match j with
+  | .null => return none
+  | value => return some (← (← value.getArr?).toList.mapM dimensionFactor)
+
 def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
     Except String Source.Body := do
   let common := ["kind", "name", "public", "span"]
@@ -289,7 +396,7 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     return .global (← path (← field j "implementation"))
   | "family" =>
     fields j (common ++ ["parameters", "constraints", "representation"])
-    return .family ⟨← (← array j "parameters").mapM parameter,
+    return .family ⟨← (← array j "parameters").mapM (parameter · algebraic),
       ← (← array j "constraints").mapM (constraint · algebraic),
       ← familyRepresentation (← field j "representation") algebraic⟩
   | "package" => fields j (common ++ ["cases"]); return .package (← (← array j "cases").mapM packageShape)
@@ -338,6 +445,34 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     unless algebraic do throw "metric declarations require protocol 9"
     fields j (common ++ ["metric", "evidence"])
     return .evidence (← path (← field j "metric")) (← evidenceKind (← field j "evidence"))
+  | "frame" =>
+    unless algebraic do throw "frame declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "columns", "inverse"])
+    return .frame (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← frameColumns (← field j "columns")) (← frameInverse (← field j "inverse"))
+  | "base_dimension" =>
+    unless algebraic do throw "physical dimension declarations require protocol 9"
+    fields j common
+    return .baseDimension
+  | "quantity" =>
+    unless algebraic do throw "physical dimension declarations require protocol 9"
+    fields j (common ++ ["dimension"])
+    return .quantity (← (← array j "dimension").mapM dimensionFactor)
+  | "reading" =>
+    unless algebraic do throw "physical dimension declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "quantities"])
+    return .reading (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← (← array j "quantities").mapM coordinateQuantity)
+  | "scale" =>
+    unless algebraic do throw "physical dimension declarations require protocol 9"
+    fields j (common ++ ["quantity", "magnitude"])
+    return .scale (← path (← field j "quantity")) (← polyExpr Limits.algebraNesting (← field j "magnitude"))
+  | "physical_metric" =>
+    unless algebraic do throw "physical dimension declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "metric", "reading", "value", "entries"])
+    return .physicalMetric (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← path (← field j "metric")) (← path (← field j "reading")) (← dimensionValue (← field j "value"))
+      (← physicalGram (← field j "entries"))
   | "affine" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     fields j (common ++ ["implementation", "generators", "relations", "base", "bindings"])

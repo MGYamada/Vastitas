@@ -1,8 +1,8 @@
 import VastitasKernel.IndexedTypeAudit
 
 /-! Native lowering of the independently audited declaration-driven Core.
-Generated modules import IndexedRuntime, and AlgebraRuntime or SmoothRuntime
-only when they use them. Names and representation choices come from numeric
+Generated modules import IndexedRuntime, and AlgebraRuntime, SmoothRuntime or
+FrameRuntime only when they use them. Names and representation choices come from numeric
 positions and validated contracts, never source spellings. The text of a
 primitive call comes from the registry entry of its binding
 (`PrimitiveBinding.contract`), in the vocabulary of `Lowering`. The literals
@@ -14,7 +14,7 @@ them. A call names such a literal, so the size of a module does not grow by a
 literal per call. -/
 namespace VastitasKernel.Indexed.Core.Codegen
 open Typing
-open VastitasKernel.Indexed.Lowering (runtime algebra smooth application literalType literalValue)
+open VastitasKernel.Indexed.Lowering (runtime algebra smooth frame application literalType literalValue)
 
 /-- The primitives that a term calls, once per call. -/
 private def primitiveIds : Term → List DeclId
@@ -61,8 +61,11 @@ private def renderType (env : Declarations) : DataType → Except String String
         | .token => "Unit" | .point => runtime "Point" | .morphism => runtime "Morphism"
         | .relative => algebra "Map" | .smooth => smooth "Program"
         | .fiber _ => s!"(Option {smooth "Fiber"})" | .tape => smooth "Tape"
-        -- No value has a metric form type.
-        | .metricForm => "Unit")
+        -- No value has a metric form, frame, reading or physical metric type.
+        | .metricForm | .frame | .reading | .physicalMetric => "Unit"
+        -- The coordinates of a vector or covector in a frame are a fiber.
+        | .frameFiber _ => s!"(Option {smooth "Fiber"})"
+        | .frameMap => frame "FrameMatrixValue")
     | _ => .error "indexed family missing from checked declarations"
   | .package application => do
       let some entry := (packageCases env).zipIdx.find? fun entry => entry.1.1 == application
@@ -154,13 +157,16 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
     (ctx.name? literal).map fun name => s!"def {name} : {literalType literal} :=\n  {literalValue ctx literal}\n"
   let (bases, calledLiterals) := ctx.literals.partition (· matches .basis _)
   let literalDefinitions := declare calledLiterals
-  -- Only programs that use exact algebra or smooth programs import those runtimes.
+  -- Only programs that use exact algebra, smooth programs or frame matrices
+  -- import those runtimes.
   let texts := literalDefinitions ++ packages ++ functions
   let usesAlgebra := texts.any fun text => (text.splitOn (algebra "")).length > 1
   let usesSmooth := texts.any fun text => (text.splitOn (smooth "")).length > 1
+  let usesFrame := texts.any fun text => (text.splitOn (frame "")).length > 1
   let imports := "import VastitasKernel.IndexedRuntime\n" ++
     (if usesAlgebra then "import VastitasKernel.AlgebraRuntime\n" else "") ++
-    (if usesSmooth then "import VastitasKernel.SmoothRuntime\n" else "")
+    (if usesSmooth then "import VastitasKernel.SmoothRuntime\n" else "") ++
+    (if usesFrame then "import VastitasKernel.FrameRuntime\n" else "")
   -- A map names its basis, so the bases come first.
   let basisDefinitions := if usesAlgebra then declare bases else []
   return imports ++ "\nset_option maxRecDepth 32768\n" ++

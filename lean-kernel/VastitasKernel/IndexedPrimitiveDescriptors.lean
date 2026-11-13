@@ -112,6 +112,7 @@ namespace Lowering
 def runtime (name : String) : String := "VastitasKernel.IndexedRuntime." ++ name
 def algebra (name : String) : String := "VastitasKernel.AlgebraRuntime." ++ name
 def smooth (name : String) : String := "VastitasKernel.SmoothRuntime." ++ name
+def frame (name : String) : String := "VastitasKernel.FrameRuntime." ++ name
 
 /-- `(name arg₁ … argₙ)`. -/
 def application (name : String) (args : List String) : String :=

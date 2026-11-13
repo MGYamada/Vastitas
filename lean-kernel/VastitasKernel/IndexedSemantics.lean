@@ -41,6 +41,14 @@ def FiberTyped (dimension : Nat) : SmoothRuntime.FiberValue → Prop
   | none => True
   | some fiber => fiber.point.length = dimension ∧ fiber.components.length = dimension
 
+/-- The matrix of a linear map `ℝⁿ → ℝᵐ` between tangent fibers in two frames
+(Stage 4): the failure value, or a source point with `n` coordinates, a target
+point with `m` coordinates and `m` rows of `n` entries. -/
+def FrameMatrixTyped (source target : Nat) : FrameRuntime.FrameMatrixValue → Prop
+  | none => True
+  | some matrix => matrix.source.length = source ∧ matrix.target.length = target ∧
+      matrix.entries.length = target ∧ ∀ row ∈ matrix.entries, row.length = source
+
 /-- The residual relation of a tape `ℝⁿ → ℝᵐ`: it is the forward record of a
 program checked as `ℝⁿ → ℝᵐ` at a point with `n` coordinates. -/
 def TapeTyped (source target : Nat) (tape : SmoothRuntime.Tape) : Prop :=
@@ -66,6 +74,13 @@ def IndexedHasType (env : Indexed.Environment) (world : World)
   | .tape tape, some .tape, [.object (.global source), .object (.global target)] =>
       ∃ n m, smoothDimension? env source = some n ∧ smoothDimension? env target = some m ∧
         TapeTyped n m tape
+  -- Frame arrays and maps (Stage 4). A fiber value never has a frame type.
+  | .frameArray variance value, some (.frameFiber variance'), [.frame frame] =>
+      variance = variance' ∧ ∃ object n, frameObject? env frame = some object ∧
+        smoothDimension? env object = some n ∧ FiberTyped n value
+  | .frameMatrix value, some .frameMap, [.frame source, .frame target] =>
+      ∃ x y n m, frameObject? env source = some x ∧ frameObject? env target = some y ∧
+        smoothDimension? env x = some n ∧ smoothDimension? env y = some m ∧ FrameMatrixTyped n m value
   | _, _, _ => False
 
 def FieldsHaveTypes (env : Indexed.Environment) (world : World) : List IndexedValue → List Application → Prop

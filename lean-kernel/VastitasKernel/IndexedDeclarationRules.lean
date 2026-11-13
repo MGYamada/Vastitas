@@ -30,7 +30,7 @@ def objectTypeText (type : Indexed.ObjectType) : String := s!"{qualified type.do
 /-- An indexed type as a diagnostic writes it: the family and its arguments. -/
 def applicationLabel (application : Application) : String :=
   let index : Index → String
-    | .domain id | .marker id | .object (.global id) => id.name
+    | .domain id | .marker id | .object (.global id) | .frame id => id.name
     | .object (.local type _) => s!"{type.domain.name}<{type.marker.name}>"
     | .natural value => toString value
   s!"{application.family.name}<{String.intercalate ", " (application.indices.map index)}>"
@@ -40,6 +40,7 @@ def parameterText : Indexed.Parameter → String
   | .marker => "marker"
   | .natural => "natural"
   | .object id => s!"object({qualified id})"
+  | .frame family => s!"frame({qualified family})"
 
 def constraintText : Constraint → String
   | .sameObject left right => s!"same_object({left}, {right})"
@@ -58,6 +59,12 @@ def representationText : FamilyRepresentation → String
   | .fiber .cotangent => "cotangent"
   | .tape => "tape"
   | .metricForm => "metric_form"
+  | .frame => "frame"
+  | .frameFiber .tangent => "frame_vector"
+  | .frameFiber .cotangent => "frame_covector"
+  | .frameMap => "frame_map"
+  | .reading => "reading"
+  | .physicalMetric => "physical_metric"
 
 def boundIndexText : Indexed.BoundIndex → String
   | .witness => "witness"
@@ -155,16 +162,22 @@ def familyRule (env : Environment) (entry : Entry) : Option Rule := do
   let count := contract.parameters.length
   if count > 16 then
     return ("E_LIMIT", s!"the family `{name}` has {count} parameters, more than the limit of 16")
-  if let some (.object id, position) := contract.parameters.zipIdx.find? (fun (parameter, _) =>
-      !decide (parameter.Valid env)) then
+  match contract.parameters.zipIdx.find? (fun (parameter, _) => !decide (parameter.Valid env)) with
+  | some (.object id, position) =>
     return ("E_TYPE", s!"the parameter `object({qualified id})` at position {position} of the family `{name}` " ++
       "must name a classification or an implementation")
+  | some (.frame family, position) =>
+    return ("E_TYPE", s!"the parameter `frame({qualified family})` at position {position} of the family `{name}` " ++
+      "must name a family with the representation `frame`")
+  | _ => pure ()
   if let some constraint := contract.constraints.find? (fun constraint =>
       !decide (constraint.WellFormed contract.parameters)) then
     return ("E_TYPE", s!"the constraint `{constraintText constraint}` of the family `{name}` " ++
       wellFormedRule constraint)
   let objects (expected : Nat) : Bool :=
     count == expected && contract.parameters.all fun | .object _ => true | _ => false
+  let frames (expected : Nat) : Bool :=
+    count == expected && contract.parameters.all fun | .frame _ => true | _ => false
   let shape (parameters : String) : Option Rule :=
     some ("E_TYPE", s!"the `{form}` family `{name}` must have {parameters}")
   let implementationsOf (representation : String) (holds : DeclId → Bool) : Option Rule :=
@@ -188,10 +201,18 @@ def familyRule (env : Environment) (entry : Entry) : Option Rule := do
     else if contract.constraints != [.canonical 0, .canonical 1] then
       shape "exactly the constraints `canonical(0), canonical(1)`"
     else implementationsOf "smooth_affine" (smoothImplementation env)
-  | .fiber _ | .metricForm =>
+  | .fiber _ | .metricForm | .frame | .reading | .physicalMetric =>
     if !objects 1 then shape "exactly one parameter, of the form `object(…)`"
     else if contract.constraints != [.canonical 0] then shape "exactly the constraint `canonical(0)`"
     else implementationsOf "smooth_affine" (smoothImplementation env)
+  | .frameFiber _ =>
+    if !frames 1 then shape "exactly one parameter, of the form `frame(…)`"
+    else if !contract.constraints.isEmpty then shape "no constraints"
+    else none
+  | .frameMap =>
+    if !frames 2 then shape "exactly two parameters, both `frame(…)`"
+    else if !contract.constraints.isEmpty then shape "no constraints"
+    else none
 
 /-- The rule of `NamedPackage.Valid` that an invalid package declaration breaks. -/
 def packageRule (env : Environment) (declaration : Core.NamedPackage) : Option Rule := do

@@ -37,7 +37,7 @@ def objectLabel (env : Core.Declarations) (geometry : Option (GeometryProfile De
 
 def indexLabel (env : Core.Declarations) (geometry : Option (GeometryProfile DeclId))
     (origins : Origins) : Index → String
-  | .domain id | .marker id => id.name
+  | .domain id | .marker id | .frame id => id.name
   | .natural value => toString value
   | .object reference => objectLabel env geometry origins reference
 
@@ -98,11 +98,15 @@ inductive RoleRequirement where
   /-- Every implementation in the domain of the `role` operand's type `actual`
   must lie in the domain of `expected`. -/
   | domain (role : String) (reference : ObjectRef) (expected actual : Indexed.ObjectType)
+  /-- The `field` index of the `role` operand must be the frame `expected`
+  (Stage 4); `reason` names the operand or declaration that fixes it. -/
+  | frame (role field : String) (expected actual : DeclId) (reason : String)
   deriving Repr, Inhabited, DecidableEq
 
 def RoleRequirement.holds (env : Environment) : RoleRequirement → Bool
   | .family _ expected actual => expected == actual
   | .object _ _ expected actual _ => expected == actual
+  | .frame _ _ expected actual _ => expected == actual
   | .marker _ _ expected actual => expected == actual
   | .domain _ _ expected actual =>
     decide (∀ id ∈ actual.implementations env, id ∈ expected.implementations env)
@@ -128,6 +132,8 @@ def roleField (shape : Shape) (position : Position) : Option (String × String) 
   | some (.indexed role _ slots) => match slots[position.slot]? with
     | some (.var field) => some (role, field)
     | some (.fixed _ field _) => some (role, field)
+    | some (.frameVar field) => some (role, field)
+    | some (.fixedFrame _ field _) => some (role, field)
     | _ => none
   | _ => none
 
@@ -149,6 +155,8 @@ def familyRequirements : List Operand → List ValueType → List RoleRequiremen
 def fixedSlotRequirements (role : String) : List Slot → List Index → List RoleRequirement
   | .fixed ref field reason :: slots, .object actual :: indices =>
       .object role field ref actual reason :: fixedSlotRequirements role slots indices
+  | .fixedFrame frame field reason :: slots, .frame actual :: indices =>
+      .frame role field frame actual reason :: fixedSlotRequirements role slots indices
   | _ :: slots, _ :: indices => fixedSlotRequirements role slots indices
   | _, _ => []
 
@@ -198,6 +206,18 @@ def _root_.VastitasKernel.Indexed.Relation.requirement (env : Environment) (shap
       [.marker role ref expected.marker actual.marker, .domain role ref expected actual]
     | _, _ => []
   | .freshBrand => []
+  | .sameFrame first second =>
+    match shape.roleField first, shape.roleField second, frameIndexAt arguments first,
+        frameIndexAt arguments second with
+    | some (firstRole, firstField), some (secondRole, secondField), some expected, some actual =>
+      [.frame secondRole secondField expected actual s!"the {firstRole}'s {firstField}"]
+    | _, _, _, _ => []
+  | .frameObject frame object reason =>
+    match shape.roleField object, frameIndexAt arguments frame, refAt arguments object with
+    | some (role, field), some frame, some actual => match frameObject? env frame with
+      | some expected => [.object role field (.global expected) actual reason]
+      | none => []
+    | _, _, _ => []
 
 /-- The slots of `operand` at which the shape fixes a point's dimension. -/
 def pointSlots (shape : Shape) (operand : Nat) : List Nat :=
@@ -205,11 +225,15 @@ def pointSlots (shape : Shape) (operand : Nat) : List Nat :=
     | .pointDimension position _ => if position.operand == operand then some position.slot else none
     | _ => none
 
-/-- Whether an index list has the pattern of the slots: one object per slot,
-and a global object at the slots of `points`, since only a global object has
-a dimension. -/
+/-- Whether an index list has the pattern of the slots: one frame per frame
+slot, one object per other slot, and a global object at the slots of
+`points`, since only a global object has a dimension. -/
 def slotsShaped (points : List Nat) : Nat → List Slot → List Index → Bool
   | _, [], [] => true
+  | slot, .frameVar _ :: slots, .frame _ :: indices => slotsShaped points (slot + 1) slots indices
+  | slot, .fixedFrame .. :: slots, .frame _ :: indices => slotsShaped points (slot + 1) slots indices
+  | _, .frameVar _ :: _, _ => false
+  | _, .fixedFrame .. :: _, _ => false
   | slot, _ :: slots, .object ref :: indices =>
       (!points.contains slot || ref matches .global _) && slotsShaped points (slot + 1) slots indices
   | _, _, _ => false
@@ -373,6 +397,27 @@ theorem relation_sound {env : Environment} {shape : Shape} {allowed : List Objec
       simp [RoleRequirement.holds, holds]
     · simp at member
   | pointDimension position dimension => simp [Relation.requirement] at member
+  | sameFrame first second =>
+    simp only [Relation.requirement] at member
+    split at member
+    · simp only [List.mem_singleton] at member
+      subst member
+      rename_i expected actual _ _ foundExpected foundActual
+      simp only [Relation.holds, foundExpected, foundActual] at holds
+      simpa [RoleRequirement.holds] using holds
+    · simp at member
+  | frameObject frame object reason =>
+    simp only [Relation.requirement] at member
+    split at member
+    · rename_i role field found actual _ foundFrame foundActual
+      cases foundObject : frameObject? env found with
+      | none => simp [foundObject] at member
+      | some expected =>
+        simp only [foundObject, List.mem_singleton] at member
+        subst member
+        simp only [Relation.holds, foundFrame, foundActual, foundObject, beq_iff_eq] at holds
+        simp [RoleRequirement.holds, holds]
+    · simp at member
   | refines operand =>
     simp only [Relation.requirement] at member
     split at member
@@ -559,5 +604,9 @@ def explainFailure (env : Core.Declarations) (geometry : Option (GeometryProfile
     let (wanted, found) := declarationLabels expected.domain actual.domain
     s!"{primitive} requires {withArticle role} whose domain lies within {wanted}, " ++
       s!"but the supplied {role} {objectLabel env geometry origins reference} has domain {found}"
+  | .role (.frame role field expected actual reason) =>
+    let (wanted, found) := declarationLabels expected actual
+    s!"{primitive} requires {withArticle role} with {field} {wanted} ({reason}), " ++
+      s!"but the supplied {role} has {field} {found}"
 
 end VastitasKernel.Indexed.Source.Diagnostics

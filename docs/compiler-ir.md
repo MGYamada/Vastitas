@@ -1,5 +1,13 @@
 # Compiler IR v1: accepted Lean Core → Vastitas MidIR → LLVM IR
 
+## Interim specification precedence (2026-11-13)
+
+Until the successor specification tracked by [#749](https://github.com/MGYamada/Vastitas/issues/749) is on `main`, PR #480 remains the baseline IR specification **only where it is consistent with the resolved decisions 1, 2, 3, 5, 7 and 8 of #749 (2026-11-13)**. Those resolutions take precedence over conflicting wording in PR #480, including its specification file and earlier summary. In particular, the v0.1.0 independent semantics live in their own `VastitasOracle` namespace; numerical execution uses the declared `NativeFast` adapter/foreign-call contract, emits no LLVM floating-point instructions, and rejects strict or LLVM-default floating profiles. Earlier FP routes in PR #480 are not v0.1.0 admission requirements. The other resolved runtime, ownership, carrier and GEMM choices retain their exact scope in #749.
+
+This is a precedence clarification, not a new design decision, implementation claim or completed proof. Decisions 4 and 6 and both feasibility spikes remain unresolved/blocking as recorded in #749; this paragraph neither selects an option nor waives their acceptance obligations. The planned successor under `docs/spec/` remains required, with Planned claims and evidence-scoped status transitions. PR #480 is not thereby made merge-ready and is to be closed only when that successor is on `main`.
+
+---
+
 **Normative specification target:** Vastitas **v0.1.0**, tracked by [#417](https://github.com/MGYamada/Vastitas/issues/417). This document fixes the v1 representation contract, lowering obligations, LLVM backend choice and release acceptance criteria. **It describes a required implementation and proof target, not a claim that the current compiler already implements or proves it.** The existing Rust → Lean-checked Core → Lean/C native path is the current baseline until the new path passes its gates.
 
 ## 1. Architecture and trust boundary

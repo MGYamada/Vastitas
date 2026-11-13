@@ -1,0 +1,1 @@
+examples/reject/packages/frame-other-object/main.vast:15:1: E_ENDPOINT: `frame_transition` changes between two frames of one object, but the source frame `frame_other_object::b` is on `frame_other_object::Plane` and the target frame `frame_other_object::c` is on `frame_other_object::Image`

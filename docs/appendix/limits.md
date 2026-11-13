@@ -320,6 +320,29 @@ entry of L, D and L⁻¹, have at most `metricMatrixBits` bits. With at most
 its check. Every Gram matrix with integer entries and every diagonal Gram
 matrix within the entry bound is within the matrix bound.
 
+## Frames
+
+The kernel expands all entries of one [frame](../language/frames.md), its
+declared inverse included, within one run of `algebraWork`. A constant frame
+has the bounds of a Gram matrix, which the kernel checks before it computes
+the inverse. The kernel computes the two products of a frame that depends on
+the point and its declared inverse within a second run. A frame beyond a
+limit is an error (`E_LIMIT`).
+[Frame declarations](../language/frames.md#frame-declarations) states the
+rules.
+
+| Limit | Value | Counts | Holds for |
+| --- | --- | --- | --- |
+| `algebraGenerators` | 16 | The coordinates of the object of a frame, and so its frame vectors, the components of its arrays and the rows or columns of a map array | A frame |
+| `algebraCoefficientDigits` | 64 | The digits of a literal in an entry of a frame, and of an index of `frame_component` or `frame_entry` | A literal |
+| `metricEntryBits` | 512 | The bits of the numerator and of the denominator of one entry of a constant frame | An entry |
+| `metricMatrixBits` | 16,384 | The bits of the [matrix bound](glossary.md#matrix-bound) of the matrix of a constant frame | A frame |
+| `algebraTerms` | 512 | The terms of each polynomial of the two products of a frame and its declared inverse | A polynomial |
+| `algebraWork` | 8,000,000 | The units of work of expanding the entries of one frame and its inverse, and of computing the two products | A run |
+
+These limits hold when the compiler checks a program. In an executable, the
+rational numbers of frame arrays and map arrays have no bound.
+
 ## Physical dimensions
 
 The kernel checks the declarations that

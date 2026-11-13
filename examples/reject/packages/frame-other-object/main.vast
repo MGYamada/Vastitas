@@ -1,0 +1,18 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::frame::Frame;
+use std::geometry::frame::FrameMap;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declarations
+// A second plane is another object, although it has the dimension of Plane.
+// A change of frame relates two frames of one object, so there is none from
+// a frame of Plane to a frame of Image.
+indexed affine Image(SmoothR) = Affine(2)[u, v];
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+indexed frame c: Frame<Image> = columns((1, 0), (1, 2));
+indexed primitive move_bc = frame_transition(Smooth, FrameMap, source = b, target = c);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

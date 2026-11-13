@@ -1,0 +1,1 @@
+examples/reject/packages/frame-apply-frame/main.vast:23:5: E_ENDPOINT: apply_map requires an array with frame b (the map's source frame), but the supplied array has frame r

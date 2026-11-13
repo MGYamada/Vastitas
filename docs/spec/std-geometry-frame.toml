@@ -1,0 +1,232 @@
+# Properties of std::geometry::frame. docs/specifications.md defines the
+# format; scripts/check_spec.py checks this file and generates
+# std-geometry-frame.md.
+
+[spec]
+id = "frame"
+title = "std::geometry::frame"
+subject = "std::geometry::frame"
+description = """
+The properties of the ordered frames of smooth affine objects, from ADR 0001
+§11. A frame b of a smooth affine object X of dimension n has n columns in the
+coordinate frame of X, which form the matrix P(p) at each point p. The module
+declares the families `Frame<X>`, `Coords<b>`, `CoCoords<b>` and
+`FrameMap<b, c>`. The application declares each frame and each frame
+primitive, which names its frames. The frame array of a vector v at p in b is
+P(p)⁻¹v, and the frame array of a covector α at p is P(p)ᵀα. The transition
+from b to b′ at p is P_b′(p)⁻¹·P_b(p). The failure value ⊥ lies over no point.
+"""
+
+[property."frame.static-identity"]
+title = "Frames are static"
+subject = "std::geometry::frame::Coords"
+statement = """
+An array or a map array names its frames in its type. A frame primitive
+accepts an operand only in the frame that its binding or its other operands
+require: decoding in the frame of its binding, `frame_apply` with the source
+frame of the map, `frame_coapply` with the target frame of the map,
+`frame_compose` with equal middle frames, and `frame_pairing` and
+`frame_equal` in one frame. Any other operand is an error (`E_ENDPOINT`).
+"""
+specified_in = "[ADR 0001 §11, Contract and jurisdiction](adr/0001-mathematics-first-stdlib.md#contract-and-jurisdiction-1)"
+example = """
+Let b = columns((1, 0), (1, 2)) and b2 = columns((2, 0), (0, 1)) be frames of
+the plane. Comparing the array of a vector in b with its array in b2 is an
+error (`E_ENDPOINT`) that names `Coords<b>` and `Coords<b2>`.
+"""
+example_test = "tests/stdlib_frames.rs::arrays_in_different_frames_of_one_object_are_rejected_statically"
+
+[property."frame.static-identity".claim.binding]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FramePrimitives.frameDecode_association",
+  "VastitasOracle.FramePrimitives.frameApply_association",
+  "VastitasOracle.FramePrimitives.frameCoapply_association",
+  "VastitasOracle.FramePrimitives.frameCompose_association",
+  "VastitasOracle.FramePrimitives.framePairing_association",
+  "VastitasOracle.FramePrimitives.frameEqual_association",
+]
+premises = []
+assumes = ["rust-frontend"]
+note = """
+Each theorem characterizes the operand types that the shape of a frame
+binding associates with a result: the frames of the operands must be equal
+where the statement requires it. The kernel's typing of a call reads that
+association, so the theorems concern checked bindings and the Rust frontend
+relates them to source declarations.
+"""
+
+[property."frame.static-identity".claim.test]
+status = "tested"
+evidence = [
+  "tests/stdlib_frames.rs::arrays_in_different_frames_of_one_object_are_rejected_statically",
+  "tests/stdlib_frames.rs::a_frame_of_an_object_outside_cinf_affine_is_rejected",
+]
+note = """
+The first test compares arrays in two frames of one object. The second
+declares a frame of an object that is not a smooth affine object, which the
+kernel rejects (`E_FRAME`).
+"""
+
+[property."frame.embedded"]
+title = "Primitives embed their declared frames"
+subject = "std::geometry::frame::Frame"
+statement = """
+A valid frame primitive embeds each frame that it names exactly as that frame
+is declared: its object, its matrix P and its inverse Q. A binding with
+another object, matrix or inverse is not valid.
+"""
+specified_in = "[ADR 0001 §11, Contract and jurisdiction](adr/0001-mathematics-first-stdlib.md#contract-and-jurisdiction-1)"
+example = """
+The primitive `enc_b = frame_encode(Tangent, Coords, frame = b)` carries the
+columns (1, 0) and (1, 2) of b and the inverse that the kernel computes for
+them.
+"""
+example_test = "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package"
+
+[property."frame.embedded".claim.binding]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FramePrimitives.frameDeclared_spec",
+  "VastitasOracle.FramePrimitives.frameDeclared_object",
+]
+premises = [
+  "the embedded frame passes `frameDeclared`, which the kernel's contract of every frame binding requires",
+]
+assumes = ["rust-frontend"]
+
+[property."frame.embedded".claim.test]
+status = "tested"
+evidence = [
+  "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package",
+  "VastitasKernel.FrameRegression",
+]
+note = """
+`FrameRegression` forges the embedded object, matrix and inverse of frame
+bindings in checked Core, and the kernel's audit rejects each forgery.
+"""
+
+[property."frame.adequacy"]
+title = "Decoding after encoding"
+subject = "std::geometry::frame::Coords"
+statement = """
+Decoding the frame array of a vector or a covector in a frame b gives back the
+vector or covector, and encoding a decoded array gives back the array. The
+failure value ⊥ stays ⊥.
+"""
+specified_in = "[ADR 0001 §11, Laws](adr/0001-mathematics-first-stdlib.md#laws-1)"
+example = """
+At p = (1, 2) the vector (3, 2) has the array (2, 1) in b = columns((1, 0),
+(1, 2)), and the array decodes to (3, 2). The covector (2, 1) has the array
+(2, 4) in b, which decodes to (2, 1).
+"""
+example_test = "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package"
+
+[property."frame.adequacy".claim.oracle]
+status = "planned"
+issue = 759
+note = """
+`VastitasOracle.FramePrimitives.encode_typed` and `decode_typed` prove only
+that encoding and decoding keep the point and the number of components. The
+adequacy theorems of the frame runtime belong to the Stage 4 tracker.
+"""
+
+[property."frame.adequacy".claim.test]
+status = "tested"
+evidence = [
+  "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package",
+  "tests/stdlib_frames.rs::mutated_frame_observations_change_the_native_result",
+  "VastitasKernel.FrameRuntimeRegression",
+  "VastitasKernel.FrameRegression",
+]
+
+[property."frame.adequacy".claim.native]
+status = "not-claimed"
+reason = """
+The frame runtime is Lean code that the checker and the generated programs
+share. No claim states that the compiled native code refines it. Tests run
+the native code.
+"""
+
+[property."frame.transitions"]
+title = "Transitions"
+subject = "std::geometry::frame::FrameMap"
+statement = """
+For frames b and b′ of one object, the transition from b to b′ at a point p
+takes the array of a vector in b to its array in b′. The transitions from b to
+b′ and from b′ to b at p are inverse to each other.
+"""
+specified_in = "[ADR 0001 §11, Laws](adr/0001-mathematics-first-stdlib.md#laws-1)"
+example = """
+Let r = columns((1, 0), (x, 1)), with the inverse columns((1, 0), (-x, 1)). At
+p = (1, 2) the transition from r to b takes the array (1, 2) in r to the
+array (2, 1) in b, and the transition back gives (1, 2) again.
+"""
+example_test = "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package"
+
+[property."frame.transitions".claim.oracle]
+status = "planned"
+issue = 759
+
+[property."frame.transitions".claim.test]
+status = "tested"
+evidence = [
+  "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package",
+  "tests/frame_primitives.rs::frame_program_checks_builds_and_prints_42",
+  "VastitasKernel.FrameRuntimeRegression",
+  "VastitasKernel.FrameRegression",
+]
+
+[property."frame.change-of-frame"]
+title = "Change of frame of a map array"
+subject = "std::geometry::frame::FrameMap"
+statement = """
+Let F be a smooth map, p a point, b and b′ frames of its source and c a frame
+of its target. The map array of F at p in (b′, c) is the map array in (b, c)
+after the transition from b′ to b at p.
+"""
+specified_in = "[ADR 0001 §11, Laws](adr/0001-mathematics-first-stdlib.md#laws-1)"
+example = """
+For f(x, y) = x² + y at (1, 2) and the frame l = columns((2)) of the line,
+the map array in (b, l) is (1, 2). After the transition from r to b it is the
+map array (1, 3/2) in (r, l).
+"""
+example_test = "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package"
+
+[property."frame.change-of-frame".claim.oracle]
+status = "planned"
+issue = 759
+
+[property."frame.change-of-frame".claim.test]
+status = "tested"
+evidence = [
+  "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package",
+  "tests/stdlib_frames.rs::mutated_frame_observations_change_the_native_result",
+  "tests/frame_primitives.rs::frame_program_checks_builds_and_prints_42",
+  "VastitasKernel.FrameRegression",
+]
+
+[property."frame.pairing"]
+title = "Pairing in a frame"
+subject = "std::geometry::frame::CoCoords"
+statement = """
+The pairing of the coframe array of a covector α with the frame array of a
+vector v in the same frame is α(v), whatever the frame.
+"""
+specified_in = "[ADR 0001 §11, Laws](adr/0001-mathematics-first-stdlib.md#laws-1)"
+example = """
+The covector (2, 1) and the vector (3, 2) at (1, 2) pair to 8. Their arrays
+(2, 4) and (2, 1) in b pair to 8 as well.
+"""
+example_test = "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package"
+
+[property."frame.pairing".claim.oracle]
+status = "planned"
+issue = 759
+
+[property."frame.pairing".claim.test]
+status = "tested"
+evidence = [
+  "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package",
+  "tests/frame_primitives.rs::frame_program_checks_builds_and_prints_42",
+]

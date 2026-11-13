@@ -6,7 +6,7 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 15 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 17 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 0 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
 | [mathlib](#assumption.mathlib) | 10 |
@@ -33,6 +33,8 @@ Cited by:
 - [`arithmetic.promote.reversal`](std-arithmetic-generic.md#arithmetic.promote.reversal) (`oracle`)
 - [`arithmetic.promote.idempotence`](std-arithmetic-generic.md#arithmetic.promote.idempotence) (`oracle`)
 - [`arithmetic.mixed`](std-arithmetic-generic.md#arithmetic.mixed) (`oracle`)
+- [`frame.static-identity`](std-geometry-frame.md#frame.static-identity) (`binding`)
+- [`frame.embedded`](std-geometry-frame.md#frame.embedded) (`binding`)
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`binding`)
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`bridge`)
 - [`metric.flat-sharp`](std-geometry-metric.md#metric.flat-sharp) (`binding`)

@@ -1,6 +1,7 @@
 import VastitasKernel.IndexedAudit
 import VastitasKernel.IndexedPrimitiveBinding
 import VastitasKernel.IndexedPrimitiveDescriptors
+import VastitasKernel.IndexedFrameRegistry
 
 set_option autoImplicit false
 
@@ -23,7 +24,9 @@ per-constructor lemma: besides the table's own definition and what evaluates
 the entry's fields (the `Shape` matcher for the association, the arm's checks
 for validity), its `simp` set names only `PrimitiveBinding.contract` (and
 `PrimitiveDescriptor.ofBool` or `PrimitiveDescriptor.evidence`). Each arm names the exact
-checks of `Indexed`, `IndexedPrimitiveBinding` and `IndexedSmoothContracts`;
+checks of `Indexed`, `IndexedPrimitiveBinding` and `IndexedSmoothContracts`
+(the frame bindings of Stage 4 take their whole entry from
+`IndexedFrameRegistry`);
 family, base and object IDs are part of the contract, displayed names and
 arbitrary certificates are not.
 
@@ -658,5 +661,20 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
     | _ => .ofBool .uncallable
         (fun env => cotangentJacobianValid env cotangent application affineMap)
         (fun _ _ => none) (fun _ => none) (fun _ _ => Lowering.arityMismatch) .none
+
+  /- Frames (Stage 4, #759). Each entry is in `IndexedFrameRegistry`. -/
+  | .frameEncode variance fiber coords frame => FrameRegistry.frameEncode variance fiber coords frame
+  | .frameDecode variance coords fiber frame => FrameRegistry.frameDecode variance coords fiber frame
+  | .frameVector coords smooth object frame => FrameRegistry.frameVector coords smooth object frame
+  | .frameMatrix smooth map source target => FrameRegistry.frameMatrix smooth map source target
+  | .frameTransition smooth map source target => FrameRegistry.frameTransition smooth map source target
+  | .frameApply map coords => FrameRegistry.frameApply map coords
+  | .frameCoapply map cocoords => FrameRegistry.frameCoapply map cocoords
+  | .frameCompose map => FrameRegistry.frameCompose map
+  | .framePairing cocoords coords => FrameRegistry.framePairing cocoords coords
+  | .frameComponent family index => FrameRegistry.frameComponent family index
+  | .frameEntry map row column => FrameRegistry.frameEntry map row column
+  | .frameEqual family => FrameRegistry.frameEqual family
+  | .frameAt family smooth => FrameRegistry.frameAt family smooth
 
 end VastitasKernel.Indexed

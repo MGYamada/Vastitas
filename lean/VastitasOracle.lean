@@ -16,6 +16,13 @@ import VastitasOracle.SmoothMetricForms
 import VastitasOracle.SmoothMetricWeakening
 import VastitasOracle.SmoothJacobian
 import VastitasOracle.SmoothReverseCore
+import VastitasOracle.FrameRuntime
+import VastitasOracle.FrameDeclarations
+import VastitasOracle.FramePrimitives
+import VastitasOracle.FrameCore
+import VastitasOracle.FrameWeakening
+import VastitasOracle.NatureDimension
+import VastitasOracle.NatureWeakening
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

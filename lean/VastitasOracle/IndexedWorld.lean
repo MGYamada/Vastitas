@@ -108,6 +108,8 @@ theorem indexed_agreement {env : Environment} {before after : World} {value : In
   | smooth program => exact SmoothPrimitives.smooth_world typed
   | fiber variance fiber => exact SmoothFibers.fiber_world typed
   | tape tape => exact SmoothFibers.tape_world typed
+  | frameArray variance value => exact FramePrimitives.frameArray_world typed
+  | frameMatrix value => exact FramePrimitives.frameMatrix_world typed
 
 theorem value_agreement {env : Declarations} {before after : World} {value : Value} {type : DataType}
     (agree : ∀ ref ∈ type.refs, interpretRef env.indexed before ref = interpretRef env.indexed after ref)

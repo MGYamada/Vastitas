@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedSmoothContracts
 import VastitasKernel.IndexedRuntime
+import VastitasKernel.FrameRuntime
 
 set_option autoImplicit false
 
@@ -54,6 +55,14 @@ inductive IndexedValue where
   | fiber (variance : Variance) (value : SmoothRuntime.FiberValue)
   /-- The saved forward values of a smooth program at a point. -/
   | tape (value : SmoothRuntime.Tape)
+  /-- The coordinates of a vector or covector in a frame, with its basepoint,
+  or the failure value `none` (Stage 4). The variance is the variance of its
+  family. Its runtime value is a fiber, but it is a separate logical value: a
+  fiber never has a frame type. -/
+  | frameArray (variance : Variance) (value : SmoothRuntime.FiberValue)
+  /-- The matrix of a linear map between tangent fibers in two frames, with
+  both basepoints, or the failure value `none` (Stage 4). -/
+  | frameMatrix (value : FrameRuntime.FrameMatrixValue)
   deriving Repr, DecidableEq
 
 inductive Value where
@@ -100,6 +109,7 @@ inductive PrimitiveRuntimeValue where
   | smooth (value : SmoothRuntime.Program)
   | fiber (value : SmoothRuntime.FiberValue)
   | tape (value : SmoothRuntime.Tape)
+  | frameMatrix (value : FrameRuntime.FrameMatrixValue)
   | boolean (value : Bool)
   | integer (value : Int)
   | pairInt (first second : Int)
@@ -117,6 +127,8 @@ def erasePrimitiveValue : Value → Option PrimitiveRuntimeValue
   | .indexed (.smooth program) => some (.smooth program)
   | .indexed (.fiber _ value) => some (.fiber value)
   | .indexed (.tape tape) => some (.tape tape)
+  | .indexed (.frameArray _ value) => some (.fiber value)
+  | .indexed (.frameMatrix value) => some (.frameMatrix value)
   | _ => none
 
 def PrimitiveRuntimeValue.integer? : PrimitiveRuntimeValue → Option Int

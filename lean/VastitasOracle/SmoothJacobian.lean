@@ -460,5 +460,18 @@ theorem registry_reverse_sound : ∀ binding : PrimitiveBinding, ReverseSound bi
   | .cotangentJacobian cotangent application map => cotangentJacobian_reverse cotangent application map
   | .metricFlat _ _ _ _ _ => trivial
   | .metricSharp _ _ _ _ _ _ _ => trivial
+  | .frameEncode _ _ _ _ => trivial
+  | .frameDecode _ _ _ _ => trivial
+  | .frameVector _ _ _ _ => trivial
+  | .frameMatrix _ _ _ _ => trivial
+  | .frameTransition _ _ _ _ => trivial
+  | .frameApply _ _ => trivial
+  | .frameCoapply _ _ => trivial
+  | .frameCompose _ => trivial
+  | .framePairing _ _ => trivial
+  | .frameComponent _ _ => trivial
+  | .frameEntry _ _ _ => trivial
+  | .frameEqual _ => trivial
+  | .frameAt _ _ => trivial
 
 end VastitasOracle.SmoothJacobian

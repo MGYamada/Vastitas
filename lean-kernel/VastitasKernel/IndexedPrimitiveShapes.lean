@@ -1,4 +1,4 @@
-import VastitasKernel.Indexed
+import VastitasKernel.IndexedValidity
 
 set_option autoImplicit false
 
@@ -13,7 +13,10 @@ itself across those tables.
 
 Operands and their indices are named by position. `Slot.var` and
 `Slot.fixed` carry the field names and reasons that diagnostics print, so the
-messages stay the ones each primitive documents. -/
+messages stay the ones each primitive documents. The frame indices of Stage 4
+(#759) have their own slots (`frameVar`, `fixedFrame`), relations
+(`sameFrame`, `frameObject`) and template slot (`frameIndex`): an object slot
+never matches a frame index, and a frame slot never matches an object. -/
 namespace VastitasKernel.Indexed
 
 /-- An index of an operand: index `slot` of the application at `operand`. -/
@@ -30,6 +33,10 @@ inductive Slot where
   | fixed (ref : ObjectRef) (field reason : String)
   /-- An index the primitive does not read. -/
   | any
+  /-- Any frame (Stage 4). -/
+  | frameVar (field : String)
+  /-- Exactly the frame `frame` (Stage 4); a mismatch is reported with `reason`. -/
+  | fixedFrame (frame : DeclId) (field reason : String)
   deriving Repr, Inhabited, DecidableEq
 
 /-- One operand. `role` names it in diagnostics. -/
@@ -59,12 +66,19 @@ inductive Relation where
   | refines (operand : Nat)
   /-- The result's brand is fresh. -/
   | freshBrand
+  /-- The frame at `second` is the frame at `first` (Stage 4). -/
+  | sameFrame (first second : Position)
+  /-- The reference at `object` is the global smooth object of the frame at
+  `frame` (Stage 4); a mismatch is reported with `reason`. -/
+  | frameObject (frame object : Position) (reason : String)
 
 /-- One index of a result application. -/
 inductive TemplateSlot where
   | index (position : Position)
   | objectRef (operand : Nat)
   | fixed (ref : ObjectRef)
+  /-- The frame at `position` (Stage 4). -/
+  | frameIndex (position : Position)
   deriving Repr, Inhabited, DecidableEq
 
 /-- The result type, built from the operands. -/
@@ -114,7 +128,9 @@ def Shape.allocates (shape : Shape) : Bool := shape.result matches .freshObject 
 index shape and leaves every other indexed operand to the association; an
 object operand's reference is read whatever its type, so it needs no check. -/
 def ResultTemplate.reads : ResultTemplate → List Nat
-  | .indexed _ slots => slots.filterMap fun | .index position => some position.operand | _ => none
+  | .indexed _ slots => slots.filterMap fun
+    | .index position | .frameIndex position => some position.operand
+    | _ => none
   | .application operand => [operand]
   | _ => []
 

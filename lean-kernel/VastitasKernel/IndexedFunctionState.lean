@@ -243,6 +243,12 @@ def indexedNotValue (declarations : Core.Declarations) (id : DeclId) : String :=
     | some (.family _) => "a family"
     | some (.metric ..) => "a metric"
     | some (.metricEvidence ..) => "evidence for a metric"
+    | some (.frame ..) => "a frame"
+    | some .baseDimension => "a base dimension"
+    | some (.quantity _) => "a quantity"
+    | some (.reading ..) => "a reading"
+    | some (.scale ..) => "a scale"
+    | some (.physicalMetric ..) => "a physical metric"
     | none => "an indexed declaration"
   s!"names {kind}, which is not a value{advice}"
 

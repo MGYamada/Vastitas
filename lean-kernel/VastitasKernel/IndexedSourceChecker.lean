@@ -5,6 +5,8 @@ import VastitasKernel.IndexedTypeAudit
 import VastitasKernel.IndexedAlgebraSource
 import VastitasKernel.IndexedSmoothSource
 import VastitasKernel.IndexedMetricSource
+import VastitasKernel.IndexedFrameSource
+import VastitasKernel.IndexedNatureSource
 import VastitasKernel.IndexedDeclarationRules
 
 namespace VastitasKernel.Indexed.Source
@@ -23,6 +25,7 @@ def resolveParameter (p : Namespace.Indexed) (scope : Namespace.Scope) : Paramet
   | .marker => pure .marker
   | .natural => pure .natural
   | .object domain => return .object (← resolveId p scope domain)
+  | .frame family => return .frame (← resolveId p scope family)
 
 def resolveType (p : Namespace.Indexed) (scope : Namespace.Scope) (type : ObjectType) : ResolveM Indexed.ObjectType :=
   return ⟨← resolveId p scope type.domain, ← resolveId p scope type.marker⟩
@@ -155,6 +158,57 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       return add (.metricEvidence metric (match kind with
         | .nondegenerate => .nondegenerate []
         | .riemannian => .riemannian [] [] []))
+  /- Frames and physical dimensions (Stage 4). Every path is resolved here;
+  the matrices, the magnitudes, the coefficients and the coordinate order are
+  elaborated once the objects are known (`elaborateFrames`,
+  `elaborateNature`). -/
+  | .frame family indices _ _ => do
+      let family ← resolveId p scope family
+      let indices ← indices.mapM (resolveId p scope)
+      let [object] := indices
+        | Namespace.problem span "E_FRAME" <| s!"a frame names one object, as in `Frame<X>`, " ++
+            s!"but {indices.length} are given"
+      -- The matrix and, for a constant frame, the inverse are elaborated once the object is known.
+      return add (.frame family object [] [])
+  | .baseDimension => return add .baseDimension
+  | .quantity dimension => do
+      let dimension ← dimension.mapM fun (base, exponent) => do pure (← resolveId p scope base, exponent)
+      return add (.quantity dimension)
+  | .reading family indices quantities => do
+      let family ← resolveId p scope family
+      let indices ← indices.mapM (resolveId p scope)
+      let [object] := indices
+        | Namespace.problem span "E_DIMENSION" <| s!"a reading names one object, as in `Reading<X>`, " ++
+            s!"but {indices.length} are given"
+      -- In source order; the coordinate order is elaborated once the object is known.
+      let quantities ← quantities.mapM fun (_, quantity) => resolveId p scope quantity
+      return add (.reading family object quantities)
+  | .scale quantity _ => do
+      -- The magnitude is elaborated with the other nature declarations.
+      return add (.scale (← resolveId p scope quantity) 0)
+  | .physicalMetric family indices metric reading value entries => do
+      let family ← resolveId p scope family
+      let indices ← indices.mapM (resolveId p scope)
+      let [object] := indices
+        | Namespace.problem span "E_DIMENSION" <| s!"a physical metric names one object, as in " ++
+            s!"`PhysicalMetric<X>`, but {indices.length} are given"
+      let metric ← resolveId p scope metric
+      let reading ← resolveId p scope reading
+      let value ← value.mapM fun factors =>
+        factors.mapM fun (base, exponent) => do pure (← resolveId p scope base, exponent)
+      -- The coefficients are elaborated, and normalized scales put in coordinate order, later.
+      let factor (scale : Path) (exponent : Int) : ResolveM (DeclId × Int) := do
+        pure (← resolveId p scope scale, exponent)
+      let entries : Indexed.PhysicalGram ← match entries with
+        | .euclidean => pure .euclidean
+        | .gram rows => do
+          let rows ← rows.mapM fun row => row.mapM fun monomial => do
+            let factors ← monomial.factors.mapM fun (scale, exponent) => factor scale exponent
+            pure ({ coefficient := 0, factors } : Indexed.ScaleMonomial)
+          pure (.gram rows)
+        | .normalized scales => do
+          pure (.normalized (← scales.mapM fun (_, scale) => resolveId p scope scale))
+      return add (.physicalMetric family object metric reading value entries)
 
 /-- How a diagnostic names the export of a package. The request has no span
 for a manifest, so the message names the package as its manifest does, and the
@@ -260,6 +314,8 @@ def lower (p : Program) : Namespace.Result Resolved := do
   let declarations ← elaborateAffine sources declarations
   let declarations ← elaborateSmooth sources declarations
   let declarations ← elaborateMetrics sources declarations
+  let declarations ← elaborateFrames sources declarations
+  let declarations ← elaborateNature sources declarations
   let restrictTargets ← p.owned.filterMapM fun (owner, d) => match d.body with
     | .morphism _ _ (.restrict morphism) => do
       let target ← Namespace.resolve index owner.scope morphism.path morphism.span

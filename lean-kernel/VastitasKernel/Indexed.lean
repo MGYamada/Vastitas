@@ -4,7 +4,9 @@ import VastitasKernel.SmoothDeclarations
 
 /-! Finite declaration and index foundations used by public protocol 7 through
 `Indexed.Wire.check`, and by the protocol-8 resource composition.
-Names select declarations; they never select a representation or capability. -/
+Names select declarations; they never select a representation or capability.
+This module holds the data model and its views; the validity of each entry
+and of the whole environment is in `IndexedValidity`. -/
 namespace VastitasKernel.Indexed
 
 abbrev DeclId := Namespace.Owner
@@ -37,9 +39,12 @@ inductive Capability where
   | origin | dimension
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-- `frame family` accepts an index that is a frame declaration of the family
+`family` (Stage 4). -/
 inductive Parameter where
   | domain | marker | natural
   | object (domain : DeclId)
+  | frame (family : DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- `structural object base` holds when both indices are canonical presented
@@ -70,12 +75,28 @@ a point of `X`, or the failure value. `tape` is the sealed two-index
 `Tape(X, Y)`: the saved forward values of a smooth program `X → Y` at a point.
 Only `linearize` constructs a tape. `metricForm` is the sealed one-index
 `MetricForm(X)` of a smooth object: it indexes metric declarations, and no
-runtime value has its type. -/
+runtime value has its type.
+
+Stage 4 (#759): `frame` is the sealed one-index `Frame(X)` of a smooth object:
+it indexes frame declarations, and no runtime value has its type.
+`frameFiber` is the sealed one-index `Coords(b)` (tangent) or `CoCoords(b)`
+(cotangent) of a frame `b`: its runtime value is the coordinates of a vector or
+covector in the frame, at a point, or the failure value. `frameMap` is the
+sealed two-index `FrameMap(b, c)` of two frames: its runtime value is the
+matrix of a linear map between tangent fibers in those frames, or the failure
+value. `reading` is the sealed one-index `Reading(X)` and `physicalMetric` the
+sealed one-index `PhysicalMetric(X)` of a smooth object: they index nature
+declarations, and no runtime value has their types. -/
 inductive FamilyRepresentation where
   | token | point | morphism | relative | smooth
   | fiber (variance : Variance)
   | tape
   | metricForm
+  | frame
+  | frameFiber (variance : Variance)
+  | frameMap
+  | reading
+  | physicalMetric
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure Family where
@@ -95,6 +116,34 @@ inductive MetricEvidence where
   | riemannian (lower : SmoothRuntime.Matrix) (pivots : List Rat) (lowerInverse : SmoothRuntime.Matrix)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-! ## Frames and physical dimensions (Stage 4, #759) -/
+
+/-- A matrix of polynomials as rows. The polynomials are in the coordinates of
+a smooth object, so their arity is the object's dimension. -/
+abbrev PolyMatrix := List (List AlgebraRuntime.Poly)
+
+/-- A physical dimension: base-dimension declarations with integer exponents.
+"Dimension" here is not the dimension of a vector space. -/
+abbrev DimensionVector := List (DeclId × Int)
+
+/-- A coefficient times a product of powers of scale declarations. -/
+structure ScaleMonomial where
+  coefficient : Rat
+  factors : List (DeclId × Int)
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- The Gram matrix of a physical metric, in terms of scales.
+
+- `euclidean`: the identity;
+- `gram rows`: rows of scale monomials;
+- `normalized scales`: the diagonal of the inverse squares of the scales, one
+  scale per coordinate, in coordinate order. -/
+inductive PhysicalGram where
+  | euclidean
+  | gram (rows : List (List ScaleMonomial))
+  | normalized (scales : List DeclId)
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 inductive Declaration where
   | marker
   | implementation (marker : DeclId) (representation : Representation)
@@ -110,6 +159,30 @@ inductive Declaration where
   | metric (family object : DeclId) (gram : SmoothRuntime.Matrix)
   /-- Evidence for the metric `metric`. -/
   | metricEvidence (metric : DeclId) (evidence : MetricEvidence)
+  /-- A frame `Frame<object>` of the family `family` (Stage 4): an ordered
+  basis of every tangent fiber of the smooth object `object`. `matrix` is `P`
+  as rows; column `j` of `P` is the `j`-th frame vector in the coordinate
+  frame. `inverse` is `Q = P⁻¹`. The kernel computes `inverse` for a constant
+  frame during elaboration; for a frame polynomial in the point it comes from
+  the source and is checked. -/
+  | frame (family object : DeclId) (matrix inverse : PolyMatrix)
+  /-- A nominal base dimension: a generator of the dimension group. -/
+  | baseDimension
+  /-- A nominal quantity kind of this dimension. Equal dimensions do not
+  identify two quantity kinds. -/
+  | quantity (dimension : DimensionVector)
+  /-- A physical reading `Reading<object>` of the family `family`: one quantity
+  per coordinate of the smooth object `object`, in coordinate order. -/
+  | reading (family object : DeclId) (quantities : List DeclId)
+  /-- A scale of the quantity `quantity`: its magnitude in the unit of a
+  coordinate. -/
+  | scale (quantity : DeclId) (magnitude : Rat)
+  /-- A physical interpretation `PhysicalMetric<object>` of the family
+  `family`: the metric `metric` read under the reading `reading`, with the
+  dimension `value` of its nonzero terms when declared and its Gram matrix in
+  terms of scales. It is evidence about the metric and never produces one. -/
+  | physicalMetric (family object metric reading : DeclId) (value : Option DimensionVector)
+      (entries : PhysicalGram)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- The implementation of a canonical global object: a descriptor global, a
@@ -127,6 +200,21 @@ abbrev Environment := List Entry
 
 def lookup (env : Environment) (id : DeclId) : Option Declaration :=
   (env.find? fun entry => entry.id == id).map Entry.declaration
+
+def familyRepresentation (env : Environment) (id : DeclId) : Option FamilyRepresentation :=
+  match lookup env id with | some (.family family) => some family.representation | _ => none
+
+/-- The family, object, matrix and inverse of a declared frame (Stage 4). -/
+def frameData? (env : Environment) (id : DeclId) : Option (DeclId × DeclId × PolyMatrix × PolyMatrix) :=
+  match lookup env id with
+  | some (.frame family object matrix inverse) => some (family, object, matrix, inverse)
+  | _ => none
+
+/-- The family of a declared frame. -/
+def frameFamily? (env : Environment) (id : DeclId) : Option DeclId := (frameData? env id).map (·.1)
+
+/-- The smooth object of a declared frame. -/
+def frameObject? (env : Environment) (id : DeclId) : Option DeclId := (frameData? env id).map (·.2.1)
 
 def isMarker (env : Environment) (id : DeclId) : Bool :=
   match lookup env id with | some .marker => true | _ => false
@@ -306,11 +394,14 @@ instance (env : Environment) (ref : ObjectRef) : Decidable (ref.Valid env) := by
   unfold ObjectRef.Valid
   infer_instance
 
+/-- `frame declaration` is a frame declaration (Stage 4): arrays name their
+frame statically through it. -/
 inductive Index where
   | domain (declaration : DeclId)
   | marker (declaration : DeclId)
   | object (reference : ObjectRef)
   | natural (value : Nat)
+  | frame (declaration : DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 def Index.Valid (env : Environment) : Index → Prop
@@ -318,6 +409,7 @@ def Index.Valid (env : Environment) : Index → Prop
   | .marker id => isMarker env id = true
   | .object ref => ref.Valid env
   | .natural _ => True
+  | .frame id => (frameData? env id).isSome = true
 
 instance (env : Environment) (index : Index) : Decidable (index.Valid env) := by
   cases index <;> unfold Index.Valid <;> infer_instance
@@ -330,6 +422,7 @@ def Parameter.Accepts (env : Environment) : Parameter → Index → Prop
   | .natural, .natural _ => True
   | .object expected, .object ref => ∃ ty ∈ ref.type? env,
       ty.Valid env ∧ ∀ id ∈ ty.implementations env, id ∈ Indexed.domain env expected
+  | .frame family, .frame id => frameFamily? env id = some family
   | _, _ => False
 
 instance (env : Environment) (p : Parameter) (i : Index) : Decidable (p.Accepts env i) := by
@@ -388,6 +481,7 @@ instance (parameters : List Parameter) (c : Constraint) : Decidable (c.WellForme
 
 def Parameter.Valid (env : Environment) : Parameter → Prop
   | .object id => isDomain env id = true
+  | .frame family => familyRepresentation env family = some .frame
   | _ => True
 
 instance (env : Environment) (p : Parameter) : Decidable (p.Valid env) := by
@@ -426,11 +520,16 @@ def Family.Valid (env : Environment) (f : Family) : Prop :=
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (smoothImplementation env)
         | _ => false) = true
-  | .metricForm => f.parameters.length = 1 ∧
+  | .metricForm | .frame | .reading | .physicalMetric => f.parameters.length = 1 ∧
       f.constraints = [.canonical 0] ∧
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (smoothImplementation env)
-        | _ => false) = true)
+        | _ => false) = true
+  -- The frame of each `frame(…)` parameter is a frame family (`Parameter.Valid`).
+  | .frameFiber _ => f.parameters.length = 1 ∧ f.constraints = [] ∧
+      f.parameters.all (fun p => match p with | .frame _ => true | _ => false) = true
+  | .frameMap => f.parameters.length = 2 ∧ f.constraints = [] ∧
+      f.parameters.all (fun p => match p with | .frame _ => true | _ => false) = true)
 
 instance (env : Environment) (f : Family) : Decidable (f.Valid env) := by
   unfold Family.Valid
@@ -481,28 +580,6 @@ def validApplication (env : Environment) (app : Application) : Bool :=
       family.constraints.all (constraintHolds env app.indices)
   | _ => false
 
-/-- A presented object: its implementation is a presented representation, its
-base chain is finite and stays within presented objects of the same marker,
-and its stored data verifies against its base's stored data. -/
-def validAffine (env : Environment) (id implementation : DeclId)
-    (data : AlgebraDeclarations.AffineData) : Bool :=
-  presentedImplementation env implementation &&
-  (match chainOf env id with | some chain => decide chain.Nodup | none => false) &&
-  (match data.base with
-    | none => true
-    | some base => match lookup env base with
-      | some (.affine baseImplementation _) =>
-          implementationMarker env baseImplementation == implementationMarker env implementation
-      | _ => false) &&
-  AlgebraDeclarations.validAffineData data (data.base.bind (affineData? env)) &&
-  AlgebraDeclarations.validConstruction data (affineData? env)
-
-/-- A smooth object: its implementation is a smooth representation and its
-coordinates are distinct and within the generator limit. -/
-def validSmoothAffine (env : Environment) (implementation : DeclId) (coordinates : List String) : Bool :=
-  smoothImplementation env implementation && decide (coordinates.length ≤ Limits.algebraGenerators) &&
-    decide coordinates.Nodup
-
 /-! ## Metrics (Stage 3)
 
 A metric is declared at a `metric_form` family applied to one smooth object.
@@ -516,164 +593,49 @@ def isMetricFamily (env : Environment) (family : DeclId) : Bool :=
   | some (.family contract) => contract.representation == .metricForm
   | _ => false
 
-/-- A metric `MetricForm<object>`: an application of a `metric_form` family
-to a declared smooth object, and a Gram matrix that `checkGram` accepts at the
-object's dimension, with entries within `Limits.metricEntryBits` and the whole
-matrix within `Limits.metricMatrixBits`. The matrix bound is the last
-conjunct: it is computed for a square matrix with bounded entries. -/
-def validMetric (env : Environment) (family object : DeclId) (gram : SmoothRuntime.Matrix) : Bool :=
-  isMetricFamily env family && validApplication env ⟨family, [.object (.global object)]⟩ &&
-    SmoothDeclarations.gramBounded gram &&
-    (match smoothDimension? env object with
-    | some n => (SmoothDeclarations.checkGram n gram).isOk
-    | none => false) &&
-    SmoothDeclarations.matrixBounded gram
-
 /-- The object, its dimension and the Gram matrix of a declared metric. -/
 def metricData? (env : Environment) (metric : DeclId) : Option (DeclId × Nat × SmoothRuntime.Matrix) :=
   match lookup env metric with
   | some (.metric _ object gram) => (smoothDimension? env object).map fun n => (object, n, gram)
   | _ => none
 
-/-- The exact identities of a certificate for an `n × n` Gram matrix. -/
-def MetricEvidence.check (n : Nat) (gram : SmoothRuntime.Matrix) : MetricEvidence → Bool
-  | .nondegenerate inverse => SmoothDeclarations.checkNondegenerate n gram inverse
-  | .riemannian lower pivots lowerInverse =>
-      SmoothDeclarations.checkRiemannian n gram lower pivots lowerInverse
+/-! ## Frames and physical dimensions (Stage 4, #759)
 
-/-- Evidence for a declared metric, checked against that metric's Gram matrix. -/
-def validMetricEvidence (env : Environment) (metric : DeclId) (evidence : MetricEvidence) : Bool :=
-  match metricData? env metric with
-  | some (_, n, gram) => evidence.check n gram
-  | none => false
+The views of the frame and nature declarations. Their checks are in
+`FrameDeclarations` and `NatureDimension`, which `Entry.Valid` calls
+(`IndexedValidity`). -/
 
-def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Prop :=
-  match entry.declaration with
-  | .marker => True
-  | .implementation marker representation capabilities =>
-      isMarker env marker = true ∧ capabilities.Nodup ∧ representation.Valid env marker capabilities
-  | .classification parents implementations =>
-      parents.Nodup ∧ implementations.Nodup ∧ implementations ≠ [] ∧
-      implementations.length ≤ 64 ∧
-      (∀ id ∈ implementations, (implementationMarker env id).isSome = true) ∧
-      (∀ parent ∈ parents, ∃ ps ds,
-        lookup env parent = some (.classification ps ds) ∧
-        (∀ id ∈ implementations, id ∈ ds) ∧
-        classRank ranks parent < classRank ranks entry.id)
-  | .global implementation => (implementationMarker env implementation).isSome = true ∧
-      presentedImplementation env implementation = false ∧ smoothImplementation env implementation = false
-  | .family f => f.Valid env
-  | .affine implementation data => validAffine env entry.id implementation data = true
-  | .smoothAffine implementation coordinates => validSmoothAffine env implementation coordinates = true
-  | .metric family object gram => validMetric env family object gram = true
-  | .metricEvidence metric evidence => validMetricEvidence env metric evidence = true
+/-- The family is declared with the sealed `frame` representation. -/
+def isFrameFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .frame
 
-/-- A separately structured executable parent check, avoiding unbounded search
-for a classification record in the finite validation procedure. -/
-def validParents (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry)
-    (parents implementations : List DeclId) : Bool := parents.all fun parent =>
-  match lookup env parent with
-  | some (.classification _ ds) =>
-      implementations.all (fun id => ds.contains id) &&
-      classRank ranks parent < classRank ranks entry.id
-  | _ => false
+/-- The family is declared with the sealed `reading` representation. -/
+def isReadingFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .reading
 
-def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Bool :=
-  match entry.declaration with
-  | .marker => true
-  | .implementation marker representation capabilities =>
-      isMarker env marker && decide capabilities.Nodup && decide (representation.Valid env marker capabilities)
-  | .classification parents implementations =>
-      decide parents.Nodup && decide implementations.Nodup && !implementations.isEmpty &&
-      implementations.length ≤ 64 &&
-      implementations.all (fun id => (implementationMarker env id).isSome) &&
-      validParents env ranks entry parents implementations
-  | .global implementation => (implementationMarker env implementation).isSome &&
-      !presentedImplementation env implementation && !smoothImplementation env implementation
-  | .family f => decide (f.Valid env)
-  | .affine implementation data => validAffine env entry.id implementation data
-  | .smoothAffine implementation coordinates => validSmoothAffine env implementation coordinates
-  | .metric family object gram => validMetric env family object gram
-  | .metricEvidence metric evidence => validMetricEvidence env metric evidence
+/-- The family is declared with the sealed `physical_metric` representation. -/
+def isPhysicalMetricFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .physicalMetric
 
-structure Environment.Valid (env : Environment) : Prop where
-  bounded : env.length ≤ 4096
-  unique : (env.map Entry.id).Nodup
-  declarations : ∀ entry ∈ env, entry.Valid env (classRanks env)
+/-- The declaration is a base dimension. -/
+def isBaseDimension (env : Environment) (id : DeclId) : Bool :=
+  match lookup env id with | some .baseDimension => true | _ => false
 
-def validEnvironment (env : Environment) : Bool :=
-  decide (env.length ≤ 4096) && decide (env.map Entry.id).Nodup && env.all (validEntry env (classRanks env))
+/-- The dimension of a declared quantity kind. -/
+def quantityDimension? (env : Environment) (id : DeclId) : Option DimensionVector :=
+  match lookup env id with | some (.quantity dimension) => some dimension | _ => none
 
-/-! ### One check for each distinct evidence declaration
+/-- The family, object and quantities of a declared reading. -/
+def readingData? (env : Environment) (id : DeclId) : Option (DeclId × DeclId × List DeclId) :=
+  match lookup env id with
+  | some (.reading family object quantities) => some (family, object, quantities)
+  | _ => none
 
-The check of an evidence declaration multiplies its certificate with the Gram
-matrix of its metric. Evidence declarations that repeat one metric and one
-kind carry one certificate, so the compiled audit runs that check once and
-accepts an equal declaration by comparison. `validEnvironment` above stays the
-definition that `Entry.Valid` and every theorem read;
-`validEnvironment_eq_once` proves that the compiled audit computes it. -/
-
-/-- An evidence declaration: the declarations that `validEntriesOnce` checks
-once. -/
-def Declaration.isEvidence : Declaration → Bool
-  | .metricEvidence .. => true
-  | _ => false
-
-/-- `entries.all (validEntry env ranks)`, where an evidence declaration equal
-to one in `accepted` is accepted without its check. `accepted` holds the
-evidence declarations that passed. -/
-def validEntriesOnce (env : Environment) (ranks : List (DeclId × Nat)) :
-    List Declaration → List Entry → Bool
-  | _, [] => true
-  | accepted, entry :: rest =>
-    if entry.declaration.isEvidence then
-      if accepted.contains entry.declaration then validEntriesOnce env ranks accepted rest
-      else validEntry env ranks entry && validEntriesOnce env ranks (entry.declaration :: accepted) rest
-    else validEntry env ranks entry && validEntriesOnce env ranks accepted rest
-
-/-- The check of an evidence entry reads its declaration, not its id. -/
-theorem validEntry_evidence (env : Environment) (ranks : List (DeclId × Nat)) {entry other : Entry}
-    (evidence : entry.declaration.isEvidence = true) (same : other.declaration = entry.declaration) :
-    validEntry env ranks other = validEntry env ranks entry := by
-  cases h : entry.declaration <;> simp [h, Declaration.isEvidence] at evidence
-  simp [validEntry, h, same]
-
-theorem validEntriesOnce_eq_all (env : Environment) (ranks : List (DeclId × Nat)) :
-    ∀ (entries : List Entry) (accepted : List Declaration),
-      (∀ entry : Entry, entry.declaration ∈ accepted → validEntry env ranks entry = true) →
-      validEntriesOnce env ranks accepted entries = entries.all (validEntry env ranks)
-  | [], _, _ => rfl
-  | entry :: rest, accepted, invariant => by
-    simp only [validEntriesOnce, List.all_cons]
-    by_cases evidence : entry.declaration.isEvidence = true
-    · simp only [evidence, ite_true]
-      by_cases seen : accepted.contains entry.declaration = true
-      · simp only [seen, ite_true]
-        rw [invariant entry (List.contains_iff_mem.mp seen), Bool.true_and]
-        exact validEntriesOnce_eq_all env ranks rest accepted invariant
-      · simp only [seen]
-        cases valid : validEntry env ranks entry with
-        | false => simp
-        | true =>
-          simp only [Bool.true_and]
-          refine validEntriesOnce_eq_all env ranks rest _ fun other member => ?_
-          cases List.mem_cons.mp member with
-          | inl same => rw [validEntry_evidence env ranks evidence same, valid]
-          | inr member => exact invariant other member
-    · simp only [evidence]
-      rw [validEntriesOnce_eq_all env ranks rest accepted invariant]
-      simp
-
-/-- `validEnvironment`, with one check for each distinct evidence declaration. -/
-def validEnvironmentOnce (env : Environment) : Bool :=
-  decide (env.length ≤ 4096) && decide (env.map Entry.id).Nodup &&
-    validEntriesOnce env (classRanks env) [] env
-
-/-- The compiled audit is `validEnvironment`. -/
-@[csimp] theorem validEnvironment_eq_once : @validEnvironment = @validEnvironmentOnce := by
-  funext env
-  simp only [validEnvironment, validEnvironmentOnce]
-  rw [validEntriesOnce_eq_all env (classRanks env) env [] (fun _ member => nomatch member)]
+/-- The quantity and magnitude of a declared scale. -/
+def scaleData? (env : Environment) (id : DeclId) : Option (DeclId × Rat) :=
+  match lookup env id with
+  | some (.scale quantity magnitude) => some (quantity, magnitude)
+  | _ => none
 
 /-- Every object-valued argument is traversed, independently of its runtime
 representation. In particular an empty token cannot hide a free local brand. -/
@@ -717,24 +679,5 @@ def SubstitutionValid (env : Environment) (substitution : List (ObjectRef × Obj
 instance (env : Environment) (s : List (ObjectRef × ObjectRef)) : Decidable (SubstitutionValid env s) := by
   unfold SubstitutionValid
   infer_instance
-
-/-- Backend checks, tied to the exact input. No public wire reader accepts a
-frontend-authored CheckedEnvironment or CheckedApplication. -/
-structure CheckedEnvironment where
-  environment : Environment
-  accepted : validEnvironment environment = true
-
-def checkEnvironment (env : Environment) : Except String CheckedEnvironment :=
-  if accepted : validEnvironment env = true then .ok ⟨env, accepted⟩
-  else .error "invalid indexed declaration environment"
-
-structure CheckedApplication (env : CheckedEnvironment) where
-  application : Application
-  accepted : validApplication env.environment application = true
-
-def checkApplication (env : CheckedEnvironment) (app : Application) :
-    Except String (CheckedApplication env) :=
-  if accepted : validApplication env.environment app = true then .ok ⟨app, accepted⟩
-  else .error "invalid indexed family application"
 
 end VastitasKernel.Indexed

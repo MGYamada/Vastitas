@@ -1,4 +1,4 @@
-import VastitasKernel.Indexed
+import VastitasKernel.IndexedValidity
 
 namespace VastitasKernel.Indexed.Regression
 private def id (name : String) : DeclId :=
@@ -93,6 +93,7 @@ private def check (name : String) (accepted : Bool) : IO Unit :=
 private def renameId (old : DeclId) : DeclId := { old with name := "Renamed_" ++ old.name }
 private def renameParameter : Parameter → Parameter
   | .object id => .object (renameId id)
+  | .frame family => .frame (renameId family)
   | other => other
 private def renameDeclaration : Declaration → Declaration
   | .marker => .marker
@@ -104,6 +105,18 @@ private def renameDeclaration : Declaration → Declaration
   | .smoothAffine implementation coordinates => .smoothAffine (renameId implementation) coordinates
   | .metric family object gram => .metric (renameId family) (renameId object) gram
   | .metricEvidence metric evidence => .metricEvidence (renameId metric) evidence
+  | .frame family object matrix inverse => .frame (renameId family) (renameId object) matrix inverse
+  | .baseDimension => .baseDimension
+  | .quantity dimension => .quantity (dimension.map fun (base, exponent) => (renameId base, exponent))
+  | .reading family object quantities => .reading (renameId family) (renameId object) (quantities.map renameId)
+  | .scale quantity magnitude => .scale (renameId quantity) magnitude
+  | .physicalMetric family object metric reading value entries =>
+    .physicalMetric (renameId family) (renameId object) (renameId metric) (renameId reading)
+      (value.map (·.map fun (base, exponent) => (renameId base, exponent))) (match entries with
+        | .euclidean => .euclidean
+        | .gram rows => .gram (rows.map (·.map fun monomial =>
+            { monomial with factors := monomial.factors.map fun (scale, exponent) => (renameId scale, exponent) }))
+        | .normalized scales => .normalized (scales.map renameId))
 private def renamed : Environment := env.map fun e => ⟨renameId e.id, renameDeclaration e.declaration⟩
 #eval check "coherent library renaming preserves acceptance" (validEnvironment renamed &&
   validApplication renamed ⟨renameId (id "Position"), [

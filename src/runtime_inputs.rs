@@ -72,9 +72,13 @@ pub const KERNEL: Package = Package {
         "compiler-limits.json",
     ],
     forbidden: &["lakefile.lean"],
+    // The survey visits the listed modules from the last one, so a listed
+    // module comes after the listed modules that import it: a missing one is
+    // then reported as a missing listed module.
     modules: &[
         "VastitasKernel.IndexedRuntime",
         "VastitasKernel.AlgebraRuntime",
+        "VastitasKernel.FrameRuntime",
         "VastitasKernel.SmoothRuntime",
     ],
 };

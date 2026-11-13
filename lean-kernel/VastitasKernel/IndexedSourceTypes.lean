@@ -48,6 +48,8 @@ def resolveTypeArgument (program : Namespace.Indexed) (scope : Namespace.Scope)
       return .object (.global (← resolveId program scope path))
   | .domain, .name path => return .domain (← resolveId program scope path)
   | .marker, .name path => return .marker (← resolveId program scope path)
+  -- A frame index names a frame declaration; `Parameter.Accepts` checks its family.
+  | .frame _, .name path => return .frame (← resolveId program scope path)
   | _, .name path => Namespace.problem path.span "E_TYPE" "natural index requires a literal"
   | _, .natural _ => Namespace.problem span "E_TYPE" "natural literal used at a non-natural index"
 

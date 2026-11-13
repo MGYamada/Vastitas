@@ -130,6 +130,106 @@ pub enum DeclarationBody {
         metric: TypePath,
         evidence: EvidenceKind,
     },
+    /// A frame `family<object>` of a smooth object (protocol 9, Stage 4): its
+    /// columns in the coordinate frame, and the inverse that a frame
+    /// polynomial in the point declares. The kernel computes the inverse of a
+    /// constant frame.
+    Frame {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        columns: FrameColumns,
+        inverse: Option<FrameColumns>,
+    },
+    /// A nominal base dimension (protocol 9, Stage 4).
+    BaseDimension,
+    /// A nominal quantity kind of a dimension (protocol 9, Stage 4).
+    Quantity {
+        dimension: Vec<DimensionFactor>,
+    },
+    /// A physical reading `family<object>` of a chart: one quantity per
+    /// coordinate (protocol 9, Stage 4).
+    Reading {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        quantities: Vec<ReadingEntry>,
+    },
+    /// A scale of a quantity: a constant magnitude (protocol 9, Stage 4).
+    Scale {
+        quantity: TypePath,
+        magnitude: PolyExpr,
+    },
+    /// A physical interpretation `family<object>` of a metric under a
+    /// reading (protocol 9, Stage 4). The kernel checks its dimensions.
+    PhysicalMetric {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        metric: TypePath,
+        reading: TypePath,
+        value: Option<Vec<DimensionFactor>>,
+        entries: PhysicalGram,
+    },
+}
+
+/// The columns of a frame: `coordinates`, the coordinate frame, or
+/// polynomial columns in the object's coordinates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum FrameColumns {
+    Coordinates,
+    Columns { columns: Vec<Vec<PolyExpr>> },
+}
+
+/// One factor of a physical dimension: a base dimension and its integer
+/// exponent, a decimal string with an optional leading `-`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DimensionFactor {
+    pub base: TypePath,
+    pub exponent: String,
+}
+
+/// The quantity of one coordinate of a reading.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadingEntry {
+    pub coordinate: String,
+    pub quantity: TypePath,
+}
+
+/// One factor of a scale monomial: a scale and its integer exponent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ScaleFactor {
+    pub scale: TypePath,
+    pub exponent: String,
+}
+
+/// A constant coefficient times powers of scales.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ScaleMonomial {
+    pub coefficient: PolyExpr,
+    pub factors: Vec<ScaleFactor>,
+}
+
+/// The scale of one coordinate of a normalized physical metric.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CoordinateScale {
+    pub coordinate: String,
+    pub scale: TypePath,
+}
+
+/// The Gram matrix of a physical metric in terms of scales.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PhysicalGram {
+    /// The identity matrix of the object's dimension.
+    Euclidean,
+    /// Rows of scale monomials.
+    Gram { rows: Vec<Vec<ScaleMonomial>> },
+    /// One scale per coordinate: the diagonal of their inverse squares.
+    Normalized { scales: Vec<CoordinateScale> },
 }
 
 /// The Gram matrix of a metric declaration.
@@ -179,8 +279,8 @@ pub enum MorphismDefinition {
 }
 
 impl DeclarationBody {
-    /// Stage 2 algebraic and Stage 3 smooth and metric forms. They exist
-    /// only in protocol 9.
+    /// Stage 2 algebraic, Stage 3 smooth and metric, and Stage 4 frame and
+    /// physical dimension forms. They exist only in protocol 9.
     pub fn is_algebraic(&self) -> bool {
         match self {
             DeclarationBody::Affine { .. }
@@ -191,16 +291,22 @@ impl DeclarationBody {
             | DeclarationBody::Cartesian { .. }
             | DeclarationBody::SmoothAffine { .. }
             | DeclarationBody::Metric { .. }
-            | DeclarationBody::Evidence { .. } => true,
+            | DeclarationBody::Evidence { .. }
+            | DeclarationBody::Frame { .. }
+            | DeclarationBody::BaseDimension
+            | DeclarationBody::Quantity { .. }
+            | DeclarationBody::Reading { .. }
+            | DeclarationBody::Scale { .. }
+            | DeclarationBody::PhysicalMetric { .. } => true,
             DeclarationBody::Primitive { binding } => binding.family().algebraic,
             DeclarationBody::Implementation { representation, .. } => matches!(
                 representation,
                 Representation::PresentedAffine { .. } | Representation::SmoothAffine
             ),
             DeclarationBody::Family {
+                parameters,
                 constraints,
                 representation,
-                ..
             } => {
                 matches!(
                     representation,
@@ -210,12 +316,20 @@ impl DeclarationBody {
                         | FamilyRepresentation::Tangent
                         | FamilyRepresentation::Tape
                         | FamilyRepresentation::MetricForm
+                        | FamilyRepresentation::Frame
+                        | FamilyRepresentation::FrameVector
+                        | FamilyRepresentation::FrameCovector
+                        | FamilyRepresentation::FrameMap
+                        | FamilyRepresentation::Reading
+                        | FamilyRepresentation::PhysicalMetric
                 ) || constraints.iter().any(|c| {
                     matches!(
                         c,
                         Constraint::Structural { .. } | Constraint::Canonical { .. }
                     )
-                })
+                }) || parameters
+                    .iter()
+                    .any(|p| matches!(p, Parameter::Frame { .. }))
             }
             _ => false,
         }
@@ -325,6 +439,24 @@ pub enum FamilyRepresentation {
     /// `MetricForm(X)`: indexes the metrics of a smooth object (protocol 9).
     /// No value has this type.
     MetricForm,
+    /// `Frame(X)`: indexes the frames of a smooth object (protocol 9, Stage
+    /// 4). No value has this type.
+    Frame,
+    /// `Coords(b)`: the coordinates of vectors in the frame `b` (protocol 9,
+    /// Stage 4).
+    FrameVector,
+    /// `CoCoords(b)`: the coordinates of covectors in the frame `b`
+    /// (protocol 9, Stage 4).
+    FrameCovector,
+    /// `FrameMap(b, c)`: matrices of linear maps in the frames `b` and `c`
+    /// (protocol 9, Stage 4).
+    FrameMap,
+    /// `Reading(X)`: indexes the physical readings of a chart (protocol 9,
+    /// Stage 4). No value has this type.
+    Reading,
+    /// `PhysicalMetric(X)`: indexes the physical interpretations of the
+    /// metrics of a chart (protocol 9, Stage 4). No value has this type.
+    PhysicalMetric,
 }
 
 /// How a cotangent pullback obtains forward values.
@@ -341,7 +473,13 @@ pub enum Parameter {
     Domain,
     Marker,
     Natural,
-    Object { domain: TypePath },
+    Object {
+        domain: TypePath,
+    },
+    /// A frame of the family `family` (protocol 9, Stage 4).
+    Frame {
+        family: TypePath,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -737,6 +875,222 @@ mod tests {
                 representation,
             };
             assert!(family.is_algebraic(), "{family:?}");
+        }
+    }
+
+    /// The frame and physical dimension forms of Stage 4 serialize to the
+    /// wire shapes that the kernel decodes, read back, and exist only in
+    /// protocol 9.
+    #[test]
+    fn every_frame_and_dimension_form_serializes_to_its_wire_shape_and_is_algebraic() {
+        let p = |name: &str| serde_json::to_value(path(name)).unwrap();
+        let natural = |value: &str| PolyExpr::Natural {
+            value: value.into(),
+        };
+        let coordinate = |name: &str| PolyExpr::Coordinate { name: name.into() };
+        let factor = |base: &str, exponent: &str| DimensionFactor {
+            base: path(base),
+            exponent: exponent.into(),
+        };
+        let cases: Vec<(DeclarationBody, serde_json::Value)> = vec![
+            (
+                DeclarationBody::Frame {
+                    family: path("Frame"),
+                    indices: vec![path("Plane")],
+                    columns: FrameColumns::Columns {
+                        columns: vec![
+                            vec![natural("1"), natural("0")],
+                            vec![coordinate("x"), natural("2")],
+                        ],
+                    },
+                    inverse: Some(FrameColumns::Columns {
+                        columns: vec![vec![natural("1")]],
+                    }),
+                },
+                serde_json::json!({
+                    "kind": "frame", "family": p("Frame"), "indices": [p("Plane")],
+                    "columns": {"kind": "columns", "columns": [
+                        [{"op": "natural", "value": "1"}, {"op": "natural", "value": "0"}],
+                        [{"op": "coordinate", "name": "x"}, {"op": "natural", "value": "2"}]]},
+                    "inverse": {"kind": "columns", "columns": [[{"op": "natural", "value": "1"}]]}
+                }),
+            ),
+            (
+                DeclarationBody::Frame {
+                    family: path("Frame"),
+                    indices: vec![path("Plane")],
+                    columns: FrameColumns::Coordinates,
+                    inverse: None,
+                },
+                serde_json::json!({
+                    "kind": "frame", "family": p("Frame"), "indices": [p("Plane")],
+                    "columns": {"kind": "coordinates"}, "inverse": null
+                }),
+            ),
+            (
+                DeclarationBody::BaseDimension,
+                serde_json::json!({"kind": "base_dimension"}),
+            ),
+            (
+                DeclarationBody::Quantity {
+                    dimension: vec![factor("L", "1"), factor("T", "-2")],
+                },
+                serde_json::json!({"kind": "quantity", "dimension": [
+                    {"base": p("L"), "exponent": "1"}, {"base": p("T"), "exponent": "-2"}]}),
+            ),
+            (
+                DeclarationBody::Reading {
+                    family: path("Reading"),
+                    indices: vec![path("Chart")],
+                    quantities: vec![
+                        ReadingEntry {
+                            coordinate: "x".into(),
+                            quantity: path("Length"),
+                        },
+                        ReadingEntry {
+                            coordinate: "t".into(),
+                            quantity: path("Time"),
+                        },
+                    ],
+                },
+                serde_json::json!({
+                    "kind": "reading", "family": p("Reading"), "indices": [p("Chart")],
+                    "quantities": [{"coordinate": "x", "quantity": p("Length")},
+                        {"coordinate": "t", "quantity": p("Time")}]
+                }),
+            ),
+            (
+                DeclarationBody::Scale {
+                    quantity: path("Length"),
+                    magnitude: natural("3"),
+                },
+                serde_json::json!({"kind": "scale", "quantity": p("Length"),
+                    "magnitude": {"op": "natural", "value": "3"}}),
+            ),
+            (
+                DeclarationBody::PhysicalMetric {
+                    family: path("PhysicalMetric"),
+                    indices: vec![path("Chart")],
+                    metric: path("G"),
+                    reading: path("phys"),
+                    value: None,
+                    entries: PhysicalGram::Euclidean,
+                },
+                serde_json::json!({
+                    "kind": "physical_metric", "family": p("PhysicalMetric"), "indices": [p("Chart")],
+                    "metric": p("G"), "reading": p("phys"), "value": null,
+                    "entries": {"kind": "euclidean"}
+                }),
+            ),
+            (
+                DeclarationBody::PhysicalMetric {
+                    family: path("PhysicalMetric"),
+                    indices: vec![path("Chart")],
+                    metric: path("G"),
+                    reading: path("phys"),
+                    value: Some(vec![factor("L", "2")]),
+                    entries: PhysicalGram::Gram {
+                        rows: vec![vec![ScaleMonomial {
+                            coefficient: natural("1"),
+                            factors: vec![ScaleFactor {
+                                scale: path("l0"),
+                                exponent: "-2".into(),
+                            }],
+                        }]],
+                    },
+                },
+                serde_json::json!({
+                    "kind": "physical_metric", "family": p("PhysicalMetric"), "indices": [p("Chart")],
+                    "metric": p("G"), "reading": p("phys"), "value": [{"base": p("L"), "exponent": "2"}],
+                    "entries": {"kind": "gram", "rows": [[{"coefficient": {"op": "natural", "value": "1"},
+                        "factors": [{"scale": p("l0"), "exponent": "-2"}]}]]}
+                }),
+            ),
+            (
+                DeclarationBody::PhysicalMetric {
+                    family: path("PhysicalMetric"),
+                    indices: vec![path("Chart")],
+                    metric: path("G"),
+                    reading: path("phys"),
+                    value: None,
+                    entries: PhysicalGram::Normalized {
+                        scales: vec![CoordinateScale {
+                            coordinate: "x".into(),
+                            scale: path("l0"),
+                        }],
+                    },
+                },
+                serde_json::json!({
+                    "kind": "physical_metric", "family": p("PhysicalMetric"), "indices": [p("Chart")],
+                    "metric": p("G"), "reading": p("phys"), "value": null,
+                    "entries": {"kind": "normalized", "scales": [{"coordinate": "x", "scale": p("l0")}]}
+                }),
+            ),
+            (
+                DeclarationBody::Family {
+                    parameters: vec![Parameter::Frame {
+                        family: path("Frame"),
+                    }],
+                    constraints: Vec::new(),
+                    representation: FamilyRepresentation::Token,
+                },
+                serde_json::json!({
+                    "kind": "family", "parameters": [{"kind": "frame", "family": p("Frame")}],
+                    "constraints": [], "representation": "token"
+                }),
+            ),
+        ];
+        for (body, expected) in &cases {
+            assert!(body.is_algebraic(), "{body:?}");
+            let json = serde_json::to_value(body).unwrap();
+            assert_eq!(&json, expected, "{body:?}");
+            assert_eq!(
+                &serde_json::from_value::<DeclarationBody>(json).unwrap(),
+                body
+            );
+        }
+        for (representation, wire) in [
+            (FamilyRepresentation::Frame, "frame"),
+            (FamilyRepresentation::FrameVector, "frame_vector"),
+            (FamilyRepresentation::FrameCovector, "frame_covector"),
+            (FamilyRepresentation::FrameMap, "frame_map"),
+            (FamilyRepresentation::Reading, "reading"),
+            (FamilyRepresentation::PhysicalMetric, "physical_metric"),
+        ] {
+            assert_eq!(serde_json::to_value(representation).unwrap(), wire);
+            let family = DeclarationBody::Family {
+                parameters: Vec::new(),
+                constraints: Vec::new(),
+                representation,
+            };
+            assert!(family.is_algebraic(), "{family:?}");
+        }
+        // The nested records with fields reject an unknown field, as the
+        // kernel does. As for `MetricGram`, serde does not check the fields of
+        // a variant without fields.
+        let unknown = [
+            serde_json::json!({"kind": "frame", "family": p("Frame"), "indices": [],
+                "columns": {"kind": "columns", "columns": [], "extra": 1}, "inverse": null}),
+            serde_json::json!({"kind": "quantity", "dimension": [
+                {"base": p("L"), "exponent": "1", "extra": 1}]}),
+            serde_json::json!({"kind": "reading", "family": p("Reading"), "indices": [],
+                "quantities": [{"coordinate": "x", "quantity": p("Length"), "extra": 1}]}),
+            serde_json::json!({"kind": "physical_metric", "family": p("PhysicalMetric"), "indices": [],
+                "metric": p("G"), "reading": p("phys"), "value": null,
+                "entries": {"kind": "gram", "rows": [], "extra": 1}}),
+            serde_json::json!({"kind": "physical_metric", "family": p("PhysicalMetric"), "indices": [],
+                "metric": p("G"), "reading": p("phys"), "value": null,
+                "entries": {"kind": "gram", "rows": [[{"coefficient": {"op": "natural", "value": "1"},
+                    "factors": [{"scale": p("l0"), "exponent": "-2", "extra": 1}]}]]}}),
+            serde_json::json!({"kind": "physical_metric", "family": p("PhysicalMetric"), "indices": [],
+                "metric": p("G"), "reading": p("phys"), "value": null,
+                "entries": {"kind": "normalized", "scales": [{"coordinate": "x", "scale": p("l0"), "extra": 1}]}}),
+        ];
+        for json in unknown {
+            assert!(
+                serde_json::from_value::<DeclarationBody>(json.clone()).is_err(),
+                "{json}"
+            );
         }
     }
 

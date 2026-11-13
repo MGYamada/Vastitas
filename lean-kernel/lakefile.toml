@@ -96,7 +96,7 @@ text = true
 name = "VastitasAlgebraTest"
 leanOptions = { autoImplicit = false }
 roots = ["VastitasAlgebraTest.BasisRegression", "VastitasAlgebraTest.SmoothReferenceRegression",
-  "VastitasAlgebraTest.ReverseExampleRegression"]
+  "VastitasAlgebraTest.ReverseExampleRegression", "VastitasAlgebraTest.FrameReferenceRegression"]
 needs = ["compilerLimits", "algebraFixture", "smoothFixture", "reverseExampleFixture"]
 
 [[input_file]]

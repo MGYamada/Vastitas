@@ -233,6 +233,212 @@ fn a_use_cannot_bind_the_name_package() {
     assert_eq!(common::kernel(&raw, "check")["ok"], false);
 }
 
+const GEOMETRIC_OPERATIONS: [&str; 7] = [
+    "Affine",
+    "Base",
+    "origin",
+    "id",
+    "compose",
+    "apply",
+    "dimension",
+];
+
+/// A module may take the name of one of the seven geometric operations, as
+/// `nature::dimension`. Paths through it resolve, and the bare name in a call
+/// stays the operation, even in the module that declares the module.
+#[test]
+fn a_module_may_take_the_name_of_a_geometric_operation() {
+    let s = Scratch::new();
+    for name in GEOMETRIC_OPERATIONS {
+        s.package(
+            "app",
+            &format!(
+                "mod {name} {{ pub fn value() -> Int {{ 42 }} }}\nfn main() -> Int {{ {name}::value() }}"
+            ),
+            "",
+        );
+        success(&s.check());
+    }
+    // All seven modules next to calls of all seven operations.
+    s.package(
+        "app",
+        "mod Affine { pub fn size() -> Nat { 2 } }
+mod Base {}
+mod origin {}
+mod id {}
+mod compose {}
+mod apply {}
+mod dimension { pub fn extra() -> Int { 40 } }
+fn main() -> Int {
+    let X = Affine(QQ, Affine::size());
+    let p: Point<X, Base(QQ)> = origin(X);
+    let f = compose(id(X), id(X));
+    let q: Point<X, Base(QQ)> = apply(f, p);
+    dimension::extra() + int(dimension(X))
+}",
+        "",
+    );
+    s.native("42");
+    // Paths through `self`, `super`, `package` and a dependency, a `use` of
+    // an item of the module, and a `use` of the module under another name.
+    s.package(
+        "lib",
+        "pub mod dimension;\npub fn helper() -> Int { dimension::length() }",
+        "",
+    );
+    s.write("lib/src/dimension.vast", "pub fn length() -> Int { 10 }");
+    s.package(
+        "app",
+        "mod dimension { pub fn width() -> Int { 1 } }
+mod child { pub fn twice() -> Int { super::dimension::width() + package::dimension::width() } }
+use dep::dimension::length;
+use dep::dimension as dim;
+fn main() -> Int {
+    let X = Affine(QQ, 9);
+    length() + dim::length() + dep::dimension::length() + child::twice()
+        + self::dimension::width() + int(dimension(X))
+}",
+        "dep = { path = '../lib' }",
+    );
+    s.native("42");
+}
+
+/// The seven names stay reserved for every other declaration and binding:
+/// functions, `let`, parameters, the name that a `use` binds and dependency
+/// aliases. Other reserved names are no names of modules either.
+#[test]
+fn geometric_operation_names_stay_reserved_outside_modules() {
+    let s = Scratch::new();
+    s.package(
+        "lib",
+        "pub mod dimension { pub fn length() -> Int { 42 } }",
+        "",
+    );
+    let dep = "dep = { path = '../lib' }";
+    for (source, place, message) in [
+        (
+            "mod dimension {\n    pub fn dimension() -> Int { 2 }\n}",
+            "2:12",
+            "`dimension` is reserved for builtin geometry operations",
+        ),
+        (
+            "fn main() -> Int {\n    let origin = 1;\n    origin\n}",
+            "2:9",
+            "`origin` is reserved for builtin geometry operations",
+        ),
+        (
+            "fn f(apply: Int) -> Int { apply }",
+            "1:6",
+            "`apply` is reserved for builtin geometry operations",
+        ),
+        (
+            "use dep::dimension::length as id;",
+            "1:31",
+            "`id` is reserved for builtin geometry operations",
+        ),
+        (
+            "mod int {}",
+            "1:5",
+            "`int` is reserved for builtin Nat-to-Int conversion",
+        ),
+        (
+            "mod Nat {}",
+            "1:5",
+            "`Nat` is reserved and cannot be used as a declaration or binding name",
+        ),
+        (
+            "mod QQ {}",
+            "1:5",
+            "`QQ` is reserved and cannot be used as a declaration or binding name",
+        ),
+    ] {
+        s.package("app", source, dep);
+        let error = s.rejects("E_RESERVED");
+        assert!(
+            error.contains(&format!("app/src/main.vast:{place}: E_RESERVED: {message}")),
+            "{source}: {error}"
+        );
+        assert_eq!(error.lines().count(), 1, "{source}: {error}");
+    }
+    // A `use` of the module itself binds the reserved name. The path may name
+    // a module or an `indexed` declaration, so the kernel decides, also in a
+    // program with `indexed` declarations.
+    for lib in [
+        "pub mod dimension { pub fn length() -> Int { 42 } }",
+        "pub indexed marker M;\npub mod dimension { pub fn length() -> Int { 42 } }",
+    ] {
+        s.package("lib", lib, "");
+        s.package(
+            "app",
+            "use dep::dimension;\nfn main() -> Int { dimension::length() }",
+            dep,
+        );
+        let error = s.rejects("E_RESERVED");
+        assert!(
+            error.contains("app/src/main.vast:1:1: E_RESERVED: 'dimension' is reserved"),
+            "{lib}: {error}"
+        );
+    }
+    for alias in GEOMETRIC_OPERATIONS {
+        s.package("lib", "pub fn value() -> Int { 1 }", "");
+        s.package(
+            "app",
+            "fn main() -> Int { 0 }",
+            &format!("{alias} = {{ path = '../lib' }}"),
+        );
+        let error = s.rejects("E_MANIFEST");
+        assert!(
+            error.contains(&format!("dependency alias '{alias}' is reserved")),
+            "{error}"
+        );
+    }
+}
+
+/// The kernel decides module names independently of the frontend: it
+/// accepts a module named after a geometric operation and rejects the other
+/// reserved names of modules, a function of such a name and a `use` that binds
+/// one, in a request that the frontend did not write.
+#[test]
+fn the_kernel_checks_geometric_module_names_independently() {
+    let s = Scratch::new();
+    s.package(
+        "app",
+        "mod dimension { pub fn value() -> Int { 42 } }\nmod units { pub mod length { pub fn value() -> Int { 1 } } }\nuse units::length as metres;\nfn main() -> Int { dimension::value() + metres::value() - 1 }",
+        "",
+    );
+    let raw = common::captured_wire(
+        s.cli()
+            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
+        3,
+    );
+    assert_eq!(common::kernel(&raw, "check")["ok"], true, "{raw}");
+    let modules = raw["packages"][0]["modules"].as_array().unwrap();
+    let at = |path: serde_json::Value| {
+        modules
+            .iter()
+            .position(|module| module["path"] == path)
+            .unwrap()
+    };
+    let dimension = at(serde_json::json!(["dimension"]));
+    let root = at(serde_json::json!([]));
+    // Other reserved names of modules.
+    for name in ["int", "Nat", "QQ", "self"] {
+        let mut forged = raw.clone();
+        forged["packages"][0]["modules"][dimension]["path"] = serde_json::json!([name]);
+        common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
+    }
+    // A function of a geometric operation's name.
+    let mut forged = raw.clone();
+    forged["packages"][0]["modules"][dimension]["functions"][0]["name"] = "dimension".into();
+    common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
+    // A `use` that binds a geometric operation's name to a module.
+    let mut forged = raw;
+    let import = &mut forged["packages"][0]["modules"][root]["imports"][0];
+    assert_eq!(import["alias"], "metres");
+    import["alias"] = "origin".into();
+    common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
+}
+
 #[test]
 fn only_exact_generic_owner_can_add_methods() {
     let s = Scratch::new();

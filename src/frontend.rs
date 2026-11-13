@@ -30,6 +30,18 @@ const BUILTINS: &[&str] = &[
     "pair_first",
     "pair_second",
 ];
+// The seven geometric operations of `BUILTINS`. A module may take one of these
+// names, as `nature::dimension`; every other declaration and binding may not.
+// Mirrors `geometricOperation` in the kernel's NamespaceChecker.
+const GEOMETRIC_OPERATIONS: &[&str] = &[
+    "Affine",
+    "Base",
+    "origin",
+    "id",
+    "compose",
+    "apply",
+    "dimension",
+];
 // Reserved spellings that may name actual indexed declarations, as in
 // `pub use super::Point;`. Mirrors `indexedSpelling` in the kernel's
 // NamespaceChecker, which validates such imports.
@@ -640,6 +652,17 @@ impl Parser {
         Ok((name, span))
     }
 
+    // The name of a `mod` declaration. It may be one of the seven geometric
+    // operations, which stay reserved for every other declaration and binding,
+    // including the name that a `use` binds. The kernel's `moduleName` agrees.
+    fn module_name(&mut self) -> Result<(String, Span), Diagnostic> {
+        let (name, span) = self.name()?;
+        if !GEOMETRIC_OPERATIONS.contains(&name.as_str()) {
+            self.check_binding_name(&name, span)?;
+        }
+        Ok((name, span))
+    }
+
     // The names of modules and paths are reserved in flat mode too. The kernel
     // rejects them as well, at the declaration or the statement that binds
     // them; the frontend reports them at the name (#747).
@@ -885,7 +908,7 @@ impl Parser {
                 let (name, name_span) = if self.peek().is("generic") {
                     self.path_component()?
                 } else {
-                    self.binding_name()?
+                    self.module_name()?
                 };
                 // The kernel refuses this name too, but only at the span of
                 // the module, which is its `mod` item.

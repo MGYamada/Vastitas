@@ -1,0 +1,1 @@
+examples/reject/packages/geometric-function/main.vast:3:12: E_RESERVED: `dimension` is reserved for builtin geometry operations; choose another declaration or binding name

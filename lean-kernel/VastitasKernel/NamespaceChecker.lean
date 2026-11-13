@@ -15,10 +15,17 @@ def sourceName (name : String) (span : Span) : Result Unit := do
   if ["mod", "use", "pub", "self", "super"].contains name then
     problem span "E_RESERVED" s!"'{name}' is reserved for modules"
 
-/-- Contextual module spelling only; functions, generics and bindings retain
-the ordinary reserved-name checks. This grants no additional edit authority. -/
+/-- The seven geometric operations. A module may take one of these names, as
+`nature::dimension`; every other declaration and binding, including the name
+that a `use` binds, keeps the ordinary reserved-name check. -/
+def geometricOperation (name : String) : Bool :=
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension"].contains name
+
+/-- Contextual module spellings only: `generic` and the seven geometric
+operations. Functions, generics, imports and bindings retain the ordinary
+reserved-name checks. This grants no additional edit authority. -/
 def moduleName (name : String) (span : Span) : Result Unit :=
-  if name == "generic" then pure () else sourceName name span
+  if name == "generic" || geometricOperation name then pure () else sourceName name span
 
 /-- Compatibility spellings may name actual indexed declarations. They do not
 select a declaration kind, representation, or operation. Scalar/Fn/Pair and
@@ -161,6 +168,52 @@ theorem resolve_unboundName (p : Indexed) (scope : Scope) (name : String) (span 
     simp only [hdep', memberAt, hown', hm, himp']
     exact ⟨_, rfl, rfl⟩
   · simp at unbound
+
+/-- Structured "names a module" for a one-component reference in an existing
+package: the declaration of this name in the scope is a module, and no
+dependency alias of this name exists. A module is neither a value nor a
+function, so a module named after a geometric operation does not hide it. -/
+def childModule (p : Indexed) (scope : Scope) (name : String) : Bool :=
+  match p.byPackage[scope.package.source]? with
+  | some pkg =>
+    name != "self" && name != "super" && name != "package" &&
+      !pkg.dependencies.contains name &&
+      match p.byOwner[(⟨scope, name⟩ : Owner)]? with
+      | some target => target.kind == .module
+      | none => false
+  | none => false
+
+/-- A name of a child module resolves to that module or fails, so it never
+reaches a function, a generic or an indexed declaration. -/
+theorem resolve_childModule (p : Indexed) (scope : Scope) (name : String) (span : Span)
+    (child : childModule p scope name = true) (target : Target)
+    (resolved : resolve p scope [name] span = .ok target) : target.kind = .module := by
+  unfold childModule at child
+  split at child
+  · rename_i pkg hpkg
+    simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true'] at child
+    obtain ⟨⟨⟨⟨hself, hsuper⟩, hpackage⟩, hdep⟩, hmodule⟩ := child
+    split at hmodule
+    · rename_i found hown
+      obtain ⟨fuel, limit⟩ : ∃ fuel, Limits.namespaceResolution = fuel + 2 :=
+        ⟨Limits.namespaceResolution - 2, by decide⟩
+      have hdep' : pkg.dependencies[name]? = none :=
+        Std.HashMap.getElem?_eq_none_of_contains_eq_false hdep
+      unfold resolve at resolved
+      rw [limit] at resolved
+      simp only [resolveAt, hpkg] at resolved
+      simp only [hdep', memberAt, hown] at resolved
+      have hkind : found.kind = .module := by
+        revert hmodule; cases found.kind <;> decide
+      have hcharge : StateT.run (charge span) (fuel + 2) = .ok ((), fuel + 1) := rfl
+      cases hv : visible scope found
+      · simp [hv, problem, hcharge] at resolved
+        cases resolved
+      · simp [hv, descend, hcharge] at resolved
+        cases resolved
+        exact hkind
+    · simp at hmodule
+  · simp at child
 
 def symbol (p : Program) (target : Target) : String :=
   if target.owner.scope.package.source == p.root && target.owner.scope.path.isEmpty &&

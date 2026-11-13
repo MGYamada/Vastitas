@@ -1,0 +1,9 @@
+mod dimension;
+use dimension::length;
+
+fn main() -> Int {
+    let X = Affine(QQ, 2);
+    // A path through `dimension` names the module. The bare name in a call
+    // is the geometric operation.
+    length() + self::dimension::width() + int(dimension(X))
+}

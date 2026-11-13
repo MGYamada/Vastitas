@@ -1,0 +1,3 @@
+pub mod dimension {
+    pub fn length() -> Int { 42 }
+}

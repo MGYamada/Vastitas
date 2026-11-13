@@ -110,10 +110,14 @@ def type (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
   let (type, references) ← match (elaborateDataType input.index input.declarations scope ctx raw input.geometry).run [] with
     | .ok result => pure result
     | .error diagnostic => throw (if diagnostic.span == {} then { diagnostic with span } else diagnostic)
+  -- An indexed type `F<…>` has the place of the path of its family. The
+  -- request has no place for `Object<D, K>` or a type of the core syntax.
+  let place := match raw with | .application path _ => path.span | _ => span
   unless type.Valid input.declarations do
     let code := match raw with | .legacy (.point ..) | .legacy (.morphism ..) => "E_BASE" | _ => "E_TYPE"
-    fail span code s!"invalid indexed annotation {← typeLabel input type}"
-  unless type.Scoped (Core.Typing.contextRefs ctx.core) do fail span "E_SCOPE" "annotation contains a local object outside its scope"
+    fail place code s!"invalid indexed annotation {← typeLabel input type}"
+  unless type.Scoped (Core.Typing.contextRefs ctx.core) do
+    fail place "E_SCOPE" "annotation contains a local object outside its scope"
   for reference in references do
     let actual ← lookupPath input.index reference.scope reference.path
     unless actual == reference.target do fail reference.path.span "E_PROTOCOL" "indexed annotation resolution differs"

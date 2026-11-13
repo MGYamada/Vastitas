@@ -882,11 +882,20 @@ impl Parser {
                 module.assembly = Some(self.assembly()?);
             } else if self.consume("mod") {
                 let start = self.previous().span;
-                let (name, _) = if self.peek().is("generic") {
+                let (name, name_span) = if self.peek().is("generic") {
                     self.path_component()?
                 } else {
                     self.binding_name()?
                 };
+                // The kernel refuses this name too, but only at the span of
+                // the module, which is its `mod` item.
+                if name == "package" {
+                    return Err(diagnostic(
+                        "E_RESERVED",
+                        "`package` is reserved as a path prefix and cannot be the name of a module",
+                        name_span,
+                    ));
+                }
                 let mut child = path.clone();
                 child.push(name);
                 if self.consume(";") {

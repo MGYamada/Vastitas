@@ -99,6 +99,43 @@ fn main() -> Int { 0 }
     );
 }
 
+/// An indexed type `F<…>` that its rules do not admit has the place of the
+/// path of its family, in a parameter and in a result type; an argument that
+/// is a name has its own place. `Object<D, K>` has no place of its own, so it
+/// has the place of its parameter.
+#[test]
+fn an_invalid_indexed_type_in_a_signature_is_reported_at_its_family() {
+    let prelude = "indexed marker QQ;
+indexed implementation Grid(QQ, affine_descriptor) capabilities();
+indexed global Base(Grid);
+indexed family Same(object(Grid), object(Grid)) = token constraints(same_object(0, 1));
+";
+    for (signature, expected) in [
+        (
+            "fn f(X: Object<Grid, QQ>, p:   self::Same<X, Base>) -> Int { 0 }",
+            "main.vast:5:32: E_TYPE: invalid indexed annotation Same<X, Base>",
+        ),
+        (
+            "fn f(X: Object<Grid, QQ>) ->   self::Same<X, Base> { 0 }",
+            "main.vast:5:32: E_TYPE: invalid indexed annotation Same<X, Base>",
+        ),
+        (
+            "fn f(n: Int, p: self::Same<n, Base>) -> Int { 0 }",
+            "main.vast:5:28: E_TYPE: an object index requires an object value",
+        ),
+        (
+            "fn f(X:   Object<Base, QQ>) -> Int { 0 }",
+            "main.vast:5:6: E_TYPE: invalid indexed annotation Base<QQ>",
+        ),
+    ] {
+        assert_eq!(
+            package_diagnostic(&format!("{prelude}{signature}\nfn main() -> Int {{ 0 }}\n")),
+            expected,
+            "{signature}"
+        );
+    }
+}
+
 /// More than 4096 indexed declarations are reported at the 4097th, whose
 /// place is its keyword `indexed`.
 #[test]

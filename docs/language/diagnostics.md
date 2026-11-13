@@ -108,15 +108,18 @@ Rules:
   no note for it.
 - The diagnostic of a reserved name points to the name, in flat mode and in
   manifest mode (`E_RESERVED`). This holds for the name of an `indexed`
-  declaration too.
-- An error of a type in the signature of a function has the place of the
-  type when the type is an indexed type: the place of the path of its family.
-  An integer literal at a parameter of a family that is not `natural` is
-  such an error. A type of the
-  [core syntax](../indexed-source.md#core-geometry-syntax) has no place of
-  its own. An error of it, such as a type of the core syntax in a program
-  without an export, has the place of its parameter, or of the function for
-  its result type.
+  declaration and for the name of a module, `package` among them.
+- An error of an indexed type `F<…>` in a signature or in an annotation has
+  the place of the path of its family. An integer literal at a parameter of
+  the family that is not `natural` is such an error. An argument that is a
+  name has a place of its own: a name that does not fit its parameter is
+  reported there.
+- A type `Object<D, K>` and a type of the
+  [core syntax](../indexed-source.md#core-geometry-syntax) have no place of
+  their own. An error of one of them has the place of the construct that
+  holds the type: its parameter, the function for its result type, or its
+  statement. An example is a type of the core syntax in a program without an
+  export.
 
 The examples of this book show an absolute path without its part up to the
 root of the repository. In this package `main` calls a private function of a
@@ -160,10 +163,9 @@ Rules:
 - Two limits have this place (`E_LIMIT`): the budget on the work of the
   names of the whole program, and the size of the
   [request](../appendix/limits.md#request) of the program. Each counts the
-  program as a whole, so no construct passes the bound. The two other
-  budgets of name resolution have the place of a path or of a `use`
-  declaration that exceeds them, and the limit on the number of indexed
-  declarations has the place of the first declaration beyond it.
+  program as a whole, so no construct passes the bound.
+  [Kinds of limits](limits.md#kinds-of-limits) gives the places of the other
+  limits.
 - The rules above name the cases that the chapters of the Reference state.
   Another diagnostic of the checker can have this place.
 

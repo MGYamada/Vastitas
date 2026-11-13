@@ -153,6 +153,26 @@ fn private_paths_reexports_parent_lookup_and_shadowing_are_checked() {
     s.native("42");
 }
 
+/// `package` is no name of a module either. The diagnostic is at the name; the
+/// kernel had only the span of the module, its `mod` item.
+#[test]
+fn a_module_cannot_be_named_package() {
+    let s = Scratch::new();
+    for (source, place) in [
+        ("fn main() -> Int { 42 }\nmod package { }", "2:5"),
+        ("fn main() -> Int { 42 }\nmod package;", "2:5"),
+        ("fn main() -> Int { 42 }\npub mod package { }", "2:9"),
+    ] {
+        s.package("app", source, "");
+        let error = s.rejects("E_RESERVED");
+        let reported = format!(
+            "app/src/main.vast:{place}: E_RESERVED: `package` is reserved as a path prefix and cannot be the name of a module\n"
+        );
+        assert!(error.ends_with(&reported), "{source}: {error}");
+        assert_eq!(error.lines().count(), 1, "{source}: {error}");
+    }
+}
+
 /// `package` is reserved as a name that `use` binds, so `use package;` is the
 /// reserved name (`E_RESERVED`) at that name and not a cycle of imports. As a
 /// path of one segment `package` is an ordinary name: `use package as root;`

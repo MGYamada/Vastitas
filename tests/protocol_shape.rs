@@ -300,9 +300,8 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
 // that the frontend sends for `tests/fixtures/frame-dimension-declarations`.
 // Records of one shape can have different decoders (the Gram matrix of a
 // metric and of a physical metric), so the sweep also keeps one
-// representative per shape and declaration kind. Until batch 4 the kernel
-// decodes the baseline and then rejects its first frame (`E_FRAME`); every
-// forged field is a decoder rejection.
+// representative per shape and declaration kind. The kernel accepts the
+// baseline; every forged field is a decoder rejection.
 #[test]
 fn frame_and_nature_records_reject_unknown_fields() {
     let mut command = common::cli();
@@ -311,14 +310,7 @@ fn frame_and_nature_records_reject_unknown_fields() {
         .arg(common::root().join("tests/fixtures/frame-dimension-declarations/Vastitas.toml"));
     let raw = common::captured_wire(command, 9);
     let baseline = kernel(&raw, "check");
-    assert!(
-        baseline["ok"] == true
-            || matches!(
-                baseline["diagnostics"][0]["code"].as_str(),
-                Some("E_FRAME" | "E_DIMENSION")
-            ),
-        "{baseline}"
-    );
+    assert!(baseline["ok"] == true, "{baseline}");
     let mut records = BTreeMap::new();
     record_paths(&raw, "", &mut records);
     let base = "/packages/0/modules/0/indexed_declarations";

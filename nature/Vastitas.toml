@@ -1,0 +1,9 @@
+[package]
+name = "vastitas_nature"
+version = "0.1.0"
+root = "mod.vast"
+
+# nature may depend on std; no std manifest depends on nature (ADR 0002 §1,
+# checked by scripts/check_boundaries.py).
+[dependencies]
+std = { path = "../stdlib" }

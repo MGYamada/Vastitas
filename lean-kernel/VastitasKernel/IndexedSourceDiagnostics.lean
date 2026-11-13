@@ -101,12 +101,17 @@ inductive RoleRequirement where
   /-- The `field` index of the `role` operand must be the frame `expected`
   (Stage 4); `reason` names the operand or declaration that fixes it. -/
   | frame (role field : String) (expected actual : DeclId) (reason : String)
+  /-- The index `index` of the primitive, named `name`, must be below
+  `dimension`, the dimension of the object of the frame `frame` at the `field`
+  index of the `role` operand (Stage 4). -/
+  | bound (role field name : String) (frame : DeclId) (index dimension : Nat)
   deriving Repr, Inhabited, DecidableEq
 
 def RoleRequirement.holds (env : Environment) : RoleRequirement → Bool
   | .family _ expected actual => expected == actual
   | .object _ _ expected actual _ => expected == actual
   | .frame _ _ expected actual _ => expected == actual
+  | .bound _ _ _ _ index dimension => decide (index < dimension)
   | .marker _ _ expected actual => expected == actual
   | .domain _ _ expected actual =>
     decide (∀ id ∈ actual.implementations env, id ∈ expected.implementations env)
@@ -218,6 +223,12 @@ def _root_.VastitasKernel.Indexed.Relation.requirement (env : Environment) (shap
       | some expected => [.object role field (.global expected) actual reason]
       | none => []
     | _, _, _ => []
+  | .frameBound position index name =>
+    match shape.roleField position, frameIndexAt arguments position with
+    | some (role, field), some frame => match frameDimension? env frame with
+      | some dimension => [.bound role field name frame index dimension]
+      | none => []
+    | _, _ => []
 
 /-- The slots of `operand` at which the shape fixes a point's dimension. -/
 def pointSlots (shape : Shape) (operand : Nat) : List Nat :=
@@ -418,6 +429,18 @@ theorem relation_sound {env : Environment} {shape : Shape} {allowed : List Objec
         simp only [Relation.holds, foundFrame, foundActual, foundObject, beq_iff_eq] at holds
         simp [RoleRequirement.holds, holds]
     · simp at member
+  | frameBound position index name =>
+    simp only [Relation.requirement] at member
+    split at member
+    · rename_i role field found _ foundFrame
+      cases foundDimension : frameDimension? env found with
+      | none => simp [foundDimension] at member
+      | some dimension =>
+        simp only [foundDimension, List.mem_singleton] at member
+        subst member
+        simp only [Relation.holds, foundFrame, foundDimension, Option.any_some, decide_eq_true_eq] at holds
+        simp [RoleRequirement.holds, holds]
+    · simp at member
   | refines operand =>
     simp only [Relation.requirement] at member
     split at member
@@ -608,5 +631,8 @@ def explainFailure (env : Core.Declarations) (geometry : Option (GeometryProfile
     let (wanted, found) := declarationLabels expected actual
     s!"{primitive} requires {withArticle role} with {field} {wanted} ({reason}), " ++
       s!"but the supplied {role} has {field} {found}"
+  | .role (.bound role field name frame index dimension) =>
+    s!"{primitive} reads {name} {index} of {withArticle role} with {field} {frame.name}, but {frame.name} " ++
+      s!"is a frame of a {dimension}-dimensional object, so the {name} must be below {dimension}"
 
 end VastitasKernel.Indexed.Source.Diagnostics

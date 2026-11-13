@@ -529,7 +529,7 @@ pub enum Argument {
 
 /// The kind of one field of an indexed primitive's wire form. The table
 /// spells the kinds as the kernel's `Source.WireKind.wire` does: `path`,
-/// `object_type`, `coordinate`, `polynomial` and `pullback_mode`.
+/// `object_type`, `coordinate`, `polynomial`, `pullback_mode` and `natural`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WireKind {
     /// An unresolved declaration path.
@@ -542,6 +542,9 @@ pub enum WireKind {
     Polynomial,
     /// How a cotangent pullback obtains forward values.
     PullbackMode,
+    /// A natural number as an unsigned decimal string, such as the index of
+    /// a frame component (Stage 4). The kernel bounds its digits.
+    Natural,
 }
 
 /// The wire form of one indexed primitive: the `op`, whether only protocol 9
@@ -574,6 +577,8 @@ pub enum WireValue {
     Coordinate(String),
     Polynomial(PolyExpr),
     PullbackMode(PullbackMode),
+    /// An unsigned decimal string, serialized as the bare string.
+    Natural(String),
 }
 
 impl WireValue {
@@ -584,6 +589,7 @@ impl WireValue {
             WireValue::Coordinate(_) => WireKind::Coordinate,
             WireValue::Polynomial(_) => WireKind::Polynomial,
             WireValue::PullbackMode(_) => WireKind::PullbackMode,
+            WireValue::Natural(_) => WireKind::Natural,
         }
     }
 
@@ -594,6 +600,7 @@ impl WireValue {
             WireKind::Coordinate => WireValue::Coordinate(serde_json::from_value(value)?),
             WireKind::Polynomial => WireValue::Polynomial(serde_json::from_value(value)?),
             WireKind::PullbackMode => WireValue::PullbackMode(serde_json::from_value(value)?),
+            WireKind::Natural => WireValue::Natural(serde_json::from_value(value)?),
         })
     }
 }
@@ -606,6 +613,7 @@ impl Serialize for WireValue {
             WireValue::Coordinate(name) => name.serialize(serializer),
             WireValue::Polynomial(expression) => expression.serialize(serializer),
             WireValue::PullbackMode(mode) => mode.serialize(serializer),
+            WireValue::Natural(value) => value.serialize(serializer),
         }
     }
 }
@@ -1150,6 +1158,19 @@ mod tests {
             "cotangent_backward",
             "flat",
             "sharp",
+            "frame_encode",
+            "frame_decode",
+            "frame_vector",
+            "frame_matrix",
+            "frame_transition",
+            "frame_apply",
+            "frame_coapply",
+            "frame_compose",
+            "frame_pairing",
+            "frame_component",
+            "frame_entry",
+            "frame_equal",
+            "frame_at",
         ];
         let mut table: Vec<&str> = primitive_families()
             .iter()

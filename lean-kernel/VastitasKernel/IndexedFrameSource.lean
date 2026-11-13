@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedMetricSource
 import VastitasKernel.FrameDeclarations
+import VastitasKernel.IndexedFrameContracts
 
 set_option autoImplicit false
 
@@ -33,7 +34,11 @@ is accepted by the audit. Its rejections are `E_FRAME`, at the declaration,
 naming the frame and its object; limits are `E_LIMIT`, and an unknown
 coordinate or a zero denominator in an entry is `E_AFFINE_COORDINATE`, as in
 the entries of a smooth map or a Gram matrix. Messages name declarations by
-their full path, `package::module::name`. -/
+their full path, `package::module::name`.
+
+Once the frames are elaborated, the pass gives every frame binding the frames
+it names (`elaborateFrameBindings`): the declaration's object, `P` and `Q`,
+and for an encoding or a decoding the variance of its fiber family. -/
 namespace VastitasKernel.Indexed.Source
 
 open AlgebraRuntime FrameDeclarations
@@ -172,8 +177,83 @@ def elaborateFrame (span : Span) (env : Environment) (name family object : DeclI
     | .error failure => failureProblem span names true failure
     | .ok () => pure (matrix, inverse)
 
-/-- Elaborate every frame declaration. A program without frame declarations
-is unchanged. -/
+/-! ## The frames of the frame bindings
+
+`resolveBody` builds every frame binding with placeholder frames, the frame's
+own ID as its object and empty matrices (`FrameRef.placeholder`), and
+`frame_encode` and `frame_decode` with the variance `tangent`. Once the frame
+declarations are elaborated, each frame that a binding names is replaced by
+its declaration: its object, its matrix `P` and its inverse `Q`. A name that
+is not a frame declaration is `E_FRAME`. The variance of an encoding or a
+decoding is that of its fiber family; a fiber family and an array family of
+different variances are `E_FRAME`. A transition between frames of two objects
+is `E_ENDPOINT`, naming both frames and both objects. A family that is not a
+fiber, array, map or smooth family is left to the declaration audit, which
+checks every embedded frame against its declaration again
+(`IndexedFrameContracts`). -/
+
+private def varianceWord : Variance → String
+  | .tangent => "vector"
+  | .cotangent => "covector"
+
+/-- The declaration of a frame that a binding names, as an embedded frame. -/
+private def bindingFrame (span : Span) (env : Environment) (operation field : String) (frame : DeclId) :
+    Namespace.Result FrameRef := do
+  let some (_, object, matrix, inverse) := frameData? env frame
+    | frameProblem span <| s!"the {field} of `{operation}` must be a frame, but `{qualified frame}` is not a " ++
+        "frame declaration"
+  pure ⟨frame, object, matrix, inverse⟩
+
+/-- The variance of an encoding or a decoding: that of its fiber family, or
+that of its array family when the fiber family is not one. -/
+private def bindingVariance (span : Span) (env : Environment) (operation : String) (fiber coords : DeclId) :
+    Namespace.Result Variance := do
+  match fiberVariance? env fiber, frameFiberVariance? env coords with
+  | some variance, some arrays =>
+    unless variance == arrays do
+      frameProblem span <| s!"`{operation}` relates the {varianceWord variance} family `{qualified fiber}` to " ++
+        s!"`{qualified coords}`, which holds the arrays of {varianceWord arrays}s; both families must hold " ++
+        "vectors, or both covectors"
+    pure variance
+  | some variance, none => pure variance
+  | none, some arrays => pure arrays
+  | none, none => pure .tangent
+
+/-- Give every frame binding the declarations of the frames it names. Every
+other binding is unchanged. -/
+def elaborateFrameBindings (sources : List (DeclId × Span × Body)) (env : Environment)
+    (primitives : List Core.NamedPrimitive) : Namespace.Result (List Core.NamedPrimitive) :=
+  primitives.mapM fun entry => do
+    let span := frameSpan sources entry.id
+    match entry.binding with
+    | .frameEncode _ fiber coords frame =>
+      let frame ← bindingFrame span env "frame_encode" "frame" frame.frame
+      let variance ← bindingVariance span env "frame_encode" fiber coords
+      pure ⟨entry.id, .frameEncode variance fiber coords frame⟩
+    | .frameDecode _ coords fiber frame =>
+      let frame ← bindingFrame span env "frame_decode" "frame" frame.frame
+      let variance ← bindingVariance span env "frame_decode" fiber coords
+      pure ⟨entry.id, .frameDecode variance coords fiber frame⟩
+    | .frameVector coords smooth _ frame =>
+      let embedded ← bindingFrame span env "frame_vector" "frame" frame
+      pure ⟨entry.id, .frameVector coords smooth embedded.object frame⟩
+    | .frameMatrix smooth map source target =>
+      let source ← bindingFrame span env "frame_matrix" "source frame" source.frame
+      let target ← bindingFrame span env "frame_matrix" "target frame" target.frame
+      pure ⟨entry.id, .frameMatrix smooth map source target⟩
+    | .frameTransition smooth map source target =>
+      let source ← bindingFrame span env "frame_transition" "source frame" source.frame
+      let target ← bindingFrame span env "frame_transition" "target frame" target.frame
+      unless source.object == target.object do
+        Namespace.problem span "E_ENDPOINT" <| s!"`frame_transition` changes between two frames of one object, " ++
+          s!"but the source frame `{qualified source.frame}` is on `{qualified source.object}` and the target " ++
+          s!"frame `{qualified target.frame}` is on `{qualified target.object}`"
+      pure ⟨entry.id, .frameTransition smooth map source target⟩
+    | _ => pure entry
+
+/-- Elaborate every frame declaration, then give every frame binding the
+frames it names. A program without frame declarations or frame bindings is
+unchanged. -/
 def elaborateFrames (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
     Namespace.Result Core.Declarations := do
   let indexed ← env.indexed.mapM fun entry => do
@@ -183,6 +263,7 @@ def elaborateFrames (sources : List (DeclId × Span × Body)) (env : Core.Declar
         columns declared
       pure ⟨entry.id, .frame family object matrix inverse⟩
     | _, _ => pure entry
-  pure { env with indexed }
+  let primitives ← elaborateFrameBindings sources indexed env.primitives
+  pure { env with indexed, primitives }
 
 end VastitasKernel.Indexed.Source

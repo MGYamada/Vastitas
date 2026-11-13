@@ -84,6 +84,21 @@ theorem found_of_familyRepresentation {env : Environment} {id : DeclId} {represe
 theorem found_of_isRelativeFamily {env : Environment} {id : DeclId} (h : isRelativeFamily env id = true) :
     (lookup env id).isSome = true := found_of_familyRepresentation h
 
+theorem found_of_frameFiberVariance {env : Environment} {id : DeclId}
+    (h : (frameFiberVariance? env id).isSome = true) : (lookup env id).isSome = true := by
+  unfold frameFiberVariance? at h
+  split at h <;> simp_all
+
+theorem found_of_isFrameMapFamily {env : Environment} {id : DeclId} (h : isFrameMapFamily env id = true) :
+    (lookup env id).isSome = true := by
+  unfold isFrameMapFamily at h
+  split at h <;> simp_all
+
+theorem isSome_of_beq_some {α : Type} [BEq α] [LawfulBEq α] {o : Option α} {a : α} (h : (o == some a) = true) :
+    o.isSome = true := by
+  simp only [beq_iff_eq] at h
+  simp [h]
+
 section Extension
 
 variable {small big : Environment} (ext : MetricExtension small big)
@@ -157,6 +172,18 @@ theorem frameData_append (id : DeclId) : frameData? big id = frameData? small id
 
 theorem frameFamily_append (id : DeclId) : frameFamily? big id = frameFamily? small id := by
   simp only [frameFamily?, frameData_append ext]
+
+theorem frameObject_append (id : DeclId) : frameObject? big id = frameObject? small id := by
+  simp only [frameObject?, frameData_append ext]
+
+theorem frameFiberVariance_append (id : DeclId) : frameFiberVariance? big id = frameFiberVariance? small id := by
+  view_append frameFiberVariance? id
+
+theorem isFrameMapFamily_append (id : DeclId) : isFrameMapFamily big id = isFrameMapFamily small id := by
+  view_append isFrameMapFamily id
+
+theorem frameDeclared_append (frame : FrameRef) : frameDeclared big frame = frameDeclared small frame := by
+  simp only [frameDeclared, frameData_append ext]
 
 theorem affineGlobal_append (id : DeclId) : affineGlobal big id = affineGlobal small id := by
   rcases ext id with same | ⟨none, declaration, found, kind⟩
@@ -357,6 +384,44 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
     simp only [validPrimitiveBinding, PrimitiveBinding.contract,
       familyRepresentation_append ext maps (by decide : FamilyRepresentation.morphism ≠ _),
       familyRepresentation_append ext points (by decide : FamilyRepresentation.point ≠ _)]
+  | frameEncode variance fiber coords frame =>
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameEncode, PrimitiveDescriptor.ofBool,
+      frameEncodeValid, frameDeclared_append ext, fiberVariance_append ext, frameFiberVariance_append ext]
+    cases fiber : fiberVariance? small fiber == some variance
+    · simp
+    · cases arrays : frameFiberVariance? small coords == some variance
+      · simp
+      · simp only [validApplication_mk_of_found ext (found_of_fiberVariance (isSome_of_beq_some fiber)),
+          validApplication_mk_of_found ext (found_of_frameFiberVariance (isSome_of_beq_some arrays))]
+  | frameDecode variance coords fiber frame =>
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameDecode, PrimitiveDescriptor.ofBool,
+      frameDecodeValid, frameDeclared_append ext, fiberVariance_append ext, frameFiberVariance_append ext]
+    cases arrays : frameFiberVariance? small coords == some variance
+    · simp
+    · cases fiber : fiberVariance? small fiber == some variance
+      · simp
+      · simp only [validApplication_mk_of_found ext (found_of_fiberVariance (isSome_of_beq_some fiber)),
+          validApplication_mk_of_found ext (found_of_frameFiberVariance (isSome_of_beq_some arrays))]
+  | frameVector coords smooth object frame =>
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameVector, PrimitiveDescriptor.ofBool,
+      frameVectorValid, frameFiberVariance_append ext, isSmoothFamily_append ext, frameObject_append ext,
+      smoothDimension_append ext]
+    cases arrays : (frameFiberVariance? small coords).isSome
+    · simp
+    · simp only [validApplication_mk_of_found ext (found_of_frameFiberVariance arrays)]
+  | frameMatrix smooth map source target =>
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameMatrix, PrimitiveDescriptor.ofBool,
+      frameMatrixValid, isSmoothFamily_append ext, isFrameMapFamily_append ext, frameDeclared_append ext]
+    cases maps : isFrameMapFamily small map
+    · simp
+    · simp only [validApplication_mk_of_found ext (found_of_isFrameMapFamily maps)]
+  | frameTransition smooth map source target =>
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameTransition,
+      PrimitiveDescriptor.ofBool, frameTransitionValid, isSmoothFamily_append ext, isFrameMapFamily_append ext,
+      frameDeclared_append ext]
+    cases maps : isFrameMapFamily small map
+    · simp
+    · simp only [validApplication_mk_of_found ext (found_of_isFrameMapFamily maps)]
   | cotangentJacobian cotangent application map =>
     have contract : ∀ env, validPrimitiveBinding env (.cotangentJacobian cotangent application map) =
         cotangentJacobianValid env cotangent application map := by
@@ -383,11 +448,11 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
       isSmoothFamily_append ext, fiberAtValid, fiberEqualValid, fiberPairingValid, cotangentPullbackValid,
       differentialValid, linearizeValid, cotangentBackwardValid, smoothApplyValid, fiberVariance_append ext,
       isTapeFamily_append ext, smoothDimension_append ext,
-      -- The frame entries of Stage 4 reject every binding.
-      FrameRegistry.frameEncode, FrameRegistry.frameDecode, FrameRegistry.frameVector,
-      FrameRegistry.frameMatrix, FrameRegistry.frameTransition, FrameRegistry.frameApply,
-      FrameRegistry.frameCoapply, FrameRegistry.frameCompose, FrameRegistry.framePairing,
-      FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt]
+      -- The frame entries of Stage 4 that read no application.
+      FrameRegistry.frameApply, FrameRegistry.frameCoapply, FrameRegistry.frameCompose, FrameRegistry.framePairing,
+      FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt,
+      frameApplyValid, frameCoapplyValid, frameComposeValid, framePairingValid, frameComponentValid,
+      frameEntryValid, frameEqualValid, frameAtValid, frameFiberVariance_append ext, isFrameMapFamily_append ext]
 
 /-- The propositional contract is unchanged as well. -/
 theorem primitiveBindingValid_of_extension {binding : PrimitiveBinding} (free : MetricFree binding) :
@@ -399,9 +464,13 @@ theorem fiberVectorValue_append (family : DeclId) (point : SmoothRuntime.Program
     fiberVectorValue big family point values = fiberVectorValue small family point values := by
   simp only [fiberVectorValue, fiberVariance_append ext]
 
+theorem frameVectorValue_append (coords : DeclId) (point : SmoothRuntime.Program) (values : List Value) :
+    frameVectorValue big coords point values = frameVectorValue small coords point values := by
+  simp only [frameVectorValue, frameFiberVariance_append ext]
+
 /-- **Weakening of evaluation.** A metric extension does not change the value
-of any primitive. Only `global`, `origin` and `fiber_vector` consult the
-environment, and none of them reads a metric declaration. -/
+of any primitive. Only `global`, `origin`, `fiber_vector` and `frame_vector`
+consult the environment, and none of them reads a metric declaration. -/
 theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List Value) :
     evalPrimitive big binding values = evalPrimitive small binding values := by
   cases binding
@@ -410,7 +479,8 @@ theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List V
     split <;> rfl
   all_goals simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
     PrimitiveDescriptor.evidence, globalObject_append ext, fiberVectorValue_append ext,
-    -- The frame entries of Stage 4 evaluate no call.
+    frameVectorValue_append ext,
+    -- The frame entries of Stage 4 read only their embedded frames.
     FrameRegistry.frameEncode, FrameRegistry.frameDecode, FrameRegistry.frameVector,
     FrameRegistry.frameMatrix, FrameRegistry.frameTransition, FrameRegistry.frameApply,
     FrameRegistry.frameCoapply, FrameRegistry.frameCompose, FrameRegistry.framePairing,

@@ -148,6 +148,16 @@ def pullbackMode (j : Json) : Except String SmoothRuntime.PullbackMode := do
   | "recomputed" => return .recomputed
   | _ => throw "expected pullback mode saved or recomputed"
 
+/-- A natural field of a primitive (Stage 4: a frame component, a row or a
+column): an unsigned decimal string with at most `algebraCoefficientDigits`
+digits. The length is checked before the string is parsed. -/
+def naturalField (text : String) : Except String Nat := do
+  if text.length > Limits.algebraCoefficientDigits then
+    throw s!"a natural primitive field has at most {Limits.algebraCoefficientDigits} decimal digits"
+  match decimalNat? text with
+  | some n => return n
+  | none => throw "a natural primitive field is an unsigned decimal string"
+
 /-- One field of a primitive's wire form, decoded by its declared kind. -/
 def wireArgument (j : Json) (spec : WireField) : Except String Source.WireArgument := do
   match spec.kind with
@@ -156,6 +166,7 @@ def wireArgument (j : Json) (spec : WireField) : Except String Source.WireArgume
   | .coordinate => return .coordinate (← str j spec.name)
   | .polynomial => return .polynomial (← polyExpr Limits.algebraNesting (← field j spec.name))
   | .pullbackMode => return .pullbackMode (← pullbackMode (← field j spec.name))
+  | .natural => return .natural (← naturalField (← str j spec.name))
 
 /-- A primitive of one family: exactly `op` and the family's fields, decoded
 in wire order. -/

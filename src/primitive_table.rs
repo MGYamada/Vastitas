@@ -201,4 +201,95 @@ pub(crate) const FAMILIES: &[PrimitiveFamily] = &[
             ("evidence", WireKind::Path),
         ],
     },
+    PrimitiveFamily {
+        op: "frame_encode",
+        algebraic: true,
+        fields: &[
+            ("fiber", WireKind::Path),
+            ("coords", WireKind::Path),
+            ("frame", WireKind::Path),
+        ],
+    },
+    PrimitiveFamily {
+        op: "frame_decode",
+        algebraic: true,
+        fields: &[
+            ("coords", WireKind::Path),
+            ("fiber", WireKind::Path),
+            ("frame", WireKind::Path),
+        ],
+    },
+    PrimitiveFamily {
+        op: "frame_vector",
+        algebraic: true,
+        fields: &[
+            ("coords", WireKind::Path),
+            ("map_family", WireKind::Path),
+            ("frame", WireKind::Path),
+        ],
+    },
+    PrimitiveFamily {
+        op: "frame_matrix",
+        algebraic: true,
+        fields: &[
+            ("map_family", WireKind::Path),
+            ("frame_map", WireKind::Path),
+            ("source", WireKind::Path),
+            ("target", WireKind::Path),
+        ],
+    },
+    PrimitiveFamily {
+        op: "frame_transition",
+        algebraic: true,
+        fields: &[
+            ("map_family", WireKind::Path),
+            ("frame_map", WireKind::Path),
+            ("source", WireKind::Path),
+            ("target", WireKind::Path),
+        ],
+    },
+    PrimitiveFamily {
+        op: "frame_apply",
+        algebraic: true,
+        fields: &[("frame_map", WireKind::Path), ("coords", WireKind::Path)],
+    },
+    PrimitiveFamily {
+        op: "frame_coapply",
+        algebraic: true,
+        fields: &[("frame_map", WireKind::Path), ("cocoords", WireKind::Path)],
+    },
+    PrimitiveFamily {
+        op: "frame_compose",
+        algebraic: true,
+        fields: &[("frame_map", WireKind::Path)],
+    },
+    PrimitiveFamily {
+        op: "frame_pairing",
+        algebraic: true,
+        fields: &[("cocoords", WireKind::Path), ("coords", WireKind::Path)],
+    },
+    PrimitiveFamily {
+        op: "frame_component",
+        algebraic: true,
+        fields: &[("family", WireKind::Path), ("index", WireKind::Natural)],
+    },
+    PrimitiveFamily {
+        op: "frame_entry",
+        algebraic: true,
+        fields: &[
+            ("frame_map", WireKind::Path),
+            ("row", WireKind::Natural),
+            ("column", WireKind::Natural),
+        ],
+    },
+    PrimitiveFamily {
+        op: "frame_equal",
+        algebraic: true,
+        fields: &[("family", WireKind::Path)],
+    },
+    PrimitiveFamily {
+        op: "frame_at",
+        algebraic: true,
+        fields: &[("family", WireKind::Path), ("map_family", WireKind::Path)],
+    },
 ];

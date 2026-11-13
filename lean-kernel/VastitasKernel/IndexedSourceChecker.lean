@@ -51,6 +51,7 @@ def resolveArgument (p : Namespace.Indexed) (scope : Namespace.Scope) : WireArgu
   | .coordinate name => pure (.coordinate name)
   | .polynomial expression => pure (.polynomial expression)
   | .pullbackMode mode => pure (.pullbackMode mode)
+  | .natural value => pure (.natural value)
 
 /-- The binding of a primitive's wire form through its family: the arguments
 are the family's fields in wire order, each is resolved in the family's

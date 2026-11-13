@@ -581,8 +581,9 @@ complementary arms initialize nothing that only one of them writes. -/
   IO.println "branches over runs: equal, reversed, extending and complementary arms passed"
 
 /- A padded read shares the interval traversals of one query between its stored
-columns. Records that merge leave fewer nodes and therefore more traversals, so
-merging rejects no padded read that the record of single writes accepts. -/
+columns. Records that merge leave fewer nodes and therefore never fewer
+traversals, so this padded read, which the record of single writes accepts,
+stays accepted. Merging can still narrow acceptance elsewhere (below). -/
 #eval show IO Unit from do
   let view : Layout := ⟨0, 60, 2, 64, false⟩
   -- Column 0 in an order that never continues a run: 30 even cells, then 30 odd ones.
@@ -592,6 +593,59 @@ merging rejects no padded read that the record of single writes accepts. -/
     (accepts ([.allocate 0 .f64 128, write 1 (run1 128)] ++ storeCells (column0 ++ column1) ++
       [.release 1, read 2 view, .release 2, .drop 0]))
   IO.println "padded reads after merged records passed"
+
+/- One query takes at most 256 interval traversals, so that it visits at most
+256 times the nodes of its history: the audit repeats it for every live read
+loan. Over the four nodes of three fills, a padded read of 256 stored columns
+that no fill contains alone is accepted, and one of 257 is rejected at once,
+even with 80 such loans requested (each would cost 16,384 traversals). -/
+#eval show IO Unit from do
+  check "the traversals of a query" (initializationSteps 4 == 256 && initializationSteps 62 == 256 &&
+    initializationSteps 256 == 256 && initializationSteps 257 == 255 && initializationSteps 4096 == 16)
+  let fills : List Action := [.allocate 0 .f64 32868,
+    write 1 (run1 16384), .fill 1 value, .release 1,
+    write 2 ⟨262936, 1, 1, 1, false⟩, .fill 2 value, .release 2,
+    write 3 ⟨131072, 16384, 1, 16384, false⟩, .fill 3 value, .release 3]
+  let across := fun (columns : Nat) => Layout.mk ((16384 - 128) * 8) 1 columns 2 false
+  check "a padded read of 256 stored columns across two fills is accepted"
+    (accepts (fills ++ [read 4 (across 256), .release 4, .drop 0]))
+  check "a padded read of 257 stored columns is beyond the traversals of the query"
+    (rejects "E_RESOURCE_INIT" (fills ++ [read 4 (across 257), .release 4, .drop 0]))
+  let loans := (List.range 80).map (5 + ·)
+  check "80 read loans of 16,384 stored columns are rejected at the first"
+    (rejects "E_RESOURCE_INIT" (fills ++ loans.map (fun name => read name ⟨0, 1, 16384, 2, false⟩) ++
+      loans.map Action.release ++ [.drop 0]))
+  IO.println "query traversals: at most 256 per query passed"
+
+/- Merging can narrow acceptance (#739). Two consecutive stores merge into one
+record. 255 stores of a view in an order that never extends a record (even
+cells, then odd cells) need 255 traversals. With 257 nodes the query has 255
+and shows the view covered, so the `fill` of the view adds no record; one more
+store elsewhere gives 258 nodes and 254 traversals, and the read of the view is
+rejected. With the first two cells apart nothing merges: the history has 258
+nodes at the `fill`, the query does not show the view covered, the `fill` is
+recorded, and the read is accepted through its rectangle. -/
+#eval show IO Unit from do
+  let view : Layout := ⟨2400, 255, 1, 255, false⟩
+  let cells := (List.range 255).map (300 + ·)
+  let order := cells.filter (· % 2 == 0) ++ cells.filter (· % 2 == 1)
+  let plan := fun (first : List Nat) (late : Bool) =>
+    [Action.allocate 0 .f64 900, write 1 (run1 900)] ++ storeCells (first ++ order) ++
+      [.release 1, write 2 view, .fill 2 value, .release 2] ++
+      (if late then [write 3 ⟨5600, 1, 1, 1, false⟩, .fill 3 value, .release 3] else []) ++
+      [read 4 view, .release 4, .drop 0]
+  check "a fill that the merged history shows covered is not recorded, and the later read is rejected"
+    (rejects "E_RESOURCE_INIT" (plan [0, 1] true))
+  check "without the merge the fill is recorded and the read is accepted" (accepts (plan [0, 2] true))
+  check "without the later store the merged history still admits the read" (accepts (plan [0, 1] false))
+  let .ok before := stepAll {} ((plan [0, 1] true).take (2 + 257 + 2))
+    | throw (IO.userError "the stores before the fill were rejected")
+  let .ok filled := stepAll before [.fill 2 value]
+    | throw (IO.userError "the fill was rejected")
+  check "the merged history has 257 nodes at the fill and keeps them"
+    ((before.allocation? 0).map (·.initialization.remaining 4096) == some (some (4096 - 257)) &&
+      (filled.allocation? 0).map Allocation.initialization == (before.allocation? 0).map Allocation.initialization)
+  IO.println "narrowing by merged records: pinned"
 
 /- Exact byte meaning of the joins through runs, by enumeration: histories that
 extend a common run at either end, and writes over one history that share a run. -/

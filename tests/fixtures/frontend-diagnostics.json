@@ -873,6 +873,72 @@
    "line": 1,
    "column": 15,
    "message": "`use` is reserved and cannot be used as a declaration or binding name"
+  },
+  {
+   "issue": 759,
+   "input": "package",
+   "source": "indexed scale l0 = 3 Length;\nfn main() -> Int { 0 }\n",
+   "code": "E_PARSE",
+   "line": 1,
+   "column": 22,
+   "message": "expected `of`, found `Length`"
+  },
+  {
+   "issue": 759,
+   "input": "package",
+   "source": "indexed quantity Q = L^frac(1, 2);\nfn main() -> Int { 0 }\n",
+   "code": "E_PARSE",
+   "line": 1,
+   "column": 24,
+   "message": "rational exponents are not supported"
+  },
+  {
+   "issue": 759,
+   "input": "package",
+   "source": "indexed quantity Speed = L / T;\nfn main() -> Int { 0 }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 28,
+   "message": "division is not supported"
+  },
+  {
+   "issue": 759,
+   "input": "package",
+   "source": "indexed frame b: Frame<X> = columns(1, 2);\nfn main() -> Int { 0 }\n",
+   "code": "E_PARSE",
+   "line": 1,
+   "column": 37,
+   "message": "a frame column is a parenthesized tuple of entries"
+  },
+  {
+   "issue": 759,
+   "input": "package",
+   "source": "indexed frame r: Frame<X> = inverse = columns((1));\nfn main() -> Int { 0 }\n",
+   "code": "E_PARSE",
+   "line": 1,
+   "column": 29,
+   "message": "a frame declares its `columns(\u2026)` first"
+  },
+  {
+   "issue": 759,
+   "input": "package",
+   "source": "indexed family F(object(C)) = frames constraints();\nfn main() -> Int { 0 }\n",
+   "code": "E_TYPE",
+   "line": 1,
+   "column": 31,
+   "message": "frame, frame_vector, frame_covector, frame_map, reading or physical_metric"
+  },
+  {
+   "issue": 759,
+   "input": "package",
+   "source": "indexed family Coords(frame(Frame)) = frame_vector;\nindexed frame r: Frame<X> = columns((1, 0), (x, 2)) inverse = columns((1, 0), (frac(-1, 2) * x, frac(1, 2)));\nindexed base_dimension L;\nindexed quantity Speed = L * T^-1;\nindexed reading phys: Reading<C> = (x: Length, t: Time);\nindexed scale l0 = 3 of Length;\nindexed physical PM: PhysicalMetric<C> = interpret(M, reading = phys, gram((1, 0), (0, -1 * c^2)), value = L^2);\nfn main() -> Int { 0 }\n",
+   "code": null
+  },
+  {
+   "issue": 759,
+   "input": "flat",
+   "source": "fn frame(quantity: Int) -> Int { let scale = quantity; scale }\nfn main() -> Int { frame(1) }\n",
+   "code": null
   }
  ]
 }

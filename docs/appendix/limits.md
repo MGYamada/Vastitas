@@ -320,6 +320,21 @@ entry of L, D and L⁻¹, have at most `metricMatrixBits` bits. With at most
 its check. Every Gram matrix with integer entries and every diagonal Gram
 matrix within the entry bound is within the matrix bound.
 
+## Physical dimensions
+
+The kernel checks the declarations that
+[Physical-dimension admission](../adr/0002-nature-dimension.md) admits: base
+dimensions, quantities, readings, scales and physical metrics. It checks the
+bound of every exponent before it computes a power. A scale magnitude and the
+coefficient of an entry of a physical metric have the bound of a Gram entry.
+
+| Limit | Value | Counts | Holds for | Code |
+| --- | --- | --- | --- | --- |
+| `dimensionBases` | 16 | The `indexed base_dimension` declarations of all packages | A program | `E_LIMIT` |
+| `dimensionExponent` | 64 | The absolute value of the exponent of a base dimension in a dimension, and of a scale in an entry of a physical metric | An exponent | `E_LIMIT` |
+| `dimensionScaleFactors` | 16 | The scale factors of one entry of a physical metric | An entry | `E_LIMIT` |
+| `metricEntryBits` | 512 | The bits of the numerator and of the denominator of a scale magnitude, and of the coefficient of an entry of a physical metric | A scale or an entry | `E_LIMIT` |
+
 ## Resource functions
 
 [Resource programs](../storage/resource-programs.md) gives the rules of

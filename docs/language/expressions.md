@@ -164,7 +164,7 @@ Rules:
   is an error (`E_LIMIT`).
 
 ```vast
-let sign = if x < 0 { -1 } else if x == 0 { 0 } else { 1 };
+{{#include ../../examples/book/expressions/sign.vast:sign}}
 ```
 
 ## Call expressions

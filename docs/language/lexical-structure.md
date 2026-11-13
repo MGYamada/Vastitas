@@ -50,8 +50,7 @@ Rules:
   block comments.
 
 ```vast
-// Point p lies on the object X. ✓
-let answer: Int = 42;
+{{#include ../../examples/book/lexical-structure/comment.vast:comment}}
 ```
 
 ## Identifiers

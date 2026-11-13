@@ -76,6 +76,8 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
     ("examples/book/types/pair-result.vast", &[], "42"),
     ("examples/book/statements/bindings.vast", &[], "42"),
     ("examples/book/expressions/operators.vast", &[], "42"),
+    ("examples/book/expressions/sign.vast", &[], "42"),
+    ("examples/book/lexical-structure/comment.vast", &[], "42"),
     (
         "examples/book/expressions/saturating-subtraction.vast",
         &[],

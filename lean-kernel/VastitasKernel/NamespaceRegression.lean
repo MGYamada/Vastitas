@@ -114,6 +114,31 @@ private def ownerModule : Module := { mod [] with generics := [generic], methods
   ["int", "Nat", "QQ", "Point", "self"].all fun name =>
     rejects "E_RESERVED" (replaceRoot (mod []) [mod [name] [fn "value" (.integer "42" {})]]))
 
+-- #759: an indexed spelling is the name that a `use` binds only for a `use`
+-- without `as` of an indexed declaration, whose alias is the last segment of
+-- its path. A request with `use other::dimension as origin` is refused,
+-- although `dimension` is an indexed declaration.
+/-- The namespace of `program` with an indexed declaration `dimension` in the
+root module of the dependency `other`, `imports` in the root module of the
+application, and the modules `extra`. -/
+private def withIndexed (imports : List Import) (extra : List Module := []) : Indexed :=
+  let base := (replaceRoot { mod [] [fn "main" (.integer "0" {})] with imports } extra).indexed
+  let declarations := base.declarations ++ [⟨⟨⟨dependency, []⟩, "dimension"⟩, .indexedDeclaration, true⟩]
+  { base with declarations, byOwner := ownerIndex declarations, byScope := scopeIndex declarations }
+private def validated (p : Indexed) : Option String :=
+  match validate p with
+  | .ok () => none
+  | .error diagnostic => some diagnostic.code
+#eval check "a use without as binds an indexed spelling to an indexed declaration" (
+  validated (withIndexed [⟨["other", "dimension"], "dimension", false, {}⟩]) == none &&
+    validated (withIndexed [⟨["other", "dimension"], "measure", false, {}⟩]) == none)
+#eval check "a use with as binds no indexed spelling, also to an indexed declaration" (
+  ["origin", "compose", "id", "Base", "Point", "QQ", "apply", "Affine", "Scheme", "CInfReal"].all fun alias =>
+    validated (withIndexed [⟨["other", "dimension"], alias, false, {}⟩]) == some "E_RESERVED")
+#eval check "a use without as binds no indexed spelling to a module, with indexed declarations" (
+  validated (withIndexed [⟨["units", "dimension"], "dimension", false, {}⟩]
+    [mod ["units"], mod ["units", "dimension"] [fn "value" (.integer "42" {})]]) == some "E_RESERVED")
+
 -- #747: an error of the names of a module is at the later of the two
 -- bindings in the source, with a note at the earlier one, and not at the
 -- declaration of the module. A dependency alias comes first and has no place.

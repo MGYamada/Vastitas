@@ -397,7 +397,8 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
 /// The kernel decides module names independently of the frontend: it
 /// accepts a module named after a geometric operation and rejects the other
 /// reserved names of modules, a function of such a name and a `use` that binds
-/// one, in a request that the frontend did not write.
+/// one, to a module or with `as` to an `indexed` declaration, in a request
+/// that the frontend did not write.
 #[test]
 fn the_kernel_checks_geometric_module_names_independently() {
     let s = Scratch::new();
@@ -437,6 +438,56 @@ fn the_kernel_checks_geometric_module_names_independently() {
     assert_eq!(import["alias"], "metres");
     import["alias"] = "origin".into();
     common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
+    // #759: a `use … as` that binds a reserved spelling to an `indexed`
+    // declaration. Only a `use` without `as`, whose alias is the last segment
+    // of its path, binds such a name; the request has no other error.
+    s.package("lib", "pub indexed marker dimension;", "");
+    s.package(
+        "app",
+        "use dep::dimension as measure;\nfn main() -> Int { 42 }",
+        "dep = { path = '../lib' }",
+    );
+    let raw = common::captured_wire(
+        s.cli()
+            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
+        7,
+    );
+    assert_eq!(common::kernel(&raw, "check")["ok"], true, "{raw}");
+    let app = raw["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|package| package["source"] == raw["root"])
+        .unwrap();
+    let root = raw["packages"][app]["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|module| module["path"] == serde_json::json!([]))
+        .unwrap();
+    for alias in [
+        "dimension",
+        "origin",
+        "compose",
+        "id",
+        "Base",
+        "Point",
+        "QQ",
+    ] {
+        let mut forged = raw.clone();
+        let import = &mut forged["packages"][app]["modules"][root]["imports"][0];
+        assert_eq!(import["alias"], "measure");
+        import["alias"] = alias.into();
+        for mode in ["check", "emit"] {
+            let response = common::kernel(&forged, mode);
+            if alias == "dimension" {
+                // The request of `use dep::dimension;`.
+                assert_eq!(response["ok"], true, "{response}");
+            } else {
+                common::assert_wire_rejected(&response, "E_RESERVED");
+            }
+        }
+    }
 }
 
 #[test]

@@ -14,10 +14,10 @@ parts:
 
 | Part | Content | Files |
 | --- | --- | --- |
-| Introduction and chapters 1–12 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md` |
+| Introduction and chapters 1–13 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md` |
 | Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `affine-geometry.md`, `storage-ownership.md`, `storage/resource-programs.md`, `linalg/` |
 | How the compiler is checked | Architecture, the driver, checking pipeline, wire protocols, proof boundaries and specifications | `development/architecture.md`, `internals/`, `storage/checked-storage.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/` |
-| Appendices A–H | CLI, diagnostics, reference models, limits, history and delivery records, contributing with the stdlib admission ADR, glossary, grammar summary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `development/` apart from `architecture.md`, `adr/` |
+| Appendices A–H | CLI, diagnostics, reference models, limits, history and delivery records, contributing with the stdlib admission ADR, glossary, grammar summary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `stage4-acceptance.md`, `development/` apart from `architecture.md`, `adr/` |
 
 File paths stay stable when a chapter moves between parts, because tests,
 scripts, experiment records and external links name them.

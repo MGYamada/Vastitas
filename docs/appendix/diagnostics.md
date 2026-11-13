@@ -184,10 +184,19 @@ In a request, three strings of these declarations have the code
 other than `saved` and `recomputed`, a Gram form other than `euclidean` and
 `gram`, and evidence other than `nondegenerate` and `riemannian`. A record of
 a request that holds a Gram matrix in normal form, a certificate or the
-object of a binding is an error (`E_PROTOCOL`) too.
-[Smooth forms](../protocol.md#protocol-9-smooth-forms) and
-[Metric forms](../protocol.md#protocol-9-metric-forms) give the forms of a
-request.
+object of a binding is an error (`E_PROTOCOL`) too. So is a frame or
+physical-dimension record in a request of protocol 7 or 8, a column form other
+than `coordinates` and `columns`, a physical Gram form other than
+`euclidean`, `gram` and `normalized`, a component, row or column index that
+is no unsigned decimal string of at most 64 digits, an exponent that is no
+such string with an optional leading `-`, and a frame binding that holds a
+matrix, an inverse or an object. An inverse declared for a
+constant frame decodes, and the kernel rejects it (`E_FRAME`).
+[Smooth forms](../protocol.md#protocol-9-smooth-forms),
+[Metric forms](../protocol.md#protocol-9-metric-forms),
+[Frame forms](../protocol.md#protocol-9-frame-forms) and
+[Physical-dimension forms](../protocol.md#protocol-9-physical-dimension-forms)
+give the forms of a request.
 
 ### Resource functions
 

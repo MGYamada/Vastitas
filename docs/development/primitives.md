@@ -45,9 +45,9 @@ describes the registry's place in the checker, and
 - The [**lowering**](../appendix/glossary.md#lowering) of a call is the Lean
   text that code generation writes for it, from the texts of its operands.
 - A [**shared literal**](../appendix/glossary.md#shared-literal) is a basis,
-  a matrix, a map or a Jacobian table that a generated module declares once,
-  as `basis_k`, `matrix_k`, `map_k` or `jacobian_k`, and that the lowering of
-  every call that uses it names.
+  a matrix, a map, a Jacobian table or the matrix of a frame that a generated
+  module declares once, as `basis_k`, `matrix_k`, `map_k`, `jacobian_k` or
+  `frame_k`, and that the lowering of every call that uses it names.
 - The [**wire form**](../appendix/glossary.md#wire-form) of a binding is the
   record that the frontend sends for an `indexed primitive` declaration: an
   `op` and its named fields.
@@ -75,7 +75,7 @@ tables below take no case per constructor. Module paths are relative to
 | `PrimitiveFresh` | `IndexedSemantics.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `allocatedSerials` and the fresh brand of `emitPrimitive` | `IndexedTypeAudit.lean`, `IndexedSourceBodies.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `Codegen.renderPrimitive` | `IndexedCodegen.lean` | `render` |
-| `Codegen.renderContext` and the `basis_k`, `matrix_k`, `map_k` and `jacobian_k` declarations of a generated module | `IndexedCodegen.lean` | `literals`, through `PrimitiveDescriptor.sharedLiterals` |
+| `Codegen.renderContext` and the `basis_k`, `matrix_k`, `map_k`, `jacobian_k` and `frame_k` declarations of a generated module | `IndexedCodegen.lean` | `literals`, through `PrimitiveDescriptor.sharedLiterals` |
 | The reverse sites of a module and the maps of each site | `IndexedReverse.lean` | `reverse` |
 
 The oracle states the semantic obligations of an entry once, for any
@@ -145,14 +145,22 @@ the evaluators and the lowering read. Put the checks that the contract uses
 next to the constructor, as `relativeConstantValid` and `originContract` are.
 The smooth, fiber, tape and metric bindings keep theirs in
 `IndexedSmoothContracts.lean`, as `fiberPairingValid` and `metricSharpValid`
-are.
+are. The frame bindings keep theirs in `IndexedFrameContracts.lean`, as
+`frameApplyValid` and `frameDeclared` are. A binding that applies a frame
+embeds it as a `FrameRef`: the frame declaration, its smooth object, its
+matrix `P` and its inverse `Q`. Its contract compares every embedded copy
+with the declaration through `frameDeclared`.
 
 ### 2. The registry entry
 
 Add one arm to `PrimitiveBinding.contract` in
 [`IndexedPrimitiveRegistry.lean`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedPrimitiveRegistry.lean).
 The arm builds a `PrimitiveDescriptor`, the structure of
-`IndexedPrimitiveDescriptors.lean`, from the binding's own data:
+`IndexedPrimitiveDescriptors.lean`, from the binding's own data. The arm of a
+frame binding takes its entry from `IndexedFrameRegistry.lean`, which holds
+one definition per frame constructor, named as the constructor, such as
+`FrameRegistry.frameApply`. Each is a `simp` lemma, so that the proofs that
+case on every binding see the entry through `PrimitiveBinding.contract`.
 
 | Field | Content |
 | --- | --- |
@@ -177,11 +185,18 @@ A shape is written in the language of `IndexedPrimitiveShapes.lean`:
 | Part | Constructors |
 | --- | --- |
 | `Operand` | `natural`; `object role expected`; `indexed role family slots`; `application role family` |
-| `Slot` | `var field`; `fixed ref field reason`; `any` |
+| `Slot` | `var field`; `fixed ref field reason`; `any`; `frameVar field`; `fixedFrame frame field reason` |
 | `Shape.tail` | `none`, or `some count` for a variadic tail of integers whose count depends on the environment |
-| `Relation` | `sameRef`; `sameApplication`; `fixedFrom`; `pointDimension`; `refines`; `freshBrand` |
+| `Relation` | `sameRef`; `sameApplication`; `fixedFrom`; `pointDimension`; `refines`; `freshBrand`; `sameFrame`; `frameObject`; `frameBound` |
 | `ResultTemplate` | `natural`; `boolean`; `integerPair`; `freshObject implementation`; `globalObject id`; `indexed family slots`; `application operand`; `constant application`; `uncallable` |
 | `Shape.families` | `shaped`, the default, or `early`: when the role table reports the operands' families |
+
+A frame index has slots of its own. `frameVar` admits any frame and
+`fixedFrame` exactly one; an object slot never matches a frame index, and a
+frame slot never matches an object. `sameFrame` equates two frame indices,
+`frameObject` requires an object to be the object of a frame, and
+`frameBound` requires a natural index to be below the dimension of a frame's
+object. A result template names a frame with the template slot `frameIndex`.
 
 The role, field and reason strings are the ones that diagnostics print. Name
 index fields with the words that the role table reports for the existing
@@ -198,15 +213,15 @@ The evaluators match the operand values that the shape admits and return
 `IndexedRuntime`, `AlgebraRuntime` or `SmoothRuntime` that generated programs
 link. A primitive over the value kinds that exist, which are natural numbers,
 objects, points, morphisms, relative maps, smooth programs, fibers, tapes,
-booleans, integers and integer pairs, changes nothing in
-`IndexedPrimitiveValues.lean`. A value kind that no runtime structure carries
+frame arrays, frame matrices, booleans, integers and integer pairs, changes
+nothing in `IndexedPrimitiveValues.lean`. A value kind that no runtime structure carries
 is a change to `IndexedValue`, `PrimitiveRuntimeValue`, `erasePrimitiveValue`
 and the typing `IndexedHasType` of `IndexedSemantics.lean`, outside this
 procedure.
 
 An operation that no runtime module has goes into `IndexedRuntime.lean`,
-`AlgebraRuntime.lean` or `SmoothRuntime.lean`, the modules whose compiled
-objects generated programs link. The totality lemma of
+`AlgebraRuntime.lean`, `SmoothRuntime.lean` or `FrameRuntime.lean`, the
+modules whose compiled objects generated programs link. The totality lemma of
 [step 5](#5-the-local-proofs) then needs oracle facts about the operation, as
 the smooth lemmas use those of `VastitasOracle.SmoothRuntime` and
 `VastitasOracle.SmoothCanonical`. The native check of [step 6](#6-tests)
@@ -225,10 +240,10 @@ describes.
 The lowering matches the operand texts that the shape admits and returns
 `Lowering.arityMismatch` on any other list. A variadic entry renders any
 number of operands, and the checked operand count fixes it. The lowering
-writes runtime names with `Lowering.runtime`, `Lowering.algebra` and
-`Lowering.smooth`, and the checked data of the binding with
-`Lowering.renderMap`, `Lowering.renderPolys`, `Lowering.renderMatrix` and
-`Lowering.renderJacobian`. It uses no source spelling. `Lowering.renderMap`
+writes runtime names with `Lowering.runtime`, `Lowering.algebra`,
+`Lowering.smooth` and `Lowering.frame`, and the checked data of the binding
+with `Lowering.renderMap`, `Lowering.renderPolys`, `Lowering.renderMatrix`,
+`Lowering.renderJacobian` and `Lowering.renderFrame`. It uses no source spelling. `Lowering.renderMap`
 names a map as `map_k`, `Lowering.renderMatrix` names a matrix as `matrix_k`
 and `Lowering.renderJacobian` names the Jacobian table of a map as
 `jacobian_k` when the `RenderContext` lists it, and each writes the literal
@@ -237,11 +252,18 @@ way. The context lists the bases that some entry of the module puts in
 `literals`. It lists the matrices, maps and Jacobian tables that the entry of
 a primitive puts there when a generated function calls the primitive.
 `relativeConstant` lists its basis and its map, `smoothConstant` its map,
-`metricFlat` its Gram matrix, `metricSharp` its inverse and
-`cotangentJacobian` the Jacobian table of its map. An entry lists a Jacobian
+`metricFlat` its Gram matrix, `metricSharp` its inverse,
+`cotangentJacobian` the Jacobian table of its map, `frameEncode` and
+`frameDecode` the matrix of their frame that they apply, and `frameMatrix`
+and `frameTransition` the matrix `P` of the source frame and the inverse `Q`
+of the target frame, each as `SharedLiteral.frame`. An entry lists a Jacobian
 table by its map: `RenderContext.share` computes the table once per map, and
 two maps with one table name one declaration. A literal that an entry writes
-without listing it is repeated at every call.
+without listing it is repeated at every call. The lowering of `frame_equal`
+also reads `RenderContext.frameMaps`, the families of the module with the
+`frame_map` representation: it compares maps of those families with
+`FrameRuntime.matrixEqual` and arrays of any other with
+`SmoothRuntime.fiberEqual`.
 
 The entry grants no authority. The all-body audits and the public acceptance
 path do not change.
@@ -257,7 +279,7 @@ A `PrimitiveFamily` has these fields:
 | --- | --- |
 | `op` | The name of the operation, on the wire and in source |
 | `algebraic` | `true` when only protocol 9 admits the operation |
-| `fields` | The fields in wire order, each a `WireField` with a name and a kind: `path`, `objectType`, `coordinate`, `polynomial` or `pullbackMode` |
+| `fields` | The fields in wire order, each a `WireField` with a name and a kind: `path`, `objectType`, `coordinate`, `polynomial`, `pullbackMode` or `natural` |
 | `resolveFirst` | The fields that the resolver resolves before the others, in this order; `[]` when omitted |
 | `build` | The binding from the resolved arguments, in wire order |
 
@@ -272,7 +294,10 @@ checks every family for both mistakes.
 `build` puts a placeholder where the kernel computes data after resolution.
 `relative_coefficient` starts with coordinate `0` and the empty monomial,
 `fiber_component` with coordinate `0`, and `flat` and `sharp` with the
-metric's own ID as the object and empty matrices.
+metric's own ID as the object and empty matrices. A frame binding starts with
+every frame it names as `FrameRef.placeholder`: the frame's own ID as its
+object and empty matrices. `frame_encode` and `frame_decode` start with the
+variance `tangent`, and `frame_vector` with the frame's own ID as its object.
 A stage pass of [step 4](#4-surface-syntax-and-elaboration) fills the
 placeholder. The wire forms of `relative_coefficient` and `fiber_component`
 hold the data, and their passes read the field back from the wire form
@@ -281,7 +306,11 @@ through an accessor of `IndexedPrimitiveFamilies.lean`,
 and the family entry use the same names from `WireName`, so a pass reads only
 fields that the decoder admits. `elaborateMetrics` reads nothing from the
 wire form: it fills the object and the matrices of `flat` and `sharp` from
-the metric and the evidence that the binding names.
+the metric and the evidence that the binding names. `elaborateFrames` reads
+nothing from it either: it fills every embedded frame from the frame
+declaration that the binding names, and the variance of an encoding or a
+decoding from its fiber family. The fields `index`, `row` and `column` of
+`frame_component` and `frame_entry` are of kind `natural` and need no pass.
 
 A binding that the checker derives from another declaration has no family.
 `relativeConstant` and `smoothConstant` come from a morphism declaration, and
@@ -297,7 +326,7 @@ Regenerate the table of the frontend and review its diff:
 python3 scripts/check_primitive_table.py --write
 ```
 
-A field kind other than the five changes `Source.WireKind`,
+A field kind other than the six changes `Source.WireKind`,
 `Source.WireArgument`, the decoder's `wireArgument`, `ResolvedArgument` and
 `resolveArgument`. It also changes the Rust `WireKind` and `WireValue` and
 the kinds of `check_primitive_table.py`. Such a change is outside this
@@ -314,9 +343,11 @@ table does not have before it reads an argument.
 A binding needs a case in a stage pass only when it carries data that the
 kernel computes after resolution, or when its declaration has its own
 diagnostic. The passes are `elaborateRelative` in `IndexedAlgebraSource.lean`,
-`elaborateSmooth` in `IndexedSmoothSource.lean` and `elaborateMetrics` in
-`IndexedMetricSource.lean`. Every other binding passes through them
-unchanged.
+`elaborateSmooth` in `IndexedSmoothSource.lean`, `elaborateMetrics` in
+`IndexedMetricSource.lean` and `elaborateFrames` in
+`IndexedFrameSource.lean`. Every other binding passes through them
+unchanged. `elaborateNature` in `IndexedNatureSource.lean` elaborates
+declarations only and changes no binding.
 
 ### 5. The local proofs
 
@@ -339,7 +370,8 @@ unfolds another's entry. For a binding `name`:
    `PrimitiveTyped` and `PrimitiveValuesHaveTypes` on the well-shaped
    operands. The Stage 1 and Stage 2 lemmas are in `IndexedSemantics.lean`.
    The Stage 3 lemmas conclude `SmoothOutcome` in `SmoothPrimitives.lean`,
-   `SmoothFibers.lean` and `SmoothMetricForms.lean`. The value lemmas
+   `SmoothFibers.lean` and `SmoothMetricForms.lean`, and so do the lemmas of
+   the frame bindings in `FramePrimitives.lean`. The value lemmas
    `primitive_single`, `primitive_pair`, `values_pair`, `values_triple`,
    `smooth_value`, `fiber_value`, `point_value` and `map_and_point` read the
    operand values, and `relative_typed` and `fiber_typed` type the results.
@@ -360,7 +392,7 @@ unfolds another's entry. For a binding `name`:
    Stage 1 and Stage 2 instances use it. `Sound.ofPure rfl` takes a totality
    lemma that concludes `SmoothOutcome`, which states no world, and the
    erasure proof. It applies only to a binding that does not allocate, and
-   the Stage 3 instances use it. The evidence bindings have no totality
+   the Stage 3 and frame instances use it. The evidence bindings have no totality
    lemma; their instances give the two fields of `Sound` directly.
 6. The **named case** in `registry_sound` in `IndexedSemantics.lean`,
    `| .name arguments => name_sound arguments`. The corollaries
@@ -387,10 +419,11 @@ open is pulled back by a `cotangentPullback` in the site's residual policy,
 and the seed of a differential is a `fiberVector`. `registry_reverse_sound` matches every
 constructor by name, as `registry_sound` does.
 
-Four proofs case on every binding and close the other arms by automation:
+Eight proofs case on every binding and close the other arms by automation:
 `allocates_iff` in `IndexedAssociations.lean`, `affine_result` in
 `GeometryResults.lean`, and `validPrimitiveBinding_of_extension` and
-`evalPrimitive_of_extension` in `SmoothMetricWeakening.lean`. An entry that
+`evalPrimitive_of_extension` in each of `SmoothMetricWeakening.lean`,
+`FrameWeakening.lean` and `NatureWeakening.lean`. An entry that
 matches on its own data before it builds its shape, as `cotangentJacobian`
 matches on the indices of its map type, needs a named case in `allocates_iff`.
 `validPrimitiveBinding_of_extension` closes a contract that reads the
@@ -398,7 +431,10 @@ environment through the lookup views in its `simp` set.
 `evalPrimitive_of_extension` closes an evaluator that reads the environment
 only through `globalObject` or `fiberVectorValue`. A binding that reads a metric
 declaration is excluded from `MetricFree` in `SmoothMetricWeakening.lean`, as
-`metricFlat` and `metricSharp` are. A binding that allocates changes the
+`metricFlat` and `metricSharp` are. A binding that names a frame declaration
+lists it in `bindingFrames` of `FrameWeakening.lean`, and its Core-level
+theorem goes into `FrameCore.lean`, next to `core_frame_apply`. A binding
+that allocates changes the
 statements of `allocates_iff` and of `SmoothReverse.core_outcome`, whose
 premise excludes `descriptor`, the one allocating binding.
 
@@ -406,9 +442,10 @@ premise excludes `descriptor`, the one allocating binding.
 
 - A kernel regression. `IndexedPrimitiveRegression.lean` calls
   `inferPrimitive` and `checkPrimitive` on a binding directly.
-  `SmoothObjectRegression.lean`, `CotangentRegression.lean` and
-  `MetricFormRegression.lean` run a binding through the source checker, the
-  protocol decoder, the Core semantics and lowering. They also check that
+  `SmoothObjectRegression.lean`, `CotangentRegression.lean`,
+  `MetricFormRegression.lean` and `FrameRegression.lean` run a binding
+  through the source checker, the protocol decoder, the Core semantics and
+  lowering. They also check that
   protocol 9 decodes its wire form and that protocols 7 and 8 reject it. List
   the module in `scripts/check_kernel_regressions.sh`.
 - The pinned generated code. `tests/emit_golden.rs` lists every wire
@@ -418,7 +455,9 @@ premise excludes `descriptor`, the one allocating binding.
   contains the lowering text of each operation except `relative_view`. Add
   the primitive to the list and to a package that `CASES` in the same file
   lists, or add a package to `CASES` with its fixture under
-  `tests/fixtures/emit/`. Regenerate the fixtures as
+  `tests/fixtures/emit/`. A frame primitive goes into the package of
+  `FRAME_CASES` instead, whose generated Lean
+  `frame_lean_matches_the_emit_fixtures` checks. Regenerate the fixtures as
   [Pinned generated code](validation.md#pinned-generated-code) describes.
 - The table tests of the frontend. `every_table_entry_parses_to_its_wire_fields`
   in `src/frontend/indexed_parser.rs` parses one snippet of `SNIPPETS` per
@@ -444,7 +483,12 @@ premise excludes `descriptor`, the one allocating binding.
 - The other Rust tests. The unit test `every_smooth_form_is_algebraic` in
   `src/indexed.rs` covers the protocol-9 gate of the smooth forms,
   `tests/smooth_differential.rs` the source diagnostics and
-  `tests/stdlib_differential.rs` the wire records.
+  `tests/stdlib_differential.rs` the wire records. For the frame primitives,
+  `every_frame_primitive_parses_to_its_wire_record` and
+  `malformed_frame_primitives_are_rejected_at_their_place` in
+  `src/frontend/indexed_parser.rs` cover the parser, and
+  `tests/frame_primitives.rs` the protocol, forged wire records and native
+  execution.
   `public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape`
   in `tests/protocol_shape.rs` adds an unknown field to one record of each
   record shape in the example packages that it lists. A primitive that one of
@@ -458,8 +502,11 @@ A primitive is documented in four places:
   [smooth map primitives](../language/smooth-declarations.md#smooth-map-primitives),
   [fiber primitives](../language/smooth-declarations.md#fiber-primitives),
   [reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives),
-  [flat and sharp](../language/smooth-declarations.md#flat-and-sharp) or
-  [morphism primitives](../affine-geometry.md#morphism-primitives). A
+  [flat and sharp](../language/smooth-declarations.md#flat-and-sharp),
+  the sections of [Frames](../language/frames.md) from
+  [Encoding and decoding](../language/frames.md#encoding-and-decoding) to
+  [Components, entries and equality](../language/frames.md#components-entries-and-equality),
+  or [morphism primitives](../affine-geometry.md#morphism-primitives). A
   binding outside those constructs, as `compose` is, has a row in the table
   of [Primitives](../indexed-source.md#primitives) and in the inventory of
   [The indexed checker](../internals/indexed-checker.md#closed-primitive-binding-inventory)
@@ -468,14 +515,16 @@ A primitive is documented in four places:
   [protocol 7 table](../protocol.md#protocol-7-indexed-declarations-and-rich-package-bodies)
   for an operation that is not algebraic, and the protocol 9
   [algebraic affine](../protocol.md#protocol-9-algebraic-affine-forms),
-  [smooth](../protocol.md#protocol-9-smooth-forms) or
-  [metric](../protocol.md#protocol-9-metric-forms) forms for an algebraic
+  [smooth](../protocol.md#protocol-9-smooth-forms),
+  [metric](../protocol.md#protocol-9-metric-forms) or
+  [frame](../protocol.md#protocol-9-frame-forms) forms for an algebraic
   one;
 - its diagnostics as rules with their codes in that Reference section. The
   row of its construct in [Appendix B](../appendix/diagnostics.md#kernel),
   such as the rows of
-  [fibers and tapes](../appendix/diagnostics.md#e-smooth-fibers) and of
-  [metrics](../appendix/diagnostics.md#e-metric), links the section and
+  [fibers and tapes](../appendix/diagnostics.md#e-smooth-fibers), of
+  [metrics](../appendix/diagnostics.md#e-metric) and of
+  [frames](../appendix/diagnostics.md#e-frame), links the section and
   names the kinds of errors, so a kind of error that the row does not name
   goes there too;
 - the theorem tables of [Verification boundaries](../verification.md).

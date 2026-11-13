@@ -123,12 +123,24 @@ At p = (1, 2) the vector (3, 2) has the array (2, 1) in b = columns((1, 0),
 example_test = "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package"
 
 [property."frame.adequacy".claim.oracle]
-status = "planned"
-issue = 759
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FrameRuntime.adequacy",
+  "VastitasOracle.FrameAcceptance.c4_adequacy",
+]
+premises = [
+  "for `adequacy`: P(p)·Q(p) = Q(p)·P(p) = I at every point p, which `VastitasOracle.FrameDeclarations.frame_sound` proves for every frame declaration of a valid environment",
+  "for `c4_adequacy`: the declaration environment of the module is valid, the operand of the inner call evaluates to a value of its checked type, and `frame_encode(frame_decode(a))` encodes in the frame that it decodes from",
+]
+assumes = ["rust-frontend"]
 note = """
-`VastitasOracle.FramePrimitives.encode_typed` and `decode_typed` prove only
-that encoding and decoding keep the point and the number of components. The
-adequacy theorems of the frame runtime belong to the Stage 4 tracker.
+`adequacy` states the four identities of the frame runtime: decoding undoes
+encoding and encoding undoes decoding, for vectors and for covectors. A
+fiber without one point coordinate and one component per frame vector gives
+the failure value, and the failure value stays the failure value.
+`c4_adequacy` states the same of accepted Core: the type `Coords<b>` fixes the
+frame in which `frame_decode(frame_encode(v))` decodes, and the valid
+environment makes the embedded frame invertible.
 """
 
 [property."frame.adequacy".claim.test]
@@ -165,8 +177,24 @@ array (2, 1) in b, and the transition back gives (1, 2) again.
 example_test = "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package"
 
 [property."frame.transitions".claim.oracle]
-status = "planned"
-issue = 759
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FrameRuntime.transition_laws",
+  "VastitasOracle.FrameAcceptance.c5_transitions",
+]
+premises = [
+  "for `transition_laws`: the point has n coordinates, P_b(p)·Q_b(p) = Q_b(p)·P_b(p) = I and P_b′(p)·Q_b′(p) = Q_b′(p)·P_b′(p) = I at the point, and the vector has n components",
+  "for `c5_transitions`: the declaration environment of the module is valid, and the point operand evaluates to a value of its checked type",
+]
+assumes = ["rust-frontend"]
+note = """
+`transition_laws` states that the transition from b to b is the identity,
+that the transition from b′ to b″ after the transition from b to b′ is the
+transition from b to b″, that the transitions from b to b′ and from b′ to b
+are inverse, and that a transition sends the array of a vector in b to its
+array in b′. `c5_transitions` states the first three laws of accepted Core,
+and that no transition between frames of two objects is accepted.
+"""
 
 [property."frame.transitions".claim.test]
 status = "tested"
@@ -194,8 +222,44 @@ map array (1, 3/2) in (r, l).
 example_test = "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package"
 
 [property."frame.change-of-frame".claim.oracle]
-status = "planned"
-issue = 759
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FrameRuntime.frameMatrix_natural",
+  "VastitasOracle.FrameAcceptance.c7_two_frame_pairs",
+]
+premises = [
+  "for `frameMatrix_natural`: F is well typed from n to m coordinates, the point has n coordinates, the frames b and c are invertible at p and at F(p), and the inverses of b′ and c′ have n and m rows",
+  "for `c7_two_frame_pairs`: the declaration environment of the module is valid, and the map and point operands evaluate to values of their checked types",
+]
+assumes = ["rust-frontend"]
+note = """
+Both theorems state the law for two pairs of frames, (b, c) and (b′, c′):
+the map array in (b′, c′) is the transition from c to c′ at F(p), after the
+map array in (b, c), after the transition from b′ to b at p. When c′ is c the
+first transition is the identity (`transition_laws`). The proofs read the
+rows of a map array as the Jacobian through `VastitasOracle.SmoothCalculus.backward_eq_cot`,
+a chain-rule theorem of the oracle.
+"""
+
+[property."frame.change-of-frame".claim.bridge]
+status = "proved-bridge"
+evidence = [
+  "VastitasBridge.Differential.frame_arrays_same_map",
+  "VastitasBridge.Differential.checked_frame_arrays_same_map",
+]
+premises = [
+  "for `frame_arrays_same_map`: F is well typed from n to m coordinates, the point has n coordinates, and the four frames are invertible at p or at F(p)",
+  "for `checked_frame_arrays_same_map`: the declaration environment of the module is valid, and the map and point operands evaluate to values of their checked types",
+]
+assumes = ["mathlib", "rust-frontend"]
+note = """
+The two map arrays in (b, c) and (b′, c′) decode, with `Matrix.toLin` in
+their frames, to one linear map: the Fréchet derivative `fderiv ℝ` of the
+real map of F at p. The second array is the first between the transitions
+`Q_c′·P_c` and `Q_b·P_b′`. The proofs read the reverse pass through
+`reverse_covector_eq_comp_fderiv` and use no chain-rule theorem;
+`lean-bridge/Audit.lean` checks this.
+"""
 
 [property."frame.change-of-frame".claim.test]
 status = "tested"
@@ -221,8 +285,35 @@ The covector (2, 1) and the vector (3, 2) at (1, 2) pair to 8. Their arrays
 example_test = "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package"
 
 [property."frame.pairing".claim.oracle]
-status = "planned"
-issue = 759
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FrameRuntime.pairing_invariant",
+  "VastitasOracle.FrameAcceptance.c6_pairing",
+]
+premises = [
+  "for `pairing_invariant`: P(p)·Q(p) = I at the point p of the covector, and the covector and the vector each have one point coordinate and one component per frame vector",
+  "for `c6_pairing`: the declaration environment of the module is valid, and the covector and vector operands evaluate to values of their checked types",
+]
+assumes = ["rust-frontend"]
+note = """
+`c6_pairing` states that an accepted `frame_pairing` of two encodings pairs
+arrays in one frame, which the call fixes, and evaluates to the pairing of
+the covector and the vector, a value that names no frame. Over two different
+points the pairing reads (0, 0).
+"""
+
+[property."frame.pairing".claim.bridge]
+status = "proved-bridge"
+evidence = ["VastitasBridge.Differential.pairing_in_frame"]
+premises = [
+  "the covector and the vector lie over one point, where P·Q = Q·P = I, and each has one point coordinate and one component per frame vector",
+]
+assumes = ["mathlib"]
+note = """
+The pairing of the two arrays is the sum over i of the coordinate i of the
+covector in the dual basis times the coordinate i of the vector in the frame,
+as a basis of ℝⁿ, and it equals α ⬝ᵥ v.
+"""
 
 [property."frame.pairing".claim.test]
 status = "tested"

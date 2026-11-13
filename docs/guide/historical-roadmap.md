@@ -3,10 +3,10 @@
 This chapter is the roadmap of the language after its first executable core,
 the finite Stage 1. It has six Stages and keeps their historical numbers. Each
 Stage states a mathematical target and an acceptance example, an example that
-could establish the completion of the Stage. Stages 2 and 3 are Implemented as
-finite profiles over the rational numbers: each has a Status paragraph, a
-Reference chapter and a [delivery record](../appendix/history.md). Stages 4
-to 7 are Planned.
+could establish the completion of the Stage. Stages 2, 3 and 4 are
+Implemented as finite profiles over the rational numbers: each has a Status
+paragraph, Reference chapters and a [delivery record](../appendix/history.md).
+Stages 5 to 7 are Planned.
 
 The Stages answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
@@ -14,9 +14,10 @@ survive a change of coordinates, an eigenvalue collision, or a change of
 physical convention?
 
 The GitHub issues that the chapter links govern the plan, including changes to
-earlier proposals. Their states were checked on 12 November 2026 (JST). The
-Status paragraphs of Stages 2 and 3 describe the delivered profiles, and the
-opening of Stage 3 gives the declaration forms of its profile. Every other
+earlier proposals. Their states were checked on 12 November 2026 (JST), and
+those of Stage 4 on 14 November 2026. The Status paragraphs of Stages 2, 3
+and 4 describe the delivered profiles, and the opening of Stage 3 gives the
+declaration forms of its profile. Every other
 implementation claim refers to the finite Stage 1 delivery at `7d612a4`.
 [Stage 1 acceptance map](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/stage1-acceptance.md)
 
@@ -136,15 +137,32 @@ about the same accepted Vastitas Core in both bases. An optimized change of
 representation also needs a validated lowering, including its floating-point
 and ownership obligations. [Basis adequacy, #518](https://github.com/MGYamada/Vastitas/issues/518) · [Metric operations, #264](https://github.com/MGYamada/Vastitas/issues/264)
 
-**Status.** Planned as a finite, checked profile over QQ (tracker #759,
-[acceptance map](../stage4-acceptance.md)). It has ordered frames of smooth
-affine objects, constant or polynomial in the point, with arrays that keep
-their frames and points; change of frame; map arrays of accepted smooth maps;
-and a minimal `nature::dimension` that rejects `dx² + dt²` under a length and
-a time coordinate. Bundles beyond global frames, Grassmannians, a monoidal
-model and the floating-point realization of the arrays stay in their issues.
+**Status.** A finite, checked profile over QQ implements this example
+([acceptance map](../stage4-acceptance.md), tracker #759, open until its
+continuous integration and its independent whole-stage review). It has
+ordered frames of smooth affine objects, constant or polynomial in the
+point: the kernel computes the inverse of a constant frame and checks the
+declared inverse of a polynomial frame as a polynomial identity. Arrays of
+vectors and covectors keep their frames statically and their points at run
+time. It has change of frame, contraction in frames, and the matrix of an
+accepted smooth map in a pair of frames, whose rows come from the reverse
+pass. A minimal `nature::dimension` declares base dimensions, quantity
+kinds, readings of a chart and scales. It rejects `dx² + dt²` under a length
+and a time coordinate and accepts a metric with compatible scales, without
+changing the validity of any `std` declaration. The oracle proves adequacy,
+the transition laws, change of frame, the chain rule in frames, Gram
+transport, both weakenings and the soundness of physical metrics, for
+accepted programs. The mathlib bridge proves that frames are bases and that
+the matrices are `LinearMap.toMatrix` of the Fréchet derivative, without the
+kernel chain rule. The acceptance example runs natively.
 [ADR 0001 §11](../adr/0001-mathematics-first-stdlib.md#11-ordered-frames-of-smooth-affine-objects-amendment-2026-11-13)
 and [ADR 0002](../adr/0002-nature-dimension.md) admit the two modules.
+Planned, in open issues: frames whose determinant is not constant (#606),
+generic frame primitives in the standard library, the realization of exact
+arrays in floating-point storage, unit systems and the physical reading of
+frames (#300), pushforward (#161), bundles beyond global frames and
+Grassmannians (#261), a monoidal model (#201, #387), validated lowering
+(#417) and performance (#222).
 
 ## Stage 5. Spectral observations
 

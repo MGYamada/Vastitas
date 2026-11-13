@@ -20,8 +20,9 @@ use the same `WireName` definitions as the family entries.
 
 `build` receives the arguments in wire order and embeds the placeholders that
 the stage passes fill: `relative_coefficient` starts with coordinate `0` and
-the empty monomial, `fiber_component` with coordinate `0`, and `flat` and
-`sharp` with the metric's own ID as the object and empty matrices.
+the empty monomial, `fiber_component` with coordinate `0`, `flat` and
+`sharp` with the metric's own ID as the object and empty matrices, and the
+frame bindings (Stage 4) with every named frame as `FrameRef.placeholder`.
 `resolveFirst` names the fields the resolver resolves before the others, in
 that order; the resolver resolves the rest in wire order. The order is
 observable: the first name that does not resolve is the one reported, and the
@@ -48,6 +49,7 @@ inductive ResolvedArgument where
   | coordinate (name : String)
   | polynomial (expression : Source.PolyExpr)
   | pullbackMode (mode : SmoothRuntime.PullbackMode)
+  | natural (value : Nat)
   deriving Repr, Inhabited
 
 structure PrimitiveFamily where
@@ -70,6 +72,12 @@ private def mismatch {α : Type} (op : String) : Except String α :=
 
 private def path (name : String) : WireField := ⟨name, .path⟩
 private def objectType (name : String) : WireField := ⟨name, .objectType⟩
+private def natural (name : String) : WireField := ⟨name, .natural⟩
+
+/-- The placeholder of a frame that a frame binding names (Stage 4): the
+frame's own ID as its object and empty matrices. `elaborateFrames` replaces it
+with the declaration's object, matrix and inverse. -/
+def FrameRef.placeholder (frame : DeclId) : FrameRef := ⟨frame, frame, [], []⟩
 
 /-! The op and field names that a stage pass reads back from a source form.
 The family entries use these definitions, so a pass reads exactly the fields
@@ -224,7 +232,76 @@ def families : List PrimitiveFamily := [
     build := fun
       | [.declaration cotangent, .declaration tangent, .declaration metric, .declaration evidence] =>
           pure (.metricSharp metric evidence metric [] [] cotangent tangent)
-      | _ => mismatch "sharp" } ]
+      | _ => mismatch "sharp" },
+  /- Frames (Stage 4, protocol 9). Every frame that a binding names is
+  embedded as a placeholder (`FrameRef.placeholder`), and `frame_encode` and
+  `frame_decode` start with the variance `tangent` and `frame_vector` with the
+  frame's own ID as its object: `elaborateFrames` fills them from the
+  declarations once the frames are elaborated. -/
+  { op := "frame_encode", algebraic := true, fields := [path "fiber", path "coords", path "frame"],
+    resolveFirst := ["frame"],
+    build := fun
+      | [.declaration fiber, .declaration coords, .declaration frame] =>
+          pure (.frameEncode .tangent fiber coords (FrameRef.placeholder frame))
+      | _ => mismatch "frame_encode" },
+  { op := "frame_decode", algebraic := true, fields := [path "coords", path "fiber", path "frame"],
+    resolveFirst := ["frame"],
+    build := fun
+      | [.declaration coords, .declaration fiber, .declaration frame] =>
+          pure (.frameDecode .tangent coords fiber (FrameRef.placeholder frame))
+      | _ => mismatch "frame_decode" },
+  { op := "frame_vector", algebraic := true, fields := [path "coords", path "map_family", path "frame"],
+    resolveFirst := ["frame"],
+    build := fun
+      | [.declaration coords, .declaration smooth, .declaration frame] =>
+          pure (.frameVector coords smooth frame frame)
+      | _ => mismatch "frame_vector" },
+  { op := "frame_matrix", algebraic := true,
+    fields := [path "map_family", path "frame_map", path "source", path "target"],
+    resolveFirst := ["source", "target"],
+    build := fun
+      | [.declaration smooth, .declaration map, .declaration source, .declaration target] =>
+          pure (.frameMatrix smooth map (FrameRef.placeholder source) (FrameRef.placeholder target))
+      | _ => mismatch "frame_matrix" },
+  { op := "frame_transition", algebraic := true,
+    fields := [path "map_family", path "frame_map", path "source", path "target"],
+    resolveFirst := ["source", "target"],
+    build := fun
+      | [.declaration smooth, .declaration map, .declaration source, .declaration target] =>
+          pure (.frameTransition smooth map (FrameRef.placeholder source) (FrameRef.placeholder target))
+      | _ => mismatch "frame_transition" },
+  { op := "frame_apply", algebraic := true, fields := [path "frame_map", path "coords"],
+    build := fun
+      | [.declaration map, .declaration coords] => pure (.frameApply map coords)
+      | _ => mismatch "frame_apply" },
+  { op := "frame_coapply", algebraic := true, fields := [path "frame_map", path "cocoords"],
+    build := fun
+      | [.declaration map, .declaration cocoords] => pure (.frameCoapply map cocoords)
+      | _ => mismatch "frame_coapply" },
+  { op := "frame_compose", algebraic := true, fields := [path "frame_map"],
+    build := fun
+      | [.declaration map] => pure (.frameCompose map)
+      | _ => mismatch "frame_compose" },
+  { op := "frame_pairing", algebraic := true, fields := [path "cocoords", path "coords"],
+    build := fun
+      | [.declaration cocoords, .declaration coords] => pure (.framePairing cocoords coords)
+      | _ => mismatch "frame_pairing" },
+  { op := "frame_component", algebraic := true, fields := [path "family", natural "index"],
+    build := fun
+      | [.declaration family, .natural index] => pure (.frameComponent family index)
+      | _ => mismatch "frame_component" },
+  { op := "frame_entry", algebraic := true, fields := [path "frame_map", natural "row", natural "column"],
+    build := fun
+      | [.declaration map, .natural row, .natural column] => pure (.frameEntry map row column)
+      | _ => mismatch "frame_entry" },
+  { op := "frame_equal", algebraic := true, fields := [path "family"],
+    build := fun
+      | [.declaration family] => pure (.frameEqual family)
+      | _ => mismatch "frame_equal" },
+  { op := "frame_at", algebraic := true, fields := [path "family", path "map_family"],
+    build := fun
+      | [.declaration family, .declaration smooth] => pure (.frameAt family smooth)
+      | _ => mismatch "frame_at" } ]
 
 /-- The family of a wire op. -/
 def primitiveFamily? (op : String) : Option PrimitiveFamily :=

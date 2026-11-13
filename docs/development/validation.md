@@ -35,15 +35,15 @@ cargo package --locked
 | Command | What it checks |
 | --- | --- |
 | `check_docs.py` | `AGENTS.md` and `CLAUDE.md` are identical and within their size limits |
-| `check_boundaries.py` | The dependency boundaries: the kernel and the oracle do not depend on Mathlib. The bridge depends on the pinned Mathlib and, one way, on the kernel and the oracle, as the [amendment of ADR 0001](../adr/0001-mathematics-first-stdlib.md#implementation-correspondence-in-the-bridge-amendment-2026-11-12) admits. The packages share one Lean toolchain and keep their lockfiles |
-| `check_kernel_regressions.sh` | The regression modules that the script lists. Among others they cover the type audit, dispatch, function values, namespaces, edit authority, the indexed, affine and smooth checkers, the wire, storage, the numerical statements, exact algebra and promotion |
+| `check_boundaries.py` | The dependency boundaries: the kernel and the oracle do not depend on Mathlib. The bridge depends on the pinned Mathlib and, one way, on the kernel and the oracle, as the [amendment of ADR 0001](../adr/0001-mathematics-first-stdlib.md#implementation-correspondence-in-the-bridge-amendment-2026-11-12) admits. The packages share one Lean toolchain and keep their lockfiles. No `std` manifest depends on `nature`, as [ADR 0002](../adr/0002-nature-dimension.md) requires |
+| `check_kernel_regressions.sh` | The regression modules that the script lists. Among others they cover the type audit, dispatch, function values, namespaces, edit authority, the indexed, affine, smooth, frame and physical-dimension checkers, the wire, storage, the numerical statements, exact algebra and promotion |
 | `check_indexed_native.sh` | The code that the kernel generates from indexed Core: it compiles each generated module, runs it and compares its output |
 | `check_storage_native.sh` | The native storage adapter and the cleanup after a failure, without BLAS |
 | `cargo test --locked --all-targets` | The unit tests and the integration tests, which run `check` and `build` and the built executables. Build the kernel first |
 | `check_resource_cleanup.py` | The cleanup of resource programs and the precedence of nested failures, without BLAS |
 | `check_spec.py` | The files of the [specifications](../specifications.md) and their generated chapters |
 | `check_primitive_table.py` | The generated primitive table, as described below |
-| `unittest discover -s scripts` | The tests of the checkers and of the [reference models](../appendix/reference-models.md) |
+| `unittest discover -s scripts` | The tests of the checkers and of the [reference models](../appendix/reference-models.md), among them `test_fixture_is_current` of `test_frame_reference.py`, which compares `tests/fixtures/frames.json` with the frame model |
 | `cargo package --locked` | The registry distribution builds from its packaged sources |
 
 `build_stdlib_package.py` generates the standard-library package under the
@@ -139,6 +139,36 @@ build both build it before the audit.
 cited theorem, review the change, run
 `python3 scripts/check_spec.py --update-statements oracle` (or `bridge`) and
 review the diff of the statement pins.
+
+## Frames and physical dimensions
+
+A change to the frame runtime, to the frame or physical-dimension checks, to
+the frame primitives or to `nature::dimension` runs these checks besides the
+ones above:
+
+```sh
+python3 scripts/frame_reference.py --check
+bash scripts/check_kernel_regressions.sh
+bash scripts/check_indexed_native.sh
+cargo test --locked --test frame_primitives --test frame_dimension_declarations \
+  --test nature_dimension --test stdlib_frames --test emit_golden --test protocol_shape
+python3 scripts/check_boundaries.py
+python3 -m unittest discover -s scripts -p 'test_check_boundaries.py'
+```
+
+| Command | What it checks |
+| --- | --- |
+| `frame_reference.py --check` | The fixture `tests/fixtures/frames.json` is what the exact Python model of frames in the plane computes. `--write` regenerates it; review its diff |
+| `check_kernel_regressions.sh` | Among its modules, `FrameRuntimeRegression` (the runtime on frames of the plane and of the point), `FrameDeclarationRegression` (frame declarations through the decoders, the source checker and the declaration audit), `NatureRegression` (the declarations of `nature::dimension` likewise), `FrameRegression` (the frame bindings through the checker, the Core semantics, erasure, code generation and the decoder) and `VastitasAlgebraTest.FrameReferenceRegression` (the runtime against the fixture of the reference model) |
+| `check_indexed_native.sh` | The native fixture `frame_programs`, which links the frame runtime with the smooth and algebra runtimes and prints `42` |
+| The Rust tests | The frame primitives through the public path and forged wire records; the frame and physical-dimension declarations and their protocol; `nature::dimension` and `std::geometry::frame` from path packages, with their public names and the byte identity of generated code without nature declarations; the generated Lean of the frame primitives; the unknown fields of every frame and physical-dimension record |
+| `check_boundaries.py` and its tests | No `std` manifest depends on `nature`, and `nature` depends on nothing outside `std` and `nature` |
+
+`scripts/test_frame_reference.py` tests the laws of the model itself:
+adequacy, the transition laws, pairing invariance, the map arrays in two
+frame pairs, the chain rule in frames and Gram transport. The model takes its
+map arrays from the Jacobian, unlike the kernel, which takes them from runs
+of the reverse pass.
 
 ## Mathematical bridge
 
@@ -242,6 +272,20 @@ VASTITAS_UPDATE_EMIT_FIXTURES=1 cargo test --locked --test emit_golden
 
 When `CI` is set, the test fails instead of regenerating the fixtures.
 Regenerate them locally and commit them.
+
+The frame primitives have a package of their own,
+`tests/emit_corpus/frame-primitives/`, which `FRAME_CASES` of the same file
+lists with its fixture `tests/fixtures/emit/frame-primitives.lean`.
+`frame_lean_matches_the_emit_fixtures` compares its generated Lean and checks
+that the package declares all thirteen frame operations and that the
+generated Lean contains the lowering of each. `generated_lean_matches_the_emit_fixtures`
+counts the frame package among the packages that together declare every
+wire primitive. The command above regenerates both groups of fixtures; to
+regenerate the frame fixture alone, name its test:
+
+```sh
+VASTITAS_UPDATE_EMIT_FIXTURES=1 cargo test --locked --test emit_golden -- frame_lean_matches_the_emit_fixtures
+```
 
 `scripts/capture_emit.py` records what the compiler emits for every example.
 Its cases are the single-file programs under `examples/`, among them the

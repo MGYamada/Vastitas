@@ -141,6 +141,9 @@ def _root_.VastitasKernel.Indexed.Relation.holds (env : Environment) (shape : Sh
       | some expected => actual == .global expected
       | none => false
     | _, _ => false
+  | .frameBound position index _ => match frameIndexAt arguments position with
+    | some frame => (frameDimension? env frame).any fun dimension => decide (index < dimension)
+    | none => false
 
 def templateSlot (arguments : List ValueType) : TemplateSlot → Option Index
   | .index position => (refAt arguments position).map .object

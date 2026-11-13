@@ -55,6 +55,10 @@ inductive SharedLiteral where
   the table, so that neither an entry nor a call computes the table: the
   context computes it once per map (`RenderContext.share`). -/
   | jacobian (map : AlgebraRuntime.Map)
+  /-- The matrix `P` or the inverse `Q` of a frame (Stage 4), polynomials in
+  the coordinates as rows, declared as `frame_k` and named by every frame call
+  that reads it. -/
+  | frame (matrix : PolyMatrix)
   deriving Repr, DecidableEq
 
 /-- The kind of a shared literal, which begins its name. -/
@@ -63,6 +67,7 @@ def SharedLiteral.kind : SharedLiteral → String
   | .matrix _ => "matrix"
   | .map _ => "map"
   | .jacobian _ => "jacobian"
+  | .frame _ => "frame"
 
 /-- What the lowering of a call reads from the whole module: the distinct
 literals that the module declares once, and the Jacobian tables that it
@@ -72,6 +77,9 @@ structure RenderContext where
   /-- The Jacobian table of each map whose table the module shares. Two maps
   may have one table; `literals` then holds the first of them. -/
   jacobians : List (AlgebraRuntime.Map × List (List AlgebraRuntime.Poly)) := []
+  /-- The families of the module with the `frame_map` representation (Stage 4):
+  `frame_equal` compares maps of these families and arrays of any other. -/
+  frameMaps : List DeclId := []
 
 /-- The Jacobian table of `map`: the one that the context holds, else the one
 computed here. -/
@@ -100,7 +108,7 @@ def RenderContext.share (literals : List SharedLiteral) : RenderContext :=
   let jacobians := literals.filterMap fun
     | .jacobian map => some (map, SmoothRuntime.jacobian map)
     | _ => none
-  let ctx : RenderContext := ⟨literals, jacobians⟩
+  let ctx : RenderContext := { literals, jacobians }
   { ctx with literals := literals.filter fun literal => ctx.declared literal == literal }
 
 /-! ## The text of generated programs
@@ -132,10 +140,13 @@ def literalType : SharedLiteral → String
   | .matrix _ => smooth "Matrix"
   | .map _ => algebra "Map"
   | .jacobian _ => s!"List (List {algebra "Poly"})"
+  | .frame _ => s!"List (List {algebra "Poly"})"
 /-- A literal in place, as the module writes it where it declares the literal:
 a basis; a checked metric matrix, row by row, with exact rational entries; a
 checked map, with its basis by name when the module shares the basis; a
-Jacobian table, column by column, with exact rational coefficients. -/
+Jacobian table, column by column, with exact rational coefficients; the
+matrix or the inverse of a frame, row by row, with exact rational
+coefficients. -/
 def literalValue (ctx : RenderContext) : SharedLiteral → String
   | .basis basis => renderPolys basis
   | .matrix matrix =>
@@ -146,6 +157,7 @@ def literalValue (ctx : RenderContext) : SharedLiteral → String
     s!"({algebra "Map.mk"} {map.arity} {basis} {renderPolys map.images})"
   | .jacobian map =>
     s!"([{String.intercalate ", " ((ctx.jacobian map).map renderPolys)}] : List (List {algebra "Poly"}))"
+  | .frame matrix => s!"([{String.intercalate ", " (matrix.map renderPolys)}] : List (List {algebra "Poly"}))"
 /-- A literal at a call: by name when the module shares it, else in place. -/
 def renderLiteral (ctx : RenderContext) (literal : SharedLiteral) : String :=
   (ctx.name? literal).getD (literalValue ctx literal)
@@ -155,6 +167,8 @@ def renderMatrix (ctx : RenderContext) (matrix : SmoothRuntime.Matrix) : String 
 def renderMap (ctx : RenderContext) (map : AlgebraRuntime.Map) : String := renderLiteral ctx (.map map)
 /-- The Jacobian table of a checked map at a call. -/
 def renderJacobian (ctx : RenderContext) (map : AlgebraRuntime.Map) : String := renderLiteral ctx (.jacobian map)
+/-- The matrix or the inverse of a checked frame at a call. -/
+def renderFrame (ctx : RenderContext) (matrix : PolyMatrix) : String := renderLiteral ctx (.frame matrix)
 /-- The lowering of a call whose rendered operands do not fit its entry. -/
 def arityMismatch : Except String String := .error "closed primitive arity mismatch"
 

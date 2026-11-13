@@ -83,40 +83,30 @@ theorem read_initialization {state : State} {loan : Loan} {allocation : Allocati
 
 theorem action_audits {state after : State} {action : Action}
     (accepted : checkAction state action = .ok after) : auditState state = true ∧ auditState after = true := by
-  cases before : auditState state with
-  | false => simp [checkAction, before] at accepted
-  | true =>
-    cases operation : executeAction state action with
-    | error diagnostic => simp [checkAction, before, operation] at accepted
-    | ok result =>
-      cases next : auditState result with
-      | false => simp [checkAction, before, operation, next] at accepted
-      | true =>
-        simp [checkAction, before, operation, next] at accepted
-        subst after
-        exact ⟨rfl, next⟩
+  obtain ⟨before, _, audited⟩ := checkAction_eq_ok.mp accepted
+  exact ⟨before, audited⟩
 
 /-- An accepted self-copy is the exact identity transition, including logical
 versions, initialization history and recorded dependencies. This does not give
 an inactive, write-only or uninitialized loan permission to read. -/
 theorem checked_self_copy {state after : State} {name : Symbol}
     (accepted : checkAction state (.copy name name) = .ok after) : after = state := by
-  have audited := (action_audits accepted).1
+  have executed := (checkAction_eq_ok.mp accepted).2.1
   cases input : usable state name false with
   | error diagnostic =>
-    simp [checkAction, audited, executeAction, input, bind, Except.bind] at accepted
+    simp [executeAction, input, bind, Except.bind] at executed
   | ok source =>
     cases output : usable state name true with
     | error diagnostic =>
-      simp [checkAction, audited, executeAction, input, output, bind, Except.bind] at accepted
+      simp [executeAction, input, output, bind, Except.bind] at executed
     | ok target =>
       cases shape : (source.2.scalar != target.2.scalar ||
         source.1.layout.logicalRows != target.1.layout.logicalRows ||
         source.1.layout.logicalColumns != target.1.layout.logicalColumns) <;>
         cases initialized : source.2.initialization.covers source.2.scalar source.1.layout <;>
-        simp [checkAction, audited, executeAction, input, output, shape, initialized,
-          bind, Except.bind, pure, Except.pure] at accepted
-      all_goals first | exact accepted.symm | cases accepted
+        simp [executeAction, input, output, shape, initialized,
+          bind, Except.bind, pure, Except.pure] at executed
+      all_goals first | exact executed.symm | cases executed
 
 /-- The decoder certificate keeps acceptance tied to these exact statements;
 there is no alternate serialized checked state or trusted initialization flag. -/

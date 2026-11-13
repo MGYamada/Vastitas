@@ -31,17 +31,12 @@ theorem accepted_transition {state after : State} {request : Gemm}
     (accepted : checkAction state (.gemm request) = .ok after) :
     ∃ checked : CheckedGemm state request, checkGemm state request = .ok checked ∧
       after = state.markWritten checked.operands.outputAllocation.identity checked.operands.output.layout := by
-  cases before : auditState state with
-  | false => simp [checkAction, before] at accepted
-  | true =>
-    cases preflight : checkGemm state request with
-    | error diagnostic => simp [checkAction, before, executeAction, preflight] at accepted
-    | ok checked =>
-      cases afterAudit : auditState (state.markWritten checked.operands.outputAllocation.identity checked.operands.output.layout) with
-      | false => simp [checkAction, before, executeAction, preflight, afterAudit] at accepted
-      | true =>
-        refine ⟨checked, rfl, ?_⟩
-        simpa [checkAction, before, executeAction, preflight, afterAudit] using accepted.symm
+  have executed := (checkAction_eq_ok.mp accepted).2.1
+  cases preflight : checkGemm state request with
+  | error diagnostic => simp [executeAction, preflight] at executed
+  | ok checked =>
+    refine ⟨checked, rfl, ?_⟩
+    simpa [executeAction, preflight] using executed.symm
 
 theorem input_initialization {state : State} {request : Gemm} (checked : CheckedGemm state request) :
     checked.operands.leftAllocation.initialization.covers checked.operands.leftAllocation.scalar checked.operands.left.layout = true ∧

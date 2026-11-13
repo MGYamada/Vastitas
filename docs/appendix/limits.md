@@ -335,8 +335,8 @@ resource functions. Most limits of this section have the code
 | Expansion of calls | 4096 | The units of one expansion. The checker expands each resource function once for the check of the function on its own, and the entry point once more, each with the functions that it calls. The first list below the table says which units an expansion takes | An expansion | `E_RESOURCE_LIMIT` |
 | Depth of calls | 4096 | The units of one chain of calls: one for each function that the chain enters, and one for each statement of such a function up to and with its call. In the last function of the chain, every statement that the checker reaches counts | A chain of calls | `E_RESOURCE_LIMIT` |
 | `resourceWork` | 32,000,000 | The weighted units of work of checking all resource functions: the check of each function on its own and the check of the entry point | A program | `E_LIMIT` |
-| Initialization records | 4096 | The nodes of the record that the checker keeps of the writes to one allocation: one for each write, one for each join of two arms that keeps the records of both arms, and one for the end of each record | An allocation | `E_RESOURCE_LIMIT` at a join, `E_RESOURCE_STATE` at a write |
-| Initialization query | 65,536 | The visits of the record of one allocation by one query of the cells of a view. Over a record of `n` nodes, a query passes at most the smaller of `n` and 65,536 / `n` recorded writes, so at most 256 | A read of a view | `E_RESOURCE_INIT` |
+| Initialization records | 4096 | The nodes of the record that the checker keeps of the writes to one allocation: one for the end of the record, one for each write that the record keeps, and one for each join of two arms that keeps the records of both arms. The record keeps no write whose cells are initialized already, and no write that continues the last recorded write | An allocation | `E_RESOURCE_LIMIT` |
+| Initialization query | 65,536 | The visits of the record of one allocation by one query of the cells of a view. Over a record of `n` nodes, a query walks at most 65,536 / `n` steps from write to write, and a view with padding shares them among its stored columns | A read of a view | `E_RESOURCE_INIT` |
 | Integers | 2⁶⁴ − 1 | An integer of a storage type, of a layout, of an allocation size, of a cell index or of `f64_bits` | An integer | `E_RESOURCE_LIMIT` |
 | Bytes of an allocation | 2⁶³ − 1 | The cells of an allocation times the size of a cell, 8 bytes for `F64` and 16 for `Complex<F64>` | An allocation | `E_RESOURCE_OVERFLOW` |
 | Rows, columns and leading of a layout | 2³¹ − 1 | The three numbers of a `layout` | A layout | `E_RESOURCE_LAYOUT` |
@@ -383,28 +383,46 @@ limits. With 1365 `space` statements in the third function, the
 result of the entry point is beyond the expansion of calls. With 1366, the
 last statement is beyond the depth of calls.
 
-The record of the writes to an allocation grows at a join of two arms. A
-join adds no node in three cases: the two arms leave equal records, the
-record of one arm is that of the other with one more write, or each arm
-adds one write to the record before the `if` and the two writes are
-disjoint. Any other join keeps the records of both arms. Each of the two
-then holds the record before the `if`, so the count about doubles. In a
-function that makes two `store` statements and then nine `if` statements
-whose arms each store two cells, of which the second is the same cell in
-both arms, the record has 4091 nodes. Five further `store` statements are within the limit. A sixth
-is an error with the code `E_RESOURCE_STATE`, and a tenth such `if` is an
-error with the code `E_RESOURCE_LIMIT`
-([#739](https://github.com/MGYamada/Vastitas/issues/739)). The order of the
-stores in an arm matters: where each arm stores the shared cell first, the
-checker accepts a tenth such `if`.
+A write whose cells follow each other without a gap, such as a `store` or the
+`fill` of a view without padding, can continue the last recorded write. It
+does so when its first cell follows the last cell of that write, or its last
+cell precedes the first, and when that write is a `store`, a write of a view
+`layout(offset, n, 1, n, false)` or a record that such writes extended.
+The checker then extends that record and adds no node. Stores of consecutive
+cells, in increasing or in decreasing order, therefore leave one node,
+however many cells they write.
+
+The record also grows at a join of two arms. A join adds no node when the
+two arms leave equal records, or when the record of one arm is that of the
+other with one more write or with a longer last write. Where each arm adds
+one write to the record before the `if`, or extends its last write, the join
+adds no node either when the two writes are disjoint, when one contains the
+other, or when both have no gap. Two writes without a gap leave the cells
+that they share. Where one arm adds a write and the other extends the last
+write before the `if`, the join adds no node when the write and the cells of
+the extension do not overlap. Any other join keeps the records of both arms.
+Each of the two then holds the record before the `if`, so the count about
+doubles.
+
+Take a function that stores cells of which no two follow each other: two
+`store` statements, and then nine `if` statements whose arms each store two
+cells, of which the second is the same cell in both arms. Its record has
+4091 nodes. Five further `store` statements of such cells are within the
+limit. A sixth is an error with the code `E_RESOURCE_LIMIT`, and so is a
+tenth such `if`. The order of the stores in an arm matters: where each arm
+stores the shared cell first, the checker accepts a tenth such `if`. Where
+the cells of the function are consecutive, its stores extend the last
+write, and each join after the first adds one node. After nine such `if`
+statements the record then has 14 nodes.
 
 A query of the cells of a view first looks for one recorded write that
-covers the view, such as a `fill`. Otherwise it walks from write to write
-through the cells, within the bound of the table. A view of 255 cells that
-255 `store` statements write one by one can be borrowed for reading. With
-256 cells and 256 `store` statements the `borrow` is an error
-(`E_RESOURCE_INIT`), although the statements write every cell
-([#739](https://github.com/MGYamada/Vastitas/issues/739)).
+covers the view, such as a `fill` or the record of consecutive stores.
+Otherwise it walks from write to write through the cells, within the bound
+of the table. Stores in an order in which no store continues the one before
+leave one node each. Take a view of 255 cells whose stores write first the
+cells of even index and then those of odd index. The view can be borrowed
+for reading. With 256 cells in this order the `borrow` is an error
+(`E_RESOURCE_INIT`), although the stores write every cell.
 [Resource statements](../storage/resource-programs.md#resource-statements)
 gives the rule, and
 [Checked storage](../storage/checked-storage.md#storage-ir) describes the

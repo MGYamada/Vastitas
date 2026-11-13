@@ -1023,9 +1023,8 @@ theorem step_realizes (values : Shapes.Valuation) (before : Shapes.Frame)
     | fill name value => exact fill_step values before name value checked prior
     | expect name row column value => exact expect_step values before name row column value checked prior emitted
     | gemm request => exact gemm_step values before request checked prior emitted
-  refine ⟨?_, executed.2⟩
-  simp only [checkAction, frame_audited values before checked.beforeValid prior,
-    executed.1, frame_audited values checked.after checked.afterValid executed.2, ↓reduceIte]
+  exact ⟨checkAction_eq_ok.mpr ⟨frame_audited values before checked.beforeValid prior, executed.1,
+    frame_audited values checked.after checked.afterValid executed.2⟩, executed.2⟩
 
 /-- Acceptance supplies the exact concrete instruction list, not merely a
 separately chosen schedule with the same final dimensions. The checker traverses

@@ -261,10 +261,8 @@ Other codes report the limits of their constructs, as
 - `E_NUMERICAL_TYPE`, `E_TENSOR`, `E_TENSOR_TREE` and `E_NUMERICAL_METRIC` in
   numerical statements.
 
-One code reports a bound that no rule of the Reference states:
-`E_RESOURCE_STATE` for the records of the initialized cells of an
-allocation. `E_RESOURCE_INIT` reports the bound on
-the search of these records, which
+`E_RESOURCE_INIT` reports the bound on the query of the
+records of the initialized cells of an allocation, which
 [Resource statements](../storage/resource-programs.md#resource-statements)
 names. [Appendix D](limits.md) gives the code of each limit.
 
@@ -279,20 +277,11 @@ an invalid function type in some programs. No other rule of the Reference
 gives one of these codes, as
 [Classes of codes](../language/diagnostics.md#classes-of-codes) says.
 
-A source program reaches one more diagnostic of this section, and no rule
-of the Reference states it: a write beyond the limit on the initialization
-records of an allocation has the code `E_RESOURCE_STATE`
-([#739](https://github.com/MGYamada/Vastitas/issues/739)).
-[Resource functions](limits.md#resource-functions) gives the limit. The
-size of a request is a limit of the program with the code `E_LIMIT`, as
-[Request](limits.md#request) says.
-
 The tests of the repository reach none of the other codes of this section
 from a source program. They reach `E_LITERAL` with a request that they
 change, and the regressions of the kernel reach some of the codes with
-requests and plans that they build. Apart from that case of
-`E_RESOURCE_STATE`, a diagnostic with a code of the third table for a source
-program reports a defect of the compiler.
+requests and plans that they build. A diagnostic with a code of the third
+table for a source program reports a defect of the compiler.
 
 Codes of a request:
 
@@ -330,7 +319,7 @@ Codes of a check that the kernel repeats on its own result:
 | `E_DEPENDENCY` | A Core module whose functions do not stand after the functions that they call |
 | `E_CODEGEN` | A Core module that the generator of pure code rejects |
 | `E_RESOURCE_CODEGEN`, `E_RUNTIME_CODEGEN` | A storage plan that the generator of storage code rejects |
-| `E_RESOURCE_STATE` | A state of the storage checker that fails its audit, and a call whose expansion differs from its second run. A state with more initialization records than the limit fails the audit |
+| `E_RESOURCE_STATE` | A state of the storage checker that fails its audit, and a call whose expansion differs from its second run. The audit also checks the limit on the initialization records, which the checker reports at the write or the join beyond it (`E_RESOURCE_LIMIT`) |
 | `E_NUMERICAL_ORIGIN` | Numerical instructions that differ from the statements that they come from |
 | `E_RUNTIME_RETURN` | A statement on runtime extents whose record differs from the checked plan |
 | `E_DISPATCH_HIERARCHY` | A hierarchy of nominal types that the dispatch engine does not accept. The kernel rejects such a hierarchy first (`E_HIERARCHY`) |

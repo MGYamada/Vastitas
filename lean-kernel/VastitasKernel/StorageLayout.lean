@@ -139,6 +139,54 @@ def Layout.covers (outer inner : Layout) (scalar : Scalar) : Bool :=
 def Layout.disjoint (left right : Layout) (scalar : Scalar) : Bool :=
   left.empty || right.empty || left.endByte scalar ≤ right.offset || right.endByte scalar ≤ left.offset
 
+/-- The bytes `[offset, endByte)` of a nonempty contiguous footprint, all of
+which it holds. A padded or empty footprint has no such run. -/
+def Layout.run? (scalar : Scalar) (layout : Layout) : Option (Nat × Nat) :=
+  if layout.contiguous && !layout.empty then some (layout.offset, layout.endByte scalar) else none
+
+/-- One stored column of `count` cells from byte `start`: the canonical record
+of a run of whole cells. -/
+def Layout.cells (start count : Nat) : Layout := ⟨start, count, 1, count, false⟩
+
+/-- The canonical record of the bytes `[start, finish)` when they are a
+nonempty run of whole cells whose number fits the native dimension limit. -/
+def Layout.ofRun (scalar : Scalar) (start finish : Nat) : Option Layout :=
+  let count := (finish - start) / scalar.width
+  if 0 < count ∧ count ≤ dimensionLimit ∧ start + count * scalar.width = finish then
+    some (Layout.cells start count)
+  else none
+
+/-- A write that continues a canonical run at either end. The merged run is
+again canonical, so that records which only runs extend stay comparable. -/
+def Layout.extend (scalar : Scalar) (last write : Layout) : Option Layout :=
+  if last = Layout.cells last.offset last.rows then
+    match last.run? scalar, write.run? scalar with
+    | some (start, finish), some (start', finish') =>
+      if finish = start' then Layout.ofRun scalar start finish'
+      else if finish' = start then Layout.ofRun scalar start' finish
+      else none
+    | _, _ => none
+  else none
+
+/-- The canonical record of the bytes that two runs share. -/
+def Layout.common (scalar : Scalar) (left right : Layout) : Option Layout :=
+  match left.run? scalar, right.run? scalar with
+  | some (start, finish), some (start', finish') =>
+    Layout.ofRun scalar (max start start') (min finish finish')
+  | _, _ => none
+
+/-- `outer` contains `inner`, and every byte that `outer` shares with the
+envelope of `write` lies in `inner`. Then the bytes that `write` adds beside
+`inner` are none that `outer` holds. -/
+def Layout.absorbs (scalar : Scalar) (outer inner write : Layout) : Bool :=
+  outer.covers inner scalar &&
+    match outer.run? scalar, inner.run? scalar with
+    | some (start, finish), some (start', finish') =>
+      let low := max start write.offset
+      let high := min finish (write.endByte scalar)
+      decide (high ≤ low) || (decide (start' ≤ low) && decide (high ≤ finish'))
+    | _, _ => false
+
 /-- Exact record of writes and branch intersections. Entailment preserves
 padding holes and never treats an enclosing envelope as a write. -/
 inductive Initialization where
@@ -157,10 +205,31 @@ def Initialization.remaining : Nat → Initialization → Option Nat
     let afterLeft ← left.remaining fuel
     right.remaining afterLeft
 
+/-- The join of two writes over one history: `(H ∪ A) ∩ (H ∪ B) = H ∪ (A ∩ B)`.
+Disjoint writes leave `H`, a contained write leaves its own arm, and two runs
+leave the run that they share. -/
+def Initialization.meetWrites (scalar : Scalar) (a b : Layout) (previous : Initialization) : Initialization :=
+  if a.disjoint b scalar then previous
+  else if a.covers b scalar then .written b previous
+  else if b.covers a scalar then .written a previous
+  else match a.common scalar b with
+    | some shared => .written shared previous
+    | Option.none => .intersection (.written a previous) (.written b previous)
+
+/-- One arm `.written outer base` and the other `.written write (.written inner base)`,
+where `outer` absorbs `inner` beside `write`: their join is the second arm's
+history `.written inner base`. This is the join of a write in one arm with a
+write in the other that extended the run `inner` (`Initialization.record`). -/
+def Initialization.absorbs (scalar : Scalar) (outer : Layout) (base : Initialization)
+    (write : Layout) : Initialization → Bool
+  | .written inner older => decide (older = base) && outer.absorbs scalar inner write
+  | _ => false
+
 /-- Exact absorption avoids copying a common history when only one branch adds
-a write, or when both branches add disjoint writes. In the latter case
-`(H ∪ A) ∩ (H ∪ B) = H`. Other intersections retain both histories. Inputs are
-budget-audited before equality; no layout elements are enumerated. -/
+a write, or when both branches add a write to the same history. Writes that
+extended a common run are joined through that run. Other intersections retain
+both histories. Inputs are budget-audited before equality; no layout elements
+are enumerated. -/
 def Initialization.meet (left right : Initialization) (scalar : Scalar) : Initialization :=
   if left = right then left else
   match left, right with
@@ -168,7 +237,9 @@ def Initialization.meet (left right : Initialization) (scalar : Scalar) : Initia
   | .written a previous, .written b other =>
     if previous = right then right
     else if left = other then left
-    else if previous = other ∧ a.disjoint b scalar then previous
+    else if previous = other then Initialization.meetWrites scalar a b previous
+    else if Initialization.absorbs scalar b other a previous then previous
+    else if Initialization.absorbs scalar a previous b other then other
     else .intersection left right
   | .written _ previous, _ =>
     if previous = right then right else .intersection left right
@@ -208,7 +279,10 @@ def Initialization.coversInterval (scalar : Scalar) (history : Initialization) :
 turning an individual initialization query into unbounded repeated traversal. -/
 def initializationWorkLimit : Nat := 65536
 
-def initializationSteps (nodes : Nat) : Nat := min nodes (initializationWorkLimit / nodes)
+/-- Interval traversals of one query. Each visits every node of the history,
+so a smaller history admits more of them; a padded request shares them
+between its columns. -/
+def initializationSteps (nodes : Nat) : Nat := initializationWorkLimit / nodes
 
 /-- A padded request checks only its physical columns, not the padding. The
 column count must fit the metadata-derived budget before constructing its range;
@@ -234,9 +308,18 @@ def Initialization.covers (scalar : Scalar) (layout : Layout) (history : Initial
       history.coversInterval scalar (initializationSteps (4096 - remaining)) layout.offset (layout.endByte scalar)
     else history.coversColumns scalar layout (initializationSteps (4096 - remaining)))
 
-/-- Writing an already initialized region does not enlarge its metadata. -/
+/-- Writing an already initialized region does not enlarge its metadata. A
+write that continues the run of the last recorded write, at either end, extends
+that record instead of adding a node, so that consecutive single-cell writes
+leave one run. -/
 def Initialization.record (scalar : Scalar) (layout : Layout) (previous : Initialization) : Initialization :=
-  if previous.covers scalar layout then previous else .written layout previous
+  if previous.covers scalar layout then previous
+  else match previous with
+    | .written last older =>
+      match last.extend scalar layout with
+      | some merged => .written merged older
+      | Option.none => .written layout previous
+    | _ => .written layout previous
 
 def Initialization.valid (scalar : Scalar) (capacity : Nat) : Initialization → Bool
   | .none => true

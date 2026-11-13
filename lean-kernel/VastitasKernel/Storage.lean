@@ -171,6 +171,11 @@ def loansCompatible (state : State) (left right : Loan) : Bool :=
     (state.allocation? left.allocation).any fun allocation =>
       left.layout.disjoint right.layout allocation.scalar
 
+/-- Every allocation's initialization history is within its 4096-node budget.
+A transition checks this before the audit of its result, which checks it again. -/
+def initializationBounded (state : State) : Bool :=
+  state.allocations.all fun allocation => (allocation.initialization.remaining 4096).isSome
+
 /-- Reconstruct the entire live environment; no serialized `valid` flag enters
 this audit. An exclusive ancestor is inactive while descendants hold rights. -/
 def auditState (state : State) : Bool :=
@@ -186,6 +191,14 @@ def auditState (state : State) : Bool :=
     (state.loan? allocation.owner).isNone) &&
   state.loans.all (fun loan => state.loans.countP (·.name == loan.name) == 1 && loan.valid state) &&
   state.loans.all (fun left => state.loans.all (loansCompatible state left))
+
+/-- The budget check never rejects a state that the audit accepts. -/
+theorem initializationBounded_of_audit {state : State} (audited : auditState state = true) :
+    initializationBounded state = true := by
+  simp only [auditState, Bool.and_eq_true, List.all_eq_true] at audited
+  simp only [initializationBounded, List.all_eq_true]
+  intro allocation member
+  exact (audited.1.1.2 allocation member).1.1.1.1.2
 
 namespace AuditIndex
 
@@ -459,6 +472,11 @@ structure Error where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 private def reject (code message : String) : Except Error α := .error {code := code, message := message}
+
+/-- The diagnostic of a write that takes an allocation's history past its budget. -/
+def initializationLimit : Error :=
+  {code := "E_RESOURCE_LIMIT",
+   message := "write initialization metadata budget exceeded: the record of the writes to one allocation holds at most 4096 nodes"}
 
 inductive Source where
   | owner (name : Symbol)
@@ -860,7 +878,8 @@ def checkDiagonalScale (state : State) (request : DiagonalScale) : Except Error 
 write-only scratch access from the newly initialized read loan. -/
 def auditedTransition (result : Except Error State) : Except Error State := do
   let state ← result
-  if auditState state then pure state
+  if !initializationBounded state then .error initializationLimit
+  else if auditState state then pure state
   else reject "E_RESOURCE_STATE" "invalid intermediate diagonal resource state"
 
 def diagonalPairExpansion (state : State) (request : DiagonalPair) : Except Error State := do
@@ -1032,14 +1051,40 @@ def executeAction (state : State) : Action → Except Error State
       reject "E_RESOURCE_DEPENDENCY" "dependency is absent or already forgotten"
     return {state with dependencies := state.dependencies.filter (·.name != name)}
 
-/-- Input and reconstructed output undergo separate whole-state audits. -/
+/-- Input and reconstructed output undergo separate whole-state audits. A write
+beyond the initialization budget is reported as that limit, before the audit
+of the reconstructed state. -/
 def checkAction (state : State) (action : Action) : Except Error State :=
   if auditState state then
     match executeAction state action with
     | .error diagnostic => .error diagnostic
-    | .ok after => if auditState after then .ok after
+    | .ok after =>
+      if !initializationBounded after then .error initializationLimit
+      else if auditState after then .ok after
       else .error {code := "E_RESOURCE_STATE", message := "invalid reconstructed resource environment"}
   else .error {code := "E_RESOURCE_STATE", message := "invalid input resource environment"}
+
+/-- An action is accepted exactly when it executes and its result passes the
+audit; the budget check before the audit decides only the diagnostic. -/
+theorem checkAction_eq_ok {state after : State} {action : Action} :
+    checkAction state action = .ok after ↔
+      auditState state = true ∧ executeAction state action = .ok after ∧ auditState after = true := by
+  unfold checkAction
+  cases audited : auditState state
+  · simp
+  · cases executed : executeAction state action with
+    | error diagnostic => simp
+    | ok result =>
+      simp only [↓reduceIte, Except.ok.injEq, true_and]
+      constructor
+      · intro accepted
+        split at accepted
+        · cases accepted
+        · split at accepted
+          next valid => cases accepted; exact ⟨rfl, valid⟩
+          · cases accepted
+      · rintro ⟨rfl, valid⟩
+        simp [initializationBounded_of_audit valid, valid]
 
 inductive Statement where
   | action (action : Action)

@@ -151,6 +151,128 @@ theorem disjoint_bytes {left right : Layout} {scalar : Scalar}
     Bool.false_or, Bool.or_eq_true, decide_eq_true_eq] at separate
   omega
 
+/-! ### Runs of whole cells
+
+A nonempty contiguous footprint holds exactly the bytes of its run. These
+facts give the byte meaning of the records that `Initialization.record` merges
+and that `Initialization.meet` joins through a common run. -/
+
+theorem run_bytes {layout : Layout} {scalar : Scalar} {start finish byte : Nat}
+    (run : layout.run? scalar = some (start, finish)) :
+    ContainsByte layout scalar byte ↔ start ≤ byte ∧ byte < finish := by
+  unfold Layout.run? at run
+  split at run
+  next shape =>
+    simp only [Option.some.injEq, Prod.mk.injEq] at run
+    obtain ⟨rfl, rfl⟩ := run
+    simp only [Bool.and_eq_true] at shape
+    have nonempty : layout.empty = false := by simpa using shape.2
+    exact ⟨byte_bounds, fun ⟨lo, hi⟩ => contiguous_bytes shape.1 nonempty lo hi⟩
+  next => contradiction
+
+theorem run_order {layout : Layout} {scalar : Scalar} {start finish : Nat}
+    (run : layout.run? scalar = some (start, finish)) : start < finish := by
+  unfold Layout.run? at run
+  split at run
+  next shape =>
+    simp only [Option.some.injEq, Prod.mk.injEq] at run
+    obtain ⟨rfl, rfl⟩ := run
+    simp only [Bool.and_eq_true] at shape
+    have nonempty : layout.empty = false := by simpa using shape.2
+    have finish := endByte_nonempty scalar nonempty
+    have rows : 0 < layout.rows := by
+      simp only [Layout.empty, Bool.or_eq_false_iff, beq_eq_false_iff_ne] at nonempty
+      omega
+    have width : 0 < scalar.width := by cases scalar <;> decide
+    have bytes := Nat.mul_le_mul_right scalar.width (show 1 ≤ layout.rows from rows)
+    omega
+  next => contradiction
+
+theorem cells_bytes {start count byte : Nat} {scalar : Scalar} :
+    ContainsByte (Layout.cells start count) scalar byte ↔
+      start ≤ byte ∧ byte < start + count * scalar.width := by
+  simp only [ContainsByte, Layout.cells]
+  constructor
+  · rintro ⟨column, hc, lo, hi⟩
+    have zero : column = 0 := by omega
+    subst zero
+    simp only [Nat.zero_mul, Nat.add_zero] at lo hi
+    exact ⟨lo, hi⟩
+  · rintro ⟨lo, hi⟩
+    exact ⟨0, by omega, by simpa using lo, by simpa using hi⟩
+
+theorem ofRun_bytes {scalar : Scalar} {start finish byte : Nat} {record : Layout}
+    (made : Layout.ofRun scalar start finish = some record) :
+    ContainsByte record scalar byte ↔ start ≤ byte ∧ byte < finish := by
+  dsimp only [Layout.ofRun] at made
+  split at made
+  next bounds =>
+    cases made
+    rw [cells_bytes, bounds.2.2]
+  next => contradiction
+
+/-- A merged record holds exactly the bytes of the run and of the write. -/
+theorem extend_bytes {scalar : Scalar} {last write merged : Layout} {byte : Nat}
+    (extended : last.extend scalar write = some merged) :
+    ContainsByte merged scalar byte ↔ ContainsByte last scalar byte ∨ ContainsByte write scalar byte := by
+  unfold Layout.extend at extended
+  split at extended
+  next =>
+    split at extended
+    next start finish start' finish' first second =>
+      have order := run_order first
+      have order' := run_order second
+      rw [run_bytes first, run_bytes second]
+      split at extended
+      next joined => rw [ofRun_bytes extended]; omega
+      next =>
+        split at extended
+        next joined => rw [ofRun_bytes extended]; omega
+        next => contradiction
+    next => contradiction
+  next => contradiction
+
+/-- The common record of two runs holds exactly their common bytes. -/
+theorem common_bytes {scalar : Scalar} {left right shared : Layout} {byte : Nat}
+    (common : left.common scalar right = some shared) :
+    ContainsByte shared scalar byte ↔ ContainsByte left scalar byte ∧ ContainsByte right scalar byte := by
+  unfold Layout.common at common
+  split at common
+  next start finish start' finish' first second =>
+    rw [ofRun_bytes common, run_bytes first, run_bytes second, Nat.max_le, Nat.lt_min]
+    omega
+  next => contradiction
+
+theorem absorbs_bytes {scalar : Scalar} {outer inner write : Layout}
+    (absorbed : outer.absorbs scalar inner write = true) {byte : Nat} :
+    (ContainsByte inner scalar byte → ContainsByte outer scalar byte) ∧
+      (ContainsByte outer scalar byte → ContainsByte write scalar byte → ContainsByte inner scalar byte) := by
+  unfold Layout.absorbs at absorbed
+  simp only [Bool.and_eq_true] at absorbed
+  obtain ⟨contained, beside⟩ := absorbed
+  refine ⟨covers_bytes contained, fun inOuter inWrite => ?_⟩
+  split at beside
+  next start finish start' finish' first second =>
+    have held := (run_bytes first).mp inOuter
+    have bounds := byte_bounds inWrite
+    apply (run_bytes second).mpr
+    simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at beside
+    have low := Nat.le_max_left start write.offset
+    have low' := Nat.le_max_right start write.offset
+    have high := Nat.min_le_left finish (write.endByte scalar)
+    have high' := Nat.min_le_right finish (write.endByte scalar)
+    have lowCases : max start write.offset = start ∨ max start write.offset = write.offset := by
+      rcases Nat.le_total start write.offset with order | order
+      · exact Or.inr (Nat.max_eq_right order)
+      · exact Or.inl (Nat.max_eq_left order)
+    have highCases : min finish (write.endByte scalar) = finish ∨
+        min finish (write.endByte scalar) = write.endByte scalar := by
+      rcases Nat.le_total finish (write.endByte scalar) with order | order
+      · exact Or.inl (Nat.min_eq_left order)
+      · exact Or.inr (Nat.min_eq_right order)
+    omega
+  next => contradiction
+
 def Initialized (scalar : Scalar) (byte : Nat) : Initialization → Prop
   | .none => False
   | .written layout previous => ContainsByte layout scalar byte ∨ Initialized scalar byte previous
@@ -244,9 +366,8 @@ theorem initialization_bytes {initialization : Initialization} {layout : Layout}
 /-- The fallback's repeated history traversals have a fixed metadata-work bound,
 independent of allocation capacity and matrix dimensions. -/
 theorem initialization_work_bound (nodes : Nat) :
-    initializationSteps nodes * nodes ≤ initializationWorkLimit := by
-  apply Nat.le_trans (Nat.mul_le_mul_right nodes (Nat.min_le_right _ _))
-  exact Nat.div_mul_le_self initializationWorkLimit nodes
+    initializationSteps nodes * nodes ≤ initializationWorkLimit :=
+  Nat.div_mul_le_self initializationWorkLimit nodes
 
 theorem initialization_column_work_bound (nodes columns : Nat) :
     (initializationSteps nodes / columns * columns) * nodes ≤ initializationWorkLimit := by
@@ -293,6 +414,76 @@ theorem checked_initialization_work_bound {history : Initialization} {remaining 
   rw [same]
   exact initialization_work_bound _
 
+/-- Two writes over one history join to that history with their common bytes. -/
+theorem meetWrites_bytes (scalar : Scalar) (a b : Layout) (previous : Initialization) (byte : Nat) :
+    Initialized scalar byte (Initialization.meetWrites scalar a b previous) ↔
+      Initialized scalar byte (.written a previous) ∧ Initialized scalar byte (.written b previous) := by
+  unfold Initialization.meetWrites
+  split
+  next separated =>
+    constructor
+    · intro initialized
+      exact ⟨Or.inr initialized, Or.inr initialized⟩
+    · rintro ⟨inLeft | initialized, inRight | initialized⟩
+      · exact False.elim (disjoint_bytes separated inLeft inRight)
+      all_goals exact initialized
+  next =>
+    split
+    next contained =>
+      constructor
+      · rintro (inRight | initialized)
+        · exact ⟨Or.inl (covers_bytes contained inRight), Or.inl inRight⟩
+        · exact ⟨Or.inr initialized, Or.inr initialized⟩
+      · exact And.right
+    next =>
+      split
+      next contained =>
+        constructor
+        · rintro (inLeft | initialized)
+          · exact ⟨Or.inl inLeft, Or.inl (covers_bytes contained inLeft)⟩
+          · exact ⟨Or.inr initialized, Or.inr initialized⟩
+        · exact And.left
+      next =>
+        split
+        next shared common =>
+          show ContainsByte shared scalar byte ∨ Initialized scalar byte previous ↔
+            (ContainsByte a scalar byte ∨ Initialized scalar byte previous) ∧
+              (ContainsByte b scalar byte ∨ Initialized scalar byte previous)
+          rw [common_bytes common]
+          constructor
+          · rintro (⟨inLeft, inRight⟩ | initialized)
+            · exact ⟨Or.inl inLeft, Or.inl inRight⟩
+            · exact ⟨Or.inr initialized, Or.inr initialized⟩
+          · rintro ⟨inLeft | initialized, inRight | initialized⟩
+            · exact Or.inl ⟨inLeft, inRight⟩
+            all_goals exact Or.inr initialized
+        next => rfl
+
+/-- A write in one arm over `base`, and in the other a write over the run
+`inner` over `base`, join to the second arm's history when the first absorbs
+`inner` beside the second's write. -/
+theorem absorbs_join {scalar : Scalar} {outer write : Layout} {base history : Initialization}
+    (absorbed : Initialization.absorbs scalar outer base write history = true) (byte : Nat) :
+    Initialized scalar byte history ↔
+      (ContainsByte write scalar byte ∨ Initialized scalar byte history) ∧
+        (ContainsByte outer scalar byte ∨ Initialized scalar byte base) := by
+  cases history with
+  | none => simp [Initialization.absorbs] at absorbed
+  | intersection _ _ => simp [Initialization.absorbs] at absorbed
+  | written inner older =>
+    simp only [Initialization.absorbs, Bool.and_eq_true, decide_eq_true_eq] at absorbed
+    obtain ⟨rfl, contained⟩ := absorbed
+    have facts := absorbs_bytes contained (byte := byte)
+    simp only [Initialized]
+    constructor
+    · rintro (inInner | initialized)
+      · exact ⟨Or.inr (Or.inl inInner), Or.inl (facts.1 inInner)⟩
+      · exact ⟨Or.inr (Or.inr initialized), Or.inr initialized⟩
+    · rintro ⟨inWrite | initialized, inOuter | initialized'⟩
+      · exact Or.inl (facts.2 inOuter inWrite)
+      · exact Or.inr initialized'
+      all_goals exact initialized
+
 theorem meet_bytes (left right : Initialization) (scalar : Scalar) (byte : Nat) :
     Initialized scalar byte (left.meet right scalar) ↔
       Initialized scalar byte left ∧ Initialized scalar byte right := by
@@ -300,31 +491,52 @@ theorem meet_bytes (left right : Initialization) (scalar : Scalar) (byte : Nat) 
   split
   next equal => subst right; simp
   next different =>
-    cases left <;> cases right <;> simp only [Initialized, false_and, and_false]
-    all_goals try rfl
-    all_goals split
-    all_goals try {
-      rename_i equal; cases equal
-      exact ⟨fun h => ⟨Or.inr h, h⟩, And.right⟩ }
-    all_goals try {
-      rename_i equal; cases equal
-      exact ⟨fun h => ⟨h, Or.inr h⟩, And.left⟩ }
-    all_goals try rfl
-    all_goals split
-    all_goals try {
-      rename_i equal; cases equal
-      exact ⟨fun h => ⟨h, Or.inr h⟩, And.left⟩ }
-    all_goals try rfl
-    all_goals split
-    next same =>
-      obtain ⟨rfl, separated⟩ := same
-      constructor
-      · intro initialized
-        exact ⟨Or.inr initialized, Or.inr initialized⟩
-      · rintro ⟨inLeft | initialized, inRight | initialized⟩
-        · exact False.elim (disjoint_bytes separated inLeft inRight)
-        all_goals exact initialized
-    next => rfl
+    cases left with
+    | none => simp [Initialized]
+    | written a previous =>
+      cases right with
+      | none => simp [Initialized]
+      | written b other =>
+        simp only
+        split
+        next same =>
+          subst same
+          exact ⟨fun initialized => ⟨Or.inr initialized, initialized⟩, And.right⟩
+        next =>
+          split
+          next same =>
+            subst same
+            exact ⟨fun initialized => ⟨initialized, Or.inr initialized⟩, And.left⟩
+          next =>
+            split
+            next same =>
+              subst same
+              exact meetWrites_bytes scalar a b _ byte
+            next =>
+              split
+              next absorbed => exact absorbs_join absorbed byte
+              next =>
+                split
+                next absorbed => exact (absorbs_join absorbed byte).trans And.comm
+                next => rfl
+      | intersection l r =>
+        simp only
+        split
+        next same =>
+          subst same
+          exact ⟨fun initialized => ⟨Or.inr initialized, initialized⟩, And.right⟩
+        next => rfl
+    | intersection l r =>
+      cases right with
+      | none => simp [Initialized]
+      | written b previous =>
+        simp only
+        split
+        next same =>
+          subst same
+          exact ⟨fun initialized => ⟨initialized, Or.inr initialized⟩, And.left⟩
+        next => rfl
+      | intersection _ _ => rfl
 
 theorem record_bytes (previous : Initialization) (layout : Layout) (scalar : Scalar) (byte : Nat) :
     Initialized scalar byte (previous.record scalar layout) ↔
@@ -336,7 +548,25 @@ theorem record_bytes (previous : Initialization) (layout : Layout) (scalar : Sca
     · exact Or.inr
     · intro either
       exact either.elim (initialization_bytes covered) id
-  next notCovered => rfl
+  next notCovered =>
+    split
+    next last older =>
+      split
+      next merged extended =>
+        show ContainsByte merged scalar byte ∨ Initialized scalar byte older ↔
+          ContainsByte layout scalar byte ∨ ContainsByte last scalar byte ∨ Initialized scalar byte older
+        rw [extend_bytes extended]
+        constructor
+        · rintro ((inLast | inLayout) | initialized)
+          · exact Or.inr (Or.inl inLast)
+          · exact Or.inl inLayout
+          · exact Or.inr (Or.inr initialized)
+        · rintro (inLayout | inLast | initialized)
+          · exact Or.inl (Or.inr inLayout)
+          · exact Or.inl (Or.inl inLast)
+          · exact Or.inr initialized
+      next => rfl
+    next => rfl
 
 /-! ### The explanation of a rejected read borrow
 

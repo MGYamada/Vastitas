@@ -1,0 +1,19 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Length;
+use nature::dimension::Time;
+
+indexed affine C(SmoothR) = Affine(2)[x, t];
+
+// ANCHOR: declarations
+// The Euclidean metric dx² + dt² is a valid std metric. Read with a length
+// coordinate x and a time coordinate t, its terms have the dimensions L² and
+// T², so it has no physical interpretation.
+indexed metric E: MetricForm<C> = euclidean;
+indexed reading phys: Reading<C> = (x: Length, t: Time);
+indexed physical PE: PhysicalMetric<C> = interpret(E, reading = phys, euclidean);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

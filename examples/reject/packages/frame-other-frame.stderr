@@ -1,0 +1,1 @@
+examples/reject/packages/frame-other-frame/main.vast:18:5: E_ENDPOINT: primitive capability, endpoint or coefficient contract failed: Coords<b>, Coords<b2>

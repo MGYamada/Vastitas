@@ -79,11 +79,14 @@ inductive WireArgument where
   /-- A polynomial in coordinates, checked after elaboration. -/
   | polynomial (expression : PolyExpr)
   | pullbackMode (mode : SmoothRuntime.PullbackMode)
+  /-- A natural number, such as the index of a frame component (Stage 4). On
+  the wire it is an unsigned decimal string with a bounded number of digits. -/
+  | natural (value : Nat)
   deriving Repr, Inhabited
 
 /-- The kind of a wire field, as a family declares it. -/
 inductive WireKind where
-  | path | objectType | coordinate | polynomial | pullbackMode
+  | path | objectType | coordinate | polynomial | pullbackMode | natural
   deriving Repr, Inhabited, DecidableEq, BEq
 
 def WireArgument.kind : WireArgument → WireKind
@@ -92,6 +95,7 @@ def WireArgument.kind : WireArgument → WireKind
   | .coordinate _ => .coordinate
   | .polynomial _ => .polynomial
   | .pullbackMode _ => .pullbackMode
+  | .natural _ => .natural
 
 /-- The table spelling of a kind, for the generated Rust table. -/
 def WireKind.wire : WireKind → String
@@ -100,6 +104,7 @@ def WireKind.wire : WireKind → String
   | .coordinate => "coordinate"
   | .polynomial => "polynomial"
   | .pullbackMode => "pullback_mode"
+  | .natural => "natural"
 
 /-- A primitive's wire form: the `op` and its fields, named and in wire order.
 The families of `IndexedPrimitiveFamilies` say which ops exist and which fields

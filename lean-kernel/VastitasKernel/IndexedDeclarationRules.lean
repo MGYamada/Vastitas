@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedMetricSource
+import VastitasKernel.IndexedFrameContracts
 
 set_option autoImplicit false
 
@@ -269,6 +270,18 @@ def primitiveRule (env : Environment) (name : DeclId) (op : String) (binding : P
     (applicationProblem env application fun position => (names[position]?).getD s!"the argument {position}").map
       fun reason => s!"{what} `{applicationLabel application}` of {subject} is not a valid type: {reason}"
   let first (rules : List (Option String)) : Option String := rules.findSome? id
+  -- The frame bindings (Stage 4): their array, map and frame operands.
+  let arrays (id : DeclId) :=
+    family id (frameFiberVariance? env id).isSome "have the representation `frame_vector` or `frame_covector`"
+  let arraysOf (id : DeclId) (expected : Variance) :=
+    family id (frameFiberVariance? env id == some expected)
+      s!"have the representation `{representationText (.frameFiber expected)}`"
+  let frameMaps (id : DeclId) := family id (isFrameMapFamily env id) "have the representation `frame_map`"
+  let declared (frame : FrameRef) : Option String :=
+    match frameData? env frame.frame with
+    | none => some s!"`{qualified frame.frame}` of {subject} must be a frame declaration"
+    | some _ => rule (frameDeclared env frame) <| s!"{subject} must embed the object, the matrix and the " ++
+        s!"inverse of the frame declaration `{qualified frame.frame}`"
   match binding with
   | .descriptor implementation =>
     first [rule (implementationMarker env implementation).isSome
@@ -337,6 +350,39 @@ def primitiveRule (env : Environment) (name : DeclId) (op : String) (binding : P
   | .differential maps cotangent _ => first [smooth maps, variance cotangent .cotangent]
   | .linearize maps tapes => first [smooth maps, tape tapes]
   | .cotangentBackward tapes cotangent => first [tape tapes, variance cotangent .cotangent]
+  | .frameEncode expected fiber coords frame =>
+    first [declared frame, variance fiber expected, arraysOf coords expected,
+      result ⟨fiber, [.object (.global frame.object)]⟩ "the type" ["the frame's object"],
+      result ⟨coords, [.frame frame.frame]⟩ "the result type" ["the frame"]]
+  | .frameDecode expected coords fiber frame =>
+    first [declared frame, arraysOf coords expected, variance fiber expected,
+      result ⟨coords, [.frame frame.frame]⟩ "the type" ["the frame"],
+      result ⟨fiber, [.object (.global frame.object)]⟩ "the result type" ["the frame's object"]]
+  | .frameVector coords maps object frame =>
+    first [arrays coords, smooth maps,
+      rule (frameObject? env frame == some object)
+        s!"`{qualified frame}` of {subject} must be a frame on `{qualified object}`",
+      result ⟨coords, [.frame frame]⟩ "the result type" ["the frame"]]
+  | .frameMatrix maps map source target =>
+    first [smooth maps, frameMaps map, declared source, declared target,
+      result ⟨map, [.frame source.frame, .frame target.frame]⟩ "the result type"
+        ["the source frame", "the target frame"]]
+  | .frameTransition maps map source target =>
+    first [smooth maps, frameMaps map, declared source, declared target,
+      rule (source.object == target.object) <| s!"the frames of {subject} must be frames of one object, but " ++
+        s!"`{qualified source.frame}` is on `{qualified source.object}` and `{qualified target.frame}` is on " ++
+        s!"`{qualified target.object}`",
+      result ⟨map, [.frame source.frame, .frame target.frame]⟩ "the result type"
+        ["the source frame", "the target frame"]]
+  | .frameApply map coords => first [frameMaps map, arraysOf coords .tangent]
+  | .frameCoapply map cocoords => first [frameMaps map, arraysOf cocoords .cotangent]
+  | .frameCompose map | .frameEntry map _ _ => frameMaps map
+  | .framePairing cocoords coords => first [arraysOf cocoords .cotangent, arraysOf coords .tangent]
+  | .frameComponent coords _ => arrays coords
+  | .frameEqual operands =>
+    family operands ((frameFiberVariance? env operands).isSome || isFrameMapFamily env operands)
+      "have the representation `frame_vector`, `frame_covector` or `frame_map`"
+  | .frameAt coords maps => first [arrays coords, smooth maps]
   | _ => none
 
 end VastitasKernel.Indexed.Source

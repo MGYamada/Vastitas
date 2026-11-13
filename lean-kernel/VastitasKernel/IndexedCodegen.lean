@@ -31,15 +31,20 @@ private def primitiveIds : Term → List DeclId
 /-- What the lowering of a call reads from the module: the distinct literals
 that the module declares once and every call names. The bases are those that
 the entries of all its checked primitives share, in declaration order
-(`basis_k`). The matrices, maps and Jacobian tables are those that the entries
-of the `called` primitives share, in declaration order (`matrix_k`, `map_k`,
-`jacobian_k`), so a primitive that no generated function calls adds none. The
-context computes the Jacobian table of each such map once. -/
+(`basis_k`). The matrices, maps, Jacobian tables and frame matrices are those
+that the entries of the `called` primitives share, in declaration order
+(`matrix_k`, `map_k`, `jacobian_k`, `frame_k`), so a primitive that no
+generated function calls adds none. The context computes the Jacobian table of each such map once, and
+lists the frame map families of the module, which `frame_equal` reads. -/
 def renderContext (env : Declarations) (called : DeclId → Bool) : RenderContext :=
   let shared := fun (primitives : List NamedPrimitive) =>
     PrimitiveDescriptor.sharedLiterals (primitives.map fun entry => entry.binding.contract)
-  .share ((shared env.primitives).filter (· matches .basis _) ++
+  let ctx := RenderContext.share ((shared env.primitives).filter (· matches .basis _) ++
     (shared (env.primitives.filter fun entry => called entry.id)).filter fun literal => !(literal matches .basis _))
+  -- `frame_equal` lowers by the representation of its family (Stage 4).
+  { ctx with frameMaps := env.indexed.filterMap fun entry => match entry.declaration with
+      | .family family => if family.representation == .frameMap then some entry.id else none
+      | _ => none }
 private def variableName (symbol : Nat) : String := s!"v_{symbol}"
 private def functionName (symbol : Nat) : String := s!"f_{symbol}"
 private def packageName (index : Nat) : String := s!"Package_{index}"

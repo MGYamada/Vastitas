@@ -63,25 +63,30 @@ private structure FrameNames where
   object : String
   dimension : Nat
 
+/-- `count` things: `one` for one, otherwise `many`, after the number. -/
+private def countText (count : Nat) (one many : String) : String :=
+  s!"{count} {if count == 1 then one else many}"
+
 /-- `n` columns of `n` entries: the columns of the frame, or with `inverse`
 its declared inverse. -/
 private def checkColumns (span : Span) (names : FrameNames) (inverse : Bool)
     (columns : List (List PolyExpr)) : Namespace.Result Unit := do
   let n := names.dimension
   let found? : Option String :=
-    if columns.length != n then some s!"{columns.length} columns"
+    if columns.length != n then some (countText columns.length "column" "columns")
     else (columns.zipIdx.find? (·.1.length != n)).map fun (column, j) =>
-      s!"column {j + 1} has {column.length} entries"
+      s!"column {j + 1} has {countText column.length "entry" "entries"}"
   let some found := found? | pure ()
   if inverse then
     frameProblem span <| s!"the declared inverse of the frame `{names.frame}` on the {n}-dimensional object " ++
-      s!"`{names.object}` must have the shape of the frame, {n} columns of {n} entries, but {found}"
+      s!"`{names.object}` must have the shape of the frame, {countText n "column" "columns"} of " ++
+      s!"{countText n "entry" "entries"}, but {found}"
   else if columns.length != n then
     frameProblem span <| s!"the frame `{names.frame}` on the {n}-dimensional object `{names.object}` needs " ++
-      s!"{n} columns, one for each frame vector, but it has {columns.length}"
+      s!"{countText n "column" "columns"}, one for each frame vector, but it has {columns.length}"
   else
     frameProblem span <| s!"the frame `{names.frame}` on the {n}-dimensional object `{names.object}` needs " ++
-      s!"{n} entries in each column, but {found}"
+      s!"{countText n "entry" "entries"} in each column, but {found}"
 
 /-- Expand the entries of `columns` in the object's coordinates, continuing
 the work budget after `used` units, and return the rows with the units used. -/

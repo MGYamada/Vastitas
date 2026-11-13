@@ -354,7 +354,7 @@ private def invalidFrames : List (String × String × Source.Declaration × Stri
     "the declared inverse Q of the frame `frames::bad` on `frames::Plane` is not its inverse: P·Q ≠ I"),
   ("wrong number of entries", "WRONG_SIZE", frameDecl "bad" (some [[n 1, n 0], [n 1]]),
     "the frame `frames::bad` on the 2-dimensional object `frames::Plane` needs 2 entries in each column, " ++
-      "but column 2 has 1 entries") ]
+      "but column 2 has 1 entry") ]
 
 #eval check "every invalid frame of the reference model is E_FRAME with its own message"
   (invalidFrames.all fun (_, _, d, text) => rejects (with' [d]) "E_FRAME" text)
@@ -373,14 +373,20 @@ private def invalidFrames : List (String × String × Source.Declaration × Stri
     rejects (with' [frameDecl "bad" (some [[n 1, n 0], [n 0, n 1], [n 1, n 1]])]) "E_FRAME" "but it has 3" &&
     rejects (with' [frameDecl "bad" (some [[n 1]]) (object := "Pt")]) "E_FRAME"
       "the frame `frames::bad` on the 0-dimensional object `frames::Pt` needs 0 columns" &&
-    rejects (with' [frameDecl "bad" (some []) (object := "Line")]) "E_FRAME" "needs 1 columns")
+    rejects (with' [frameDecl "bad" (some []) (object := "Line")]) "E_FRAME"
+      "the frame `frames::bad` on the 1-dimensional object `frames::Line` needs 1 column, one for each frame vector, but it has 0")
 #eval check "a column of the wrong length is E_FRAME"
   (rejects (with' [frameDecl "bad" (some [[n 1, n 0, n 0], [n 0, n 1]])]) "E_FRAME" "but column 1 has 3 entries" &&
-    rejects (with' [frameDecl "bad" (some [[]]) (object := "Line")]) "E_FRAME" "but column 1 has 0 entries")
+    rejects (with' [frameDecl "bad" (some [[]]) (object := "Line")]) "E_FRAME"
+      "the frame `frames::bad` on the 1-dimensional object `frames::Line` needs 1 entry in each column, but column 1 has 0 entries" &&
+    rejects (with' [frameDecl "bad" (some [[n 1, n 0], [n 1]])]) "E_FRAME" "but column 2 has 1 entry")
 #eval check "a declared inverse of the wrong shape is E_FRAME"
-  (rejects (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0]])]) "E_FRAME"
-      ("the declared inverse of the frame `frames::bad` on the 2-dimensional object `frames::Plane` must have " ++
-        "the shape of the frame, 2 columns of 2 entries, but 1 columns") &&
+  (code (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0]])]) == "E_FRAME" &&
+    message (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0]])]) ==
+      "the declared inverse of the frame `frames::bad` on the 2-dimensional object `frames::Plane` must have " ++
+        "the shape of the frame, 2 columns of 2 entries, but 1 column" &&
+    rejects (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0], [n 0]])]) "E_FRAME"
+      "must have the shape of the frame, 2 columns of 2 entries, but column 2 has 1 entry" &&
     rejects (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0], [n 0, n 1, n 0]])])
       "E_FRAME" "must have the shape of the frame, 2 columns of 2 entries, but column 2 has 3 entries")
 #eval check "a frame at a family of another representation is E_FRAME"

@@ -10,9 +10,10 @@ frame declaration (`VastitasKernel.FrameDeclarations.checkFrame`) guarantees
 about its matrix `P` and its inverse `Q`. Mathlib-free; the bridge reads the
 same statements as Mathlib bases (`VastitasBridge.Differential.FramePrerequisites`).
 
-* **Budgeted products are plain products** (`polyDot_ok`, `polyMatMul_ok`,
-  `products_ok`): a successful `polyMatMul` within the work budget is
-  `plainMatMul`, the product with `Poly.mul` and `Poly.add`. The budget only
+* **Budgeted products are plain products** (`polyMul_ok`, `polyDot_ok`,
+  `polyMatMul_ok`, `products_ok`): a successful `polyMatMul` within the work
+  budget is `plainMatMul`, the product with `Poly.mul` and `Poly.add`. The
+  budget, which charges each product `productWork` before computing it, only
   adds `E_LIMIT`.
 * **Evaluation is a ring map on matrices** (`matrixAt_plainMatMul`,
   `matrixAt_polyIdentity`, `matrixAt_constant`): evaluating the plain product
@@ -62,6 +63,12 @@ with no budget. -/
 def plainMatMul (n : Nat) (left right : PolyMatrix) : PolyMatrix :=
   left.map fun row => (List.range n).map fun j => plainDot row (polyColumn right j)
 
+/-- A successful frame product is `Poly.mul`; its charge only adds `E_LIMIT`. -/
+theorem polyMul_ok {p q r : Poly} {s s' : Nat} (h : (polyMul p q).run s = .ok (r, s')) : r = Poly.mul p q := by
+  unfold polyMul at h
+  obtain ⟨_, _, _, h⟩ := VastitasOracle.AlgebraBasis.bind_ok h
+  exact VastitasOracle.AlgebraBasis.bounded_ok h
+
 theorem polyDot_ok {left right : List Poly} {r : Poly} {s s' : Nat}
     (h : (polyDot left right).run s = .ok (r, s')) : r = plainDot left right := by
   unfold polyDot at h
@@ -70,8 +77,7 @@ theorem polyDot_ok {left right : List Poly} {r : Poly} {s s' : Nat}
   intro acc x s s' r hx
   obtain ⟨a, b⟩ := x
   obtain ⟨m, _, hm, hadd⟩ := VastitasOracle.AlgebraBasis.bind_ok hx
-  exact (VastitasOracle.AlgebraBasis.add_ok hadd).trans
-    (congrArg (Poly.add acc) (VastitasOracle.AlgebraBasis.mul_ok hm))
+  exact (VastitasOracle.AlgebraBasis.add_ok hadd).trans (congrArg (Poly.add acc) (polyMul_ok hm))
 
 theorem polyMatMul_ok {n : Nat} {left right r : PolyMatrix} {s s' : Nat}
     (h : (polyMatMul n left right).run s = .ok (r, s')) : r = plainMatMul n left right := by

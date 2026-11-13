@@ -198,9 +198,10 @@ Rules:
   `dim X` entries. Otherwise it is an error (`E_FRAME`).
 - $P_b\,Q_b = I$ and $Q_b\,P_b = I$ must hold as identities of polynomials.
   Otherwise it is an error (`E_FRAME`). The products must stay within the
-  term and work budgets of
-  [exact affine algebra](../appendix/limits.md#exact-affine-algebra).
-  Otherwise it is an error (`E_LIMIT`).
+  term and work budgets that
+  [the limits of frames](../appendix/limits.md#frames) give, which charge
+  each product for the steps of its computation. Otherwise it is an error
+  (`E_LIMIT`).
 - `coordinates` declares no inverse: `coordinates inverse = …` is an error
   (`E_PARSE`). So is `inverse = …` before the columns, and a column that is
   not a parenthesized group.

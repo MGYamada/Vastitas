@@ -596,6 +596,10 @@ name = "VastitasBridge"
             with self.subTest(library=library):
                 path.write_text(original.replace('name = "VastitasBridge"\n', library))
                 self.assert_boundary_error("exactly the library VastitasBridge")
+        for key in ['srcDir = "src2"\n', 'buildDir = "out"\n', 'moreLinkArgs = ["-x"]\n']:
+            with self.subTest(key=key):
+                path.write_text(key + original)
+                self.assert_boundary_error("unexpected Lake configuration keys")
         path.write_text(original)
         self.assertEqual(check_boundaries(self.root), [])
 
@@ -609,6 +613,10 @@ name = "VastitasBridge"
         self.assert_boundary_error(
             "lean-bridge/VastitasBridge/Loose.lean: not imported by VastitasBridge.lean")
         self.write("lean-bridge/VastitasBridge/B/C.lean", "import Mathlib\nimport VastitasBridge.Loose\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-bridge/VastitasBridge/B/C.lean",
+                   "import Mathlib\nimport VastitasBridge.Loose\nimport VastitasBridge.«D.E»\n")
+        self.write("lean-bridge/VastitasBridge/D.E.lean", "import Mathlib\n")
         self.assertEqual(check_boundaries(self.root), [])
         (self.root / "lean-bridge/VastitasBridge.lean").unlink()
         self.assert_boundary_error("missing root module VastitasBridge.lean")

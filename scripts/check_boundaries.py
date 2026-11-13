@@ -316,6 +316,14 @@ def check_mathematical_bridge(root, kernel_toolchain, errors):
         # is the module that Audit.lean imports, and no executable.
         if "lean_exe" in config:
             errors.append("lean-bridge must not declare an executable target (lean_exe)")
+        # The closure check below reads lean-bridge/VastitasBridge.lean, so every
+        # key that could move the sources or add a target or a build step is
+        # refused, not only the ones known to do so.
+        unexpected = sorted(set(config) - {
+            "name", "version", "license", "licenseFiles", "defaultTargets",
+            "require", "lean_lib", "leanOptions", "lean_exe"})
+        if unexpected:
+            errors.append(f"lean-bridge: unexpected Lake configuration keys {unexpected}")
         if config.get("lean_lib") != [{"name": "VastitasBridge"}]:
             errors.append("lean-bridge must declare exactly the library VastitasBridge, "
                           "with its default root")
@@ -343,7 +351,8 @@ def bridge_module_path(bridge, name):
     parts = [part[1:-1] if part.startswith("«") else part for part in _SEGMENTS.findall(name)]
     if not parts or parts[0] != "VastitasBridge":
         return None
-    return bridge.joinpath(*parts).with_suffix(".lean")
+    path = bridge.joinpath(*parts)
+    return path.with_name(path.name + ".lean")  # a segment «A.B» names the file A.B.lean
 
 
 def check_bridge_closure(root, bridge, errors):

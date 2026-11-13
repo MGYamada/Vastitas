@@ -94,15 +94,21 @@ The frontend writes a program as one request of the
 
 | Limit | Value | Counts | Holds for | Code |
 | --- | --- | --- | --- | --- |
-| Size of the request | 1024 MiB | The bytes of the request that the frontend writes for the program | A program | `E_PROTOCOL` |
+| `requestBytes` | 1,073,741,824 | The bytes of the request that the frontend writes for the program | A program | `E_LIMIT` |
 
-The frontend does not bound the request, and the kernel refuses a larger one
-without parsing it. The diagnostic has the place `FILE:1:1`. A program
-within the limits of [Inputs](#inputs) can be beyond this one, because the
-request holds a record with a place for every expression. A source file of
+The value is 1024 MiB. The frontend counts the bytes of the request while it
+writes it and stops at the limit, so it rejects a larger request before the
+kernel runs. The diagnostic has the place `FILE:1:1`. A program within the
+limits of [Inputs](#inputs) can be beyond this one, because the request
+holds a record with a place for every expression. A source file of
 11,926,914 bytes that holds 47,000 `let` statements of 120 operands each
-makes a request of 1,136,761,778 bytes
-([#740](https://github.com/MGYamada/Vastitas/issues/740)).
+makes a request of 1,136,761,778 bytes.
+
+The kernel has the same bound on a request that it reads, and it refuses a
+larger one without parsing it (`E_PROTOCOL`). A request of the frontend does
+not reach it. Before the change for
+[#740](https://github.com/MGYamada/Vastitas/issues/740), the frontend did not
+bound the request, and a program beyond the bound had the code `E_PROTOCOL`.
 [Limits that a source program does not reach](#limits-that-a-source-program-does-not-reach)
 gives the other bounds of a request.
 

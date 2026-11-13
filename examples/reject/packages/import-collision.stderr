@@ -1,0 +1,2 @@
+examples/reject/packages/import-collision/shapes.vast:8:1: E_DUPLICATE: 'area' is already the name of a function of this module
+examples/reject/packages/import-collision/shapes.vast:1:5: note: first declaration is here

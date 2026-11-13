@@ -3,7 +3,7 @@
 //! Identifiers are ASCII; offsets are UTF-8 byte offsets and diagnostic columns
 //! count Unicode scalar values. No source fragment is ever emitted as Lean code.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 mod exact_float;
 mod indexed_parser;
@@ -640,10 +640,11 @@ impl Parser {
         Ok((name, span))
     }
 
+    // The names of modules and paths are reserved in flat mode too. The kernel
+    // rejects them as well, at the declaration or the statement that binds
+    // them; the frontend reports them at the name (#747).
     fn check_binding_name(&self, name: &str, span: Span) -> Result<(), Diagnostic> {
-        if reserved(name)
-            || (self.packages && ["mod", "use", "pub", "self", "super"].contains(&name))
-        {
+        if reserved(name) || ["mod", "use", "pub", "self", "super"].contains(&name) {
             Err(diagnostic(
                 "E_RESERVED",
                 if BUILTINS.contains(&name) {
@@ -2074,8 +2075,8 @@ impl<'a> Scope<'a> {
 
 struct Resolver<'a> {
     functions: HashMap<&'a str, usize>,
-    generics: HashSet<&'a str>,
-    abstract_types: HashSet<&'a str>,
+    generics: HashMap<&'a str, Span>,
+    abstract_types: HashMap<&'a str, Span>,
     errors: Vec<Diagnostic>,
     calls: Vec<Vec<usize>>,
     scope: Scope<'a>,
@@ -2085,8 +2086,8 @@ impl<'a> Resolver<'a> {
     fn module(module: &'a Module) -> Vec<Diagnostic> {
         let mut this = Self {
             functions: HashMap::new(),
-            generics: HashSet::new(),
-            abstract_types: HashSet::new(),
+            generics: HashMap::new(),
+            abstract_types: HashMap::new(),
             errors: Vec::new(),
             calls: vec![Vec::new(); module.functions.len()],
             scope: Scope::default(),
@@ -2100,16 +2101,33 @@ impl<'a> Resolver<'a> {
                 ));
             }
         }
+        // Two declarations of one name are reported at the later one in the
+        // file, whatever their kinds (#747).
+        let later = |span: Span, earlier: Span| {
+            if earlier.start > span.start {
+                earlier
+            } else {
+                span
+            }
+        };
         for generic in &module.generics {
-            if !this.generics.insert(&generic.name)
-                || this.functions.contains_key(generic.name.as_str())
-            {
+            let earlier = this
+                .generics
+                .get(generic.name.as_str())
+                .copied()
+                .or_else(|| {
+                    this.functions
+                        .get(generic.name.as_str())
+                        .map(|&index| module.functions[index].span)
+                });
+            if let Some(earlier) = earlier {
                 this.errors.push(diagnostic(
                     "E_DUPLICATE",
                     format!("callable `{}` is defined more than once", generic.name),
-                    generic.span,
+                    later(generic.span, earlier),
                 ));
             }
+            this.generics.entry(&generic.name).or_insert(generic.span);
             if generic.name == "main" {
                 this.errors.push(diagnostic(
                     "E_MAIN",
@@ -2119,19 +2137,30 @@ impl<'a> Resolver<'a> {
             }
         }
         for declaration in &module.abstract_types {
-            if !this.abstract_types.insert(&declaration.name)
-                || this.functions.contains_key(declaration.name.as_str())
-                || this.generics.contains(declaration.name.as_str())
-            {
+            let name = declaration.name.as_str();
+            let earlier = this
+                .abstract_types
+                .get(name)
+                .or_else(|| this.generics.get(name))
+                .copied()
+                .or_else(|| {
+                    this.functions
+                        .get(name)
+                        .map(|&index| module.functions[index].span)
+                });
+            if let Some(earlier) = earlier {
                 this.errors.push(diagnostic(
                     "E_DUPLICATE",
                     format!(
                         "declaration `{}` is defined more than once",
                         declaration.name
                     ),
-                    declaration.span,
+                    later(declaration.span, earlier),
                 ));
             }
+            this.abstract_types
+                .entry(&declaration.name)
+                .or_insert(declaration.span);
         }
         for generic in &module.generics {
             for param in &generic.params {
@@ -2149,7 +2178,7 @@ impl<'a> Resolver<'a> {
             this.scope.truncate(0);
         }
         for method in &module.methods {
-            if !this.generics.contains(method.name.as_str()) {
+            if !this.generics.contains_key(method.name.as_str()) {
                 this.errors.push(diagnostic(
                     "E_NAME",
                     format!(
@@ -2169,7 +2198,7 @@ impl<'a> Resolver<'a> {
             this.scope.truncate(0);
         }
         for contract in &module.abstract_methods {
-            if !this.generics.contains(contract.name.as_str()) {
+            if !this.generics.contains_key(contract.name.as_str()) {
                 this.errors.push(diagnostic(
                     "E_NAME",
                     format!(
@@ -2239,8 +2268,8 @@ impl<'a> Resolver<'a> {
 
     fn bind(&mut self, name: &'a str, span: Span) {
         if self.functions.contains_key(name)
-            || self.generics.contains(name)
-            || self.abstract_types.contains(name)
+            || self.generics.contains_key(name)
+            || self.abstract_types.contains_key(name)
         {
             self.errors.push(diagnostic(
                 "E_SHADOW",
@@ -2393,7 +2422,7 @@ impl<'a> Resolver<'a> {
                         self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture `{name}`; pass it as an explicit parameter"), expr.span));
                         return;
                     }
-                    if self.generics.contains(name.as_str()) {
+                    if self.generics.contains_key(name.as_str()) {
                         self.errors.push(diagnostic("E_TYPE", "a generic is not a Fn value; use an explicit ordinary-function wrapper", expr.span));
                         return;
                     }
@@ -2419,7 +2448,7 @@ impl<'a> Resolver<'a> {
                     // Function-valued bindings are checked independently by Lean.
                 } else if self.scope.enclosing(callee) {
                     self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture `{callee}`; pass it as an explicit parameter"), expr.span));
-                } else if !self.generics.contains(callee.as_str())
+                } else if !self.generics.contains_key(callee.as_str())
                     && !BUILTINS.contains(&callee.as_str())
                 {
                     let hint = if callee == "nat_to_int" {

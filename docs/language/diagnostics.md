@@ -99,14 +99,15 @@ Rules:
   which construct a diagnostic points to. Examples are
   [Static targets](../stage1b.md#static-targets) and the
   [diagnostics of resource programs](../storage/resource-programs.md#diagnostics).
-- In manifest mode, two errors of the names of a module have the place of the
-  declaration of the module, and not of the construct inside it. One is a
-  name that a declaration of the module shares with an import or with a
-  dependency alias (`E_DUPLICATE`). The other is a reserved name of an
-  `indexed` declaration (`E_RESERVED`). The declaration of a module is its
-  `mod` item in the file of its parent module. For the root module of the
-  root package, the place is line 1, column 1 of the root source file. Two
-  items of one name have the place of the second item.
+- Two declarations of one name in one module have the place of the second
+  one in the file that holds them, whatever their kinds (`E_DUPLICATE`). In
+  manifest mode a note points to the first one. A `use` declaration and a
+  `mod` item count as declarations. A dependency alias of the package counts
+  as a declaration of each of its modules, before all others. A manifest
+  declares it, so the diagnostic has no note for it.
+- The diagnostic of a reserved name points to the name, in flat mode and in
+  manifest mode, with the one exception that
+  [Reserved names](lexical-structure.md#reserved-names) gives.
 
 The examples of this book show an absolute path without its part up to the
 root of the repository. In this package `main` calls a private function of a
@@ -154,10 +155,12 @@ Rules:
   without an export. The other is an integer literal as an argument
   of an indexed type at a parameter that is not `natural`. The same errors in
   a body have the place of their expression.
-- Two limits have this place (`E_LIMIT`): the number of indexed declarations
-  of a program, and the budget on the work of the names of the whole
-  program. The two other budgets of name resolution have the place of a path
-  or of a `use` declaration that exceeds them.
+- Three limits have this place (`E_LIMIT`): the number of indexed
+  declarations of a program, the budget on the work of the names of the
+  whole program, and the size of the
+  [request](../appendix/limits.md#request) of the program. The two other
+  budgets of name resolution have the place of a path or of a `use`
+  declaration that exceeds them.
 - The rules above name the cases that the chapters of the Reference state.
   Another diagnostic of the checker can have this place.
 

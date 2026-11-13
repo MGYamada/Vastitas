@@ -1,5 +1,6 @@
 import Lean.Data.Json.Parser
 import Std.Data.HashSet
+import VastitasKernel.Limits
 
 /-! A strict pre-scan of the raw request text, run before `Lean.Json.parse`.
 `Json.parse` keeps the last of duplicate object keys and expands every number
@@ -11,8 +12,9 @@ namespace VastitasKernel.WireScan
 open Std.Internal.Parsec Std.Internal.Parsec.String
 
 structure Bounds where
-  /-- UTF-8 bytes of one request; 16 times the frontend's 64 MiB source bound. -/
-  bytes : Nat := 1024 * 1024 * 1024
+  /-- UTF-8 bytes of one request, `requestBytes` of the compiler limits. The
+  frontend bounds the requests that it writes by the same value. -/
+  bytes : Nat := Limits.requestBytes
   /-- Nested arrays and objects; actual requests stay below 200 levels. -/
   depth : Nat := 16384
   /-- Integer and fraction digits of one number; frontend numbers fit in 20. -/

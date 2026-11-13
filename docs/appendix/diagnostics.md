@@ -261,9 +261,9 @@ Other codes report the limits of their constructs, as
 - `E_NUMERICAL_TYPE`, `E_TENSOR`, `E_TENSOR_TREE` and `E_NUMERICAL_METRIC` in
   numerical statements.
 
-Two codes report a bound that no rule of the Reference states: `E_PROTOCOL`
-for the size of a request, and `E_RESOURCE_STATE` for the records of the
-initialized cells of an allocation. `E_RESOURCE_INIT` reports the bound on
+One code reports a bound that no rule of the Reference states:
+`E_RESOURCE_STATE` for the records of the initialized cells of an
+allocation. `E_RESOURCE_INIT` reports the bound on
 the search of these records, which
 [Resource statements](../storage/resource-programs.md#resource-statements)
 names. [Appendix D](limits.md) gives the code of each limit.
@@ -279,17 +279,13 @@ an invalid function type in some programs. No other rule of the Reference
 gives one of these codes, as
 [Classes of codes](../language/diagnostics.md#classes-of-codes) says.
 
-A source program reaches two more diagnostics of this section, and no rule
-of the Reference states them:
-
-- A program whose request is beyond the largest size of a request has the
-  code `E_PROTOCOL`, even when the program is within the limits on its
-  inputs ([#740](https://github.com/MGYamada/Vastitas/issues/740)). [Request](limits.md#request) gives the
-  bound.
-- A write beyond the limit on the initialization records of an allocation
-  has the code `E_RESOURCE_STATE`
-  ([#739](https://github.com/MGYamada/Vastitas/issues/739)).
-  [Resource functions](limits.md#resource-functions) gives the limit.
+A source program reaches one more diagnostic of this section, and no rule
+of the Reference states it: a write beyond the limit on the initialization
+records of an allocation has the code `E_RESOURCE_STATE`
+([#739](https://github.com/MGYamada/Vastitas/issues/739)).
+[Resource functions](limits.md#resource-functions) gives the limit. The
+size of a request is a limit of the program with the code `E_LIMIT`, as
+[Request](limits.md#request) says.
 
 The tests of the repository reach none of the other codes of this section
 from a source program. They reach `E_LITERAL` with a request that they

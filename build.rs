@@ -18,6 +18,7 @@ fn main() {
         ("astDepth", "MAX_AST_DEPTH"),
         ("moduleNesting", "MAX_MODULE_NESTING"),
         ("packageNesting", "MAX_PACKAGE_NESTING"),
+        ("requestBytes", "MAX_REQUEST_BYTES"),
         ("algebraNesting", "MAX_ALGEBRA_NESTING"),
         ("algebraCoefficientDigits", "MAX_ALGEBRA_DIGITS"),
         ("algebraGenerators", "MAX_ALGEBRA_GENERATORS"),

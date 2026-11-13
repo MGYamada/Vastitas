@@ -339,13 +339,23 @@ fn kernel_request(
     sources: &Sources,
     what: &str,
 ) -> Result<Vec<u8>, String> {
-    use crate::limits::MAX_REQUEST_BYTES;
-    match bounded_json(value, MAX_REQUEST_BYTES) {
+    kernel_request_within(value, sources, what, crate::limits::MAX_REQUEST_BYTES)
+}
+
+/// [`kernel_request`] with the bound `bound`, so that a test can reach the
+/// limit with a small request.
+fn kernel_request_within(
+    value: &impl serde::Serialize,
+    sources: &Sources,
+    what: &str,
+    bound: usize,
+) -> Result<Vec<u8>, String> {
+    match bounded_json(value, bound) {
         Ok(Some(request)) => Ok(request),
         Ok(None) => Err(sources.diagnostic(
             "E_LIMIT",
             &format!(
-                "the request of the program exceeds {MAX_REQUEST_BYTES} bytes, the largest request that the kernel reads"
+                "the request of the program exceeds {bound} bytes, the largest request that the kernel reads"
             ),
             Span {
                 start: 0,
@@ -1238,6 +1248,36 @@ mod tests {
             limits["requestBytes"].as_u64(),
             Some(crate::limits::MAX_REQUEST_BYTES as u64)
         );
+    }
+
+    // The diagnostic of a request beyond the bound is `E_LIMIT` at the start
+    // of the first input, with the bound in its message. A request within the
+    // bound is the request text.
+    #[test]
+    fn a_request_beyond_the_bound_is_a_limit_at_the_first_input() {
+        let directory =
+            std::env::temp_dir().join(format!("vastitas-request-bound-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let manifest = directory.join("Vastitas.toml");
+        fs::write(&manifest, "[package]\n").unwrap();
+        let mut sources = Sources::empty();
+        sources.add(&manifest, None).unwrap();
+        let value = json!({"version": 9, "names": ["a", "b", "c"]});
+        let text = serde_json::to_vec(&value).unwrap();
+        assert_eq!(
+            kernel_request_within(&value, &sources, "packages", text.len()),
+            Ok(text.clone())
+        );
+        let bound = text.len() - 1;
+        let error = kernel_request_within(&value, &sources, "packages", bound).unwrap_err();
+        assert!(
+            error.ends_with(&format!(
+                "/Vastitas.toml:1:1: E_LIMIT: the request of the program exceeds {bound} bytes, the largest request that the kernel reads"
+            )),
+            "{error}"
+        );
+        assert_eq!(error.lines().count(), 1, "{error}");
+        let _ = fs::remove_dir_all(&directory);
     }
 
     // An error of the encoding is no limit: it stays `E_PROTOCOL`.

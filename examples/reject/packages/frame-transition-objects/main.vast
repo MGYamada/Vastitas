@@ -1,0 +1,16 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::frame::Frame;
+use std::geometry::frame::FrameMap;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed affine Chart(SmoothR) = Affine(2)[u, v];
+
+// ANCHOR: declaration
+// b and d have the same columns, on two objects of dimension 2.
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+indexed frame d: Frame<Chart> = columns((1, 0), (1, 2));
+indexed primitive b_to_d = frame_transition(Smooth, FrameMap, source = b, target = d);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

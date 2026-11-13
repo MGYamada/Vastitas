@@ -115,6 +115,14 @@ on the base chains of its source and of its target. See
 [Presented affine objects](../affine-geometry.md#presented-affine-objects)
 and the [guide](../guide/affine-geometry.md#objects-over-a-base).
 
+## Base dimension
+
+A generator of the [physical dimensions](#physical-dimension) of a program,
+declared with `indexed base_dimension`, such as `L` of `nature::dimension`.
+A program has at most 16 base dimensions. See
+[Base dimensions and quantity kinds](../language/physical-dimensions.md#base-dimensions-and-quantity-kinds)
+and the [guide](../guide/frames-and-dimensions.md#a-chart-with-a-length-and-a-time).
+
 ## Base isomorphism
 
 The two maps `via(…) inverse(…)` in the declaration of a
@@ -326,6 +334,15 @@ loan, and a contribution of the module that holds the generic's edit authority
 without a loan. See
 [Edit authority across packages](../guide/edit-authority.md#the-contribution) and
 [Contributions](../language/edit-authority.md#contributions).
+
+## Coordinate frame
+
+The [frame](#frame) of a smooth affine object whose frame vectors are the
+unit vectors of its coordinates, declared with `coordinates`. The
+components of a [tangent or cotangent fiber](#tangent-or-cotangent-fiber)
+are its components in the coordinate frame. See
+[Frame matrices](../language/frames.md#frame-matrices) and the
+[guide](../guide/frames-and-dimensions.md#frames-of-the-plane).
 
 ## Coordinate ring
 
@@ -590,7 +607,10 @@ that stands for no vector or covector. A cotangent pullback returns it for a
 covector that is not at the image point, and every pullback of the failure
 value is the failure value. It is at no point, and it equals no value, itself
 included. Its components and its pairings read `(0, 0)`, which no rational
-number reads. See [Fiber primitives](../language/smooth-declarations.md#fiber-primitives) and the wire
+number reads. A [frame array](#frame-array) and a [map array](#map-array) have
+a failure value too, which a contraction in frames returns for operands at
+different points. See [Fiber primitives](../language/smooth-declarations.md#fiber-primitives),
+[Contraction in frames](../language/frames.md#contraction-in-frames) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Family
@@ -658,6 +678,27 @@ point along each map, first map first. The [reverse pass](#reverse-pass)
 reads these points. See
 [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
 and the [guide](../guide/smooth-geometry.md#the-forward-pass-and-the-reverse-pass).
+
+## Frame
+
+An ordered list of vector fields on a
+[smooth affine object](#smooth-affine-object) whose values form a basis of
+the tangent fiber at every point, declared with `indexed frame` at a family
+with the `frame` representation. Its columns give the frame vectors in the
+coordinates of the object, as polynomials with rational coefficients. A
+frame is a declaration, not a value. See
+[Frame declarations](../language/frames.md#frame-declarations) and the
+[guide](../guide/frames-and-dimensions.md#frames-of-the-plane).
+
+## Frame array
+
+A value of a family with the `frame_vector` or `frame_covector`
+representation, such as `Coords<b>`: a point and the components of a vector
+in the [frame](#frame) `b` at that point, or of a covector in the coframe
+dual to `b`. The frame is part of its type. It may also be the
+[failure value](#failure-value). See
+[The frame profile](../language/frames.md#the-frame-profile) and the
+[guide](../guide/frames-and-dimensions.md#arrays-in-a-frame).
 
 ## Frontend
 
@@ -942,6 +983,17 @@ The compiler mode that takes one manifest with `--manifest-path`. Modules,
 imports, resource functions, indexed declarations and edit-authority
 declarations appear only in this mode. Compare [flat mode](#flat-mode). See
 [Manifest mode](../language/programs.md#manifest-mode).
+
+## Map array
+
+A value of a family with the `frame_map` representation, such as
+`FrameMap<b, c>`: a source point, a target point and the matrix of a linear
+map between the tangent fibers at those points, in the [frames](#frame) `b`
+and `c`. `frame_matrix` gives the map array of the derivative of a smooth
+map at a point, and a [transition](#transition) is a map array. It may also
+be the [failure value](#failure-value). See
+[The frame profile](../language/frames.md#the-frame-profile) and
+[Map arrays and transitions](../language/frames.md#map-arrays-and-transitions).
 
 ## Marker
 
@@ -1236,6 +1288,25 @@ The value of one cell of storage in a resource statement, written `f64(…)`,
 binary64 value, or two for a complex cell; the compiler never rounds one. See
 [Payloads](../storage/resource-programs.md#payloads).
 
+## Physical dimension
+
+A product of integer powers of [base dimensions](#base-dimension), such as
+L · T⁻¹, or the dimensionless dimension 1. Each
+[quantity kind](#quantity-kind) has one. It is unrelated to the dimension
+of an object, the number of its coordinates. See
+[Physical dimensions](../language/physical-dimensions.md).
+
+## Physical interpretation
+
+A declaration `indexed physical` that writes the Gram matrix of a
+[smooth metric](#smooth-metric) with [scales](#scale) under a
+[reading](#reading) of its object. The kernel checks that the entries give
+the Gram matrix and that the terms of the metric have one
+[physical dimension](#physical-dimension). It changes no other declaration
+and no value. See
+[Physical interpretations](../language/physical-dimensions.md#physical-interpretations) and the
+[guide](../guide/frames-and-dimensions.md#scales-and-a-scaled-metric).
+
 ## Place
 
 The position that a [diagnostic](#diagnostic) or a [note](#note) names: a
@@ -1256,6 +1327,7 @@ The word has two meanings:
    rational coordinate for each coordinate of the object. Tangent and
    cotangent fibers lie over such a point. See
    [Smooth affine declarations](../language/smooth-declarations.md).
+
 ## Polynomial expression
 
 An expression that denotes a polynomial with rational coefficients in the
@@ -1421,6 +1493,7 @@ The word has two meanings:
    See [Morphisms over a base](../affine-geometry.md#morphisms-over-a-base).
 2. The pullback of a covector along a smooth map is the
    [cotangent pullback](#cotangent-pullback).
+
 ## Pullback mode
 
 The word `saved` or `recomputed` of a `cotangent_pullback` binding. It says
@@ -1430,6 +1503,14 @@ forward pass, and a `recomputed` pullback evaluates them again. Both modes
 give the same value. See
 [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives)
 and the [guide](../guide/smooth-geometry.md#the-forward-pass-and-the-reverse-pass).
+
+## Quantity kind
+
+A declaration `indexed quantity` of a [physical dimension](#physical-dimension),
+such as `Length` or `Speed`. Quantity kinds are nominal: `Length` and
+`Wavelength` have one dimension and are two kinds. A
+[reading](#reading) gives each coordinate a quantity kind. See
+[Base dimensions and quantity kinds](../language/physical-dimensions.md#base-dimensions-and-quantity-kinds).
 
 ## Rational point
 
@@ -1441,6 +1522,14 @@ coordinates are rational numbers: a [smooth map](#smooth-map) to `X` from a
 and the [guide](../guide/smooth-geometry.md#objects-maps-and-points). For the points
 of a presented affine object, see
 [Morphism primitives](../affine-geometry.md#morphism-primitives).
+
+## Reading
+
+A declaration `indexed reading` that gives each coordinate of a
+[smooth affine object](#smooth-affine-object) a
+[quantity kind](#quantity-kind), such as a length for `x` and a time for
+`t`. See [Readings](../language/physical-dimensions.md#readings) and the
+[guide](../guide/frames-and-dimensions.md#a-chart-with-a-length-and-a-time).
 
 ## Recipient
 
@@ -1663,6 +1752,14 @@ a geometric setting with real or complex coefficients. A
 
 One of the types `Nat`, `Int`, `Bool` and `Unit`. Dispatch uses only scalar
 types. See [Scalar types](../language/types.md#scalar-types).
+
+## Scale
+
+A declaration `indexed scale` of a positive rational magnitude of a
+[quantity kind](#quantity-kind), such as the length 3. The entries of a
+[physical interpretation](#physical-interpretation) are products of powers
+of scales. See [Scales](../language/physical-dimensions.md#scales) and the
+[guide](../guide/frames-and-dimensions.md#scales-and-a-scaled-metric).
 
 ## Scheme
 
@@ -1995,6 +2092,14 @@ The dual, the conjugate or the adjoint of a
 [numerical map](#numerical-map), declared with `map`. It reads the cells of
 that map transposed or conjugated and copies nothing. See
 [Transformed maps](../linalg/transforms-and-metrics.md#transformed-maps).
+
+## Transition
+
+The [map array](#map-array) that changes from one [frame](#frame) of an
+object to another at a point. It sends the array of a vector in the first
+frame to its array in the second. `frame_transition` gives it. See
+[Map arrays and transitions](../language/frames.md#map-arrays-and-transitions) and the
+[guide](../guide/frames-and-dimensions.md#changing-frames).
 
 ## Type
 

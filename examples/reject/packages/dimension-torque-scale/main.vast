@@ -1,0 +1,18 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Energy;
+use nature::dimension::Torque;
+
+indexed affine Q(SmoothR) = Affine(1)[e];
+indexed metric GQ: MetricForm<Q> = gram((1));
+indexed reading energy: Reading<Q> = (e: Energy);
+
+// ANCHOR: declarations
+// Torque and Energy have one dimension, M * L^2 * T^-2, and are two kinds.
+indexed scale tau = 1 of Torque;
+indexed physical PQ: PhysicalMetric<Q> = interpret(GQ, reading = energy, normalized(e: tau));
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

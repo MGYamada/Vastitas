@@ -1,0 +1,11 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::frame::Frame;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declaration
+// The second frame vector (x, 1) depends on the point.
+indexed frame r: Frame<Plane> = columns((1, 0), (x, 1));
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

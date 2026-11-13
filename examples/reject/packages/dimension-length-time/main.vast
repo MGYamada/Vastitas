@@ -1,0 +1,17 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Length;
+use nature::dimension::Time;
+
+indexed affine C(SmoothR) = Affine(2)[x, t];
+indexed reading phys: Reading<C> = (x: Length, t: Time);
+
+// ANCHOR: declarations
+// dx^2 + dt^2 adds a squared length to a squared time.
+indexed metric E: MetricForm<C> = euclidean;
+indexed physical PE: PhysicalMetric<C> = interpret(E, reading = phys, euclidean);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

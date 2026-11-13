@@ -1,0 +1,1 @@
+examples/reject/packages/frame-transition-objects/main.vast:13:1: E_ENDPOINT: `frame_transition` changes between two frames of one object, but the source frame `frame_transition_objects::b` is on `frame_transition_objects::Plane` and the target frame `frame_transition_objects::d` is on `frame_transition_objects::Chart`

@@ -361,24 +361,64 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
         assert_eq!(error.lines().count(), 1, "{source}: {error}");
     }
     // A `use` of the module itself binds the reserved name. The path may name
-    // a module or an `indexed` declaration, so the kernel decides, also in a
-    // program with `indexed` declarations.
+    // a module or an `indexed` declaration, so the parser cannot decide. Once
+    // the packages are loaded, the frontend follows the path through modules,
+    // dependency aliases and imports and reports a module at the name
+    // (#759), also in a program with `indexed` declarations.
+    let reserved = "E_RESERVED: `dimension` is reserved for builtin geometry operations; choose another declaration or binding name";
     for lib in [
         "pub mod dimension { pub fn length() -> Int { 42 } }",
         "pub indexed marker M;\npub mod dimension { pub fn length() -> Int { 42 } }",
     ] {
         s.package("lib", lib, "");
-        s.package(
-            "app",
-            "use dep::dimension;\nfn main() -> Int { dimension::length() }",
-            dep,
-        );
-        let error = s.rejects("E_RESERVED");
-        assert!(
-            error.contains("app/src/main.vast:1:1: E_RESERVED: 'dimension' is reserved"),
-            "{lib}: {error}"
-        );
+        for (source, place) in [
+            (
+                "use dep::dimension;\nfn main() -> Int { dimension::length() }",
+                "1:10",
+            ),
+            (
+                "mod units { pub mod dimension {} }\nuse self::units::dimension;\nfn main() -> Int { 0 }",
+                "2:18",
+            ),
+            (
+                "mod units { pub mod dimension {} }\nmod child { use super::units::dimension; }\nfn main() -> Int { 0 }",
+                "2:31",
+            ),
+            (
+                "mod units { pub mod dimension {} }\nmod child { use package::units::dimension; }\nfn main() -> Int { 0 }",
+                "2:33",
+            ),
+            // Through the import of a dependency, and through a re-export.
+            (
+                "use dep as library;\nuse library::dimension;\nfn main() -> Int { 0 }",
+                "2:14",
+            ),
+            (
+                "mod units { pub use dep as library; }\nmod child { use super::units::library::dimension; }\nfn main() -> Int { 0 }",
+                "2:40",
+            ),
+        ] {
+            s.package("app", source, dep);
+            let error = s.rejects("E_RESERVED");
+            assert!(
+                error.contains(&format!("app/src/main.vast:{place}: {reserved}")),
+                "{lib}\n{source}: {error}"
+            );
+            assert_eq!(error.lines().count(), 1, "{source}: {error}");
+        }
     }
+    // A `use` without `as` of an `indexed` declaration binds its name.
+    s.package(
+        "lib",
+        "pub indexed marker origin;\npub mod dimension { pub fn length() -> Int { 42 } }",
+        "",
+    );
+    s.package(
+        "app",
+        "use dep::origin;\nuse dep::dimension::length;\nfn main() -> Int { length() }",
+        dep,
+    );
+    success(&s.check());
     for alias in GEOMETRIC_OPERATIONS {
         s.package("lib", "pub fn value() -> Int { 1 }", "");
         s.package(

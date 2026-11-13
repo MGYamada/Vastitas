@@ -2,8 +2,9 @@
 """Capture, and compare, what the compiler emits for every example.
 
 For each documented single-file example, each rejected program of the book
-under `examples/reject/`, every package manifest under `examples/` and
-`stdlib/`, and every manifest under `tests/emit_corpus/`, the script records:
+under `examples/reject/`, every package manifest under `examples/`, `stdlib/`
+and `nature/`, and every manifest under `tests/emit_corpus/`, the script
+records:
 
 - `wire.raw.json` and `wire.json`: the exact protocol request the frontend
   sends to the kernel (raw, and re-serialized for reading), captured with a
@@ -137,6 +138,7 @@ def corpus():
         name = "reject/" + relative.relative_to(REJECTED_EXAMPLES).with_suffix("").as_posix().replace("/", "__")
         cases.append((name, [str(relative)], True))
     manifests = sorted(ROOT.glob("examples/**/Vastitas.toml")) + sorted(ROOT.glob("stdlib/**/Vastitas.toml"))
+    manifests += sorted(ROOT.glob("nature/**/Vastitas.toml"))
     manifests += sorted(ROOT.glob("tests/emit_corpus/**/Vastitas.toml"))
     for manifest in manifests:
         relative = manifest.relative_to(ROOT)

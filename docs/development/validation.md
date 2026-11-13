@@ -152,7 +152,8 @@ bash scripts/check_kernel_regressions.sh
 bash scripts/check_indexed_native.sh
 cargo test --locked --test frame_primitives --test frame_dimension_declarations \
   --test nature_dimension --test stdlib_frames --test emit_golden --test protocol_shape \
-  --test frames_dimensions --test examples --test packages
+  --test frames_dimensions --test examples --test packages --test frame_limits \
+  --test nature_limits
 python3 scripts/check_boundaries.py
 python3 -m unittest discover -s scripts -p 'test_check_boundaries.py'
 ```

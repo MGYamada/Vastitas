@@ -45,8 +45,8 @@ fn binding_pointer(raw: &Value, name: &str) -> String {
 }
 
 /// The frame primitives select protocol 9, and only there do they decode:
-/// protocols 7 and 8 reject them. Until the frame contracts land the kernel
-/// rejects the decoded program with a code other than `E_PROTOCOL`.
+/// the kernel accepts the program under protocol 9, and protocols 7 and 8
+/// reject it with `E_PROTOCOL`.
 #[test]
 fn frame_primitives_select_protocol_nine_and_decode_only_there() {
     let raw = request(&package());
@@ -66,10 +66,7 @@ fn frame_primitives_select_protocol_nine_and_decode_only_there() {
         assert!(declared.contains(op), "the program declares no {op}");
     }
     let response = kernel(&raw, "check");
-    assert!(
-        response["ok"] == true || response["diagnostics"][0]["code"] != "E_PROTOCOL",
-        "{response}"
-    );
+    assert_eq!(response["ok"], true, "{response}");
     for version in [7, 8] {
         let mut older = raw.clone();
         older["version"] = json!(version);

@@ -12,6 +12,8 @@ names. Each construct has its chapter:
 [Indexed declarations](indexed-source.md),
 [Presented affine declarations](affine-geometry.md),
 [Smooth affine declarations](language/smooth-declarations.md),
+[Frames](language/frames.md),
+[Physical dimensions](language/physical-dimensions.md),
 [Resource programs](storage/resource-programs.md) and
 [Numerical maps](linalg/maps-and-gemm.md).
 [The driver](internals/driver.md) describes how the Rust side writes a
@@ -337,11 +339,19 @@ object, is an error (`E_PROTOCOL`). The kernel expands every column in the
 coordinates of the frame's object, within the limits of
 [smooth metrics](appendix/limits.md#smooth-metrics) for a constant frame and
 of [exact affine algebra](appendix/limits.md#exact-affine-algebra) for a
-polynomial one. It checks `P·Q = Q·P = I` before acceptance. The
+polynomial one. It checks `P·Q = Q·P = I` before acceptance.
+[Frame declarations](language/frames.md#frame-declarations),
+[Encoding and decoding](language/frames.md#encoding-and-decoding),
+[Map arrays and transitions](language/frames.md#map-arrays-and-transitions),
+[Contraction in frames](language/frames.md#contraction-in-frames) and
+[Operand checks](language/frames.md#operand-checks) give the errors of the
+declarations and the primitives. The
+[`E_FRAME` row](appendix/diagnostics.md#e-frame) of the diagnostics
+reference links these sections, and its
+[`E_ENDPOINT` row](appendix/diagnostics.md#geometric-types) covers frame and
+object mismatches of a call. The
 [specification of `std::geometry::frame`](spec/std-geometry-frame.md) states
-the laws of the forms, and the
-[`E_ENDPOINT` row](appendix/diagnostics.md#geometric-types) of the
-diagnostics reference covers frame and object mismatches of a call.
+the laws of the forms.
 
 <a id="protocol-9-physical-dimension-forms"></a>
 
@@ -380,7 +390,11 @@ dimension in canonical form, the value of a magnitude or a coefficient, the
 coordinate order of a reading or a normalized metric, or an evaluated Gram
 matrix. The kernel computes each, within the
 [dimension limits](appendix/limits.md#physical-dimensions), and checks every physical metric
-against the Gram matrix of the metric it names. The
+against the Gram matrix of the metric it names.
+[Physical dimensions](language/physical-dimensions.md) gives the errors of
+the declarations, and the
+[`E_DIMENSION` row](appendix/diagnostics.md#e-dimension) of the diagnostics
+reference links its sections. The
 [specification of `nature::dimension`](spec/nature-dimension.md) states what
 an accepted interpretation guarantees.
 

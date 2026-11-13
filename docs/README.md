@@ -99,8 +99,9 @@ nothing to them.
 | Indexed declarations and the geometry library | Chapter 7 | Evaluation preserves the type of a value, and in that type a point and a morphism keep both of their objects. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Code generation entries](verification.md#code-generation-entries) |
 | Presented affine geometry over the rational numbers | Chapter 8 | Two polynomials that the compiler finds equal are the same function. A declared fiber product has the universal property of a fiber product, and a declared open subset is the localization of its object. [Presented affine geometry](verification.md#exact-affine-algebra-checker) · [Acceptance record](stage2-acceptance.md) |
 | Smooth affine geometry with rational coefficients: polynomial smooth maps, covectors and vectors at rational points, reverse pullbacks, and named metrics with checked evidence. The kernel compiles each reverse pass that it can read and checks the result again | Chapter 9 | The chain rule for pullbacks, the agreement of the saved and the recomputing reverse pass, the comparison of the pullback with the derivative of real analysis, and the meaning of metric evidence. The theorems also state what each generated reverse function computes. That a whole compiled program agrees with its source is Tested, not Proved. [Smooth affine geometry](verification.md#smooth-affine-geometry-and-reverse-pullbacks) · [Acceptance record](stage3-acceptance.md) · [Compiled reverse passes](reverse-core-acceptance.md) |
-| Storage and resource programs | Chapter 10 | Four facts about the model of storage that the kernel keeps. Every access lies in its allocation. A read finds initialized bytes. Two active loans of which one writes do not overlap; a loan with a live child gives no access. An accepted entry point leaves no allocation and no loan. [Storage](language/guarantees.md#storage) · [What is outside these claims](verification.md#what-is-outside-these-claims) |
-| Numerical maps: real and complex matrix products, transforms, metrics, tensor networks and contraction trees | Chapter 11 | The checked operations keep the objects and the bases of their maps, and the kernel schedules a network or an evaluation with the conjugation flags of its operands. No theorem states a property of a floating-point result or of the BLAS library. [What is outside these claims](verification.md#what-is-outside-these-claims) · [Acceptance record](stage1-acceptance.md) |
+| Frames and physical dimensions: constant and polynomial frames of smooth affine objects, arrays and map arrays that keep their frames, change of frame, and the physical dimensions of `nature::dimension` | Chapter 10 | Decoding undoes encoding, the transitions compose, change of frame and the chain rule hold in frames, and the pairing does not depend on the frame, for the values that accepted programs compute. A frame is a basis at every real point, and a map array is the matrix of the derivative of real analysis in two frames. An accepted physical interpretation evaluates to the Gram matrix of its metric with terms of one dimension. A frame declaration leaves every primitive that does not name it as it is, and a declaration of a physical dimension leaves every primitive and every declaration of another kind as it is. That generated code is the same without physical dimensions is Tested. [Frames and physical dimensions](verification.md#frames-and-physical-dimensions) · [Acceptance record](stage4-acceptance.md) |
+| Storage and resource programs | Chapter 11 | Four facts about the model of storage that the kernel keeps. Every access lies in its allocation. A read finds initialized bytes. Two active loans of which one writes do not overlap; a loan with a live child gives no access. An accepted entry point leaves no allocation and no loan. [Storage](language/guarantees.md#storage) · [What is outside these claims](verification.md#what-is-outside-these-claims) |
+| Numerical maps: real and complex matrix products, transforms, metrics, tensor networks and contraction trees | Chapter 12 | The checked operations keep the objects and the bases of their maps, and the kernel schedules a network or an evaluation with the conjugation flags of its operands. No theorem states a property of a floating-point result or of the BLAS library. [What is outside these claims](verification.md#what-is-outside-these-claims) · [Acceptance record](stage1-acceptance.md) |
 
 Four limits hold for every row:
 
@@ -122,8 +123,8 @@ with its evidence, and [Verification boundaries](verification.md) each
 theorem with its assumptions.
 
 Planned are the later targets of the [roadmap](guide/historical-roadmap.md):
-bundles and tensor diagrams, spectral observations, a first physical model
-and the gluing of geometric objects.
+bundles beyond global frames, tensor diagrams with a monoidal model, spectral
+observations, a first physical model and the gluing of geometric objects.
 
 [Specifications](specifications.md) record properties of the standard
 library and of language constructs, apart from their code. Each claim about
@@ -137,7 +138,7 @@ mathlib.
 
 The book has four parts.
 
-The guide, chapters 1 to 12, teaches the language in order. Its complete
+The guide, chapters 1 to 13, teaches the language in order. Its complete
 programs are files under
 [`examples/`](https://github.com/MGYamada/Vastitas/tree/main/examples) that
 the tests build and run. Many chapters have a note "What is checked", which
@@ -159,9 +160,10 @@ follow the guide:
 | 7. [Indexed declarations and the geometry library](guide/indexed-geometry.md) | [Geometric types](language/geometric-types.md) · [Indexed declarations](indexed-source.md) |
 | 8. [Presented affine geometry](guide/affine-geometry.md) | [Presented affine declarations](affine-geometry.md) |
 | 9. [Smooth geometry and reverse pullbacks](guide/smooth-geometry.md) | [Smooth affine declarations](language/smooth-declarations.md) |
-| 10. [Storage and resource programs](guide/storage.md) | [Storage and ownership](storage-ownership.md) · [Resource programs](storage/resource-programs.md) |
-| 11. [Numerical maps, GEMM, metrics and tensor networks](guide/numerical.md) | [Numerical maps](linalg/maps-and-gemm.md) · [Transforms, evaluation and metrics](linalg/transforms-and-metrics.md) · [Networks, packing and contraction trees](linalg/networks-and-packing.md) |
-| 12. [Diagnostics and the CLI](guide/diagnostics-and-cli.md) | [Diagnostics](language/diagnostics.md) · [Limits](language/limits.md) |
+| 10. [Frames and physical dimensions](guide/frames-and-dimensions.md) | [Frames](language/frames.md) · [Physical dimensions](language/physical-dimensions.md) |
+| 11. [Storage and resource programs](guide/storage.md) | [Storage and ownership](storage-ownership.md) · [Resource programs](storage/resource-programs.md) |
+| 12. [Numerical maps, GEMM, metrics and tensor networks](guide/numerical.md) | [Numerical maps](linalg/maps-and-gemm.md) · [Transforms, evaluation and metrics](linalg/transforms-and-metrics.md) · [Networks, packing and contraction trees](linalg/networks-and-packing.md) |
+| 13. [Diagnostics and the CLI](guide/diagnostics-and-cli.md) | [Diagnostics](language/diagnostics.md) · [Limits](language/limits.md) |
 
 [Notation](language/notation.md) explains how the Reference writes syntax
 and rules, and [Guarantees](language/guarantees.md) collects what holds for

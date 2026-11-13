@@ -638,7 +638,8 @@ annotation are independently audited against the same checked environment.
 The table lists the bindings of this profile. [Presented affine
 geometry](../affine-geometry.md) describes the relative bindings, and [Smooth
 affine declarations](../language/smooth-declarations.md) describes the smooth,
-fiber, tape and metric bindings. The frame bindings are described above.
+fiber, tape and metric bindings, and [Frames](../language/frames.md) the
+frame bindings, whose implementation is described above.
 
 | Registry entry | Operand and result contract | Additional obligation |
 | --- | --- | --- |

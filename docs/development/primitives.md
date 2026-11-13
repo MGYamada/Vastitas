@@ -502,8 +502,11 @@ A primitive is documented in four places:
   [smooth map primitives](../language/smooth-declarations.md#smooth-map-primitives),
   [fiber primitives](../language/smooth-declarations.md#fiber-primitives),
   [reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives),
-  [flat and sharp](../language/smooth-declarations.md#flat-and-sharp) or
-  [morphism primitives](../affine-geometry.md#morphism-primitives). A
+  [flat and sharp](../language/smooth-declarations.md#flat-and-sharp),
+  the sections of [Frames](../language/frames.md) from
+  [Encoding and decoding](../language/frames.md#encoding-and-decoding) to
+  [Components, entries and equality](../language/frames.md#components-entries-and-equality),
+  or [morphism primitives](../affine-geometry.md#morphism-primitives). A
   binding outside those constructs, as `compose` is, has a row in the table
   of [Primitives](../indexed-source.md#primitives) and in the inventory of
   [The indexed checker](../internals/indexed-checker.md#closed-primitive-binding-inventory)
@@ -519,8 +522,9 @@ A primitive is documented in four places:
 - its diagnostics as rules with their codes in that Reference section. The
   row of its construct in [Appendix B](../appendix/diagnostics.md#kernel),
   such as the rows of
-  [fibers and tapes](../appendix/diagnostics.md#e-smooth-fibers) and of
-  [metrics](../appendix/diagnostics.md#e-metric), links the section and
+  [fibers and tapes](../appendix/diagnostics.md#e-smooth-fibers), of
+  [metrics](../appendix/diagnostics.md#e-metric) and of
+  [frames](../appendix/diagnostics.md#e-frame), links the section and
   names the kinds of errors, so a kind of error that the row does not name
   goes there too;
 - the theorem tables of [Verification boundaries](../verification.md).

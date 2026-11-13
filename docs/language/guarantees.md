@@ -197,6 +197,19 @@ Rules:
   [Metrics](smooth-declarations.md#metrics) and
   [Metrics of numerical maps](../linalg/transforms-and-metrics.md#metrics)
   say.
+- No operation selects a frame by default, not even the coordinate frame. A
+  frame primitive applies only the frames that its declaration names, and no
+  frame primitive reads a metric: the Gram matrix of a metric in a frame is a
+  composite of `flat` with encoding and decoding, as
+  [The frame profile](frames.md#the-frame-profile) and
+  [The Gram matrix in a frame](frames.md#the-gram-matrix-in-a-frame) say.
+- A declaration of a physical dimension changes no declaration of another
+  kind. A
+  metric is valid, and `flat` and `sharp` compute the same values, with and
+  without readings, scales and physical interpretations of it, and a program
+  without them has the same generated code, as
+  [Scope of physical dimensions](physical-dimensions.md#scope-of-physical-dimensions)
+  says.
 - The rule on allocation concerns the cells of allocations. It says nothing
   about the memory that an executable uses for integers and other pure
   values.
@@ -217,8 +230,15 @@ compiler, and that chapter says that such a rule is not evidence. Proved:
 the request that the checker schedules for a network or for an evaluation has
 the conjugation flags of its operands. Also Proved, for smooth declarations:
 a declaration of a metric changes neither the validity nor the value of a
-primitive other than `flat` and `sharp`. [What is outside these claims](../verification.md#what-is-outside-these-claims)
-and [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+primitive other than `flat` and `sharp`. Also Proved, for frames and
+physical dimensions: no frame primitive reads a metric declaration, a frame
+declaration changes neither the validity of another declaration nor the
+validity of a primitive that names none of its frames, and a declaration of
+a physical dimension changes neither the validity of a declaration of another
+kind nor the validity or the value of any primitive. That the generated code stays the
+same is Tested. [What is outside these claims](../verification.md#what-is-outside-these-claims),
+[Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+and [Frames and physical dimensions](../verification.md#frames-and-physical-dimensions)
 state these theorems. They are facts about the checked program, not laws of
 the arithmetic that a native routine performs.
 
@@ -237,6 +257,12 @@ Rules:
   rules ask for that identity.
 - An extent that a program computes proves no identity, as
   [Runtime extents](../storage/resource-programs.md#runtime-extents) says.
+- Frames and quantity kinds are nominal too. Two frames are different frames
+  even when their columns are equal, so their arrays have different types, as
+  [The frame profile](frames.md#the-frame-profile) says. Two quantity kinds
+  are different kinds even when their dimensions are equal, as
+  [Base dimensions and quantity kinds](physical-dimensions.md#base-dimensions-and-quantity-kinds)
+  says.
 - Identity is a property of the checked program. An executable holds no
   identities, and two objects of one setting and one dimension have equal
   descriptors when the program runs.
@@ -255,12 +281,16 @@ In this program `X` and `Y` have the same dimension, and `p` is a point of
 The evidence: Implemented and Tested. Proved: the evaluation of the Core
 that the checker returns preserves its typing, in which a point and a
 morphism keep both endpoints. The checked numerical operations keep the
-objects and the bases of their maps.
+objects and the bases of their maps. An accepted call of a frame primitive
+has its operands in the frames that its declaration or its other operands
+name, and `normalized` accepts only a scale of the kind of its coordinate.
 [Verification boundaries](../verification.md#indexed-term-function-and-checked-program-evaluation)
 and [Code generation entries](../verification.md#code-generation-entries)
-state the first, and
+state the first,
 [What is outside these claims](../verification.md#what-is-outside-these-claims)
-the second.
+the second, and
+[Frames and physical dimensions](../verification.md#frames-and-physical-dimensions)
+the last two.
 
 ## Storage
 

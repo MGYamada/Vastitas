@@ -143,8 +143,10 @@ have line 1 and column 1 of the first input: the entry file, or the manifest
 of the package. The place does not say that the first character of the
 manifest is wrong.
 [Diagnostics without a place of their own](../language/diagnostics.md#diagnostics-without-a-place-of-their-own)
-lists the cases that the Reference states. A diagnostic about a construct of
-a source file has the place of that construct. The function `main` of this package has a parameter, and the
+lists the cases that the Reference states. Some of them are errors of a
+construct of a source file all the same, such as an invalid function type in
+some programs. Most other diagnostics about a construct have the place of
+that construct. The function `main` of this package has a parameter, and the
 diagnostic has the place of the function:
 
 ```vast

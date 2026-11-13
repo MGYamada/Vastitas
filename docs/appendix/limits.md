@@ -98,17 +98,17 @@ The frontend writes a program as one request of the
 
 The value is 1024 MiB. The frontend counts the bytes of the request while it
 writes it and stops at the limit, so it rejects a larger request before the
-kernel runs. The diagnostic has the place `FILE:1:1`. A program within the
-limits of [Inputs](#inputs) can be beyond this one, because the request
+kernel runs.
+[Diagnostics without a place of their own](../language/diagnostics.md#diagnostics-without-a-place-of-their-own)
+gives the place of its diagnostic. A program within the limits of
+[Inputs](#inputs) can be beyond this one, because the request
 holds a record with a place for every expression. A source file of
 11,926,914 bytes that holds 47,000 `let` statements of 120 operands each
 makes a request of 1,136,761,778 bytes.
 
 The kernel has the same bound on a request that it reads, and it refuses a
 larger one without parsing it (`E_PROTOCOL`). A request of the frontend does
-not reach it. Before the change for
-[#740](https://github.com/MGYamada/Vastitas/issues/740), the frontend did not
-bound the request, and a program beyond the bound had the code `E_PROTOCOL`.
+not reach it.
 [Limits that a source program does not reach](#limits-that-a-source-program-does-not-reach)
 gives the other bounds of a request.
 
@@ -194,7 +194,8 @@ counts the units of `dispatchWork`.
 | `namespaceImportWork` | 1,000,000 | The members that the checker visits when it checks the `use` declarations | A program | `E_LIMIT` |
 | `namespaceProgramWork` | 4,000,000 | The units of work of the names of the whole program: the size of the request that the frontend writes, and the lookups of names in all bodies | A program | `E_LIMIT` |
 
-The diagnostic for `namespaceProgramWork` has the place `FILE:1:1`.
+[Diagnostics without a place of their own](../language/diagnostics.md#diagnostics-without-a-place-of-their-own)
+gives the place of the diagnostic for `namespaceProgramWork`.
 [Resolution](../language/names-and-paths.md#resolution) states the rule, and
 [Protocol 3](../protocol.md#protocol-3-package-namespaces) says how the
 kernel counts the units of the three limits.
@@ -230,10 +231,11 @@ the kernel counts the events, the methods and the units of the audit.
 | Fields of a case | 64 | The fields of one case of an `indexed package` | A case | `E_LIMIT` |
 | Position in a constraint | 2³² − 1 | The integer that names a parameter in a constraint of a family, such as the `1` of `same_base(0, 1)` | A constraint | `E_LIMIT` |
 
-The diagnostic for the number of indexed declarations has the place of the
-first declaration beyond the limit. A position in a constraint must also name a parameter of the
-family, which [Families](../indexed-source.md#families) requires; the limit
-bounds the integer that the frontend reads.
+[Kinds of limits](../language/limits.md#kinds-of-limits) gives the place of
+the diagnostic for the number of indexed declarations. A position in a
+constraint must also name a parameter of the family, which
+[Families](../indexed-source.md#families) requires; the limit bounds the
+integer that the frontend reads.
 [Indexed declarations](../indexed-source.md) states the rules.
 
 ## Exact affine algebra

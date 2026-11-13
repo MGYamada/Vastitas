@@ -27,7 +27,7 @@ Rules:
 - The compiler has no option that changes a limit.
 - A program beyond a limit is an error. Its code is `E_LIMIT`, unless the
   chapter of the construct gives another code. The table gives the codes of
-  each kind, and the next seven rules name the chapters with other codes.
+  each kind, and the next six rules name the chapters with other codes.
 - A program beyond a limit on the statements, the `value` blocks, the
   parameters, the calls or the integers of resource functions, or on the
   records of the writes to one allocation, is an error (`E_RESOURCE_LIMIT`).
@@ -66,11 +66,6 @@ Rules:
   write every cell, as
   [Resource statements](../storage/resource-programs.md#resource-statements)
   says.
-- An `indexed` declaration beyond a limit on the implementations of a
-  classification, the parameters of a family, or the cases or the fields of a
-  package declaration is an error (`E_LIMIT`) at the declaration, as
-  [Indexed declarations](../indexed-source.md) says. So is a program beyond
-  the limit on the number of its indexed declarations.
 - The compiler never accepts a part of a program to stay within a limit. A
   rejected program produces no executable.
 - A limit holds for the whole program. The checker checks every body, even
@@ -78,18 +73,22 @@ Rules:
 - The diagnostic of most limits points to the construct that exceeds the
   limit. For a nesting limit this is the token that is nested too deeply. For
   a count or a budget it is the declaration, the function or the statement
-  that exceeds it.
+  that exceeds it. A limit on a part of an `indexed` declaration, such as the
+  domain of a classification, has the place of the declaration. The budgets
+  on the resolution of one path and on the `use` declarations have the place
+  of a path or of a `use` declaration that exceeds them.
+- The diagnostic for the number of indexed declarations has the place of the
+  first declaration beyond the limit. The compiler counts the declarations of
+  the packages that a package depends on before its own. In one package, the
+  declarations of an inline module come before those of the module that holds
+  it, and those of a module file, which `mod name;` declares, after those of
+  the module that declares it. In one module they come in the order of the
+  text.
 - Some limit diagnostics point to no construct. A diagnostic for a limit on
   the inputs as a whole, or on a chain of package dependencies, has no place.
-  The diagnostics for the budget on the work of the names of the whole
-  program and for the size of the
-  [request](../appendix/limits.md#request) of the program have the place
-  `FILE:1:1`. The diagnostic for the number of indexed declarations has the
-  place of the first declaration beyond the limit, and the two other budgets
-  of name resolution have the place of a path or of a
-  `use` declaration.
-  [Diagnostics](diagnostics.md#diagnostics-without-a-place-of-their-own)
-  describes both forms.
+  [Diagnostics without a place of their own](diagnostics.md#diagnostics-without-a-place-of-their-own)
+  lists the limits whose diagnostic has the place `FILE:1:1`, and describes
+  both forms.
 
 This expression stands inside 64 pairs of parentheses, one more than the
 nesting limit admits there:

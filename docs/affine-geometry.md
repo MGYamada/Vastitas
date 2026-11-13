@@ -52,12 +52,13 @@ defines `Coordinates` and `ImageBindings`.
 
 The compiler reports an error of a declaration of this chapter at the
 declaration. An error about an object that a path of the declaration names
-has the place of that path. These are a base or a factor that is not a
-presented affine object, the source or the target of a morphism over a base
-that is not one, a base that is not on the base chain of the source or of the
-target, and the source or the target of `relative_coefficient` that is not
-one. A coordinate and a polynomial have no place of their own, so an error
-about one of them has the place of its declaration.
+has the place of that path. One such error is a base or a factor that is not
+a presented affine object. Others are about a morphism over a base: a source
+or a target that is not a presented affine object, and a base that is not on
+the base chain of the source or of the target. The last is a source or a
+target of `relative_coefficient` that is not a presented affine object. A
+coordinate and a polynomial have no place of their own, so an error about
+one of them has the place of its declaration.
 
 ## The presented profile
 

@@ -78,12 +78,26 @@ Rules:
   of resolution and visibility.
 - A program has a limit on the number of its indexed declarations, which
   [Appendix D](appendix/limits.md#indexed-declarations) gives. More
-  declarations are an error (`E_LIMIT`), at the first declaration beyond the
-  limit.
+  declarations are an error (`E_LIMIT`).
+  [Kinds of limits](language/limits.md#kinds-of-limits) gives the place of
+  the diagnostic.
 - The compiler reports a declaration that breaks a rule of this chapter at
-  the declaration, or at the path that the rule is about. The message states
-  the rule and names the declarations by their paths
-  `package::module::name`.
+  the declaration. A path of a declaration that names nothing (`E_NAME`), or
+  that names an item that is no indexed declaration (`E_TYPE`), is reported
+  at the path. The message states the rule and names the declarations by
+  their paths `package::module::name`.
+- A declaration that breaks several rules is reported for the first of them
+  that the compiler checks. For a classification the order is: a parent
+  named twice, an implementation named twice, an empty domain, the limit on
+  the domain, a path of the domain that names no implementation, and then
+  each parent in turn: a parent that is no classification, a domain of the
+  parent that lacks an implementation, and a cycle. For a family it is: the
+  limit on the parameters, a path of an `object(…)` parameter, the positions
+  of a constraint, and then the rules of its representation. For a package
+  declaration it is: no case, the limit on the cases, two cases with one
+  witness type, and then each case in turn: its witness type, the limit on
+  its fields and each field. A global object and a primitive follow the
+  order of the rules of their sections.
 - An indexed declaration grants no
   [edit authority](language/edit-authority.md).
 
@@ -623,8 +637,8 @@ Rules:
 - Every implementation of `Object<D, K>` must have the capability `origin`
   for the binding `origin`, and the capability `dimension` for the binding
   `dimension` (`E_TYPE`).
-- `P` must name a family with the representation `point`, and `M` a family
-  with the representation `morphism` (`E_TYPE`).
+- `M` must name a family with the representation `morphism`, and `P` a
+  family with the representation `point` (`E_TYPE`).
 - `P<X, B>` of the binding `origin` must be an indexed type by the rules of
   [Indexed types of a family](#indexed-types-of-a-family), for every object
   `X` of type `Object<D, K>` (`E_TYPE`). In particular, `B` must name a

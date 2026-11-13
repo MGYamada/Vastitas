@@ -288,7 +288,10 @@ Rules:
 - An entry must have at most 16 scale factors (`dimensionScaleFactors`), and
   each exponent must be at most 64 in absolute value (`dimensionExponent`).
   The numerator and the denominator of the coefficient must have at most
-  `metricEntryBits` bits. Otherwise it is an error (`E_LIMIT`).
+  `metricEntryBits` bits, and so must those of the entry multiplied out,
+  counted before its factors cancel as
+  [Appendix D](../appendix/limits.md#physical-dimensions) says. Otherwise it
+  is an error (`E_LIMIT`).
 - `normalized(…)` must name each coordinate of the object exactly once, each
   with a scale. Otherwise it is an error (`E_DIMENSION`).
 - The scale of a coordinate in `normalized(…)` must be of the quantity kind
@@ -300,7 +303,9 @@ Rules:
 - Each entry, with the magnitudes of its scales, must equal the entry of the
   Gram matrix of the metric. Otherwise it is an error (`E_DIMENSION`).
 - Every term with a nonzero entry must have one dimension. Otherwise it is
-  an error (`E_DIMENSION`). A zero entry constrains nothing.
+  an error (`E_DIMENSION`). A zero entry constrains nothing. Each exponent of
+  that dimension must be at most 64 in absolute value (`dimensionExponent`),
+  as in a declared value. Otherwise it is an error (`E_LIMIT`).
 - A declared value must be a dimension by the rules of
   [base dimensions and quantity kinds](#base-dimensions-and-quantity-kinds),
   and it must equal the dimension of the terms. Otherwise it is an error
@@ -314,7 +319,10 @@ Rules:
 > dimensions of the terms, and the declaration audit checks every nature
 > declaration again (`NatureDimension.checkPhysicalMetric`). Messages write
 > a dimension as the powers of its base dimensions in their declaration
-> order, as in `L^2*T^-1`, and `1` for the dimensionless one. The oracle
+> order, as in `L^2*T^-1`, and `1` for the dimensionless one. A base
+> dimension appears by its full path when another base dimension of the
+> program has its name. A message writes a magnitude only within
+> `metricEntryBits`, and otherwise says that it is larger. The oracle
 > theorem `VastitasOracle.NatureDimension.physicalMetric_sound` states what an
 > accepted interpretation means, and `euclidean_rejected` and
 > `normalized_rejected_of_kind` state the two rejections of the examples

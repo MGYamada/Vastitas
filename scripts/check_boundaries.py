@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Check compiler/oracle dependencies without loading the Lean toolchain."""
+"""Check compiler/oracle dependencies without loading the Lean toolchain.
+
+Also check the package dependencies of the `std` and `nature` libraries
+(ADR 0002 §1): std never depends on nature."""
 import json
 from pathlib import Path
 import re
@@ -406,10 +409,58 @@ def check_executable_lake_dependencies(package, label, required, errors):
         errors.append(f"{label}: cannot check lakefile.lean dependencies: {error}")
 
 
+# The library families of ADR 0002 §1, and the directories that the manifests
+# under each may depend on. std never depends on nature or monad; nature may
+# depend on std, never on monad. A family directory that does not exist, such
+# as nature/ in a sparse checkout, has no manifests to check.
+LIBRARY_DEPENDENCIES = {
+    "stdlib": ("stdlib",),
+    "nature": ("stdlib", "nature"),
+}
+
+
+def check_library_manifests(root, errors):
+    """Every path dependency of a library manifest stays inside its allowed directories.
+
+    The check reads every `Vastitas.toml` under a library directory and
+    resolves each dependency as the compiler does (`src/packages.rs`): the
+    canonical location of `<path>/Vastitas.toml`, relative to the directory of
+    the canonical manifest, so that no symbolic link hides an edge. It fails
+    closed on a manifest or a dependency that it cannot read.
+    """
+    for family, allowed in LIBRARY_DEPENDENCIES.items():
+        library = root / family
+        if not library.exists():
+            continue
+        targets = [(root / directory).resolve() for directory in allowed]
+        names = " and ".join(f"{directory}/" for directory in allowed)
+        for manifest in sorted(library.rglob("Vastitas.toml")):
+            label = manifest.relative_to(root).as_posix()
+            try:
+                dependencies = tomllib.loads(manifest.read_text()).get("dependencies", {})
+            except (OSError, ValueError) as error:
+                errors.append(f"{label}: cannot check library dependencies: {error}")
+                continue
+            if not isinstance(dependencies, dict):
+                errors.append(f"{label}: [dependencies] must be a table")
+                continue
+            for alias, dependency in dependencies.items():
+                path = dependency.get("path") if isinstance(dependency, dict) else None
+                if not isinstance(path, str):
+                    errors.append(f"{label}: dependency `{alias}` must have the form {{ path = \"…\" }}")
+                    continue
+                target = (manifest.resolve().parent / path / "Vastitas.toml").resolve().parent
+                if not any(target.is_relative_to(directory) for directory in targets):
+                    errors.append(f"{label}: dependency `{alias}` on {path} leaves {names}; "
+                                  f"a {family}/ manifest may depend only on packages inside {names} "
+                                  "(ADR 0002 §1)")
+
+
 def check_boundaries(root):
     root = Path(root)
     kernel = root / "lean-kernel"
     errors = []
+    check_library_manifests(root, errors)
     check_lake_dependencies(kernel, "lean-kernel", errors)
     runtime = kernel / "VastitasKernel" / "Runtime.lean"
     runtimes = {runtime, kernel / "VastitasKernel" / "IndexedRuntime.lean",

@@ -15,6 +15,10 @@ elab "compiler_limit% " key:str : term => do
   if value == 0 then throwError "compiler limits must be positive"
   pure (mkNatLit value)
 
+/-- UTF-8 bytes of one request of the wire protocol. The frontend refuses to
+write a larger request (`E_LIMIT`, #740), and the kernel refuses to read one
+(`E_PROTOCOL`). -/
+def requestBytes : Nat := compiler_limit% "requestBytes"
 def typeNesting : Nat := compiler_limit% "typeNesting"
 def sourceNesting : Nat := compiler_limit% "sourceNesting"
 def namespaceNesting : Nat := compiler_limit% "namespaceNesting"

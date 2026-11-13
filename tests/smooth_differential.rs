@@ -1675,7 +1675,13 @@ fn observations() -> Int {",
         )),
         "E_DUPLICATE",
     );
-    assert!(stderr.contains("collision"), "{stderr}");
+    // The second `use` has the place of the error, and the first a note (#747).
+    assert!(
+        stderr.contains(
+            "main.vast:19:1: E_DUPLICATE: 'Skew' is already the name of an import of this module"
+        ) && stderr.contains("main.vast:18:1: note: first declaration is here"),
+        "{stderr}"
+    );
     // A metric named by path is that metric: evidence for the other metric
     // with the same short name does not certify it, and the message tells
     // the two apart by their full names.

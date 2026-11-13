@@ -12,7 +12,7 @@ states the limits that the construct meets in ordinary use, and
 | Kind | Bounds | Examples | Code |
 | --- | --- | --- | --- |
 | Nesting | The depth of a construct inside constructs of its kind | Nested expressions, types and branches, modules inside modules, a chain of package dependencies, the levels of a polynomial expression | `E_LIMIT` |
-| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements and the `value` blocks of resource functions, the occurrences, the declarations and the steps of a contraction tree | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_RESOURCE_TYPE` for the views of one `initialized` contract; `E_TENSOR_TREE` for a contraction tree |
+| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements and the `value` blocks of resource functions, the records of the writes to an allocation, the occurrences, the declarations and the steps of a contraction tree | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_RESOURCE_TYPE` for the views of one `initialized` contract; `E_TENSOR_TREE` for a contraction tree |
 | Size of a number | The digits or the bits of a number that the checker computes with | A literal of a polynomial expression, an entry of a Gram matrix, a position in a constraint of a family, an integer of a storage type, the numbers of a layout, the dimension of an axis of a tensor, an entry of a metric of a numerical map | `E_LIMIT`; `E_RESOURCE_LIMIT` for an integer of a storage type; `E_RESOURCE_LAYOUT` for a layout; `E_TENSOR` for an axis; `E_NUMERICAL_METRIC` for an entry of a metric |
 | Size of data | The bytes of an input, of an allocation or of a space | One input file, all inputs of a program, one allocation, one static space | `E_LIMIT` for inputs; `E_RESOURCE_OVERFLOW` for an allocation; `E_NUMERICAL_TYPE` for a space |
 | Work budget | The units of work of one check | The elaboration of a program, the dispatch table of a generic, the resolution of names, the checking of resource functions, the exact algebra of a declaration, the query of the initialized cells of a view | `E_LIMIT`; `E_RESOURCE_LIMIT` for the expansion of resource calls; `E_RESOURCE_INIT` for the initialization query |
@@ -29,11 +29,13 @@ Rules:
   chapter of the construct gives another code. The table gives the codes of
   each kind, and the next seven rules name the chapters with other codes.
 - A program beyond a limit on the statements, the `value` blocks, the
-  parameters, the calls or the integers of resource functions is an error
-  (`E_RESOURCE_LIMIT`).
+  parameters, the calls or the integers of resource functions, or on the
+  records of the writes to one allocation, is an error (`E_RESOURCE_LIMIT`).
   [Resource functions](../storage/resource-programs.md#resource-functions) and
   [Storage types](../storage/resource-programs.md#storage-types) give the
-  limits on statements, `value` blocks and integers. A resource function also
+  limits on statements, `value` blocks and integers, and
+  [Resource statements](../storage/resource-programs.md#resource-statements)
+  the limit on the records of writes. A resource function also
   has a limit on its parameters and on its owned results, a call has the same
   limit on its arguments and results, and a chain of calls of resource
   functions has a limit on its depth. The work budget of the checking of
@@ -79,10 +81,12 @@ Rules:
   that exceeds it.
 - Some limit diagnostics point to no construct. A diagnostic for a limit on
   the inputs as a whole, or on a chain of package dependencies, has no place.
-  The diagnostic for the budget on the work of the names of the whole program
-  has the place `FILE:1:1`. The diagnostic for the number of indexed
-  declarations has the place of the first declaration beyond the limit, and
-  the two other budgets of name resolution have the place of a path or of a
+  The diagnostics for the budget on the work of the names of the whole
+  program and for the size of the
+  [request](../appendix/limits.md#request) of the program have the place
+  `FILE:1:1`. The diagnostic for the number of indexed declarations has the
+  place of the first declaration beyond the limit, and the two other budgets
+  of name resolution have the place of a path or of a
   `use` declaration.
   [Diagnostics](diagnostics.md#diagnostics-without-a-place-of-their-own)
   describes both forms.
@@ -98,15 +102,12 @@ nesting limit admits there:
 {{#include ../../examples/reject/limits/nested-parentheses.stderr}}
 ```
 
-> **Implementation note.** Two bounds of the compiler have diagnostics that
-> no rule of the Reference gives. The kernel refuses a request of the wire
-> protocol beyond a largest size (`E_PROTOCOL`), and a program within the
-> limits on its inputs can make such a request. A write beyond the limit on
-> the records that the checker keeps of the initialized cells of one
-> allocation has the code `E_RESOURCE_STATE`.
-> [Request](../appendix/limits.md#request) and
-> [Resource functions](../appendix/limits.md#resource-functions) of
-> Appendix D describe both bounds and name the issues that track them.
+> **Implementation note.** The frontend writes a program as one request of
+> the wire protocol, and the request of a program within the limits on its
+> inputs can be larger than the kernel reads. The frontend rejects such a
+> program with the limit on the size of a request (`E_LIMIT`) before the
+> kernel runs, as [Request](../appendix/limits.md#request) of Appendix D
+> says.
 
 ## Source limits and limits of the checked program
 

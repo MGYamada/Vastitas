@@ -49,14 +49,24 @@ Protocols 8 and 9 reconstruct named resource source through the combined package
 There is a 4096-node global plan budget as well as a 4096 traversal-depth bound.
 Both arms consume the node budget. Every allocation's initialization metadata
 has a 4096-node audit budget, checked before traversing its full history.
-Repeated writes of an already initialized region reuse its guarantee; identical
+Repeated writes of an already initialized region reuse its guarantee. A write
+whose footprint is one interval of whole cells and that continues the
+canonical interval record of the last write, at either end, extends that
+record, so that consecutive single-cell stores leave one node. Identical
 branch guarantees share their history, and an empty guarantee annihilates a
 branch intersection. A write in only one arm leaves the other arm's unchanged
-history; two disjoint writes over the same history retain exactly that common
-history. These rules prevent repeated single-cell branch writes from doubling
-the history at each join. Overlapping or more complex histories still use an
-explicit intersection under the same bound; a join that exceeds it reports
-`E_RESOURCE_LIMIT: branch join initialization metadata budget exceeded`.
+history. Two writes over the same history leave that history when they are
+disjoint, the contained write's history when one contains the other, and the
+history with their common interval when both are intervals. A write in one
+arm beside an interval that the other arm extended leaves the history with
+the interval before the extension. These rules prevent repeated single-cell
+branch writes from doubling the history at each join. Overlapping or more
+complex histories still use an explicit intersection under the same bound; a
+join that exceeds it reports
+`E_RESOURCE_LIMIT: branch join initialization metadata budget exceeded`. A
+write that exceeds it reports
+`E_RESOURCE_LIMIT: write initialization metadata budget exceeded: the record of the writes to one allocation holds at most 4096 nodes`
+before the audit of the reconstructed state, which checks the bound again.
 These are metadata bounds, not limits on buffer elements. This normalization
 bounds initialization metadata only. The reconstructed indexes below are
 another computation of the whole-state audit. Their theorems are equations
@@ -182,7 +192,10 @@ Containment requires a whole-element offset difference even for contiguous
 views, then checks the interval. Containment of a padded
 rectangle additionally checks the row/column shift and compatible column grid;
 it never treats padding as initialized. A write records its actual rectangle,
-and a scalar store records only its single cell. Branch initialization is the
+and a scalar store records only its single cell. A write whose footprint is one
+interval and that continues the last record, when that record is the canonical
+one-column record of an interval (`Layout.cells`), replaces it with the record
+of the joined interval; a padded record is never extended. Branch initialization is the
 intersection of both exits. Entailment first tries exact rectangular containment.
 Its bounded fallback combines contiguous write intervals in any order, takes the
 common covered interval at branch joins, and checks padded requests column by
@@ -191,9 +204,10 @@ bounding interval. Every successful query implies coverage of the requested
 actual bytes through the same `StorageRegions.initialization_bytes` theorem.
 
 The query checks at most 4096 history nodes before any full traversal. Fallback
-interval advancement has a 65,536-node-visit budget, divided among requested
-columns; their count must fit that metadata-derived budget before constructing
-a range. Large dimensions and allocation capacity do not set the traversal
+interval advancement has a 65,536-node-visit budget: over a history of n nodes
+it takes at most 65,536 / n steps, divided among requested columns; their count
+must fit that metadata-derived budget before constructing a range. A history
+with fewer nodes therefore admits more steps, also for a padded request. Large dimensions and allocation capacity do not set the traversal
 budget. Exhaustion rejects conservatively. Combinations of padded write profiles
 that need stronger symbolic partition reasoning can still be rejected; this is
 not a complete geometric union solver. The existing rectangular path continues
@@ -351,7 +365,8 @@ transposed and empty layouts. It also checks moves, access modes, nested loans,
 branch joins, initialization, forged states, metadata budgets and a billion-by-
 billion layout and two-half initialization without expanding their elements.
 Small independent cell-set tests check real/complex write unions and branch
-intersections. For small layouts and histories, the explanation of a rejected
+intersections, and that merged interval records and joins through them hold
+the written bytes. For small layouts and histories, the explanation of a rejected
 read names a cell if and only if a cell of the view has an unwritten byte in
 that enumeration, and the named cell is the first such cell in physical order.
 Public source tests cover caller-owned padded output initialization
@@ -983,3 +998,10 @@ omits a check, and controlled-host acceptance against equivalent C/C++
   [Reconstructed audit indexes](#reconstructed-audit-indexes) and
   [Resource checking work](#storage-functions--resource-checking-work)
   describe the indexed audit and the work budget.
+- [#739](https://github.com/MGYamada/Vastitas/issues/739) reported that a
+  write beyond the budget of the initialization records failed the state
+  audit (`E_RESOURCE_STATE`), and that a read of 256 cells written by single
+  stores exceeded the query. It is fixed by the change for #739: the write
+  reports the limit, and consecutive stores extend one record.
+  [Layout and initialization](#layout-and-initialization) describes the
+  records.

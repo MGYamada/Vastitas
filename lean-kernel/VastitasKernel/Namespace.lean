@@ -188,9 +188,10 @@ structure Indexed extends Program where
   byOwner : Std.HashMap Owner Target
   byScope : Std.HashMap Scope (List Target)
   byPackage : Std.HashMap String PackageLookup
-  /-- Presentation only: the places of the declarations that the program does
-  not hold, the indexed declarations, for the diagnostic of a repeated owner. -/
-  locations : List (Owner × Span) := []
+  /-- The places of the declarations of `declarations` that `Program` does not
+  hold, such as `indexed` declarations. Diagnostics read them to point to a
+  declaration; no check decides acceptance with them. -/
+  indexedPlaces : List (Owner × Span) := []
 
 def ownerIndex (declarations : List Target) : Std.HashMap Owner Target :=
   declarations.foldr (fun target table => table.insert target.owner target) {}

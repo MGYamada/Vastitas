@@ -129,6 +129,40 @@ fn oversized_regular_input_is_rejected_before_parsing() {
     reject(&s, &["check", "large.vast"], "E_LIMIT: input");
 }
 
+/// #740: a source file of 11.9 MB, within the limits on inputs, makes a
+/// request of 1.14 GB, beyond the largest request that the kernel reads. The
+/// frontend reports the limit of the program before it starts the kernel,
+/// and it never holds the request. Ignored because the frontend still builds
+/// the whole program and counts its request: about 3 GB of memory and 30
+/// seconds in a debug build. The unit tests of `bounded_json` in
+/// `src/driver.rs` check the bound with a small one.
+#[test]
+#[ignore = "builds a request of more than 1 GiB"]
+fn request_bound_is_a_limit_of_the_program() {
+    let s = Scratch::empty("request size");
+    let sum = vec!["0"; 120].join("+");
+    let mut source = String::from("fn main() -> Int {\n");
+    for index in 0..47_000 {
+        source.push_str(&format!("let x{index} = {sum};\n"));
+    }
+    source.push_str("0\n}\n");
+    assert!(source.len() < 16 * 1024 * 1024);
+    s.write("big.vast", &source);
+    let output = cli()
+        .current_dir(&s.0)
+        .args(["check", "big.vast"])
+        .env("VASTITAS_KERNEL", s.0.join("absent backend"))
+        .output()
+        .unwrap();
+    let error = common::expect_code(&output, "E_LIMIT");
+    assert!(
+        error
+            .contains("big.vast:1:1: E_LIMIT: the request of the program exceeds 1073741824 bytes"),
+        "{error}"
+    );
+    assert!(!error.contains("E_BACKEND"), "{error}");
+}
+
 #[test]
 fn reused_source_bytes_are_charged_for_each_logical_module() {
     let s = Scratch::empty("total input size");

@@ -53,6 +53,8 @@ run_cmd do
       `VastitasBridge.AlgebraicGeometry.Kernel.pullbackHom_mk,
       `VastitasBridge.AlgebraicGeometry.Kernel.pullbackHom_compose,
       `VastitasBridge.AlgebraicGeometry.Kernel.pullbackHom_subst,
+      `VastitasBridge.AlgebraicGeometry.Kernel.Images.subst,
+      `VastitasBridge.AlgebraicGeometry.Kernel.Respects.subst,
       `VastitasBridge.AlgebraicGeometry.Kernel.specMap_compose,
       `VastitasBridge.AlgebraicGeometry.Kernel.images_eq_iff,
       `VastitasBridge.AlgebraicGeometry.Kernel.MorphismValid.bridge,

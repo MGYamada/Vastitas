@@ -99,17 +99,16 @@ Rules:
   which construct a diagnostic points to. Examples are
   [Static targets](../stage1b.md#static-targets) and the
   [diagnostics of resource programs](../storage/resource-programs.md#diagnostics).
-- In manifest mode, one error of the names of a module has the place of the
-  declaration of the module, and not of the construct inside it: a name that
-  a declaration of the module shares with an import or with a dependency
-  alias (`E_DUPLICATE`). The declaration of a module is its `mod` item in the
-  file of its parent module. For the root module of the root package, the
-  place is line 1, column 1 of the root source file.
-- Two items of one name have the place of the second item, and the message
-  names the item (`E_DUPLICATE`). This holds for an `indexed` declaration
-  too.
-- A reserved name of an item, an `indexed` declaration among them, has the
-  place of the name (`E_RESERVED`).
+- Two declarations of one name in one module have the place of the second
+  one in the file that holds them, whatever their kinds, and the message
+  names the declaration (`E_DUPLICATE`). In manifest mode a note points to
+  the first one. A `use` declaration and a `mod` item count as declarations.
+  A dependency alias of the package counts as a declaration of each of its
+  modules, before all others. A manifest declares it, so the diagnostic has
+  no note for it.
+- The diagnostic of a reserved name points to the name, in flat mode and in
+  manifest mode (`E_RESERVED`). This holds for the name of an `indexed`
+  declaration too.
 - An error of a type in the signature of a function has the place of the
   type when the type is an indexed type: the place of the path of its family.
   An integer literal at a parameter of a family that is not `natural` is
@@ -158,12 +157,13 @@ Rules:
   at this place. It reports an invalid
   [function type](types.md#function-types) there too, in the programs that
   the rule of function types names.
-- The budget on the work of the names of the whole program has this place
-  (`E_LIMIT`). The compiler counts this work over the program as a whole,
-  so no construct passes the bound. The two other budgets of name resolution
-  have the place of a path or of a `use` declaration that exceeds them, and
-  the limit on the number of indexed declarations has the place of the first
-  declaration beyond it.
+- Two limits have this place (`E_LIMIT`): the budget on the work of the
+  names of the whole program, and the size of the
+  [request](../appendix/limits.md#request) of the program. Each counts the
+  program as a whole, so no construct passes the bound. The two other
+  budgets of name resolution have the place of a path or of a `use`
+  declaration that exceeds them, and the limit on the number of indexed
+  declarations has the place of the first declaration beyond it.
 - The rules above name the cases that the chapters of the Reference state.
   Another diagnostic of the checker can have this place.
 

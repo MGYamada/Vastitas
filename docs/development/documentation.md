@@ -105,9 +105,13 @@ program as an item, a statement, an expression, a type or a resource
 statement, in flat mode and in manifest mode, and runs `vastitas check` on
 it. A derived text gives no `E_PARSE`, `E_LEX` or `E_UNSUPPORTED`, unless a
 rule of the Reference forbids it. `RULES` names each such rule with its
-section and its code, and a text that breaks a rule gives that code. Run it
-as `python3 scripts/check_grammar_derivations.py --compiler
-target/debug/vastitas` after a change of a Syntax block or of the parser.
+section and its codes. The first diagnostic of a text that breaks a rule has
+one of those codes, or it is an error of another class at or before the
+first place that breaks a rule, because the frontend checks some rules on
+names and types while it parses and stops at the first error. Run it as
+`python3 scripts/check_grammar_derivations.py --compiler
+target/debug/vastitas` after a change of a Syntax block or of the parser;
+`--seed` takes another fixed seed.
 
 The grammar summary is a generated chapter. After a change of a Syntax block,
 run `python3 scripts/grammar_summary.py --write` and commit the chapter with

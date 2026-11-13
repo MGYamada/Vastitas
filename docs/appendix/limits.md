@@ -340,6 +340,19 @@ rules.
 | `algebraTerms` | 512 | The terms of each polynomial of the two products of a frame and its declared inverse | A polynomial |
 | `algebraWork` | 8,000,000 | The units of work of expanding the entries of one frame and its inverse, and of computing the two products | A run |
 
+The kernel charges each product $pq$ of an entry of one matrix and an entry
+of the other $(t(p) + 1)\,w(p)\,w(q) + t(p) + 1$ units before it computes it.
+Here $t(p)$ is the number of terms of $p$, and $w(p)$ is the sum over the
+terms of $p$ of $1 + \lfloor (\lfloor \log_2 |a| \rfloor + \lfloor \log_2 b
+\rfloor) / 64 \rfloor$, for a coefficient $a/b$ in lowest terms. The charge
+bounds the steps of the product, which adds the products of the terms of $p$
+with $q$ to the sum of the earlier ones, one term of $p$ at a time. Adding a
+product $q$ to the sum $p$ of the earlier products of an entry costs
+$w(p) + w(q) + 1$ units. A frame whose
+products need more units is an error (`E_LIMIT`), and the kernel computes no
+product beyond the budget. The expansion of the entries is charged as in
+[Exact affine algebra](#exact-affine-algebra).
+
 These limits hold when the compiler checks a program. In an executable, the
 rational numbers of frame arrays and map arrays have no bound.
 

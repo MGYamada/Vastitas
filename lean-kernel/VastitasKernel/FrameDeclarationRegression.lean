@@ -354,7 +354,7 @@ private def invalidFrames : List (String × String × Source.Declaration × Stri
     "the declared inverse Q of the frame `frames::bad` on `frames::Plane` is not its inverse: P·Q ≠ I"),
   ("wrong number of entries", "WRONG_SIZE", frameDecl "bad" (some [[n 1, n 0], [n 1]]),
     "the frame `frames::bad` on the 2-dimensional object `frames::Plane` needs 2 entries in each column, " ++
-      "but column 2 has 1 entries") ]
+      "but column 2 has 1 entry") ]
 
 #eval check "every invalid frame of the reference model is E_FRAME with its own message"
   (invalidFrames.all fun (_, _, d, text) => rejects (with' [d]) "E_FRAME" text)
@@ -373,14 +373,20 @@ private def invalidFrames : List (String × String × Source.Declaration × Stri
     rejects (with' [frameDecl "bad" (some [[n 1, n 0], [n 0, n 1], [n 1, n 1]])]) "E_FRAME" "but it has 3" &&
     rejects (with' [frameDecl "bad" (some [[n 1]]) (object := "Pt")]) "E_FRAME"
       "the frame `frames::bad` on the 0-dimensional object `frames::Pt` needs 0 columns" &&
-    rejects (with' [frameDecl "bad" (some []) (object := "Line")]) "E_FRAME" "needs 1 columns")
+    rejects (with' [frameDecl "bad" (some []) (object := "Line")]) "E_FRAME"
+      "the frame `frames::bad` on the 1-dimensional object `frames::Line` needs 1 column, one for each frame vector, but it has 0")
 #eval check "a column of the wrong length is E_FRAME"
   (rejects (with' [frameDecl "bad" (some [[n 1, n 0, n 0], [n 0, n 1]])]) "E_FRAME" "but column 1 has 3 entries" &&
-    rejects (with' [frameDecl "bad" (some [[]]) (object := "Line")]) "E_FRAME" "but column 1 has 0 entries")
+    rejects (with' [frameDecl "bad" (some [[]]) (object := "Line")]) "E_FRAME"
+      "the frame `frames::bad` on the 1-dimensional object `frames::Line` needs 1 entry in each column, but column 1 has 0 entries" &&
+    rejects (with' [frameDecl "bad" (some [[n 1, n 0], [n 1]])]) "E_FRAME" "but column 2 has 1 entry")
 #eval check "a declared inverse of the wrong shape is E_FRAME"
-  (rejects (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0]])]) "E_FRAME"
-      ("the declared inverse of the frame `frames::bad` on the 2-dimensional object `frames::Plane` must have " ++
-        "the shape of the frame, 2 columns of 2 entries, but 1 columns") &&
+  (code (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0]])]) == "E_FRAME" &&
+    message (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0]])]) ==
+      "the declared inverse of the frame `frames::bad` on the 2-dimensional object `frames::Plane` must have " ++
+        "the shape of the frame, 2 columns of 2 entries, but 1 column" &&
+    rejects (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0], [n 0]])]) "E_FRAME"
+      "must have the shape of the frame, 2 columns of 2 entries, but column 2 has 1 entry" &&
     rejects (with' [frameDecl "bad" (some [[n 1, n 0], [c "x", n 2]]) (some [[n 1, n 0], [n 0, n 1, n 0]])])
       "E_FRAME" "must have the shape of the frame, 2 columns of 2 entries, but column 2 has 3 entries")
 #eval check "a frame at a family of another representation is E_FRAME"
@@ -620,6 +626,57 @@ private def expanded (coordinates : List String) (e : Source.PolyExpr) : Poly :=
     failure? (FrameDeclarations.checkMatrices 16 (placed 16 [((0, 1), g)]) (placed 16 [((1, 1), g)])) ==
       some (.work (.limit "work")) &&
     failure? (FrameDeclarations.checkMatrices 2 (placed 2 [((0, 1), f)]) (placed 2 [((0, 1), Poly.neg f)])) == none)
+/-! ## The charge of a product
+
+`polyMul` charges `productWork` before it computes `Poly.mul`: a bound of the
+steps of `Poly.mul`, which grow with the square of the terms of its left
+factor. `AlgebraBasis.mul` charged 456 units for the product of a 455-term
+polynomial and the constant 1, which takes about 10⁵ merge steps, so a frame
+of such products within its budget took 12 to 90 seconds (the Stage 4
+review, #759). -/
+
+/-- The coordinates `c0, …, c15` of `Big`. -/
+private def bigCoordinates : List String := (List.range 16).map fun i => s!"c{i}"
+
+/-- `(c0 + … + c11 + 1)^3`: 455 terms with small coefficients. -/
+private def cube : Poly :=
+  expanded bigCoordinates (.pow (.sum ((List.range 12).map (fun i => c s!"c{i}") ++ [n 1])) 3)
+
+/-- `(c12 + … + c15 + 1)^4`: 70 terms in the other coordinates. -/
+private def quartic : Poly :=
+  expanded bigCoordinates (.pow (.sum ((List.range 4).map (fun i => c s!"c{12 + i}") ++ [n 1])) 4)
+
+/-- The units charged by a run of `action` from `used` units, or `none` when
+it fails. -/
+private def charged {α : Type} (action : AlgebraBasis.Work α) (used : Nat := 0) : Option Nat :=
+  match action.run used with
+  | .ok (_, total) => some (total - used)
+  | .error _ => none
+
+#eval check "a frame product is charged productWork, a bound of the merge steps of Poly.mul"
+  (let one := Poly.one 16
+   cube.length == 455 && quartic.length == 70 &&
+    FrameDeclarations.productWork cube one == 456 * 455 + 456 &&
+    FrameDeclarations.productWork one cube == 2 * 455 + 2 &&
+    FrameDeclarations.productWork cube [] == 456 && FrameDeclarations.productWork [] cube == 1 &&
+    charged (FrameDeclarations.polyMul cube one) == some (456 * 455 + 456) &&
+    charged (FrameDeclarations.polyMul one cube) == some (2 * 455 + 2) &&
+    -- `AlgebraBasis.mul`, which Stage 2 and 3 use, charges less.
+    charged (AlgebraBasis.mul cube one) == some 456)
+#eval check "a frame product beyond the budget is E_LIMIT before it is computed"
+  (match (FrameDeclarations.polyMul cube (Poly.one 16)).run (Limits.algebraWork - 456 * 455) with
+    | .error (.limit "work") => true
+    | _ => false)
+#eval check "a frame whose first product is charged beyond the budget fails on work, not on terms"
+  -- `P = [[1, cube], [0, 1]]` and `Q = [[1, 0], [0, quartic]]`: `cube·quartic`
+  -- has 31,850 terms and is charged 456 · 455 · 70 + 456 units, more than
+  -- the budget, so it is never built.
+  (failure? (FrameDeclarations.checkMatrices 16 (placed 16 [((0, 1), cube)]) (placed 16 [((1, 1), quartic)])) ==
+      some (.work (.limit "work")) &&
+    456 * 455 * 70 + 456 > Limits.algebraWork)
+#eval check "a unipotent frame with one large entry is accepted within the budget"
+  (failure? (FrameDeclarations.checkMatrices 16 (placed 16 [((0, 8), cube)]) (placed 16 [((0, 8), Poly.neg cube)]))
+    == none)
 #eval check "Failure.code is E_LIMIT for the limits and E_FRAME otherwise"
   ([FrameDeclarations.Failure.dimension, .entry 0 0, .matrix, .work (.limit "work")].all (·.code == "E_LIMIT") &&
     [FrameDeclarations.Failure.shape false, .shape true, .constantInverse, .leftInverse, .rightInverse].all

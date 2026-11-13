@@ -1,1 +1,1 @@
-examples/reject/packages/dimension-module-import/main.vast:2:1: E_RESERVED: 'dimension' is reserved
+examples/reject/packages/dimension-module-import/main.vast:2:13: E_RESERVED: `dimension` is reserved for builtin geometry operations; choose another declaration or binding name

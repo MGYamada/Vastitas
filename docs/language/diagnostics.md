@@ -108,7 +108,10 @@ Rules:
   no note for it.
 - The diagnostic of a reserved name points to the name, in flat mode and in
   manifest mode (`E_RESERVED`). This holds for the name of an `indexed`
-  declaration and for the name of a module, `package` among them.
+  declaration, for the name of a module, `package` among them, and for the
+  name that a `use` binds. A `use` without `as` of a module, as in
+  `use units::dimension;`, binds the last name of its path, and the
+  diagnostic points to that name.
 - An error of an indexed type `F<…>` in a signature or in an annotation has
   the place of the path of its family. An integer literal at a parameter of
   the family that is not `natural` is such an error. An argument that is a

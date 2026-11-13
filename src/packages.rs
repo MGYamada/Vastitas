@@ -111,6 +111,12 @@ pub(crate) struct Import {
     pub alias: String,
     pub public: bool,
     pub span: Span,
+    /// The place of the name that a `use` without `as` binds, when that name
+    /// is a compatibility spelling: the parser cannot tell whether the path
+    /// names an `indexed` declaration, which may take it, or a module, which
+    /// may not (`reserved_module_uses`). Not part of the request.
+    #[serde(skip)]
+    pub deferred_name: Option<Span>,
 }
 
 #[derive(Debug, Serialize)]
@@ -604,6 +610,130 @@ impl Loader {
     }
 }
 
+/// The import paths of every module of the loaded packages: package source,
+/// then module path, then the alias of each `use` with its path. An alias
+/// keeps its first `use`, as the kernel's index does.
+type ModuleImports<'a> = HashMap<&'a str, HashMap<&'a [String], HashMap<&'a str, &'a [String]>>>;
+
+/// A module, as its package and its path.
+type ModuleTarget<'a> = (&'a Package, Vec<String>);
+
+/// A name that `use` binds is reserved in a `use` of a module (#759),
+/// and so is every compatibility spelling, which only an `indexed` declaration
+/// and a `use` without `as` of one may take. The parser cannot tell what the
+/// path of such a `use` names. Once every package is loaded, a path that names
+/// a module through modules, dependency aliases and imports is rejected here,
+/// with the diagnostic at the name. A path that names anything else, or that
+/// runs into a cycle of imports, is left to the kernel, which checks every
+/// `use` itself (`NamespaceChecker.validateWithWork`).
+fn reserved_module_uses(packages: &[Package], sources: &Sources) -> Result<(), String> {
+    let mut modules: ModuleImports = HashMap::new();
+    for package in packages {
+        let paths = modules.entry(package.source.as_str()).or_default();
+        for module in &package.modules {
+            let imports = paths.entry(module.path.as_slice()).or_default();
+            for import in &module.imports {
+                imports
+                    .entry(import.alias.as_str())
+                    .or_insert(import.path.as_slice());
+            }
+        }
+    }
+    let mut uses = UseTargets {
+        packages: packages.iter().map(|p| (p.source.as_str(), p)).collect(),
+        modules,
+        resolved: HashMap::new(),
+    };
+    for package in packages {
+        for module in &package.modules {
+            for import in &module.imports {
+                let Some(place) = import.deferred_name else {
+                    continue;
+                };
+                if uses.resolve(package, &module.path, &import.path).is_none() {
+                    continue;
+                }
+                frontend::check_binding_name(&import.alias, place)
+                    .map_err(|error| sources.diagnostic(&error.code, &error.message, error.span))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The modules that `use` paths name, as the kernel's `resolveAt` resolves
+/// them, restricted to modules. Visibility is not checked: a `use` that binds
+/// a reserved name is an error whether or not its target is visible, as for
+/// `use … as`. Each `use` is followed once, so the check is linear in the
+/// imports of the program.
+struct UseTargets<'a> {
+    packages: HashMap<&'a str, &'a Package>,
+    modules: ModuleImports<'a>,
+    /// The module that a `use` names, by package, module and alias, once it
+    /// is followed: `None` while it is followed, so a cycle of imports ends.
+    resolved: HashMap<(&'a str, &'a [String], &'a str), Option<ModuleTarget<'a>>>,
+}
+
+impl<'a> UseTargets<'a> {
+    /// The module that `path` names in the module `scope` of `package`, or
+    /// `None` when it names something else or runs into a cycle of imports.
+    fn resolve(
+        &mut self,
+        package: &'a Package,
+        scope: &[String],
+        path: &[String],
+    ) -> Option<ModuleTarget<'a>> {
+        let (first, rest) = path.split_first()?;
+        let (mut at, rest) = match first.as_str() {
+            "package" if !rest.is_empty() => ((package, Vec::new()), rest),
+            "self" => ((package, scope.to_vec()), rest),
+            "super" => {
+                let supers = path.iter().take_while(|name| *name == "super").count();
+                let parent = scope.len().checked_sub(supers)?;
+                ((package, scope[..parent].to_vec()), &path[supers..])
+            }
+            _ => match package.dependencies.iter().find(|d| &d.alias == first) {
+                Some(dependency) => {
+                    let target = *self.packages.get(dependency.target.as_str())?;
+                    ((target, Vec::new()), rest)
+                }
+                None => (self.member(package, scope, first)?, rest),
+            },
+        };
+        for name in rest {
+            at = self.member(at.0, &at.1, name)?;
+        }
+        Some(at)
+    }
+
+    /// The child module `name` of the module `scope` of `package`, or the
+    /// module that its `use` of alias `name` names. The kernel's `memberAt`
+    /// looks at the declarations of the scope first, and a module is one.
+    fn member(
+        &mut self,
+        package: &'a Package,
+        scope: &[String],
+        name: &str,
+    ) -> Option<ModuleTarget<'a>> {
+        let modules = self.modules.get(package.source.as_str())?;
+        let mut child = scope.to_vec();
+        child.push(name.to_owned());
+        if modules.contains_key(child.as_slice()) {
+            return Some((package, child));
+        }
+        let (&scope, imports) = modules.get_key_value(scope)?;
+        let (&alias, &path) = imports.get_key_value(name)?;
+        let key = (package.source.as_str(), scope, alias);
+        if let Some(target) = self.resolved.get(&key) {
+            return target.clone();
+        }
+        self.resolved.insert(key, None);
+        let target = self.resolve(package, scope, path);
+        self.resolved.insert(key, target.clone());
+        target
+    }
+}
+
 pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, Program), String> {
     let mut loader = Loader {
         sources: Sources::empty(),
@@ -615,6 +745,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         listings: HashMap::new(),
     };
     let root = loader.package(manifest)?;
+    reserved_module_uses(&loader.packages, &loader.sources)?;
     // The kernel bounds the `value` blocks of all resource functions of the
     // program, and refuses more without a place in the source. The frontend
     // counts the same blocks in the order of the request and reports the

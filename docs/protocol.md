@@ -270,9 +270,9 @@ reference links these sections.
 **Protocol-9 frame forms.** Frame declarations, the families of frames, frame
 arrays and frame matrices, the frame parameter and the frame primitives are
 validated optional fields of protocol 9. Any module that uses one selects
-protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`, with the
-message "frame declarations require protocol 9" for a declaration, a family
-representation and a parameter.
+protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`; for a
+declaration, a family representation and a parameter the decoder's message
+says that frame declarations require protocol 9.
 
 - **Family representation.** A family may use the string `"frame"` (the
   frames of a smooth object, `Frame<X>`), `"frame_vector"` (the arrays of
@@ -324,11 +324,11 @@ functions are those of `lean-kernel/VastitasKernel/IndexedDeclarationProtocol.le
 | Frame parameter | `parameter` |
 | Natural field of a primitive | `naturalField`, through `wireArgument` |
 
-The wire never carries the rows of a frame matrix, a variance, a frame array,
-a frame matrix of a map or a transition. It never carries the inverse of a
-constant frame either: the kernel computes it, and a constant frame that
-declares an inverse is an error (`E_FRAME`), even when the inverse is
-correct. A frame primitive carries the names of its frames only. The kernel
+The wire never carries a variance, a frame array, the frame matrix of a map
+or a transition. It never carries the inverse of a constant frame either: the
+kernel computes it, and a constant frame that declares an inverse is an
+error (`E_FRAME`), even when the inverse is correct. A frame primitive
+carries the paths of the frames it names, never their data. The kernel
 copies the object, the matrix and the inverse of each named frame into the
 binding, and the variance of an encoding or a decoding from its fiber family.
 The declaration audit checks that each copy equals its declaration. A
@@ -348,8 +348,8 @@ diagnostics reference covers frame and object mismatches of a call.
 **Protocol-9 physical-dimension forms.** The declarations of
 `nature::dimension` and their families are validated optional fields of
 protocol 9. Any module that uses one selects protocol 9. Protocols 7 and 8
-reject each form with `E_PROTOCOL`, with the message "physical dimension
-declarations require protocol 9".
+reject each form with `E_PROTOCOL`, and the decoder's message says that
+physical dimension declarations require protocol 9.
 
 - **Family representation.** A family may use the string `"reading"` or
   `"physical_metric"`.

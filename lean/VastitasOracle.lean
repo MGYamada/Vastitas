@@ -23,6 +23,7 @@ import VastitasOracle.FrameCore
 import VastitasOracle.FrameWeakening
 import VastitasOracle.NatureDimension
 import VastitasOracle.NatureWeakening
+import VastitasOracle.FrameAcceptance
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

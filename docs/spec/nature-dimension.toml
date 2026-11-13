@@ -1,0 +1,163 @@
+# Properties of nature::dimension. docs/specifications.md defines the format;
+# scripts/check_spec.py checks this file and generates nature-dimension.md.
+
+[spec]
+id = "dimension"
+title = "nature::dimension"
+subject = "nature::dimension"
+description = """
+The properties of the physical interpretation of a std metric, from ADR 0002
+§3. A reading of a smooth affine object assigns a quantity kind, with a
+dimension, to each coordinate. A physical interpretation of a metric g under
+a reading writes each entry g_ij as a rational times a product of scales with
+integer exponents. The term g_ij dxⁱ dxʲ has the dimension of g_ij plus the
+dimensions of xⁱ and xʲ. The kernel checks an interpretation; the check is a
+syntactic dimension check and establishes no physical law.
+"""
+
+[property."dimension.consistent"]
+title = "An accepted interpretation is consistent"
+subject = "nature::dimension::PhysicalMetric"
+statement = """
+An accepted physical interpretation of a metric g of an object X under a
+reading of X evaluates, with the magnitudes of its scales, to the Gram matrix
+of g. Every term with a nonzero entry has one dimension, and a declared value
+is that dimension.
+"""
+specified_in = "[ADR 0002 §3, Contract and jurisdiction](adr/0002-nature-dimension.md#contract-and-jurisdiction)"
+example = """
+On the chart C = Affine(2)[x, t] read as (x: Length, t: Time), the scales
+l0 = 3 of Length and t0 = 2 of Time interpret G = diag(1/9, 1/4) as
+gram((l0^-2, 0), (0, t0^-2)), which is dimensionless. Its gradient of
+x + t at (1, 2) is (9, 4).
+"""
+example_test = "tests/nature_dimension.rs::the_scaled_metric_is_accepted_and_its_gradient_is_nine_four"
+
+[property."dimension.consistent".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureDimension.physicalMetric_sound",
+  "VastitasOracle.NatureDimension.valid_physicalMetric",
+]
+premises = [
+  "for `valid_physicalMetric`: the checked declaration environment is valid and declares the physical metric",
+]
+assumes = ["rust-frontend"]
+note = """
+`physicalMetric_sound` reads the kernel's check `checkPhysicalMetric`: an
+accepted interpretation `Interprets` its metric, which states the evaluation
+to the Gram matrix and the one dimension of the nonzero terms.
+"""
+
+[property."dimension.consistent".claim.test]
+status = "tested"
+evidence = [
+  "tests/nature_dimension.rs::the_scaled_metric_is_accepted_and_its_gradient_is_nine_four",
+  "tests/nature_dimension.rs::scaled_interpretations_must_match_the_metric_and_its_dimensions",
+  "VastitasKernel.NatureRegression",
+]
+
+[property."dimension.euclid-rejected"]
+title = "The Euclidean metric of a length and a time"
+subject = "nature::dimension::PhysicalMetric"
+statement = """
+Under a reading of a coordinate of dimension L and a coordinate of dimension
+T, two distinct base dimensions, the Euclidean metric has no physical
+interpretation: dx² has dimension L² and dt² has dimension T². The
+interpretation is an error (`E_DIMENSION`).
+"""
+specified_in = "[ADR 0002 §3, Contract and jurisdiction](adr/0002-nature-dimension.md#contract-and-jurisdiction)"
+example = """
+`interpret(E, reading = phys, euclidean)` for the Euclidean metric E of the
+chart C read as (x: Length, t: Time) is an error (`E_DIMENSION`) that names
+L^2 and T^2.
+"""
+example_test = "tests/nature_dimension.rs::euclid_under_length_and_time_is_rejected_naming_l2_and_t2"
+
+[property."dimension.euclid-rejected".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureDimension.euclidean_sound",
+  "VastitasOracle.NatureDimension.euclidean_rejected",
+]
+premises = [
+  "for `euclidean_rejected`: the reading reads the two coordinates as quantities of the dimensions L and T, and L ≠ T",
+]
+assumes = ["rust-frontend"]
+
+[property."dimension.euclid-rejected".claim.test]
+status = "tested"
+evidence = [
+  "tests/nature_dimension.rs::euclid_under_length_and_time_is_rejected_naming_l2_and_t2",
+  "VastitasKernel.NatureRegression",
+]
+
+[property."dimension.kinds"]
+title = "Kinds are not dimensions"
+subject = "nature::dimension::Wavelength"
+statement = """
+`normalized(x₁: s₁, …)` needs each scale sᵢ to be of the quantity kind of its
+coordinate xᵢ. A scale of another kind is an error (`E_DIMENSION`), even when
+the dimensions agree.
+"""
+specified_in = "[ADR 0002 §3, Contract and jurisdiction](adr/0002-nature-dimension.md#contract-and-jurisdiction)"
+example = """
+`normalized(x: w0, t: t0)` with the scale w0 = 3 of Wavelength on the Length
+coordinate x is an error (`E_DIMENSION`), and so is `normalized(e: tau)` with
+a Torque scale on an Energy coordinate. `normalized(x: l0, t: t0)` is
+accepted.
+"""
+example_test = "tests/nature_dimension.rs::normalized_needs_the_kind_of_each_coordinate"
+
+[property."dimension.kinds".claim.oracle]
+status = "proved-oracle"
+evidence = ["VastitasOracle.NatureDimension.normalized_rejected_of_kind"]
+premises = [
+  "the scale named for coordinate i is of a quantity kind other than the kind that the reading gives coordinate i",
+]
+assumes = ["rust-frontend"]
+
+[property."dimension.kinds".claim.test]
+status = "tested"
+evidence = [
+  "tests/nature_dimension.rs::normalized_needs_the_kind_of_each_coordinate",
+  "VastitasKernel.NatureRegression",
+]
+
+[property."dimension.std-independent"]
+title = "std does not depend on nature"
+subject = "nature::dimension"
+statement = """
+Nature declarations change neither the validity of a std metric and its
+evidence nor the validity and the values of `flat` and `sharp`. The generated
+code of a program is the same with and without its nature declarations.
+"""
+specified_in = "[ADR 0002 §3, Contract and jurisdiction](adr/0002-nature-dimension.md#contract-and-jurisdiction)"
+example = """
+The program that computes the gradient (9, 4) under G generates the same Lean
+source with its reading, scales and interpretation, without them, and
+without the nature package.
+"""
+example_test = "tests/nature_dimension.rs::generated_code_is_byte_identical_without_the_nature_declarations"
+
+[property."dimension.std-independent".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureWeakening.metric_nature_free",
+  "VastitasOracle.NatureWeakening.flat_sharp_nature_free",
+]
+premises = [
+  "the declaration ids of the environment with the nature declarations are unique, as in every valid environment",
+]
+assumes = ["rust-frontend"]
+note = """
+The theorems state validity and evaluation. That the generated code is byte
+identical is tested, not proved.
+"""
+
+[property."dimension.std-independent".claim.test]
+status = "tested"
+evidence = [
+  "tests/nature_dimension.rs::generated_code_is_byte_identical_without_the_nature_declarations",
+  "tests/nature_dimension.rs::euclid_under_length_and_time_is_rejected_naming_l2_and_t2",
+]

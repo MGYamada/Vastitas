@@ -33,6 +33,8 @@ standard library hold of it:
   in §9 records the dependency and its conditions, and
   [Verification boundaries](../verification.md) states the theorems and their
   assumptions.
+- Admitted and Planned: the module `std::geometry::frame`, which §11 admits
+  for the finite profile of frames and change of frame.
 - Planned: the families of §4 that the standard library does not hold, among
   them `std::algebra`, `std::analysis` and `std::linalg`. The tracker
   [#160](https://github.com/MGYamada/Vastitas/issues/160) follows them.
@@ -46,6 +48,7 @@ standard library hold of it:
 - **Implementation tracker:** [#160](https://github.com/MGYamada/Vastitas/issues/160)
 - **Dependency boundary:** §9 records the merged local-kernel-only oracle and the separate mathematical bridge, and its amendment of 2026-11-12 records that the bridge reads the kernel and the oracle one way. [#285](https://github.com/MGYamada/Vastitas/issues/285) tracks the broader alignment work.
 - **Stage 3 admission:** §10 admits `std::differential`, `std::geometry::metric` and `std::geometry::smooth::affine` for the finite smooth affine profile ([#604](https://github.com/MGYamada/Vastitas/issues/604)).
+- **Stage 4 admission:** §11 admits `std::geometry::frame` for the finite profile of frames and change of frame ([#759](https://github.com/MGYamada/Vastitas/issues/759)). [ADR 0002](0002-nature-dimension.md) admits `nature::dimension` for the same profile.
 
 ## Context and decision
 
@@ -687,6 +690,179 @@ what is implemented, tested and proved.
   - custom rules, forward mode, the Hessian-vector product, complex AD and
     checkpointing beyond save-all and recompute-all, as listed above.
 
+### 11. Ordered frames of smooth affine objects (amendment, 2026-11-13)
+
+This amendment admits the module `std::geometry::frame` under the
+`std::geometry` family of §4, through the §8 procedure. It serves the finite
+profile of historical Stage 4. It admits these contracts; it does not claim
+that they are implemented or proved. The History section at the end of this
+chapter links the tracker and the issues that this section refers to.
+
+#### Terms
+
+- A *frame* of a smooth affine object `X` of dimension `n` (§10) is an ordered
+  basis of every tangent fiber `TₚX`. It is given by `n` column vectors in the
+  coordinate frame of `X`, whose entries are polynomials with exact rational
+  coefficients in the coordinates of `X`. `P(p)` is the matrix whose column `j`
+  is the vector `j` at the point `p`.
+- A frame is *constant* when every entry of `P` is a constant, and
+  *polynomial* otherwise. The *coordinate frame* is `P = I`.
+- A *frame array* is the list of coordinates of a vector or covector at a
+  point in a frame, together with that point.
+- A *map array* is the matrix of a linear map between two tangent fibers in a
+  source frame and a target frame, together with both points.
+
+#### Contract and jurisdiction
+
+- **Frames.**
+  - Each declaration introduces one frame. Two declarations with the same
+    columns introduce different frames.
+  - A frame must be invertible at every point. For a constant frame the
+    executable kernel computes `P⁻¹` and checks it again. A polynomial frame
+    names its inverse `Q`, and the executable kernel checks `P·Q = Q·P = I` as
+    identities of polynomials. A frame that is invertible on part of `ℝⁿ` only
+    is outside this amendment.
+  - A frame is a global trivialization of the tangent bundle of `ℝⁿ`. Locally
+    free module sheaves, of which this is the trivial case, are outside this
+    amendment.
+- **Arrays.**
+  - The frame array of a vector `v` at `p` in the frame `b` is `P(p)⁻¹v`. The
+    frame array of a covector `α` at `p` is `P(p)ᵀα`, its coordinates in the
+    dual coframe. Decoding is the inverse map.
+  - The map array of a smooth map `F: X → Y` at `p` in the frames `b` of `X`
+    and `c` of `Y` is `P_c(F(p))⁻¹ · DF(p) · P_b(p)`, where `DF(p)` is the
+    Jacobian of §10. This operation is a differentiation, so its contract
+    belongs to `std::differential` (§10). The module supplies the frames it
+    uses.
+  - The transition from `b` to `b′`, two frames of one object, at `p` is
+    `P_b′(p)⁻¹ · P_b(p)`.
+  - Contraction in frames: `apply` (`M·a`), `coapply` (`Mᵀ·a`), `compose`
+    (`M′·M`) and the pairing of a coframe array with a frame array in the same
+    frame.
+- **Identities.** Frames, objects and variance are static: a mismatch is a
+  static error. Points are run-time values: arrays over different points give
+  the failure value ⊥ of §10.
+- **Metrics.** No frame operation reads a metric. The Gram matrix of a metric
+  `g` in the frame `b` is the map array of `flat` with `g` between `b` and its
+  dual coframe, `P(p)ᵀ·G·P(p)`.
+- **Split between Core, `std` and backends.**
+  - Core supplies a declaration-valued frame index, as it supplies domain and
+    marker indices. Core gains no rule keyed by a type name.
+  - `std` declares the families `Frame`, `Coords`, `CoCoords` and `FrameMap`.
+  - The application declares the frame primitives with their frames, as it
+    declares `flat` and `sharp` with their metric. Each primitive embeds its
+    frame data, and the executable kernel checks every embedded copy against
+    the declaration.
+  - The executable kernel computes every matrix exactly. There is no
+    selectable backend.
+
+#### Laws
+
+- Decoding a frame array gives back the vector or covector it encodes, and
+  encoding a decoded array gives back the array.
+- The transition from `b` to `b` is the identity, and the transition from `b`
+  to `b″` is the transition from `b′` to `b″` after the transition from `b` to
+  `b′`.
+- Change of frames: the map array in `(b′, c′)` is the transition from `c` to
+  `c′` at `F(p)`, after the map array in `(b, c)`, after the transition from
+  `b′` to `b` at `p`.
+- The pairing of a covector with a vector does not depend on the frame in
+  which both are encoded.
+- Chain rule in frames: the map array of `G ∘ F` in `(b, d)` is the map array
+  of `G` at `F(p)` in `(c, d)` after the map array of `F` at `p` in `(b, c)`.
+- Gram transport: `G_b′ = Tᵀ·G_b·T`, where `T` is the transition from `b′` to
+  `b`.
+
+#### Admission argument
+
+- **A, intrinsic denotation.** A frame array is the coordinate vector of a
+  vector in a basis, and a map array is the matrix of `DF(p)` in two bases. Both
+  are unique given the bases and do not depend on the algorithm that computes
+  them.
+- **B, foundational target.** Coordinates in a basis, the matrix of a linear
+  map and the change of basis are the basic constructions of linear algebra,
+  not approximations of another object.
+- **C, no hidden numerical choice.** Arithmetic is exact over the rationals.
+  The profile selects no frame, orthogonalizes nothing and uses no tolerance.
+  Invertibility is checked exactly, never sampled.
+- **D, contract.** Frames, objects and variance are explicit and static;
+  basepoints are checked at run time. The validity of a polynomial frame holds
+  at every point because its inverse is checked as a polynomial identity. The
+  planned acceptance map must keep three kinds of claim apart:
+  - structural facts about the runtime and the checks, whose proofs belong in
+    the oracle;
+  - the meaning in Mathlib (bases, `LinearMap.toMatrix`, `BilinForm.toMatrix`),
+    whose proofs belong in the mathlib bridge;
+  - tests, which are evidence but not proofs.
+
+#### Execution and evidence profile
+
+- **Executable profile.** Frames of smooth affine objects of dimension at most
+  16; constant frames within the entry and matrix bounds of metrics;
+  polynomial frames whose products stay within the work budget of the exact
+  algebra; rational points. The map array is computed from the reverse pass of
+  §10, one run per row.
+- **Scalars.** Exact rationals stay inside the runtime and surface as
+  `Pair<Int>` observations.
+- **Wire.** The profile uses protocol 9 only. Protocols 7 and 8 are an error
+  (`E_PROTOCOL`). The inverse of a constant frame never comes from the wire.
+- **Independent reference.** The executable kernel must match a fixture
+  generated from a reference model of frames, arrays, transitions, map arrays
+  and Gram matrices in the real plane, with constant and polynomial frames.
+- **Trust.** Native tests are evidence, not proofs. Native refinement of the
+  runtime is not claimed.
+
+#### Outside this admission
+
+- Realizing exact frame arrays in floating-point storage, and the buffers of
+  the numerical profile.
+- Frame primitives that the standard library exports generically over frames.
+- Frames that are invertible on an open part of `ℝⁿ` only, and frames of
+  locally free sheaves.
+- Pushforward of vectors along a map and forward mode (§6).
+- Moore–Penrose inverses, kernels, images and orthogonal projections.
+- Exterior powers and the Hodge star.
+- Optimized choices of representation and their validated lowering.
+- Physical readings of frames and arrays.
+
+#### Negative tests
+
+The Stage 4 profile must reject each of the following with its own diagnostic.
+The Stage 4 acceptance map records the test that runs each case; a case
+without a test there remains proposed.
+
+- **Frames:** a singular frame; a wrong number or length of columns; a frame of
+  an object that is not a smooth affine object; an inverse declared for a
+  constant frame; a wrong inverse; a polynomial frame without an inverse
+  (`E_FRAME`).
+- **Identities:** an array in another frame of the same object; a frame of
+  another object of the same dimension; a frame array where a fiber is
+  required; a coframe array where a frame array is required; a transition
+  between frames of different objects (`E_ENDPOINT`).
+- **Inputs and transport:** protocols 7 and 8, a wire payload that carries the
+  inverse of a constant frame or a transition, and tampered Core.
+
+The profile must also show failure semantics: arrays over different points
+give ⊥.
+
+#### Compatibility and public-name audit
+
+- **Names.** The families are `Frame<X>`, `Coords<b>`, `CoCoords<b>` and
+  `FrameMap<b, c>`. The declaration form is `columns(…)`, with `coordinates`
+  for the coordinate frame and `inverse = columns(…)` for a polynomial frame.
+  The diagnostic code is `E_FRAME`.
+- **Other meanings of frame and basis.** A frame here is a linear frame, not
+  a frame of open sets in topology. It is nominally distinct from the
+  protocol-8 numerical `Basis`; neither converts to the other.
+- **`std::linalg`.** The family of §4 stays Planned and keeps finite linear
+  maps, tensor ports and contractions in general. This module is the case of
+  tangent fibers of smooth affine objects.
+- **Packages.** The module belongs to the geometry package. The geometry
+  package still does not depend on `std::differential`: the application
+  declares the map array with its frames.
+- **Versions and migration.** The profile adds no wire protocol version.
+  Existing programs keep their meaning.
+
 ## Consequences, validation and migration
 
 - A *thick* foundational `std` can cover algebra, topology/geometry, analysis, infinite-dimensional quantum mechanics and the mathematical formulation of equations, while a potentially infinite space of approximation algorithms remains in the ecosystem.
@@ -741,6 +917,33 @@ what is implemented, tested and proved.
 - **Names and protocol.** `MetricSpace` belongs to
   [#382](https://github.com/MGYamada/Vastitas/issues/382), and the single-protocol policy
   to [#533](https://github.com/MGYamada/Vastitas/issues/533).
+
+§11 was adopted for the Stage 4 tracker
+[#759](https://github.com/MGYamada/Vastitas/issues/759). Its references are:
+
+- **Basis adequacy.** The finite exact slice of
+  [#518](https://github.com/MGYamada/Vastitas/issues/518); its lowering
+  witnesses and LLVM validation stay there and with
+  [#417](https://github.com/MGYamada/Vastitas/issues/417).
+- **Linear algebra.** Change of basis for maps in
+  [#66](https://github.com/MGYamada/Vastitas/issues/66) and
+  [#91](https://github.com/MGYamada/Vastitas/issues/91), and contraction in
+  [#69](https://github.com/MGYamada/Vastitas/issues/69). Modules, kernels and
+  images belong to [#259](https://github.com/MGYamada/Vastitas/issues/259).
+- **Bundles.** Locally free sheaves, Grassmannians and torsors belong to
+  [#261](https://github.com/MGYamada/Vastitas/issues/261); opens and gluing
+  to [#606](https://github.com/MGYamada/Vastitas/issues/606).
+- **Metrics.** Gram transport serves
+  [#264](https://github.com/MGYamada/Vastitas/issues/264), which keeps
+  position-dependent metrics.
+- **Outside the admission:** forward mode,
+  [#161](https://github.com/MGYamada/Vastitas/issues/161); exterior powers and
+  the Hodge star, [#246](https://github.com/MGYamada/Vastitas/issues/246) and
+  [#375](https://github.com/MGYamada/Vastitas/issues/375); a monoidal model,
+  [#201](https://github.com/MGYamada/Vastitas/issues/201) and
+  [#387](https://github.com/MGYamada/Vastitas/issues/387); frames of open sets
+  in topology, [#98](https://github.com/MGYamada/Vastitas/issues/98);
+  performance, [#222](https://github.com/MGYamada/Vastitas/issues/222).
 
 The amendment of 2026-11-12 in §9, on the implementation correspondence in
 the bridge, records a dependency that commit `449b02d` introduced on

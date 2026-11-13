@@ -136,6 +136,16 @@ about the same accepted Vastitas Core in both bases. An optimized change of
 representation also needs a validated lowering, including its floating-point
 and ownership obligations. [Basis adequacy, #518](https://github.com/MGYamada/Vastitas/issues/518) · [Metric operations, #264](https://github.com/MGYamada/Vastitas/issues/264)
 
+**Status.** Planned as a finite, checked profile over QQ (tracker #759,
+[acceptance map](../stage4-acceptance.md)). It has ordered frames of smooth
+affine objects, constant or polynomial in the point, with arrays that keep
+their frames and points; change of frame; map arrays of accepted smooth maps;
+and a minimal `nature::dimension` that rejects `dx² + dt²` under a length and
+a time coordinate. Bundles beyond global frames, Grassmannians, a monoidal
+model and the floating-point realization of the arrays stay in their issues.
+[ADR 0001 §11](../adr/0001-mathematics-first-stdlib.md#11-ordered-frames-of-smooth-affine-objects-amendment-2026-11-13)
+and [ADR 0002](../adr/0002-nature-dimension.md) admit the two modules.
+
 ## Stage 5. Spectral observations
 
 The retired draft's lazy eigenvalue and SVD descriptions allow a program to request

@@ -123,8 +123,10 @@ in place of A–D:
     coordinate and a time coordinate is rejected: `dx²` has dimension `L²` and
     `dt²` has dimension `T²`.
 - **Independence of `std`.** A `nature` declaration never changes the validity
-  or the generated code of a `std` declaration or of any binding. The `std`
-  metric stays valid mathematics whatever reading a program declares.
+  or the generated code of a `std` declaration or of any binding, except
+  through program-wide limits (such as the number of declarations) and name
+  clashes. The `std` metric stays valid mathematics whatever reading a
+  program declares.
 - **Split between Core, `std` and `nature`.** The exponent arithmetic is a
   declaration rule of the executable kernel, like the check of metric
   evidence. It is not a domain checker and not a `std` module. `nature`

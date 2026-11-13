@@ -3,8 +3,12 @@ import VastitasOracle.SmoothMetricWeakening
 set_option autoImplicit false
 
 /-! **Nature weakening (C17; ADR 0002 "Independence of `std`" and
-"Evidence").** Adding `nature` declarations changes no other declaration's
-validity, no binding's validity and no evaluation.
+"Evidence").** Adding `nature` declarations changes the validity of no
+non-nature declaration (one that `NatureDimension` does not check), no
+binding's validity and no evaluation. Nature declarations can change each
+other's validity, which these theorems do not cover: `checkBaseDimension`
+counts every base dimension, so a 17th base dimension makes every base
+dimension invalid.
 
 A *nature declaration* (`NatureDeclaration`) is a base dimension, a quantity,
 a reading, a scale, a physical metric, or a family with the `reading` or

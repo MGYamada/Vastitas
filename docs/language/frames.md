@@ -15,6 +15,12 @@ of `indexed` declarations are in
 [Notation](notation.md) explains the Syntax blocks, and the
 [glossary](../appendix/glossary.md) defines the terms.
 
+A path in a declaration or a binding of this chapter that resolves to
+nothing is an error of [resolution](names-and-paths.md#resolution)
+(`E_NAME`), before the rules of this chapter apply. A rule below that
+requires a path to name a declaration of some kind, such as a frame
+declaration, concerns a path that names a declaration of another kind.
+
 The examples quote the tested package
 [`examples/packages/frames/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/frames),
 whose executable prints `42`. Each rejected program is a package on the

@@ -5,10 +5,10 @@ affine object and its metrics a physical meaning: base dimensions, quantity
 kinds, readings, scales and physical interpretations. A
 **physical dimension** is a product of integer powers of base dimensions,
 such as L · T⁻¹, or the dimensionless dimension 1. It is unrelated to the
-dimension of an object, the number of its coordinates. The declarations of
-this chapter are checked declarations that no other declaration and no
-primitive reads, so they change neither the validity nor the generated code
-of the rest of a program. [Smooth affine declarations](smooth-declarations.md)
+dimension of an object, the number of its coordinates. The kernel checks the
+declarations of this chapter, and no declaration of another chapter and no
+primitive reads them. So they change neither the validity nor the generated
+code of the rest of a program. [Smooth affine declarations](smooth-declarations.md)
 defines smooth affine objects and their metrics, and
 [Indexed declarations](../indexed-source.md) gives the general rules of
 `indexed` declarations. [Notation](notation.md) explains the Syntax blocks,
@@ -387,7 +387,8 @@ A program imports the declarations of the module one by one, as in
 [reserved name](lexical-structure.md#reserved-names) for the name that a
 `use` declaration binds, so a plain `use nature::dimension;` is an error
 (`E_RESERVED`). A `use` declaration imports one path, as
-[`use` declarations](modules.md#use-declarations) says.
+[`use` declarations](modules.md#use-declarations) says, so a grouped import
+such as `use nature::dimension::{Length, Time};` is an error (`E_PARSE`).
 
 Example, from `main.vast`:
 

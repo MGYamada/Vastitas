@@ -92,7 +92,7 @@ then gives a code and a message. Here the mistake is at line 1, column 20,
 where `true` begins. The code `E_TYPE` names the kind of rule that the
 program breaks, and the message says what the rule expects there. `build`
 reports the same diagnostic and writes no executable.
-[Chapter 12](diagnostics-and-cli.md) explains how to read diagnostics.
+[Chapter 13](diagnostics-and-cli.md) explains how to read diagnostics.
 
 ## A program with geometry
 

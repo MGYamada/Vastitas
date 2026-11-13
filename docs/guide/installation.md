@@ -20,7 +20,7 @@ for every check and every build, and it accepts no program without it.
 
 Vastitas runs on macOS and Linux. Building some numerical programs also
 needs the OpenBLAS library. You can leave it until
-[Chapter 11](numerical.md).
+[Chapter 12](numerical.md).
 
 ## Build from a checkout
 

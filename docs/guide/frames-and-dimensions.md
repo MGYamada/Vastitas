@@ -248,7 +248,7 @@ Each observation adds its code to 42 when it fails:
 > in the wrong frame or over the wrong object before the compiler generates
 > code. It checks that the frame vectors of every frame form a basis at every
 > point, and it checks every physical interpretation against its metric and
-> its reading. The [proofs](../verification.md) cover the frames, encoding
+> its reading. The [proofs](../verification.md#frames-and-physical-dimensions) cover the frames, encoding
 > and decoding, transitions, the matrices of maps and their composites, the
 > pairing in frames, Gram matrices in frames, and the meaning of a physical
 > interpretation. They also cover the comparison of frames and matrices with

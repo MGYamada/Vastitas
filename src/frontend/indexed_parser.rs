@@ -4,6 +4,16 @@ use crate::indexed::{
     Primitive, WireValue,
 };
 
+/// The frame that `frame_encode`, `frame_decode` and `frame_vector` embed,
+/// with what its missing keyword's diagnostic says is needed.
+const FRAME: &[(&str, &str)] = &[("frame", "an explicit frame")];
+
+/// The source and target frames of `frame_matrix` and `frame_transition`.
+const ENDPOINTS: &[(&str, &str)] = &[
+    ("source", "an explicit source frame"),
+    ("target", "an explicit target frame"),
+];
+
 impl Parser {
     fn indexed_coefficient(&mut self) -> Result<indexed::CoefficientKind, Diagnostic> {
         let token = self.peek().clone();
@@ -277,6 +287,57 @@ impl Parser {
         Ok(values)
     }
 
+    /// The paths `fields`, then each frame of `frames` as `, keyword = path`
+    /// (`indexed_selection`), in wire order. Each keyword is the name of its
+    /// wire field. A missing keyword is `E_PARSE` naming it; no frame is
+    /// ever chosen by default.
+    fn indexed_framed(
+        &mut self,
+        op: &str,
+        fields: &[&'static str],
+        frames: &[(&'static str, &str)],
+    ) -> Result<Vec<(&'static str, WireValue)>, Diagnostic> {
+        let mut values = self.indexed_paths(fields)?;
+        for &(keyword, what) in frames {
+            let frame = self.indexed_selection(op, keyword, what)?;
+            values.push((keyword, WireValue::Path(frame)));
+        }
+        Ok(values)
+    }
+
+    /// `, n`: the natural field `field` of `op`, an unsigned decimal literal
+    /// with at most as many digits as the kernel's decoder admits
+    /// (`algebraCoefficientDigits`), as for polynomial literals. The digits
+    /// go to the wire as written.
+    fn indexed_natural(
+        &mut self,
+        op: &str,
+        field: &'static str,
+    ) -> Result<(&'static str, WireValue), Diagnostic> {
+        self.expect(",")?;
+        let token = self.advance();
+        match token.kind {
+            TokenKind::Number(digits) if digits.len() <= crate::limits::MAX_ALGEBRA_DIGITS => {
+                Ok((field, WireValue::Natural(digits)))
+            }
+            TokenKind::Number(_) => Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "the {field} of `{op}` has at most {} decimal digits",
+                    crate::limits::MAX_ALGEBRA_DIGITS
+                ),
+                token.span,
+            )),
+            _ => Err(diagnostic(
+                "E_PARSE",
+                format!(
+                    "the {field} of `{op}` is a natural literal, written as an unsigned integer"
+                ),
+                token.span,
+            )),
+        }
+    }
+
     /// One arm per surface form. An op that the generated table
     /// (`src/primitive_table.rs`) does not have is the unknown-contract
     /// diagnostic before any argument is parsed, so an arm for such an op is
@@ -376,6 +437,36 @@ impl Parser {
                 fields.push(("evidence", WireValue::Path(evidence)));
                 fields
             }
+            // Stage 4 (#759): the frames that a frame primitive embeds are
+            // named explicitly, `frame =`, or `source =` and `target =`.
+            "frame_encode" => self.indexed_framed("frame_encode", &["fiber", "coords"], FRAME)?,
+            "frame_decode" => self.indexed_framed("frame_decode", &["coords", "fiber"], FRAME)?,
+            "frame_vector" => {
+                self.indexed_framed("frame_vector", &["coords", "map_family"], FRAME)?
+            }
+            "frame_matrix" => {
+                self.indexed_framed("frame_matrix", &["map_family", "frame_map"], ENDPOINTS)?
+            }
+            "frame_transition" => {
+                self.indexed_framed("frame_transition", &["map_family", "frame_map"], ENDPOINTS)?
+            }
+            "frame_apply" => self.indexed_paths(&["frame_map", "coords"])?,
+            "frame_coapply" => self.indexed_paths(&["frame_map", "cocoords"])?,
+            "frame_compose" => self.indexed_paths(&["frame_map"])?,
+            "frame_pairing" => self.indexed_paths(&["cocoords", "coords"])?,
+            "frame_component" => {
+                let mut fields = self.indexed_paths(&["family"])?;
+                fields.push(self.indexed_natural("frame_component", "index")?);
+                fields
+            }
+            "frame_entry" => {
+                let mut fields = self.indexed_paths(&["frame_map"])?;
+                fields.push(self.indexed_natural("frame_entry", "row")?);
+                fields.push(self.indexed_natural("frame_entry", "column")?);
+                fields
+            }
+            "frame_equal" => self.indexed_paths(&["family"])?,
+            "frame_at" => self.indexed_paths(&["family", "map_family"])?,
             // A table op without a surface arm; the per-entry test fails.
             _ => return Err(unknown()),
         };
@@ -1111,8 +1202,8 @@ impl Parser {
     }
 
     /// `, keyword = path`: the metric or evidence that `flat` and `sharp`
-    /// name explicitly, and the reading that `interpret` names. No default is
-    /// ever selected.
+    /// name explicitly, the reading that `interpret` names, and the frames
+    /// of the frame primitives. No default is ever selected.
     fn indexed_selection(
         &mut self,
         operation: &str,
@@ -1370,6 +1461,25 @@ mod tests {
             "sharp",
             "sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible)",
         ),
+        ("frame_encode", "frame_encode(Tangent, Coords, frame = b)"),
+        ("frame_decode", "frame_decode(Coords, Tangent, frame = b)"),
+        ("frame_vector", "frame_vector(Coords, Smooth, frame = b)"),
+        (
+            "frame_matrix",
+            "frame_matrix(Smooth, FrameMap, source = b, target = c)",
+        ),
+        (
+            "frame_transition",
+            "frame_transition(Smooth, FrameMap, source = b, target = b2)",
+        ),
+        ("frame_apply", "frame_apply(FrameMap, Coords)"),
+        ("frame_coapply", "frame_coapply(FrameMap, CoCoords)"),
+        ("frame_compose", "frame_compose(FrameMap)"),
+        ("frame_pairing", "frame_pairing(CoCoords, Coords)"),
+        ("frame_component", "frame_component(Coords, 0)"),
+        ("frame_entry", "frame_entry(FrameMap, 0, 1)"),
+        ("frame_equal", "frame_equal(Coords)"),
+        ("frame_at", "frame_at(Coords, Smooth)"),
     ];
 
     /// The one indexed declaration of a package module.
@@ -1402,7 +1512,9 @@ mod tests {
 
     /// Every family of the table has a surface form, and each form parses
     /// to a binding with exactly the family's fields, which serializes as
-    /// `{"op": …}` followed by those fields in table order.
+    /// `{"op": …}` followed by those fields in table order. A declaration of
+    /// the binding needs protocol 9 exactly when the table says the family is
+    /// algebraic.
     #[test]
     fn every_table_entry_parses_to_its_wire_fields() {
         let table: Vec<&str> = indexed::primitive_families()
@@ -1433,6 +1545,336 @@ mod tests {
             }
             expected.push('}');
             assert_eq!(serde_json::to_string(&binding).unwrap(), expected);
+            let body = DeclarationBody::Primitive { binding };
+            assert_eq!(body.is_algebraic(), family.algebraic, "{snippet}");
+        }
+    }
+
+    /// The frame primitives of Stage 4 (#759), each with the binding that
+    /// the kernel's protocol-9 decoder reads: the positional fields in wire
+    /// order, the frames under their keywords, and natural fields as bare
+    /// decimal strings. Every one is algebraic, so it selects protocol 9.
+    #[test]
+    fn every_frame_primitive_parses_to_its_wire_record() {
+        let widest = "9".repeat(crate::limits::MAX_ALGEBRA_DIGITS);
+        let widest_source = format!("indexed primitive wide = frame_component(Coords, {widest});");
+        let cases: Vec<(&str, Value)> = vec![
+            (
+                "indexed primitive enc_b = frame_encode(Tangent, Coords, frame = b);",
+                json!({ "op": "frame_encode", "fiber": p("Tangent"), "coords": p("Coords"),
+                    "frame": p("b") }),
+            ),
+            (
+                "indexed primitive coenc_b = frame_encode(Cotangent, CoCoords, frame = b);",
+                json!({ "op": "frame_encode", "fiber": p("Cotangent"), "coords": p("CoCoords"),
+                    "frame": p("b") }),
+            ),
+            (
+                "indexed primitive dec_b = frame_decode(Coords, Tangent, frame = b);",
+                json!({ "op": "frame_decode", "coords": p("Coords"), "fiber": p("Tangent"),
+                    "frame": p("b") }),
+            ),
+            (
+                "indexed primitive vec_b = frame_vector(Coords, Smooth, frame = b);",
+                json!({ "op": "frame_vector", "coords": p("Coords"), "map_family": p("Smooth"),
+                    "frame": p("b") }),
+            ),
+            (
+                "indexed primitive matrix_bc = frame_matrix(Smooth, FrameMap, source = b, target = c);",
+                json!({ "op": "frame_matrix", "map_family": p("Smooth"),
+                    "frame_map": p("FrameMap"), "source": p("b"), "target": p("c") }),
+            ),
+            (
+                "indexed primitive move_bb2 = frame_transition(Smooth, FrameMap, source = b, target = b2);",
+                json!({ "op": "frame_transition", "map_family": p("Smooth"),
+                    "frame_map": p("FrameMap"), "source": p("b"), "target": p("b2") }),
+            ),
+            (
+                "indexed primitive apply = frame_apply(FrameMap, Coords);",
+                json!({ "op": "frame_apply", "frame_map": p("FrameMap"), "coords": p("Coords") }),
+            ),
+            (
+                "indexed primitive coapply = frame_coapply(FrameMap, CoCoords);",
+                json!({ "op": "frame_coapply", "frame_map": p("FrameMap"),
+                    "cocoords": p("CoCoords") }),
+            ),
+            (
+                "indexed primitive then = frame_compose(FrameMap);",
+                json!({ "op": "frame_compose", "frame_map": p("FrameMap") }),
+            ),
+            // `pair` is a builtin, reserved as a declaration name.
+            (
+                "indexed primitive pairing = frame_pairing(CoCoords, Coords);",
+                json!({ "op": "frame_pairing", "cocoords": p("CoCoords"), "coords": p("Coords") }),
+            ),
+            (
+                "indexed primitive first = frame_component(Coords, 0);",
+                json!({ "op": "frame_component", "family": p("Coords"), "index": "0" }),
+            ),
+            (
+                "indexed primitive entry_01 = frame_entry(FrameMap, 0, 1);",
+                json!({ "op": "frame_entry", "frame_map": p("FrameMap"), "row": "0",
+                    "column": "1" }),
+            ),
+            (
+                "indexed primitive same_coords = frame_equal(Coords);",
+                json!({ "op": "frame_equal", "family": p("Coords") }),
+            ),
+            (
+                "indexed primitive over = frame_at(Coords, Smooth);",
+                json!({ "op": "frame_at", "family": p("Coords"), "map_family": p("Smooth") }),
+            ),
+            // Qualified paths, and the digits of a natural as written, up to
+            // the decoder's bound.
+            (
+                "indexed primitive move = frame_transition(geo::Smooth, geo::FrameMap, source = geo::b, target = super::c);",
+                json!({ "op": "frame_transition",
+                    "map_family": { "path": ["geo", "Smooth"] },
+                    "frame_map": { "path": ["geo", "FrameMap"] },
+                    "source": { "path": ["geo", "b"] }, "target": { "path": ["super", "c"] } }),
+            ),
+            (
+                "indexed primitive late = frame_entry(FrameMap, 007, 10);",
+                json!({ "op": "frame_entry", "frame_map": p("FrameMap"), "row": "007",
+                    "column": "10" }),
+            ),
+            (
+                &widest_source,
+                json!({ "op": "frame_component", "family": p("Coords"), "index": widest }),
+            ),
+        ];
+        for (source, expected) in cases {
+            let declaration = parse_declaration(source)
+                .unwrap_or_else(|error| panic!("`{source}` does not parse: {error:?}"));
+            assert!(declaration.body.is_algebraic(), "{source}");
+            let record = without_spans(serde_json::to_value(&declaration.body).unwrap());
+            assert_eq!(
+                record,
+                json!({ "kind": "primitive", "binding": expected }),
+                "{source}"
+            );
+            assert_eq!(
+                &source[declaration.span.start..declaration.span.end],
+                source
+            );
+        }
+    }
+
+    /// Malformed frame primitives are rejected at the offending token: a
+    /// missing frame keyword, a natural field that is not a natural literal,
+    /// and a wrong number of fields. Each case names the token of the place
+    /// and a text that starts there and occurs once in the source, so a `,`
+    /// or `)` place is the one meant.
+    #[test]
+    fn malformed_frame_primitives_are_rejected_at_their_place() {
+        let long = "9".repeat(crate::limits::MAX_ALGEBRA_DIGITS + 1);
+        let long_index = format!("indexed primitive p = frame_component(Coords, {long});");
+        let long_column = format!("indexed primitive p = frame_entry(FrameMap, 0, {long});");
+        let frame = "`frame_encode` needs an explicit frame: write `frame = …`";
+        let source_frame = "`frame_matrix` needs an explicit source frame: write `source = …`";
+        let index =
+            "the index of `frame_component` is a natural literal, written as an unsigned integer";
+        let cases: Vec<(&str, &str, &str, &str, &str)> = vec![
+            // The frames are named by their keywords, in wire order.
+            (
+                "indexed primitive p = frame_encode(Tangent, Coords, b);",
+                "E_PARSE",
+                frame,
+                ",",
+                ", b)",
+            ),
+            (
+                "indexed primitive p = frame_encode(Tangent, Coords);",
+                "E_PARSE",
+                frame,
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = frame_decode(Coords, Tangent, using = b);",
+                "E_PARSE",
+                "`frame_decode` needs an explicit frame: write `frame = …`",
+                ",",
+                ", using",
+            ),
+            (
+                "indexed primitive p = frame_vector(Coords, Smooth);",
+                "E_PARSE",
+                "`frame_vector` needs an explicit frame: write `frame = …`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = frame_encode(Tangent, Coords, frame b);",
+                "E_PARSE",
+                "expected `=`, found `b`",
+                "b",
+                "b)",
+            ),
+            (
+                "indexed primitive p = frame_matrix(Smooth, FrameMap, b, c);",
+                "E_PARSE",
+                source_frame,
+                ",",
+                ", b,",
+            ),
+            (
+                "indexed primitive p = frame_matrix(Smooth, FrameMap, target = c, source = b);",
+                "E_PARSE",
+                source_frame,
+                ",",
+                ", target",
+            ),
+            (
+                "indexed primitive p = frame_matrix(Smooth, FrameMap, source = b);",
+                "E_PARSE",
+                "`frame_matrix` needs an explicit target frame: write `target = …`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = frame_transition(Smooth, FrameMap, source = b, c);",
+                "E_PARSE",
+                "`frame_transition` needs an explicit target frame: write `target = …`",
+                ",",
+                ", c)",
+            ),
+            // Without its frame map, `source` is read as the frame map, and
+            // the source frame is missing.
+            (
+                "indexed primitive p = frame_matrix(Smooth, source = b, target = c);",
+                "E_PARSE",
+                source_frame,
+                "=",
+                "= b,",
+            ),
+            (
+                "indexed primitive p = frame_encode(Tangent, Coords, frame = b, frame = c);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", frame = c",
+            ),
+            // Natural fields are unsigned decimal literals.
+            (
+                "indexed primitive p = frame_component(Coords, x);",
+                "E_PARSE",
+                index,
+                "x",
+                "x)",
+            ),
+            (
+                "indexed primitive p = frame_component(Coords, -1);",
+                "E_PARSE",
+                index,
+                "-",
+                "-1",
+            ),
+            (
+                "indexed primitive p = frame_component(Coords, index = 0);",
+                "E_PARSE",
+                index,
+                "index",
+                "index =",
+            ),
+            (
+                "indexed primitive p = frame_entry(FrameMap, frac(1, 2), 0);",
+                "E_PARSE",
+                "the row of `frame_entry` is a natural literal, written as an unsigned integer",
+                "frac",
+                "frac",
+            ),
+            (
+                "indexed primitive p = frame_entry(FrameMap, 0, 1.5);",
+                "E_PARSE",
+                "the column of `frame_entry` is a natural literal, written as an unsigned integer",
+                "1.5",
+                "1.5",
+            ),
+            (
+                &long_index,
+                "E_LIMIT",
+                "the index of `frame_component` has at most 64 decimal digits",
+                &long,
+                &long,
+            ),
+            (
+                &long_column,
+                "E_LIMIT",
+                "the column of `frame_entry` has at most 64 decimal digits",
+                &long,
+                &long,
+            ),
+            // Too few or too many fields.
+            (
+                "indexed primitive p = frame_apply(FrameMap);",
+                "E_PARSE",
+                "expected `,`, found `)`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = frame_compose(FrameMap, FrameMap);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", FrameMap)",
+            ),
+            (
+                "indexed primitive p = frame_pairing(CoCoords, Coords, Coords);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", Coords)",
+            ),
+            (
+                "indexed primitive p = frame_component(Coords);",
+                "E_PARSE",
+                "expected `,`, found `)`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = frame_entry(FrameMap, 0);",
+                "E_PARSE",
+                "expected `,`, found `)`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = frame_entry(FrameMap, 0, 1, 2);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", 2)",
+            ),
+            (
+                "indexed primitive p = frame_at(Coords);",
+                "E_PARSE",
+                "expected `,`, found `)`",
+                ")",
+                ");",
+            ),
+        ];
+        for (source, code, message, place, context) in cases {
+            let error = parse_declaration(source).expect_err(source);
+            assert_eq!(
+                (error.code.as_str(), error.message.as_str()),
+                (code, message),
+                "{source}"
+            );
+            assert_eq!(
+                &source[error.span.start..error.span.end],
+                place,
+                "{source}: {error:?}"
+            );
+            assert_eq!(source.matches(context).count(), 1, "{source}: {context}");
+            assert!(context.starts_with(place), "{source}: {context}");
+            assert_eq!(
+                source.find(context),
+                Some(error.span.start),
+                "{source}: {error:?}"
+            );
         }
     }
 

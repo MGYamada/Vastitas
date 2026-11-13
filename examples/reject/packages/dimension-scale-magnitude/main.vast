@@ -1,0 +1,13 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Length;
+use nature::dimension::Time;
+
+// ANCHOR: declaration
+// A scale is a positive magnitude.
+indexed scale l0 = frac(-1, 2) of Length;
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

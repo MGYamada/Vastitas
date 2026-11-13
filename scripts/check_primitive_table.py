@@ -31,6 +31,7 @@ KINDS = {
     "coordinate": "Coordinate",
     "polynomial": "Polynomial",
     "pullback_mode": "PullbackMode",
+    "natural": "Natural",
 }
 NAME = re.compile(r"[a-z][a-z0-9_]*")
 # rustfmt's defaults (there is no rustfmt.toml) lay out an array of two or more

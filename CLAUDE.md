@@ -9,10 +9,10 @@ in Git. No release/publication histories.
 
 ## Scope and evidence
 
-- Develop `.vast`; status: [README](README.md), tests and
+- Develop `.vast`; status: [README](README.md), tests,
   [acceptance](docs/stage1-acceptance.md)/[completion](docs/stage1-completion.md).
-  Stage 1b is not full Stage 1 completion. Stage 2: [affine acceptance](docs/stage2-acceptance.md).
-  Stage 3: [smooth acceptance](docs/stage3-acceptance.md).
+  Stage 1b is not full Stage 1 completion. Stages 2-4: [affine](docs/stage2-acceptance.md),
+  [smooth](docs/stage3-acceptance.md), [frames](docs/stage4-acceptance.md).
 - [Roadmap](docs/guide/historical-roadmap.md) follows current issues. Separate
   implemented, tested, proved and planned work.
 - **Fast like C is the primary goal.** Follow [storage ownership](docs/storage-ownership.md):

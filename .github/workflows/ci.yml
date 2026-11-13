@@ -116,6 +116,7 @@ jobs:
             /tests/
             /examples/
             /stdlib/
+            /nature/
             /scripts/
             /lean-kernel/
             /docs/appendix/grammar.md

@@ -51,7 +51,9 @@ rendered operands, in the vocabulary of `Lowering`, and rejects any other
 operand list with the one arity error; a variadic entry (the two integer
 points, and the components after a fiber vector's point) renders any number of
 operands, and the checked operand count fixes the number. Five entries share
-literals, which a generated module declares once and their calls name. A
+literals, which a generated module declares once and their calls name, and so
+do the frame entries that apply a frame: they share its matrix `P` or its
+inverse `Q` (`frame_k`). A
 relative constant shares its basis: the module declares each distinct basis
 once as `basis_k`, and every map over it, relative or smooth, names it. A
 relative or smooth constant shares its map (`map_k`), `flat` the Gram matrix

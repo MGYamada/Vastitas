@@ -632,7 +632,7 @@ def check_grammar(source, chapters):
 # The source files that the productions must derive from SourceFile: every
 # .vast file under these directories, apart from what the recorded
 # diagnostics of a rejected program decide.
-PARSED_SOURCES = ("examples", "stdlib/src")
+PARSED_SOURCES = ("examples", "stdlib/src", "nature")
 REJECTED = "examples/reject"
 # A file of a rejected program with one of these codes must not parse.
 PARSE_CODES = frozenset({"E_PARSE", "E_LEX"})

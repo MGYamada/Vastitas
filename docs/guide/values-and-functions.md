@@ -181,7 +181,7 @@ how to repair the program:
 the type of a block without a final expression, such as the empty body of
 `fn nothing() -> Unit {}`. Functions have no floating-point numbers,
 characters or strings. Floating-point numbers appear only in the storage of
-[Chapter 10](storage.md).
+[Chapter 11](storage.md).
 
 ## Names and source text
 

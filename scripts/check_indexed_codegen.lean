@@ -11,6 +11,7 @@ import VastitasKernel.SmoothObjectRegression
 import VastitasKernel.CotangentRegression
 import VastitasKernel.MetricFormRegression
 import VastitasKernel.ReverseCoreRegression
+import VastitasKernel.FrameRegression
 
 open VastitasKernel.Indexed.Core
 
@@ -61,7 +62,8 @@ def main (arguments : List String) : IO Unit := do
       ("source_declarations", sourceFixture), ("source_types", typeFixture),
       ("smooth_programs", VastitasKernel.Indexed.SmoothObjectRegression.smoothFixture),
       ("smooth_cotangent_programs", VastitasKernel.Indexed.CotangentRegression.cotangentFixture),
-      ("smooth_metric_programs", VastitasKernel.Indexed.MetricFormRegression.metricFixture)] ++ bodies do
+      ("smooth_metric_programs", VastitasKernel.Indexed.MetricFormRegression.metricFixture),
+      ("frame_programs", VastitasKernel.Indexed.FrameRegression.frameFixture)] ++ bodies do
     let .ok checked := Typing.checkModule module true
       | throw (IO.userError s!"fixture {name} rejected")
     let .ok source := Codegen.generate checked

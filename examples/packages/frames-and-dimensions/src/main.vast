@@ -1,0 +1,271 @@
+mod profile;
+
+// The Stage 4 acceptance program (#759). At p = (2, 1) the map
+// f(x, y) = (x^2 + y, xy) has the Jacobian ((4, 1), (1, 2)) and the value
+// f(p) = (5, 2). Its matrix in the frames (b, c) is ((4, 6), (-3/2, -1/2)),
+// and in (b2, c2) it is ((2/3, -1), (3, 6)): the arrays differ, and both
+// decode to the Jacobian. The kernel checks the declarations of the profile,
+// the frames and the physical interpretations included, before code
+// generation. The observations below cover the runtime rows of the #759
+// checklist: C1, C2, C4 to C12 and C18. Each has its own failure code, 1 to
+// 36, so `main` prints 42 only when all of them hold.
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::smooth::affine::Line;
+use std::geometry::smooth::affine::compose_smooth;
+use std::geometry::smooth::affine::line_at;
+use std::geometry::smooth::affine::same_vector;
+use std::geometry::smooth::affine::same_covector;
+use std::geometry::smooth::affine::tangent_over;
+use std::geometry::smooth::affine::lies_over;
+use std::geometry::smooth::affine::pairing;
+use std::geometry::frame::Coords;
+use std::geometry::frame::CoCoords;
+use std::geometry::frame::FrameMap;
+use std::differential::pullback;
+use std::differential::differential;
+use profile::Plane;
+use profile::Image;
+use profile::C;
+use profile::b;
+use profile::b2;
+use profile::c;
+use profile::c2;
+use profile::r;
+use profile::xy;
+use profile::uv;
+use profile::l;
+use profile::z;
+use profile::f;
+use profile::g;
+use profile::shear;
+use profile::flatten;
+use profile::to_pt;
+use profile::Skew;
+use profile::SkewInvertible;
+use profile::G;
+use profile::GInvertible;
+use profile::h;
+
+// Points from runtime integers, in coordinate order; Pt has one point.
+indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+indexed primitive image_at = smooth_int_point(Smooth, Image, Pt);
+indexed primitive chart_at = smooth_int_point(Smooth, C, Pt);
+indexed primitive pt_at = smooth_int_point(Smooth, Pt, Pt);
+// Vectors and covectors from their coordinates.
+indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+indexed primitive dplane = fiber_vector(Cotangent, Smooth, Plane);
+indexed primitive dimage = fiber_vector(Cotangent, Smooth, Image);
+indexed primitive vx = fiber_component(Tangent, C, x);
+indexed primitive vt = fiber_component(Tangent, C, t);
+
+// Arrays in a frame, and back. Each encoding and decoding names its frame.
+indexed primitive enc_b = frame_encode(Tangent, Coords, frame = b);
+indexed primitive dec_b = frame_decode(Coords, Tangent, frame = b);
+indexed primitive coenc_b = frame_encode(Cotangent, CoCoords, frame = b);
+indexed primitive codec_b = frame_decode(CoCoords, Cotangent, frame = b);
+indexed primitive enc_b2 = frame_encode(Tangent, Coords, frame = b2);
+indexed primitive dec_b2 = frame_decode(Coords, Tangent, frame = b2);
+indexed primitive coenc_b2 = frame_encode(Cotangent, CoCoords, frame = b2);
+indexed primitive codec_b2 = frame_decode(CoCoords, Cotangent, frame = b2);
+indexed primitive enc_r = frame_encode(Tangent, Coords, frame = r);
+indexed primitive dec_r = frame_decode(Coords, Tangent, frame = r);
+indexed primitive coenc_r = frame_encode(Cotangent, CoCoords, frame = r);
+indexed primitive codec_r = frame_decode(CoCoords, Cotangent, frame = r);
+indexed primitive enc_xy = frame_encode(Tangent, Coords, frame = xy);
+indexed primitive coenc_xy = frame_encode(Cotangent, CoCoords, frame = xy);
+indexed primitive coenc_c = frame_encode(Cotangent, CoCoords, frame = c);
+indexed primitive coenc_c2 = frame_encode(Cotangent, CoCoords, frame = c2);
+// Arrays from a point and integer components.
+indexed primitive vec_b = frame_vector(Coords, Smooth, frame = b);
+indexed primitive vec_b2 = frame_vector(Coords, Smooth, frame = b2);
+indexed primitive vec_r = frame_vector(Coords, Smooth, frame = r);
+indexed primitive vec_c = frame_vector(Coords, Smooth, frame = c);
+indexed primitive vec_c2 = frame_vector(Coords, Smooth, frame = c2);
+indexed primitive vec_z = frame_vector(Coords, Smooth, frame = z);
+indexed primitive covec_b = frame_vector(CoCoords, Smooth, frame = b);
+indexed primitive covec_z = frame_vector(CoCoords, Smooth, frame = z);
+
+// The matrix of the tangent map of a map at a point, in a pair of frames.
+indexed primitive matrix_bc = frame_matrix(Smooth, FrameMap, source = b, target = c);
+indexed primitive matrix_b2c2 = frame_matrix(Smooth, FrameMap, source = b2, target = c2);
+indexed primitive matrix_xyuv = frame_matrix(Smooth, FrameMap, source = xy, target = uv);
+indexed primitive matrix_cl = frame_matrix(Smooth, FrameMap, source = c, target = l);
+indexed primitive matrix_bl = frame_matrix(Smooth, FrameMap, source = b, target = l);
+indexed primitive matrix_br = frame_matrix(Smooth, FrameMap, source = b, target = r);
+indexed primitive matrix_bxy = frame_matrix(Smooth, FrameMap, source = b, target = xy);
+indexed primitive matrix_zb = frame_matrix(Smooth, FrameMap, source = z, target = b);
+indexed primitive matrix_bz = frame_matrix(Smooth, FrameMap, source = b, target = z);
+// The change between two frames of one object at a point.
+indexed primitive move_bb = frame_transition(Smooth, FrameMap, source = b, target = b);
+indexed primitive move_bb2 = frame_transition(Smooth, FrameMap, source = b, target = b2);
+indexed primitive move_b2b = frame_transition(Smooth, FrameMap, source = b2, target = b);
+indexed primitive move_b2r = frame_transition(Smooth, FrameMap, source = b2, target = r);
+indexed primitive move_br = frame_transition(Smooth, FrameMap, source = b, target = r);
+indexed primitive move_rb = frame_transition(Smooth, FrameMap, source = r, target = b);
+indexed primitive move_xyb = frame_transition(Smooth, FrameMap, source = xy, target = b);
+indexed primitive move_xyb2 = frame_transition(Smooth, FrameMap, source = xy, target = b2);
+indexed primitive move_xyr = frame_transition(Smooth, FrameMap, source = xy, target = r);
+indexed primitive move_cuv = frame_transition(Smooth, FrameMap, source = c, target = uv);
+indexed primitive move_c2uv = frame_transition(Smooth, FrameMap, source = c2, target = uv);
+indexed primitive move_cc2 = frame_transition(Smooth, FrameMap, source = c, target = c2);
+indexed primitive move_zz = frame_transition(Smooth, FrameMap, source = z, target = z);
+
+// Contraction in frames: frames are static, points are checked at run time.
+// then(after, before) composes two maps.
+indexed primitive apply_map = frame_apply(FrameMap, Coords);
+indexed primitive coapply_map = frame_coapply(FrameMap, CoCoords);
+indexed primitive then = frame_compose(FrameMap);
+indexed primitive pair_arrays = frame_pairing(CoCoords, Coords);
+// A component, an entry or a pairing as a reduced fraction (numerator,
+// denominator); the failure value reads (0, 0).
+indexed primitive first = frame_component(Coords, 0);
+indexed primitive second = frame_component(Coords, 1);
+indexed primitive cofirst = frame_component(CoCoords, 0);
+indexed primitive cosecond = frame_component(CoCoords, 1);
+indexed primitive entry_00 = frame_entry(FrameMap, 0, 0);
+indexed primitive entry_01 = frame_entry(FrameMap, 0, 1);
+indexed primitive entry_10 = frame_entry(FrameMap, 1, 0);
+indexed primitive entry_11 = frame_entry(FrameMap, 1, 1);
+// Equality of arrays or maps, points included; the failure value equals nothing.
+indexed primitive same_coords = frame_equal(Coords);
+indexed primitive same_cocoords = frame_equal(CoCoords);
+indexed primitive same_map = frame_equal(FrameMap);
+indexed primitive over = frame_at(Coords, Smooth);
+indexed primitive coover = frame_at(CoCoords, Smooth);
+
+// The Stage 3 flat and sharp, each naming its metric.
+indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
+indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible);
+indexed primitive sharp_g = sharp(Cotangent, Tangent, using = G, evidence = GInvertible);
+
+// The Gram matrix of Skew in a frame, one row per frame vector: decode,
+// flatten and encode. In b it is P^T G P.
+fn gram_b(a: Coords<b>) -> CoCoords<b> {
+    coenc_b(flat_skew(dec_b(a)))
+}
+
+fn gram_b2(a: Coords<b2>) -> CoCoords<b2> {
+    coenc_b2(flat_skew(dec_b2(a)))
+}
+
+// sharp in b, one column per coframe vector: the inverse of P^T G P.
+fn cogram_b(a: CoCoords<b>) -> Coords<b> {
+    enc_b(sharp_skew(codec_b(a)))
+}
+
+// The gradient under G: sharp applied to the metric-free differential.
+fn gradient(phi: Smooth<C, Line>, x: Smooth<Pt, C>) -> Tangent<C> {
+    sharp_g(differential(phi, x))
+}
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A component, an entry or a pairing reads n / d.
+fn reads(value: Pair<Int>, n: Int, d: Int) -> Bool {
+    pair_first(value) == n && pair_second(value) == d
+}
+
+// Two readings are the same rational, and not the failure value.
+fn same_value(left: Pair<Int>, right: Pair<Int>) -> Bool {
+    pair_first(left) == pair_first(right) && pair_second(left) == pair_second(right) && pair_second(left) != 0
+}
+
+fn main() -> Int {
+    let p: Smooth<Pt, Plane> = plane_at(2, 1);
+    let q: Smooth<Pt, Plane> = plane_at(4, 3);
+    let o: Smooth<Pt, Pt> = pt_at();
+    let fp: Smooth<Pt, Image> = compose_smooth(f(), p);
+    let v: Tangent<Plane> = vplane(p, 3, 2);
+    let alpha: Cotangent<Plane> = dplane(p, 1, 3);
+    let beta: Cotangent<Image> = dimage(fp, 1, 2);
+    let w: Coords<b> = enc_b(v);
+    let m: FrameMap<b, c> = matrix_bc(f(), p);
+    let m2: FrameMap<b2, c2> = matrix_b2c2(f(), p);
+    let k: FrameMap<b, c> = matrix_bc(flatten(), p);
+    let k2: FrameMap<b2, c2> = matrix_b2c2(flatten(), p);
+    // A seed at (5, 3), not at f(p), pulls back to the failure value.
+    let lost: Cotangent<Plane> = pullback(f(), p, dimage(image_at(5, 3), 1, 2));
+    // An array over p moved by a change of frame at q.
+    let stray: Coords<b2> = apply_map(move_bb2(q), w);
+    // The first column of the inverse Gram matrix of Skew in b.
+    let sharp_column: Coords<b> = cogram_b(covec_b(p, 1, 0));
+    // C1, C2: the kernel's inverse of b gives v = (3, 2) the array (2, 1); the
+    // coordinate frame keeps (3, 2); r at p, with its declared inverse, gives (1, 1).
+    42 + verdict(reads(first(w), 2, 1) && reads(second(w), 1, 1) && over(w, p), 1)
+       + verdict(reads(first(enc_xy(v)), 3, 1) && reads(second(enc_xy(v)), 2, 1), 2)
+       + verdict(reads(first(enc_r(v)), 1, 1) && reads(second(enc_r(v)), 1, 1), 3)
+       // C4: decoding after encoding, and encoding after decoding, are
+       // identities, for vectors and covectors, in b and in r. alpha = (1, 3)
+       // has the arrays (1, 7) in b and (1, 8) in r.
+       + verdict(same_vector(dec_b(w), v) && same_coords(enc_b(dec_b(vec_b(p, 5, -3))), vec_b(p, 5, -3)), 4)
+       + verdict(same_vector(dec_r(enc_r(v)), v) && same_coords(enc_r(dec_r(vec_r(p, 5, -3))), vec_r(p, 5, -3)), 5)
+       + verdict(reads(cosecond(coenc_b(alpha)), 7, 1) && same_covector(codec_b(coenc_b(alpha)), alpha), 6)
+       + verdict(reads(cosecond(coenc_r(alpha)), 8, 1) && same_covector(codec_r(coenc_r(alpha)), alpha), 7)
+       // Encoding and decoding keep the failure value.
+       + verdict(reads(cofirst(coenc_b(lost)), 0, 0) && !lies_over(codec_b(coenc_b(lost)), p)
+           && !tangent_over(dec_b2(stray), p) && !tangent_over(dec_b2(stray), q), 8)
+       // C5: b to b2 to b is the identity array, and b to b2 to r is b to r.
+       + verdict(same_map(then(move_b2b(p), move_bb2(p)), move_bb(p)) && reads(entry_00(move_bb(p)), 1, 1)
+           && reads(entry_01(move_bb(p)), 0, 1) && reads(entry_10(move_bb(p)), 0, 1) && reads(entry_11(move_bb(p)), 1, 1), 9)
+       + verdict(same_map(then(move_b2r(p), move_bb2(p)), move_br(p)), 10)
+       // C6: alpha(v) = 9 in b, in the coordinate frame, in r and in std.
+       + verdict(reads(pair_arrays(coenc_b(alpha), w), 9, 1)
+           && same_value(pair_arrays(coenc_b(alpha), w), pair_arrays(coenc_xy(alpha), enc_xy(v)))
+           && same_value(pair_arrays(coenc_r(alpha), enc_r(v)), pairing(alpha, v)), 11)
+       // Arrays over two points pair to the failure value.
+       + verdict(reads(pair_arrays(coenc_b(alpha), enc_b(vplane(q, 3, 2))), 0, 0), 12)
+       // C7: one map, two pairs of frames, two arrays.
+       + verdict(reads(entry_00(m), 4, 1), 13)
+       + verdict(reads(entry_00(m2), 2, 3), 14)
+       // Both decode to the matrix in the coordinate frames, the Jacobian.
+       + verdict(same_map(then(move_cuv(fp), then(m, move_xyb(p))), matrix_xyuv(f(), p)), 15)
+       + verdict(same_map(then(move_c2uv(fp), then(m2, move_xyb2(p))), matrix_xyuv(f(), p)), 16)
+       // The change of frame between them: M_b2c2 = T_cc2 M_bc T_b2b.
+       + verdict(same_map(then(move_cc2(fp), then(m, move_b2b(p))), m2), 17)
+       // Coapply in frames is the Stage 3 pullback.
+       + verdict(same_covector(codec_b(coapply_map(m, coenc_c(beta))), pullback(f(), p, beta)), 18)
+       + verdict(same_covector(codec_b2(coapply_map(m2, coenc_c2(beta))), pullback(f(), p, beta)), 19)
+       // C8: the matrix of the composite program node is the product of the
+       // matrices of g at f(p) and of f at p: (13/2, 37/2).
+       + verdict(same_map(matrix_bl(compose_smooth(g(), f()), p), then(matrix_cl(g(), fp), m))
+           && reads(entry_00(matrix_bl(compose_smooth(g(), f()), p)), 13, 2), 20)
+       // C9: r at p and at q, and the arrays keep their points.
+       + verdict(reads(entry_01(move_xyr(p)), -1, 1) && reads(entry_01(move_xyr(q)), -2, 1), 21)
+       + verdict(over(enc_r(v), p) && !over(enc_r(v), q), 22)
+       // An array over p and a change of frame at q give the failure value.
+       + verdict(reads(first(apply_map(move_rb(q), enc_r(v))), 0, 0) && !over(apply_map(move_rb(q), enc_r(v)), p)
+           && !over(apply_map(move_rb(q), enc_r(v)), q), 23)
+       // The target frame r is evaluated at shear(p) = (4, 1), not at p.
+       + verdict(same_map(matrix_br(shear(), p), then(move_xyr(compose_smooth(shear(), p)), matrix_bxy(shear(), p)))
+           && reads(entry_01(matrix_br(shear(), p)), 1, 1), 24)
+       // C10: apply moves an array from p to f(p), coapply from f(p) to p,
+       // and a composite from p to g(f(p)) = 10.
+       + verdict(over(apply_map(m, w), fp) && !over(apply_map(m, w), image_at(2, 1)), 25)
+       + verdict(coover(coapply_map(m, coenc_c(beta)), p) && !coover(coapply_map(m, coenc_c(beta)), q), 26)
+       + verdict(over(apply_map(then(matrix_cl(g(), fp), m), w), line_at(10)), 27)
+       // Maps whose middle points differ compose to the failure value.
+       + verdict(reads(first(apply_map(then(matrix_cl(g(), image_at(5, 3)), m), w)), 0, 0), 28)
+       // C11: flatten has rank one in both pairs of frames: a nonzero entry,
+       // and an array that it sends to zero.
+       + verdict(reads(entry_00(k), 1, 1) && same_coords(apply_map(k, vec_b(p, 3, -1)), vec_c(compose_smooth(flatten(), p), 0, 0)), 29)
+       + verdict(reads(entry_10(k2), 4, 1) && same_coords(apply_map(k2, vec_b2(p, 3, -2)), vec_c2(compose_smooth(flatten(), p), 0, 0)), 30)
+       // The frame z of Pt: the 2 x 0 matrix of the point p, the 0 x 2
+       // matrix of to_pt, and the 0 x 0 change from z to z.
+       + verdict(same_coords(apply_map(matrix_zb(p, o), vec_z(o)), vec_b(p, 0, 0))
+           && same_cocoords(coapply_map(matrix_zb(p, o), coenc_b(alpha)), covec_z(o)), 31)
+       + verdict(same_coords(apply_map(matrix_bz(to_pt(), p), w), vec_z(o)) && same_map(then(move_zz(o), move_zz(o)), move_zz(o)), 32)
+       // C12: the Gram matrix of Skew in b is P^T G P = ((2, 4), (4, 10)),
+       // and in b2 it is T^T G_b T for the change T from b2 to b. No frame
+       // binding reads the metric: flat and sharp do.
+       + verdict(reads(cofirst(gram_b(vec_b(p, 1, 0))), 2, 1) && reads(cosecond(gram_b(vec_b(p, 1, 0))), 4, 1)
+           && reads(cofirst(gram_b(vec_b(p, 0, 1))), 4, 1) && reads(cosecond(gram_b(vec_b(p, 0, 1))), 10, 1), 33)
+       + verdict(same_cocoords(gram_b2(vec_b2(p, 0, 1)), coapply_map(move_b2b(p), gram_b(apply_map(move_b2b(p), vec_b2(p, 0, 1)))))
+           && reads(cosecond(gram_b2(vec_b2(p, 0, 1))), 9, 1), 34)
+       // sharp in b is the inverse matrix ((5/2, -1), (-1, 1/2)).
+       + verdict(reads(first(sharp_column), 5, 2) && reads(second(sharp_column), -1, 1), 35)
+       // C18: under G = diag(1/9, 1/4), the gradient of h(x, t) = x + t is (9, 4).
+       + verdict(reads(vx(gradient(h(), chart_at(1, 2))), 9, 1) && reads(vt(gradient(h(), chart_at(1, 2))), 4, 1), 36)
+}

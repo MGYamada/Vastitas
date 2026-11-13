@@ -2,7 +2,7 @@
 
 This appendix describes the command `vastitas`: its commands and options,
 what each command reads and writes, its environment, and the checks that it
-makes on the kernel before it builds. [Chapter 12](diagnostics-and-cli.md)
+makes on the kernel before it builds. [Chapter 13](diagnostics-and-cli.md)
 teaches the two commands that a program needs.
 [Programs](../language/programs.md) defines flat mode, manifest mode and the
 entry point, and [Diagnostics](../language/diagnostics.md) gives the form of a

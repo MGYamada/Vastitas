@@ -142,6 +142,25 @@ markers: an `ObjectType` selects both a domain and a marker, and its admitted
 implementations are the nonempty intersection. Classification and coefficient
 base are therefore separate, even in the initial single-base geometry profile.
 
+The environment also holds the declarations of the geometric profiles:
+presented and smooth affine objects, metrics and their evidence, frames, and
+the base dimensions, quantities, readings, scales and physical metrics of
+`nature::dimension`. `Indexed.lean` holds the data model of the environment
+and its views, the functions through which every check reads it, such as
+`frameData?`, `frameObject?`, `quantityDimension?`, `readingData?` and
+`familyRepresentation`. It holds no validity rule.
+`IndexedValidity.lean` holds the validity of one entry and of the whole
+environment: `Entry.Valid` and its executable check `validEntry`,
+`Environment.Valid` and `validEnvironment`, the metric checks, and the checked
+records `CheckedEnvironment` and `CheckedApplication`. For a frame,
+`Entry.Valid` calls `FrameDeclarations.checkFrame`; for each declaration of
+`nature::dimension` it calls the check of `NatureDimension` for that kind.
+Those checks read the environment through the views of `Indexed`, so
+`IndexedValidity` imports them and they import `Indexed`. The compiled audit
+checks equal evidence declarations once; the kernel theorem
+`validEnvironment_eq_once`, with the attribute `csimp`, proves that it
+computes `validEnvironment`.
+
 Implementation capability records contain the closed `origin` and
 `dimension` tags for the finite affine descriptor representation. They are
 explicit per implementation; classification or inheritance does not fill them
@@ -188,6 +207,35 @@ registry entry of a binding. They are presentation only: they run after the
 audit has rejected and never decide acceptance. A rule that they do not find
 keeps a general message. The size limits of a classification, a family and a
 package declaration are `E_LIMIT`, every other rule `E_TYPE`.
+
+Some declarations carry data that the kernel computes once their objects are
+known. `resolveBody` resolves every path of a declaration and leaves that
+data as a placeholder. `lower` then runs the stage passes in this order:
+`elaborateAffine`, `elaborateSmooth`, `elaborateMetrics`, `elaborateFrames`,
+`elaborateNature` and `elaborateRelative`. Each pass reports its rejections
+at the declaration, and the declaration audit checks every stored
+declaration again afterwards.
+
+- `elaborateFrames` (`IndexedFrameSource.lean`) expands the columns of each
+  frame in the coordinates of its object, within one `algebraWork` budget per
+  frame. For a constant frame it checks the entry and matrix bounds of a Gram
+  matrix and computes the inverse with `SmoothDeclarations.invert?`; a
+  constant frame that declares an inverse is rejected. For a frame polynomial
+  in the point it checks the declared inverse as an identity of canonical
+  polynomials. It ends with `FrameDeclarations.checkMatrices`, the check that
+  the audit repeats. It then gives every frame binding the frames it names,
+  their objects, matrices and inverses, and the variance of an encoding or a
+  decoding from its fiber family (`elaborateFrameBindings`). A transition
+  between frames of two objects is `E_ENDPOINT`; the other rejections are
+  `E_FRAME`, the bounds `E_LIMIT`, and an unknown coordinate or a zero
+  denominator `E_AFFINE_COORDINATE`.
+- `elaborateNature` (`IndexedNatureSource.lean`) elaborates base dimensions,
+  quantities, readings and scales first, and then the physical metrics, which
+  read them. It puts the quantities of a reading and the scales of a
+  normalized metric in coordinate order, evaluates every magnitude and
+  coefficient, and checks each physical metric as the audit does. Its
+  rejections are `E_DIMENSION`, and its bounds `E_LIMIT`. A program without
+  declarations of `nature::dimension` passes through it unchanged.
 
 `IndexedSourceRegression` adds 42 cases, including non-geometric token/package
 contracts, coefficient-versus-object errors, whole-domain capability loss,
@@ -458,7 +506,9 @@ calls to typed evaluation. Native refinement remains outside the proof boundary.
 
 `Entry.Valid`, `Family.Valid`, `Parameter.Accepts`, `Constraint.Holds`,
 `Environment.Valid` and `Application.Valid` specify logical conditions separately
-from the executable environment/application checks. `CheckedEnvironment` retains
+from the executable environment/application checks. `Entry.Valid` and
+`Environment.Valid` are in `IndexedValidity.lean`, the others in
+`Indexed.lean`. `CheckedEnvironment` retains
 the exact environment and its successful audit; `CheckedApplication` is indexed
 by that same checked environment. The public protocol does not deserialize either
 checked record.
@@ -557,6 +607,23 @@ Cartesian-square declaration has no family. Neither has a step binding of
 [compiled reverse Core](../appendix/glossary.md#compiled-reverse-core),
 `smoothApply` or `cotangentJacobian`. Only the kernel declares these
 bindings, after acceptance, so no source or wire request names them.
+
+The thirteen frame bindings take their registry entries from
+`IndexedFrameRegistry.lean` and their validity contracts from
+`IndexedFrameContracts.lean`. A frame binding embeds each frame it applies as
+a `FrameRef`: the frame declaration, its smooth object, its matrix `P` and its
+inverse `Q`. Its contract requires every embedded copy to equal the
+declaration, so the declaration audit rejects a forged object, matrix or
+inverse. The shapes keep frames static: an array names its frame and a frame
+matrix its two frames as indices, so an operand in another frame is a
+mismatch of the call, not a run-time failure. The logical evaluator keeps
+frame arrays and frame matrices apart from fibers (`IndexedValue.frameArray`,
+`IndexedValue.frameMatrix`). The erased evaluator and the lowering apply the
+operations of `FrameRuntime` and `SmoothRuntime` on the embedded matrices, and
+a generated module declares each such matrix once (`SharedLiteral.frame`).
+The [specification of `std::geometry::frame`](../spec/std-geometry-frame.md)
+states their laws, and [Verification boundaries](../verification.md#frames-and-physical-dimensions)
+their theorems.
 [Add an indexed primitive](../development/primitives.md) lists what one more
 binding touches. `IndexedDescriptorExample` defines a `PrimitiveDescriptor`
 value and a `PrimitiveFamily` value outside the registry.
@@ -571,7 +638,8 @@ annotation are independently audited against the same checked environment.
 The table lists the bindings of this profile. [Presented affine
 geometry](../affine-geometry.md) describes the relative bindings, and [Smooth
 affine declarations](../language/smooth-declarations.md) describes the smooth,
-fiber, tape and metric bindings.
+fiber, tape and metric bindings, and [Frames](../language/frames.md) the
+frame bindings, whose implementation is described above.
 
 | Registry entry | Operand and result contract | Additional obligation |
 | --- | --- | --- |
@@ -908,7 +976,7 @@ not an alternative semantic acceptance rule.
 | Legacy keywords, reserved names, ring positions and type syntax: `src/frontend.rs`, `src/ir.rs`, kernel `Surface.lean` | Adapter: retains Scheme/CInfScheme/Point/Morphism/Pointed syntax and QQ/CInfReal marker syntax. A marker is not a runtime object. Qualified indexed syntax is parsed separately. Rust diagnostics cannot certify types. |
 | Indexed parsing and strict wire schema: `src/indexed.rs`, `src/packages.rs`, kernel `IndexedProtocol.lean`, `IndexedBodyProtocol.lean`, `IndexedAcceptance.lean` | General mechanism: unresolved paths, enclosing owners, family kinds/arity, explicit bindings and complete source bodies; no frontend-supplied authority or checked flag. Older versions reject these declarations/exports instead of discarding them. |
 | Old wire conversion: kernel `LegacySource.lean` | Adapter: preserves original bodies, namespaces and edit metadata. Validates the original namespace before adding an ordinary closed unresolved profile; rejects collision with its reserved package identity. That profile passes the same declaration and role checks as a source library. |
-| Namespace reservations and lookup: kernel `NamespaceChecker.lean`, `IndexedSourceChecker.lean` | General mechanism with compatibility reservations: canonical package/module/declaration IDs, actual visibility/re-exports and shared-name collision checks. Indexed declarations may use geometry spellings; an ordinary function alias cannot acquire those reserved declaration roles. |
+| Namespace reservations and lookup: kernel `NamespaceChecker.lean`, `IndexedSourceChecker.lean` | General mechanism with compatibility reservations: canonical package/module/declaration IDs, actual visibility/re-exports and shared-name collision checks. Indexed declarations may use geometry spellings; an ordinary function alias cannot acquire those reserved declaration roles. Modules may take the seven geometric operation names; a bare call of an operation falls back to it when the name is unbound or names a child module (`legacyFallback_uncallable`). |
 | Classification and representation: kernel `Indexed.lean`, `IndexedAudit.lean`; stdlib `geometry/{scheme,smooth}/mod.vast` | Library plus general mechanism: distinct finite classifications, coefficient markers and implementations. Classification membership does not identify individual objects or add origin/dimension capability. |
 | Point/Morphism/Pointed definitions: stdlib `geometry/mod.vast`; kernel `IndexedPackages.lean`, `IndexedContractAudit.lean` | Library plus general mechanism: declared indexed families, same-base constraints, sealed representations, finite single-witness package cases and ordered field templates. General test objects are permitted; Pointed specifically uses the declared base object. |
 | Type annotations and legacy type names: kernel `IndexedSourceTypes.lean` | Adapter maps legacy syntax using a selected validated profile; general annotation checking validates declared kinds, sorts, arities, refinement and scope. Object-valued indices and coefficient markers remain distinct. |

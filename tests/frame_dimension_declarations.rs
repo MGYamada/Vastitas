@@ -1,9 +1,7 @@
 //! Stage 4 (#759) frame and `nature::dimension` declarations through the
 //! public protocol-9 source path. The frontend parses each form into the wire
 //! record that the kernel decodes; these tests capture the wire, check the
-//! protocol it selects and submit it to the kernel. Until batch 4 the kernel
-//! decodes frame and nature declarations and then rejects them (`E_FRAME`,
-//! `E_DIMENSION`), so the acceptance test is ignored until then.
+//! protocol it selects and submit it to the kernel, which checks them.
 mod common;
 use common::{Scratch, assert_wire_rejected, cli, kernel, remove_spans, success};
 use serde_json::{Value, json};
@@ -54,16 +52,10 @@ fn p(name: &str) -> Value {
     json!({ "path": [name] })
 }
 
-/// Before batch 4 the kernel stops at the first frame (`E_FRAME`) or nature
-/// (`E_DIMENSION`) declaration, after decoding the whole request. Afterwards
-/// it accepts a valid program.
+/// The kernel decodes the whole request and accepts the valid program.
 #[track_caller]
 fn decoded(response: &Value) {
-    let code = response["diagnostics"][0]["code"].as_str();
-    assert!(
-        response["ok"] == true || matches!(code, Some("E_FRAME" | "E_DIMENSION")),
-        "{response}"
-    );
+    assert!(response["ok"] == true, "{response}");
 }
 
 /// Each declaration form alone in a package, with the frontend's only other
@@ -190,9 +182,8 @@ fn the_fixture_wire_carries_the_frame_and_nature_records() {
     assert_eq!(record("PE")["entries"], json!({ "kind": "euclidean" }));
 }
 
-/// The kernel decodes the whole fixture, and also the fixture without its
-/// frames. Before batch 4 it then rejects the first frame or nature
-/// declaration.
+/// The kernel decodes and accepts the whole fixture, and also the fixture
+/// without its frames.
 #[test]
 fn the_kernel_decodes_the_frame_and_nature_records() {
     let raw = request(&package(MAIN), 9);
@@ -206,10 +197,9 @@ fn the_kernel_decodes_the_frame_and_nature_records() {
     decoded(&kernel(request(&package(&frameless), 9), "check"));
 }
 
-/// Batch 4 (#759): once the kernel checks frame and nature declarations, the
-/// fixture is a valid program.
+/// The kernel checks frame and nature declarations, and the fixture is a valid
+/// program.
 #[test]
-#[ignore = "the kernel accepts frame and nature declarations from batch 4 of #759"]
 fn the_fixture_checks_once_the_kernel_checks_frames_and_dimensions() {
     success(&check(&package(MAIN)));
 }

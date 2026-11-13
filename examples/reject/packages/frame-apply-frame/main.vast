@@ -1,0 +1,27 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::frame::Frame;
+use std::geometry::frame::Coords;
+use std::geometry::frame::CoCoords;
+use std::geometry::frame::FrameMap;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+indexed frame e: Frame<Plane> = coordinates;
+indexed frame r: Frame<Plane> = columns((1, 0), (x, 1)) inverse = columns((1, 0), (-x, 1));
+indexed primitive in_r = frame_vector(Coords, Smooth, frame = r);
+
+// ANCHOR: program
+indexed primitive b_to_e = frame_transition(Smooth, FrameMap, source = b, target = e);
+indexed primitive apply_map = frame_apply(FrameMap, Coords);
+
+// The change from b to e takes arrays in b, and in_r gives an array in r.
+fn bad(p: Smooth<Pt, Plane>) -> Coords<e> {
+    apply_map(b_to_e(p), in_r(p, 1, 2))
+}
+// ANCHOR_END: program
+
+fn main() -> Int { 0 }

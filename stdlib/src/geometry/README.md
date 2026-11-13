@@ -1,4 +1,4 @@
-# `std::geometry`: `scheme`, `smooth` and `metric`
+# `std::geometry`: `scheme`, `smooth`, `metric` and `frame`
 
 The existing finite ordinary/smooth affine profile is implemented by ordinary
 `.vast` indexed declarations under two sibling modules. They use the same
@@ -9,7 +9,9 @@ child module `scheme::affine` adds the Stage 2
 Its algebraic forms put the whole package closure on public protocol 9, the
 current schema epoch (#533). The child module `smooth::affine` and the sibling
 module `metric` add the [smooth affine profile](#smooth-affine-objects-and-metrics)
-and its metric forms. Their smooth and metric forms also use protocol 9.
+and its metric forms. The sibling module `frame` adds the
+[ordered frames](#ordered-frames) of smooth affine objects. Their smooth,
+metric and frame forms also use protocol 9.
 
 The canonical source tree mirrors the public module hierarchy. Each module has
 its own directory and a `mod.vast` entrypoint:
@@ -17,6 +19,8 @@ its own directory and a `mod.vast` entrypoint:
 ```text
 stdlib/src/geometry/
 ├── mod.vast
+├── frame/
+│   └── mod.vast
 ├── metric/
 │   └── mod.vast
 ├── scheme/
@@ -32,7 +36,8 @@ stdlib/src/geometry/
 [`geometry/mod.vast`](mod.vast) owns the shared contracts;
 [`scheme/mod.vast`](scheme/mod.vast) and [`smooth/mod.vast`](smooth/mod.vast)
 own the two settings. [`smooth/affine/mod.vast`](smooth/affine/mod.vast) and
-[`metric/mod.vast`](metric/mod.vast) own the smooth affine profile. The local
+[`metric/mod.vast`](metric/mod.vast) own the smooth affine profile, and
+[`frame/mod.vast`](frame/mod.vast) owns its ordered frames. The local
 manifest loads these files directly; there is no generated or copied geometry
 source tree. The geometry manifest has no dependencies. In particular, the
 geometry package does not depend on `std::differential`.
@@ -204,6 +209,40 @@ cargo run --locked -- build --manifest-path examples/packages/stdlib-differentia
 ./target/stdlib-differential
 # 42
 ```
+
+## Ordered frames
+
+`std::geometry::frame` declares the families of the ordered frames of smooth
+affine objects ([ADR 0001 §11](https://github.com/MGYamada/Vastitas/blob/main/docs/adr/0001-mathematics-first-stdlib.md#11-ordered-frames-of-smooth-affine-objects-amendment-2026-11-13)).
+A frame of a smooth affine object `X` is a global frame of the tangent bundle
+of `X`: an ordered basis of every tangent fiber, given by its columns in the
+coordinate frame of `X`.
+
+| Public name | Contract |
+| --- | --- |
+| `Frame<X>` | The frames of a smooth affine object `X` |
+| `Coords<b>` | The arrays of vectors in the frame `b`, each with its point |
+| `CoCoords<b>` | The arrays of covectors in the dual coframe of `b`, each with its point |
+| `FrameMap<b, c>` | The matrices of linear maps from the fibers of `b` to those of `c`, with both points |
+
+The module declares the families only. A frame and each frame primitive name
+one frame, so the application declares them, as it declares `flat` and
+`sharp` with their metric:
+
+```vast
+use std::geometry::frame::Frame;
+use std::geometry::frame::Coords;
+
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+indexed primitive enc_b = frame_encode(Tangent, Coords, frame = b);
+```
+
+Frames, objects and variance are static, so an array in one frame where
+another frame is required is an error (`E_ENDPOINT`). Points are run-time
+values: arrays over different points give the failure value. The library
+declares no frame, so no frame is a default. `tests/stdlib_frames.rs` runs an
+application that declares frames on its own objects and observes encoding,
+decoding, transitions and map arrays.
 
 ## Migration and checker boundaries
 

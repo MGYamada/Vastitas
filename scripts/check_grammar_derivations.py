@@ -487,6 +487,12 @@ def flat_unpack_witness(tree, mode, grammar):
         yield from (node for node in tree.nodes() if node.name == "UnpackFields" and node.children[0] == "witness")
 
 
+def dimension_literal(tree, mode, grammar):
+    """A dimension that is an integer literal other than 1."""
+    yield from (node for node in tree.nodes() if node.name == "Dimension" and isinstance(node.children[0], str)
+                and node.children[0] != "1")
+
+
 @dataclass(frozen=True)
 class Rule:
     """A rule of the Reference: applies(tree, mode, grammar) yields each node that breaks it, or
@@ -527,6 +533,8 @@ RULES = (
          "occur in flat mode", "E_PARSE", flat_pack_type),
     Rule("unpack with a witness in flat mode", "Statements, unpack statements: in flat mode the witness "
          "form is an error", "E_PARSE", flat_unpack_witness),
+    Rule("integer literal of a dimension", "Physical dimensions, Base dimensions and quantity kinds: the only "
+         "integer literal of a dimension is 1", "E_PARSE", dimension_literal),
 )
 
 

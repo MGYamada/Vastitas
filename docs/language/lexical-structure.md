@@ -125,9 +125,57 @@ Rules:
   geometric operations. A `use` without `as` that imports such a declaration
   binds that name too. This is how a package declares its own `Point` or
   `origin`, as [Indexed declarations](../indexed-source.md) describes.
+- A [module](modules.md) may take the name of one of the seven geometric
+  operations, as in `mod dimension;`. The name stays reserved for every other
+  declaration and binding, including a name that `use` binds and a
+  [dependency alias](../packages.md#manifests). A `use` of such a module
+  therefore needs `as`, as in `use units::dimension as dim;`. A path through
+  the module names its items, and the bare name in a call stays the
+  operation, as [Resolution](names-and-paths.md#resolution) says.
 - An expression that names an identifier beginning with `__vastitas_` is an
   error (`E_RESERVED`).
 - [Places](diagnostics.md#places) gives the place of the diagnostic.
+
+In this package the root module declares the file module `dimension`, names
+its functions through paths and calls the geometric operation `dimension`:
+
+```vast
+{{#include ../../examples/packages/module-names/main.vast}}
+```
+
+`dimension.vast` holds the items of the module:
+
+```vast
+{{#include ../../examples/packages/module-names/dimension.vast}}
+```
+
+The executable prints `42`.
+
+In this package `units.vast` declares a module `dimension`:
+
+```vast
+{{#include ../../examples/reject/packages/geometric-use/units.vast}}
+```
+
+A `use` without `as` of that module binds the reserved name:
+
+```vast
+{{#include ../../examples/reject/packages/geometric-use/main.vast}}
+```
+
+```text
+{{#include ../../examples/reject/packages/geometric-use.stderr}}
+```
+
+A function must not take the name, even inside a module of that name:
+
+```vast
+{{#include ../../examples/reject/packages/geometric-function/main.vast}}
+```
+
+```text
+{{#include ../../examples/reject/packages/geometric-function.stderr}}
+```
 
 ## Integer literals
 

@@ -19,11 +19,16 @@ The library keeps its declarations in
 | Module | Content | Chapter |
 | --- | --- | --- |
 | `std::arithmetic` | Functions on `Int` and on `Nat`, and generic functions over both | This section, and [Chapter 4](dispatch.md) |
-| `std::geometry` | Objects, points and morphisms, presented affine geometry, smooth geometry and metrics | Chapters [7](indexed-geometry.md), [8](affine-geometry.md) and [9](smooth-geometry.md) |
+| `std::geometry` | Objects, points and morphisms, presented affine geometry, smooth geometry, metrics and frames | Chapters [7](indexed-geometry.md), [8](affine-geometry.md), [9](smooth-geometry.md) and [10](frames-and-dimensions.md) |
 | `std::differential` | Pullbacks and differentials of smooth maps | [Chapter 9](smooth-geometry.md) |
 
 The name `std` is the dependency alias that the examples of this book give
 to the library.
+
+Physical dimensions are not mathematics, so they are not in `std`: the
+package `nature` in the directory `nature` of the repository holds
+`nature::dimension`, which depends on `std`, and
+[Chapter 10](frames-and-dimensions.md) uses it.
 
 ## Using the standard library
 

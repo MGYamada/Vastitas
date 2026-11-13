@@ -1,0 +1,1 @@
+examples/reject/packages/dimension-gram-magnitude/main.vast:16:1: E_DIMENSION: the physical metric `dimension_gram_magnitude::PG` gives the t·t entry, in row 2, column 2, the magnitude 1/9, but the metric `dimension_gram_magnitude::G` has 1/4 there; the entries, evaluated with the magnitudes of their scales, equal its Gram matrix

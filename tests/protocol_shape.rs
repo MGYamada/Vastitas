@@ -135,10 +135,11 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
 }
 
 /// The promotion example against a copy of the stdlib without its Stage 2
-/// `scheme::affine` module and its Stage 3 `smooth::affine` and `metric`
-/// modules and `differential` package. That closure still uses protocol 7, so
-/// the Indexed.Wire sweep keeps the geometry-compatibility, dependency and
-/// function-body records that only the stdlib supplies.
+/// `scheme::affine` module, its Stage 3 `smooth::affine` and `metric`
+/// modules and `differential` package, and its Stage 4 `frame` module. That
+/// closure still uses protocol 7, so the Indexed.Wire sweep keeps the
+/// geometry-compatibility, dependency and function-body records that only the
+/// stdlib supplies.
 fn promotion_without_affine() -> Value {
     let root = common::root();
     let stdlib = root.join("stdlib");
@@ -166,6 +167,7 @@ fn promotion_without_affine() -> Value {
                 "src/geometry/scheme/affine",
                 "src/geometry/smooth/affine",
                 "src/geometry/metric",
+                "src/geometry/frame",
             ]
             .iter()
             .any(|module| path.ends_with(module))
@@ -193,7 +195,7 @@ fn promotion_without_affine() -> Value {
     }
     strip("src/geometry/scheme/mod.vast", "pub mod affine;\n");
     strip("src/geometry/smooth/mod.vast", "pub mod affine;\n");
-    strip("src/geometry/mod.vast", "pub mod metric;\n");
+    strip("src/geometry/mod.vast", "pub mod metric;\npub mod frame;\n");
     strip(
         "target/package/lib.vast",
         "pub use differential_library as differential;\n",
@@ -298,9 +300,8 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
 // that the frontend sends for `tests/fixtures/frame-dimension-declarations`.
 // Records of one shape can have different decoders (the Gram matrix of a
 // metric and of a physical metric), so the sweep also keeps one
-// representative per shape and declaration kind. Until batch 4 the kernel
-// decodes the baseline and then rejects its first frame (`E_FRAME`); every
-// forged field is a decoder rejection.
+// representative per shape and declaration kind. The kernel accepts the
+// baseline; every forged field is a decoder rejection.
 #[test]
 fn frame_and_nature_records_reject_unknown_fields() {
     let mut command = common::cli();
@@ -309,14 +310,7 @@ fn frame_and_nature_records_reject_unknown_fields() {
         .arg(common::root().join("tests/fixtures/frame-dimension-declarations/Vastitas.toml"));
     let raw = common::captured_wire(command, 9);
     let baseline = kernel(&raw, "check");
-    assert!(
-        baseline["ok"] == true
-            || matches!(
-                baseline["diagnostics"][0]["code"].as_str(),
-                Some("E_FRAME" | "E_DIMENSION")
-            ),
-        "{baseline}"
-    );
+    assert!(baseline["ok"] == true, "{baseline}");
     let mut records = BTreeMap::new();
     record_paths(&raw, "", &mut records);
     let base = "/packages/0/modules/0/indexed_declarations";

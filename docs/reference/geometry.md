@@ -1,11 +1,12 @@
 # Exact geometry reference models
 
-This chapter describes seven [reference models](../appendix/reference-models.md)
+This chapter describes eight [reference models](../appendix/reference-models.md)
 from geometry. They compute with exact arithmetic over the rational numbers,
 over the integers and, for the elliptic curve, over the field of five
-elements. Their subjects are metrics on the real plane, polynomial symplectic
-maps, first variations, finite Čech covers, the Bloch and Fermi schemes of the
-SSH chain, addition on an elliptic curve, and the pointwise Hodge star. Each
+elements. Their subjects are metrics on the real plane, ordered frames of the
+real plane, polynomial symplectic maps, first variations, finite Čech covers,
+the Bloch and Fermi schemes of the SSH chain, addition on an elliptic curve,
+and the pointwise Hodge star. Each
 is a Python program with tests under `scripts/`, and each section states its
 hypotheses, its verifier and its regression examples. None is a part of the
 compiler.
@@ -13,6 +14,7 @@ compiler.
 | Model | In the compiler |
 | --- | --- |
 | [Real-plane metrics](#metric-reference) | Implemented: constant rational [metrics](../language/smooth-declarations.md#metrics) on declared smooth affine objects, with [evidence](../language/smooth-declarations.md#metric-evidence), [`flat` and `sharp`](../language/smooth-declarations.md#flat-and-sharp), and pullbacks that use no metric. Tested: a kernel regression compares the smooth runtime of the kernel with a fixture that is written from the two modules of this model, as the [Stage 3 acceptance record](../stage3-acceptance.md#c16) states. That record also states what is Proved. The coordinate changes and the transport checks of the model are a model only. Planned: position-dependent metrics, [#264](https://github.com/MGYamada/Vastitas/issues/264) |
+| [Frames of the real plane](#frame-reference) | Implemented: constant and polynomial frames of smooth affine objects, their arrays, transitions, map arrays and Gram matrices. Tested: a kernel regression compares the frame runtime of the kernel with a fixture that this model writes, and another checks the frame declarations against a transcription of its valid and invalid frames, as the [Stage 4 acceptance record](../stage4-acceptance.md#c15) states. That record also states what is Proved |
 | [Polynomial symplectic maps](#symplectic-reference) | Model only. Planned: [#211](https://github.com/MGYamada/Vastitas/issues/211) |
 | [First variations](#variational-reference) | Model only. Planned: [#305](https://github.com/MGYamada/Vastitas/issues/305) |
 | [Finite Čech covers](#cech-reference) | Model only. Planned: [#265](https://github.com/MGYamada/Vastitas/issues/265), [#258](https://github.com/MGYamada/Vastitas/issues/258) |
@@ -247,6 +249,107 @@ for the profile that the compiler implements. The tests do not prove compiler
 soundness, native refinement, all-input Python correctness, or any general
 smooth/geometric theorem. No connection, curvature, geodesic, Hodge operator,
 default Euclidean metric, implicit adjoint or AD primitive is introduced.
+
+<a id="frame-reference"></a>
+
+## Exact real-plane frame reference (#759)
+
+This is an executable **Python reference with regression tests** for the
+frames of [ADR 0001 §11](../adr/0001-mathematics-first-stdlib.md#11-ordered-frames-of-smooth-affine-objects-amendment-2026-11-13),
+written for the Stage 4 tracker
+[#759](https://github.com/MGYamada/Vastitas/issues/759). It is not Vastitas
+execution and not a Lean theorem. It computes independently of the kernel,
+and a kernel regression compares the kernel with the fixture that it writes.
+
+### Run
+
+Python 3.10 or later; standard library only, with `fractions.Fraction`. The
+model takes its polynomials from `scripts/metric_free_reference.py` and the
+encoding of rationals and monomial orders from
+`scripts/affine_algebra_reference.py`.
+
+```sh
+python3 scripts/frame_reference.py --check
+python3 scripts/frame_reference.py --write
+python3 -m unittest discover -s scripts -p 'test_frame_reference.py' -v
+```
+
+`--check` compares `tests/fixtures/frames.json` with the model and fails on a
+difference; `--write` regenerates the fixture. The test
+`test_fixture_is_current` makes the same comparison in every run of the
+Python tests.
+
+| File | Responsibility |
+| --- | --- |
+| [frame_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/frame_reference.py) | Frames, their inverses and their validity; arrays, transitions, map arrays, contraction and Gram matrices; the fixture |
+| [test_frame_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_frame_reference.py) | The fixture, the laws and the invalid frames |
+
+### Mathematical fragment
+
+A frame of the real plane is a 2 × 2 matrix P of polynomials in (x, y) with
+rational coefficients, whose column j is frame vector j in the coordinate
+frame. It is valid when a two-sided inverse Q exists as a polynomial
+identity. The inverse of a constant frame is computed; a frame polynomial in
+the point declares its inverse, and the model checks P·Q = Q·P = I. At a
+point p the model computes:
+
+| Quantity | Formula |
+| --- | --- |
+| Array of a vector v | Q(p) v, decoded as P(p) a |
+| Array of a covector α | P(p)ᵀ α, decoded as Q(p)ᵀ a |
+| Transition from b to b′ | Q_b′(p) P_b(p) |
+| Map array of a polynomial map F in (b, c) | Q_c(F(p)) J(p) P_b(p), from the Jacobian J of F |
+| Gram matrix of a constant metric G in b | P(p)ᵀ G P(p) |
+
+It also applies, coapplies and composes map arrays and pairs a covector array
+with a vector array. The kernel takes the rows of a map array from runs of
+the reverse pass instead of the Jacobian, so the two compute the map array
+by different routes.
+
+### Inputs and the fixture
+
+The frames are the coordinate frame; the nonorthogonal constant frames b,
+b′, c and c′, with P ≠ Pᵀ and determinants 2, 7, 3 and 3; and the
+polynomial frames r = columns((1, 0), (x, 2)) and s = columns((1, y), (0, 1))
+with their inverses. The maps are a square map, a shear, a rank-one map and
+the composite of the square map after the shear. The points are (3, −1),
+(1/2, 2) and (0, 0). The metrics are the positive definite
+G = ((2, 1), (1, 3)) and the Lorentz metric diag(1, −1).
+
+The fixture `tests/fixtures/frames.json` has the sections `frames`,
+`invalidFrames`, `encodings`, `transitions`, `matrices` and `grams`. Each
+frame records both its `columns`, as a program writes them, and the `rows`
+of P, so that a reader that transposes the matrix fails. Each invalid frame
+records its reason code instead of an inverse: a singular constant frame
+(`SINGULAR`), an inverse declared for a constant frame
+(`INVERSE_OF_CONSTANT`), a polynomial frame without an inverse
+(`MISSING_INVERSE`), a wrong polynomial inverse and the frame
+columns((x, 0), (0, 1)), which is singular at the origin (`WRONG_INVERSE`),
+and a column of the wrong length (`WRONG_SIZE`).
+
+`VastitasAlgebraTest.FrameReferenceRegression` reads the sections
+`encodings`, `transitions`, `matrices` and `grams` and compares the kernel's
+`FrameRuntime` with them. `VastitasKernel.FrameDeclarationRegression`
+transcribes the sections `frames` and `invalidFrames` by hand and checks the
+kernel's frame declarations and their diagnostics against them.
+
+### Tests
+
+`test_frame_reference.py` checks that the fixture is current, that columns
+are not rows, the inverses of the constant and polynomial frames, the reason
+codes of the invalid frames, that decoding inverts encoding, the transition
+laws, that the pairing does not depend on the frame, one map in two frame
+pairs, that coapply is the pullback, the chain rule in frames, that a
+rank-one map stays rank one, and Gram transport.
+
+### Scope
+
+The model covers the real plane only: frames of ℝ², maps ℝ² → ℝ² and
+2 × 2 Gram matrices. The kernel regression `FrameRuntimeRegression` covers
+the zero-dimensional object; dimensions 3 to 16 have no independent
+reference. The tests of the model are not proofs. The
+[Stage 4 acceptance record](../stage4-acceptance.md) states what is Proved
+about the kernel's frames, in the oracle and in the bridge.
 
 <a id="symplectic-reference"></a>
 

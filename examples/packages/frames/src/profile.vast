@@ -1,0 +1,36 @@
+// A smooth profile with frames: the smooth real affine spaces Affine(n),
+// polynomial maps, covectors and vectors at rational points, metric forms,
+// and the four frame families.
+// ANCHOR: profile
+pub indexed marker CInfReal;
+pub indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+pub indexed classification CInfAffine { parents(); domain(SmoothR); };
+pub indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+pub indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+pub indexed family Tangent(object(CInfAffine)) = tangent constraints(canonical(0));
+pub indexed family MetricForm(object(CInfAffine)) = metric_form constraints(canonical(0));
+// ANCHOR_END: profile
+
+// ANCHOR: frame-families
+// The frames of a smooth affine object, the arrays of vectors and of
+// covectors in one frame, and the matrices of maps between two frames.
+pub indexed family Frame(object(CInfAffine)) = frame constraints(canonical(0));
+pub indexed family Coords(frame(Frame)) = frame_vector;
+pub indexed family CoCoords(frame(Frame)) = frame_covector;
+pub indexed family FrameMap(frame(Frame), frame(Frame)) = frame_map;
+// ANCHOR_END: frame-families
+
+pub indexed affine Pt(SmoothR) = Affine(0)[];
+pub indexed affine Line(SmoothR) = Affine(1)[t];
+pub indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+pub indexed primitive compose = smooth_compose(Smooth);
+pub indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+pub indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+pub indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+pub indexed primitive dplane = fiber_vector(Cotangent, Smooth, Plane);
+pub indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+pub indexed primitive same_covector = fiber_equal(Cotangent);
+pub indexed primitive same_vector = fiber_equal(Tangent);
+pub indexed primitive pullback = cotangent_pullback(Smooth, Cotangent, saved);

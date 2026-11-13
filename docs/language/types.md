@@ -150,7 +150,9 @@ Rules:
 
 - A type is an indexed type in three cases. It is a path with `::`, or it is
   `Object<…>`, or it is a name followed by `<`. In the third case the name is
-  not a type name of this chapter or of [Geometric types](geometric-types.md).
+  neither `Object` nor a type name of this chapter or of
+  [Geometric types](geometric-types.md). `Point<>` and `Object<>` are errors
+  (`E_PARSE`).
 - Indexed types are valid only in manifest mode. In flat mode an indexed type
   is an error (`E_UNSUPPORTED`).
 - The path of the family must not begin with the keyword `generic`. A type

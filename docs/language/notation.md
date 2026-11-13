@@ -68,7 +68,11 @@ in a package has this syntax, apart from the `pub` that may precede any
 > ```
 
 The block gives the form of a construct only. The rules after it say which
-programs that match the form are valid.
+programs that match the form are valid. Where a production lists the words
+that may stand at a place, a rule may also give the error for another word
+there, as the rules of
+[reverse-pass primitives](smooth-declarations.md#reverse-pass-primitives) do
+for the mode of a pullback.
 
 ## Rules
 

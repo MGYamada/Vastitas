@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Verify the book: its contents, rendering, links, includes, titles, style, Syntax blocks, grammar summary and limits."""
+"""Verify the book: its contents, rendering, links, includes, titles, style, Syntax blocks, grammar summary and limits.
+
+The productions of the grammar summary must derive the source files of the
+examples, as `scripts/book_grammar.py` recognizes them;
+`scripts/check_grammar_derivations.py` checks the other direction with the
+compiler.
+"""
 
 from collections import Counter
 from dataclasses import dataclass
@@ -434,6 +440,101 @@ def check_grammar(source, chapters):
     print(f"Checked that the generated chapter {grammar_summary.CHAPTER} is fresh")
 
 
+# --- The examples against the productions -----------------------------------------
+
+# The source files that the productions must derive from SourceFile: every
+# .vast file under these directories, apart from what the recorded
+# diagnostics of a rejected program decide.
+PARSED_SOURCES = ("examples", "stdlib/src")
+REJECTED = "examples/reject"
+# A file of a rejected program with one of these codes must not parse.
+PARSE_CODES = frozenset({"E_PARSE", "E_LEX"})
+# A file of a rejected program with one of these codes may parse or not, with the reason.
+UNDECIDED_CODES = {
+    "E_UNSUPPORTED": "the code reports syntax that the language does not have, such as a type name that no "
+                     "chapter defines, and also rules on text that the productions derive",
+    "E_RESERVED": "the code reports a reserved name, which the productions derive as an identifier, and a "
+                  "keyword such as while where a name stands, which they do not derive",
+}
+# Files whose recorded code does not follow from the productions, with the rule that gives the code.
+PARSE_EXCEPTIONS = {
+    "examples/reject/expressions/chained-comparison.vast": (
+        True, "Expressions, Operator expressions: a comparison must not be an operand of another comparison "
+              "without parentheses (E_PARSE); the productions derive the text"),
+    "examples/reject/packages/smooth-pullback-mode/main.vast": (
+        False, "Smooth affine declarations, Reverse-pass primitives: a mode other than saved or recomputed is "
+               "an error (E_TYPE); the production lists the two modes"),
+}
+RECORDED = re.compile(r"^(\S+?\.vast):\d+:\d+: (E_[A-Z][A-Z0-9_]*): ", re.M)
+
+
+def recorded_codes(root):
+    """{source file: the codes that the recorded diagnostics of the rejected programs give at it}."""
+    codes = {}
+    for record in sorted((root / REJECTED).rglob("*.stderr")):
+        for path, code in RECORDED.findall(record.read_text(encoding="utf-8")):
+            codes.setdefault(path, set()).add(code)
+    return codes
+
+
+def parse_errors(root, grammar, exceptions=PARSE_EXCEPTIONS, sources=PARSED_SOURCES):
+    """Parse every source file with the productions; return (errors, parsed, rejected, skipped)."""
+    codes = recorded_codes(root)
+    errors = []
+    parsed = rejected = 0
+    skipped = []
+    files = sorted(file for directory in sources for file in (root / directory).rglob("*.vast")
+                   if not any(part.startswith(".") for part in file.relative_to(root).parts))
+    for file in files:
+        name = file.relative_to(root).as_posix()
+        recorded = codes.get(name, set())
+        source = file.read_text(encoding="utf-8")
+        failure = grammar.parse(source)
+        if name in exceptions:
+            expected, reason = exceptions[name]
+            if (failure is None) != expected:
+                errors.append(f"{name}: PARSE_EXCEPTIONS says that the productions "
+                              f"{'derive' if expected else 'do not derive'} the file, which is no longer so; "
+                              "remove the entry")
+            skipped.append(f"{name}: {reason}")
+            continue
+        if recorded & PARSE_CODES:
+            rejected += 1
+            if failure is None:
+                errors.append(f"{name}: the compiler reports {sorted(recorded & PARSE_CODES)[0]}, "
+                              "but the productions derive the file")
+            continue
+        undecided = sorted(recorded & UNDECIDED_CODES.keys())
+        if undecided:
+            skipped.append(f"{name}: {undecided[0]}, {UNDECIDED_CODES[undecided[0]]}")
+            continue
+        parsed += 1
+        if failure:
+            errors.append(f"{name}:{failure.where(source)}: {failure.message}")
+    return errors, parsed, rejected, skipped
+
+
+def check_parse(source, root=ROOT):
+    """The productions of the grammar summary derive the source files of the examples from SourceFile."""
+    import book_grammar
+    grammar = book_grammar.Grammar(book_grammar.read_productions(
+        (source / book_grammar.GRAMMAR_CHAPTER).read_text(encoding="utf-8")))
+    if grammar.errors:
+        raise ValueError("the productions of the grammar summary do not form a grammar:\n  "
+                         + "\n  ".join(grammar.errors))
+    errors, parsed, rejected, skipped = parse_errors(root, grammar)
+    if errors:
+        raise ValueError("the productions disagree with the examples:\n  " + "\n  ".join(errors))
+    print(f"Parsed {parsed} source files of {' and '.join(PARSED_SOURCES)} with the productions from "
+          f"{book_grammar.START}; {rejected} rejected files with {' or '.join(sorted(PARSE_CODES))} do not parse")
+    print("  The tokenizer reads in prose: " + ", ".join(book_grammar.PROSE_FORMS) + "; it splits "
+          + ", ".join(f"{token} into {' '.join(parts)}" for token, (parts, _) in book_grammar.SPLIT_TOKENS.items())
+          + " after type arguments")
+    print(f"  Skipped {len(skipped)} files:")
+    for entry in skipped:
+        print(f"    {entry}")
+
+
 # --- Limits ---------------------------------------------------------------------
 
 LIMITS_CHAPTER = "appendix/limits.md"
@@ -663,6 +764,7 @@ if __name__ == "__main__":
     check_includes(source, chapters)
     check_syntax(source, chapters)
     check_grammar(source, chapters)
+    check_parse(source)
     check_limits(source)
     pages = check_html(output)
     check_redirects(pages, output)

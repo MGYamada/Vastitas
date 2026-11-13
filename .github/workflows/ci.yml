@@ -118,6 +118,7 @@ jobs:
             /stdlib/
             /scripts/
             /lean-kernel/
+            /docs/appendix/grammar.md
             /Cargo.toml
             /Cargo.lock
             /build.rs
@@ -166,6 +167,10 @@ jobs:
           test -x target/debug/vastitas
           test -x lean-kernel/.lake/build/bin/vastitas-kernel
           python3 -m unittest discover -s scripts -p 'test_diagnostic_reference.py' -v
+      # Texts that the productions of the grammar summary derive give no parse
+      # diagnostic that no rule of the Reference gives (#746).
+      - name: Derived grammar texts against the built compiler
+        run: python3 scripts/check_grammar_derivations.py --compiler target/debug/vastitas
 
   numerical-adapter:
     name: Optional GEMM adapter (${{ matrix.os }}, OpenBLAS 0.3.34)

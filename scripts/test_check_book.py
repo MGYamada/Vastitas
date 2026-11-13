@@ -529,6 +529,71 @@ class GrammarTests(Fixture):
                          ["SUMMARY.md does not list appendix/grammar.md"])
 
 
+class ParseTests(Fixture):
+    GRAMMAR = """
+        ```text
+        SourceFile -> Item*
+        Item -> `fn` IDENTIFIER `(` `)` `{` INTEGER_LITERAL `}`
+        IDENTIFIER_OR_KEYWORD -> ( ASCII_LETTER | `_` ) ( ASCII_LETTER | ASCII_DIGIT | `_` )*
+        IDENTIFIER -> IDENTIFIER_OR_KEYWORD except STRICT_KEYWORD
+        ASCII_LETTER -> [`a`-`z`] | [`A`-`Z`]
+        ASCII_DIGIT -> [`0`-`9`]
+        STRICT_KEYWORD -> `fn`
+        INTEGER_LITERAL -> ASCII_DIGIT+
+        FLOAT_LITERAL -> ASCII_DIGIT+ `.` ASCII_DIGIT*
+        PUNCTUATION -> `(` | `)` | `{` | `}` | `<`
+        ```
+        """
+
+    def setUp(self):
+        super().setUp()
+        import book_grammar
+        self.grammar = book_grammar.Grammar(book_grammar.read_productions(textwrap.dedent(self.GRAMMAR)))
+        self.assertEqual(self.grammar.errors, [])
+        write(self.root, {
+            "examples/book/a.vast": "// A comment.\nfn a() { 1 }\n",
+            "examples/packages/p/src/main.vast": "fn b() { 2 } fn c() { 3 }\n",
+            "examples/reject/syntax/open.vast": "fn a() { 1\n",
+            "examples/reject/syntax/open.stderr": "examples/reject/syntax/open.vast:2:1: E_PARSE: expected `}`\n",
+            "examples/reject/types/wrong.vast": "fn a() { 1 }\n",
+            "examples/reject/types/wrong.stderr": "examples/reject/types/wrong.vast:1:10: E_TYPE: expected Bool\n"
+                                                  "examples/reject/types/wrong.vast:1:1: note: declared here\n",
+            "examples/reject/types/name.vast": "fn a() { b }\n",
+            "examples/reject/types/name.stderr": "examples/reject/types/name.vast:1:10: E_UNSUPPORTED: b\n",
+        })
+
+    def errors(self, exceptions=None):
+        return check_book.parse_errors(self.root, self.grammar, exceptions or {}, ("examples",))
+
+    def test_accepted_and_rejected_files(self):
+        errors, parsed, rejected, skipped = self.errors()
+        self.assertEqual((errors, parsed, rejected), ([], 3, 1))
+        self.assertEqual(len(skipped), 1)
+        self.assertIn("examples/reject/types/name.vast: E_UNSUPPORTED", skipped[0])
+
+    def test_a_file_that_the_productions_do_not_derive_fails(self):
+        write(self.root, {"examples/book/b.vast": "fn b() { x }\n"})
+        errors = self.errors()[0]
+        self.assertEqual(len(errors), 1)
+        self.assertTrue(errors[0].startswith("examples/book/b.vast:1:10: the productions derive no text with `x`"))
+
+    def test_a_parse_error_that_the_productions_derive_fails(self):
+        write(self.root, {"examples/reject/syntax/open.vast": "fn a() { 1 }\n"})
+        self.assertEqual(self.errors()[0], ["examples/reject/syntax/open.vast: the compiler reports E_PARSE, "
+                                            "but the productions derive the file"])
+
+    def test_an_exception_names_its_rule_and_must_hold(self):
+        rule = "Expressions: the rule"
+        errors, _, rejected, skipped = self.errors({"examples/reject/syntax/open.vast": (False, rule)})
+        self.assertEqual((errors, rejected), ([], 0))
+        self.assertIn(f"examples/reject/syntax/open.vast: {rule}", skipped)
+        errors = self.errors({"examples/reject/syntax/open.vast": (True, rule)})[0]
+        self.assertIn("PARSE_EXCEPTIONS says that the productions derive the file", errors[0])
+
+    def test_the_book_examples_parse(self):
+        check_book.check_parse(check_book.ROOT / "docs")
+
+
 class LimitTests(unittest.TestCase):
     LIMITS = {"parseNesting": 64, "elaborationWork": 1000000}
     TABLE = """

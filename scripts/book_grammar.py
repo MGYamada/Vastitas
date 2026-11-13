@@ -647,8 +647,12 @@ class Bnf:
                         add(following, (rule, dot + 1, origin))
         if (top, 1, positions[0]) in seen[end]:
             return None
-        expected = sorted({rules[rule][1][dot] for rule, dot, _ in sets[furthest]
-                           if dot < len(rules[rule][1]) and rules[rule][1][dot][0] != "N"}, key=str)
+        expected = set()
+        for rule, dot, _ in sets[furthest]:
+            if dot < len(rules[rule][1]):
+                kind, value = rules[rule][1][dot]
+                expected |= self.first.get(value, set()) if kind == "N" else {(kind, value)}
+        expected = sorted(expected, key=str)
         found = next((token.text for _, _, token in edges.get(furthest, ())), None)
         shown = ", ".join(f"`{value}`" if kind == "T" else
                           f"{value[0]} except " + " | ".join(f"`{word}`" for word in sorted(value[1]))

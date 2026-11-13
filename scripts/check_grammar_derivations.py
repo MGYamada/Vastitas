@@ -271,9 +271,12 @@ class Deriver:
             return self.lexical(expression.item)
         raise TypeError(expression)
 
-    def coverage(self):
-        """How many of the options of the choices and repetitions of the productions some derivation took."""
-        options = [goal for goal in self.goals() if goal[0] == "point"]
+    def coverage(self, contexts=None):
+        """How many options of the choices and repetitions some derivation took, of those that the
+        start symbols of the contexts reach."""
+        starts = {context.start for context in contexts} if contexts else set(self.heights)
+        options = [goal for goal in self.goals() if goal[0] == "point"
+                   and any(start in self.distances[self.owner(goal)] for start in starts)]
         return sum(1 for goal in options if self.covered(goal)), len(options)
 
 
@@ -654,9 +657,9 @@ def main(argv=None):
             print(case.program)
         if reason:
             failures.append((case, reason, stderr))
-    used, total = deriver.coverage()
-    print(f"Derived {len(cases)} texts (seed {arguments.seed}, depth {arguments.depth}); "
-          f"they take {used} of the {total} choices and repetitions of the productions")
+    used, total = deriver.coverage(CONTEXTS)
+    print(f"Derived {len(cases)} texts (seed {arguments.seed}, depth {arguments.depth}); they take {used} of "
+          f"the {total} options of choices and repetitions that the contexts reach")
     print(f"{forbidden} texts break a rule of RULES and give the code of a rule that they break:")
     for rule in RULES:
         count = sum(rule in case.rules for case in cases)

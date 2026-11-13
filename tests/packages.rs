@@ -644,26 +644,32 @@ fn name_errors_of_a_module_point_to_the_second_declaration() {
     );
 }
 
-/// #747: in flat mode the kernel decides that `mod`, `use`, `pub`, `self` and
-/// `super` are no names of declarations. Its diagnostic is at the declaration,
-/// not at line 1, column 1 of the file.
+/// #747: `mod`, `use`, `pub`, `self` and `super` are reserved in flat mode
+/// too. The frontend reports them at the name, as in manifest mode, and the
+/// kernel, which rejects them as well, is never reached. The cases of
+/// `tests/fixtures/frontend-diagnostics.json` give the places without a
+/// kernel; this test checks a declaration and a `let` with the kernel.
 #[test]
-fn reserved_module_words_in_flat_mode_point_to_the_declaration() {
+fn reserved_module_words_in_flat_mode_point_to_the_name() {
     let s = Scratch::new();
-    for (word, declaration) in [
-        ("mod", "fn mod() -> Int { 1 }"),
-        ("use", "fn use() -> Int { 1 }"),
-        ("self", "generic self(x) { domain (Int); }"),
+    for (source, place, word) in [
+        (
+            "fn main() -> Int { 0 }\n\nfn mod() -> Int { 1 }\n",
+            "3:4",
+            "mod",
+        ),
+        (
+            "fn main() -> Int {\n    let use = 1;\n    0\n}\n",
+            "2:9",
+            "use",
+        ),
     ] {
-        let file = s.write(
-            "flat.vast",
-            &format!("fn main() -> Int {{ 0 }}\n\n{declaration}\n"),
-        );
+        let file = s.write("flat.vast", source);
         let output = s.cli().arg("check").arg(&file).output().unwrap();
         let error = common::expect_code(&output, "E_RESERVED");
         assert!(
             error.starts_with(&format!(
-                "{}:3:1: E_RESERVED: '{word}' is reserved for modules",
+                "{}:{place}: E_RESERVED: `{word}` is reserved",
                 file.display()
             )),
             "{error}"

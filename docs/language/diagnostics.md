@@ -105,9 +105,9 @@ Rules:
   `mod` item count as declarations. A dependency alias of the package counts
   as a declaration of each of its modules, before all others. A manifest
   declares it, so the diagnostic has no note for it.
-- The diagnostic of a reserved name points to the name, as
-  [Reserved names](lexical-structure.md#reserved-names) says, or to the
-  declaration with that name.
+- The diagnostic of a reserved name points to the name, in flat mode and in
+  manifest mode, with the one exception that
+  [Reserved names](lexical-structure.md#reserved-names) gives.
 
 The examples of this book show an absolute path without its part up to the
 root of the repository. In this package `main` calls a private function of a

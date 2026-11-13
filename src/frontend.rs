@@ -640,10 +640,11 @@ impl Parser {
         Ok((name, span))
     }
 
+    // The names of modules and paths are reserved in flat mode too. The kernel
+    // rejects them as well, at the declaration or the statement that binds
+    // them; the frontend reports them at the name (#747).
     fn check_binding_name(&self, name: &str, span: Span) -> Result<(), Diagnostic> {
-        if reserved(name)
-            || (self.packages && ["mod", "use", "pub", "self", "super"].contains(&name))
-        {
+        if reserved(name) || ["mod", "use", "pub", "self", "super"].contains(&name) {
             Err(diagnostic(
                 "E_RESERVED",
                 if BUILTINS.contains(&name) {

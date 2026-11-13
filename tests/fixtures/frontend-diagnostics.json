@@ -810,6 +810,69 @@
    "line": 2,
    "column": 1,
    "message": "declaration `A` is defined more than once"
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    let use = 1;\n    0\n}\n",
+   "code": "E_RESERVED",
+   "line": 2,
+   "column": 9,
+   "message": "`use` is reserved and cannot be used as a declaration or binding name"
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "fn f(self: Int) -> Int { 1 }\nfn main() -> Int { 0 }\n",
+   "code": "E_RESERVED",
+   "line": 1,
+   "column": 6,
+   "message": "`self` is reserved and cannot be used as a declaration or binding name"
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "fn main() -> Int { 0 }\n\nfn mod() -> Int { 1 }\n",
+   "code": "E_RESERVED",
+   "line": 3,
+   "column": 4,
+   "message": "`mod` is reserved and cannot be used as a declaration or binding name"
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "generic super(x) { domain (Int); }\nmethod super(x: Int) -> Int { x }\nfn main() -> Int { 0 }\n",
+   "code": "E_RESERVED",
+   "line": 1,
+   "column": 9,
+   "message": "`super` is reserved and cannot be used as a declaration or binding name"
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    let g = fn(pub: Int) -> Int { 1 };\n    g(0)\n}\n",
+   "code": "E_RESERVED",
+   "line": 2,
+   "column": 16,
+   "message": "`pub` is reserved and cannot be used as a declaration or binding name"
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {\n    let X = Affine(QQ, n);\n    pack { scheme: X, point: origin(X) }\n}\nfn main() -> Int {\n    let package = make_origin(3);\n    unpack package as { scheme: mod, point: p };\n    0\n}\n",
+   "code": "E_RESERVED",
+   "line": 7,
+   "column": 33,
+   "message": "`mod` is reserved and cannot be used as a declaration or binding name"
+  },
+  {
+   "issue": 747,
+   "input": "flat",
+   "source": "abstract type use;\nfn main() -> Int { 0 }\n",
+   "code": "E_RESERVED",
+   "line": 1,
+   "column": 15,
+   "message": "`use` is reserved and cannot be used as a declaration or binding name"
   }
  ]
 }

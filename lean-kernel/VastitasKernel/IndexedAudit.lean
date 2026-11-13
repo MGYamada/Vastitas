@@ -1,4 +1,4 @@
-import VastitasKernel.Indexed
+import VastitasKernel.IndexedValidity
 
 /-! Executable decision procedures for independent indexed judgments. -/
 namespace VastitasKernel.Indexed.Audit

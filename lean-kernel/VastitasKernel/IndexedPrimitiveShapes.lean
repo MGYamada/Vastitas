@@ -1,4 +1,4 @@
-import VastitasKernel.Indexed
+import VastitasKernel.IndexedValidity
 
 set_option autoImplicit false
 

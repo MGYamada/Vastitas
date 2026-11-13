@@ -1,4 +1,4 @@
-import VastitasKernel.Indexed
+import VastitasKernel.IndexedValidity
 
 /-! Internal Graph crossing fragment for #201. This is a checker for finite,
 oriented structural words, not a public tensor frontend or an equality oracle.

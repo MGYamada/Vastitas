@@ -1,4 +1,4 @@
-import VastitasKernel.Indexed
+import VastitasKernel.IndexedValidity
 
 namespace VastitasKernel.Indexed.Regression
 private def id (name : String) : DeclId :=

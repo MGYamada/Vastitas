@@ -1,5 +1,5 @@
 import VastitasOracle.AlgebraBasis
-import VastitasKernel.Indexed
+import VastitasKernel.IndexedValidity
 
 /-! Structural soundness of presented affine declarations (Stage 2).
 

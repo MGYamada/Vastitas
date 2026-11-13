@@ -1,4 +1,4 @@
-import VastitasKernel.Indexed
+import VastitasKernel.IndexedValidity
 
 /-! Generic, single-witness existential package contracts. The indexed Core and
 oracle payload semantics use these exact records. Public protocol 7 resolves and

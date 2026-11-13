@@ -98,6 +98,8 @@ sections that hold its route theorems and its component theorems.
   [Exact affine algebra checker](#exact-affine-algebra-checker).
 - **Smooth affine geometry, reverse pullbacks and metrics.**
   [Smooth affine geometry and reverse pullbacks](#smooth-affine-geometry-and-reverse-pullbacks).
+- **Frames, change of frame and physical dimensions.**
+  [Frames and physical dimensions](#frames-and-physical-dimensions).
 - **Storage, resource programs, numerical maps, networks and code
   generation.** [What is outside these claims](#what-is-outside-these-claims),
   the [tensor packing profile](#tensor-packing-profile),
@@ -2919,6 +2921,164 @@ coordinates.
 Native refinement of generated code, the Rust parser and the Lean-to-C
 toolchain are outside these claims, as for the rest of the compiler.
 
+<a id="frames-and-physical-dimensions"></a>
+
+## Frames and physical dimensions
+
+**Components of the current routes.** The theorems of this section are about
+the frame runtime, the checks of frame and physical-dimension declarations,
+the registry entries of the frame bindings and accepted Core nodes, which the
+routes use. No theorem of this section takes the `CheckedInput` of an entry
+point. The bridge theorems read these kernel and oracle definitions.
+
+The frame primitives run on `lean-kernel/VastitasKernel/FrameRuntime.lean`,
+which the checker and generated programs share and which imports only
+`SmoothRuntime`. `FrameDeclarations.lean` checks frame declarations, and
+`NatureDimension.lean` the declarations of `nature::dimension`.
+`Entry.Valid` of `IndexedValidity.lean` calls both checks. The
+[acceptance map](stage4-acceptance.md) links each acceptance condition to the
+evidence below. The status words are those of
+[How to read this chapter](#how-to-read-this-chapter).
+
+The proofs keep three kinds of claim apart:
+
+- The **oracle** states structural facts about the kernel's definitions:
+  what an accepted declaration satisfies, what the frame runtime computes,
+  which runtime value an accepted Core node evaluates to, and which
+  declarations and bindings a weakening leaves unchanged. Its derivative is
+  the formal partial derivative of polynomials, and its matrices are lists of
+  rows of rationals.
+- The **bridge** states what these values mean in Mathlib: an accepted frame
+  is a `Basis` of ℝⁿ at every real point, an array is `Basis.repr`, a frame
+  matrix is `LinearMap.toMatrix` of the Fréchet derivative, a transition is
+  `Basis.toMatrix`, and a Gram matrix in a frame is
+  `LinearMap.BilinForm.toMatrix`.
+- **Tests** are evidence for the diagnostics, the wire, the generated code,
+  the agreement with the Python reference and native execution. They prove
+  nothing for all inputs.
+
+### Oracle theorems of frames and dimensions
+
+All of these are Proved (oracle). Names are relative to `VastitasOracle`.
+
+| Module | Theorems | Statement |
+| --- | --- | --- |
+| `FrameDeclarations` | `polyMatMul_ok`, `products_ok`, `matrixAt_plainMatMul`, `matrixAt_constant`, `checkMatrices_sound`, `checkFrame_sound`, `frame_sound`, `dependent_rows_not_inverse`, `Examples.singular_rejected`, `Examples.diagonalX_rejected`, `Examples.shear_wrong_inverse_rejected`, `Examples.point_frame_accepted`, `Examples.skew_accepted` | A product within the work budget is the plain product of polynomial matrices, and evaluation at a point is a ring map on matrices. An accepted frame declaration names a frame family at a declared smooth object of dimension n, and its matrices P and Q are n × n canonical polynomial matrices with P(p)·Q(p) = Q(p)·P(p) = I at every point p, for a constant and for a polynomial frame. Two dependent rows have no inverse, so `columns((1, 2), (2, 4))` and `columns((x, 0), (0, 1))` are rejected with every inverse |
+| `FrameRuntime` | `adequacy`, `transition_laws`, `pairing_invariant`, `pairing_frame_wrong_point`, `frameMatrix_eq`, `frameMatrix_congr`, `frameMatrix_natural`, `frameMatrix_decode`, `coapply_eq_pullback`, `roadmap_identity`, `jacobianAt_compose`, `frameMatrix_compose`, `point_dependent_frames`, `degenerate_frames`, `gram_in_frame`, `frameGram_transport`, `contraction_endpoints`, `Examples.doubleX_at_image`, `Examples.doubleX_other_point`, `Examples.rankOne_in_skew`, `Examples.point_adequacy` | For frames that are invertible at their points: decoding and encoding are inverse, for vectors and covectors, and the failure value stays the failure value; the transition laws; the pairing does not depend on the frame and reads (0, 0) over two points; a frame matrix is Q_c(F(p))·J(p)·P_b(p), with the target frame read at F(p); change of frame M′ = T·M·T′; both arrays decode to the Jacobian; coapply in frames is the `pullback` of the smooth runtime, in either mode; the chain rule in frames; the Gram matrix in a frame is Pᵀ·G·P with its transport law; apply, coapply and compose give the failure value for mismatched points |
+| `FramePrimitives` | `frameArray_has_type`, `frameMatrix_has_type`, `frameDeclared_spec`, `frameDeclared_object`, `encode_typed`, `decode_typed`, `frameMatrix_runtime_typed`, `transition_typed`, `apply_typed`, `coapply_typed`, `compose_typed`, the `_association`, `_shape`, `_total` and `_sound` theorems of the thirteen frame bindings, `frameVector_erasure` | A frame array and a frame matrix have their own types, never a fiber type. A valid binding embeds each frame as it is declared. The runtime keeps the lengths of arrays and matrices without any inverse identity. Each frame binding has its association, its operand list, typed totality and its `Sound` instance, which `IndexedSemantics.registry_sound` cites. The associations fix the frames statically: a map's source frame equals its array's frame, the middle frames of a composite are equal, a pairing has one frame, and a component or entry index is below the dimension of its frame |
+| `FrameCore` | `DeclaredFrame.checked`, `DeclaredFrame.unique`, `frame_runtime_operations`, `frame_bindings_environment_free`, `core_frame_encode`, `core_frame_decode`, `core_frame_vector`, `core_frame_matrix`, `core_frame_matrix_lowerings`, `core_frame_transition`, `core_frame_apply`, `core_frame_coapply`, `core_frame_compose`, `core_frame_pairing`, `core_frame_component`, `core_frame_entry`, `core_frame_equal`, `core_frame_at`, `core_frame_matrix_compose`, `frameMatrix_node_rows`, `frameMatrix_point_coordinates`, `core_frame_chain_rule_terms` | An accepted Core node of each frame binding evaluates to the `FrameRuntime` or `SmoothRuntime` operation on its operand values and on the declared matrices of its frames, with its checked type. For `frame_matrix(compose(g, f), p)` the program is the node `Program.compose G F`, never an expanded composite. The erased evaluator applies the same operations, and every frame binding except `frame_vector` evaluates the same in every environment |
+| `FrameWeakening` | `frame_weakening_binding`, `frame_weakening_entry`, `frame_weakening_binding_of_valid`, `frame_weakening_entry_of_valid`, `stage3_bindings_frame_free`, `metric_bindings_frame_free`, `frame_bindings_metric_free` | Frame declarations at any position change the validity of no binding that names none of them, the value of no binding, and the validity of no declaration, for every table of class ranks. No frame binding reads a metric declaration, so the metric-free statements of `SmoothMetricWeakening` hold with the frame bindings |
+| `NatureDimension` | `sameDimension_iff`, `checkBaseDimension_iff`, `checkQuantity_iff`, `checkReading_iff`, `checkScale_iff`, `valid_quantity`, `valid_reading`, `valid_scale`, `scaleMonomialValue_sound`, `entryValues_euclidean`, `entryValues_gram`, `entryValues_normalized`, `physicalMetric_sound`, `valid_physicalMetric`, `euclidean_sound`, `euclidean_rejected`, `normalized_rejected_of_kind`, and the `Roadmap` instances `euclidean_check_rejected`, `euclidean_invalid`, `scaled_accepted`, `interpreted_valid`, `mismatch_rejected`, `wrong_dimension_rejected`, `minkowski_accepted`, `normalized_accepted`, `wavelength_rejected`, `wavelength_rows_accepted` | A dimension is an element of the free abelian group on the base dimensions. Each declaration check means what ADR 0002 §3 states. An accepted physical metric evaluates, with the magnitudes of its scales, to the Gram matrix of its metric, and every term with a nonzero entry has one dimension. The Euclidean metric under a coordinate of dimension L and one of dimension T is rejected, whatever its declared value. `normalized` needs scales of exactly the kinds of the coordinates. The kernel evaluates the roadmap example (`decide +kernel`) |
+| `NatureWeakening` | `entryValid_nature_insertion`, `validEntry_nature_insertion`, `validPrimitiveBinding_nature_insertion`, `evalPrimitive_nature_insertion`, their `_of_valid` forms, `entryValid_nature_weakening`, `validPrimitiveBinding_nature_weakening`, `evalPrimitive_nature_weakening`, `metric_nature_free`, `metric_valid_with_reading`, `flat_sharp_nature_free` | Nature declarations at any position, valid or not, change the validity of no other declaration, for every table of class ranks, and the validity and the value of no binding, `flat` and `sharp` included. A std metric with its evidence is valid with and without any reading of its object and any interpretation of it |
+| `FrameAcceptance` | `declared_invertible`, `c4_adequacy`, `c5_transitions`, `c6_pairing`, `c7_two_frame_pairs`, `c8_same_accepted_core`, `c9_point_dependent`, `c10_contraction`, `c11_degenerate`, `c12_gram`, `c13_weakening`, `c16_nature_declarations`, `c17_dx2_dt2_rejected`, `c18_scaled_metric`, `c19_kinds` | One theorem per acceptance condition that the oracle states, about accepted programs: each composes a theorem of `FrameCore`, which names the value that an accepted node computes, with a theorem of `FrameRuntime`, which says what that value is. A valid environment makes every embedded frame invertible at the dimension of its object (`declared_invertible`). The rows of dimensions are about the declarations of a valid environment and about the roadmap environment |
+
+`SmoothMetricWeakening` excludes no frame binding from `MetricFree`: each
+reads its embedded frames, never a metric declaration.
+`SmoothJacobian.registry_reverse_sound` covers the frame bindings by name.
+Their derivative rule is `none`: `frame_matrix` runs the recomputing reverse
+pass inside its call, so compiled reverse Core does not open it.
+
+### Bridge theorems of frames
+
+All of these are Proved (bridge), in `VastitasBridge.Differential`.
+`lean-bridge/Audit.lean` requires each name.
+
+| File | Theorems | Statement |
+| --- | --- | --- |
+| `FramePrerequisites.lean` | `frameBasis`, `frameBasis_apply`, `frameBasis_repr`, `frameBasis_dualBasis_repr`, `toMatrix_frameBasis`, `frameBasis_toMatrix_frameBasis`, `transition_self`, `transition_trans`, `transition_mul_transition`, `transition_mulVec`, `frameMatrix_change`, `pairing_frame`, `bilinToMatrix_frameBasis`, `bilinToMatrix_frameBasis_transport`, `gram_transport`, `posDef_frameGram`, `isUnit_frame`, `matrix_map_mul_eq_one`, `polyFrame_eval`, `polyFrame_realEval` | Pure Mathlib over a commutative ring: a pair of mutually inverse matrices is a basis whose coordinate map is v ↦ Q·v and whose dual coordinates are Pᵀ·α; `LinearMap.toMatrix` in two frames is Q′·J·P; the transition laws and the change of frames; pairing invariance; the Gram matrix in a frame is Pᵀ·G·P, with its transport and positive definiteness; a polynomial frame with a polynomial inverse is a basis at every rational and real point |
+| `Frame.lean` | `frameAt_of_inverse`, `frameAt_apply`, `frameAt_repr`, `frame_basis`, `polyMatrix_mul_eq_one`, `frameAt_eq_realFrame`, `frame_realBasis`, `encodeTangent_repr`, `decodeTangent_sum`, `encodeCotangent_repr`, `decodeCotangent_sum`, `frameMatrix_eq_toMatrix_fderiv`, `frame_arrays_same_map`, `frameMatrix_comp_toMatrix`, `transition_eq_basis_toMatrix`, `pairing_in_frame`, `flat_in_frame_bilin`, `gram_transport_frame`, `posDef_gram_in_frame` | The kernel's lists read as real matrices: an accepted frame declaration is a basis of ℝⁿ at every real point; encoding is `Basis.repr` and its dual; decoding is the linear combination of the frame vectors; a frame matrix is `LinearMap.toMatrix` of `fderiv ℝ` of the program's real map, from the source frame at p to the target frame at F(p); two frame pairs decode to the same map; the frame matrix of a composite program is the product of the matrices of its nodes; a transition is `Basis.toMatrix`; the pairing in a frame is α ⬝ᵥ v; lowering in a frame is `LinearMap.BilinForm.toMatrix`, and Riemannian evidence stays positive definite in every frame |
+| `AcceptedFrames.lean` | `declared_frame_inverse`, `accepted_frame_matrix_operands`, `checked_frame_matrix_fderiv`, `checked_frame_arrays_same_map`, `checked_frame_chain_rule`, `checked_frame_encode_repr`, `checked_frame_encode_dual_repr`, `checked_gram_in_frame` | The comparisons above for an accepted Core node: its map is a program checked as ℝⁿ → ℝᵐ, its point has n coordinates, its frames are the declared ones and are invertible at every point, and its value is the Mathlib matrix of the Fréchet derivative of the program that checked Core builds. For `frame_matrix(compose(g, f), p)` the matrix is that of DG(F(p)) ∘ DF(p) |
+
+The theorems of `AcceptedFrames.lean` derive the hypotheses of `Frame.lean`
+from a valid environment, the checker's typing of one node
+(`Typing.HasType`) and the types of its operand values, through the oracle's
+`FrameCore` theorems and `DeclaredFrame.checked`. Operand evaluation and
+operand typing (`PrimitiveValuesHaveTypes`) stay premises, as in the oracle's
+`core_frame_*` theorems. They are not composed with whole-term preservation,
+`IndexedEvaluationSafety.evaluation_total_and_typed`.
+
+### Independence from the kernel chain rule
+
+A frame matrix takes its rows from the recomputing reverse pass of the
+program value. There is no pushforward. The theorems differ in how they read
+those rows:
+
+- The oracle's `FrameRuntime.frameMatrix_eq` reads them as the rows of the
+  Jacobian matrix through `SmoothCalculus.backward_eq_cot`, a chain-rule
+  theorem of the oracle. So do the oracle theorems that rest on it:
+  `frameMatrix_natural`, `frameMatrix_decode`, `coapply_eq_pullback`,
+  `roadmap_identity`, `point_dependent_frames`, `degenerate_frames`,
+  `frameMatrix_compose`, which also uses `SmoothCalculus.evalAt_partial_subst`,
+  and the rows C7, C8, C9 and C11 of `FrameAcceptance`.
+- The bridge's frame-matrix theorems read the reverse pass through
+  `reverse_covector_eq_comp_fderiv` of `Frechet.lean`, and not through
+  `frameMatrix_eq`: `realVec_reverse`, `frameMatrix_eq_toMatrix_fderiv`,
+  `frame_arrays_same_map`, `frameMatrix_comp_toMatrix` and the
+  `checked_frame_*` matrix theorems. `checked_frame_chain_rule` is Mathlib's
+  chain rule for the real programs, read through `LinearMap.toMatrix_comp`.
+  `lean-bridge/Audit.lean` walks the constants of these seven theorems and
+  fails if one reaches a chain-rule theorem of `ChainRule.lean` or of the
+  oracle, or `pderiv_aeval`. A positive control requires that
+  `FrameRuntime.frameMatrix_eq` reaches `SmoothCalculus.backward_eq_cot`.
+- Adequacy, the transition laws, pairing invariance, the Gram matrix in a
+  frame, the declaration checks, both weakenings and the theorems of
+  physical dimensions involve no reverse pass.
+
+As for compiled reverse Core, the import closure of the bridge contains the
+oracle's `SmoothCalculus`, so the independence concerns the constants that
+the proofs use, not the imports.
+
+### Hypotheses and gaps of the frame proofs
+
+- **Operand evaluation and typing.** Every accepted-node theorem, in the
+  oracle and in the bridge, keeps the premises that the leaf operands
+  evaluate, at some fuel, to values of their checked types. `c8_same_accepted_core`
+  uses evaluation at every large enough fuel (`IndexedEvaluation.Evaluates`).
+- **Choices that typing does not fix.** Where the program text chooses a
+  frame, the statement says which: `frame_encode(frame_decode(a))` in C4 and
+  the Gram composites of C12 encode in the frame they decoded from, and the
+  two terms of C8 name the same outer frames.
+- **Class ranks.** `frame_weakening_entry` and the declaration theorems of
+  `NatureWeakening` hold for every table of class ranks. That `classRanks`
+  computes the same table with and without the added declarations is not
+  proved: its passes are private to the kernel's `Indexed` module. So the
+  validity of a whole environment under weakening is not stated.
+- **Not stated for evaluated terms.** C13 and the rows of dimensions are
+  about declarations and bindings; C12's transport law is stated for the
+  value of a transition node, not between two evaluated composites.
+
+### Frames and dimensions: tested, not proved
+
+- The diagnostics of frame and physical-dimension declarations and of
+  rejected frame calls, including the `E_ENDPOINT` messages that name both
+  frames: the kernel regressions `FrameDeclarationRegression`,
+  `FrameRegression` and `NatureRegression`, and `tests/stdlib_frames.rs`,
+  `tests/nature_dimension.rs`, `tests/frame_primitives.rs` and
+  `tests/frame_dimension_declarations.rs`.
+- Raw-wire and tampered-Core rejection, and protocols 7 and 8: the same
+  regressions and `tests/protocol_shape.rs`.
+- That the search of `SmoothDeclarations.invert?` finds the inverse of every
+  invertible constant frame. Soundness does not depend on it: the kernel
+  checks the inverse again.
+- That a frame or a physical metric beyond its limits is rejected before the
+  expensive step, and that the limits bound the work of the checks.
+- Agreement with the Python reference in the real plane:
+  `VastitasAlgebraTest.FrameReferenceRegression` with
+  `tests/fixtures/frames.json`, which `scripts/frame_reference.py` writes.
+- Byte identity of the generated code with and without nature declarations
+  (`generated_code_is_byte_identical_without_the_nature_declarations`).
+- The generated code of the frame primitives, byte for byte
+  (`frame_lean_matches_the_emit_fixtures` in `tests/emit_golden.rs`), and the
+  native fixture `frame_programs` of `scripts/check_indexed_native.sh`.
+- That the two arrays of one map in two frame pairs differ, which the
+  acceptance programs observe and no theorem states: for some frames they
+  coincide.
+- Native execution of the acceptance programs and their mutations.
+
+Exact rationals inside `frameMatrix` are not bounded; their growth, and the
+cost of one interpreted reverse run per row, are a recorded gap of the
+[acceptance map](stage4-acceptance.md#gaps).
+
 ## History
 
 This section holds the issue references of the chapter, by the section that
@@ -2961,6 +3121,14 @@ each comes from.
   `D(x) ≅ D(y)` that `AffineOpenRegression` covers is the transition of
   [#104](https://github.com/MGYamada/Vastitas/issues/104). `pullbackHom_compose` and `specMap_compose` carry the
   reference [#362](https://github.com/MGYamada/Vastitas/issues/362).
+- **Frames and physical dimensions.** The tracker of Stage 4's finite profile
+  of frames, change of frame and physical dimensions is
+  [#759](https://github.com/MGYamada/Vastitas/issues/759). The finite basis
+  adequacy of [#518](https://github.com/MGYamada/Vastitas/issues/518), the
+  Gram transport of [#264](https://github.com/MGYamada/Vastitas/issues/264)
+  and the minimal `nature::dimension` of
+  [#300](https://github.com/MGYamada/Vastitas/issues/300) are the parts of
+  those issues that the section's theorems cover.
 
 The rewrite of the book ([#605](https://github.com/MGYamada/Vastitas/issues/605)) retitled these sections and
 kept their former anchors:

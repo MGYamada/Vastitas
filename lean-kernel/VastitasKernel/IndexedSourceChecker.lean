@@ -389,10 +389,18 @@ private def bindingSpelling : Option Body → String
   | some (.cartesian ..) => "cartesian"
   | _ => "primitive"
 
+/-- Presentation only: the rule of `Entry.Valid` that an invalid entry breaks,
+as a code and a message. -/
+def entryRule (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Option Rule :=
+  ((implementationRule env entry).map ("E_TYPE", ·)).orElse fun _ =>
+    (classificationRule env ranks entry).orElse fun _ =>
+      (globalRule env entry).orElse fun _ => familyRule env entry
+
 /-- Presentation only: the diagnostic for declarations that
 `Core.validDeclarations` rejects. It is at the first declaration that fails
 its own check, and its message is the rule that the declaration breaks, where
-`implementationRule` or `primitiveRule` finds one. Acceptance is
+`entryRule`, `packageRule` or `primitiveRule` finds one. A size limit of a
+declaration is `E_LIMIT`, every other rule `E_TYPE`. Acceptance is
 `Core.validDeclarations` alone. -/
 def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
   let general := "invalid indexed declaration, package, or primitive contract"
@@ -401,10 +409,13 @@ def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
   let ranks := classRanks env.indexed
   match env.indexed.find? (fun entry => !validEntry env.indexed ranks entry) with
   | some entry =>
-    { code := "E_TYPE", message := (implementationRule env.indexed entry).getD general, span := span entry.id }
+    let (code, message) := (entryRule env.indexed ranks entry).getD ("E_TYPE", general)
+    { code, message, span := span entry.id }
   | none =>
     match env.packages.find? (fun declaration => !decide (declaration.Valid env.indexed)) with
-    | some declaration => { code := "E_TYPE", message := general, span := span declaration.id }
+    | some declaration =>
+      let (code, message) := (packageRule env.indexed declaration).getD ("E_TYPE", general)
+      { code, message, span := span declaration.id }
     | none =>
       match env.primitives.find? (fun declaration => !validPrimitiveBinding env.indexed declaration.binding) with
       | some declaration =>

@@ -108,6 +108,41 @@ private def twoLibraries : Program := { program with packages :=
 #eval check "duplicate package case" (rejects "E_TYPE" (change "Pointed" (.package [shape, shape])))
 #eval check "package field index sort" (rejects "E_TYPE" (change "Pointed" (.package
   [⟨objectType, [⟨path "Point", [.witness, .marker (path "QQ")]⟩]⟩])))
+-- Each rule has its own message, and the size limits are `E_LIMIT` (#736).
+private def diagnostic (p : Program) : Option (String × String) :=
+  match checkDeclarations p with | .error error => some (error.code, error.message) | .ok _ => none
+private def addAll (declarations : List Declaration) : Program := changeLibrary fun m =>
+  { m with declarations := m.declarations ++ declarations }
+#eval check "a repeated witness type names the type" (diagnostic (change "Pointed" (.package [shape, shape])) ==
+  some ("E_TYPE", "two cases of the package declaration `geometry::Pointed` have the witness type " ++
+    "`geometry::Scheme<geometry::QQ>`"))
+#eval check "an empty domain names the rule" (diagnostic (add (decl "Empty" (.classification [] []))) ==
+  some ("E_TYPE", "the domain of the classification `geometry::Empty` must not be empty"))
+-- `Local` of the root package comes first, and its parent is on the cycle.
+#eval check "a cycle of parents names the parent" (diagnostic (change "Scheme"
+  (.classification [path "Scheme"] [path "Grid"])) == some ("E_TYPE",
+    "the parents of the classification `app::Local` must not form a cycle, but they reach one through " ++
+      "`geometry::Scheme`"))
+#eval check "a missing capability names the implementation" (diagnostic (changeLibrary fun m =>
+  { m with declarations := (m.declarations.map fun d => if d.name == "Scheme" then
+      { d with body := .classification [] [path "Grid", path "Bare"] } else d) ++
+    [decl "Bare" (.implementation (path "QQ") .affineDescriptor [])] }) == some ("E_TYPE",
+  "every implementation of `geometry::Scheme<geometry::QQ>` must have the capability `origin` for the `origin` " ++
+    "primitive `geometry::origin`, but `geometry::Bare` lacks it"))
+private def implementations : List Declaration :=
+  (List.range 65).map fun i => decl s!"I{i}" (.implementation (path "QQ") .affineDescriptor [])
+private def limited (p : Program) : Bool := (diagnostic p).map (·.1) == some "E_LIMIT"
+private def domainOf (count : Nat) : Program :=
+  addAll (implementations ++ [decl "Wide" (.classification [] ((List.range count).map fun i => path s!"I{i}"))])
+#eval check "64 implementations in a domain; 65 are E_LIMIT" (accepts (domainOf 64) && limited (domainOf 65))
+private def parametersOf (count : Nat) : Program := add (decl "Wide" (.family ⟨List.replicate count .domain, [], .token⟩))
+#eval check "16 parameters of a family; 17 are E_LIMIT" (accepts (parametersOf 16) && limited (parametersOf 17))
+private def casesOf (count : Nat) : Program := addAll (implementations ++
+  [decl "Wide" (.package ((List.range count).map fun i => ⟨⟨path s!"I{i}", path "QQ"⟩, []⟩))])
+#eval check "64 cases of a package declaration; 65 are E_LIMIT" (accepts (casesOf 64) && limited (casesOf 65))
+private def fieldsOf (count : Nat) : Program := addAll [decl "Bare" (.family ⟨[], [], .token⟩),
+  decl "Wide" (.package [⟨objectType, List.replicate count ⟨path "Bare", []⟩⟩])]
+#eval check "64 fields of a case; 65 are E_LIMIT" (accepts (fieldsOf 64) && limited (fieldsOf 65))
 #eval check "cross-category duplicate owner" (rejects "E_DUPLICATE" (add (decl "Grid" (.package [shape]))))
 #eval check "reserved scalar and function types" (rejects "E_RESERVED" (add (decl "Nat" .marker)) &&
   rejects "E_RESERVED" (add (decl "Fn" .marker)))

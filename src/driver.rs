@@ -146,8 +146,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     let display_input = manifest.as_ref().or(input.as_ref()).unwrap().clone();
     let (sources, request, version) = if let Some(manifest) = manifest {
         let (sources, module) = crate::packages::load(&manifest, output.as_deref())?;
-        let request = serde_json::to_vec(&module)
-            .map_err(|error| format!("E_PROTOCOL: cannot encode packages: {error}"))?;
+        let request = kernel_request(&module, &sources, "packages")?;
         (sources, request, module.version)
     } else {
         let sources = Sources::load(input.as_ref().unwrap(), &libraries)?;
@@ -155,8 +154,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             sources.protect_output(output)?;
         }
         let module = sources.parse()?;
-        let request = serde_json::to_vec(&module)
-            .map_err(|error| format!("E_PROTOCOL: cannot encode module: {error}"))?;
+        let request = kernel_request(&module, &sources, "module")?;
         (sources, request, module.version)
     };
     let configured_executable = std::env::var_os("VASTITAS_KERNEL").map(PathBuf::from);
@@ -329,6 +327,81 @@ fn missing_kernel(root: &Path, executable: &Path) -> String {
         "E_BACKEND: kernel executable {} is not built\n{advice}",
         shown(executable)
     )
+}
+
+/// The request of a program, or the limit on the size of a request. The
+/// kernel refuses a request beyond `requestBytes` of the compiler limits
+/// before it parses it; a program within the limits on its inputs can make
+/// one (#740). The frontend reports the limit of the program instead, at the
+/// start of the first input like the other limits of a whole program.
+fn kernel_request(
+    value: &impl serde::Serialize,
+    sources: &Sources,
+    what: &str,
+) -> Result<Vec<u8>, String> {
+    kernel_request_within(value, sources, what, crate::limits::MAX_REQUEST_BYTES)
+}
+
+/// [`kernel_request`] with the bound `bound`, so that a test can reach the
+/// limit with a small request.
+fn kernel_request_within(
+    value: &impl serde::Serialize,
+    sources: &Sources,
+    what: &str,
+    bound: usize,
+) -> Result<Vec<u8>, String> {
+    match bounded_json(value, bound) {
+        Ok(Some(request)) => Ok(request),
+        Ok(None) => Err(sources.diagnostic(
+            "E_LIMIT",
+            &format!(
+                "the request of the program exceeds {bound} bytes, the largest request that the kernel reads"
+            ),
+            Span {
+                start: 0,
+                end: 0,
+                line: 1,
+                column: 1,
+            },
+        )),
+        Err(error) => Err(format!("E_PROTOCOL: cannot encode {what}: {error}")),
+    }
+}
+
+/// The JSON text of `value`, or `None` when it is longer than `bound` bytes.
+/// A first pass counts the bytes without keeping them and stops at the bound,
+/// so a text beyond it is never held. A second pass writes the text into a
+/// buffer of its exact size.
+fn bounded_json(
+    value: &impl serde::Serialize,
+    bound: usize,
+) -> Result<Option<Vec<u8>>, serde_json::Error> {
+    struct Counter {
+        bytes: usize,
+        bound: usize,
+    }
+    impl Write for Counter {
+        fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+            self.bytes = self.bytes.saturating_add(buffer.len());
+            if self.bytes > self.bound {
+                return Err(std::io::Error::other("the text exceeds its bound"));
+            }
+            Ok(buffer.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut counter = Counter { bytes: 0, bound };
+    match serde_json::to_writer(&mut counter, value) {
+        Ok(()) => {}
+        Err(_) if counter.bytes > bound => return Ok(None),
+        Err(error) => return Err(error),
+    }
+    let mut text = Vec::with_capacity(counter.bytes);
+    serde_json::to_writer(&mut text, value)?;
+    debug_assert_eq!(text.len(), counter.bytes);
+    Ok(Some(text))
 }
 
 fn invoke_kernel(
@@ -1146,6 +1219,79 @@ fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(),
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // #740: the frontend bounds the request that it writes. A source program
+    // within the limits on its inputs needs about a gigabyte of request to
+    // reach the bound, so this test gives the counter a small bound; the
+    // ignored test `request_bound_is_a_limit_of_the_program` in
+    // `tests/input_safety.rs` checks the program of the issue.
+    #[test]
+    fn bounded_json_stops_at_its_bound() {
+        let value = json!({"version": 2, "names": ["a", "b", "c"]});
+        let text = serde_json::to_vec(&value).unwrap();
+        // A text of exactly the bound is within it, and the second pass
+        // writes the same text as an unbounded encoding.
+        assert_eq!(
+            bounded_json(&value, text.len()).unwrap(),
+            Some(text.clone())
+        );
+        assert_eq!(
+            bounded_json(&value, usize::MAX).unwrap(),
+            Some(text.clone())
+        );
+        assert_eq!(bounded_json(&value, text.len() - 1).unwrap(), None);
+        assert_eq!(bounded_json(&value, 0).unwrap(), None);
+        // The real bound is the kernel's: `requestBytes` of the limits file.
+        let limits: Value =
+            serde_json::from_str(include_str!("../lean-kernel/compiler-limits.json")).unwrap();
+        assert_eq!(
+            limits["requestBytes"].as_u64(),
+            Some(crate::limits::MAX_REQUEST_BYTES as u64)
+        );
+    }
+
+    // The diagnostic of a request beyond the bound is `E_LIMIT` at the start
+    // of the first input, with the bound in its message. A request within the
+    // bound is the request text.
+    #[test]
+    fn a_request_beyond_the_bound_is_a_limit_at_the_first_input() {
+        let directory =
+            std::env::temp_dir().join(format!("vastitas-request-bound-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let manifest = directory.join("Vastitas.toml");
+        fs::write(&manifest, "[package]\n").unwrap();
+        let mut sources = Sources::empty();
+        sources.add(&manifest, None).unwrap();
+        let value = json!({"version": 9, "names": ["a", "b", "c"]});
+        let text = serde_json::to_vec(&value).unwrap();
+        assert_eq!(
+            kernel_request_within(&value, &sources, "packages", text.len()),
+            Ok(text.clone())
+        );
+        let bound = text.len() - 1;
+        let error = kernel_request_within(&value, &sources, "packages", bound).unwrap_err();
+        assert!(
+            error.ends_with(&format!(
+                "/Vastitas.toml:1:1: E_LIMIT: the request of the program exceeds {bound} bytes, the largest request that the kernel reads"
+            )),
+            "{error}"
+        );
+        assert_eq!(error.lines().count(), 1, "{error}");
+        let _ = fs::remove_dir_all(&directory);
+    }
+
+    // An error of the encoding is no limit: it stays `E_PROTOCOL`.
+    #[test]
+    fn bounded_json_reports_an_encoding_error() {
+        struct Failing;
+        impl serde::Serialize for Failing {
+            fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
+                Err(serde::ser::Error::custom("not encodable"))
+            }
+        }
+        let error = bounded_json(&Failing, usize::MAX).unwrap_err();
+        assert!(error.to_string().contains("not encodable"), "{error}");
+    }
 
     // The tables that `build.rs` embedded hold a digest for each input that
     // the lists name and for nothing else. They record no absence and no

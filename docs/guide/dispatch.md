@@ -78,7 +78,7 @@ scalar types have.
 requires an order:
 
 ```vast
-{{#include ../../examples/book/dispatch/capabilities.vast}}
+{{#include ../../examples/book/dispatch/capabilities.vast:program}}
 ```
 
 `HasOrder` holds for `Nat` and `Int`, the types with `<`. A method applies

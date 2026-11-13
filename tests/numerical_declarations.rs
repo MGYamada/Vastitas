@@ -266,13 +266,15 @@ fn a_broken_implementation_rule_is_reported_at_the_declaration() {
             ),
         ),
         // Another declaration that the same check rejects has its own place
-        // and the general text.
+        // and its own rule (#736).
         (
             PROFILES,
             "pub indexed global RealBase(RealScalar);",
             "pub indexed global RealBase(RealScalar);\nindexed primitive Bad = descriptor(RealSmooth);",
             "12:1",
-            "invalid indexed declaration, package, or primitive contract".to_string(),
+            format!(
+                "the implementation `{P}::RealSmooth` of the `descriptor` primitive `{P}::Bad` must have the representation `affine_descriptor`"
+            ),
         ),
     ];
     for (profiles, before, after, place, message) in cases {

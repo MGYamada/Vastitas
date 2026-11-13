@@ -1,3 +1,4 @@
+// ANCHOR: program
 generic below_ten(x) {
     domain (Nat), (Int), (Bool);
 }
@@ -5,9 +6,12 @@ generic below_ten(x) {
 // The fallback applies at every key.
 method below_ten(x: Any) -> Bool { false }
 // This method applies at (Nat) and at (Int), where `<` exists.
+// ANCHOR: requires
 method below_ten(x: Any) -> Bool requires (HasOrder) { x < 10 }
+// ANCHOR_END: requires
 
 fn main() -> Int {
     let n: Nat = 7;
     if below_ten(n) && below_ten(-7) && !below_ten(true) { 42 } else { 0 }
 }
+// ANCHOR_END: program

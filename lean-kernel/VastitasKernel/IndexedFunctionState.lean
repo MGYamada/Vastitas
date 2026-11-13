@@ -224,9 +224,34 @@ def probe (signature : Surface.TypeExpr) : M Target := do
   modify fun state => { state with nextProbe := id + 1 }
   return ⟨.probe id, signature⟩
 
+/-- Presentation only: what an indexed declaration that a path names as a
+value is, for the message that rejects it. -/
+def indexedNotValue (declarations : Core.Declarations) (id : DeclId) : String :=
+  let primitive := (declarations.primitive? id).map fun
+    | .relativeConstant .. | .smoothConstant .. => ("a declared map", "; call it without operands")
+    | .relativeIso .. => ("an isomorphism", "")
+    | .relativeCartesian .. => ("a Cartesian square", "")
+    | _ => ("a primitive", "; call it with its operands")
+  let (kind, advice) := primitive.getD <| (·, "") <|
+    if declarations.packages.any (·.id == id) then "a package declaration" else
+    match Indexed.lookup declarations.indexed id with
+    | some .marker => "a marker"
+    | some (.implementation ..) => "an implementation"
+    | some (.classification ..) => "a classification"
+    | some (.global _) => "a global object"
+    | some (.affine ..) | some (.smoothAffine ..) => "an object of an `indexed affine` declaration"
+    | some (.family _) => "a family"
+    | some (.metric ..) => "a metric"
+    | some (.metricEvidence ..) => "evidence for a metric"
+    | none => "an indexed declaration"
+  s!"names {kind}, which is not a value{advice}"
+
 def resolve (input : Input) (scope : Namespace.Scope) (path : Source.Path) : M Nat := do
   let target ← body (Source.Bodies.lookupPath input.body.index scope path)
   if target.kind == .module then error path.span "E_NAME" "a module is not a value"
+  if target.kind == .indexedDeclaration then
+    error path.span "E_TYPE"
+      s!"`{"::".intercalate path.path}` {indexedNotValue input.body.declarations target.owner}"
   unless target.kind == .function do error path.span "E_TYPE" "expected an ordinary function; generic families are not Fn values"
   let some id := input.named[target.owner]? | error path.span "E_NAME" "function has no source definition"
   modify fun state => { state with calls := ⟨scope, path, target, id⟩ :: state.calls }

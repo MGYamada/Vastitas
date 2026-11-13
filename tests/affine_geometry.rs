@@ -79,6 +79,70 @@ fn rejected_with(changed: Value, code: &str) {
     assert!(result.get("lean_source").is_none(), "{result}");
 }
 
+/// The result type `R<P, X, P>` of `relative_int_point(R, X, P)` is fixed by
+/// the binding, so the compiler checks it at the declaration (#737). It used
+/// to accept the declaration and reject each call with `E_ENDPOINT`.
+#[test]
+fn a_rational_point_over_an_object_off_the_base_chain_is_rejected_at_its_declaration() {
+    let main = with(
+        "indexed affine Pt2(AffineQQ) = spec[] over SpecQQ;\nindexed primitive at2 = relative_int_point(Over, Line, Pt2);\nfn probe() -> Bool { same(at2(3), at2(3)) }",
+    );
+    let line = main
+        .lines()
+        .position(|line| line.starts_with("indexed primitive at2"))
+        .unwrap()
+        + 1;
+    let stderr = rejects(&main, "E_TYPE");
+    let first = stderr.lines().next().unwrap();
+    assert_eq!(
+        &first[first.find("src/main.vast:").unwrap()..],
+        format!(
+            "src/main.vast:{line}:1: E_TYPE: the result type `Over<Pt2, Line, Pt2>` of the `relative_int_point` primitive `affine_geometry::at2` is not a valid type: `affine_geometry::Pt2` is not on the base chain of `affine_geometry::Line`"
+        ),
+        "{stderr}"
+    );
+}
+
+/// An error of the exact algebra about an object that a path of the
+/// declaration names has the place of that path (#736). It used to have the
+/// place of the declaration.
+#[test]
+fn an_affine_error_about_a_named_object_is_reported_at_its_path() {
+    let global = "indexed implementation Grid(profile::QQ, affine_descriptor) capabilities();\nindexed global G(Grid);\n";
+    for (declaration, at, expected) in [
+        (
+            "indexed morphism bad: Over<D, Line, S> = pullback(t -> e);".to_string(),
+            "S>",
+            "E_AFFINE_BASE: the base is not on the source's base chain",
+        ),
+        (
+            format!("{global}indexed affine Bad(AffineQQ) = spec[] over G;"),
+            "G;",
+            "E_AFFINE_BASE: the declared base or factor is not a presented affine object",
+        ),
+        (
+            format!("{global}indexed primitive bad = relative_coefficient(Over, Line, G, t, t);"),
+            "G, t",
+            "E_AFFINE_BASE: the target is not a presented affine object",
+        ),
+    ] {
+        let main = with(&declaration);
+        let (line, text) = main
+            .lines()
+            .enumerate()
+            .find(|(_, text)| text.contains(" bad") || text.contains(" Bad"))
+            .unwrap();
+        let column = text.find(at).unwrap() + 1;
+        let stderr = rejects(&main, "E_AFFINE_BASE");
+        let first = stderr.lines().next().unwrap();
+        assert_eq!(
+            &first[first.find("src/main.vast:").unwrap()..],
+            format!("src/main.vast:{}:{column}: {expected}", line + 1),
+            "{stderr}"
+        );
+    }
+}
+
 #[test]
 fn affine_example_checks_builds_and_executes() {
     let s = fixture(MAIN);

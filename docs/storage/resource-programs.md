@@ -229,9 +229,15 @@ Rules:
   the initialization query that
   [Appendix D](../appendix/limits.md#resource-functions) gives. Beyond the
   bound, the `borrow` is an error (`E_RESOURCE_INIT`), although the stores
-  write every cell. Fills of the stored columns of a view also initialize it.
+  write every cell. Stores of consecutive cells, in increasing or in
+  decreasing order, stay within the bound for a view of any length. Fills of
+  the stored columns of a view also initialize it.
   [Layout and initialization](checked-storage.md#storage-ir--layout-and-initialization)
   describes the records of the checker.
+- The checker keeps a record of the writes to each allocation. A write or the
+  join of the arms of an `if` that takes the record beyond its limit is an
+  error (`E_RESOURCE_LIMIT`). [Appendix D](../appendix/limits.md#resource-functions)
+  gives the limit and the writes and joins that add to the record.
 - Fills of the stored rows of a view with several stored columns do not
   initialize it. The cells of a stored row have gaps between them, and the
   checker does not join the fill of such a view with another fill.

@@ -438,7 +438,7 @@ fn a_library_gradient_can_take_neither_the_object_nor_sharp() {
         (
             "fn probe() -> Int { let s = sharp_skew; 0 }",
             "E_TYPE",
-            "expected an ordinary function; generic families are not Fn values",
+            "`sharp_skew` names a primitive, which is not a value; call it with its operands",
         ),
         (
             "fn probe() -> Int { let s = gradient; 0 }",

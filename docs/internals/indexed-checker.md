@@ -180,9 +180,19 @@ comes from an actual enclosing input declaration, every recorded reference
 resolves to its exact canonical target, and the same output environment has
 valid package and primitive contracts.
 
-`IndexedSourceRegression` adds 34 cases, including non-geometric token/package
+When the Core audit rejects a declaration, the checker reports the first
+declaration that fails its own check, at that declaration. `implementationRule`
+and the functions of `IndexedDeclarationRules` name the rule that it breaks,
+following the conjuncts of `Entry.Valid`, `NamedPackage.Valid` and the
+registry entry of a binding. They are presentation only: they run after the
+audit has rejected and never decide acceptance. A rule that they do not find
+keeps a general message. The size limits of a classification, a family and a
+package declaration are `E_LIMIT`, every other rule `E_TYPE`.
+
+`IndexedSourceRegression` adds 42 cases, including non-geometric token/package
 contracts, coefficient-versus-object errors, whole-domain capability loss,
-order/alias invariance, private access and forged reference ledgers. A sixth
+order/alias invariance, private access, forged reference ledgers, the
+messages of rejected declarations and both sides of the four size limits. A sixth
 standalone native fixture takes the resolved declaration environment through
 actual Core checking/code generation and returns `7`.
 

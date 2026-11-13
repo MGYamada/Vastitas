@@ -11,17 +11,8 @@ def LiveEntry (state : State) (name : Symbol) (dependency : Dependency) : Prop :
 
 private theorem execute_of_checked {before after : State} {action : Action}
     (accepted : checkAction before action = .ok after) :
-    executeAction before action = .ok after := by
-  unfold checkAction at accepted
-  split at accepted
-  · split at accepted
-    · contradiction
-    next result step =>
-      split at accepted
-      · cases accepted
-        exact step
-      · contradiction
-  · contradiction
+    executeAction before action = .ok after :=
+  (checkAction_eq_ok.mp accepted).2.1
 
 private theorem invalidation_backwards {entries : List DependencyEntry}
     {allocation name : Nat} {dependency : Dependency}
@@ -192,16 +183,8 @@ theorem run_live_origin {fuel : Nat} {before after : State} {statements : List S
                 · simpa only [run, first, second, merged, Bind.bind, Except.bind] using pre
 
 private theorem checked_after_valid {before after : State} {action : Action}
-    (accepted : checkAction before action = .ok after) : auditState after = true := by
-  unfold checkAction at accepted
-  split at accepted
-  · split at accepted
-    · contradiction
-    next result step =>
-      split at accepted
-      next valid => cases accepted; exact valid
-      · contradiction
-  · contradiction
+    (accepted : checkAction before action = .ok after) : auditState after = true :=
+  (checkAction_eq_ok.mp accepted).2.2
 
 theorem action_used_mono {before after : State} {action : Action} {name : Symbol}
     (accepted : checkAction before action = .ok after)

@@ -170,6 +170,11 @@ def sourceEntryValid (program : Program) : Bool :=
     | some (_, function) => function.params.isEmpty && match function.result with
       | .data (.pure .int) => true | _ => false
 
+/-- Presentation only: the place of the entry point, for the diagnostic that
+`sourceEntryValid` rejects it with. -/
+def entrySpan (program : Program) : Span :=
+  (((entryDefinition program).bind (program.functions[·]?)).map (·.2.span)).getD {}
+
 structure Pass where
   module : Core.Module
   origins : Array Key

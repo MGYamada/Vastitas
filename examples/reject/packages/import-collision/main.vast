@@ -1,0 +1,5 @@
+mod shapes;
+
+fn main() -> Int {
+    shapes::area(6)
+}

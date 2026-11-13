@@ -1,1 +1,1 @@
-examples/reject/packages/smooth-parameter-object/main.vast:7:43: E_TYPE: invalid indexed annotation Cotangent<X>
+examples/reject/packages/smooth-parameter-object/main.vast:7:53: E_TYPE: invalid indexed annotation Cotangent<X>

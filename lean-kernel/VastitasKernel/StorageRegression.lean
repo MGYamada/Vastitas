@@ -182,12 +182,19 @@ private def longHistory : Initialization :=
 private def largeJoinState (layout : Layout) : State := {
   allocations := [⟨0, 0, .f64, 64, .written layout longHistory, 0⟩]
   used := [0], nextAllocation := 1 }
+-- A padded write and a run that overlap it, neither containing the other,
+-- leave no common record: the join keeps both histories.
+private def overlapping : Layout := ⟨8, 2, 1, 2, false⟩
 #eval check "valid unresolved intersection names its initialization budget"
-  (auditState (largeJoinState full) && auditState (largeJoinState first) &&
-    match join (largeJoinState full) (largeJoinState first) with
+  (auditState (largeJoinState padded) && auditState (largeJoinState overlapping) &&
+    match join (largeJoinState padded) (largeJoinState overlapping) with
     | .error error => error.code == "E_RESOURCE_LIMIT" &&
         error.message == "branch join initialization metadata budget exceeded"
     | .ok _ => false)
+#eval check "a join of a write and a write that it contains keeps the smaller"
+  (match join (largeJoinState full) (largeJoinState first) with
+    | .ok state => (state.allocation? 0).map Allocation.initialization == some (.written first longHistory)
+    | .error _ => false)
 #eval check "global node budget includes both branches" (
   match checkPlan (List.replicate 1400 (.branch true
     (actions [.allocate 0 .f64 1, .drop 0]) (actions [.allocate 1 .f64 1, .drop 1]))) with
@@ -455,5 +462,215 @@ exactly when every cell is written. Enumeration is confined to these tests. -/
     ((Initialization.written ⟨0,999999,1000,2000000,false⟩ .none).uncoveredCell .f64 16000000000
       ⟨0,1000000,1000,2000000,false⟩ == some (999999, 0))
   IO.println "read explanation: byte-set agreement, both coordinate conventions, no cell without evidence and bounded search passed"
+
+/- Records of runs (#739). A write that continues the run of the last recorded
+write, at either end, extends that record, so that consecutive single stores
+leave one node; a write past the 4096-node budget is reported as that limit at
+the write; joins of arms that extended a common run stay exact. -/
+private def run1 (count : Nat) : Layout := Layout.cells 0 count
+private def storeCells (cells : List Nat) : List Action := cells.map fun cell => .store 1 cell 0 value
+private def stepAll (state : State) : List Action → Except Error State
+  | [] => .ok state
+  | action :: rest => do stepAll (← checkAction state action) rest
+
+#eval show IO Unit from do
+  for count in [1, 2, 255, 256, 1024, 4096, 4097] do
+    for order in [List.range count, (List.range count).reverse] do
+      let .ok state := stepAll {} ([Action.allocate 0 .f64 count, write 1 (run1 count)] ++ storeCells order)
+        | throw (IO.userError s!"{count} consecutive stores rejected")
+      check "consecutive single stores in either order leave one record"
+        ((state.allocation? 0).map Allocation.initialization == some (.written (run1 count) .none))
+      check "a view of the consecutive cells is readable"
+        (stepAll state [.release 1, read 2 (run1 count), .release 2, .drop 0]).isOk
+  -- A gap stays a gap: the record holds two runs and the cell between them is named.
+  let gap := (List.range 256).filter (· != 100)
+  let .ok state := stepAll {} ([Action.allocate 0 .f64 256, write 1 (run1 256)] ++ storeCells gap)
+    | throw (IO.userError "stores around a gap rejected")
+  check "stores around a gap leave the two runs"
+    ((state.allocation? 0).map Allocation.initialization ==
+      some (.written ⟨808, 155, 1, 155, false⟩ (.written (run1 100) .none)))
+  match stepAll state [.release 1, read 2 (run1 256)] with
+  | .error error => check "the uncovered cell between two runs is named" (error.code == "E_RESOURCE_INIT" &&
+      error.message == "requested read region is not initialized at logical row 100, column 0 of the view (physical row 100, column 0; allocation bytes [800, 808))")
+  | .ok _ => throw (IO.userError "a read across a gap was accepted")
+  check "both runs beside the gap are readable"
+    ((stepAll state [.release 1, read 2 (run1 100), .release 2,
+      read 3 ⟨808, 155, 1, 155, false⟩, .release 3, .drop 0]).isOk)
+  -- A run never extends across a write of another kind: a padded record is kept.
+  let padded3 : Layout := ⟨0, 1, 2, 2, false⟩
+  check "a padded record is not merged with an adjacent cell"
+    (Layout.extend .f64 padded3 ⟨8, 1, 1, 1, false⟩ == none &&
+      Layout.extend .f64 (run1 1) ⟨16, 1, 1, 1, false⟩ == none &&
+      Layout.extend .f64 (run1 2) ⟨16, 1, 1, 1, false⟩ == some (run1 3))
+  IO.println "records of runs: consecutive stores in both orders, gaps and padded records passed"
+
+/-- The program of #739 with every cell index doubled, so that no two writes
+are adjacent and no record merges: two stores, `joins` branches whose arms each
+store two cells, the second one shared, and `finals` further stores. -/
+private def spacedJoins (joins finals : Nat) : List Statement :=
+  let cell := fun (index : Nat) => Action.store 1 (2 * index) 0 value
+  actions [.allocate 0 .f64 80, write 1 (run1 80), cell 0, cell 1] ++
+    (List.range joins).map (fun k => Statement.branch true
+      (actions [cell (3 * k + 2), cell (3 * k + 3)]) (actions [cell (3 * k + 3), cell (3 * k + 4)])) ++
+    actions ((List.range finals).map fun k => cell (3 * joins + 2 + k)) ++ actions [.release 1, .drop 0]
+
+private def consecutiveJoins (joins finals : Nat) : List Statement :=
+  let cell := fun (index : Nat) => Action.store 1 index 0 value
+  actions [.allocate 0 .f64 80, write 1 (run1 80), cell 0, cell 1] ++
+    (List.range joins).map (fun k => Statement.branch true
+      (actions [cell (3 * k + 2), cell (3 * k + 3)]) (actions [cell (3 * k + 3), cell (3 * k + 4)])) ++
+    actions ((List.range finals).map fun k => cell (3 * joins + 2 + k)) ++ actions [.release 1, .drop 0]
+
+#eval show IO Unit from do
+  check "4091 records and five writes are within the budget" (checkPlan (spacedJoins 9 5)).isOk
+  check "a sixth write reports the limit of the records at the write"
+    (match checkPlan (spacedJoins 9 6) with
+    | .error error => error == initializationLimit
+    | .ok _ => false)
+  check "a tenth join reports the limit at the join"
+    (match checkPlan (spacedJoins 10 0) with
+    | .error error => error.code == "E_RESOURCE_LIMIT" &&
+        error.message == "branch join initialization metadata budget exceeded"
+    | .ok _ => false)
+  -- The same program on consecutive cells merges its writes into runs, and each
+  -- join after the first leaves the run that its arms share.
+  check "the joins of consecutive writes stay small" (checkPlan (consecutiveJoins 9 6)).isOk
+  let .ok joined := run 4096 {} ((consecutiveJoins 9 0).take ((consecutiveJoins 9 0).length - 2))
+    | throw (IO.userError "consecutive joins rejected")
+  check "nine joins of consecutive writes leave 14 nodes"
+    ((joined.allocation? 0).map (fun a => a.initialization.remaining 4096) == some (some (4096 - 14)))
+  IO.println "record budget: the limit at a write, at a join, and joins of runs passed"
+
+/- Branches over runs. Equal arms keep one run; an arm that extends the run
+before the `if` leaves that run; arms that extend it at its two ends leave it;
+a write in one arm beside a run that the other arm extended leaves the run; and
+complementary arms initialize nothing that only one of them writes. -/
+#eval show IO Unit from do
+  let before := actions [.allocate 0 .f64 256, write 1 (run1 256)] ++ actions (storeCells (List.range 100))
+  let joined := fun (yes no : List Nat) =>
+    match run 4096 {} (before ++ [.branch true (actions (storeCells yes)) (actions (storeCells no))]) with
+    | .ok state => (state.allocation? 0).map Allocation.initialization
+    | .error _ => none
+  let range := fun (start count : Nat) => (List.range count).map (start + ·)
+  check "equal arms keep one run" (joined (range 100 156) (range 100 156) == some (.written (run1 256) .none))
+  check "one extending arm leaves the run before the branch"
+    (joined (range 100 50) [] == some (.written (run1 100) .none))
+  check "arms that extend a run to different lengths leave the shorter"
+    (joined (range 100 50) (range 100 100) == some (.written (run1 150) .none))
+  check "a write beside the run in one arm and an extension in the other leave the run"
+    (joined [100] [200] == some (.written (run1 100) .none) &&
+      joined [200] [100] == some (.written (run1 100) .none))
+  let late := actions [.allocate 0 .f64 256, write 1 (run1 256), .store 1 1 0 value]
+  let ends := match run 4096 {} (late ++ [.branch true (actions (storeCells [2])) (actions (storeCells [0]))]) with
+    | .ok state => (state.allocation? 0).map Allocation.initialization
+    | .error _ => none
+  check "arms that extend a run at its two ends leave the run" (ends == some (.written ⟨8, 1, 1, 1, false⟩ .none))
+  let reads := fun (yes no : List Nat) (view : Layout) =>
+    (checkPlan (actions [.allocate 0 .f64 256, write 1 (run1 256)] ++
+      [.branch true (actions (storeCells yes)) (actions (storeCells no))] ++
+      actions [.release 1, read 2 view, .release 2, .drop 0])).isOk
+  check "complementary arms do not initialize the whole view"
+    (!reads (range 0 128) (range 128 128) (run1 256))
+  -- An arm in reverse order leaves a second run beside the first; together they
+  -- cover the cells of the other arm's single run.
+  check "an arm in reverse order covers the same cells"
+    (reads ((range 0 100) ++ range 100 156) ((range 0 100) ++ (range 100 156).reverse) (run1 256))
+  check "the cells that both arms write are readable"
+    (reads (range 0 200) (range 50 206) ⟨400, 150, 1, 150, false⟩ &&
+      !reads (range 0 200) (range 50 206) ⟨392, 151, 1, 151, false⟩)
+  IO.println "branches over runs: equal, reversed, extending and complementary arms passed"
+
+/- A padded read shares the interval traversals of one query between its stored
+columns. Records that merge leave fewer nodes and therefore never fewer
+traversals, so this padded read, which the record of single writes accepts,
+stays accepted. Merging can still narrow acceptance elsewhere (below). -/
+#eval show IO Unit from do
+  let view : Layout := ⟨0, 60, 2, 64, false⟩
+  -- Column 0 in an order that never continues a run: 30 even cells, then 30 odd ones.
+  let column0 := ((List.range 30).map (2 * ·)) ++ ((List.range 30).map (2 * · + 1))
+  let column1 := (List.range 60).map (64 + ·)
+  check "a padded view with an interleaved and a consecutive column is readable"
+    (accepts ([.allocate 0 .f64 128, write 1 (run1 128)] ++ storeCells (column0 ++ column1) ++
+      [.release 1, read 2 view, .release 2, .drop 0]))
+  IO.println "padded reads after merged records passed"
+
+/- One query takes at most 256 interval traversals, so that it visits at most
+256 times the nodes of its history: the audit repeats it for every live read
+loan. Over the four nodes of three fills, a padded read of 256 stored columns
+that no fill contains alone is accepted, and one of 257 is rejected at once,
+even with 80 such loans requested (each would cost 16,384 traversals). -/
+#eval show IO Unit from do
+  check "the traversals of a query" (initializationSteps 4 == 256 && initializationSteps 62 == 256 &&
+    initializationSteps 256 == 256 && initializationSteps 257 == 255 && initializationSteps 4096 == 16)
+  let fills : List Action := [.allocate 0 .f64 32868,
+    write 1 (run1 16384), .fill 1 value, .release 1,
+    write 2 ⟨262936, 1, 1, 1, false⟩, .fill 2 value, .release 2,
+    write 3 ⟨131072, 16384, 1, 16384, false⟩, .fill 3 value, .release 3]
+  let across := fun (columns : Nat) => Layout.mk ((16384 - 128) * 8) 1 columns 2 false
+  check "a padded read of 256 stored columns across two fills is accepted"
+    (accepts (fills ++ [read 4 (across 256), .release 4, .drop 0]))
+  check "a padded read of 257 stored columns is beyond the traversals of the query"
+    (rejects "E_RESOURCE_INIT" (fills ++ [read 4 (across 257), .release 4, .drop 0]))
+  let loans := (List.range 80).map (5 + ·)
+  check "80 read loans of 16,384 stored columns are rejected at the first"
+    (rejects "E_RESOURCE_INIT" (fills ++ loans.map (fun name => read name ⟨0, 1, 16384, 2, false⟩) ++
+      loans.map Action.release ++ [.drop 0]))
+  IO.println "query traversals: at most 256 per query passed"
+
+/- Merging can narrow acceptance (#739). Two consecutive stores merge into one
+record. 255 stores of a view in an order that never extends a record (even
+cells, then odd cells) need 255 traversals. With 257 nodes the query has 255
+and shows the view covered, so the `fill` of the view adds no record; one more
+store elsewhere gives 258 nodes and 254 traversals, and the read of the view is
+rejected. With the first two cells apart nothing merges: the history has 258
+nodes at the `fill`, the query does not show the view covered, the `fill` is
+recorded, and the read is accepted through its rectangle. -/
+#eval show IO Unit from do
+  let view : Layout := ⟨2400, 255, 1, 255, false⟩
+  let cells := (List.range 255).map (300 + ·)
+  let order := cells.filter (· % 2 == 0) ++ cells.filter (· % 2 == 1)
+  let plan := fun (first : List Nat) (late : Bool) =>
+    [Action.allocate 0 .f64 900, write 1 (run1 900)] ++ storeCells (first ++ order) ++
+      [.release 1, write 2 view, .fill 2 value, .release 2] ++
+      (if late then [write 3 ⟨5600, 1, 1, 1, false⟩, .fill 3 value, .release 3] else []) ++
+      [read 4 view, .release 4, .drop 0]
+  check "a fill that the merged history shows covered is not recorded, and the later read is rejected"
+    (rejects "E_RESOURCE_INIT" (plan [0, 1] true))
+  check "without the merge the fill is recorded and the read is accepted" (accepts (plan [0, 2] true))
+  check "without the later store the merged history still admits the read" (accepts (plan [0, 1] false))
+  let .ok before := stepAll {} ((plan [0, 1] true).take (2 + 257 + 2))
+    | throw (IO.userError "the stores before the fill were rejected")
+  let .ok filled := stepAll before [.fill 2 value]
+    | throw (IO.userError "the fill was rejected")
+  check "the merged history has 257 nodes at the fill and keeps them"
+    ((before.allocation? 0).map (·.initialization.remaining 4096) == some (some (4096 - 257)) &&
+      (filled.allocation? 0).map Allocation.initialization == (before.allocation? 0).map Allocation.initialization)
+  IO.println "narrowing by merged records: pinned"
+
+/- Exact byte meaning of the joins through runs, by enumeration: histories that
+extend a common run at either end, and writes over one history that share a run. -/
+#eval show IO Unit from do
+  let runs : List Layout := [run1 2, ⟨8, 2, 1, 2, false⟩, ⟨16, 1, 1, 1, false⟩, ⟨0, 4, 1, 4, false⟩,
+    ⟨8, 1, 1, 1, false⟩, full, padded, ⟨24, 1, 1, 1, false⟩]
+  for common in [Initialization.none, .written first .none, .written ⟨8, 1, 1, 1, false⟩ .none] do
+    for a in runs do
+      for b in runs do
+        for inner in runs do
+          let pairs := [(Initialization.written a common, Initialization.written b common),
+            (.written a common, .written b (.written inner common)),
+            (.written a (.written inner common), .written b common)]
+          for pair in pairs do
+            let actual := initializedCells .f64 (pair.1.meet pair.2 .f64)
+            let leftBytes := initializedCells .f64 pair.1
+            let rightBytes := initializedCells .f64 pair.2
+            check "a join through runs is the exact byte intersection" ((List.range 64).all fun byte =>
+              actual.contains byte == (leftBytes.contains byte && rightBytes.contains byte))
+    for last in runs do
+      for written in runs do
+        let recorded := (Initialization.written last common).record .f64 written
+        check "a merged record holds exactly the bytes of both writes" ((List.range 64).all fun byte =>
+          (initializedCells .f64 recorded).contains byte ==
+            ((cells written .f64).contains byte || (initializedCells .f64 (.written last common)).contains byte))
+  IO.println "joins and merges through runs: exact byte meaning passed"
 
 end VastitasKernel.Storage.Regression

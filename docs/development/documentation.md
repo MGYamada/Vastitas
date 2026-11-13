@@ -69,6 +69,16 @@ The generated site is in `target/book/`. `scripts/check_book.py` checks that:
 - the [grammar summary](../appendix/grammar.md) is the text that
   `scripts/grammar_summary.py` generates from the Syntax blocks of the
   Reference;
+- the productions of the grammar summary derive, from `SourceFile`, every
+  source file under `examples/` and `stdlib/src/`, and they derive no file of
+  a rejected program whose recorded diagnostic is `E_PARSE` or `E_LEX`.
+  `scripts/book_grammar.py` tokenizes a file as
+  [Lexical structure](../language/lexical-structure.md) says and recognizes it
+  with the productions. A file of a rejected program with `E_UNSUPPORTED` or
+  `E_RESERVED` is skipped, because these codes report text that the
+  productions derive and text that they do not. `PARSE_EXCEPTIONS` names each
+  file whose code a rule gives and the productions do not decide, with the
+  rule, and the check fails on an entry that no longer holds;
 - [Appendix D](../appendix/limits.md) has a table row with the value of
   each key of `lean-kernel/compiler-limits.json`, and no row with a key
   that the file lacks;
@@ -85,6 +95,23 @@ the chapter that owns the construct defines them. Remove a name in the change
 that adds its production; the check fails on a pending name that has one.
 `python3 -m unittest discover -s scripts -p test_check_book.py` runs the
 checker's own tests.
+
+`scripts/check_grammar_derivations.py` checks the other direction with a
+built compiler, and the CI job of the native compiler runs it. It derives
+texts from the productions with a depth bound and a fixed seed: one text for
+each nonterminal and each option of a choice or a repetition that no earlier
+text covers, then free texts up to 500. It places each text in a small
+program as an item, a statement, an expression, a type or a resource
+statement, in flat mode and in manifest mode, and runs `vastitas check` on
+it. A derived text gives no `E_PARSE`, `E_LEX` or `E_UNSUPPORTED`, unless a
+rule of the Reference forbids it. `RULES` names each such rule with its
+section and its codes. The first diagnostic of a text that breaks a rule has
+one of those codes, or it is an error of another class at or before the
+first place that breaks a rule, because the frontend checks some rules on
+names and types while it parses and stops at the first error. Run it as
+`python3 scripts/check_grammar_derivations.py --compiler
+target/debug/vastitas` after a change of a Syntax block or of the parser;
+`--seed` takes another fixed seed.
 
 The grammar summary is a generated chapter. After a change of a Syntax block,
 run `python3 scripts/grammar_summary.py --write` and commit the chapter with
@@ -285,18 +312,39 @@ archived delivery records. The other rules of this guide need a reviewer.
 | Rule | Guide | Reference | Compiler checked | Appendices |
 | --- | --- | --- | --- | --- |
 | No "now", "currently", "new", "newly", "deliberately" or "actually" in prose | Yes | Yes | Yes | Yes |
+| No intensifier "actual", "simply", "very" or "really" in prose | Yes | Yes | | |
 | No "should" | | Yes | | |
 | No Stage numbers | Yes | Yes | | |
 | No wire-protocol version | Yes | Outside implementation notes | | |
 | No issue or pull request references | Yes | Yes | Outside a History section | |
 | No commit hashes or theorem names | Yes | | | |
-| Ends with a See also section | Yes, apart from the Introduction | | | |
+| Ends with a See also section that links a Reference chapter | Yes, apart from the Introduction | | | |
+| A term set in bold has a glossary entry | | Yes | | |
+| A complete program, function or method comes from an `include` | Yes | Yes | Yes | Yes |
+| The diagnostic of a rejected program comes from its `.stderr` file | Yes | Yes | Yes | Yes |
+| An `include` selects a part of a file by `ANCHOR`, not by lines | Yes | Yes | Yes | Yes |
 
 The word rules read prose only. They skip code, link targets, HTML, math and
 words in double quotation marks, which mention a word rather than use it. The
 delivery records are exempt from every rule. A generated specification chapter
 may link issues outside a History section, as
 [What stays out](#what-stays-out) says.
+
+The glossary rule reads each paragraph as a whole, so a bold term may wrap,
+and it reads `**term**` and `__term__`. It finds a term under its own name or
+in the singular, among the titles of the glossary entries and the terms that
+an entry sets in bold. Bold text that defines no term is exempt: the labels
+**Syntax** and **Implementation note.**, and the rule words that
+[Notation](../language/notation.md#rules) defines. `NOT_DEFINITIONS` in
+`scripts/check_book.py` lists them. A complete function or method is a named
+`fn`, `resource fn` or `method` whose signature a body follows, in a code block
+labelled `vast` or without a label. A diagnostic is a line
+`FILE:LINE:COLUMN: E_CODE: message` or `MANIFEST: E_CODE: message` in any code
+block, where the place names a file and may hold spaces. A diagnostic without
+a place is about a command, not a rejected program, and the forms of
+[Diagnostic lines](../language/diagnostics.md#diagnostic-lines) name no file.
+The See also rule reads inline links and reference links, and a link in code
+or in an HTML comment links nothing.
 
 ## Consolidation baseline
 

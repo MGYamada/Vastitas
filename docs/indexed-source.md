@@ -79,6 +79,25 @@ Rules:
 - A program has a limit on the number of its indexed declarations, which
   [Appendix D](appendix/limits.md#indexed-declarations) gives. More
   declarations are an error (`E_LIMIT`).
+  [Kinds of limits](language/limits.md#kinds-of-limits) gives the place of
+  the diagnostic.
+- The compiler reports a declaration that breaks a rule of this chapter at
+  the declaration. A path of a declaration that names nothing (`E_NAME`), or
+  that names an item that is no indexed declaration (`E_TYPE`), is reported
+  at the path. The message states the rule and names the declarations by
+  their paths `package::module::name`.
+- A declaration that breaks several rules is reported for the first of them
+  that the compiler checks. For a classification the order is: a parent
+  named twice, an implementation named twice, an empty domain, the limit on
+  the domain, a path of the domain that names no implementation, and then
+  each parent in turn: a parent that is no classification, a domain of the
+  parent that lacks an implementation, and a cycle. For a family it is: the
+  limit on the parameters, a path of an `object(…)` parameter, the positions
+  of a constraint, and then the rules of its representation. For a package
+  declaration it is: no case, the limit on the cases, two cases with one
+  witness type, and then each case in turn: its witness type, the limit on
+  its fields and each field. A global object and a primitive follow the
+  order of the rules of their sections.
 - An indexed declaration grants no
   [edit authority](language/edit-authority.md).
 
@@ -206,7 +225,7 @@ Rules:
 - The parents must not form a cycle. A classification that reaches itself
   through `parents` is an error (`E_TYPE`).
 - The length of a domain has a limit, which
-  [Appendix D](appendix/limits.md#indexed-declarations) gives (`E_TYPE`).
+  [Appendix D](appendix/limits.md#indexed-declarations) gives (`E_LIMIT`).
 - The implementations of one domain may have different markers.
 - `parents` states a relation that the compiler checks. It gives `C` no
   implementation and no capability. The other rules of this chapter compare
@@ -391,7 +410,7 @@ Rules:
   `morphism` family must have the representation `affine_descriptor`
   (`E_TYPE`).
 - The number of parameters has a limit, which
-  [Appendix D](appendix/limits.md#indexed-declarations) gives (`E_TYPE`).
+  [Appendix D](appendix/limits.md#indexed-declarations) gives (`E_LIMIT`).
 
 The module `geo` declares one family of each of the two representations with
 values:
@@ -489,7 +508,7 @@ Rules:
   an error (`E_TYPE`).
 - A case may have no field, and a field may leave out `witness`.
 - The numbers of cases and of fields have limits, which
-  [Appendix D](appendix/limits.md#indexed-declarations) gives (`E_TYPE`).
+  [Appendix D](appendix/limits.md#indexed-declarations) gives (`E_LIMIT`).
 - A type `P<D, K>` must name the `D` and the `K` of one case (`E_TYPE`).
 
 The module `geo` declares one case, whose field is a point of the witness
@@ -618,8 +637,8 @@ Rules:
 - Every implementation of `Object<D, K>` must have the capability `origin`
   for the binding `origin`, and the capability `dimension` for the binding
   `dimension` (`E_TYPE`).
-- `P` must name a family with the representation `point`, and `M` a family
-  with the representation `morphism` (`E_TYPE`).
+- `M` must name a family with the representation `morphism`, and `P` a
+  family with the representation `point` (`E_TYPE`).
 - `P<X, B>` of the binding `origin` must be an indexed type by the rules of
   [Indexed types of a family](#indexed-types-of-a-family), for every object
   `X` of type `Object<D, K>` (`E_TYPE`). In particular, `B` must name a
@@ -635,7 +654,7 @@ The module `geo` declares one primitive for each binding:
 
 In this package the domain of `Shape` has the implementation `Plain`, which
 lacks the capability `dimension`. The compiler reports the binding at its
-declaration:
+declaration, and the message names `Plain`:
 
 ```vast
 {{#include ../examples/reject/packages/missing-capability/main.vast}}
@@ -669,8 +688,12 @@ Rules:
   `E_ENDPOINT` diagnostic names.
 - The result type of a call must be an indexed type by the rules of
   [Indexed types of a family](#indexed-types-of-a-family). Otherwise the call
-  is an error (`E_ENDPOINT`), even when the declaration of the primitive is
-  valid.
+  is an error (`E_ENDPOINT`). The declaration of the primitive does not check
+  the result types of its calls, so the error belongs to the call. Of the
+  bindings of this chapter, only `apply(M, P)` has such calls. A call with
+  the operands `f: M<X, Y>` and `p: P<X, S>` is an error when `P<Y, S>` is
+  not an indexed type, for example when the first parameter of `P` does not
+  admit `Y`.
 - A call of a name that is an indexed declaration and not a primitive is an
   error (`E_TYPE`). A declared map is the exception: a
   [smooth map](language/smooth-declarations.md#smooth-maps) or a

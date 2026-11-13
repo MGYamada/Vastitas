@@ -544,7 +544,9 @@ when unsupported. Missing or non-natural versions are rejected before decoder
 selection. An unreadable version, invalid JSON or non-UTF-8 stdin produces an
 `E_PROTOCOL` JSON response using version 2 as the fallback; stdin decoding errors
 do not escape as uncaught IO exceptions. Before JSON parsing, the kernel also
-answers `E_PROTOCOL` (with the same version-2 fallback) for requests over 1 GiB, nesting deeper than 16384
+answers `E_PROTOCOL` (with the same version-2 fallback) for requests over 1 GiB
+(`requestBytes` of the compiler limits, by which the frontend bounds the requests
+that it writes), nesting deeper than 16384
 arrays/objects, numbers with more than 64 integer and fraction digits or an
 exponent of more than two digits, and duplicate object keys (compared after
 string decoding). Path lists are structured: each component is nonempty and

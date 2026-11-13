@@ -240,7 +240,7 @@ SettingType -> `Scheme` | `CInfScheme`
 PointType -> `Point` `<` Endpoint `,` Endpoint `>`
 MorphismType -> `Morphism` `<` Endpoint `,` Endpoint `>`
 PointedType -> `Pointed` `<` SettingType `,` Marker `>`
-Endpoint -> IDENTIFIER | `Base` `(` Marker `)`
+Endpoint -> IDENTIFIER except `Base` | `Base` `(` Marker `)`
 Marker -> `QQ` | `CInfReal`
 ```
 

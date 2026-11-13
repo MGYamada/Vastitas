@@ -267,6 +267,72 @@ def ownerLocations (p : Indexed) : List (Owner × Span) :=
     (if m.path.isEmpty then [] else
       [(⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, m.span)])
 
+/-! Presentation only. The definitions up to `ImportWork` choose the place and
+the notes of a diagnostic after a check of `validateWithWork` has rejected the
+program; none of them decides acceptance. A place is the start of a
+declaration in its file, and the order of places is the order of the source:
+the frontend numbers the bytes of all files of a request in one sequence. -/
+
+/-- Every declaration with its place, including the `indexed` declarations
+that `Program` does not hold, in source order. -/
+def declarationPlaces (p : Indexed) : List (Owner × Span) :=
+  (ownerLocations p ++ p.indexedPlaces).mergeSort fun a b => a.2.start ≤ b.2.start
+
+/-- The place of the declaration of `owner`, when the request gives one. -/
+def declarationPlace (p : Indexed) (owner : Owner) : Option Span :=
+  ((ownerLocations p ++ p.indexedPlaces).find? (·.1 == owner)).map (·.2)
+
+/-- The second of two declarations of one owner in source order, with its name
+and a note at the first. `UniqueOwners` decides acceptance. -/
+def duplicateOwner (p : Indexed) : Diagnostic := Id.run do
+  let mut seen : Std.HashMap Owner Span := {}
+  for (owner, span) in declarationPlaces p do
+    if let some first := seen[owner]? then
+      return { code := "E_DUPLICATE", message := s!"`{owner.name}` is declared more than once in this module", span,
+               notes := [{ span := first, message := "first declaration is here" }] }
+    seen := seen.insert owner span
+  return { code := "E_DUPLICATE", message := "duplicate declaration owner" }
+
+private def kindWords : Kind → String
+  | .module => "a module" | .function => "a function" | .generic => "a generic"
+  | .abstractType => "an abstract type" | .grant => "a grant"
+  | .contribution => "a contribution" | .delegation => "a delegation"
+  | .transfer => "a transfer" | .indexedDeclaration => "an indexed declaration"
+  | .resourceFunction => "a resource function"
+
+/-- A name that a module binds, the words for its binding and its place. A
+dependency alias has no place in a source file. -/
+private structure Binding where
+  name : String
+  words : String
+  span : Option Span
+
+/-- The diagnostic for a module whose declarations, imports and dependency
+aliases do not have distinct names. The dependency aliases of the package come
+first, then the declarations and the imports of the module in source order.
+The diagnostic is at the first binding whose name an earlier binding has, with
+a note at the earlier binding when it has a place. `Finite.distinct` decides
+acceptance. -/
+def collision (p : Indexed) (pkg : Package) (m : Module) : Diagnostic := Id.run do
+  let scope : Scope := ⟨pkg.id, m.path⟩
+  let declarations : List Binding := (declarationPlaces p).filterMap fun (owner, span) =>
+    if owner.scope == scope then
+      let kind := (p.byOwner[owner]?).map (kindWords ·.kind)
+      some ⟨owner.name, s!"{kind.getD "a declaration"} of this module", some span⟩
+    else none
+  let imports : List Binding := m.imports.map fun entry => ⟨entry.alias, "an import of this module", some entry.span⟩
+  let placed := (declarations ++ imports).mergeSort fun a b =>
+    (a.span.map (·.start)).getD 0 ≤ (b.span.map (·.start)).getD 0
+  let aliases : List Binding := pkg.dependencies.map fun dep => ⟨dep.alias, "a dependency alias of this package", none⟩
+  let mut seen : Std.HashMap String Binding := {}
+  for binding in aliases ++ placed do
+    if let some first := seen[binding.name]? then
+      return { code := "E_DUPLICATE", message := s!"'{binding.name}' is already the name of {first.words}",
+               span := binding.span.getD m.span,
+               notes := first.span.toList.map fun span => { span, message := "first declaration is here" } }
+    seen := seen.insert binding.name binding
+  return { code := "E_DUPLICATE", message := "declaration, import, or dependency alias collision", span := m.span }
+
 structure ImportWork where
   units : Nat
   bounded : units ≤ Limits.namespaceImportWork
@@ -329,7 +395,7 @@ def validateWithWork (p : Indexed) : Result ImportWork := do
   if !Finite.distinct p.scopes then
     problem (duplicateSpan (p.packages.flatMap fun pkg =>
       pkg.modules.map fun m => (Scope.mk pkg.id m.path, m.span))) "E_DUPLICATE" "duplicate logical module"
-  if !UniqueOwners p then problem (duplicateSpan (ownerLocations p)) "E_DUPLICATE" "duplicate declaration owner"
+  if !UniqueOwners p then throw (duplicateOwner p)
   if !Finite.distinct (p.declarations.map (symbol p.toProgram)) then problem {} "E_DUPLICATE" "conflicting generated declaration identities"
   validateGraph p
   for pkg in p.packages do
@@ -349,9 +415,10 @@ def validateWithWork (p : Indexed) : Result ImportWork := do
         problem m.span "E_NAME" "module has no declared parent"
       let declarations := p.byScope[scope]?.getD []
       let names := declarations.map (·.owner.name) ++ m.imports.map (·.alias) ++ pkg.dependencies.map (·.alias)
-      if !Finite.distinct names then problem m.span "E_DUPLICATE" "declaration, import, or dependency alias collision"
+      if !Finite.distinct names then throw (collision p pkg m)
       for decl in declarations do
-        declarationName decl.kind decl.owner.name m.span
+        if let .error diagnostic := declarationName decl.kind decl.owner.name m.span then
+          throw { diagnostic with span := (declarationPlace p decl.owner).getD m.span }
       for entry in m.imports do
         -- Keep the legacy diagnostic order unless an indexed spelling can be
         -- resolved in this declaration-aware namespace. The target is still

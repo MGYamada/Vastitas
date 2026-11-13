@@ -17,7 +17,7 @@ never used as a point of another.
 > PointType -> `Point` `<` Endpoint `,` Endpoint `>`
 > MorphismType -> `Morphism` `<` Endpoint `,` Endpoint `>`
 > PointedType -> `Pointed` `<` SettingType `,` Marker `>`
-> Endpoint -> IDENTIFIER | `Base` `(` Marker `)`
+> Endpoint -> IDENTIFIER except `Base` | `Base` `(` Marker `)`
 > Marker -> `QQ` | `CInfReal`
 > ```
 
@@ -37,8 +37,9 @@ Rules:
 
 - An endpoint identifier must name an object parameter or binding in scope. A
   name that is not in scope is an error (`E_NAME` in flat mode, `E_TYPE` in
-  manifest mode). A binding that is not an object, and a reserved name, are
-  errors (`E_TYPE`).
+  manifest mode). A binding that is not an object, and a reserved name other
+  than `Base`, are errors (`E_TYPE`). `Base` alone begins no endpoint:
+  `Point<Base, X>` is an error (`E_PARSE`).
 - The argument of `Base` in a type must be `QQ` or `CInfReal`, and the
   arguments of `Pointed` must be a setting and then a marker. Another name
   there is an error (`E_TYPE`).

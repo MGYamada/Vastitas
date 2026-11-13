@@ -235,7 +235,12 @@ gives the list.
   that holds, from version 9 down to version 3. It writes
   `input: "package"` for every version other than 3.
 
-`serde_json` serializes the request. The driver sends the same request for
+`serde_json` serializes the request in `kernel_request`. A first pass
+counts the bytes and stops at `MAX_REQUEST_BYTES`, the limit `requestBytes`
+of `lean-kernel/compiler-limits.json`, which also bounds the requests that the
+kernel reads. A request beyond it is `E_LIMIT` at `FILE:1:1`, and the driver
+never holds it. A second pass writes a request within the limit into a buffer
+of its size. The driver sends the same request for
 `check` and for `build`. It requires the version of a successful response to
 equal the version of the request (`E_PROTOCOL`). It shows the diagnostics of
 a failure response of another version and adds a note.
@@ -243,6 +248,9 @@ a failure response of another version and adds a note.
 Tests:
 
 - `tests/packages.rs::package_requests_do_not_fall_back_to_a_protocol_two_backend`;
+- the unit tests `bounded_json_stops_at_its_bound` and
+  `bounded_json_reports_an_encoding_error` of `src/driver.rs`, and the
+  ignored `tests/input_safety.rs::request_bound_is_a_limit_of_the_program`;
 - `tests/driver_issues.rs::mismatched_failure_version_preserves_diagnostics_but_success_is_rejected`;
 - `tests/edit_authority.rs` and `tests/protocol_shape.rs`, which read the
   version and the fields of requests that the driver writes for packages.

@@ -5,6 +5,7 @@ import VastitasKernel.IndexedTypeAudit
 import VastitasKernel.IndexedAlgebraSource
 import VastitasKernel.IndexedSmoothSource
 import VastitasKernel.IndexedMetricSource
+import VastitasKernel.IndexedDeclarationRules
 
 namespace VastitasKernel.Indexed.Source
 
@@ -380,27 +381,53 @@ def implementationRule (env : Environment) (entry : Entry) : Option String := do
     s!"but `{name}` {kindClause representation kind} and `{qualified other}` " ++
     s!"{kindClause otherRepresentation otherKind}"
 
+/-- How the source spells the binding of a primitive declaration. -/
+private def bindingSpelling : Option Body → String
+  | some (.primitive primitive) => primitive.op
+  | some (.morphism ..) => "morphism"
+  | some (.iso ..) => "iso"
+  | some (.cartesian ..) => "cartesian"
+  | _ => "primitive"
+
+/-- Presentation only: the rule of `Entry.Valid` that an invalid entry breaks,
+as a code and a message. -/
+def entryRule (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Option Rule :=
+  ((implementationRule env entry).map ("E_TYPE", ·)).orElse fun _ =>
+    (classificationRule env ranks entry).orElse fun _ =>
+      (globalRule env entry).orElse fun _ => familyRule env entry
+
 /-- Presentation only: the diagnostic for declarations that
 `Core.validDeclarations` rejects. It is at the first declaration that fails
-its own check, and for an implementation its message is the rule that the
-declaration breaks. Acceptance is `Core.validDeclarations` alone. -/
+its own check, and its message is the rule that the declaration breaks, where
+`entryRule`, `packageRule` or `primitiveRule` finds one. A size limit of a
+declaration is `E_LIMIT`, every other rule `E_TYPE`. Acceptance is
+`Core.validDeclarations` alone. -/
 def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
   let general := "invalid indexed declaration, package, or primitive contract"
-  let span (id : DeclId) : Span := ((p.owned.find? (·.1 == id)).map (·.2.span)).getD {}
+  let source (id : DeclId) : Option Declaration := (p.owned.find? (·.1 == id)).map (·.2)
+  let span (id : DeclId) : Span := ((source id).map (·.span)).getD {}
   let ranks := classRanks env.indexed
   match env.indexed.find? (fun entry => !validEntry env.indexed ranks entry) with
   | some entry =>
-    { code := "E_TYPE", message := (implementationRule env.indexed entry).getD general, span := span entry.id }
+    let (code, message) := (entryRule env.indexed ranks entry).getD ("E_TYPE", general)
+    { code, message, span := span entry.id }
   | none =>
     match env.packages.find? (fun declaration => !decide (declaration.Valid env.indexed)) with
-    | some declaration => { code := "E_TYPE", message := general, span := span declaration.id }
+    | some declaration =>
+      let (code, message) := (packageRule env.indexed declaration).getD ("E_TYPE", general)
+      { code, message, span := span declaration.id }
     | none =>
       match env.primitives.find? (fun declaration => !validPrimitiveBinding env.indexed declaration.binding) with
-      | some declaration => { code := "E_TYPE", message := general, span := span declaration.id }
+      | some declaration =>
+        let op := bindingSpelling ((source declaration.id).map (·.body))
+        { code := "E_TYPE", span := span declaration.id,
+          message := (primitiveRule env.indexed declaration.id op declaration.binding).getD general }
       | none => { code := "E_TYPE", message := general }
 
 def checkDeclarations (p : Program) : Except Diagnostic (CheckedDeclarations p) := do
-  if p.owned.length > 4096 then Namespace.problem {} "E_LIMIT" "more than 4096 indexed declarations"
+  -- At the first declaration beyond the limit.
+  if p.owned.length > 4096 then
+    Namespace.problem ((p.owned[4096]?.map (·.2.span)).getD {}) "E_LIMIT" "more than 4096 indexed declarations"
   match namespaceAccepted : Namespace.validate p.indexed with
   | .error error => .error error
   | .ok () =>

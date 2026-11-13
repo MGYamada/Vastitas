@@ -92,8 +92,9 @@ Rules:
 - The compiler checks every `use` declaration, even one that no expression
   uses.
 - A name that a `use` binds and that a declaration of the same module has too
-  is an error (`E_DUPLICATE`). Its diagnostic points to the declaration of
-  the module, as [Places](diagnostics.md#places) says.
+  is an error (`E_DUPLICATE`). Its diagnostic points to the second of the two
+  in the file, with a note at the first, as
+  [Places](diagnostics.md#places) says.
 
 An inline module and a `use` with an alias:
 
@@ -102,3 +103,19 @@ An inline module and a `use` with an alias:
 ```
 
 The executable prints `42`.
+
+In this package `main.vast` declares the module `shapes`:
+
+```vast
+{{#include ../../examples/reject/packages/import-collision/main.vast}}
+```
+
+In `shapes.vast`, a `use` binds the name of a function of the module:
+
+```vast
+{{#include ../../examples/reject/packages/import-collision/shapes.vast}}
+```
+
+```text
+{{#include ../../examples/reject/packages/import-collision.stderr}}
+```

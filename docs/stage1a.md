@@ -60,9 +60,7 @@ A method declares a **selector** for each parameter of its generic and a
 result type, and it may require **capabilities** of its arguments:
 
 ```vast
-method maximum(left: Int, right: Int) -> Int requires (HasOrder) {
-    int_max(left, right)
-}
+{{#include ../examples/book/dispatch/capabilities.vast:requires}}
 ```
 
 The `requires` clause may also come before `->`.

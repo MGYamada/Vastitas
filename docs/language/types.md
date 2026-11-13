@@ -150,9 +150,15 @@ Rules:
 
 - A type is an indexed type in three cases. It is a path with `::`, or it is
   `Object<…>`, or it is a name followed by `<`. In the third case the name is
-  not a type name of this chapter or of [Geometric types](geometric-types.md).
+  neither `Object` nor a type name of this chapter or of
+  [Geometric types](geometric-types.md). `Point<>` and `Object<>` are errors
+  (`E_PARSE`).
 - Indexed types are valid only in manifest mode. In flat mode an indexed type
-  is an error (`E_UNSUPPORTED`).
+  is an error (`E_UNSUPPORTED`). A path whose first segment is a type name of
+  this chapter or of [Geometric types](geometric-types.md), such as
+  `Nat::F<a>` or `Point::F`, is an error (`E_PARSE`) in flat mode instead,
+  because the type name begins its own type. In manifest mode such a path
+  resolves as any other path.
 - The path of the family must not begin with the keyword `generic`. A type
   such as `generic::Point<X, generic::Base>` is an error (`E_PARSE`). A later
   segment of that path may be `generic`, and so may a segment of an

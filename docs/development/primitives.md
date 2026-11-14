@@ -418,15 +418,18 @@ open is pulled back by a `cotangentPullback` in the site's residual policy,
 and the seed of a differential is a `fiberVector`. `registry_reverse_sound` matches every
 constructor by name, as `registry_sound` does.
 
-Eight proofs case on every binding and close the other arms by automation:
+Five proofs case on every binding and close the other arms by automation:
 `allocates_iff` in `IndexedAssociations.lean`, `affine_result` in
-`GeometryResults.lean`, and `validPrimitiveBinding_of_extension` and
-`evalPrimitive_of_extension` in each of `SmoothMetricWeakening.lean`,
-`FrameWeakening.lean` and `NatureWeakening.lean`. An entry that
+`GeometryResults.lean`, `evalPrimitive_of_extension` in
+`DeclarationExtension.lean`, `validPrimitiveBinding_of_metricOrNature` in
+`SmoothMetricWeakening.lean` and `validPrimitiveBinding_of_extension` in
+`FrameWeakening.lean`. `validPrimitiveBinding_of_extension` in
+`NatureWeakening.lean` names `metricFlat` and `metricSharp` and passes every
+other binding to `validPrimitiveBinding_of_metricOrNature`. An entry that
 matches on its own data before it builds its shape, as `cotangentJacobian`
 matches on the indices of its map type, needs a named case in `allocates_iff`.
-`validPrimitiveBinding_of_extension` closes a contract that reads the
-environment through the lookup views in its `simp` set.
+The validity proofs close a contract that reads the environment through the
+lookup views in their `simp` sets.
 `evalPrimitive_of_extension` closes an evaluator that reads the environment
 only through `globalObject` or `fiberVectorValue`. A binding that reads a metric
 declaration is excluded from `MetricFree` in `SmoothMetricWeakening.lean`, as

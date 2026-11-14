@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedAudit
+import VastitasOracle.Support
 
 set_option autoImplicit false
 
@@ -92,31 +93,7 @@ value. -/
 namespace VastitasOracle.NatureDimension
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.NatureDimension
-
-/-! ## Lists -/
-
-/-- An `Option`-valued `mapM` keeps the length and maps each element. -/
-theorem mapM_option {α β : Type} {f : α → Option β} :
-    ∀ {l : List α} {r : List β}, l.mapM f = some r → r.length = l.length ∧ ∀ i : Nat, l[i]?.bind f = r[i]?
-  | [], r, h => by
-    simp only [List.mapM_nil, Option.pure_def, Option.some.injEq] at h
-    subst h
-    simp
-  | a :: l, r, h => by
-    rw [List.mapM_cons] at h
-    cases fa : f a with
-    | none => simp [fa] at h
-    | some b =>
-      cases fl : l.mapM f with
-      | none => simp [fa, fl] at h
-      | some bs =>
-        simp only [fa, fl, Option.bind_eq_bind, Option.bind_some, Option.pure_def, Option.some.injEq] at h
-        subst h
-        obtain ⟨length, each⟩ := mapM_option fl
-        refine ⟨by simp [length], fun i => ?_⟩
-        cases i with
-        | zero => simp [fa]
-        | succ i => simpa using each i
+open VastitasOracle.Support (mapM_some_index)
 
 /-! ## Dimensions
 
@@ -409,7 +386,7 @@ theorem entryValues_gram {env : Environment} {n : Nat} {quantities : List DeclId
   by_cases shape : (rows.length == n && rows.all (·.length == n)) = true
   · simp only [shape, guard, ite_true, Option.pure_def, Option.bind_eq_bind, Option.bind_some] at h
     simp only [Bool.and_eq_true, beq_iff_eq, List.all_eq_true] at shape
-    obtain ⟨length, each⟩ := mapM_option h
+    obtain ⟨length, each⟩ := mapM_some_index h
     have columns : ∀ row ∈ values, row.length = n := by
       intro row member
       obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem member
@@ -421,7 +398,7 @@ theorem entryValues_gram {env : Environment} {n : Nat} {quantities : List DeclId
         cases entry
       | some r' =>
         rw [r, Option.bind_some] at entry
-        rw [(mapM_option entry).1]
+        rw [(mapM_some_index entry).1]
         obtain ⟨bound, rfl⟩ := List.getElem?_eq_some_iff.mp r
         exact shape.2 _ (List.getElem_mem bound)
     refine ⟨shape.1, shape.2, by rw [length, shape.1], columns, fun i j => ?_⟩
@@ -438,7 +415,7 @@ theorem entryValues_gram {env : Environment} {n : Nat} {quantities : List DeclId
         rw [row, Option.bind_some, mapped, List.getElem?_eq_getElem bound] at entry
         cases entry
       | some entries =>
-        obtain ⟨_, each'⟩ := mapM_option mapped
+        obtain ⟨_, each'⟩ := mapM_some_index mapped
         simp [← each' j]
   · simp only [shape, guard] at h
     nomatch h
@@ -537,7 +514,7 @@ theorem entryValues_normalized {env : Environment} {n : Nat} {quantities scales 
       Option.bind_eq_some_iff, Option.some.injEq] at h
     simp only [Bool.and_eq_true, beq_iff_eq] at shape
     obtain ⟨diagonal, mapped, rfl⟩ := h
-    obtain ⟨length, each⟩ := mapM_option mapped
+    obtain ⟨length, each⟩ := mapM_some_index mapped
     refine ⟨shape.1, shape.2, diagonal, rfl, by simp [length, shape.1, shape.2], ?_⟩
     intro i scale quantity hs hq
     have pair : (scales.zip quantities)[i]? = some (scale, quantity) := by

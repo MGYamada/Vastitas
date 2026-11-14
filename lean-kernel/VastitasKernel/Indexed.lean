@@ -116,7 +116,10 @@ inductive MetricEvidence where
   | riemannian (lower : SmoothRuntime.Matrix) (pivots : List Rat) (lowerInverse : SmoothRuntime.Matrix)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
-/-! ## Frames and physical dimensions (Stage 4, #759) -/
+/-! ## Frame and physical-dimension payloads (Stage 4, #759)
+
+The data that frame and nature declarations carry. Their views are in the
+section *Frames and physical dimensions* below. -/
 
 /-- A matrix of polynomials as rows. The polynomials are in the coordinates of
 a smooth object, so their arity is the object's dimension. -/
@@ -143,6 +146,8 @@ inductive PhysicalGram where
   | gram (rows : List (List ScaleMonomial))
   | normalized (scales : List DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-! ## Declarations, the environment and its views -/
 
 inductive Declaration where
   | marker

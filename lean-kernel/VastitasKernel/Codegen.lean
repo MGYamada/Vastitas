@@ -8,8 +8,9 @@ namespace VastitasKernel.Codegen
 
 def generate (certified : CertifiedModule) : Except String String := do
   let module := certified.val
-  -- Public callers may construct the legacy annotation certificate directly.
-  -- Check the complete core contract at this boundary as well as in checkModule.
+  -- A caller (only regressions call this retained entrypoint) may construct the
+  -- legacy annotation certificate directly. Check the complete core contract at
+  -- this boundary as well as in checkModule.
   unless Dependency.auditModule module do
     throw "checked IR failed dependency-order audit before code generation"
   unless Typing.auditModule module do

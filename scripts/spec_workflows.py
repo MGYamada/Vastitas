@@ -445,17 +445,6 @@ def plain_commands(script, directory=PurePosixPath("."), errexit=True, origin=No
         words = []
 
 
-def option(argument, items, short, long):
-    """The value of `-s VALUE`, `-sVALUE`, `--long VALUE` or `--long=VALUE`, or None."""
-    if argument == short or long and argument == long:
-        return next(items, "")
-    if short and argument.startswith(short) and len(argument) > len(short) and not argument.startswith("--"):
-        return argument[len(short):]
-    if long and argument.startswith(long + "="):
-        return argument[len(long) + 1:]
-    return None
-
-
 # The options of `cargo test` that the check reads. Any other option, such as
 # --no-run, --doc, --help, --target or --config, runs no test as far as the
 # check is concerned.

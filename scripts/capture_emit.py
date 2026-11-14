@@ -8,7 +8,7 @@ records:
 
 - `wire.raw.json` and `wire.json`: the exact protocol request the frontend
   sends to the kernel (raw, and re-serialized for reading), captured with a
-  stub backend (the pattern of `captured_wire` in `tests/common/mod.rs`);
+  stub backend (the pattern of `captured_wire` in `tests/common/wire.rs`);
 - `cli.txt`: the exit code and output of `vastitas check` with the kernel under
   test;
 - `check.json` and `emit.json`: the kernel's responses to that request in

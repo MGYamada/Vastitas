@@ -8,7 +8,8 @@ every public polynomial boundary. The geometric semantics here are R^2.
 from dataclasses import dataclass, fields
 from fractions import Fraction as Q
 
-from symplectic_reference import Invalid, Poly, identifier
+from rational_polynomial_reference import Invalid, Poly
+from symplectic_reference import identifier
 
 
 SCALAR_PROFILE = "Q-to-R-polynomial-plane/v1"

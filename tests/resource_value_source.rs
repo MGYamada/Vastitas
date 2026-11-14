@@ -62,18 +62,14 @@ fn fixture(source: &str) -> Scratch {
 }
 
 fn check(scratch: &Scratch) -> std::process::Output {
-    cli()
-        .args(["check", "--manifest-path"])
-        .arg(scratch.0.join("Vastitas.toml"))
+    common::manifest_command("check", scratch.0.join("Vastitas.toml"))
         .output()
         .unwrap()
 }
 
 fn request(scratch: &Scratch) -> Value {
     common::captured_wire(
-        cli()
-            .args(["check", "--manifest-path"])
-            .arg(scratch.0.join("Vastitas.toml")),
+        common::manifest_command("check", scratch.0.join("Vastitas.toml")),
         8,
     )
 }

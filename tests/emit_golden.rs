@@ -4,7 +4,7 @@
 //! emit_golden` and its diff is reviewed. `scripts/capture_emit.py` does the
 //! same for every example without storing the output in the repository.
 mod common;
-use common::{captured_wire, cli, kernel, regenerate_fixture, root};
+use common::{captured_wire, kernel, regenerate_fixture, root};
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::fs;
@@ -280,11 +280,10 @@ fn first_difference(expected: &str, actual: &str) -> String {
 /// The wire request of a case, captured from `vastitas check`; it must use
 /// protocol `version`.
 fn request(manifest: &str, version: u64) -> Value {
-    let mut command = cli();
-    command
-        .args(["check", "--manifest-path"])
-        .arg(root().join(manifest));
-    captured_wire(command, version)
+    captured_wire(
+        common::manifest_command("check", root().join(manifest)),
+        version,
+    )
 }
 
 /// Emits each case with the kernel and compares the generated Lean with its

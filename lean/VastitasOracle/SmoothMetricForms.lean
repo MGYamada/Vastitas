@@ -72,15 +72,10 @@ theorem metricData_spec {env : Indexed.Environment} {metric object : DeclId} {n 
       exact ⟨family, found, dimension⟩
   · cases h
 
-theorem metricData_of_lookup {env : Indexed.Environment} {metric family object : DeclId} {n : Nat}
-    {gram : SmoothRuntime.Matrix} (found : lookup env metric = some (.metric family object gram))
-    (dimension : smoothDimension? env object = some n) : metricData? env metric = some (object, n, gram) := by
-  simp [metricData?, found, dimension]
-
 private theorem entry_valid {env : Indexed.Environment} (envValid : env.Valid) {id : DeclId}
     {declaration : Declaration} (found : lookup env id = some declaration) :
     ∃ entry ∈ env, entry.declaration = declaration ∧ entry.Valid env (classRanks env) := by
-  obtain ⟨entry, member, _, equal⟩ := SmoothPrimitives.lookup_entry found
+  obtain ⟨entry, member, _, equal⟩ := SmoothMetricWeakening.lookup_entry found
   exact ⟨entry, member, equal, envValid.declarations entry member⟩
 
 theorem checkGram_isOk {n : Nat} {gram : SmoothRuntime.Matrix}

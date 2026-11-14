@@ -58,21 +58,16 @@ theorem indexed_of_worldExtends {env : Indexed.Environment} {before after : Worl
     (typed : IndexedHasType env before value application) : IndexedHasType env after value application := by
   rcases typed with ⟨valid, typed⟩
   refine ⟨valid, ?_⟩
+  -- `split` tags the arms by position (`h_1`, …). Each arm is closed by the
+  -- shape of its typing instead, so a new representation shifts none of them.
   split at typed
-  · intro ref member
-    obtain ⟨object, denotes⟩ := typed ref member
-    exact ⟨object, denotes_of_worldExtends extension denotes⟩
-  · exact ⟨denotes_of_worldExtends extension typed.1, denotes_of_worldExtends extension typed.2⟩
-  · exact ⟨denotes_of_worldExtends extension typed.1, denotes_of_worldExtends extension typed.2⟩
-  · intro ref member
-    obtain ⟨object, denotes⟩ := typed ref member
-    exact ⟨object, denotes_of_worldExtends extension denotes⟩
-  · exact typed
-  · exact typed
-  · exact typed
-  · exact typed
-  · exact typed
-  · contradiction
+  all_goals first
+    | exact typed
+    | contradiction
+    | exact ⟨denotes_of_worldExtends extension typed.1, denotes_of_worldExtends extension typed.2⟩
+    | (intro ref member
+       obtain ⟨object, denotes⟩ := typed ref member
+       exact ⟨object, denotes_of_worldExtends extension denotes⟩)
 
 theorem value_of_worldExtends {env : Declarations} {before after : World}
     (extension : WorldExtends before after) {value : Value} {type : DataType}
@@ -159,28 +154,16 @@ theorem application_ref_valid {env : Indexed.Environment} {application : Applica
       obtain ⟨type, found, typed, _⟩ := accepts
       exact ⟨type, found, typed⟩
 
-theorem primitive_nil {env : Indexed.Environment} {world : World} {values : List Value}
-    (typed : PrimitiveValuesHaveTypes env world values []) : values = [] := by
-  cases values <;> simp_all [PrimitiveValuesHaveTypes]
-
 theorem primitive_single {env : Indexed.Environment} {world : World} {values : List Value} {type : ValueType}
     (typed : PrimitiveValuesHaveTypes env world values [type]) :
-    ∃ value, values = [value] ∧ PrimitiveValueHasType env world value type := by
-  cases values with
-  | nil => contradiction
-  | cons value rest =>
-      have empty := primitive_nil typed.2
-      exact ⟨value, by simp [empty], typed.1⟩
+    ∃ value, values = [value] ∧ PrimitiveValueHasType env world value type :=
+  SmoothPrimitives.values_single typed
 
 theorem primitive_pair {env : Indexed.Environment} {world : World} {values : List Value} {first second : ValueType}
     (typed : PrimitiveValuesHaveTypes env world values [first, second]) :
     ∃ left right, values = [left, right] ∧ PrimitiveValueHasType env world left first ∧
-      PrimitiveValueHasType env world right second := by
-  cases values with
-  | nil => contradiction
-  | cons left rest =>
-      obtain ⟨right, equal, typedRight⟩ := primitive_single typed.2
-      exact ⟨left, right, by simp [equal], typed.1, typedRight⟩
+      PrimitiveValueHasType env world right second :=
+  SmoothPrimitives.values_pair typed
 
 theorem primitive_natural {env : Indexed.Environment} {world : World} {value : Value}
     (typed : PrimitiveValueHasType env world value .natural) : ∃ n, value = .natural n := by
@@ -249,7 +232,7 @@ theorem global_total {env : Indexed.Environment} {world : World} {id : DeclId}
     (rule : PrimitiveTyped env (.global id) allowed brand [] output)
     (typed : PrimitiveValuesHaveTypes env world values []) :
     PrimitiveOutcome env world (.global id) values output := by
-  have empty := primitive_nil typed
+  have empty := SmoothPrimitives.values_nil typed
   subst values
   obtain ⟨type, found, rfl⟩ := IndexedAssociations.global_association.mp rule.association
   obtain ⟨object, computed, denotes⟩ := global_denotes env world id rule.bindingValid.2
@@ -380,7 +363,7 @@ theorem relativeConstant_total {env : Indexed.Environment} {world : World} {appl
     (rule : PrimitiveTyped env (.relativeConstant application map) allowed brand [] output)
     (typed : PrimitiveValuesHaveTypes env world values []) :
     PrimitiveOutcome env world (.relativeConstant application map) values output := by
-  have empty := primitive_nil typed
+  have empty := SmoothPrimitives.values_nil typed
   subst values
   have association : output = .indexed application := (IndexedAssociations.relativeConstant_association.mp rule.association).symm
   subst association
@@ -475,25 +458,6 @@ theorem relativeCoefficient_total {env : Indexed.Environment} {world : World}
   exact ⟨world, .pairInt (map.coefficient coordinate monomial).1 (map.coefficient coordinate monomial).2,
     rfl, worldExtends_refl world, trivial, rfl⟩
 
-theorem integer_values {env : Indexed.Environment} {world : World} :
-    ∀ {values : List Value} {count : Nat},
-      PrimitiveValuesHaveTypes env world values ((List.range count).map fun _ => .integer) →
-      ∃ coordinates, values.mapM Value.integer? = some coordinates
-  | [], _, _ => ⟨[], rfl⟩
-  | value :: rest, count, typed => by
-    cases count with
-    | zero => simp [PrimitiveValuesHaveTypes] at typed
-    | succ n =>
-      rw [List.range_succ_eq_map, List.map_cons, List.map_map] at typed
-      obtain ⟨head, tail⟩ := typed
-      cases value <;> simp only [PrimitiveValueHasType] at head
-      case integer v =>
-        have shifted : ((List.range n).map ((fun _ => ValueType.integer) ∘ Nat.succ)) =
-            (List.range n).map fun _ => ValueType.integer := by simp [Function.comp_def]
-        rw [shifted] at tail
-        obtain ⟨coordinates, found⟩ := integer_values tail
-        exact ⟨v :: coordinates, by simp [found, Value.integer?]⟩
-
 theorem relativeIntPoint_total {env : Indexed.Environment} {world : World} {family object base : DeclId}
     {arguments : List ValueType} {allowed : List Indexed.ObjectRef}
     {brand : Nat} {output : ValueType} {values : List Value}
@@ -502,7 +466,7 @@ theorem relativeIntPoint_total {env : Indexed.Environment} {world : World} {fami
     PrimitiveOutcome env world (.relativeIntPoint family object base) values output := by
   obtain ⟨rfl, rfl⟩ := IndexedAssociations.relativeIntPoint_association.mp rule.association
   have relative := relative_family rule.bindingValid.1
-  obtain ⟨coordinates, found⟩ := integer_values typed
+  obtain ⟨coordinates, found, _⟩ := SmoothPrimitives.integer_values typed
   have valid := rule.resultValid
   refine ⟨world, .indexed (.relative (AlgebraRuntime.Map.intPoint coordinates)), ?_, worldExtends_refl world,
     relative_typed relative valid ?_, rfl⟩
@@ -572,26 +536,6 @@ theorem global_object_descriptor {env : Indexed.Environment} {id : DeclId} {obje
       case affine implementation data => cases computed; rfl
       case smoothAffine implementation coordinates => cases computed; rfl
 
-theorem integers_erase : ∀ {values : List Value} {coordinates : List Int},
-    values.mapM Value.integer? = some coordinates →
-      ∃ inputs, values.mapM erasePrimitiveValue = some inputs ∧
-        inputs.mapM PrimitiveRuntimeValue.integer? = some coordinates
-  | [], coordinates, found => by
-    simp at found
-    subst found
-    exact ⟨[], rfl, rfl⟩
-  | value :: rest, coordinates, found => by
-    cases value <;> simp [Value.integer?] at found
-    case integer v =>
-      cases tailFound : rest.mapM Value.integer? with
-      | none => simp [tailFound] at found
-      | some tail =>
-        simp [tailFound] at found
-        subst found
-        obtain ⟨inputs, erased, runtime⟩ := integers_erase tailFound
-        exact ⟨.integer v :: inputs, by simp [erasePrimitiveValue, erased],
-          by simp [PrimitiveRuntimeValue.integer?, runtime]⟩
-
 theorem intPoint_erasure {family object base : DeclId} {values : List Value} {value : Value}
     (evaluated : intPointValue values = some value) :
     ∃ inputs output, values.mapM erasePrimitiveValue = some inputs ∧
@@ -603,7 +547,7 @@ theorem intPoint_erasure {family object base : DeclId} {values : List Value} {va
   | some list =>
     simp [coordinates] at evaluated
     subst evaluated
-    obtain ⟨inputs, erased, runtime⟩ := integers_erase coordinates
+    obtain ⟨inputs, erased, runtime⟩ := SmoothPrimitives.integers_erase coordinates
     exact ⟨inputs, _, erased, rfl, by simp [evalRuntimePrimitive, PrimitiveBinding.contract, intPointRuntime, runtime]⟩
 
 /-! ## The soundness instance of each Stage 1 and Stage 2 entry

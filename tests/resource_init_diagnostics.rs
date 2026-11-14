@@ -3,7 +3,7 @@
 //! initialized` only explains it. A named cell must be one that the checked
 //! writes do not cover, and a rejection without such a cell must name none.
 mod common;
-use common::{Scratch, cli, success};
+use common::{Scratch, success};
 
 /// A padded fill of two stored rows, read through a transposed view of three
 /// stored rows.
@@ -53,10 +53,7 @@ fn fixture(source: &str) -> Scratch {
 }
 
 fn run(scratch: &Scratch, mode: &str) -> std::process::Output {
-    let mut command = cli();
-    command
-        .args([mode, "--manifest-path"])
-        .arg(scratch.0.join("Vastitas.toml"));
+    let mut command = common::manifest_command(mode, scratch.0.join("Vastitas.toml"));
     if mode == "build" {
         command.arg("-o").arg(scratch.0.join("program"));
     }

@@ -6,28 +6,19 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Output;
 
-impl Scratch {
-    fn new() -> Self {
-        Self::empty("dispatch")
-    }
-
-    fn source(&self, source: &str) -> PathBuf {
-        let path = self.0.join("dispatch input.vast");
-        fs::write(&path, source).unwrap();
-        path
-    }
-}
+/// The name of each test's source file; it has a space.
+const FILE: &str = "dispatch input.vast";
 
 fn check(source: &str) -> Output {
-    common::check(source, "dispatch input.vast")
+    common::check(source, FILE)
 }
 
 fn reject(source: &str, code: &str) -> String {
-    common::reject(source, code, "dispatch input.vast")
+    common::reject(source, code, FILE)
 }
 
 fn native(source: &str, libraries: &[PathBuf], expected: &str) {
-    common::native(source, libraries, expected, "dispatch input.vast");
+    common::native(source, libraries, expected, FILE);
 }
 
 fn request(source: &str) -> Value {
@@ -124,9 +115,11 @@ fn main() -> Int {
 
 #[test]
 fn library_method_diagnostics_keep_original_files_and_lines_after_lowering() {
-    let scratch = Scratch::new();
-    let application =
-        scratch.source("generic broken(x) { domain (Int); }\nfn main() -> Int { broken(0) }");
+    let scratch = Scratch::empty("dispatch");
+    let application = scratch.write(
+        FILE,
+        "generic broken(x) { domain (Int); }\nfn main() -> Int { broken(0) }",
+    );
     let library = scratch.0.join("method body.vast");
     fs::write(
         &library,

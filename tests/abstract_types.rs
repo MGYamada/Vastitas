@@ -300,11 +300,7 @@ fn protocol_four_is_explicit_and_legacy_requests_stay_unchanged() {
 }
 
 fn package_check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("app/Vastitas.toml")
 }
 
 #[test]

@@ -3,28 +3,19 @@ mod common;
 use common::{Scratch, assert_rejected, cli, kernel, success as assert_success};
 use serde_json::{Value, json};
 use std::fs;
-use std::path::PathBuf;
 use std::process::Output;
 
-impl Scratch {
-    fn new() -> Self {
-        Self::empty("compiler")
-    }
-    fn source(&self, text: &str) -> PathBuf {
-        let file = self.0.join("input file.vast");
-        fs::write(&file, text).unwrap();
-        file
-    }
-}
+/// The name of each test's source file; it has a space.
+const FILE: &str = "input file.vast";
 
 fn check(source: &str) -> Output {
-    common::check(source, "input file.vast")
+    common::check(source, FILE)
 }
 fn reject(source: &str, code: &str) -> String {
-    common::reject(source, code, "input file.vast")
+    common::reject(source, code, FILE)
 }
 fn native(source: &str, expected: &str) {
-    common::native(source, &[], expected, "input file.vast");
+    common::native(source, &[], expected, FILE);
 }
 fn request(source: &str) -> Value {
     common::request(source, "forged.vast")
@@ -409,12 +400,12 @@ fn generated_let_budget_is_shared_by_check_and_build() {
     let source = unpack_budget_source(true);
     let message = reject(&source, "E_LIMIT");
     assert!(message.contains("4096"), "{message}");
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("compiler");
     let output = scratch.0.join("previous output");
     fs::write(&output, "previous artifact").unwrap();
     let result = cli()
         .arg("build")
-        .arg(scratch.source(&source))
+        .arg(scratch.write(FILE, &source))
         .arg("-o")
         .arg(&output)
         .output()
@@ -430,8 +421,8 @@ fn generated_let_budget_is_shared_by_check_and_build() {
 fn argument_fuel_errors_report_the_library_call_site() {
     use std::fmt::Write;
 
-    let scratch = Scratch::new();
-    let source = scratch.source("fn main() -> Int { 0 }");
+    let scratch = Scratch::empty("compiler");
+    let source = scratch.write(FILE, "fn main() -> Int { 0 }");
     let library = scratch.0.join("many arguments.vast");
     let mut body = String::from("fn target() -> Int { 0 }\nfn helper() -> Int {\n");
     // Statements and arguments share the fuel budget. Exhaust it immediately
@@ -461,8 +452,8 @@ fn argument_fuel_errors_report_the_library_call_site() {
 
 #[test]
 fn failed_compilation_preserves_existing_output() {
-    let scratch = Scratch::new();
-    let file = scratch.source("fn main() -> Int { true }");
+    let scratch = Scratch::empty("compiler");
+    let file = scratch.write(FILE, "fn main() -> Int { true }");
     let output = scratch.0.join("existing");
     fs::write(&output, b"previous artifact").unwrap();
     let result = cli()
@@ -478,10 +469,10 @@ fn failed_compilation_preserves_existing_output() {
 
 #[test]
 fn backend_is_required_and_failure_has_no_frontend_fallback() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("compiler");
     let result = cli()
         .arg("check")
-        .arg(scratch.source("fn main() -> Int { 1 }"))
+        .arg(scratch.write(FILE, "fn main() -> Int { 1 }"))
         .env("VASTITAS_KERNEL", scratch.0.join("missing-kernel"))
         .output()
         .unwrap();
@@ -504,8 +495,8 @@ fn excessive_source_nesting_is_a_diagnostic_not_a_process_abort() {
 #[test]
 fn native_toolchain_failure_preserves_existing_output() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = Scratch::new();
-    let source = scratch.source("fn main() -> Int { 42 }");
+    let scratch = Scratch::empty("compiler");
+    let source = scratch.write(FILE, "fn main() -> Int { 42 }");
     let output = scratch.0.join("existing");
     fs::write(&output, b"previous artifact").unwrap();
     let lake = scratch.0.join("lake");

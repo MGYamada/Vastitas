@@ -6,28 +6,19 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Output;
 
-impl Scratch {
-    fn new() -> Self {
-        Self::empty("functions")
-    }
-
-    fn source(&self, source: &str) -> PathBuf {
-        let path = self.0.join("function input.vast");
-        fs::write(&path, source).unwrap();
-        path
-    }
-}
+/// The name of each test's source file; it has a space.
+const FILE: &str = "function input.vast";
 
 fn check(source: &str) -> Output {
-    common::check(source, "function input.vast")
+    common::check(source, FILE)
 }
 
 fn reject(source: &str, code: &str) -> String {
-    common::reject(source, code, "function input.vast")
+    common::reject(source, code, FILE)
 }
 
 fn native(source: &str, libraries: &[PathBuf], expected: &str) {
-    common::native(source, libraries, expected, "function input.vast");
+    common::native(source, libraries, expected, FILE);
 }
 
 fn request(source: &str) -> Value {
@@ -188,7 +179,7 @@ fn forwarded_factory_results_preserve_concrete_identity_across_wrappers() {
 
 #[test]
 fn indexed_packages_use_the_same_probe_reuse_checker() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("functions");
     let manifest = scratch.write(
         "Vastitas.toml",
         "[package]\nname='probe_reuse'\nversion='0.1.0'\nroot='src/main.vast'\n",
@@ -400,7 +391,7 @@ fn main() -> Int { let wrapped = fn(x: Int) -> Int { offset(x) }; run(wrapped, 4
         &[],
         "42",
     );
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("functions");
     let library = scratch.0.join("functions.vast");
     fs::write(
         &library,
@@ -518,8 +509,8 @@ fn repeat(x: Int) -> Int { run(repeat, x) }",
 #[test]
 fn lambda_cycle_diagnostics_use_source_locations_in_flat_and_package_modes() {
     let source = "fn inc(x: Int) -> Int { x + 1 }\nfn f(h: Fn<Int, Int>) -> Int { let g = fn() -> Int { f(inc) }; g() }\nfn main() -> Int { 0 }";
-    let scratch = Scratch::new();
-    let input = scratch.source(source);
+    let scratch = Scratch::empty("functions");
+    let input = scratch.write(FILE, source);
     let manifest = scratch.0.join("Vastitas.toml");
     fs::write(
         &manifest,

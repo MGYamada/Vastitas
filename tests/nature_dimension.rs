@@ -6,9 +6,8 @@
 //! the gradient natively, compare the generated Lean with and without the
 //! nature declarations, and audit the module's public names (ADR 0002).
 mod common;
-use common::{Scratch, cli, expect_code, kernel, success};
+use common::{Scratch, expect_code, kernel, read, success};
 use serde_json::{Value, json};
-use std::path::Path;
 
 /// The nature declarations of `MAIN`: a reading, two scales and the physical
 /// interpretation of the std metric G = diag(1/9, 1/4) by them.
@@ -63,76 +62,23 @@ fn main() -> Int {
 }
 ";
 
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap()
-}
-
-/// Copies every `.vast` and `.toml` file under `from` to `to` in `s`.
-fn copy_tree(s: &Scratch, from: &Path, to: &str) {
-    let mut stack = vec![from.to_path_buf()];
-    while let Some(directory) = stack.pop() {
-        for entry in std::fs::read_dir(&directory).unwrap() {
-            let path = entry.unwrap().path();
-            if path.is_dir() {
-                stack.push(path);
-            } else if matches!(
-                path.extension().and_then(|e| e.to_str()),
-                Some("vast" | "toml")
-            ) {
-                let relative = path.strip_prefix(from).unwrap().to_str().unwrap();
-                s.write(&format!("{to}/{relative}"), &read(&path));
-            }
-        }
-    }
-}
-
 const APP_MANIFEST: &str = "[package]\nname = \"nature_dimension_demo\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
 
 /// The application `main` in `app/` with copies of the stdlib in `stdlib/`
 /// and of the nature package in `nature/`, as in the repository. The app and
 /// the nature package both depend on `../stdlib`.
 fn fixture(main: &str) -> Scratch {
-    common::prepare_stdlib_package();
-    let s = Scratch::empty("nature dimension");
-    let stdlib = common::root().join("stdlib");
-    s.write("stdlib/Vastitas.toml", &read(&stdlib.join("Vastitas.toml")));
-    for directory in ["target/package", "src/geometry", "src/differential"] {
-        copy_tree(&s, &stdlib.join(directory), &format!("stdlib/{directory}"));
-    }
-    copy_tree(&s, &common::root().join("nature"), "nature");
-    s.write("app/Vastitas.toml", APP_MANIFEST);
-    s.write("app/main.vast", main);
+    let s = common::stdlib_app("nature dimension", APP_MANIFEST, main, &[]);
+    s.copy_nature();
     s
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("app/Vastitas.toml")
 }
 
 fn run(s: &Scratch) -> Vec<u8> {
-    success(&check(s));
-    success(
-        &cli()
-            .current_dir(&s.0)
-            .args([
-                "build",
-                "--manifest-path",
-                "app/Vastitas.toml",
-                "-o",
-                "program",
-            ])
-            .output()
-            .unwrap(),
-    );
-    let result = std::process::Command::new(s.0.join("program"))
-        .output()
-        .unwrap();
-    success(&result);
-    result.stdout
+    s.check_build_and_run("app/Vastitas.toml")
 }
 
 /// `MAIN` with extra items inserted before `gradient`.
@@ -150,11 +96,7 @@ fn rejects(main: &str, code: &str) -> String {
 }
 
 fn request(s: &Scratch) -> Value {
-    let mut command = cli();
-    command
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"]);
-    common::captured_wire(command, 9)
+    s.captured("app/Vastitas.toml", 9)
 }
 
 fn packages<'a>(wire: &'a Value, name: &str) -> Vec<&'a Value> {

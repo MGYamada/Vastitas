@@ -185,8 +185,6 @@ def subst (arity : Nat) (images : List Poly) (p : Poly) : Poly :=
   p.foldl (fun result t => add result (scale t.coefficient (evalMonomial arity images t.monomial)))
     []
 
-def degreeBound (p : Poly) : Nat := (p.map fun t => t.monomial.degree).foldl max 0
-
 end Poly
 
 /-- One state of polynomial division by an ordered list of divisors. The

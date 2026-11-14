@@ -146,10 +146,6 @@ def encode_poly(p):
     return [[list(m), encode_rational(p[m])] for m in sorted(p, key=key, reverse=True)]
 
 
-def decode_poly(data, arity):
-    return poly([(tuple(m), decode_rational(c)) for m, c in data], arity)
-
-
 def x(arity, index, power=1):
     return tuple(power if position == index else 0 for position in range(arity))
 

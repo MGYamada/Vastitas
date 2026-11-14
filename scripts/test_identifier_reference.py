@@ -10,7 +10,6 @@ from pathlib import Path
 from identifier_reference import (
     ESCAPE_PREFIX as P, IdentifierError, canonicalize_identifier as canon,
     is_start, is_continue, print_identifier as emit, read_identifier as read,
-    validate_name,
 )
 from generate_identifier_unicode import generate, OUTPUT
 

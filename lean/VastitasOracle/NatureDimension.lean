@@ -280,37 +280,11 @@ theorem quantityDimension_eq_some {env : Environment} {id : DeclId} {dimension :
   unfold quantityDimension?
   split <;> simp_all
 
-theorem readingData_eq_some {env : Environment} {id family object : DeclId} {quantities : List DeclId} :
-    readingData? env id = some (family, object, quantities) ↔
-      lookup env id = some (.reading family object quantities) := by
-  unfold readingData?
-  split <;> simp_all
-
-theorem scaleData_eq_some {env : Environment} {id quantity : DeclId} {magnitude : Rat} :
-    scaleData? env id = some (quantity, magnitude) ↔ lookup env id = some (.scale quantity magnitude) := by
-  unfold scaleData?
-  split <;> simp_all
-
 theorem smoothCoordinates_eq_some {env : Environment} {id : DeclId} {coordinates : List String} :
     smoothCoordinates? env id = some coordinates ↔
       ∃ implementation, lookup env id = some (.smoothAffine implementation coordinates) := by
   unfold smoothCoordinates?
   split <;> simp_all
-
-theorem metricData_eq_some {env : Environment} {metric object : DeclId} {n : Nat}
-    {gram : SmoothRuntime.Matrix} :
-    metricData? env metric = some (object, n, gram) ↔
-      ∃ family, lookup env metric = some (.metric family object gram) ∧ smoothDimension? env object = some n := by
-  unfold metricData?
-  split
-  · rename_i family object' gram' found
-    simp only [found, Option.some.injEq, Declaration.metric.injEq, Option.map_eq_some_iff, Prod.mk.injEq]
-    constructor
-    · rintro ⟨n', dimension, rfl, rfl, rfl⟩
-      exact ⟨family, ⟨rfl, rfl, rfl⟩, dimension⟩
-    · rintro ⟨_, ⟨rfl, rfl, rfl⟩, dimension⟩
-      exact ⟨n, dimension, rfl, rfl, rfl⟩
-  · simp_all
 
 /-- `failure` in `Option` is `none`. -/
 theorem failure_option {α : Type} : (failure : Option α) = none := rfl

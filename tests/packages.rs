@@ -204,19 +204,12 @@ fn a_use_cannot_bind_the_name_package() {
     assert_eq!(common::kernel(&raw, "check")["ok"], false);
 }
 
-const GEOMETRIC_OPERATIONS: [&str; 7] = [
-    "Affine",
-    "Base",
-    "origin",
-    "id",
-    "compose",
-    "apply",
-    "dimension",
-];
+const GEOMETRIC_OPERATIONS: [&str; 7] =
+    ["Affine", "Base", "origin", "id", "compose", "apply", "dim"];
 
 /// A module may take the name of one of the seven geometric operations, as
-/// `nature::dimension`. Paths through it resolve, and the bare name in a call
-/// stays the operation, even in the module that declares the module.
+/// `mod dim;`. Paths through it resolve, and the bare name in a call stays
+/// the operation, even in the module that declares the module.
 #[test]
 fn a_module_may_take_the_name_of_a_geometric_operation() {
     let s = Scratch::empty("packages");
@@ -239,13 +232,13 @@ mod origin {}
 mod id {}
 mod compose {}
 mod apply {}
-mod dimension { pub fn extra() -> Int { 40 } }
+mod dim { pub fn extra() -> Int { 40 } }
 fn main() -> Int {
     let X = Affine(QQ, Affine::size());
     let p: Point<X, Base(QQ)> = origin(X);
     let f = compose(id(X), id(X));
     let q: Point<X, Base(QQ)> = apply(f, p);
-    dimension::extra() + int(dimension(X))
+    dim::extra() + int(dim(X))
 }",
         "",
     );
@@ -254,20 +247,20 @@ fn main() -> Int {
     // an item of the module, and a `use` of the module under another name.
     s.package(
         "lib",
-        "pub mod dimension;\npub fn helper() -> Int { dimension::length() }",
+        "pub mod dim;\npub fn helper() -> Int { dim::length() }",
         "",
     );
-    s.write("lib/src/dimension.vast", "pub fn length() -> Int { 10 }");
+    s.write("lib/src/dim.vast", "pub fn length() -> Int { 10 }");
     s.package(
         "app",
-        "mod dimension { pub fn width() -> Int { 1 } }
-mod child { pub fn twice() -> Int { super::dimension::width() + package::dimension::width() } }
-use dep::dimension::length;
-use dep::dimension as dim;
+        "mod dim { pub fn width() -> Int { 1 } }
+mod child { pub fn twice() -> Int { super::dim::width() + package::dim::width() } }
+use dep::dim::length;
+use dep::dim as measure;
 fn main() -> Int {
     let X = Affine(QQ, 9);
-    length() + dim::length() + dep::dimension::length() + child::twice()
-        + self::dimension::width() + int(dimension(X))
+    length() + measure::length() + dep::dim::length() + child::twice()
+        + self::dim::width() + int(dim(X))
 }",
         "dep = { path = '../lib' }",
     );
@@ -280,17 +273,13 @@ fn main() -> Int {
 #[test]
 fn geometric_operation_names_stay_reserved_outside_modules() {
     let s = Scratch::empty("packages");
-    s.package(
-        "lib",
-        "pub mod dimension { pub fn length() -> Int { 42 } }",
-        "",
-    );
+    s.package("lib", "pub mod dim { pub fn length() -> Int { 42 } }", "");
     let dep = "dep = { path = '../lib' }";
     for (source, place, message) in [
         (
-            "mod dimension {\n    pub fn dimension() -> Int { 2 }\n}",
+            "mod dim {\n    pub fn dim() -> Int { 2 }\n}",
             "2:12",
-            "`dimension` is reserved for builtin geometry operations",
+            "`dim` is reserved for builtin geometry operations",
         ),
         (
             "fn main() -> Int {\n    let origin = 1;\n    origin\n}",
@@ -303,9 +292,14 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
             "`apply` is reserved for builtin geometry operations",
         ),
         (
-            "use dep::dimension::length as id;",
-            "1:31",
+            "use dep::dim::length as id;",
+            "1:25",
             "`id` is reserved for builtin geometry operations",
+        ),
+        (
+            "use dep::dim::length as dim;",
+            "1:25",
+            "`dim` is reserved for builtin geometry operations",
         ),
         (
             "mod int {}",
@@ -336,36 +330,33 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
     // the packages are loaded, the frontend follows the path through modules,
     // dependency aliases and imports and reports a module at the name
     // (#759), also in a program with `indexed` declarations.
-    let reserved = "E_RESERVED: `dimension` is reserved for builtin geometry operations; choose another declaration or binding name";
+    let reserved = "E_RESERVED: `dim` is reserved for builtin geometry operations; choose another declaration or binding name";
     for lib in [
-        "pub mod dimension { pub fn length() -> Int { 42 } }",
-        "pub indexed marker M;\npub mod dimension { pub fn length() -> Int { 42 } }",
+        "pub mod dim { pub fn length() -> Int { 42 } }",
+        "pub indexed marker M;\npub mod dim { pub fn length() -> Int { 42 } }",
     ] {
         s.package("lib", lib, "");
         for (source, place) in [
+            ("use dep::dim;\nfn main() -> Int { dim::length() }", "1:10"),
             (
-                "use dep::dimension;\nfn main() -> Int { dimension::length() }",
-                "1:10",
-            ),
-            (
-                "mod units { pub mod dimension {} }\nuse self::units::dimension;\nfn main() -> Int { 0 }",
+                "mod units { pub mod dim {} }\nuse self::units::dim;\nfn main() -> Int { 0 }",
                 "2:18",
             ),
             (
-                "mod units { pub mod dimension {} }\nmod child { use super::units::dimension; }\nfn main() -> Int { 0 }",
+                "mod units { pub mod dim {} }\nmod child { use super::units::dim; }\nfn main() -> Int { 0 }",
                 "2:31",
             ),
             (
-                "mod units { pub mod dimension {} }\nmod child { use package::units::dimension; }\nfn main() -> Int { 0 }",
+                "mod units { pub mod dim {} }\nmod child { use package::units::dim; }\nfn main() -> Int { 0 }",
                 "2:33",
             ),
             // Through the import of a dependency, and through a re-export.
             (
-                "use dep as library;\nuse library::dimension;\nfn main() -> Int { 0 }",
+                "use dep as library;\nuse library::dim;\nfn main() -> Int { 0 }",
                 "2:14",
             ),
             (
-                "mod units { pub use dep as library; }\nmod child { use super::units::library::dimension; }\nfn main() -> Int { 0 }",
+                "mod units { pub use dep as library; }\nmod child { use super::units::library::dim; }\nfn main() -> Int { 0 }",
                 "2:40",
             ),
         ] {
@@ -381,12 +372,12 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
     // A `use` without `as` of an `indexed` declaration binds its name.
     s.package(
         "lib",
-        "pub indexed marker origin;\npub mod dimension { pub fn length() -> Int { 42 } }",
+        "pub indexed marker origin;\npub mod dim { pub fn length() -> Int { 42 } }",
         "",
     );
     s.package(
         "app",
-        "use dep::origin;\nuse dep::dimension::length;\nfn main() -> Int { length() }",
+        "use dep::origin;\nuse dep::dim::length;\nfn main() -> Int { length() }",
         dep,
     );
     success(&s.check());
@@ -405,6 +396,84 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
     }
 }
 
+/// #778: `dimension` is no operation and no reserved name. A function, a
+/// module, a dependency alias and the name that a `use` binds, with or
+/// without `as`, may all be `dimension`, and calls of such a function reach
+/// it. A call `dimension(…)` that names nothing is `E_NAME` with a note
+/// that points to `dim` and to `nature::dimension`.
+#[test]
+fn dimension_is_an_ordinary_name() {
+    let s = Scratch::empty("packages");
+    // A dependency alias, and a module of the dependency. A dependency alias
+    // is a name of every module of its package, so the package declares no
+    // other `dimension`.
+    s.package(
+        "lib",
+        "pub mod dimension { pub fn length() -> Int { 10 } }",
+        "",
+    );
+    s.package(
+        "app",
+        "fn main() -> Int {
+    let X = Affine(QQ, 3);
+    dimension::dimension::length() + int(dim(X)) + 29
+}",
+        "dimension = { path = '../lib' }",
+    );
+    s.native("42");
+    // Modules, and a `use … as` that binds a function.
+    s.package(
+        "app",
+        "mod units {
+    pub mod dimension { pub fn width() -> Int { 1 } }
+    pub fn size() -> Int { 2 }
+}
+mod child {
+    use super::units::size as dimension;
+    pub fn two() -> Int { dimension() }
+}
+use units::dimension::width;
+fn main() -> Int {
+    let X = Affine(QQ, 3);
+    child::two() + width() + units::dimension::width() + int(dim(X)) + 35
+}",
+        "",
+    );
+    s.native("42");
+    // A plain `use` of a module named `dimension`.
+    s.package(
+        "app",
+        "mod units { pub mod dimension { pub fn value() -> Int { 40 } } }
+use units::dimension;
+fn twice(n: Int) -> Int { n + n }
+fn main() -> Int { dimension::value() + twice(1) }",
+        "",
+    );
+    s.native("42");
+    // A function named `dimension`, and its call.
+    s.package(
+        "app",
+        "fn dimension(n: Int) -> Int { n + 1 }\nfn main() -> Int { dimension(41) }",
+        "",
+    );
+    s.native("42");
+    // An unresolved call explains `dim` and `nature::dimension`, at the root
+    // and in a child module.
+    for source in [
+        "fn main() -> Int {\n    let X = Affine(QQ, 3);\n    int(dimension(X))\n}",
+        "mod units { pub fn f() -> Int { let X = Affine(QQ, 3); int(dimension(X)) } }\nfn main() -> Int { units::f() }",
+    ] {
+        s.package("app", source, "");
+        let error = s.rejects("E_NAME");
+        assert!(
+            error.contains(
+                "note: the dimension of a vector or affine space is `dim(…)`, and physical dimensions are `nature::dimension`"
+            ),
+            "{source}: {error}"
+        );
+    }
+}
+
 /// The frontend follows the path of a `use` of a reserved name through a
 /// bounded number of imports (#759). A longer chain of distinct aliases is
 /// left to the kernel, which checks every `use` itself within its own work
@@ -413,12 +482,12 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
 fn a_long_chain_of_imports_is_left_to_the_kernel() {
     let s = Scratch::empty("packages");
     const CHAIN: usize = 20_000;
-    let mut source = String::from("mod units { pub mod dimension {} }\n");
+    let mut source = String::from("mod units { pub mod dim {} }\n");
     source.push_str(&format!("use self::units as a{CHAIN};\n"));
     for i in (0..CHAIN).rev() {
         source.push_str(&format!("use a{} as a{i};\n", i + 1));
     }
-    source.push_str("use a0::dimension;\nfn main() -> Int { 0 }\n");
+    source.push_str("use a0::dim;\nfn main() -> Int { 0 }\n");
     s.package("app", &source, "");
     let output = s.check();
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -433,13 +502,14 @@ fn a_long_chain_of_imports_is_left_to_the_kernel() {
 /// accepts a module named after a geometric operation and rejects the other
 /// reserved names of modules, a function of such a name and a `use` that binds
 /// one, to a module or with `as` to an `indexed` declaration, in a request
-/// that the frontend did not write.
+/// that the frontend did not write. `dimension` is an ordinary name there
+/// too (#778).
 #[test]
 fn the_kernel_checks_geometric_module_names_independently() {
     let s = Scratch::empty("packages");
     s.package(
         "app",
-        "mod dimension { pub fn value() -> Int { 42 } }\nmod units { pub mod length { pub fn value() -> Int { 1 } } }\nuse units::length as metres;\nfn main() -> Int { dimension::value() + metres::value() - 1 }",
+        "mod dim { pub fn value() -> Int { 42 } }\nmod units { pub mod length { pub fn value() -> Int { 1 } } }\nuse units::length as metres;\nfn main() -> Int { dim::value() + metres::value() - 1 }",
         "",
     );
     let raw = common::captured_wire(
@@ -455,31 +525,68 @@ fn the_kernel_checks_geometric_module_names_independently() {
             .position(|module| module["path"] == path)
             .unwrap()
     };
-    let dimension = at(serde_json::json!(["dimension"]));
+    let dim = at(serde_json::json!(["dim"]));
     let root = at(serde_json::json!([]));
-    // Other reserved names of modules.
-    for name in ["int", "Nat", "QQ", "self"] {
+    // Other reserved names of modules, and `dimension`, which is ordinary.
+    for (name, ok) in [
+        ("int", false),
+        ("Nat", false),
+        ("QQ", false),
+        ("self", false),
+        ("dimension", true),
+    ] {
         let mut forged = raw.clone();
-        forged["packages"][0]["modules"][dimension]["path"] = serde_json::json!([name]);
-        common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
+        forged["packages"][0]["modules"][dim]["path"] = serde_json::json!([name]);
+        if ok {
+            let root_calls = &mut forged["packages"][0]["modules"][root]["functions"][0];
+            let text = root_calls
+                .to_string()
+                .replace("dim::value", "dimension::value");
+            *root_calls = serde_json::from_str(&text).unwrap();
+            assert_eq!(common::kernel(&forged, "check")["ok"], true, "{forged}");
+        } else {
+            common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
+        }
     }
-    // A function of a geometric operation's name.
+    // A function of a geometric operation's name; `dimension` is ordinary.
     let mut forged = raw.clone();
-    forged["packages"][0]["modules"][dimension]["functions"][0]["name"] = "dimension".into();
+    forged["packages"][0]["modules"][dim]["functions"][0]["name"] = "dim".into();
     common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
-    // A `use` that binds a geometric operation's name to a module.
-    let mut forged = raw;
-    let import = &mut forged["packages"][0]["modules"][root]["imports"][0];
-    assert_eq!(import["alias"], "metres");
-    import["alias"] = "origin".into();
-    common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
+    let mut forged = raw.clone();
+    forged["packages"][0]["modules"][dim]["functions"][0]["name"] = "dimension".into();
+    let text = forged.to_string().replace("dim::value", "dim::dimension");
+    let forged: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(common::kernel(&forged, "check")["ok"], true, "{forged}");
+    // A `use` that binds a geometric operation's name to a module. The module
+    // `dim` takes another name first, so that `dim` names nothing else.
+    let mut spare = raw.clone();
+    spare["packages"][0]["modules"][dim]["path"] = serde_json::json!(["spare"]);
+    let spare: serde_json::Value =
+        serde_json::from_str(&spare.to_string().replace("dim::value", "spare::value")).unwrap();
+    assert_eq!(common::kernel(&spare, "check")["ok"], true, "{spare}");
+    for (alias, ok) in [("origin", false), ("dim", false), ("dimension", true)] {
+        let mut forged = spare.clone();
+        let import = &mut forged["packages"][0]["modules"][root]["imports"][0];
+        assert_eq!(import["alias"], "metres");
+        import["alias"] = alias.into();
+        let text = forged
+            .to_string()
+            .replace("metres::value", &format!("{alias}::value"));
+        let forged: serde_json::Value = serde_json::from_str(&text).unwrap();
+        let response = common::kernel(&forged, "check");
+        if ok {
+            assert_eq!(response["ok"], true, "{response}");
+        } else {
+            common::assert_wire_rejected(&response, "E_RESERVED");
+        }
+    }
     // #759: a `use … as` that binds a reserved spelling to an `indexed`
     // declaration. Only a `use` without `as`, whose alias is the last segment
     // of its path, binds such a name; the request has no other error.
-    s.package("lib", "pub indexed marker dimension;", "");
+    s.package("lib", "pub indexed marker dim;", "");
     s.package(
         "app",
-        "use dep::dimension as measure;\nfn main() -> Int { 42 }",
+        "use dep::dim as measure;\nfn main() -> Int { 42 }",
         "dep = { path = '../lib' }",
     );
     let raw = common::captured_wire(
@@ -501,6 +608,7 @@ fn the_kernel_checks_geometric_module_names_independently() {
         .position(|module| module["path"] == serde_json::json!([]))
         .unwrap();
     for alias in [
+        "dim",
         "dimension",
         "origin",
         "compose",
@@ -515,13 +623,88 @@ fn the_kernel_checks_geometric_module_names_independently() {
         import["alias"] = alias.into();
         for mode in ["check", "emit"] {
             let response = common::kernel(&forged, mode);
-            if alias == "dimension" {
-                // The request of `use dep::dimension;`.
+            // The request of `use dep::dim;`, and an ordinary alias.
+            if alias == "dim" || alias == "dimension" {
                 assert_eq!(response["ok"], true, "{response}");
             } else {
                 common::assert_wire_rejected(&response, "E_RESERVED");
             }
         }
+    }
+}
+
+/// #778 on forged wire of protocols 7 and 9: the kernel resolves the
+/// operation by the spelling `dim` alone. A call of `dimension` that names
+/// nothing is `E_NAME` with the note; a function named `dimension` is
+/// accepted and its calls reach it; a function named `dim` is reserved. The
+/// wire tokens of the capability and the primitive op stay `dimension`.
+/// Protocol 7 calls a declared primitive; protocol 9, with the standard
+/// library, calls the operation through its `geometry_compat` export.
+#[test]
+fn the_kernel_resolves_dim_and_dimension_by_spelling() {
+    let s = Scratch::empty("packages");
+    let geometry = "pub indexed marker QQ;
+pub indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dim);
+pub indexed classification Scheme { parents(); domain(Grid); };
+pub indexed primitive affine = descriptor(Grid);
+pub indexed primitive size = dim((Scheme, QQ));
+";
+    s.package(
+        "app",
+        &format!(
+            "{geometry}fn helper(n: Int) -> Int {{ n }}\nfn main() -> Int {{ let X = affine(2); helper(int(size(X))) }}"
+        ),
+        "",
+    );
+    let seven = common::captured_wire(
+        s.cli()
+            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
+        7,
+    );
+    let text = seven.to_string();
+    assert!(
+        text.contains(r#""capabilities":["origin","dimension"]"#),
+        "{text}"
+    );
+    assert!(text.contains(r#""op":"dimension""#), "{text}");
+    s.copy_stdlib(&common::STDLIB_PACKAGES, &[]);
+    s.package(
+        "app",
+        "fn helper(n: Int) -> Int { n }\nfn main() -> Int { let X = Affine(QQ, 2); helper(int(dim(X))) }",
+        "std = { path = '../stdlib' }",
+    );
+    let nine = common::captured_wire(
+        s.cli()
+            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
+        9,
+    );
+    for (raw, call) in [(seven, r#""callee":"size""#), (nine, r#""callee":"dim""#)] {
+        let version = raw["version"].clone();
+        assert_eq!(common::kernel(&raw, "check")["ok"], true, "{raw}");
+        assert!(raw.to_string().contains(call), "{raw}");
+        // `helper` renamed `dimension`, with its call.
+        let renamed: serde_json::Value =
+            serde_json::from_str(&raw.to_string().replace("\"helper\"", "\"dimension\"")).unwrap();
+        let response = common::kernel(&renamed, "check");
+        assert_eq!(response["ok"], true, "{version}: {response}");
+        // `helper` renamed `dim`.
+        let reserved: serde_json::Value =
+            serde_json::from_str(&raw.to_string().replace("\"helper\"", "\"dim\"")).unwrap();
+        common::assert_wire_rejected(&common::kernel(&reserved, "check"), "E_RESERVED");
+        // The call renamed `dimension`, which names nothing.
+        let unresolved: serde_json::Value =
+            serde_json::from_str(&raw.to_string().replace(call, r#""callee":"dimension""#))
+                .unwrap();
+        let response = common::kernel(&unresolved, "check");
+        common::assert_wire_rejected(&response, "E_NAME");
+        assert!(
+            response["diagnostics"][0]["notes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|note| note["message"].as_str().unwrap().contains("`dim(…)`")),
+            "{version}: {response}"
+        );
     }
 }
 
@@ -794,7 +977,7 @@ fn all_manifests_and_module_sources_are_protected_from_output() {
 #[test]
 fn dependent_geometry_survives_namespaces_and_unpack() {
     let s = Scratch::empty("packages");
-    s.package("app", "mod geometry { pub fn retain(X: Scheme, p: Point<X, Base(QQ)>) -> Pointed<Scheme, QQ> { pack { scheme: X, point: p } } } fn main() -> Int { let X = Affine(QQ, 42); let p = origin(X); let parcel = geometry::retain(X, p); unpack parcel as { scheme: Y, point: q }; int(dimension(Y)) }", "");
+    s.package("app", "mod geometry { pub fn retain(X: Scheme, p: Point<X, Base(QQ)>) -> Pointed<Scheme, QQ> { pack { scheme: X, point: p } } } fn main() -> Int { let X = Affine(QQ, 42); let p = origin(X); let parcel = geometry::retain(X, p); unpack parcel as { scheme: Y, point: q }; int(dim(Y)) }", "");
     s.native("42");
 }
 

@@ -116,16 +116,18 @@ fn the_scaled_metric_is_accepted_and_its_gradient_is_nine_four() {
     assert_eq!(run(&fixture(MAIN)), b"904\n");
 }
 
-/// The application and the nature package reach one std package, so the
-/// reading of the application's chart is a reading of a `CInfAffine` object
-/// of the one std package (C21).
+/// The application and the package of `nature::dimension` reach one std
+/// package, so the reading of the application's chart is a reading of a
+/// `CInfAffine` object of the one std package (C21). The root package of
+/// `nature` depends on the dimension package alone and re-exports it.
 #[test]
 fn nature_and_the_application_share_one_std_package() {
     let wire = request(&fixture(MAIN));
     let [std] = packages(&wire, "vastitas_std").try_into().unwrap();
     let [nature] = packages(&wire, "vastitas_nature").try_into().unwrap();
+    let [dimension] = packages(&wire, "vastitas_dimension").try_into().unwrap();
     let [app] = packages(&wire, "nature_dimension_demo").try_into().unwrap();
-    for package in [nature, app] {
+    for package in [dimension, app] {
         let std_dependency: Vec<&Value> = package["dependencies"]
             .as_array()
             .unwrap()
@@ -135,13 +137,19 @@ fn nature_and_the_application_share_one_std_package() {
         assert_eq!(std_dependency.len(), 1, "{package}");
         assert_eq!(std_dependency[0]["target"], std["source"]);
     }
-    // nature depends on std alone.
-    assert_eq!(nature["dependencies"].as_array().unwrap().len(), 1);
-    // No std package depends on nature.
+    // The dimension package depends on std alone, and the root of nature on
+    // the dimension package alone.
+    assert_eq!(dimension["dependencies"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        nature["dependencies"],
+        json!([{ "alias": "dimension_library", "target": dimension["source"] }])
+    );
+    // No std package depends on nature or on its dimension package.
     for name in ["vastitas_std", "vastitas_geometry", "vastitas_differential"] {
         for package in packages(&wire, name) {
             for dependency in package["dependencies"].as_array().unwrap() {
                 assert_ne!(dependency["target"], nature["source"], "{name}");
+                assert_ne!(dependency["target"], dimension["source"], "{name}");
             }
         }
     }
@@ -271,29 +279,46 @@ fn generated_code_is_byte_identical_without_the_nature_declarations() {
         "app/Vastitas.toml",
         &common::checked_replace(APP_MANIFEST, "nature = { path = \"../nature\" }\n", ""),
     );
-    assert!(packages(&request(&alone), "vastitas_nature").is_empty());
+    let wire = request(&alone);
+    assert!(packages(&wire, "vastitas_nature").is_empty());
+    assert!(packages(&wire, "vastitas_dimension").is_empty());
     assert_eq!(source, generated(&alone));
     assert_eq!(run(&with_nature), b"904\n");
     assert_eq!(run(&alone), b"904\n");
 }
 
 /// The module exports exactly the two families, the three base dimensions
-/// and the seven quantity kinds, and nothing else (C21).
+/// and the seven quantity kinds, and nothing else (C21). It is the root module
+/// of the package `vastitas_dimension`, and the one module of the root of
+/// `nature` re-exports it as `nature::dimension`.
 #[test]
 fn dimension_module_exports_exactly_its_names() {
     let wire = request(&fixture(MAIN));
     let [nature] = packages(&wire, "vastitas_nature").try_into().unwrap();
-    let modules = nature["modules"].as_array().unwrap();
-    let root = modules.iter().find(|m| m["path"] == json!([])).unwrap();
-    let dimension = modules
-        .iter()
-        .find(|m| m["path"] == json!(["dimension"]))
-        .unwrap();
-    assert_eq!(modules.len(), 2);
-    for module in [root, dimension] {
-        for items in ["imports", "functions", "generics", "methods"] {
-            assert_eq!(module[items], json!([]), "{items}");
-        }
+    let [package] = packages(&wire, "vastitas_dimension").try_into().unwrap();
+    let [root] = nature["modules"].as_array().unwrap().as_slice() else {
+        panic!("{nature}");
+    };
+    let [dimension] = package["modules"].as_array().unwrap().as_slice() else {
+        panic!("{package}");
+    };
+    assert_eq!(root["path"], json!([]));
+    assert_eq!(dimension["path"], json!([]));
+    let mut imports = root["imports"].clone();
+    imports
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .for_each(common::remove_spans);
+    assert_eq!(
+        imports,
+        json!([{ "path": ["dimension_library"], "alias": "dimension", "public": true }])
+    );
+    for items in ["functions", "generics", "methods"] {
+        assert_eq!(root[items], json!([]), "{items}");
+    }
+    for items in ["imports", "functions", "generics", "methods"] {
+        assert_eq!(dimension[items], json!([]), "{items}");
     }
     assert_eq!(dimension["public"], true);
     assert_eq!(
@@ -361,16 +386,21 @@ fn dimension_module_exports_exactly_its_names() {
     }
 }
 
-/// The module is reachable by item imports, full paths and an alias; a plain
-/// `use nature::dimension;` would bind the reserved name `dimension`.
+/// The module is reachable by item imports, full paths, an alias and a
+/// plain `use nature::dimension;`, since `dimension` is an ordinary name
+/// (#778). `dim`, the geometric operation, is no alias.
 #[test]
 fn the_dimension_module_is_reachable_by_items_paths_and_an_alias() {
     success(&check(&fixture(&with(concat!(
-        "use nature::dimension as dim;\n",
-        "indexed scale s1 = 1 of dim::Length;\n",
+        "use nature::dimension as units;\n",
+        "indexed scale s1 = 1 of units::Length;\n",
         "indexed scale s2 = 2 of nature::dimension::Mass;",
     )))));
-    rejects(&with("use nature::dimension;"), "E_RESERVED");
+    success(&check(&fixture(&with(concat!(
+        "use nature::dimension;\n",
+        "indexed scale s1 = 1 of dimension::Length;",
+    )))));
+    rejects(&with("use nature::dimension as dim;"), "E_RESERVED");
 }
 
 /// A std manifest that depends on nature forms a cycle, since nature depends

@@ -414,6 +414,10 @@ impl<'a> Resolver<'a> {
                 {
                     let hint = if callee == "nat_to_int" {
                         "; help: nat_to_int is defined by the arithmetic standard library (include it with --lib or a package import); the builtin conversion is int(...)"
+                    } else if callee == "dimension" {
+                        // `dimension` is an ordinary name and no operation
+                        // (#778). The kernel adds the same note.
+                        crate::frontend::RETIRED_DIMENSION_NOTE
                     } else {
                         ""
                     };

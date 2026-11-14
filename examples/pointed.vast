@@ -15,5 +15,5 @@ fn main() -> Int {
     let repacked = pack { scheme: X, point: y };
     unpack repacked as { scheme: Y, point: z };
     let checked_again = apply(id(Y), z);
-    if dimension(Y) == 3 { 42 } else { 0 }
+    if dim(Y) == 3 { 42 } else { 0 }
 }

@@ -277,7 +277,7 @@ mutual
         let ref := ObjectRef.base base
         rememberObject ref span "Base"
         pure { term := .builtin (.base base) [] ⟨.object base, some ref⟩ }
-      | "origin" | "id" | "dimension" =>
+      | "origin" | "id" | "dim" =>
         arity name args 1 span
         let object ← checkExpr fuel signatures ctx args[0]! none
         let ref ← objectOf ctx object span

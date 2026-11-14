@@ -375,7 +375,7 @@ MarkerDeclaration -> `indexed` `marker` IDENTIFIER `;`
 DescriptorImplementation -> `indexed` `implementation` IDENTIFIER
     `(` Path `,` `affine_descriptor` `)` `capabilities` `(` Capabilities? `)` `;`
 Capabilities -> Capability ( `,` Capability )* `,`?
-Capability -> `origin` | `dimension`
+Capability -> `origin` | `dim`
 ```
 
 [Classifications](../indexed-source.md#classifications):
@@ -428,7 +428,7 @@ DescriptorBinding -> `descriptor` `(` Path `)`
     | `global` `(` Path `)`
     | `origin` `(` `(` Path `,` Path `)` `,` Path `,` Path `)`
     | `identity` `(` `(` Path `,` Path `)` `,` Path `)`
-    | `dimension` `(` `(` Path `,` Path `)` `)`
+    | `dim` `(` `(` Path `,` Path `)` `)`
     | `compose` `(` Path `)`
     | `apply` `(` Path `,` Path `)`
 ```

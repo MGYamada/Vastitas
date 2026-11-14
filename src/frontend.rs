@@ -34,24 +34,19 @@ const BUILTINS: &[&str] = &[
     "id",
     "compose",
     "apply",
-    "dimension",
+    "dim",
     "int",
     "pair",
     "pair_first",
     "pair_second",
 ];
 // The seven geometric operations of `BUILTINS`. A module may take one of these
-// names, as `nature::dimension`; every other declaration and binding may not.
-// Mirrors `geometricOperation` in the kernel's NamespaceResolve.
-const GEOMETRIC_OPERATIONS: &[&str] = &[
-    "Affine",
-    "Base",
-    "origin",
-    "id",
-    "compose",
-    "apply",
-    "dimension",
-];
+// names, as in `mod dim;`; every other declaration and binding may not.
+// `dimension` is none of them: it is an ordinary name, as in
+// `nature::dimension` (#778). Mirrors `geometricOperation` in the kernel's
+// NamespaceResolve.
+const GEOMETRIC_OPERATIONS: &[&str] =
+    &["Affine", "Base", "origin", "id", "compose", "apply", "dim"];
 // Reserved spellings that may name actual indexed declarations, as in
 // `pub use super::Point;`. Mirrors `indexedSpelling` in the kernel's
 // NamespaceResolve; the kernel's namespace checker validates such imports.
@@ -69,8 +64,11 @@ const INDEXED_SPELLINGS: &[&str] = &[
     "id",
     "compose",
     "apply",
-    "dimension",
+    "dim",
 ];
+/// The note on a call of `dimension` that names nothing (#778), as the
+/// kernel's `Checker.Internal.retiredDimension` gives it.
+pub(crate) const RETIRED_DIMENSION_NOTE: &str = "; note: the dimension of a vector or affine space is `dim(…)`, and physical dimensions are `nature::dimension`";
 const KEYWORDS: &[&str] = &[
     "fn", "let", "unpack", "as", "pack", "if", "else", "true", "false", "return", "while", "for",
     "loop", "mut", "generic", "method", "domain", "requires", "abstract", "type", "subtype",

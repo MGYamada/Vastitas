@@ -209,7 +209,7 @@ fn the_value_of_a_physical_metric_is_within_the_exponent_bound() {
     assert!(
         message.contains(
             "the nonzero terms of the physical metric `limits_demo::P` have dimension L^65, which \
-             raises `vastitas_nature::dimension::L` to the power 65, beyond the limit of 64 in \
+             raises `vastitas_dimension::L` to the power 65, beyond the limit of 64 in \
              absolute value"
         ),
         "{message}"
@@ -241,7 +241,7 @@ indexed physical P: PhysicalMetric<C> = interpret(E, reading = r, euclidean, val
     assert!(
         message.contains(
             "the physical metric `limits_demo::P` declares the value limits_demo::mine::L^2, but \
-             its nonzero terms have dimension vastitas_nature::dimension::L^2"
+             its nonzero terms have dimension vastitas_dimension::L^2"
         ),
         "{message}"
     );
@@ -255,7 +255,7 @@ indexed physical P: PhysicalMetric<C> = interpret(E, reading = r, euclidean);
     );
     assert!(
         message.contains(
-            "the term x·x has dimension vastitas_nature::dimension::L^2 and the term t·t has \
+            "the term x·x has dimension vastitas_dimension::L^2 and the term t·t has \
              dimension limits_demo::mine::L^2"
         ),
         "{message}"

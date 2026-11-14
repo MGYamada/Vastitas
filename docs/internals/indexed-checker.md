@@ -162,7 +162,8 @@ checks equal evidence declarations once; the kernel theorem
 computes `validEnvironment`.
 
 Implementation capability records contain the closed `origin` and
-`dimension` tags for the finite affine descriptor representation. They are
+`dimension` tags for the finite affine descriptor representation; the source
+spells the second `dim`. They are
 explicit per implementation; classification or inheritance does not fill them
 in. These records alone are not mathematical evidence or operation acceptance.
 The closed primitive binding checker is described below. Executable source/
@@ -996,7 +997,7 @@ names. No temporary second public geometry checker remains to remove.
 #### Primitive and proof inventory
 
 Every binding is independently checked against the actual declaration environment.
-Family constructors are sealed. `origin` and `dimension` require capabilities for
+Family constructors are sealed. `origin` and `dim` (the op `dimension`) require capabilities for
 the complete input implementation domain; arbitrary future Scheme implementations
 need not provide either operation.
 

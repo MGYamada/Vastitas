@@ -120,7 +120,7 @@ mutual
         let hint := if name == "Affine" then some (Core.DataType.pure .nat) else none
         let values ← arguments.mapM fun argument => expression fuel input scope ctx argument hint
         return ← emitLegacy input ctx name base values span
-      let target ← lookupPath input.index scope callee
+      let target ← lookupPath input.index scope callee (retiredCall callee)
       if target.kind == .indexedDeclaration then
         let some binding := input.declarations.primitive? target.owner
           | fail span "E_TYPE" "this indexed declaration is not a primitive function"

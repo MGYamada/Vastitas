@@ -4,9 +4,9 @@
 Each module directory of `stdlib/src/` and `nature/src/`, which holds a
 `mod.vast`, has a page under `docs/` of its library at the same path:
 `stdlib/src/geometry/scheme/` has `stdlib/docs/geometry/scheme.md`. The root
-module of a library has `docs/README.md`: `nature/src/mod.vast`, and the
-entrypoint of `stdlib` that `scripts/build_stdlib_package.py` generates. The
-modules that the script generates from the flat sources of
+module of a library has `docs/README.md`: the root file that the manifest
+`nature/Vastitas.toml` names, `nature/lib.vast`, and the entrypoint of
+`stdlib` that `scripts/build_stdlib_package.py` generates. The modules that the script generates from the flat sources of
 `stdlib/src/arithmetic/`, whose functions and generics become `pub`, have
 `stdlib/docs/arithmetic.md`; it names the function `f` of the module
 `std::arithmetic::m` as `m::f`.
@@ -21,6 +21,7 @@ Markdown file of a library names no file.
 """
 import re
 import sys
+import tomllib
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -147,6 +148,14 @@ def modules(root, library):
         names, unread = exports(path.read_text(encoding="utf-8"))
         found[page] = (path.relative_to(root).as_posix(), names,
                        [f"{path.relative_to(root)}: {error}" for error in unread])
+    manifest = root / library / "Vastitas.toml"
+    if library != "stdlib" and manifest.is_file():
+        # A root file outside src/, as nature/lib.vast, re-exports the library packages under src/.
+        entry = manifest.parent / tomllib.loads(manifest.read_text(encoding="utf-8"))["package"]["root"]
+        if src not in entry.parents and entry.is_file():
+            names, unread = exports(entry.read_text(encoding="utf-8"))
+            where = entry.relative_to(root).as_posix()
+            found[docs / "README.md"] = (where, names, [f"{where}: {error}" for error in unread])
     if library == "stdlib":
         try:
             generated = {name: text.decode("utf-8") for name, text in generator.package_sources(root).items()}

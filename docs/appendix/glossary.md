@@ -221,7 +221,7 @@ The word has two meanings:
    See [Method declarations](../stage1a.md#method-declarations) and the
    [guide](../guide/dispatch.md#selectors-and-capabilities).
 2. In an `indexed implementation` declaration, a capability is a tag in the
-   `capabilities(...)` list, from the closed set `origin` and `dimension`. The
+   `capabilities(...)` list, from the closed set `origin` and `dim`. The
    checker audits each primitive against the declared capabilities. See
    [Implementations](../indexed-source.md#implementations).
 
@@ -1293,7 +1293,7 @@ binary64 value, or two for a complex cell; the compiler never rounds one. See
 A product of integer powers of [base dimensions](#base-dimension), such as
 L · T⁻¹, or the dimensionless dimension 1. Each
 [quantity kind](#quantity-kind) has one. It is unrelated to the dimension
-of an object, the number of its coordinates. See
+of an object, the number of its coordinates, which `dim` gives. See
 [Physical dimensions](../language/physical-dimensions.md).
 
 ## Physical interpretation

@@ -232,7 +232,7 @@ fn a_broken_implementation_rule_is_reported_at_the_declaration() {
         (
             PROFILES,
             "scalar_base(scheme, real)) capabilities();",
-            "scalar_base(scheme, real)) capabilities(dimension);",
+            "scalar_base(scheme, real)) capabilities(dim);",
             "10:5",
             format!(
                 "the `scalar_base` implementation `{P}::RealScalar` must have an empty capability list"

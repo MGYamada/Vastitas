@@ -125,7 +125,7 @@ fn main() -> Int {
     unpack boxed as { witness: Y, fields: [q] };
     let again: Pointed<Scheme, QQ> = pack geo::Pointed<geo::scheme::Scheme, geo::scheme::QQ> { witness: Y, fields: [apply(geo::scheme::id(Y), q)] };
     unpack again as { scheme: Z, point: z };
-    int(geo::scheme::dimension(Z))
+    int(geo::scheme::dim(Z))
 }
 "#,
         str::to_owned,
@@ -148,7 +148,7 @@ fn legacy_geometry_inside_independent_lambdas_is_checked() {
         r#"
 fn run(f: Fn<Nat, Int>, n: Nat) -> Int { f(n) }
 fn main() -> Int {
-    run(fn(n: Nat) -> Int { let X: Scheme = Affine(QQ, n); int(dimension(X)) }, 42)
+    run(fn(n: Nat) -> Int { let X: Scheme = Affine(QQ, n); int(dim(X)) }, 42)
 }
 "#,
         str::to_owned,
@@ -176,7 +176,7 @@ fn main() -> Int {
     let kept = { anonymous };
     let boxed = pack { scheme: Z, point: p };
     unpack boxed as { scheme: W, point: q };
-    int(dimension(W))
+    int(dim(W))
 }
 "#,
         str::to_owned,
@@ -261,7 +261,7 @@ fn legacy_endpoint_base_and_scope_failures_preserve_existing_output() {
 
 #[test]
 fn missing_or_ambiguous_profiles_do_not_supply_legacy_meaning() {
-    let source = "fn main() -> Int { let X = Affine(QQ, 42); int(dimension(X)) }";
+    let source = "fn main() -> Int { let X = Affine(QQ, 42); int(dim(X)) }";
     let s = fixture(source, str::to_owned);
     s.write(
         "geo/Vastitas.toml",
@@ -270,7 +270,7 @@ fn missing_or_ambiguous_profiles_do_not_supply_legacy_meaning() {
     assert!(!check(&s).status.success());
     s.write(
         "app/main.vast",
-        "fn main() -> Int { let X = geo::scheme::Affine(42); int(geo::scheme::dimension(X)) }",
+        "fn main() -> Int { let X = geo::scheme::Affine(42); int(geo::scheme::dim(X)) }",
     );
     native(&s);
     s.write("geo/Vastitas.toml", MANIFEST);
@@ -378,10 +378,10 @@ fn library_primitives_explain_rejections_through_their_actual_binding() {
     );
     // A coefficient failure is named as such, under any coherent spelling.
     let source =
-        "fn main() -> Int { let X = geo::scheme::Affine(2); let d = geo::smooth::dimension(X); 0 }";
+        "fn main() -> Int { let X = geo::scheme::Affine(2); let d = geo::smooth::dim(X); 0 }";
     assert_eq!(
         endpoint_message(source, str::to_owned),
-        "dimension requires an object with coefficient marker CInfReal, but the supplied object X has coefficient marker QQ"
+        "dim requires an object with coefficient marker CInfReal, but the supplied object X has coefficient marker QQ"
     );
     let respelled = |text: &str| {
         text.replace("Scheme", "Space")
@@ -390,7 +390,7 @@ fn library_primitives_explain_rejections_through_their_actual_binding() {
     };
     assert_eq!(
         endpoint_message(&respelled(source), respelled),
-        "dimension requires an object with coefficient marker SmoothScalar, but the supplied object X has coefficient marker Rational"
+        "dim requires an object with coefficient marker SmoothScalar, but the supplied object X has coefficient marker Rational"
     );
 }
 
@@ -409,7 +409,7 @@ fn domains_coefficients_and_base_objects_are_separate() {
         "E_TYPE",
     );
     reject(
-        "fn main() -> Int { let X = geo::scheme::Affine(2); let d = geo::smooth::dimension(X); 0 }",
+        "fn main() -> Int { let X = geo::scheme::Affine(2); let d = geo::smooth::dim(X); 0 }",
         "E_ENDPOINT",
     );
 }
@@ -469,7 +469,7 @@ fn opened_objects_survive_blocks_in_both_geometry_modules() {
     let kept: g::Point<RAlias, g::BASE> = s;
     let A = open(g::pointed(0));
     let B = open(g::pointed(1));
-    int(g::dimension(Z) + g::dimension(R) + g::dimension(A) + g::dimension(B))
+    int(g::dim(Z) + g::dim(R) + g::dim(A) + g::dim(B))
 "#,
         );
         let s = fixture(&source, str::to_owned);
@@ -569,7 +569,7 @@ fn main() -> Int {{
     let Alias = Z;
     let q: Point<Alias, Base({marker})> = apply(id(Z), origin(Z));
     let A = open(make(1));
-    int(dimension(Z) + dimension(A))
+    int(dim(Z) + dim(A))
 }}
 "#
         );
@@ -649,7 +649,7 @@ fn copying_the_library_package_does_not_copy_its_nominal_identity() {
 #[test]
 fn geometry_and_arithmetic_share_one_checked_closure() {
     let s = fixture(
-        "fn main() -> Int { let X = geo::scheme::Affine(20); arithmetic::arithmetic::generic::add(int(geo::scheme::dimension(X)), 22) }",
+        "fn main() -> Int { let X = geo::scheme::Affine(20); arithmetic::arithmetic::generic::add(int(geo::scheme::dim(X)), 22) }",
         str::to_owned,
     );
     let path = s.0.join("app/Vastitas.toml");
@@ -670,7 +670,7 @@ fn main() -> Int {
     let p = act(X, X, S, geo::scheme::id(X), geo::scheme::origin(X));
     let packed = pack geo::Pointed<geo::scheme::Scheme, geo::scheme::QQ> { witness: X, fields: [p] };
     unpack packed as { witness: Y, fields: [q] };
-    int(geo::scheme::dimension(Y))
+    int(geo::scheme::dim(Y))
 }
 "#;
     native(&fixture(source, str::to_owned));
@@ -678,10 +678,10 @@ fn main() -> Int {
 
 #[test]
 fn classification_does_not_manufacture_missing_implementation_capabilities() {
-    for capabilities in ["origin", "dimension", ""] {
+    for capabilities in ["origin", "dim", ""] {
         let result = check(&fixture("fn main() -> Int { 42 }", |source| {
             source.replace(
-                "capabilities(origin, dimension)",
+                "capabilities(origin, dim)",
                 &format!("capabilities({capabilities})"),
             )
         }));
@@ -704,7 +704,7 @@ fn main() -> Int {
     let p: geo::Point<X, scheme::BaseQQ> = scheme::origin(X);
     let q: smooth::Point<X, scheme::BaseQQ> = same::scheme::apply(scheme::id(X), p);
     let add = if true { std::arithmetic::integers::int_add } else { arithmetic::arithmetic::integers::int_add };
-    add(int(scheme::dimension(X)), 22)
+    add(int(scheme::dim(X)), 22)
 }
 "#,
         str::to_owned,
@@ -737,7 +737,7 @@ fn private_support_and_future_geometry_namespaces_are_not_public() {
 fn original_arithmetic_entrypoint_still_accepts_legacy_geometry() {
     let s = Scratch::empty("legacy std geometry");
     s.write("app/Vastitas.toml", &format!("[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={{path='{}'}}\n", common::root().join("stdlib").display()));
-    s.write("app/main.vast", "fn main() -> Int { let X = Affine(QQ, 20); std::arithmetic::generic::add(int(dimension(X)), 22) }");
+    s.write("app/main.vast", "fn main() -> Int { let X = Affine(QQ, 20); std::arithmetic::generic::add(int(dim(X)), 22) }");
     native(&s);
 }
 
@@ -812,9 +812,9 @@ fn an_invalid_export_names_its_package_its_manifest_and_the_entry() {
     for (before, after, code, reason) in [
         (
             "origin = \"self::scheme::origin\"",
-            "origin = \"self::scheme::dimension\"",
+            "origin = \"self::scheme::dim\"",
             "E_TYPE",
-            " does not match its declared finite contracts: `scheme.origin` names `vastitas_geometry::scheme::dimension`, which does not fit that entry",
+            " does not match its declared finite contracts: `scheme.origin` names `vastitas_geometry::scheme::dim`, which does not fit that entry",
         ),
         (
             "base_object = \"self::scheme::BaseQQ\"",
@@ -892,7 +892,7 @@ fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
                     json!("self::smooth::BaseSmooth")
             }
             "wrong origin" => {
-                package["geometry_compat"]["scheme"]["origin"] = json!("self::scheme::dimension")
+                package["geometry_compat"]["scheme"]["origin"] = json!("self::scheme::dim")
             }
             "same marker" => {
                 package["geometry_compat"]["smooth"]["marker"] = json!("self::scheme::QQ")

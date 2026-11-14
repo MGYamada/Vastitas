@@ -27,7 +27,7 @@ syntax: the export `[geometry_compat.scheme]` of the manifest names `Scheme`,
 | --- | --- | --- |
 | `affine` | module | Presented affine geometry over `QQ` ([page](scheme/affine.md)) |
 | `QQ` | marker | The coefficient marker of the setting |
-| `GridQQ` | implementation | `GridQQ(QQ, affine_descriptor)`, with the capabilities `origin` and `dimension`: the descriptor objects over `QQ` |
+| `GridQQ` | implementation | `GridQQ(QQ, affine_descriptor)`, with the capabilities `origin` and `dim`: the descriptor objects over `QQ` |
 | `Scheme` | classification | The domain `GridQQ`, with the parent `Objects` of `std::geometry` |
 | `BaseQQ` | global | The global object of `GridQQ`, of dimension 0: the test object of every origin |
 | `Point<X, S>` | re-export | The family `std::geometry::Point` |
@@ -39,7 +39,7 @@ syntax: the export `[geometry_compat.scheme]` of the manifest names `Scheme`,
 | `base()` | primitive | `global(BaseQQ)`: the object `BaseQQ` |
 | `origin(X)` | primitive | `origin((Scheme, QQ), Point, BaseQQ)`: the origin of `X`, a `Point<X, BaseQQ>` |
 | `id(X)` | primitive | `identity((Scheme, QQ), Morphism)`: the identity morphism of `X`, a `Morphism<X, X>` |
-| `dimension(X)` | primitive | `dimension((Scheme, QQ))`: the dimension of `X`, a `Nat` |
+| `dim(X)` | primitive | `dim((Scheme, QQ))`: the dimension of `X`, a `Nat`, which is the dimension of the vector space of translations of the affine space `X` over `QQ` |
 | `pointed(n)` | function | `pointed(n: Nat) -> Pointed<Scheme, QQ>`: the fresh object `Affine(n)`, annotated `Object<Scheme, QQ>`, packed with its origin |
 
 A type names these declarations by their paths, as in

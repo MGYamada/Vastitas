@@ -2,7 +2,7 @@
 pub indexed marker QQ;
 // ANCHOR_END: marker
 // ANCHOR: implementation
-pub indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+pub indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dim);
 // ANCHOR_END: implementation
 // ANCHOR: classification
 pub indexed classification Scheme { parents(); domain(Grid); };
@@ -24,7 +24,7 @@ pub indexed primitive affine = descriptor(Grid);
 pub indexed primitive baseObject = global(Base);
 pub indexed primitive origin = origin((Scheme, QQ), Point, Base);
 pub indexed primitive identity = identity((Scheme, QQ), Morphism);
-pub indexed primitive dimension = dimension((Scheme, QQ));
+pub indexed primitive dim = dim((Scheme, QQ));
 pub indexed primitive compose = compose(Morphism);
 pub indexed primitive apply = apply(Morphism, Point);
 // ANCHOR_END: primitives

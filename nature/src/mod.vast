@@ -1,3 +1,0 @@
-// The physical interpretations of std objects (ADR 0002). The package owns no
-// mathematics: every value and law that it uses is that of a std object.
-pub mod dimension;

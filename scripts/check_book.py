@@ -8,7 +8,6 @@ compiler.
 """
 
 from collections import Counter
-from dataclasses import dataclass
 from html.parser import HTMLParser
 import os
 import json
@@ -17,6 +16,12 @@ import subprocess
 import tomllib
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
+
+import book_grammar
+# The tests of this script read Chapter, read_contents and syntax_blocks through it.
+from book_markdown import PRODUCTION, Chapter, code_blocks, expected_title, outside_code, read_contents, \
+    syntax_blocks, unquote_prefix
+import grammar_summary
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,43 +37,12 @@ ARCHIVED = frozenset({
     "reverse-core-acceptance.md",
 })
 
-# The parts of SUMMARY.md, by their part title. Chapters before the first part
-# title form the guide.
-PARTS = {
-    "Vastitas Reference": "reference",
-    "How the compiler is checked": "internals",
-    "Appendices": "appendix",
-}
-
 REPOSITORY = "MGYamada/Vastitas"
 
 # Nonterminals that Syntax blocks use before the Reference chapter that owns
 # the construct defines them, by that chapter. Remove an entry when its
 # chapter gains the production.
 PENDING_NONTERMINALS = {}
-
-
-@dataclass(frozen=True)
-class Chapter:
-    title: str
-    path: str
-    part: str
-
-
-def read_contents(source):
-    """Return the chapters of SUMMARY.md in order, each with its part."""
-    chapters = []
-    part = "guide"
-    for line in (source / "SUMMARY.md").read_text(encoding="utf-8").splitlines():
-        heading = re.match(r"^# (.+?)\s*$", line)
-        if heading and heading[1] != "Summary":
-            if heading[1] not in PARTS:
-                raise ValueError(f"SUMMARY.md: unknown part title {heading[1]!r}")
-            part = PARTS[heading[1]]
-        link = re.match(r"^\s*(?:[-*]\s+)?\[([^\]]+)\]\(([^ )]+)\)\s*$", line)
-        if link:
-            chapters.append(Chapter(link[1], link[2], part))
-    return chapters
 
 
 def check_contents(source, output):
@@ -103,14 +77,6 @@ def rendered_path(name):
 
 # --- Titles -------------------------------------------------------------------
 
-def expected_title(chapter):
-    """The H1 of a chapter is its title in SUMMARY.md; "X: Name" in the appendices is "Appendix X: Name"."""
-    letter = re.fullmatch(r"([A-Z]): (.+)", chapter.title)
-    if chapter.part == "appendix" and letter:
-        return f"Appendix {letter[1]}: {letter[2]}"
-    return chapter.title
-
-
 def check_titles(source, chapters, archived=ARCHIVED):
     listed = {chapter.path for chapter in chapters}
     stale = sorted(archived - listed)
@@ -134,7 +100,6 @@ def check_titles(source, chapters, archived=ARCHIVED):
 
 # --- Style ----------------------------------------------------------------------
 
-FENCE = re.compile(r"^(`{3,}|~{3,})")
 CODE_SPAN = re.compile(r"(`+)(.+?)\1")
 WORDS = re.compile(r"\b(now|currently|new|newly|deliberately|actually)\b", re.I)
 INTENSIFIERS = re.compile(r"\b(actual|simply|very|really)\b", re.I)
@@ -147,35 +112,20 @@ COMMIT = re.compile(r"\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b")
 THEOREM = re.compile(r"\bVastitas(?:Kernel|Oracle|Bridge|Spec)\.[A-Z]")
 
 
-def unquote_prefix(line):
-    """Remove the blockquote markers that begin a line."""
-    return re.sub(r"^\s*(?:>\s?)+", "", line)
-
-
 def scan(text):
     """Yield each line outside code blocks with its line number, section and block context."""
-    fence = None
     section = ""
     note = False
-    for number, line in enumerate(text.splitlines(), 1):
-        body = unquote_prefix(line)
-        marker = FENCE.match(body.lstrip())
-        if fence:
-            if marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence) and not body.lstrip()[len(marker[1]):].strip():
-                fence = None
-            continue
-        if marker:
-            fence = marker[1]
-            continue
+    for index, line in outside_code(text.splitlines()):
         quoted = line.lstrip().startswith(">")
         if not quoted:
             note = False
-        elif body.startswith("**Implementation note.**"):
+        elif unquote_prefix(line).startswith("**Implementation note.**"):
             note = True
         heading = re.match(r"^(#{1,6}) (.+)$", line)
         if heading and len(heading[1]) <= 2:
             section = heading[2].strip()
-        yield number, line, section, note
+        yield index + 1, line, section, note
 
 
 def prose(line):
@@ -414,30 +364,6 @@ def include_errors(chapter, text, source):
     return errors
 
 
-def code_blocks(text):
-    """Yield (line number, label, lines) for each fenced code block, also inside block quotes."""
-    lines = text.splitlines()
-    index = 0
-    while index < len(lines):
-        body = unquote_prefix(lines[index]).lstrip()
-        marker = FENCE.match(body)
-        if marker:
-            start = index
-            label = body[len(marker[1]):].strip()
-            content = []
-            index += 1
-            while index < len(lines):
-                inner = unquote_prefix(lines[index])
-                closing = FENCE.match(inner.lstrip())
-                if closing and closing[1][0] == marker[1][0] and len(closing[1]) >= len(marker[1]) \
-                        and not inner.lstrip()[len(closing[1]):].strip():
-                    break
-                content.append(inner)
-                index += 1
-            yield start + 1, label, content
-        index += 1
-
-
 MAIN = re.compile(r"\s*(?:pub\s+)?(?:resource\s+)?fn\s+main\s*\(")
 # The beginning of a named function, resource function or method; an abstract
 # method has no body, and a lambda has no name.
@@ -520,40 +446,8 @@ def check_includes(source, chapters, root=ROOT):
 
 # --- Syntax blocks --------------------------------------------------------------
 
-PRODUCTION = re.compile(r"^([A-Za-z][A-Za-z0-9_]*) ->(?: (.*))?$")
 TERMINAL = re.compile(r"`([^`]+)`")
 SYMBOL = re.compile(r"\b([A-Z][A-Za-z0-9_]*)\b")
-
-
-def syntax_blocks(text):
-    """Yield (line number, productions) for each Syntax block of a chapter."""
-    lines = text.splitlines()
-    index = 0
-    while index < len(lines):
-        if lines[index].strip() == "> **Syntax**":
-            start = index
-            index += 1
-            while index < len(lines) and unquote_prefix(lines[index]).strip() == "":
-                index += 1
-            body = unquote_prefix(lines[index]).strip() if index < len(lines) else ""
-            if body != "```text":
-                raise ValueError(f"line {start + 1}: a Syntax block holds one code block labelled text")
-            productions = []
-            index += 1
-            while index < len(lines) and unquote_prefix(lines[index]).strip() != "```":
-                content = unquote_prefix(lines[index])
-                if not lines[index].lstrip().startswith(">"):
-                    raise ValueError(f"line {start + 1}: an unterminated Syntax block")
-                if content.strip():
-                    if content[:1].isspace() and productions:
-                        productions[-1] = (productions[-1][0], productions[-1][1] + " " + content.strip())
-                    elif PRODUCTION.match(content):
-                        productions.append((index + 1, content.strip()))
-                    else:
-                        raise ValueError(f"line {index + 1}: not a production: {content.strip()!r}")
-                index += 1
-            yield start + 1, productions
-        index += 1
 
 
 def parser_vocabulary(root):
@@ -585,7 +479,7 @@ def syntax_errors(chapters, source, root, pending=frozenset(PENDING_NONTERMINALS
         if blocks and chapter.part != "reference":
             errors.append(f"{chapter.path}: Syntax blocks belong in the Vastitas Reference")
         illustration = chapter.path == "language/notation.md"
-        for _, productions in blocks:
+        for _, productions, _ in blocks:
             for number, production in productions:
                 name, body = PRODUCTION.match(production).groups()
                 body = body or ""
@@ -620,7 +514,6 @@ def check_syntax(source, chapters, root=ROOT):
 
 def check_grammar(source, chapters):
     """The grammar summary holds the productions of the Syntax blocks of the Reference, as generated."""
-    import grammar_summary
     errors = grammar_summary.errors(source, chapters)
     if errors:
         raise ValueError("the grammar summary is not fresh:\n  " + "\n  ".join(errors))
@@ -666,7 +559,6 @@ def recorded_codes(root):
 
 def parse_errors(root, grammar, exceptions=PARSE_EXCEPTIONS, sources=PARSED_SOURCES):
     """Parse every source file with the productions; return (errors, parsed, rejected, skipped)."""
-    import book_grammar
     codes = recorded_codes(root)
     errors = []
     parsed = rejected = 0
@@ -704,7 +596,6 @@ def parse_errors(root, grammar, exceptions=PARSE_EXCEPTIONS, sources=PARSED_SOUR
 
 def check_parse(source, root=ROOT):
     """The productions of the grammar summary derive the source files of the examples from SourceFile."""
-    import book_grammar
     grammar = book_grammar.Grammar(book_grammar.read_productions(
         (source / book_grammar.GRAMMAR_CHAPTER).read_text(encoding="utf-8")))
     if grammar.errors:

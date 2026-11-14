@@ -14,7 +14,7 @@ import re
 import sys
 from pathlib import Path
 
-import check_book
+from book_markdown import PRODUCTION, expected_title, outside_code, read_contents, syntax_blocks
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,31 +48,13 @@ def chapter_blocks(text):
     as the chapter writes it. The lines are the productions as the chapter
     writes them, with their continuation lines.
     """
-    lines = text.splitlines()
     used = {}
     sections = []
-    fence = None
-    for number, line in enumerate(lines):
-        marker = check_book.FENCE.match(check_book.unquote_prefix(line).lstrip())
-        if fence:
-            if marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence):
-                fence = None
-            continue
-        if marker:
-            fence = marker[1]
-            continue
+    for number, line in outside_code(text.splitlines()):
         heading = HEADING.match(line)
         if heading:
             sections.append((number, len(heading[1]), heading[2], heading_id(heading_text(heading[2]), used)))
-    for start, _ in check_book.syntax_blocks(text):
-        index = start
-        while check_book.unquote_prefix(lines[index]).strip() != "```text":
-            index += 1
-        body = []
-        index += 1
-        while check_book.unquote_prefix(lines[index]).strip() != "```":
-            body.append(check_book.unquote_prefix(lines[index]).rstrip())
-            index += 1
+    for start, _, body in syntax_blocks(text):
         above = [section for section in sections if section[0] < start and section[1] > 1]
         title, anchor = (above[-1][2], above[-1][3]) if above else (None, None)
         yield title, anchor, body
@@ -84,7 +66,7 @@ def render(source, chapters):
     if CHAPTER not in listed:
         raise ValueError(f"SUMMARY.md does not list {CHAPTER}")
     up = "../" * CHAPTER.count("/")
-    title = check_book.expected_title(listed[CHAPTER])
+    title = expected_title(listed[CHAPTER])
     out = [
         f"# {title}",
         "",
@@ -111,7 +93,7 @@ def render(source, chapters):
             if section:
                 out += [f"[{section}]({up}{chapter.path}#{anchor}):", ""]
             out += ["```text", *body, "```", ""]
-            count += sum(1 for line in body if check_book.PRODUCTION.match(line))
+            count += sum(1 for line in body if PRODUCTION.match(line))
     return "\n".join(out), count
 
 
@@ -134,7 +116,7 @@ def main(argv=None):
     parser.add_argument("--write", action="store_true", help=f"regenerate docs/{CHAPTER}")
     arguments = parser.parse_args(argv)
     source = ROOT / "docs"
-    chapters = check_book.read_contents(source)
+    chapters = read_contents(source)
     if arguments.write:
         text, count = render(source, chapters)
         (source / CHAPTER).write_text(text, encoding="utf-8")

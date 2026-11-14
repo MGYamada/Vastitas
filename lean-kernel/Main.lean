@@ -6,6 +6,24 @@ import VastitasKernel.BuildIdentity
 
 open VastitasKernel
 
+/-- The response of protocols 2–7. `check requireMain` checks the request and
+returns the checked Core of an accepted program; `emit` requires `main` and
+generates the Lean source of that Core. -/
+private def checkOrEmit (mode : String) (version : Nat)
+    (check : (requireMain : Bool) → Except Diagnostic (Indexed.Core.Typing.CheckedModule requireMain)) :
+    Lean.Json :=
+  if mode == "emit" then
+    match check true with
+    | .error diagnostic => failureJson diagnostic version
+    | .ok core =>
+      match Indexed.Core.Codegen.generate core with
+      | .error message => failureJson { code := "E_CODEGEN", message } version
+      | .ok source => successJson (some source) version
+  else
+    match check false with
+    | .error diagnostic => failureJson diagnostic version
+    | .ok _ => successJson none version
+
 private def process (mode input : String) : Lean.Json := Id.run do
   if let .error message := WireScan.scan input then
     return failureJson { code := "E_PROTOCOL", message }
@@ -27,30 +45,12 @@ private def process (mode input : String) : Lean.Json := Id.run do
         | .error diagnostic => return failureJson diagnostic version
         | .ok _ => return successJson none version
     if version == 7 then
-      if mode == "emit" then
-        match Indexed.Wire.check json true with
-        | .error diagnostic => return failureJson diagnostic version
-        | .ok accepted =>
-          match Indexed.Core.Codegen.generate accepted.checked.compiled.core with
-          | .error message => return failureJson { code := "E_CODEGEN", message } version
-          | .ok source => return successJson (some source) version
-      else
-        match Indexed.Wire.check json false with
-        | .error diagnostic => return failureJson diagnostic version
-        | .ok _ => return successJson none version
+      return checkOrEmit mode version fun requireMain =>
+        (Indexed.Wire.check json requireMain).map (·.checked.compiled.core)
     unless supportedProtocolVersions.contains version do
       return failureJson { code := "E_PROTOCOL", message := unsupportedProtocolVersion version } version
-    if mode == "emit" then
-      match Indexed.LegacySource.check json true with
-      | .error diagnostic => return failureJson diagnostic version
-      | .ok accepted =>
-        match Indexed.Core.Codegen.generate accepted.checked.compiled.core with
-        | .ok source => return successJson (some source) version
-        | .error message => return failureJson { code := "E_CODEGEN", message } version
-    else
-      match Indexed.LegacySource.check json false with
-      | .error diagnostic => return failureJson diagnostic version
-      | .ok _ => return successJson none version
+    return checkOrEmit mode version fun requireMain =>
+      (Indexed.LegacySource.check json requireMain).map (·.checked.compiled.core)
 
 /-- Stop reading past the byte bound, so an oversized request is never
 buffered whole; `main` then answers it with `E_PROTOCOL`. -/

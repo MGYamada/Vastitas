@@ -1,4 +1,5 @@
 import VastitasKernel.FrameRuntime
+import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
 
@@ -17,8 +18,7 @@ namespace VastitasKernel.FrameRuntimeRegression
 
 open VastitasKernel.AlgebraRuntime VastitasKernel.SmoothRuntime VastitasKernel.FrameRuntime
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"frame runtime regression failed: {label}")
+private def check := RegressionSupport.check "frame runtime regression failed"
 
 /-! ## Frames of the plane and of the point
 

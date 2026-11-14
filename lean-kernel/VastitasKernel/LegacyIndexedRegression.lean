@@ -1,5 +1,6 @@
 import VastitasKernel.LegacyIndexed
 import VastitasKernel.Codegen
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.LegacyIndexedRegression
 
@@ -17,8 +18,7 @@ private def main : CheckedFunction := {
   body := .unpack 3 4 (.call 0 [] [] ⟨.pointed .qq, none⟩)
     (.builtin .int [.builtin .dimension [.var 3 (object .qq 3)] ⟨.nat, none⟩] ⟨.int, none⟩) }
 private def program : CheckedModule := ⟨[make, main], some 1⟩
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"legacy indexed regression failed: {name}")
+private def check := RegressionSupport.check "legacy indexed regression failed"
 
 #eval check "compatibility profile independently validates"
   (Indexed.Core.validDeclarations LegacyIndexed.declarations)

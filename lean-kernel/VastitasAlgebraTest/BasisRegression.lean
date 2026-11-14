@@ -1,5 +1,6 @@
 import VastitasKernel.AlgebraBasis
 import Lean.Data.Json
+import VastitasKernel.RegressionSupport
 
 /-! Cross-check the kernel's exact Gröbner bases and normal forms against the
 independent Python reference fixture `tests/fixtures/algebra-bases.json`
@@ -9,8 +10,7 @@ namespace VastitasAlgebraTest.BasisRegression
 
 open VastitasKernel VastitasKernel.AlgebraRuntime VastitasKernel.AlgebraBasis Lean
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"algebra basis regression failed: {label}")
+private def check := RegressionSupport.check "algebra basis regression failed"
 
 private def rational (text : String) : Except String Rat :=
   match text.splitOn "/" with

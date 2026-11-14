@@ -1,10 +1,10 @@
 import VastitasStorageTest.NumericalFixture
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.TransformRegression
 open NumericalFixture Numerical
 
-private def check (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"typed transform regression: {label}")
+private def check := RegressionSupport.check "typed transform regression"
 
 private def declarations : List Functions.Statement := [
   .numerical (.dualSpace 40 0), .numerical (.dualSpace 41 1), .numerical (.dualSpace 42 2),

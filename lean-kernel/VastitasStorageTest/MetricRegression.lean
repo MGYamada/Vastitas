@@ -1,12 +1,12 @@
 import VastitasStorageTest.NumericalFixture
 import VastitasKernel.NumericalCoverage
 import VastitasKernel.StorageMetric
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.MetricRegression
 open NumericalFixture Numerical
 
-private def ensure (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"diagonal metric: {label}")
+private def ensure := RegressionSupport.check "diagonal metric"
 
 private def setup : List Functions.Statement := [
   .numerical (.space 0 (id "Real") 2), .numerical (.basis 1 0),

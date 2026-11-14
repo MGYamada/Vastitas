@@ -194,28 +194,4 @@ def Program.lambdaShadowDiagnostic (p : Program) : Option Diagnostic :=
 def LambdaShadowFree (p : Program) : Prop := p.lambdaShadowDiagnostic.isNone = true
 instance (p : Program) : Decidable (LambdaShadowFree p) := inferInstanceAs (Decidable (_ = _))
 
--- First-order fixture conversion is exact only when no global function is used
--- as a value. This helper does not select an acceptance path.
-mutual
-  def valueNames : Expr → List String
-    | .variable name _ => [name]
-    | .call _ args _ => args.flatMap valueNames
-    | .invoke callee args _ => valueNames callee ++ args.flatMap valueNames
-    | .lambda _ _ body _ | .block body _ => blockValueNames body
-    | .unary _ value _ => valueNames value
-    | .binary _ left right _ | .pack left right _ => valueNames left ++ valueNames right
-    | .ite condition yes no _ => valueNames condition ++ blockValueNames yes ++ blockValueNames no
-    | _ => []
-  def blockValueNames : Block → List String
-    | .mk statements result _ => statements.flatMap stmtValueNames ++ valueNames result
-  def stmtValueNames : Stmt → List String
-    | .letE _ _ value _ | .unpack value _ _ _ => valueNames value
-end
-
-def Program.legacyExact (p : Program) : Option RawProgram :=
-  if (p.functions.flatMap (fun f => blockValueNames f.body) ++
-      p.methods.flatMap (fun m => blockValueNames m.body)).any
-      (fun name => (p.functions.map (·.name) ++ p.generics.map (·.name)).contains name) then none
-  else p.legacy
-
 end VastitasKernel.Surface

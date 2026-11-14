@@ -1,10 +1,10 @@
 import VastitasStorageTest.NumericalFixture
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.OwnedPackageRegression
 open Indexed NumericalFixture
 
-private def check (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"owned package regression failed: {label}")
+private def check := RegressionSupport.check "owned package regression failed"
 
 private def padded (scalar : Scalar) (rows := 3) : Layout := ⟨scalar.width, rows, 2, max 1 (rows + 1), false⟩
 

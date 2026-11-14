@@ -1,5 +1,6 @@
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.IndexedAcceptance
+import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
 
@@ -19,8 +20,7 @@ namespace VastitasKernel.Indexed.NatureRegression
 
 open Lean
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"nature regression failed: {label}")
+private def check := RegressionSupport.check "nature regression failed"
 
 /-! ## Wire records -/
 

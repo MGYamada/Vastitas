@@ -1,5 +1,6 @@
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
+import VastitasKernel.RegressionSupport
 
 /-! Retained legacy top-level checker/Core regressions. Current public JSON
 acceptance is covered by LegacySourceRegression and
@@ -24,8 +25,7 @@ private def program : RawProgram := {
   abstractTypes := [⟨"Numeric", [], {}⟩, ⟨"Empty", [], {}⟩]
   subtypes := [⟨"Nat", path "Numeric", {}⟩, ⟨"Int", path "Numeric", {}⟩]
   abstractMethods := [contract] }
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"abstract contract regression failed: {name}")
+private def check := RegressionSupport.check "abstract contract regression failed"
 private def rejects (code : String) (p : RawProgram) : Bool :=
   match checkProgram p with
   | .error diagnostic => diagnostic.code == code

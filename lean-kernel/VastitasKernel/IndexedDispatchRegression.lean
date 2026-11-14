@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedDispatchCheck
 import VastitasKernel.IndexedFunctionRegression
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.DispatchSource.Regression
 open FunctionSource
@@ -41,8 +42,7 @@ private def rejects (name code : String) (p : Program) : IO Unit :=
   | .ok _ => throw (IO.userError s!"indexed dispatch {name}: unexpectedly accepted")
   | .error d => unless d.code == code do
       throw (IO.userError s!"indexed dispatch {name}: expected {code}, got {d.code}: {d.message}")
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed dispatch regression failed: {name}")
+private def check := RegressionSupport.check "indexed dispatch regression failed"
 
 def dispatchFixture : Program := program [broad, narrow]
 #eval accepts "indexed method and higher-order callback" dispatchFixture

@@ -1,12 +1,21 @@
 import VastitasStorageTest.NumericalFixture
+import VastitasKernel.RegressionSupport
+
+namespace VastitasKernel.Storage.Numerical
+
+/-- Complex smooth dimension is over C; the underlying real dimension is 2n.
+Only this suite reads it. -/
+def Space.realDimension (space : Space) : Nat :=
+  if space.coefficient == .complex then 2 * space.dimension else space.dimension
+
+end VastitasKernel.Storage.Numerical
 
 namespace VastitasKernel.Storage.NumericalRegression
 open Indexed
 
 open NumericalFixture
 
-private def check (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"numerical value regression failed: {label}")
+private def check := RegressionSupport.check "numerical value regression failed"
 
 private def inputs (implementation : String) (middle := 3) : List Functions.Parameter := [
   .space 0 (id implementation) 2, .space 1 (id implementation) middle, .space 2 (id implementation) 2,

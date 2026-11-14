@@ -1,4 +1,5 @@
 import VastitasKernel.Edit
+import VastitasKernel.RegressionSupport
 
 /-! Retained legacy top-level checker/Core regressions. Current public JSON
 acceptance is covered by LegacySourceRegression and
@@ -50,8 +51,7 @@ private def program (region : List (List String) := [["Int", "Int"]])
         name := "sum", target := ["base", "choose"]
         methods := [addition], span := {}, isPublic := true }] }] }] }
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"edit regression failed: {name}")
+private def check := RegressionSupport.check "edit regression failed"
 private def rejects (code : String) (p : Namespace.Program) : Bool :=
   match checkEditProgram p with
   | .ok _ => false

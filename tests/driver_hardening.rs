@@ -144,11 +144,13 @@ fn build_directory_is_private_under_a_permissive_umask() {
     );
     let temp = s.0.join("tmp");
     fs::create_dir(&temp).unwrap();
-    // Command cannot set a umask; start the driver from a shell that does.
+    // Command cannot set a umask; start the driver from a shell that does. As
+    // with common::cli(), the caller's kernel root does not reach the driver.
     let result = Command::new("sh")
         .current_dir(&s.0)
         .args(["-c", "umask 000; exec \"$0\" build main.vast -o program"])
         .arg(env!("CARGO_BIN_EXE_vastitas"))
+        .env_remove("VASTITAS_KERNEL_ROOT")
         .env("VASTITAS_KERNEL", kernel_path())
         .env("PATH", mock_path(&s))
         .env("TMPDIR", &temp)

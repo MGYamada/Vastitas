@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, cli, success};
+use common::{Scratch, success};
 
 const STORAGE: &str = "resource fn main() -> Int {
     allocate data: F64[1];
@@ -52,10 +52,7 @@ fn fixture(source: &str) -> Scratch {
 }
 
 fn run(scratch: &Scratch, mode: &str) -> std::process::Output {
-    let mut command = cli();
-    command
-        .args([mode, "--manifest-path"])
-        .arg(scratch.0.join("Vastitas.toml"));
+    let mut command = common::manifest_command(mode, scratch.0.join("Vastitas.toml"));
     if mode == "build" {
         command.arg("-o").arg(scratch.0.join("rejected-output"));
     }

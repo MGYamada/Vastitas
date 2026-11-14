@@ -4,9 +4,8 @@
 //! `examples/packages/stdlib-differential` against copies of the stdlib, and
 //! check the name audit and the package boundaries of ADR 0001 §10.
 mod common;
-use common::{Scratch, cli, expect_code, success};
+use common::{Scratch, expect_code, read, success};
 use serde_json::Value;
-use std::path::Path;
 
 const MAIN: &str = include_str!("../examples/packages/stdlib-differential/main.vast");
 const MANIFEST: &str = include_str!("../examples/packages/stdlib-differential/Vastitas.toml");
@@ -48,82 +47,19 @@ fn main() -> Int {
 }
 "#;
 
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap()
-}
-
 /// The application `main` in `app/`, with a copy of the stdlib in `stdlib/`
 /// as its `std` path dependency. `skip` lists stdlib directories to leave out.
 fn fixture(main: &str, skip: &[&str]) -> Scratch {
-    common::prepare_stdlib_package();
-    let s = Scratch::empty("stdlib calculus");
-    let stdlib = common::root().join("stdlib");
-    s.write("stdlib/Vastitas.toml", &read(&stdlib.join("Vastitas.toml")));
-    let mut stack = ["target/package", "src/geometry", "src/differential"]
-        .map(|d| stdlib.join(d))
-        .to_vec();
-    while let Some(directory) = stack.pop() {
-        for entry in std::fs::read_dir(&directory).unwrap() {
-            let path = entry.unwrap().path();
-            let relative = path
-                .strip_prefix(&stdlib)
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_owned();
-            if skip.contains(&relative.as_str()) {
-                continue;
-            }
-            if path.is_dir() {
-                stack.push(path);
-            } else if matches!(
-                path.extension().and_then(|e| e.to_str()),
-                Some("vast" | "toml")
-            ) {
-                s.write(&format!("stdlib/{relative}"), &read(&path));
-            }
-        }
-    }
-    s.write(
-        "app/Vastitas.toml",
-        &common::checked_replace(MANIFEST, "../../../stdlib", "../stdlib"),
-    );
-    s.write("app/main.vast", main);
-    s
-}
-
-fn check_manifest(s: &Scratch, manifest: &str) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", manifest])
-        .output()
-        .unwrap()
+    let manifest = common::checked_replace(MANIFEST, "../../../stdlib", "../stdlib");
+    common::stdlib_app("stdlib calculus", &manifest, main, skip)
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    check_manifest(s, "app/Vastitas.toml")
+    s.check_manifest("app/Vastitas.toml")
 }
 
 fn run(s: &Scratch) -> Vec<u8> {
-    success(&check(s));
-    success(
-        &cli()
-            .current_dir(&s.0)
-            .args([
-                "build",
-                "--manifest-path",
-                "app/Vastitas.toml",
-                "-o",
-                "program",
-            ])
-            .output()
-            .unwrap(),
-    );
-    let result = std::process::Command::new(s.0.join("program"))
-        .output()
-        .unwrap();
-    success(&result);
-    result.stdout
+    s.check_build_and_run("app/Vastitas.toml")
 }
 
 /// The example with extra items inserted before its helpers.
@@ -137,11 +73,7 @@ fn rejects(main: &str, code: &str) -> String {
 }
 
 fn request(s: &Scratch) -> Value {
-    let mut command = cli();
-    command
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"]);
-    common::captured_wire(command, 9)
+    s.captured("app/Vastitas.toml", 9)
 }
 
 fn package<'a>(wire: &'a Value, name: &str) -> &'a Value {
@@ -567,7 +499,7 @@ fn geometry_package_does_not_depend_on_differential() {
             .ends_with("src/geometry/Vastitas.toml")
     );
     // The geometry package checks on its own.
-    success(&check_manifest(&s, "stdlib/src/geometry/Vastitas.toml"));
+    success(&s.check_manifest("stdlib/src/geometry/Vastitas.toml"));
     // A geometry package that depends on differential forms a cycle.
     let manifest = read(&s.0.join("stdlib/src/geometry/Vastitas.toml"))
         + "\n[dependencies]\ndifferential = { path = \"../differential\" }\n";

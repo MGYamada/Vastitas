@@ -13,7 +13,7 @@
 //! was: the matching call is accepted, and a rejection that establishes no
 //! basis mismatch keeps the message that states no cause.
 mod common;
-use common::{Scratch, assert_source_names, checked_replace, cli, message_text, success};
+use common::{Scratch, assert_source_names, checked_replace, message_text, success};
 
 const PROFILES: &str = "indexed marker RealCoefficients;
 indexed implementation SmoothScalar(RealCoefficients, scalar_base(smooth, real)) capabilities();
@@ -223,10 +223,7 @@ fn fixture(source: &str) -> Scratch {
 }
 
 fn run(scratch: &Scratch, mode: &str) -> std::process::Output {
-    let mut command = cli();
-    command
-        .args([mode, "--manifest-path"])
-        .arg(scratch.0.join("Vastitas.toml"));
+    let mut command = common::manifest_command(mode, scratch.0.join("Vastitas.toml"));
     if mode == "build" {
         command.arg("-o").arg(scratch.0.join("program"));
     }

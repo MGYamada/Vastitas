@@ -4,7 +4,7 @@
 //! extends that record, so that consecutive stores initialize a view of any
 //! length and a cell that no path writes stays uninitialized.
 mod common;
-use common::{Scratch, cli, success};
+use common::{Scratch, success};
 
 /// `vastitas check` of a package whose root module is `source`.
 fn checked(source: &str) -> std::process::Output {
@@ -14,9 +14,7 @@ fn checked(source: &str) -> std::process::Output {
         "[package]\nname = \"records\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
     );
     scratch.write("src/main.vast", source);
-    cli()
-        .args(["check", "--manifest-path"])
-        .arg(scratch.0.join("Vastitas.toml"))
+    common::manifest_command("check", scratch.0.join("Vastitas.toml"))
         .output()
         .unwrap()
 }

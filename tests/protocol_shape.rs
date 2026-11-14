@@ -4,8 +4,6 @@ mod common;
 use common::{kernel, request};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-use std::io::Write;
-use std::process::{Command, Stdio};
 
 fn package(flat: &Value, version: u64) -> Value {
     let mut module = json!({
@@ -144,55 +142,28 @@ fn promotion_without_affine() -> Value {
     let root = common::root();
     let stdlib = root.join("stdlib");
     let s = common::Scratch::empty("protocol seven stdlib");
-    let copy = |from: &str, to: &str| {
-        s.write(to, &std::fs::read_to_string(stdlib.join(from)).unwrap());
-    };
     // Remove the line `line` of the copied file `path`, which must have it.
     let strip = |path: &str, line: &str| {
         let text = std::fs::read_to_string(stdlib.join(path)).unwrap();
         assert!(text.contains(line), "{path} lacks {line:?}");
         s.write(&format!("stdlib/{path}"), &text.replace(line, ""));
     };
+    // Copy the generated package and every geometry source except the Stage 2
+    // and Stage 3 modules, so new stdlib modules are picked up without editing
+    // this list.
+    s.copy_stdlib(
+        &["target/package", "src/geometry"],
+        &[
+            "src/geometry/scheme/affine",
+            "src/geometry/smooth/affine",
+            "src/geometry/metric",
+            "src/geometry/frame",
+        ],
+    );
     strip(
         "Vastitas.toml",
         "differential_library = { path = \"src/differential\" }\n",
     );
-    // Copy the generated package and every geometry source except the Stage 2
-    // and Stage 3 modules, so new stdlib modules are picked up without editing
-    // this list.
-    for directory in ["target/package", "src/geometry"] {
-        let mut stack = vec![stdlib.join(directory)];
-        while let Some(path) = stack.pop() {
-            if [
-                "src/geometry/scheme/affine",
-                "src/geometry/smooth/affine",
-                "src/geometry/metric",
-                "src/geometry/frame",
-            ]
-            .iter()
-            .any(|module| path.ends_with(module))
-            {
-                continue;
-            }
-            for entry in std::fs::read_dir(&path).unwrap() {
-                let entry = entry.unwrap().path();
-                if entry.is_dir() {
-                    stack.push(entry);
-                } else if entry
-                    .extension()
-                    .is_some_and(|extension| extension == "vast" || extension == "toml")
-                {
-                    let relative = entry
-                        .strip_prefix(&stdlib)
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .to_owned();
-                    copy(&relative, &format!("stdlib/{relative}"));
-                }
-            }
-        }
-    }
     strip("src/geometry/scheme/mod.vast", "pub mod affine;\n");
     strip("src/geometry/smooth/mod.vast", "pub mod affine;\n");
     strip("src/geometry/mod.vast", "pub mod metric;\npub mod frame;\n");
@@ -211,11 +182,10 @@ fn promotion_without_affine() -> Value {
         "app/main.vast",
         &std::fs::read_to_string(example.join("main.vast")).unwrap(),
     );
-    let mut command = common::cli();
-    command
-        .args(["check", "--manifest-path"])
-        .arg(s.0.join("app/Vastitas.toml"));
-    common::captured_wire(command, 7)
+    common::captured_wire(
+        common::manifest_command("check", s.0.join("app/Vastitas.toml")),
+        7,
+    )
 }
 
 // #557: the same sweep over the public Indexed.Wire (7) and ResourceSource.Wire
@@ -454,20 +424,7 @@ fn malformed_versions_and_non_utf8_input_return_protocol_json() {
         "E_PROTOCOL"
     );
     for mode in ["check", "emit"] {
-        let mut child = Command::new(common::kernel_path())
-            .arg(mode)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
-        child
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(b"{\"version\":6,\"file\":\"\xff\"}")
-            .unwrap();
-        let result = child.wait_with_output().unwrap();
+        let result = common::kernel_bytes(mode, b"{\"version\":6,\"file\":\"\xff\"}".to_vec());
         assert!(!result.status.success());
         assert!(result.stderr.is_empty(), "{result:?}");
         let response: Value = serde_json::from_slice(&result.stdout).unwrap();

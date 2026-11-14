@@ -27,9 +27,7 @@ fn fixture(source: &str) -> Scratch {
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .args(["check", "--manifest-path"])
-        .arg(s.0.join("Vastitas.toml"))
+    common::manifest_command("check", s.0.join("Vastitas.toml"))
         .output()
         .unwrap()
 }

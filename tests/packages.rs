@@ -3,26 +3,15 @@ mod common;
 use common::{Scratch, success};
 use std::fs;
 use std::os::unix::fs::symlink;
-use std::process::{Command, Output};
+use std::process::Output;
 
 impl Scratch {
-    fn new() -> Self {
-        Self::empty("packages")
-    }
     fn package(&self, path: &str, source: &str, deps: &str) {
         self.write(&format!("{path}/Vastitas.toml"), &format!("[package]\nname = 'same-name'\nversion = '0.1.0'\nroot = 'src/main.vast'\n[dependencies]\n{deps}\n"));
         self.write(&format!("{path}/src/main.vast"), source);
     }
-    fn cli(&self) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
-        command.current_dir(&self.0);
-        command
-    }
     fn check(&self) -> Output {
-        self.cli()
-            .args(["check", "--manifest-path", "app/Vastitas.toml"])
-            .output()
-            .unwrap()
+        self.check_manifest("app/Vastitas.toml")
     }
     fn rejects(&self, code: &str) -> String {
         let output = self.check();
@@ -30,32 +19,14 @@ impl Scratch {
         common::expect_code(&output, code)
     }
     fn native(&self, expected: &str) {
-        success(&self.check());
-        success(
-            &self
-                .cli()
-                .args([
-                    "build",
-                    "--manifest-path",
-                    "app/Vastitas.toml",
-                    "-o",
-                    "native",
-                ])
-                .output()
-                .unwrap(),
-        );
-        let output = Command::new(self.0.join("native")).output().unwrap();
-        success(&output);
-        assert_eq!(
-            String::from_utf8(output.stdout).unwrap(),
-            format!("{expected}\n")
-        );
+        let stdout = self.check_build_and_run("app/Vastitas.toml");
+        assert_eq!(String::from_utf8(stdout).unwrap(), format!("{expected}\n"));
     }
 }
 
 #[test]
 fn path_aliases_reexports_and_higher_order_dispatch_execute() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("lib", "mod inner { pub generic add(x, y) { domain (Int, Int); } method add(x: Int, y: Int) -> Int { x + y } pub fn next(x: Int) -> Int { add(x, 1) } } pub use inner::next; pub fn invoke(f: Fn<Int, Int>, x: Int) -> Int { f(x) }", "");
     s.package("app", "use math::next as increment; fn main() -> Int { let package = 40; let f: Fn<Int, Int> = if true { increment } else { alias::next }; math::invoke(f, f(package)) }", "math = { path = '../lib' }\nalias = { path = '../lib/.' }");
     s.native("42");
@@ -63,7 +34,7 @@ fn path_aliases_reexports_and_higher_order_dispatch_execute() {
 
 #[test]
 fn distinct_locations_and_versions_never_merge_owners() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("left", "pub fn value() -> Int { 10 }", "");
     s.package("right", "pub fn value() -> Int { 32 }", "");
     s.package(
@@ -86,7 +57,7 @@ fn distinct_locations_and_versions_never_merge_owners() {
 
 #[test]
 fn inline_and_external_layouts_and_declaration_order_are_equivalent() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     let source = "use math::value as answer; fn main() -> Int { answer() } ";
     s.package(
         "app",
@@ -114,7 +85,7 @@ fn inline_and_external_layouts_and_declaration_order_are_equivalent() {
 
 #[test]
 fn private_paths_reexports_parent_lookup_and_shadowing_are_checked() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     for (source, code) in [
         (
             "mod a { fn hidden() -> Int { 1 } } fn main() -> Int { a::hidden() }",
@@ -157,7 +128,7 @@ fn private_paths_reexports_parent_lookup_and_shadowing_are_checked() {
 /// kernel had only the span of the module, its `mod` item.
 #[test]
 fn a_module_cannot_be_named_package() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     for (source, place) in [
         ("fn main() -> Int { 42 }\nmod package { }", "2:5"),
         ("fn main() -> Int { 42 }\nmod package;", "2:5"),
@@ -179,7 +150,7 @@ fn a_module_cannot_be_named_package() {
 /// names nothing (`E_NAME`), or the declaration `package` of the module.
 #[test]
 fn a_use_cannot_bind_the_name_package() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     for (source, place) in [
         ("fn main() -> Int { 42 }\nuse package;", "2:5"),
         ("mod a { use package; }", "1:13"),
@@ -248,7 +219,7 @@ const GEOMETRIC_OPERATIONS: [&str; 7] = [
 /// stays the operation, even in the module that declares the module.
 #[test]
 fn a_module_may_take_the_name_of_a_geometric_operation() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     for name in GEOMETRIC_OPERATIONS {
         s.package(
             "app",
@@ -308,7 +279,7 @@ fn main() -> Int {
 /// aliases. Other reserved names are no names of modules either.
 #[test]
 fn geometric_operation_names_stay_reserved_outside_modules() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package(
         "lib",
         "pub mod dimension { pub fn length() -> Int { 42 } }",
@@ -440,7 +411,7 @@ fn geometric_operation_names_stay_reserved_outside_modules() {
 /// bounds, so the frontend never exhausts its stack on such a program.
 #[test]
 fn a_long_chain_of_imports_is_left_to_the_kernel() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     const CHAIN: usize = 20_000;
     let mut source = String::from("mod units { pub mod dimension {} }\n");
     source.push_str(&format!("use self::units as a{CHAIN};\n"));
@@ -465,7 +436,7 @@ fn a_long_chain_of_imports_is_left_to_the_kernel() {
 /// that the frontend did not write.
 #[test]
 fn the_kernel_checks_geometric_module_names_independently() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package(
         "app",
         "mod dimension { pub fn value() -> Int { 42 } }\nmod units { pub mod length { pub fn value() -> Int { 1 } } }\nuse units::length as metres;\nfn main() -> Int { dimension::value() + metres::value() - 1 }",
@@ -556,7 +527,7 @@ fn the_kernel_checks_geometric_module_names_independently() {
 
 #[test]
 fn only_exact_generic_owner_can_add_methods() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package(
         "lib",
         "pub generic g() { domain (); } method g() -> Int { 42 }",
@@ -577,7 +548,7 @@ fn only_exact_generic_owner_can_add_methods() {
 
 #[test]
 fn unused_inputs_captures_and_recursion_are_not_hidden() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("lib", "fn unused() -> Int { true }", "");
     s.package("app", "fn main() -> Int { 0 }", "dep = { path = '../lib' }");
     let error = s.rejects("E_TYPE");
@@ -607,7 +578,7 @@ fn unused_inputs_captures_and_recursion_are_not_hidden() {
 
 #[test]
 fn manifest_validation_and_cli_modes_are_explicit() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("app", "fn helper() -> Int { 1 }", "");
     success(&s.check());
     let out = s
@@ -660,7 +631,7 @@ fn manifest_validation_and_cli_modes_are_explicit() {
 
 #[test]
 fn dependency_cycles_collisions_and_main_selection_are_checked() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("lib", "pub fn main() -> Int { 42 }", "");
     s.package("app", "use dep::main;", "dep = { path = '../lib' }");
     success(&s.check());
@@ -684,7 +655,7 @@ fn dependency_cycles_collisions_and_main_selection_are_checked() {
 
 #[test]
 fn filesystem_escape_and_module_loading_cycles_are_rejected() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("app", "mod escaped;", "");
     s.write("outside.vast", "pub fn value() -> Int { 42 }");
     symlink(s.0.join("outside.vast"), s.0.join("app/src/escaped.vast")).unwrap();
@@ -705,7 +676,7 @@ fn filesystem_escape_and_module_loading_cycles_are_rejected() {
 
 #[test]
 fn package_diagnostics_preserve_main_and_identify_the_declaring_manifest() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("app", "fn main(x: Int) -> Int { x }", "");
     let error = s.rejects("E_MAIN");
     assert!(
@@ -740,7 +711,7 @@ fn package_diagnostics_preserve_main_and_identify_the_declaring_manifest() {
 
 #[test]
 fn package_lambdas_preserve_the_enclosing_shadowing_ban() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     for source in [
         "fn main() -> Int { let x = 41; let f = fn(x: Int) -> Int { x + 1 }; f(x) }",
         "fn main() -> Int { let x = 41; let f = fn() -> Int { let x = 1; x }; f() }",
@@ -752,7 +723,7 @@ fn package_lambdas_preserve_the_enclosing_shadowing_ban() {
 
 #[test]
 fn all_manifests_and_module_sources_are_protected_from_output() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("lib", "pub fn value() -> Int { 42 }", "");
     s.package(
         "app",
@@ -822,14 +793,14 @@ fn all_manifests_and_module_sources_are_protected_from_output() {
 
 #[test]
 fn dependent_geometry_survives_namespaces_and_unpack() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("app", "mod geometry { pub fn retain(X: Scheme, p: Point<X, Base(QQ)>) -> Pointed<Scheme, QQ> { pack { scheme: X, point: p } } } fn main() -> Int { let X = Affine(QQ, 42); let p = origin(X); let parcel = geometry::retain(X, p); unpack parcel as { scheme: Y, point: q }; int(dimension(Y)) }", "");
     s.native("42");
 }
 
 #[test]
 fn namespace_diagnostics_render_source_names_and_keep_locations() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package(
         "app",
         "mod a { pub fn f() -> Int { super::main() } } fn main() -> Int { a::f() }",
@@ -851,7 +822,7 @@ fn namespace_diagnostics_render_source_names_and_keep_locations() {
 #[test]
 fn package_requests_do_not_fall_back_to_a_protocol_two_backend() {
     use std::os::unix::fs::PermissionsExt;
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("app", "fn main() -> Int { 42 }", "");
     let backend = s.0.join("old-backend");
     fs::write(
@@ -872,7 +843,7 @@ fn package_requests_do_not_fall_back_to_a_protocol_two_backend() {
 
 #[test]
 fn duplicate_owners_point_to_the_declaring_external_source() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     s.package("app", "mod math; fn main() -> Int { 0 }", "");
     s.write(
         "app/src/math.vast",
@@ -887,7 +858,7 @@ fn duplicate_owners_point_to_the_declaring_external_source() {
 /// at the declaration of the module in the parent's file.
 #[test]
 fn name_errors_of_a_module_point_to_the_second_declaration() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     // Each case gives the root source, its module `a` if any, and the
     // expected lines: the place of the error and of its note, if any.
     let cases: &[(&str, Option<&str>, &str, &[&str])] = &[
@@ -995,7 +966,7 @@ fn name_errors_of_a_module_point_to_the_second_declaration() {
 /// kernel; this test checks a declaration and a `let` with the kernel.
 #[test]
 fn reserved_module_words_in_flat_mode_point_to_the_name() {
-    let s = Scratch::new();
+    let s = Scratch::empty("packages");
     for (source, place, word) in [
         (
             "fn main() -> Int { 0 }\n\nfn mod() -> Int { 1 }\n",

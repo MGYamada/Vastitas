@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, assert_rejected, cli, kernel, success};
+use common::{Scratch, assert_rejected, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
@@ -7,32 +7,20 @@ const REAL: &str = include_str!("../examples/packages/tensor-packing/src/real/mo
 const COMPLEX: &str = include_str!("../examples/packages/tensor-packing/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
-    let s = Scratch::empty("tensor packing");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/tensor-packing/Vastitas.toml"),
-    );
-    s.write(
-        "src/main.vast",
-        include_str!("../examples/packages/tensor-packing/src/main.vast"),
-    );
-    s.write(
-        "src/profiles/mod.vast",
-        include_str!("../examples/packages/tensor-packing/src/profiles/mod.vast"),
-    );
-    s.write("src/real/mod.vast", real);
-    s.write("src/complex/mod.vast", complex);
-    s
+    common::example_package(
+        "tensor packing",
+        "examples/packages/tensor-packing",
+        &[
+            ("src/real/mod.vast", real),
+            ("src/complex/mod.vast", complex),
+        ],
+    )
 }
 fn command(s: &Scratch, mode: &str) -> Command {
-    let mut command = cli();
-    command
-        .current_dir(&s.0)
-        .args([mode, "--manifest-path", "Vastitas.toml"]);
-    command
+    s.command(mode, "Vastitas.toml")
 }
 fn captured(s: &Scratch) -> Value {
-    common::captured_wire(command(s, "check"), 8)
+    s.captured("Vastitas.toml", 8)
 }
 fn operation<'a>(raw: &'a mut Value, name: &str) -> &'a mut Value {
     &mut raw["packages"][0]["modules"]
@@ -485,8 +473,7 @@ fn constant_source(complex: bool, [i, k, j, n]: [usize; 4]) -> String {
 #[test]
 #[ignore = "requires explicit pinned OpenBLAS prefix; numerical CI runs this test"]
 fn tensor_native_executes_rank_three_permutation_bilinear_products_and_empty_axes() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     let mut cases = vec![
         (REAL.to_owned(), COMPLEX.to_owned()),
         (through_calls(REAL, false), through_calls(COMPLEX, true)),
@@ -525,12 +512,7 @@ fn tensor_native_executes_rank_three_permutation_bilinear_products_and_empty_axe
         let s = fixture(&real, &complex);
         success(&command(&s, "check").output().unwrap());
         let mut build = command(&s, "build");
-        build
-            .args(["-o", "program", "--openblas-prefix"])
-            .arg(&prefix);
-        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let run = Command::new(s.0.join("program")).output().unwrap();
         success(&run);

@@ -447,10 +447,7 @@ fn canonical(s: &Scratch) -> String {
 /// backend is reachable: the rejection comes from the driver.
 fn manifest_mode(s: &Scratch, package: &str) -> Output {
     bounded(
-        cli()
-            .current_dir(&s.0)
-            .args(["check", "--manifest-path"])
-            .arg(format!("{package}/Vastitas.toml"))
+        s.command("check", &format!("{package}/Vastitas.toml"))
             .env("VASTITAS_KERNEL", s.0.join("absent backend")),
     )
 }

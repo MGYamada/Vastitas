@@ -21,11 +21,7 @@ fn fixture(main: &str) -> Scratch {
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("Vastitas.toml")
 }
 
 /// The example with extra items inserted before its helper and entrypoint.

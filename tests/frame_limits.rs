@@ -10,7 +10,7 @@
 //! `the_products_of_a_dense_polynomial_frame_end_on_work` took 26 and 74
 //! seconds, on a developer machine.
 mod common;
-use common::{Scratch, cli, expect_code, root, success};
+use common::{Scratch, expect_code, root, success};
 use std::process::Output;
 use std::time::{Duration, Instant};
 
@@ -92,11 +92,7 @@ fn check((matrix, inverse): (String, String)) -> Output {
         ),
     );
     let started = Instant::now();
-    let output = cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap();
+    let output = s.check_manifest("Vastitas.toml");
     assert!(
         started.elapsed() < BOUND,
         "the check took {:?}",

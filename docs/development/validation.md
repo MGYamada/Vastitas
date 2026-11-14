@@ -329,7 +329,7 @@ symbols. A symbol encodes the canonical location of the declaring package as
 decimal character codes. A message names a declaration by its name or its path
 ([Names and text in diagnostics](../language/diagnostics.md#names-and-text-in-diagnostics)),
 so no message may
-hold such a symbol. `assert_source_names` in `tests/common/mod.rs` fails on a
+hold such a symbol. `assert_source_names` in `tests/common/diagnostics.rs` fails on a
 message that holds one, or a run of eight or more decimal numbers joined by
 `_`. Every rejection that a test checks through `expect_code`,
 `assert_first_code`, `assert_rejected` or `assert_wire_rejected` passes it. So

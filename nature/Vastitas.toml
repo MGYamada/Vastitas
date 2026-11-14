@@ -1,9 +1,10 @@
 [package]
 name = "vastitas_nature"
 version = "0.1.0"
-root = "src/mod.vast"
+root = "lib.vast"
 
+# Each library of nature is a package under src/, re-exported by lib.vast.
 # nature may depend on std; no std manifest depends on nature (ADR 0002 §1,
 # checked by scripts/check_boundaries.py).
 [dependencies]
-std = { path = "../stdlib" }
+dimension_library = { path = "src/dimension" }

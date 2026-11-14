@@ -18,15 +18,16 @@ specifications that hold its rules and proofs.
 `python3 scripts/library_docs.py` checks that each page lists exactly the
 exports of its module.
 
-| Module | Page |
-| --- | --- |
-| `nature` | [The package root](docs/README.md#the-package-root) |
-| `nature::dimension` | [`dimension.md`](docs/dimension.md) |
+| Module | Package | Page |
+| --- | --- | --- |
+| `nature` | `vastitas_nature` | [The package root](docs/README.md#the-package-root) |
+| `nature::dimension` | `vastitas_dimension` | [`dimension.md`](docs/dimension.md) |
 
 ## The boundary with `std`
 
-- `nature` depends on `std`. Its manifest names the standard library at
-  `../stdlib`, as applications do.
+- `nature` depends on `std`. The manifest of each library under `src/`
+  that uses `std` names the standard library by path, as applications do:
+  `nature/src/dimension/Vastitas.toml` names `../../../stdlib`.
 - `std` never depends on `nature`. No manifest under `stdlib/` depends on a
   package outside `stdlib/`, and no manifest under `nature/` depends on a
   package outside `stdlib/` and `nature/`. `scripts/check_boundaries.py`
@@ -36,12 +37,34 @@ exports of its module.
 
 ## Source layout
 
-The sources follow the layout of `stdlib/`: they live under `src/`, with a
-directory per module and `mod.vast` as its entrypoint. The package root
-[`src/mod.vast`](src/mod.vast) declares the modules, and
-[`src/dimension/mod.vast`](src/dimension/mod.vast) is `nature::dimension`.
-The API reference lives under [`docs/`](docs/README.md). A module of
-`nature` is a module of the one package `vastitas_nature`.
+```text
+nature/
+├── Vastitas.toml          the package vastitas_nature
+├── lib.vast               its root module: pub use dimension_library as dimension;
+├── docs/                  the API reference
+└── src/
+    └── dimension/         the package vastitas_dimension, nature::dimension
+        ├── Vastitas.toml
+        └── mod.vast
+```
+
+The layout is that of `stdlib/`. Each library of `nature` is a package of
+its own under `src/`, with its manifest and `mod.vast` as its entrypoint,
+as `stdlib/src/geometry/` is. The root package `vastitas_nature` depends on
+each library by a dependency alias, and its root module re-exports the
+library under its public name: [`lib.vast`](lib.vast) holds
+`pub use dimension_library as dimension;`, as the root `lib.vast` of
+`vastitas_std` holds `pub use geometry_library as geometry;`.
+
+The root module lies at `nature/lib.vast`, beside the manifest and outside
+`src/`, for the reason that the root of `std` lies outside `stdlib/src/`:
+`src/` holds the library packages and nothing else, and the root module only
+names them. The root of `std` is generated under `stdlib/target/package/`,
+because its arithmetic modules are generated there; `nature` generates
+nothing, so its root is a tracked file. A re-export keeps the owners of the
+declarations, so `nature::dimension::Length` and a path to `Length` through a
+direct dependency on `src/dimension` name one declaration. The API
+reference lives under [`docs/`](docs/README.md).
 
 ## Use
 

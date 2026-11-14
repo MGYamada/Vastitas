@@ -203,7 +203,9 @@ without a test there remains proposed.
   primitive and capability that counts coordinates. (14 November 2026: #778
   renamed that operation and capability `dim`; `dimension` is an ordinary name,
   and `nature::dimension` the module of this record.)
-- **Package.** `vastitas_nature` at `nature/` in the repository. It depends on
+- **Package.** `vastitas_nature` at `nature/` in the repository, whose root
+  `nature/lib.vast` re-exports the package `vastitas_dimension` of
+  `nature/src/dimension/` as `nature::dimension`. It depends on
   the standard library; no standard-library manifest depends on a path
   outside `stdlib/`, and `scripts/check_boundaries.py` checks it.
 - **Versions and migration.** The profile adds no wire protocol version.

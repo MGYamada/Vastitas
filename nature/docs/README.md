@@ -16,17 +16,21 @@ their evidence, and the records of the decisions that admitted the module.
 
 The root module of the package `vastitas_nature`, the package of
 [`nature/Vastitas.toml`](../Vastitas.toml), is
-[`nature/src/mod.vast`](../src/mod.vast). It exports:
+[`nature/lib.vast`](../lib.vast). It exports:
 
 | Name | Kind | Contract |
 | --- | --- | --- |
-| `dimension` | module | The physical dimensions of the coordinates of smooth affine objects ([page](dimension.md)) |
+| `dimension` | re-export | The root module of the package `vastitas_dimension` of [`nature/src/dimension/`](../src/dimension), the dependency `dimension_library`: the physical dimensions of the coordinates of smooth affine objects ([page](dimension.md)) |
+
+The re-export keeps the owners of the declarations: `nature::dimension::Length`
+and a path to `Length` through a direct dependency on `nature/src/dimension`
+name one declaration.
 
 ## Pages
 
 | Module | Package | Content |
 | --- | --- | --- |
-| [`nature::dimension`](dimension.md) | `vastitas_nature` | Readings, physical interpretations, base dimensions and quantity kinds |
+| [`nature::dimension`](dimension.md) | `vastitas_dimension` | Readings, physical interpretations, base dimensions and quantity kinds |
 
 ## The check
 

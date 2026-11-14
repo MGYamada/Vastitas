@@ -1,8 +1,10 @@
 # `nature::dimension`
 
 - Module: `nature::dimension`
-- Package: `vastitas_nature`, the package of
-  [`nature/Vastitas.toml`](../Vastitas.toml), which depends on `std`
+- Package: `vastitas_dimension`, the package of
+  [`nature/src/dimension/Vastitas.toml`](../src/dimension/Vastitas.toml),
+  which depends on `std`. The root of `vastitas_nature` re-exports it as
+  `nature::dimension`.
 - Source: [`nature/src/dimension/mod.vast`](../src/dimension/mod.vast)
 
 The module declares the physical dimensions of the coordinates of the smooth

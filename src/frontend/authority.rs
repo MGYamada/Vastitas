@@ -30,7 +30,7 @@ impl Parser {
         Ok((package, path.collect()))
     }
 
-    pub(super) fn grant(&mut self, keyword: &str) -> Result<crate::packages::Grant, Diagnostic> {
+    pub(super) fn grant(&mut self, keyword: &str) -> Result<crate::namespace::Grant, Diagnostic> {
         let start = self.expect(keyword)?.span;
         let name = self.binding_name()?.0;
         self.expect(":")?;
@@ -47,7 +47,7 @@ impl Parser {
             Ok(name)
         })?;
         let end = self.expect("}")?.span;
-        Ok(crate::packages::Grant {
+        Ok(crate::namespace::Grant {
             name,
             target,
             grantee_package,
@@ -58,7 +58,7 @@ impl Parser {
         })
     }
 
-    pub(super) fn transfer(&mut self) -> Result<crate::packages::Transfer, Diagnostic> {
+    pub(super) fn transfer(&mut self) -> Result<crate::namespace::Transfer, Diagnostic> {
         let start = self.expect("transfer")?.span;
         let name = self.binding_name()?.0;
         self.expect(":")?;
@@ -66,7 +66,7 @@ impl Parser {
         self.expect("to")?;
         let (grantee_package, grantee_path) = self.edit_recipient()?;
         let end = self.expect(";")?.span;
-        Ok(crate::packages::Transfer {
+        Ok(crate::namespace::Transfer {
             name,
             target,
             grantee_package,
@@ -75,7 +75,7 @@ impl Parser {
         })
     }
 
-    pub(super) fn contribution(&mut self) -> Result<crate::packages::Contribution, Diagnostic> {
+    pub(super) fn contribution(&mut self) -> Result<crate::namespace::Contribution, Diagnostic> {
         let start = self.expect("contribution")?.span;
         let name = self.binding_name()?.0;
         self.expect(":")?;
@@ -86,7 +86,7 @@ impl Parser {
             methods.push(self.method()?);
         }
         let end = self.expect("}")?.span;
-        Ok(crate::packages::Contribution {
+        Ok(crate::namespace::Contribution {
             name,
             target,
             methods,
@@ -94,8 +94,8 @@ impl Parser {
         })
     }
 
-    pub(super) fn assembly(&mut self) -> Result<crate::packages::Assembly, Diagnostic> {
-        use crate::packages::EditEvent;
+    pub(super) fn assembly(&mut self) -> Result<crate::namespace::Assembly, Diagnostic> {
+        use crate::namespace::EditEvent;
         let start = self.expect("assembly")?.span;
         self.expect("{")?;
         let mut events = Vec::new();
@@ -167,7 +167,7 @@ impl Parser {
                 start.through(end),
             ));
         }
-        Ok(crate::packages::Assembly {
+        Ok(crate::namespace::Assembly {
             events,
             span: start.through(end),
         })

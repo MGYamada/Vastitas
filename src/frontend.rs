@@ -793,10 +793,10 @@ pub(crate) fn parse_module_source(
     path: Vec<String>,
     public: bool,
     declaration: Option<Span>,
-) -> Result<crate::packages::Parsed, Diagnostic> {
+) -> Result<crate::namespace::Parsed, Diagnostic> {
     let mut parser = Parser::from_source(&input, true)?;
     let span = declaration.unwrap_or(parser.peek().span);
-    let mut parsed = crate::packages::Parsed {
+    let mut parsed = crate::namespace::Parsed {
         modules: Vec::new(),
         external: Vec::new(),
     };

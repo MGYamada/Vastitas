@@ -155,8 +155,9 @@ Three files extend the parser for packages:
   to its bits. It accepts a decimal literal only when an integer
   reconstruction of the bits equals the literal.
 
-The parser writes the records of `src/ir.rs`, `src/indexed.rs` and
-`src/storage.rs`. Their `serde` forms are the wire forms of the request.
+The parser writes the records of `src/ir.rs`, `src/namespace.rs`,
+`src/indexed.rs` and `src/storage.rs`. Their `serde` forms are the wire
+forms of the request.
 `src/primitive_table.rs` gives the fields of each indexed primitive.
 `scripts/check_primitive_table.py` generates it from the families of the
 kernel, and CI fails when the file differs from them. No identifier of a

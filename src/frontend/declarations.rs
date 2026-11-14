@@ -119,9 +119,9 @@ impl Parser {
         public: bool,
         span: Span,
         inline: bool,
-        parsed: &mut crate::packages::Parsed,
+        parsed: &mut crate::namespace::Parsed,
     ) -> Result<(), Diagnostic> {
-        use crate::packages::{External, Import, Module as NamespaceModule, Public};
+        use crate::namespace::{External, Import, Module as NamespaceModule, Public};
         if path.len() > MAX_MODULE_NESTING {
             return Err(diagnostic(
                 "E_LIMIT",

@@ -78,7 +78,8 @@ Two modules hold arithmetic that several models share. They are no models of
 their own, and each has its own tests:
 
 - `scripts/rational_polynomial_reference.py` holds exact sparse polynomials
-  with rational coefficients. Six models import it: the models of
+  with rational coefficients. Seven models import it: the models of
+  [real-plane metrics](../reference/geometry.md#metric-reference),
   [symplectic maps](../reference/geometry.md#symplectic-reference),
   [SOS covers](../reference/analysis-and-effects.md#sos-reference),
   [integral enclosures](../reference/analysis-and-effects.md#integral-reference),

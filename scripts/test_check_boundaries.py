@@ -112,6 +112,15 @@ class RepositoryBoundaryTests(unittest.TestCase):
         errors = check_boundaries(self.root)
         self.assertEqual(errors, ["runtime must not import compiler module VastitasKernel.SmoothDeclarations"])
 
+    def test_frame_runtime_may_import_only_other_runtimes(self):
+        self.write("lean-kernel/VastitasKernel/FrameRuntime.lean", "import VastitasKernel.SmoothRuntime\n")
+        self.write("lean-kernel/VastitasKernel/IndexedRuntime.lean", "import VastitasKernel.FrameRuntime\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-kernel/VastitasKernel/FrameRuntime.lean",
+                   "import VastitasKernel.SmoothRuntime\nimport VastitasKernel.FrameDeclarations\n")
+        errors = check_boundaries(self.root)
+        self.assertEqual(errors, ["runtime must not import compiler module VastitasKernel.FrameDeclarations"])
+
     def test_algebra_fixture_library_cannot_enter_the_compiler(self):
         self.write("lean-kernel/VastitasAlgebraTest/BasisRegression.lean",
                    "import VastitasKernel.AlgebraBasis\nimport Lean.Data.Json\n")

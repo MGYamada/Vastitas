@@ -64,6 +64,21 @@ class KernelFixtureTests(unittest.TestCase):
         self.assertIn("VastitasKernel.ReverseCoreRegression", imports)
         self.assertEqual(sorted(capture_emit.KERNEL_FIXTURE_MODULES), sorted(imports))
 
+    def test_the_native_script_builds_every_import_of_the_codegen_check(self):
+        # scripts/check_indexed_native.sh builds these modules, and the runtime
+        # objects (`:c.o`) of the fixtures, before it runs the codegen check.
+        lines = (capture_emit.ROOT / "scripts/check_indexed_native.sh").read_text(encoding="utf-8").splitlines()
+        words = []
+        for line in lines[lines.index("lake build \\"):]:
+            words += line.removesuffix("\\").split()
+            if not line.endswith("\\"):
+                break
+        modules = [word for word in words[2:] if not word.endswith(":c.o")]
+        source = (capture_emit.ROOT / "scripts/check_indexed_codegen.lean").read_text(encoding="utf-8")
+        imports = [line.split()[1] for line in source.splitlines() if line.startswith("import ")]
+        self.assertIn("VastitasKernel.FrameRegression", modules)
+        self.assertEqual(sorted(modules), sorted(imports))
+
 
 class FrontendRejectionTests(unittest.TestCase):
     def setUp(self):

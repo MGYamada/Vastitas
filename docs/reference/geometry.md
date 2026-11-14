@@ -36,8 +36,11 @@ adds no AD primitive and no Domain Checker. General Riemannian geometry is
 outside its scope. No release or completion condition is added.
 
 The implementation baseline is main `d783b5a6e393214a54cb408501963b1e42a7be94`.
-It reuses `Poly`, exact differentiation and arithmetic from the existing
-[symplectic reference](#symplectic-reference), without changing that verifier.
+It takes `Poly`, with exact differentiation and arithmetic, from the
+[supporting module](../appendix/reference-models.md#supporting-modules)
+`scripts/rational_polynomial_reference.py`, which the
+[symplectic reference](#symplectic-reference) also uses. It takes the check of
+identifiers from the symplectic reference and does not change that verifier.
 The four-variable arithmetic engine is restricted to its subring `Q[x0,x1]`:
 every public polynomial boundary rejects any nonzero exponent of `x2` or `x3`.
 This is an arithmetic implementation detail, not a four-dimensional geometry

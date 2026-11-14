@@ -29,10 +29,14 @@ that change, and many sections name the revision that they inspected. The
 opening table of each chapter states what the compiler implements today.
 
 The tests of every model run in the continuous integration, in the step
-`python3 -m unittest discover -s scripts -p 'test_*.py'`. They need Python 3.10
-or later and its standard library. One test of the diagnostics model runs
-the built compiler, and the step skips it where the compiler is not built; the
-native compiler jobs run it after their build.
+`python3 -m unittest discover -s scripts -p 'test_*.py'`. The models and their
+tests need Python 3.10 or later and its standard library. The same step runs
+the tests of the checkers under `scripts/`, some of which read TOML with the
+module `tomllib`, so the step needs Python 3.11 or later. The continuous
+integration runs it with the Python that
+[What CI runs](../development/validation.md#what-ci-runs) names. One test of
+the diagnostics model runs the built compiler, and the step skips it where the
+compiler is not built; the native compiler jobs run it after their build.
 
 ## The models and the compiler
 
@@ -78,7 +82,8 @@ Two modules hold arithmetic that several models share. They are no models of
 their own, and each has its own tests:
 
 - `scripts/rational_polynomial_reference.py` holds exact sparse polynomials
-  with rational coefficients. Six models import it: the models of
+  with rational coefficients. Seven models import it: the models of
+  [real-plane metrics](../reference/geometry.md#metric-reference),
   [symplectic maps](../reference/geometry.md#symplectic-reference),
   [SOS covers](../reference/analysis-and-effects.md#sos-reference),
   [integral enclosures](../reference/analysis-and-effects.md#integral-reference),

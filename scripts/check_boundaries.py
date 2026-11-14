@@ -465,7 +465,8 @@ def check_boundaries(root):
     runtime = kernel / "VastitasKernel" / "Runtime.lean"
     runtimes = {runtime, kernel / "VastitasKernel" / "IndexedRuntime.lean",
                 kernel / "VastitasKernel" / "AlgebraRuntime.lean",
-                kernel / "VastitasKernel" / "SmoothRuntime.lean"}
+                kernel / "VastitasKernel" / "SmoothRuntime.lean",
+                kernel / "VastitasKernel" / "FrameRuntime.lean"}
     # Runtime modules may import each other, but nothing else from the compiler.
     runtime_modules = {"VastitasKernel." + source.stem for source in runtimes
                        if source.parent == kernel / "VastitasKernel"}

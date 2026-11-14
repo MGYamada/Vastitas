@@ -205,8 +205,8 @@ abbrev Row := Finite.LoanIndex.Row Loan
 abbrev row (index : Tables) (fuel : Nat) : Loan → Row :=
   Finite.LoanIndex.row Loan.parent index.loans fuel
 
-/-- Whole-map writes still conflict regardless of runtime extent values. Only
-unconditionally compatible read/read pairs are omitted. -/
+/-- Whole-map writes still conflict regardless of runtime extent values. The
+pair scan omits only unconditionally compatible read/read pairs. -/
 def compatible (left right : Row) : Bool :=
   left.1.name == right.1.name || left.1.allocation != right.1.allocation ||
     (!left.1.access.writes && !right.1.access.writes) ||

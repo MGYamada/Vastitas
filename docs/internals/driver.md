@@ -108,8 +108,11 @@ Tests:
 
 ## Parsing
 
-`src/frontend.rs` holds the lexer, the recursive-descent parser and the
-resolver of lexical scopes.
+`src/frontend.rs` holds the lexer, the token primitives of the
+recursive-descent parser and the entry points. The rest of the parser and the
+resolver of lexical scopes are in `src/frontend/`: `declarations.rs`,
+`authority.rs` for edit authority, `types.rs`, `expressions.rs` and
+`resolver.rs`.
 [Lexical structure](../language/lexical-structure.md) gives the rules of
 source text.
 
@@ -163,7 +166,7 @@ itself.
 Tests:
 
 - `tests/frontend_diagnostics.rs::source_cases_produce_the_recorded_frontend_diagnostics`
-  and the unit tests of `src/frontend.rs`;
+  and the unit tests in `src/frontend/tests.rs`;
 - `tests/compiler.rs::excessive_source_nesting_is_a_diagnostic_not_a_process_abort`
   and `tests/stabilization.rs::else_if_limit_names_the_chain_and_accepts_the_documented_boundary`;
 - `tests/promotion.rs::stdlib_ir_matches_proof_fixture`, which compares the

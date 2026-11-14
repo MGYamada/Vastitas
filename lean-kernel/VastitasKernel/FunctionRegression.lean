@@ -173,4 +173,16 @@ private def unusedLambda : Function := {
   (rejects "E_DUPLICATE" (program [identity,
     { identity with body := block (.variable "missing" {}) }]))
 
+-- Surface equality compares the constructors first, then every field, span included.
+private def nested : Expr := .lambda [{ name := "x", ty := int, span := {} }] int
+  (.mk [.letE "y" none (.variable "x" {}) {}] (.binary "+" (.variable "y" {}) (.integer "1" {}) {}) {}) {}
+#eval check "equal nested surface expressions" (nested == nested && identity == identity)
+#eval check "different constructors differ"
+  (Expr.unit {} != Expr.boolean true {} && Expr.block (block (.unit {})) {} != Expr.pack (.unit {}) (.unit {}) {} &&
+    nested != Expr.block (block nested) {})
+#eval check "a field deep in a body or a span tells expressions apart"
+  (nested != .lambda [{ name := "x", ty := int, span := {} }] int
+    (.mk [.letE "y" none (.variable "x" {}) {}] (.binary "+" (.variable "y" {}) (.integer "2" {}) {}) {}) {} &&
+    Expr.unit {} != Expr.unit { start := 1 })
+
 end VastitasKernel.Surface.Regression

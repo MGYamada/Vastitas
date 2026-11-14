@@ -407,7 +407,7 @@ fn materialized_diagonal_adjoint_builds_without_openblas() {
 #[test]
 #[ignore = "requires pinned sequential LP64 OpenBLAS 0.3.34"]
 fn diagonal_pairing_builds_executes_real_complex_and_empty_forms() {
-    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("pinned OpenBLAS prefix");
+    let options = common::numerical_build_options(None);
     for (real, complex) in [
         (REAL.to_owned(), COMPLEX.to_owned()),
         (empty(false, "0"), empty(true, "9007199254740993")),
@@ -439,14 +439,7 @@ fn diagonal_pairing_builds_executes_real_complex_and_empty_forms() {
         let s = fixture(&real, &complex);
         let output = s.0.join("program");
         let mut build = command(&s, "build");
-        build
-            .arg("-o")
-            .arg(&output)
-            .arg("--openblas-prefix")
-            .arg(&prefix);
-        if let Ok(cc) = std::env::var("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.arg("-o").arg(&output).args(&options);
         success(&build.output().unwrap());
         let result = Command::new(output).output().unwrap();
         success(&result);

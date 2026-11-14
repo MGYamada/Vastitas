@@ -36,21 +36,6 @@ fn documented_build(inputs: &[&str], build_options: &[&str], expected: &str) {
     );
 }
 
-/// The build options of a numerical package in the numerical CI jobs: the
-/// pinned OpenBLAS prefix and the native compiler. The compiler is the one
-/// that the job names, or `default_cc` where the job names none.
-fn numerical_build_options(default_cc: Option<&str>) -> Vec<String> {
-    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix");
-    let mut options = vec!["--openblas-prefix".to_owned(), prefix];
-    let cc = std::env::var("VASTITAS_TEST_NATIVE_CC")
-        .ok()
-        .or_else(|| default_cc.map(str::to_owned));
-    if let Some(cc) = cc {
-        options.extend(["--native-cc".to_owned(), cc]);
-    }
-    options
-}
-
 fn documented(inputs: &[&str], expected: &str) {
     documented_build(inputs, &[], expected);
 }
@@ -603,7 +588,7 @@ fn runtime_shapes_package_checks_without_blas() {
 #[ignore = "requires pinned sequential LP64 OpenBLAS"]
 fn runtime_shapes_package_runs_with_openblas() {
     // As tests/runtime_shape_source.rs builds runtime shapes: with `cc` named.
-    let options = numerical_build_options(Some("cc"));
+    let options = common::numerical_build_options(Some("cc"));
     let options: Vec<&str> = options.iter().map(String::as_str).collect();
     documented_build(
         &[
@@ -622,7 +607,7 @@ fn runtime_shapes_package_runs_with_openblas() {
 #[ignore = "requires pinned sequential LP64 OpenBLAS"]
 fn book_numerical_packages_print_their_output() {
     // As tests/numerical_source.rs builds the same sources.
-    let options = numerical_build_options(None);
+    let options = common::numerical_build_options(None);
     let options: Vec<&str> = options.iter().map(String::as_str).collect();
     for (manifest, expected) in BOOK_NUMERICAL_PACKAGES {
         documented_build(&["--manifest-path", manifest], &options, expected);

@@ -114,6 +114,30 @@ pub fn checked_replace(source: &str, from: &str, to: &str) -> String {
     );
     source.replace(from, to)
 }
+/// The pinned OpenBLAS prefix that the numerical CI jobs name in
+/// `VASTITAS_TEST_OPENBLAS_PREFIX`. The tests that need it are ignored
+/// elsewhere.
+pub fn openblas_prefix() -> String {
+    std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix")
+}
+/// `--native-cc` with the native compiler that a numerical CI job names in
+/// `VASTITAS_TEST_NATIVE_CC`, or `default_cc` where the job names none; no
+/// option when neither names one.
+pub fn native_cc_options(default_cc: Option<&str>) -> Vec<String> {
+    let cc = std::env::var("VASTITAS_TEST_NATIVE_CC")
+        .ok()
+        .or_else(|| default_cc.map(str::to_owned));
+    cc.map(|cc| vec!["--native-cc".to_owned(), cc])
+        .unwrap_or_default()
+}
+/// The build options of a numerical package in the numerical CI jobs: the
+/// pinned OpenBLAS prefix and the native compiler. The compiler is the one
+/// that the job names, or `default_cc` where the job names none.
+pub fn numerical_build_options(default_cc: Option<&str>) -> Vec<String> {
+    let mut options = vec!["--openblas-prefix".to_owned(), openblas_prefix()];
+    options.extend(native_cc_options(default_cc));
+    options
+}
 pub fn native(source: &str, libraries: &[PathBuf], expected: &str, filename: &str) {
     let scratch = Scratch::empty("native");
     let output_path = scratch.0.join("native program");

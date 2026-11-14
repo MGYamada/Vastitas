@@ -485,8 +485,7 @@ fn constant_source(complex: bool, [i, k, j, n]: [usize; 4]) -> String {
 #[test]
 #[ignore = "requires explicit pinned OpenBLAS prefix; numerical CI runs this test"]
 fn tensor_native_executes_rank_three_permutation_bilinear_products_and_empty_axes() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     let mut cases = vec![
         (REAL.to_owned(), COMPLEX.to_owned()),
         (through_calls(REAL, false), through_calls(COMPLEX, true)),
@@ -525,12 +524,7 @@ fn tensor_native_executes_rank_three_permutation_bilinear_products_and_empty_axe
         let s = fixture(&real, &complex);
         success(&command(&s, "check").output().unwrap());
         let mut build = command(&s, "build");
-        build
-            .args(["-o", "program", "--openblas-prefix"])
-            .arg(&prefix);
-        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let run = Command::new(s.0.join("program")).output().unwrap();
         success(&run);

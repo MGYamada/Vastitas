@@ -890,8 +890,7 @@ fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
 #[test]
 #[ignore = "requires explicit pinned OpenBLAS prefix; numerical CI runs this test"]
 fn tree_native_executes_multiedge_branching_and_written_operand_order() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical prefix");
+    let options = common::numerical_build_options(None);
     let mut cases = vec![
         (REAL.to_owned(), COMPLEX.to_owned()),
         (
@@ -931,12 +930,7 @@ fn tree_native_executes_multiedge_branching_and_written_operand_order() {
         let s = fixture(&real, &complex);
         success(&command(&s, "check").output().unwrap());
         let mut build = command(&s, "build");
-        build
-            .args(["-o", "program", "--openblas-prefix"])
-            .arg(&prefix);
-        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let result = Command::new(s.0.join("program")).output().unwrap();
         success(&result);

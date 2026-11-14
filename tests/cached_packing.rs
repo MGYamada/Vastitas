@@ -256,8 +256,7 @@ fn unused_cached_numerical_body_does_not_link_openblas() {
 #[test]
 #[ignore = "requires pinned OpenBLAS; numerical CI runs this test"]
 fn cached_native_real_complex_reuse_and_source_destination_lifetimes() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     let overwrite_source = |s: &str| {
         s.replace("    contract3_cached(saved, packed, b, c, NativeFast);\n    contract3_cached(saved, packed, b, c, NativeFast);", "    contract3_cached(saved, packed, b, c, NativeFast);")
         .replace("write(result,", "write(original,").replace("read(result,", "read(original,")
@@ -273,12 +272,7 @@ fn cached_native_real_complex_reuse_and_source_destination_lifetimes() {
         let s = fixture(&real, &complex);
         success(&command(&s, "check").output().unwrap());
         let mut build = command(&s, "build");
-        build
-            .args(["-o", "program", "--openblas-prefix"])
-            .arg(&prefix);
-        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let run = Command::new(s.0.join("program")).output().unwrap();
         success(&run);

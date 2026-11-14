@@ -556,8 +556,8 @@ fn kernel_rejects_forged_runtime_metadata_and_old_protocol_envelopes() {
 #[test]
 #[ignore = "requires pinned sequential LP64 OpenBLAS"]
 fn runtime_native_executes_caller_shapes_padding_empty_axes_and_preflight_failure() {
-    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix");
-    let cc = std::env::var("VASTITAS_TEST_NATIVE_CC").unwrap_or_else(|_| "cc".into());
+    // As examples.rs builds the runtime shapes package: with `cc` named.
+    let options = common::numerical_build_options(Some("cc"));
     let mut positive = Vec::new();
     for complex in [false, true] {
         for (m, k, n, pad) in [
@@ -590,7 +590,8 @@ fn runtime_native_executes_caller_shapes_padding_empty_axes_and_preflight_failur
         let program = scratch.0.join("program");
         success(
             &command(&scratch, "build")
-                .args(["--openblas-prefix", &prefix, "--native-cc", &cc, "-o"])
+                .args(&options)
+                .arg("-o")
                 .arg(&program)
                 .output()
                 .unwrap(),
@@ -638,7 +639,8 @@ fn runtime_native_executes_caller_shapes_padding_empty_axes_and_preflight_failur
         let program = scratch.0.join("invalid-runtime");
         success(
             &command(&scratch, "build")
-                .args(["--openblas-prefix", &prefix, "--native-cc", &cc, "-o"])
+                .args(&options)
+                .arg("-o")
                 .arg(&program)
                 .output()
                 .unwrap(),

@@ -298,17 +298,11 @@ fn owned_numerical_results_build_without_openblas() {
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn owned_numerical_results_build_execute_real_complex_transfers() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     let s = fixture(&owned_result_source(false));
     s.write("src/complex/mod.vast", &owned_result_source(true));
     let mut build = command(&s, "build");
-    build
-        .args(["-o", "program", "--openblas-prefix"])
-        .arg(prefix);
-    if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-        build.arg("--native-cc").arg(cc);
-    }
+    build.args(["-o", "program"]).args(&options);
     success(&build.output().unwrap());
     let output = Command::new(s.0.join("program")).output().unwrap();
     success(&output);
@@ -1019,8 +1013,7 @@ fn numerical_build_flags_are_explicit_and_failure_preserves_existing_output() {
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn numerical_coefficients_build_execute_computed_real_complex_scalars() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     for (real, complex) in [
         (coefficient_source(false), coefficient_source(true)),
         (
@@ -1035,12 +1028,7 @@ fn numerical_coefficients_build_execute_computed_real_complex_scalars() {
         let s = fixture(&real);
         s.write("src/complex/mod.vast", &complex);
         let mut build = command(&s, "build");
-        build
-            .args(["-o", "program", "--openblas-prefix"])
-            .arg(&prefix);
-        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let output = Command::new(s.0.join("program")).output().unwrap();
         success(&output);
@@ -1051,20 +1039,14 @@ fn numerical_coefficients_build_execute_computed_real_complex_scalars() {
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn numerical_inputs_build_execute_nested_real_complex_products() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     let s = fixture(&with_interfaces(REAL, "RealSmooth"));
     s.write(
         "src/complex/mod.vast",
         &with_interfaces(COMPLEX, "ComplexSmooth"),
     );
     let mut build = command(&s, "build");
-    build
-        .args(["-o", "program", "--openblas-prefix"])
-        .arg(prefix);
-    if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-        build.arg("--native-cc").arg(cc);
-    }
+    build.args(["-o", "program"]).args(&options);
     success(&build.output().unwrap());
     let output = Command::new(s.0.join("program")).output().unwrap();
     success(&output);
@@ -1074,8 +1056,7 @@ fn numerical_inputs_build_execute_nested_real_complex_products() {
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn public_real_complex_products_build_execute_and_keep_output_protection() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let prefix = common::openblas_prefix();
     let s = fixture(REAL);
     // Spaces and quotes in the dependency path exercise generated Lake data
     // escaping, not shell evaluation.
@@ -1088,10 +1069,8 @@ fn public_real_complex_products_build_execute_and_keep_output_protection() {
         let mut command = command(&s, "build");
         command
             .args(["-o", output, "--openblas-prefix"])
-            .arg(&linked);
-        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-            command.arg("--native-cc").arg(cc);
-        }
+            .arg(&linked)
+            .args(common::native_cc_options(None));
         command.output().unwrap()
     };
     success(&build("program"));
@@ -1501,8 +1480,7 @@ fn owned_transform_source() -> String {
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn typed_linear_transforms_build_execute_real_complex_and_rectangular_calls() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     let mut sources = vec![TRANSFORMS.to_owned(), real_transforms()];
     sources.push(owned_transform_source());
     for complex in [false, true] {
@@ -1513,12 +1491,7 @@ fn typed_linear_transforms_build_execute_real_complex_and_rectangular_calls() {
     for source in sources {
         let s = transform_fixture(&source);
         let mut build = command(&s, "build");
-        build
-            .args(["-o", "program", "--openblas-prefix"])
-            .arg(&prefix);
-        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let result = Command::new(s.0.join("program")).output().unwrap();
         success(&result);
@@ -1735,8 +1708,7 @@ fn finite_network_wire_is_independently_checked_and_fails_closed() {
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn finite_network_build_execute_rectangular_complex_reuse_and_calls() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     let nested = |source: &str, profile: &str| {
         with_interfaces(source, profile)
         .replace("gemm(left, right, destination, overwrite, NativeFast);", "contract(destination, NativeFast) { occurrence a = left; occurrence b = right; edge(a.input, b.output); input(b.input); output(a.output); }")
@@ -1757,12 +1729,7 @@ fn finite_network_build_execute_rectangular_complex_reuse_and_calls() {
         s.write("src/complex/mod.vast", &complex);
         success(&command(&s, "check").output().unwrap());
         let mut build = command(&s, "build");
-        build
-            .args(["-o", "program", "--openblas-prefix"])
-            .arg(&prefix);
-        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let output = Command::new(s.0.join("program")).output().unwrap();
         success(&output);
@@ -2086,8 +2053,7 @@ fn vector_evaluation_unused_helpers_need_no_blas_but_remain_checked() {
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn vector_evaluation_builds_executes_real_complex_empty_and_transposed() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     let mut sources = evaluation_extra_sources().to_vec();
     for complex in [false, true] {
         for dimension in [0, 1, 3] {
@@ -2099,12 +2065,7 @@ fn vector_evaluation_builds_executes_real_complex_empty_and_transposed() {
     for source in sources {
         let s = evaluation_fixture(&source);
         let mut build = command(&s, "build");
-        build
-            .args(["-o", "program", "--openblas-prefix"])
-            .arg(&prefix);
-        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let result = Command::new(s.0.join("program")).output().unwrap();
         success(&result);
@@ -2614,8 +2575,7 @@ fn vector_cell_wire_rejects_vectors_that_the_checker_refuses() {
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
-    let prefix =
-        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let options = common::numerical_build_options(None);
     let source = |complex: bool| {
         let (source, scalar, zero, one, result) = if complex {
             (
@@ -2656,12 +2616,7 @@ fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
     assert_eq!(generated.matches("allocate arena").count(), 6);
     assert!(!generated.contains("copy arena"));
     let mut build = command(&s, "build");
-    build
-        .args(["-o", "program", "--openblas-prefix"])
-        .arg(prefix);
-    if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
-        build.arg("--native-cc").arg(cc);
-    }
+    build.args(["-o", "program"]).args(&options);
     success(&build.output().unwrap());
     let output = Command::new(s.0.join("program")).output().unwrap();
     success(&output);

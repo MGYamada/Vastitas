@@ -2,10 +2,10 @@ import VastitasKernel.FrameRuntime
 
 set_option autoImplicit false
 
-/-! Lengths of the matrix operations of the exact frame runtime (Stage 4, #759).
-`FrameRuntime` and `FramePrimitives` both read them, and neither imports the
-other. They are in the namespace `VastitasOracle.FrameRuntime`, whose matrix
-algebra uses them. -/
+/-! Lengths of `SmoothRuntime.matVec` and of the frame runtime's `matrixAt`,
+`transposeVec` and `matrixProduct` (Stage 4, #759). `FrameRuntime` and
+`FramePrimitives` both read them, and neither imports the other. They are in
+the namespace `VastitasOracle.FrameRuntime`, whose matrix algebra uses them. -/
 namespace VastitasOracle.FrameRuntime
 
 open VastitasKernel VastitasKernel.AlgebraRuntime VastitasKernel.SmoothRuntime

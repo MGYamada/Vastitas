@@ -6,10 +6,9 @@ mod diagnostics;
 mod lean;
 mod process;
 mod wire;
-pub use diagnostics::*;
-pub use lean::*;
-pub use process::*;
-pub use wire::*;
+// A binary that uses no item of a module would otherwise warn of its re-export.
+#[allow(unused_imports)]
+pub use {diagnostics::*, lean::*, process::*, wire::*};
 
 /// The driver's own list of the files that a native build verifies in the
 /// selected kernel root.

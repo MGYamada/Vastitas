@@ -120,7 +120,11 @@ pub fn kernel(request: impl std::borrow::Borrow<Value>, mode: &str) -> Value {
             String::from_utf8_lossy(&output.stderr)
         )
     });
-    assert_eq!(output.status.success(), response["ok"] == true, "{response}");
+    assert_eq!(
+        output.status.success(),
+        response["ok"] == true,
+        "{response}"
+    );
     response
 }
 /// Runs the built kernel in `mode` on the bytes `input`, as a tampered or

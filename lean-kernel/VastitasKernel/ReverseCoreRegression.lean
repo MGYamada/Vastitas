@@ -1,6 +1,7 @@
 import VastitasKernel.CotangentRegression
 import VastitasKernel.IndexedReverse
 import VastitasKernel.IndexedCodegen
+import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
 
@@ -16,8 +17,7 @@ namespace VastitasKernel.Indexed.Core.ReverseCoreRegression
 private def pkg : Namespace.PackageId := ⟨"/cotangent/Vastitas.toml", "cotangent", "0.1.0"⟩
 private def id (name : String) : DeclId := ⟨⟨pkg, []⟩, name⟩
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"reverse Core regression failed: {label}")
+private def check := RegressionSupport.check "reverse Core regression failed"
 
 private def int : Result := ⟨.pure .int, none⟩
 private def run (module : Module) (term : Term) : Option Semantics.Value :=

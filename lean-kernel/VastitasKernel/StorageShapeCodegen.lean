@@ -1,4 +1,5 @@
 import VastitasKernel.StorageShapeFlow
+import VastitasKernel.StorageNativeText
 
 /-! Direct arithmetic guards and native calls for the checked symbolic frame.
 No symbolic frame, name table, initialization history or compiler checker is
@@ -12,22 +13,18 @@ structure Context where
   deriving Repr, Inhabited
 
 private def reject (message : String) : Except Error α := .error {code := "E_RUNTIME_CODEGEN", message := message}
-private def scalar : Scalar → Nat | .f64 => 0 | .complexF64 => 1
 private def extent : Extent → String
   | .literal value => toString value
   | .slot name => s!"runtimeExtent_{name}"
 private def layout (view : Layout) : String :=
   s!"0 {extent view.rows} {extent view.columns} {extent view.leading} {view.transposed}"
-private def literal : Literal → String
-  | .f64 bits => s!"0 {bits.toNat} 0"
-  | .complexF64 real imaginary => s!"1 {real.toNat} {imaginary.toNat}"
 private def coefficient : Option Coefficient → Except Error String
-  | none => pure "0 0 0 0 0 0"
-  | some (.literal value) => pure s!"1 {literal value} 0 0"
+  | none => pure (NativeText.coefficient .default)
+  | some (.literal value) => pure (NativeText.coefficient (.literal value))
   | some (.loan _) => reject "runtime coefficient loan is unsupported"
 
 def narrow (context : Context) (references : List Symbol) (indent : Nat) : Except Error (Context × String) := do
-  let spaces := String.ofList (List.replicate indent ' ')
+  let spaces := NativeText.indentation indent
   let mut after := context
   let mut text := ""
   for name in references do
@@ -48,7 +45,7 @@ def renderGuard (condition : Guard) (indent : Nat) : Except Error String := do
   if condition.references.isEmpty then
     if condition.closedValid then return ""
     else reject "false literal runtime guard reached native lowering"
-  let spaces := String.ofList (List.replicate indent ' ')
+  let spaces := NativeText.indentation indent
   let expression ← match condition with
     | .bound size maximum =>
       unless extentFits size && maximum < 2^64 do reject "guard constant exceeds native representation"
@@ -60,7 +57,7 @@ def renderGuard (condition : Guard) (indent : Nat) : Except Error String := do
     | .layout type elements shape =>
       unless [elements, shape.rows, shape.columns, shape.leading].all extentFits do
         reject "layout constant exceeds native representation"
-      pure s!"runtimeLayoutValid {scalar type} {extent elements} {extent shape.rows} {extent shape.columns} {extent shape.leading}"
+      pure s!"runtimeLayoutValid {NativeText.scalar type} {extent elements} {extent shape.rows} {extent shape.columns} {extent shape.leading}"
     | .cell shape row column =>
       unless row < 2^64 && column < 2^64 &&
           [shape.rows, shape.columns, shape.leading].all extentFits do
@@ -70,11 +67,11 @@ def renderGuard (condition : Guard) (indent : Nat) : Except Error String := do
     "  throw (IO.userError \"E_RUNTIME_GUARD: extent, layout or shape preflight failed\")\n"
 
 def renderAction (before : Frame) (operation : Action) (indent : Nat) : Except Error String := do
-  let spaces := String.ofList (List.replicate indent ' ')
+  let spaces := NativeText.indentation indent
   let text ← match operation with
     | .allocate _ type elements _ =>
       unless before.nextAllocation < 4096 && extentFits elements do reject "runtime allocation narrowing failed"
-      pure s!"allocate shapeArena {before.nextAllocation} {scalar type} {extent elements}"
+      pure s!"allocate shapeArena {before.nextAllocation} {NativeText.scalar type} {extent elements}"
     | .drop name =>
       let allocation ← owner before name
       unless allocation.identity < 4096 do reject "runtime allocation identity exceeds native range"
@@ -82,20 +79,22 @@ def renderAction (before : Frame) (operation : Action) (indent : Nat) : Except E
     | .fill name value =>
       let (_, allocation) ← usable before name true
       unless allocation.identity < 4096 do reject "runtime allocation identity exceeds native range"
-      pure s!"fill shapeArena {allocation.identity} {layout allocation.layout} {literal value}"
+      pure s!"fill shapeArena {allocation.identity} {layout allocation.layout} {NativeText.literal value}"
     | .expect name row column value =>
       let (_, allocation) ← usable before name false
       unless allocation.identity < 4096 do reject "runtime allocation identity exceeds native range"
-      pure s!"expect shapeArena {allocation.identity} {layout allocation.layout} {row} {column} {literal value}"
+      pure s!"expect shapeArena {allocation.identity} {layout allocation.layout} {row} {column} {NativeText.literal value}"
     | .gemm request =>
       let (_, a) ← usable before request.left false
       let (_, b) ← usable before request.right false
       let (_, c) ← usable before request.output true
       unless [a.identity, b.identity, c.identity].all (· < 4096) do reject "runtime allocation identity exceeds native range"
-      let mode := match request.mode with | .overwrite => 0 | .accumulate => 1
-      let operands := s!"shapeArena {a.identity} {layout a.layout} {request.conjugateLeft} {b.identity} {layout b.layout} {request.conjugateRight} {c.identity} {layout c.layout} {mode}"
-      if request.alpha.isNone && request.beta.isNone then pure s!"VastitasGemmNative.gemm {operands}"
-      else return spaces ++ s!"VastitasGemmNative.gemmScaled {operands} {← coefficient request.alpha} {← coefficient request.beta}\n"
+      let operands := s!"shapeArena {a.identity} {layout a.layout} {request.conjugateLeft} {b.identity} {layout b.layout} {request.conjugateRight} {c.identity} {layout c.layout} {NativeText.gemmMode request.mode}"
+      if request.alpha.isNone && request.beta.isNone then pure (NativeText.gemmCall operands none)
+      else
+        let alpha ← coefficient request.alpha
+        let beta ← coefficient request.beta
+        pure (NativeText.gemmCall operands (some (alpha, beta)))
     | .move .. | .borrow .. | .release .. => pure ""
   return if text.isEmpty then "" else spaces ++ text ++ "\n"
 

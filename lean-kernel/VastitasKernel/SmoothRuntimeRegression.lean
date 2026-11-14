@@ -1,4 +1,5 @@
 import VastitasKernel.SmoothDeclarations
+import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
 
@@ -9,8 +10,7 @@ namespace VastitasKernel.SmoothRuntimeRegression
 
 open VastitasKernel.AlgebraRuntime VastitasKernel.SmoothRuntime VastitasKernel.SmoothDeclarations
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"smooth runtime regression failed: {label}")
+private def check := RegressionSupport.check "smooth runtime regression failed"
 
 private def v (arity index : Nat) : Poly := Poly.var arity index
 

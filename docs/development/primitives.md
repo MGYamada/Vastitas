@@ -114,10 +114,9 @@ them misses an `op` of the table.
 | `FAMILIES` | `src/primitive_table.rs` | `op`, `algebraic`, `fields`, generated from `families` |
 | `primitive_family`, `Primitive::new` and `DeclarationBody::is_algebraic` | `src/indexed.rs` | `FAMILIES`: the frontend record admits only the family's fields, in wire order, and serializes them in that order |
 
-`algebraicOperations` in `IndexedDeclarationProtocol.lean` lists the `op`
-of every algebraic family. Nothing in the decoder reads it;
-`IndexedDescriptorRegression` checks that it does not hold the `op` of
-[the demonstration](#the-demonstration).
+`IndexedDescriptorRegression` derives from `families` the list of the `op`
+of every algebraic family, and checks that the list does not hold the `op`
+of [the demonstration](#the-demonstration). The decoder reads no such list.
 
 `scripts/check_primitive_table.py` builds `IndexedPrimitiveFamilies`, runs
 `scripts/primitive_table.lean` and renders `src/primitive_table.rs` from its

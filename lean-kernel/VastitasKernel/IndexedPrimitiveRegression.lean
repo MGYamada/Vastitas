@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedPrimitives
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.PrimitiveRegression
 private def id (name : String) : DeclId := ⟨⟨⟨"/primitives", "primitives", "1"⟩, []⟩, name⟩
@@ -32,8 +33,7 @@ private def audit (binding : PrimitiveBinding) (args : List ValueType) (result :
   match checkEnvironment env with
   | .error _ => false
   | .ok checked => (checkPrimitive checked binding [x, y, z, test] 10 args result).isOk
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed primitive regression failed: {name}")
+private def check := RegressionSupport.check "indexed primitive regression failed"
 
 #eval check "finite environment" (validEnvironment env)
 #eval check "descriptor constructor" (accept (.descriptor (id "Grid")) [.natural])

@@ -1,5 +1,6 @@
 import VastitasKernel.SmoothDeclarations
 import Lean.Data.Json
+import VastitasKernel.RegressionSupport
 
 /-! Cross-check the kernel's exact smooth runtime (`SmoothRuntime`) and metric
 evidence (`SmoothDeclarations`) against the independent Python reference
@@ -14,8 +15,7 @@ namespace VastitasAlgebraTest.SmoothReferenceRegression
 
 open VastitasKernel VastitasKernel.AlgebraRuntime Lean
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"smooth reference regression failed: {label}")
+private def check := RegressionSupport.check "smooth reference regression failed"
 
 private def rational (text : String) : Except String Rat :=
   match text.splitOn "/" with

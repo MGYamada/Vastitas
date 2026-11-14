@@ -1,5 +1,6 @@
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.IndexedSemantics
+import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
 
@@ -19,8 +20,7 @@ open VastitasKernel VastitasKernel.Indexed.Core
 private def json : Lean.Json :=
   (Lean.Json.parse (include_str "../../tests/fixtures/reverse-example.wire.json")).toOption.getD .null
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"reverse example regression failed: {label}")
+private def check := RegressionSupport.check "reverse example regression failed"
 
 /-- The value of `main` in a module. -/
 private def mainValue (module : Module) : Option Semantics.Value := do

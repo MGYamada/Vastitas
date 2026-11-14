@@ -19,8 +19,7 @@ def decode (json : Lean.Json) : Except String Input := do
     return .package (← decodeNamespaceProgram json)
   return .flat (← decodeSurfaceModule json)
 
-private def problem (span : Span) (code message : String) : Except Diagnostic α :=
-  .error { code, message, span }
+open Namespace (problem)
 
 private def path (flat : Bool) (name : String) (span : Span) : Except Diagnostic Source.Path := do
   let parts := name.splitOn "::"

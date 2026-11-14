@@ -389,11 +389,6 @@ def lowerBlockResult (ctx : Context) (statements : List RawStmt) (result : Lower
   if let some info := result.known then checkEscape ctx ⟨.var 0 info⟩ span
   return { result with raw := .block (.mk statements result.raw span) span }
 
-def loweredBlock (value : LoweredExpr) (span : Span) : RawBlock :=
-  match value.raw with
-  | .block body _ => body
-  | raw => .mk [] raw span
-
 /-- Private names never become the user-facing cycle's method names. -/
 def describeDiagnostic (program : RawProgram) (diagnostic : Diagnostic) : Diagnostic := Id.run do
   let render (token : String) : String := Id.run do

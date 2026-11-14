@@ -30,10 +30,6 @@ def Space.object (space : Space) : ObjectRef := .local space.type space.brand
 def Space.scalar (space : Space) : Scalar :=
   match space.coefficient with | .real => .f64 | .complex => .complexF64
 
-/-- Complex smooth dimension is over C; the underlying real dimension is 2n. -/
-def Space.realDimension (space : Space) : Nat :=
-  if space.coefficient == .complex then 2 * space.dimension else space.dimension
-
 def Space.Valid (env : Environment) (space : Space) : Prop :=
   lookup env space.type.domain = some (.implementation space.type.marker
     (.linearDescriptor space.base space.coefficient) []) ∧

@@ -1,5 +1,14 @@
 import VastitasStorageTest.NumericalFixture
 
+namespace VastitasKernel.Storage.Numerical
+
+/-- Complex smooth dimension is over C; the underlying real dimension is 2n.
+Only this suite reads it. -/
+def Space.realDimension (space : Space) : Nat :=
+  if space.coefficient == .complex then 2 * space.dimension else space.dimension
+
+end VastitasKernel.Storage.Numerical
+
 namespace VastitasKernel.Storage.NumericalRegression
 open Indexed
 

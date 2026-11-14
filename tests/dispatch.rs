@@ -106,7 +106,7 @@ fn main() -> Int {
     let checked: Point<Z, Base(QQ)> = keep_ordinary(Z, r);
     unpack make_smooth(4) as { scheme: Y, point: s };
     let t: Point<Y, Base(CInfReal)> = keep_smooth(Y, s);
-    scalar_dimension(dimension(Z)) + scalar_dimension(dimension(Y)) + 35
+    scalar_dimension(dim(Z)) + scalar_dimension(dim(Y)) + 35
 }",
         &[],
         "42",

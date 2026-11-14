@@ -1,0 +1,6 @@
+// The physical interpretations of std objects (ADR 0002). The package owns no
+// mathematics: every value and law that it uses is that of a std object.
+// Each library of nature is a package of its own under src/, which the root
+// module re-exports under its public name, as stdlib's root re-exports
+// std::geometry and std::differential.
+pub use dimension_library as dimension;

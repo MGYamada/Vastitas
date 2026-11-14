@@ -68,8 +68,8 @@ Rules:
 - A module of the current module may take the name of a
   [geometric operation](geometric-types.md#operations), as
   [Reserved names](lexical-structure.md#reserved-names) says. The module does
-  not hide the operation. In a call, the bare name, as in `dimension(X)`, is
-  the operation, and a path through the module, as in `dimension::length()`,
+  not hide the operation. In a call, the bare name, as in `dim(X)`, is
+  the operation, and a path through the module, as in `dim::length()`,
   names an item of the module.
 - The order of declarations and `use` declarations does not change how a name
   resolves.

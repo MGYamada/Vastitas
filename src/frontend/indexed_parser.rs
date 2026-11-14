@@ -326,10 +326,10 @@ impl Parser {
     /// arm for an op outside the table.
     fn indexed_primitive(&mut self) -> Result<Primitive, Diagnostic> {
         let span = self.peek().span;
-        let op = self.indexed_tag()?;
+        let tag = self.indexed_tag()?;
         self.expect("(")?;
         let unknown = || diagnostic("E_TYPE", "unknown indexed primitive contract", span);
-        let Some(family) = indexed::primitive_family(&op) else {
+        let Some(family) = surface_op(&tag).and_then(indexed::primitive_family) else {
             return Err(unknown());
         };
         let fields = match family.op {
@@ -482,7 +482,8 @@ impl Parser {
                     let token = parser.peek().clone();
                     match parser.indexed_tag()?.as_str() {
                         "origin" => Ok(indexed::Capability::Origin),
-                        "dimension" => Ok(indexed::Capability::Dimension),
+                        // The wire token stays `dimension` (#778).
+                        "dim" => Ok(indexed::Capability::Dimension),
                         _ => Err(diagnostic(
                             "E_TYPE",
                             "unsupported implementation capability",
@@ -1377,6 +1378,17 @@ impl Parser {
 /// coordinate, sum, product, negation and power is a node. The recursion is
 /// bounded, because `poly_nesting` admits at most four nodes for each level of
 /// parentheses and one for each prefix `-`.
+/// The wire op of the primitive contract that the source spells `tag`, or
+/// `None` for no op. The source spells the op `dimension` as `dim`, as the
+/// operation (#778); `dimension` is no tag. Every other tag is its op.
+fn surface_op(tag: &str) -> Option<&str> {
+    match tag {
+        "dim" => Some("dimension"),
+        "dimension" => None,
+        _ => Some(tag),
+    }
+}
+
 fn poly_levels(expression: &indexed::PolyExpr) -> usize {
     use indexed::PolyExpr::{Coordinate, Fraction, Natural, Neg, Pow, Product, Sum};
     1 + match expression {
@@ -1399,7 +1411,7 @@ mod tests {
         ("global", "global(SpecQQ)"),
         ("origin", "origin((Scheme, QQ), Point, Base)"),
         ("identity", "identity((Scheme, QQ), Morphism)"),
-        ("dimension", "dimension((Scheme, QQ))"),
+        ("dimension", "dim((Scheme, QQ))"),
         ("compose", "compose(Morphism)"),
         ("apply", "apply(Morphism, Point)"),
         ("relative_compose", "relative_compose(Over)"),
@@ -1913,6 +1925,35 @@ mod tests {
             .expect_err("`gradient` is not a primitive");
         assert_eq!(error.code, "E_TYPE");
         assert_eq!(error.message, "unknown indexed primitive contract");
+    }
+
+    /// The source spells the op and the capability `dimension` as `dim`
+    /// (#778); the wire keeps `dimension`, and the source `dimension` is
+    /// neither a contract nor a capability.
+    #[test]
+    fn the_dimension_contract_and_capability_are_spelled_dim() {
+        let binding = parse_binding("indexed primitive size = dim((Scheme, QQ));").unwrap();
+        assert_eq!(binding.op(), "dimension");
+        let error = parse_binding("indexed primitive size = dimension((Scheme, QQ));")
+            .expect_err("`dimension` is no contract");
+        assert_eq!(
+            (error.code.as_str(), error.message.as_str()),
+            ("E_TYPE", "unknown indexed primitive contract")
+        );
+        let declaration = parse_declaration(
+            "indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dim);",
+        )
+        .unwrap();
+        let wire = serde_json::to_value(&declaration).unwrap();
+        assert_eq!(wire["capabilities"], json!(["origin", "dimension"]));
+        let source =
+            "indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);";
+        let error = parse_declaration(source).expect_err("`dimension` is no capability");
+        assert_eq!(
+            (error.code.as_str(), error.message.as_str()),
+            ("E_TYPE", "unsupported implementation capability")
+        );
+        assert_eq!(&source[error.span.start..error.span.end], "dimension");
     }
 
     use serde_json::{Value, json};

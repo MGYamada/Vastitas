@@ -322,7 +322,7 @@ fn main() -> Int {
 fn native_nested_independent_lambdas_and_geometry_inside_bodies() {
     native("fn main() -> Int {
  let factory = fn(ignored: Int) -> Fn<Nat, Int> {
-   fn(n: Nat) -> Int { let X = Affine(QQ, n); let p = origin(X); let q = apply(id(X), p); int(dimension(X)) }
+   fn(n: Nat) -> Int { let X = Affine(QQ, n); let p = origin(X); let q = apply(id(X), p); int(dim(X)) }
  };
  factory(0)(42)
 }", &[], "42");

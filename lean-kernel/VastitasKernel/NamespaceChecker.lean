@@ -16,10 +16,11 @@ def sourceName (name : String) (span : Span) : Result Unit := do
     problem span "E_RESERVED" s!"'{name}' is reserved for modules"
 
 /-- The seven geometric operations. A module may take one of these names, as
-`nature::dimension`; every other declaration and binding, including the name
-that a `use` binds, keeps the ordinary reserved-name check. -/
+in `mod dim;`; every other declaration and binding, including the name that a
+`use` binds, keeps the ordinary reserved-name check. `dimension` is none of
+them: it is an ordinary name, as in `nature::dimension` (#778). -/
 def geometricOperation (name : String) : Bool :=
-  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension"].contains name
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dim"].contains name
 
 /-- Contextual module spellings only: `generic` and the seven geometric
 operations. Functions, generics, imports and bindings retain the ordinary
@@ -34,7 +35,7 @@ representation, or operation. Scalar/Fn/Pair and language keywords remain
 reserved. Public protocols 2–6 cannot create this kind. -/
 def indexedSpelling (name : String) : Bool :=
   ["Scheme", "CInfScheme", "Point", "Morphism", "Pointed", "QQ", "CInfReal",
-    "Affine", "Base", "origin", "id", "compose", "apply", "dimension"].contains name
+    "Affine", "Base", "origin", "id", "compose", "apply", "dim"].contains name
 
 def declarationName (kind : Kind) (name : String) (span : Span) : Result Unit :=
   if kind == .module then moduleName name span

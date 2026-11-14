@@ -264,7 +264,7 @@ fn smooth_maps_resolve_source_coordinates_and_reject_variance_errors() {
             "E_TYPE",
         ),
         (
-            "indexed implementation Caps(profile::CInfReal, smooth_affine) capabilities(dimension);",
+            "indexed implementation Caps(profile::CInfReal, smooth_affine) capabilities(dim);",
             "E_TYPE",
         ),
     ] {
@@ -463,7 +463,7 @@ indexed primitive same = smooth_equal(Smooth);
 fn main() -> Int {
     let X: Scheme = Affine(QQ, 20);
     let Y: CInfScheme = Affine(CInfReal, 22);
-    if same(sq(), sq()) { int(dimension(X)) + int(dimension(Y)) } else { 0 }
+    if same(sq(), sq()) { int(dim(X)) + int(dim(Y)) } else { 0 }
 }
 ",
     );

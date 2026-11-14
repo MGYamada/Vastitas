@@ -638,6 +638,55 @@ fn builtin_names_and_missing_library_conversion_are_explained() {
     .unwrap();
 }
 
+/// #778: the operation is `dim`, reserved like the other six; `dimension`
+/// is an ordinary name, and a call of it that names nothing explains both.
+#[test]
+fn dim_is_the_operation_and_dimension_an_ordinary_name() {
+    parse(
+        "fn main() -> Int { let X = Affine(QQ, 2); int(dim(X)) }",
+        "dim.vast",
+    )
+    .unwrap();
+    for source in [
+        "fn dim() -> Int { 0 }",
+        "fn main() -> Int { let dim: Int = 0; 0 }",
+        "fn f(dim: Int) -> Int { dim }",
+    ] {
+        let error = parse(source, "dim.vast").unwrap_err().remove(0);
+        assert_eq!(error.code, "E_RESERVED", "{source}");
+        assert!(
+            error
+                .message
+                .contains("`dim` is reserved for builtin geometry operations")
+        );
+    }
+    parse(
+        "fn dimension(n: Nat) -> Nat { n } fn main() -> Int { int(dimension(2)) }",
+        "dimension.vast",
+    )
+    .unwrap();
+    parse(
+        "fn f(dimension: Int) -> Int { dimension } fn main() -> Int { f(1) }",
+        "dimension.vast",
+    )
+    .unwrap();
+    let error = parse(
+        "fn main() -> Int { let X = Affine(QQ, 2); int(dimension(X)) }",
+        "dimension.vast",
+    )
+    .unwrap_err()
+    .remove(0);
+    assert_eq!(error.code, "E_NAME");
+    assert!(
+        error.message.starts_with("unknown function `dimension`")
+            && error.message.contains(
+                "note: the dimension of a vector or affine space is `dim(…)`, and physical dimensions are `nature::dimension`"
+            ),
+        "{}",
+        error.message
+    );
+}
+
 #[test]
 fn indexed_type_closers_can_touch_assignment() {
     let source = "fn f(X: Object<D,M>) -> Int {

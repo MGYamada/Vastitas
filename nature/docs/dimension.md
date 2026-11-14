@@ -1,8 +1,10 @@
 # `nature::dimension`
 
 - Module: `nature::dimension`
-- Package: `vastitas_nature`, the package of
-  [`nature/Vastitas.toml`](../Vastitas.toml), which depends on `std`
+- Package: `vastitas_dimension`, the package of
+  [`nature/src/dimension/Vastitas.toml`](../src/dimension/Vastitas.toml),
+  which depends on `std`. The root of `vastitas_nature` re-exports it as
+  `nature::dimension`.
 - Source: [`nature/src/dimension/mod.vast`](../src/dimension/mod.vast)
 
 The module declares the physical dimensions of the coordinates of the smooth
@@ -71,8 +73,8 @@ declarations of `nature`.
   [physical interpretations](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-dimensions.md#physical-interpretations)
   and [the scope](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-dimensions.md#scope-of-physical-dimensions).
 - [The library nature::dimension](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-dimensions.md#the-library-naturedimension):
-  how a program imports the module, and why a plain `use nature::dimension;`
-  is an error.
+  how a program imports the module, and why `dim`, the dimension of a space,
+  is no alias of it.
 - The specification [nature::dimension](https://github.com/MGYamada/Vastitas/blob/main/docs/spec/nature-dimension.md):
   consistency of an accepted interpretation, the rejected Euclidean metric of
   a length and a time, kinds that are not dimensions, and the independence of

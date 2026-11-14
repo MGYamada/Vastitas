@@ -100,44 +100,71 @@ private def ownerModule : Module := { mod [] with generics := [generic], methods
 -- A module may take the name of a geometric operation; every other
 -- declaration and the name that a `use` binds may not.
 #eval check "geometric operation module paths" (
-  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension"].all fun name =>
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dim"].all fun name =>
     (checkNamespaceProgram (replaceRoot
       (mod [] [fn "main" (.call (name ++ "::value") [] {})])
       [mod [name] [fn "value" (.integer "42" {})]])).isOk)
-#eval check "dimension remains a reserved function name" (rejects "E_RESERVED" (replaceRoot
-  (mod [] [fn "dimension" (.integer "0" {})])))
+#eval check "dim remains a reserved function name" (rejects "E_RESERVED" (replaceRoot
+  (mod [] [fn "dim" (.integer "0" {})])))
 #eval check "a use cannot bind a geometric operation to a module" (rejects "E_RESERVED" (replaceRoot
-  { mod [] [fn "main" (.call "dimension::value" [] {})] with
-    imports := [⟨["units", "dimension"], "dimension", false, {}⟩] }
-  [mod ["units"], mod ["units", "dimension"] [fn "value" (.integer "42" {})]]))
+  { mod [] [fn "main" (.call "dim::value" [] {})] with
+    imports := [⟨["units", "dim"], "dim", false, {}⟩] }
+  [mod ["units"], mod ["units", "dim"] [fn "value" (.integer "42" {})]]))
 #eval check "other reserved names are no module names" (
   ["int", "Nat", "QQ", "Point", "self"].all fun name =>
     rejects "E_RESERVED" (replaceRoot (mod []) [mod [name] [fn "value" (.integer "42" {})]]))
 
+-- #778: `dimension` is an ordinary name: a function, a module, and the name
+-- that a `use` binds, with or without `as`, to a module or a function.
+#eval check "dimension is an ordinary function name" ((checkNamespaceProgram (replaceRoot
+  (mod [] [fn "dimension" (.integer "0" {}), fn "main" (.call "dimension" [] {})]))).isOk)
+#eval check "dimension is an ordinary module name and use alias" ((checkNamespaceProgram (replaceRoot
+  { mod [] [fn "main" (.call "dimension::value" [] {})] with
+    imports := [⟨["units", "dimension"], "dimension", false, {}⟩] }
+  [mod ["units"], mod ["units", "dimension"] [fn "value" (.integer "42" {})]])).isOk &&
+  (checkNamespaceProgram (replaceRoot
+  { mod [] [fn "main" (.call "dimension" [] {})] with
+    imports := [⟨["units", "value"], "dimension", false, {}⟩] }
+  [mod ["units"] [fn "value" (.integer "42" {})]])).isOk)
+#eval check "dimension is an ordinary dependency alias, and dim is reserved" (
+  let aliased (alias : String) : Program :=
+    { program with packages := [{ program.packages[0]! with
+        modules := [mod [] [fn "main" (.call (alias ++ "::value") [] {})]],
+        dependencies := [⟨alias, dependency.source⟩] }, program.packages[1]!] }
+  (checkNamespaceProgram (aliased "dimension")).isOk && rejects "E_RESERVED" (aliased "dim"))
+
 -- #759: an indexed spelling is the name that a `use` binds only for a `use`
 -- without `as` of an indexed declaration, whose alias is the last segment of
--- its path. A request with `use other::dimension as origin` is refused,
--- although `dimension` is an indexed declaration.
-/-- The namespace of `program` with an indexed declaration `dimension` in the
+-- its path. A request with `use other::dim as origin` is refused,
+-- although `dim` is an indexed declaration.
+/-- The namespace of `program` with an indexed declaration `dim` in the
 root module of the dependency `other`, `imports` in the root module of the
 application, and the modules `extra`. -/
 private def withIndexed (imports : List Import) (extra : List Module := []) : Indexed :=
   let base := (replaceRoot { mod [] [fn "main" (.integer "0" {})] with imports } extra).indexed
-  let declarations := base.declarations ++ [⟨⟨⟨dependency, []⟩, "dimension"⟩, .indexedDeclaration, true⟩]
+  let declarations := base.declarations ++ [⟨⟨⟨dependency, []⟩, "dim"⟩, .indexedDeclaration, true⟩]
   { base with declarations, byOwner := ownerIndex declarations, byScope := scopeIndex declarations }
 private def validated (p : Indexed) : Option String :=
   match validate p with
   | .ok () => none
   | .error diagnostic => some diagnostic.code
 #eval check "a use without as binds an indexed spelling to an indexed declaration" (
-  validated (withIndexed [⟨["other", "dimension"], "dimension", false, {}⟩]) == none &&
-    validated (withIndexed [⟨["other", "dimension"], "measure", false, {}⟩]) == none)
+  validated (withIndexed [⟨["other", "dim"], "dim", false, {}⟩]) == none &&
+    validated (withIndexed [⟨["other", "dim"], "measure", false, {}⟩]) == none &&
+    validated (withIndexed [⟨["other", "dim"], "dimension", false, {}⟩]) == none)
 #eval check "a use with as binds no indexed spelling, also to an indexed declaration" (
   ["origin", "compose", "id", "Base", "Point", "QQ", "apply", "Affine", "Scheme", "CInfReal"].all fun alias =>
-    validated (withIndexed [⟨["other", "dimension"], alias, false, {}⟩]) == some "E_RESERVED")
+    validated (withIndexed [⟨["other", "dim"], alias, false, {}⟩]) == some "E_RESERVED")
+#eval check "a use with as cannot bind dim, to a function or a module" (
+  rejects "E_RESERVED" (replaceRoot
+    { mod [] [fn "main" (.integer "0" {})] with imports := [⟨["units", "value"], "dim", false, {}⟩] }
+    [mod ["units"] [fn "value" (.integer "42" {})]]) &&
+  rejects "E_RESERVED" (replaceRoot
+    { mod [] [fn "main" (.integer "0" {})] with imports := [⟨["units"], "dim", false, {}⟩] }
+    [mod ["units"] [fn "value" (.integer "42" {})]]))
 #eval check "a use without as binds no indexed spelling to a module, with indexed declarations" (
-  validated (withIndexed [⟨["units", "dimension"], "dimension", false, {}⟩]
-    [mod ["units"], mod ["units", "dimension"] [fn "value" (.integer "42" {})]]) == some "E_RESERVED")
+  validated (withIndexed [⟨["units", "dim"], "dim", false, {}⟩]
+    [mod ["units"], mod ["units", "dim"] [fn "value" (.integer "42" {})]]) == some "E_RESERVED")
 
 -- #747: an error of the names of a module is at the later of the two
 -- bindings in the source, with a note at the earlier one, and not at the

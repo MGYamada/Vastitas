@@ -1,7 +1,7 @@
 // Rejected by the kernel: `relative_pair` reports the family before the index pattern: a
 // two-index Morphism in its three-index second map slot (`families := .early`).
 indexed marker QQ;
-indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dim);
 indexed classification Scheme { parents(); domain(Grid); };
 indexed global Base(Grid);
 indexed family Morphism(object(Scheme), object(Scheme)) = morphism constraints(same_base(0, 1));

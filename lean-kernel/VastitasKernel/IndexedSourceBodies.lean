@@ -203,7 +203,7 @@ def legacyPackage (input : Input) (witness : Core.Term) (span : Span) : M Applic
   return profile.package (← geometryOf input profile witness span)
 
 def legacyOperation (path : List String) : Bool :=
-  [["Affine"], ["Base"], ["origin"], ["id"], ["dimension"], ["compose"], ["apply"]].contains path
+  [["Affine"], ["Base"], ["origin"], ["id"], ["dim"], ["compose"], ["apply"]].contains path
 
 /-- Decided from the structured name tables, never from a diagnostic code. A
 module may take the name of a geometric operation; it does not hide the
@@ -232,6 +232,13 @@ theorem legacyFallback_uncallable (input : Input) (scope : Namespace.Scope) (pat
     · exact Namespace.resolve_childModule _ _ _ _ child target resolved
   · cases fallback
 
+/-- Presentation only: the note of `Checker.Internal.retiredDimension` on a
+call of the single-segment path `dimension` that names nothing (#778). -/
+def retiredCall (path : Path) : Diagnostic → Diagnostic :=
+  match path.path with
+  | [name] => Checker.Internal.retiredDimension name path.span
+  | _ => id
+
 def legacyMarker (name : String) (span : Span) : M BaseKind :=
   match name with
   | "QQ" => pure .qq | "CInfReal" => pure .cinfReal
@@ -247,7 +254,7 @@ def emitLegacy (input : Input) (ctx : TypeContext) (name : String) (base : Optio
     | "apply", none, [_, _] => pure profile.apply
     | "origin", none, [value] => do pure (profile.setting (← geometryOf input profile value span)).origin
     | "id", none, [value] => do pure (profile.setting (← geometryOf input profile value span)).identity
-    | "dimension", none, [value] => do pure (profile.setting (← geometryOf input profile value span)).dimension
+    | "dim", none, [value] => do pure (profile.setting (← geometryOf input profile value span)).dimension
     | _, _, _ => fail span "E_ARITY" "wrong legacy geometry argument count"
   emitPrimitive input ctx id values span
 
@@ -372,7 +379,7 @@ mutual
         let hint := if name == "Affine" then some (Core.DataType.pure .nat) else none
         let values ← arguments.mapM fun argument => expression fuel input scope ctx argument hint
         return ← emitLegacy input ctx name base values span
-      let target ← lookupPath input.index scope callee
+      let target ← lookupPath input.index scope callee (retiredCall callee)
       if target.kind == .indexedDeclaration then
         let some binding := input.declarations.primitive? target.owner
           | fail span "E_TYPE" "this indexed declaration is not a primitive function"

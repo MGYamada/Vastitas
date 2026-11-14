@@ -25,8 +25,12 @@ class LibraryDocsTests(unittest.TestCase):
         target.write_text(text, encoding="utf-8")
 
     def nature(self, page):
-        """A nature library with one module, whose page has the given rows."""
-        self.write("nature/src/mod.vast", "// The root.\npub mod dimension;\n")
+        """A nature library with one library package, whose page has the given rows.
+
+        The root module lies outside src/, at the root that the manifest names.
+        """
+        self.write("nature/Vastitas.toml", '[package]\nname = "n"\nversion = "0.1.0"\nroot = "lib.vast"\n')
+        self.write("nature/lib.vast", "// The root.\npub use dimension_library as dimension;\n")
         self.write("nature/src/dimension/mod.vast",
                    "// pub indexed base_dimension Hidden; is a comment.\n"
                    "pub indexed family Reading(object(K))\n    = reading constraints(canonical(0));\n"
@@ -78,6 +82,12 @@ class LibraryDocsTests(unittest.TestCase):
         self.assertTrue(any("mod.vast: line 3: this check reads no public item here" in error for error in errors),
                         errors)
         self.assertIn("nature/README.md:1: the link docs/missing.md names no file", errors)
+
+    def test_the_root_file_outside_src_has_the_root_page(self):
+        self.nature(row("Reading<X>", "family") + row("L", "base dimension"))
+        self.write("nature/lib.vast", "pub use dimension_library as dimension;\npub use other_library as other;\n")
+        self.assertEqual(self.errors(), [
+            "nature/docs/README.md: nature/lib.vast exports other, which the page does not list"])
 
     def test_generated_arithmetic_functions_are_public_exports(self):
         for name, _ in generator.ARITHMETIC:

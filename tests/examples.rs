@@ -226,7 +226,6 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/dimension-scale-magnitude",
     "examples/reject/packages/dimension-gram-magnitude",
     "examples/reject/packages/dimension-declared-value",
-    "examples/reject/packages/dimension-module-import",
     "examples/reject/packages/frame-singular",
     "examples/reject/packages/frame-wrong-inverse",
     "examples/reject/packages/frame-other-frame",

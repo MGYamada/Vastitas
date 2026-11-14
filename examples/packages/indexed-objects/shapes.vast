@@ -1,6 +1,6 @@
 pub indexed marker QQ;
 // ANCHOR: implementations
-pub indexed implementation Grid(QQ, affine_descriptor) capabilities(dimension);
+pub indexed implementation Grid(QQ, affine_descriptor) capabilities(dim);
 pub indexed implementation Plain(QQ, affine_descriptor) capabilities();
 // ANCHOR_END: implementations
 // ANCHOR: classifications
@@ -19,5 +19,5 @@ pub indexed package Hidden {
 // ANCHOR: primitives
 pub indexed primitive grid = descriptor(Grid);
 pub indexed primitive plain = descriptor(Plain);
-pub indexed primitive size = dimension((Measured, QQ));
+pub indexed primitive size = dim((Measured, QQ));
 // ANCHOR_END: primitives

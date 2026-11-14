@@ -1,8 +1,8 @@
-// The module may take the name `dimension`. The function may not.
-mod dimension {
-    pub fn dimension() -> Int { 2 }
+// The module may take the name `dim`. The function may not.
+mod dim {
+    pub fn dim() -> Int { 2 }
 }
 
 fn main() -> Int {
-    dimension::dimension()
+    dim::dim()
 }

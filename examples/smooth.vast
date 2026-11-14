@@ -7,5 +7,5 @@ fn main() -> Int {
     let problem = make_smooth(2);
     unpack problem as { scheme: X, point: p };
     let result: Point<X, Base(CInfReal)> = apply(id(X), p);
-    if dimension(X) == 2 { 2 } else { -1 }
+    if dim(X) == 2 { 2 } else { -1 }
 }

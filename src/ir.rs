@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 
 // The wire protocols of a request. Flat input writes 2, or 4 when it holds
 // abstract declarations (`frontend::parse_sources`). A package request writes
-// the first of 9 down to 3 whose declarations the program holds
-// (`packages::request_protocol`); 9 also carries the algebraic forms.
+// the first of 9 down to 3 that the declarations of the program, or the
+// `geometry_compat` export of a manifest, select (`packages::request_protocol`);
+// 9 also carries the algebraic forms.
 pub const PROTOCOL_VERSION: u32 = 2;
 pub(crate) const PACKAGE_PROTOCOL: u32 = 3;
 pub const ABSTRACT_PROTOCOL_VERSION: u32 = 4;

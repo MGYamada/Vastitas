@@ -54,8 +54,15 @@ pub fn prepare_stdlib_package() {
         );
     });
 }
+/// The compiler, without the kernel selection of the environment that runs the
+/// tests: `VASTITAS_KERNEL` and `VASTITAS_KERNEL_ROOT` are removed, so the
+/// compiler uses the built kernel unless a test sets them on the command.
 pub fn cli() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_vastitas"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
+    command
+        .env_remove("VASTITAS_KERNEL")
+        .env_remove("VASTITAS_KERNEL_ROOT");
+    command
 }
 pub fn success(output: &Output) {
     assert!(

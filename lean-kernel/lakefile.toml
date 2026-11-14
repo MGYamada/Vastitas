@@ -28,7 +28,7 @@ text = true
 # Test/proof fixtures are separate from the ordinary compiler library.
 # Targets with `autoImplicit = false` reject an undeclared name instead of
 # silently binding it; VastitasKernel itself still relies on auto-bound
-# implicits in 41 modules (#568).
+# implicits in 42 modules (#568).
 [[lean_lib]]
 name = "VastitasPromotion"
 leanOptions = { autoImplicit = false }

@@ -71,13 +71,15 @@ theorem fiber_has_type {env : Indexed.Environment} {world : World} {variance : V
       ∃ x n, application.indices = [.object (.global x)] ∧ smoothDimension? env x = some n ∧
         FiberTyped n value := by
   obtain ⟨_, typed⟩ := typed
+  -- `split` tags the arms by position (`h_1`, …). The fiber arm is the one
+  -- whose value equation holds, wherever it stands.
   split at typed
-  case h_6 =>
-    rename_i heqValue heqRepresentation heqIndices
-    cases heqValue
-    obtain ⟨rfl, n, hx, fiberTyped⟩ := typed
-    exact ⟨heqRepresentation, _, n, heqIndices, hx, fiberTyped⟩
-  all_goals simp_all
+  all_goals first
+    | (rename_i heqValue heqRepresentation heqIndices
+       cases heqValue
+       obtain ⟨rfl, n, hx, fiberTyped⟩ := typed
+       exact ⟨heqRepresentation, _, n, heqIndices, hx, fiberTyped⟩)
+    | simp_all
 
 theorem tape_has_type {env : Indexed.Environment} {world : World} {tape : SmoothRuntime.Tape}
     {application : Application} (typed : IndexedHasType env world (.tape tape) application) :
@@ -85,13 +87,15 @@ theorem tape_has_type {env : Indexed.Environment} {world : World} {tape : Smooth
       ∃ x y n m, application.indices = [.object (.global x), .object (.global y)] ∧
         smoothDimension? env x = some n ∧ smoothDimension? env y = some m ∧ TapeTyped n m tape := by
   obtain ⟨_, typed⟩ := typed
+  -- `split` tags the arms by position (`h_1`, …). The tape arm is the one
+  -- whose value equation holds, wherever it stands.
   split at typed
-  case h_7 =>
-    rename_i heqValue heqRepresentation heqIndices
-    cases heqValue
-    obtain ⟨n, m, hx, hy, tapeTyped⟩ := typed
-    exact ⟨heqRepresentation, _, _, n, m, heqIndices, hx, hy, tapeTyped⟩
-  all_goals simp_all
+  all_goals first
+    | (rename_i heqValue heqRepresentation heqIndices
+       cases heqValue
+       obtain ⟨n, m, hx, hy, tapeTyped⟩ := typed
+       exact ⟨heqRepresentation, _, _, n, m, heqIndices, hx, hy, tapeTyped⟩)
+    | simp_all
 
 /-- The canonical typing of a fiber value from its parts. -/
 theorem fiber_typed {env : Indexed.Environment} {world : World} {application : Application}

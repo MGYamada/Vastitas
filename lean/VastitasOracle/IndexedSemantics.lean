@@ -59,7 +59,7 @@ theorem indexed_of_worldExtends {env : Indexed.Environment} {before after : Worl
   rcases typed with ⟨valid, typed⟩
   refine ⟨valid, ?_⟩
   -- `split` tags the arms by position (`h_1`, …). Each arm is closed by the
-  -- shape of its typing instead, so a new representation shifts no proof.
+  -- shape of its typing instead, so a new representation shifts none of them.
   split at typed
   all_goals first
     | exact typed

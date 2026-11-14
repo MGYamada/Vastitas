@@ -59,13 +59,15 @@ theorem frameArray_has_type {env : Indexed.Environment} {world : World} {varianc
       ∃ frame object n, application.indices = [.frame frame] ∧ frameObject? env frame = some object ∧
         smoothDimension? env object = some n ∧ FiberTyped n value := by
   obtain ⟨_, typed⟩ := typed
+  -- `split` tags the arms by position (`h_1`, …). The frame-array arm is the one
+  -- whose value equation holds, wherever it stands.
   split at typed
-  case h_8 =>
-    rename_i heqValue heqRepresentation heqIndices
-    cases heqValue
-    obtain ⟨rfl, object, n, found, dimension, fiberTyped⟩ := typed
-    exact ⟨heqRepresentation, _, object, n, heqIndices, found, dimension, fiberTyped⟩
-  all_goals simp_all
+  all_goals first
+    | (rename_i heqValue heqRepresentation heqIndices
+       cases heqValue
+       obtain ⟨rfl, object, n, found, dimension, fiberTyped⟩ := typed
+       exact ⟨heqRepresentation, _, object, n, heqIndices, found, dimension, fiberTyped⟩)
+    | simp_all
 
 theorem frameMatrix_has_type {env : Indexed.Environment} {world : World}
     {value : FrameRuntime.FrameMatrixValue} {application : Application}
@@ -75,13 +77,15 @@ theorem frameMatrix_has_type {env : Indexed.Environment} {world : World}
         frameObject? env source = some x ∧ frameObject? env target = some y ∧
         smoothDimension? env x = some n ∧ smoothDimension? env y = some m ∧ FrameMatrixTyped n m value := by
   obtain ⟨_, typed⟩ := typed
+  -- `split` tags the arms by position (`h_1`, …). The frame-matrix arm is the one
+  -- whose value equation holds, wherever it stands.
   split at typed
-  case h_9 =>
-    rename_i heqValue heqRepresentation heqIndices
-    cases heqValue
-    obtain ⟨x, y, n, m, hx, hy, dx, dy, matrixTyped⟩ := typed
-    exact ⟨heqRepresentation, _, _, x, y, n, m, heqIndices, hx, hy, dx, dy, matrixTyped⟩
-  all_goals simp_all
+  all_goals first
+    | (rename_i heqValue heqRepresentation heqIndices
+       cases heqValue
+       obtain ⟨x, y, n, m, hx, hy, dx, dy, matrixTyped⟩ := typed
+       exact ⟨heqRepresentation, _, _, x, y, n, m, heqIndices, hx, hy, dx, dy, matrixTyped⟩)
+    | simp_all
 
 /-- The canonical typing of a frame array from its parts. -/
 theorem frameArray_typed {env : Indexed.Environment} {world : World} {application : Application}

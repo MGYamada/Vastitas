@@ -1,7 +1,8 @@
-"""Run the demonstrations of the reference models that the tests of their models do not run.
+"""Run as programs the demonstrations of the reference models that the tests of their models do not run.
 
 The book gives each as a command, `python3 scripts/demo_<model>_reference.py`.
-Each must run with the standard library alone and exit 0.
+The tests of some models import helpers from their demo but never run it.
+Each demo here must run with the standard library alone and exit 0.
 """
 import subprocess
 import sys
@@ -10,7 +11,8 @@ from pathlib import Path
 
 
 SCRIPTS = Path(__file__).resolve().parent
-DEMOS = ("demo_float_reference.py", "demo_identifier_reference.py", "demo_incremental_reference.py",
+DEMOS = ("demo_doctest_result_reference.py", "demo_float_reference.py", "demo_graph_reference.py",
+         "demo_identifier_reference.py", "demo_incremental_reference.py", "demo_integral_reference.py",
          "demo_l2_tail_reference.py", "demo_rand_reference.py", "demo_reduction_reference.py",
          "demo_sparse_reference.py")
 

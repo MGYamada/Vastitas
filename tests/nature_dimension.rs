@@ -6,7 +6,7 @@
 //! the gradient natively, compare the generated Lean with and without the
 //! nature declarations, and audit the module's public names (ADR 0002).
 mod common;
-use common::{Scratch, cli, expect_code, kernel, success};
+use common::{Scratch, expect_code, kernel, success};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -106,33 +106,11 @@ fn fixture(main: &str) -> Scratch {
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("app/Vastitas.toml")
 }
 
 fn run(s: &Scratch) -> Vec<u8> {
-    success(&check(s));
-    success(
-        &cli()
-            .current_dir(&s.0)
-            .args([
-                "build",
-                "--manifest-path",
-                "app/Vastitas.toml",
-                "-o",
-                "program",
-            ])
-            .output()
-            .unwrap(),
-    );
-    let result = std::process::Command::new(s.0.join("program"))
-        .output()
-        .unwrap();
-    success(&result);
-    result.stdout
+    s.check_build_and_run("app/Vastitas.toml")
 }
 
 /// `MAIN` with extra items inserted before `gradient`.
@@ -150,11 +128,7 @@ fn rejects(main: &str, code: &str) -> String {
 }
 
 fn request(s: &Scratch) -> Value {
-    let mut command = cli();
-    command
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"]);
-    common::captured_wire(command, 9)
+    s.captured("app/Vastitas.toml", 9)
 }
 
 fn packages<'a>(wire: &'a Value, name: &str) -> Vec<&'a Value> {

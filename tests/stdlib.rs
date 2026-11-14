@@ -5,12 +5,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-impl Scratch {
-    fn new() -> Self {
-        Self::empty("stdlib")
-    }
-}
-
 fn library(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("stdlib/src/arithmetic")
@@ -32,7 +26,7 @@ fn failure(output: &Output, expected: &str) -> String {
 
 #[test]
 fn generated_package_preserves_comment_boundaries_in_native_programs() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     fs::create_dir_all(scratch.0.join("scripts")).unwrap();
     fs::copy(
@@ -147,7 +141,7 @@ fn generated_package_preserves_comment_boundaries_in_native_programs() {
 
 #[test]
 fn native_standard_arithmetic_handles_integer_and_natural_boundaries() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let source = scratch.write(
         "arithmetic app.vast",
         r#"
@@ -208,7 +202,7 @@ fn libraries_are_explicit_and_individually_checkable() {
     for filename in ["int.vast", "nat.vast"] {
         success(&cli().arg("check").arg(library(filename)).output().unwrap());
     }
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let source = scratch.write("main.vast", "fn main() -> Int { int_add(20, 22) }");
     let result = cli().arg("check").arg(&source).output().unwrap();
     failure(&result, "int_add");
@@ -225,7 +219,7 @@ fn libraries_are_explicit_and_individually_checkable() {
 
 #[test]
 fn repeated_files_and_conflicting_definitions_are_rejected() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let source = scratch.write("main.vast", "fn main() -> Int { 0 }");
     let alias = library("../arithmetic/int.vast");
     let repeated = cli()
@@ -255,7 +249,7 @@ fn repeated_files_and_conflicting_definitions_are_rejected() {
 
 #[test]
 fn library_inputs_must_exist_and_have_vast_extension() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let source = scratch.write("main.vast", "fn main() -> Int { 0 }");
     let wrong_extension = scratch.write("library.txt", "fn helper() -> Int { 0 }");
     for library in [scratch.0.join("missing.vast"), wrong_extension] {
@@ -272,7 +266,7 @@ fn library_inputs_must_exist_and_have_vast_extension() {
 
 #[test]
 fn library_syntax_and_type_diagnostics_retain_their_own_file_and_line() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let source = scratch.write(
         "main.vast",
         "// application\n\n\n\n\nfn main() -> Int { helper() }\n",
@@ -305,7 +299,7 @@ fn library_syntax_and_type_diagnostics_retain_their_own_file_and_line() {
 
 #[test]
 fn library_cannot_supply_the_application_entrypoint() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let source = scratch.write("application.vast", "fn helper() -> Int { 0 }");
     let library = scratch.write("entrypoint.vast", "fn main() -> Int { helper() }");
     let result = cli()
@@ -337,7 +331,7 @@ fn library_cannot_supply_the_application_entrypoint() {
 
 #[test]
 fn missing_flag_values_and_duplicate_outputs_are_usage_errors() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let source = scratch.write("main.vast", "fn main() -> Int { 0 }");
     let output = scratch.0.join("program");
     for tail in [vec!["--lib"], vec!["--lib", "-o"], vec!["-o"]] {
@@ -358,7 +352,7 @@ fn missing_flag_values_and_duplicate_outputs_are_usage_errors() {
 
 #[test]
 fn invalid_library_does_not_overwrite_existing_native_artifact() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let source = scratch.write("main.vast", "fn main() -> Int { 42 }");
     let library = scratch.write("invalid.vast", "fn invalid() -> Int { false }");
     let output = scratch.write("program", "previous artifact");
@@ -377,7 +371,7 @@ fn invalid_library_does_not_overwrite_existing_native_artifact() {
 
 #[test]
 fn source_files_cannot_complete_each_others_syntax() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::empty("stdlib");
     let source = scratch.write("main.vast", "fn main() -> Int { partial() }");
     let first = scratch.write("first.vast", "fn partial() -> Int {");
     let second = scratch.write("second.vast", "42 }");

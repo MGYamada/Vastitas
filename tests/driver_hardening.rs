@@ -54,9 +54,8 @@ fn successful_lake(s: &Scratch) {
 }
 
 fn cli(s: &Scratch) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
+    let mut command = s.cli();
     command
-        .current_dir(&s.0)
         .env("VASTITAS_KERNEL", kernel_path())
         .env("PATH", mock_path(s));
     command
@@ -272,9 +271,7 @@ fn module_files_must_match_module_names_exactly() {
         for (path, source) in files {
             s.write(&format!("app/{path}"), source);
         }
-        let result = Command::new(env!("CARGO_BIN_EXE_vastitas"))
-            .args(["check", "--manifest-path"])
-            .arg(s.0.join("app/Vastitas.toml"))
+        let result = common::manifest_command("check", s.0.join("app/Vastitas.toml"))
             .env("VASTITAS_KERNEL", kernel_path())
             .output()
             .unwrap();
@@ -291,9 +288,7 @@ fn module_files_must_match_module_names_exactly() {
     s.write("app/src/main.vast", "mod Geo; fn main() -> Int { 0 }");
     s.write("app/src/Geo/mod.vast", "mod Shape;");
     s.write("app/src/Geo/Shape.vast", "");
-    let result = Command::new(env!("CARGO_BIN_EXE_vastitas"))
-        .args(["check", "--manifest-path"])
-        .arg(s.0.join("app/Vastitas.toml"))
+    let result = common::manifest_command("check", s.0.join("app/Vastitas.toml"))
         .env("VASTITAS_KERNEL", kernel_path())
         .output()
         .unwrap();

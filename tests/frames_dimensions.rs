@@ -54,27 +54,11 @@ fn fixture(profile: &str, main: &str) -> Scratch {
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("app/Vastitas.toml")
 }
 
 fn run(s: &Scratch) -> Vec<u8> {
-    success(&check(s));
-    let output = s.0.join("program");
-    success(
-        &cli()
-            .current_dir(&s.0)
-            .args(["build", "--manifest-path", "app/Vastitas.toml", "-o"])
-            .arg(&output)
-            .output()
-            .unwrap(),
-    );
-    let result = std::process::Command::new(output).output().unwrap();
-    success(&result);
-    result.stdout
+    s.check_build_and_run("app/Vastitas.toml")
 }
 
 /// `MAIN` with extra items inserted before its helpers.
@@ -88,11 +72,7 @@ fn rejects(main: &str, code: &str) -> String {
 }
 
 fn request(s: &Scratch) -> Value {
-    let mut command = cli();
-    command
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"]);
-    common::captured_wire(command, 9)
+    s.captured("app/Vastitas.toml", 9)
 }
 
 /// JSON pointer to the module `path` of the program's package.

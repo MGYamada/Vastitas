@@ -24,9 +24,7 @@ fn manifest(scratch: &Scratch) -> PathBuf {
 }
 
 fn check(scratch: &Scratch) -> Output {
-    cli()
-        .args(["check", "--manifest-path"])
-        .arg(manifest(scratch))
+    common::manifest_command("check", manifest(scratch))
         .output()
         .unwrap()
 }
@@ -62,10 +60,7 @@ fn assert_note(message: &str, source: &str, marker: &str, note: &str) {
 /// Capture the frontend's actual request for a manifest without running the
 /// kernel; the stub has no acceptance authority.
 fn captured(manifest: &std::path::Path, version: u64) -> Value {
-    common::captured_wire(
-        cli().args(["check", "--manifest-path"]).arg(manifest),
-        version,
-    )
+    common::captured_wire(common::manifest_command("check", manifest), version)
 }
 
 /// Send raw bytes, as a tampered or truncated request would arrive.

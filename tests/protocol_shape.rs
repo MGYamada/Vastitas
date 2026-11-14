@@ -209,11 +209,10 @@ fn promotion_without_affine() -> Value {
         "app/main.vast",
         &std::fs::read_to_string(example.join("main.vast")).unwrap(),
     );
-    let mut command = common::cli();
-    command
-        .args(["check", "--manifest-path"])
-        .arg(s.0.join("app/Vastitas.toml"));
-    common::captured_wire(command, 7)
+    common::captured_wire(
+        common::manifest_command("check", s.0.join("app/Vastitas.toml")),
+        7,
+    )
 }
 
 // #557: the same sweep over the public Indexed.Wire (7) and ResourceSource.Wire

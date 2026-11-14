@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, assert_rejected, cli, kernel, success};
+use common::{Scratch, assert_rejected, kernel, success};
 use serde_json::{Value, json};
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::process::Command;
@@ -22,14 +22,10 @@ fn fixture(real: &str) -> Scratch {
     s
 }
 fn command(s: &Scratch, mode: &str) -> Command {
-    let mut command = cli();
-    command
-        .current_dir(&s.0)
-        .args([mode, "--manifest-path", "Vastitas.toml"]);
-    command
+    s.command(mode, "Vastitas.toml")
 }
 fn captured(s: &Scratch) -> Value {
-    common::captured_wire(command(s, "check"), 8)
+    s.captured("Vastitas.toml", 8)
 }
 fn rejection(s: &Scratch, code: &str) {
     let output = command(s, "check").output().unwrap();

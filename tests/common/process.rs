@@ -1,5 +1,8 @@
 //! Scratch directories, the compiler binary and the programs it builds.
 use super::diagnostics::expect_code;
+use super::wire::captured_wire;
+use serde_json::Value;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -33,6 +36,49 @@ impl Scratch {
         );
         self.write(&format!("{name}/main.vast"), source);
     }
+    /// The compiler, run in this directory.
+    pub fn cli(&self) -> Command {
+        let mut command = cli();
+        command.current_dir(&self.0);
+        command
+    }
+    /// `vastitas <mode> --manifest-path <manifest>`, run in this directory, so
+    /// that `manifest` and every path the command prints are relative to it.
+    pub fn command(&self, mode: &str, manifest: &str) -> Command {
+        let mut command = manifest_command(mode, manifest);
+        command.current_dir(&self.0);
+        command
+    }
+    /// Checks the package of `manifest`, relative to this directory.
+    pub fn check_manifest(&self, manifest: &str) -> Output {
+        self.command("check", manifest).output().unwrap()
+    }
+    /// The wire request that checking the package of `manifest` sends, which
+    /// must use protocol `version` (see [`captured_wire`]).
+    #[track_caller]
+    pub fn captured(&self, manifest: &str, version: u64) -> Value {
+        captured_wire(self.command("check", manifest), version)
+    }
+    /// Builds the package of `manifest` to `program` in this directory and
+    /// runs it. The build and the program must succeed; returns its standard
+    /// output.
+    pub fn build_and_run(&self, manifest: &str) -> Vec<u8> {
+        success(
+            &self
+                .command("build", manifest)
+                .args(["-o", "program"])
+                .output()
+                .unwrap(),
+        );
+        let output = Command::new(self.0.join("program")).output().unwrap();
+        success(&output);
+        output.stdout
+    }
+    /// [`Scratch::build_and_run`] after a successful check of `manifest`.
+    pub fn check_build_and_run(&self, manifest: &str) -> Vec<u8> {
+        success(&self.check_manifest(manifest));
+        self.build_and_run(manifest)
+    }
 }
 impl Drop for Scratch {
     fn drop(&mut self) {
@@ -62,6 +108,13 @@ pub fn cli() -> Command {
     command
         .env_remove("VASTITAS_KERNEL")
         .env_remove("VASTITAS_KERNEL_ROOT");
+    command
+}
+/// `vastitas <mode> --manifest-path <manifest>`, with `manifest` as given:
+/// absolute, or relative to the directory that runs the tests.
+pub fn manifest_command(mode: &str, manifest: impl AsRef<OsStr>) -> Command {
+    let mut command = cli();
+    command.args([mode, "--manifest-path"]).arg(manifest);
     command
 }
 pub fn success(output: &Output) {

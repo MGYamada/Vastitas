@@ -140,7 +140,7 @@ fn manifest(s: &Scratch) -> PathBuf {
 
 /// The kernel's answer to the request that the frontend sends for `s`.
 fn emit(s: &Scratch) -> Value {
-    let wire = captured_wire(cli().args(["check", "--manifest-path"]).arg(manifest(s)), 8);
+    let wire = captured_wire(common::manifest_command("check", manifest(s)), 8);
     let response = kernel(&wire, "emit");
     assert_eq!(response["ok"], true, "{response}");
     response

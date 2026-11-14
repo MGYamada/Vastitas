@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, cli, kernel, success};
+use common::{Scratch, cli, kernel};
 use serde_json::{Value, json};
 
 const LIBRARY: &[(&str, &str)] = &[
@@ -74,11 +74,7 @@ fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("app/Vastitas.toml")
 }
 
 fn reject(source: &str, code: &str) {
@@ -92,25 +88,7 @@ fn native(s: &Scratch) {
 }
 
 fn native_result(s: &Scratch, expected: &[u8]) {
-    success(&check(s));
-    success(
-        &cli()
-            .current_dir(&s.0)
-            .args([
-                "build",
-                "--manifest-path",
-                "app/Vastitas.toml",
-                "-o",
-                "program",
-            ])
-            .output()
-            .unwrap(),
-    );
-    let result = std::process::Command::new(s.0.join("program"))
-        .output()
-        .unwrap();
-    success(&result);
-    assert_eq!(result.stdout, expected);
+    assert_eq!(s.check_build_and_run("app/Vastitas.toml"), expected);
 }
 
 #[test]
@@ -772,14 +750,9 @@ fn original_arithmetic_entrypoint_still_accepts_legacy_geometry() {
 }
 
 fn captured_wire(s: &Scratch) -> Value {
-    common::captured_wire(
-        cli()
-            .current_dir(&s.0)
-            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
-        // The library declares Stage 2 presented affine geometry, so its
-        // closure uses the current schema epoch (#533).
-        9,
-    )
+    // The library declares Stage 2 presented affine geometry, so its
+    // closure uses the current schema epoch (#533).
+    s.captured("app/Vastitas.toml", 9)
 }
 
 #[test]

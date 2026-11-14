@@ -11,7 +11,7 @@
 //! through `LegacySource.describeDiagnostic`. The tests say where they use the
 //! earlier protocol.
 mod common;
-use common::{Scratch, checked_replace, cli, expect_code, message_text, symbol_encoding};
+use common::{Scratch, checked_replace, expect_code, message_text, symbol_encoding};
 
 const BASE: &str = "pub generic choose(x, y) { domain (Int, Int); }
 method choose(x: Number, y: Number) -> Int { 0 }
@@ -47,12 +47,7 @@ fn packages(base: &str, addon: &str, events: &str, main: &str) -> Scratch {
 /// rendered diagnostics.
 #[track_caller]
 fn rendered(s: &Scratch, code: &str) -> String {
-    let output = cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap();
-    expect_code(&output, code)
+    expect_code(&s.check_manifest("app/Vastitas.toml"), code)
 }
 
 /// Checks `app`, which must be rejected with `code` first, and returns the

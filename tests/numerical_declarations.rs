@@ -20,20 +20,11 @@ fn fixture(profiles: &str) -> Scratch {
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("Vastitas.toml")
 }
 
 fn request(s: &Scratch) -> Value {
-    common::captured_wire(
-        cli()
-            .current_dir(&s.0)
-            .args(["check", "--manifest-path", "Vastitas.toml"]),
-        8,
-    )
+    s.captured("Vastitas.toml", 8)
 }
 
 fn rejects(source: &str, code: &str) {

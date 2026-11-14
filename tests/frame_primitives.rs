@@ -19,11 +19,7 @@ fn package() -> Scratch {
 
 /// The wire that the frontend sends for the program; it must use protocol 9.
 fn request(s: &Scratch) -> Value {
-    let mut command = cli();
-    command
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"]);
-    common::captured_wire(command, 9)
+    s.captured("Vastitas.toml", 9)
 }
 
 /// JSON pointer to the binding of the named primitive declaration.

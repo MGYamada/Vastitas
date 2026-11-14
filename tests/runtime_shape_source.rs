@@ -1,6 +1,6 @@
 mod common;
 
-use common::{Scratch, cli, kernel, success};
+use common::{Scratch, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
@@ -182,11 +182,7 @@ fn transposed_accumulate(complex: bool) -> String {
 }
 
 fn command(scratch: &Scratch, mode: &str) -> Command {
-    let mut command = cli();
-    command
-        .args([mode, "--manifest-path"])
-        .arg(scratch.0.join("Vastitas.toml"));
-    command
+    common::manifest_command(mode, scratch.0.join("Vastitas.toml"))
 }
 
 fn request(scratch: &Scratch) -> Value {

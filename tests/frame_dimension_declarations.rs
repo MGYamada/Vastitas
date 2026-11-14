@@ -3,7 +3,7 @@
 //! record that the kernel decodes; these tests capture the wire, check the
 //! protocol it selects and submit it to the kernel, which checks them.
 mod common;
-use common::{Scratch, assert_wire_rejected, cli, kernel, remove_spans, success};
+use common::{Scratch, assert_wire_rejected, kernel, remove_spans, success};
 use serde_json::{Value, json};
 
 const MANIFEST: &str = include_str!("fixtures/frame-dimension-declarations/Vastitas.toml");
@@ -17,21 +17,13 @@ fn package(main: &str) -> Scratch {
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("Vastitas.toml")
 }
 
 /// The wire that the frontend sends for `s`, which must use `version`.
 #[track_caller]
 fn request(s: &Scratch, version: u64) -> Value {
-    let mut command = cli();
-    command
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"]);
-    common::captured_wire(command, version)
+    s.captured("Vastitas.toml", version)
 }
 
 /// The named declaration of the package's only module.

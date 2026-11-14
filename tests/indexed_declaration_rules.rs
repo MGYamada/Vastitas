@@ -4,7 +4,7 @@
 //! indexed declaration are `E_LIMIT`. Before, every such declaration gave
 //! `E_TYPE: invalid indexed declaration, package, or primitive contract`.
 mod common;
-use common::{Scratch, cli, success};
+use common::{Scratch, success};
 
 fn check(source: &str) -> std::process::Output {
     let s = Scratch::empty("indexed declaration rules");
@@ -13,11 +13,7 @@ fn check(source: &str) -> std::process::Output {
         "[package]\nname = \"rules\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     s.write("main.vast", source);
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("Vastitas.toml")
 }
 
 /// The first diagnostic of a rejected program, from the file name on.

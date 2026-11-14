@@ -5,7 +5,7 @@
 //! the published bounds and just beyond them. The tests check what the kernel
 //! accepts, the code of each rejection and the text of its message.
 mod common;
-use common::{Scratch, cli, expect_code, success};
+use common::{Scratch, expect_code, success};
 use std::path::Path;
 
 fn read(path: &Path) -> String {
@@ -65,12 +65,7 @@ fn fixture(declarations: &str) -> Scratch {
 }
 
 fn check(declarations: &str) -> std::process::Output {
-    let s = fixture(declarations);
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap()
+    fixture(declarations).check_manifest("app/Vastitas.toml")
 }
 
 #[track_caller]

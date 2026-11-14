@@ -1,7 +1,13 @@
 import VastitasKernel.NamespaceChecker
 
-/-! Protocol 5: immutable declarations, an exclusive edit trace, and completion
-of one whole selected package environment before the common lowering path. -/
+/-! The parts of protocol 5 that `Authority` builds on: the prepared immutable
+declarations, grants and contributions (`prepare`), the edit state and the
+independent audits of its transitions and validity (`TransitionAllowed`,
+`StateValid`), and the completion of one whole selected package environment
+before the common lowering path (`finalSurface`, `completeFamilies`,
+`FootprintsAuthorized`, `unappliedAudit`). The retained protocol-5 trace and
+assembly (`Edit.step`, `Edit.Trace`, `Edit.runTrace`, `Edit.assemble`) and
+`checkEditProgram` are in `SurfacePrograms.lean`. -/
 namespace VastitasKernel.Edit
 open Namespace
 open Checker.Internal

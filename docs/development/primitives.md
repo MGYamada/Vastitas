@@ -70,7 +70,7 @@ tables below take no case per constructor. Module paths are relative to
 | `PrimitiveBinding.arity` | `IndexedPrimitives.lean` | `shape`, through `Shape.arity` |
 | `PrimitiveBinding.allocates` | `IndexedPrimitives.lean` | `shape`, through `Shape.allocates` |
 | `PrimitiveBinding.argumentHint` | `IndexedCore.lean` | `shape`, through `Shape.argumentHint` |
-| `roleTable`, with `roleTable_sound` | `IndexedSourceDiagnostics.lean` | `shape`, through `Shape.roles` and its soundness lemma `Shape.roles_sound` |
+| `roleTable`, with `roleTable_sound` | `IndexedSourceDiagnostics.lean` | `shape`, through `Shape.roles` and its soundness lemma `Shape.roles_sound`, both in `IndexedShapeSoundness.lean` |
 | `evalPrimitive`, `evalRuntimePrimitive` | `IndexedSemantics.lean` | `eval`, `evalRuntime` |
 | `PrimitiveFresh` | `IndexedSemantics.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `allocatedSerials` and the fresh brand of `emitPrimitive` | `IndexedTypeAudit.lean`, `IndexedSourceBodies.lean` | `shape`, through `PrimitiveBinding.allocates` |

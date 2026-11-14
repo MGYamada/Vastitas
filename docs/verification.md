@@ -463,10 +463,10 @@ by enclosing object bindings or the types of enclosing values.
 theorems on `Dispatch.checkWith` and on `DispatchChecker.Family` are about
 the finite dispatch engine, a component that every current route uses
 through `Authority.assemble`. The corollaries on the builtin wrapper
-`Dispatch.check` and the `DispatchLowering.checkProgram_*` theorems are about
+`Dispatch.check` and the oracle's `VastitasOracle.DispatchLowering.checkProgram_*` theorems are about
 retained compositions that no command reaches. The
 finite engine and selection relations remain useful, but the
-`DispatchLowering.checkProgram_*` composition below targets the old Core.
+`VastitasOracle.DispatchLowering.checkProgram_*` composition below targets the old Core.
 Current all-body/target/Core correspondence is in the indexed dispatch and
 authority acceptance theorems:
 [Dispatch over indexed bodies](#dispatch-over-indexed-bodies) and

@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedPackages
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.PackageRegression
 private def id (name : String) : DeclId := ⟨⟨⟨"/package", "package", "1"⟩, []⟩, name⟩
@@ -18,8 +19,7 @@ private def x : ObjectRef := .local ⟨id "Grid", id "K"⟩ 2
 private def y : ObjectRef := .local ⟨id "Grid", id "K"⟩ 3
 private def z : ObjectRef := .local ⟨id "Other", id "L"⟩ 4
 private def payload (witness : ObjectRef) : PackagePayload := ⟨witness, shape.instantiate witness⟩
-private def check (name : String) (accepted : Bool) : IO Unit :=
-  unless accepted do throw (IO.userError s!"indexed package regression failed: {name}")
+private def check := RegressionSupport.check "indexed package regression failed"
 
 #eval check "valid finite package declaration" (validEnvironment env && validPackageShape env shape)
 #eval check "non-geometric association" (validPackageShape env ⟨shape.witnessType,

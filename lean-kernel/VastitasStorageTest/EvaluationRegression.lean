@@ -1,11 +1,11 @@
 import VastitasStorageTest.NumericalFixture
 import VastitasKernel.NumericalCoverage
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.EvaluationRegression
 open NumericalFixture Numerical
 
-private def check (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"vector evaluation regression: {label}")
+private def check := RegressionSupport.check "vector evaluation regression"
 
 private def prepare (scalar : Scalar) (implementation : String) (dimension : Nat) (transposed : Bool) : List Functions.Statement :=
   let layout : Layout := if transposed then ⟨0, 1, dimension, 2, true⟩ else ⟨0, dimension, 1, max 1 dimension, false⟩

@@ -576,15 +576,12 @@ theorem explainPrimitive_result {env : Environment} {binding : PrimitiveBinding}
 private def withArticle (role : String) : String :=
   (if "aeiou".contains role.front then "an " else "a ") ++ role
 
-private def qualifiedName (id : DeclId) : String :=
-  String.intercalate "::" (id.scope.package.name :: id.scope.path ++ [id.name])
-
 /-- Labels for two declarations; equal short names are qualified until they differ. -/
 private def declarationLabels (expected actual : DeclId) : String × String :=
   if expected == actual || expected.name != actual.name then (expected.name, actual.name)
-  else if qualifiedName expected != qualifiedName actual then (qualifiedName expected, qualifiedName actual)
-  else (s!"{qualifiedName expected} in {expected.scope.package.source}",
-    s!"{qualifiedName actual} in {actual.scope.package.source}")
+  else if expected.qualified != actual.qualified then (expected.qualified, actual.qualified)
+  else (s!"{expected.qualified} in {expected.scope.package.source}",
+    s!"{actual.qualified} in {actual.scope.package.source}")
 
 /-- Labels for two objects; distinct objects with equal labels are told apart
 by their declarations or introduction sites. -/
@@ -596,7 +593,7 @@ private def objectLabels (env : Core.Declarations) (geometry : Option (GeometryP
     | .global e, .global a => declarationLabels e a
     | _, _ =>
       let precise (reference : ObjectRef) := match reference with
-        | .global id => qualifiedName id
+        | .global id => id.qualified
         | .local _ brand => match origins[brand]? with
           | some source => s!"{label reference} introduced at {source.span.line}:{source.span.column}"
           | none => s!"{label reference} (object {brand})"

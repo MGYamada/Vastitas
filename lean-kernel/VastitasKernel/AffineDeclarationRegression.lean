@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSourceChecker
+import VastitasKernel.RegressionSupport
 
 /-! Presented affine declarations through the actual common source checker.
 Objects are canonical declarations with exact bases and declared base chains;
@@ -43,8 +44,7 @@ private def program (ds := declarations) : Source.Program := {
     module := {path := [], isPublic := true, imports := [], functions := [], generics := [], methods := [], span := {}}
     declarations := ds }], none⟩] }
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"affine declaration regression failed: {label}")
+private def check := RegressionSupport.check "affine declaration regression failed"
 
 private def change (name : String) (d : Source.Declaration) : Source.Program :=
   program (declarations.map fun e => if e.name == name then d else e)

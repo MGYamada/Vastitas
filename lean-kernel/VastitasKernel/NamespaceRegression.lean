@@ -3,6 +3,7 @@ import VastitasKernel.NamespaceQuery
 import VastitasKernel.EditRegression
 import VastitasKernel.NamespaceProtocol
 import VastitasKernel.Codegen
+import VastitasKernel.RegressionSupport
 
 /-! Retained legacy top-level checker/Core regressions. Current public JSON
 acceptance is covered by LegacySourceRegression and
@@ -19,8 +20,7 @@ private def mod (path : List String) (functions : List Function := []) : Module 
   path, functions, generics := [], methods := [], imports := [], span := {}, isPublic := true }
 private def pkg (id : PackageId) (modules : List Module) : Package := { id, modules, dependencies := [] }
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"namespace regression failed: {name}")
+private def check := RegressionSupport.check "namespace regression failed"
 
 -- Index construction must preserve the old first-match result even before
 -- validation rejects duplicate package/module/import/dependency identities.

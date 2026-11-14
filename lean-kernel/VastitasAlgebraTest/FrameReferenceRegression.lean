@@ -1,6 +1,7 @@
 import VastitasKernel.FrameRuntime
 import VastitasKernel.SmoothDeclarations
 import Lean.Data.Json
+import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
 
@@ -24,8 +25,7 @@ namespace VastitasAlgebraTest.FrameReferenceRegression
 open VastitasKernel VastitasKernel.AlgebraRuntime VastitasKernel.SmoothRuntime
   VastitasKernel.FrameRuntime Lean
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"frame reference regression failed: {label}")
+private def check := RegressionSupport.check "frame reference regression failed"
 
 /-! ## The frames that the cases name
 

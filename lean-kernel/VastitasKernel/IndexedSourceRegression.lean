@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedSourceChecker
 import VastitasKernel.IndexedCodegen
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.Source.Regression
 
@@ -45,8 +46,7 @@ private def program : Program := {
 private def id (name : String) : DeclId := ⟨⟨lib, []⟩, name⟩
 /-- Unresolved declarations shared by type-elaboration regressions. -/
 def declarationFixture : Program := program
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed source regression failed: {name}")
+private def check := RegressionSupport.check "indexed source regression failed"
 private def accepts (p : Program) : Bool := (checkDeclarations p).isOk
 private def rejects (code : String) (p : Program) : Bool :=
   match checkDeclarations p with | .error error => error.code == code | .ok _ => false

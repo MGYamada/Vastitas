@@ -1,4 +1,5 @@
 import VastitasKernel.Authority
+import VastitasKernel.RegressionSupport
 
 /-! Retained legacy top-level checker/Core regressions. Current public JSON
 acceptance is covered by LegacySourceRegression and
@@ -47,8 +48,7 @@ private def program : Namespace.Program := {
       { emptyModule with path := ["ops"], contributions := [{
         name := "sum", target := ["base", "choose"],
         methods := [method "base::choose" "Int"], span := {}, isPublic := true }] }] }] }
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"authority regression failed: {name}")
+private def check := RegressionSupport.check "authority regression failed"
 private def rejects (result : Except Diagnostic α) (code : String) : Bool :=
   match result with
   | .ok _ => false

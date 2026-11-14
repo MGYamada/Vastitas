@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSourceChecker
+import VastitasKernel.RegressionSupport
 
 /-! Principal opens and the structure-sheaf action of declared morphisms
 through the actual common source checker. These are executable regressions,
@@ -61,8 +62,7 @@ private def program (ds := declarations) : Source.Program := {
     module := {path := [], isPublic := true, imports := [], functions := [], generics := [], methods := [], span := {}}
     declarations := ds }], none⟩] }
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"affine open regression failed: {label}")
+private def check := RegressionSupport.check "affine open regression failed"
 
 private def with' (extra : List Source.Declaration) : Source.Program := program (declarations ++ extra)
 

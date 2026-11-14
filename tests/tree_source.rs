@@ -7,22 +7,14 @@ const REAL: &str = include_str!("../examples/packages/contraction-tree/src/real/
 const COMPLEX: &str = include_str!("../examples/packages/contraction-tree/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
-    let s = Scratch::empty("contraction tree");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/contraction-tree/Vastitas.toml"),
-    );
-    s.write(
-        "src/main.vast",
-        include_str!("../examples/packages/contraction-tree/src/main.vast"),
-    );
-    s.write(
-        "src/profiles/mod.vast",
-        include_str!("../examples/packages/contraction-tree/src/profiles/mod.vast"),
-    );
-    s.write("src/real/mod.vast", real);
-    s.write("src/complex/mod.vast", complex);
-    s
+    common::example_package(
+        "contraction tree",
+        "examples/packages/contraction-tree",
+        &[
+            ("src/real/mod.vast", real),
+            ("src/complex/mod.vast", complex),
+        ],
+    )
 }
 fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")

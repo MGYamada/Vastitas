@@ -7,22 +7,14 @@ const REAL: &str = include_str!("../examples/packages/diagonal-metrics/src/real/
 const COMPLEX: &str = include_str!("../examples/packages/diagonal-metrics/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
-    let s = Scratch::empty("diagonal metrics");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/diagonal-metrics/Vastitas.toml"),
-    );
-    s.write(
-        "src/main.vast",
-        include_str!("../examples/packages/diagonal-metrics/src/main.vast"),
-    );
-    s.write(
-        "src/profiles/mod.vast",
-        include_str!("../examples/packages/diagonal-metrics/src/profiles/mod.vast"),
-    );
-    s.write("src/real/mod.vast", real);
-    s.write("src/complex/mod.vast", complex);
-    s
+    common::example_package(
+        "diagonal metrics",
+        "examples/packages/diagonal-metrics",
+        &[
+            ("src/real/mod.vast", real),
+            ("src/complex/mod.vast", complex),
+        ],
+    )
 }
 fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")

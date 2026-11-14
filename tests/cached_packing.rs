@@ -8,22 +8,14 @@ const COMPLEX: &str =
     include_str!("../examples/packages/cached-tensor-packing/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
-    let s = Scratch::empty("cached packing");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/cached-tensor-packing/Vastitas.toml"),
-    );
-    s.write(
-        "src/main.vast",
-        include_str!("../examples/packages/cached-tensor-packing/src/main.vast"),
-    );
-    s.write(
-        "src/profiles/mod.vast",
-        include_str!("../examples/packages/cached-tensor-packing/src/profiles/mod.vast"),
-    );
-    s.write("src/real/mod.vast", real);
-    s.write("src/complex/mod.vast", complex);
-    s
+    common::example_package(
+        "cached packing",
+        "examples/packages/cached-tensor-packing",
+        &[
+            ("src/real/mod.vast", real),
+            ("src/complex/mod.vast", complex),
+        ],
+    )
 }
 fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")

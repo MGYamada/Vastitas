@@ -10,16 +10,11 @@ const COMPLEX: &str = include_str!("../examples/packages/numerical/src/complex/m
 const PROFILES: &str = include_str!("../examples/packages/numerical/src/profiles/mod.vast");
 
 fn fixture(real: &str) -> Scratch {
-    let s = Scratch::empty("public numerical");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/numerical/Vastitas.toml"),
-    );
-    s.write("src/main.vast", MAIN);
-    s.write("src/real/mod.vast", real);
-    s.write("src/complex/mod.vast", COMPLEX);
-    s.write("src/profiles/mod.vast", PROFILES);
-    s
+    common::example_package(
+        "public numerical",
+        "examples/packages/numerical",
+        &[("src/real/mod.vast", real)],
+    )
 }
 fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")
@@ -1098,17 +1093,11 @@ fn public_real_complex_products_build_execute_and_keep_output_protection() {
 const TRANSFORMS: &str = include_str!("../examples/packages/linear-transforms/src/main.vast");
 
 fn transform_fixture(source: &str) -> Scratch {
-    let s = Scratch::empty("typed linear transforms");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/linear-transforms/Vastitas.toml"),
-    );
-    s.write("src/main.vast", source);
-    s.write(
-        "src/profiles/mod.vast",
-        include_str!("../examples/packages/linear-transforms/src/profiles/mod.vast"),
-    );
-    s
+    common::example_package(
+        "typed linear transforms",
+        "examples/packages/linear-transforms",
+        &[("src/main.vast", source)],
+    )
 }
 
 fn transform_body(raw: &mut Value) -> &mut Vec<Value> {
@@ -1774,17 +1763,11 @@ fn finite_network_preserves_explicit_transformed_map_authority() {
 const EVALUATION: &str = include_str!("../examples/packages/vector-evaluation/src/main.vast");
 
 fn evaluation_fixture(source: &str) -> Scratch {
-    let s = Scratch::empty("bilinear vector evaluation");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/vector-evaluation/Vastitas.toml"),
-    );
-    s.write("src/main.vast", source);
-    s.write(
-        "src/profiles/mod.vast",
-        include_str!("../examples/packages/vector-evaluation/src/profiles/mod.vast"),
-    );
-    s
+    common::example_package(
+        "bilinear vector evaluation",
+        "examples/packages/vector-evaluation",
+        &[("src/main.vast", source)],
+    )
 }
 
 fn evaluation_source(complex: bool, dimension: usize, transposed: bool) -> String {
@@ -2073,17 +2056,17 @@ const CELLS: &str = include_str!("../examples/packages/vector-cells/src/main.vas
 
 // The evaluation profiles also declare the complex implementation.
 fn cells_fixture(source: &str) -> Scratch {
-    let s = Scratch::empty("vector cells");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/vector-cells/Vastitas.toml"),
-    );
-    s.write("src/main.vast", source);
-    s.write(
-        "src/profiles/mod.vast",
-        include_str!("../examples/packages/vector-evaluation/src/profiles/mod.vast"),
-    );
-    s
+    common::example_package(
+        "vector cells",
+        "examples/packages/vector-cells",
+        &[
+            ("src/main.vast", source),
+            (
+                "src/profiles/mod.vast",
+                include_str!("../examples/packages/vector-evaluation/src/profiles/mod.vast"),
+            ),
+        ],
+    )
 }
 
 fn cells_function<'a>(raw: &'a mut Value, name: &str) -> &'a mut Value {

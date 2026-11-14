@@ -4,11 +4,12 @@
 #![allow(dead_code)]
 mod diagnostics;
 mod lean;
+mod packages;
 mod process;
 mod wire;
 // A binary that uses no item of a module would otherwise warn of its re-export.
 #[allow(unused_imports)]
-pub use {diagnostics::*, lean::*, process::*, wire::*};
+pub use {diagnostics::*, lean::*, packages::*, process::*, wire::*};
 
 /// The driver's own list of the files that a native build verifies in the
 /// selected kernel root.

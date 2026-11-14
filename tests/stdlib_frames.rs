@@ -6,7 +6,6 @@
 mod common;
 use common::{Scratch, expect_code};
 use serde_json::{Value, json};
-use std::path::Path;
 
 /// The plane with the constant frame b = columns((1, 0), (1, 2)), the frame
 /// r = columns((1, 0), (x, 1)) polynomial in the point, with its declared
@@ -88,40 +87,15 @@ fn main() -> Int {
 }
 "#;
 
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap()
-}
-
 /// The application `main` in `app/`, with a copy of the stdlib in `stdlib/`
 /// as its `std` path dependency.
 fn fixture(main: &str) -> Scratch {
-    common::prepare_stdlib_package();
-    let s = Scratch::empty("stdlib frames");
-    let stdlib = common::root().join("stdlib");
-    s.write("stdlib/Vastitas.toml", &read(&stdlib.join("Vastitas.toml")));
-    let mut stack = ["target/package", "src/geometry", "src/differential"]
-        .map(|d| stdlib.join(d))
-        .to_vec();
-    while let Some(directory) = stack.pop() {
-        for entry in std::fs::read_dir(&directory).unwrap() {
-            let path = entry.unwrap().path();
-            let relative = path.strip_prefix(&stdlib).unwrap().to_str().unwrap();
-            if path.is_dir() {
-                stack.push(path.clone());
-            } else if matches!(
-                path.extension().and_then(|e| e.to_str()),
-                Some("vast" | "toml")
-            ) {
-                s.write(&format!("stdlib/{relative}"), &read(&path));
-            }
-        }
-    }
-    s.write(
-        "app/Vastitas.toml",
+    common::stdlib_app(
+        "stdlib frames",
         "[package]\nname = \"stdlib_frames_demo\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\n",
-    );
-    s.write("app/main.vast", main);
-    s
+        main,
+        &[],
+    )
 }
 
 fn check(s: &Scratch) -> std::process::Output {

@@ -8,26 +8,14 @@ const COMPLEX: &str =
     include_str!("../examples/packages/generative-owned-map/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
-    let s = Scratch::empty("generative owned maps");
-    for (name, source) in [
-        (
-            "Vastitas.toml",
-            include_str!("../examples/packages/generative-owned-map/Vastitas.toml"),
-        ),
-        (
-            "src/main.vast",
-            include_str!("../examples/packages/generative-owned-map/src/main.vast"),
-        ),
-        (
-            "src/profiles/mod.vast",
-            include_str!("../examples/packages/generative-owned-map/src/profiles/mod.vast"),
-        ),
-        ("src/real/mod.vast", real),
-        ("src/complex/mod.vast", complex),
-    ] {
-        s.write(name, source);
-    }
-    s
+    common::example_package(
+        "generative owned maps",
+        "examples/packages/generative-owned-map",
+        &[
+            ("src/real/mod.vast", real),
+            ("src/complex/mod.vast", complex),
+        ],
+    )
 }
 fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")

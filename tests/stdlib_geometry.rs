@@ -50,19 +50,11 @@ fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
     for (name, source) in LIBRARY {
         s.write(&format!("geo/{name}"), &rewrite(source));
     }
-    for name in [
-        "lib.vast",
-        "arithmetic.vast",
-        "arithmetic/integers.vast",
-        "arithmetic/naturals.vast",
-        "arithmetic/generic.vast",
-    ] {
-        s.write(
-            &format!("standard/{name}"),
-            &std::fs::read_to_string(common::root().join("stdlib/target/package").join(name))
-                .unwrap(),
-        );
-    }
+    s.copy_sources(
+        &common::root().join("stdlib/target/package"),
+        "standard",
+        &[],
+    );
     for (name, source) in DIFFERENTIAL {
         let source = source.replace("\"../geometry\"", "\"../geo\"");
         s.write(&format!("differential/{name}"), &rewrite(&source));

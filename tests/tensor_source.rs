@@ -7,22 +7,14 @@ const REAL: &str = include_str!("../examples/packages/tensor-packing/src/real/mo
 const COMPLEX: &str = include_str!("../examples/packages/tensor-packing/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
-    let s = Scratch::empty("tensor packing");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/tensor-packing/Vastitas.toml"),
-    );
-    s.write(
-        "src/main.vast",
-        include_str!("../examples/packages/tensor-packing/src/main.vast"),
-    );
-    s.write(
-        "src/profiles/mod.vast",
-        include_str!("../examples/packages/tensor-packing/src/profiles/mod.vast"),
-    );
-    s.write("src/real/mod.vast", real);
-    s.write("src/complex/mod.vast", complex);
-    s
+    common::example_package(
+        "tensor packing",
+        "examples/packages/tensor-packing",
+        &[
+            ("src/real/mod.vast", real),
+            ("src/complex/mod.vast", complex),
+        ],
+    )
 }
 fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")

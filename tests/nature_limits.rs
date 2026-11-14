@@ -6,30 +6,6 @@
 //! accepts, the code of each rejection and the text of its message.
 mod common;
 use common::{Scratch, expect_code, success};
-use std::path::Path;
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap()
-}
-
-/// Copies every `.vast` and `.toml` file under `from` to `to` in `s`.
-fn copy_tree(s: &Scratch, from: &Path, to: &str) {
-    let mut stack = vec![from.to_path_buf()];
-    while let Some(directory) = stack.pop() {
-        for entry in std::fs::read_dir(&directory).unwrap() {
-            let path = entry.unwrap().path();
-            if path.is_dir() {
-                stack.push(path);
-            } else if matches!(
-                path.extension().and_then(|e| e.to_str()),
-                Some("vast" | "toml")
-            ) {
-                let relative = path.strip_prefix(from).unwrap().to_str().unwrap();
-                s.write(&format!("{to}/{relative}"), &read(&path));
-            }
-        }
-    }
-}
 
 const APP_MANIFEST: &str = "[package]\nname = \"limits_demo\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
 
@@ -51,16 +27,9 @@ const MAIN: &str = "\nfn main() -> Int { 42 }\n";
 /// of the stdlib in `stdlib/` and of the nature package in `nature/`, as in
 /// the repository.
 fn fixture(declarations: &str) -> Scratch {
-    common::prepare_stdlib_package();
-    let s = Scratch::empty("nature limits");
-    let stdlib = common::root().join("stdlib");
-    s.write("stdlib/Vastitas.toml", &read(&stdlib.join("Vastitas.toml")));
-    for directory in ["target/package", "src/geometry", "src/differential"] {
-        copy_tree(&s, &stdlib.join(directory), &format!("stdlib/{directory}"));
-    }
-    copy_tree(&s, &common::root().join("nature"), "nature");
-    s.write("app/Vastitas.toml", APP_MANIFEST);
-    s.write("app/main.vast", &format!("{HEADER}{declarations}{MAIN}"));
+    let main = format!("{HEADER}{declarations}{MAIN}");
+    let s = common::stdlib_app("nature limits", APP_MANIFEST, &main, &[]);
+    s.copy_nature();
     s
 }
 

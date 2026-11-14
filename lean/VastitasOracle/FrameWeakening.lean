@@ -51,8 +51,8 @@ namespace VastitasOracle.FrameWeakening
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core
 open VastitasKernel.Indexed.Core.Semantics
-open VastitasOracle.SmoothMetricWeakening (MetricDeclaration MetricFree lookup_append lookup_insert
-  mem_ids_of_lookup)
+open VastitasOracle.SmoothMetricWeakening (MetricDeclaration MetricFree lookup_append lookup_entry
+  lookup_insert mem_ids_of_lookup)
 
 /-! ## Frame declarations and the frames a binding names -/
 
@@ -174,17 +174,6 @@ theorem applicationFrames_sub {application application' : Application}
   simp only [applicationFrames, List.mem_filterMap] at member ⊢
   obtain ⟨index, indexMember, equal⟩ := member
   exact ⟨index, sub index indexMember, equal⟩
-
-/-- An entry found by `lookup` is a member of the environment. -/
-theorem lookup_entry {env : Environment} {id : DeclId} {declaration : Declaration}
-    (h : lookup env id = some declaration) :
-    ∃ entry ∈ env, entry.id = id ∧ entry.declaration = declaration := by
-  unfold lookup at h
-  cases found : env.find? (fun entry => entry.id == id) with
-  | none => simp [found] at h
-  | some entry =>
-    simp only [found, Option.map_some, Option.some.injEq] at h
-    exact ⟨entry, List.mem_of_find?_eq_some found, by simpa using List.find?_some found, h⟩
 
 /-! ### Views that treat a frame declaration as a missing one -/
 

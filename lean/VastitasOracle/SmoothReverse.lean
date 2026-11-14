@@ -293,7 +293,7 @@ theorem core_pullback_compose {module : Module} {fuel : Nat} {values : Values}
 
 /-! ## Metric-free -/
 
-private theorem environment_free {binding : PrimitiveBinding}
+theorem environment_free {binding : PrimitiveBinding}
     (transfer : ∀ (env env' : Indexed.Environment) (values : List Value) (value : Value),
       evalPrimitive env binding values = some value → evalPrimitive env' binding values = some value)
     (env env' : Indexed.Environment) (values : List Value) :

@@ -3,6 +3,7 @@ import VastitasOracle.IndexedAssociations
 import VastitasOracle.SmoothRuntime
 import VastitasOracle.SmoothCanonical
 import VastitasOracle.IndexedPrimitiveSoundness
+import VastitasOracle.SmoothMetricWeakening
 
 set_option autoImplicit false
 
@@ -63,13 +64,15 @@ theorem smooth_has_type {env : Indexed.Environment} {world : World} {program : S
       smoothDimension? env x = some n ∧ smoothDimension? env y = some m ∧ program.wellTyped n m = true := by
   obtain ⟨_, typed⟩ := typed
   simp only [representation] at typed
+  -- `split` tags the arms by position (`h_1`, …). The smooth arm is the one
+  -- whose typing gives the two endpoints, wherever it stands.
   split at typed
-  case h_5 =>
-    rename_i program' x y heqValue _ heqIndices
-    cases heqValue
-    obtain ⟨n, m, hx, hy, welltyped⟩ := typed
-    exact ⟨x, y, n, m, heqIndices, hx, hy, welltyped⟩
-  all_goals simp_all
+  all_goals first
+    | (rename_i program' x y heqValue _ heqIndices
+       cases heqValue
+       obtain ⟨n, m, hx, hy, welltyped⟩ := typed
+       exact ⟨x, y, n, m, heqIndices, hx, hy, welltyped⟩)
+    | simp_all
 
 /-- Only a program has a smooth type. -/
 theorem smooth_value {env : Indexed.Environment} {world : World} {value : Value} {application : Application}
@@ -116,19 +119,9 @@ theorem smooth_world {env : Indexed.Environment} {before after : World} {program
   obtain ⟨x, y, n, m, indices, hx, hy, welltyped⟩ := smooth_has_type representation typed
   exact smooth_typed representation typed.1 indices hx hy welltyped
 
-theorem lookup_entry {env : Indexed.Environment} {id : DeclId} {declaration : Declaration}
-    (h : lookup env id = some declaration) :
-    ∃ entry ∈ env, entry.id = id ∧ entry.declaration = declaration := by
-  unfold lookup at h
-  cases found : env.find? (fun entry => entry.id == id) with
-  | none => simp [found] at h
-  | some entry =>
-    simp only [found, Option.map_some, Option.some.injEq] at h
-    exact ⟨entry, List.mem_of_find?_eq_some found, by simpa using List.find?_some found, h⟩
-
 theorem family_valid {env : Indexed.Environment} (envValid : env.Valid) {id : DeclId} {family : Family}
     (h : lookup env id = some (.family family)) : family.Valid env := by
-  obtain ⟨entry, member, _, declaration⟩ := lookup_entry h
+  obtain ⟨entry, member, _, declaration⟩ := SmoothMetricWeakening.lookup_entry h
   have valid := envValid.declarations entry member
   unfold Entry.Valid at valid
   rw [declaration] at valid

@@ -34,11 +34,6 @@ def parseScalar : String → Option Nat
   | "Bool" => some 2 | "Unit" => some 3
   | _ => none
 
-def parseSelector (name : String) : Option Nat :=
-  match name with
-  | "Number" => some 4 | "Any" => some 5
-  | _ => parseScalar name
-
 def nominalName : Nat → String
   | 0 => "Nat" | 1 => "Int" | 2 => "Bool" | 3 => "Unit"
   | 4 => "Number" | 5 => "Any" | n => s!"nominal#{n}"

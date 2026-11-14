@@ -95,6 +95,9 @@ import VastitasOracle.CallCoverage
 import VastitasOracle.NumericalCoverage
 
 /-!
-Vastitas Stage 0 / Stage 1a / Stage 1b proof-only oracle. No compiler/runtime target imports this
-module. See the individual modules for the precise scope of each theorem.
+Root of the Vastitas proof oracle. The oracle imports the implementation's
+definitions from `lean-kernel/` and no Mathlib module, and no compiler or
+runtime target imports it. `scripts/audit_axioms.lean` requires every oracle
+module to be imported from this root, directly or through another module. See
+the individual modules for the precise scope of each theorem.
 -/

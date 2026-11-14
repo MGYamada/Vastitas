@@ -60,6 +60,17 @@ theorem lookup_append (env extra : Environment) (id : DeclId) :
   rw [List.find?_append]
   cases env.find? (fun entry => entry.id == id) <;> rfl
 
+/-- An entry found by `lookup` is a member of the environment. -/
+theorem lookup_entry {env : Environment} {id : DeclId} {declaration : Declaration}
+    (h : lookup env id = some declaration) :
+    ∃ entry ∈ env, entry.id = id ∧ entry.declaration = declaration := by
+  unfold lookup at h
+  cases found : env.find? (fun entry => entry.id == id) with
+  | none => simp [found] at h
+  | some entry =>
+    simp only [found, Option.map_some, Option.some.injEq] at h
+    exact ⟨entry, List.mem_of_find?_eq_some found, by simpa using List.find?_some found, h⟩
+
 /-- `big` extends `small` by metric declarations: each lookup in `big` is the
 lookup in `small`, or a metric declaration where `small` has nothing. -/
 def MetricExtension (small big : Environment) : Prop :=

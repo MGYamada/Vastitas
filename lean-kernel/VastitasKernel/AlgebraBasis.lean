@@ -239,9 +239,6 @@ structure Tracked where
 def unitRow (count index : Nat) (arity : Nat) : List Poly :=
   (List.range count).map fun j => if j == index then Poly.one arity else []
 
-def rowAdd (left right : List Poly) : Work (List Poly) :=
-  (left.zip right).mapM fun (a, b) => add a b
-
 def rowMulTerm (t : Term) (row : List Poly) : Work (List Poly) := row.mapM (mulTerm t)
 
 def rowMul (q : Poly) (row : List Poly) : Work (List Poly) := row.mapM (mul q)

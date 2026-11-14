@@ -224,12 +224,6 @@ def generateAction (state : State) (operation : Action) (indent : Nat) :
   let instructions ← action state operation
   return (after, instructions, ← render instructions indent)
 
-/-- Checked operations for composition with another independently checked
-executable body. This repeats the same full original-plan/instruction audit. -/
-def generateBody (plan : Plan) : Except Error String := do
-  let _ ← audit plan
-  render plan.instructions
-
 def Plan.needsNumerical (plan : Plan) : Bool :=
   plan.instructions.any fun instruction => match instruction with | .gemm .. | .diagonalPair .. => true | _ => false
 

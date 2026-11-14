@@ -1,4 +1,8 @@
-//! The Stage 1b lexer, parser, and lexical name resolver.
+//! The lexer, the parser and the lexical name resolver of flat sources and
+//! package modules. This file holds the lexer, the token primitives of the
+//! parser and the entry points; the child modules parse declarations, edit
+//! authority, types, expressions, indexed and resource syntax, and resolve
+//! the names of a flat compilation unit.
 //!
 //! Identifiers are ASCII; offsets are UTF-8 byte offsets and diagnostic columns
 //! count Unicode scalar values. No source fragment is ever emitted as Lean code.

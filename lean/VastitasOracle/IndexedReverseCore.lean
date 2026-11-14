@@ -435,18 +435,6 @@ fails only when the Core audit rejects the generated module. The validation
 therefore detects no error of the generator; the theorems about the templates
 and the compiled sites are what rule such errors out. -/
 
-/-- The Core audit returns the module it checks. -/
-theorem checkModule_module {module : Module} {requireMain : Bool} {checked : Typing.CheckedModule requireMain}
-    (audited : Typing.checkModule module requireMain = .ok checked) : checked.module = module := by
-  unfold Typing.checkModule at audited
-  split at audited
-  · split at audited
-    · split at audited
-      · cases audited; rfl
-      · cases audited
-    · cases audited
-  · cases audited
-
 /-- The generator's own output validates, for every module. -/
 theorem validate_generate (module : Module) : validate module (generate module).2 (generate module).1 = true :=
   validate_iff.mpr rfl
@@ -480,7 +468,7 @@ theorem compile_fails_only_by_audit {requireMain : Bool} (source : Typing.Checke
     | error error => exact ⟨error, rfl⟩
     | ok checked =>
       exfalso
-      have same := checkModule_module audit
+      have same := VastitasOracle.IndexedCore.checkModule_input _ _ _ audit
       rw [← same] at valid
       rw [audit] at failed
       simp only [Except.mapError] at failed

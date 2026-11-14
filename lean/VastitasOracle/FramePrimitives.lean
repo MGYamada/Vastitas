@@ -1,6 +1,7 @@
 import VastitasOracle.IndexedPrimitiveSoundness
 import VastitasOracle.SmoothFibers
 import VastitasKernel.IndexedFrameRegistry
+import VastitasOracle.FrameLengths
 
 set_option autoImplicit false
 
@@ -44,6 +45,7 @@ open VastitasOracle.SmoothPrimitives (SmoothOutcome smooth_family smooth_value v
   integer_values integers_erase)
 open VastitasOracle.SmoothFibers (fiber_family fiber_value fiber_typed point_value map_and_point
   coordinates_length vector_typed)
+open VastitasOracle.FrameRuntime (length_matVec length_transposeVec length_matrixProduct length_matrixAt)
 
 /-! ## The typing of frame values
 
@@ -207,28 +209,12 @@ theorem frameDeclared_object {env : Indexed.Environment} {frame : FrameRef} (h :
 
 /-! ## Runtime lengths -/
 
-theorem matVec_length (matrix : SmoothRuntime.Matrix) (vector : List Rat) :
-    (SmoothRuntime.matVec matrix vector).length = matrix.length := by
-  simp [SmoothRuntime.matVec]
-
-theorem matrixAt_length (matrix : PolyMatrix) (point : List Rat) :
-    (FrameRuntime.matrixAt matrix point).length = matrix.length := by
-  simp [FrameRuntime.matrixAt]
-
-theorem transposeVec_length (columns : Nat) (matrix : SmoothRuntime.Matrix) (vector : List Rat) :
-    (FrameRuntime.transposeVec columns matrix vector).length = columns := by
-  simp [FrameRuntime.transposeVec]
-
-theorem matrixProduct_length (columns : Nat) (left right : SmoothRuntime.Matrix) :
-    (FrameRuntime.matrixProduct columns left right).length = left.length := by
-  simp [FrameRuntime.matrixProduct]
-
 theorem matrixProduct_rows (columns : Nat) (left right : SmoothRuntime.Matrix) :
     ∀ row ∈ FrameRuntime.matrixProduct columns left right, row.length = columns := by
   intro row member
   simp only [FrameRuntime.matrixProduct, List.mem_map] at member
   obtain ⟨_, _, rfl⟩ := member
-  exact transposeVec_length _ _ _
+  exact length_transposeVec _ _ _
 
 /-- Encoding keeps the point and the number of components. -/
 theorem encode_typed {n : Nat} (frame : FrameRef) (variance : Variance) {value : SmoothRuntime.FiberValue}
@@ -244,7 +230,7 @@ theorem encode_typed {n : Nat} (frame : FrameRef) (variance : Variance) {value :
       first
       | trivial
       | (rename_i fits
-         simp only [FiberTyped, matVec_length, matrixAt_length, transposeVec_length]
+         simp only [FiberTyped, length_matVec, length_matrixAt, length_transposeVec]
          omega)
 
 /-- Decoding keeps the point and the number of components. -/
@@ -261,7 +247,7 @@ theorem decode_typed {n : Nat} (frame : FrameRef) (variance : Variance) {value :
       first
       | trivial
       | (rename_i fits
-         simp only [FiberTyped, matVec_length, matrixAt_length, transposeVec_length]
+         simp only [FiberTyped, length_matVec, length_matrixAt, length_transposeVec]
          omega)
 
 /-- **Frame matrix typing.** For a map checked as `ℝⁿ → ℝᵐ` and a point
@@ -276,10 +262,10 @@ theorem frameMatrix_runtime_typed {map point : SmoothRuntime.Program} {n m : Nat
   simp only [FrameRuntime.frameMatrix, Bool.and_eq_true, beq_iff_eq]
   split
   · rename_i fits
-    simp only [FrameMatrixTyped, List.length_map, matrixAt_length, List.mem_map]
+    simp only [FrameMatrixTyped, List.length_map, length_matrixAt, List.mem_map]
     refine ⟨hsource, htarget, by omega, ?_⟩
     rintro row ⟨_, _, rfl⟩
-    rw [transposeVec_length, hsource]
+    rw [length_transposeVec, hsource]
   · trivial
 
 /-- **Transition typing.** A transition at a point of `ℝⁿ` is a map `ℝⁿ → ℝⁿ`
@@ -290,7 +276,7 @@ theorem transition_typed {point : SmoothRuntime.Program} {n : Nat} (hpoint : poi
   simp only [FrameRuntime.transition, Bool.and_eq_true, beq_iff_eq]
   split
   · rename_i fits
-    simp only [FrameMatrixTyped, matrixProduct_length, matrixAt_length]
+    simp only [FrameMatrixTyped, length_matrixProduct, length_matrixAt]
     refine ⟨hsource, hsource, by omega, ?_⟩
     intro row member
     rw [matrixProduct_rows _ _ _ row member, hsource]
@@ -308,7 +294,7 @@ theorem apply_typed {n m : Nat} {matrix : FrameRuntime.FrameMatrixValue} {value 
       obtain ⟨_, ht, he, _⟩ := matrixTyped
       simp only [FrameRuntime.apply, Bool.and_eq_true, beq_iff_eq]
       split
-      · simp only [FiberTyped, matVec_length]
+      · simp only [FiberTyped, length_matVec]
         exact ⟨ht, he⟩
       · trivial
 
@@ -324,7 +310,7 @@ theorem coapply_typed {n m : Nat} {matrix : FrameRuntime.FrameMatrixValue} {valu
       obtain ⟨hs, _, _, _⟩ := matrixTyped
       simp only [FrameRuntime.coapply, Bool.and_eq_true, beq_iff_eq]
       split
-      · simp only [FiberTyped, transposeVec_length]
+      · simp only [FiberTyped, length_transposeVec]
         exact ⟨hs, hs⟩
       · trivial
 
@@ -341,7 +327,7 @@ theorem compose_typed {n m k : Nat} {after before : FrameRuntime.FrameMatrixValu
       obtain ⟨hs, _, _, _⟩ := beforeTyped
       simp only [FrameRuntime.compose]
       split
-      · simp only [FrameMatrixTyped, matrixProduct_length]
+      · simp only [FrameMatrixTyped, length_matrixProduct]
         refine ⟨hs, ht, he, ?_⟩
         intro row member
         rw [matrixProduct_rows _ _ _ row member, hs]

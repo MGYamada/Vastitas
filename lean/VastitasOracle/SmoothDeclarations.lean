@@ -149,7 +149,7 @@ theorem smooth_objects_are_declared {env : Environment} (envValid : env.Valid) {
   cases declared : lookup env id with
   | none => simp [declared] at found
   | some declaration =>
-    obtain ⟨entry, member, _, entryDeclaration⟩ := SmoothPrimitives.lookup_entry declared
+    obtain ⟨entry, member, _, entryDeclaration⟩ := SmoothMetricWeakening.lookup_entry declared
     have entryValid := envValid.declarations entry member
     unfold Entry.Valid at entryValid
     rw [entryDeclaration] at entryValid

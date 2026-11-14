@@ -338,7 +338,7 @@ theorem frame_sound {env : Environment} (envValid : env.Valid) {id family object
         coordinates.length ≤ Limits.algebraGenerators ∧ polySquare coordinates.length P = true ∧
         polySquare coordinates.length Q = true ∧
         ∀ p : List Rat, InverseAt coordinates.length P Q p ∧ InverseAt coordinates.length Q P p := by
-  obtain ⟨entry, member, _, equal⟩ := SmoothPrimitives.lookup_entry found
+  obtain ⟨entry, member, _, equal⟩ := SmoothMetricWeakening.lookup_entry found
   have valid := envValid.declarations entry member
   unfold Entry.Valid at valid
   rw [equal] at valid

@@ -91,7 +91,7 @@ theorem DeclaredFrame.checked {env : Indexed.Environment} {frame : FrameRef} (va
   · rename_i family' object matrix inverse declaration
     simp only [Option.some.injEq, Prod.mk.injEq] at found
     obtain ⟨rfl, rfl, rfl, rfl⟩ := found
-    obtain ⟨entry, member, _, entryDeclaration⟩ := SmoothPrimitives.lookup_entry declaration
+    obtain ⟨entry, member, _, entryDeclaration⟩ := SmoothMetricWeakening.lookup_entry declaration
     have entryValid := valid.declarations entry member
     unfold Entry.Valid at entryValid
     rw [entryDeclaration] at entryValid
@@ -345,20 +345,7 @@ theorem frame_runtime_operations :
   refine ⟨fun _ _ _ _ _ => rfl, fun _ _ _ _ _ => rfl, fun _ _ _ _ _ _ => rfl, fun _ _ _ _ _ => rfl,
     fun _ _ _ _ => rfl, fun _ _ _ _ => rfl, fun _ _ _ => rfl, fun _ _ _ _ => rfl⟩
 
-private theorem environment_free {binding : PrimitiveBinding}
-    (transfer : ∀ (env env' : Indexed.Environment) (values : List Value) (value : Value),
-      evalPrimitive env binding values = some value → evalPrimitive env' binding values = some value)
-    (env env' : Indexed.Environment) (values : List Value) :
-    evalPrimitive env binding values = evalPrimitive env' binding values := by
-  cases h : evalPrimitive env binding values with
-  | some value => exact (transfer env env' values value h).symm
-  | none =>
-    cases h' : evalPrimitive env' binding values with
-    | none => rfl
-    | some value =>
-      rw [transfer env' env values value h'] at h
-      cases h
-
+open VastitasOracle.SmoothReverse (environment_free) in
 /-- **Frame bindings read no declaration.** Every frame binding other than
 `frame_vector` evaluates the same in every pair of environments: it reads the
 frames it embeds, not their declarations. `frame_vector` reads only the

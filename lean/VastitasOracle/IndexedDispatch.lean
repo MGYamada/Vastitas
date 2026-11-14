@@ -38,12 +38,6 @@ theorem applicable_expansion {program : Program} (checked : CheckedProgram progr
   obtain ⟨entry, member, same⟩ := List.mem_map.mp present
   exact ⟨entry, member, congrArg Prod.fst same, congrArg Prod.snd same⟩
 
-private theorem origins_valid {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain) :
-    validOrigins prepared.input audit checked.lowered = true := by
-  have valid := checked.accepted
-  simp only [validPass, Bool.and_eq_true, and_assoc] at valid
-  exact valid.1
-
 theorem definition_body_checked {program : Program} (checked : CheckedProgram program requireMain)
     (definition : FunctionSource.Compiler.Prepared) (member : definition ∈ checked.compiler.input.prepared) :
     ∃ function ∈ checked.audit.lowered.module.functions, ∃ key,
@@ -57,7 +51,7 @@ theorem definition_body_checked {program : Program} (checked : CheckedProgram pr
   obtain ⟨key, keyMember, same⟩ := covered
   obtain ⟨index, keyFound⟩ := Array.getElem?_of_mem (Array.mem_toList_iff.mp keyMember)
   have bounded := (Array.getElem?_eq_some_iff.mp keyFound).1
-  have valid := origins_valid checked.audit
+  have valid := IndexedFunctions.origins_valid checked.audit
   simp only [validOrigins, Bool.and_eq_true, beq_iff_eq] at valid
   have functionBound : index < checked.audit.lowered.module.functions.length := by omega
   let function := checked.audit.lowered.module.functions[index]

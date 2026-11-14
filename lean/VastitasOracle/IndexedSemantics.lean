@@ -154,28 +154,16 @@ theorem application_ref_valid {env : Indexed.Environment} {application : Applica
       obtain ⟨type, found, typed, _⟩ := accepts
       exact ⟨type, found, typed⟩
 
-theorem primitive_nil {env : Indexed.Environment} {world : World} {values : List Value}
-    (typed : PrimitiveValuesHaveTypes env world values []) : values = [] := by
-  cases values <;> simp_all [PrimitiveValuesHaveTypes]
-
 theorem primitive_single {env : Indexed.Environment} {world : World} {values : List Value} {type : ValueType}
     (typed : PrimitiveValuesHaveTypes env world values [type]) :
-    ∃ value, values = [value] ∧ PrimitiveValueHasType env world value type := by
-  cases values with
-  | nil => contradiction
-  | cons value rest =>
-      have empty := primitive_nil typed.2
-      exact ⟨value, by simp [empty], typed.1⟩
+    ∃ value, values = [value] ∧ PrimitiveValueHasType env world value type :=
+  SmoothPrimitives.values_single typed
 
 theorem primitive_pair {env : Indexed.Environment} {world : World} {values : List Value} {first second : ValueType}
     (typed : PrimitiveValuesHaveTypes env world values [first, second]) :
     ∃ left right, values = [left, right] ∧ PrimitiveValueHasType env world left first ∧
-      PrimitiveValueHasType env world right second := by
-  cases values with
-  | nil => contradiction
-  | cons left rest =>
-      obtain ⟨right, equal, typedRight⟩ := primitive_single typed.2
-      exact ⟨left, right, by simp [equal], typed.1, typedRight⟩
+      PrimitiveValueHasType env world right second :=
+  SmoothPrimitives.values_pair typed
 
 theorem primitive_natural {env : Indexed.Environment} {world : World} {value : Value}
     (typed : PrimitiveValueHasType env world value .natural) : ∃ n, value = .natural n := by
@@ -244,7 +232,7 @@ theorem global_total {env : Indexed.Environment} {world : World} {id : DeclId}
     (rule : PrimitiveTyped env (.global id) allowed brand [] output)
     (typed : PrimitiveValuesHaveTypes env world values []) :
     PrimitiveOutcome env world (.global id) values output := by
-  have empty := primitive_nil typed
+  have empty := SmoothPrimitives.values_nil typed
   subst values
   obtain ⟨type, found, rfl⟩ := IndexedAssociations.global_association.mp rule.association
   obtain ⟨object, computed, denotes⟩ := global_denotes env world id rule.bindingValid.2
@@ -375,7 +363,7 @@ theorem relativeConstant_total {env : Indexed.Environment} {world : World} {appl
     (rule : PrimitiveTyped env (.relativeConstant application map) allowed brand [] output)
     (typed : PrimitiveValuesHaveTypes env world values []) :
     PrimitiveOutcome env world (.relativeConstant application map) values output := by
-  have empty := primitive_nil typed
+  have empty := SmoothPrimitives.values_nil typed
   subst values
   have association : output = .indexed application := (IndexedAssociations.relativeConstant_association.mp rule.association).symm
   subst association

@@ -139,16 +139,6 @@ theorem map_guards {valuation : Shapes.Valuation} {values : Values} {name : Symb
     intro guard present
     exact holds guard (List.mem_flatMap.mpr ⟨pair, member, by simpa [same] using present⟩)
 
-@[simp] theorem logical_rows (valuation : Shapes.Valuation) (layout : Shapes.Layout) :
-    (layout.eval valuation).logicalRows = layout.logicalRows.eval valuation := by
-  cases transposed : layout.transposed <;>
-    simp [Shapes.Layout.eval, Shapes.Layout.logicalRows, Storage.Layout.logicalRows, transposed]
-
-@[simp] theorem logical_columns (valuation : Shapes.Valuation) (layout : Shapes.Layout) :
-    (layout.eval valuation).logicalColumns = layout.logicalColumns.eval valuation := by
-  cases transposed : layout.transposed <;>
-    simp [Shapes.Layout.eval, Shapes.Layout.logicalColumns, Storage.Layout.logicalColumns, transposed]
-
 theorem map_live (valuation : Shapes.Valuation) (frame : Shapes.Frame) (view : Map)
     (live : view.Live frame) (snapshot : view.loan.layout = view.layout)
     (holds : Shapes.guardsHold valuation view.guards) :

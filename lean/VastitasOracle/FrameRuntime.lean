@@ -1,6 +1,7 @@
 import VastitasKernel.FrameRuntime
 import VastitasKernel.FrameDeclarations
 import VastitasOracle.SmoothCalculus
+import VastitasOracle.FrameLengths
 
 set_option autoImplicit false
 
@@ -233,20 +234,8 @@ theorem matrix_ext {r c : Nat} {A B : Matrix} (hA : Shape r c A) (hB : Shape r c
 
 /-! ### Lengths and shapes -/
 
-theorem length_matVec (A : Matrix) (v : List Rat) : (matVec A v).length = A.length := by
-  simp [matVec]
-
-theorem length_transposeVec (c : Nat) (A : Matrix) (v : List Rat) : (transposeVec c A v).length = c := by
-  simp [transposeVec]
-
-theorem length_matrixProduct (c : Nat) (L R : Matrix) : (matrixProduct c L R).length = L.length := by
-  simp [matrixProduct]
-
 theorem length_identity (n : Nat) : (identityMatrix n).length = n := by
   simp [identityMatrix]
-
-theorem length_matrixAt (M : List (List Poly)) (p : List Rat) : (matrixAt M p).length = M.length := by
-  simp [matrixAt]
 
 theorem length_transpose (n : Nat) (A : Matrix) : (transpose n A).length = n := by
   simp [transpose]

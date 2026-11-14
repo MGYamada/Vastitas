@@ -13,6 +13,7 @@ on:
       - 'lean-kernel/VastitasKernel/Resource*.lean'
       - 'lean-kernel/VastitasKernel/Storage*.lean'
       - 'lean-kernel/VastitasKernel/Tensor*.lean'
+      - 'lean-kernel/VastitasKernel/LoanIndex.lean'
       - 'lean-kernel/lean-toolchain'
       - 'scripts/build_openblas.py'
       - 'experiments/plain_c/**'

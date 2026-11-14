@@ -199,7 +199,8 @@ Git retains the earlier revisions.
 ## Style guide
 
 These rules govern the text of every chapter. The archived delivery records,
-`stage1-completion.md` and the `stage*-acceptance.md` files, are exempt and keep
+`stage1-completion.md`, `stage1-acceptance.md`, `stage2-acceptance.md`,
+`stage3-acceptance.md` and `reverse-core-acceptance.md`, are exempt and keep
 their original wording. So do the chapters with moved text that
 [Author and retire a chapter](#author-and-retire-a-chapter) names, apart
 from the checked rules.

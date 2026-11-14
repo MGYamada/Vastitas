@@ -647,6 +647,41 @@ impl Parser {
         self.expect(">")
     }
 
+    // `open`, items separated by `,` with an optional trailing `,`, and
+    // `close`. The list may be empty.
+    fn delimited_list<T>(
+        &mut self,
+        open: &str,
+        close: &str,
+        item: impl FnMut(&mut Self) -> Result<T, Diagnostic>,
+    ) -> Result<Vec<T>, Diagnostic> {
+        self.expect(open)?;
+        self.delimited_tail(close, item)
+    }
+
+    // The items and the `close` of a delimited list whose opener has been
+    // consumed.
+    fn delimited_tail<T>(
+        &mut self,
+        close: &str,
+        mut item: impl FnMut(&mut Self) -> Result<T, Diagnostic>,
+    ) -> Result<Vec<T>, Diagnostic> {
+        let mut values = Vec::new();
+        if !self.consume(close) {
+            loop {
+                values.push(item(self)?);
+                if self.consume(close) {
+                    break;
+                }
+                self.expect(",")?;
+                if self.consume(close) {
+                    break;
+                }
+            }
+        }
+        Ok(values)
+    }
+
     fn name(&mut self) -> Result<(String, Span), Diagnostic> {
         let token = self.advance();
         match token.kind {

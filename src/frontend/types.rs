@@ -44,23 +44,11 @@ impl Parser {
             }
             "Fn" => {
                 self.expect("<")?;
-                let mut params = Vec::new();
-                if self.consume("(") {
-                    if !self.consume(")") {
-                        loop {
-                            params.push(self.ty()?);
-                            if self.consume(")") {
-                                break;
-                            }
-                            self.expect(",")?;
-                            if self.consume(")") {
-                                break;
-                            }
-                        }
-                    }
+                let params = if self.consume("(") {
+                    self.delimited_tail(")", Self::ty)?
                 } else {
-                    params.push(self.ty()?);
-                }
+                    vec![self.ty()?]
+                };
                 self.expect(",")?;
                 let return_type = Box::new(self.ty()?);
                 self.type_close()?;

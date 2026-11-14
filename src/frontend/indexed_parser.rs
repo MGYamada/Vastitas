@@ -100,7 +100,7 @@ impl Parser {
         self.expect(",")?;
         self.expect("fields")?;
         self.expect(":")?;
-        let fields = self.indexed_list("[", "]", |p| {
+        let fields = self.delimited_list("[", "]", |p| {
             let (field, field_depth) = p.expression_with_depth(0)?;
             depth = depth.max(field_depth);
             Ok(field)
@@ -113,29 +113,6 @@ impl Parser {
             fields,
         };
         Ok((kind, depth))
-    }
-
-    pub(super) fn indexed_list<T>(
-        &mut self,
-        open: &str,
-        close: &str,
-        mut item: impl FnMut(&mut Self) -> Result<T, Diagnostic>,
-    ) -> Result<Vec<T>, Diagnostic> {
-        self.expect(open)?;
-        let mut values = Vec::new();
-        if !self.consume(close) {
-            loop {
-                values.push(item(self)?);
-                if self.consume(close) {
-                    break;
-                }
-                self.expect(",")?;
-                if self.consume(close) {
-                    break;
-                }
-            }
-        }
-        Ok(values)
     }
 
     fn indexed_tag(&mut self) -> Result<String, Diagnostic> {
@@ -262,7 +239,7 @@ impl Parser {
         let mut fields = Vec::new();
         while !self.consume("}") {
             let family = self.type_path()?;
-            let indices = self.indexed_list("(", ")", Self::indexed_bound)?;
+            let indices = self.delimited_list("(", ")", Self::indexed_bound)?;
             self.expect(";")?;
             fields.push(BoundApplication { family, indices });
         }
@@ -501,7 +478,7 @@ impl Parser {
                 let representation = self.indexed_representation()?;
                 self.expect(")")?;
                 self.expect("capabilities")?;
-                let capabilities = self.indexed_list("(", ")", |parser| {
+                let capabilities = self.delimited_list("(", ")", |parser| {
                     let token = parser.peek().clone();
                     match parser.indexed_tag()?.as_str() {
                         "origin" => Ok(indexed::Capability::Origin),
@@ -522,10 +499,10 @@ impl Parser {
             "classification" => {
                 self.expect("{")?;
                 self.expect("parents")?;
-                let parents = self.indexed_list("(", ")", Self::type_path)?;
+                let parents = self.delimited_list("(", ")", Self::type_path)?;
                 self.expect(";")?;
                 self.expect("domain")?;
-                let domain = self.indexed_list("(", ")", Self::type_path)?;
+                let domain = self.delimited_list("(", ")", Self::type_path)?;
                 self.expect(";")?;
                 self.expect("}")?;
                 DeclarationBody::Classification { parents, domain }
@@ -537,7 +514,7 @@ impl Parser {
                 DeclarationBody::Global { implementation }
             }
             "family" => {
-                let parameters = self.indexed_list("(", ")", Self::indexed_parameter)?;
+                let parameters = self.delimited_list("(", ")", Self::indexed_parameter)?;
                 self.expect("=")?;
                 let span = self.peek().span;
                 let representation = match self.indexed_tag()?.as_str() {
@@ -576,7 +553,7 @@ impl Parser {
                     Vec::new()
                 } else {
                     self.expect("constraints")?;
-                    self.indexed_list("(", ")", Self::indexed_constraint)?
+                    self.delimited_list("(", ")", Self::indexed_constraint)?
                 };
                 DeclarationBody::Family {
                     parameters,
@@ -761,9 +738,9 @@ impl Parser {
             let right = self.type_path()?;
             self.expect(")")?;
             let via = if self.consume("via") {
-                let forward = self.indexed_list("(", ")", Self::poly_binding)?;
+                let forward = self.delimited_list("(", ")", Self::poly_binding)?;
                 self.expect("inverse")?;
-                let inverse = self.indexed_list("(", ")", Self::poly_binding)?;
+                let inverse = self.delimited_list("(", ")", Self::poly_binding)?;
                 Some(indexed::FiberVia { forward, inverse })
             } else {
                 None
@@ -776,16 +753,16 @@ impl Parser {
             });
         }
         self.expect("spec")?;
-        let generators = self.indexed_list("[", "]", |p| Ok(p.name()?.0))?;
+        let generators = self.delimited_list("[", "]", |p| Ok(p.name()?.0))?;
         let relations = if self.consume("relations") {
-            self.indexed_list("(", ")", Self::polynomial)?
+            self.delimited_list("(", ")", Self::polynomial)?
         } else {
             Vec::new()
         };
         let (base, bindings) = if self.consume("over") {
             let base = self.type_path()?;
             let bindings = if self.consume("by") {
-                self.indexed_list("(", ")", Self::poly_binding)?
+                self.delimited_list("(", ")", Self::poly_binding)?
             } else {
                 Vec::new()
             };
@@ -851,7 +828,7 @@ impl Parser {
             ));
         }
         self.expect(")")?;
-        let coordinates = self.indexed_list("[", "]", |p| Ok(p.name()?.0))?;
+        let coordinates = self.delimited_list("[", "]", |p| Ok(p.name()?.0))?;
         let Some(base) = base else {
             return Ok(DeclarationBody::SmoothAffine {
                 implementation,
@@ -902,7 +879,7 @@ impl Parser {
         let span = self.peek().span;
         let definition = match self.indexed_tag()?.as_str() {
             "pullback" => indexed::MorphismDefinition::Pullback {
-                images: self.indexed_list("(", ")", Self::poly_binding)?,
+                images: self.delimited_list("(", ")", Self::poly_binding)?,
             },
             "identity" => indexed::MorphismDefinition::Identity,
             "structure" => indexed::MorphismDefinition::Structure,
@@ -937,7 +914,7 @@ impl Parser {
             "euclidean" => indexed::MetricGram::Euclidean,
             "gram" => indexed::MetricGram::Gram {
                 rows: self
-                    .indexed_list("(", ")", |p| p.indexed_list("(", ")", Self::polynomial))?,
+                    .delimited_list("(", ")", |p| p.delimited_list("(", ")", Self::polynomial))?,
             },
             _ => {
                 return Err(diagnostic(
@@ -1007,7 +984,7 @@ impl Parser {
     /// `((p, …), …)` after `columns`: the columns, each a parenthesized tuple
     /// of polynomial entries. `columns()` has no columns.
     fn frame_columns(&mut self) -> Result<indexed::FrameColumns, Diagnostic> {
-        let columns = self.indexed_list("(", ")", |p| {
+        let columns = self.delimited_list("(", ")", |p| {
             if !p.peek().is("(") {
                 return Err(diagnostic(
                     "E_PARSE",
@@ -1015,7 +992,7 @@ impl Parser {
                     p.peek().span,
                 ));
             }
-            p.indexed_list("(", ")", Self::polynomial)
+            p.delimited_list("(", ")", Self::polynomial)
         })?;
         Ok(indexed::FrameColumns::Columns { columns })
     }
@@ -1084,7 +1061,7 @@ impl Parser {
     /// `X`, in source order.
     fn indexed_reading(&mut self) -> Result<DeclarationBody, Diagnostic> {
         let (family, indices) = self.indexed_application()?;
-        let quantities = self.indexed_list("(", ")", |p| {
+        let quantities = self.delimited_list("(", ")", |p| {
             let coordinate = p.coordinate_name()?;
             p.expect(":")?;
             Ok(indexed::ReadingEntry {
@@ -1113,11 +1090,12 @@ impl Parser {
         let entries = match self.indexed_tag()?.as_str() {
             "euclidean" => indexed::PhysicalGram::Euclidean,
             "gram" => indexed::PhysicalGram::Gram {
-                rows: self
-                    .indexed_list("(", ")", |p| p.indexed_list("(", ")", Self::scale_monomial))?,
+                rows: self.delimited_list("(", ")", |p| {
+                    p.delimited_list("(", ")", Self::scale_monomial)
+                })?,
             },
             "normalized" => indexed::PhysicalGram::Normalized {
-                scales: self.indexed_list("(", ")", |p| {
+                scales: self.delimited_list("(", ")", |p| {
                     let coordinate = p.coordinate_name()?;
                     p.expect(":")?;
                     Ok(indexed::CoordinateScale {

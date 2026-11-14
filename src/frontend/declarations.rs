@@ -307,32 +307,20 @@ impl Parser {
     }
 
     pub(super) fn parameters(&mut self, selectors: bool) -> Result<Vec<Param>, Diagnostic> {
-        self.expect("(")?;
-        let mut params = Vec::new();
-        if !self.consume(")") {
-            loop {
-                let (name, start) = self.binding_name()?;
-                self.expect(":")?;
-                let ty = if selectors {
-                    self.dispatch_type(true)?
-                } else {
-                    self.ty()?
-                };
-                params.push(Param {
-                    name,
-                    ty,
-                    span: start.through(self.previous().span),
-                });
-                if self.consume(")") {
-                    break;
-                }
-                self.expect(",")?;
-                if self.consume(")") {
-                    break;
-                }
-            }
-        }
-        Ok(params)
+        self.delimited_list("(", ")", |parser| {
+            let (name, start) = parser.binding_name()?;
+            parser.expect(":")?;
+            let ty = if selectors {
+                parser.dispatch_type(true)?
+            } else {
+                parser.ty()?
+            };
+            Ok(Param {
+                name,
+                ty,
+                span: start.through(parser.previous().span),
+            })
+        })
     }
 
     fn function(&mut self) -> Result<Function, Diagnostic> {
@@ -357,34 +345,7 @@ impl Parser {
         &mut self,
         mut element: impl FnMut(&mut Self) -> Result<T, Diagnostic>,
     ) -> Result<Vec<Vec<T>>, Diagnostic> {
-        let mut domain = Vec::new();
-        if !self.consume(";") {
-            loop {
-                self.expect("(")?;
-                let mut key = Vec::new();
-                if !self.consume(")") {
-                    loop {
-                        key.push(element(self)?);
-                        if self.consume(")") {
-                            break;
-                        }
-                        self.expect(",")?;
-                        if self.consume(")") {
-                            break;
-                        }
-                    }
-                }
-                domain.push(key);
-                if self.consume(";") {
-                    break;
-                }
-                self.expect(",")?;
-                if self.consume(";") {
-                    break;
-                }
-            }
-        }
-        Ok(domain)
+        self.delimited_tail(";", |parser| parser.delimited_list("(", ")", &mut element))
     }
 
     pub(super) fn type_path(&mut self) -> Result<TypePath, Diagnostic> {
@@ -468,21 +429,10 @@ impl Parser {
     fn generic(&mut self) -> Result<Generic, Diagnostic> {
         let start = self.expect("generic")?.span;
         let (name, _) = self.binding_name()?;
-        self.expect("(")?;
-        let mut params = Vec::new();
-        if !self.consume(")") {
-            loop {
-                let (name, span) = self.binding_name()?;
-                params.push(GenericParam { name, span });
-                if self.consume(")") {
-                    break;
-                }
-                self.expect(",")?;
-                if self.consume(")") {
-                    break;
-                }
-            }
-        }
+        let params = self.delimited_list("(", ")", |parser| {
+            let (name, span) = parser.binding_name()?;
+            Ok(GenericParam { name, span })
+        })?;
         self.expect("{")?;
         self.expect("domain")?;
         let domain = self.domain_list(|parser| parser.dispatch_type(false))?;
@@ -496,21 +446,7 @@ impl Parser {
     }
 
     fn requirements(&mut self) -> Result<Vec<String>, Diagnostic> {
-        self.expect("(")?;
-        let mut requires = Vec::new();
-        if !self.consume(")") {
-            loop {
-                requires.push(self.name()?.0);
-                if self.consume(")") {
-                    break;
-                }
-                self.expect(",")?;
-                if self.consume(")") {
-                    break;
-                }
-            }
-        }
-        Ok(requires)
+        self.delimited_list("(", ")", |parser| Ok(parser.name()?.0))
     }
 
     fn method_result(&mut self) -> Result<Type, Diagnostic> {

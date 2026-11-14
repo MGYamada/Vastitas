@@ -106,7 +106,7 @@ impl Parser {
                 self.expect(",")?;
                 self.expect("fields")?;
                 self.expect(":")?;
-                let fields = self.indexed_list("[", "]", |p| Ok(p.binding_name()?.0))?;
+                let fields = self.delimited_list("[", "]", |p| Ok(p.binding_name()?.0))?;
                 self.consume(",");
                 self.expect("}")?;
                 let end = self.expect(";")?.span;
@@ -240,7 +240,9 @@ impl Parser {
         Ok((left, depth))
     }
 
-    // Parse the arguments after a consumed `(` and build the call node.
+    // Parse the arguments after a consumed `(` and build the call node. The
+    // loop is not `delimited_tail`: its closure would add frames to the
+    // recursion through nested calls.
     #[inline(never)]
     fn call(&mut self, callee: Expr, callee_depth: usize) -> Result<(Expr, usize), Diagnostic> {
         let mut args = Vec::new();

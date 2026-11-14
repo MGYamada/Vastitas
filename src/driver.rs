@@ -119,7 +119,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         return Ok(());
     }
     if args == ["--version"] {
-        let protocols = crate::packages::PUBLIC_PROTOCOLS.map(|version| version.to_string());
+        let protocols = crate::ir::PUBLIC_PROTOCOLS.map(|version| version.to_string());
         println!(
             "vastitas {} (wire protocols {})",
             env!("CARGO_PKG_VERSION"),
@@ -200,7 +200,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             Some(Value::Bool(required))
                 if matches!(
                     version,
-                    crate::packages::RESOURCE_PROTOCOL | crate::packages::NAMED_RECIPIENT_PROTOCOL
+                    crate::ir::RESOURCE_PROTOCOL | crate::ir::NAMED_RECIPIENT_PROTOCOL
                 ) =>
             {
                 *required
@@ -214,7 +214,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             Some(Value::Bool(required))
                 if matches!(
                     version,
-                    crate::packages::RESOURCE_PROTOCOL | crate::packages::NAMED_RECIPIENT_PROTOCOL
+                    crate::ir::RESOURCE_PROTOCOL | crate::ir::NAMED_RECIPIENT_PROTOCOL
                 ) =>
             {
                 *required

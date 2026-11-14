@@ -25,7 +25,7 @@ checked entry needs one, and closes it at its end.
 
 | Component | Directory | Receives | Produces |
 | --- | --- | --- | --- |
-| Parser and resolver of the frontend | `src/frontend.rs`, `src/frontend/`, `src/ir.rs`, `src/indexed.rs`, `src/storage.rs` | The text of each source file | The declarations of a request, with unresolved names and source positions |
+| Parser and resolver of the frontend | `src/frontend.rs`, `src/frontend/`, `src/ir.rs`, `src/namespace.rs`, `src/indexed.rs`, `src/storage.rs` | The text of each source file | The declarations of a request, with unresolved names and source positions |
 | Driver of the frontend | `src/driver.rs`, `src/sources.rs`, `src/packages.rs`, `src/process.rs`, `src/runtime_inputs.rs`, `build.rs` | The command line, the manifests and the source files | The request, the diagnostic lines, a Lake project for the native build and the output file |
 | Kernel | `lean-kernel/Main.lean`, `lean-kernel/VastitasKernel/` | One request on standard input and the mode `check` or `emit` | One response on standard output: acceptance or one diagnostic |
 | Code generators | `IndexedCodegen.lean`, `ResourceCodegen.lean`, `StorageCodegen.lean` and `StorageShapeCodegen.lean` in the kernel | The checked [Core](../appendix/glossary.md#core) and, for a resource entry, the checked resource schedule | The Lean source of the program, in the `emit` response |

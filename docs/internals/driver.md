@@ -28,7 +28,7 @@ with the status of `process::exit_code`.
 1. It installs the signal handlers
    ([Subprocesses and signals](#subprocesses-and-signals)).
 2. It answers `--help`, `-h` and `--version` and returns. The version line
-   lists `packages::PUBLIC_PROTOCOLS`, the wire protocols that the driver
+   lists `ir::PUBLIC_PROTOCOLS`, the wire protocols that the driver
    writes.
 3. It passes `audit-lean` to `src/internal_lean_audit.rs`
    ([The proof-audit command](#the-proof-audit-command)).
@@ -108,8 +108,11 @@ Tests:
 
 ## Parsing
 
-`src/frontend.rs` holds the lexer, the recursive-descent parser and the
-resolver of lexical scopes.
+`src/frontend.rs` holds the lexer, the token primitives of the
+recursive-descent parser and the entry points. The rest of the parser and the
+resolver of lexical scopes are in `src/frontend/`: `declarations.rs`,
+`authority.rs` for edit authority, `types.rs`, `expressions.rs` and
+`resolver.rs`.
 [Lexical structure](../language/lexical-structure.md) gives the rules of
 source text.
 
@@ -152,8 +155,9 @@ Three files extend the parser for packages:
   to its bits. It accepts a decimal literal only when an integer
   reconstruction of the bits equals the literal.
 
-The parser writes the records of `src/ir.rs`, `src/indexed.rs` and
-`src/storage.rs`. Their `serde` forms are the wire forms of the request.
+The parser writes the records of `src/ir.rs`, `src/namespace.rs`,
+`src/indexed.rs` and `src/storage.rs`. Their `serde` forms are the wire
+forms of the request.
 `src/primitive_table.rs` gives the fields of each indexed primitive.
 `scripts/check_primitive_table.py` generates it from the families of the
 kernel, and CI fails when the file differs from them. No identifier of a
@@ -163,7 +167,7 @@ itself.
 Tests:
 
 - `tests/frontend_diagnostics.rs::source_cases_produce_the_recorded_frontend_diagnostics`
-  and the unit tests of `src/frontend.rs`;
+  and the unit tests in `src/frontend/tests.rs`;
 - `tests/compiler.rs::excessive_source_nesting_is_a_diagnostic_not_a_process_abort`
   and `tests/stabilization.rs::else_if_limit_names_the_chain_and_accepts_the_documented_boundary`;
 - `tests/promotion.rs::stdlib_ir_matches_proof_fixture`, which compares the
@@ -231,8 +235,9 @@ gives the list.
 - In flat mode `frontend::parse_sources` writes version 2. It writes version
   4 with `input: "flat"` when the module holds an abstract type, a subtype or
   an abstract method.
-- In manifest mode the end of `packages::load` takes the first condition
-  that holds, from version 9 down to version 3. It writes
+- In manifest mode `packages::request_protocol`, at the end of
+  `packages::load`, takes the first condition that holds, from version 9
+  down to version 3. It writes
   `input: "package"` for every version other than 3.
 
 `serde_json` serializes the request in `kernel_request`. A first pass

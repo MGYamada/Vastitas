@@ -2,8 +2,29 @@
 
 use serde::{Deserialize, Serialize};
 
+// The wire protocols of a request. Flat input writes 2, or 4 when it holds
+// abstract declarations (`frontend::parse_sources`). A package request writes
+// the first of 9 down to 3 whose declarations the program holds
+// (`packages::request_protocol`); 9 also carries the algebraic forms.
 pub const PROTOCOL_VERSION: u32 = 2;
+pub(crate) const PACKAGE_PROTOCOL: u32 = 3;
 pub const ABSTRACT_PROTOCOL_VERSION: u32 = 4;
+pub(crate) const EDIT_PROTOCOL: u32 = 5;
+pub(crate) const AUTHORITY_PROTOCOL: u32 = 6;
+pub(crate) const INDEXED_PROTOCOL: u32 = 7;
+pub(crate) const RESOURCE_PROTOCOL: u32 = 8;
+pub(crate) const NAMED_RECIPIENT_PROTOCOL: u32 = 9;
+/// The protocols that the driver writes, in the order of `--version`.
+pub(crate) const PUBLIC_PROTOCOLS: [u32; 8] = [
+    PROTOCOL_VERSION,
+    PACKAGE_PROTOCOL,
+    ABSTRACT_PROTOCOL_VERSION,
+    EDIT_PROTOCOL,
+    AUTHORITY_PROTOCOL,
+    INDEXED_PROTOCOL,
+    RESOURCE_PROTOCOL,
+    NAMED_RECIPIENT_PROTOCOL,
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Span {

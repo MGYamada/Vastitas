@@ -195,7 +195,7 @@ def LambdaShadowFree (p : Program) : Prop := p.lambdaShadowDiagnostic.isNone = t
 instance (p : Program) : Decidable (LambdaShadowFree p) := inferInstanceAs (Decidable (_ = _))
 
 -- Body-less headers are used only to reuse declaration and finite-family
--- validation. The actual bodies are checked below, never these placeholders.
+-- validation. The actual bodies are checked separately, never these placeholders.
 def headers (p : Program) : RawProgram := {
   version := p.version, file := p.file, generics := p.generics
   abstractTypes := p.abstractTypes, subtypes := p.subtypes, abstractMethods := p.abstractMethods

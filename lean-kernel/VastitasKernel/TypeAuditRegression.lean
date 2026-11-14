@@ -2,6 +2,7 @@ import VastitasKernel.TypeAudit
 import VastitasKernel.Dependency
 import VastitasKernel.Checker
 import VastitasKernel.Codegen
+import VastitasKernel.RegressionSupport
 
 /-!
 Retained old-Core adversarial regressions for its independent audit. Main uses
@@ -13,8 +14,7 @@ They bypass raw elaboration so the audit itself must reject forged annotations.
 namespace VastitasKernel.TypeAuditRegression
 open Typing
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"checked-IR audit regression failed: {name}")
+private def check := RegressionSupport.check "checked-IR audit regression failed"
 
 private def objectRef (id : Nat) : ObjectRef := .local .qq id
 private def objectType (id : Nat) : ResultType := ⟨.object .qq, some (objectRef id)⟩

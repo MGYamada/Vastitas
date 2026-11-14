@@ -1,4 +1,5 @@
 import VastitasKernel.Graph
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Graph.Regression
 open Indexed
@@ -49,8 +50,7 @@ private def rewrite (core : Core) (rule : Rule) (offset : Nat := 0)
     (ctx : Context FixtureLaws := context) : Bool :=
   (checkRewrite ctx core (proposal core rule offset ctx)).isOk
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"graph regression failed: {name}")
+private def check := RegressionSupport.check "graph regression failed"
 
 #eval check "empty monoidal word" (accept (word [1, 1] []) (context .monoidal))
 #eval check "empty tensor word" (accept (word [] []) (context .monoidal))

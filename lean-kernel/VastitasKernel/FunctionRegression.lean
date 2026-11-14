@@ -1,5 +1,6 @@
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
+import VastitasKernel.RegressionSupport
 
 /-! Retained `checkSurfaceProgram` and old-Core static-signature regressions.
 Main no longer uses this top-level checker. LegacySourceRegression and the
@@ -17,8 +18,7 @@ private def main (expr : Expr) : Function := {
   name := "main", params := [], result := int, body := block expr, span := {} }
 private def program (functions : List Function) : Program := {
   version := 2, file := "function-regression.vast", functions, generics := [], methods := [] }
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"function regression failed: {name}")
+private def check := RegressionSupport.check "function regression failed"
 private def rejects (code : String) (p : Program) : Bool :=
   match checkSurfaceProgram p with
   | .error error => error.code == code

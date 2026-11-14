@@ -1,6 +1,7 @@
 import VastitasPromotion.Fixture
 import VastitasKernel.NamespaceChecker
 import VastitasKernel.Codegen
+import VastitasKernel.RegressionSupport
 
 /-! Retained legacy checker fixture/regression. Public indexed acceptance and
 numerical regression live in IndexedFixture and IndexedRegression; these old
@@ -41,8 +42,7 @@ end VastitasKernel.Surface
 namespace VastitasKernel.PromotionRegression
 open Semantics PromotionFixture
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"promotion regression failed: {name}")
+private def check := RegressionSupport.check "promotion regression failed"
 
 def evaluate : Nat → List CheckedFunction → Environment → Term → Option Value
   | 0, _, _, _ => none

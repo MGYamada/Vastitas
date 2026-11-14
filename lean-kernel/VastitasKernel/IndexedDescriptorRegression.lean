@@ -5,6 +5,7 @@ import VastitasKernel.IndexedSemantics
 import VastitasKernel.IndexedCodegen
 import VastitasKernel.IndexedDeclarationProtocol
 import VastitasKernel.IndexedSourceChecker
+import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
 
@@ -109,8 +110,7 @@ private def fiberType (family x : String) : ValueType := .indexed ⟨id family, 
 private def operands : List ValueType :=
   [smoothType "Plane" "Line", smoothType "Pt" "Plane", fiberType "Tangent" "Plane"]
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed descriptor regression failed: {name}")
+private def check := RegressionSupport.check "indexed descriptor regression failed"
 private def checkEq {α : Type} [BEq α] [Repr α] (name : String) (actual expected : α) : IO Unit :=
   unless actual == expected do
     throw (IO.userError s!"indexed descriptor regression failed: {name}: {repr actual} is not {repr expected}")

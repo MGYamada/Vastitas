@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedTypeAudit
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.Core.Regression
 open Typing
@@ -46,8 +47,7 @@ private def bodyProgram (body : Term) : Module :=
 /-- Actual audited package fixture, also compiled by the native regression. -/
 def packageFixture : Module := program
 private def accepts (module : Module) (requireMain : Bool := true) : Bool := (checkModule module requireMain).isOk
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed Core regression failed: {name}")
+private def check := RegressionSupport.check "indexed Core regression failed"
 
 private def manyLets (body : Term) : Term :=
   (List.range 512).foldr (fun symbol rest => .letE symbol (.integer symbol) rest) body

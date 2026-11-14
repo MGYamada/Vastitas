@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedValidity
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.Regression
 private def id (name : String) : DeclId :=
@@ -24,8 +25,7 @@ private def z : ObjectRef := .local ⟨id "Container", id "OtherCoefficient"⟩ 
 private def app (family : String) (indices : List Index) : Application := ⟨id family, indices⟩
 private def replace (name : String) (declaration : Declaration) : Environment :=
   env.map fun e => if e.id == id name then { e with declaration } else e
-private def check (name : String) (accepted : Bool) : IO Unit :=
-  unless accepted do throw (IO.userError s!"indexed regression failed: {name}")
+private def check := RegressionSupport.check "indexed regression failed"
 
 #eval check "declarations and non-geometric families" (validEnvironment env)
 #eval check "order independence" (validEnvironment env.reverse)

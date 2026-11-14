@@ -1,5 +1,6 @@
 import VastitasKernel.LegacyIndexed
 import VastitasKernel.IndexedGeometryProfile
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.GeometryCompatibilityRegression
 
@@ -26,8 +27,7 @@ private def env : Core.Declarations := {
       | other => other
     { declaration with binding } }
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"geometry compatibility regression: {name}")
+private def check := RegressionSupport.check "geometry compatibility regression"
 
 #eval check "declared finite environment" (Core.validDeclarations env)
 #eval check "independent export audit" (profile.valid env)

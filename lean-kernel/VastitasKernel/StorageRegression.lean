@@ -1,9 +1,9 @@
 import VastitasKernel.StorageProtocol
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.Regression
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"storage regression failed: {name}")
+private def check := RegressionSupport.check "storage regression failed"
 private def actions (items : List Action) : List Statement := items.map .action
 private def accepts (items : List Action) : Bool := (checkPlan (actions items)).isOk
 private def rejects (code : String) (items : List Action) : Bool :=

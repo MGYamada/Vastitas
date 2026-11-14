@@ -13,7 +13,8 @@ definitions that the checker and generated programs share.
 
 Matrices are lists of rows, read with `entryAt` and `vecAt`; their algebra
 (`finSum` and the laws of `matrixProduct`, `matVec`, `transposeVec` and
-`transpose`) is `FrameMatrices`. `InverseAt n A B p` is `A(p) · B(p) = I`. An accepted frame declaration has `InverseAt n P Q p` and
+`transpose`) is `FrameMatrices`. `InverseAt n A B p` is `A(p) · B(p) = I`.
+An accepted frame declaration has `InverseAt n P Q p` and
 `InverseAt n Q P p` at every point (`VastitasOracle.FrameDeclarations.checkFrame_sound`);
 each theorem below names only the identities it uses.
 

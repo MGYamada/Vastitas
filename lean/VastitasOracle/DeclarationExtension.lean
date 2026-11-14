@@ -11,11 +11,12 @@ in `small`, or a declaration satisfying `Hidden` where `small` has nothing.
 `MetricExtension`, `FrameExtension` and `NatureExtension` each contain one,
 for the metric, frame and nature declarations. A *profile declaration*
 (`ProfileDeclaration`) is a declaration of any of the three kinds. This
-module proves once that every lookup-derived view that the binding contracts,
-the evaluator and the non-profile declaration checks read treats a profile
-declaration exactly like a missing one, and so does not change in any of the
-three extensions. `SmoothMetricWeakening` adds the views that also see frames,
-for an extension by metric or nature declarations (`MetricOrNatureDeclaration`).
+module proves once that the lookup-derived views that the binding contracts,
+the evaluator and the non-profile declaration checks read, apart from the
+views of frame declarations, treat a profile declaration exactly like a
+missing one, and so do not change in any of the three extensions.
+`SmoothMetricWeakening` adds the views that also see frames, for an extension
+by metric or nature declarations (`MetricOrNatureDeclaration`).
 `familyRepresentation` can see a profile family, and is only stated here for
 the other representations. -/
 namespace VastitasOracle.DeclarationExtension

@@ -433,7 +433,7 @@ matches on the indices of its map type, needs a named case in `allocates_iff`.
 The validity proofs close a contract that reads the environment through the
 lookup views in their `simp` sets.
 `evalPrimitive_of_extension` closes an evaluator that reads the environment
-only through `globalObject` or `fiberVectorValue`. A binding that reads a metric
+only through `globalObject`, `fiberVectorValue` or `frameVectorValue`. A binding that reads a metric
 declaration is excluded from `MetricFree` in `SmoothMetricWeakening.lean`, as
 `metricFlat` and `metricSharp` are. A binding that names a frame declaration
 lists it in `bindingFrames` of `FrameWeakening.lean`, and its Core-level

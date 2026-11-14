@@ -1,5 +1,5 @@
 import VastitasKernel.Program
-import VastitasKernel.Checker
+import VastitasKernel.CheckerState
 import VastitasKernel.Dispatch
 
 /-! Finite, selector-only nominal extensions. Concrete values and capability

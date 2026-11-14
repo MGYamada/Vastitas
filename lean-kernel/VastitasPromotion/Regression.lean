@@ -1,5 +1,6 @@
 import VastitasPromotion.Fixture
 import VastitasKernel.NamespaceChecker
+import VastitasKernel.SurfacePrograms
 import VastitasKernel.Codegen
 import VastitasKernel.RegressionSupport
 

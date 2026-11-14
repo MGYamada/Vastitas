@@ -1,4 +1,5 @@
 import VastitasKernel.Edit
+import VastitasKernel.SurfacePrograms
 import VastitasOracle.Functions
 
 /-! Retained legacy protocol-5 acceptance (checkEditProgram), not Main's

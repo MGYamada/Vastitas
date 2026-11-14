@@ -50,7 +50,9 @@ mutual
       let span := expr.span
       let value ← match expr with
       | .integer value _ => do
-          let term ← body (Source.Bodies.expression 1 input.body scope ctx.data (.integer value span) expected)
+          let term ← body (do
+            let term ← Source.Bodies.integerLiteral value span expected
+            Source.Bodies.expect input.body expected term span)
           pure ⟨term, none⟩
       | .boolean value _ => pure ⟨.boolean value, none⟩
       | .unit _ => pure ⟨.unit, none⟩

@@ -2,6 +2,7 @@ import VastitasKernel.IndexedCodegen
 import VastitasKernel.IndexedDeclarationProtocol
 import VastitasKernel.IndexedDescriptorExample
 import VastitasOracle.IndexedSemantics
+import VastitasOracle.Support
 
 set_option autoImplicit false
 
@@ -37,6 +38,7 @@ open VastitasOracle.IndexedPrimitiveSoundness
 open VastitasOracle.IndexedSemantics (worldExtends_refl)
 open VastitasOracle.SmoothPrimitives (smooth_family smooth_value)
 open VastitasOracle.SmoothFibers (fiber_family fiber_value values_triple)
+open VastitasOracle.Support (bind_success)
 
 /-! ## The local proofs a registry entry has
 
@@ -257,24 +259,17 @@ theorem directionalDerivative_sharedLiterals (smooth tangent line : DeclId)
   simp only [PrimitiveDescriptor.sharedLiterals, List.foldl_append, List.foldl_cons]
   rfl
 
-/-- A successful `Except` bind: both steps succeed. -/
-private theorem bind_ok {ε α β : Type} {e : Except ε α} {f : α → Except ε β} {b : β}
-    (h : e >>= f = .ok b) : ∃ a, e = .ok a ∧ f a = .ok b := by
-  cases e with
-  | error _ => cases h
-  | ok a => exact ⟨a, rfl, h⟩
-
 /-- A decoded field has the kind its family declares. -/
 theorem wireArgument_kind {j : Lean.Json} {spec : WireField} {argument : Source.WireArgument}
     (decoded : Wire.wireArgument j spec = .ok argument) : argument.kind = spec.kind := by
   obtain ⟨name, kind⟩ := spec
   cases kind <;> simp only [Wire.wireArgument] at decoded <;>
     first
-    | (obtain ⟨_, _, decoded⟩ := bind_ok decoded
-       obtain ⟨_, _, decoded⟩ := bind_ok decoded
+    | (obtain ⟨_, _, decoded⟩ := bind_success decoded
+       obtain ⟨_, _, decoded⟩ := bind_success decoded
        cases decoded
        rfl)
-    | (obtain ⟨_, _, decoded⟩ := bind_ok decoded
+    | (obtain ⟨_, _, decoded⟩ := bind_success decoded
        cases decoded
        rfl)
 
@@ -286,10 +281,10 @@ private theorem mapM_fields {j : Lean.Json} :
   | [], _, mapped => by cases mapped; rfl
   | spec :: specs, _, mapped => by
       simp only [List.mapM_cons] at mapped
-      obtain ⟨_, first, mapped⟩ := bind_ok mapped
-      obtain ⟨_, rest, mapped⟩ := bind_ok mapped
+      obtain ⟨_, first, mapped⟩ := bind_success mapped
+      obtain ⟨_, rest, mapped⟩ := bind_success mapped
       cases mapped
-      obtain ⟨argument, decoded, pair⟩ := bind_ok first
+      obtain ⟨argument, decoded, pair⟩ := bind_success first
       cases pair
       simp only [List.map_cons, wireArgument_kind decoded, mapM_fields rest]
 
@@ -301,8 +296,8 @@ theorem familyPrimitive_wireForm {j : Lean.Json} {family : PrimitiveFamily} {pri
     primitive.op = family.op ∧ primitive.arguments.map (fun (name, argument) => (name, argument.kind)) =
       family.fields.map fun field => (field.name, field.kind) := by
   unfold Wire.familyPrimitive at decoded
-  obtain ⟨_, -, decoded⟩ := bind_ok decoded
-  obtain ⟨_, mapped, decoded⟩ := bind_ok decoded
+  obtain ⟨_, -, decoded⟩ := bind_success decoded
+  obtain ⟨_, mapped, decoded⟩ := bind_success decoded
   cases decoded
   exact ⟨rfl, mapM_fields mapped⟩
 

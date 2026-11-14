@@ -862,8 +862,9 @@ with the name of the vector in the `loan`, `source` or `target` field. The wire
 has no other form for it. The action decoder rejects a certificate, a flag or
 a resolved loan in such an action as an unknown field.
 
-`StorageFunctions.operation` resolves the operand of these four actions. For a
-name that is bound to a vector it requires `VectorView.Live`: the loan
+`Storage.Functions.operation` (in `StorageFunctionOperations.lean`) resolves
+the operand of these four actions. For a name that is bound to a vector it requires
+`VectorView.Live`: the loan
 snapshot of the vector is the live loan, with the same layout and without a
 live child. A read also requires a vector without the conjugation flag. The
 operand of the primitive action is then the loan of the snapshot. That loan

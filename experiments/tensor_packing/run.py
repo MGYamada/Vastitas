@@ -261,6 +261,14 @@ def main():
     for rel in ["experiments/tensor_packing", "experiments/native_cleanup.py", "experiments/plain_c", "scripts/native_sanitizers.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical",
                 "lean-kernel/VastitasKernel/TensorNumerical.lean",
                 "lean-kernel/VastitasKernel/StorageFunctions.lean",
+                "lean-kernel/VastitasKernel/StorageFunctionSyntax.lean",
+                "lean-kernel/VastitasKernel/StorageFunctionReceipts.lean",
+                "lean-kernel/VastitasKernel/StorageFunctionContext.lean",
+                "lean-kernel/VastitasKernel/StorageFunctionOperations.lean",
+                "lean-kernel/VastitasKernel/StorageFunctionNumerical.lean",
+                "lean-kernel/VastitasKernel/StorageFunctionCalls.lean",
+                "lean-kernel/VastitasKernel/StorageFunctionExpansion.lean",
+                "lean-kernel/VastitasKernel/StorageFunctionChecks.lean",
                 "lean-kernel/VastitasKernel/StorageCodegen.lean"]:
         path = ROOT / rel
         files = [path] if path.is_file() else path.rglob("*")

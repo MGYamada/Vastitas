@@ -1,4 +1,5 @@
 import VastitasOracle.ResourceSource
+import VastitasOracle.Support
 
 /-! Facts about the actual mixed scalar/resource checker. Scalar slots have
 bounded Nat/Int/Bool/Unit types; their values still use the existing pure Core
@@ -8,6 +9,7 @@ namespace VastitasOracle.ResourceValueFlow
 open VastitasKernel VastitasKernel.Storage
 open VastitasKernel.Storage.ValueFlow
 open VastitasKernel.Indexed
+open VastitasOracle.Support (mapM_ok_getElem?)
 attribute [local simp] bind pure Except.bind Except.pure Except.map Functor.map
 
 /-- Acceptance checks the actual argument slots against the selected fragment;
@@ -191,32 +193,6 @@ theorem actual_fragment_table {program : ResourceSource.Program}
     ResourcePure.targets checked.values = .ok checked.targets.entries := by
   exact ⟨by simp [ResourceSource.Program.pureFragments, checked.reconstructed, Except.toOption], checked.targets.accepted⟩
 
-private theorem mapM_at {α β ε : Type} (f : α → Except ε β)
-    {source : List α} {target : List β} (accepted : source.mapM f = .ok target)
-    {index : Nat} {value : β} (selected : target[index]? = some value) :
-    ∃ input, source[index]? = some input ∧ f input = .ok value := by
-  induction source generalizing target index with
-  | nil => simp at accepted; subst target; simp at selected
-  | cons head rest ih =>
-    simp only [List.mapM_cons] at accepted
-    cases first : f head with
-    | error diagnostic => simp [first] at accepted
-    | ok result =>
-      cases tail : rest.mapM f with
-      | error diagnostic => simp [first, tail] at accepted
-      | ok results =>
-        simp [first, tail] at accepted
-        subst target
-        cases index with
-        | zero =>
-          simp only [List.getElem?_cons_zero, Option.some.injEq] at selected
-          subst value
-          exact ⟨head, rfl, first⟩
-        | succ index =>
-          simp only [List.getElem?_cons_succ] at selected
-          obtain ⟨input, found, checked⟩ := ih tail selected
-          exact ⟨input, found, checked⟩
-
 /-- Every generated target belongs to an original reconstructed fragment and
 the actual accepted executable Core. The owner and complete parameter/result signature
 are checked again at the target selected by its specialization origin. -/
@@ -234,7 +210,7 @@ theorem target_core_at {program : ResourceSource.Program}
       function.returnType = .pure target.signature.result := by
   have table := checked.targets.accepted
   unfold ResourcePure.targets at table
-  obtain ⟨⟨⟨owner, fragment⟩, position⟩, source, accepted⟩ := mapM_at _ table selected
+  obtain ⟨⟨⟨owner, fragment⟩, position⟩, source, accepted⟩ := mapM_ok_getElem? table selected
   have sourceFound : program.pureFragments[index]? = some (owner, fragment) ∧ position = index := by
     cases lookup : program.pureFragments[index]? with
     | none => simp [List.getElem?_zipIdx, lookup] at source

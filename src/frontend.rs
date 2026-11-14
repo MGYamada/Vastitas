@@ -44,12 +44,12 @@ const BUILTINS: &[&str] = &[
 // names, as in `mod dim;`; every other declaration and binding may not.
 // `dimension` is none of them: it is an ordinary name, as in
 // `nature::dimension` (#778). Mirrors `geometricOperation` in the kernel's
-// NamespaceChecker.
+// NamespaceResolve.
 const GEOMETRIC_OPERATIONS: &[&str] =
     &["Affine", "Base", "origin", "id", "compose", "apply", "dim"];
 // Reserved spellings that may name actual indexed declarations, as in
 // `pub use super::Point;`. Mirrors `indexedSpelling` in the kernel's
-// NamespaceChecker, which validates such imports.
+// NamespaceResolve; the kernel's namespace checker validates such imports.
 const INDEXED_SPELLINGS: &[&str] = &[
     "Scheme",
     "CInfScheme",

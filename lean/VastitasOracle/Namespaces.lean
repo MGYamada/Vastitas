@@ -1,4 +1,5 @@
 import VastitasKernel.NamespaceChecker
+import VastitasKernel.SurfacePrograms
 import VastitasKernel.IndexedSource
 import Std.Data.HashMap.Lemmas
 import Std.Data.TreeSet.Lemmas

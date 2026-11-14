@@ -1,11 +1,13 @@
 import VastitasKernel.StorageFunctionProtocol
 import VastitasOracle.StorageRegions
+import VastitasOracle.Support
 
 /-! Actual-call replay, returned loan/owner boundaries and exact program/codegen
 certificates. These are logical resource facts, not C heap/refinement theorems
 or a universal parametric contract derived from synthetic probes. -/
 namespace VastitasOracle.StorageFunctions
 open VastitasKernel.Storage Functions StorageRegions
+open VastitasOracle.Support (mapM_ok_of_mem)
 attribute [local simp] bind pure Except.bind Except.pure Except.map Functor.map
 
 theorem call_replay (receipt : CallReceipt) :
@@ -53,26 +55,6 @@ theorem no_local_owner_escape (receipt : CallReceipt) {allocation : Allocation}
   have allowed := List.all_eq_true.mp receipt.valid.2.2.2.2.2 allocation live
   simpa only [Bool.or_eq_true, List.contains_iff_mem] using allowed
 
-private theorem mapM_member {α β ε : Type} (f : α → Except ε β) {source : List α} {target : List β}
-    (accepted : source.mapM f = .ok target) {value : α} (member : value ∈ source) :
-    ∃ result ∈ target, f value = .ok result := by
-  induction source generalizing target with
-  | nil => simp at member
-  | cons head rest ih =>
-    simp only [List.mapM_cons] at accepted
-    cases first : f head with
-    | error diagnostic => simp [first] at accepted
-    | ok result =>
-      cases tail : rest.mapM f with
-      | error diagnostic => simp [first, tail] at accepted
-      | ok results =>
-        simp [first, tail] at accepted
-        subst target
-        rcases List.mem_cons.mp member with same | later
-        · subst value; exact ⟨result, by simp, first⟩
-        · obtain ⟨item, belongs, checked⟩ := ih tail later
-          exact ⟨item, by simp [belongs], checked⟩
-
 /-- Every source body, including an unused definition, has a separately checked
 probe schedule. Actual calls still recheck the caller's layout and alias state. -/
 theorem probe_identity {environment : VastitasKernel.Indexed.Environment} {signatures : List ValueFlow.Signature}
@@ -101,14 +83,14 @@ theorem every_body {program : Program} {environment signatures} (checked : Check
     (member : function ∈ program.functions) :
     ∃ result ∈ checked.bodies, result.function = function.id ∧ probe program.functions function environment signatures = .ok result ∧
       checkPlan result.statements = .ok result.resources := by
-  obtain ⟨result, belongs, accepted⟩ := mapM_member _ checked.bodiesFrom member
+  obtain ⟨result, belongs, accepted⟩ := mapM_ok_of_mem checked.bodiesFrom _ member
   exact ⟨result, belongs, probe_identity accepted, accepted, result.accepted⟩
 
 theorem every_library_body {functions : List Function} {environment signatures} (checked : CheckedLibrary functions environment signatures) {function : Function}
     (member : function ∈ functions) :
     ∃ result ∈ checked.bodies, result.function = function.id ∧ probe functions function environment signatures = .ok result ∧
       checkPlan result.statements = .ok result.resources := by
-  obtain ⟨result, belongs, accepted⟩ := mapM_member _ checked.bodiesFrom member
+  obtain ⟨result, belongs, accepted⟩ := mapM_ok_of_mem checked.bodiesFrom _ member
   exact ⟨result, belongs, probe_identity accepted, accepted, result.accepted⟩
 
 theorem decoded_executable {json : Lean.Json} (input : Functions.Wire.CheckedInput json) :

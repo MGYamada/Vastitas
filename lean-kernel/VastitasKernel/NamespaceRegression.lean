@@ -1,4 +1,5 @@
 import VastitasKernel.NamespaceChecker
+import VastitasKernel.SurfacePrograms
 import VastitasKernel.NamespaceQuery
 import VastitasKernel.EditRegression
 import VastitasKernel.NamespaceProtocol

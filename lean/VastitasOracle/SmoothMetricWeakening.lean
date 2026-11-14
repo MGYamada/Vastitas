@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSemantics
+import VastitasOracle.DeclarationExtension
 
 set_option autoImplicit false
 
@@ -34,14 +35,18 @@ each lookup in `big` is the lookup in `small`, or a metric declaration where
 because `lookup` returns the first entry with an id (`metricExtension_append`).
 With unique ids, moving a block of entries changes no lookup (`lookup_insert`),
 so an inserted block behaves like an appended one (`metricExtension_insert`).
-The proof shows that every lookup-derived view that the contracts use treats a
-metric declaration exactly like a missing one. `familyRepresentation` and
-`validApplication`, which can see a `metric_form` family, are only consulted
-behind a guard that excludes it. -/
+A metric declaration is a profile declaration, and every lookup-derived view
+that the contracts use treats one exactly like a missing one
+(`DeclarationExtension`); the frame views and the binding contracts are proved
+here once for an extension by metric or nature declarations
+(`validPrimitiveBinding_of_metricOrNature`), which `NatureWeakening` shares.
+`familyRepresentation` and `validApplication`, which can see a `metric_form`
+family, are only consulted behind a guard that excludes it. -/
 namespace VastitasOracle.SmoothMetricWeakening
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core
 open VastitasKernel.Indexed.Core.Semantics
+open VastitasOracle.DeclarationExtension
 
 /-- A declaration that only the metric profile contributes. -/
 def MetricDeclaration : Declaration → Prop
@@ -110,76 +115,29 @@ theorem isSome_of_beq_some {α : Type} [BEq α] [LawfulBEq α] {o : Option α} {
   simp only [beq_iff_eq] at h
   simp [h]
 
-section Extension
+/-- A metric extension is an extension by metric or nature declarations. -/
+theorem MetricExtension.metricOrNature {small big : Environment} (ext : MetricExtension small big) :
+    Extension MetricOrNatureDeclaration small big :=
+  Extension.mono (Hidden := MetricDeclaration) (fun declaration kind => by
+    cases declaration <;> simp_all [MetricDeclaration, MetricOrNatureDeclaration]) ext
 
-variable {small big : Environment} (ext : MetricExtension small big)
+section MetricOrNature
+
+variable {small big : Environment} (ext : Extension MetricOrNatureDeclaration small big)
 include ext
 
-theorem lookup_of_isSome {id : DeclId} (found : (lookup small id).isSome = true) :
-    lookup big id = lookup small id := by
-  rcases ext id with same | ⟨none, _⟩
-  · exact same
-  · rw [none] at found
-    cases found
+/-! ### Views of frames and applications
 
-/-! ### Views that treat a metric declaration as a missing one -/
-
--- The proof pattern of every view below: on an inherited entry the view is
--- unchanged, and on an added metric declaration it agrees with `none`.
-set_option hygiene false in
-local macro "view_append" lemma:ident id:term : tactic => `(tactic| (
-  rcases ext $id with same | ⟨none, declaration, found, kind⟩
-  · simp only [$lemma:ident, same]
-  · simp only [$lemma:ident, none, found]
-    cases declaration <;> simp_all [MetricDeclaration]))
-
-theorem isMarker_append (id : DeclId) : isMarker big id = isMarker small id := by
-  view_append isMarker id
-
-theorem implementationMarker_append (id : DeclId) :
-    implementationMarker big id = implementationMarker small id := by
-  view_append implementationMarker id
-
-theorem affineImplementation_append (id : DeclId) :
-    affineImplementation big id = affineImplementation small id := by
-  view_append affineImplementation id
-
-theorem affineData_append (id : DeclId) : affineData? big id = affineData? small id := by
-  view_append affineData? id
-
-theorem smoothCoordinates_append (id : DeclId) :
-    smoothCoordinates? big id = smoothCoordinates? small id := by
-  view_append smoothCoordinates? id
-
-theorem smoothDimension_append (id : DeclId) :
-    smoothDimension? big id = smoothDimension? small id := by
-  simp only [smoothDimension?, smoothCoordinates_append ext]
-
-theorem domain_append (id : DeclId) : Indexed.domain big id = Indexed.domain small id := by
-  view_append Indexed.domain id
-
-theorem isDomain_append (id : DeclId) : isDomain big id = isDomain small id := by
-  view_append isDomain id
-
-theorem objectImplementation_append (id : DeclId) :
-    (lookup big id).bind Declaration.objectImplementation? =
-      (lookup small id).bind Declaration.objectImplementation? := by
-  rcases ext id with same | ⟨none, declaration, found, kind⟩
-  · rw [same]
-  · rw [none, found]
-    cases declaration <;> simp_all [MetricDeclaration, Declaration.objectImplementation?]
-
-theorem fiberVariance_append (id : DeclId) : fiberVariance? big id = fiberVariance? small id := by
-  view_append fiberVariance? id
-
-theorem isTapeFamily_append (id : DeclId) : isTapeFamily big id = isTapeFamily small id := by
-  view_append isTapeFamily id
-
-theorem isSmoothFamily_append (id : DeclId) : isSmoothFamily big id = isSmoothFamily small id := by
-  view_append isSmoothFamily id
+An extension by metric or nature declarations adds no frame, so the views of
+frames and the validity of applications are unchanged as well. The other
+views are those of `DeclarationExtension`. -/
 
 theorem frameData_append (id : DeclId) : frameData? big id = frameData? small id := by
-  view_append frameData? id
+  rcases ext id with same | ⟨none, declaration, found, kind⟩
+  · simp only [frameData?, same]
+  · simp only [frameData?, none, found]
+    cases declaration <;> simp only [MetricOrNatureDeclaration] at kind <;>
+      (try rcases kind with kind | kind | kind) <;> simp_all
 
 theorem frameFamily_append (id : DeclId) : frameFamily? big id = frameFamily? small id := by
   simp only [frameFamily?, frameData_append ext]
@@ -187,124 +145,15 @@ theorem frameFamily_append (id : DeclId) : frameFamily? big id = frameFamily? sm
 theorem frameObject_append (id : DeclId) : frameObject? big id = frameObject? small id := by
   simp only [frameObject?, frameData_append ext]
 
-theorem frameFiberVariance_append (id : DeclId) : frameFiberVariance? big id = frameFiberVariance? small id := by
-  view_append frameFiberVariance? id
-
-theorem isFrameMapFamily_append (id : DeclId) : isFrameMapFamily big id = isFrameMapFamily small id := by
-  view_append isFrameMapFamily id
-
 theorem frameDeclared_append (frame : FrameRef) : frameDeclared big frame = frameDeclared small frame := by
   simp only [frameDeclared, frameData_append ext]
-
-theorem affineGlobal_append (id : DeclId) : affineGlobal big id = affineGlobal small id := by
-  rcases ext id with same | ⟨none, declaration, found, kind⟩
-  · simp only [affineGlobal, same, affineImplementation_append ext]
-  · simp only [affineGlobal, none, found]
-    cases declaration <;> simp_all [MetricDeclaration]
-
-theorem implementationSupports_append (id : DeclId) (capability : Capability) :
-    implementationSupports big id capability = implementationSupports small id capability := by
-  view_append implementationSupports id
-
-/-- A fresh `metric_form` family is the only way a family representation can
-appear; every metric-free contract compares with another representation. -/
-theorem familyRepresentation_append (id : DeclId) {representation : FamilyRepresentation}
-    (other : representation ≠ .metricForm) :
-    (familyRepresentation big id == some representation) =
-      (familyRepresentation small id == some representation) := by
-  rcases ext id with same | ⟨none, declaration, found, kind⟩
-  · simp only [familyRepresentation, same]
-  · simp only [familyRepresentation, none, found]
-    cases declaration <;> simp_all [MetricDeclaration]
-    exact fun h => other h.symm
-
-theorem isRelativeFamily_append (id : DeclId) : isRelativeFamily big id = isRelativeFamily small id := by
-  simp only [isRelativeFamily, familyRepresentation_append ext id (by decide : FamilyRepresentation.relative ≠ _)]
-
-theorem globalObject_append (id : DeclId) : globalObject big id = globalObject small id := by
-  simp only [globalObject, objectImplementation_append ext]
-
-/-! ### Derived views -/
-
-theorem type_append (ref : Indexed.ObjectRef) : ref.type? big = ref.type? small := by
-  cases ref with
-  | global id => simp only [ObjectRef.type?, objectImplementation_append ext, implementationMarker_append ext]
-  | «local» => rfl
-
-theorem implementations_append (type : ObjectType) :
-    type.implementations big = type.implementations small := by
-  simp only [ObjectType.implementations, domain_append ext, implementationMarker_append ext]
-
-theorem objectTypeValid_append (type : ObjectType) : type.Valid big ↔ type.Valid small := by
-  simp only [ObjectType.Valid, isDomain_append ext, isMarker_append ext, implementations_append ext]
-
-theorem supports_append (type : ObjectType) (capability : Capability) :
-    type.Supports big capability ↔ type.Supports small capability := by
-  simp only [ObjectType.Supports, objectTypeValid_append ext, implementations_append ext,
-    implementationSupports_append ext]
-
-theorem refValid_append (ref : Indexed.ObjectRef) : ref.Valid big ↔ ref.Valid small := by
-  simp only [ObjectRef.Valid, type_append ext, objectTypeValid_append ext]
-
-theorem implementationType_append (id : DeclId) :
-    implementationType big id = implementationType small id := by
-  simp only [implementationType, implementationMarker_append ext]
-
-theorem affineChain_append (fuel : Nat) (id : DeclId) :
-    affineChain big fuel id = affineChain small fuel id := by
-  induction fuel generalizing id with
-  | zero => rfl
-  | succ fuel ih => simp only [affineChain, affineData_append ext, ih]
-
-theorem chainOf_append (id : DeclId) : chainOf big id = chainOf small id := by
-  simp only [chainOf, affineChain_append ext]
-
-theorem onChain_append (object base : DeclId) : onChain big object base = onChain small object base := by
-  simp only [onChain, chainOf_append ext]
-
-theorem chainImages_append (fuel : Nat) (object base : DeclId) :
-    chainImages big fuel object base = chainImages small fuel object base := by
-  induction fuel generalizing object with
-  | zero => rfl
-  | succ fuel ih => simp only [chainImages, affineData_append ext, ih]
-
-theorem structureImages_append (object base : DeclId) :
-    structureImages? big object base = structureImages? small object base := by
-  simp only [structureImages?, structureImagesWithin, chainImages_append ext]
-
-theorem plainFiber_append (id : DeclId) : plainFiber? big id = plainFiber? small id := by
-  simp only [plainFiber?, affineData_append ext]
-
-theorem affineArity_append (id : DeclId) : affineArity big id = affineArity small id := by
-  simp only [affineArity, affineData_append ext]
-
-theorem freeAffine_append (id : DeclId) : freeAffine big id = freeAffine small id := by
-  simp only [freeAffine, affineData_append ext]
-
-theorem pointBase_append (id : DeclId) : pointBase big id = pointBase small id := by
-  simp only [pointBase, affineData_append ext]
-
-theorem smoothArity_append (id : DeclId) : smoothArity big id = smoothArity small id := by
-  simp only [smoothArity, smoothDimension_append ext]
-
-theorem smoothEndpoints_append (application : Application) :
-    smoothEndpoints? big application = smoothEndpoints? small application := by
-  simp only [smoothEndpoints?, smoothDimension_append ext]
 
 theorem accepts_append (parameter : Indexed.Parameter) (index : Index) :
     parameter.Accepts big index ↔ parameter.Accepts small index := by
   cases parameter <;> cases index <;>
-    simp only [Parameter.Accepts, isDomain_append ext, isMarker_append ext, type_append ext,
-      objectTypeValid_append ext, implementations_append ext, domain_append ext, frameFamily_append ext]
-
-theorem constraintHolds_append (indices : List Index) (constraint : Constraint) :
-    constraintHolds big indices constraint = constraintHolds small indices constraint := by
-  cases constraint <;>
-    simp only [constraintHolds, type_append ext, onChain_append ext, smoothDimension_append ext]
-
-theorem constraintHolds_append' (indices : List Index) :
-    constraintHolds big indices = constraintHolds small indices :=
-  funext (constraintHolds_append ext indices)
+    simp only [Parameter.Accepts, isDomain_append ext.profile, isMarker_append ext.profile, type_append ext.profile,
+      objectTypeValid_append ext.profile, implementations_append ext.profile, domain_append ext.profile,
+      frameFamily_append ext]
 
 /-- An application whose family is an entry of `small` is valid after the
 extension exactly when it was valid before. -/
@@ -312,7 +161,7 @@ theorem validApplication_of_found {application : Application}
     (found : (lookup small application.family).isSome = true) :
     validApplication big application = validApplication small application := by
   simp only [validApplication, lookup_of_isSome ext found, accepts_append ext,
-    constraintHolds_append' ext]
+    constraintHolds_append' ext.profile]
 
 theorem validApplication_mk_of_found {family : DeclId} {indices : List Index}
     (found : (lookup small family).isSome = true) :
@@ -321,83 +170,85 @@ theorem validApplication_mk_of_found {family : DeclId} {indices : List Index}
 
 theorem relativeConstantValid_append (application : Application) (map : AlgebraRuntime.Map) :
     relativeConstantValid big application map = relativeConstantValid small application map := by
-  simp only [relativeConstantValid, isRelativeFamily_append ext, affineData_append ext,
-    structureImages_append ext]
+  simp only [relativeConstantValid, isRelativeFamily_append ext.profile, affineData_append ext.profile,
+    structureImages_append ext.profile]
   cases relative : isRelativeFamily small application.family
   · simp
   · simp only [validApplication_of_found ext (application := application) (found_of_isRelativeFamily relative)]
 
 theorem relativeIsoValid_append (forward backward : Application × AlgebraRuntime.Map) :
     relativeIsoValid big forward backward = relativeIsoValid small forward backward := by
-  simp only [relativeIsoValid, relativeIsoCheck, relativeConstantValid_append ext, affineData_append ext]
+  simp only [relativeIsoValid, relativeIsoCheck, relativeConstantValid_append ext, affineData_append ext.profile]
 
 theorem relativeCartesianValid_append (first second inverse : Application × AlgebraRuntime.Map) (fiber : DeclId) :
     relativeCartesianValid big first second inverse fiber =
       relativeCartesianValid small first second inverse fiber := by
   simp only [relativeCartesianValid, relativeCartesianCheck, relativeConstantValid_append ext,
-    plainFiber_append ext, affineData_append ext]
+    plainFiber_append ext.profile, affineData_append ext.profile]
 
-/-- **Weakening of binding validity.** A metric extension does not change the
-validity of any binding other than `flat` and `sharp`. -/
-theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : MetricFree binding) :
+/-- **Weakening of binding validity.** An extension by metric or nature
+declarations does not change the validity of any binding other than `flat`
+and `sharp`. -/
+theorem validPrimitiveBinding_of_metricOrNature {binding : PrimitiveBinding} (free : MetricFree binding) :
     validPrimitiveBinding big binding = validPrimitiveBinding small binding := by
   cases binding with
   | metricFlat | metricSharp => exact absurd free id
   | origin domain family base =>
-    simp only [validPrimitiveBinding, PrimitiveBinding.contract, originContract, supports_append ext,
-      familyRepresentation_append ext family (by decide : FamilyRepresentation.point ≠ _)]
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, originContract, supports_append ext.profile,
+      familyRepresentation_append ext.profile family (representation := .point) (by decide)]
     cases point : familyRepresentation small family == some .point
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_familyRepresentation point)]
   | identity domain family =>
-    simp only [validPrimitiveBinding, PrimitiveBinding.contract, identityContract, objectTypeValid_append ext,
-      familyRepresentation_append ext family (by decide : FamilyRepresentation.morphism ≠ _)]
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, identityContract, objectTypeValid_append ext.profile,
+      familyRepresentation_append ext.profile family (representation := .morphism) (by decide)]
     cases morphism : familyRepresentation small family == some .morphism
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_familyRepresentation morphism)]
   | smoothConstant application map =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-      smoothConstantValid, isSmoothFamily_append ext,
-      smoothEndpoints_append ext]
+      smoothConstantValid, isSmoothFamily_append ext.profile,
+      smoothEndpoints_append ext.profile]
     cases smooth : isSmoothFamily small application.family
     · simp
     · simp only [validApplication_of_found ext (application := application) (found_of_isSmoothFamily smooth)]
   | relativeIntPoint family object base =>
-    simp only [validPrimitiveBinding, PrimitiveBinding.contract, isRelativeFamily_append ext,
-      freeAffine_append ext, pointBase_append ext]
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, isRelativeFamily_append ext.profile,
+      freeAffine_append ext.profile, pointBase_append ext.profile]
     cases relative : isRelativeFamily small family
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_isRelativeFamily relative)]
   | smoothIntPoint family object point =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-      smoothIntPointValid, isSmoothFamily_append ext,
-      smoothDimension_append ext]
+      smoothIntPointValid, isSmoothFamily_append ext.profile,
+      smoothDimension_append ext.profile]
     cases smooth : isSmoothFamily small family
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_isSmoothFamily smooth)]
   | fiberVector family smooth object =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-      fiberVectorValid, fiberVariance_append ext, isSmoothFamily_append ext,
-      smoothDimension_append ext]
+      fiberVectorValid, fiberVariance_append ext.profile, isSmoothFamily_append ext.profile,
+      smoothDimension_append ext.profile]
     cases fiber : (fiberVariance? small family).isSome
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_fiberVariance fiber)]
   | fiberComponent family object coordinate =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-      fiberComponentValid, fiberVariance_append ext, smoothArity_append ext]
+      fiberComponentValid, fiberVariance_append ext.profile, smoothArity_append ext.profile]
     cases fiber : (fiberVariance? small family).isSome
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_fiberVariance fiber)]
   | compose family =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract,
-      familyRepresentation_append ext family (by decide : FamilyRepresentation.morphism ≠ _)]
+      familyRepresentation_append ext.profile family (representation := .morphism) (by decide)]
   | apply maps points =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract,
-      familyRepresentation_append ext maps (by decide : FamilyRepresentation.morphism ≠ _),
-      familyRepresentation_append ext points (by decide : FamilyRepresentation.point ≠ _)]
+      familyRepresentation_append ext.profile maps (representation := .morphism) (by decide),
+      familyRepresentation_append ext.profile points (representation := .point) (by decide)]
   | frameEncode variance fiber coords frame =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameEncode, PrimitiveDescriptor.ofBool,
-      frameEncodeValid, frameDeclared_append ext, fiberVariance_append ext, frameFiberVariance_append ext]
+      frameEncodeValid, frameDeclared_append ext, fiberVariance_append ext.profile,
+      frameFiberVariance_append ext.profile]
     cases fiber : fiberVariance? small fiber == some variance
     · simp
     · cases arrays : frameFiberVariance? small coords == some variance
@@ -406,7 +257,8 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
           validApplication_mk_of_found ext (found_of_frameFiberVariance (isSome_of_beq_some arrays))]
   | frameDecode variance coords fiber frame =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameDecode, PrimitiveDescriptor.ofBool,
-      frameDecodeValid, frameDeclared_append ext, fiberVariance_append ext, frameFiberVariance_append ext]
+      frameDecodeValid, frameDeclared_append ext, fiberVariance_append ext.profile,
+      frameFiberVariance_append ext.profile]
     cases arrays : frameFiberVariance? small coords == some variance
     · simp
     · cases fiber : fiberVariance? small fiber == some variance
@@ -415,21 +267,22 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
           validApplication_mk_of_found ext (found_of_frameFiberVariance (isSome_of_beq_some arrays))]
   | frameVector coords smooth object frame =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameVector, PrimitiveDescriptor.ofBool,
-      frameVectorValid, frameFiberVariance_append ext, isSmoothFamily_append ext, frameObject_append ext,
-      smoothDimension_append ext]
+      frameVectorValid, frameFiberVariance_append ext.profile, isSmoothFamily_append ext.profile,
+      frameObject_append ext, smoothDimension_append ext.profile]
     cases arrays : (frameFiberVariance? small coords).isSome
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_frameFiberVariance arrays)]
   | frameMatrix smooth map source target =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameMatrix, PrimitiveDescriptor.ofBool,
-      frameMatrixValid, isSmoothFamily_append ext, isFrameMapFamily_append ext, frameDeclared_append ext]
+      frameMatrixValid, isSmoothFamily_append ext.profile, isFrameMapFamily_append ext.profile,
+      frameDeclared_append ext]
     cases maps : isFrameMapFamily small map
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_isFrameMapFamily maps)]
   | frameTransition smooth map source target =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, FrameRegistry.frameTransition,
-      PrimitiveDescriptor.ofBool, frameTransitionValid, isSmoothFamily_append ext, isFrameMapFamily_append ext,
-      frameDeclared_append ext]
+      PrimitiveDescriptor.ofBool, frameTransitionValid, isSmoothFamily_append ext.profile,
+      isFrameMapFamily_append ext.profile, frameDeclared_append ext]
     cases maps : isFrameMapFamily small map
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_isFrameMapFamily maps)]
@@ -440,8 +293,8 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
       simp only [validPrimitiveBinding, PrimitiveBinding.contract]
       split <;> rfl
     rw [contract, contract]
-    simp only [cotangentJacobianValid, smoothConstantValid, isSmoothFamily_append ext, smoothEndpoints_append ext,
-      fiberVariance_append ext]
+    simp only [cotangentJacobianValid, smoothConstantValid, isSmoothFamily_append ext.profile,
+      smoothEndpoints_append ext.profile, fiberVariance_append ext.profile]
     cases smooth : isSmoothFamily small application.family
     · simp
     · cases cotangentFamily : fiberVariance? small cotangent == some .cotangent
@@ -452,18 +305,33 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
           validApplication_mk_of_found ext found]
   | _ =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-      PrimitiveDescriptor.evidence, implementationType_append ext, affineImplementation_append ext,
-      objectTypeValid_append ext, affineGlobal_append ext, refValid_append ext, supports_append ext,
-      relativeConstantValid_append ext, isRelativeFamily_append ext, onChain_append ext,
-      affineData_append ext, affineArity_append ext, plainFiber_append ext, relativeIsoValid_append ext, relativeCartesianValid_append ext,
-      isSmoothFamily_append ext, fiberAtValid, fiberEqualValid, fiberPairingValid, cotangentPullbackValid,
-      differentialValid, linearizeValid, cotangentBackwardValid, smoothApplyValid, fiberVariance_append ext,
-      isTapeFamily_append ext, smoothDimension_append ext,
+      PrimitiveDescriptor.evidence, implementationType_append ext.profile, affineImplementation_append ext.profile,
+      objectTypeValid_append ext.profile, affineGlobal_append ext.profile, refValid_append ext.profile,
+      supports_append ext.profile, relativeConstantValid_append ext, isRelativeFamily_append ext.profile,
+      onChain_append ext.profile, affineData_append ext.profile, affineArity_append ext.profile,
+      plainFiber_append ext.profile, relativeIsoValid_append ext, relativeCartesianValid_append ext,
+      isSmoothFamily_append ext.profile, fiberAtValid, fiberEqualValid, fiberPairingValid, cotangentPullbackValid,
+      differentialValid, linearizeValid, cotangentBackwardValid, smoothApplyValid, fiberVariance_append ext.profile,
+      isTapeFamily_append ext.profile, smoothDimension_append ext.profile,
       -- The frame entries of Stage 4 that read no application.
       FrameRegistry.frameApply, FrameRegistry.frameCoapply, FrameRegistry.frameCompose, FrameRegistry.framePairing,
       FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt,
       frameApplyValid, frameCoapplyValid, frameComposeValid, framePairingValid, frameComponentValid,
-      frameEntryValid, frameEqualValid, frameAtValid, frameFiberVariance_append ext, isFrameMapFamily_append ext]
+      frameEntryValid, frameEqualValid, frameAtValid, frameFiberVariance_append ext.profile,
+      isFrameMapFamily_append ext.profile]
+
+end MetricOrNature
+
+section Extension
+
+variable {small big : Environment} (ext : MetricExtension small big)
+include ext
+
+/-- **Weakening of binding validity.** A metric extension does not change the
+validity of any binding other than `flat` and `sharp`. -/
+theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : MetricFree binding) :
+    validPrimitiveBinding big binding = validPrimitiveBinding small binding :=
+  validPrimitiveBinding_of_metricOrNature ext.metricOrNature free
 
 /-- The propositional contract is unchanged as well. -/
 theorem primitiveBindingValid_of_extension {binding : PrimitiveBinding} (free : MetricFree binding) :
@@ -471,31 +339,11 @@ theorem primitiveBindingValid_of_extension {binding : PrimitiveBinding} (free : 
   rw [← Audit.validPrimitiveBinding_iff, ← Audit.validPrimitiveBinding_iff,
     validPrimitiveBinding_of_extension ext free]
 
-theorem fiberVectorValue_append (family : DeclId) (point : SmoothRuntime.Program) (values : List Value) :
-    fiberVectorValue big family point values = fiberVectorValue small family point values := by
-  simp only [fiberVectorValue, fiberVariance_append ext]
-
-theorem frameVectorValue_append (coords : DeclId) (point : SmoothRuntime.Program) (values : List Value) :
-    frameVectorValue big coords point values = frameVectorValue small coords point values := by
-  simp only [frameVectorValue, frameFiberVariance_append ext]
-
 /-- **Weakening of evaluation.** A metric extension does not change the value
-of any primitive. Only `global`, `origin`, `fiber_vector` and `frame_vector`
-consult the environment, and none of them reads a metric declaration. -/
+of any primitive (`DeclarationExtension.evalPrimitive_of_extension`). -/
 theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List Value) :
-    evalPrimitive big binding values = evalPrimitive small binding values := by
-  cases binding
-  case cotangentJacobian cotangent application map =>
-    simp only [evalPrimitive, PrimitiveBinding.contract]
-    split <;> rfl
-  all_goals simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-    PrimitiveDescriptor.evidence, globalObject_append ext, fiberVectorValue_append ext,
-    frameVectorValue_append ext,
-    -- The frame entries of Stage 4 read only their embedded frames.
-    FrameRegistry.frameEncode, FrameRegistry.frameDecode, FrameRegistry.frameVector,
-    FrameRegistry.frameMatrix, FrameRegistry.frameTransition, FrameRegistry.frameApply,
-    FrameRegistry.frameCoapply, FrameRegistry.frameCompose, FrameRegistry.framePairing,
-    FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt]
+    evalPrimitive big binding values = evalPrimitive small binding values :=
+  DeclarationExtension.evalPrimitive_of_extension ext.metricOrNature.profile binding values
 
 end Extension
 

@@ -1,4 +1,5 @@
 import VastitasKernel.Authority
+import VastitasKernel.SurfacePrograms
 import VastitasOracle.Functions
 
 /-! Shared Authority.assemble trace/footprint facts and the retained

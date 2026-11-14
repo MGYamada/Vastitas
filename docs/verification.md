@@ -354,9 +354,11 @@ The repository also retains the earlier Stage 0–1b checker and proofs.
 Main's public entry points**. Their theorem statements remain valid for those
 APIs; their source correspondence and old `Semantics.Eval` results cannot be
 transferred to the current indexed pipeline without a separate proof. Shared
-namespace, dispatch and authority helpers can still be live. The sections below
-identify the retained compositions explicitly; the indexed sections describe
-the current Core and public acceptance connections.
+namespace, dispatch and authority helpers can still be live. The kernel
+executable does not contain these entry points: the import closure of `Main`
+holds none of their modules. The sections below identify the retained
+compositions explicitly; the indexed sections describe the current Core and
+public acceptance connections.
 
 Three internal adapters of the indexed pipeline are retained compositions as
 well: `Source.Bodies.checkProgram`, `FunctionSource.Compiler.checkProgram`
@@ -461,10 +463,10 @@ by enclosing object bindings or the types of enclosing values.
 theorems on `Dispatch.checkWith` and on `DispatchChecker.Family` are about
 the finite dispatch engine, a component that every current route uses
 through `Authority.assemble`. The corollaries on the builtin wrapper
-`Dispatch.check` and the `DispatchLowering.checkProgram_*` theorems are about
+`Dispatch.check` and the oracle's `VastitasOracle.DispatchLowering.checkProgram_*` theorems are about
 retained compositions that no command reaches. The
 finite engine and selection relations remain useful, but the
-`DispatchLowering.checkProgram_*` composition below targets the old Core.
+`VastitasOracle.DispatchLowering.checkProgram_*` composition below targets the old Core.
 Current all-body/target/Core correspondence is in the indexed dispatch and
 authority acceptance theorems:
 [Dispatch over indexed bodies](#dispatch-over-indexed-bodies) and
@@ -1194,7 +1196,8 @@ command reaches:
 protocol-3 decoder enters `Indexed.LegacySource.check`, preserving original
 namespace provenance before the common indexed authority check.
 
-`VastitasOracle.Namespaces` imports the actual `NamespaceChecker` implementation.
+`VastitasOracle.Namespaces` imports the actual `NamespaceChecker` implementation
+and `SurfacePrograms`, which holds `checkNamespaceProgram`.
 `checkNamespaceProgram_audited` connects acceptance to the actual namespace
 lowering result, unique declaration owners, re-resolution of the recorded
 reference ledger through the actual resolver,
@@ -1363,7 +1366,9 @@ is adapted into `Indexed.AuthoritySource`, using `Authority.assemble` and its
 full indexed-body audits. Shared transition/footprint facts retain their stated
 premises; the old-Core conclusions are not current wire-acceptance corollaries.
 
-`VastitasOracle.EditBorrowing` imports the actual `VastitasKernel.Edit` checker.
+`VastitasOracle.EditBorrowing` imports the actual `VastitasKernel.Edit` checker
+and `VastitasKernel.SurfacePrograms`, which holds `Edit.runTrace`, `Edit.assemble`
+and `checkEditProgram`.
 Its `runTrace_sound` proves that successful execution has a `Trace` whose every
 step satisfies the independent `TransitionAllowed` relation and `StateValid`
 provenance/exclusivity predicate. `trace_final_exclusive` and

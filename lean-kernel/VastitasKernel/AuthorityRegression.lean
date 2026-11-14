@@ -1,4 +1,5 @@
 import VastitasKernel.Authority
+import VastitasKernel.SurfacePrograms
 import VastitasKernel.RegressionSupport
 
 /-! Retained legacy top-level checker/Core regressions. Current public JSON

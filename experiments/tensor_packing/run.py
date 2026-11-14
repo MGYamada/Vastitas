@@ -269,7 +269,6 @@ def main():
                 "lean-kernel/VastitasKernel/StorageFunctionCalls.lean",
                 "lean-kernel/VastitasKernel/StorageFunctionExpansion.lean",
                 "lean-kernel/VastitasKernel/StorageFunctionChecks.lean",
-                "lean-kernel/VastitasKernel/LoanIndex.lean",
                 "lean-kernel/VastitasKernel/StorageCodegen.lean"]:
         path = ROOT / rel
         files = [path] if path.is_file() else path.rglob("*")

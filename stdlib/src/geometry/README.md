@@ -1,23 +1,40 @@
-# `std::geometry`: `scheme`, `smooth`, `metric` and `frame`
+# `std::geometry`: the geometry package
 
-The existing finite ordinary/smooth affine profile is implemented by ordinary
-`.vast` indexed declarations under two sibling modules. They use the same
-independent Lean checker as application declarations. This is the finite
-migration profile of #49/#58–63, not general scheme or manifold support. The
-child module `scheme::affine` adds the Stage 2
-[presented affine profile](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md#the-presented-profile).
-Its algebraic forms put the whole package closure on public protocol 9, the
-current schema epoch (#533). The child module `smooth::affine` and the sibling
-module `metric` add the [smooth affine profile](#smooth-affine-objects-and-metrics)
-and its metric forms. The sibling module `frame` adds the
-[ordered frames](#ordered-frames) of smooth affine objects. Their smooth,
-metric and frame forms also use protocol 9.
+The package `vastitas_geometry` declares the geometry of the standard
+library with ordinary `.vast` indexed declarations, which the same
+independent Lean checker checks as the declarations of an application. It
+holds the finite affine profile of descriptor objects in two sibling
+settings, `scheme` and `smooth`. That profile is a finite migration profile,
+not general scheme or manifold support. The module `scheme::affine` adds
+presented affine geometry over the rational numbers, `smooth::affine` and
+`metric` add smooth affine geometry and its metric forms, and `frame` adds
+the ordered frames of smooth affine objects. The standard library
+re-exports the package as `std::geometry`.
 
-The canonical source tree mirrors the public module hierarchy. Each module has
-its own directory and a `mod.vast` entrypoint:
+## API reference
+
+| Module | Page |
+| --- | --- |
+| `std::geometry` | [`geometry.md`](../../docs/geometry.md) |
+| `std::geometry::scheme` | [`geometry/scheme.md`](../../docs/geometry/scheme.md) |
+| `std::geometry::scheme::affine` | [`geometry/scheme/affine.md`](../../docs/geometry/scheme/affine.md) |
+| `std::geometry::smooth` | [`geometry/smooth.md`](../../docs/geometry/smooth.md) |
+| `std::geometry::smooth::affine` | [`geometry/smooth/affine.md`](../../docs/geometry/smooth/affine.md) |
+| `std::geometry::metric` | [`geometry/metric.md`](../../docs/geometry/metric.md) |
+| `std::geometry::frame` | [`geometry/frame.md`](../../docs/geometry/frame.md) |
+
+The page of `std::geometry` also holds the
+[representation and future design](../../docs/geometry.md#representation-and-future-design)
+of the package.
+
+## Source layout
+
+The canonical source tree mirrors the public module hierarchy. Each module
+has its own directory and a `mod.vast` entrypoint:
 
 ```text
 stdlib/src/geometry/
+├── Vastitas.toml
 ├── mod.vast
 ├── frame/
 │   └── mod.vast
@@ -33,49 +50,36 @@ stdlib/src/geometry/
         └── mod.vast
 ```
 
-[`geometry/mod.vast`](mod.vast) owns the shared contracts;
+[`mod.vast`](mod.vast) owns the shared contracts;
 [`scheme/mod.vast`](scheme/mod.vast) and [`smooth/mod.vast`](smooth/mod.vast)
-own the two settings. [`smooth/affine/mod.vast`](smooth/affine/mod.vast) and
+own the two settings. [`scheme/affine/mod.vast`](scheme/affine/mod.vast) owns
+the presented profile, [`smooth/affine/mod.vast`](smooth/affine/mod.vast) and
 [`metric/mod.vast`](metric/mod.vast) own the smooth affine profile, and
 [`frame/mod.vast`](frame/mod.vast) owns its ordered frames. The local
-manifest loads these files directly; there is no generated or copied geometry
-source tree. The geometry manifest has no dependencies. In particular, the
-geometry package does not depend on `std::differential`.
+manifest loads these files directly; there is no generated or copied
+geometry source tree.
 
-## Use
+The manifest [`Vastitas.toml`](Vastitas.toml) has no dependencies. In
+particular, the geometry package does not depend on `std::differential`. It
+holds the export `[geometry_compat]`, with the subtables `scheme` and
+`smooth`, which maps the core syntax of geometry to the declarations of the
+package; the page of [`std::geometry`](../../docs/geometry.md) links its
+rules.
 
-Generate the existing arithmetic package once from the repository root:
+## Depend on the package
 
-```sh
-python3 scripts/build_stdlib_package.py
-```
-
-Select the combined entrypoint, adjusting the path for the application:
+Select the combined entrypoint of the standard library, adjusting the path
+for the application, and generate its package once from the repository
+root, as the [standard library README](../../README.md#depend-on-the-library)
+says:
 
 ```toml
 [dependencies]
 std = { path = "../Vastitas/stdlib" }
 ```
 
-```vast
-use std::geometry::scheme as scheme;
-use std::geometry::smooth as smooth;
-
-fn main() -> Int {
-    let X = scheme::Affine(20);
-    let Y = smooth::Affine(22);
-    std::arithmetic::generic::add(int(scheme::dimension(X)), int(smooth::dimension(Y)))
-}
-```
-
-The [complete example](../../../examples/packages/stdlib-geometry/main.vast) also
-constructs points and identity maps, composes/applies maps and unpacks both settings.
-The ported [pointed](../../../examples/packages/stdlib-geometry/pointed/main.vast) and
-[smooth](../../../examples/packages/stdlib-geometry/smooth/main.vast) examples retain
-the original workflows and return `42` and `2`; the smooth example keeps its
-explicit `CInfScheme` annotation and dimension check after unpacking.
-
 ```sh
+python3 scripts/build_stdlib_package.py
 cargo run --locked -- check --manifest-path stdlib/src/geometry/Vastitas.toml
 cargo run --locked -- check --manifest-path stdlib/Vastitas.toml
 cargo run --locked -- build --manifest-path examples/packages/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
@@ -83,240 +87,9 @@ cargo run --locked -- build --manifest-path examples/packages/stdlib-geometry/Va
 # 42
 ```
 
-## Public interfaces and shared identities
-
-| Contract | `std::geometry::scheme` | `std::geometry::smooth` |
-| --- | --- | --- |
-| Finite mathematical classification | `Scheme` | `CInfScheme` |
-| Nominal coefficient marker | `QQ` | `CInfReal` |
-| Concrete affine implementation | `GridQQ` | `GridSmooth` |
-| Actual global test/base object | `BaseQQ`, `base()` | `BaseSmooth`, `base()` |
-| Fresh affine descriptor | `Affine(n)` | `Affine(n)` |
-| Origin with the exact target and declared base | `origin(X)` | `origin(X)` |
-| Identity morphism and Nat dimension | `id(X)`, `dimension(X)` | `id(X)`, `dimension(X)` |
-| Ordinary source factory packaging a descriptor and origin | `pointed(n)` | `pointed(n)` |
-
-Each module re-exports the same canonical `Point<X,S>`, `Morphism<X,Y>`,
-`Pointed<domain,marker>`, `compose(after,before)` and `apply(map,point)` declarations
-from the geometry package root. Re-exporting a family does not specialize its
-indices: `smooth::Point` and `scheme::Point` name the same family; the actual
-object and coefficient indices determine compatibility. `Pointed` has two finite
-cases `(Scheme,QQ)` and `(CInfScheme,CInfReal)`, each storing one ordered origin
-point field. The private `Objects` classification admits only these two finite
-implementations; it is not a universal geometry hierarchy.
-
-For example, annotate a value as `scheme::Point<X,scheme::BaseQQ>` or
-`Object<scheme::Scheme,scheme::QQ>`. The coefficient marker `QQ` is not the test
-object `BaseQQ`. A general `Point<X,S>` retains its test object `S` through calls
-and repacking. Unpacking uses `unpack value as { witness: X, fields: [p] };` and
-introduces a scoped witness; repack dependent results before leaving that scope.
-Equal dimensions do not identify objects. There is no implicit conversion between
-`Scheme` and `CInfScheme`, their coefficient markers or their base objects.
-
-The combined entrypoint uses ordinary module re-exports. Direct dependencies on
-`stdlib/src/geometry` expose `geo::scheme`/`geo::smooth` when named `geo`; they retain
-exactly the same declaration owners as `std::geometry`. Arithmetic re-exports
-likewise preserve the owners of the original arithmetic package. Renaming imports
-adds no editing rights. A copied package at another location has distinct nominal
-declarations, even when its name, version and source bytes are unchanged.
-
-## Smooth affine objects and metrics
-
-`std::geometry::smooth::affine` declares the smooth affine profile once, on the
-`CInfReal` marker of `std::geometry::smooth`. A *smooth affine object* is a
-declared real affine space `Affine(n)[c₁, …, cₙ]` with named coordinates. Its
-maps are exact rational polynomial maps. `std::geometry::metric` declares the
-family of constant metric forms on these objects. An application declares its
-own objects, maps and metrics against these declarations:
-
-```vast
-use std::geometry::smooth::affine::SmoothR;
-use std::geometry::smooth::affine::Smooth;
-use std::geometry::smooth::affine::Line;
-
-indexed affine Plane(SmoothR) = Affine(2)[x, y];
-indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
-```
-
-| Module | Public name | Contract |
-| --- | --- | --- |
-| `smooth::affine` | `SmoothR` | The smooth affine implementation on `CInfReal` |
-| | `CInfAffine` | The sealed classification of smooth affine objects; it has no parent |
-| | `Smooth<X, Y>` | Smooth maps from `X` to `Y` |
-| | `Tape<X, Y>` | The saved forward values of a smooth map at a point |
-| | `Tangent<X>`, `Cotangent<X>` | Vectors and covectors at a rational point of `X` |
-| | `Pt` | `Affine(0)[]`, the source of every rational point |
-| | `Line` | `Affine(1)[t]`, the target of every differential |
-| | `compose_smooth(after, before)` | The composite program; it does not expand the maps |
-| | `composite(map)` | The composite program expanded into one map |
-| | `same_smooth(a, b)` | Equality of the coordinate polynomials |
-| | `line_at(n)` | The rational point `n` of `Line`, from an `Int` |
-| | `lies_over(covector, point)`, `tangent_over(vector, point)` | Whether a value lies over a point; a failure value lies over no point |
-| | `same_covector(a, b)`, `same_vector(a, b)` | Equality at one point; a failure value equals nothing |
-| | `pairing(covector, vector)` | The metric-free pairing, as a reduced fraction |
-| `metric` | `MetricForm<X>` | The metric forms of a smooth affine object `X` |
-
-Each declaration of a smooth affine object introduces one object. An
-application's `Affine(1)[t]` is not `Line`, and `differential` rejects a
-function into it (`E_ENDPOINT`). A smooth affine object must not index
-`Point`, `Morphism` or `Pointed`, and a `CInfScheme` object must not index the
-smooth families. Either is an error (`E_TYPE`).
-
-### Names
-
-The smooth affine module declares no `compose`, `id`, `same` or `apply`. The
-bare legacy name `compose`, `std::geometry::compose` and
-`std::geometry::smooth::compose` name one declaration, which takes `Morphism`
-maps. A smooth map there is an error (`E_ENDPOINT`). `compose_smooth` and
-`same_smooth` take smooth maps only; a `Morphism` there is an error
-(`E_ENDPOINT`). The identity smooth map of an object is a declaration, not a
-function:
-
-```vast
-indexed morphism idPlane: Smooth<Plane, Plane> = identity;
-```
-
-`std::geometry::smooth::id(X)` takes a `CInfScheme` object and returns a
-`Morphism`. `MetricForm` is distinct from the diagonal Hermitian `Metric` of
-the numerical profile and from `MetricSpace`. Neither of those names exists in
-`std::geometry::metric`.
-
-### Metrics belong to the application
-
-A metric's evidence, `flat` and `sharp` each name one metric. Any package
-that can name the metric may declare them. The standard library declares
-none, because it cannot name an application's metric:
-
-```vast
-use std::geometry::smooth::affine::Tangent;
-use std::geometry::smooth::affine::Cotangent;
-use std::geometry::metric::MetricForm;
-
-indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
-indexed evidence SkewInvertible = nondegenerate(Skew);
-indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
-indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible);
-```
-
-The library declares no metric, so no metric is a default. The
-[complete example](../../../examples/packages/stdlib-differential/main.vast)
-also computes a pullback, a differential and a gradient with
-[`std::differential`](../../README.md#differentiation):
-
-```sh
-python3 scripts/build_stdlib_package.py
-cargo run --locked -- build --manifest-path examples/packages/stdlib-differential/Vastitas.toml -o target/stdlib-differential
-./target/stdlib-differential
-# 42
-```
-
-## Ordered frames
-
-`std::geometry::frame` declares the families of the ordered frames of smooth
-affine objects ([ADR 0001 §11](https://github.com/MGYamada/Vastitas/blob/main/docs/adr/0001-mathematics-first-stdlib.md#11-ordered-frames-of-smooth-affine-objects-amendment-2026-11-13)).
-A frame of a smooth affine object `X` is a global frame of the tangent bundle
-of `X`: an ordered basis of every tangent fiber, given by its columns in the
-coordinate frame of `X`.
-
-| Public name | Contract |
-| --- | --- |
-| `Frame<X>` | The frames of a smooth affine object `X` |
-| `Coords<b>` | The arrays of vectors in the frame `b`, each with its point |
-| `CoCoords<b>` | The arrays of covectors in the dual coframe of `b`, each with its point |
-| `FrameMap<b, c>` | The matrices of linear maps from the fibers of `b` to those of `c`, with both points |
-
-The module declares the families only. A frame and each frame primitive name
-one frame, so the application declares them, as it declares `flat` and
-`sharp` with their metric:
-
-```vast
-use std::geometry::frame::Frame;
-use std::geometry::frame::Coords;
-
-indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
-indexed primitive enc_b = frame_encode(Tangent, Coords, frame = b);
-```
-
-Frames, objects and variance are static, so an array in one frame where
-another frame is required is an error (`E_ENDPOINT`). Points are run-time
-values: arrays over different points give the failure value. The library
-declares no frame, so no frame is a default. `tests/stdlib_frames.rs` runs an
-application that declares frames on its own objects and observes encoding,
-decoding, transitions and map arrays.
-
-## Migration and checker boundaries
-
-| Existing geometry responsibility | Current owner |
-| --- | --- |
-| Scheme/CInfScheme names, domains, coefficients, bases and finite cases | Ordinary `.vast` declarations in this package |
-| Declaration identity, visibility, re-exports and function ownership | Generic package/namespace checker |
-| Indexed arity/sorts, endpoints, same-base constraints and substitution | Generic indexed declaration/type/Core checker |
-| Fresh objects, existential witnesses and escape rejection | Generic indexed scope/package/body checker |
-| Descriptor, origin, identity, dimension, compose and apply execution | Explicit finite primitive contracts and `IndexedRuntime` |
-| Primitive/package typing and bounded semantic evidence | Existing scoped theorems in [verification](https://github.com/MGYamada/Vastitas/blob/main/docs/verification.md) |
-| Old source syntax on protocols 2–6 | Existing elaborator followed by the independently audited `LegacyIndexed` adapter |
-
-The single `stdlib/Vastitas.toml` entrypoint re-exports geometry and arithmetic.
-The temporary `stdlib/indexed` facade has been removed. The geometry manifest
-explicitly exports the roles used by old syntax in `[geometry_compat]`, with
-`scheme` and `smooth` subtables. Lean resolves each path in the exporting
-package’s root scope and independently checks its family, package, base and
-primitive contracts. The export is a syntax facade; it grants no editing,
-membership or mathematical authority.
-
-With exactly one export in the package closure, `Scheme`, `CInfScheme`,
-`Point<X,Base(QQ)>`, `Morphism<X,Y>`, `Pointed<Scheme,QQ>`, `Affine(QQ,n)`,
-`Base(QQ)`, `origin`, `id`, `dimension`, `compose`, `apply` and legacy pack/unpack
-use the same declared IDs and common primitive lowering as qualified new syntax.
-`Base(QQ)` in a legacy point index denotes the exported base object; `QQ`
-alone is a coefficient marker and is rejected as an object. Declared functions and local Fn bindings take precedence over
-legacy operation fallback; a visibility failure is not bypassed.
-
-Every export is checked even when unused. Zero or multiple valid exports leave
-qualified new syntax usable, but legacy syntax requires exactly one export.
-Copies of the library retain distinct package identities. Coherently renaming
-all declaration paths and the export works without changing legacy source.
-Protocols 2–6 and explicit `--lib` retain their existing audited adapter path.
-
-Twenty-five integration tests exercise both settings, original `pointed.vast` and
-`smooth.vast` bytes, mixed syntax, alias/family/function identity, coherent
-renaming, dependent calls/repacking, fresh/unpacked/copied identities, missing
-capabilities, visibility, external method authority, Fn capture and unused-body
-checks. Mutations of actual Rust wire input alter visibility, primitive/base roles,
-capabilities, export fields and purported ownership; checking and emission reject
-them. Older wire versions reject the new export instead of ignoring it.
-Twelve direct kernel regressions also check profile contracts, including a family
-whose extra same-object constraint would incorrectly restrict legacy morphisms.
-The structural proofs in `VastitasOracle.GeometryCompatibility` connect the
-validated export to the exact compiler input and returned Core. Existing forged-Core
-regressions continue to cover the shared code generator.
-
-The exact returned Core has typed total evaluation through `IndexedProgramSafety`.
-`GeometryResults` proves that the validated primitive roles preserve finite
-legacy runtime results after erasure. These results do not prove general scheme
-mathematics, complete surface operational correspondence or native correctness.
-See the [migration acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/internals/indexed-checker.md#finite-geometry-migration-acceptance) for the
-inventory, regression matrix and remaining trust boundaries.
-
-## Representation and future design
-
-The public namespace follows [#211](https://github.com/MGYamada/Vastitas/issues/211):
-`smooth` and `scheme` are siblings. Future `complex` (almost-complex), `symplectic`
-and `variety` interfaces remain unimplemented; there is no empty namespace
-pretending to expose them. The prerequisite Lawvere-model work in #204 applies
-to those new structures; this increment migrates the already supported affine
-profile. No new geometric constructions or gluing are added.
-
-Future Stiefel/Grassmannian implementations may use matrices, equations, subspace
-data or an explicitly contracted opaque representation. A classification does
-not require a stored chart/atlas field. An operation needing coordinates, charts
-or trivializations must request and check that extra input. Such representations
-require new admitted contracts, not membership by display name or equal dimension.
-
-**Fast like C is the primary performance and architecture goal.** Namespace
-facades are aliases rather than runtime forwarding functions. This increment
-uses finite descriptors and introduces no numerical coordinate arrays or storage
-ownership. Future computational representations must expose layout, aliasing,
-allocation/copy and residual-lifetime contracts under the
-[revised storage design](https://github.com/MGYamada/Vastitas/blob/main/docs/storage-ownership.md). No C performance result
-is claimed from the descriptor examples or their regression tests.
+A direct dependency on `stdlib/src/geometry` under the alias `geo` exposes
+`geo::scheme` and `geo::smooth`, with the same declaration owners as
+`std::geometry`, because a package is identified by the location of its
+manifest. Renaming an import adds no editing rights. A copied package at
+another location has distinct nominal declarations, even when its name,
+version and source bytes are unchanged.

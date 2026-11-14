@@ -124,22 +124,6 @@ theorem binding_valid {env : Declarations} (valid : env.Valid) {id : DeclId} {bi
     subst found
     exact valid.primitives declaration (List.mem_of_find?_eq_some named)
 
-theorem frameEncode_declared {env : Indexed.Environment} {variance : Variance} {fiber coords : DeclId}
-    {frame : FrameRef} (valid : (PrimitiveBinding.frameEncode variance fiber coords frame).Valid env) :
-    DeclaredFrame env frame := by
-  have valid : frameEncodeValid env variance fiber coords frame = true := valid
-  unfold frameEncodeValid at valid
-  simp only [Bool.and_eq_true] at valid
-  exact declaredFrame_of_frameDeclared valid.1.1.1.1
-
-theorem frameDecode_declared {env : Indexed.Environment} {variance : Variance} {coords fiber : DeclId}
-    {frame : FrameRef} (valid : (PrimitiveBinding.frameDecode variance coords fiber frame).Valid env) :
-    DeclaredFrame env frame := by
-  have valid : frameDecodeValid env variance coords fiber frame = true := valid
-  unfold frameDecodeValid at valid
-  simp only [Bool.and_eq_true] at valid
-  exact declaredFrame_of_frameDeclared valid.1.1.1.1
-
 theorem frameMatrix_declared {env : Indexed.Environment} {smooth map : DeclId} {source target : FrameRef}
     (valid : (PrimitiveBinding.frameMatrix smooth map source target).Valid env) :
     DeclaredFrame env source ∧ DeclaredFrame env target := by

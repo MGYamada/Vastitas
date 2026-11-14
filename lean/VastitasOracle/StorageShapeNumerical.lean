@@ -32,20 +32,6 @@ theorem selected_valid {environment : Indexed.Environment} {values : Values}
     have valueSame : pair.2 = value := by simpa [selected] using found
     simpa [same, valueSame] using valid.2.2.2 pair member
 
-theorem space_guard {valuation : Shapes.Valuation} {values : Values} {name : Symbol} {space : Space}
-    (holds : Shapes.guardsHold valuation (guards values))
-    (found : value? values name = some (.space space)) :
-    space.dimension.eval valuation ≤ dimensionLimit := by
-  unfold value? at found
-  cases selected : values.find? (·.1 == name) with
-  | none => simp [selected] at found
-  | some pair =>
-    have member := List.mem_of_find?_eq_some selected
-    have same : pair.2 = .space space := by simpa [selected] using found
-    have bound := holds (.bound space.dimension dimensionLimit)
-      (List.mem_flatMap.mpr ⟨pair, member, by simp [same]⟩)
-    simpa [Shapes.Guard.eval] using bound
-
 theorem space_valid {environment : Indexed.Environment} (valuation : Shapes.Valuation) (space : Space)
     (valid : space.Valid environment) (bound : space.dimension.eval valuation ≤ dimensionLimit) :
     (space.eval valuation).Valid environment := by

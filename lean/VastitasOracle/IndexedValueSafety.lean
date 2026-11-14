@@ -15,25 +15,6 @@ def ResultsHaveTypes (env : Declarations) (world : World) : List Value → List 
     ValueHasResult env world value result ∧ ResultsHaveTypes env world values results
   | _, _ => False
 
-theorem results_extends {env : Declarations} {before after : World} {values : List Value} {results : List Result}
-    (extension : WorldExtends before after) (typed : ResultsHaveTypes env before values results) :
-    ResultsHaveTypes env after values results := by
-  induction values generalizing results with
-  | nil => cases results <;> exact typed
-  | cons value values ih =>
-    cases results with
-    | nil => contradiction
-    | cons result results => exact ⟨result_of_worldExtends extension typed.1, ih typed.2⟩
-
-theorem results_length {env : Declarations} {world : World} {values : List Value} {results : List Result}
-    (typed : ResultsHaveTypes env world values results) : values.length = results.length := by
-  induction values generalizing results with
-  | nil => cases results <;> simp_all [ResultsHaveTypes]
-  | cons value values ih =>
-    cases results with
-    | nil => contradiction
-    | cons result results => exact congrArg Nat.succ (ih typed.2)
-
 theorem result_without_reference {env : Declarations} {world : World} {value : Value} {result : Result}
     (valid : result.Valid env) (notObject : ∀ type, result.type ≠ .object type)
     (typed : ValueHasType env world value result.type) : ValueHasResult env world value result := by
@@ -317,16 +298,6 @@ theorem results_fields {env : Declarations} {world : World} {values : List Value
             have valueTyped := typed.1.1
             cases value <;> try exact False.elim valueTyped
             case indexed field => exact ⟨field :: fields, by simp [equal], valueTyped, fieldsTyped⟩
-
-theorem fields_length {env : Environment} {world : World} {fields : List IndexedValue}
-    {applications : List Application} (typed : FieldsHaveTypes env world fields applications) :
-    fields.length = applications.length := by
-  induction fields generalizing applications with
-  | nil => cases applications <;> simp_all [FieldsHaveTypes]
-  | cons field fields ih =>
-    cases applications with
-    | nil => contradiction
-    | cons application applications => exact congrArg Nat.succ (ih typed.2)
 
 theorem bind_fields_context {env : Declarations} {world : World} {values : Values} {ctx : Context}
     {symbols : List Nat} {fields : List IndexedValue} {applications : List Application}

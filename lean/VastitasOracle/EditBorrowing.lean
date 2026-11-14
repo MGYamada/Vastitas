@@ -49,10 +49,6 @@ theorem sameState_applied (same : SameState actual expected) :
     actual.applied = expected.applied :=
   congrArg (fun snapshot => snapshot.2.1) same
 
-theorem sameState_loans (same : SameState actual expected) :
-    actual.loans = expected.loans :=
-  congrArg Prod.fst same
-
 def Provenance (prepared : Prepared p) (state : State) : Prop :=
   ∀ applied ∈ state.applied, applied.contribution ∈ prepared.contributions
 

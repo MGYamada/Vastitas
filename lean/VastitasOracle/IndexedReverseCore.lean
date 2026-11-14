@@ -112,11 +112,6 @@ theorem termEq_refl (a : Term) : termEq a a = true := by
   | cons head rest ihHead ihRest => simp [termsEq, ihHead, ihRest]
   | _ => simp_all [termEq]
 
-theorem termsEq_refl (as : List Term) : termsEq as as = true := by
-  induction as with
-  | nil => rfl
-  | cons head rest ih => simp [termsEq, termEq_refl, ih]
-
 theorem functionEq_sound {a b : Function} (equal : functionEq a b = true) : a = b := by
   cases a
   cases b

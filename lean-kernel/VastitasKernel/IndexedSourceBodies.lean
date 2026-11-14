@@ -152,6 +152,14 @@ def integerType : Core.DataType → Bool
   | .pure .nat | .pure .int => true
   | _ => false
 
+/-- The integer literal case of `expression`, before its `expect`. The public
+body elaborator calls it as well. -/
+def integerLiteral (value : String) (span : Span) (expected : Option Core.DataType) : M Core.Term := do
+  unless !value.isEmpty && value.toList.all (fun c => c >= '0' && c <= '9') do
+    fail span "E_LITERAL" "integer literal must contain only decimal digits"
+  let some value := decimalNat? value | fail span "E_LITERAL" "invalid decimal integer"
+  pure (if expected == some (.pure .nat) then .natural value else .integer (Int.ofNat value))
+
 def primitiveResult : ValueType → Core.Result
   | .natural => ⟨.pure .nat, none⟩
   | .object type reference => ⟨.object type, some reference⟩
@@ -269,11 +277,7 @@ mutual
     | fuel + 1, input, scope, ctx, expr, expected => do
       let span := expr.span
       let value ← match expr with
-      | .integer value _ => do
-          unless !value.isEmpty && value.toList.all (fun c => c >= '0' && c <= '9') do
-            fail span "E_LITERAL" "integer literal must contain only decimal digits"
-          let some value := decimalNat? value | fail span "E_LITERAL" "invalid decimal integer"
-          pure (if expected == some (.pure .nat) then .natural value else .integer (Int.ofNat value))
+      | .integer value _ => integerLiteral value span expected
       | .boolean value _ => pure (.boolean value)
       | .unit _ => pure .unit
       | .variable name _ => do

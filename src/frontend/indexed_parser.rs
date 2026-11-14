@@ -467,7 +467,7 @@ impl Parser {
         }
         // The kernel rejects the same names, but it has no span for the name.
         if !super::INDEXED_SPELLINGS.contains(&name.as_str()) {
-            self.check_binding_name(&name, name_span)?;
+            check_binding_name(&name, name_span)?;
         }
         let body = match kind.as_str() {
             "marker" => DeclarationBody::Marker,
@@ -1329,11 +1329,7 @@ impl Parser {
 
     /// Whether the next tokens start a fraction literal, `frac(`.
     fn at_fraction(&self) -> bool {
-        self.peek().is("frac")
-            && self
-                .tokens
-                .get(self.position + 1)
-                .is_some_and(|next| next.is("("))
+        self.peek().is("frac") && self.second_is("(")
     }
 
     /// `frac(i, n)`: a fraction literal whose numerator may carry a `-`.

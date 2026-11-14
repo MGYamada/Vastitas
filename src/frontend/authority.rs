@@ -13,12 +13,7 @@ impl Parser {
     }
 
     fn edit_recipient(&mut self) -> Result<(String, Vec<String>), Diagnostic> {
-        if self.peek().is("module")
-            && self
-                .tokens
-                .get(self.position + 1)
-                .is_some_and(|t| t.is("("))
-        {
+        if self.peek().is("module") && self.second_is("(") {
             return Err(diagnostic(
                 "E_UNSUPPORTED",
                 "manifest-path edit recipients were removed; use `to package_name::module` (or `to package_name` for its root), with the recipient's manifest name, not a dependency alias",

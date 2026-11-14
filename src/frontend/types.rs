@@ -126,11 +126,7 @@ impl Parser {
             self.expect(")")?;
             Ok(Index::Base { ring })
         } else if name.starts_with("__vastitas_") {
-            Err(diagnostic(
-                "E_RESERVED",
-                "the `__vastitas_` prefix is reserved for compiler-generated names",
-                span,
-            ))
+            Err(reserved_prefix(span))
         } else if reserved(&name) {
             Err(diagnostic(
                 "E_TYPE",

@@ -35,12 +35,7 @@ impl Parser {
     // Name package-only syntax precisely; anything else is an unexpected token.
     fn flat_declaration_error(&self) -> Diagnostic {
         let token = self.peek();
-        let next_is = |value| {
-            self.tokens
-                .get(self.position + 1)
-                .is_some_and(|next| next.is(value))
-        };
-        let package_only = if token.is("resource") && next_is("fn") {
+        let package_only = if token.is("resource") && self.second_is("fn") {
             Some("`resource fn` declarations require")
         } else if token.is("mod") {
             Some("`mod` declarations require")
@@ -156,12 +151,7 @@ impl Parser {
                     declaration: self.indexed_declaration()?,
                     public,
                 });
-            } else if self.peek().is("resource")
-                && self
-                    .tokens
-                    .get(self.position + 1)
-                    .is_some_and(|token| token.is("fn"))
-            {
+            } else if self.peek().is("resource") && self.second_is("fn") {
                 module.resource_functions.push(Public {
                     declaration: self.resource_function()?,
                     public,
@@ -270,7 +260,7 @@ impl Parser {
                     if INDEXED_SPELLINGS.contains(&alias.as_str()) {
                         (alias, last, Some(last))
                     } else {
-                        self.check_binding_name(&alias, last)?;
+                        check_binding_name(&alias, last)?;
                         (alias, last, None)
                     }
                 };
@@ -521,11 +511,7 @@ impl Parser {
     }
 
     fn abstract_method_start(&self) -> bool {
-        self.peek().is("abstract")
-            && self
-                .tokens
-                .get(self.position + 1)
-                .is_some_and(|t| t.is("method"))
+        self.peek().is("abstract") && self.second_is("method")
     }
 
     fn abstract_method(&mut self) -> Result<AbstractMethod, Diagnostic> {

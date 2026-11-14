@@ -73,15 +73,6 @@ impl<'a> Resolver<'a> {
                 ));
             }
         }
-        // Two declarations of one name are reported at the later one in the
-        // file, whatever their kinds (#747).
-        let later = |span: Span, earlier: Span| {
-            if earlier.start > span.start {
-                earlier
-            } else {
-                span
-            }
-        };
         for generic in &module.generics {
             let earlier = this
                 .generics
@@ -92,13 +83,11 @@ impl<'a> Resolver<'a> {
                         .get(generic.name.as_str())
                         .map(|&index| module.functions[index].span)
                 });
-            if let Some(earlier) = earlier {
-                this.errors.push(diagnostic(
-                    "E_DUPLICATE",
-                    format!("callable `{}` is defined more than once", generic.name),
-                    later(generic.span, earlier),
-                ));
-            }
+            this.duplicate(
+                earlier,
+                generic.span,
+                format!("callable `{}` is defined more than once", generic.name),
+            );
             this.generics.entry(&generic.name).or_insert(generic.span);
             if generic.name == "main" {
                 this.errors.push(diagnostic(
@@ -120,16 +109,14 @@ impl<'a> Resolver<'a> {
                         .get(name)
                         .map(|&index| module.functions[index].span)
                 });
-            if let Some(earlier) = earlier {
-                this.errors.push(diagnostic(
-                    "E_DUPLICATE",
-                    format!(
-                        "declaration `{}` is defined more than once",
-                        declaration.name
-                    ),
-                    later(declaration.span, earlier),
-                ));
-            }
+            this.duplicate(
+                earlier,
+                declaration.span,
+                format!(
+                    "declaration `{}` is defined more than once",
+                    declaration.name
+                ),
+            );
             this.abstract_types
                 .entry(&declaration.name)
                 .or_insert(declaration.span);
@@ -204,6 +191,20 @@ impl<'a> Resolver<'a> {
         this.errors
     }
 
+    // `E_DUPLICATE` for a declaration at `span` when an `earlier` one has its
+    // name. Two declarations of one name are reported at the later one in
+    // the file, whatever their kinds (#747).
+    fn duplicate(&mut self, earlier: Option<Span>, span: Span, message: String) {
+        if let Some(earlier) = earlier {
+            let later = if earlier.start > span.start {
+                earlier
+            } else {
+                span
+            };
+            self.errors.push(diagnostic("E_DUPLICATE", message, later));
+        }
+    }
+
     fn cycle(&self, current: usize, marks: &mut [u8]) -> Option<Vec<usize>> {
         if marks[current] != 0 {
             return None;
@@ -272,11 +273,7 @@ impl<'a> Resolver<'a> {
         if let Index::Name { name } = index
             && name.starts_with("__vastitas_")
         {
-            self.errors.push(diagnostic(
-                "E_RESERVED",
-                "the `__vastitas_` prefix is reserved for compiler-generated names",
-                span,
-            ));
+            self.errors.push(reserved_prefix(span));
             return;
         }
         if let Index::Name { name } = index
@@ -379,11 +376,7 @@ impl<'a> Resolver<'a> {
             }
             ExprKind::Variable { name } => {
                 if name.starts_with("__vastitas_") {
-                    self.errors.push(diagnostic(
-                        "E_RESERVED",
-                        "the `__vastitas_` prefix is reserved for compiler-generated names",
-                        expr.span,
-                    ));
+                    self.errors.push(reserved_prefix(expr.span));
                 } else if matches!(name.as_str(), "QQ" | "CInfReal") {
                     if !ring_position {
                         self.errors.push(diagnostic("E_RING", format!("`{name}` is a coefficient-ring marker, usable only in Affine or Base"), expr.span));
@@ -407,11 +400,7 @@ impl<'a> Resolver<'a> {
             }
             ExprKind::Call { callee, args } => {
                 if callee.starts_with("__vastitas_") {
-                    self.errors.push(diagnostic(
-                        "E_RESERVED",
-                        "the `__vastitas_` prefix is reserved for compiler-generated names",
-                        expr.span,
-                    ));
+                    self.errors.push(reserved_prefix(expr.span));
                 } else if let Some(&target) = self.functions.get(callee.as_str()) {
                     if let Some(function) = function {
                         self.calls[function].push(target);

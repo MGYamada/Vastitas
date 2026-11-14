@@ -32,12 +32,7 @@ impl Parser {
             return Ok((block, 1 + depth.max(1)));
         }
         let (result, result_depth) = self.expression_with_depth(0)?;
-        if self.peek().is("as")
-            && self
-                .tokens
-                .get(self.position + 1)
-                .is_some_and(|token| token.is("{"))
-        {
+        if self.peek().is("as") && self.second_is("{") {
             return Err(diagnostic(
                 "E_PARSE",
                 "to open a package, write `unpack value as { scheme: X, point: p };`",
@@ -66,8 +61,7 @@ impl Parser {
         if token.is("let") {
             if self.peek().is("mut")
                 && self
-                    .tokens
-                    .get(self.position + 1)
+                    .peek_second()
                     .is_some_and(|next| matches!(next.kind, TokenKind::Name(_)))
             {
                 return Err(diagnostic(

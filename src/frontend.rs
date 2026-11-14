@@ -100,6 +100,15 @@ fn diagnostic(code: &str, message: impl Into<String>, span: Span) -> Diagnostic 
     }
 }
 
+// `E_RESERVED` for a name with the prefix of compiler-generated names.
+fn reserved_prefix(span: Span) -> Diagnostic {
+    diagnostic(
+        "E_RESERVED",
+        "the `__vastitas_` prefix is reserved for compiler-generated names",
+        span,
+    )
+}
+
 pub(crate) fn reserved(name: &str) -> bool {
     name.starts_with("__vastitas_")
         || BUILTINS.contains(&name)
@@ -110,6 +119,10 @@ pub(crate) fn reserved(name: &str) -> bool {
 
 /// `E_RESERVED` at `span` when `name` may not be the name of a declaration or
 /// a binding, including a name that `use` binds.
+///
+/// The names of modules and paths are reserved in flat mode too. The kernel
+/// rejects them as well, at the declaration or the statement that binds
+/// them; the frontend reports them at the name (#747).
 pub(crate) fn check_binding_name(name: &str, span: Span) -> Result<(), Diagnostic> {
     if reserved(name) || ["mod", "use", "pub", "self", "super"].contains(&name) {
         Err(diagnostic(
@@ -583,6 +596,13 @@ impl Parser {
     fn peek(&self) -> &Token {
         &self.tokens[self.position]
     }
+    // The token after the current one; none at the end of the file.
+    fn peek_second(&self) -> Option<&Token> {
+        self.tokens.get(self.position + 1)
+    }
+    fn second_is(&self, value: &str) -> bool {
+        self.peek_second().is_some_and(|token| token.is(value))
+    }
     fn previous(&self) -> &Token {
         self.split_closer
             .as_ref()
@@ -706,7 +726,7 @@ impl Parser {
 
     fn binding_name(&mut self) -> Result<(String, Span), Diagnostic> {
         let (name, span) = self.name()?;
-        self.check_binding_name(&name, span)?;
+        check_binding_name(&name, span)?;
         Ok((name, span))
     }
 
@@ -716,16 +736,9 @@ impl Parser {
     fn module_name(&mut self) -> Result<(String, Span), Diagnostic> {
         let (name, span) = self.name()?;
         if !GEOMETRIC_OPERATIONS.contains(&name.as_str()) {
-            self.check_binding_name(&name, span)?;
+            check_binding_name(&name, span)?;
         }
         Ok((name, span))
-    }
-
-    // The names of modules and paths are reserved in flat mode too. The kernel
-    // rejects them as well, at the declaration or the statement that binds
-    // them; the frontend reports them at the name (#747).
-    fn check_binding_name(&self, name: &str, span: Span) -> Result<(), Diagnostic> {
-        check_binding_name(name, span)
     }
 }
 

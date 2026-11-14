@@ -203,7 +203,9 @@ These rules govern the text of every chapter. The archived delivery records,
 `stage3-acceptance.md` and `reverse-core-acceptance.md`, are exempt and keep
 their original wording. So do the chapters with moved text that
 [Author and retire a chapter](#author-and-retire-a-chapter) names, apart
-from the checked rules.
+from the checked rules. The links and repository paths of the delivery
+records are still checked and kept current, like those of every other
+chapter.
 
 ### Voice
 

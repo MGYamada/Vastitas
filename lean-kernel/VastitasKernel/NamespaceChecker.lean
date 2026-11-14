@@ -1,5 +1,5 @@
 import VastitasKernel.Namespace
-import VastitasKernel.FunctionChecker
+import VastitasKernel.FunctionScope
 import VastitasKernel.Distinct
 
 namespace VastitasKernel.Namespace
@@ -805,21 +805,3 @@ def lower (p : Indexed) : Result Lowered := do
   return { surface, references }
 
 end VastitasKernel.Namespace
-
-namespace VastitasKernel
-
-def checkNamespaceProgram (p : Namespace.Program) (requireMain : Bool := false)
-    (render : Namespace.Lowered → Diagnostic → Diagnostic := fun _ diagnostic => diagnostic) : Except Diagnostic CertifiedModule := do
-  if p.editable then
-    throw ({ code := "E_PROTOCOL", message := "protocol 5 requires the edit assembly checker" } : Diagnostic)
-  let indexed := p.indexed
-  let lowered ← Namespace.lower indexed
-  (do
-    let graph ← Namespace.membershipGraph indexed
-    if !Namespace.MembershipsAuthorized graph then
-      throw (Namespace.membershipAuthorityDiagnostic graph)
-    if !Namespace.UniqueOwners indexed || !Namespace.ReferencesValid indexed lowered then
-      throw ({ code := "E_INTERNAL_NAMESPACE", message := "namespace identity or reference audit failed" } : Diagnostic)
-    checkSurfaceProgram lowered.surface requireMain).mapError (render lowered)
-
-end VastitasKernel

@@ -553,7 +553,7 @@ program, as [Limits](../language/limits.md#bounds-that-reject-nothing) says.
 | `reverseLeaves` | 256 | The maps of one reverse pass that the compilation reads through `let` statements and `compose`, in [`IndexedReverse.lean`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedReverse.lean) |
 | Notes of a resource diagnostic | 32 | The notes that follow one diagnostic of a resource program |
 | Search for an uninitialized cell | 131,072 | The records that the checker visits to find the cell that a diagnostic names |
-| `captureDiagnostic` | 8192 | The steps of a search for the place of a capture. No route of the kernel executable uses the search: its only use is in a checker that the executable holds and does not call |
+| `captureDiagnostic` | 8192 | The steps of a search for the place of a capture. No route of the kernel executable uses the search: its only use is in a retained checker outside the executable |
 | `namespaceNesting` | 1024 | The recursion through a body of the pass that puts the names of the source into a diagnostic. On the routes of the kernel executable, no other pass of the checker of names reads a body, and this pass keeps the diagnostic as it is when it reaches the bound |
 | Lean options of a generated program | `maxRecDepth` 32768, `maxHeartbeats` 2000000 | The elaboration of the generated program by Lean in `build` |
 

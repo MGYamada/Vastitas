@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSourceBodies
+import VastitasKernel.Checker
 
 namespace VastitasKernel.Indexed.Source.Bodies
 

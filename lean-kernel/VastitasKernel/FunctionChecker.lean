@@ -531,18 +531,6 @@ def runWork : Nat → Work α → Except Diagnostic (α × State × CheckerState
     | none => runWork fuel (((compileInstance f targets span state checker).withMethodNote f).bind
         (fun compiled state checker => resume compiled state checker))
 
--- Body-less headers are used only to reuse declaration and finite-family
--- validation. The actual bodies are checked below, never these placeholders.
-def headers (p : Program) : RawProgram := {
-  version := p.version, file := p.file, generics := p.generics
-  abstractTypes := p.abstractTypes, subtypes := p.subtypes, abstractMethods := p.abstractMethods
-  functions := p.functions.map fun f => {
-    name := f.name, params := f.params.map fun param => { name := param.name, ty := param.ty.core, span := param.span }
-    returnType := f.result.core, body := .mk [] (.unit f.span) f.span, span := f.span }
-  methods := p.methods.map fun m => {
-    name := m.name, params := m.params.map fun param => { name := param.name, ty := param.ty.core, span := param.span }
-    returnType := m.result.core, body := .mk [] (.unit m.span) m.span, span := m.span, requirements := m.requirements } }
-
 def prepare (p : Program) : CheckM (List Definition × Families) := do
   let (p, lambdas) ← liftProgram p
   let raw := headers p

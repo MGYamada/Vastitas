@@ -790,6 +790,24 @@ class LinkTests(Fixture):
         self.assertEqual(errors, ["tests/a.rs:2: docs/stage1a.md has no anchor #absent",
                                   "tests/a.rs:2: docs/stage0.md is not a chapter of the book"])
 
+    def test_relative_markdown_links_resolve_against_their_file(self):
+        # A library keeps its API reference in a docs/ directory of its own.
+        output = (self.root / "book").resolve()
+        write(output, {"stage1a.html": '<h2 id="abstract-types">Abstract types</h2>'})
+        write(self.root, {
+            "docs/stage1a.md": "# Stage 1a\n",
+            "lib/docs/README.md": "# Library\n",
+            "lib/src/README.md": "[page](../docs/README.md#the-root) and [absent](../docs/absent.md)\n",
+            "lib/README.md": "[page](docs/README.md#the-root) and [book](../docs/stage1a.md#absent)\n"
+                             "and [chapter](<../docs/stage1a.md#abstract-types>)\n",
+        })
+        pages = {output / "stage1a.html": check_book.Page(output / "stage1a.html")}
+        files = [self.root / "lib/src/README.md", self.root / "lib/README.md"]
+        errors, count = check_book.reference_errors(files, pages, self.root, output)
+        self.assertEqual(count, 2)
+        self.assertEqual(errors, ["lib/src/README.md:1: the link ../docs/absent.md names no file",
+                                  "lib/README.md:1: docs/stage1a.md has no anchor #absent"])
+
 
 class PathTests(Fixture):
     FILES = ["scripts/check_book.py", "tests/examples.rs", "src/frontend.rs", "src/frontend/items.rs",

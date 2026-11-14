@@ -788,9 +788,13 @@ def check_redirects(pages, directory, root=ROOT):
 
 
 # A path to a chapter from the repository root, a relative one through `../`,
-# or a link to the chapter on GitHub.
+# or a link to the chapter on GitHub. A relative Markdown link resolves
+# against its file instead: one that leads outside docs/, such as a link to a
+# page of stdlib/docs/ or nature/docs/, must name a file and names no chapter.
 BOOK_REFERENCE = re.compile(r"(?:(?<=\.\./)|(?<=/(?:blob|tree)/main/)|(?<![\w./-]))"
                             r"docs/([A-Za-z0-9_./-]+\.md)(?:#([A-Za-z0-9_-]+))?")
+# The relative path before `docs/` in the target of a Markdown link.
+LINK_PREFIX = re.compile(r"\]\(<?([\w./-]*)$")
 
 
 # Recorded experiment runs keep the chapter paths they ran with, and the unit
@@ -820,15 +824,24 @@ def reference_errors(files, pages, root, output):
             continue
         for number, line in enumerate(text.splitlines(), 1):
             for match in BOOK_REFERENCE.finditer(line):
-                count += 1
-                page = (output / rendered_path(match[1])).resolve()
                 where = f"{file.relative_to(root)}:{number}"
-                if match[1] == "SUMMARY.md" and not match[2]:
+                chapter = match[1]
+                link = LINK_PREFIX.search(line, 0, match.start())
+                if link:
+                    target = (file.parent / f"{link[1]}docs/{chapter}").resolve()
+                    if not target.is_relative_to((root / "docs").resolve()):
+                        if not target.exists():
+                            errors.append(f"{where}: the link {link[1]}docs/{chapter} names no file")
+                        continue
+                    chapter = target.relative_to((root / "docs").resolve()).as_posix()
+                count += 1
+                page = (output / rendered_path(chapter)).resolve()
+                if chapter == "SUMMARY.md" and not match[2]:
                     continue
-                if not (root / "docs" / match[1]).is_file() or page not in pages:
-                    errors.append(f"{where}: docs/{match[1]} is not a chapter of the book")
+                if not (root / "docs" / chapter).is_file() or page not in pages:
+                    errors.append(f"{where}: docs/{chapter} is not a chapter of the book")
                 elif match[2] and match[2] not in pages[page].anchors:
-                    errors.append(f"{where}: docs/{match[1]} has no anchor #{match[2]}")
+                    errors.append(f"{where}: docs/{chapter} has no anchor #{match[2]}")
     return errors, count
 
 

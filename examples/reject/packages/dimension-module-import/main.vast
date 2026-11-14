@@ -1,5 +1,0 @@
-// ANCHOR: import
-use nature::dimension;
-// ANCHOR_END: import
-
-fn main() -> Int { 0 }

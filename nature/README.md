@@ -41,10 +41,7 @@ directory per module and `mod.vast` as its entrypoint. The package root
 [`src/mod.vast`](src/mod.vast) declares the modules, and
 [`src/dimension/mod.vast`](src/dimension/mod.vast) is `nature::dimension`.
 The API reference lives under [`docs/`](docs/README.md). A module of
-`nature` is a module of the one package `vastitas_nature`, not a package of
-its own as the libraries of `stdlib/src/` are: such a package would have to
-be exposed under its name by a dependency alias or by `use … as`, and the
-name `dimension` is reserved for both.
+`nature` is a module of the one package `vastitas_nature`.
 
 ## Use
 

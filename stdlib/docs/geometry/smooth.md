@@ -31,7 +31,7 @@ other.
 | --- | --- | --- |
 | `affine` | module | Smooth affine geometry over `CInfReal` ([page](smooth/affine.md)) |
 | `CInfReal` | marker | The coefficient marker of the setting |
-| `GridSmooth` | implementation | `GridSmooth(CInfReal, affine_descriptor)`, with the capabilities `origin` and `dimension`: the descriptor objects over `CInfReal` |
+| `GridSmooth` | implementation | `GridSmooth(CInfReal, affine_descriptor)`, with the capabilities `origin` and `dim`: the descriptor objects over `CInfReal` |
 | `CInfScheme` | classification | The domain `GridSmooth`, with the parent `Objects` of `std::geometry` |
 | `BaseSmooth` | global | The global object of `GridSmooth`, of dimension 0: the test object of every origin |
 | `Point<X, S>` | re-export | The family `std::geometry::Point` |
@@ -43,7 +43,7 @@ other.
 | `base()` | primitive | `global(BaseSmooth)`: the object `BaseSmooth` |
 | `origin(X)` | primitive | `origin((CInfScheme, CInfReal), Point, BaseSmooth)`: the origin of `X`, a `Point<X, BaseSmooth>` |
 | `id(X)` | primitive | `identity((CInfScheme, CInfReal), Morphism)`: the identity morphism of `X`, a `Morphism<X, X>` |
-| `dimension(X)` | primitive | `dimension((CInfScheme, CInfReal))`: the dimension of `X`, a `Nat` |
+| `dim(X)` | primitive | `dim((CInfScheme, CInfReal))`: the dimension of `X`, a `Nat`, which is the dimension of the vector space of translations of the affine space `X` |
 | `pointed(n)` | function | `pointed(n: Nat) -> Pointed<CInfScheme, CInfReal>`: the fresh object `Affine(n)`, annotated `Object<CInfScheme, CInfReal>`, packed with its origin |
 
 `compose` and `id` of this module take morphisms of descriptor objects, not

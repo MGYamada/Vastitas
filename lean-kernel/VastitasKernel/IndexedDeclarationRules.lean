@@ -301,7 +301,8 @@ def primitiveRule (env : Environment) (name : DeclId) (op : String) (binding : P
       family maps (familyRepresentation env maps == some .morphism) "have the representation `morphism`",
       result ⟨maps, [.object (.local domain 0), .object (.local domain 0)]⟩ "the type"
         [s!"an object of type `{objectTypeText domain}`", s!"an object of type `{objectTypeText domain}`"]]
-  | .dimension domain => supports domain .dimension "dimension"
+  -- The source spells the capability `dim` (#778); the wire token is `dimension`.
+  | .dimension domain => supports domain .dimension "dim"
   | .compose maps => family maps (familyRepresentation env maps == some .morphism) "have the representation `morphism`"
   | .apply maps points =>
     first [family maps (familyRepresentation env maps == some .morphism) "have the representation `morphism`",

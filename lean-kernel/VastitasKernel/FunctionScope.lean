@@ -69,7 +69,7 @@ mutual
 end
 
 def builtinNames : List String :=
-  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int", "pair", "pair_first", "pair_second", "QQ", "CInfReal"]
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dim", "int", "pair", "pair_first", "pair_second", "QQ", "CInfReal"]
 
 def Program.globals (p : Program) : List String :=
   p.functions.map (·.name) ++ p.generics.map (·.name) ++ builtinNames
@@ -103,7 +103,8 @@ mutual
       match expr with
       | .variable name span => return nameProblem globals bound outer name span
       | .call name args span =>
-        if let some problem := nameProblem globals bound outer name span then return some problem
+        if let some problem := nameProblem globals bound outer name span then
+          return some (retiredDimension name span problem)
         return args.findSome? (expressionProblem fuel globals bound outer)
       | .invoke callee args _ =>
         if let some problem := expressionProblem fuel globals bound outer callee then return some problem

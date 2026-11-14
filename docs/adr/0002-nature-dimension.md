@@ -199,8 +199,10 @@ without a test there remains proposed.
 
 - **Names.** `base_dimension`, `quantity`, `Reading`, `scale … of …`,
   `PhysicalMetric`, `interpret` and `normalized`; the diagnostic code
-  `E_DIMENSION`. The declaration is not named `dimension`, which is a Stage 1
-  primitive and capability that counts coordinates.
+  `E_DIMENSION`. The declaration is not named `dimension`, which was a Stage 1
+  primitive and capability that counts coordinates. (14 November 2026: #778
+  renamed that operation and capability `dim`; `dimension` is an ordinary name,
+  and `nature::dimension` the module of this record.)
 - **Package.** `vastitas_nature` at `nature/` in the repository. It depends on
   the standard library; no standard-library manifest depends on a path
   outside `stdlib/`, and `scripts/check_boundaries.py` checks it.

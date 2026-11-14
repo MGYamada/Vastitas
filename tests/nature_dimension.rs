@@ -361,16 +361,21 @@ fn dimension_module_exports_exactly_its_names() {
     }
 }
 
-/// The module is reachable by item imports, full paths and an alias; a plain
-/// `use nature::dimension;` would bind the reserved name `dimension`.
+/// The module is reachable by item imports, full paths, an alias and a
+/// plain `use nature::dimension;`, since `dimension` is an ordinary name
+/// (#778). `dim`, the geometric operation, is no alias.
 #[test]
 fn the_dimension_module_is_reachable_by_items_paths_and_an_alias() {
     success(&check(&fixture(&with(concat!(
-        "use nature::dimension as dim;\n",
-        "indexed scale s1 = 1 of dim::Length;\n",
+        "use nature::dimension as units;\n",
+        "indexed scale s1 = 1 of units::Length;\n",
         "indexed scale s2 = 2 of nature::dimension::Mass;",
     )))));
-    rejects(&with("use nature::dimension;"), "E_RESERVED");
+    success(&check(&fixture(&with(concat!(
+        "use nature::dimension;\n",
+        "indexed scale s1 = 1 of dimension::Length;",
+    )))));
+    rejects(&with("use nature::dimension as dim;"), "E_RESERVED");
 }
 
 /// A std manifest that depends on nature forms a cycle, since nature depends

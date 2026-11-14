@@ -207,4 +207,45 @@ private def explained (name message : String) (statements : List Json) (notes : 
     letStmt "p" (call "apply" [call "id" [varExpr "X"], call "origin" [varExpr "X"]])]) true true
   IO.println "legacy source: rejected geometry primitives name their failed requirement"
 
+/-- The request of `functions` in a package module of protocol `version`. -/
+private def packaged (version : Nat) (functions : List Json) : Json :=
+  let module := Json.mkObj [
+    ("path", toJson ([] : List String)), ("public", toJson true), ("span", span),
+    ("imports", toJson ([] : List Json)), ("generics", toJson ([] : List Json)),
+    ("methods", toJson ([] : List Json)),
+    ("functions", toJson (functions.map (·.setObjVal! "public" (toJson false))))]
+  (package version).setObjVal! "packages" (toJson [Json.mkObj [
+    ("source", toJson "/legacy/Vastitas.toml"), ("name", toJson "legacy"), ("version", toJson "1.0.0"),
+    ("dependencies", toJson ([] : List Json)), ("modules", toJson [module])]])
+
+-- #778: the operation is `dim`, also on forged wire of every protocol 2–6.
+-- `dimension` is an ordinary name; a call of it that names nothing is `E_NAME`
+-- with a note, and `dim` is reserved for functions.
+#eval show IO Unit from do
+  let measured (callee : String) : Json :=
+    (fn).setObjVal! "body" (block (call "int" [call callee [varExpr "X"]])
+      [letStmt "X" (call "Affine" [varExpr "QQ", integer "3"])])
+  let nat : Json := named "Nat"
+  let ordinary := (fn "dimension" (integer "1")).setObjVal! "return_type" nat
+  let cases : List (String × List Json × Option String) := [
+    ("dim is the operation", [measured "dim"], none),
+    ("dimension is an ordinary function", [ordinary, fn "main" (call "int" [call "dimension" []])], none),
+    ("dimension names nothing", [measured "dimension"], some "E_NAME"),
+    ("dim is reserved for functions", [fn, (fn "dim" (integer "1")).setObjVal! "return_type" nat], some "E_RESERVED")]
+  for version in [2, 3, 4, 5, 6] do
+    for (label, functions, code) in cases do
+      let request := if version == 2 || version == 4 then flat version functions else packaged version functions
+      match check request true, code with
+      | .ok _, none => pure ()
+      | .ok _, some code => throw (IO.userError s!"legacy source {version}: {label}: accepted, expected {code}")
+      | .error diagnostic, none =>
+        throw (IO.userError s!"legacy source {version}: {label}: {diagnostic.code}: {diagnostic.message}")
+      | .error diagnostic, some code =>
+        unless diagnostic.code == code do
+          throw (IO.userError s!"legacy source {version}: {label}: {diagnostic.code}: {diagnostic.message}")
+        if code == "E_NAME" && !diagnostic.notes.any (fun note =>
+            (note.message.splitOn "`dim(…)`").length > 1 && (note.message.splitOn "`nature::dimension`").length > 1) then
+          throw (IO.userError s!"legacy source {version}: {label}: no note on dim and nature::dimension")
+  IO.println "legacy source: dim is the operation and dimension an ordinary name in protocols 2–6"
+
 end VastitasKernel.Indexed.LegacySource.Regression

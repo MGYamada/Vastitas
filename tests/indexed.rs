@@ -179,7 +179,7 @@ fn same_dimensions_do_not_identify_separately_generated_objects() {
 #[test]
 fn indexed_annotations_and_lambdas_preserve_scope() {
     rejected(
-        "mod geo; fn main() -> Int { let X = geo::affine(2); let f = fn(n: Int) -> Int { n + int(geo::dimension(X)) }; 0 }",
+        "mod geo; fn main() -> Int { let X = geo::affine(2); let f = fn(n: Int) -> Int { n + int(geo::dim(X)) }; 0 }",
         "E_CAPTURE",
     );
     rejected(
@@ -210,13 +210,13 @@ fn all_package_fields_and_unapplied_method_bodies_are_checked() {
 
 #[test]
 fn rich_bodies_work_inside_scalar_methods_and_explicit_assemblies() {
-    let source = "mod geo; generic choose(x) { domain (Int); } contribution add: choose { method choose(x: Int) -> Int { let X = geo::affine(2); let f = fn(y: Int) -> Int { y + 1 }; f(x) + int(geo::dimension(X)) } } assembly { apply add; seal choose; } fn main() -> Int { choose(39) }";
+    let source = "mod geo; generic choose(x) { domain (Int); } contribution add: choose { method choose(x: Int) -> Int { let X = geo::affine(2); let f = fn(y: Int) -> Int { y + 1 }; f(x) + int(geo::dim(X)) } } assembly { apply add; seal choose; } fn main() -> Int { choose(39) }";
     success(&check(&fixture(source)));
 }
 
 #[test]
 fn nongeometric_indexed_family_uses_the_same_annotation_checker() {
-    let source = "mod geo; indexed family Record(domain, marker, natural, object(geo::Scheme)) = token constraints(over(3, 1)); fn inspect(X: Object<geo::Scheme, geo::QQ>, token: Record<geo::Scheme, geo::QQ, 18446744073709551616, X>) -> Int { int(geo::dimension(X)) } fn main() -> Int { 42 }";
+    let source = "mod geo; indexed family Record(domain, marker, natural, object(geo::Scheme)) = token constraints(over(3, 1)); fn inspect(X: Object<geo::Scheme, geo::QQ>, token: Record<geo::Scheme, geo::QQ, 18446744073709551616, X>) -> Int { int(geo::dim(X)) } fn main() -> Int { 42 }";
     success(&check(&fixture(source)));
     rejected(&source.replace("18446744073709551616", "geo::QQ"), "E_TYPE");
     rejected(

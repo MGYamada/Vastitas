@@ -418,6 +418,8 @@ pub enum GeometricSetting {
 #[serde(rename_all = "snake_case")]
 pub enum Capability {
     Origin,
+    /// The source spells it `dim`, as the operation (#778); the wire token
+    /// stays `dimension`.
     Dimension,
 }
 

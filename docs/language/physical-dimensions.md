@@ -405,11 +405,10 @@ package by path, next to the standard library, as
 
 A program imports the declarations of the module one by one, as in
 `use nature::dimension::Length;`, names them by full paths, as in
-`nature::dimension::Mass`, or binds the module under another name, as in
-`use nature::dimension as dim;`. `dimension` is a
-[reserved name](lexical-structure.md#reserved-names) for the name that a
-`use` declaration binds, so a plain `use nature::dimension;` is an error
-(`E_RESERVED`). A `use` declaration imports one path, as
+`nature::dimension::Mass`, imports the module, as in
+`use nature::dimension;`, after which `dimension::Time` names
+`nature::dimension::Time`, or binds the module under another name, as in
+`use nature::dimension as units;`. A `use` declaration imports one path, as
 [`use` declarations](modules.md#use-declarations) says, so a grouped import
 such as `use nature::dimension::{Length, Time};` is an error (`E_PARSE`).
 
@@ -419,13 +418,13 @@ Example, from `main.vast`:
 {{#include ../../examples/packages/physical-dimensions/main.vast:imports}}
 ```
 
-```vast
-{{#include ../../examples/reject/packages/dimension-module-import/main.vast:import}}
-```
-
-```text
-{{#include ../../examples/reject/packages/dimension-module-import.stderr}}
-```
+A physical dimension is not the dimension of a space. The
+[geometric operation](geometric-types.md#operations) `dim(X)` is the
+dimension of a vector or affine space, a `Nat`, and a physical dimension is
+no `Nat`. The language converts neither into the other. `dimension` is an
+ordinary name, and `dim` is a
+[reserved name](lexical-structure.md#reserved-names), so
+`use nature::dimension as dim;` is an error (`E_RESERVED`).
 
 ## Scope of physical dimensions
 

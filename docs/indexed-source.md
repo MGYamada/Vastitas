@@ -157,7 +157,7 @@ Rules:
 > DescriptorImplementation -> `indexed` `implementation` IDENTIFIER
 >     `(` Path `,` `affine_descriptor` `)` `capabilities` `(` Capabilities? `)` `;`
 > Capabilities -> Capability ( `,` Capability )* `,`?
-> Capability -> `origin` | `dimension`
+> Capability -> `origin` | `dim`
 > ```
 
 `indexed implementation I(K, r) capabilities(c₁, …);` declares an
@@ -170,7 +170,7 @@ Rules:
 | Capability | Operation |
 | --- | --- |
 | `origin` | The origin of an object, through a [primitive](#primitives) with the binding `origin(…)` |
-| `dimension` | The dimension of an object, through a primitive with the binding `dimension(…)` |
+| `dim` | The dimension of an object, through a primitive with the binding `dim(…)` |
 
 The other representations are `scalar_base(…)` and `linear_descriptor(…)` of
 [Linear implementations](linalg/maps-and-gemm.md#linear-implementations),
@@ -184,8 +184,8 @@ Rules:
 - The path must name a marker (`E_TYPE`).
 - The representation must be one of the five representations. Another word
   is an error (`E_TYPE`).
-- A capability must be `origin` or `dimension`. Another word is an error
-  (`E_TYPE`).
+- A capability must be `origin` or `dim`. Another word, including
+  `dimension`, is an error (`E_TYPE`).
 - The capability list must not name a capability twice (`E_TYPE`).
 - An implementation has the capabilities of its own declaration, and no
   others. A classification adds none.
@@ -331,7 +331,7 @@ of both `measure` and `hide`:
 The executable prints `42`. The witness `Y` has the object type
 `Object<shapes::Shape, shapes::QQ>`, so `measure(Y)` is an error. In the next
 program the annotation gives `Y` an object type that has the implementation
-`Plain`, which lacks the capability `dimension`:
+`Plain`, which lacks the capability `dim`:
 
 ```vast
 {{#include ../examples/reject/packages/lost-capability/main.vast}}
@@ -611,7 +611,7 @@ different objects:
 >     | `global` `(` Path `)`
 >     | `origin` `(` `(` Path `,` Path `)` `,` Path `,` Path `)`
 >     | `identity` `(` `(` Path `,` Path `)` `,` Path `)`
->     | `dimension` `(` `(` Path `,` Path `)` `)`
+>     | `dim` `(` `(` Path `,` Path `)` `)`
 >     | `compose` `(` Path `)`
 >     | `apply` `(` Path `,` Path `)`
 > ```
@@ -637,14 +637,14 @@ a `point` family, and `M` is a `morphism` family.
 | `global(G)` | None | The object `G` | The global object `G` |
 | `origin((D, K), P, B)` | An object `X` | `P<X, B>` | The origin of `X` |
 | `identity((D, K), M)` | An object `X` | `M<X, X>` | The identity morphism of `X` |
-| `dimension((D, K))` | An object `X` | `Nat` | The dimension of `X` |
+| `dim((D, K))` | An object `X` | `Nat` | The dimension of `X` |
 | `compose(M)` | `g: M<Y, Z>`, `f: M<X, Y>` | `M<X, Z>` | `g` after `f` |
 | `apply(M, P)` | `f: M<X, Y>`, `p: P<X, S>` | `P<Y, S>` | The image of `p` under `f` |
 
 Rules:
 
 - The word after `=` must begin a binding of `PrimitiveBinding`. Another
-  word before `(` is an error (`E_TYPE`).
+  word before `(`, including `dimension`, is an error (`E_TYPE`).
 - The implementation of `descriptor(I)` must have the representation
   `affine_descriptor` (`E_TYPE`).
 - The path of `global(G)` must name a global object of an implementation
@@ -652,8 +652,8 @@ Rules:
 - `(D, K)` must be an object type by the rules of
   [Object types](#object-types) (`E_TYPE`).
 - Every implementation of `Object<D, K>` must have the capability `origin`
-  for the binding `origin`, and the capability `dimension` for the binding
-  `dimension` (`E_TYPE`).
+  for the binding `origin`, and the capability `dim` for the binding
+  `dim` (`E_TYPE`).
 - `M` must name a family with the representation `morphism`, and `P` a
   family with the representation `point` (`E_TYPE`).
 - `P<X, B>` of the binding `origin` must be an indexed type by the rules of
@@ -670,7 +670,7 @@ The module `geo` declares one primitive for each binding:
 ```
 
 In this package the domain of `Shape` has the implementation `Plain`, which
-lacks the capability `dimension`. The compiler reports the binding at its
+lacks the capability `dim`. The compiler reports the binding at its
 declaration, and the message names `Plain`:
 
 ```vast
@@ -778,7 +778,10 @@ type of a setting is `Object<domain, marker>`.
 | `base` | A primitive with the binding `global(base_object)` |
 | `origin` | A primitive with the binding `origin((domain, marker), point, base_object)` |
 | `identity` | A primitive with the binding `identity((domain, marker), morphism)` |
-| `dimension` | A primitive with the binding `dimension((domain, marker))` |
+| `dimension` | A primitive with the binding `dim((domain, marker))` |
+
+The entries `identity` and `dimension` name the primitives of the operations
+`id` and `dim`.
 
 Rules:
 
@@ -822,7 +825,7 @@ object type the object type of the object lies within.
 | `Pointed<Scheme, QQ>`, `Pointed<CInfScheme, CInfReal>` | `pointed<domain, marker>` of the setting |
 | `Affine(QQ, n)`, `Affine(CInfReal, n)` | A call of `affine` of the setting |
 | `Base(QQ)`, `Base(CInfReal)` in an expression | A call of `base` of the setting |
-| `origin(X)`, `id(X)`, `dimension(X)` | A call of `origin`, `identity` or `dimension` of the setting of `X` |
+| `origin(X)`, `id(X)`, `dim(X)` | A call of `origin`, `identity` or `dimension` of the setting of `X` |
 | `compose(g, f)`, `apply(f, p)` | A call of `compose` or `apply` |
 | `pack { scheme: X, point: p }` | `pack pointed<domain, marker> { witness: X, fields: [p] }` for the setting of `X` |
 
@@ -837,8 +840,8 @@ Rules:
   has no setting. A core operation on such an object, and a `pack` of the
   core with it, are errors (`E_TYPE`).
 - A bare name that the current module declares or imports wins over the core
-  operation of that name. For example, `dimension(X)` calls an imported
-  primitive `dimension`.
+  operation of that name. For example, `dim(X)` calls an imported
+  primitive `dim`.
 - A program may write `unpack e as { scheme: X, point: p };` without an
   export, as [Opening](#opening) says.
 
@@ -875,7 +878,7 @@ two profiles:
 | Implementation | `GridQQ` | `GridSmooth` |
 | Classification | `Scheme` | `CInfScheme` |
 | Global object | `BaseQQ` | `BaseSmooth` |
-| Primitives | `Affine`, `base`, `origin`, `id`, `dimension` | `Affine`, `base`, `origin`, `id`, `dimension` |
+| Primitives | `Affine`, `base`, `origin`, `id`, `dim` | `Affine`, `base`, `origin`, `id`, `dim` |
 
 Both modules also export the families `Point` and `Morphism`, the package
 declaration `Pointed` with one case for each setting, and the primitives

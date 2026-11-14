@@ -648,8 +648,12 @@ Statements use a `kind` tag and always include `span`:
 - `unpack`: `value: Expr`, `scheme` binding name, `point` binding name.
 
 Builtins are `Affine(K, n)`, `Base(K)`, `origin(X)`, `id(X)`,
-`compose(g, f)`, `apply(f, p)`, `dimension(X)`, `int(n)` (Nat to Int),
-`pair(a, b)`, `pair_first(p)` and `pair_second(p)`.
+`compose(g, f)`, `apply(f, p)`, `dim(X)`, `int(n)` (Nat to Int),
+`pair(a, b)`, `pair_first(p)` and `pair_second(p)`. A `call` carries the
+source spelling of its callee, so the operation `dim` is the callee `"dim"`
+in every protocol, and the callee `"dimension"` is an ordinary name that the
+checker resolves like any other. An unresolved `dimension` is `E_NAME` with a
+note.
 Only the ring argument of `Affine`/`Base` accepts the reserved variable
 `QQ` or `CInfReal`. Their use as ordinary values is invalid.
 
@@ -1047,6 +1051,11 @@ Primitive bindings use `op`, with these payloads:
 | `dimension` | `domain:ObjectType` |
 | `compose` | `map_family:TypePath` |
 | `apply` | `map_family:TypePath`, `point_family:TypePath` |
+
+The source spells the op `dimension` and the capability `"dimension"` as
+`dim`, as in `dim((Scheme, QQ))` and `capabilities(origin, dim)`; the wire
+keeps `dimension` for both. The entry `dimension` of a `GeometrySetting`
+names the primitive of `dim`, as `identity` names the primitive of `id`.
 
 The field set of every operation, here and in protocol 9, comes from one
 table: the families of `lean-kernel/VastitasKernel/IndexedPrimitiveFamilies.lean`.

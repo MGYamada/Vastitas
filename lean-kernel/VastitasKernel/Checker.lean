@@ -110,10 +110,19 @@ def objectNotes (ctx : Context) (refs : List ObjectRef) : CheckM (List Diagnosti
   pure notes.toList
 
 def reserved : List String :=
-  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int", "pair", "pair_first", "pair_second", "Pair",
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dim", "int", "pair", "pair_first", "pair_second", "Pair",
    "QQ", "CInfReal", "Nat", "Int", "Bool", "Unit", "Scheme", "CInfScheme",
    "Point", "Morphism", "Pointed", "Fn", "fn", "let", "if", "else", "pack", "unpack", "as", "true", "false",
    "return", "while", "for", "loop", "mut"]
+
+/-- Presentation only (#778): the note on a call of `dimension` that names
+nothing. `dimension` is an ordinary name and no operation; the dimension of a
+vector or affine space is the operation `dim`. Acceptance never reads it. -/
+def retiredDimension (name : String) (span : Span) (diagnostic : Diagnostic) : Diagnostic :=
+  if name == "dimension" && diagnostic.code == "E_NAME" then
+    { diagnostic with notes := diagnostic.notes ++ [{ span, message :=
+      "the dimension of a vector or affine space is `dim(…)`, and physical dimensions are `nature::dimension`" }] }
+  else diagnostic
 
 def validName (name : String) : Bool :=
   let chars := name.toList
@@ -352,7 +361,7 @@ mutual
         let ref := ObjectRef.base base
         rememberObject ref span "Base"
         pure { term := .builtin (.base base) [] ⟨.object base, some ref⟩ }
-      | "origin" | "id" | "dimension" =>
+      | "origin" | "id" | "dim" =>
         arity name args 1 span
         let object ← checkExpr fuel signatures ctx args[0]! none
         let ref ← objectOf ctx object span

@@ -1,7 +1,7 @@
 mod units;
-// This `use` binds the name `dimension`, which is reserved.
-use units::dimension;
+// This `use` binds the name `dim`, which is reserved.
+use units::dim;
 
 fn main() -> Int {
-    dimension::length()
+    dim::length()
 }

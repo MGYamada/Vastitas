@@ -226,7 +226,7 @@ fn anonymous_outer_endpoints_remain_in_scope_for_nested_returns() {
 #[test]
 fn native_base_objects_pack_and_unpack_in_both_settings() {
     native(
-        "fn main() -> Int { let X = Base(QQ); let Y = Base(CInfReal); let ordinary = pack { scheme: X, point: origin(X) }; let smooth = pack { scheme: Y, point: origin(Y) }; unpack ordinary as { scheme: A, point: a }; unpack smooth as { scheme: B, point: b }; let p: Point<A, Base(QQ)> = apply(id(A), a); let q: Point<B, Base(CInfReal)> = apply(id(B), b); if dimension(A) == 0 && dimension(B) == 0 { 42 } else { -1 } }",
+        "fn main() -> Int { let X = Base(QQ); let Y = Base(CInfReal); let ordinary = pack { scheme: X, point: origin(X) }; let smooth = pack { scheme: Y, point: origin(Y) }; unpack ordinary as { scheme: A, point: a }; unpack smooth as { scheme: B, point: b }; let p: Point<A, Base(QQ)> = apply(id(A), a); let q: Point<B, Base(CInfReal)> = apply(id(B), b); if dim(A) == 0 && dim(B) == 0 { 42 } else { -1 } }",
         "42",
     );
 }
@@ -384,7 +384,7 @@ fn unpack_budget_source(extra_let: bool) -> String {
     if extra_let {
         source.push_str("let excess = 0;\n");
     }
-    source.push_str("if dimension(X1363) == 2 { second } else { first }\n}");
+    source.push_str("if dim(X1363) == 2 { second } else { first }\n}");
     source
 }
 

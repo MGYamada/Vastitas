@@ -94,7 +94,9 @@ promises about its logical evaluator, and
 Every table that reads a wire form reads it through the family of its `op`.
 `families` in `IndexedPrimitiveFamilies.lean` lists one family per `op`, and
 `primitiveFamily?` finds it. No other table of the kernel or of the frontend
-lists the operations. One kernel module writes wire forms by hand:
+lists the operations. The frontend maps the source spelling `dim` of the op
+`dimension` to it (`surface_op` in `src/frontend/indexed_parser.rs`); every
+other op is its own source spelling. One kernel module writes wire forms by hand:
 `LegacySource.lean` builds the `descriptor`, `global`, `origin`, `identity`,
 `dimension`, `compose` and `apply` forms of the compatibility profile of
 protocols 2 to 6 with literal `op` and field names. Lean does not check

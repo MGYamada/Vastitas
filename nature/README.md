@@ -20,9 +20,20 @@ interpretation, not a mathematical result.
 - A `nature` declaration never changes the validity or the generated code of
   a `std` declaration or of a binding.
 
+## Source layout
+
+The sources follow the layout of `stdlib/`: they live under `src/`, with a
+directory per module and `mod.vast` as its entrypoint. The package root
+[`src/mod.vast`](src/mod.vast) declares the modules, and
+`nature/src/dimension/mod.vast` is `nature::dimension`. A module of `nature`
+is a module of the one package `vastitas_nature`, not a package of its own as
+the libraries of `stdlib/src/` are: such a package would have to be exposed
+under its name by a dependency alias or by `use … as`, and the name
+`dimension` is reserved for both.
+
 ## `nature::dimension`
 
-[`dimension/mod.vast`](dimension/mod.vast) is the module `nature::dimension`,
+[`src/dimension/mod.vast`](src/dimension/mod.vast) is the module `nature::dimension`,
 the physical dimensions of the coordinates of the smooth affine objects of
 `std::geometry::smooth::affine`, for the finite profile of ADR 0002 §3.
 

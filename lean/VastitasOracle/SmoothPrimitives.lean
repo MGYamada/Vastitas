@@ -63,13 +63,15 @@ theorem smooth_has_type {env : Indexed.Environment} {world : World} {program : S
       smoothDimension? env x = some n ∧ smoothDimension? env y = some m ∧ program.wellTyped n m = true := by
   obtain ⟨_, typed⟩ := typed
   simp only [representation] at typed
+  -- `split` tags the arms by position (`h_1`, …). The smooth arm is the one
+  -- whose typing gives the two endpoints, wherever it stands.
   split at typed
-  case h_5 =>
-    rename_i program' x y heqValue _ heqIndices
-    cases heqValue
-    obtain ⟨n, m, hx, hy, welltyped⟩ := typed
-    exact ⟨x, y, n, m, heqIndices, hx, hy, welltyped⟩
-  all_goals simp_all
+  all_goals first
+    | (rename_i program' x y heqValue _ heqIndices
+       cases heqValue
+       obtain ⟨n, m, hx, hy, welltyped⟩ := typed
+       exact ⟨x, y, n, m, heqIndices, hx, hy, welltyped⟩)
+    | simp_all
 
 /-- Only a program has a smooth type. -/
 theorem smooth_value {env : Indexed.Environment} {world : World} {value : Value} {application : Application}

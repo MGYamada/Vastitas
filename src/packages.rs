@@ -2,8 +2,9 @@
 //! wire request: only Lean can accept them and assign function identities.
 use crate::frontend;
 use crate::ir::{
-    ABSTRACT_PROTOCOL_VERSION, AbstractMethod, AbstractType, Function, Generic, Method, Span,
-    Subtype,
+    ABSTRACT_PROTOCOL_VERSION, AUTHORITY_PROTOCOL, AbstractMethod, AbstractType, EDIT_PROTOCOL,
+    Function, Generic, INDEXED_PROTOCOL, Method, NAMED_RECIPIENT_PROTOCOL, PACKAGE_PROTOCOL,
+    RESOURCE_PROTOCOL, Span, Subtype,
 };
 use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
 use crate::sources::{OutputIdentity, Sources, shown, shown_text};
@@ -12,23 +13,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::OsString;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-
-pub(crate) const PROTOCOL: u32 = 3;
-pub(crate) const EDIT_PROTOCOL: u32 = 5;
-pub(crate) const AUTHORITY_PROTOCOL: u32 = 6;
-pub(crate) const INDEXED_PROTOCOL: u32 = 7;
-pub(crate) const RESOURCE_PROTOCOL: u32 = 8;
-pub(crate) const NAMED_RECIPIENT_PROTOCOL: u32 = 9;
-pub(crate) const PUBLIC_PROTOCOLS: [u32; 8] = [
-    crate::ir::PROTOCOL_VERSION,
-    PROTOCOL,
-    ABSTRACT_PROTOCOL_VERSION,
-    EDIT_PROTOCOL,
-    AUTHORITY_PROTOCOL,
-    INDEXED_PROTOCOL,
-    RESOURCE_PROTOCOL,
-    NAMED_RECIPIENT_PROTOCOL,
-];
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Grant {
@@ -767,12 +751,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
     // counts the same blocks in the order of the request and reports the
     // function at which the count passes the bound (#704).
     let mut blocks = 0;
-    for function in loader
-        .packages
-        .iter()
-        .flat_map(|package| &package.modules)
-        .flat_map(|module| &module.resource_functions)
-    {
+    for function in modules(&loader.packages).flat_map(|module| &module.resource_functions) {
         blocks += frontend::value_blocks(&function.declaration);
         if blocks > frontend::MAX_RESOURCE_VALUE_BLOCKS {
             return Err(loader.sources.diagnostic(
@@ -785,14 +764,30 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
             ));
         }
     }
+    let (version, input) = request_protocol(&loader.packages);
+    let program = Program {
+        version,
+        input,
+        file: root.clone(),
+        root,
+        packages: loader.packages,
+    };
+    Ok((loader.sources, program))
+}
+
+/// The modules of all packages, in the order of the request.
+fn modules(packages: &[Package]) -> impl Iterator<Item = &Module> {
+    packages.iter().flat_map(|package| &package.modules)
+}
+
+/// The wire protocol of a package request and its `input` field: the first
+/// version, from 9 down to 3, whose declarations the program holds.
+fn request_protocol(packages: &[Package]) -> (u32, Option<String>) {
     // Preserve recipient names verbatim. The kernel alone resolves them in the
     // selected closure; a grant must neither resolve a path nor load a package.
-    let named_recipients = loader
-        .packages
-        .iter()
-        .flat_map(|p| &p.modules)
+    let named_recipients = modules(packages)
         .any(|m| !m.grants.is_empty() || !m.delegations.is_empty() || !m.transfers.is_empty());
-    let authority = loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
+    let authority = modules(packages).any(|m| {
         !m.delegations.is_empty()
             || !m.transfers.is_empty()
             || m.grants.iter().any(|g| g.declaration.delegable)
@@ -805,64 +800,44 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
                 })
             })
     });
-    let editable =
-        authority
-            || loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
-                !m.grants.is_empty() || !m.contributions.is_empty() || m.assembly.is_some()
-            });
-    let extended = loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
+    let editable = authority
+        || modules(packages)
+            .any(|m| !m.grants.is_empty() || !m.contributions.is_empty() || m.assembly.is_some());
+    let extended = modules(packages).any(|m| {
         !m.abstract_types.is_empty() || !m.subtypes.is_empty() || !m.abstract_methods.is_empty()
     });
-    let indexed = loader
-        .packages
-        .iter()
-        .flat_map(|p| &p.modules)
-        .any(|m| m.uses_indexed)
-        || loader.packages.iter().any(|p| p.geometry_compat.is_some());
+    let indexed = modules(packages).any(|m| m.uses_indexed)
+        || packages.iter().any(|p| p.geometry_compat.is_some());
     // Stage 2 algebraic forms exist only in the current schema epoch (#533).
-    let algebraic = loader
-        .packages
-        .iter()
-        .flat_map(|p| &p.modules)
+    let algebraic = modules(packages)
         .flat_map(|m| &m.indexed_declarations)
         .any(|d| d.declaration.body.is_algebraic());
-    let program = Program {
-        version: if named_recipients || algebraic {
-            NAMED_RECIPIENT_PROTOCOL
-        } else if loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
-            !m.resource_functions.is_empty()
-                || m.indexed_declarations.iter().any(|d| {
-                    matches!(&d.declaration.body, crate::indexed::DeclarationBody::Implementation {
+    let resources = modules(packages).any(|m| !m.resource_functions.is_empty());
+    let version = if named_recipients || algebraic {
+        NAMED_RECIPIENT_PROTOCOL
+    } else if resources
+        || modules(packages).any(|m| {
+            m.indexed_declarations.iter().any(|d| {
+                matches!(&d.declaration.body, crate::indexed::DeclarationBody::Implementation {
                     representation, ..
                 } if !matches!(representation, crate::indexed::Representation::AffineDescriptor))
-                })
-        }) {
-            RESOURCE_PROTOCOL
-        } else if indexed {
-            INDEXED_PROTOCOL
-        } else if authority {
-            AUTHORITY_PROTOCOL
-        } else if editable {
-            EDIT_PROTOCOL
-        } else if extended {
-            ABSTRACT_PROTOCOL_VERSION
-        } else {
-            PROTOCOL
-        },
-        input: (indexed
-            || extended
-            || editable
-            || loader
-                .packages
-                .iter()
-                .flat_map(|p| &p.modules)
-                .any(|m| !m.resource_functions.is_empty()))
-        .then(|| "package".into()),
-        file: root.clone(),
-        root,
-        packages: loader.packages,
+            })
+        })
+    {
+        RESOURCE_PROTOCOL
+    } else if indexed {
+        INDEXED_PROTOCOL
+    } else if authority {
+        AUTHORITY_PROTOCOL
+    } else if editable {
+        EDIT_PROTOCOL
+    } else if extended {
+        ABSTRACT_PROTOCOL_VERSION
+    } else {
+        PACKAGE_PROTOCOL
     };
-    Ok((loader.sources, program))
+    let input = (indexed || extended || editable || resources).then(|| "package".into());
+    (version, input)
 }
 
 #[cfg(test)]

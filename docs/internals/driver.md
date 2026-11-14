@@ -28,7 +28,7 @@ with the status of `process::exit_code`.
 1. It installs the signal handlers
    ([Subprocesses and signals](#subprocesses-and-signals)).
 2. It answers `--help`, `-h` and `--version` and returns. The version line
-   lists `packages::PUBLIC_PROTOCOLS`, the wire protocols that the driver
+   lists `ir::PUBLIC_PROTOCOLS`, the wire protocols that the driver
    writes.
 3. It passes `audit-lean` to `src/internal_lean_audit.rs`
    ([The proof-audit command](#the-proof-audit-command)).
@@ -234,8 +234,9 @@ gives the list.
 - In flat mode `frontend::parse_sources` writes version 2. It writes version
   4 with `input: "flat"` when the module holds an abstract type, a subtype or
   an abstract method.
-- In manifest mode the end of `packages::load` takes the first condition
-  that holds, from version 9 down to version 3. It writes
+- In manifest mode `packages::request_protocol`, at the end of
+  `packages::load`, takes the first condition that holds, from version 9
+  down to version 3. It writes
   `input: "package"` for every version other than 3.
 
 `serde_json` serializes the request in `kernel_request`. A first pass

@@ -9,8 +9,7 @@ def describeDiagnostic (p : Program) (lowered : Lowered) (diagnostic : Diagnosti
     (loweredBinders : Bool := true) : Diagnostic := Id.run do
   let headers := Surface.headers lowered.surface
   let names := p.declarations.foldl (fun (table : Std.HashMap String String) target =>
-    if symbol p target == "main" then table else table.insert (symbol p target)
-      (String.intercalate "::" (target.owner.scope.package.name :: target.owner.scope.path ++ [target.owner.name]))) {}
+    if symbol p target == "main" then table else table.insert (symbol p target) target.owner.qualified) {}
   let render (token : String) :=
     if let some name := names[token]? then name
     else if loweredBinders && token.startsWith "ns_b_" then (token.drop 5).toString else token

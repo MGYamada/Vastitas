@@ -29,7 +29,7 @@ def compileInstance (input : Input) (id : Nat) (targets : List Target) (span : S
     let labels := cycle.map fun k =>
       let entry := input.prepared[k.definition]!
       let owner := entry.definition.owner
-      let name := String.intercalate "::" (owner.scope.package.name :: owner.scope.path ++ [owner.name])
+      let name := owner.qualified
       let label := if entry.definition.isLambda then
           let location := entry.definition.function.span
           s!"{name}::<lambda at {location.line}:{location.column}>"

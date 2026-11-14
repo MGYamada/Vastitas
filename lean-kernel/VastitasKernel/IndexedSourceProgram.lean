@@ -62,7 +62,7 @@ def sortFunctions (input : List Core.Function) : Namespace.Result (List Core.Fun
     let (cycle, _) ← (Checker.Internal.dependencyCycle dependencies waiting start).run {}
     let names := cycle.map fun i =>
       let owner := functions[i]!.definition
-      "`" ++ String.intercalate "::" (owner.scope.package.name :: owner.scope.path ++ [owner.name]) ++ "`"
+      "`" ++ owner.qualified ++ "`"
     Namespace.problem functions[start]!.span "E_RECURSION" s!"recursive call cycle {String.intercalate " → " names} is not supported"
   sorted.toList.mapM fun index =>
     match functions[index]? with

@@ -42,8 +42,7 @@ def metricProblem {α : Type} (span : Span) (reason : String) : Namespace.Result
 
 /-- A declaration's full name, `package::module::name`, so that two metrics
 with one short name in different modules read differently. -/
-def qualified (id : DeclId) : String :=
-  String.intercalate "::" (id.scope.package.name :: id.scope.path ++ [id.name])
+def qualified (id : DeclId) : String := Namespace.Owner.qualified id
 
 /-- One evaluated Gram entry: a constant polynomial whose value is within
 `Limits.metricEntryBits`. -/

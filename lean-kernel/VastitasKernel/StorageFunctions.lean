@@ -810,6 +810,64 @@ structure Context where
   calls : Array CallReceipt := #[]
   deriving Inhabited
 
+/-- The receipt arrays that a resource branch arm starts without. `expandAt`
+checks each arm from a context with these arrays empty and joins the arms with
+`mergeArmReceipts`, which lists the same arrays. A new receipt array of
+`Context` belongs in both functions, in `ResourceSource.Execution` and the
+origin audit of `ResourceSource.check`, and, when its operation emits a
+numerical instruction, in `NumericalCoverage.origins`. `shapeCalls` and
+`shapeInputs` are in neither function: they grow only with runtime-shape
+events, which `setShapes` rejects inside resource branches. -/
+def Context.clearArmReceipts (context : Context) : Context :=
+  {context with
+    valueReturns := #[]
+    calls := #[]
+    products := #[]
+    networks := #[]
+    tensorViews := #[]
+    tensorPacks := #[]
+    cacheCaptures := #[]
+    cachedContractions := #[]
+    tensorContractions := #[]
+    trees := #[]
+    inputs := #[]
+    outputs := #[]
+    packageResults := #[]
+    packages := #[]
+    transfers := #[]
+    transforms := #[]
+    vectorConjugates := #[]
+    adjoints := #[]
+    diagonalPairings := #[]
+    evaluations := #[]}
+
+/-- The context `right` of a checked else arm with the receipts of the whole
+branch, in schedule order: those of `before`, the context before the branch,
+then those of the then arm `left`, then those of `right`. Every other field is
+the one of `right`. -/
+def Context.mergeArmReceipts (before left right : Context) : Context :=
+  {right with
+    valueReturns := before.valueReturns ++ left.valueReturns ++ right.valueReturns
+    calls := before.calls ++ left.calls ++ right.calls
+    cacheCaptures := before.cacheCaptures ++ left.cacheCaptures ++ right.cacheCaptures
+    cachedContractions := before.cachedContractions ++ left.cachedContractions ++ right.cachedContractions
+    products := before.products ++ left.products ++ right.products
+    networks := before.networks ++ left.networks ++ right.networks
+    tensorViews := before.tensorViews ++ left.tensorViews ++ right.tensorViews
+    tensorPacks := before.tensorPacks ++ left.tensorPacks ++ right.tensorPacks
+    tensorContractions := before.tensorContractions ++ left.tensorContractions ++ right.tensorContractions
+    trees := before.trees ++ left.trees ++ right.trees
+    inputs := before.inputs ++ left.inputs ++ right.inputs
+    outputs := before.outputs ++ left.outputs ++ right.outputs
+    packageResults := before.packageResults ++ left.packageResults ++ right.packageResults
+    packages := before.packages ++ left.packages ++ right.packages
+    transfers := before.transfers ++ left.transfers ++ right.transfers
+    transforms := before.transforms ++ left.transforms ++ right.transforms
+    vectorConjugates := before.vectorConjugates ++ left.vectorConjugates ++ right.vectorConjugates
+    evaluations := before.evaluations ++ left.evaluations ++ right.evaluations
+    adjoints := before.adjoints ++ left.adjoints ++ right.adjoints
+    diagonalPairings := before.diagonalPairings ++ left.diagonalPairings ++ right.diagonalPairings}
+
 private def Context.location (context : Context) (source : NumericalSourceSite) :
     NumericalLocation context.code.toList :=
   ⟨source, context.sourceCallers, context.codeBlock, context.code.size, by simp⟩
@@ -977,6 +1035,36 @@ def step (operation : Action) : M Unit := do
     code := context.code.push (.action operation)
     flow := context.flow.push (.action operation)}
 
+/-- What an operation's checker accepted, compared with the context after the
+operation stepped its actions from a context whose schedule was `priorCode`:
+the context `after` them, whose resource state is `expected` and whose
+schedule is `priorCode` followed by exactly `statements`. `ProductEmission` is
+this certificate for one GEMM, with its transition stated by `checkAction`. -/
+private structure Emission (priorCode statements : List Storage.Statement) (expected : State) where
+  after : Context
+  transitioned : after.resources = expected
+  emitted : priorCode ++ statements = after.code.toList
+
+/-- Compare the current context with what an operation's checker accepted:
+first its resource state with `expected`, then its schedule with
+`priorCode ++ statements`. Each mismatch throws the operation's own error. -/
+private def checkEmitted (priorCode statements : List Storage.Statement) (expected : State)
+    (transitionError emittedError : Error) : M (Emission priorCode statements expected) := do
+  let after ← get
+  if transitioned : after.resources = expected then
+    if emitted : priorCode ++ statements = after.code.toList then
+      return ⟨after, transitioned, emitted⟩
+    else throw emittedError
+  else throw transitionError
+
+/-- `step` each of `actions` in order, then `checkEmitted` the schedule they
+extend. -/
+private def emitChecked (priorCode : List Storage.Statement) (actions : List Action) (expected : State)
+    (transitionError emittedError : Error) :
+    M (Emission priorCode (actions.map Storage.Statement.action) expected) := do
+  for action in actions do step action
+  checkEmitted priorCode (actions.map Storage.Statement.action) expected transitionError emittedError
+
 def resolveExtent (frame : Frame) : Shapes.Extent → Except Error Shapes.Extent
   | .literal value => pure (.literal value)
   | .slot name => return .slot (← resolve frame name)
@@ -1110,16 +1198,13 @@ def packageStep (operation : Numerical.PackageOperation) (source output : Symbol
   match accepted : Numerical.checkPackage before.environment before.resources before.numerical operation source output with
   | .error diagnostic => throw diagnostic
   | .ok checked =>
-    step (.move checked.original.owner output)
-    let after ← get
-    if transitioned : checked.after = after.resources then
-      if emitted : before.code.toList ++ [.action (.move checked.original.owner output)] = after.code.toList then
-        let receipt : PackageReceipt := ⟨before.environment, before.resources, before.numerical,
-          operation, source, output, checked, accepted, after.resources, transitioned,
-          before.code.toList, after.code.toList, emitted⟩
-        set {after with numerical := checked.values, packages := after.packages.push receipt}
-      else throw {code := "E_NUMERICAL_PACKAGE", message := "package operation differs from emitted ownership move"}
-    else throw {code := "E_NUMERICAL_PACKAGE", message := "package operation differs from checked resource transition"}
+    let ⟨after, transitioned, emitted⟩ ← emitChecked before.code.toList [.move checked.original.owner output] checked.after
+      {code := "E_NUMERICAL_PACKAGE", message := "package operation differs from checked resource transition"}
+      {code := "E_NUMERICAL_PACKAGE", message := "package operation differs from emitted ownership move"}
+    let receipt : PackageReceipt := ⟨before.environment, before.resources, before.numerical,
+      operation, source, output, checked, accepted, after.resources, transitioned.symm,
+      before.code.toList, after.code.toList, emitted⟩
+    set {after with numerical := checked.values, packages := after.packages.push receipt}
 
 def transferPackage (view : Numerical.OwnedMap) (target : Symbol) : M Unit := do
   let before ← get
@@ -1261,19 +1346,18 @@ private def emitProduct (context : Context) (site : NumericalSourceSite) (networ
       left right output mode policy alpha beta = .ok checked) :
     M (ProductEmission context.resources (checked.product.request mode policy) context.code.toList) := do
   step (.gemm (checked.product.request mode policy))
-  let after ← get
   match transitioned : checkAction context.resources (.gemm (checked.product.request mode policy)) with
   | .error diagnostic => throw diagnostic
   | .ok resources =>
-    if same : resources = after.resources then
-      if emitted : context.code.toList ++ [.action (.gemm (checked.product.request mode policy))] = after.code.toList then
-        let receipt : NumericalReceipt :=
-          ⟨context.environment, context.resources, context.numerical, left, right, output, mode, policy, alpha, beta,
-            checked, accepted, after.resources, same ▸ transitioned, context.code.toList, after.code.toList, emitted, context.location site, networkProduct⟩
-        set {after with products := after.products.push receipt}
-        return ⟨after.resources, same ▸ transitioned, after.code.toList, emitted⟩
-      else throw {code := "E_NUMERICAL_TYPE", message := "typed GEMM differs from its emitted schedule"}
-    else throw {code := "E_NUMERICAL_TYPE", message := "typed GEMM differs from its resource transition"}
+    let ⟨after, same, emitted⟩ ← checkEmitted context.code.toList
+      [.action (.gemm (checked.product.request mode policy))] resources
+      {code := "E_NUMERICAL_TYPE", message := "typed GEMM differs from its resource transition"}
+      {code := "E_NUMERICAL_TYPE", message := "typed GEMM differs from its emitted schedule"}
+    let receipt : NumericalReceipt :=
+      ⟨context.environment, context.resources, context.numerical, left, right, output, mode, policy, alpha, beta,
+        checked, accepted, after.resources, same.symm ▸ transitioned, context.code.toList, after.code.toList, emitted, context.location site, networkProduct⟩
+    set {after with products := after.products.push receipt}
+    return ⟨after.resources, same.symm ▸ transitioned, after.code.toList, emitted⟩
 
 /-- Values share the activation's fresh-name supply, but never enter the native
 heap. Only the checked product's exact physical request enters the schedule. -/
@@ -1290,17 +1374,14 @@ def numericalOperation (site : NumericalSourceSite) (frame : Frame) (operation :
     | .ok checked =>
       let action := Action.diagonalAdjoint (Numerical.adjointIntoRequest checked.input checked.output
         checked.sourceRealization.diagonal checked.targetRealization.diagonal policy)
-      step action
-      let after ← get
-      if transitioned : after.resources = checked.after then
-        if emitted : context.code.toList ++ [.action action] = after.code.toList then
-          let receipt : AdjointIntoReceipt := ⟨context.environment, context.resources, context.numerical,
-            input, output, source, target, policy, checked, accepted, after.resources, transitioned,
-            context.code.toList, after.code.toList, emitted, context.location site⟩
-          set {after with adjoints := after.adjoints.push receipt}
-          return frame
-        else throw {code := "E_NUMERICAL_METRIC", message := "materialized adjoint differs from its emitted operation"}
-      else throw {code := "E_NUMERICAL_METRIC", message := "materialized adjoint differs from its resource transition"}
+      let ⟨after, transitioned, emitted⟩ ← emitChecked context.code.toList [action] checked.after
+        {code := "E_NUMERICAL_METRIC", message := "materialized adjoint differs from its resource transition"}
+        {code := "E_NUMERICAL_METRIC", message := "materialized adjoint differs from its emitted operation"}
+      let receipt : AdjointIntoReceipt := ⟨context.environment, context.resources, context.numerical,
+        input, output, source, target, policy, checked, accepted, after.resources, transitioned,
+        context.code.toList, after.code.toList, emitted, context.location site⟩
+      set {after with adjoints := after.adjoints.push receipt}
+      return frame
   | .hermitianDiagonal left right output metric scratch layout policy =>
     let left ← resolve frame left
     let right ← resolve frame right
@@ -1317,17 +1398,14 @@ def numericalOperation (site : NumericalSourceSite) (frame : Frame) (operation :
     | .ok checked =>
       let action := Action.diagonalPair (Numerical.diagonalPairRequest checked.left checked.right
         output scratch writeLoan readLoan leftChild layout checked.realization.diagonal policy)
-      step action
-      let after ← get
-      if transitioned : after.resources = checked.after then
-        if emitted : context.code.toList ++ [.action action] = after.code.toList then
-          let receipt : DiagonalPairingReceipt := ⟨context.environment, context.resources, context.numerical,
-            left, right, output, metric, scratch, writeLoan, readLoan, leftChild, layout, policy,
-            checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted, context.location site⟩
-          set {after with diagonalPairings := after.diagonalPairings.push receipt}
-          return frame
-        else throw {code := "E_NUMERICAL_METRIC", message := "diagonal pairing differs from its emitted operation"}
-      else throw {code := "E_NUMERICAL_METRIC", message := "diagonal pairing differs from its resource transition"}
+      let ⟨after, transitioned, emitted⟩ ← emitChecked context.code.toList [action] checked.after
+        {code := "E_NUMERICAL_METRIC", message := "diagonal pairing differs from its resource transition"}
+        {code := "E_NUMERICAL_METRIC", message := "diagonal pairing differs from its emitted operation"}
+      let receipt : DiagonalPairingReceipt := ⟨context.environment, context.resources, context.numerical,
+        left, right, output, metric, scratch, writeLoan, readLoan, leftChild, layout, policy,
+        checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted, context.location site⟩
+      set {after with diagonalPairings := after.diagonalPairings.push receipt}
+      return frame
   | .conjugateVector name parent basis selected =>
     let parent ← resolve frame parent
     let basis ← resolve frame basis
@@ -1338,17 +1416,14 @@ def numericalOperation (site : NumericalSourceSite) (frame : Frame) (operation :
     | .error diagnostic => throw diagnostic
     | .ok checked =>
       let action := Action.borrow child (.loan checked.original.loan.name) checked.original.loan.layout .read
-      step action
-      let after ← get
-      if transitioned : checked.after = after.resources then
-        if emitted : context.code.toList ++ [.action action] = after.code.toList then
-          let receipt : VectorConjugateReceipt := ⟨context.environment, context.resources, context.numerical,
-            name, parent, child, basis, selected, checked, accepted, after.resources, transitioned,
-            context.code.toList, after.code.toList, emitted⟩
-          set {after with numerical := checked.output, vectorConjugates := after.vectorConjugates.push receipt}
-          return frame
-        else throw {code := "E_NUMERICAL_TYPE", message := "vector conjugation differs from its emitted borrow"}
-      else throw {code := "E_NUMERICAL_TYPE", message := "vector conjugation differs from its actual resource transition"}
+      let ⟨after, transitioned, emitted⟩ ← emitChecked context.code.toList [action] checked.after
+        {code := "E_NUMERICAL_TYPE", message := "vector conjugation differs from its actual resource transition"}
+        {code := "E_NUMERICAL_TYPE", message := "vector conjugation differs from its emitted borrow"}
+      let receipt : VectorConjugateReceipt := ⟨context.environment, context.resources, context.numerical,
+        name, parent, child, basis, selected, checked, accepted, after.resources, transitioned.symm,
+        context.code.toList, after.code.toList, emitted⟩
+      set {after with numerical := checked.output, vectorConjugates := after.vectorConjugates.push receipt}
+      return frame
   | .evaluate left right output operation mode policy alpha beta =>
     let left ← resolve frame left
     let right ← resolve frame right
@@ -1369,16 +1444,14 @@ def numericalOperation (site : NumericalSourceSite) (frame : Frame) (operation :
         match statement with
         | .action action => step action
         | _ => throw {code := "E_NUMERICAL_TYPE", message := "evaluation contains an unexpected branch"}
-      let after ← get
-      if transitioned : checked.after = after.resources then
-        if emitted : context.code.toList ++ code = after.code.toList then
-          let receipt : EvaluationReceipt := ⟨context.environment, context.resources, context.numerical,
-            left, right, output, leftChild, rightChild, operation, mode, policy, alpha, beta,
-            checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted, context.location site⟩
-          set {after with evaluations := after.evaluations.push receipt}
-          return frame
-        else throw {code := "E_NUMERICAL_TYPE", message := "evaluation differs from its emitted resource schedule"}
-      else throw {code := "E_NUMERICAL_TYPE", message := "evaluation differs from its actual resource transition"}
+      let ⟨after, transitioned, emitted⟩ ← checkEmitted context.code.toList code checked.after
+        {code := "E_NUMERICAL_TYPE", message := "evaluation differs from its actual resource transition"}
+        {code := "E_NUMERICAL_TYPE", message := "evaluation differs from its emitted resource schedule"}
+      let receipt : EvaluationReceipt := ⟨context.environment, context.resources, context.numerical,
+        left, right, output, leftChild, rightChild, operation, mode, policy, alpha, beta,
+        checked, accepted, after.resources, transitioned.symm, context.code.toList, after.code.toList, emitted, context.location site⟩
+      set {after with evaluations := after.evaluations.push receipt}
+      return frame
   | .transform name parent operation =>
     let parent ← resolve frame parent
     let operation ← match operation with
@@ -1392,17 +1465,14 @@ def numericalOperation (site : NumericalSourceSite) (frame : Frame) (operation :
     | .ok checked =>
       let action := Action.borrow child (.loan checked.original.loan.name)
         (if operation.transpose then checked.original.loan.layout.transpose else checked.original.loan.layout) .read
-      step action
-      let after ← get
-      if transitioned : checked.after = after.resources then
-        if emitted : context.code.toList ++ [.action action] = after.code.toList then
-          let receipt : TransformReceipt := ⟨context.environment, context.resources, context.numerical,
-            name, parent, child, operation, checked, accepted, after.resources, transitioned,
-            context.code.toList, after.code.toList, emitted⟩
-          set {after with numerical := checked.output, transforms := after.transforms.push receipt}
-          return frame
-        else throw {code := "E_NUMERICAL_TYPE", message := "transformed map differs from its emitted borrow"}
-      else throw {code := "E_NUMERICAL_TYPE", message := "transformed map differs from its actual resource transition"}
+      let ⟨after, transitioned, emitted⟩ ← emitChecked context.code.toList [action] checked.after
+        {code := "E_NUMERICAL_TYPE", message := "transformed map differs from its actual resource transition"}
+        {code := "E_NUMERICAL_TYPE", message := "transformed map differs from its emitted borrow"}
+      let receipt : TransformReceipt := ⟨context.environment, context.resources, context.numerical,
+        name, parent, child, operation, checked, accepted, after.resources, transitioned.symm,
+        context.code.toList, after.code.toList, emitted⟩
+      set {after with numerical := checked.output, transforms := after.transforms.push receipt}
+      return frame
   | .packMap name owner =>
     let owner ← resolve frame owner
     let (frame, name) ← bindName frame name
@@ -1737,17 +1807,15 @@ def tensorOperation (site : NumericalSourceSite) (frame : Frame) (operation : Te
     match accepted : Tensor.checkPack before.environment before.numerical before.resources before.tensors source target with
     | .error error => throw error
     | .ok checked =>
-      step (Tensor.packAction checked.input checked.output)
-      let after ← get
-      if transitioned : after.resources = checked.after then
-        if emitted : before.code.toList ++ [.action (Tensor.packAction checked.input checked.output)] = after.code.toList then
-          let receipt : TensorPackReceipt := ⟨before.environment, before.numerical, before.resources,
-            before.tensors, source, target, checked, accepted, after.resources, transitioned,
-            before.code.toList, after.code.toList, emitted⟩
-          set {after with tensorPacks := after.tensorPacks.push receipt}
-          return frame
-        else throw {code := "E_TENSOR", message := "packing differs from its emitted schedule"}
-      else throw {code := "E_TENSOR", message := "packing differs from its actual resource transition"}
+      let ⟨after, transitioned, emitted⟩ ← emitChecked before.code.toList
+        [Tensor.packAction checked.input checked.output] checked.after
+        {code := "E_TENSOR", message := "packing differs from its actual resource transition"}
+        {code := "E_TENSOR", message := "packing differs from its emitted schedule"}
+      let receipt : TensorPackReceipt := ⟨before.environment, before.numerical, before.resources,
+        before.tensors, source, target, checked, accepted, after.resources, transitioned,
+        before.code.toList, after.code.toList, emitted⟩
+      set {after with tensorPacks := after.tensorPacks.push receipt}
+      return frame
   | .cachedPack name source target =>
     let source ← resolve frame source
     let target ← resolve frame target
@@ -1759,15 +1827,17 @@ def tensorOperation (site : NumericalSourceSite) (frame : Frame) (operation : Te
       let cache ← Tensor.captureCache checked accepted name
       step (Tensor.packAction checked.input checked.output)
       step (.captureDependency name checked.input.loan.name checked.output.loan.name)
-      let after ← get
-      if transitioned : after.resources = cache.after then
-        if emitted : before.code.toList ++ [.action (Tensor.packAction cache.checked.input cache.checked.output),
-            .action (.captureDependency cache.name cache.checked.input.loan.name cache.checked.output.loan.name)] = after.code.toList then
-          let receipt : CacheCaptureReceipt := ⟨cache, after.resources, transitioned, before.code.toList, after.code.toList, emitted⟩
-          set {after with packCaches := cache :: after.packCaches, cacheCaptures := after.cacheCaptures.push receipt}
-          return frame
-        else throw {code := "E_TENSOR_CACHE", message := "cached packing differs from its emitted schedule"}
-      else throw {code := "E_TENSOR_CACHE", message := "cached packing differs from its actual post-pack capture"}
+      -- The schedule is compared with the cache's own actions, not with the
+      -- ones just stepped.
+      let ⟨after, transitioned, emitted⟩ ← checkEmitted before.code.toList
+        [.action (Tensor.packAction cache.checked.input cache.checked.output),
+          .action (.captureDependency cache.name cache.checked.input.loan.name cache.checked.output.loan.name)]
+        cache.after
+        {code := "E_TENSOR_CACHE", message := "cached packing differs from its actual post-pack capture"}
+        {code := "E_TENSOR_CACHE", message := "cached packing differs from its emitted schedule"}
+      let receipt : CacheCaptureReceipt := ⟨cache, after.resources, transitioned, before.code.toList, after.code.toList, emitted⟩
+      set {after with packCaches := cache :: after.packCaches, cacheCaptures := after.cacheCaptures.push receipt}
+      return frame
   | .cachedContract3 cache left right output policy =>
     let cacheName ← resolve frame cache
     let left ← resolve frame left
@@ -1780,18 +1850,15 @@ def tensorOperation (site : NumericalSourceSite) (frame : Frame) (operation : Te
     | .error error => throw error
     | .ok checked =>
       let request := Tensor.contractionRequest checked.contraction.left checked.contraction.right checked.contraction.output policy
-      step (.requireDependency cache.name)
-      step (.gemm request)
-      let after ← get
-      if transitioned : after.resources = checked.contraction.after then
-        if emitted : before.code.toList ++ [.action (.requireDependency cache.name), .action (.gemm request)] = after.code.toList then
-          let receipt : CachedContractionReceipt := ⟨before.environment, before.numerical, before.resources,
-            before.tensors, cache, left, right, output, policy, checked, accepted, after.resources,
-            transitioned, before.code.toList, after.code.toList, emitted, before.location site⟩
-          set {after with cachedContractions := after.cachedContractions.push receipt}
-          return frame
-        else throw {code := "E_TENSOR_CACHE", message := "cached contraction differs from emitted dependency/GEMM schedule"}
-      else throw {code := "E_TENSOR_CACHE", message := "cached contraction differs from its actual resource transition"}
+      let ⟨after, transitioned, emitted⟩ ← emitChecked before.code.toList
+        [.requireDependency cache.name, .gemm request] checked.contraction.after
+        {code := "E_TENSOR_CACHE", message := "cached contraction differs from its actual resource transition"}
+        {code := "E_TENSOR_CACHE", message := "cached contraction differs from emitted dependency/GEMM schedule"}
+      let receipt : CachedContractionReceipt := ⟨before.environment, before.numerical, before.resources,
+        before.tensors, cache, left, right, output, policy, checked, accepted, after.resources,
+        transitioned, before.code.toList, after.code.toList, emitted, before.location site⟩
+      set {after with cachedContractions := after.cachedContractions.push receipt}
+      return frame
   | .contract3 left right output policy =>
     let left ← resolve frame left
     let right ← resolve frame right
@@ -1801,17 +1868,14 @@ def tensorOperation (site : NumericalSourceSite) (frame : Frame) (operation : Te
     | .error error => throw error
     | .ok checked =>
       let request := Tensor.contractionRequest checked.left checked.right checked.output policy
-      step (.gemm request)
-      let after ← get
-      if transitioned : after.resources = checked.after then
-        if emitted : before.code.toList ++ [.action (.gemm request)] = after.code.toList then
-          let receipt : TensorContractionReceipt := ⟨before.environment, before.numerical, before.resources,
-            before.tensors, left, right, output, policy, checked, accepted, after.resources, transitioned,
-            before.code.toList, after.code.toList, emitted, before.location site⟩
-          set {after with tensorContractions := after.tensorContractions.push receipt}
-          return frame
-        else throw {code := "E_TENSOR", message := "contraction differs from its emitted schedule"}
-      else throw {code := "E_TENSOR", message := "contraction differs from its actual resource transition"}
+      let ⟨after, transitioned, emitted⟩ ← emitChecked before.code.toList [.gemm request] checked.after
+        {code := "E_TENSOR", message := "contraction differs from its actual resource transition"}
+        {code := "E_TENSOR", message := "contraction differs from its emitted schedule"}
+      let receipt : TensorContractionReceipt := ⟨before.environment, before.numerical, before.resources,
+        before.tensors, left, right, output, policy, checked, accepted, after.resources, transitioned,
+        before.code.toList, after.code.toList, emitted, before.location site⟩
+      set {after with tensorContractions := after.tensorContractions.push receipt}
+      return frame
 
 private def resolveTreePlan (frame : Frame) (plan : List TensorTree.Event) : M (List TensorTree.Event) := do
   unless plan.length ≤ 1024 do throw {code := "E_TENSOR_TREE", message := "tree plan exceeds 1024 explicit steps"}
@@ -1856,16 +1920,14 @@ def treeOperation (site : NumericalSourceSite) (frame : Frame) (graph : TensorTr
     match accepted : TensorTree.check before.environment before.numerical before.resources before.tensors graph output plan with
     | .error error => throw error
     | .ok checked =>
-      for action in checked.finalState.code do step action
-      let after ← get
-      if transitioned : after.resources = checked.finalState.resources then
-        if emitted : before.code.toList ++ checked.finalState.code.map Storage.Statement.action = after.code.toList then
-          let receipt : TreeReceipt := ⟨before.environment, before.numerical, before.resources, before.tensors,
-            graph, output, plan, checked, accepted, after.resources, transitioned, before.code.toList, after.code.toList, emitted, before.location site⟩
-          set {after with trees := after.trees.push receipt}
-          return frame
-        else throw {code := "E_TENSOR_TREE", message := "tree emission changed an earlier resource operation"}
-      else throw {code := "E_TENSOR_TREE", message := "tree differs from its actual resource expansion"}
+      let ⟨after, transitioned, emitted⟩ ← emitChecked before.code.toList checked.finalState.code
+        checked.finalState.resources
+        {code := "E_TENSOR_TREE", message := "tree differs from its actual resource expansion"}
+        {code := "E_TENSOR_TREE", message := "tree emission changed an earlier resource operation"}
+      let receipt : TreeReceipt := ⟨before.environment, before.numerical, before.resources, before.tensors,
+        graph, output, plan, checked, accepted, after.resources, transitioned, before.code.toList, after.code.toList, emitted, before.location site⟩
+      set {after with trees := after.trees.push receipt}
+      return frame
 
 def networkOperation (site : NumericalSourceSite) (frame : Frame) (graph : TensorNetwork.Graph) (output : Symbol)
     (policy : NumericalPolicy) : M Frame := do
@@ -1945,36 +2007,16 @@ mutual
                 throw {code := "E_RESOURCE_VALUE", message := "resource branch requires a live Bool value"}
               pure (.slot slot)
           let before ← get
-          set {before with
+          set {before.clearArmReceipts with
             branchDepth := before.branchDepth + 1
             codeBlock := (before.code.size, true) :: before.codeBlock
             code := #[]
             flow := #[]
-            returnedValue := none
-            valueReturns := #[]
-            calls := #[]
-            products := #[]
-            networks := #[]
-            tensorViews := #[]
-            tensorPacks := #[]
-            cacheCaptures := #[]
-            cachedContractions := #[]
-            tensorContractions := #[]
-            trees := #[]
-            inputs := #[]
-            outputs := #[]
-            packageResults := #[]
-            packages := #[]
-            transfers := #[]
-            transforms := #[]
-            vectorConjugates := #[]
-            adjoints := #[]
-            diagonalPairings := #[]
-            evaluations := #[]}
+            returnedValue := none}
           let _ ← expandAt fuel functions stack (path ++ [position, 0]) 0 frame yes
           cleanupDependencies before.resources
           let left ← get
-          set {before with
+          set {before.clearArmReceipts with
             branchDepth := before.branchDepth + 1
             codeBlock := (before.code.size, false) :: before.codeBlock
             nextSymbol := left.nextSymbol
@@ -1983,33 +2025,13 @@ mutual
             code := #[]
             flow := #[]
             returnedValue := none
-            valueReturns := #[]
-            calls := #[]
-            products := #[]
-            networks := #[]
-            tensorViews := #[]
-            tensorPacks := #[]
-            cacheCaptures := #[]
-            cachedContractions := #[]
-            tensorContractions := #[]
-            trees := #[]
-            inputs := #[]
-            outputs := #[]
-            packageResults := #[]
-            packages := #[]
-            transfers := #[]
-            transforms := #[]
-            vectorConjugates := #[]
-            adjoints := #[]
-            diagonalPairings := #[]
-            evaluations := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
           let _ ← expandAt fuel functions stack (path ++ [position, 1]) 0 frame no
           cleanupDependencies before.resources
           let right ← get
           let work ← debitWork right.work (left.resources.work + right.resources.work)
           let resources ← join left.resources right.resources
-          set {right with
+          set {Context.mergeArmReceipts before left right with
             work
             branchDepth := before.branchDepth
             codeBlock := before.codeBlock
@@ -2018,29 +2040,9 @@ mutual
             flow := before.flow.push (.branch condition left.flow.toList right.flow.toList)
             scalarSlots := before.scalarSlots
             returnedValue := none
-            valueReturns := before.valueReturns ++ left.valueReturns ++ right.valueReturns
-            calls := before.calls ++ left.calls ++ right.calls
             numerical := before.numerical
             tensors := before.tensors
-            packCaches := before.packCaches
-            cacheCaptures := before.cacheCaptures ++ left.cacheCaptures ++ right.cacheCaptures
-            cachedContractions := before.cachedContractions ++ left.cachedContractions ++ right.cachedContractions
-            products := before.products ++ left.products ++ right.products
-            networks := before.networks ++ left.networks ++ right.networks
-            tensorViews := before.tensorViews ++ left.tensorViews ++ right.tensorViews
-            tensorPacks := before.tensorPacks ++ left.tensorPacks ++ right.tensorPacks
-            tensorContractions := before.tensorContractions ++ left.tensorContractions ++ right.tensorContractions
-            trees := before.trees ++ left.trees ++ right.trees
-            inputs := before.inputs ++ left.inputs ++ right.inputs
-            outputs := before.outputs ++ left.outputs ++ right.outputs
-            packageResults := before.packageResults ++ left.packageResults ++ right.packageResults
-            packages := before.packages ++ left.packages ++ right.packages
-            transfers := before.transfers ++ left.transfers ++ right.transfers
-            transforms := before.transforms ++ left.transforms ++ right.transforms
-            vectorConjugates := before.vectorConjugates ++ left.vectorConjugates ++ right.vectorConjugates
-            evaluations := before.evaluations ++ left.evaluations ++ right.evaluations
-            adjoints := before.adjoints ++ left.adjoints ++ right.adjoints
-            diagonalPairings := before.diagonalPairings ++ left.diagonalPairings ++ right.diagonalPairings}
+            packCaches := before.packCaches}
           pure frame
       expandAt fuel functions stack path (position + 1) after rest
   def invoke : Nat → List Function → List Nat → Nat → List Symbol → Bool → M (List Returned)

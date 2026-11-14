@@ -1,4 +1,5 @@
 import VastitasKernel.FunctionLift
+import VastitasKernel.DispatchLowering
 import Std.Data.HashMap.Lemmas
 
 namespace VastitasKernel.Surface

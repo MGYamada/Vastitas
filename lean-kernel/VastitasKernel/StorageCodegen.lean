@@ -1,4 +1,5 @@
 import VastitasKernel.Storage
+import VastitasKernel.StorageNativeText
 
 /-! Lower the exact checked resource schedule to synchronous native calls.
 Logical owners/loans are reconstructed at compile time, not interpreted in the
@@ -154,17 +155,8 @@ attribute [local simp] Except.bind Except.map Except.pure bind pure Functor.map 
       · simp [compile, compileOnce, audit, source, lowered, same]
         split <;> rename_i equation <;> split at equation <;> simp_all [reject]
 
-private def scalar : Scalar → Nat | .f64 => 0 | .complexF64 => 1
 private def layout (view : Layout) : String :=
   s!"{view.offset} {view.rows} {view.columns} {view.leading} {view.transposed}"
-private def literal : Literal → String
-  | .f64 bits => s!"0 {bits.toNat} 0"
-  | .complexF64 real imaginary => s!"1 {real.toNat} {imaginary.toNat}"
-
-private def coefficient : ResolvedCoefficient → String
-  | .default => "0 0 0 0 0 0"
-  | .literal value => s!"1 {literal value} 0 0"
-  | .view allocation offset => s!"2 0 0 0 {allocation} {offset}"
 
 private def diagonal (value : Diagonal) : String :=
   let digits := #["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
@@ -177,24 +169,24 @@ private def render (instructions : List Instruction) (baseIndent : Nat := 4) : E
   let mut indent := baseIndent
   let mut result := ""
   for instruction in instructions do
-    let spaces := String.ofList (List.replicate indent ' ')
+    let spaces := NativeText.indentation indent
     match instruction with
     | .branch condition =>
       result := result ++ spaces ++ s!"if {condition} then\n"
       indent := indent + 2
     | .otherwise =>
       if indent < baseIndent + 2 then reject "unbalanced native branch"
-      result := result ++ String.ofList (List.replicate (indent - 2) ' ') ++ "else\n"
+      result := result ++ NativeText.indentation (indent - 2) ++ "else\n"
     | .finish =>
       if indent < baseIndent + 2 then reject "unbalanced native branch"
       indent := indent - 2
     | other =>
       let line := match other with
-        | .allocate id type count => s!"allocate arena {id} {scalar type} {count}"
+        | .allocate id type count => s!"allocate arena {id} {NativeText.scalar type} {count}"
         | .drop id => s!"drop arena {id}"
-        | .fill id view value => s!"fill arena {id} {layout view} {literal value}"
-        | .store id view row column value => s!"store arena {id} {layout view} {row} {column} {literal value}"
-        | .expect id view row column value => s!"expect arena {id} {layout view} {row} {column} {literal value}"
+        | .fill id view value => s!"fill arena {id} {layout view} {NativeText.literal value}"
+        | .store id view row column value => s!"store arena {id} {layout view} {row} {column} {NativeText.literal value}"
+        | .expect id view row column value => s!"expect arena {id} {layout view} {row} {column} {NativeText.literal value}"
         | .copy source input target output => s!"copy arena {source} {layout input} {target} {layout output}"
         | .pack3 source input target output i k j => s!"pack3 arena {source} {layout input} {target} {layout output} {i} {k} {j}"
         | .diagonalAdjoint input inputView output outputView source target conjugate _ =>
@@ -206,10 +198,9 @@ private def render (instructions : List Instruction) (baseIndent : Nat := 4) : E
         | .regroup3 source input target output dimensions inputGrouping outputGrouping =>
           s!"regroup3 arena {source} {layout input} {target} {layout output} {(dimensions[0]?).getD 0} {(dimensions[1]?).getD 0} {(dimensions[2]?).getD 0} {inputGrouping.code} {outputGrouping.code}"
         | .gemm left leftView conjugateLeft right rightView conjugateRight output outputView mode _ alpha beta =>
-          let mode := match mode with | .overwrite => 0 | .accumulate => 1
-          let operands := s!"arena {left} {layout leftView} {conjugateLeft} {right} {layout rightView} {conjugateRight} {output} {layout outputView} {mode}"
-          if alpha == .default && beta == .default then s!"VastitasGemmNative.gemm {operands}"
-          else s!"VastitasGemmNative.gemmScaled {operands} {coefficient alpha} {coefficient beta}"
+          let operands := s!"arena {left} {layout leftView} {conjugateLeft} {right} {layout rightView} {conjugateRight} {output} {layout outputView} {NativeText.gemmMode mode}"
+          NativeText.gemmCall operands <| if alpha == .default && beta == .default then none
+            else some (NativeText.coefficient alpha, NativeText.coefficient beta)
         | _ => "pure ()"
       result := result ++ spaces ++ line ++ "\n"
   if indent != baseIndent then reject "unclosed native branch"
@@ -245,7 +236,7 @@ from a potentially shared cleanup constructor. On failure run cleanup once and
 rethrow; a cleanup failure keeps the same precedence as `finally`.
 The body already has `indent + 2` spaces; cleanup lines are unindented. -/
 def withUnitCleanup (indent : Nat) (body : String) (cleanup : List String) : String :=
-  let spaces := String.ofList (List.replicate indent ' ')
+  let spaces := NativeText.indentation indent
   let finish (extra : String) := String.join (cleanup.map fun line => spaces ++ extra ++ line ++ "\n")
   spaces ++ "try\n" ++ body ++ spaces ++ "catch cleanupError =>\n" ++
     finish "  " ++ spaces ++ "  throw cleanupError\n" ++ finish ""

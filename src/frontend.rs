@@ -42,7 +42,7 @@ const BUILTINS: &[&str] = &[
 ];
 // The seven geometric operations of `BUILTINS`. A module may take one of these
 // names, as `nature::dimension`; every other declaration and binding may not.
-// Mirrors `geometricOperation` in the kernel's NamespaceChecker.
+// Mirrors `geometricOperation` in the kernel's NamespaceResolve.
 const GEOMETRIC_OPERATIONS: &[&str] = &[
     "Affine",
     "Base",
@@ -54,7 +54,7 @@ const GEOMETRIC_OPERATIONS: &[&str] = &[
 ];
 // Reserved spellings that may name actual indexed declarations, as in
 // `pub use super::Point;`. Mirrors `indexedSpelling` in the kernel's
-// NamespaceChecker, which validates such imports.
+// NamespaceResolve; the kernel's namespace checker validates such imports.
 const INDEXED_SPELLINGS: &[&str] = &[
     "Scheme",
     "CInfScheme",

@@ -476,7 +476,7 @@ type ModuleTarget<'a> = (&'a Package, Vec<String>);
 /// a module through modules, dependency aliases and imports is rejected here,
 /// with the diagnostic at the name. A path that names anything else, or that
 /// runs into a cycle of imports, is left to the kernel, which checks every
-/// `use` itself (`NamespaceChecker.validateWithWork`).
+/// `use` itself (`NamespaceValidate.validateWithWork`).
 fn reserved_module_uses(packages: &[Package], sources: &Sources) -> Result<(), String> {
     let mut modules: ModuleImports = HashMap::new();
     for package in packages {

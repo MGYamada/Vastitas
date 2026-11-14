@@ -1,11 +1,11 @@
 import VastitasKernel.NumericalCoverage
 import VastitasStorageTest.NumericalFixture
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.NumericalCoverageRegression
 open NumericalFixture
 
-private def check (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"numerical occurrence coverage failed: {label}")
+private def check := RegressionSupport.check "numerical occurrence coverage failed"
 
 private def network : Functions.Statement :=
   .network ⟨[⟨"a", 30⟩, ⟨"b", 31⟩], [⟨⟨"a", .input⟩, ⟨"b", .output⟩⟩],

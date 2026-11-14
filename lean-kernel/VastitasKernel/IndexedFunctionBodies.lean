@@ -50,7 +50,9 @@ mutual
       let span := expr.span
       let value ← match expr with
       | .integer value _ => do
-          let term ← body (Source.Bodies.expression 1 input.body scope ctx.data (.integer value span) expected)
+          let term ← body (do
+            let term ← Source.Bodies.integerLiteral value span expected
+            Source.Bodies.expect input.body expected term span)
           pure ⟨term, none⟩
       | .boolean value _ => pure ⟨.boolean value, none⟩
       | .unit _ => pure ⟨.unit, none⟩
@@ -177,6 +179,7 @@ mutual
         let values ← arguments.mapM fun argument => do data (← expression fuel input scope ctx argument hint) span
         return ⟨← body (Source.Bodies.emitLegacy input.body ctx.data name base values span), none⟩
       let resolved ← body (Source.Bodies.lookupPath input.body.index scope path fun diagnostic =>
+        Source.Bodies.retiredCall path <|
         if path.path == ["nat_to_int"] && diagnostic.code == "E_NAME" then
           { diagnostic with notes := diagnostic.notes ++ [
             { span := path.span, message := "help: nat_to_int is defined by the arithmetic standard library; include and import that library, or use the builtin conversion int(...)" }] }

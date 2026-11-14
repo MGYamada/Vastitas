@@ -222,7 +222,7 @@ impl Parser {
         let elements = self.resource_number()?;
         self.expect(">")?;
         let initialized = if self.consume("initialized") {
-            self.indexed_list("[", "]", Self::resource_layout)?
+            self.delimited_list("[", "]", Self::resource_layout)?
         } else {
             Vec::new()
         };
@@ -565,12 +565,12 @@ impl Parser {
 
     // Call arguments refer to existing resources.
     fn resource_names(&mut self) -> Result<Vec<String>, Diagnostic> {
-        self.indexed_list("(", ")", |p| Ok(p.name()?.0))
+        self.delimited_list("(", ")", |p| Ok(p.name()?.0))
     }
 
     // Call results introduce resources, so they obey binding-name rules.
     fn resource_binders(&mut self) -> Result<Vec<String>, Diagnostic> {
-        self.indexed_list("(", ")", |p| Ok(p.binding_name()?.0))
+        self.delimited_list("(", ")", |p| Ok(p.binding_name()?.0))
     }
 
     fn runtime_action(&mut self) -> Result<RuntimeAction, Diagnostic> {
@@ -987,7 +987,7 @@ impl Parser {
                         entry: self.gram_integer()?,
                     }
                 } else {
-                    let entries = self.indexed_list("[", "]", Self::gram_integer)?;
+                    let entries = self.delimited_list("[", "]", Self::gram_integer)?;
                     if entries.len() > MAX_DIAGONAL_ENTRIES {
                         return Err(diagnostic(
                             "E_LIMIT",
@@ -1262,7 +1262,7 @@ impl Parser {
             } else {
                 self.expect(",")?;
                 self.expect("axes")?;
-                let order = self.indexed_list("(", ")", Self::resource_number)?;
+                let order = self.delimited_list("(", ")", Self::resource_number)?;
                 if order.len() != rank {
                     return Err(diagnostic(
                         "E_TENSOR",
@@ -1508,7 +1508,7 @@ impl Parser {
             } else if self.consume("boundary") {
                 graph
                     .boundary
-                    .extend(self.indexed_list("(", ")", Self::tree_port)?);
+                    .extend(self.delimited_list("(", ")", Self::tree_port)?);
             } else {
                 return Err(diagnostic(
                     "E_TENSOR_TREE",
@@ -1821,9 +1821,9 @@ impl Parser {
         let start = self.expect("resource")?.span;
         self.expect("fn")?;
         let name = self.binding_name()?.0;
-        let parameters = self.indexed_list("(", ")", Self::resource_parameter)?;
+        let parameters = self.delimited_list("(", ")", Self::resource_parameter)?;
         let results = if self.consume("returns") {
-            self.indexed_list("(", ")", |p| {
+            self.delimited_list("(", ")", |p| {
                 let name = p.binding_name()?.0;
                 p.expect(":")?;
                 let ty = if p.consume("OwnedMapTo") {

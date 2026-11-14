@@ -1,5 +1,6 @@
 import VastitasKernel.Abstract
 import VastitasKernel.FunctionChecker
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Abstract.Regression
 private def path (name : String) : TypePath := ⟨[name], {}⟩
@@ -8,8 +9,7 @@ private def decl (name : String) (parents : List String := []) : RawAbstractType
 private def member (scalar target : String) : RawSubtype := ⟨scalar, path target, {}⟩
 private def accepts (types : List RawAbstractType) (members : List RawSubtype := []) : Bool :=
   ((prepare types members).run {}).isOk
-private def check (label : String) (valid : Bool) : IO Unit :=
-  unless valid do throw (IO.userError s!"abstract hierarchy regression failed: {label}")
+private def check := RegressionSupport.check "abstract hierarchy regression failed"
 
 #eval check "uninhabited selectors" (accepts [decl "Variety", decl "Manifold"])
 #eval check "multiple parents" (accepts [decl "A", decl "B", decl "C" ["A", "B"]] [member "Nat" "C"])

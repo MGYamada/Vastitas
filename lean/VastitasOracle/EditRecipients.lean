@@ -1,17 +1,12 @@
 import VastitasOracle.IndexedAuthority
 import VastitasKernel.ResourceProtocol
+import VastitasOracle.Support
 
 /-! Named edit recipients use the actual selected graph and lowering routines.
 These decoded-input facts do not authenticate a manifest or package author. -/
 namespace VastitasOracle.EditRecipients
 open VastitasKernel VastitasKernel.Namespace
-
-private theorem bind_success {action : Except ε α} {next : α → Except ε β} {output : β}
-    (accepted : action.bind next = .ok output) :
-    ∃ value, action = .ok value ∧ next value = .ok output := by
-  cases action with
-  | error problem => cases accepted
-  | ok value => exact ⟨value, rfl, accepted⟩
+open VastitasOracle.Support (bind_success mapM_ok_mem)
 
 /-- Exactly one root-reachable package must match the manifest name. The
 returned record retains its original source, name, version and modules. -/
@@ -151,23 +146,6 @@ private theorem forIn_invariant {σ ε α β : Type} (xs : List α) (init : β)
     | yield b =>
       exact ih b holds (fun x member => step x (List.mem_cons_of_mem _ member)) rest
 
-private theorem mapM_member {f : α → Except ε β} :
-    ∀ {xs : List α} {ys : List β}, xs.mapM f = .ok ys → ∀ y ∈ ys, ∃ x ∈ xs, f x = .ok y
-  | [], ys, accepted, y, member => by
-    simp only [List.mapM_nil, pure, Except.pure, Except.ok.injEq] at accepted
-    subst accepted
-    cases member
-  | x :: xs, ys, accepted, y, member => by
-    rw [List.mapM_cons] at accepted
-    obtain ⟨head, first, accepted⟩ := bind_success accepted
-    obtain ⟨tail, rest, accepted⟩ := bind_success accepted
-    simp only [pure, Except.pure, Except.ok.injEq] at accepted
-    subst accepted
-    rcases List.mem_cons.mp member with equal | member
-    · exact ⟨x, List.mem_cons_self, equal ▸ first⟩
-    · obtain ⟨source, sourceMember, lowered⟩ := mapM_member rest y member
-      exact ⟨source, List.mem_cons_of_mem _ sourceMember, lowered⟩
-
 private theorem ok_of_toOption {action : Except ε α} {value : α}
     (accepted : action.toOption = some value) : action = .ok value := by
   cases action with
@@ -251,7 +229,7 @@ theorem reconstruct_grants_declared (p : Indexed) {grants : List Edit.GrantEntry
       ∃ after, (Edit.lowerGrant p ⟨pkg.id, m.path⟩ raw).run [] = .ok (entry, after) := by
   intro entry member
   unfold Edit.reconstructGrants at accepted
-  obtain ⟨⟨scope, raw⟩, declared, lowered⟩ := mapM_member accepted entry member
+  obtain ⟨⟨scope, raw⟩, declared, lowered⟩ := mapM_ok_mem accepted entry member
   simp only [List.mem_flatMap, List.mem_map] at declared
   obtain ⟨pkg, pkgMember, m, mMember, raw', rawMember, equal⟩ := declared
   cases equal

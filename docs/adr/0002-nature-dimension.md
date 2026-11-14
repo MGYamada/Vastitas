@@ -12,17 +12,22 @@ proved.
 It writes its requirements with MUST and MUST NOT. What the compiler and the
 libraries hold of it:
 
-- Admitted and Planned: the `nature` package and the module
-  `nature::dimension` (§3), for the profile of the Stage 4 tracker.
+- Implemented, for the profile of the Stage 4 tracker: the `nature` package
+  and the module `nature::dimension` (§3). The
+  [Stage 4 acceptance record](../stage4-acceptance.md) states what is Tested
+  and what is Proved.
+- Tested: the dependency rule of §1. No `std` manifest depends on `nature`,
+  and `scripts/check_boundaries.py` checks it in the continuous integration.
 - Planned: every other `nature` module, among them `nature::errorbar` and
   `nature::symmetry`, and the parts of `nature::dimension` that §3 leaves
   outside.
 
 ## Record
 
-- **Status:** Proposed with the Stage 4 tracker
-  [#759](https://github.com/MGYamada/Vastitas/issues/759); adopted when the
-  pull request that adds this chapter merges.
+- **Status:** Adopted with the Stage 4 tracker
+  [#759](https://github.com/MGYamada/Vastitas/issues/759), in pull request
+  [#760](https://github.com/MGYamada/Vastitas/pull/760), which added this
+  chapter.
 - **Date:** 2026-11-13
 - **Scope:** the admission of `nature::dimension` for one finite profile, and
   the dependency rule between `std` and `nature` that it needs. It is **not** a
@@ -118,8 +123,10 @@ in place of A–D:
     coordinate and a time coordinate is rejected: `dx²` has dimension `L²` and
     `dt²` has dimension `T²`.
 - **Independence of `std`.** A `nature` declaration never changes the validity
-  or the generated code of a `std` declaration or of any binding. The `std`
-  metric stays valid mathematics whatever reading a program declares.
+  or the generated code of a `std` declaration or of any binding, except
+  through program-wide limits (such as the number of declarations) and name
+  clashes. The `std` metric stays valid mathematics whatever reading a
+  program declares.
 - **Split between Core, `std` and `nature`.** The exponent arithmetic is a
   declaration rule of the executable kernel, like the check of metric
   evidence. It is not a domain checker and not a `std` module. `nature`
@@ -192,9 +199,13 @@ without a test there remains proposed.
 
 - **Names.** `base_dimension`, `quantity`, `Reading`, `scale … of …`,
   `PhysicalMetric`, `interpret` and `normalized`; the diagnostic code
-  `E_DIMENSION`. The declaration is not named `dimension`, which is a Stage 1
-  primitive and capability that counts coordinates.
-- **Package.** `vastitas_nature` at `nature/` in the repository. It depends on
+  `E_DIMENSION`. The declaration is not named `dimension`, which was a Stage 1
+  primitive and capability that counts coordinates. (14 November 2026: #778
+  renamed that operation and capability `dim`; `dimension` is an ordinary name,
+  and `nature::dimension` the module of this record.)
+- **Package.** `vastitas_nature` at `nature/` in the repository, whose root
+  `nature/lib.vast` re-exports the package `vastitas_dimension` of
+  `nature/src/dimension/` as `nature::dimension`. It depends on
   the standard library; no standard-library manifest depends on a path
   outside `stdlib/`, and `scripts/check_boundaries.py` checks it.
 - **Versions and migration.** The profile adds no wire protocol version.

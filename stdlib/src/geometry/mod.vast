@@ -2,6 +2,7 @@
 pub mod scheme;
 pub mod smooth;
 pub mod metric;
+pub mod frame;
 
 indexed classification Objects {
     parents(); domain(scheme::GridQQ, smooth::GridSmooth);

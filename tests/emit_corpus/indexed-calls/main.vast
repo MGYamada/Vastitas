@@ -14,5 +14,5 @@ fn main() -> Int {
     let base = geo::baseObject();
     let q: geo::Point<Y, geo::Base> = geo::apply(geo::compose(geo::identity(Y), geo::identity(Y)), p);
     let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
-    increment(int(geo::dimension(Y))) + int(geo::dimension(base))
+    increment(int(geo::dim(Y))) + int(geo::dim(base))
 }

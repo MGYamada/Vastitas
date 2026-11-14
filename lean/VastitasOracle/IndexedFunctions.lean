@@ -46,7 +46,7 @@ theorem lambda_scope {program : Program} (checked : CheckedProgram program requi
     (∀ use ∈ lambda.free, available program.headers.indexed scope use = true) ∧
     ∀ binding ∈ lambda.bindings, binding.1 ∉ lambda.outer := checked.scopes _ member
 
-private theorem origins_valid {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain) :
+theorem origins_valid {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain) :
     validOrigins prepared.input audit checked.lowered = true := by
   have accepted := checked.accepted
   simp only [validPass, Bool.and_eq_true, and_assoc] at accepted

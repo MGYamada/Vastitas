@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSourceChecker
+import VastitasKernel.RegressionSupport
 
 /-! Fiber products, Cartesian evidence and base isomorphisms through the actual
 common source checker. These are executable regressions, not proofs. -/
@@ -59,8 +60,7 @@ private def program (ds := declarations) : Source.Program := {
     module := {path := [], isPublic := true, imports := [], functions := [], generics := [], methods := [], span := {}}
     declarations := ds }], none⟩] }
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"affine fiber regression failed: {label}")
+private def check := RegressionSupport.check "affine fiber regression failed"
 
 private def with' (extra : List Source.Declaration) : Source.Program := program (declarations ++ extra)
 private def replacing (name : String) (d : Source.Declaration) : Source.Program :=

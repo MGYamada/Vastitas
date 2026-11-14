@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedSourceTypes
 import VastitasKernel.IndexedSourceRegression
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.Source.TypeRegression
 
@@ -23,8 +24,7 @@ private def accepts (input : Source.DataType) (context := ctx) (scope := app) : 
   (run input context scope).isOk
 private def rejects (code : String) (input : Source.DataType) (context := ctx) (scope := app) : Bool :=
   match run input context scope with | .error error => error.code == code | .ok _ => false
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed source type regression failed: {name}")
+private def check := RegressionSupport.check "indexed source type regression failed"
 
 #eval check "ordinary scalar and Pair types" (accepts (.pure .int) [] && accepts (.pure (.pair .nat)) [])
 #eval check "explicit domain and coefficient" (accepts (.object ⟨path "geo::Scheme", path "geo::QQ"⟩) [])

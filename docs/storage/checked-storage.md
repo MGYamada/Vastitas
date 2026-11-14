@@ -94,7 +94,9 @@ O(W × L), respectively, for L live loans and W writers. The two compiled
 equations `auditState_eq_indexed` and `compatibleWith_eq_indexed` agree with
 the original predicates on every input, including duplicate names, cycles
 and dangling parents. The [shared chain lemmas](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LoanChain.lean)
-prove the first-match ancestry facts.
+prove the first-match ancestry facts. The [shared loan index](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LoanIndex.lean)
+builds the ancestor sets and writer-pair scans of this audit and of the
+runtime-shape frame audit.
 
 Both sides of transitions, joins and the native generation boundary retain
 their independent audits. The closed-plan checker meters the actual run and

@@ -1,5 +1,6 @@
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
+import VastitasKernel.RegressionSupport
 
 /-! Retained legacy top-level checker/Core regressions. Current public JSON
 acceptance is covered by LegacySourceRegression and
@@ -7,8 +8,7 @@ VastitasPublicTest.AuthorityRegression; shared namespace/dispatch/trace helpers
 remain live in the indexed composition. -/
 namespace VastitasKernel.PairRegression
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"Pair regression failed: {name}")
+private def check := RegressionSupport.check "Pair regression failed"
 
 private def pair (element : PairElem) (left right : Term) (result : Ty) : Term :=
   .builtin (.pair element) [left, right] ⟨result, none⟩

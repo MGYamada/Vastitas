@@ -1,0 +1,8 @@
+[package]
+name = "dimension_scale_magnitude"
+version = "0.1.0"
+root = "main.vast"
+
+[dependencies]
+std = { path = "../../../../stdlib" }
+nature = { path = "../../../../nature" }

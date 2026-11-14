@@ -4,6 +4,7 @@ pub mod indexed;
 mod internal_lean_audit;
 pub mod ir;
 mod limits;
+mod namespace;
 mod packages;
 mod primitive_table;
 mod process;

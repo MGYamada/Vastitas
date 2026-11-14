@@ -3,7 +3,7 @@
 //! the first input: the root manifest in manifest mode, the entry file in
 //! flat mode.
 mod common;
-use common::{Scratch, cli};
+use common::Scratch;
 
 /// The first diagnostic line of checking `source` as the root module of a
 /// package, from the name of the file on.
@@ -15,11 +15,7 @@ fn package_diagnostic(source: &str) -> String {
         "[package]\nname = \"places\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     s.write("main.vast", source);
-    let output = cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap();
+    let output = s.check_manifest("Vastitas.toml");
     first_line(&output, "main.vast:")
 }
 

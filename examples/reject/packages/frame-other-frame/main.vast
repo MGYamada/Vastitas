@@ -1,0 +1,22 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::frame::Frame;
+use std::geometry::frame::Coords;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: program
+// Two frames of one plane. An array names its frame statically, so arrays in
+// b and in b2 are never compared, even at one point.
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+indexed frame b2: Frame<Plane> = columns((1, 1), (0, 3));
+indexed primitive enc_b = frame_encode(Tangent, Coords, frame = b);
+indexed primitive enc_b2 = frame_encode(Tangent, Coords, frame = b2);
+indexed primitive same_coords = frame_equal(Coords);
+
+fn bad(v: Tangent<Plane>) -> Bool {
+    same_coords(enc_b(v), enc_b2(v))
+}
+// ANCHOR_END: program
+
+fn main() -> Int { 0 }

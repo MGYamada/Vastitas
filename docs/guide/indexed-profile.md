@@ -34,7 +34,7 @@ the [*representation*](../appendix/glossary.md#representation) of the
 implementation, which says what an object holds: an object of `Grid` is a
 descriptor object and records its dimension.
 
-`capabilities(origin, dimension)` lists the
+`capabilities(origin, dim)` lists the
 [*capabilities*](../appendix/glossary.md#capability) of the implementation:
 the operations that its objects support. This is a second meaning of the
 word. It is unrelated to the capabilities `HasEq` and `HasOrder` that a
@@ -116,7 +116,7 @@ fixes the operands and the result:
 | `baseObject` | None | The global object `Base` |
 | `origin` | An object `X` of `Scheme` over `QQ` | The origin of `X`, of type `Point<X, Base>` |
 | `identity` | An object `X` of `Scheme` over `QQ` | The identity morphism, of type `Morphism<X, X>` |
-| `dimension` | An object `X` of `Scheme` over `QQ` | The dimension of `X`, a `Nat` |
+| `dim` | An object `X` of `Scheme` over `QQ` | The dimension of `X`, a `Nat` |
 | `compose` | Two morphisms of the family `Morphism` | Their composite |
 | `apply` | A morphism and a point | The image of the point |
 
@@ -176,7 +176,7 @@ two implementations, and `size` gives the dimension of an object of
 
 A primitive must be valid for every implementation of the classification
 that it names. Every implementation of `Measured` has the capability
-`dimension`. `Shape` also holds `Plain`, which lacks it, so the compiler
+`dim`. `Shape` also holds `Plain`, which lacks it, so the compiler
 rejects the same binding over `Shape`, at its declaration:
 
 ```vast

@@ -1,0 +1,8 @@
+// The module may take the name `dim`. The function may not.
+mod dim {
+    pub fn dim() -> Int { 2 }
+}
+
+fn main() -> Int {
+    dim::dim()
+}

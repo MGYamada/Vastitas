@@ -14,11 +14,11 @@ impl Scratch {
         fs::write(path.join("main.vast"), "fn main() -> Int { 42 }").unwrap();
         scratch
     }
-    fn cli(&self) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
-        command
-            .current_dir(&self.0)
-            .env("VASTITAS_KERNEL", kernel());
+    /// The compiler in this directory, with the built kernel selected by
+    /// `VASTITAS_KERNEL`.
+    fn kernel_cli(&self) -> Command {
+        let mut command = self.cli();
+        command.env("VASTITAS_KERNEL", kernel());
         command
     }
 }
@@ -60,7 +60,7 @@ fn exited_compilers_cannot_leave_pipe_holders_or_silent_descendants() {
                 &std::env::var_os("PATH").unwrap_or_default(),
             ));
             fs::write(scratch.0.join("program"), b"existing artifact").unwrap();
-            let mut command = scratch.cli();
+            let mut command = scratch.kernel_cli();
             if build {
                 command.args(["build", "main.vast", "-o", "program"]);
             } else {
@@ -127,7 +127,7 @@ fn output_cannot_replace_any_input_or_alias() {
         "library.vast",
     ] {
         let result = scratch
-            .cli()
+            .kernel_cli()
             .args(["build", "main.vast", "--lib", "library.vast", "-o", output])
             .env("VASTITAS_KERNEL", scratch.0.join("absent-backend"))
             .output()
@@ -191,7 +191,7 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
             vec!["main.vast"]
         };
         let mut child = scratch
-            .cli()
+            .kernel_cli()
             .arg("build")
             .args(input)
             .args(["-o", "program"])
@@ -276,7 +276,7 @@ fn invalid_output_paths_fail_before_starting_the_backend() {
         "main.vast/program",
     ] {
         let result = scratch
-            .cli()
+            .kernel_cli()
             .args(["build", "main.vast", "-o", path])
             .env("VASTITAS_KERNEL", scratch.0.join("absent-backend"))
             .output()
@@ -293,7 +293,7 @@ fn output_protection_still_precedes_source_parsing() {
     let scratch = Scratch::new();
     fs::write(scratch.0.join("main.vast"), "invalid source").unwrap();
     let result = scratch
-        .cli()
+        .kernel_cli()
         .args(["build", "main.vast", "-o", "main.vast"])
         .output()
         .unwrap();
@@ -310,7 +310,7 @@ fn subcommand_help_succeeds_without_inputs_or_backend() {
     for mode in ["check", "build"] {
         for help in ["--help", "-h"] {
             let result = scratch
-                .cli()
+                .kernel_cli()
                 .args([mode, help])
                 .env("VASTITAS_KERNEL", scratch.0.join("absent-backend"))
                 .output()
@@ -336,7 +336,7 @@ fn interrupted_backend_has_no_spawn_failure_or_rebuild_hint() {
             "#!/bin/sh\ncat >/dev/null\necho ready > \"$READY\"\nexec sleep 60\n",
         );
         let mut child = scratch
-            .cli()
+            .kernel_cli()
             .args(["check", "main.vast"])
             .env("VASTITAS_KERNEL", &backend)
             .env("READY", &ready)
@@ -374,7 +374,7 @@ fn interrupted_backend_has_no_spawn_failure_or_rebuild_hint() {
 fn explicit_kernel_check_does_not_require_a_kernel_root() {
     let scratch = Scratch::new();
     let result = scratch
-        .cli()
+        .kernel_cli()
         .args(["check", "main.vast"])
         .env("VASTITAS_KERNEL_ROOT", scratch.0.join("absent"))
         .output()
@@ -385,7 +385,7 @@ fn explicit_kernel_check_does_not_require_a_kernel_root() {
         String::from_utf8_lossy(&result.stderr)
     );
     let result = scratch
-        .cli()
+        .kernel_cli()
         .args(["build", "main.vast", "-o", "program"])
         .env("VASTITAS_KERNEL_ROOT", scratch.0.join("absent"))
         .output()
@@ -400,7 +400,7 @@ fn unbuilt_default_kernel_names_its_absolute_root() {
     let root = scratch.0.join("kernel-root");
     fs::create_dir(&root).unwrap();
     let result = scratch
-        .cli()
+        .kernel_cli()
         .args(["check", "main.vast"])
         .env_remove("VASTITAS_KERNEL")
         .env("VASTITAS_KERNEL_ROOT", &root)
@@ -445,7 +445,7 @@ fn native_project_uses_the_selected_kernel_toolchain() {
         &std::env::var_os("PATH").unwrap_or_default(),
     ));
     let result = scratch
-        .cli()
+        .kernel_cli()
         .args(["build", "main.vast", "-o", "program"])
         .env("VASTITAS_KERNEL_ROOT", &root)
         .env("PATH", std::env::join_paths(paths).unwrap())
@@ -468,7 +468,7 @@ fn native_project_uses_the_selected_kernel_toolchain() {
     fs::remove_file(&captured).unwrap();
     fs::write(root.join("lean-toolchain"), "leanprover/lean4:v99.98.97\n").unwrap();
     let result = scratch
-        .cli()
+        .kernel_cli()
         .args(["build", "main.vast", "-o", "other"])
         .env("VASTITAS_KERNEL_ROOT", &root)
         .env("PATH", std::env::join_paths(paths_with(&scratch)).unwrap())
@@ -507,7 +507,7 @@ fn missing_or_empty_kernel_toolchain_preserves_output() {
             fs::write(root.join("lean-toolchain"), text).unwrap();
         }
         let result = scratch
-            .cli()
+            .kernel_cli()
             .args(["build", "main.vast", "-o", "program"])
             .env("VASTITAS_KERNEL_ROOT", &root)
             .output()
@@ -542,7 +542,7 @@ fn runtime_native_artifacts_are_prebuilt_and_reused() {
         })
         .collect();
     let result = scratch
-        .cli()
+        .kernel_cli()
         .args(["build", "main.vast", "-o", "program"])
         .env("VASTITAS_KERNEL_ROOT", &root)
         .output()
@@ -574,7 +574,7 @@ fn mismatched_failure_version_preserves_diagnostics_but_success_is_rejected() {
         "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"version\":3,\"ok\":false,\"diagnostics\":[{\"code\":\"E_SENTINEL\",\"message\":\"original diagnostic\"}]}'\nexit 1\n",
     );
     let output = scratch
-        .cli()
+        .kernel_cli()
         .env("VASTITAS_KERNEL", &backend)
         .args(["check", "main.vast"])
         .output()
@@ -594,7 +594,7 @@ fn mismatched_failure_version_preserves_diagnostics_but_success_is_rejected() {
         "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"version\":3,\"ok\":true}'\n",
     );
     let output = scratch
-        .cli()
+        .kernel_cli()
         .env("VASTITAS_KERNEL", &backend)
         .args(["check", "main.vast"])
         .output()
@@ -605,10 +605,7 @@ fn mismatched_failure_version_preserves_diagnostics_but_success_is_rejected() {
 
 #[test]
 fn version_reports_package_and_every_public_wire_protocol() {
-    let result = Command::new(env!("CARGO_BIN_EXE_vastitas"))
-        .arg("--version")
-        .output()
-        .unwrap();
+    let result = common::cli().arg("--version").output().unwrap();
     assert!(result.status.success());
     assert_eq!(
         String::from_utf8(result.stdout).unwrap().trim(),

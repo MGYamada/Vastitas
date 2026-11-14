@@ -17,5 +17,5 @@ fn main() -> Int {
     let repacked = pack scheme::Pointed<scheme::Scheme, scheme::QQ> { witness: X, fields: [y] };
     unpack repacked as { witness: Y, fields: [z] };
     let checked_again = scheme::apply(scheme::id(Y), z);
-    if scheme::dimension(Y) == 3 { 42 } else { 0 }
+    if scheme::dim(Y) == 3 { 42 } else { 0 }
 }

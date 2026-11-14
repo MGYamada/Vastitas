@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedAuthorityCheck
 import VastitasKernel.IndexedFunctionRegression
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.AuthoritySource.Regression
 open DispatchSource FunctionSource
@@ -83,8 +84,7 @@ private def rejects (name code : String) (p : DispatchSource.Program) : IO Unit 
   | .ok _ => throw (IO.userError s!"indexed authority {name}: unexpectedly accepted")
   | .error d => unless d.code == code do
       throw (IO.userError s!"indexed authority {name}: expected {code}, got {d.code}: {d.message}")
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed authority regression failed: {name}")
+private def check := RegressionSupport.check "indexed authority regression failed"
 
 #eval accepts "nested loan, indexed private helper, transfer" authorityFixture
 #eval accepts "source package order" { authorityFixture with packages := authorityFixture.packages.reverse }

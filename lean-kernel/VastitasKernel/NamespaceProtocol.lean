@@ -4,9 +4,6 @@ import VastitasKernel.SurfaceProtocol
 namespace VastitasKernel
 open Lean JsonDecode
 
-private def path3 (j : Json) (key : String) : Except String (List String) :=
-  segments j key
-
 -- In particular, claimed owner/target IDs are not accepted wire fields.
 private def fields3 (j : Json) (allowed : List String) : Except String Unit := do
   let fields ← j.getObj?
@@ -16,7 +13,7 @@ private def fields3 (j : Json) (allowed : List String) : Except String Unit := d
 private def import3 (j : Json) : Except String Namespace.Import := do
   fields3 j ["path", "alias", "public", "span"]
   return {
-    path := ← path3 j "path", alias := ← j.getObjValAs? String "alias",
+    path := ← segments j "path", alias := ← j.getObjValAs? String "alias",
     isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j }
 
 
@@ -31,8 +28,8 @@ private def grant5 (authority named : Bool) (j : Json) : Except String Namespace
     | .error _ => pure false
     | .ok value => value.getBool?
   return {
-    name := ← str j "name", target := ← path3 j "target",
-    granteePackage := ← recipient named j, granteePath := ← path3 j "grantee_path",
+    name := ← str j "name", target := ← segments j "target",
+    granteePackage := ← recipient named j, granteePath := ← segments j "grantee_path",
     region := ← (← array j "region").mapM fun key => do (← key.getArr?).toList.mapM Json.getStr?,
     delegable, span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
 
@@ -40,8 +37,8 @@ private def transfer6 (named : Bool) (j : Json) : Except String Namespace.Transf
   fields3 j (["name", "target", "grantee_path", "span", "public"] ++
     [if named then "grantee_package" else "grantee_source"])
   return {
-    name := ← str j "name", target := ← path3 j "target",
-    granteePackage := ← recipient named j, granteePath := ← path3 j "grantee_path",
+    name := ← str j "name", target := ← segments j "target",
+    granteePackage := ← recipient named j, granteePath := ← segments j "grantee_path",
     span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
 
 private def contribution5 (j : Json) : Except String Namespace.Contribution := do
@@ -50,7 +47,7 @@ private def contribution5 (j : Json) : Except String Namespace.Contribution := d
     fields3 method ["name", "params", "return_type", "body", "span", "requires"]
     decodeSurfaceMethod method
   return {
-    name := ← str j "name", target := ← path3 j "target", methods,
+    name := ← str j "name", target := ← segments j "target", methods,
     span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
 
 private def event5 (authority : Bool) (j : Json) : Except String Namespace.EditEvent := do
@@ -59,26 +56,26 @@ private def event5 (authority : Bool) (j : Json) : Except String Namespace.EditE
   match op with
   | "borrow" =>
     fields3 j ["op", "grant", "loan", "span"]
-    return .borrow (← path3 j "grant") (← str j "loan") span
+    return .borrow (← segments j "grant") (← str j "loan") span
   | "apply" =>
     fields3 j ["op", "contribution", "loan", "span"]
     let loan ← field j "loan"
     let loan ← if loan == Json.null then pure none else some <$> loan.getStr?
-    return .apply (← path3 j "contribution") loan span
+    return .apply (← segments j "contribution") loan span
   | "return" =>
     fields3 j ["op", "loan", "span"]
     return .release (← str j "loan") span
   | "seal" =>
     fields3 j ["op", "target", "span"]
-    return .seal (← path3 j "target") span
+    return .seal (← segments j "target") span
   | "reborrow" =>
     if !authority then throw "reborrowing requires protocol 6"
     fields3 j ["op", "parent", "delegation", "loan", "span"]
-    return .reborrow (← str j "parent") (← path3 j "delegation") (← str j "loan") span
+    return .reborrow (← str j "parent") (← segments j "delegation") (← str j "loan") span
   | "transfer" =>
     if !authority then throw "transfer requires protocol 6"
     fields3 j ["op", "declaration", "span"]
-    return .transfer (← path3 j "declaration") span
+    return .transfer (← segments j "declaration") span
   | _ => throw "unknown assembly event"
 
 private def assembly5 (authority : Bool) (j : Json) : Except String Namespace.Assembly := do
@@ -114,7 +111,7 @@ def decodeNamespaceModule (extended editable authority : Bool) (j : Json)
     | .error _ => pure none
     | .ok value => some <$> assembly5 authority value
   return {
-    path := ← path3 j "path", isPublic := ← j.getObjValAs? Bool "public",
+    path := ← segments j "path", isPublic := ← j.getObjValAs? Bool "public",
     span := ← decodeSpan j, imports := ← (← array j "imports").mapM import3,
     functions, generics, methods, abstractTypes, subtypes, assembly,
     grants := ← (← optionalArray j "grants").mapM (grant5 authority namedRecipients),

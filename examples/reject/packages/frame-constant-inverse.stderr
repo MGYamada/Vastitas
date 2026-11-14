@@ -1,0 +1,1 @@
+examples/reject/packages/frame-constant-inverse/main.vast:9:1: E_FRAME: the frame `frame_constant_inverse::b` on `frame_constant_inverse::Plane` is constant, so the kernel computes its inverse; a constant frame declares no `inverse = …`

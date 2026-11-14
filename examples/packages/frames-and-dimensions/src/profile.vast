@@ -1,0 +1,65 @@
+// The declarations of the Stage 4 acceptance program: smooth affine objects,
+// ordered frames of their tangent fibers, smooth maps, a Riemannian metric,
+// and a physical reading of a chart with scales. The families come from
+// std::geometry and nature::dimension; the program declares its frames, as it
+// declares its metrics. A frame lists its frame vectors as columns in the
+// coordinate frame.
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::smooth::affine::Line;
+use std::geometry::metric::MetricForm;
+use std::geometry::frame::Frame;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Length;
+use nature::dimension::Time;
+
+// The source and the target of the maps, and a chart with a length coordinate
+// x and a time coordinate t.
+pub indexed affine Plane(SmoothR) = Affine(2)[x, y];
+pub indexed affine Image(SmoothR) = Affine(2)[u, v];
+pub indexed affine C(SmoothR) = Affine(2)[x, t];
+
+// Constant frames whose vectors are not orthogonal and whose determinants are
+// 2 or 3: b and b2 on the plane, c and c2 on the image. The kernel computes
+// each inverse and checks it again.
+pub indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+pub indexed frame b2: Frame<Plane> = columns((1, 1), (0, 3));
+pub indexed frame c: Frame<Image> = columns((1, 1), (0, 2));
+pub indexed frame c2: Frame<Image> = columns((3, 0), (1, 1));
+// A frame polynomial in the point. Its inverse is declared, and the kernel
+// checks P·Q = Q·P = I as an identity of polynomials.
+pub indexed frame r: Frame<Plane> = columns((1, 0), (x, 2)) inverse = columns((1, 0), (frac(-1, 2) * x, frac(1, 2)));
+// The coordinate frames, a frame of the line, and the frame of the point,
+// which has no vectors.
+pub indexed frame xy: Frame<Plane> = coordinates;
+pub indexed frame uv: Frame<Image> = coordinates;
+pub indexed frame l: Frame<Line> = columns((2));
+pub indexed frame z: Frame<Pt> = columns();
+
+// f(x, y) = (x^2 + y, xy) and g(u, v) = uv. The shear moves the point, and
+// flatten has rank one. Every map to Pt forgets its point.
+pub indexed morphism f: Smooth<Plane, Image> = pullback(u -> x^2 + y, v -> x*y);
+pub indexed morphism g: Smooth<Image, Line> = pullback(t -> u*v);
+pub indexed morphism shear: Smooth<Plane, Plane> = pullback(x -> x + 2*y, y -> y);
+pub indexed morphism flatten: Smooth<Plane, Image> = pullback(u -> x + y, v -> 2*x + 2*y);
+pub indexed morphism to_pt: Smooth<Plane, Pt> = pullback();
+
+// A Riemannian metric on the plane. No frame binding reads it.
+pub indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
+pub indexed evidence SkewPositive = riemannian(Skew);
+pub indexed evidence SkewInvertible = nondegenerate(Skew);
+
+// The chart read as (Length, Time) with the scales l0 = 3 and t0 = 2. The std
+// metric G = diag(1/9, 1/4) is valid by itself; its physical interpretations
+// are nature evidence about it, and the kernel checks that each term of G has
+// one dimension. h(x, t) = x + t.
+pub indexed metric G: MetricForm<C> = gram((frac(1, 9), 0), (0, frac(1, 4)));
+pub indexed evidence GInvertible = nondegenerate(G);
+pub indexed reading phys: Reading<C> = (x: Length, t: Time);
+pub indexed scale l0 = 3 of Length;
+pub indexed scale t0 = 2 of Time;
+pub indexed physical PG: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^-2, 0), (0, t0^-2)));
+pub indexed physical PN: PhysicalMetric<C> = interpret(G, reading = phys, normalized(x: l0, t: t0));
+pub indexed morphism h: Smooth<C, Line> = pullback(t -> x + t);

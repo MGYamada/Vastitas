@@ -84,7 +84,7 @@ mutual
     | identity {raw value result} : Expr signatures ctx raw value →
         Call signatures ctx "id" [raw] (.builtin .identity [value] result)
     | dimension {raw value result} : Expr signatures ctx raw value →
-        Call signatures ctx "dimension" [raw] (.builtin .dimension [value] result)
+        Call signatures ctx "dim" [raw] (.builtin .dimension [value] result)
     | compose {left right a b result} : Expr signatures ctx left a → Expr signatures ctx right b →
         Call signatures ctx "compose" [left, right] (.builtin .compose [a, b] result)
     | apply {left right a b result} : Expr signatures ctx left a → Expr signatures ctx right b →

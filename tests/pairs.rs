@@ -1,9 +1,9 @@
 //! Pair values cross the frontend, independently checked core and native runtime.
 mod common;
-use common::Scratch;
+use common::{Scratch, success};
 use serde_json::{Value, json};
 use std::fs;
-use std::process::{Command, Output};
+use std::process::Command;
 
 impl Scratch {
     fn new(source: &str) -> Self {
@@ -17,9 +17,11 @@ impl Scratch {
         .unwrap();
         scratch
     }
-    fn cli(&self, mode: &str, package: bool) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
-        command.current_dir(&self.0).arg(mode);
+    /// The compiler in `mode` in this directory, on the package when
+    /// `package` and on the flat program otherwise.
+    fn compiler(&self, mode: &str, package: bool) -> Command {
+        let mut command = self.cli();
+        command.arg(mode);
         if package {
             command.args(["--manifest-path", "Vastitas.toml"]);
         } else {
@@ -27,9 +29,6 @@ impl Scratch {
         }
         command
     }
-}
-fn success(output: Output) {
-    common::success(&output);
 }
 fn request(source: &str) -> Value {
     common::request(source, "pairs.vast")
@@ -47,17 +46,17 @@ fn rejects(raw: Value, code: &str) {
 fn pairs_preserve_values_arguments_results_branches_and_lambda_bodies() {
     let scratch = Scratch::new(include_str!("../examples/pairs.vast"));
     for package in [false, true] {
-        success(scratch.cli("check", package).output().unwrap());
+        success(&scratch.compiler("check", package).output().unwrap());
         success(
-            scratch
-                .cli("build", package)
+            &scratch
+                .compiler("build", package)
                 .args(["-o", "program"])
                 .output()
                 .unwrap(),
         );
         let output = Command::new(scratch.0.join("program")).output().unwrap();
         assert_eq!(output.stdout, b"42\n");
-        success(output);
+        success(&output);
     }
     let first_order =
         request("fn reverse(p: Pair<Int>) -> Pair<Int> { pair(pair_second(p), pair_first(p)) }");
@@ -97,7 +96,7 @@ fn pair_construction_infers_operands_without_conversion_or_expected_type_selecti
         ),
     ] {
         let scratch = Scratch::new(source);
-        let output = scratch.cli("check", false).output().unwrap();
+        let output = scratch.compiler("check", false).output().unwrap();
         assert!(!output.status.success(), "accepted: {source}");
         let error = String::from_utf8_lossy(&output.stderr);
         common::assert_first_code(&error, code);
@@ -174,17 +173,17 @@ fn main() -> Int {
         assert_eq!(backend(&request(&source))["ok"], true);
         let scratch = Scratch::new(&source);
         for package in [false, true] {
-            success(scratch.cli("check", package).output().unwrap());
+            success(&scratch.compiler("check", package).output().unwrap());
             success(
-                scratch
-                    .cli("build", package)
+                &scratch
+                    .compiler("build", package)
                     .args(["-o", "program"])
                     .output()
                     .unwrap(),
             );
             let output = Command::new(scratch.0.join("program")).output().unwrap();
             assert_eq!(output.stdout, b"42\n");
-            success(output);
+            success(&output);
         }
     }
 }
@@ -214,7 +213,7 @@ fn pair_results_do_not_change_selection_or_whole_body_audits() {
             );
             let scratch = Scratch::new(&source);
             for package in [false, true] {
-                let output = scratch.cli("check", package).output().unwrap();
+                let output = scratch.compiler("check", package).output().unwrap();
                 assert!(!output.status.success());
                 common::expect_code(&output, expected);
             }

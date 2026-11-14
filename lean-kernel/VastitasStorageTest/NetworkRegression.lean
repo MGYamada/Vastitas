@@ -1,10 +1,10 @@
 import VastitasStorageTest.NumericalFixture
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.NetworkRegression
 open NumericalFixture Numerical TensorNetwork
 
-private def ensure (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"finite network: {label}")
+private def ensure := RegressionSupport.check "finite network"
 
 private def graph : Graph :=
   ⟨[⟨"a", 30⟩, ⟨"b", 31⟩], [⟨⟨"a", .input⟩, ⟨"b", .output⟩⟩],

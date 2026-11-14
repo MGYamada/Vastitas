@@ -11,10 +11,11 @@ impl Scratch {
         fs::write(path.join("main.vast"), source).unwrap();
         scratch
     }
-    fn cli(&self, mode: &str) -> Command {
-        let mut cmd = Command::new(env!("CARGO_BIN_EXE_vastitas"));
-        cmd.current_dir(&self.0).args([mode, "main.vast"]);
-        cmd
+    /// The compiler in `mode` on `main.vast`, in this directory.
+    fn compiler(&self, mode: &str) -> Command {
+        let mut command = self.cli();
+        command.args([mode, "main.vast"]);
+        command
     }
 }
 fn rejection(source: &str, code: &str) -> String {
@@ -54,11 +55,11 @@ fn byte_order_marks_have_a_specific_diagnostic_and_exact_span() {
 #[test]
 fn native_explicit_embedding_and_else_if_preserve_exact_arithmetic() {
     let scratch = Scratch::new(
-        "fn main() -> Int { let n: Nat = 123456789012345678901234567890; if false { 0 } else if dimension(Base(QQ)) == 0 { nat_to_int(n) - int(1) } else { -1 } }",
+        "fn main() -> Int { let n: Nat = 123456789012345678901234567890; if false { 0 } else if dim(Base(QQ)) == 0 { nat_to_int(n) - int(1) } else { -1 } }",
     );
     let library = Path::new(env!("CARGO_MANIFEST_DIR")).join("stdlib/src/arithmetic/nat.vast");
     let output = scratch
-        .cli("build")
+        .compiler("build")
         .arg("--lib")
         .arg(library)
         .args(["-o", "program"])
@@ -111,7 +112,7 @@ fn library_identity_notes_keep_library_source_locations() {
     )
     .unwrap();
     let output = scratch
-        .cli("check")
+        .compiler("check")
         .args(["--lib", "library.vast"])
         .output()
         .unwrap();

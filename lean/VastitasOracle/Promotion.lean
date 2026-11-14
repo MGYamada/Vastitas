@@ -14,9 +14,6 @@ These legacy Eval derivations are not current public acceptance corollaries. -/
 namespace VastitasOracle.Promotion
 open VastitasKernel VastitasKernel.Semantics VastitasKernel.PromotionFixture
 
-set_option maxRecDepth 10000
-set_option maxHeartbeats 1000000
-
 /-- The named function exists in the reflected checked module (`function` alone
 would fall back to `default`), and actual argument binding and big-step
 evaluation of its body return `value`, including all helper calls. -/

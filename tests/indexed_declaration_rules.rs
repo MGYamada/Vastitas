@@ -4,7 +4,7 @@
 //! indexed declaration are `E_LIMIT`. Before, every such declaration gave
 //! `E_TYPE: invalid indexed declaration, package, or primitive contract`.
 mod common;
-use common::{Scratch, cli, success};
+use common::{Scratch, success};
 
 fn check(source: &str) -> std::process::Output {
     let s = Scratch::empty("indexed declaration rules");
@@ -13,11 +13,7 @@ fn check(source: &str) -> std::process::Output {
         "[package]\nname = \"rules\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     s.write("main.vast", source);
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("Vastitas.toml")
 }
 
 /// The first diagnostic of a rejected program, from the file name on.
@@ -32,7 +28,7 @@ fn first_diagnostic(source: &str) -> String {
 }
 
 const DESCRIPTORS: &str = "indexed marker QQ;
-indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dim);
 indexed implementation Plain(QQ, affine_descriptor) capabilities();
 indexed global Base(Grid);
 ";
@@ -218,8 +214,8 @@ indexed family Mor(object(Shape), object(Shape)) = morphism constraints(same_bas
             "E_TYPE: every implementation of `rules::Shape<rules::QQ>` must have the capability `origin` for the `origin` primitive `rules::o`, but `rules::Plain` lacks it",
         ),
         (
-            "indexed primitive size = dimension((Shape, QQ));",
-            "E_TYPE: every implementation of `rules::Shape<rules::QQ>` must have the capability `dimension` for the `dimension` primitive `rules::size`, but `rules::Plain` lacks it",
+            "indexed primitive size = dim((Shape, QQ));",
+            "E_TYPE: every implementation of `rules::Shape<rules::QQ>` must have the capability `dim` for the `dim` primitive `rules::size`, but `rules::Plain` lacks it",
         ),
         (
             "indexed primitive o = origin((Grid, QQ), Mor, Base);",
@@ -303,7 +299,7 @@ fn an_indexed_declaration_used_as_a_value_says_what_it_names() {
         ),
     ] {
         let source = format!(
-            "{DESCRIPTORS}indexed primitive size = dimension((Grid, QQ));\nfn main() -> Int {{ let x = {value}; 0 }}\n"
+            "{DESCRIPTORS}indexed primitive size = dim((Grid, QQ));\nfn main() -> Int {{ let x = {value}; 0 }}\n"
         );
         assert_eq!(
             first_diagnostic(&source),

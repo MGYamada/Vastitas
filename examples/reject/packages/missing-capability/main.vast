@@ -1,8 +1,8 @@
 indexed marker QQ;
-indexed implementation Grid(QQ, affine_descriptor) capabilities(dimension);
+indexed implementation Grid(QQ, affine_descriptor) capabilities(dim);
 indexed implementation Plain(QQ, affine_descriptor) capabilities();
 indexed classification Shape { parents(); domain(Grid, Plain); };
-indexed primitive size = dimension((Shape, QQ));
+indexed primitive size = dim((Shape, QQ));
 
 fn main() -> Int {
     0

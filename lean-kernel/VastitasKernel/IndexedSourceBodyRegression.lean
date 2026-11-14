@@ -1,6 +1,7 @@
 import VastitasKernel.IndexedSourceProgram
 import VastitasKernel.IndexedSourceRegression
 import VastitasKernel.IndexedCodegen
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.Source.BodyRegression
 open Bodies
@@ -33,8 +34,7 @@ private def unwrap : Source.Function := fn "unwrap" [⟨"boxed", packed, {}⟩] 
 /-- Actual unresolved source bodies, deliberately ordered before their callees. -/
 def packageFixture : Source.Program := program [main (call "unwrap" [call "make" [num 2]]), unwrap, make]
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed source body regression failed: {name}")
+private def check := RegressionSupport.check "indexed source body regression failed"
 private def accepts (p : Source.Program) (requireMain := true) : Bool := (Bodies.checkProgram p requireMain).isOk
 private def rejects (code : String) (p : Source.Program) : Bool :=
   match Bodies.checkProgram p true with | .error error => error.code == code | .ok _ => false

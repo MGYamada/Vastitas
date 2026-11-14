@@ -7,14 +7,6 @@ composition, a public wire decoder, runtime evaluation or native refinement. -/
 namespace VastitasOracle.IndexedSource
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Source
 
-theorem owner_lookup (program : Source.Program) (owner : DeclId) :
-    program.indexed.byOwner[owner]? = program.targets.find? (fun target => target.owner == owner) :=
-  Namespaces.owner_index_matches_list _ _
-
-theorem scope_lookup (program : Source.Program) (scope : Namespace.Scope) :
-    program.indexed.byScope[scope]?.getD [] = program.targets.filter (·.owner.scope == scope) :=
-  Namespaces.scope_index_matches_list _ _
-
 /-- All checked evidence is indexed by the same unresolved input. A different
 frontend-selected environment cannot be substituted into the certificate. -/
 theorem checked_declarations (program : Source.Program) (checked : CheckedDeclarations program) :

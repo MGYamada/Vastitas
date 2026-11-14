@@ -25,11 +25,7 @@ fn fixture(base: &str, addon: &str, events: &str) -> Scratch {
     s
 }
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("app/Vastitas.toml")
 }
 fn rejects(s: &Scratch, code: &str) {
     let output = check(s);

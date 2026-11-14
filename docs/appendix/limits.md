@@ -320,6 +320,72 @@ entry of L, D and L⁻¹, have at most `metricMatrixBits` bits. With at most
 its check. Every Gram matrix with integer entries and every diagonal Gram
 matrix within the entry bound is within the matrix bound.
 
+## Frames
+
+The kernel expands all entries of one [frame](../language/frames.md), its
+declared inverse included, within one run of `algebraWork`. A constant frame
+has the bounds of a Gram matrix, which the kernel checks before it computes
+the inverse. The kernel computes the two products of a frame that depends on
+the point and its declared inverse within a second run. A frame beyond a
+limit is an error (`E_LIMIT`).
+[Frame declarations](../language/frames.md#frame-declarations) states the
+rules.
+
+| Limit | Value | Counts | Holds for |
+| --- | --- | --- | --- |
+| `algebraGenerators` | 16 | The coordinates of the object of a frame, and so its frame vectors, the components of its arrays and the rows or columns of a map array | A frame |
+| `algebraCoefficientDigits` | 64 | The digits of a literal in an entry of a frame, and of an index of `frame_component` or `frame_entry` | A literal |
+| `metricEntryBits` | 512 | The bits of the numerator and of the denominator of one entry of a constant frame | An entry |
+| `metricMatrixBits` | 16,384 | The bits of the [matrix bound](glossary.md#matrix-bound) of the matrix of a constant frame | A frame |
+| `algebraTerms` | 512 | The terms of each polynomial of the two products of a frame and its declared inverse | A polynomial |
+| `algebraWork` | 8,000,000 | The units of work of expanding the entries of one frame and its inverse, and of computing the two products | A run |
+
+The kernel charges each product $pq$ of an entry of one matrix and an entry
+of the other $(t(p) + 1)\,w(p)\,w(q) + t(p) + 1$ units before it computes it.
+Here $t(p)$ is the number of terms of $p$, and $w(p)$ is the sum over the
+terms of $p$ of $1 + \lfloor (\lfloor \log_2 |a| \rfloor + \lfloor \log_2 b
+\rfloor) / 64 \rfloor$, for a coefficient $a/b$ in lowest terms. The charge
+bounds the steps of the product, which adds the products of the terms of $p$
+with $q$ to the sum of the earlier ones, one term of $p$ at a time. Adding a
+product $q$ to the sum $p$ of the earlier products of an entry costs
+$w(p) + w(q) + 1$ units. A frame whose
+products need more units is an error (`E_LIMIT`), and the kernel computes no
+product beyond the budget. The expansion of the entries is charged as in
+[Exact affine algebra](#exact-affine-algebra).
+
+These limits hold when the compiler checks a program. In an executable, the
+rational numbers of frame arrays and map arrays have no bound.
+
+## Physical dimensions
+
+The kernel checks the declarations that
+[Physical-dimension admission](../adr/0002-nature-dimension.md) admits: base
+dimensions, quantities, readings, scales and physical metrics. It checks the
+bound of every exponent, and the size of every entry of a physical metric,
+before it computes a power. A scale magnitude, the coefficient of an entry
+and the entry multiplied out have the bound of a Gram entry.
+
+The kernel measures an entry multiplied out before its factors cancel. For
+the numerator of the entry, it adds the bits of the numerator of the
+coefficient, and the bits of the numerator of each magnitude once per unit
+of its exponent. For a negative exponent, it adds the bits of the
+denominator of the magnitude instead. It measures the denominator of the entry with
+numerators and denominators exchanged. A numerator or a denominator of 1 adds
+no bits. Take two scales `a` and `b` with one magnitude of 101 bits.
+`a^5 * b^-5` counts 505 bits in its numerator and in its denominator, within
+the bound. `a^6 * b^-6` counts 606 bits and is an error, although both
+entries are 1.
+
+The value of a physical metric, the dimension of its terms, has the
+exponent bound of a dimension, so that `value = …` can write it.
+
+| Limit | Value | Counts | Holds for | Code |
+| --- | --- | --- | --- | --- |
+| `dimensionBases` | 16 | The `indexed base_dimension` declarations of all packages | A program | `E_LIMIT` |
+| `dimensionExponent` | 64 | The absolute value of the exponent of a base dimension in a dimension and in the value of a physical metric, and of a scale in an entry of a physical metric | An exponent | `E_LIMIT` |
+| `dimensionScaleFactors` | 16 | The scale factors of one entry of a physical metric | An entry | `E_LIMIT` |
+| `metricEntryBits` | 512 | The bits of the numerator and of the denominator of a scale magnitude, of the coefficient of an entry of a physical metric, and of the entry multiplied out | A scale or an entry | `E_LIMIT` |
+
 ## Resource functions
 
 [Resource programs](../storage/resource-programs.md) gives the rules of
@@ -487,7 +553,7 @@ program, as [Limits](../language/limits.md#bounds-that-reject-nothing) says.
 | `reverseLeaves` | 256 | The maps of one reverse pass that the compilation reads through `let` statements and `compose`, in [`IndexedReverse.lean`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedReverse.lean) |
 | Notes of a resource diagnostic | 32 | The notes that follow one diagnostic of a resource program |
 | Search for an uninitialized cell | 131,072 | The records that the checker visits to find the cell that a diagnostic names |
-| `captureDiagnostic` | 8192 | The steps of a search for the place of a capture. No route of the kernel executable uses the search: its only use is in a checker that the executable holds and does not call |
+| `captureDiagnostic` | 8192 | The steps of a search for the place of a capture. No route of the kernel executable uses the search: its only use is in a retained checker outside the executable |
 | `namespaceNesting` | 1024 | The recursion through a body of the pass that puts the names of the source into a diagnostic. On the routes of the kernel executable, no other pass of the checker of names reads a body, and this pass keeps the diagnostic as it is when it reaches the bound |
 | Lean options of a generated program | `maxRecDepth` 32768, `maxHeartbeats` 2000000 | The elaboration of the generated program by Lean in `build` |
 

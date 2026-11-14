@@ -1,10 +1,10 @@
 //! Actual stdlib sources through flat and package inputs, including raw-IR tampering.
 mod common;
-use common::{Scratch, kernel_path as kernel, root};
+use common::{Scratch, kernel_path as kernel, root, success};
 use serde_json::{Value, json};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::process::{Command, Output};
+use std::process::Command;
 impl Scratch {
     fn new(source: &str) -> Self {
         common::prepare_stdlib_package();
@@ -19,9 +19,11 @@ impl Scratch {
         fs::write(path.join("Vastitas.toml"), format!("[package]\nname='promotion_app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={{path={}}}\n", serde_json::to_string(&root().join("stdlib").to_string_lossy()).unwrap())).unwrap();
         scratch
     }
-    fn cli(&self, mode: &str, package: bool) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
-        command.current_dir(&self.0).arg(mode);
+    /// The compiler in `mode` in this directory, on the package when
+    /// `package` and on the flat program otherwise.
+    fn compiler(&self, mode: &str, package: bool) -> Command {
+        let mut command = self.cli();
+        command.arg(mode);
         if package {
             command.args(["--manifest-path", "Vastitas.toml"]);
         } else {
@@ -44,7 +46,8 @@ impl Scratch {
         .unwrap();
         fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
         success(
-            self.cli("check", package)
+            &self
+                .compiler("check", package)
                 .env("VASTITAS_KERNEL", script)
                 .env("REAL_KERNEL", kernel())
                 .env("CAPTURE", &capture)
@@ -53,9 +56,6 @@ impl Scratch {
         );
         serde_json::from_slice(&fs::read(capture).unwrap()).unwrap()
     }
-}
-fn success(output: Output) {
-    common::success(&output);
 }
 fn check_raw(raw: &Value) -> Value {
     common::kernel(raw, "check")
@@ -108,20 +108,20 @@ fn main() -> Int {
 fn promotion_values_types_reversal_and_idempotence_execute_in_both_modes() {
     let scratch = Scratch::new(VALUES);
     for package in [false, true] {
-        success(scratch.cli("check", package).output().unwrap());
+        success(&scratch.compiler("check", package).output().unwrap());
         success(
-            scratch
-                .cli("build", package)
+            &scratch
+                .compiler("build", package)
                 .args(["-o", "program"])
                 .output()
                 .unwrap(),
         );
         let output = Command::new(scratch.0.join("program")).output().unwrap();
         assert_eq!(output.stdout, b"42\n");
-        success(output);
+        success(&output);
     }
     success(
-        Command::new("python3")
+        &Command::new("python3")
             .arg(root().join("scripts/build_stdlib_package.py"))
             .arg("--check")
             .output()
@@ -170,7 +170,7 @@ fn stdlib_rules_are_independently_checked_and_result_expectations_do_not_select(
     ] {
         let scratch = Scratch::new(source);
         for package in [false, true] {
-            let output = scratch.cli("check", package).output().unwrap();
+            let output = scratch.compiler("check", package).output().unwrap();
             assert!(!output.status.success());
             let message = String::from_utf8_lossy(&output.stderr);
             common::assert_first_code(&message, code);
@@ -218,7 +218,7 @@ fn package_promote_owner_is_exact_and_imports_only_grant_calls() {
         "method std::arithmetic::generic::promote(x: Int, y: Int) -> Pair<Int> { pair(x, y) }",
     )
     .unwrap();
-    let output = scratch.cli("check", true).output().unwrap();
+    let output = scratch.compiler("check", true).output().unwrap();
     assert!(!output.status.success());
     common::expect_code(&output, "E_OWNER");
 }
@@ -227,7 +227,7 @@ fn package_promote_owner_is_exact_and_imports_only_grant_calls() {
 fn aliases_reexports_and_reordered_imports_keep_the_same_family() {
     let scratch = Scratch::new(VALUES);
     fs::write(scratch.0.join("main.vast"), format!("pub mod facade {{ pub use std::arithmetic::generic::promote as convert; }}\nuse facade::convert as promote;\nuse std::arithmetic::generic as arithmetic;\nfn repeated(n: Nat) -> Pair<Int> {{ arithmetic::promote(pair_first(promote(n, n)), -7) }}\n{VALUES}")).unwrap();
-    success(scratch.cli("check", true).output().unwrap());
+    success(&scratch.compiler("check", true).output().unwrap());
     let mut raw = scratch.raw(true);
     raw["packages"].as_array_mut().unwrap().reverse();
     for package in raw["packages"].as_array_mut().unwrap() {
@@ -295,7 +295,7 @@ fn source_children_and_siblings_cannot_extend_the_promote_owner() {
             ),
         )
         .unwrap();
-        let output = scratch.cli("check", true).output().unwrap();
+        let output = scratch.compiler("check", true).output().unwrap();
         assert!(!output.status.success());
         common::expect_code(&output, "E_OWNER");
     }
@@ -326,17 +326,17 @@ fn mixed_arithmetic_delegates_to_homogeneous_kernels_in_both_modes() {
     .unwrap();
     assert_eq!(check_raw(&flat_request(source))["ok"], true);
     for package in [false, true] {
-        success(scratch.cli("check", package).output().unwrap());
+        success(&scratch.compiler("check", package).output().unwrap());
         success(
-            scratch
-                .cli("build", package)
+            &scratch
+                .compiler("build", package)
                 .args(["-o", "program"])
                 .output()
                 .unwrap(),
         );
         let output = Command::new(scratch.0.join("program")).output().unwrap();
         assert_eq!(output.stdout, b"42\n");
-        success(output);
+        success(&output);
     }
 }
 
@@ -374,7 +374,7 @@ fn promotion_does_not_hide_specialized_cycles_or_bad_applicable_bodies() {
             let source = format!("{source}\n{extra}");
             rejects(&flat_request(&source), code);
             let scratch = Scratch::new(&source);
-            let output = scratch.cli("check", false).output().unwrap();
+            let output = scratch.compiler("check", false).output().unwrap();
             assert!(!output.status.success());
             common::expect_code(&output, code);
         }

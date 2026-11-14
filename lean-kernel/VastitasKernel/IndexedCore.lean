@@ -96,12 +96,6 @@ def DataType.Valid (env : Declarations) : DataType → Prop
   | .indexed application => application.Valid env.indexed
   | .package id => (env.package? id).isSome = true
 
-def validType (env : Declarations) : DataType → Bool
-  | .pure _ => true
-  | .object type => decide (type.Valid env.indexed)
-  | .indexed application => validApplication env.indexed application
-  | .package id => (env.package? id).isSome
-
 def DataType.refs : DataType → List ObjectRef
   | .indexed application | .package application => application.refs
   | _ => []
@@ -131,13 +125,6 @@ def Result.Valid (env : Declarations) (result : Result) : Prop :=
   | .object _, none => False
   | _, none => True
   | _, some _ => False
-
-def validResult (env : Declarations) (result : Result) : Bool :=
-  validType env result.type && match result.type, result.reference with
-  | .object type, some reference => decide (WitnessFits env.indexed type reference)
-  | .object _, none => false
-  | _, none => true
-  | _, some _ => false
 
 /-- Only the closed primitive profile's operand/result shapes convert to its
 contract. No geometric function name or inferred native implementation is used. -/

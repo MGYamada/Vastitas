@@ -1,0 +1,1 @@
+examples/reject/packages/frame-component-bound/main.vast:19:5: E_ENDPOINT: third reads component 2 of an array with frame b, but b is a frame of a 2-dimensional object, so the component must be below 2

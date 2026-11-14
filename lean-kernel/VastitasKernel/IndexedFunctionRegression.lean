@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedFunctionCheck
 import VastitasKernel.IndexedSourceBodyRegression
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.FunctionSource.Regression
 open Compiler
@@ -31,8 +32,7 @@ private def program (functions : List Function) : Program :=
     modules := pkg.modules.map fun m => ⟨m.module, m.declarations,
       if pkg.id.source == p.root && m.module.path.isEmpty then functions else []⟩ } }
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed Fn regression failed: {name}")
+private def check := RegressionSupport.check "indexed Fn regression failed"
 private def accepts (name : String) (p : Program) (requireMain := true) : IO Unit :=
   match Compiler.checkProgram p requireMain with
   | .error diagnostic => throw (IO.userError s!"indexed Fn {name}: {diagnostic.code}: {diagnostic.message}")

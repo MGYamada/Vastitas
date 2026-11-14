@@ -1,0 +1,12 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::frame::Frame;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declarations
+// The inverse of columns((1, 0), (x, 2)) has the second column (-x/2, 1/2);
+// the declared one drops the factor 1/2 of its first entry.
+indexed frame r: Frame<Plane> = columns((1, 0), (x, 2)) inverse = columns((1, 0), (-1 * x, frac(1, 2)));
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

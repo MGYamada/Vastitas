@@ -1,6 +1,6 @@
 // Rejected by the kernel: `compose` of two maps whose middle objects differ (tests/usability_kernel.rs).
 indexed marker QQ;
-indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dim);
 indexed classification Scheme { parents(); domain(Grid); };
 indexed global Base(Grid);
 indexed family Point(object(Scheme), object(Scheme)) = point constraints(same_base(0, 1));

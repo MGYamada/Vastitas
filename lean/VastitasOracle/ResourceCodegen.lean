@@ -1,18 +1,13 @@
 import VastitasOracle.ResourceSource
 import VastitasOracle.IndexedCodegen
 import VastitasOracle.StorageCodegen
+import VastitasOracle.Support
 
 /-! Acceptance certificates for the real public resource emit path. These
 theorems do not interpret generated text or prove native heap/float refinement. -/
 namespace VastitasOracle.ResourceCodegen
 open VastitasKernel VastitasKernel.Storage VastitasKernel.Indexed
-
-private theorem bind_success {action : Except ε α} {next : α → Except ε β} {output : β}
-    (accepted : action.bind next = .ok output) :
-    ∃ value, action = .ok value ∧ next value = .ok output := by
-  cases action with
-  | error problem => cases accepted
-  | ok value => exact ⟨value, rfl, accepted⟩
+open VastitasOracle.Support (bind_success)
 
 private theorem mapError_success {action : Except ε α} {f : ε → δ} {output : α}
     (accepted : action.mapError f = .ok output) : action = .ok output := by

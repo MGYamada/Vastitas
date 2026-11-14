@@ -1,0 +1,79 @@
+// The frame primitives of Stage 4 (#759), each lowered from `main`; the emit
+// golden test pins the generated Lean. On the plane: the constant frame
+// b = columns((1, 0), (1, 2)) and the polynomial frame r = columns((1, 0),
+// (x, 1)) with its declared inverse; on the line: the constant frame
+// l = columns((2)). At p = (1, 2), f(x, y) = x^2 + y has the differential
+// (2, 1). Each observation adds its own power of two, so `main` returns 42
+// only when all hold.
+indexed marker CInfReal;
+indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+indexed classification CInfAffine { parents(); domain(SmoothR); };
+indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+indexed family Tangent(object(CInfAffine)) = tangent constraints(canonical(0));
+indexed family Frame(object(CInfAffine)) = frame constraints(canonical(0));
+indexed family Coords(frame(Frame)) = frame_vector;
+indexed family CoCoords(frame(Frame)) = frame_covector;
+indexed family FrameMap(frame(Frame), frame(Frame)) = frame_map;
+indexed affine Pt(SmoothR) = Affine(0)[];
+indexed affine Line(SmoothR) = Affine(1)[t];
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+indexed frame r: Frame<Plane> = columns((1, 0), (x, 1)) inverse = columns((1, 0), (-x, 1));
+indexed frame l: Frame<Line> = columns((2));
+
+indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+indexed primitive differential = differential(Smooth, Cotangent, Line);
+indexed primitive same_covector = fiber_equal(Cotangent);
+
+// Arrays in a frame, and back. Each names its frame.
+indexed primitive enc_b = frame_encode(Tangent, Coords, frame = b);
+indexed primitive coenc_b = frame_encode(Cotangent, CoCoords, frame = b);
+indexed primitive dec_r = frame_decode(Coords, Tangent, frame = r);
+indexed primitive codec_b = frame_decode(CoCoords, Cotangent, frame = b);
+indexed primitive vec_r = frame_vector(Coords, Smooth, frame = r);
+// The matrix of f in two pairs of frames, and the change from r to b.
+indexed primitive matrix_bl = frame_matrix(Smooth, FrameMap, source = b, target = l);
+indexed primitive matrix_rl = frame_matrix(Smooth, FrameMap, source = r, target = l);
+indexed primitive move_rb = frame_transition(Smooth, FrameMap, source = r, target = b);
+// Contraction in frames, and observations.
+indexed primitive apply_map = frame_apply(FrameMap, Coords);
+indexed primitive coapply_map = frame_coapply(FrameMap, CoCoords);
+indexed primitive then = frame_compose(FrameMap);
+indexed primitive pairing = frame_pairing(CoCoords, Coords);
+indexed primitive first = frame_component(Coords, 0);
+indexed primitive entry_01 = frame_entry(FrameMap, 0, 1);
+indexed primitive same_map = frame_equal(FrameMap);
+indexed primitive same_coords = frame_equal(Coords);
+indexed primitive over = frame_at(Coords, Smooth);
+
+indexed morphism f: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A component or entry reads n / 1.
+fn whole(value: Pair<Int>, n: Int) -> Bool {
+    pair_first(value) == n && pair_second(value) == 1
+}
+
+fn main() -> Int {
+    let p: Smooth<Pt, Plane> = plane_at(1, 2);
+    // The array (1, 2) in r is the vector (3, 2), whose array in b is (2, 1).
+    let a: Coords<r> = vec_r(p, 1, 2);
+    let v: Tangent<Plane> = dec_r(a);
+    let w: Coords<b> = enc_b(v);
+    // The covector dg = (2, 1) has the array (2, 4) in b.
+    let dg: Cotangent<Plane> = differential(f(), p);
+    let alpha: CoCoords<b> = coenc_b(dg);
+    42 + verdict(whole(first(w), 2) && over(w, p) && over(a, p), 1)
+       // The change from r to b takes a to w.
+       + verdict(same_coords(apply_map(move_rb(p), a), w), 2)
+       // dg(v) = 8 in each frame, and alpha decodes to dg.
+       + verdict(whole(pairing(alpha, w), 8) && whole(pairing(coapply_map(move_rb(p), alpha), a), 8), 4)
+       + verdict(same_covector(codec_b(alpha), dg), 8)
+       // M_bl = (1, 2); after the change from r it is M_rl = (1, 3/2).
+       + verdict(whole(entry_01(matrix_bl(f(), p)), 2), 16)
+       + verdict(same_map(then(matrix_bl(f(), p), move_rb(p)), matrix_rl(f(), p)), 32)
+}

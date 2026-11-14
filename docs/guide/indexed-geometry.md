@@ -35,7 +35,7 @@ of dimension zero over `QQ`.
 
 `id(X)` is the identity morphism of `X`, of type `Morphism<X, X>`.
 `compose(g, f)` is `g` after `f`, and `apply(f, p)` is the image of the point
-`p` under the morphism `f`. `dimension(X)` is the dimension of `X`, a `Nat`.
+`p` under the morphism `f`. `dim(X)` is the dimension of `X`, a `Nat`.
 
 The second parameter of `carry` has a type that names the first parameter.
 `p` is a point of the object that the caller passes as `X`, and the result
@@ -161,7 +161,7 @@ The program reads like the programs above, with the names of the library:
   [family](../appendix/glossary.md#family) of types that the library
   declares. The type applies it to the object `X` and to `BaseQQ`, the base
   object of the library.
-- `scheme::id`, `scheme::compose`, `scheme::apply` and `scheme::dimension`
+- `scheme::id`, `scheme::compose`, `scheme::apply` and `scheme::dim`
   are the operations of the library.
 
 The package depends on the standard library under the alias `std`. Generate

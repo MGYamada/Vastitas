@@ -1,0 +1,1 @@
+examples/reject/packages/frame-singular/main.vast:8:1: E_FRAME: the constant frame `frame_singular::flattened` on `frame_singular::Plane` is singular: its columns are not a basis of the tangent fibers

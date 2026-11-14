@@ -1,0 +1,123 @@
+// Frames from the standard library and physical dimensions from nature. On
+// the plane, the vector v = (3, 2) at p = (1, 2) has the array (2, 1) in the
+// frame b, and g(x, y) = x^2 + y has the matrix (1, 1/2) in the coordinate
+// frame e and the line frame l, and (1, 2) in b and l. On the chart C with a
+// length x and a time t, the metric G = diag(1/9, 1/4) is dx^2 / l0^2 +
+// dt^2 / t0^2 with l0 = 3 and t0 = 2, and the gradient of x + t under G is
+// (9, 4). Each observation has its own failure code, so `main` prints 42
+// only when all of them hold.
+// ANCHOR: imports
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::smooth::affine::Line;
+use std::geometry::smooth::affine::same_vector;
+use std::geometry::metric::MetricForm;
+use std::geometry::frame::Frame;
+use std::geometry::frame::Coords;
+use std::geometry::frame::FrameMap;
+use std::differential::differential;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Length;
+use nature::dimension::Time;
+// ANCHOR_END: imports
+
+// ANCHOR: frames
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+// The frame vectors of b are (1, 0) and (1, 2) at every point.
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+// e is the coordinate frame, and l has the frame vector 2 on the line.
+indexed frame e: Frame<Plane> = coordinates;
+indexed frame l: Frame<Line> = columns((2));
+// The frame vectors of r are (1, 0) and (x, 1) at the point (x, y).
+indexed frame r: Frame<Plane> = columns((1, 0), (x, 1)) inverse = columns((1, 0), (-x, 1));
+// ANCHOR_END: frames
+
+// ANCHOR: arrays
+indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+indexed primitive to_b = frame_encode(Tangent, Coords, frame = b);
+indexed primitive from_b = frame_decode(Coords, Tangent, frame = b);
+indexed primitive in_r = frame_vector(Coords, Smooth, frame = r);
+indexed primitive first = frame_component(Coords, 0);
+indexed primitive second = frame_component(Coords, 1);
+indexed primitive same_coords = frame_equal(Coords);
+// ANCHOR_END: arrays
+
+// ANCHOR: changes
+indexed primitive b_to_e = frame_transition(Smooth, FrameMap, source = b, target = e);
+indexed primitive r_to_b = frame_transition(Smooth, FrameMap, source = r, target = b);
+indexed primitive apply_map = frame_apply(FrameMap, Coords);
+// ANCHOR_END: changes
+
+// ANCHOR: matrices
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+indexed primitive matrix_el = frame_matrix(Smooth, FrameMap, source = e, target = l);
+indexed primitive matrix_bl = frame_matrix(Smooth, FrameMap, source = b, target = l);
+indexed primitive then = frame_compose(FrameMap);
+indexed primitive entry_00 = frame_entry(FrameMap, 0, 0);
+indexed primitive entry_01 = frame_entry(FrameMap, 0, 1);
+indexed primitive same_map = frame_equal(FrameMap);
+// ANCHOR_END: matrices
+
+// ANCHOR: chart
+indexed affine C(SmoothR) = Affine(2)[x, t];
+indexed reading phys: Reading<C> = (x: Length, t: Time);
+// ANCHOR_END: chart
+
+// ANCHOR: scaled
+indexed scale l0 = 3 of Length;
+indexed scale t0 = 2 of Time;
+indexed metric G: MetricForm<C> = gram((frac(1, 9), 0), (0, frac(1, 4)));
+indexed physical PG: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^-2, 0), (0, t0^-2)));
+// ANCHOR_END: scaled
+
+// ANCHOR: gradient
+indexed evidence GInvertible = nondegenerate(G);
+indexed primitive sharp_g = sharp(Cotangent, Tangent, using = G, evidence = GInvertible);
+indexed primitive chart_at = smooth_int_point(Smooth, C, Pt);
+indexed primitive vx = fiber_component(Tangent, C, x);
+indexed primitive vt = fiber_component(Tangent, C, t);
+indexed morphism h: Smooth<C, Line> = pullback(t -> x + t);
+
+fn gradient(f: Smooth<C, Line>, p: Smooth<Pt, C>) -> Tangent<C> {
+    sharp_g(differential(f, p))
+}
+// ANCHOR_END: gradient
+
+// ANCHOR: helpers
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A component or an entry reads n / d.
+fn reads(value: Pair<Int>, n: Int, d: Int) -> Bool {
+    pair_first(value) == n && pair_second(value) == d
+}
+// ANCHOR_END: helpers
+
+// ANCHOR: main
+fn main() -> Int {
+    // ANCHOR: encode
+    let p: Smooth<Pt, Plane> = plane_at(1, 2);
+    let v: Tangent<Plane> = vplane(p, 3, 2);
+    let w: Coords<b> = to_b(v);
+    // ANCHOR_END: encode
+    let grad: Tangent<C> = gradient(h(), chart_at(1, 2));
+    // The array of v in b is (2, 1), and it decodes to v.
+    42 + verdict(reads(first(w), 2, 1) && reads(second(w), 1, 1), 1)
+       + verdict(same_vector(from_b(w), v), 2)
+       // The change from b to e gives the coordinates of v, and the array
+       // (1, 2) in r is v as well.
+       + verdict(reads(first(apply_map(b_to_e(p), w)), 3, 1) && reads(second(apply_map(b_to_e(p), w)), 2, 1), 3)
+       + verdict(same_coords(apply_map(r_to_b(p), in_r(p, 1, 2)), w), 4)
+       // The matrix of g at p is (1, 1/2) in (e, l) and (1, 2) in (b, l),
+       // and one is the other after the change from b to e.
+       + verdict(reads(entry_00(matrix_el(g(), p)), 1, 1) && reads(entry_01(matrix_el(g(), p)), 1, 2), 5)
+       + verdict(reads(entry_00(matrix_bl(g(), p)), 1, 1) && reads(entry_01(matrix_bl(g(), p)), 2, 1), 6)
+       + verdict(same_map(then(matrix_el(g(), p), b_to_e(p)), matrix_bl(g(), p)), 7)
+       // The gradient of x + t under G is (9, 4).
+       + verdict(reads(vx(grad), 9, 1) && reads(vt(grad), 4, 1), 8)
+}
+// ANCHOR_END: main

@@ -1,0 +1,3 @@
+pub fn length() -> Int { 30 }
+
+pub fn width() -> Int { 10 }

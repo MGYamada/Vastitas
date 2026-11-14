@@ -1,5 +1,6 @@
 import VastitasOracle.IndexedReverseCore
 import VastitasOracle.SmoothReverseCore
+import VastitasOracle.Support
 
 set_option autoImplicit false
 
@@ -57,6 +58,7 @@ open VastitasKernel.Indexed.Core.Reverse
 open VastitasKernel.SmoothRuntime (Program FiberValue Fiber PullbackMode pullback coordinates)
 open VastitasOracle.IndexedEvaluation (Evaluates ArgumentsEvaluate)
 open VastitasOracle.SmoothReverseCore
+open VastitasOracle.Support (mapM_some_mem mapM_some_getElem?)
 
 /-! ## The maps that `resolve` reads -/
 
@@ -134,21 +136,6 @@ theorem leaves_declared {env : Declarations} : ∀ {tree : Tree}, TreeDeclared e
     rcases List.mem_append.mp member with member | member
     · exact leaves_declared declared.2 leaf member
     · exact leaves_declared declared.1 leaf member
-
-theorem mapM_some_mem {α β : Type} {f : α → Option β} : ∀ {as : List α} {bs : List β},
-    as.mapM f = some bs → ∀ b ∈ bs, ∃ a ∈ as, f a = some b
-  | [], bs, mapped, b, member => by
-    simp only [List.mapM_nil, Option.pure_def, Option.some.injEq] at mapped
-    subst mapped
-    cases member
-  | a :: as, bs, mapped, b, member => by
-    simp only [List.mapM_cons, Option.pure_def, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.some.injEq] at mapped
-    obtain ⟨head, found, rest, mappedRest, rfl⟩ := mapped
-    rcases List.mem_cons.mp member with rfl | member
-    · exact ⟨a, List.mem_cons_self, found⟩
-    · obtain ⟨a', member', found'⟩ := mapM_some_mem mappedRest b member
-      exact ⟨a', List.mem_cons_of_mem a member', found'⟩
 
 /-- The steps that `stepsOf` reads from declared leaves: every declared step
 names two objects in its map type and carries the morphism of its leaf. -/
@@ -738,23 +725,6 @@ theorem eval_primitive_some {module : Module} {fuel : Nat} {values : Values} {id
   obtain ⟨binding, found, operands, mapped, operated⟩ := evaluated
   exact ⟨binding, operands, found, mapped, operated⟩
 
-theorem mapM_getElem? {α β : Type} {f : α → Option β} : ∀ {as : List α} {bs : List β}, as.mapM f = some bs →
-    ∀ {index : Nat} {a : α}, as[index]? = some a → ∃ b, bs[index]? = some b ∧ f a = some b
-  | [], _, _, _, _, found => by simp at found
-  | _ :: _, _, mapped, index, _, found => by
-    simp only [List.mapM_cons, Option.pure_def, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.some.injEq] at mapped
-    obtain ⟨head, headFound, rest, restMapped, rfl⟩ := mapped
-    cases index with
-    | zero =>
-      simp only [List.getElem?_cons_zero, Option.some.injEq] at found
-      subst found
-      exact ⟨head, rfl, headFound⟩
-    | succ index =>
-      simp only [List.getElem?_cons_succ] at found
-      obtain ⟨b, at', image⟩ := mapM_getElem? restMapped found
-      exact ⟨b, by simpa using at', image⟩
-
 /-- A rule of the source declarations is a rule of a module that keeps their
 bindings. -/
 theorem ruleOf_transfer {env : Declarations} {module : Module}
@@ -788,8 +758,8 @@ theorem chain_operands {module : Module} {values : Values} {bound : Nat} {id : D
     rw [found, Option.some.injEq] at found'
     subst found'
     obtain ⟨outer, inner, _, outerAt, innerAt, same⟩ := (sound _ _ _).mp operated
-    obtain ⟨outerValue, outerFound, outerEval⟩ := mapM_getElem? mapped atAfter
-    obtain ⟨innerValue, innerFound, innerEval⟩ := mapM_getElem? mapped atBefore
+    obtain ⟨outerValue, outerFound, outerEval⟩ := mapM_some_getElem? mapped atAfter
+    obtain ⟨innerValue, innerFound, innerEval⟩ := mapM_some_getElem? mapped atBefore
     rw [outerAt, Option.some.injEq] at outerFound
     rw [innerAt, Option.some.injEq] at innerFound
     subst outerFound innerFound

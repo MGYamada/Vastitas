@@ -23,6 +23,11 @@ def entryValue {program : Program} (checked : Checked program true) (entry : Nat
 
 private def slotName (slot : Nat) : String := s!"resourceValue_{slot}"
 
+/-- The call of the checked Core function `function` on the value slots
+`arguments`. -/
+private def valueCall (function : Nat) (arguments : List Symbol) : String :=
+  Core.Codegen.functionReference function ++ String.join (arguments.map fun argument => " " ++ slotName argument)
+
 /-- Emit mixed operations from the exact checked Core target table. The returned
 native instruction projection is compared with the independently audited raw
 resource plan before any generated text is returned. -/
@@ -32,7 +37,7 @@ private def mixed (targets : List ResourcePure.Target) : Nat → Nat → Storage
   | _, _, state, shapes, [] => pure (state, shapes, [], "")
   | 0, _, _, _, _ :: _ => error "mixed code generation exceeds traversal bound"
   | fuel + 1, indent, state, shapes, first :: rest => do
-    let spaces := String.ofList (List.replicate indent ' ')
+    let spaces := NativeText.indentation indent
     let storage {α} (result : Except Storage.Error α) : Except Diagnostic α :=
       result.mapError fun problem => {code := problem.code, message := problem.message}
     let (after, shapeAfter, instructions, source) ← match first with
@@ -44,8 +49,7 @@ private def mixed (targets : List ResourcePure.Target) : Nat → Nat → Storage
         pure (state, after, [], source)
       | .value name fragment arguments => do
         let some target := targets[fragment]? | error "missing checked pure fragment target"
-        let call := Core.Codegen.functionReference target.function ++
-          String.join (arguments.map fun argument => " " ++ slotName argument)
+        let call := valueCall target.function arguments
         pure (state, {shapes with slots := (name, target.signature.result) :: shapes.slots},
           [], spaces ++ s!"let {slotName name} := {call}\n")
       | .branch condition yes no => do
@@ -121,8 +125,7 @@ def generateChecked {program : Program} (checked : Checked program true) : Excep
       error "mixed emission differs from the independently checked resource plan"
     unless finalShapes.resources == execution.checked.shapes.resources.after do
       error "runtime shape emission differs from the independently checked symbolic plan"
-    let resultCall := Core.Codegen.functionReference target.function ++
-      String.join (arguments.map fun argument => " " ++ slotName argument)
+    let resultCall := valueCall target.function arguments
     let shapeNumerical := execution.checked.shapes.events.any fun event =>
       match event with | .action (.gemm _) => true | _ => false
     let needsNumerical := plan.needsNumerical || shapeNumerical

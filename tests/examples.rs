@@ -36,21 +36,6 @@ fn documented_build(inputs: &[&str], build_options: &[&str], expected: &str) {
     );
 }
 
-/// The build options of a numerical package in the numerical CI jobs: the
-/// pinned OpenBLAS prefix and the native compiler. The compiler is the one
-/// that the job names, or `default_cc` where the job names none.
-fn numerical_build_options(default_cc: Option<&str>) -> Vec<String> {
-    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix");
-    let mut options = vec!["--openblas-prefix".to_owned(), prefix];
-    let cc = std::env::var("VASTITAS_TEST_NATIVE_CC")
-        .ok()
-        .or_else(|| default_cc.map(str::to_owned));
-    if let Some(cc) = cc {
-        options.extend(["--native-cc".to_owned(), cc]);
-    }
-    options
-}
-
 fn documented(inputs: &[&str], expected: &str) {
     documented_build(inputs, &[], expected);
 }
@@ -131,6 +116,7 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/stdlib-arithmetic/Vastitas.toml", "42"),
     ("examples/packages/inline-module/Vastitas.toml", "42"),
     ("examples/packages/module-paths/Vastitas.toml", "42"),
+    ("examples/packages/module-names/Vastitas.toml", "42"),
     ("examples/packages/indexed/Vastitas.toml", "42"),
     ("examples/packages/indexed-objects/Vastitas.toml", "42"),
     ("examples/packages/geometry-compat/Vastitas.toml", "42"),
@@ -138,6 +124,9 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/affine-geometry/Vastitas.toml", "42"),
     ("examples/packages/stdlib-affine/Vastitas.toml", "42"),
     ("examples/packages/smooth-geometry/Vastitas.toml", "42"),
+    ("examples/packages/frames/Vastitas.toml", "42"),
+    ("examples/packages/physical-dimensions/Vastitas.toml", "42"),
+    ("examples/packages/stdlib-frames/Vastitas.toml", "42"),
     ("examples/packages/storage/app/Vastitas.toml", "42"),
     ("examples/packages/vector-cells/Vastitas.toml", "42"),
     ("examples/packages/runtime-extents/Vastitas.toml", "42"),
@@ -197,6 +186,8 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
 const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/private-function",
     "examples/reject/packages/import-collision",
+    "examples/reject/packages/geometric-use",
+    "examples/reject/packages/geometric-function",
     "examples/reject/packages/foreign-method",
     "examples/reject/packages/outside-region",
     "examples/reject/packages/private-dependency",
@@ -226,6 +217,21 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/smooth-default-metric",
     "examples/reject/packages/smooth-seed-object",
     "examples/reject/packages/smooth-other-line",
+    "examples/reject/packages/frame-constant-inverse",
+    "examples/reject/packages/frame-missing-inverse",
+    "examples/reject/packages/frame-encode-variance",
+    "examples/reject/packages/frame-apply-frame",
+    "examples/reject/packages/frame-component-bound",
+    "examples/reject/packages/dimension-reading-coordinate",
+    "examples/reject/packages/dimension-scale-magnitude",
+    "examples/reject/packages/dimension-gram-magnitude",
+    "examples/reject/packages/dimension-declared-value",
+    "examples/reject/packages/frame-singular",
+    "examples/reject/packages/frame-wrong-inverse",
+    "examples/reject/packages/frame-other-frame",
+    "examples/reject/packages/frame-other-object",
+    "examples/reject/packages/dimension-dx2-dt2",
+    "examples/reject/packages/dimension-wrong-kind",
     "examples/reject/packages/affine-off-chain",
     "examples/reject/packages/affine-missing-image",
     "examples/reject/packages/affine-relation",
@@ -406,7 +412,7 @@ fn abstract_selectors() {
     documented(&["examples/abstract-selectors.vast"], "42");
 }
 
-// stdlib/README.md: the flat example with the three explicit libraries.
+// stdlib/docs/arithmetic.md: the flat example with the three explicit libraries.
 #[test]
 fn flat_promotion() {
     documented(
@@ -423,7 +429,7 @@ fn flat_promotion() {
     );
 }
 
-// docs/language/programs.md (Flat mode) and stdlib/README.md.
+// docs/language/programs.md (Flat mode) and stdlib/docs/arithmetic.md.
 #[test]
 fn stdlib_arithmetic() {
     documented(
@@ -532,7 +538,7 @@ fn smooth_differential_package() {
     );
 }
 
-// stdlib/src/geometry/README.md: the smooth affine profile from the standard
+// stdlib/docs/differential.md: the smooth affine profile from the standard
 // library, run in place. tests/stdlib_differential.rs runs copies of it,
 // mutated.
 #[test]
@@ -581,7 +587,7 @@ fn runtime_shapes_package_checks_without_blas() {
 #[ignore = "requires pinned sequential LP64 OpenBLAS"]
 fn runtime_shapes_package_runs_with_openblas() {
     // As tests/runtime_shape_source.rs builds runtime shapes: with `cc` named.
-    let options = numerical_build_options(Some("cc"));
+    let options = common::numerical_build_options(Some("cc"));
     let options: Vec<&str> = options.iter().map(String::as_str).collect();
     documented_build(
         &[
@@ -600,7 +606,7 @@ fn runtime_shapes_package_runs_with_openblas() {
 #[ignore = "requires pinned sequential LP64 OpenBLAS"]
 fn book_numerical_packages_print_their_output() {
     // As tests/numerical_source.rs builds the same sources.
-    let options = numerical_build_options(None);
+    let options = common::numerical_build_options(None);
     let options: Vec<&str> = options.iter().map(String::as_str).collect();
     for (manifest, expected) in BOOK_NUMERICAL_PACKAGES {
         documented_build(&["--manifest-path", manifest], &options, expected);

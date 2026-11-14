@@ -1,0 +1,15 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Length;
+use nature::dimension::Time;
+
+indexed affine C(SmoothR) = Affine(2)[x, t];
+
+// ANCHOR: declaration
+// The reading names x and not t.
+indexed reading phys: Reading<C> = (x: Length);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

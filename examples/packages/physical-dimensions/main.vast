@@ -1,0 +1,82 @@
+// Physical dimensions of the chart C with a length coordinate x and a time
+// coordinate t: a reading, scales, and physical interpretations of two std
+// metrics, G = diag(1/9, 1/4) and M = diag(1, -9). The interpretations are
+// checked declarations and change no value: `main` computes gradients with
+// the std metrics alone. Each observation has its own failure code, so
+// `main` prints 42 only when all of them hold.
+// ANCHOR: imports
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::smooth::affine::Line;
+use std::geometry::metric::MetricForm;
+use std::differential::differential;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::L;
+use nature::dimension::T;
+use nature::dimension::Length;
+use nature::dimension::Time;
+use nature::dimension::Speed;
+// ANCHOR_END: imports
+
+// ANCHOR: dimensions
+// A base dimension of the program, and quantity kinds of its own.
+indexed base_dimension Theta;
+indexed quantity Temperature = Theta;
+indexed quantity Frequency = T^-1;
+indexed quantity Acceleration = L * T^-2;
+indexed quantity Ratio = 1;
+// ANCHOR_END: dimensions
+
+// ANCHOR: chart
+indexed affine C(SmoothR) = Affine(2)[x, t];
+indexed reading phys: Reading<C> = (x: Length, t: Time);
+// ANCHOR_END: chart
+
+// ANCHOR: scales
+indexed scale l0 = 3 of Length;
+indexed scale t0 = 2 of Time;
+indexed scale c = 3 of Speed;
+indexed scale half = frac(1, 2) of Ratio;
+// ANCHOR_END: scales
+
+// ANCHOR: metrics
+indexed metric G: MetricForm<C> = gram((frac(1, 9), 0), (0, frac(1, 4)));
+indexed metric M: MetricForm<C> = gram((1, 0), (0, -9));
+indexed evidence GInvertible = nondegenerate(G);
+indexed evidence MInvertible = nondegenerate(M);
+// ANCHOR_END: metrics
+
+// ANCHOR: physical
+// G is dx^2 / l0^2 + dt^2 / t0^2, a dimensionless sum.
+indexed physical PG: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^-2, 0), (0, t0^-2)));
+indexed physical PN: PhysicalMetric<C> = interpret(G, reading = phys, normalized(x: l0, t: t0), value = 1);
+// M is dx^2 - c^2 dt^2, whose terms have the dimension L^2.
+indexed physical PM: PhysicalMetric<C> = interpret(M, reading = phys, gram((1, 0), (0, -c^2)), value = L^2);
+// ANCHOR_END: physical
+
+indexed primitive sharp_g = sharp(Cotangent, Tangent, using = G, evidence = GInvertible);
+indexed primitive sharp_m = sharp(Cotangent, Tangent, using = M, evidence = MInvertible);
+indexed primitive chart_at = smooth_int_point(Smooth, C, Pt);
+indexed primitive vx = fiber_component(Tangent, C, x);
+indexed primitive vt = fiber_component(Tangent, C, t);
+indexed morphism h: Smooth<C, Line> = pullback(t -> x + t);
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A component reads n / d.
+fn reads(value: Pair<Int>, n: Int, d: Int) -> Bool {
+    pair_first(value) == n && pair_second(value) == d
+}
+
+fn main() -> Int {
+    let p: Smooth<Pt, C> = chart_at(1, 2);
+    // The gradients of h(x, t) = x + t under G and under M.
+    let grad: Tangent<C> = sharp_g(differential(h(), p));
+    let lorentz: Tangent<C> = sharp_m(differential(h(), p));
+    42 + verdict(reads(vx(grad), 9, 1) && reads(vt(grad), 4, 1), 1)
+       + verdict(reads(vx(lorentz), 1, 1) && reads(vt(lorentz), -1, 9), 2)
+}

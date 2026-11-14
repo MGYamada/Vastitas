@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedSemantics
 import VastitasKernel.IndexedCoreRegression
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.Core.PackageSemanticRegression
 open Semantics
@@ -30,8 +31,7 @@ def globalWitnessFixture : Module := moduleWith
       (.unpack 70 [71] (.variable 62 ⟨.package packed, none⟩)
         (.natToInt (.primitive (id "dimension") [witness 70] ⟨.pure .nat, none⟩))))))
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed package semantics regression failed: {name}")
+private def check := RegressionSupport.check "indexed package semantics regression failed"
 
 #eval check "global witness can be packaged and reopened twice" (Typing.checkModule globalWitnessFixture true).isOk
 #eval check "global-witness fixture preserves zero-dimensional payload" (decide

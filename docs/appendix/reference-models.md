@@ -29,10 +29,14 @@ that change, and many sections name the revision that they inspected. The
 opening table of each chapter states what the compiler implements today.
 
 The tests of every model run in the continuous integration, in the step
-`python3 -m unittest discover -s scripts -p 'test_*.py'`. They need Python 3.10
-or later and its standard library. One test of the diagnostics model runs
-the built compiler, and the step skips it where the compiler is not built; the
-native compiler jobs run it after their build.
+`python3 -m unittest discover -s scripts -p 'test_*.py'`. The models and their
+tests need Python 3.10 or later and its standard library. The same step runs
+the tests of the checkers under `scripts/`, some of which read TOML with the
+module `tomllib`, so the step needs Python 3.11 or later. The continuous
+integration runs it with the Python that
+[What CI runs](../development/validation.md#what-ci-runs) names. One test of
+the diagnostics model runs the built compiler, and the step skips it where the
+compiler is not built; the native compiler jobs run it after their build.
 
 ## The models and the compiler
 
@@ -40,13 +44,13 @@ native compiler jobs run it after their build.
 | --- | --- | --- |
 | [Diagnostics, doctests and identifiers](../reference/compiler-tools.md) | [Non-punitive diagnostics](../reference/compiler-tools.md#diagnostic-reference) · [Expected-rejection doctest results](../reference/compiler-tools.md#doctest-result-reference) · [Identifier ASCII round-trip](../reference/compiler-tools.md#identifier-ascii-reference) | Implemented: [diagnostics](../language/diagnostics.md) with a code, a message, a place and notes, and ASCII [identifiers](../language/lexical-structure.md#identifiers). Tested: the rejected programs of this book against the diagnostics that the compiler prints. The records of the three models are models only |
 | [Analysis, certificates and random supplies](../reference/analysis-and-effects.md) | [ℓ² tail certificates](../reference/analysis-and-effects.md#l2-tail-reference) · [Polynomial integral enclosures](../reference/analysis-and-effects.md#integral-reference) · [SOS covers](../reference/analysis-and-effects.md#sos-reference) · [Random supplies](../reference/analysis-and-effects.md#rand-reference) · [Derivative-rule coherence](../reference/analysis-and-effects.md#derivative-coherence-reference) | Implemented: the [principal opens](../affine-geometry.md#principal-opens) of a presented affine object, and reverse pullbacks of polynomial [smooth maps](../language/smooth-declarations.md#reverse-pass-primitives). The five models are models only |
-| [Exact geometry reference models](../reference/geometry.md) | [Real-plane metrics](../reference/geometry.md#metric-reference) · [Polynomial symplectic maps](../reference/geometry.md#symplectic-reference) · [First variations](../reference/geometry.md#variational-reference) · [Finite Čech covers](../reference/geometry.md#cech-reference) · [SSH Bloch and Fermi schemes](../reference/geometry.md#ssh-toric-reference) · [Elliptic addition](../reference/geometry.md#elliptic-reference) · [Pointwise Hodge star](../reference/geometry.md#hodge-reference) · [Standard étale charts](../reference/geometry.md#etale-reference) | Implemented: constant rational [metrics](../language/smooth-declarations.md#metrics) with evidence, `flat` and `sharp` on smooth affine objects, and [presented affine objects](../affine-geometry.md) over the rational numbers with their principal opens. Tested: the smooth runtime of the kernel against a fixture of the metric model. Proved: seven theorems on the Hodge star of basis vectors in the proof oracle. The coordinate changes of the metric model and the other seven models are models only |
+| [Exact geometry reference models](../reference/geometry.md) | [Real-plane metrics](../reference/geometry.md#metric-reference) · [Real-plane frames](../reference/geometry.md#frame-reference) · [Polynomial symplectic maps](../reference/geometry.md#symplectic-reference) · [First variations](../reference/geometry.md#variational-reference) · [Finite Čech covers](../reference/geometry.md#cech-reference) · [SSH Bloch and Fermi schemes](../reference/geometry.md#ssh-toric-reference) · [Elliptic addition](../reference/geometry.md#elliptic-reference) · [Pointwise Hodge star](../reference/geometry.md#hodge-reference) · [Standard étale charts](../reference/geometry.md#etale-reference) | Implemented: constant rational [metrics](../language/smooth-declarations.md#metrics) with evidence, `flat` and `sharp` on smooth affine objects, constant and polynomial frames of smooth affine objects, and [presented affine objects](../affine-geometry.md) over the rational numbers with their principal opens. Tested: the smooth runtime of the kernel against a fixture of the metric model, and the frame runtime and frame checks against a fixture of the frame model. Proved: seven theorems on the Hodge star of basis vectors in the proof oracle. The coordinate changes of the metric model and the other seven models are models only |
 | [Algebra, order and symmetry reference models](../reference/algebra-and-symmetry.md) | [CAR and ordinary spin](../reference/algebra-and-symmetry.md#car-spin-reference) · [Orders, lattices and Galois connections](../reference/algebra-and-symmetry.md#order-reference) · [Time reversal](../reference/algebra-and-symmetry.md#time-reversal-reference) · [Finite spectral pairs](../reference/algebra-and-symmetry.md#finite-spectral-reference) | Implemented: the capability `HasOrder` of the scalar types `Nat` and `Int`, which [Generics and dispatch](../stage1a.md) specifies. The four models are models only |
 | [Execution and planning reference models](../reference/execution-plans.md) | [CUDA storage reuse](../reference/execution-plans.md#cuda-reuse-reference) · [CSR patterns and SpGEMM](../reference/execution-plans.md#sparse-reference) · [Reduction plans](../reference/execution-plans.md#reduction-reference) · [Float and SafeFloat](../reference/execution-plans.md#float-reference) · [Dependency invalidation](../reference/execution-plans.md#incremental-reference) | Implemented: [storage](../storage-ownership.md) on the host, dense [numerical maps](../linalg/maps-and-gemm.md) with their matrix products, and the [contraction trees](../linalg/networks-and-packing.md#contraction-trees) that a program declares. The five models are models only |
 
 ## Models of components of the compiler
 
-Four reference models model a component that the compiler has. Each is
+Five reference models model a component that the compiler has. Each is
 described next to that component:
 
 - the model of the
@@ -64,7 +68,13 @@ described next to that component:
   [real-plane metrics](../reference/geometry.md#metric-reference). It is an
   oracle: a kernel regression compares the smooth runtime of the kernel with
   that fixture, as the [Stage 3 acceptance record](../stage3-acceptance.md#c16)
-  states.
+  states;
+- the model of [real-plane frames](../reference/geometry.md#frame-reference),
+  `scripts/frame_reference.py`. It is an oracle: a kernel regression
+  compares the frame runtime of the kernel with the fixture that it writes,
+  and another checks the frame declarations against a transcription of its
+  frames, as the
+  [Stage 4 acceptance record](../stage4-acceptance.md#c15) states.
 
 ## Supporting modules
 
@@ -72,7 +82,8 @@ Two modules hold arithmetic that several models share. They are no models of
 their own, and each has its own tests:
 
 - `scripts/rational_polynomial_reference.py` holds exact sparse polynomials
-  with rational coefficients. Seven models import it: the models of
+  with rational coefficients. Eight models import it: the models of
+  [real-plane metrics](../reference/geometry.md#metric-reference),
   [symplectic maps](../reference/geometry.md#symplectic-reference),
   [SOS covers](../reference/analysis-and-effects.md#sos-reference),
   [integral enclosures](../reference/analysis-and-effects.md#integral-reference),

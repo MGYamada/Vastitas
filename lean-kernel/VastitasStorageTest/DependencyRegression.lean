@@ -1,10 +1,10 @@
 import VastitasStorageTest.NumericalFixture
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.DependencyRegression
 open NumericalFixture Numerical
 
-private def ensure (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"storage dependency: {label}")
+private def ensure := RegressionSupport.check "storage dependency"
 
 private def rawSetup : List Storage.Statement := ([
   .allocate 0 .f64 1, .allocate 1 .f64 1,

@@ -117,7 +117,7 @@ of the program would leave the cycle.
 Together the two rules mean that every call of every function ends. The
 price is that a function cannot repeat a step a number of times that its
 arguments decide. A program gets repetition from the operations of the
-language. A matrix product in [Chapter 11](numerical.md) is one operation,
+language. A matrix product in [Chapter 12](numerical.md) is one operation,
 however large its matrices are.
 
 ## Pairs

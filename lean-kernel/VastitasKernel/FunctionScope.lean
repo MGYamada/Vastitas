@@ -69,7 +69,7 @@ mutual
 end
 
 def builtinNames : List String :=
-  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int", "pair", "pair_first", "pair_second", "QQ", "CInfReal"]
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dim", "int", "pair", "pair_first", "pair_second", "QQ", "CInfReal"]
 
 def Program.globals (p : Program) : List String :=
   p.functions.map (·.name) ++ p.generics.map (·.name) ++ builtinNames
@@ -103,7 +103,8 @@ mutual
       match expr with
       | .variable name span => return nameProblem globals bound outer name span
       | .call name args span =>
-        if let some problem := nameProblem globals bound outer name span then return some problem
+        if let some problem := nameProblem globals bound outer name span then
+          return some (retiredDimension name span problem)
         return args.findSome? (expressionProblem fuel globals bound outer)
       | .invoke callee args _ =>
         if let some problem := expressionProblem fuel globals bound outer callee then return some problem
@@ -194,28 +195,16 @@ def Program.lambdaShadowDiagnostic (p : Program) : Option Diagnostic :=
 def LambdaShadowFree (p : Program) : Prop := p.lambdaShadowDiagnostic.isNone = true
 instance (p : Program) : Decidable (LambdaShadowFree p) := inferInstanceAs (Decidable (_ = _))
 
--- First-order fixture conversion is exact only when no global function is used
--- as a value. This helper does not select an acceptance path.
-mutual
-  def valueNames : Expr → List String
-    | .variable name _ => [name]
-    | .call _ args _ => args.flatMap valueNames
-    | .invoke callee args _ => valueNames callee ++ args.flatMap valueNames
-    | .lambda _ _ body _ | .block body _ => blockValueNames body
-    | .unary _ value _ => valueNames value
-    | .binary _ left right _ | .pack left right _ => valueNames left ++ valueNames right
-    | .ite condition yes no _ => valueNames condition ++ blockValueNames yes ++ blockValueNames no
-    | _ => []
-  def blockValueNames : Block → List String
-    | .mk statements result _ => statements.flatMap stmtValueNames ++ valueNames result
-  def stmtValueNames : Stmt → List String
-    | .letE _ _ value _ | .unpack value _ _ _ => valueNames value
-end
-
-def Program.legacyExact (p : Program) : Option RawProgram :=
-  if (p.functions.flatMap (fun f => blockValueNames f.body) ++
-      p.methods.flatMap (fun m => blockValueNames m.body)).any
-      (fun name => (p.functions.map (·.name) ++ p.generics.map (·.name)).contains name) then none
-  else p.legacy
+-- Body-less headers are used only to reuse declaration and finite-family
+-- validation. The actual bodies are checked separately, never these placeholders.
+def headers (p : Program) : RawProgram := {
+  version := p.version, file := p.file, generics := p.generics
+  abstractTypes := p.abstractTypes, subtypes := p.subtypes, abstractMethods := p.abstractMethods
+  functions := p.functions.map fun f => {
+    name := f.name, params := f.params.map fun param => { name := param.name, ty := param.ty.core, span := param.span }
+    returnType := f.result.core, body := .mk [] (.unit f.span) f.span, span := f.span }
+  methods := p.methods.map fun m => {
+    name := m.name, params := m.params.map fun param => { name := param.name, ty := param.ty.core, span := param.span }
+    returnType := m.result.core, body := .mk [] (.unit m.span) m.span, span := m.span, requirements := m.requirements } }
 
 end VastitasKernel.Surface

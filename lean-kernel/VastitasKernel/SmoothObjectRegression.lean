@@ -2,6 +2,7 @@ import VastitasKernel.IndexedSourceChecker
 import VastitasKernel.IndexedDeclarationProtocol
 import VastitasKernel.IndexedCodegen
 import VastitasKernel.IndexedSemantics
+import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
 
@@ -74,8 +75,7 @@ private def program (ds := declarations) : Source.Program := {
     module := {path := [], isPublic := true, imports := [], functions := [], generics := [], methods := [], span := {}}
     declarations := ds }], none⟩] }
 
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"smooth object regression failed: {label}")
+private def check := RegressionSupport.check "smooth object regression failed"
 
 private def with' (extra : List Source.Declaration) : Source.Program := program (declarations ++ extra)
 

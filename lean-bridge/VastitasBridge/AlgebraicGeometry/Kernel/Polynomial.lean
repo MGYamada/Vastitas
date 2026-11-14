@@ -1,5 +1,6 @@
 import VastitasBridge.AlgebraicGeometry.Buchberger
 import VastitasOracle.AlgebraBasis
+import VastitasOracle.SmoothCanonical
 
 /-!
 # Kernel polynomials are `MvPolynomial (Fin n) ℚ`
@@ -77,10 +78,6 @@ lemma toExp_lcm {n : ℕ} {a b : Monomial} (h : a.length = b.length) :
   simp only [toExp_apply, Monomial.lcm, Finsupp.sup_apply]
   exact getD_zipWith (f := max) rfl h i
 
-lemma length_zipWith_of_eq {f : ℕ → ℕ → ℕ} {a b : List ℕ} (h : a.length = b.length) :
-    (List.zipWith f a b).length = a.length := by
-  simp [h]
-
 lemma getD_eq_zero_of_le {a : List ℕ} {i : ℕ} (h : a.length ≤ i) : a.getD i 0 = 0 := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_eq_none h]
 
@@ -142,48 +139,9 @@ lemma finsuppDegree_toExp {n : ℕ} {a : Monomial} (ha : a.length = n) :
 
 /-! ### Comparison -/
 
-lemma lexCompare_eq_iff : ∀ {a b : Monomial}, Monomial.lexCompare a b = .eq ↔ a = b
-  | [], [] => by simp [Monomial.lexCompare]
-  | [], _ :: _ => by simp [Monomial.lexCompare]
-  | _ :: _, [] => by simp [Monomial.lexCompare]
-  | x :: a, y :: b => by
-    simp only [Monomial.lexCompare, List.cons.injEq]
-    cases h : Ord.compare x y with
-    | eq => simp [lexCompare_eq_iff, Nat.compare_eq_eq.1 h]
-    | lt => simp only [reduceCtorEq, false_iff, not_and]; intro hxy; simp [hxy] at h
-    | gt => simp only [reduceCtorEq, false_iff, not_and]; intro hxy; simp [hxy] at h
-
-lemma lexCompare_swap : ∀ (a b : Monomial),
-    Monomial.lexCompare b a = (Monomial.lexCompare a b).swap
-  | [], [] => rfl
-  | [], _ :: _ => rfl
-  | _ :: _, [] => rfl
-  | x :: a, y :: b => by
-    simp only [Monomial.lexCompare]
-    rw [← Nat.compare_swap x y]
-    cases h : Ord.compare x y with
-    | eq => simp [lexCompare_swap a b]
-    | lt => rfl
-    | gt => rfl
-
-lemma compare_swap (a b : Monomial) : Monomial.compare b a = (Monomial.compare a b).swap := by
-  simp only [Monomial.compare]
-  rw [← Nat.compare_swap a.degree b.degree]
-  cases h : Ord.compare a.degree b.degree with
-  | eq => simp [lexCompare_swap a b]
-  | lt => rfl
-  | gt => rfl
-
-lemma compare_eq_iff {a b : Monomial} : Monomial.compare a b = .eq ↔ a = b := by
-  simp only [Monomial.compare]
-  constructor
-  · intro h
-    cases hd : Ord.compare a.degree b.degree with
-    | eq => rw [hd] at h; exact lexCompare_eq_iff.1 h
-    | lt => rw [hd] at h; cases h
-    | gt => rw [hd] at h; cases h
-  · rintro rfl
-    simp [lexCompare_eq_iff]
+/-- The Oracle's `SmoothCanonical.compare_eq_iff`, with implicit monomials. -/
+lemma compare_eq_iff {a b : Monomial} : Monomial.compare a b = .eq ↔ a = b :=
+  VastitasOracle.SmoothCanonical.compare_eq_iff a b
 
 lemma lexLt_cons {m : ℕ} (f g : Fin (m + 1) → ℕ) :
     (∃ i : Fin (m + 1), (∀ j, j < i → f j = g j) ∧ f i < g i) ↔
@@ -242,7 +200,7 @@ lemma compare_lt_iff {n : ℕ} {a b : Monomial} (ha : a.length = n) (hb : b.leng
 
 lemma compare_gt_iff {n : ℕ} {a b : Monomial} (ha : a.length = n) (hb : b.length = n) :
     Monomial.compare a b = .gt ↔ toExp n b ≺[degLex] toExp n a := by
-  rw [← compare_lt_iff hb ha, compare_swap a b]
+  rw [← compare_lt_iff hb ha, VastitasOracle.SmoothCanonical.compare_swap a b]
   cases Monomial.compare a b <;> simp [Ordering.swap]
 
 
@@ -261,9 +219,6 @@ variable {n : ℕ}
 @[simp] lemma toMv_nil : toMv n [] = 0 := rfl
 
 @[simp] lemma toMv_cons (t : Term) (p : Poly) : toMv n (t :: p) = termMv n t + toMv n p := by
-  simp [toMv]
-
-lemma toMv_append (p q : Poly) : toMv n (p ++ q) = toMv n p + toMv n q := by
   simp [toMv]
 
 /-- Every monomial of `p` has `n` coordinates. -/
@@ -803,12 +758,6 @@ lemma toMvN_mul (c : Poly) {g : Poly} (hg : Arity n g) :
     intro acc
     rw [List.foldl_cons, ih, toMvN_add, toMvN_mulTerm hg, longTerms_cons u c]
     ring
-
-lemma longTerms_of_arity {c : Poly} (hc : Arity n c) : longTerms n c = c := by
-  unfold longTerms
-  rw [List.filter_eq_self]
-  intro t ht
-  simp [hc t ht]
 
 
 /-! ### Every polynomial has a canonical kernel form -/

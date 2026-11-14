@@ -407,10 +407,3 @@ def assemble (p : Indexed) : Result (Assembled p) := do
     else problem {} "E_INTERNAL_AUTHORITY" "authority declaration correspondence audit failed"
 
 end VastitasKernel.Authority
-
-namespace VastitasKernel
-def checkAuthorityProgram (p : Namespace.Program) (requireMain : Bool := false) : Except Diagnostic CertifiedModule := do
-  let assembled ← Authority.assemble p.indexed
-  let _ ← checkSurfaceProgram assembled.audit false
-  checkSurfaceProgram (Authority.finalSurface assembled.prepared assembled.state) requireMain
-end VastitasKernel

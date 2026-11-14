@@ -1,5 +1,6 @@
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
+import VastitasKernel.RegressionSupport
 
 /-! Retained `checkSurfaceProgram` and old-Core static-signature regressions.
 Main no longer uses this top-level checker. LegacySourceRegression and the
@@ -17,8 +18,7 @@ private def main (expr : Expr) : Function := {
   name := "main", params := [], result := int, body := block expr, span := {} }
 private def program (functions : List Function) : Program := {
   version := 2, file := "function-regression.vast", functions, generics := [], methods := [] }
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"function regression failed: {name}")
+private def check := RegressionSupport.check "function regression failed"
 private def rejects (code : String) (p : Program) : Bool :=
   match checkSurfaceProgram p with
   | .error error => error.code == code
@@ -172,5 +172,17 @@ private def unusedLambda : Function := {
 #eval check "duplicate declarations retain diagnostic precedence"
   (rejects "E_DUPLICATE" (program [identity,
     { identity with body := block (.variable "missing" {}) }]))
+
+-- Surface equality compares the constructors first, then every field, span included.
+private def nested : Expr := .lambda [{ name := "x", ty := int, span := {} }] int
+  (.mk [.letE "y" none (.variable "x" {}) {}] (.binary "+" (.variable "y" {}) (.integer "1" {}) {}) {}) {}
+#eval check "equal nested surface expressions" (nested == nested && identity == identity)
+#eval check "different constructors differ"
+  (Expr.unit {} != Expr.boolean true {} && Expr.block (block (.unit {})) {} != Expr.pack (.unit {}) (.unit {}) {} &&
+    nested != Expr.block (block nested) {})
+#eval check "a field deep in a body or a span tells expressions apart"
+  (nested != .lambda [{ name := "x", ty := int, span := {} }] int
+    (.mk [.letE "y" none (.variable "x" {}) {}] (.binary "+" (.variable "y" {}) (.integer "2" {}) {}) {}) {} &&
+    Expr.unit {} != Expr.unit { start := 1 })
 
 end VastitasKernel.Surface.Regression

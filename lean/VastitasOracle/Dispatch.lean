@@ -1,4 +1,5 @@
 import VastitasKernel.Dispatch
+import VastitasOracle.Support
 
 /-! Soundness of the live parameterized `Dispatch.checkWith` engine and retained
 builtin-wrapper `Dispatch.check` corollaries. Candidate optimality is
@@ -439,20 +440,9 @@ theorem selectRows_permutation (hierarchy : Hierarchy) (domain : List Key)
 theorem mapM_success_each {α β ε : Type} [Inhabited β] (f : α → Except ε β)
     (source : List α) (target : List β) (accepted : source.mapM f = .ok target) :
     ∀ value ∈ source, f value = .ok ((f value).toOption.getD default) := by
-  induction source generalizing target with
-  | nil => simp
-  | cons head rest ih =>
-      simp only [List.mapM_cons] at accepted
-      cases first : f head with
-      | error error => simp [first, bind, Except.bind] at accepted
-      | ok value =>
-          cases remaining : rest.mapM f with
-          | error error => simp [first, remaining, bind, Except.bind] at accepted
-          | ok values =>
-              intro item member
-              rcases List.mem_cons.mp member with same | member
-              · subst item; simp [first, Except.toOption]
-              · exact ih values remaining item member
+  intro value member
+  obtain ⟨result, -, first⟩ := Support.mapM_ok_of_mem accepted value member
+  simp [first, Except.toOption]
 
 theorem mapM_complete {α β ε : Type} (f : α → Except ε β) (g : α → β)
     (source : List α) (success : ∀ value ∈ source, f value = .ok (g value)) :

@@ -70,4 +70,19 @@ Euclidean norms of its rows, each cleared of its denominators, and of the
 largest row denominator. -/
 def metricMatrixBits : Nat := compiler_limit% "metricMatrixBits"
 
+/-! Finite Stage 4 physical dimensions (`nature::dimension`, #759): the base
+dimensions of a program, the absolute value of an exponent of a dimension or
+of a scale, and the scale factors of one entry of a physical metric. A scale
+magnitude, the coefficient of an entry and the entry multiplied out are
+bounded by `metricEntryBits`. Every exponent and the size of every entry are
+bounded before any power is computed. The dimension of the terms of a
+physical metric is bounded by `dimensionExponent`. -/
+/-- The base dimension declarations of a program. -/
+def dimensionBases : Nat := compiler_limit% "dimensionBases"
+/-- The absolute value of one exponent of a dimension or of a scale in an
+entry of a physical metric. -/
+def dimensionExponent : Nat := compiler_limit% "dimensionExponent"
+/-- The scale factors of one entry of a physical metric. -/
+def dimensionScaleFactors : Nat := compiler_limit% "dimensionScaleFactors"
+
 end VastitasKernel.Limits

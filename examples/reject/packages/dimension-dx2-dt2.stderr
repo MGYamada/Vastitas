@@ -1,0 +1,1 @@
+examples/reject/packages/dimension-dx2-dt2/main.vast:16:1: E_DIMENSION: in the physical metric `dimension_dx2_dt2::PE`, the term x·x has dimension L^2 and the term t·t has dimension T^2; every nonzero term of an interpreted metric has one dimension

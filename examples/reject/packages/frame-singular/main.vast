@@ -1,0 +1,11 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::frame::Frame;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declarations
+// The second column is twice the first, so the columns are not a basis.
+indexed frame flattened: Frame<Plane> = columns((1, 2), (2, 4));
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

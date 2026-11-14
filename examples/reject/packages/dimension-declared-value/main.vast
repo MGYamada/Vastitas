@@ -1,0 +1,20 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Length;
+use nature::dimension::Time;
+use nature::dimension::L;
+
+indexed affine C(SmoothR) = Affine(2)[x, t];
+indexed reading phys: Reading<C> = (x: Length, t: Time);
+indexed scale l0 = 3 of Length;
+indexed scale t0 = 2 of Time;
+indexed metric G: MetricForm<C> = gram((frac(1, 9), 0), (0, frac(1, 4)));
+
+// ANCHOR: declaration
+// The terms dx^2 / l0^2 and dt^2 / t0^2 are dimensionless.
+indexed physical PG: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^-2, 0), (0, t0^-2)), value = L^2);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

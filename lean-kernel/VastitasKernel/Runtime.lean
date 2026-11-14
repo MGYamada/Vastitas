@@ -1,5 +1,7 @@
 /-!
-The small runtime linked into generated Stage 0 programs.
+The runtime descriptors of the retained Stage 0 route. The old Core semantics
+(`Semantics`) and the retained oracle theorems evaluate them. No generated
+program imports this module: public generated programs import `IndexedRuntime`.
 
 Nominal object identities and dependent endpoint types are checked before
 lowering. They have no observable integer representation at runtime. These

@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, assert_rejected, cli, kernel, success};
+use common::{Scratch, assert_rejected, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
@@ -8,35 +8,20 @@ const COMPLEX: &str =
     include_str!("../examples/packages/generative-owned-map/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
-    let s = Scratch::empty("generative owned maps");
-    for (name, source) in [
-        (
-            "Vastitas.toml",
-            include_str!("../examples/packages/generative-owned-map/Vastitas.toml"),
-        ),
-        (
-            "src/main.vast",
-            include_str!("../examples/packages/generative-owned-map/src/main.vast"),
-        ),
-        (
-            "src/profiles/mod.vast",
-            include_str!("../examples/packages/generative-owned-map/src/profiles/mod.vast"),
-        ),
-        ("src/real/mod.vast", real),
-        ("src/complex/mod.vast", complex),
-    ] {
-        s.write(name, source);
-    }
-    s
+    common::example_package(
+        "generative owned maps",
+        "examples/packages/generative-owned-map",
+        &[
+            ("src/real/mod.vast", real),
+            ("src/complex/mod.vast", complex),
+        ],
+    )
 }
 fn command(s: &Scratch, mode: &str) -> Command {
-    let mut c = cli();
-    c.current_dir(&s.0)
-        .args([mode, "--manifest-path", "Vastitas.toml"]);
-    c
+    s.command(mode, "Vastitas.toml")
 }
 fn capture(s: &Scratch) -> Value {
-    common::captured_wire(command(s, "check"), 8)
+    s.captured("Vastitas.toml", 8)
 }
 fn functions(raw: &mut Value) -> &mut Vec<Value> {
     raw["packages"][0]["modules"]

@@ -111,7 +111,7 @@ use, apart from the exceptions that the rules give. These names are reserved:
 | `Scheme`, `CInfScheme`, `Point`, `Morphism`, `Pointed` | [Geometric types](geometric-types.md) |
 | `QQ`, `CInfReal` | [Coefficient markers](geometric-types.md#settings-and-markers) |
 | `int`, `pair`, `pair_first`, `pair_second` | [Built-in functions](expressions.md#built-in-functions) |
-| `Affine`, `Base`, `origin`, `id`, `compose`, `apply`, `dimension` | [Geometric operations](geometric-types.md#operations) |
+| `Affine`, `Base`, `origin`, `id`, `compose`, `apply`, `dim` | [Geometric operations](geometric-types.md#operations) |
 | Every name that begins with `__vastitas_` | Names that the compiler generates |
 | `mod`, `use`, `pub`, `self`, `super` | [Modules](modules.md) and [paths](names-and-paths.md). The names are reserved in flat mode too |
 | `package`, as the name of a module or as a name that `use` binds | [Names and paths](names-and-paths.md#resolution) |
@@ -125,9 +125,60 @@ Rules:
   geometric operations. A `use` without `as` that imports such a declaration
   binds that name too. This is how a package declares its own `Point` or
   `origin`, as [Indexed declarations](../indexed-source.md) describes.
+- A [module](modules.md) may take the name of one of the seven geometric
+  operations, as in `mod dim;`. The name stays reserved for every other
+  declaration and binding, including a name that `use` binds and a
+  [dependency alias](../packages.md#manifests). A `use` of such a module
+  therefore needs `as`, as in `use units::dim as measure;`. A path through
+  the module names its items, and the bare name in a call stays the
+  operation, as [Resolution](names-and-paths.md#resolution) says.
+- `dimension` is no reserved name. A function, a module, a dependency alias
+  and a name that `use` binds may be `dimension`, as in
+  `use nature::dimension;`.
 - An expression that names an identifier beginning with `__vastitas_` is an
   error (`E_RESERVED`).
 - [Places](diagnostics.md#places) gives the place of the diagnostic.
+
+In this package the root module declares the file module `dim`, names
+its functions through paths and calls the geometric operation `dim`:
+
+```vast
+{{#include ../../examples/packages/module-names/main.vast}}
+```
+
+`dim.vast` holds the items of the module:
+
+```vast
+{{#include ../../examples/packages/module-names/dim.vast}}
+```
+
+The executable prints `42`.
+
+In this package `units.vast` declares a module `dim`:
+
+```vast
+{{#include ../../examples/reject/packages/geometric-use/units.vast}}
+```
+
+A `use` without `as` of that module binds the reserved name:
+
+```vast
+{{#include ../../examples/reject/packages/geometric-use/main.vast}}
+```
+
+```text
+{{#include ../../examples/reject/packages/geometric-use.stderr}}
+```
+
+A function must not take the name, even inside a module of that name:
+
+```vast
+{{#include ../../examples/reject/packages/geometric-function/main.vast}}
+```
+
+```text
+{{#include ../../examples/reject/packages/geometric-function.stderr}}
+```
 
 ## Integer literals
 

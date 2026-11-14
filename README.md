@@ -11,6 +11,11 @@ Historical Stage 3 adds a checked finite profile of smooth real affine geometry
 over QQ: polynomial smooth maps, covectors and vectors at rational points, the
 metric-free reverse cotangent pullback, and named metrics with checked evidence. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/smooth-geometry.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/smooth-declarations.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage3-acceptance.md)
 The kernel compiles each of these reverse passes that it can read into Core and checks that Core again. [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/reverse-core-acceptance.md)
+Historical Stage 4 adds a checked finite profile of ordered frames, change of
+frame and physical dimensions over QQ: constant and polynomial frames of
+smooth affine objects, arrays and map arrays that keep their frames, and a
+minimal `nature::dimension` that rejects dx² + dt² under a length and a time
+coordinate. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/frames-and-dimensions.md) · [Reference: frames](https://github.com/MGYamada/Vastitas/blob/main/docs/language/frames.md) · [physical dimensions](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-dimensions.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage4-acceptance.md)
 
 ## Build and use
 

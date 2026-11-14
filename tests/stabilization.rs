@@ -181,21 +181,7 @@ fn unknown_wire_version_is_echoed_with_the_complete_supported_set() {
     let raw = request("fn main() -> Int { 42 }", "normal.vast");
     assert_eq!(kernel(&raw, "check")["version"], 2);
 
-    use std::io::Write;
-    use std::process::{Command, Stdio};
-    let mut child = Command::new(common::kernel_path())
-        .arg("check")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(b"{\"version\":5,")
-        .unwrap();
-    let output = child.wait_with_output().unwrap();
+    let output = common::kernel_bytes("check", b"{\"version\":5,".to_vec());
     assert!(!output.status.success());
     let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(response["version"], 2);

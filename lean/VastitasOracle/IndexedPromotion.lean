@@ -21,9 +21,6 @@ open VastitasKernel.Indexed.Core VastitasKernel.Indexed.Core.Semantics
 open VastitasKernel.IndexedPromotionFixture
 open VastitasOracle.IndexedEvaluation
 
-set_option maxRecDepth 10000
-set_option maxHeartbeats 1000000
-
 def Returns (name : String) (args : List Value) (value : Value) : Prop :=
   ∃ env, function? name args = some (function name args) ∧
     bindArguments (function name args).parameters args = some env ∧

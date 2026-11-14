@@ -1,10 +1,10 @@
 import VastitasStorageTest.NumericalFixture
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.TensorRegression
 open NumericalFixture Numerical
 
-private def ensure (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"tensor packing: {label}")
+private def ensure := RegressionSupport.check "tensor packing"
 
 private def setup (scalar : Scalar) (implementation : String) : List Functions.Statement := [
   .numerical (.space 0 (id implementation) 2), .numerical (.basis 4 0),

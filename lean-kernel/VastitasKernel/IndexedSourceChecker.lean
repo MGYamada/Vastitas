@@ -51,6 +51,7 @@ def resolveArgument (p : Namespace.Indexed) (scope : Namespace.Scope) : WireArgu
   | .coordinate name => pure (.coordinate name)
   | .polynomial expression => pure (.polynomial expression)
   | .pullbackMode mode => pure (.pullbackMode mode)
+  | .natural value => pure (.natural value)
 
 /-- The binding of a primitive's wire form through its family: the arguments
 are the family's fields in wire order, each is resolved in the family's
@@ -439,7 +440,8 @@ def implementationRule (env : Environment) (entry : Entry) : Option String := do
 
 /-- How the source spells the binding of a primitive declaration. -/
 private def bindingSpelling : Option Body → String
-  | some (.primitive primitive) => primitive.op
+  -- The source spells the op `dimension` as `dim` (#778).
+  | some (.primitive primitive) => if primitive.op == "dimension" then "dim" else primitive.op
   | some (.morphism ..) => "morphism"
   | some (.iso ..) => "iso"
   | some (.cartesian ..) => "cartesian"

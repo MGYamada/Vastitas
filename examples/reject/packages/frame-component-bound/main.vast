@@ -1,0 +1,23 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::frame::Frame;
+use std::geometry::frame::Coords;
+use std::geometry::frame::CoCoords;
+use std::geometry::frame::FrameMap;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+
+// ANCHOR: program
+// The components of an array in b are 0 and 1.
+indexed primitive third = frame_component(Coords, 2);
+
+fn bad(w: Coords<b>) -> Pair<Int> {
+    third(w)
+}
+// ANCHOR_END: program
+
+fn main() -> Int { 0 }

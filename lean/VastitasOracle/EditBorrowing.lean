@@ -1,4 +1,5 @@
 import VastitasKernel.Edit
+import VastitasKernel.SurfacePrograms
 import VastitasOracle.Functions
 
 /-! Retained legacy protocol-5 acceptance (checkEditProgram), not Main's
@@ -48,10 +49,6 @@ theorem trace_final_valid (trace : Trace p prepared initial events final)
 theorem sameState_applied (same : SameState actual expected) :
     actual.applied = expected.applied :=
   congrArg (fun snapshot => snapshot.2.1) same
-
-theorem sameState_loans (same : SameState actual expected) :
-    actual.loans = expected.loans :=
-  congrArg Prod.fst same
 
 def Provenance (prepared : Prepared p) (state : State) : Prop :=
   ∀ applied ∈ state.applied, applied.contribution ∈ prepared.contributions

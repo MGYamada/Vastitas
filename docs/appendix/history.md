@@ -9,8 +9,8 @@ is Planned.
 - [Historical Stages 2–7](../guide/historical-roadmap.md) follows one line of
   development, from the coordinate ring of an affine scheme to an observable
   that is compared with physical measurements. Each Stage has an example that
-  could establish its completion. Stages 2 and 3 are delivered as finite
-  profiles, and Stages 4 to 7 are Planned. The GitHub issues that the chapter
+  could establish its completion. Stages 2, 3 and 4 are delivered as finite
+  profiles, and Stages 5 to 7 are Planned. The GitHub issues that the chapter
   links govern the plan.
 - A **delivery record** maps the acceptance conditions of a delivery to their
   evidence at recorded revisions: the implementation, the tests, the theorems
@@ -29,6 +29,10 @@ is Planned.
     the record of smooth affine geometry and reverse pullbacks.
   - [Compiled reverse Core acceptance](../reverse-core-acceptance.md) is the
     record of the reverse passes that the kernel compiles.
+  - [Stage 4 frames and dimensions acceptance](../stage4-acceptance.md) is
+    the record of ordered frames, change of frame and physical dimensions
+    over the rational numbers. Its conditions on continuous integration and
+    on the independent review stay Planned until the stage closes.
 
 A delivery record states what held at its revisions. For the behaviour of the
 compiler today, read the guide and the Vastitas Reference. For the theorems

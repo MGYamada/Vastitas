@@ -1,0 +1,51 @@
+// Every Stage 4 declaration form of the frontend (#759) in one module: the
+// frame families and frames, and the declarations of nature::dimension. The
+// declarations are meant to be valid; until batch 4 the kernel rejects frames
+// with E_FRAME and nature declarations with E_DIMENSION after decoding them.
+indexed marker CInfReal;
+indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+indexed classification CInfAffine { parents(); domain(SmoothR); };
+indexed family MetricForm(object(CInfAffine)) = metric_form constraints(canonical(0));
+indexed family Frame(object(CInfAffine)) = frame constraints(canonical(0));
+indexed family Coords(frame(Frame)) = frame_vector;
+indexed family CoCoords(frame(Frame)) = frame_covector;
+indexed family FrameMap(frame(Frame), frame(Frame)) = frame_map;
+indexed family Reading(object(CInfAffine)) = reading constraints(canonical(0));
+indexed family PhysicalMetric(object(CInfAffine)) = physical_metric constraints(canonical(0));
+indexed affine Pt(SmoothR) = Affine(0)[];
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed affine Chart(SmoothR) = Affine(2)[x, t];
+
+// A constant frame, a frame polynomial in the point with its inverse, the
+// coordinate frame, and the frame of a point.
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+indexed frame r: Frame<Plane> = columns((1, 0), (x, 2)) inverse = columns((1, 0), (frac(-1, 2) * x, frac(1, 2)));
+indexed frame e: Frame<Plane> = coordinates;
+indexed frame z: Frame<Pt> = columns();
+
+// Base dimensions, quantity kinds, readings and scales.
+indexed base_dimension L;
+indexed base_dimension T;
+indexed quantity Length = L;
+indexed quantity Time = T;
+indexed quantity Speed = L * T^-1;
+indexed quantity Ratio = 1;
+indexed reading phys: Reading<Chart> = (x: Length, t: Time);
+indexed reading lengths: Reading<Plane> = (x: Length, y: Length);
+indexed scale l0 = 3 of Length;
+indexed scale t0 = 2 of Time;
+indexed scale c = 3 of Speed;
+indexed scale h = frac(1, 2) of Length;
+
+// Physical interpretations of std metrics: G = diag(1/9, 1/4) by the scales
+// l0 = 3 and t0 = 2, M = dx^2 - c^2 dt^2 with c = 3, and the Euclidean metric
+// of two lengths.
+indexed metric G: MetricForm<Chart> = gram((frac(1, 9), 0), (0, frac(1, 4)));
+indexed metric M: MetricForm<Chart> = gram((1, 0), (0, -9));
+indexed metric E: MetricForm<Plane> = euclidean;
+indexed physical PG: PhysicalMetric<Chart> = interpret(G, reading = phys, gram((l0^-2, 0), (0, t0^-2)));
+indexed physical PN: PhysicalMetric<Chart> = interpret(G, reading = phys, normalized(x: l0, t: t0), value = 1);
+indexed physical PM: PhysicalMetric<Chart> = interpret(M, reading = phys, gram((1, 0), (0, -1 * c^2)), value = L^2);
+indexed physical PE: PhysicalMetric<Plane> = interpret(E, reading = lengths, euclidean, value = L^2);
+
+fn main() -> Int { 42 }

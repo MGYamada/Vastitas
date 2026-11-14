@@ -1,0 +1,14 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::frame::Frame;
+use std::geometry::frame::CoCoords;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed frame b: Frame<Plane> = columns((1, 0), (1, 2));
+
+// ANCHOR: declaration
+// Tangent holds vectors, and CoCoords holds the arrays of covectors.
+indexed primitive enc_b = frame_encode(Tangent, CoCoords, frame = b);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

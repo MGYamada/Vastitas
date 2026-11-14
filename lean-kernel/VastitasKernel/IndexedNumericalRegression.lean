@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedSourceChecker
 import VastitasKernel.IndexedCodegen
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.NumericalRegression
 
@@ -19,8 +20,7 @@ private def program (ds := declarations) : Source.Program := {
   packages := [⟨pkg, [], [{
     module := {path := [], isPublic := true, imports := [], functions := [], generics := [], methods := [], span := {}}
     declarations := ds }], none⟩] }
-private def check (label : String) (ok : Bool) : IO Unit :=
-  unless ok do throw (IO.userError s!"numerical declaration regression failed: {label}")
+private def check := RegressionSupport.check "numerical declaration regression failed"
 private def change (name : String) (body : Source.Body) : Source.Program :=
   program (declarations.map fun d => if d.name == name then {d with body} else d)
 private def rejects (p : Source.Program) : Bool := !(Source.checkDeclarations p).isOk

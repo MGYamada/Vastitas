@@ -1,11 +1,11 @@
 import VastitasKernel.IndexedSemantics
 import VastitasKernel.IndexedCoreRegression
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.Core.SemanticRegression
 open Semantics
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"indexed semantics regression failed: {name}")
+private def check := RegressionSupport.check "indexed semantics regression failed"
 
 private def runMain (module : Module) (fuel : Nat := 200) : Option Value := do
   let id ← module.main

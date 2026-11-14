@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, cli, kernel, success};
+use common::{Scratch, kernel};
 use serde_json::{Value, json};
 
 const BASE: &str = r#"
@@ -31,11 +31,7 @@ fn fixture(base: &str, addon: &str, events: &str) -> Scratch {
     s
 }
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("app/Vastitas.toml")
 }
 fn reject(s: &Scratch, code: &str) {
     let output = check(s);
@@ -43,35 +39,12 @@ fn reject(s: &Scratch, code: &str) {
     common::expect_code(&output, code);
 }
 fn native(s: &Scratch, expected: &[u8]) {
-    success(&check(s));
-    success(
-        &cli()
-            .current_dir(&s.0)
-            .args([
-                "build",
-                "--manifest-path",
-                "app/Vastitas.toml",
-                "-o",
-                "program",
-            ])
-            .output()
-            .unwrap(),
-    );
-    let output = std::process::Command::new(s.0.join("program"))
-        .output()
-        .unwrap();
-    success(&output);
-    assert_eq!(output.stdout, expected);
+    assert_eq!(s.check_build_and_run("app/Vastitas.toml"), expected);
 }
 fn request(s: &Scratch) -> Value {
     // Capture the actual frontend's wire request, then use the real kernel for
     // all mutations. The stub has no acceptance authority.
-    common::captured_wire(
-        cli()
-            .current_dir(&s.0)
-            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
-        9,
-    )
+    s.captured("app/Vastitas.toml", 9)
 }
 
 #[test]

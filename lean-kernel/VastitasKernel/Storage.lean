@@ -1,9 +1,7 @@
 import VastitasKernel.StorageDiagonalData
 import VastitasKernel.StorageWork
 import VastitasKernel.StorageTensorLayout
-import VastitasKernel.FiniteIndex
-import VastitasKernel.LoanChain
-import Std.Data.HashSet.Lemmas
+import VastitasKernel.LoanIndex
 
 /-! Explicit resource transitions, separate from pure indexed Core. All handles
 are lexical symbols, not addresses. Allocation identities are reconstructed by
@@ -110,40 +108,27 @@ def ancestor (loans : List Loan) : Nat → Symbol → Loan → Bool
 
 namespace AuditIndex
 
-/-- Compute one bounded ancestry row with indexed parent lookup. A missing
-parent is still included, exactly as in `ancestor`; validity rejects the link
-separately. No acyclicity or uniqueness premise is trusted by this computation. -/
-def lineage (loans : Std.HashMap Symbol Loan) : Nat → Loan → Std.HashSet Symbol
-  | 0, _ => {}
-  | fuel + 1, loan => match loan.parent with
-    | none => {}
-    | some parent =>
-      let above := match loans[parent]? with
-        | none => {}
-        | some prior => lineage loans fuel prior
-      above.insert parent
+private theorem ancestor_walk (loans : List Loan) (fuel key : Nat) (loan : Loan) :
+    ancestor loans fuel key loan = Finite.LoanChain.walk Loan.parent
+      (fun id => loans.find? (fun l => l.name == id)) fuel key loan := by
+  induction fuel generalizing loan with
+  | zero => rfl
+  | succ fuel ih =>
+    cases edge : loan.parent with
+    | none => simp [ancestor, Finite.LoanChain.walk, edge]
+    | some id =>
+      cases found : loans.find? (fun l => l.name == id) <;>
+        simp [ancestor, Finite.LoanChain.walk, edge, found, ih]
+
+/-- One bounded ancestry row with indexed parent lookup (`Finite.LoanIndex.lineage`). -/
+abbrev lineage (loans : Std.HashMap Symbol Loan) : Nat → Loan → Std.HashSet Symbol :=
+  Finite.LoanIndex.lineage Loan.parent loans
 
 theorem lineage_contains (loans : List Loan) (fuel : Nat) (loan : Loan) (name : Symbol) :
     (lineage (Finite.firstIndex Loan.name loans) fuel loan).contains name =
       ancestor loans fuel name loan := by
-  induction fuel generalizing loan with
-  | zero => simp [lineage, ancestor]
-  | succ fuel ih =>
-    cases parent : loan.parent with
-    | none => simp [lineage, ancestor, parent]
-    | some parentName =>
-      simp only [lineage, ancestor, parent, Finite.firstIndex_lookup]
-      cases found : loans.find? (fun entry => entry.name == parentName) with
-      | none =>
-        by_cases same : name = parentName
-        · simp [Std.HashSet.contains_insert, same]
-        · simp [Std.HashSet.contains_insert, beq_eq_false_iff_ne.mpr same,
-            beq_eq_false_iff_ne.mpr (Ne.symm same)]
-      | some prior =>
-        simp only [Std.HashSet.contains_insert, ih]
-        by_cases same : name = parentName
-        · simp [same]
-        · simp [beq_eq_false_iff_ne.mpr same, beq_eq_false_iff_ne.mpr (Ne.symm same)]
+  rw [ancestor_walk]
+  exact Finite.LoanIndex.lineage_contains loans fuel loan name
 
 end AuditIndex
 
@@ -229,35 +214,29 @@ private def checkLoan (index : Tables) (fuel : Nat) (loan : Loan) (chain : Bool)
   | some allocation =>
     checkLayout allocation.scalar allocation.capacity loan.layout && index.used.contains loan.name &&
     (!loan.access.reads || allocation.initialization.covers allocation.scalar loan.layout) &&
-    (match loan.parent with
-    | none => true
-    | some parent => match index.loans[parent]? with
-      | none => false
-      | some parentLoan => parent != loan.name && parentLoan.allocation == loan.allocation &&
-          (!loan.access.writes || parentLoan.access.writes) &&
-          (!loan.access.reads || parentLoan.access.reads) &&
-          parentLoan.layout.covers loan.layout allocation.scalar &&
-          (chain || !(lineage index.loans fuel parentLoan).contains loan.name))
+    Finite.LoanIndex.parentValid Loan.name Loan.parent index.loans fuel loan chain fun parent parentLoan =>
+      parent != loan.name && parentLoan.allocation == loan.allocation &&
+      (!loan.access.writes || parentLoan.access.writes) &&
+      (!loan.access.reads || parentLoan.access.reads) &&
+      parentLoan.layout.covers loan.layout allocation.scalar
 
 def loanValid (index : Tables) (fuel : Nat) (loan : Loan) : Bool :=
   checkLoan index fuel loan false
 
 theorem loanValid_eq (state : State) (loan : Loan) :
     loanValid (tables state) state.loans.length loan = loan.valid state := by
-  simp only [loanValid, checkLoan, Bool.false_or, tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList,
-    lineage_contains, Loan.valid, State.allocation?, State.loan?]
-
-private theorem ancestor_walk (loans : List Loan) (fuel key : Nat) (loan : Loan) :
-    ancestor loans fuel key loan = Finite.LoanChain.walk Loan.parent
-      (fun id => loans.find? (fun l => l.name == id)) fuel key loan := by
-  induction fuel generalizing loan with
-  | zero => rfl
-  | succ fuel ih =>
-    cases edge : loan.parent with
-    | none => simp [ancestor, Finite.LoanChain.walk, edge]
+  simp only [loanValid, checkLoan, Finite.LoanIndex.parentValid, Bool.false_or, tables, Finite.firstIndex_lookup,
+    Std.HashSet.contains_ofList, lineage_contains, Loan.valid, State.allocation?, State.loan?]
+  -- The generic parent link and `Loan.valid` use distinct matchers.
+  cases state.allocations.find? (fun item => item.identity == loan.allocation) with
+  | none => rfl
+  | some allocation =>
+    dsimp only
+    cases loan.parent with
+    | none => rfl
     | some id =>
-      cases found : loans.find? (fun l => l.name == id) <;>
-        simp [ancestor, Finite.LoanChain.walk, edge, found, ih]
+      dsimp only
+      cases state.loans.find? (fun item => item.name == id) <;> rfl
 
 private theorem chainPair (state : State) (linked : Finite.LoanChain.check Loan.name Loan.parent state.loans = true)
     (left right : Loan) (hl : left ∈ state.loans) (hr : right ∈ state.loans) :
@@ -272,27 +251,12 @@ private theorem chainPair (state : State) (linked : Finite.LoanChain.check Loan.
 private theorem loanValid_chain (state : State) (loan : Loan) (member : loan ∈ state.loans) :
     checkLoan (tables state) state.loans.length loan
       (Finite.LoanChain.check Loan.name Loan.parent state.loans) = loan.valid state := by
+  rw [← loanValid_eq state loan]
   cases linked : Finite.LoanChain.check Loan.name Loan.parent state.loans with
-  | false => exact loanValid_eq state loan
+  | false => rfl
   | true =>
-    rw [← loanValid_eq state loan]
     unfold loanValid checkLoan
-    cases (tables state).allocations[loan.allocation]? with
-    | none => rfl
-    | some a =>
-      dsimp only
-      cases edge : loan.parent with
-      | none => rfl
-      | some id =>
-        dsimp only
-        cases resolved : (tables state).loans[id]? with
-        | none => rfl
-        | some parentLoan =>
-          have first : state.loans.find? (fun l => l.name == id) = some parentLoan := by
-            simpa only [tables, Finite.firstIndex_lookup] using resolved
-          have h := Finite.LoanChain.acyclic linked member edge first state.loans.length
-          rw [← ancestor_walk] at h
-          simp only [tables, lineage_contains, h, Bool.not_false, Bool.or_true]
+    simp only [tables, Finite.LoanIndex.parentValid_chain linked member]
 
 private theorem validMembers (state : State) (counts : Std.HashMap Symbol Nat) :
     state.loans.all (fun l => counts.getD l.name 0 == 1 && checkLoan (tables state) state.loans.length l
@@ -302,10 +266,10 @@ private theorem validMembers (state : State) (counts : Std.HashMap Symbol Nat) :
   simp only [List.all_eq_true]
   exact forall_congr' fun l => forall_congr' fun hl => by rw [loanValid_chain state l hl]
 
-abbrev Row := Loan × Std.HashSet Symbol
+abbrev Row := Finite.LoanIndex.Row Loan
 
-def row (index : Tables) (fuel : Nat) (loan : Loan) : Row :=
-  (loan, lineage index.loans fuel loan)
+abbrev row (index : Tables) (fuel : Nat) : Loan → Row :=
+  Finite.LoanIndex.row Loan.parent index.loans fuel
 
 def compatible (index : Tables) (left right : Row) : Bool :=
   left.1.name == right.1.name || left.1.allocation != right.1.allocation ||
@@ -317,53 +281,21 @@ def compatible (index : Tables) (left right : Row) : Bool :=
 theorem compatible_eq (state : State) (left right : Loan) :
     compatible (tables state) (row (tables state) state.loans.length left)
       (row (tables state) state.loans.length right) = loansCompatible state left right := by
-  simp only [compatible, row, tables, lineage_contains, Finite.firstIndex_lookup,
+  simp only [compatible, row, Finite.LoanIndex.row, tables, lineage_contains, Finite.firstIndex_lookup,
     loansCompatible, State.allocation?]
   ac_rfl
 
-/-- Read/read pairs are unconditionally compatible. All pairs involving a
-writer are still checked, retaining both directions even for malformed states. -/
-def pairs (index : Tables) (rows : List Row) : Bool :=
-  let writers := rows.filter (fun entry => entry.1.access.writes)
-  rows.all fun left =>
-    (if left.1.access.writes then rows else writers).all (compatible index left)
-
-theorem pairs_eq (state : State) :
-    pairs (tables state) (state.loans.map (row (tables state) state.loans.length)) =
-      state.loans.all (fun left => state.loans.all (loansCompatible state left)) := by
-  simp only [pairs, List.all_map, Function.comp_def]
-  congr 1
-  funext left
-  change (if left.access.writes then state.loans.map (row (tables state) state.loans.length)
-      else (state.loans.map (row (tables state) state.loans.length)).filter
-        (fun entry => entry.1.access.writes)).all
-      (compatible (tables state) (row (tables state) state.loans.length left)) = _
-  by_cases writes : left.access.writes = true
-  · rw [ite_eq_left writes]
-    simp only [List.all_map, Function.comp_def]
-    exact congrArg (state.loans.all) (funext (compatible_eq state left))
-  · rw [ite_eq_right writes]
-    have readOnly : left.access.writes = false := Bool.eq_false_iff.mpr writes
-    simp only [List.all_filter, List.all_map, Function.comp_def]
-    congr 1
-    funext right
-    change (!right.access.writes || compatible _ (row _ _ left) (row _ _ right)) = _
-    rw [compatible_eq]
-    cases writes : right.access.writes
-    · simp [loansCompatible, readOnly, writes]
-    · simp
+private theorem readPair (state : State) (left right : Loan) (leftReads : left.access.writes = false)
+    (rightReads : right.access.writes = false) : loansCompatible state left right = true := by
+  simp [loansCompatible, leftReads, rightReads]
 
 private theorem checkedPairs (state : State) :
     (Finite.LoanChain.check Loan.name Loan.parent state.loans ||
-      pairs (tables state) (state.loans.map (row (tables state) state.loans.length))) =
-    state.loans.all (fun left => state.loans.all (loansCompatible state left)) := by
-  rw [pairs_eq]
-  cases linked : Finite.LoanChain.check Loan.name Loan.parent state.loans with
-  | false => rfl
-  | true =>
-    symm
-    exact List.all_eq_true.mpr fun left hl => List.all_eq_true.mpr fun right hr =>
-      chainPair state linked left right hl hr
+      Finite.LoanIndex.pairs (fun loan : Loan => loan.access.writes) (compatible (tables state))
+        (state.loans.map (row (tables state) state.loans.length))) =
+    state.loans.all (fun left => state.loans.all (loansCompatible state left)) :=
+  Finite.LoanIndex.checkedPairs (compatible_eq state) (readPair state)
+    fun linked left hl right hr => chainPair state linked left right hl hr
 
 def audit (state : State) : Bool :=
   let index := tables state
@@ -387,7 +319,8 @@ def audit (state : State) : Bool :=
     allocationCounts.getD allocation.identity 0 == 1 && ownerCounts.getD allocation.owner 0 == 1 &&
     index.loans[allocation.owner]?.isNone) &&
   state.loans.all (fun loan => loanCounts.getD loan.name 0 == 1 && checkLoan index fuel loan chain) &&
-  (chain || pairs index (state.loans.map (row index fuel)))
+  (chain || Finite.LoanIndex.pairs (fun loan : Loan => loan.access.writes) (compatible index)
+    (state.loans.map (row index fuel)))
 
 theorem audit_eq (state : State) : audit state = auditState state := by
   simp only [audit, checkedPairs, validMembers, stampValid_eq]
@@ -405,27 +338,13 @@ every state, not just states already known to satisfy the reference audit. -/
 def compatibleWith (state : State) (left : Loan) (others : List Loan) : Bool :=
   others.all (loansCompatible state left)
 
-private def AuditIndex.compatibleRows (state : State) (left : Loan) (others : List Loan) : Bool :=
-  let index := tables state
-  let fuel := state.loans.length
-  let leftRow := row index fuel left
-  let relevant := if left.access.writes then others else others.filter (·.access.writes)
-  relevant.all fun right => compatible index leftRow (row index fuel right)
-
-private theorem compatibleWith_eq_rows : compatibleWith = AuditIndex.compatibleRows := by
-  funext state left others
-  simp only [compatibleWith, AuditIndex.compatibleRows]
-  cases writes : left.access.writes
-  · simp only [Bool.false_eq_true, ite_false, List.all_filter, AuditIndex.compatible_eq]
-    congr 1
-    funext right
-    cases rightWrites : right.access.writes <;> simp [loansCompatible, writes, rightWrites]
-  · simp only [ite_true, AuditIndex.compatible_eq]
-
 def AuditIndex.compatibleWith (state : State) (left : Loan) (others : List Loan) : Bool :=
   if Finite.LoanChain.check Loan.name Loan.parent state.loans && decide (state.loans = left :: others) then
     true
-  else compatibleRows state left others
+  else
+    let index := tables state
+    Finite.LoanIndex.scan (fun loan : Loan => loan.access.writes) (compatible index)
+      (row index state.loans.length) left others
 
 @[csimp] theorem compatibleWith_eq_indexed : compatibleWith = AuditIndex.compatibleWith := by
   funext state left others
@@ -436,7 +355,8 @@ def AuditIndex.compatibleWith (state : State) (left : Loan) (others : List Loan)
       simpa only [Bool.and_eq_true, decide_eq_true_eq] using both
     exact List.all_eq_true.mpr fun right hr => AuditIndex.chainPair state ok.1 left right
       (ok.2 ▸ List.mem_cons_self) (ok.2 ▸ List.mem_cons_of_mem left hr)
-  next => rw [compatibleWith_eq_rows]
+  next =>
+    exact (Finite.LoanIndex.scan_eq (AuditIndex.compatible_eq state) (AuditIndex.readPair state) left others).symm
 
 inductive ErrorSubjectKind where
   | binding | basis | space

@@ -2,14 +2,14 @@ import VastitasKernel.WireScan
 import VastitasKernel.JsonDecode
 import VastitasKernel.StorageLayout
 import VastitasKernel.Dispatch
+import VastitasKernel.RegressionSupport
 
 /-! Kernel regressions for the v0.1.0-alpha review fixes (#535, #553, #562).
 Each case runs the actual kernel definition; no separate model is tested. -/
 namespace VastitasKernel.ReviewRegression
 open Lean
 
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"review regression failed: {name}")
+private def check := RegressionSupport.check "review regression failed"
 
 private def scanRejects (input : String) (fragment : String) (bounds : WireScan.Bounds := {}) : Bool :=
   match WireScan.scan input bounds with

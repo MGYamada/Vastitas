@@ -30,11 +30,7 @@ fn fixture(main: &str) -> Scratch {
 }
 
 fn check(s: &Scratch) -> std::process::Output {
-    cli()
-        .current_dir(&s.0)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap()
+    s.check_manifest("Vastitas.toml")
 }
 
 /// The example with extra items inserted before its helper and entrypoint.
@@ -49,31 +45,11 @@ fn rejects(main: &str, code: &str) -> String {
 }
 
 fn run(s: &Scratch) -> Vec<u8> {
-    let output = s.0.join("program");
-    success(
-        &cli()
-            .current_dir(&s.0)
-            .args(["build", "--manifest-path", "Vastitas.toml", "-o"])
-            .arg(&output)
-            .output()
-            .unwrap(),
-    );
-    let result = std::process::Command::new(output).output().unwrap();
-    success(&result);
-    result.stdout
+    s.build_and_run("Vastitas.toml")
 }
 
 fn request(s: &Scratch) -> Value {
-    common::captured_wire(
-        {
-            let mut command = cli();
-            command
-                .current_dir(&s.0)
-                .args(["check", "--manifest-path", "Vastitas.toml"]);
-            command
-        },
-        9,
-    )
+    s.captured("Vastitas.toml", 9)
 }
 
 /// JSON pointer to a named declaration in the first package.
@@ -288,7 +264,7 @@ fn smooth_maps_resolve_source_coordinates_and_reject_variance_errors() {
             "E_TYPE",
         ),
         (
-            "indexed implementation Caps(profile::CInfReal, smooth_affine) capabilities(dimension);",
+            "indexed implementation Caps(profile::CInfReal, smooth_affine) capabilities(dim);",
             "E_TYPE",
         ),
     ] {
@@ -463,6 +439,7 @@ fn function_body_affine_spellings_still_use_the_geometry_compatibility_export() 
         "smooth/mod.vast",
         "smooth/affine/mod.vast",
         "metric/mod.vast",
+        "frame/mod.vast",
     ] {
         s.write(
             &format!("geo/{name}"),
@@ -486,7 +463,7 @@ indexed primitive same = smooth_equal(Smooth);
 fn main() -> Int {
     let X: Scheme = Affine(QQ, 20);
     let Y: CInfScheme = Affine(CInfReal, 22);
-    if same(sq(), sq()) { int(dimension(X)) + int(dimension(Y)) } else { 0 }
+    if same(sq(), sq()) { int(dim(X)) + int(dim(Y)) } else { 0 }
 }
 ",
     );

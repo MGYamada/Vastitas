@@ -790,6 +790,71 @@ class LinkTests(Fixture):
         self.assertEqual(errors, ["tests/a.rs:2: docs/stage1a.md has no anchor #absent",
                                   "tests/a.rs:2: docs/stage0.md is not a chapter of the book"])
 
+    def test_relative_markdown_links_resolve_against_their_file(self):
+        # A library keeps its API reference in a docs/ directory of its own.
+        output = (self.root / "book").resolve()
+        write(output, {"stage1a.html": '<h2 id="abstract-types">Abstract types</h2>'})
+        write(self.root, {
+            "docs/stage1a.md": "# Stage 1a\n",
+            "lib/docs/README.md": "# Library\n",
+            "lib/src/README.md": "[page](../docs/README.md#the-root) and [absent](../docs/absent.md)\n",
+            "lib/README.md": "[page](docs/README.md#the-root) and [book](../docs/stage1a.md#absent)\n"
+                             "and [chapter](<../docs/stage1a.md#abstract-types>)\n",
+        })
+        pages = {output / "stage1a.html": check_book.Page(output / "stage1a.html")}
+        files = [self.root / "lib/src/README.md", self.root / "lib/README.md"]
+        errors, count = check_book.reference_errors(files, pages, self.root, output)
+        self.assertEqual(count, 2)
+        self.assertEqual(errors, ["lib/src/README.md:1: the link ../docs/absent.md names no file",
+                                  "lib/README.md:1: docs/stage1a.md has no anchor #absent"])
+
+
+class PathTests(Fixture):
+    FILES = ["scripts/check_book.py", "tests/examples.rs", "src/frontend.rs", "src/frontend/items.rs",
+             "docs/guide/a.md", "lean-kernel/VastitasKernel/Core.lean"]
+
+    def errors(self, text, untracked=None):
+        write(self.root, {"guide/a.md": text})
+        return check_book.path_errors([Chapter("A", "guide/a.md", "guide")], self.root, self.FILES,
+                                      {} if untracked is None else untracked)
+
+    def test_tracked_files_and_directories_pass(self):
+        text = """
+            Run `python3 scripts/check_book.py` and read `tests/examples.rs::book_programs`,
+            `src/frontend.rs:12`, `docs/guide/a.md#see-also`, `lean-kernel/` and `scripts`.
+            """
+        self.assertEqual(self.errors(text), ([], 5))
+
+    def test_a_missing_path_fails(self):
+        text = "See `docs/numerical-adapter.md`\nand run `python3 scripts/absent.py --check`.\n"
+        self.assertEqual(self.errors(text), ([
+            "guide/a.md:1: `docs/numerical-adapter.md` names no file or directory that Git tracks",
+            "guide/a.md:2: `scripts/absent.py` names no file or directory that Git tracks",
+        ], 2))
+
+    def test_package_sources_patterns_and_code_blocks_name_no_path(self):
+        text = """
+            A package keeps `src/lib.vast` and `src/shapes/`, but `src/absent.rs` is a path.
+            The specifications are `docs/spec/<name>.toml`, tested by `scripts/test_*.py`.
+
+            ```sh
+            python3 scripts/absent.py
+            ```
+            """
+        self.assertEqual(self.errors(text), (
+            ["guide/a.md:1: `src/absent.rs` names no file or directory that Git tracks"], 1))
+
+    def test_an_untracked_path_needs_an_entry_that_a_chapter_uses(self):
+        text = "The kernel is `lean-kernel/.lake/build/bin/vastitas-kernel`.\n"
+        self.assertEqual(self.errors(text), (
+            ["guide/a.md:1: `lean-kernel/.lake/build/bin/vastitas-kernel` names no file or directory that Git tracks"],
+            1))
+        self.assertEqual(self.errors(text, {"lean-kernel/.lake": "the build directory"}), ([], 0))
+        self.assertEqual(self.errors(text, {"lean-kernel/.lake": "the build directory", "stdlib/target": "generated"}),
+                         (["UNTRACKED_PATHS: no chapter names stdlib/target; remove the entry"], 0))
+        self.assertEqual(self.errors(text, {"lean-kernel/.lake": "the build directory", "src/frontend": "tracked"}),
+                         (["UNTRACKED_PATHS: Git tracks src/frontend; remove the entry"], 0))
+
 
 if __name__ == "__main__":
     unittest.main()

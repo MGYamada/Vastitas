@@ -14,12 +14,14 @@ classifications, global objects, families, existential packages and
 primitives. For implementations, families and primitives it gives the forms
 of one profile, the profile of
 [descriptor objects](appendix/glossary.md#descriptor-object), which record
-only a dimension. Three other chapters give the declarations of the other
+only a dimension. Five other chapters give the declarations of the other
 profiles:
 
 | Declarations | Chapter |
 | --- | --- |
 | Smooth affine objects, smooth maps, fibers, tapes, metrics and evidence | [Smooth affine declarations](language/smooth-declarations.md) |
+| Frames of smooth affine objects, frame arrays and map arrays | [Frames](language/frames.md) |
+| Base dimensions, quantity kinds, readings, scales and physical interpretations | [Physical dimensions](language/physical-dimensions.md) |
 | Presented affine objects, morphisms over a base, isomorphisms and Cartesian squares | [Presented affine declarations](affine-geometry.md) |
 | Scalar bases and linear implementations | [Linear implementations](linalg/maps-and-gemm.md#linear-implementations) |
 
@@ -34,6 +36,7 @@ profiles:
 >     | PackageDeclaration | PrimitiveDeclaration
 >     | ScalarBaseImplementation | LinearImplementation
 >     | SmoothDeclaration | AffineDeclaration
+>     | FrameProfileDeclaration | DimensionDeclaration
 > ```
 
 The word after `indexed` is the kind of the declaration:
@@ -44,18 +47,24 @@ The word after `indexed` is the kind of the declaration:
 | `implementation` | An [implementation](#implementations) | `DescriptorImplementation` here, `ScalarBaseImplementation` and `LinearImplementation` in [Linear implementations](linalg/maps-and-gemm.md#linear-implementations), `SmoothImplementation` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), and a form of `AffineDeclaration` |
 | `classification` | A [classification](#classifications) | `ClassificationDeclaration` |
 | `global` | A [global object](#global-objects) | `GlobalDeclaration` |
-| `family` | A [family](#families) of types | `FamilyDeclaration` here, `SmoothFamily` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), and a form of `AffineDeclaration` |
+| `family` | A [family](#families) of types | `FamilyDeclaration` here, `SmoothFamily` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), `FrameFamily` in [The frame profile](language/frames.md#the-frame-profile), `DimensionFamily` in [Families of readings and interpretations](language/physical-dimensions.md#families-of-readings-and-interpretations), and a form of `AffineDeclaration` |
 | `package` | The types of [existential packages](#existential-packages) | `PackageDeclaration` |
 | `primitive` | A [primitive](#primitives) | `PrimitiveDeclaration` |
 | `affine` | A smooth affine object or a presented affine object | `AffineSpaceDeclaration` in [Smooth affine objects](language/smooth-declarations.md#smooth-affine-objects), and a form of `AffineDeclaration` |
 | `morphism` | A smooth map or a morphism over a base | `MorphismDeclaration` in [Smooth maps](language/smooth-declarations.md#smooth-maps) |
 | `metric`, `evidence` | A metric, and evidence for a metric | `MetricDeclaration` and `EvidenceDeclaration` in [Smooth affine declarations](language/smooth-declarations.md#metrics) |
 | `iso`, `cartesian` | An isomorphism and a Cartesian square of presented affine objects | Forms of `AffineDeclaration` |
+| `frame` | A frame of a smooth affine object | `FrameDeclaration` in [Frame declarations](language/frames.md#frame-declarations) |
+| `base_dimension`, `quantity` | A base dimension and a quantity kind | `BaseDimensionDeclaration` and `QuantityDeclaration` in [Base dimensions and quantity kinds](language/physical-dimensions.md#base-dimensions-and-quantity-kinds) |
+| `reading`, `scale`, `physical` | A reading, a scale and a physical interpretation | `ReadingDeclaration`, `ScaleDeclaration` and `PhysicalDeclaration` in [Physical dimensions](language/physical-dimensions.md) |
 
 `SmoothDeclaration` stands for the declarations of
-[Smooth affine declarations](language/smooth-declarations.md), and
+[Smooth affine declarations](language/smooth-declarations.md),
 `AffineDeclaration` for the declarations that only
-[Presented affine declarations](affine-geometry.md) has.
+[Presented affine declarations](affine-geometry.md) has,
+`FrameProfileDeclaration` for the declarations of
+[Frames](language/frames.md), and `DimensionDeclaration` for the
+declarations of [Physical dimensions](language/physical-dimensions.md).
 
 Rules:
 
@@ -148,7 +157,7 @@ Rules:
 > DescriptorImplementation -> `indexed` `implementation` IDENTIFIER
 >     `(` Path `,` `affine_descriptor` `)` `capabilities` `(` Capabilities? `)` `;`
 > Capabilities -> Capability ( `,` Capability )* `,`?
-> Capability -> `origin` | `dimension`
+> Capability -> `origin` | `dim`
 > ```
 
 `indexed implementation I(K, r) capabilities(c₁, …);` declares an
@@ -161,7 +170,7 @@ Rules:
 | Capability | Operation |
 | --- | --- |
 | `origin` | The origin of an object, through a [primitive](#primitives) with the binding `origin(…)` |
-| `dimension` | The dimension of an object, through a primitive with the binding `dimension(…)` |
+| `dim` | The dimension of an object, through a primitive with the binding `dim(…)` |
 
 The other representations are `scalar_base(…)` and `linear_descriptor(…)` of
 [Linear implementations](linalg/maps-and-gemm.md#linear-implementations),
@@ -175,8 +184,8 @@ Rules:
 - The path must name a marker (`E_TYPE`).
 - The representation must be one of the five representations. Another word
   is an error (`E_TYPE`).
-- A capability must be `origin` or `dimension`. Another word is an error
-  (`E_TYPE`).
+- A capability must be `origin` or `dim`. Another word, including
+  `dimension`, is an error (`E_TYPE`).
 - The capability list must not name a capability twice (`E_TYPE`).
 - An implementation has the capabilities of its own declaration, and no
   others. A classification adds none.
@@ -322,7 +331,7 @@ of both `measure` and `hide`:
 The executable prints `42`. The witness `Y` has the object type
 `Object<shapes::Shape, shapes::QQ>`, so `measure(Y)` is an error. In the next
 program the annotation gives `Y` an object type that has the implementation
-`Plain`, which lacks the capability `dimension`:
+`Plain`, which lacks the capability `dim`:
 
 ```vast
 {{#include ../examples/reject/packages/lost-capability/main.vast}}
@@ -342,6 +351,7 @@ program the annotation gives `Y` an object type that has the implementation
 > FamilyRepresentation -> `token` | `point` | `morphism`
 > Parameters -> Parameter ( `,` Parameter )* `,`?
 > Parameter -> `domain` | `marker` | `natural` | `object` `(` Path `)`
+>     | `frame` `(` Path `)`
 > Constraints -> Constraint ( `,` Constraint )* `,`?
 > Constraint -> `canonical` `(` INTEGER_LITERAL `)`
 >     | ConstraintKind `(` INTEGER_LITERAL `,` INTEGER_LITERAL `)`
@@ -359,6 +369,7 @@ one argument for each parameter:
 | `marker` | A path that names a marker |
 | `natural` | An integer literal |
 | `object(C)` | An object whose object type lies within `C`. It is the name of a parameter or of a binding in scope, or a path that names a declared object: a global object, or an object of an `indexed affine` declaration |
+| `frame(F)` | A path that names a frame declared at the family `F`, as [The frame profile](language/frames.md#the-frame-profile) says |
 
 A constraint restricts the arguments of the family. It names parameters by
 their positions, which count from 0:
@@ -386,14 +397,18 @@ The representation `r` says which values the types of the family have:
 The [primitives](#primitives) build and use the values of `point` and
 `morphism` families. The representations `smooth`, `cotangent`, `tangent`,
 `tape` and `metric_form` are in
-[The smooth profile](language/smooth-declarations.md#the-smooth-profile), and
+[The smooth profile](language/smooth-declarations.md#the-smooth-profile),
 `relative` is in
-[The presented profile](affine-geometry.md#the-presented-profile).
+[The presented profile](affine-geometry.md#the-presented-profile), `frame`,
+`frame_vector`, `frame_covector` and `frame_map` are in
+[The frame profile](language/frames.md#the-frame-profile), and `reading` and
+`physical_metric` are in
+[Families of readings and interpretations](language/physical-dimensions.md#families-of-readings-and-interpretations).
 
 Rules:
 
-- The representation must be one of the nine representations. Another word
-  is an error (`E_TYPE`). So is another word for a parameter or for a
+- The representation must be one of the fifteen representations. Another
+  word is an error (`E_TYPE`). So is another word for a parameter or for a
   constraint.
 - The path of `object(C)` must name a classification or an implementation
   (`E_TYPE`).
@@ -591,11 +606,12 @@ different objects:
 > ```text
 > PrimitiveDeclaration -> `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
 > PrimitiveBinding -> DescriptorBinding | SmoothBinding | RelativeBinding
+>     | FrameBinding
 > DescriptorBinding -> `descriptor` `(` Path `)`
 >     | `global` `(` Path `)`
 >     | `origin` `(` `(` Path `,` Path `)` `,` Path `,` Path `)`
 >     | `identity` `(` `(` Path `,` Path `)` `,` Path `)`
->     | `dimension` `(` `(` Path `,` Path `)` `)`
+>     | `dim` `(` `(` Path `,` Path `)` `)`
 >     | `compose` `(` Path `)`
 >     | `apply` `(` Path `,` Path `)`
 > ```
@@ -607,8 +623,9 @@ primitive bindings form a closed set. A program declares no operation of its
 own, and a primitive binding names no native code. `SmoothBinding` gives the
 bindings of
 [Smooth affine declarations](language/smooth-declarations.md#smooth-map-primitives),
-and `RelativeBinding` gives the bindings of
-[Morphism primitives](affine-geometry.md#morphism-primitives).
+`RelativeBinding` gives the bindings of
+[Morphism primitives](affine-geometry.md#morphism-primitives), and
+`FrameBinding` gives the bindings of [Frames](language/frames.md).
 
 In the table, `I` is an implementation over the marker `K`, and `G` and `B`
 are global objects. `(D, K)` stands for the object type `Object<D, K>`. `P` is
@@ -620,14 +637,14 @@ a `point` family, and `M` is a `morphism` family.
 | `global(G)` | None | The object `G` | The global object `G` |
 | `origin((D, K), P, B)` | An object `X` | `P<X, B>` | The origin of `X` |
 | `identity((D, K), M)` | An object `X` | `M<X, X>` | The identity morphism of `X` |
-| `dimension((D, K))` | An object `X` | `Nat` | The dimension of `X` |
+| `dim((D, K))` | An object `X` | `Nat` | The dimension of `X` |
 | `compose(M)` | `g: M<Y, Z>`, `f: M<X, Y>` | `M<X, Z>` | `g` after `f` |
 | `apply(M, P)` | `f: M<X, Y>`, `p: P<X, S>` | `P<Y, S>` | The image of `p` under `f` |
 
 Rules:
 
 - The word after `=` must begin a binding of `PrimitiveBinding`. Another
-  word before `(` is an error (`E_TYPE`).
+  word before `(`, including `dimension`, is an error (`E_TYPE`).
 - The implementation of `descriptor(I)` must have the representation
   `affine_descriptor` (`E_TYPE`).
 - The path of `global(G)` must name a global object of an implementation
@@ -635,8 +652,8 @@ Rules:
 - `(D, K)` must be an object type by the rules of
   [Object types](#object-types) (`E_TYPE`).
 - Every implementation of `Object<D, K>` must have the capability `origin`
-  for the binding `origin`, and the capability `dimension` for the binding
-  `dimension` (`E_TYPE`).
+  for the binding `origin`, and the capability `dim` for the binding
+  `dim` (`E_TYPE`).
 - `M` must name a family with the representation `morphism`, and `P` a
   family with the representation `point` (`E_TYPE`).
 - `P<X, B>` of the binding `origin` must be an indexed type by the rules of
@@ -653,7 +670,7 @@ The module `geo` declares one primitive for each binding:
 ```
 
 In this package the domain of `Shape` has the implementation `Plain`, which
-lacks the capability `dimension`. The compiler reports the binding at its
+lacks the capability `dim`. The compiler reports the binding at its
 declaration, and the message names `Plain`:
 
 ```vast
@@ -761,7 +778,10 @@ type of a setting is `Object<domain, marker>`.
 | `base` | A primitive with the binding `global(base_object)` |
 | `origin` | A primitive with the binding `origin((domain, marker), point, base_object)` |
 | `identity` | A primitive with the binding `identity((domain, marker), morphism)` |
-| `dimension` | A primitive with the binding `dimension((domain, marker))` |
+| `dimension` | A primitive with the binding `dim((domain, marker))` |
+
+The entries `identity` and `dimension` name the primitives of the operations
+`id` and `dim`.
 
 Rules:
 
@@ -805,7 +825,7 @@ object type the object type of the object lies within.
 | `Pointed<Scheme, QQ>`, `Pointed<CInfScheme, CInfReal>` | `pointed<domain, marker>` of the setting |
 | `Affine(QQ, n)`, `Affine(CInfReal, n)` | A call of `affine` of the setting |
 | `Base(QQ)`, `Base(CInfReal)` in an expression | A call of `base` of the setting |
-| `origin(X)`, `id(X)`, `dimension(X)` | A call of `origin`, `identity` or `dimension` of the setting of `X` |
+| `origin(X)`, `id(X)`, `dim(X)` | A call of `origin`, `identity` or `dimension` of the setting of `X` |
 | `compose(g, f)`, `apply(f, p)` | A call of `compose` or `apply` |
 | `pack { scheme: X, point: p }` | `pack pointed<domain, marker> { witness: X, fields: [p] }` for the setting of `X` |
 
@@ -820,8 +840,8 @@ Rules:
   has no setting. A core operation on such an object, and a `pack` of the
   core with it, are errors (`E_TYPE`).
 - A bare name that the current module declares or imports wins over the core
-  operation of that name. For example, `dimension(X)` calls an imported
-  primitive `dimension`.
+  operation of that name. For example, `dim(X)` calls an imported
+  primitive `dim`.
 - A program may write `unpack e as { scheme: X, point: p };` without an
   export, as [Opening](#opening) says.
 
@@ -858,7 +878,7 @@ two profiles:
 | Implementation | `GridQQ` | `GridSmooth` |
 | Classification | `Scheme` | `CInfScheme` |
 | Global object | `BaseQQ` | `BaseSmooth` |
-| Primitives | `Affine`, `base`, `origin`, `id`, `dimension` | `Affine`, `base`, `origin`, `id`, `dimension` |
+| Primitives | `Affine`, `base`, `origin`, `id`, `dim` | `Affine`, `base`, `origin`, `id`, `dim` |
 
 Both modules also export the families `Point` and `Morphism`, the package
 declaration `Pointed` with one case for each setting, and the primitives

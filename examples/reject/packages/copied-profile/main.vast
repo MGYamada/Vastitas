@@ -1,17 +1,17 @@
 mod first {
     pub indexed marker QQ;
-    pub indexed implementation Grid(QQ, affine_descriptor) capabilities(dimension);
+    pub indexed implementation Grid(QQ, affine_descriptor) capabilities(dim);
     pub indexed primitive grid = descriptor(Grid);
-    pub indexed primitive size = dimension((Grid, QQ));
+    pub indexed primitive size = dim((Grid, QQ));
 }
 
 // The same text in another module declares another marker, another
 // implementation and other primitives.
 mod second {
     pub indexed marker QQ;
-    pub indexed implementation Grid(QQ, affine_descriptor) capabilities(dimension);
+    pub indexed implementation Grid(QQ, affine_descriptor) capabilities(dim);
     pub indexed primitive grid = descriptor(Grid);
-    pub indexed primitive size = dimension((Grid, QQ));
+    pub indexed primitive size = dim((Grid, QQ));
 }
 
 fn main() -> Int {

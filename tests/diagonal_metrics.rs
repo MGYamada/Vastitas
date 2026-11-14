@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, assert_rejected, cli, kernel, success};
+use common::{Scratch, assert_rejected, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
@@ -7,31 +7,20 @@ const REAL: &str = include_str!("../examples/packages/diagonal-metrics/src/real/
 const COMPLEX: &str = include_str!("../examples/packages/diagonal-metrics/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
-    let s = Scratch::empty("diagonal metrics");
-    s.write(
-        "Vastitas.toml",
-        include_str!("../examples/packages/diagonal-metrics/Vastitas.toml"),
-    );
-    s.write(
-        "src/main.vast",
-        include_str!("../examples/packages/diagonal-metrics/src/main.vast"),
-    );
-    s.write(
-        "src/profiles/mod.vast",
-        include_str!("../examples/packages/diagonal-metrics/src/profiles/mod.vast"),
-    );
-    s.write("src/real/mod.vast", real);
-    s.write("src/complex/mod.vast", complex);
-    s
+    common::example_package(
+        "diagonal metrics",
+        "examples/packages/diagonal-metrics",
+        &[
+            ("src/real/mod.vast", real),
+            ("src/complex/mod.vast", complex),
+        ],
+    )
 }
 fn command(s: &Scratch, mode: &str) -> Command {
-    let mut c = cli();
-    c.current_dir(&s.0)
-        .args([mode, "--manifest-path", "Vastitas.toml"]);
-    c
+    s.command(mode, "Vastitas.toml")
 }
 fn captured(s: &Scratch) -> Value {
-    common::captured_wire(command(s, "check"), 8)
+    s.captured("Vastitas.toml", 8)
 }
 fn rejection(source: &str, code: &str) {
     let output = command(&fixture(source, COMPLEX), "check")
@@ -407,7 +396,7 @@ fn materialized_diagonal_adjoint_builds_without_openblas() {
 #[test]
 #[ignore = "requires pinned sequential LP64 OpenBLAS 0.3.34"]
 fn diagonal_pairing_builds_executes_real_complex_and_empty_forms() {
-    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("pinned OpenBLAS prefix");
+    let options = common::numerical_build_options(None);
     for (real, complex) in [
         (REAL.to_owned(), COMPLEX.to_owned()),
         (empty(false, "0"), empty(true, "9007199254740993")),
@@ -439,14 +428,7 @@ fn diagonal_pairing_builds_executes_real_complex_and_empty_forms() {
         let s = fixture(&real, &complex);
         let output = s.0.join("program");
         let mut build = command(&s, "build");
-        build
-            .arg("-o")
-            .arg(&output)
-            .arg("--openblas-prefix")
-            .arg(&prefix);
-        if let Ok(cc) = std::env::var("VASTITAS_TEST_NATIVE_CC") {
-            build.arg("--native-cc").arg(cc);
-        }
+        build.arg("-o").arg(&output).args(&options);
         success(&build.output().unwrap());
         let result = Command::new(output).output().unwrap();
         success(&result);

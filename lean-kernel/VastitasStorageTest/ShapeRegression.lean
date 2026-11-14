@@ -1,10 +1,10 @@
 import VastitasKernel.StorageShapeFunctions
 import VastitasKernel.StorageShapeCodegen
+import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Storage.ShapeRegression
 
-private def ensure (label : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"runtime shapes: {label}")
+private def ensure := RegressionSupport.check "runtime shapes"
 
 private def get {α : Type} (label : String) (result : Except Error α) : IO α :=
   match result with

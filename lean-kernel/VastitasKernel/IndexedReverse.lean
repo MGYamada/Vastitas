@@ -1,5 +1,5 @@
 import VastitasKernel.IndexedTypeAudit
-import VastitasKernel.IndexedSourceProgram
+import VastitasKernel.IndexedSourceBodies
 import VastitasKernel.Limits
 
 set_option autoImplicit false

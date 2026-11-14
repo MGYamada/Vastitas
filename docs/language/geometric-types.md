@@ -91,7 +91,7 @@ describes.
 | `id(X)` | An object `X` | The identity morphism, of type `Morphism<X, X>` |
 | `compose(g, f)` | `f: Morphism<X, Y>`, `g: Morphism<Y, Z>` | `g` after `f`, of type `Morphism<X, Z>` |
 | `apply(f, p)` | `f: Morphism<X, Y>`, `p: Point<X, S>` | The image of `p`, of type `Point<Y, S>` |
-| `dimension(X)` | An object `X` | The dimension of `X`, of type `Nat` |
+| `dim(X)` | An object `X` | The dimension of `X`, of type `Nat` |
 
 Rules:
 
@@ -103,7 +103,7 @@ Rules:
 - The source of `g` must be the target of `f` in `compose(g, f)`, and the
   source of `f` must be the target of `p` in `apply(f, p)`. Another object is
   an error (`E_ENDPOINT`).
-- An argument of `origin`, `id` or `dimension` that is not an object is an
+- An argument of `origin`, `id` or `dim` that is not an object is an
   error (`E_TYPE`). So is an argument of `compose` or `apply` that is neither a
   point nor a morphism.
 - A point where `compose` or `apply` requires a morphism, and a morphism where
@@ -111,6 +111,25 @@ Rules:
 - An `E_ENDPOINT` diagnostic of `compose` or of `apply` reports the first
   requirement that fails: the family of an argument, `Point` or `Morphism`,
   then an endpoint, a marker or a classification.
+- `dim` applies to the objects of the two settings: the objects that `Affine`
+  creates and the base objects. An object of a presented or smooth affine
+  declaration is no value, so it is no argument of `dim`.
+- `dimension` is no operation. A call `dimension(…)` that names no
+  declaration is an error (`E_NAME`). Its diagnostic has a note that names
+  `dim(…)` and `nature::dimension`.
+
+`dim` is the dimension of a vector space or an affine space, never a physical
+dimension, which is a declaration of
+[Physical dimensions](physical-dimensions.md):
+
+- For a vector space `V` over its scalar field `K`, `dim(V)` is the dimension
+  of `V` over `K`.
+- For an affine space `A`, `dim(A)` is the dimension of the vector space of
+  translations of `A`.
+
+The object `Affine(K, n)` is the affine space of dimension `n` over `K`, and
+`dim` of it is `n`. A base object is a point, of dimension 0. A `dim` of
+presented and smooth affine objects and of numerical spaces is planned.
 
 ## Object identity
 

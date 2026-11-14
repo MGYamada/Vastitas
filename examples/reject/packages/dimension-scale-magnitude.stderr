@@ -1,0 +1,1 @@
+examples/reject/packages/dimension-scale-magnitude/main.vast:10:1: E_DIMENSION: the scale `dimension_scale_magnitude::l0` has the magnitude -1/2, which is not positive; a scale is a positive rational magnitude

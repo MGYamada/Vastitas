@@ -1,0 +1,21 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Length;
+use nature::dimension::Time;
+use nature::dimension::Wavelength;
+
+indexed affine C(SmoothR) = Affine(2)[x, t];
+indexed metric G: MetricForm<C> = gram((frac(1, 9), 0), (0, frac(1, 4)));
+indexed reading phys: Reading<C> = (x: Length, t: Time);
+indexed scale t0 = 2 of Time;
+
+// ANCHOR: declarations
+// A wavelength has the dimension L of a length, but it is another kind of
+// quantity, so it does not normalize the length coordinate x.
+indexed scale w0 = 3 of Wavelength;
+indexed physical PW: PhysicalMetric<C> = interpret(G, reading = phys, normalized(x: w0, t: t0));
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

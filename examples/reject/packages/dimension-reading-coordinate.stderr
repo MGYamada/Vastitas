@@ -1,0 +1,1 @@
+examples/reject/packages/dimension-reading-coordinate/main.vast:12:1: E_DIMENSION: the reading `dimension_reading_coordinate::phys` does not name the coordinate `t` of `dimension_reading_coordinate::C`; it names each coordinate exactly once

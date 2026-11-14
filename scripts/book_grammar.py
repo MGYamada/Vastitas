@@ -20,6 +20,8 @@ from pathlib import Path
 import re
 import sys
 
+from book_markdown import PRODUCTION, code_blocks
+
 
 ROOT = Path(__file__).resolve().parents[1]
 GRAMMAR_CHAPTER = "appendix/grammar.md"
@@ -99,7 +101,6 @@ class Range:
 
 POSTFIX = {"?": (0, 1), "*": (0, None), "+": (1, None)}
 NOTATION_TOKEN = re.compile(r"\s*(?:(`[^`]+`)|\[`([^`])`-`([^`])`\]|([A-Za-z_][A-Za-z0-9_]*)|([|()?*+]))")
-PRODUCTION = re.compile(r"^([A-Za-z][A-Za-z0-9_]*) ->(?: (.*))?$")
 LEXICAL_NAME = re.compile(r"[A-Z][A-Z0-9_]*")
 SYNTACTIC_NAME = re.compile(r"[A-Z][A-Za-z0-9]*")
 
@@ -218,17 +219,11 @@ def render(expression, top=True):
 def read_productions(text):
     """The productions of the code blocks labelled text of a chapter, in order: {name: expression}."""
     productions = {}
-    lines = text.splitlines()
-    index = 0
-    while index < len(lines):
-        if lines[index].strip() != "```text":
-            index += 1
+    for _, label, lines in code_blocks(text):
+        if label != "text":
             continue
-        index += 1
         current = None
-        while index < len(lines) and lines[index].strip() != "```":
-            line = lines[index]
-            index += 1
+        for line in lines:
             if not line.strip():
                 continue
             if line[:1].isspace() and current:
@@ -241,7 +236,6 @@ def read_productions(text):
                 raise ValueError(f"{match[1]} has two productions")
             current = (match[1], [match[2] or ""])
             productions[match[1]] = current[1]
-        index += 1
     return {name: parse_expression(" ".join(parts)) for name, parts in productions.items()}
 
 

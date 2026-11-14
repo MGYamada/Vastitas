@@ -15,9 +15,13 @@ Operands and their indices are named by position. `Slot.var` and
 `Slot.fixed` carry the field names and reasons that diagnostics print, so the
 messages stay the ones each primitive documents. The frame indices of Stage 4
 (#759) have their own slots (`frameVar`, `fixedFrame`), relations
-(`sameFrame`, `frameObject`) and template slot (`frameIndex`): an object slot
+(`sameFrame`, `frameObject`, `frameBound`) and template slot (`frameIndex`): an object slot
 never matches a frame index, and a frame slot never matches an object. -/
 namespace VastitasKernel.Indexed
+
+/-- The dimension of the smooth object of a declared frame (Stage 4). -/
+def frameDimension? (env : Environment) (frame : DeclId) : Option Nat :=
+  (frameObject? env frame).bind (smoothDimension? env)
 
 /-- An index of an operand: index `slot` of the application at `operand`. -/
 structure Position where
@@ -71,6 +75,9 @@ inductive Relation where
   /-- The reference at `object` is the global smooth object of the frame at
   `frame` (Stage 4); a mismatch is reported with `reason`. -/
   | frameObject (frame object : Position) (reason : String)
+  /-- `index` is below the dimension of the object of the frame at `position`
+  (Stage 4); `field` names the index in diagnostics. -/
+  | frameBound (position : Position) (index : Nat) (field : String)
 
 /-- One index of a result application. -/
 inductive TemplateSlot where

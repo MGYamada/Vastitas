@@ -4,8 +4,6 @@ mod common;
 use common::{kernel, request};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-use std::io::Write;
-use std::process::{Command, Stdio};
 
 fn package(flat: &Value, version: u64) -> Value {
     let mut module = json!({
@@ -44,18 +42,24 @@ fn package(flat: &Value, version: u64) -> Value {
     raw
 }
 
+/// The shape of a record: its keys and its `kind` and `op` tags.
+fn shape(fields: &serde_json::Map<String, Value>) -> String {
+    format!(
+        "{:?}:{:?}:{:?}",
+        fields.keys().collect::<Vec<_>>(),
+        fields.get("kind"),
+        fields.get("op")
+    )
+}
+
 // Select a representative of every distinct record shape/tag. This avoids
 // rerunning identical span mutations for every scalar leaf in a source file.
 fn record_paths(value: &Value, path: &str, records: &mut BTreeMap<String, String>) {
     match value {
         Value::Object(fields) => {
-            let shape = format!(
-                "{:?}:{:?}:{:?}",
-                fields.keys().collect::<Vec<_>>(),
-                fields.get("kind"),
-                fields.get("op")
-            );
-            records.entry(shape).or_insert_with(|| path.to_string());
+            records
+                .entry(shape(fields))
+                .or_insert_with(|| path.to_string());
             for (name, child) in fields {
                 let escaped = name.replace('~', "~0").replace('/', "~1");
                 record_paths(child, &format!("{path}/{escaped}"), records);
@@ -129,65 +133,40 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
 }
 
 /// The promotion example against a copy of the stdlib without its Stage 2
-/// `scheme::affine` module and its Stage 3 `smooth::affine` and `metric`
-/// modules and `differential` package. That closure still uses protocol 7, so
-/// the Indexed.Wire sweep keeps the geometry-compatibility, dependency and
-/// function-body records that only the stdlib supplies.
+/// `scheme::affine` module, its Stage 3 `smooth::affine` and `metric`
+/// modules and `differential` package, and its Stage 4 `frame` module. That
+/// closure still uses protocol 7, so the Indexed.Wire sweep keeps the
+/// geometry-compatibility, dependency and function-body records that only the
+/// stdlib supplies.
 fn promotion_without_affine() -> Value {
     let root = common::root();
     let stdlib = root.join("stdlib");
     let s = common::Scratch::empty("protocol seven stdlib");
-    let copy = |from: &str, to: &str| {
-        s.write(to, &std::fs::read_to_string(stdlib.join(from)).unwrap());
-    };
     // Remove the line `line` of the copied file `path`, which must have it.
     let strip = |path: &str, line: &str| {
         let text = std::fs::read_to_string(stdlib.join(path)).unwrap();
         assert!(text.contains(line), "{path} lacks {line:?}");
         s.write(&format!("stdlib/{path}"), &text.replace(line, ""));
     };
+    // Copy the generated package and every geometry source except the Stage 2
+    // and Stage 3 modules, so new stdlib modules are picked up without editing
+    // this list.
+    s.copy_stdlib(
+        &["target/package", "src/geometry"],
+        &[
+            "src/geometry/scheme/affine",
+            "src/geometry/smooth/affine",
+            "src/geometry/metric",
+            "src/geometry/frame",
+        ],
+    );
     strip(
         "Vastitas.toml",
         "differential_library = { path = \"src/differential\" }\n",
     );
-    // Copy the generated package and every geometry source except the Stage 2
-    // and Stage 3 modules, so new stdlib modules are picked up without editing
-    // this list.
-    for directory in ["target/package", "src/geometry"] {
-        let mut stack = vec![stdlib.join(directory)];
-        while let Some(path) = stack.pop() {
-            if [
-                "src/geometry/scheme/affine",
-                "src/geometry/smooth/affine",
-                "src/geometry/metric",
-            ]
-            .iter()
-            .any(|module| path.ends_with(module))
-            {
-                continue;
-            }
-            for entry in std::fs::read_dir(&path).unwrap() {
-                let entry = entry.unwrap().path();
-                if entry.is_dir() {
-                    stack.push(entry);
-                } else if entry
-                    .extension()
-                    .is_some_and(|extension| extension == "vast" || extension == "toml")
-                {
-                    let relative = entry
-                        .strip_prefix(&stdlib)
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .to_owned();
-                    copy(&relative, &format!("stdlib/{relative}"));
-                }
-            }
-        }
-    }
     strip("src/geometry/scheme/mod.vast", "pub mod affine;\n");
     strip("src/geometry/smooth/mod.vast", "pub mod affine;\n");
-    strip("src/geometry/mod.vast", "pub mod metric;\n");
+    strip("src/geometry/mod.vast", "pub mod metric;\npub mod frame;\n");
     strip(
         "target/package/lib.vast",
         "pub use differential_library as differential;\n",
@@ -203,11 +182,10 @@ fn promotion_without_affine() -> Value {
         "app/main.vast",
         &std::fs::read_to_string(example.join("main.vast")).unwrap(),
     );
-    let mut command = common::cli();
-    command
-        .args(["check", "--manifest-path"])
-        .arg(s.0.join("app/Vastitas.toml"));
-    common::captured_wire(command, 7)
+    common::captured_wire(
+        common::manifest_command("check", s.0.join("app/Vastitas.toml")),
+        7,
+    )
 }
 
 // #557: the same sweep over the public Indexed.Wire (7) and ResourceSource.Wire
@@ -288,6 +266,109 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
     });
 }
 
+// #759: the frame and `nature::dimension` records of protocol 9, in the wire
+// that the frontend sends for `tests/fixtures/frame-dimension-declarations`.
+// Records of one shape can have different decoders (the Gram matrix of a
+// metric and of a physical metric), so the sweep also keeps one
+// representative per shape and declaration kind. The kernel accepts the
+// baseline; every forged field is a decoder rejection.
+#[test]
+fn frame_and_nature_records_reject_unknown_fields() {
+    let mut command = common::cli();
+    command
+        .args(["check", "--manifest-path"])
+        .arg(common::root().join("tests/fixtures/frame-dimension-declarations/Vastitas.toml"));
+    let raw = common::captured_wire(command, 9);
+    let baseline = kernel(&raw, "check");
+    assert!(baseline["ok"] == true, "{baseline}");
+    let mut records = BTreeMap::new();
+    record_paths(&raw, "", &mut records);
+    let base = "/packages/0/modules/0/indexed_declarations";
+    for (index, declaration) in raw
+        .pointer(base)
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .iter()
+        .enumerate()
+    {
+        let mut own = BTreeMap::new();
+        record_paths(declaration, &format!("{base}/{index}"), &mut own);
+        for (record, path) in own {
+            records
+                .entry(format!("{}/{record}", declaration["kind"]))
+                .or_insert(path);
+        }
+    }
+    // Each Stage 4 record shape, under the declaration kind that holds it.
+    let header = json!({"kind": null, "name": null, "public": null, "span": null});
+    let declaration = |kind: &str, fields: &[&str]| {
+        let mut record = header.as_object().unwrap().clone();
+        record.insert("kind".into(), json!(kind));
+        for field in fields {
+            record.insert((*field).into(), Value::Null);
+        }
+        format!("{:?}/{}", kind, shape(&record))
+    };
+    let nested =
+        |kind: &str, record: Value| format!("{kind:?}/{}", shape(record.as_object().unwrap()));
+    for expected in [
+        declaration("family", &["parameters", "constraints", "representation"]),
+        nested("family", json!({"kind": "frame", "family": null})),
+        declaration("frame", &["family", "indices", "columns", "inverse"]),
+        nested("frame", json!({"kind": "columns", "columns": null})),
+        nested("frame", json!({"kind": "coordinates"})),
+        declaration("base_dimension", &[]),
+        declaration("quantity", &["dimension"]),
+        nested("quantity", json!({"base": null, "exponent": null})),
+        declaration("reading", &["family", "indices", "quantities"]),
+        nested("reading", json!({"coordinate": null, "quantity": null})),
+        declaration("scale", &["quantity", "magnitude"]),
+        nested(
+            "scale",
+            json!({"op": "fraction", "numerator": null, "denominator": null}),
+        ),
+        declaration(
+            "physical_metric",
+            &["family", "indices", "metric", "reading", "value", "entries"],
+        ),
+        nested("physical_metric", json!({"kind": "euclidean"})),
+        nested("physical_metric", json!({"kind": "gram", "rows": null})),
+        nested(
+            "physical_metric",
+            json!({"kind": "normalized", "scales": null}),
+        ),
+        nested(
+            "physical_metric",
+            json!({"coefficient": null, "factors": null}),
+        ),
+        nested("physical_metric", json!({"scale": null, "exponent": null})),
+        nested(
+            "physical_metric",
+            json!({"coordinate": null, "scale": null}),
+        ),
+        nested("physical_metric", json!({"base": null, "exponent": null})),
+        nested("physical_metric", json!({"op": "neg", "operand": null})),
+    ] {
+        assert!(records.contains_key(&expected), "no record {expected}");
+    }
+    let paths: std::collections::BTreeSet<String> = records.into_values().collect();
+    for path in &paths {
+        let mut changed = raw.clone();
+        changed.pointer_mut(path).unwrap()["forged_authority"] = json!("untrusted");
+        let response = kernel(changed, "emit");
+        assert_eq!(response["version"], 9, "{path}: {response}");
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
+        let message = response["diagnostics"][0]["message"].as_str().unwrap();
+        let tagged = path.ends_with("/representation")
+            && message == "expected exactly one concrete representation";
+        assert!(
+            message.contains("forged_authority") || tagged,
+            "{path}: {response}"
+        );
+    }
+}
+
 #[test]
 fn legacy_hint_tolerance_is_limited_to_the_v2_envelope() {
     let mut raw = request("fn main() -> Int { 0 }", "shape.vast");
@@ -343,20 +424,7 @@ fn malformed_versions_and_non_utf8_input_return_protocol_json() {
         "E_PROTOCOL"
     );
     for mode in ["check", "emit"] {
-        let mut child = Command::new(common::kernel_path())
-            .arg(mode)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
-        child
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(b"{\"version\":6,\"file\":\"\xff\"}")
-            .unwrap();
-        let result = child.wait_with_output().unwrap();
+        let result = common::kernel_bytes(mode, b"{\"version\":6,\"file\":\"\xff\"}".to_vec());
         assert!(!result.status.success());
         assert!(result.stderr.is_empty(), "{result:?}");
         let response: Value = serde_json::from_slice(&result.stdout).unwrap();

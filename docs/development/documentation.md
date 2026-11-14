@@ -14,10 +14,10 @@ parts:
 
 | Part | Content | Files |
 | --- | --- | --- |
-| Introduction and chapters 1–12 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md` |
+| Introduction and chapters 1–13 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md` |
 | Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `affine-geometry.md`, `storage-ownership.md`, `storage/resource-programs.md`, `linalg/` |
 | How the compiler is checked | Architecture, the driver, checking pipeline, wire protocols, proof boundaries and specifications | `development/architecture.md`, `internals/`, `storage/checked-storage.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/` |
-| Appendices A–H | CLI, diagnostics, reference models, limits, history and delivery records, contributing with the stdlib admission ADR, glossary, grammar summary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `development/` apart from `architecture.md`, `adr/` |
+| Appendices A–H | CLI, diagnostics, reference models, limits, history and delivery records, contributing with the stdlib admission ADR, glossary, grammar summary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `stage4-acceptance.md`, `development/` apart from `architecture.md`, `adr/` |
 
 File paths stay stable when a chapter moves between parts, because tests,
 scripts, experiment records and external links name them.
@@ -51,6 +51,14 @@ The generated site is in `target/book/`. `scripts/check_book.py` checks that:
   unit tests of the checkers;
 - every `docs/<chapter>.md` named in a file outside `docs/` without an anchor
   names a chapter;
+- every repository path in a code span of a chapter, such as
+  `scripts/check_book.py`, names a file or a directory that Git tracks, in
+  the delivery records too. A path under `src/` counts only when it names a
+  `.rs` file, because the sources of a package, such as `src/lib.vast`,
+  begin the same way. A word with a placeholder or a wildcard, such as
+  `docs/<chapter>.md`, names no path. `UNTRACKED_PATHS` names the generated
+  and retired paths that a chapter may name, with the reason, and the check
+  fails on an entry that no chapter names or that Git tracks;
 - every redirect in `book.toml` leads from a retired chapter to a chapter and
   an anchor of the book;
 - the Introduction links to the roadmap, and every formula of the rendered
@@ -191,10 +199,13 @@ Git retains the earlier revisions.
 ## Style guide
 
 These rules govern the text of every chapter. The archived delivery records,
-`stage1-completion.md` and the `stage*-acceptance.md` files, are exempt and keep
+`stage1-completion.md`, `stage1-acceptance.md`, `stage2-acceptance.md`,
+`stage3-acceptance.md` and `reverse-core-acceptance.md`, are exempt and keep
 their original wording. So do the chapters with moved text that
 [Author and retire a chapter](#author-and-retire-a-chapter) names, apart
-from the checked rules.
+from the checked rules. The links and repository paths of the delivery
+records are still checked and kept current, like those of every other
+chapter.
 
 ### Voice
 

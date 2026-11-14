@@ -115,7 +115,7 @@ def Program.lambdaScopes (program : Program) : List (Namespace.Scope × LambdaSc
 
 def available (index : Namespace.Indexed) (scope : Namespace.Scope) (path : Source.Path) : Bool :=
   if [["int"], ["pair"], ["pair_first"], ["pair_second"],
-      ["Affine"], ["Base"], ["origin"], ["id"], ["dimension"], ["compose"], ["apply"],
+      ["Affine"], ["Base"], ["origin"], ["id"], ["dim"], ["compose"], ["apply"],
       ["QQ"], ["CInfReal"]].contains path.path then true
   else (Namespace.resolve index scope path.path path.span).isOk
 

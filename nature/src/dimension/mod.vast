@@ -1,0 +1,29 @@
+// Physical dimensions of the coordinates of smooth affine objects (historical
+// Stage 4, ADR 0002 §3). Reading<X> indexes the readings of X, which assign a
+// quantity kind to each coordinate of X. PhysicalMetric<X> indexes the
+// physical interpretations of the std metrics of X; the kernel checks that the
+// terms of an interpreted metric have one dimension. Neither changes X, its
+// maps or its metrics: a std metric is valid with and without them.
+//
+// The base dimensions and quantity kinds below are physical identifications,
+// not mathematical facts. A quantity kind is nominal: equal dimensions do not
+// identify kinds, so Wavelength is not Length and Torque is not Energy. Every
+// other base dimension, quantity kind, reading, scale and interpretation is the
+// application's to declare.
+pub indexed family Reading(object(std::geometry::smooth::affine::CInfAffine))
+    = reading constraints(canonical(0));
+pub indexed family PhysicalMetric(object(std::geometry::smooth::affine::CInfAffine))
+    = physical_metric constraints(canonical(0));
+
+// Length, time and mass.
+pub indexed base_dimension L;
+pub indexed base_dimension T;
+pub indexed base_dimension M;
+
+pub indexed quantity Length = L;
+pub indexed quantity Time = T;
+pub indexed quantity Mass = M;
+pub indexed quantity Speed = L * T^-1;
+pub indexed quantity Wavelength = L;
+pub indexed quantity Energy = M * L^2 * T^-2;
+pub indexed quantity Torque = M * L^2 * T^-2;

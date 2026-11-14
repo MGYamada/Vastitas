@@ -129,24 +129,22 @@ def binding (j : Json) : Except String (String × Source.PolyExpr) := do
   fields j ["name", "image"]
   return (← str j "name", ← polyExpr Limits.algebraNesting (← field j "image"))
 
-/-- The ops that only protocol 9 admits (the Stage 2 relative and Stage 3
-smooth, fiber, tape and metric primitive contracts), derived from `families`:
-the op of each family with `algebraic` set. The decoder does not read this
-list. `primitive` and `algebraicPrimitive` admit exactly the ops that
-`primitiveFamily?` finds, so no other spelling is admitted, and admit an op
-whose family has `algebraic` set only in protocol 9.
-`IndexedDescriptorRegression` reads the list. There is no `gradient`
-operation: a gradient is an ordinary function that applies `sharp` to a
-differential. -/
-def algebraicOperations : List String :=
-  (families.filter (·.algebraic)).map (·.op)
-
 /-- How a cotangent pullback obtains forward values. -/
 def pullbackMode (j : Json) : Except String SmoothRuntime.PullbackMode := do
   match ← j.getStr? with
   | "saved" => return .saved
   | "recomputed" => return .recomputed
   | _ => throw "expected pullback mode saved or recomputed"
+
+/-- A natural field of a primitive (Stage 4: a frame component, a row or a
+column): an unsigned decimal string with at most `algebraCoefficientDigits`
+digits. The length is checked before the string is parsed. -/
+def naturalField (text : String) : Except String Nat := do
+  if text.length > Limits.algebraCoefficientDigits then
+    throw s!"a natural primitive field has at most {Limits.algebraCoefficientDigits} decimal digits"
+  match decimalNat? text with
+  | some n => return n
+  | none => throw "a natural primitive field is an unsigned decimal string"
 
 /-- One field of a primitive's wire form, decoded by its declared kind. -/
 def wireArgument (j : Json) (spec : WireField) : Except String Source.WireArgument := do
@@ -156,6 +154,7 @@ def wireArgument (j : Json) (spec : WireField) : Except String Source.WireArgume
   | .coordinate => return .coordinate (← str j spec.name)
   | .polynomial => return .polynomial (← polyExpr Limits.algebraNesting (← field j spec.name))
   | .pullbackMode => return .pullbackMode (← pullbackMode (← field j spec.name))
+  | .natural => return .natural (← naturalField (← str j spec.name))
 
 /-- A primitive of one family: exactly `op` and the family's fields, decoded
 in wire order. -/
@@ -181,6 +180,11 @@ def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := d
   | "restrict" => fields j ["kind", "morphism"]; return .restrict (← path (← field j "morphism"))
   | _ => throw "unknown morphism definition"
 
+/-- A primitive call. `primitive` and `algebraicPrimitive` admit exactly the
+ops that `primitiveFamily?` finds, so no other spelling is admitted, and admit
+an op whose family has `algebraic` set only in protocol 9. There is no
+`gradient` operation: a gradient is an ordinary function that applies `sharp`
+to a differential. -/
 def primitive (j : Json) (algebraic : Bool := false) : Except String Source.Primitive := do
   let op ← str j "op"
   let some family := primitiveFamily? op | throw "unknown indexed primitive contract"

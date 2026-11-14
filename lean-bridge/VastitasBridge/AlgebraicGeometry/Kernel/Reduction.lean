@@ -221,15 +221,6 @@ lemma canonical_singleton {t : Term} (ht : t.monomial.length = n) (hc : t.coeffi
     Canonical n [t] :=
   canonical_cons_iff.2 ⟨ht, hc, by simp, canonical_nil⟩
 
-lemma degree_toMv_of_leading {g : Poly} {lead : Term} (hg : Canonical n g)
-    (hl : g.leading? = some lead) : degLex.degree (toMv n g) = toExp n lead.monomial := by
-  cases g with
-  | nil => simp [Poly.leading?] at hl
-  | cons t g =>
-    simp only [Poly.leading?, List.head?_cons, Option.some.injEq] at hl
-    subst hl
-    exact degree_toMv hg
-
 /-- Every monomial left by one reduction step lies below the reduced leading term. -/
 lemma reduct_le {t : Term} {rest g : Poly} {q : Term} {lead : Term}
     (hrest : Canonical n (t :: rest)) (hg : Canonical n g) (hl : g.leading? = some lead)
@@ -609,41 +600,12 @@ section Budget
 
 open VastitasOracle.AlgebraBasis (bind_ok forM_ok ensure_ok)
 
-lemma pure_run_ok {α : Type} {a b : α} {s s' : ℕ}
-    (h : (pure a : Work α).run s = .ok (b, s')) : b = a := by
-  simp only [StateT.run, pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at h
-  exact h.1.symm
-
-lemma throw_run_not_ok {α : Type} {e : AlgebraBasis.Error} {s s' : ℕ} {a : α}
-    (h : (throw e : Work α).run s = .ok (a, s')) : False := by
-  simp [StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift, bind, Except.bind] at h
-
-/-- The budgeted division takes exactly the steps of `AlgebraRuntime.divideWith`. -/
-theorem budgeted_divide_go {divisors : List Poly} : ∀ {fuel : ℕ} {state d : Division}
-    {s s' : ℕ}, (AlgebraBasis.divide.go divisors fuel state).run s = .ok (d, s') →
-      d = divideWith fuel divisors state
-  | 0, state, d, s, s', h => by
-    simp only [AlgebraBasis.divide.go] at h
-    rw [pure_run_ok h]
-    rfl
-  | fuel + 1, state, d, s, s', h => by
-    simp only [AlgebraBasis.divide.go] at h
-    obtain ⟨_, _, _, h⟩ := bind_ok h
-    unfold divideWith
-    cases hstep : Division.step divisors state with
-    | none =>
-      simp only [hstep] at h ⊢
-      exact pure_run_ok h
-    | some next =>
-      simp only [hstep] at h ⊢
-      split at h
-      · exact (throw_run_not_ok h).elim
-      · exact budgeted_divide_go h
-
+/-- The budgeted division takes exactly the steps of `AlgebraRuntime.divide`
+(the Oracle's `divide_ok`). -/
 theorem budgeted_divide {divisors : List Poly} {p : Poly} {d : Division} {s s' : ℕ}
     (h : (AlgebraBasis.divide divisors p).run s = .ok (d, s')) :
     d = AlgebraRuntime.divide divisors p :=
-  budgeted_divide_go h
+  VastitasOracle.AlgebraBasis.divide_ok h
 
 /-- A successful S-pair check divides the S-polynomial to remainder zero. -/
 theorem checkPair_remainder {basis : List Poly} {pair : ℕ × ℕ} {s s' : ℕ}

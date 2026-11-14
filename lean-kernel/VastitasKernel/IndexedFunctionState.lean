@@ -1,5 +1,5 @@
 import VastitasKernel.IndexedFunctionLift
-import VastitasKernel.IndexedSourceProgram
+import VastitasKernel.IndexedSourceBodies
 
 namespace VastitasKernel.Indexed.FunctionSource.Compiler
 

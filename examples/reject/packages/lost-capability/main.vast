@@ -1,10 +1,10 @@
 indexed marker QQ;
-indexed implementation Grid(QQ, affine_descriptor) capabilities(dimension);
+indexed implementation Grid(QQ, affine_descriptor) capabilities(dim);
 indexed implementation Plain(QQ, affine_descriptor) capabilities();
 indexed classification Shape { parents(); domain(Grid, Plain); };
 indexed classification Measured { parents(Shape); domain(Grid); };
 indexed primitive grid = descriptor(Grid);
-indexed primitive size = dimension((Measured, QQ));
+indexed primitive size = dim((Measured, QQ));
 
 fn main() -> Int {
     let X = grid(42);

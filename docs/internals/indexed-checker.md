@@ -142,8 +142,28 @@ markers: an `ObjectType` selects both a domain and a marker, and its admitted
 implementations are the nonempty intersection. Classification and coefficient
 base are therefore separate, even in the initial single-base geometry profile.
 
+The environment also holds the declarations of the geometric profiles:
+presented and smooth affine objects, metrics and their evidence, frames, and
+the base dimensions, quantities, readings, scales and physical metrics of
+`nature::dimension`. `Indexed.lean` holds the data model of the environment
+and its views, the functions through which every check reads it, such as
+`frameData?`, `frameObject?`, `quantityDimension?`, `readingData?` and
+`familyRepresentation`. It holds no validity rule.
+`IndexedValidity.lean` holds the validity of one entry and of the whole
+environment: `Entry.Valid` and its executable check `validEntry`,
+`Environment.Valid` and `validEnvironment`, the metric checks, and the checked
+records `CheckedEnvironment` and `CheckedApplication`. For a frame,
+`Entry.Valid` calls `FrameDeclarations.checkFrame`; for each declaration of
+`nature::dimension` it calls the check of `NatureDimension` for that kind.
+Those checks read the environment through the views of `Indexed`, so
+`IndexedValidity` imports them and they import `Indexed`. The compiled audit
+checks equal evidence declarations once; the kernel theorem
+`validEnvironment_eq_once`, with the attribute `csimp`, proves that it
+computes `validEnvironment`.
+
 Implementation capability records contain the closed `origin` and
-`dimension` tags for the finite affine descriptor representation. They are
+`dimension` tags for the finite affine descriptor representation; the source
+spells the second `dim`. They are
 explicit per implementation; classification or inheritance does not fill them
 in. These records alone are not mathematical evidence or operation acceptance.
 The closed primitive binding checker is described below. Executable source/
@@ -188,6 +208,35 @@ registry entry of a binding. They are presentation only: they run after the
 audit has rejected and never decide acceptance. A rule that they do not find
 keeps a general message. The size limits of a classification, a family and a
 package declaration are `E_LIMIT`, every other rule `E_TYPE`.
+
+Some declarations carry data that the kernel computes once their objects are
+known. `resolveBody` resolves every path of a declaration and leaves that
+data as a placeholder. `lower` then runs the stage passes in this order:
+`elaborateAffine`, `elaborateSmooth`, `elaborateMetrics`, `elaborateFrames`,
+`elaborateNature` and `elaborateRelative`. Each pass reports its rejections
+at the declaration, and the declaration audit checks every stored
+declaration again afterwards.
+
+- `elaborateFrames` (`IndexedFrameSource.lean`) expands the columns of each
+  frame in the coordinates of its object, within one `algebraWork` budget per
+  frame. For a constant frame it checks the entry and matrix bounds of a Gram
+  matrix and computes the inverse with `SmoothDeclarations.invert?`; a
+  constant frame that declares an inverse is rejected. For a frame polynomial
+  in the point it checks the declared inverse as an identity of canonical
+  polynomials. It ends with `FrameDeclarations.checkMatrices`, the check that
+  the audit repeats. It then gives every frame binding the frames it names,
+  their objects, matrices and inverses, and the variance of an encoding or a
+  decoding from its fiber family (`elaborateFrameBindings`). A transition
+  between frames of two objects is `E_ENDPOINT`; the other rejections are
+  `E_FRAME`, the bounds `E_LIMIT`, and an unknown coordinate or a zero
+  denominator `E_AFFINE_COORDINATE`.
+- `elaborateNature` (`IndexedNatureSource.lean`) elaborates base dimensions,
+  quantities, readings and scales first, and then the physical metrics, which
+  read them. It puts the quantities of a reading and the scales of a
+  normalized metric in coordinate order, evaluates every magnitude and
+  coefficient, and checks each physical metric as the audit does. Its
+  rejections are `E_DIMENSION`, and its bounds `E_LIMIT`. A program without
+  declarations of `nature::dimension` passes through it unchanged.
 
 `IndexedSourceRegression` adds 42 cases, including non-geometric token/package
 contracts, coefficient-versus-object errors, whole-domain capability loss,
@@ -458,7 +507,9 @@ calls to typed evaluation. Native refinement remains outside the proof boundary.
 
 `Entry.Valid`, `Family.Valid`, `Parameter.Accepts`, `Constraint.Holds`,
 `Environment.Valid` and `Application.Valid` specify logical conditions separately
-from the executable environment/application checks. `CheckedEnvironment` retains
+from the executable environment/application checks. `Entry.Valid` and
+`Environment.Valid` are in `IndexedValidity.lean`, the others in
+`Indexed.lean`. `CheckedEnvironment` retains
 the exact environment and its successful audit; `CheckedApplication` is indexed
 by that same checked environment. The public protocol does not deserialize either
 checked record.
@@ -557,6 +608,23 @@ Cartesian-square declaration has no family. Neither has a step binding of
 [compiled reverse Core](../appendix/glossary.md#compiled-reverse-core),
 `smoothApply` or `cotangentJacobian`. Only the kernel declares these
 bindings, after acceptance, so no source or wire request names them.
+
+The thirteen frame bindings take their registry entries from
+`IndexedFrameRegistry.lean` and their validity contracts from
+`IndexedFrameContracts.lean`. A frame binding embeds each frame it applies as
+a `FrameRef`: the frame declaration, its smooth object, its matrix `P` and its
+inverse `Q`. Its contract requires every embedded copy to equal the
+declaration, so the declaration audit rejects a forged object, matrix or
+inverse. The shapes keep frames static: an array names its frame and a frame
+matrix its two frames as indices, so an operand in another frame is a
+mismatch of the call, not a run-time failure. The logical evaluator keeps
+frame arrays and frame matrices apart from fibers (`IndexedValue.frameArray`,
+`IndexedValue.frameMatrix`). The erased evaluator and the lowering apply the
+operations of `FrameRuntime` and `SmoothRuntime` on the embedded matrices, and
+a generated module declares each such matrix once (`SharedLiteral.frame`).
+The [specification of `std::geometry::frame`](../spec/std-geometry-frame.md)
+states their laws, and [Verification boundaries](../verification.md#frames-and-physical-dimensions)
+their theorems.
 [Add an indexed primitive](../development/primitives.md) lists what one more
 binding touches. `IndexedDescriptorExample` defines a `PrimitiveDescriptor`
 value and a `PrimitiveFamily` value outside the registry.
@@ -571,7 +639,8 @@ annotation are independently audited against the same checked environment.
 The table lists the bindings of this profile. [Presented affine
 geometry](../affine-geometry.md) describes the relative bindings, and [Smooth
 affine declarations](../language/smooth-declarations.md) describes the smooth,
-fiber, tape and metric bindings.
+fiber, tape and metric bindings, and [Frames](../language/frames.md) the
+frame bindings, whose implementation is described above.
 
 | Registry entry | Operand and result contract | Additional obligation |
 | --- | --- | --- |
@@ -905,10 +974,10 @@ not an alternative semantic acceptance rule.
 
 | Concern / location | Current disposition and independent boundary |
 | --- | --- |
-| Legacy keywords, reserved names, ring positions and type syntax: `src/frontend.rs`, `src/ir.rs`, kernel `Surface.lean` | Adapter: retains Scheme/CInfScheme/Point/Morphism/Pointed syntax and QQ/CInfReal marker syntax. A marker is not a runtime object. Qualified indexed syntax is parsed separately. Rust diagnostics cannot certify types. |
-| Indexed parsing and strict wire schema: `src/indexed.rs`, `src/packages.rs`, kernel `IndexedProtocol.lean`, `IndexedBodyProtocol.lean`, `IndexedAcceptance.lean` | General mechanism: unresolved paths, enclosing owners, family kinds/arity, explicit bindings and complete source bodies; no frontend-supplied authority or checked flag. Older versions reject these declarations/exports instead of discarding them. |
+| Legacy keywords, reserved names, ring positions and type syntax: `src/frontend.rs`, `src/frontend/types.rs`, `src/frontend/resolver.rs`, `src/ir.rs`, kernel `Surface.lean` | Adapter: retains Scheme/CInfScheme/Point/Morphism/Pointed syntax and QQ/CInfReal marker syntax. A marker is not a runtime object. Qualified indexed syntax is parsed separately. Rust diagnostics cannot certify types. |
+| Indexed parsing and strict wire schema: `src/indexed.rs`, `src/namespace.rs`, `src/packages.rs`, kernel `IndexedProtocol.lean`, `IndexedBodyProtocol.lean`, `IndexedAcceptance.lean` | General mechanism: unresolved paths, enclosing owners, family kinds/arity, explicit bindings and complete source bodies; no frontend-supplied authority or checked flag. Older versions reject these declarations/exports instead of discarding them. |
 | Old wire conversion: kernel `LegacySource.lean` | Adapter: preserves original bodies, namespaces and edit metadata. Validates the original namespace before adding an ordinary closed unresolved profile; rejects collision with its reserved package identity. That profile passes the same declaration and role checks as a source library. |
-| Namespace reservations and lookup: kernel `NamespaceChecker.lean`, `IndexedSourceChecker.lean` | General mechanism with compatibility reservations: canonical package/module/declaration IDs, actual visibility/re-exports and shared-name collision checks. Indexed declarations may use geometry spellings; an ordinary function alias cannot acquire those reserved declaration roles. |
+| Namespace reservations and lookup: kernel `NamespaceResolve.lean`, `NamespaceValidate.lean`, `NamespaceLower.lean`, `IndexedSourceChecker.lean` | General mechanism with compatibility reservations: canonical package/module/declaration IDs, actual visibility/re-exports and shared-name collision checks. Indexed declarations may use geometry spellings; an ordinary function alias cannot acquire those reserved declaration roles. Modules may take the seven geometric operation names; a bare call of an operation falls back to it when the name is unbound or names a child module (`legacyFallback_uncallable`). |
 | Classification and representation: kernel `Indexed.lean`, `IndexedAudit.lean`; stdlib `geometry/{scheme,smooth}/mod.vast` | Library plus general mechanism: distinct finite classifications, coefficient markers and implementations. Classification membership does not identify individual objects or add origin/dimension capability. |
 | Point/Morphism/Pointed definitions: stdlib `geometry/mod.vast`; kernel `IndexedPackages.lean`, `IndexedContractAudit.lean` | Library plus general mechanism: declared indexed families, same-base constraints, sealed representations, finite single-witness package cases and ordered field templates. General test objects are permitted; Pointed specifically uses the declared base object. |
 | Type annotations and legacy type names: kernel `IndexedSourceTypes.lean` | Adapter maps legacy syntax using a selected validated profile; general annotation checking validates declared kinds, sorts, arities, refinement and scope. Object-valued indices and coefficient markers remain distinct. |
@@ -919,7 +988,7 @@ not an alternative semantic acceptance rule.
 | Primitive behavior: kernel `IndexedPrimitiveBinding.lean`, `IndexedPrimitiveShapes.lean`, `IndexedPrimitiveValues.lean`, `IndexedPrimitiveDescriptors.lean`, `IndexedPrimitiveRegistry.lean`, `IndexedPrimitiveFamilies.lean`, `IndexedPrimitives.lean`, `IndexedContractAudit.lean`, `IndexedSemantics.lean`, `IndexedRuntime.lean`; generated `src/primitive_table.rs` | Closed explicit registry; see the table below. The wire form comes from the family table of `IndexedPrimitiveFamilies.lean`: the decoder, the resolver and the generated Rust table read it, and a family grants no authority. No arbitrary native registration, certificate string or mathematical axiom is admitted. |
 | Diagnostic names/locations: kernel `IndexedSourceDiagnostics.lean`, `IndexedSourceBodies.lean` | Presentation only. “Affine” introduction notes do not choose implementation, merge identities or authorize an operation. |
 | Native lowering: kernel `IndexedCodegen.lean` | General Core lowering selected by validated binding/representation tags, not source spelling. Rechecks all declarations, types, scopes, freshness and actual dependencies before emitting reachable functions. Generated modules import only `IndexedRuntime`. Mutable storage is not yet represented. |
-| Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionChecker`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Old decoders and scalar/namespace header validation remain reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |
+| Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionChecker`, `SurfacePrograms`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Old decoders and scalar/namespace header validation remain reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |
 
 The adapter remains intentionally supported. Removal requires an explicit decision
 to retire the corresponding old syntax/wire contract, not merely deleting reserved
@@ -928,7 +997,7 @@ names. No temporary second public geometry checker remains to remove.
 #### Primitive and proof inventory
 
 Every binding is independently checked against the actual declaration environment.
-Family constructors are sealed. `origin` and `dimension` require capabilities for
+Family constructors are sealed. `origin` and `dim` (the op `dimension`) require capabilities for
 the complete input implementation domain; arbitrary future Scheme implementations
 need not provide either operation.
 
@@ -963,7 +1032,7 @@ arbitrary schemes, all points/maps, or smooth geometry.
 | #58/#63 no privileged library spelling | `tests/stdlib_geometry.rs`: `coherent_renaming_retains_contracts_without_privileged_geometry_names`, `legacy_profile_paths_can_be_coherently_renamed`, `missing_or_ambiguous_profiles_do_not_supply_legacy_meaning`; `tests/indexed.rs::nongeometric_indexed_family_uses_the_same_annotation_checker`. Renaming source, references and profile together preserves native results. |
 | #59 nominal identities, substitutions and package association | `IndexedCore`, `IndexedSubstitution`, `IndexedPackageSemantics`, `IndexedWorld`, `IndexedCallTransport`, `IndexedArgumentSafety`; `IndexedCoreRegression` rejects reused brands, forged call substitutions, global rewriting and erased index obligations; package regressions test wrong witnesses and repeated openings. |
 | #60 explicit primitives and trust | Registry table above, `IndexedPrimitiveRegression` and actual wire mutations in `tests/stdlib_geometry.rs`; unknown bindings, false roles/capabilities, purported owner/trusted fields and invalid constructors are rejected. No arbitrary evidence registration. |
-| #61 existing stdlib workflows and representation freedom | Canonical scheme/smooth module directories, ordinary `pointed` functions, independent abstract annotations, dependent calls/repacking and native 42/2 examples. [Library documentation](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/README.md#representation-and-future-design) describes future matrix/equation/subspace/opaque Stiefel/Grassmannian representations without mandatory stored charts. |
+| #61 existing stdlib workflows and representation freedom | Canonical scheme/smooth module directories, ordinary `pointed` functions, independent abstract annotations, dependent calls/repacking and native 42/2 examples. [Library documentation](https://github.com/MGYamada/Vastitas/blob/main/stdlib/docs/geometry.md#representation-and-future-design) describes future matrix/equation/subspace/opaque Stiefel/Grassmannian representations without mandatory stored charts. |
 | #62 exact accepted Core, typing, all-body coverage and terminating evaluation | `IndexedWire`/`LegacySource` expose exact audit/executable Core; `IndexedFunctions`, `IndexedDispatch`, `IndexedAuthority` cover unused/lifted/nonwinning/out-of-domain/applied/unapplied bodies; `IndexedProgramSafety.checked_functions_total_and_typed` and `checked_main_total` discharge call contracts using the actual dependency order. |
 | #62 final independent codegen audit | `IndexedCodegen.generate` requires a strong typed/ordered certificate and repeats the audit. `IndexedCoreRegression` rejects forged declarations/endpoints/substitutions/packages/brand reuse before that certificate can be constructed; `TypeAuditRegression` tests rejection of weaker legacy annotation-only certificates at codegen. `scripts/check_indexed_codegen.lean` and both OS native/no-mathlib CI exercise accepted native generation. |
 | #63 compatibility and documentation | Public source matrix below; unchanged v2–6/`--lib`, strict old-version rejection, actual protocol-7 wire mutations, direct namespace/profile/Core regressions, full oracle/axiom audit, this inventory and linked current specifications. |

@@ -993,6 +993,10 @@ private def resourceError (program : Program) (lowered : Lowered) (error : Stora
       return ⟨error.code, error.message, source.span, []⟩
   return ⟨error.code, error.message, (owned.head?).map (·.2.span) |>.getD {}, []⟩
 
+/-- One origin audit of `check`: the proof of `p`, or `E_OWNER` with `message`. -/
+private def requireOrigin (p : Prop) [Decidable p] (message : String) : Namespace.Result (PLift p) :=
+  if h : p then pure (PLift.up h) else Namespace.problem {} "E_OWNER" message
+
 def check (program : Program) (requireMain : Bool := false) : Namespace.Result (Checked program requireMain) :=
   match acceptedEnvelope : envelope program with
   | .error diagnostic => .error diagnostic
@@ -1017,74 +1021,72 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                 let coverage ← if h : NumericalCoverage.audit lowered.functions id executable.context then
                     pure (PLift.up h)
                   else Namespace.problem {} "E_NUMERICAL_ORIGIN" "numerical instructions differ from their source receipts"
-                if valueReturnOrigins : executable.context.signatures = targets.signatures ∧
+                let ⟨valueReturnOrigins⟩ ← requireOrigin (executable.context.signatures = targets.signatures ∧
                     ∀ receipt ∈ executable.context.valueReturns.toList, receipt.signatures = targets.signatures ∧
-                      lowered.functions.find? (·.id == receipt.call.callee) = some receipt.function then
-                  if origins : executable.context.environment = numericalEnvironment pureProgram ∧
-                      ∀ receipt ∈ executable.context.products.toList,
-                        receipt.environment = numericalEnvironment pureProgram then
-                    if inputOrigins : ∀ receipt ∈ executable.context.inputs.toList,
-                        receipt.environment = numericalEnvironment pureProgram then
-                      if outputOrigins : ∀ receipt ∈ executable.context.outputs.toList,
-                          receipt.environment = numericalEnvironment pureProgram then
-                        if transformOrigins : ∀ receipt ∈ executable.context.transforms.toList,
-                            receipt.environment = numericalEnvironment pureProgram then
-                          if networkOrigins : ∀ receipt ∈ executable.context.networks.toList,
-                              receipt.environment = numericalEnvironment pureProgram then
-                            if tensorViewOrigins : ∀ receipt ∈ executable.context.tensorViews.toList,
-                                receipt.environment = numericalEnvironment pureProgram then
-                              if cacheCaptureOrigins : ∀ receipt ∈ executable.context.cacheCaptures.toList,
-                                  receipt.cache.environment = numericalEnvironment pureProgram then
-                                if cachedContractionOrigins : ∀ receipt ∈ executable.context.cachedContractions.toList,
-                                    receipt.environment = numericalEnvironment pureProgram then
-                                  if tensorPackOrigins : ∀ receipt ∈ executable.context.tensorPacks.toList,
-                                      receipt.environment = numericalEnvironment pureProgram then
-                                    if tensorContractionOrigins : ∀ receipt ∈ executable.context.tensorContractions.toList,
-                                        receipt.environment = numericalEnvironment pureProgram then
-                                      if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
-                                          receipt.environment = numericalEnvironment pureProgram then
-                                        if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
-                                            receipt.environment = numericalEnvironment pureProgram then
-                                          if packageOrigins : ∀ receipt ∈ executable.context.packages.toList,
-                                              receipt.environment = numericalEnvironment pureProgram then
-                                            if packageResultOrigins : ∀ receipt ∈ executable.context.packageResults.toList,
-                                                receipt.environment = numericalEnvironment pureProgram then
-                                              if adjointOrigins : ∀ receipt ∈ executable.context.adjoints.toList,
-                                                  receipt.environment = numericalEnvironment pureProgram then
-                                                if diagonalPairingOrigins : ∀ receipt ∈ executable.context.diagonalPairings.toList,
-                                                    receipt.environment = numericalEnvironment pureProgram then
-                                                  if treeOrigins : ∀ receipt ∈ executable.context.trees.toList,
-                                                      receipt.environment = numericalEnvironment pureProgram then
-                                                    if runtimeOrigins :
-                                                        (∀ receipt ∈ executable.context.shapes.products.toList,
-                                                          receipt.environment = numericalEnvironment pureProgram) ∧
-                                                        (∀ receipt ∈ executable.context.shapeInputs.toList,
-                                                          receipt.environment = numericalEnvironment pureProgram) then
-                                                      .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
-                                                        library, libraryAccepted, fun actual same => by
-                                                          have : actual = id := Option.some.inj (same.symm.trans entry)
-                                                          subst actual
-                                                          exact ⟨executable, accepted, coverage.down, valueReturnOrigins, origins, inputOrigins, outputOrigins, transformOrigins,
-                                                            networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins, runtimeOrigins.1, runtimeOrigins.2⟩⟩
-                                                    else Namespace.problem {} "E_OWNER" "runtime GEMM lost its accepted declaration environment"
-                                                  else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"
-                                                else Namespace.problem {} "E_OWNER" "diagonal pairing lost its accepted declaration environment"
-                                              else Namespace.problem {} "E_OWNER" "materialized adjoint lost its accepted declaration environment"
-                                            else Namespace.problem {} "E_OWNER" "package results lost their accepted declaration environment"
-                                          else Namespace.problem {} "E_OWNER" "package operations lost their accepted declaration environment"
-                                        else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
-                                      else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
-                                    else Namespace.problem {} "E_OWNER" "tensor contraction lost its declaration environment"
-                                  else Namespace.problem {} "E_OWNER" "tensor packing lost its declaration environment"
-                                else Namespace.problem {} "E_OWNER" "cached contraction lost its declaration environment"
-                              else Namespace.problem {} "E_OWNER" "packing cache lost its declaration environment"
-                            else Namespace.problem {} "E_OWNER" "tensor views lost their declaration environment"
-                          else Namespace.problem {} "E_OWNER" "networks lost their accepted declaration environment"
-                        else Namespace.problem {} "E_OWNER" "numerical transforms lost their accepted declaration environment"
-                      else Namespace.problem {} "E_OWNER" "numerical results lost their accepted declaration environment"
-                    else Namespace.problem {} "E_OWNER" "numerical inputs lost their accepted declaration environment"
-                  else Namespace.problem {} "E_OWNER" "numerical execution lost its accepted declaration environment"
-                else Namespace.problem {} "E_OWNER" "scalar return lost its exact source function or checked Core signature table"
+                      lowered.functions.find? (·.id == receipt.call.callee) = some receipt.function)
+                  "scalar return lost its exact source function or checked Core signature table"
+                let ⟨origins⟩ ← requireOrigin (executable.context.environment = numericalEnvironment pureProgram ∧
+                    ∀ receipt ∈ executable.context.products.toList, receipt.environment = numericalEnvironment pureProgram)
+                  "numerical execution lost its accepted declaration environment"
+                let ⟨inputOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.inputs.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "numerical inputs lost their accepted declaration environment"
+                let ⟨outputOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.outputs.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "numerical results lost their accepted declaration environment"
+                let ⟨transformOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.transforms.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "numerical transforms lost their accepted declaration environment"
+                let ⟨networkOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.networks.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "networks lost their accepted declaration environment"
+                let ⟨tensorViewOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.tensorViews.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "tensor views lost their declaration environment"
+                let ⟨cacheCaptureOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.cacheCaptures.toList,
+                    receipt.cache.environment = numericalEnvironment pureProgram)
+                  "packing cache lost its declaration environment"
+                let ⟨cachedContractionOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.cachedContractions.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "cached contraction lost its declaration environment"
+                let ⟨tensorPackOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.tensorPacks.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "tensor packing lost its declaration environment"
+                let ⟨tensorContractionOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.tensorContractions.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "tensor contraction lost its declaration environment"
+                let ⟨vectorOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.vectorConjugates.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "vector conjugation lost its accepted declaration environment"
+                let ⟨evaluationOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.evaluations.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "evaluation lost its accepted declaration environment"
+                let ⟨packageOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.packages.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "package operations lost their accepted declaration environment"
+                let ⟨packageResultOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.packageResults.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "package results lost their accepted declaration environment"
+                let ⟨adjointOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.adjoints.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "materialized adjoint lost its accepted declaration environment"
+                let ⟨diagonalPairingOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.diagonalPairings.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "diagonal pairing lost its accepted declaration environment"
+                let ⟨treeOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.trees.toList,
+                    receipt.environment = numericalEnvironment pureProgram)
+                  "tensor trees lost their accepted declaration environment"
+                let ⟨runtimeOrigins⟩ ← requireOrigin ((∀ receipt ∈ executable.context.shapes.products.toList,
+                      receipt.environment = numericalEnvironment pureProgram) ∧
+                    (∀ receipt ∈ executable.context.shapeInputs.toList,
+                      receipt.environment = numericalEnvironment pureProgram))
+                  "runtime GEMM lost its accepted declaration environment"
+                .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
+                  library, libraryAccepted, fun actual same => by
+                    have : actual = id := Option.some.inj (same.symm.trans entry)
+                    subst actual
+                    exact ⟨executable, accepted, coverage.down, valueReturnOrigins, origins, inputOrigins, outputOrigins, transformOrigins,
+                      networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins, runtimeOrigins.1, runtimeOrigins.2⟩⟩
         else Namespace.problem {} "E_OWNER" "resource source identity or call provenance audit failed"
 
 end VastitasKernel.ResourceSource

@@ -1,0 +1,19 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::metric::MetricForm;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+use nature::dimension::Length;
+use nature::dimension::Time;
+
+indexed affine C(SmoothR) = Affine(2)[x, t];
+indexed reading phys: Reading<C> = (x: Length, t: Time);
+indexed scale l0 = 3 of Length;
+indexed metric G: MetricForm<C> = gram((frac(1, 9), 0), (0, frac(1, 4)));
+
+// ANCHOR: declarations
+// t3^-2 is 1/9, and the Gram matrix of G has 1/4 there.
+indexed scale t3 = 3 of Time;
+indexed physical PG: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^-2, 0), (0, t3^-2)));
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

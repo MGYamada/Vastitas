@@ -13,14 +13,12 @@
 //! with its mutations.
 mod common;
 use common::{
-    Scratch, assert_wire_rejected, captured_wire, checked_replace, cli,
-    generated_reverse_functions, kernel, lean_definitions, lean_function_id, lean_shared_literal,
-    regenerate_fixture, root, success,
+    Scratch, assert_wire_rejected, captured_wire, checked_replace, generated_reverse_functions,
+    kernel, lean_definitions, lean_function_id, lean_shared_literal, regenerate_fixture, root,
 };
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use std::path::Path;
-use std::process::Command;
 
 const ACCEPTANCE: &str = "examples/packages/smooth-differential/Vastitas.toml";
 const BRANCH_MANIFEST: &str = include_str!("emit_corpus/reverse-branch/Vastitas.toml");
@@ -48,9 +46,7 @@ const RECOMPUTED_REFERENCE: &str =
 
 /// The wire request that `check` sends for a manifest.
 fn wire(manifest: &Path) -> Value {
-    let mut command = cli();
-    command.args(["check", "--manifest-path"]).arg(manifest);
-    captured_wire(command, 9)
+    captured_wire(common::manifest_command("check", manifest), 9)
 }
 
 /// The Lean source that the kernel emits for a wire request.
@@ -153,25 +149,7 @@ fn package(manifest: &str, main: &str) -> Scratch {
 
 /// `check`, `build` and run a package; its standard output.
 fn run(s: &Scratch) -> String {
-    success(
-        &cli()
-            .current_dir(&s.0)
-            .args(["check", "--manifest-path", "Vastitas.toml"])
-            .output()
-            .unwrap(),
-    );
-    let program = s.0.join("program");
-    success(
-        &cli()
-            .current_dir(&s.0)
-            .args(["build", "--manifest-path", "Vastitas.toml", "-o"])
-            .arg(&program)
-            .output()
-            .unwrap(),
-    );
-    let output = Command::new(&program).output().unwrap();
-    success(&output);
-    String::from_utf8(output.stdout).unwrap()
+    String::from_utf8(s.check_build_and_run("Vastitas.toml")).unwrap()
 }
 
 #[test]

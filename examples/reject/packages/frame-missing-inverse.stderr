@@ -1,0 +1,1 @@
+examples/reject/packages/frame-missing-inverse/main.vast:8:1: E_FRAME: the frame `frame_missing_inverse::r` on `frame_missing_inverse::Plane` depends on the point, so it needs its inverse, declared with `inverse = columns(…)`

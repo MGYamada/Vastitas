@@ -51,6 +51,14 @@ The generated site is in `target/book/`. `scripts/check_book.py` checks that:
   unit tests of the checkers;
 - every `docs/<chapter>.md` named in a file outside `docs/` without an anchor
   names a chapter;
+- every repository path in a code span of a chapter, such as
+  `scripts/check_book.py`, names a file or a directory that Git tracks, in
+  the delivery records too. A path under `src/` counts only when it names a
+  `.rs` file, because the sources of a package, such as `src/lib.vast`,
+  begin the same way. A word with a placeholder or a wildcard, such as
+  `docs/<chapter>.md`, names no path. `UNTRACKED_PATHS` names the generated
+  and retired paths that a chapter may name, with the reason, and the check
+  fails on an entry that no chapter names or that Git tracks;
 - every redirect in `book.toml` leads from a retired chapter to a chapter and
   an anchor of the book;
 - the Introduction links to the roadmap, and every formula of the rendered

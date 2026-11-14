@@ -798,9 +798,14 @@ BOOK_REFERENCE = re.compile(r"(?:(?<=\.\./)|(?<=/(?:blob|tree)/main/)|(?<![\w./-
 UNCHECKED_REFERENCES = (re.compile(r"^experiments/[^/]+/results/"), re.compile(r"^scripts/test_[^/]+\.py$"))
 
 
-def tracked_files(root):
+def repository_files(root):
+    """The paths of the files that Git tracks in the checkout at root."""
     listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True, check=True)
-    names = [name for name in listed.stdout.decode().split("\0") if name and not name.startswith("docs/")]
+    return [name for name in listed.stdout.decode().split("\0") if name]
+
+
+def tracked_files(root):
+    names = [name for name in repository_files(root) if not name.startswith("docs/")]
     return [root / name for name in names if not any(pattern.match(name) for pattern in UNCHECKED_REFERENCES)]
 
 
@@ -834,6 +839,68 @@ def check_references(pages, root, output):
     print(f"Resolved {count} references to book chapters from files outside docs/")
 
 
+# --- Repository paths in the chapters ----------------------------------------------
+
+# Paths that a chapter names in code although Git tracks no file under them, with the reason.
+UNTRACKED_PATHS = {
+    "lean-kernel/.lake": "the build directory of the kernel, which Git ignores",
+    "stdlib/target": "the generated standard-library package, which Git ignores",
+    "stdlib/indexed": "a retired facade, which the chapters name as removed",
+}
+# A word with a placeholder or a wildcard names a pattern of paths, not a path.
+PATH_PATTERN = re.compile(r"[<>{}*?\[\]$]")
+
+
+def path_errors(chapters, source, files, untracked=UNTRACKED_PATHS):
+    """Check that each repository path in a code span of a chapter names a tracked file or directory.
+
+    A word of a code span names a repository path when it begins with a
+    top-level directory of the tracked files and a slash. A line number, a
+    test name after `:` or `::` and an anchor after `#` are not part of the
+    path. A path under `src/` counts only when it names a `.rs` file, because
+    the sources of a package, such as `src/lib.vast`, begin the same way.
+    Return (errors, the number of paths checked).
+    """
+    known = set()
+    for name in files:
+        parts = name.split("/")
+        known.update("/".join(parts[:length]) for length in range(1, len(parts) + 1))
+    roots = tuple(sorted({name.split("/")[0] + "/" for name in files if "/" in name}))
+    errors = []
+    count = 0
+    used = set()
+    for chapter in chapters:
+        text = (source / chapter.path).read_text(encoding="utf-8")
+        for number, line, _, _ in scan(text):
+            for span in CODE_SPAN.finditer(line):
+                for word in span[2].split():
+                    if not word.startswith(roots) or PATH_PATTERN.search(word):
+                        continue
+                    path = re.split(r"[:#]", word, maxsplit=1)[0].rstrip("/")
+                    if path.startswith("src/") and not path.endswith(".rs"):
+                        continue
+                    entry = next((entry for entry in untracked if path == entry or path.startswith(entry + "/")), None)
+                    if entry is not None:
+                        used.add(entry)
+                        continue
+                    count += 1
+                    if path not in known:
+                        errors.append(f"{chapter.path}:{number}: `{word}` names no file or directory that Git tracks")
+    for entry in untracked:
+        if entry in known:
+            errors.append(f"UNTRACKED_PATHS: Git tracks {entry}; remove the entry")
+        elif entry not in used:
+            errors.append(f"UNTRACKED_PATHS: no chapter names {entry}; remove the entry")
+    return errors, count
+
+
+def check_paths(source, chapters, root=ROOT):
+    errors, count = path_errors(chapters, source, repository_files(root))
+    if errors:
+        raise ValueError("code spans of the chapters name missing repository paths:\n  " + "\n  ".join(errors))
+    print(f"Checked {count} repository paths in the code spans of {len(chapters)} chapters against the tracked files")
+
+
 if __name__ == "__main__":
     source = ROOT / "docs"
     output = ROOT / "target/book"
@@ -848,3 +915,4 @@ if __name__ == "__main__":
     pages = check_html(output)
     check_redirects(pages, output)
     check_references(pages, ROOT, output)
+    check_paths(source, chapters)

@@ -1856,6 +1856,11 @@ identity on the candidate:
 | `rank_one` | Every 2×2 minor of `adj` vanishes in `C`. `RANK_ONE_MINOR_NONZERO` |
 | `divided_difference` | `adj = q(t, H)` for the `q` of `χ`. `DIVIDED_DIFFERENCE_MISMATCH` |
 
+The checks in `C` divide by `χ`. A candidate `χ` that is not monic therefore
+fails `eigen_columns` with `RELATION_NOT_MONIC`, and the later checks are
+`not_checked`. Such a candidate also fails `characteristic`, because
+`det(tI − H)` is monic.
+
 `simple_root_chart` returns the chart `D(χ′)` of `Spec C` with the witness
 `W = 1`, `e = 1`. On it `P = adj/χ′` is an idempotent of trace one with
 `HP = tP`. The trace identity is the unit-ideal witness that the opens

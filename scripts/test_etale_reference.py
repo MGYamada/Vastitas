@@ -469,7 +469,8 @@ class SpectralTests(unittest.TestCase):
 class DemoTests(unittest.TestCase):
     def test_demo_reports_every_expectation(self):
         script = Path(__file__).with_name("demo_etale_reference.py")
-        result = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, "-S", str(script)], capture_output=True, text=True,
+                                timeout=300, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
         output = json.loads(result.stdout)
         self.assertEqual(output["site"], ref.SITE)

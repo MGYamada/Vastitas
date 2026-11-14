@@ -78,10 +78,6 @@ lemma toExp_lcm {n : ℕ} {a b : Monomial} (h : a.length = b.length) :
   simp only [toExp_apply, Monomial.lcm, Finsupp.sup_apply]
   exact getD_zipWith (f := max) rfl h i
 
-lemma length_zipWith_of_eq {f : ℕ → ℕ → ℕ} {a b : List ℕ} (h : a.length = b.length) :
-    (List.zipWith f a b).length = a.length := by
-  simp [h]
-
 lemma getD_eq_zero_of_le {a : List ℕ} {i : ℕ} (h : a.length ≤ i) : a.getD i 0 = 0 := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_eq_none h]
 
@@ -223,9 +219,6 @@ variable {n : ℕ}
 @[simp] lemma toMv_nil : toMv n [] = 0 := rfl
 
 @[simp] lemma toMv_cons (t : Term) (p : Poly) : toMv n (t :: p) = termMv n t + toMv n p := by
-  simp [toMv]
-
-lemma toMv_append (p q : Poly) : toMv n (p ++ q) = toMv n p + toMv n q := by
   simp [toMv]
 
 /-- Every monomial of `p` has `n` coordinates. -/
@@ -765,12 +758,6 @@ lemma toMvN_mul (c : Poly) {g : Poly} (hg : Arity n g) :
     intro acc
     rw [List.foldl_cons, ih, toMvN_add, toMvN_mulTerm hg, longTerms_cons u c]
     ring
-
-lemma longTerms_of_arity {c : Poly} (hc : Arity n c) : longTerms n c = c := by
-  unfold longTerms
-  rw [List.filter_eq_self]
-  intro t ht
-  simp [hc t ht]
 
 
 /-! ### Every polynomial has a canonical kernel form -/

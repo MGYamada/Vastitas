@@ -221,15 +221,6 @@ lemma canonical_singleton {t : Term} (ht : t.monomial.length = n) (hc : t.coeffi
     Canonical n [t] :=
   canonical_cons_iff.2 ⟨ht, hc, by simp, canonical_nil⟩
 
-lemma degree_toMv_of_leading {g : Poly} {lead : Term} (hg : Canonical n g)
-    (hl : g.leading? = some lead) : degLex.degree (toMv n g) = toExp n lead.monomial := by
-  cases g with
-  | nil => simp [Poly.leading?] at hl
-  | cons t g =>
-    simp only [Poly.leading?, List.head?_cons, Option.some.injEq] at hl
-    subst hl
-    exact degree_toMv hg
-
 /-- Every monomial left by one reduction step lies below the reduced leading term. -/
 lemma reduct_le {t : Term} {rest g : Poly} {q : Term} {lead : Term}
     (hrest : Canonical n (t :: rest)) (hg : Canonical n g) (hl : g.leading? = some lead)

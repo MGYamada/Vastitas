@@ -1094,18 +1094,21 @@ inductive Statement where
   deriving Repr, Inhabited
 
 mutual
+  -- `deriving DecidableEq` does not apply to this nested type. Constructors
+  -- are compared by `ctorIdx` first, so the match has only the arms of equal
+  -- constructors.
   def Statement.decEq (left right : Statement) : Decidable (left = right) :=
-    match left, right with
-    | .action a, .action b =>
-      if h : a = b then isTrue (h ▸ rfl) else isFalse (fun h' => h (Statement.action.inj h'))
-    | .action _, .branch .. => isFalse (by intro h; cases h)
-    | .branch .., .action _ => isFalse (by intro h; cases h)
-    | .branch c y n, .branch d z m =>
-      match decEq c d, Statements.decEq y z, Statements.decEq n m with
-      | isTrue h, isTrue j, isTrue k => isTrue (h ▸ j ▸ k ▸ rfl)
-      | isFalse h, _, _ => isFalse (fun e => h (Statement.branch.inj e).1)
-      | _, isFalse h, _ => isFalse (fun e => h (Statement.branch.inj e).2.1)
-      | _, _, isFalse h => isFalse (fun e => h (Statement.branch.inj e).2.2)
+    if same : left.ctorIdx = right.ctorIdx then
+      match left, right, same with
+      | .action a, .action b, _ =>
+        if h : a = b then isTrue (h ▸ rfl) else isFalse (fun h' => h (Statement.action.inj h'))
+      | .branch c y n, .branch d z m, _ =>
+        match decEq c d, Statements.decEq y z, Statements.decEq n m with
+        | isTrue h, isTrue j, isTrue k => isTrue (h ▸ j ▸ k ▸ rfl)
+        | isFalse h, _, _ => isFalse (fun e => h (Statement.branch.inj e).1)
+        | _, isFalse h, _ => isFalse (fun e => h (Statement.branch.inj e).2.1)
+        | _, _, isFalse h => isFalse (fun e => h (Statement.branch.inj e).2.2)
+    else isFalse (fun equal => same (congrArg Statement.ctorIdx equal))
   termination_by sizeOf left + sizeOf right
   def Statements.decEq (left right : List Statement) : Decidable (left = right) :=
     match left, right with

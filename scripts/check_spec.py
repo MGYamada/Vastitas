@@ -1118,12 +1118,6 @@ def rust_effects(attributes, allowed):
     return ignored, conditional, unread
 
 
-def rust_conditional(attributes):
-    """Whether attributes compile their item only under a configuration other
-    than `cfg(test)`: a `cfg` attribute, or a `cfg_attr` that adds one."""
-    return rust_effects(attributes, set())[1]
-
-
 def rust_tests(source):
     """Map the libtest name of each `#[test]` function, such as `a::b`, to
     (ignored, conditional, unread), as `rust_effects` reads the attributes of

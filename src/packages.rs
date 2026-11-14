@@ -648,7 +648,8 @@ fn modules(packages: &[Package]) -> impl Iterator<Item = &Module> {
 }
 
 /// The wire protocol of a package request and its `input` field: the first
-/// version, from 9 down to 3, whose declarations the program holds.
+/// version, from 9 down to 3, that the declarations of the program or the
+/// `geometry_compat` export of a manifest select.
 fn request_protocol(packages: &[Package]) -> (u32, Option<String>) {
     // Preserve recipient names verbatim. The kernel alone resolves them in the
     // selected closure; a grant must neither resolve a path nor load a package.

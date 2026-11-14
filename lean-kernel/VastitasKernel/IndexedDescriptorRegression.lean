@@ -31,7 +31,7 @@ the messages of a near miss), `Wire.wireArgument`,
 take a family value, so they reject the demo's op, as they must for an op the
 registry does not hold: `primitiveFamily?`, `Wire.primitive`,
 `Wire.algebraicPrimitive` and `Source.resolvePrimitive`; the list
-`Wire.algebraicOperations`, derived from `families`, does not hold it. The
+`algebraicOperations` below, derived from `families`, does not hold it. The
 field and kind comparison and the resolution loop of `resolvePrimitive` are
 inline in its body, after that lookup; the regression runs the same comparison
 and the same order on the demo's decoded form. `PrimitiveFamily.build` returns
@@ -445,10 +445,17 @@ family's fields, and decodes each by its kind. -/
 registry holds no test primitive, and neither the trusted decoder nor the
 Rust table generated from `families` admits it. -/
 
+/-- The ops that only protocol 9 admits (the Stage 2 relative and Stage 3
+smooth, fiber, tape and metric primitive contracts), derived from `families`:
+the op of each family with `algebraic` set. The decoder does not read this
+list. -/
+private def algebraicOperations : List String :=
+  (families.filter (·.algebraic)).map (·.op)
+
 #eval check "no family of the registry has the demo's op"
   ((primitiveFamily? directionalDerivativeFamily.op).isNone &&
     families.all (·.op != directionalDerivativeFamily.op) &&
-    !Wire.algebraicOperations.contains directionalDerivativeFamily.op)
+    !algebraicOperations.contains directionalDerivativeFamily.op)
 #eval checkEq "the trusted decoder rejects the demo's op in protocol 9"
   (failure? (Wire.primitive wireJson (algebraic := true))) (some "unknown indexed primitive contract")
 #eval checkEq "and before protocol 9" (failure? (Wire.primitive wireJson)) (some "unknown indexed primitive contract")

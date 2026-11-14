@@ -810,6 +810,64 @@ structure Context where
   calls : Array CallReceipt := #[]
   deriving Inhabited
 
+/-- The receipt arrays that a resource branch arm starts without. `expandAt`
+checks each arm from a context with these arrays empty and joins the arms with
+`mergeArmReceipts`, which lists the same arrays. A new receipt array of
+`Context` belongs in both functions, in `ResourceSource.Execution` and the
+origin audit of `ResourceSource.check`, and, when its operation emits a
+numerical instruction, in `NumericalCoverage.origins`. `shapeCalls` and
+`shapeInputs` are in neither function: they grow only with runtime-shape
+events, which `setShapes` rejects inside resource branches. -/
+def Context.clearArmReceipts (context : Context) : Context :=
+  {context with
+    valueReturns := #[]
+    calls := #[]
+    products := #[]
+    networks := #[]
+    tensorViews := #[]
+    tensorPacks := #[]
+    cacheCaptures := #[]
+    cachedContractions := #[]
+    tensorContractions := #[]
+    trees := #[]
+    inputs := #[]
+    outputs := #[]
+    packageResults := #[]
+    packages := #[]
+    transfers := #[]
+    transforms := #[]
+    vectorConjugates := #[]
+    adjoints := #[]
+    diagonalPairings := #[]
+    evaluations := #[]}
+
+/-- The context `right` of a checked else arm with the receipts of the whole
+branch, in schedule order: those of `before`, the context before the branch,
+then those of the then arm `left`, then those of `right`. Every other field is
+the one of `right`. -/
+def Context.mergeArmReceipts (before left right : Context) : Context :=
+  {right with
+    valueReturns := before.valueReturns ++ left.valueReturns ++ right.valueReturns
+    calls := before.calls ++ left.calls ++ right.calls
+    cacheCaptures := before.cacheCaptures ++ left.cacheCaptures ++ right.cacheCaptures
+    cachedContractions := before.cachedContractions ++ left.cachedContractions ++ right.cachedContractions
+    products := before.products ++ left.products ++ right.products
+    networks := before.networks ++ left.networks ++ right.networks
+    tensorViews := before.tensorViews ++ left.tensorViews ++ right.tensorViews
+    tensorPacks := before.tensorPacks ++ left.tensorPacks ++ right.tensorPacks
+    tensorContractions := before.tensorContractions ++ left.tensorContractions ++ right.tensorContractions
+    trees := before.trees ++ left.trees ++ right.trees
+    inputs := before.inputs ++ left.inputs ++ right.inputs
+    outputs := before.outputs ++ left.outputs ++ right.outputs
+    packageResults := before.packageResults ++ left.packageResults ++ right.packageResults
+    packages := before.packages ++ left.packages ++ right.packages
+    transfers := before.transfers ++ left.transfers ++ right.transfers
+    transforms := before.transforms ++ left.transforms ++ right.transforms
+    vectorConjugates := before.vectorConjugates ++ left.vectorConjugates ++ right.vectorConjugates
+    evaluations := before.evaluations ++ left.evaluations ++ right.evaluations
+    adjoints := before.adjoints ++ left.adjoints ++ right.adjoints
+    diagonalPairings := before.diagonalPairings ++ left.diagonalPairings ++ right.diagonalPairings}
+
 private def Context.location (context : Context) (source : NumericalSourceSite) :
     NumericalLocation context.code.toList :=
   ⟨source, context.sourceCallers, context.codeBlock, context.code.size, by simp⟩
@@ -1945,36 +2003,16 @@ mutual
                 throw {code := "E_RESOURCE_VALUE", message := "resource branch requires a live Bool value"}
               pure (.slot slot)
           let before ← get
-          set {before with
+          set {before.clearArmReceipts with
             branchDepth := before.branchDepth + 1
             codeBlock := (before.code.size, true) :: before.codeBlock
             code := #[]
             flow := #[]
-            returnedValue := none
-            valueReturns := #[]
-            calls := #[]
-            products := #[]
-            networks := #[]
-            tensorViews := #[]
-            tensorPacks := #[]
-            cacheCaptures := #[]
-            cachedContractions := #[]
-            tensorContractions := #[]
-            trees := #[]
-            inputs := #[]
-            outputs := #[]
-            packageResults := #[]
-            packages := #[]
-            transfers := #[]
-            transforms := #[]
-            vectorConjugates := #[]
-            adjoints := #[]
-            diagonalPairings := #[]
-            evaluations := #[]}
+            returnedValue := none}
           let _ ← expandAt fuel functions stack (path ++ [position, 0]) 0 frame yes
           cleanupDependencies before.resources
           let left ← get
-          set {before with
+          set {before.clearArmReceipts with
             branchDepth := before.branchDepth + 1
             codeBlock := (before.code.size, false) :: before.codeBlock
             nextSymbol := left.nextSymbol
@@ -1983,33 +2021,13 @@ mutual
             code := #[]
             flow := #[]
             returnedValue := none
-            valueReturns := #[]
-            calls := #[]
-            products := #[]
-            networks := #[]
-            tensorViews := #[]
-            tensorPacks := #[]
-            cacheCaptures := #[]
-            cachedContractions := #[]
-            tensorContractions := #[]
-            trees := #[]
-            inputs := #[]
-            outputs := #[]
-            packageResults := #[]
-            packages := #[]
-            transfers := #[]
-            transforms := #[]
-            vectorConjugates := #[]
-            adjoints := #[]
-            diagonalPairings := #[]
-            evaluations := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
           let _ ← expandAt fuel functions stack (path ++ [position, 1]) 0 frame no
           cleanupDependencies before.resources
           let right ← get
           let work ← debitWork right.work (left.resources.work + right.resources.work)
           let resources ← join left.resources right.resources
-          set {right with
+          set {Context.mergeArmReceipts before left right with
             work
             branchDepth := before.branchDepth
             codeBlock := before.codeBlock
@@ -2018,29 +2036,9 @@ mutual
             flow := before.flow.push (.branch condition left.flow.toList right.flow.toList)
             scalarSlots := before.scalarSlots
             returnedValue := none
-            valueReturns := before.valueReturns ++ left.valueReturns ++ right.valueReturns
-            calls := before.calls ++ left.calls ++ right.calls
             numerical := before.numerical
             tensors := before.tensors
-            packCaches := before.packCaches
-            cacheCaptures := before.cacheCaptures ++ left.cacheCaptures ++ right.cacheCaptures
-            cachedContractions := before.cachedContractions ++ left.cachedContractions ++ right.cachedContractions
-            products := before.products ++ left.products ++ right.products
-            networks := before.networks ++ left.networks ++ right.networks
-            tensorViews := before.tensorViews ++ left.tensorViews ++ right.tensorViews
-            tensorPacks := before.tensorPacks ++ left.tensorPacks ++ right.tensorPacks
-            tensorContractions := before.tensorContractions ++ left.tensorContractions ++ right.tensorContractions
-            trees := before.trees ++ left.trees ++ right.trees
-            inputs := before.inputs ++ left.inputs ++ right.inputs
-            outputs := before.outputs ++ left.outputs ++ right.outputs
-            packageResults := before.packageResults ++ left.packageResults ++ right.packageResults
-            packages := before.packages ++ left.packages ++ right.packages
-            transfers := before.transfers ++ left.transfers ++ right.transfers
-            transforms := before.transforms ++ left.transforms ++ right.transforms
-            vectorConjugates := before.vectorConjugates ++ left.vectorConjugates ++ right.vectorConjugates
-            evaluations := before.evaluations ++ left.evaluations ++ right.evaluations
-            adjoints := before.adjoints ++ left.adjoints ++ right.adjoints
-            diagonalPairings := before.diagonalPairings ++ left.diagonalPairings ++ right.diagonalPairings}
+            packCaches := before.packCaches}
           pure frame
       expandAt fuel functions stack path (position + 1) after rest
   def invoke : Nat → List Function → List Nat → Nat → List Symbol → Bool → M (List Returned)

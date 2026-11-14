@@ -413,7 +413,7 @@ fn abstract_selectors() {
     documented(&["examples/abstract-selectors.vast"], "42");
 }
 
-// stdlib/README.md: the flat example with the three explicit libraries.
+// stdlib/docs/arithmetic.md: the flat example with the three explicit libraries.
 #[test]
 fn flat_promotion() {
     documented(
@@ -430,7 +430,7 @@ fn flat_promotion() {
     );
 }
 
-// docs/language/programs.md (Flat mode) and stdlib/README.md.
+// docs/language/programs.md (Flat mode) and stdlib/docs/arithmetic.md.
 #[test]
 fn stdlib_arithmetic() {
     documented(
@@ -539,7 +539,7 @@ fn smooth_differential_package() {
     );
 }
 
-// stdlib/src/geometry/README.md: the smooth affine profile from the standard
+// stdlib/docs/differential.md: the smooth affine profile from the standard
 // library, run in place. tests/stdlib_differential.rs runs copies of it,
 // mutated.
 #[test]

@@ -4,8 +4,6 @@ mod common;
 use common::{kernel, request};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-use std::io::Write;
-use std::process::{Command, Stdio};
 
 fn package(flat: &Value, version: u64) -> Value {
     let mut module = json!({
@@ -454,20 +452,7 @@ fn malformed_versions_and_non_utf8_input_return_protocol_json() {
         "E_PROTOCOL"
     );
     for mode in ["check", "emit"] {
-        let mut child = Command::new(common::kernel_path())
-            .arg(mode)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
-        child
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(b"{\"version\":6,\"file\":\"\xff\"}")
-            .unwrap();
-        let result = child.wait_with_output().unwrap();
+        let result = common::kernel_bytes(mode, b"{\"version\":6,\"file\":\"\xff\"}".to_vec());
         assert!(!result.status.success());
         assert!(result.stderr.is_empty(), "{result:?}");
         let response: Value = serde_json::from_slice(&result.stdout).unwrap();

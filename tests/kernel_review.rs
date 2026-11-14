@@ -3,11 +3,10 @@
 //! frontend and kernel; captured requests are mutated only to forge inputs that
 //! the frontend never emits.
 mod common;
-use common::{Scratch, cli, kernel, kernel_path, root, success};
+use common::{Scratch, cli, kernel, root, success};
 use serde_json::{Value, json};
-use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
 use std::time::{Duration, Instant};
 
 fn package(source: &str) -> Scratch {
@@ -71,17 +70,7 @@ fn captured(manifest: &std::path::Path, version: u64) -> Value {
 
 /// Send raw bytes, as a tampered or truncated request would arrive.
 fn raw_kernel(input: Vec<u8>) -> Value {
-    let mut child = Command::new(kernel_path())
-        .arg("check")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let mut stdin = child.stdin.take().unwrap();
-    let writer = std::thread::spawn(move || stdin.write_all(&input));
-    let output = child.wait_with_output().unwrap();
-    writer.join().unwrap().unwrap();
+    let output = common::kernel_bytes("check", input);
     // Exit status 1 with a JSON answer, never an abort or signal.
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     serde_json::from_slice(&output.stdout).unwrap()

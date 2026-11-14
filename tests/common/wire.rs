@@ -6,7 +6,7 @@ use serde_json::Value;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 pub fn kernel_path() -> PathBuf {
@@ -40,14 +40,7 @@ pub fn kernel_identity() -> String {
     static IDENTITY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     IDENTITY
         .get_or_init(|| {
-            let mut child = Command::new(kernel_path())
-                .arg("check")
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()
-                .expect("built kernel");
-            child.stdin.take().unwrap().write_all(b"{}").unwrap();
-            let output = child.wait_with_output().unwrap();
+            let output = kernel_bytes("check", b"{}".to_vec());
             let response: Value = serde_json::from_slice(&output.stdout).unwrap();
             assert!(response["kernel"].is_object(), "{response}");
             response["kernel"].to_string()
@@ -117,7 +110,23 @@ pub fn assert_rejected(request: Value, code: &str) -> Value {
     assert_wire_rejected(&response, code);
     response
 }
+/// The response of the built kernel in `mode` to the wire request `request`,
+/// whose success must agree with the exit status.
 pub fn kernel(request: impl std::borrow::Borrow<Value>, mode: &str) -> Value {
+    let output = kernel_bytes(mode, serde_json::to_vec(request.borrow()).unwrap());
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+        panic!(
+            "invalid response: {error}; {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+    assert_eq!(output.status.success(), response["ok"] == true, "{response}");
+    response
+}
+/// Runs the built kernel in `mode` on the bytes `input`, as a tampered or
+/// truncated request would arrive, under the 60-second regression deadline.
+/// The input must be written whole; returns the exit status and both outputs.
+pub fn kernel_bytes(mode: &str, input: Vec<u8>) -> Output {
     let path = kernel_path();
     assert!(
         path.is_file(),
@@ -130,7 +139,6 @@ pub fn kernel(request: impl std::borrow::Borrow<Value>, mode: &str) -> Value {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    let input = serde_json::to_vec(request.borrow()).unwrap();
     let mut stdin = child.stdin.take().unwrap();
     let writer = std::thread::spawn(move || stdin.write_all(&input));
     let mut stdout = child.stdout.take().unwrap();
@@ -146,36 +154,30 @@ pub fn kernel(request: impl std::borrow::Borrow<Value>, mode: &str) -> Value {
         bytes
     });
     let deadline = Instant::now() + Duration::from_secs(60);
-    let timed_out = loop {
-        if child.try_wait().unwrap().is_some() {
-            break false;
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break Some(status);
         }
         if Instant::now() >= deadline {
             child.kill().unwrap();
             child.wait().unwrap();
-            break true;
+            break None;
         }
         std::thread::sleep(Duration::from_millis(10));
     };
     let write_result = writer.join().unwrap();
     let stdout = reader.join().unwrap();
     let stderr = errors.join().unwrap();
-    assert!(
-        !timed_out,
-        "kernel exceeded 60-second regression deadline: {}",
-        String::from_utf8_lossy(&stderr)
-    );
-    write_result.unwrap();
-    let response: Value = serde_json::from_slice(&stdout).unwrap_or_else(|error| {
+    let Some(status) = status else {
         panic!(
-            "invalid response: {error}; {}",
+            "kernel exceeded 60-second regression deadline: {}",
             String::from_utf8_lossy(&stderr)
         )
-    });
-    assert_eq!(
-        child.wait().unwrap().success(),
-        response["ok"] == true,
-        "{response}"
-    );
-    response
+    };
+    write_result.unwrap();
+    Output {
+        status,
+        stdout,
+        stderr,
+    }
 }

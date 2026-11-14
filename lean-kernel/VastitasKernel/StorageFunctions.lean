@@ -813,9 +813,10 @@ structure Context where
 /-- The receipt arrays that a resource branch arm starts without. `expandAt`
 checks each arm from a context with these arrays empty and joins the arms with
 `mergeArmReceipts`, which lists the same arrays. A new receipt array of
-`Context` belongs in both functions, in `ResourceSource.Execution` and the
-origin audit of `ResourceSource.check`, and, when its operation emits a
-numerical instruction, in `NumericalCoverage.origins`. `shapeCalls` and
+`Context` belongs in both functions and in `ResourceSource.Execution`; in the
+origin audit of `ResourceSource.check`, which checks every array here except
+`calls` and `transfers`; and, when its operation emits a numerical
+instruction, in `NumericalCoverage.origins`. `shapeCalls` and
 `shapeInputs` are in neither function: they grow only with runtime-shape
 events, which `setShapes` rejects inside resource branches. -/
 def Context.clearArmReceipts (context : Context) : Context :=

@@ -11,11 +11,12 @@ the trace of a power of a symmetric polynomial field as the Daleckii–Krein
 cotangent composed with the derivative of the field. The
 [spectral invariants](language/spectral-observations.md#spectral-invariants)
 of the language compute such trace powers, and the agreement with emitted
-reverse Core is Proved (bridge): for an accepted trace-power invariant whose
-field is declared `symmetric`, an accepted `differential` node and every
-compiled reverse site of one declared step along it compute the
-Daleckii–Krein cotangent composed with the derivative of the field. Steps 3
-to 5 stay open.
+reverse Core is Proved (bridge) under the premises of the compiled reverse
+entries: for an accepted trace-power invariant whose field is declared
+`symmetric`, an accepted `differential` node and every compiled reverse site
+of one declared step along it compute the Daleckii–Krein cotangent composed
+with the derivative of the field. The rest of step 4 and steps 3 and 5 stay
+open.
 
 The source is
 [`lean-bridge/VastitasBridge/Analysis/DaleckiiKrein.lean`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Analysis/DaleckiiKrein.lean),
@@ -124,9 +125,13 @@ that covector. `compiled_trace_power_dk`,
 `public_resource_entries_trace_power_dk` and
 `public_pure_entry_trace_power_dk` state that every compiled reverse site of
 one declared step along it, in every compiled module and on the public paths
-of protocols 8 and 9, computes the seed's component times that covector, and
-`stage5_dk_gradient` that for the field of the example it is (4y₀, 4y₁) at
-every real point. The proofs use no chain-rule theorem of the kernel.
+of protocols 8 and 9, computes the seed's component times that covector.
+These three keep the premises of the compiled reverse entries, the residual
+relation of a saved site among them. `stage5_dk_gradient` states that for
+the field of the example, as a Mathlib matrix, the covector is (4y₀, 4y₁)
+at every real point; no theorem composes it with `checked_trace_power_dk`.
+The theorems about accepted Core use no chain-rule theorem of the kernel,
+which the independence walk of `lean-bridge/Audit.lean` checks.
 [Verification boundaries](verification.md#spectral-observations) lists these
 theorems with the others of the spectral profile, and the
 [acceptance map](stage5-acceptance.md#c7) records them.
@@ -191,10 +196,13 @@ steps; none of them is discharged by the mathematical theorem alone:
    objects. For every point in the certified region and every valid seed, bind
    the residual relation and dual action to the actual code, basepoint and pinned
    environment, preserving ownership and rule authority. For the trace
-   powers of symmetric fields in the spectral profile this part is Proved
-   (bridge): the accepted `differential` node, the compiled reverse sites and
-   the public entries compute the Daleckii–Krein cotangent. The general
-   correspondence for other spectral functions stays open.
+   powers of symmetric fields in the spectral profile, part of this step is
+   Proved (bridge), under the premises of the compiled reverse entries: the
+   accepted `differential` node, the compiled reverse sites of one declared
+   step and the public entries compute the Daleckii–Krein cotangent. The
+   residual relation of a saved site, which these theorems take as a
+   premise, sites of several steps and rule authority stay open, and so does
+   the general correspondence for other spectral functions.
 5. **Composition and preservation:** connect the result to cotangent composition
    with its endpoint/basepoint transports and prove preservation through each
    certified compiler pass. Only the combined premises establish scoped CF.

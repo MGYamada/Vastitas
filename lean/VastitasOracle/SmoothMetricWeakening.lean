@@ -318,7 +318,10 @@ theorem validPrimitiveBinding_of_metricOrNature {binding : PrimitiveBinding} (fr
       FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt,
       frameApplyValid, frameCoapplyValid, frameComposeValid, framePairingValid, frameComponentValid,
       frameEntryValid, frameEqualValid, frameAtValid, frameFiberVariance_append ext.profile,
-      isFrameMapFamily_append ext.profile]
+      isFrameMapFamily_append ext.profile,
+      -- The spectral entries of Stage 5 reject every binding.
+      SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
+      SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector]
 
 end MetricOrNature
 

@@ -2,6 +2,7 @@ import VastitasKernel.IndexedAudit
 import VastitasKernel.IndexedPrimitiveBinding
 import VastitasKernel.IndexedPrimitiveDescriptors
 import VastitasKernel.IndexedFrameRegistry
+import VastitasKernel.IndexedSpectralRegistry
 
 set_option autoImplicit false
 
@@ -26,7 +27,8 @@ for validity), its `simp` set names only `PrimitiveBinding.contract` (and
 `PrimitiveDescriptor.ofBool` or `PrimitiveDescriptor.evidence`). Each arm names the exact
 checks of `Indexed`, `IndexedPrimitiveBinding` and `IndexedSmoothContracts`
 (the frame bindings of Stage 4 take their whole entry from
-`IndexedFrameRegistry`);
+`IndexedFrameRegistry`, and the spectral bindings of Stage 5 from
+`IndexedSpectralRegistry`);
 family, base and object IDs are part of the contract, displayed names and
 arbitrary certificates are not.
 
@@ -678,5 +680,14 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
   | .frameEntry map row column => FrameRegistry.frameEntry map row column
   | .frameEqual family => FrameRegistry.frameEqual family
   | .frameAt family smooth => FrameRegistry.frameAt family smooth
+
+  /- Spectral observations (Stage 5, #806). Each entry is in `IndexedSpectralRegistry`. -/
+  | .spectralInvariant application map invariant => SpectralRegistry.spectralInvariant application map invariant
+  | .annihilates smooth spectrum element => SpectralRegistry.annihilates smooth spectrum element
+  | .actionEntry smooth spectrum element row column => SpectralRegistry.actionEntry smooth spectrum element row column
+  | .onBranch smooth line branch => SpectralRegistry.onBranch smooth line branch
+  | .branchDifferential smooth cotangent line branch =>
+      SpectralRegistry.branchDifferential smooth cotangent line branch
+  | .branchProjector smooth line branch row column => SpectralRegistry.branchProjector smooth line branch row column
 
 end VastitasKernel.Indexed

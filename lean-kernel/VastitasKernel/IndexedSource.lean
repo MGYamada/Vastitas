@@ -174,6 +174,13 @@ inductive MorphismDefinition where
   /-- `D(φ^#(f)) → D(f)` for a declared morphism `φ : Y → X` and `D(f) ⊂ X`:
   the action of `φ` on the structure sheaf over a principal open. -/
   | restrict (morphism : Path)
+  /-- `trace_power(H, k)` (Stage 5): the smooth map `X → Line`, `p ↦ tr(H(p)ᵏ)`,
+  of the endomorphism `H` on `X`. -/
+  | tracePower (endomorphism : Path) (power : Nat)
+  /-- `char_coefficient(S, i)` (Stage 5): the smooth map `X → Line` that is the
+  coefficient of `tⁱ` in the characteristic polynomial of the spectrum `S` on
+  `X`. -/
+  | charCoefficient (spectrum : Path) (index : Nat)
   deriving Repr, Inhabited
 
 inductive Body where
@@ -227,6 +234,22 @@ inductive Body where
   (Stage 4), with the dimension of its terms when declared. -/
   | physicalMetric (family : Path) (indices : List Path) (metric reading : Path)
       (value : Option (List (Path × Int))) (entries : PhysicalGram)
+  /-- `free_module name : family<object> = basis(e₁, …, eₙ)` (Stage 5): the
+  names of the basis, in order. -/
+  | freeModule (family : Path) (indices : List Path) (basis : List String)
+  /-- `endomorphism name : family<object> = rows(…) of module [symmetric]`
+  (Stage 5): rows of polynomial expressions in the object's coordinates, and
+  whether `symmetric` is declared. -/
+  | endomorphism (family : Path) (indices : List Path) (module : Path) (rows : List (List PolyExpr))
+      (symmetric : Bool)
+  /-- `spectrum name : family<object> = eigen(endomorphism, fiber)` (Stage 5):
+  the fiber coordinate is named `fiber`. The kernel computes the certificate. -/
+  | spectrum (family : Path) (indices : List Path) (endomorphism : Path) (fiber : String)
+  /-- `branch name : family<object> = simple(spectrum, localize = g, witness = W,
+  exponent = e)` (Stage 5): `g` in the object's coordinates, `W` in them and
+  the spectrum's fiber coordinate. The kernel computes the quotient. -/
+  | branch (family : Path) (indices : List Path) (spectrum : Path) (localize witness : PolyExpr)
+      (exponent : Nat)
   deriving Repr, Inhabited
 
 structure Declaration where

@@ -7,6 +7,7 @@ import VastitasOracle.SmoothFibers
 import VastitasOracle.SmoothMetricForms
 import VastitasOracle.SmoothJacobian
 import VastitasOracle.FramePrimitives
+import VastitasOracle.SpectralPrimitives
 import VastitasOracle.IndexedPrimitiveSoundness
 
 /-! Runtime-value obligations for the actual indexed Core and its closed
@@ -794,6 +795,16 @@ theorem registry_sound : ∀ binding : PrimitiveBinding, Sound binding.contract
   | .frameEntry map row column => FramePrimitives.frameEntry_sound map row column
   | .frameEqual family => FramePrimitives.frameEqual_sound family
   | .frameAt family smooth => FramePrimitives.frameAt_sound family smooth
+  | .spectralInvariant application map invariant =>
+    SpectralPrimitives.spectralInvariant_sound application map invariant
+  | .annihilates smooth spectrum element => SpectralPrimitives.annihilates_sound smooth spectrum element
+  | .actionEntry smooth spectrum element row column =>
+    SpectralPrimitives.actionEntry_sound smooth spectrum element row column
+  | .onBranch smooth line branch => SpectralPrimitives.onBranch_sound smooth line branch
+  | .branchDifferential smooth cotangent line branch =>
+    SpectralPrimitives.branchDifferential_sound smooth cotangent line branch
+  | .branchProjector smooth line branch row column =>
+    SpectralPrimitives.branchProjector_sound smooth line branch row column
 
 /-- Every accepted registry operation has a typed runtime value. The only
 world mutation is allocation of a fresh local object brand. Whole-term proofs

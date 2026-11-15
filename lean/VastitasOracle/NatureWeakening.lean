@@ -280,6 +280,14 @@ theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   | metric family object gram => simp only [Entry.Valid, validMetric_append ext]
   | metricEvidence metric evidence => simp only [Entry.Valid, validMetricEvidence_append ext]
   | frame family object matrix inverse => simp only [Entry.Valid, checkFrame_append ext]
+  -- The spectral checks of Stage 5 reject every entry.
+  | freeModule family object basis => simp only [Entry.Valid, SpectralDeclarations.checkFreeModule]
+  | endomorphism family object module rows symmetric =>
+    simp only [Entry.Valid, SpectralDeclarations.checkEndomorphism]
+  | spectrum family object endomorphism fiber certificate =>
+    simp only [Entry.Valid, SpectralDeclarations.checkSpectrum]
+  | branch family object spectrum localize witness exponent quotient =>
+    simp only [Entry.Valid, SpectralDeclarations.checkBranch]
   | _ => exact absurd trivial other
 
 /-- The executable check is unchanged as well. -/

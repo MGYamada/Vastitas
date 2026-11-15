@@ -85,4 +85,15 @@ def dimensionExponent : Nat := compiler_limit% "dimensionExponent"
 /-- The scale factors of one entry of a physical metric. -/
 def dimensionScaleFactors : Nat := compiler_limit% "dimensionScaleFactors"
 
+/-! Finite Stage 5 spectral observations (`std::linalg::spectral`, #806): the
+rank of a free module, hence the size of an endomorphism, and the largest power
+of an invariant `trace_power(H, k)` and exponent of a gap certificate
+`simple(S, …, exponent = e)`. Degrees, terms and work stay under the algebra
+limits; both bounds are checked before any product is computed. -/
+/-- The rank of one free module: the length of its basis. -/
+def spectralRank : Nat := compiler_limit% "spectralRank"
+/-- The power `k` of one `trace_power(H, k)` and the exponent `e` of one
+`simple(S, …, exponent = e)`. -/
+def spectralPower : Nat := compiler_limit% "spectralPower"
+
 end VastitasKernel.Limits

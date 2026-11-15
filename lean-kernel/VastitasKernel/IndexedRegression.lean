@@ -117,6 +117,13 @@ private def renameDeclaration : Declaration → Declaration
         | .gram rows => .gram (rows.map (·.map fun monomial =>
             { monomial with factors := monomial.factors.map fun (scale, exponent) => (renameId scale, exponent) }))
         | .normalized scales => .normalized (scales.map renameId))
+  | .freeModule family object basis => .freeModule (renameId family) (renameId object) basis
+  | .endomorphism family object module rows symmetric =>
+    .endomorphism (renameId family) (renameId object) (renameId module) rows symmetric
+  | .spectrum family object endomorphism fiber certificate =>
+    .spectrum (renameId family) (renameId object) (renameId endomorphism) fiber certificate
+  | .branch family object spectrum localize witness exponent quotient =>
+    .branch (renameId family) (renameId object) (renameId spectrum) localize witness exponent quotient
 private def renamed : Environment := env.map fun e => ⟨renameId e.id, renameDeclaration e.declaration⟩
 #eval check "coherent library renaming preserves acceptance" (validEnvironment renamed &&
   validApplication renamed ⟨renameId (id "Position"), [

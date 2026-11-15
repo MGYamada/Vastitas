@@ -407,8 +407,8 @@ product. Degrees, terms and work have the bounds of
 power included. Each declaration has these budgets on its own, and no
 budget bounds a whole program
 ([#769](https://github.com/MGYamada/Vastitas/issues/769)). The kernel
-computes the polynomial of a trace-power invariant again at each call of
-it, within a budget of its own
+computes the polynomial of a trace-power invariant once in each pass over
+the program, not at each call of it
 ([#812](https://github.com/MGYamada/Vastitas/issues/812)).
 [Spectral observations](../language/spectral-observations.md) states the
 rules.

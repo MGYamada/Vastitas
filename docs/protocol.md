@@ -437,9 +437,9 @@ unknown indexed primitive contract.
   `symmetric` is a JSON boolean.
 - **Spectrum.** `kind: "spectrum"` carries `family`, `indices`,
   `endomorphism` (path) and `fiber`, the name of the fiber coordinate as a
-  string. The kernel's audit requires the name to be an identifier that is
-  no coordinate of the object and no basis name of the module of the field
-  (`E_SPECTRAL`).
+  string. The kernel's audit requires the name to be an identifier of the
+  source grammar, so no strict keyword, that is no coordinate of the object
+  and no basis name of the module of the field (`E_SPECTRAL`).
 - **Branch.** `kind: "branch"` carries `family`, `indices`, `spectrum`
   (path), `localize` and `witness`, two polynomial expressions, and
   `exponent`, an unsigned decimal string of at most 64 digits.

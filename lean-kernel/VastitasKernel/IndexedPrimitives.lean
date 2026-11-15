@@ -434,6 +434,22 @@ def validPrimitive (env : Environment) (binding : PrimitiveBinding) (allowed : L
   validPrimitiveBinding env binding && arguments.all (validValueType env) && validValueType env result &&
     decide (PrimitiveAssociation env binding allowed brand arguments result)
 
+/-- `validPrimitive` without the binding's contract: the operand and result
+types and the association of one call. A checker that knows the binding's
+contract to hold decides only this (#812): the contract of a binding can
+recompute data from its declarations, such as the image `tr(Hᵏ)` of a trace
+power, and it does not depend on the call. -/
+def validPrimitiveCall (env : Environment) (binding : PrimitiveBinding) (allowed : List ObjectRef)
+    (brand : Nat) (arguments : List ValueType) (result : ValueType) : Bool :=
+  arguments.all (validValueType env) && validValueType env result &&
+    decide (PrimitiveAssociation env binding allowed brand arguments result)
+
+theorem validPrimitive_eq_call (env : Environment) (binding : PrimitiveBinding) (allowed : List ObjectRef)
+    (brand : Nat) (arguments : List ValueType) (result : ValueType) :
+    validPrimitive env binding allowed brand arguments result =
+      (validPrimitiveBinding env binding && validPrimitiveCall env binding allowed brand arguments result) := by
+  simp only [validPrimitive, validPrimitiveCall, Bool.and_assoc]
+
 structure CheckedPrimitive (env : CheckedEnvironment) (binding : PrimitiveBinding)
     (allowed : List ObjectRef) (brand : Nat) (arguments : List ValueType) where
   result : ValueType

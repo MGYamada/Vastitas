@@ -818,3 +818,118 @@ fn stage5_words_remain_names_through_the_kernel() {
         success(&common::check(&source, "names.vast"));
     }
 }
+
+/// The fiber coordinate of a spectrum is an identifier of the source grammar,
+/// which excludes the strict keywords (#831). A protocol-9 request that names
+/// a strict keyword as the fiber coordinate, which the frontend never sends,
+/// is the kernel's `E_SPECTRAL`; the source is the frontend's `E_PARSE`. An
+/// ordinary identifier, and a word that is a keyword only where a construct
+/// spells it, are fiber coordinates in both.
+#[test]
+fn strict_keywords_are_no_fiber_coordinates() {
+    // The module without the declarations that read the fiber coordinate `t`.
+    let main: String = MAIN
+        .lines()
+        .filter(|line| {
+            !line.starts_with("indexed branch") && !line.starts_with("indexed primitive")
+        })
+        .map(|line| format!("{line}\n"))
+        .collect();
+    let spectrum = "indexed spectrum S: Spectrum<Plane> = eigen(H, t);";
+    let raw = request(&main, 9);
+    let fiber = format!("{}/fiber", pointer(&raw, "S"));
+    assert_eq!(raw.pointer(&fiber), Some(&json!("t")));
+    let with_fiber = |name: &str| {
+        let mut tampered = raw.clone();
+        *tampered.pointer_mut(&fiber).unwrap() = json!(name);
+        kernel(&tampered, "check")
+    };
+    for keyword in [
+        "if", "fn", "let", "as", "true", "while", "return", "generic", "domain", "type", "subtype",
+    ] {
+        let response = with_fiber(keyword);
+        assert_eq!(response["ok"], false, "{keyword}: {response}");
+        decoded(&response);
+        let diagnostic = &response["diagnostics"][0];
+        assert_eq!(diagnostic["code"], "E_SPECTRAL", "{keyword}: {response}");
+        assert_eq!(
+            diagnostic["message"],
+            format!(
+                "the fiber coordinate `{keyword}` of the spectrum `spectral_declarations::S` is a strict \
+                 keyword, not an identifier; `eigen(H, t)` names the fiber coordinate with a new identifier"
+            ),
+            "{keyword}: {response}"
+        );
+    }
+    for name in ["lambda", "_t", "witness", "indexed", "eigen", "Ifs"] {
+        let response = with_fiber(name);
+        assert_eq!(response["ok"], true, "{name}: {response}");
+    }
+    // The source: a strict keyword is no name, and the other words are.
+    let at = |to: &str| {
+        let source: String = main
+            .lines()
+            .map(|line| if line == spectrum { to } else { line })
+            .map(|line| format!("{line}\n"))
+            .collect();
+        let row = source.lines().position(|line| line == to).unwrap() + 1;
+        (source, row)
+    };
+    let (source, row) = at("indexed spectrum S: Spectrum<Plane> = eigen(H, if);");
+    rejected_at(
+        &source,
+        &format!("main.vast:{row}:48: E_PARSE: expected an identifier"),
+    );
+    for name in ["lambda", "witness"] {
+        let (source, _) = at(&format!(
+            "indexed spectrum S: Spectrum<Plane> = eigen(H, {name});"
+        ));
+        success(&package(&source).check_manifest("Vastitas.toml"));
+    }
+}
+
+/// A failed gap identity shows a term of the remainder of W·χ′ − gᵉ modulo χ
+/// that the kernel computed, with the names of the coordinates and the fiber
+/// coordinate (#833). For H = diag(t, −t) with the fiber coordinate z,
+/// χ = z² − t², and the witness z/2 gives W·χ′ − (t² + 1) = χ − 1: the
+/// remainder is the constant −1. The localization t² is certified by the same
+/// witness, and the witness z/2 + t leaves the remainder 2tz.
+#[test]
+fn a_failed_gap_identity_shows_a_term_of_its_remainder() {
+    let header: String = MAIN
+        .lines()
+        .take_while(|line| !line.starts_with("indexed free_module"))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    let branch = |localize: &str, witness: &str| {
+        format!(
+            "{header}indexed affine T(SmoothR) = Affine(1)[t];\n\
+             indexed free_module VT: FreeModule<T> = basis(e1, e2);\n\
+             indexed endomorphism D: Endomorphism<T> = rows((t, 0), (0, -t)) of VT symmetric;\n\
+             indexed spectrum SD: Spectrum<T> = eigen(D, z);\n\
+             indexed branch BD: Branch<T> = simple(SD, localize = {localize}, witness = {witness}, exponent = 1);\n\
+             fn main() -> Int {{ 42 }}\n"
+        )
+    };
+    let row = |source: &str| {
+        source
+            .lines()
+            .position(|line| line.starts_with("indexed branch BD"))
+            .unwrap()
+            + 1
+    };
+    let failure = "E_SPECTRAL: the witness of the branch `spectral_declarations::BD` does not certify the \
+                   gap: W·χ′ − g^e is not a multiple of the characteristic polynomial χ; its remainder \
+                   modulo χ";
+    let constant = branch("t^2 + 1", "frac(1, 2) * z");
+    rejected_at(
+        &constant,
+        &format!("main.vast:{}:1: {failure} is `-1`", row(&constant)),
+    );
+    let linear = branch("t^2", "frac(1, 2) * z + t");
+    rejected_at(
+        &linear,
+        &format!("main.vast:{}:1: {failure} is `2 * t * z`", row(&linear)),
+    );
+    success(&package(&branch("t^2", "frac(1, 2) * z")).check_manifest("Vastitas.toml"));
+}

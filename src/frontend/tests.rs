@@ -942,3 +942,23 @@ fn malformed_input_reports_location_without_panicking() {
         }
     }
 }
+
+/// The strict keywords are one list on each side: `KEYWORDS` here and the
+/// kernel's `strictKeywords` (`lean-kernel/VastitasKernel/Keywords.lean`),
+/// with which its audit of a spectrum's fiber coordinate rejects a strict
+/// keyword as the source grammar does (#831). The two lists name the same
+/// words.
+#[test]
+fn the_strict_keywords_are_the_kernels() {
+    let kernel = include_str!("../../lean-kernel/VastitasKernel/Keywords.lean");
+    let (_, list) = kernel
+        .split_once("def strictKeywords : List String :=")
+        .expect("the kernel defines strictKeywords");
+    let list = &list[..list.find(']').expect("a list literal")];
+    let mut kernel: Vec<&str> = list.split('"').skip(1).step_by(2).collect();
+    let mut frontend = KEYWORDS.to_vec();
+    kernel.sort_unstable();
+    frontend.sort_unstable();
+    assert_eq!(kernel, frontend);
+    assert_eq!(frontend.len(), 21);
+}

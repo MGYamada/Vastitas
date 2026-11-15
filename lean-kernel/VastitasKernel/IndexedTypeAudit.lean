@@ -55,9 +55,75 @@ theorem letTyped_iff (env : Declarations) (functions : Signatures) (ctx : Contex
       HasType env functions (⟨symbol, value.result⟩ :: ctx) body := by
   exact ⟨fun typed => typed.2, fun parts => ⟨parts.2.2.resultValid, parts⟩⟩
 
+/-! ### What the typing decision knows of the declared bindings
+
+`ModuleTyped` decides `Declarations.Valid` first, and `validDeclarations`
+decides the contract of every declared primitive binding once. A binding's
+contract can recompute data from its declarations, such as the image `tr(Hᵏ)`
+of a trace power (`spectralInvariantValid`), and it does not depend on the
+call. So the functions of a module are typed with `PrimitivesValid`, and a
+primitive node decides only its call (`validPrimitiveCall`), not its binding's
+contract again (#812). Decidable instances are unique: `HasType`,
+`PrimitiveTyping` and `ModuleTyped` are unchanged, and so is every statement
+about them. -/
+
+/-- Every declared primitive binding is valid, as `Declarations.Valid` states
+(`primitives`). -/
+abbrev PrimitivesValid (env : Declarations) : Prop :=
+  ∀ declaration ∈ env.primitives, declaration.binding.Valid env.indexed
+
+/-- The binding that `env.primitive? id` finds is a declared binding. -/
+theorem PrimitivesValid.binding {env : Declarations} (valid : PrimitivesValid env) {id : DeclId}
+    {binding : PrimitiveBinding} (found : env.primitive? id = some binding) : binding.Valid env.indexed := by
+  unfold Declarations.primitive? at found
+  cases h : env.primitives.find? (fun declaration => declaration.id == id) with
+  | none => rw [h] at found; cases found
+  | some declaration =>
+    rw [h] at found
+    cases found
+    exact valid declaration (List.mem_of_find?_eq_some h)
+
+/-- `PrimitiveTyping` without the binding's contract, for a binding known to
+be valid: the call alone (`validPrimitiveCall`). -/
+def primitiveCallTyped (env : Declarations) (refs : List ObjectRef) (id : DeclId) (arguments : List Result)
+    (result : Result) : Bool :=
+  match env.primitive? id, arguments.mapM Result.primitiveType?, result.primitiveType? with
+  | some binding, some operands, some output =>
+    validPrimitiveCall env.indexed binding refs (primitiveBrand result) operands output
+  | _, _, _ => false
+
+theorem primitiveCallTyped_iff {env : Declarations} (valid : PrimitivesValid env) (ctx : Context) (id : DeclId)
+    (arguments : List Result) (result : Result) :
+    primitiveCallTyped env (contextRefs ctx) id arguments result = true ↔
+      PrimitiveTyping env ctx id arguments result := by
+  unfold primitiveCallTyped PrimitiveTyping
+  cases found : env.primitive? id with
+  | none => simp
+  | some binding =>
+    cases arguments.mapM Result.primitiveType? with
+    | none => simp
+    | some operands =>
+      cases result.primitiveType? with
+      | none => simp
+      | some output => exact validPrimitiveCall_iff (valid.binding found) _ _ _ _
+
+/-- `PrimitiveTyping` decided with what is known of the declared bindings:
+with `PrimitivesValid`, the binding's contract is not decided again. -/
+def primitiveTypingWith (env : Declarations) (known : Option (PLift (PrimitivesValid env))) (ctx : Context)
+    (index : ContextIndex ctx) (id : DeclId) (arguments : List Result) (result : Result) :
+    Decidable (PrimitiveTyping env ctx id arguments result) :=
+  match known with
+  | some valid =>
+    decidable_of_iff (primitiveCallTyped env index.refs id arguments result = true)
+      (by rw [index.exactRefs]; exact primitiveCallTyped_iff valid.down ctx id arguments result)
+  | none => by
+    unfold PrimitiveTyping
+    rw [← index.exactRefs]
+    split <;> infer_instance
+
 mutual
   def hasTypeWithIndex (env : Declarations) (functions : Signatures) (ctx : Context)
-      (index : ContextIndex ctx) (term : Term) :
+      (index : ContextIndex ctx) (known : Option (PLift (PrimitivesValid env))) (term : Term) :
       Decidable (HasType env functions ctx term) := by
     cases term with
     | natural | integer | boolean | unit => unfold HasType; infer_instance
@@ -66,66 +132,63 @@ mutual
       simp only [← index.get?_eq]
       infer_instance
     | unary op operand result =>
-      haveI := hasTypeWithIndex env functions ctx index operand
+      haveI := hasTypeWithIndex env functions ctx index known operand
       unfold HasType
       infer_instance
     | binary op left right result =>
-      haveI := hasTypeWithIndex env functions ctx index left
-      haveI := hasTypeWithIndex env functions ctx index right
+      haveI := hasTypeWithIndex env functions ctx index known left
+      haveI := hasTypeWithIndex env functions ctx index known right
       unfold HasType
       infer_instance
     | pair element first second =>
-      haveI := hasTypeWithIndex env functions ctx index first
-      haveI := hasTypeWithIndex env functions ctx index second
+      haveI := hasTypeWithIndex env functions ctx index known first
+      haveI := hasTypeWithIndex env functions ctx index known second
       unfold HasType
       infer_instance
     | project element first value =>
-      haveI := hasTypeWithIndex env functions ctx index value
+      haveI := hasTypeWithIndex env functions ctx index known value
       unfold HasType
       infer_instance
     | natToInt value =>
-      haveI := hasTypeWithIndex env functions ctx index value
+      haveI := hasTypeWithIndex env functions ctx index known value
       unfold HasType
       infer_instance
     | ascribe annotation value =>
-      haveI := hasTypeWithIndex env functions ctx index value
+      haveI := hasTypeWithIndex env functions ctx index known value
       unfold HasType
       infer_instance
     | primitive id arguments result =>
-      haveI := argsTypedWithIndex env functions ctx index arguments
-      haveI : Decidable (PrimitiveTyping env ctx id (arguments.map Term.result) result) := by
-        unfold PrimitiveTyping
-        rw [← index.exactRefs]
-        split <;> infer_instance
+      haveI := argsTypedWithIndex env functions ctx index known arguments
+      haveI := primitiveTypingWith env known ctx index id (arguments.map Term.result) result
       unfold HasType
       infer_instance
     | call id arguments substitution result =>
-      haveI := argsTypedWithIndex env functions ctx index arguments
+      haveI := argsTypedWithIndex env functions ctx index known arguments
       unfold HasType
       infer_instance
     | branch condition yes no result =>
-      haveI := hasTypeWithIndex env functions ctx index condition
-      haveI := hasTypeWithIndex env functions ctx index yes
-      haveI := hasTypeWithIndex env functions ctx index no
+      haveI := hasTypeWithIndex env functions ctx index known condition
+      haveI := hasTypeWithIndex env functions ctx index known yes
+      haveI := hasTypeWithIndex env functions ctx index known no
       unfold HasType
       infer_instance
     | pack id witness fields =>
-      haveI := hasTypeWithIndex env functions ctx index witness
-      haveI := argsTypedWithIndex env functions ctx index fields
+      haveI := hasTypeWithIndex env functions ctx index known witness
+      haveI := argsTypedWithIndex env functions ctx index known fields
       unfold HasType
       infer_instance
     | scope body =>
-      haveI := hasTypeWithIndex env functions ctx index body
+      haveI := hasTypeWithIndex env functions ctx index known body
       unfold HasType
       rw [← index.exactRefs]
       infer_instance
     | letE symbol value body =>
-      haveI := hasTypeWithIndex env functions ctx index value
-      haveI := hasTypeWithIndex env functions _ (index.bind ⟨symbol, value.result⟩) body
+      haveI := hasTypeWithIndex env functions ctx index known value
+      haveI := hasTypeWithIndex env functions _ (index.bind ⟨symbol, value.result⟩) known body
       rw [letTyped_iff, ← index.get?_eq]
       infer_instance
     | unpack witnessSymbol fieldSymbols package body =>
-      haveI := hasTypeWithIndex env functions ctx index package
+      haveI := hasTypeWithIndex env functions ctx index known package
       unfold HasType
       simp only [← index.get?_eq, ← index.exactRefs]
       cases package.result.type with
@@ -135,20 +198,20 @@ mutual
         | none => infer_instance
         | some shape =>
           haveI := hasTypeWithIndex env functions _
-            (index.prepend (openedContext shape witnessSymbol fieldSymbols)) body
+            (index.prepend (openedContext shape witnessSymbol fieldSymbols)) known body
           infer_instance
       | _ => infer_instance
     termination_by sizeOf term
     decreasing_by all_goals simp_wf; all_goals omega
 
   def argsTypedWithIndex (env : Declarations) (functions : Signatures) (ctx : Context)
-      (index : ContextIndex ctx) (arguments : List Term) :
+      (index : ContextIndex ctx) (known : Option (PLift (PrimitivesValid env))) (arguments : List Term) :
       Decidable (ArgsTyped env functions ctx arguments) := by
     cases arguments with
     | nil => unfold ArgsTyped; infer_instance
     | cons argument rest =>
-      haveI := hasTypeWithIndex env functions ctx index argument
-      haveI := argsTypedWithIndex env functions ctx index rest
+      haveI := hasTypeWithIndex env functions ctx index known argument
+      haveI := argsTypedWithIndex env functions ctx index known rest
       unfold ArgsTyped
       infer_instance
     termination_by sizeOf arguments
@@ -156,10 +219,10 @@ mutual
 end
 
 def hasTypeDecidable (env : Declarations) (functions : Signatures) (ctx : Context) (term : Term) :
-    Decidable (HasType env functions ctx term) := hasTypeWithIndex env functions ctx (.build ctx) term
+    Decidable (HasType env functions ctx term) := hasTypeWithIndex env functions ctx (.build ctx) none term
 
 def argsTypedDecidable (env : Declarations) (functions : Signatures) (ctx : Context) (args : List Term) :
-    Decidable (ArgsTyped env functions ctx args) := argsTypedWithIndex env functions ctx (.build ctx) args
+    Decidable (ArgsTyped env functions ctx args) := argsTypedWithIndex env functions ctx (.build ctx) none args
 
 instance (env : Declarations) (functions : Signatures) (ctx : Context) (term : Term) :
     Decidable (HasType env functions ctx term) := hasTypeDecidable env functions ctx term
@@ -232,19 +295,31 @@ structure ModuleTyped (module : Module) : Prop where
   fresh : (freshSerials module).Nodup
   functions : ∀ function ∈ module.functions, FunctionTyped module.declarations (signatures module) function
 
+/-- `FunctionTyped` decided with what is known of the declared bindings. -/
+def functionTypedWith (env : Declarations) (known : Option (PLift (PrimitivesValid env))) (functions : Signatures)
+    (function : Function) : Decidable (FunctionTyped env functions function) := by
+  haveI := hasTypeWithIndex env functions function.parameters (.build function.parameters) known function.body
+  unfold FunctionTyped
+  infer_instance
+
+/-- The module audit decides `Declarations.Valid` first, which decides the
+contract of every declared primitive binding once, and then types the
+functions with `PrimitivesValid` (`functionTypedWith`), so that no primitive
+node decides its binding's contract again (#812). -/
 instance (module : Module) : Decidable (ModuleTyped module) := by
   haveI : Decidable (module.functions.map Function.id).Nodup :=
     decidable_of_iff (Finite.distinct (module.functions.map Function.id) = true) (Finite.distinct_iff _)
   haveI : Decidable (freshSerials module).Nodup :=
     decidable_of_iff (Finite.distinct (freshSerials module) = true) (Finite.distinct_iff _)
   let table := signatures module
+  refine if declarations : module.declarations.Valid then ?_ else isFalse fun valid => declarations valid.declarations
+  haveI := fun function => functionTypedWith module.declarations (some ⟨declarations.primitives⟩) table function
   exact
   decidable_of_iff
-    (module.declarations.Valid ∧ (module.functions.map Function.id).Nodup ∧
-      (freshSerials module).Nodup ∧ ∀ function ∈ module.functions,
+    ((module.functions.map Function.id).Nodup ∧ (freshSerials module).Nodup ∧ ∀ function ∈ module.functions,
         FunctionTyped module.declarations table function)
-    ⟨fun ⟨declarations, unique, fresh, functions⟩ => ⟨declarations, unique, fresh, functions⟩,
-      fun valid => ⟨valid.declarations, valid.uniqueFunctions, valid.fresh, valid.functions⟩⟩
+    ⟨fun ⟨unique, fresh, functions⟩ => ⟨declarations, unique, fresh, functions⟩,
+      fun valid => ⟨valid.uniqueFunctions, valid.fresh, valid.functions⟩⟩
 
 def dependencyEntries (module : Module) : List Dependency.Entry := module.functions.map fun function =>
   ⟨function.id, function.body.callIds, function.span⟩

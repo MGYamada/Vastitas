@@ -220,8 +220,7 @@ open and the characteristic scheme as a presented object (#606, #814),
 spectral derivatives beyond trace powers (#815), Hermitian fields over
 QQ(i) (#816), similarity, base change and the band-crossing consumer (#337,
 #247), numerical eigensolvers (#324), steps 3 to 5 of #471 (#361, #290,
-#164), the proof gaps of the review (#813), the repeated check of
-trace-power invariants (#812) and performance (#222).
+#164), the proof gaps of the review (#813) and performance (#222).
 
 ## Stage 6. A first physical model
 

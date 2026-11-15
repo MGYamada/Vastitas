@@ -1,4 +1,5 @@
 import VastitasKernel.FrameDeclarations
+import VastitasKernel.Keywords
 import VastitasKernel.SpectralRuntime
 
 set_option autoImplicit false
@@ -15,8 +16,9 @@ Over the coordinate ring `A = ℚ[x₁, …, x_m]` of a smooth object `X`:
   `n` canonical polynomials of arity `m`, and with `symmetric` checks `H = Hᵀ`,
   naming the first entry that differs from its mirror;
 - a spectrum `Spectrum<X>` of `H` is the characteristic scheme `Σ_H` with the
-  module action. Its fiber coordinate `t` is a new identifier, no coordinate
-  of `X` and no basis vector of the free module (`fiberValid`). Its
+  module action. Its fiber coordinate `t` is a new identifier, no strict
+  keyword, no coordinate of `X` and no basis vector of the free module
+  (`fiberValid`). Its
   certificate (`SpectralCertificate`) holds `χ` and
   `adj(tI − H)` in `A[t]`, `t` the last variable, and the matrix quotient `Q`
   of idempotence. `checkCertificate` checks, within one `algebraWork` run:
@@ -31,7 +33,10 @@ Over the coordinate ring `A = ℚ[x₁, …, x_m]` of a smooth object `X`:
 - a branch `Branch<X>` of a spectrum is a gap certificate on the principal
   open `D(g)`: `checkWitness` accepts `g` in `A` (arity `m`, so without `t`),
   `g ≠ 0`, `W` reduced (`deg_t W < n`), `e ≤ spectralPower`, and
-  `W·χ′ − gᵉ = Q·χ` for the stored quotient `Q`.
+  `W·χ′ − gᵉ = Q·χ` for the stored quotient `Q`. A failed identity
+  (`Failure.witness`) carries the first term of the residual
+  `W·χ′ − gᵉ − Q·χ` that the check computed, and its number of terms, for
+  the diagnostic.
 
 Every identity "modulo `χ`" is checked as `X − Q·χ = []` with a quotient that
 the kernel computes during elaboration (`divideT`, division by `χ` as a monic
@@ -114,8 +119,10 @@ inductive Failure where
   | witnessShape
   /-- The witness of a branch has degree `degree ≥ n` in `t`. -/
   | unreducedWitness (degree : Nat)
-  /-- `W·χ′ − gᵉ ≠ Q·χ`. -/
-  | witness
+  /-- `W·χ′ − gᵉ ≠ Q·χ`: the residual `W·χ′ − gᵉ − Q·χ` that the check
+  computed has `terms` terms, the first `term`, in the canonical order.
+  Presentation only: acceptance reads no field. -/
+  | witness (term : AlgebraRuntime.Term) (terms : Nat)
   /-- The products exceed an algebra limit. -/
   | work (error : AlgebraBasis.Error)
   deriving Repr, DecidableEq, Inhabited
@@ -171,17 +178,19 @@ def duplicate? : List String → Option String
   | [] => none
   | name :: rest => if rest.contains name then some name else duplicate? rest
 
-/-- The identifier rule of the frontend: an ASCII letter or `_`, then ASCII
-letters, digits and `_`. -/
+/-- The identifier rule of the source grammar, as the frontend's
+`Parser::name` applies it: an ASCII letter or `_`, then ASCII letters,
+digits and `_`, and no strict keyword (`strictKeywords`, #831). -/
 def isIdentifier (name : String) : Bool :=
-  match name.toList with
-  | [] => false
-  | first :: rest => (first.isAlpha && first.toNat < 128 || first == '_') &&
-      rest.all fun c => c.isAlphanum && c.toNat < 128 || c == '_'
+  (match name.toList with
+    | [] => false
+    | first :: rest => (first.isAlpha && first.toNat < 128 || first == '_') &&
+        rest.all fun c => c.isAlphanum && c.toNat < 128 || c == '_') &&
+    !strictKeywords.contains name
 
 /-- The fiber coordinate `t` of a spectrum `eigen(H, t)` is a new name: an
-identifier that is no coordinate of the object and no basis vector of the
-free module of `H`. -/
+identifier, so no strict keyword, that is no coordinate of the object and no
+basis vector of the free module of `H`. -/
 def fiberValid (coordinates basis : List String) (fiber : String) : Bool :=
   isIdentifier fiber && !coordinates.contains fiber && !basis.contains fiber
 
@@ -390,7 +399,10 @@ def checkCertificate (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCe
 /-- The gap certificate of a branch of the spectrum with characteristic
 polynomial `χ` of an endomorphism of rank `n` over `A` (`arity = m`): the
 exponent limit first, `g` canonical of arity `m` and nonzero, `W` and `Q`
-canonical of arity `m + 1`, `deg_t W < n`, and `W·χ′ − gᵉ − Q·χ = []`. -/
+canonical of arity `m + 1`, `deg_t W < n`, and `W·χ′ − gᵉ − Q·χ = []`.
+A failed identity names the first term of that residual and its number of
+terms, which the check has computed: no other product is formed for the
+diagnostic (#833). -/
 def checkWitness (arity n : Nat) (characteristic localize witness : Poly) (exponent : Nat) (quotient : Poly) :
     Except Failure Unit := do
   if exponent > Limits.spectralPower then throw (.exponent exponent)
@@ -401,7 +413,7 @@ def checkWitness (arity n : Nat) (characteristic localize witness : Poly) (expon
   match AlgebraBasis.run (do
       residual characteristic (← witnessDifference arity characteristic localize witness exponent) quotient) with
   | .error error => throw (.work error)
-  | .ok difference => unless difference.isEmpty do throw .witness
+  | .ok difference => unless difference.isEmpty do throw (.witness (difference.headD default) difference.length)
 
 /-- The power of `trace_power(H, k)`: `1 ≤ k ≤ spectralPower`, the limit first. -/
 def checkPower (power : Nat) : Except Failure Unit := do

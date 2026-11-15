@@ -67,8 +67,12 @@ struct PathDependency {
 struct Loader {
     sources: Sources,
     packages: Vec<Package>,
-    // Sources of `packages`, so a shared dependency is found in constant time.
-    loaded: HashSet<String>,
+    // Sources of `packages`, so a shared dependency is found in constant time,
+    // each with the number of packages on the longest chain of dependencies
+    // that starts at it, itself included. A shared package counts toward
+    // `MAX_PACKAGE_NESTING` on every chain that reaches it, not only on the
+    // chain that loads it first (#828).
+    loaded: HashMap<String, usize>,
     active: HashSet<PathBuf>,
     output: Option<OutputIdentity>,
     module_count: usize,
@@ -94,6 +98,9 @@ enum Existence {
 /// Directory listings are cached, so sibling modules cost one `read_dir`.
 /// A path whose directory component is a regular file is missing: an
 /// unrelated file `math` rules out `math/mod.vast`, not `math.vast` (#795).
+/// A path that ends at a directory is missing as well: a directory
+/// `math.vast` is no source file and leaves `math/mod.vast` the only
+/// candidate of `mod math;` (#830).
 fn existence(
     listings: &mut HashMap<PathBuf, HashSet<OsString>>,
     base: &Path,
@@ -102,10 +109,15 @@ fn existence(
     let path = names
         .iter()
         .fold(base.to_path_buf(), |path, name| path.join(name));
-    match path.try_exists() {
-        Ok(true) => {}
-        Ok(false) => return Ok(Existence::Missing),
-        Err(error) if error.kind() == std::io::ErrorKind::NotADirectory => {
+    match std::fs::metadata(&path) {
+        Ok(metadata) if metadata.is_dir() => return Ok(Existence::Missing),
+        Ok(_) => {}
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+            ) =>
+        {
             return Ok(Existence::Missing);
         }
         Err(error) => return Err(error),
@@ -244,7 +256,12 @@ impl Loader {
                 shown(&manifest)
             ));
         }
-        if self.loaded.contains(&source) {
+        if let Some(&height) = self.loaded.get(&source) {
+            if self.active.len() + height > MAX_PACKAGE_NESTING {
+                return Err(format!(
+                    "E_LIMIT: package dependency nesting exceeds {MAX_PACKAGE_NESTING}"
+                ));
+            }
             return Ok(source);
         }
         if self.active.len() >= MAX_PACKAGE_NESTING {
@@ -311,7 +328,12 @@ impl Loader {
             &mut seen,
             &mut modules,
         )?;
-        self.loaded.insert(source.clone());
+        let height = 1 + dependencies
+            .iter()
+            .map(|dependency| self.loaded[&dependency.target])
+            .max()
+            .unwrap_or(0);
+        self.loaded.insert(source.clone(), height);
         self.packages.push(Package {
             source: source.clone(),
             name: parsed.package.name,
@@ -612,7 +634,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
     let mut loader = Loader {
         sources: Sources::empty(),
         packages: Vec::new(),
-        loaded: HashSet::new(),
+        loaded: HashMap::new(),
         active: HashSet::new(),
         output: output.map(OutputIdentity::inspect).transpose()?.flatten(),
         module_count: 0,

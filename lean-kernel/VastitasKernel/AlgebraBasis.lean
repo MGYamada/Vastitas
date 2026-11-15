@@ -101,12 +101,16 @@ where
 def combination (coefficients generators : List Poly) : Poly :=
   (coefficients.zip generators).foldl (fun total (c, g) => Poly.add total (Poly.mul c g)) []
 
-def combinationCost (coefficients generators : List Poly) : Nat :=
-  (coefficients.zip generators).foldl (fun total (c, g) => total + cost c * cost g + cost c + cost g) 1
-
-def combine (coefficients generators : List Poly) : Work Poly := do
-  charge (combinationCost coefficients generators)
-  bounded (combination coefficients generators)
+/-- Budgeted `combination`: the same products and sums in the same order.
+Each product `c * g` is the budgeted `mul`, and each sum with the earlier
+products is the budgeted `add`. Every step is charged before it runs, and
+every product, every partial sum of a product and every partial sum of the
+combination is bounded by `Limits.algebraTerms`, so an intermediate product
+beyond the term limit is `E_LIMIT` even when it cancels in the final sum
+(#829). A closed-form charge of the whole combination followed by one bound
+on its result missed both the merges and the intermediate terms. -/
+def combine (coefficients generators : List Poly) : Work Poly :=
+  (coefficients.zip generators).foldlM (fun total (c, g) => do add total (← mul c g)) []
 
 /-- Budgeted `Poly.pow`: the same multiplications in the same order. -/
 def power (arity : Nat) (p : Poly) : Nat → Work Poly

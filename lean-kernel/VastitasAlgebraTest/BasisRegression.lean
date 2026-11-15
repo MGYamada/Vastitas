@@ -141,4 +141,24 @@ private def certifies (arity : Nat) (relations : List Poly) : String :=
   (certifies 3 [Poly.pow 3 (Poly.add (Poly.add (v 3 0) (v 3 1)) (Poly.add (v 3 2) (Poly.one 3))) 16] ==
     "E_LIMIT")
 
+-- An intermediate product of a certificate identity is bounded even when it
+-- cancels in the final sum (#829). In QQ[x, y]/(a, a) with
+-- a = 1 + x + … + x²², the cofactor row [b, 1 − b] with b = y + … + yᵏ gives
+-- b·a + (1 − b)·a = a. The second product has (k + 1)·23 terms: 506 for
+-- k = 21, within `algebraTerms`, and 529 for k = 22, beyond it.
+private def powers (arity index : Nat) (low high : Nat) : Poly :=
+  (List.range' low (high + 1 - low)).foldl (fun sum e => Poly.add sum (Poly.pow arity (v arity index) e)) []
+private def cancelling (k : Nat) : Certificate :=
+  let a := powers 2 0 0 22
+  let b := powers 2 1 1 k
+  ⟨2, [a, a], [a], [[b, Poly.sub (Poly.one 2) b]]⟩
+#eval check "a cancelling intermediate product within the term limit verifies"
+  ((Poly.mul (Poly.sub (Poly.one 2) (powers 2 1 1 21)) (powers 2 0 0 22)).length == 506 &&
+    accepted (cancelling 21))
+#eval check "a cancelling intermediate product beyond the term limit is a limit"
+  ((Poly.mul (Poly.sub (Poly.one 2) (powers 2 1 1 22)) (powers 2 0 0 22)).length == 529 &&
+    combination [powers 2 1 1 22, Poly.sub (Poly.one 2) (powers 2 1 1 22)]
+      [powers 2 0 0 22, powers 2 0 0 22] == powers 2 0 0 22 &&
+    rejection (cancelling 22) == "E_LIMIT")
+
 end VastitasAlgebraTest.BasisRegression

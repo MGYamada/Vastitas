@@ -28,7 +28,9 @@ Rules:
 - Exactly one of the two files of a file module must exist. Both files, or
   neither, are an error (`E_INPUT`). A regular file `math` is not the
   directory of `math/mod.vast`, so it leaves `math.vast` the only file of
-  `mod math;`.
+  `mod math;`. A directory is no file: a directory `math.vast` leaves
+  `math/mod.vast` the only file of `mod math;`, and a directory
+  `math/mod.vast` leaves `math.vast` the only file.
 - A module that has no file of its exact name, but a file whose name differs
   from it only in case, is an error (`E_INPUT`). Module names are case
   sensitive on every file system.

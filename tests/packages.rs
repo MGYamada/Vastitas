@@ -99,6 +99,70 @@ fn a_regular_file_beside_a_flat_module_is_no_nested_candidate() {
 }
 
 #[test]
+fn a_directory_is_no_module_file_candidate() {
+    // A directory `math.vast` is no source file and leaves `math/mod.vast`
+    // the only candidate of `mod math;`, and a directory `math/mod.vast`
+    // leaves `math.vast` the only candidate (#830).
+    let s = Scratch::empty("packages");
+    s.package("app", "mod math; fn main() -> Int { math::answer() }", "");
+    s.write("app/src/math/mod.vast", "pub fn answer() -> Int { 42 }");
+    success(&s.check());
+    fs::create_dir_all(s.0.join("app/src/math.vast")).unwrap();
+    success(&s.check());
+    fs::remove_dir(s.0.join("app/src/math.vast")).unwrap();
+    fs::remove_file(s.0.join("app/src/math/mod.vast")).unwrap();
+    fs::create_dir_all(s.0.join("app/src/math/mod.vast")).unwrap();
+    s.write("app/src/math.vast", "pub fn answer() -> Int { 42 }");
+    success(&s.check());
+    // Two regular files stay ambiguous.
+    fs::remove_dir(s.0.join("app/src/math/mod.vast")).unwrap();
+    s.write("app/src/math/mod.vast", "pub fn answer() -> Int { 42 }");
+    let message = s.rejects("E_INPUT");
+    assert!(message.contains("ambiguous module"), "{message}");
+    // Two directories leave no candidate.
+    fs::remove_file(s.0.join("app/src/math.vast")).unwrap();
+    fs::remove_file(s.0.join("app/src/math/mod.vast")).unwrap();
+    fs::create_dir_all(s.0.join("app/src/math.vast")).unwrap();
+    fs::create_dir_all(s.0.join("app/src/math/mod.vast")).unwrap();
+    let message = s.rejects("E_INPUT");
+    assert!(message.contains("module requires"), "{message}");
+}
+
+#[test]
+fn package_nesting_holds_on_every_dependency_path() {
+    // `app → p1 → … → p{length - 1}` with a second edge from `app` to the
+    // last package. A package that one alias loads early still counts with its
+    // depth on the longer chain that reaches it through another alias (#828).
+    let chain = |length: usize, direct_first: bool| {
+        let s = Scratch::empty("packages");
+        let last = length - 1;
+        let (direct, first) = if direct_first { ("a", "b") } else { ("z", "a") };
+        s.package(
+            "app",
+            "fn main() -> Int { 0 }",
+            &format!("{direct} = {{ path = '../p{last}' }}\n{first} = {{ path = '../p1' }}"),
+        );
+        for index in 1..last {
+            s.package(
+                &format!("p{index}"),
+                "pub fn value() -> Int { 0 }",
+                &format!("next = {{ path = '../p{}' }}", index + 1),
+            );
+        }
+        s.package(&format!("p{last}"), "pub fn value() -> Int { 0 }", "");
+        s
+    };
+    for direct_first in [true, false] {
+        success(&chain(64, direct_first).check());
+        let message = chain(65, direct_first).rejects("E_LIMIT");
+        assert!(
+            message.contains("package dependency nesting exceeds 64"),
+            "{message}"
+        );
+    }
+}
+
+#[test]
 fn private_paths_reexports_parent_lookup_and_shadowing_are_checked() {
     let s = Scratch::empty("packages");
     for (source, code) in [

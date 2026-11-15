@@ -188,7 +188,9 @@ rules. `packages::load` starts `Loader::package` at the root manifest.
 - A dependency that names a manifest on the current chain of dependencies
   is `E_CYCLE`. The loader loads a manifest once, so two dependency aliases
   of one location yield one package. `MAX_PACKAGE_NESTING` bounds the depth
-  of the dependencies.
+  of the dependencies. The loader keeps, for each loaded package, the number
+  of packages on the longest chain that starts at it, so a package that a
+  chain reaches after it was loaded counts with all its descendants.
 - The `toml` crate decodes the manifest into records that admit no unknown
   key. An error of the manifest is `E_MANIFEST`.
 - The loader loads the dependencies in the order of their aliases and then
@@ -205,9 +207,9 @@ rules. `packages::load` starts `Loader::package` at the root manifest.
 - For each `mod name;` the loader looks for `name.vast` and `name/mod.vast`
   below the directory of the root file. `existence` compares each component
   with the names that the directory lists, so a file whose name differs only
-  in case does not count on a file system that ignores case. The loader
-  rejects a declaration for which neither file or both files exist
-  (`E_INPUT`).
+  in case does not count on a file system that ignores case, and a path that
+  ends at a directory does not count. The loader rejects a declaration for
+  which neither file or both files exist (`E_INPUT`).
 - The loader counts every module record, including inline modules and a file
   that two `mod` declarations load, against `MAX_LOADED_MODULES`.
 

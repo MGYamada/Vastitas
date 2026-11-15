@@ -41,6 +41,18 @@ const DIFFERENTIAL: &[(&str, &str)] = &[
         include_str!("../stdlib/src/differential/mod.vast"),
     ),
 ];
+/// The `std::linalg` package, which the `std` entrypoint re-exports.
+const LINALG: &[(&str, &str)] = &[
+    (
+        "Vastitas.toml",
+        include_str!("../stdlib/src/linalg/Vastitas.toml"),
+    ),
+    ("mod.vast", include_str!("../stdlib/src/linalg/mod.vast")),
+    (
+        "spectral/mod.vast",
+        include_str!("../stdlib/src/linalg/spectral/mod.vast"),
+    ),
+];
 const DEMO: &str = include_str!("../examples/packages/stdlib-geometry/main.vast");
 
 fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
@@ -59,7 +71,11 @@ fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
         let source = source.replace("\"../geometry\"", "\"../geo\"");
         s.write(&format!("differential/{name}"), &rewrite(&source));
     }
-    s.write("standard/Vastitas.toml", "[package]\nname='vastitas_std'\nversion='0.1.0'\nroot='lib.vast'\n[dependencies]\ngeometry_library={path='../geo'}\ndifferential_library={path='../differential'}\n");
+    for (name, source) in LINALG {
+        let source = source.replace("\"../geometry\"", "\"../geo\"");
+        s.write(&format!("linalg/{name}"), &rewrite(&source));
+    }
+    s.write("standard/Vastitas.toml", "[package]\nname='vastitas_std'\nversion='0.1.0'\nroot='lib.vast'\n[dependencies]\ngeometry_library={path='../geo'}\ndifferential_library={path='../differential'}\nlinalg_library={path='../linalg'}\n");
     s.write("app/Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={path='../standard'}\ngeo={path='../geo'}\nsame={path='../geo'}\n");
     s.write("app/main.vast", source);
     s

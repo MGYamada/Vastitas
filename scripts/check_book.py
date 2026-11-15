@@ -536,6 +536,9 @@ UNDECIDED_CODES = {
     "E_RESERVED": "the code reports a reserved name, which the productions derive as an identifier, and a "
                   "keyword such as while where a name stands, which they do not derive",
 }
+# The reason of the files that use the spectral forms of Stage 5 (#806).
+SPECTRAL_PENDING = ("the file uses the spectral families, declarations or primitives of Stage 5 (#806), which "
+                    "have no production in the Reference yet")
 # Files whose recorded code does not follow from the productions, with the rule that gives the code.
 PARSE_EXCEPTIONS = {
     "examples/reject/expressions/chained-comparison.vast": (
@@ -544,6 +547,10 @@ PARSE_EXCEPTIONS = {
     "examples/reject/packages/smooth-pullback-mode/main.vast": (
         False, "Smooth affine declarations, Reverse-pass primitives: a mode other than saved or recomputed is "
                "an error (E_TYPE); the production lists the two modes"),
+    # Stage 5 (#806): the Reference gains the productions of the spectral
+    # families, declarations and primitives with the tracker's documentation
+    # step, which then removes these entries.
+    "stdlib/src/linalg/spectral/mod.vast": (False, SPECTRAL_PENDING),
 }
 RECORDED = re.compile(r"^(\S+?\.vast):\d+:\d+: (E_[A-Z][A-Z0-9_]*): ", re.M)
 

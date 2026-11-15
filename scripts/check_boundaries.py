@@ -2,7 +2,8 @@
 """Check compiler/oracle dependencies without loading the Lean toolchain.
 
 Also check the package dependencies of the `std` and `nature` libraries
-(ADR 0002 §1): std never depends on nature."""
+(ADR 0002 §1): std never depends on nature, and each package of stdlib/src/
+depends only on the packages that STDLIB_PACKAGES lists for it."""
 import json
 from pathlib import Path
 import re
@@ -418,6 +419,18 @@ LIBRARY_DEPENDENCIES = {
     "nature": ("stdlib", "nature"),
 }
 
+# The library packages of stdlib/src/, and the packages of stdlib/src/ that the
+# manifest of each may depend on (ADR 0001 §10 to §12). The geometry package
+# depends on nothing, and std::differential and std::linalg depend on the
+# geometry package alone, so the geometry package depends on neither. A
+# manifest under stdlib/src/ that is not the manifest of a listed package
+# fails the check, so a new package needs an entry here.
+STDLIB_PACKAGES = {
+    "geometry": (),
+    "differential": ("geometry",),
+    "linalg": ("geometry",),
+}
+
 
 def check_library_manifests(root, errors):
     """Every path dependency of a library manifest stays inside its allowed directories.
@@ -434,8 +447,20 @@ def check_library_manifests(root, errors):
             continue
         targets = [(root / directory).resolve() for directory in allowed]
         names = " and ".join(f"{directory}/" for directory in allowed)
+        sources = root / family / "src"
         for manifest in sorted(library.rglob("Vastitas.toml")):
             label = manifest.relative_to(root).as_posix()
+            # The packages of stdlib/src/ that this manifest may depend on, or
+            # None when it is not a manifest under stdlib/src/.
+            packages = None
+            if family == "stdlib" and manifest.is_relative_to(sources):
+                name = manifest.parent.name
+                if manifest.parent.parent != sources or name not in STDLIB_PACKAGES:
+                    errors.append(f"{label}: no library package of stdlib/src/ that "
+                                  "scripts/check_boundaries.py lists (STDLIB_PACKAGES)")
+                    packages = ()
+                else:
+                    packages = STDLIB_PACKAGES[name]
             try:
                 dependencies = tomllib.loads(manifest.read_text()).get("dependencies", {})
             except (OSError, ValueError) as error:
@@ -454,6 +479,10 @@ def check_library_manifests(root, errors):
                     errors.append(f"{label}: dependency `{alias}` on {path} leaves {names}; "
                                   f"a {family}/ manifest may depend only on packages inside {names} "
                                   "(ADR 0002 §1)")
+                elif packages is not None and target not in {(sources / p).resolve() for p in packages}:
+                    permitted = " and ".join(f"stdlib/src/{p}/" for p in packages) or "no package"
+                    errors.append(f"{label}: dependency `{alias}` on {path} is not a package that it may "
+                                  f"depend on; it may depend on {permitted} (STDLIB_PACKAGES)")
 
 
 def check_boundaries(root):
@@ -466,7 +495,8 @@ def check_boundaries(root):
     runtimes = {runtime, kernel / "VastitasKernel" / "IndexedRuntime.lean",
                 kernel / "VastitasKernel" / "AlgebraRuntime.lean",
                 kernel / "VastitasKernel" / "SmoothRuntime.lean",
-                kernel / "VastitasKernel" / "FrameRuntime.lean"}
+                kernel / "VastitasKernel" / "FrameRuntime.lean",
+                kernel / "VastitasKernel" / "SpectralRuntime.lean"}
     # Runtime modules may import each other, but nothing else from the compiler.
     runtime_modules = {"VastitasKernel." + source.stem for source in runtimes
                        if source.parent == kernel / "VastitasKernel"}

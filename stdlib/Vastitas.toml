@@ -6,3 +6,4 @@ root = "target/package/lib.vast"
 [dependencies]
 geometry_library = { path = "src/geometry" }
 differential_library = { path = "src/differential" }
+linalg_library = { path = "src/linalg" }

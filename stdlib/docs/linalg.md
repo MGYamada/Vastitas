@@ -30,6 +30,10 @@ edge.
 
 ## Rules and proofs
 
+- [Spectral observations](https://github.com/MGYamada/Vastitas/blob/main/docs/language/spectral-observations.md)
+  and [Matrix fields and their spectra](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/spectral-observations.md):
+  the rules of the module `spectral` and the chapter of the guide that uses
+  it.
 - [ADR 0001 §12](https://github.com/MGYamada/Vastitas/blob/main/docs/adr/0001-mathematics-first-stdlib.md#12-exact-spectral-pairs-and-simple-branches-of-polynomial-matrix-fields-amendment-2026-11-15):
   the admission of the package with the module `spectral`, and
   [the package boundary](https://github.com/MGYamada/Vastitas/blob/main/docs/adr/0001-mathematics-first-stdlib.md#compatibility-and-public-name-audit-2).

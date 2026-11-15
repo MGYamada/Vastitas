@@ -180,6 +180,25 @@ contracts. They are the axes of the result. See
 [Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
 
+## Branch
+
+A finite chart D(g) of a [spectral pair](#spectral-pair) on which every
+eigenvalue of the field is simple, declared with `indexed branch` and
+`simple(…)` at a family with the `branch` representation. The kernel checks
+its [gap witness](#gap-witness). A branch names no eigenvalue, and it is a
+declaration, not a value or a smooth map. See
+[Branches](../language/spectral-observations.md#branches) and the
+[guide](../guide/spectral-observations.md#simple-eigenvalues-on-a-chart).
+
+## Branch point
+
+A pair (p, t) of a rational point p and a rational number t, with g(p) ≠ 0
+for the localization g of a [branch](#branch) and χ(p, t) = 0 for the
+characteristic polynomial χ of its spectrum. The branch observations read
+the [failure value](#failure-value) or `(0, 0)` at any other pair. See
+[Branches](../language/spectral-observations.md#branches) and
+[Branch observations](../language/spectral-observations.md#branch-observations).
+
 ## Build identity
 
 What a kernel executable was built from: a digest of its Lean sources and of
@@ -522,6 +541,24 @@ a `delegable` grant or delegation can be lent on as a nested loan through a
 [storage loan](#storage-loan).
 See [Assemblies](../language/edit-authority.md#assemblies).
 
+## Eigenprojector
+
+The matrix adj(tI − H(p))/χ′(p, t) of a [branch point](#branch-point) (p, t)
+of an [endomorphism field](#endomorphism-field) H with the characteristic
+polynomial χ. It is an idempotent of trace one with H(p)·P = t·P, and
+`branch_projector` reads its entries. See
+[Branch observations](../language/spectral-observations.md#branch-observations) and the
+[guide](../guide/spectral-observations.md#eigenvalues-as-inputs).
+
+## Endomorphism field
+
+An n × n matrix H of polynomials with rational coefficients in the
+coordinates of a smooth affine object, declared with `indexed endomorphism`
+as `rows(…) of V`, which acts on the [free module](#free-module) V of rank n.
+A field declared `symmetric` has a checked H = Hᵀ. See
+[Endomorphism fields](../language/spectral-observations.md#endomorphism-fields) and the
+[guide](../guide/spectral-observations.md#a-matrix-field-on-the-plane).
+
 ## Entry point
 
 The function `main` of a program, with the signature `fn main() -> Int`, or a
@@ -609,7 +646,8 @@ value is the failure value. It is at no point, and it equals no value, itself
 included. Its components and its pairings read `(0, 0)`, which no rational
 number reads. A [frame array](#frame-array) and a [map array](#map-array) have
 a failure value too, which a contraction in frames returns for operands at
-different points. See [Fiber primitives](../language/smooth-declarations.md#fiber-primitives),
+different points. `branch_differential` returns it off the
+[branch points](#branch-point) of its branch. See [Fiber primitives](../language/smooth-declarations.md#fiber-primitives),
 [Contraction in frames](../language/frames.md#contraction-in-frames) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
@@ -628,6 +666,15 @@ admit native code with the storage access, the allocation and the numerical
 kernel calls of a competent C implementation of the same computation. See
 [Fast like C](../storage-ownership.md#fast-like-c) and the
 [Introduction](../index.md#design-goals).
+
+## Fiber coordinate
+
+The variable t that `eigen(H, t)` names for a [spectral pair](#spectral-pair).
+It follows the coordinates of the object, so the characteristic polynomial,
+the adjugate, an element of a module observation and a
+[gap witness](#gap-witness) are polynomials in the coordinates and t. It is
+no coordinate of the object. See [Spectral pairs](../language/spectral-observations.md#spectral-pairs) and
+the [guide](../guide/spectral-observations.md#the-characteristic-polynomial).
 
 ## Fiber product
 
@@ -700,6 +747,15 @@ dual to `b`. The frame is part of its type. It may also be the
 [The frame profile](../language/frames.md#the-frame-profile) and the
 [guide](../guide/frames-and-dimensions.md#arrays-in-a-frame).
 
+## Free module
+
+The module Aⁿ on a smooth affine object, where A is the ring of polynomials
+with rational coefficients in its coordinates, with a named ordered basis of
+n vectors, declared with `indexed free_module` and `basis(…)`. Its rank is at
+most four. An [endomorphism field](#endomorphism-field) acts on it. See
+[Free modules](../language/spectral-observations.md#free-modules) and the
+[guide](../guide/spectral-observations.md#a-matrix-field-on-the-plane).
+
 ## Frontend
 
 The Rust part of the compiler, in `src/`. It provides the command line, parses
@@ -723,6 +779,17 @@ surroundings. Every call of a function value resolves to one static target,
 and [specialization](#specialization) erases function values. See
 [Function values](../stage1b.md) and the
 [guide](../guide/function-values.md).
+
+## Gap witness
+
+The polynomial W of a [branch](#branch) of a spectrum with the
+characteristic polynomial χ, of degree in the
+[fiber coordinate](#fiber-coordinate) below the rank, with W·χ′ − gᵉ a
+multiple of χ for the localization g and the exponent e. It certifies that
+every eigenvalue is simple where g is not zero. It is not the
+[witness](#witness) of an existential package. See
+[Branches](../language/spectral-observations.md#branches) and the
+[guide](../guide/spectral-observations.md#simple-eigenvalues-on-a-chart).
 
 ## Generic
 
@@ -1925,6 +1992,25 @@ from the kernel's checked declaration environment. See
 The check `scripts/spec_resolve.lean`. It imports the modules that a statement
 pins file lists and checks each pinned name's module, kind, axioms and
 statement hash. See [What the checks verify](../specifications.md#what-the-checks-verify).
+
+## Spectral invariant
+
+A smooth map from a smooth affine object to a line that a morphism
+declaration defines with `trace_power(H, k)`, the trace of the k-th power of
+an [endomorphism field](#endomorphism-field), or with
+`char_coefficient(S, i)`, a coefficient of the characteristic polynomial of
+a [spectral pair](#spectral-pair). Its differential and its reverse pass are
+those of every [smooth map](#smooth-map). See
+[Spectral invariants](../language/spectral-observations.md#spectral-invariants).
+
+## Spectral pair
+
+The characteristic scheme of an [endomorphism field](#endomorphism-field) H,
+the spectrum of A[t]/(χ) for χ = det(tI − H), together with the
+[free module](#free-module) of H on which t acts as H, declared with
+`indexed spectrum` and `eigen(H, t)`. The kernel computes χ and the adjugate
+of tI − H and checks them. It is never replaced by the reduced spectrum. See
+[Spectral pairs](../language/spectral-observations.md#spectral-pairs).
 
 ## Stage
 

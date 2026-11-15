@@ -400,6 +400,8 @@ The kernel bounds the free modules, endomorphisms, spectra and branches of
 rank of a free module and the power of an invariant before it computes a
 product. Degrees, terms and work have the bounds of
 [Exact affine algebra](#exact-affine-algebra).
+[Spectral observations](../language/spectral-observations.md) states the
+rules.
 
 | Limit | Value | Counts | Holds for | Code |
 | --- | --- | --- | --- | --- |

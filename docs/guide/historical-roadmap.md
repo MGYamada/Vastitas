@@ -185,19 +185,37 @@ typed Hermitian lift, cotangent action and agreement with emitted reverse
 Core remain open. [Proved Daleckii–Krein statement](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/daleckii-krein.md) · [Spectral AD obligations, #471](https://github.com/MGYamada/Vastitas/issues/471)
 
 **Status.** In progress ([acceptance map](../stage5-acceptance.md), tracker
-#806), and Planned until the tracker closes. The planned profile is a finite,
-checked profile over QQ: polynomial matrix fields of a free module on a
-smooth affine object; the characteristic polynomial, computed by the kernel
-and checked by an independent route, together with the module action, so
-that a scalar matrix and a Jordan block stay different; trace powers and
-characteristic coefficients as smooth maps, whose gradients come from the
-reverse pass; and simple eigenvalue branches on a principal open certified
-by a unit witness, with the branch differential and the eigenprojector. The
-mathlib bridge is to prove the typed Hermitian lift and the cotangent action
-of the Daleckii–Krein derivative, and that the emitted reverse Core of a
-trace-power invariant computes that cotangent.
+#806): a finite, checked profile over QQ implements this example, and the
+tracker closes after its continuous integration and its independent
+whole-stage review. It has free modules with a named basis on smooth affine
+objects and polynomial matrix fields of them, with a `symmetric` claim that
+the kernel checks. The kernel computes the characteristic polynomial and the
+adjugate by the Faddeev–LeVerrier recursion, checks them by cofactor
+expansion and five more identities, and keeps the module action, so that a
+scalar matrix and a Jordan block with one characteristic polynomial stay
+different. Trace powers and characteristic coefficients are smooth maps,
+whose gradients come from the reverse pass: tr(H²) has the gradient
+(4x, 4y) on the dimensionless Euclidean chart, the origin included. A simple
+eigenvalue branch lives on a principal open that a unit witness certifies,
+with the branch differential and the eigenprojector at rational branch
+points; no primitive computes an eigenvalue, and the origin is off every
+chart of the example. The oracle proves the identities of accepted spectra
+and branches, what the invariants and the branch observations compute, the
+roadmap gradient at every rational point and weakening, for accepted
+programs. The mathlib bridge proves that the characteristic polynomial and
+the trace powers are those of Mathlib, steps 1 and 2 of #471, and that the
+emitted reverse Core of a trace power of a symmetric field computes the
+Daleckii–Krein cotangent composed with the derivative of the field, without
+the kernel chain rule: the gradient of the example is (4x, 4y) at every real
+point. It also proves that an accepted branch differential is the derivative
+of every differentiable branch through its point; the existence of the
+branch is not claimed. The acceptance example runs natively.
 [ADR 0001 §12](../adr/0001-mathematics-first-stdlib.md#12-exact-spectral-pairs-and-simple-branches-of-polynomial-matrix-fields-amendment-2026-11-15)
-admits the module `std::linalg::spectral`.
+admits the module `std::linalg::spectral`. Planned, in open issues: covers,
+image opens and cluster splits (#765), the branch as a smooth function on an
+open (#606), similarity, base change and the band-crossing consumer (#337,
+#247), numerical eigensolvers (#324), steps 3 to 5 of #471 (#361, #290,
+#164) and performance (#222).
 
 ## Stage 6. A first physical model
 

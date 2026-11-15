@@ -12,7 +12,7 @@ its verifier and its regression examples. None is a part of the compiler.
 | [CAR and ordinary spin](#car-spin-reference) | Model only. Planned: [#246](https://github.com/MGYamada/Vastitas/issues/246) |
 | [Orders, lattices and Galois connections](#order-reference) | Model only. Implemented: the capability `HasOrder` of the scalar types `Nat` and `Int`, which [Generics and dispatch](../stage1a.md) specifies. It is no order or lattice structure that a program declares. Planned: [#294](https://github.com/MGYamada/Vastitas/issues/294) |
 | [Time reversal](#time-reversal-reference) | Model only. Planned: [#301](https://github.com/MGYamada/Vastitas/issues/301) |
-| [Finite spectral pairs](#finite-spectral-reference) | Model only. Planned: [#337](https://github.com/MGYamada/Vastitas/issues/337) |
+| [Finite spectral pairs](#finite-spectral-reference) | Implemented: the [spectral pair](../language/spectral-observations.md#spectral-pairs) of an endomorphism field, with its module action, which tells a scalar matrix from a Jordan block. Tested: the kernel against a fixture of the model for 0, N, 2I and J. Similarity, base change, cyclic evidence and the band-crossing consumer are Planned: [#337](https://github.com/MGYamada/Vastitas/issues/337) |
 
 Each section keeps the record of the change that added its model. Its
 statements about the compiler and about pull requests describe the repository

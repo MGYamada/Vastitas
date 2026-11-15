@@ -21,6 +21,7 @@ The library keeps its declarations in
 | `std::arithmetic` | Functions on `Int` and on `Nat`, and generic functions over both | This section, and [Chapter 4](dispatch.md) |
 | `std::geometry` | Objects, points and morphisms, presented affine geometry, smooth geometry, metrics and frames | Chapters [7](indexed-geometry.md), [8](affine-geometry.md), [9](smooth-geometry.md) and [10](frames-and-dimensions.md) |
 | `std::differential` | Pullbacks and differentials of smooth maps | [Chapter 9](smooth-geometry.md) |
+| `std::linalg` | The families of free modules, matrix fields, their spectra and the regions of simple eigenvalues | [Matrix fields and their spectra](spectral-observations.md) |
 
 The name `std` is the dependency alias that the examples of this book give
 to the library.

@@ -61,6 +61,12 @@ object, a perturbed witness and a rank above the limit.
 
 ## Rules and proofs
 
+- [Spectral observations](https://github.com/MGYamada/Vastitas/blob/main/docs/language/spectral-observations.md):
+  the rules of the families, of the declarations of free modules, fields,
+  spectra and branches, of the invariants and of the observations, with
+  their diagnostics, and
+  [Matrix fields and their spectra](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/spectral-observations.md),
+  the chapter of the guide that builds the acceptance program.
 - [ADR 0001 §12](https://github.com/MGYamada/Vastitas/blob/main/docs/adr/0001-mathematics-first-stdlib.md#12-exact-spectral-pairs-and-simple-branches-of-polynomial-matrix-fields-amendment-2026-11-15):
   [terms](https://github.com/MGYamada/Vastitas/blob/main/docs/adr/0001-mathematics-first-stdlib.md#terms-2),
   [contract and jurisdiction](https://github.com/MGYamada/Vastitas/blob/main/docs/adr/0001-mathematics-first-stdlib.md#contract-and-jurisdiction-2),

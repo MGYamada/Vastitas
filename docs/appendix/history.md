@@ -34,8 +34,9 @@ is Planned.
     over the rational numbers.
   - [Stage 5 spectral observations acceptance](../stage5-acceptance.md) is
     the record of exact spectral observations of polynomial matrix fields
-    over the rational numbers. The stage is in progress, and its conditions
-    stay Planned until it closes.
+    over the rational numbers. The stage is in progress: conditions C1–C18
+    record their evidence, and its continuous integration and its
+    independent review stay Planned until it closes.
 
 A delivery record states what held at its revisions. For the behaviour of the
 compiler today, read the guide and the Vastitas Reference. For the theorems

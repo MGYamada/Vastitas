@@ -53,12 +53,6 @@ theorem bounded_ok {p r : Poly} {s s' : Nat} (h : (bounded p).run s = .ok (r, s'
   · simp [StateT.run, pure, StateT.pure, Except.pure] at h
     exact h.1.symm
 
-theorem combine_ok {a b : List Poly} {r : Poly} {s s' : Nat}
-    (h : (combine a b).run s = .ok (r, s')) : r = combination a b := by
-  unfold combine at h
-  obtain ⟨_, s₁, _, h⟩ := bind_ok h
-  exact bounded_ok h
-
 theorem ensure_ok {c : Bool} {e : Error} {s s' : Nat} {u : Unit}
     (h : (ensure c e).run s = .ok (u, s')) : c = true := by
   unfold ensure at h
@@ -169,6 +163,20 @@ theorem mul_ok {p q r : Poly} {s s' : Nat} (h : (mul p q).run s = .ok (r, s')) :
   obtain ⟨m, _, hm, hr⟩ := bind_ok hr
   have h1 := add_ok hr
   have h2 := mulTerm_ok hm
+  subst h1 h2
+  rfl
+
+/-- The budgeted combination runs the fold of `combination`, one budgeted
+product and one budgeted sum for each coefficient (#829). -/
+theorem combine_ok {a b : List Poly} {r : Poly} {s s' : Nat}
+    (h : (combine a b).run s = .ok (r, s')) : r = combination a b := by
+  unfold combine at h
+  unfold combination
+  refine foldlM_ok (fun total pair s s' r hr => ?_) h
+  obtain ⟨c, g⟩ := pair
+  obtain ⟨m, _, hm, hr⟩ := bind_ok hr
+  have h1 := add_ok hr
+  have h2 := mul_ok hm
   subst h1 h2
   rfl
 

@@ -268,7 +268,11 @@ with $w$ as [Frames](#frames) defines it. One term of $p$ at a time, it
 multiplies $q$ by the term for $w(q) + 1$ units, and it adds the result $r$
 to the sum $s$ of the earlier products for $w(s) + w(r) + 1$ units. It
 charges each step before it runs it, and each partial sum must have at most
-`algebraTerms` terms.
+`algebraTerms` terms. A linear combination $\sum_i c_i g_i$ that a basis
+certificate states forms each product $c_i g_i$ in this way and adds it to the
+sum of the earlier products as one more step. Each product and each partial
+sum must have at most `algebraTerms` terms, also when terms cancel in the
+final sum.
 
 ### Smooth objects and maps
 

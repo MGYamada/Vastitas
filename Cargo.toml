@@ -15,6 +15,9 @@ include = [
     "/scripts/build_stdlib_package.py",
     "/nature/",
     "/scripts/build_openblas.py",
+    # The ignore rules of .gitignore for environment settings and Finder
+    # metadata, at every directory level.
+    "!**/.env", "!**/.env.*", "!**/.DS_Store",
 ]
 
 [dependencies]

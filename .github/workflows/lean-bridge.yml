@@ -116,7 +116,8 @@ jobs:
             Mathlib.LinearAlgebra.Matrix.NonsingularInverse \
             Mathlib.Algebra.Order.Star.Real \
             Mathlib.Analysis.Calculus.Deriv.Pow \
-            Mathlib.LinearAlgebra.Matrix.Charpoly.Basic
+            Mathlib.LinearAlgebra.Matrix.Charpoly.Basic \
+            Mathlib.LinearAlgebra.Matrix.Charpoly.Eigs
       - name: Build the mathematical bridge
         working-directory: lean-bridge
         run: lake build

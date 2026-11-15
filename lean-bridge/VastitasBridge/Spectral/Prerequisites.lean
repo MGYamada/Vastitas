@@ -3,14 +3,17 @@ module
 public import VastitasBridge.Analysis.DaleckiiKreinTyped
 public import VastitasBridge.Differential.Prerequisites
 public import Mathlib.LinearAlgebra.Matrix.Charpoly.Basic
+public import Mathlib.LinearAlgebra.Matrix.Charpoly.Eigs
+public import Mathlib.RingTheory.Localization.Away.Basic
 
 set_option autoImplicit false
 
 /-!
 # Mathlib prerequisites of the spectral observations
 
-Pure Mathlib statements for Stage 5 (#806). The kernel-facing comparison reads the non-module
-kernel and Oracle sources, so it cannot be a module; it applies these lemmas.
+Pure Mathlib statements for Stage 5 (#806). The kernel-facing comparison
+(`Spectral/Algebra.lean`) reads the non-module kernel and Oracle sources, so it cannot be a
+module; it applies these lemmas and imports Mathlib through this module.
 
 * **Symmetric polynomial fields.** For `M : Matrix (Fin n) (Fin n) (MvPolynomial (Fin m) ℝ)`
   with `Mᵀ = M`, `hermAt M hM y` is `M(y)` as a complex Hermitian matrix (entrywise

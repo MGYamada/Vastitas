@@ -26,8 +26,10 @@ result does not depend on the order of the declarations:
    Stage 2 polynomial resolver, all entries of one endomorphism within one
    `algebraWork` budget, then `checkRows` (`symmetric` names the first entry
    that differs from its mirror by the names of the basis);
-3. every spectrum: the certificate by Faddeev–LeVerrier and the idempotence
-   quotients (`SpectralDeclarations.certify`), then `checkCertificate`;
+3. every spectrum: its fiber coordinate a new identifier, no coordinate of
+   the object and no basis vector of the free module (`fiberValid`), the
+   certificate by Faddeev–LeVerrier and the idempotence quotients
+   (`SpectralDeclarations.certify`), then `checkCertificate`;
 4. every branch: `g` and `W` expanded in the coordinates and the fiber
    coordinate, `g` without the fiber coordinate and nonzero, `W` of degree
    below `n` in it, the quotient of `W·χ′ − gᵉ` by `χ`
@@ -167,16 +169,25 @@ private def elaborateSpectrum (span : Span) (env : Environment) (name family obj
     (fiber : String) : Namespace.Result SpectralCertificate := do
   let coordinates ← spectralObject span env "spectrum" "spectrum" name family object (isSpectrumFamily env family)
   let subject := s!"the spectrum `{qualified name}`"
-  let some (_, endomorphismObject, _, rows, _) := endomorphismData? env endomorphism
+  let some (_, endomorphismObject, module, rows, _) := endomorphismData? env endomorphism
     | spectralProblem span <| s!"{subject} is the spectrum of `{qualified endomorphism}`, which is not an " ++
         "endomorphism declaration"
   unless endomorphismObject == object do
     spectralProblem span <| s!"{subject} is on `{qualified object}`, but its endomorphism " ++
       s!"`{qualified endomorphism}` is on `{qualified endomorphismObject}`; a spectrum and its endomorphism " ++
       "have one object"
+  let some (_, _, basis) := freeModuleData? env module
+    | spectralProblem span <| s!"the endomorphism `{qualified endomorphism}` of {subject} acts on " ++
+        s!"`{qualified module}`, which is not a free module declaration"
+  unless isIdentifier fiber do
+    spectralProblem span <| s!"the fiber coordinate `{fiber}` of {subject} is not an identifier; " ++
+      "`eigen(H, t)` names the fiber coordinate with a new identifier"
   if coordinates.contains fiber then
     spectralProblem span <| s!"the fiber coordinate `{fiber}` of {subject} is a coordinate of `{qualified object}`; " ++
       "`eigen(H, t)` needs a new name for the fiber coordinate"
+  if basis.contains fiber then
+    spectralProblem span <| s!"the fiber coordinate `{fiber}` of {subject} is a basis vector of the free module " ++
+      s!"`{qualified module}`; `eigen(H, t)` needs a new name for the fiber coordinate"
   if rows.length > Limits.spectralRank then failureProblem span subject (.rank rows.length)
   match AlgebraBasis.run (certify coordinates.length rows) with
   | .error error => Namespace.problem span error.code s!"computing the spectral pair of {subject}: {error.message}"

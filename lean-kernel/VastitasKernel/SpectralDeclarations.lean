@@ -15,7 +15,9 @@ Over the coordinate ring `A = ℚ[x₁, …, x_m]` of a smooth object `X`:
   `n` canonical polynomials of arity `m`, and with `symmetric` checks `H = Hᵀ`,
   naming the first entry that differs from its mirror;
 - a spectrum `Spectrum<X>` of `H` is the characteristic scheme `Σ_H` with the
-  module action. Its certificate (`SpectralCertificate`) holds `χ` and
+  module action. Its fiber coordinate `t` is a new identifier, no coordinate
+  of `X` and no basis vector of the free module (`fiberValid`). Its
+  certificate (`SpectralCertificate`) holds `χ` and
   `adj(tI − H)` in `A[t]`, `t` the last variable, and the matrix quotient `Q`
   of idempotence. `checkCertificate` checks, within one `algebraWork` run:
   1. `χ = det(tI − H)`, by cofactor expansion (`detPoly`: Laplace along row
@@ -165,6 +167,20 @@ def asymmetricEntry? (matrix : PolyMatrix) : Option (Nat × Nat) :=
 def duplicate? : List String → Option String
   | [] => none
   | name :: rest => if rest.contains name then some name else duplicate? rest
+
+/-- The identifier rule of the frontend: an ASCII letter or `_`, then ASCII
+letters, digits and `_`. -/
+def isIdentifier (name : String) : Bool :=
+  match name.toList with
+  | [] => false
+  | first :: rest => (first.isAlpha && first.toNat < 128 || first == '_') &&
+      rest.all fun c => c.isAlphanum && c.toNat < 128 || c == '_'
+
+/-- The fiber coordinate `t` of a spectrum `eigen(H, t)` is a new name: an
+identifier that is no coordinate of the object and no basis vector of the
+free module of `H`. -/
+def fiberValid (coordinates basis : List String) (fiber : String) : Bool :=
+  isIdentifier fiber && !coordinates.contains fiber && !basis.contains fiber
 
 /-! ## Budgeted algebra -/
 
@@ -427,15 +443,19 @@ def checkEndomorphism (env : Environment) (family object module : DeclId) (rows 
 
 /-- The spectrum declaration `spectrum family object endomorphism fiber
 certificate`: a `spectrum` family applied to a declared smooth object with
-coordinates `x₁, …, x_m`, an endomorphism of that object, a fiber name that
-is no coordinate of the object, and a certificate that `checkCertificate`
-accepts for the endomorphism's rows. -/
+coordinates `x₁, …, x_m`, an endomorphism of that object whose free module is
+declared, a fiber name that `fiberValid` accepts (an identifier, no
+coordinate of the object and no basis vector of the module), and a
+certificate that `checkCertificate` accepts for the endomorphism's rows. -/
 def checkSpectrum (env : Environment) (family object endomorphism : DeclId) (fiber : String)
     (certificate : SpectralCertificate) : Bool :=
   declaredAt env (isSpectrumFamily env family) family object &&
     match smoothCoordinates? env object, endomorphismData? env endomorphism with
-    | some coordinates, some (_, endomorphismObject, _, rows, _) =>
-      endomorphismObject == object && !coordinates.contains fiber &&
+    | some coordinates, some (_, endomorphismObject, module, rows, _) =>
+      endomorphismObject == object &&
+        (match freeModuleData? env module with
+          | some (_, _, basis) => fiberValid coordinates basis fiber
+          | none => false) &&
         (checkCertificate coordinates.length rows certificate).isOk
     | _, _ => false
 

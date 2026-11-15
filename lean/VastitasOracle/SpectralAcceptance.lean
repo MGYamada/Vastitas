@@ -73,7 +73,8 @@ universe u
 `1 ≤ n ≤ spectralRank` distinct basis names over a declared smooth object; an
 endomorphism has `n × n` canonical polynomial rows in the coordinates of its
 object, for the rank `n` of its free module on the same object, symmetric when
-declared so; and a spectrum's fiber name is no coordinate of its object. -/
+declared so; and a spectrum's fiber name is a new identifier: no coordinate
+of its object and no basis vector of the free module of its endomorphism. -/
 theorem c1_fields_and_modules {env : Indexed.Environment} (valid : env.Valid) :
     (∀ {id family object : DeclId} {basis : List String},
       lookup env id = some (.freeModule family object basis) →
@@ -88,7 +89,11 @@ theorem c1_fields_and_modules {env : Indexed.Environment} (valid : env.Valid) :
           (symmetric = true → ∀ i j, polyEntry rows i j = polyEntry rows j i)) ∧
     (∀ {id family object endomorphism : DeclId} {fiber : String} {certificate : SpectralCertificate},
       lookup env id = some (.spectrum family object endomorphism fiber certificate) →
-        ∃ coordinates, smoothCoordinates? env object = some coordinates ∧ fiber ∉ coordinates) := by
+        ∃ coordinates basis, smoothCoordinates? env object = some coordinates ∧
+          (∃ endomorphismFamily module rows symmetric moduleFamily moduleObject,
+            endomorphismData? env endomorphism = some (endomorphismFamily, object, module, rows, symmetric) ∧
+            freeModuleData? env module = some (moduleFamily, moduleObject, basis)) ∧
+          SpectralDeclarations.isIdentifier fiber = true ∧ fiber ∉ coordinates ∧ fiber ∉ basis) := by
   refine ⟨fun found => ?_, fun found => ?_, fun found => ?_⟩
   · obtain ⟨-, -, hobject, hbasis⟩ :=
       VastitasOracle.SpectralDeclarations.checkFreeModule_sound
@@ -100,9 +105,12 @@ theorem c1_fields_and_modules {env : Indexed.Environment} (valid : env.Valid) :
     rw [← hlength] at hrank hsquare
     exact ⟨coordinates.length, basis, SpectralCore.smoothDimension_of_lookup hobject, ⟨moduleFamily, hmodule⟩,
       hlength, hrank, hsquare, hsym⟩
-  · obtain ⟨-, -, implementation, coordinates, hobject, hfiber, -⟩ :=
+  · obtain ⟨-, -, implementation, coordinates, hobject, hidentifier, hfiber, endomorphismFamily, module, rows,
+      symmetric, hend, ⟨moduleFamily, moduleObject, basis, hmodule, hbasis⟩, -⟩ :=
       VastitasOracle.SpectralDeclarations.spectrum_sound valid found
-    exact ⟨coordinates, by simp [smoothCoordinates?, hobject], hfiber⟩
+    exact ⟨coordinates, basis, by simp [smoothCoordinates?, hobject],
+      ⟨endomorphismFamily, module, rows, symmetric, moduleFamily, moduleObject, hend, hmodule⟩, hidentifier, hfiber,
+      hbasis⟩
 
 /-- **C2 The spectral pair.** In a valid environment the certificate of a
 declared spectrum, which the kernel computes and checks and never reads from
@@ -129,7 +137,8 @@ theorem c2_spectral_pair {R : Type u} [Lean.Grind.CommRing R] {env : Indexed.Env
           ringTrace (ringMatMul rows.length (evalMatrix ι certificate.adjugate z)
             (evalMatrix ι (SpectralDeclarations.derivativeMatrix i rows) z)) = 0) ∧
       (∀ point, annihilates rows certificate.characteristic point = true) := by
-  obtain ⟨-, -, implementation, coordinates, hobject, -, endomorphismFamily, module, rows, symmetric, hend, hv⟩ :=
+  obtain ⟨-, -, implementation, coordinates, hobject, -, -, endomorphismFamily, module, rows, symmetric, hend, -,
+      hv⟩ :=
     VastitasOracle.SpectralDeclarations.spectrum_sound valid found
   exact ⟨coordinates.length, rows, SpectralCore.smoothDimension_of_lookup hobject,
     ⟨endomorphismFamily, module, symmetric, hend⟩, hv,

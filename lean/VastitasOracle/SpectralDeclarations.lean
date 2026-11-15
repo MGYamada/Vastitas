@@ -640,17 +640,33 @@ theorem checkEndomorphism_sound {env : Environment} {family object module : Decl
       obtain ⟨hrank, hsquare, hsym⟩ := checkRows_sound (isOk_ok hrows)
       exact ⟨implementation, coordinates, moduleFamily, basis, found, rfl, hrank, hsquare, hsym⟩
 
+/-- **An accepted fiber name** is an identifier, no coordinate of the object
+and no basis vector of the module. -/
+theorem fiberValid_spec {coordinates basis : List String} {fiber : String}
+    (h : fiberValid coordinates basis fiber = true) :
+    isIdentifier fiber = true ∧ fiber ∉ coordinates ∧ fiber ∉ basis := by
+  simp only [fiberValid, Bool.and_eq_true, Bool.not_eq_true'] at h
+  obtain ⟨⟨hidentifier, hcoordinates⟩, hbasis⟩ := h
+  refine ⟨hidentifier, fun hmem => ?_, fun hmem => ?_⟩
+  · rw [List.contains_iff_mem.mpr hmem] at hcoordinates
+    cases hcoordinates
+  · rw [List.contains_iff_mem.mpr hmem] at hbasis
+    cases hbasis
+
 /-- **An accepted spectrum declaration**: its endomorphism is on the same
-object, its fiber name is no coordinate, and its certificate is valid for the
-endomorphism's rows. -/
+object, its fiber name is a new identifier (no coordinate of the object and
+no basis vector of the endomorphism's free module), and its certificate is
+valid for the endomorphism's rows. -/
 theorem checkSpectrum_sound {env : Environment} {family object endomorphism : DeclId} {fiber : String}
     {certificate : SpectralCertificate}
     (h : checkSpectrum env family object endomorphism fiber certificate = true) :
     isSpectrumFamily env family = true ∧ validApplication env ⟨family, [.object (.global object)]⟩ = true ∧
       ∃ implementation coordinates, lookup env object = some (.smoothAffine implementation coordinates) ∧
-        fiber ∉ coordinates ∧
+        isIdentifier fiber = true ∧ fiber ∉ coordinates ∧
         ∃ endomorphismFamily module rows symmetric,
           endomorphismData? env endomorphism = some (endomorphismFamily, object, module, rows, symmetric) ∧
+          (∃ moduleFamily moduleObject basis,
+            freeModuleData? env module = some (moduleFamily, moduleObject, basis) ∧ fiber ∉ basis) ∧
           SpectralValid coordinates.length rows certificate := by
   simp only [checkSpectrum, Bool.and_eq_true] at h
   obtain ⟨hdeclared, hmatch⟩ := h
@@ -664,15 +680,18 @@ theorem checkSpectrum_sound {env : Environment} {family object endomorphism : De
     | some data =>
       obtain ⟨endomorphismFamily, endomorphismObject, module, rows, symmetric⟩ := data
       rw [hc, he] at hmatch
-      simp only [Bool.and_eq_true, beq_iff_eq, Bool.not_eq_true'] at hmatch
+      simp only [Bool.and_eq_true, beq_iff_eq] at hmatch
       obtain ⟨⟨hobject, hfiber⟩, hcert⟩ := hmatch
       subst hobject
       obtain ⟨implementation, found⟩ := smoothCoordinates_spec hc
-      have hnot : fiber ∉ coordinates := fun hmem => by
-        rw [List.contains_iff_mem.mpr hmem] at hfiber
-        cases hfiber
-      exact ⟨implementation, coordinates, found, hnot, endomorphismFamily, module, rows, symmetric, rfl,
-        checkCertificate_sound (isOk_ok hcert)⟩
+      cases hm : freeModuleData? env module with
+      | none => rw [hm] at hfiber; cases hfiber
+      | some moduleData =>
+        obtain ⟨moduleFamily, moduleObject, basis⟩ := moduleData
+        rw [hm] at hfiber
+        obtain ⟨hidentifier, hcoordinates, hbasis⟩ := fiberValid_spec hfiber
+        exact ⟨implementation, coordinates, found, hidentifier, hcoordinates, endomorphismFamily, module, rows,
+          symmetric, rfl, ⟨moduleFamily, moduleObject, basis, hm, hbasis⟩, checkCertificate_sound (isOk_ok hcert)⟩
 
 /-- **An accepted branch declaration**: its gap certificate is valid for the
 characteristic polynomial of its spectrum and the rank of that spectrum's
@@ -760,9 +779,11 @@ theorem spectrum_sound {env : Environment} (envValid : env.Valid) {id family obj
     (found : lookup env id = some (.spectrum family object endomorphism fiber certificate)) :
     isSpectrumFamily env family = true ∧ validApplication env ⟨family, [.object (.global object)]⟩ = true ∧
       ∃ implementation coordinates, lookup env object = some (.smoothAffine implementation coordinates) ∧
-        fiber ∉ coordinates ∧
+        isIdentifier fiber = true ∧ fiber ∉ coordinates ∧
         ∃ endomorphismFamily module rows symmetric,
           endomorphismData? env endomorphism = some (endomorphismFamily, object, module, rows, symmetric) ∧
+          (∃ moduleFamily moduleObject basis,
+            freeModuleData? env module = some (moduleFamily, moduleObject, basis) ∧ fiber ∉ basis) ∧
           SpectralValid coordinates.length rows certificate :=
   checkSpectrum_sound (valid_of_lookup envValid found)
 
@@ -784,7 +805,7 @@ theorem branch_sound {env : Environment} (envValid : env.Valid) {id family objec
             quotient := by
   obtain ⟨hfamily, happ, m, spectrumFamily, endomorphism, fiber, certificate, hm, hs, endomorphismFamily,
     endomorphismObject, module, rows, symmetric, he, hw⟩ := checkBranch_sound (valid_of_lookup envValid found)
-  obtain ⟨-, -, implementation, coordinates, hobject, -, endomorphismFamily', module', rows', symmetric', he',
+  obtain ⟨-, -, implementation, coordinates, hobject, -, -, endomorphismFamily', module', rows', symmetric', he', -,
     hv⟩ := spectrum_sound envValid (spectrumData_lookup hs)
   have hsame := he.symm.trans he'
   simp only [Option.some.injEq, Prod.mk.injEq] at hsame

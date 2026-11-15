@@ -286,7 +286,7 @@ theorem checkSpectrum_append (family object endomorphism : DeclId) (fiber : Stri
       SpectralDeclarations.checkSpectrum small family object endomorphism fiber certificate := by
   simp only [SpectralDeclarations.checkSpectrum, isSpectrumFamily,
     spectralDeclaredAt_append ext (representation := .spectrum) (by decide),
-    smoothCoordinates_append ext.profile, endomorphismData_append ext.profile]
+    smoothCoordinates_append ext.profile, endomorphismData_append ext.profile, freeModuleData_append ext.profile]
 
 theorem checkBranch_append (family object spectrum : DeclId) (localize witness : AlgebraRuntime.Poly)
     (exponent : Nat) (quotient : AlgebraRuntime.Poly) :

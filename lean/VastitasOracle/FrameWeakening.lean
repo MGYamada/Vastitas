@@ -598,7 +598,8 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
   | spectrum family object endomorphism fiber certificate =>
     simp only [validEntry, h, SpectralDeclarations.checkSpectrum, SpectralDeclarations.declaredAt,
       isSpectrumFamily, familyRepresentation_append ext, validApplication_object1 ext,
-      smoothDimension_append ext.profile, smoothCoordinates_append ext.profile, endomorphismData_append ext.profile]
+      smoothDimension_append ext.profile, smoothCoordinates_append ext.profile, endomorphismData_append ext.profile,
+      freeModuleData_append ext.profile]
   | branch family object spectrum localize witness exponent quotient =>
     simp only [validEntry, h, SpectralDeclarations.checkBranch, SpectralDeclarations.declaredAt,
       isBranchFamily, familyRepresentation_append ext, validApplication_object1 ext,

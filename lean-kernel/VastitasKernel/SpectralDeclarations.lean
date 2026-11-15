@@ -15,12 +15,15 @@ Over the coordinate ring `A = ℚ[x₁, …, x_m]` of a smooth object `X`:
   `n` canonical polynomials of arity `m`, and with `symmetric` checks `H = Hᵀ`,
   naming the first entry that differs from its mirror;
 - a spectrum `Spectrum<X>` of `H` is the characteristic scheme `Σ_H` with the
-  module action. Its certificate (`SpectralCertificate`) holds `χ` and
+  module action. Its fiber coordinate `t` is a new identifier, no coordinate
+  of `X` and no basis vector of the free module (`fiberValid`). Its
+  certificate (`SpectralCertificate`) holds `χ` and
   `adj(tI − H)` in `A[t]`, `t` the last variable, and the matrix quotient `Q`
   of idempotence. `checkCertificate` checks, within one `algebraWork` run:
   1. `χ = det(tI − H)`, by cofactor expansion (`detPoly`: Laplace along row
      0, the minors by `List.eraseIdx`), a route independent of the producer;
-  2. `(tI − H)·adj = χ·I`;
+  2. `(tI − H)·adj = χ·I`, and 2′. `adj·(tI − H) = χ·I`, so that the
+     eigenprojector `adj/χ′` commutes with `H` on the branch;
   3. `Σᵢ adjᵢᵢ = χ′` (`χ′ = ∂_t χ`);
   4. `χ(H) = 0` in `Mₙ(A)` (Cayley–Hamilton), by Horner's rule in `t`;
   5. `adj² − χ′·adj = Q·χ` (the eigenprojector is idempotent modulo `χ`);
@@ -47,8 +50,8 @@ power limits are checked before any product. `Failure.code` is `E_LIMIT` for
 the limits and the budget and `E_SPECTRAL` otherwise.
 
 The invariants are `tracePower` (`tr(Hᵏ)`, `1 ≤ k ≤ spectralPower`, by
-budgeted matrix products) and `charCoefficient` (the coefficient of `tⁱ` in
-`χ`).
+budgeted matrix products, the image bounded by `algebraTerms`) and
+`charCoefficient` (the coefficient of `tⁱ` in `χ`).
 
 `Entry.Valid` (`IndexedValidity`) calls one environment check per
 declaration: `checkFreeModule`, `checkEndomorphism`, `checkSpectrum` and
@@ -83,6 +86,8 @@ inductive Failure where
   | characteristic
   /-- Identity 2: `(tI − H)·adj ≠ χ·I`. -/
   | adjugate
+  /-- Identity 2′: `adj·(tI − H) ≠ χ·I`. -/
+  | adjugateRight
   /-- Identity 3: `Σᵢ adjᵢᵢ ≠ χ′`. -/
   | adjugateTrace
   /-- Identity 4: `χ(H) ≠ 0`. -/
@@ -166,6 +171,20 @@ def duplicate? : List String → Option String
   | [] => none
   | name :: rest => if rest.contains name then some name else duplicate? rest
 
+/-- The identifier rule of the frontend: an ASCII letter or `_`, then ASCII
+letters, digits and `_`. -/
+def isIdentifier (name : String) : Bool :=
+  match name.toList with
+  | [] => false
+  | first :: rest => (first.isAlpha && first.toNat < 128 || first == '_') &&
+      rest.all fun c => c.isAlphanum && c.toNat < 128 || c == '_'
+
+/-- The fiber coordinate `t` of a spectrum `eigen(H, t)` is a new name: an
+identifier that is no coordinate of the object and no basis vector of the
+free module of `H`. -/
+def fiberValid (coordinates basis : List String) (fiber : String) : Bool :=
+  isIdentifier fiber && !coordinates.contains fiber && !basis.contains fiber
+
 /-! ## Budgeted algebra -/
 
 open AlgebraBasis (Work)
@@ -205,9 +224,11 @@ def matrixPower (arity n : Nat) (rows : PolyMatrix) : Nat → Work PolyMatrix
   | 0 => pure (identityOf n arity)
   | k + 1 => do FrameDeclarations.polyMatMul n (← matrixPower arity n rows k) rows
 
-/-- The invariant `tr(Hᵏ)`, a polynomial of `A`. -/
+/-- The invariant `tr(Hᵏ)`, a polynomial of `A`. The diagonal sum is linear,
+but it can exceed `algebraTerms` when the diagonal entries of `Hᵏ` have
+disjoint terms, so the image is bounded like every other result. -/
 def tracePower (arity : Nat) (rows : PolyMatrix) (power : Nat) : Work Poly := do
-  pure (tracePoly (← matrixPower arity rows.length rows power))
+  AlgebraBasis.bounded (tracePoly (← matrixPower arity rows.length rows power))
 
 /-- The invariant `char_coefficient(S, i)`: the coefficient of `tⁱ` in `χ`, a
 polynomial of `A`. -/
@@ -312,6 +333,8 @@ structure Identities where
   determinant : Poly
   /-- `(tI − H)·adj`. -/
   product : PolyMatrix
+  /-- `adj·(tI − H)`. -/
+  rightProduct : PolyMatrix
   /-- `χ(H)`. -/
   cayleyHamilton : PolyMatrix
   /-- `adj² − χ′·adj − Q·χ`, entrywise. -/
@@ -320,8 +343,9 @@ structure Identities where
   jacobi : List Poly
   deriving Repr, Inhabited
 
-/-- The values of identities 1, 2, 4, 5 and 6 for `H` over `A` (`arity = m`)
-and a certificate, in one budget. Identity 3 needs no product. -/
+/-- The values of identities 1, 2, 2′, 4, 5 and 6 for `H` over `A`
+(`arity = m`) and a certificate, in one budget. Identity 3 needs no
+product. -/
 def identities (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertificate) : Work Identities := do
   let n := rows.length
   let characteristic := certificate.characteristic
@@ -329,6 +353,7 @@ def identities (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertific
   let shifted := charMatrix arity rows
   let determinant ← detPoly (arity + 1) n shifted
   let product ← FrameDeclarations.polyMatMul n shifted adjugate
+  let rightProduct ← FrameDeclarations.polyMatMul n adjugate shifted
   let cayleyHamilton ← matrixPolynomial n rows characteristic
   let slope := SmoothRuntime.partialDerivative arity characteristic
   let square ← FrameDeclarations.polyMatMul n adjugate adjugate
@@ -338,10 +363,10 @@ def identities (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertific
   let jacobi ← (List.range arity).mapM fun i => do
     let derivative ← FrameDeclarations.polyMatMul n adjugate (extendMatrix (derivativeMatrix i rows))
     AlgebraBasis.add (SmoothRuntime.partialDerivative i characteristic) (tracePoly derivative)
-  pure ⟨determinant, product, cayleyHamilton, idempotence, jacobi⟩
+  pure ⟨determinant, product, rightProduct, cayleyHamilton, idempotence, jacobi⟩
 
 /-- The certificate of the spectrum of `H` over `A` (`arity = m`): the rank
-first, then the shapes, then identities 1–6 in order. -/
+first, then the shapes, then identities 1, 2, 2′ and 3–6 in order. -/
 def checkCertificate (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertificate) :
     Except Failure Unit := do
   let n := rows.length
@@ -355,6 +380,7 @@ def checkCertificate (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCe
   | .ok values =>
     unless values.determinant == certificate.characteristic do throw .characteristic
     unless values.product == scalarMatrix n certificate.characteristic do throw .adjugate
+    unless values.rightProduct == scalarMatrix n certificate.characteristic do throw .adjugateRight
     unless tracePoly certificate.adjugate == SmoothRuntime.partialDerivative arity certificate.characteristic do
       throw .adjugateTrace
     unless isZeroPolyMatrix values.cayleyHamilton do throw .cayleyHamilton
@@ -425,15 +451,19 @@ def checkEndomorphism (env : Environment) (family object module : DeclId) (rows 
 
 /-- The spectrum declaration `spectrum family object endomorphism fiber
 certificate`: a `spectrum` family applied to a declared smooth object with
-coordinates `x₁, …, x_m`, an endomorphism of that object, a fiber name that
-is no coordinate of the object, and a certificate that `checkCertificate`
-accepts for the endomorphism's rows. -/
+coordinates `x₁, …, x_m`, an endomorphism of that object whose free module is
+declared, a fiber name that `fiberValid` accepts (an identifier, no
+coordinate of the object and no basis vector of the module), and a
+certificate that `checkCertificate` accepts for the endomorphism's rows. -/
 def checkSpectrum (env : Environment) (family object endomorphism : DeclId) (fiber : String)
     (certificate : SpectralCertificate) : Bool :=
   declaredAt env (isSpectrumFamily env family) family object &&
     match smoothCoordinates? env object, endomorphismData? env endomorphism with
-    | some coordinates, some (_, endomorphismObject, _, rows, _) =>
-      endomorphismObject == object && !coordinates.contains fiber &&
+    | some coordinates, some (_, endomorphismObject, module, rows, _) =>
+      endomorphismObject == object &&
+        (match freeModuleData? env module with
+          | some (_, _, basis) => fiberValid coordinates basis fiber
+          | none => false) &&
         (checkCertificate coordinates.length rows certificate).isOk
     | _, _ => false
 

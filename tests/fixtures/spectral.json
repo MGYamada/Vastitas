@@ -2385,6 +2385,81 @@
       "failure": "NOT_REDUCED"
     },
     {
+      "label": "stage5 unreduced witness that certifies the gap",
+      "spectrum": "stage5",
+      "localizer": [
+        [
+          [
+            2,
+            0
+          ],
+          "1"
+        ],
+        [
+          [
+            0,
+            2
+          ],
+          "1"
+        ]
+      ],
+      "localizerWithFiber": [
+        [
+          [
+            2,
+            0,
+            0
+          ],
+          "1"
+        ],
+        [
+          [
+            0,
+            2,
+            0
+          ],
+          "1"
+        ]
+      ],
+      "witness": [
+        [
+          [
+            2,
+            0,
+            0
+          ],
+          "-1"
+        ],
+        [
+          [
+            0,
+            2,
+            0
+          ],
+          "-1"
+        ],
+        [
+          [
+            0,
+            0,
+            2
+          ],
+          "1"
+        ],
+        [
+          [
+            0,
+            0,
+            1
+          ],
+          "1/2"
+        ]
+      ],
+      "exponent": 1,
+      "accepted": false,
+      "failure": "NOT_REDUCED"
+    },
+    {
       "label": "stage5 zero localizer",
       "spectrum": "stage5",
       "localizer": [],
@@ -2399,6 +2474,16 @@
           "1/2"
         ]
       ],
+      "exponent": 1,
+      "accepted": false,
+      "failure": "EMPTY_CHART"
+    },
+    {
+      "label": "stage5 zero localizer with the zero witness",
+      "spectrum": "stage5",
+      "localizer": [],
+      "localizerWithFiber": [],
+      "witness": [],
       "exponent": 1,
       "accepted": false,
       "failure": "EMPTY_CHART"

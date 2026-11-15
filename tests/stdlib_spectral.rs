@@ -15,8 +15,9 @@ use serde_json::{Value, json};
 /// chi = (s - x)(s - y)(s - x - y)(s - 1); and the zero field Z. The fiber
 /// coordinate is s. At p = (1, 2) the branch point is (p, 3), where the
 /// eigenvalue has the differential (1, 1) and the eigenprojector 1. Each
-/// observation has its own failure code, so `main` prints 42 only when all
-/// of them hold.
+/// observation has its own failure bit, 2^(k−1) for the code k, so `main`
+/// prints 42 only when all of them hold, and the printed number names every
+/// observation that fails.
 const MAIN: &str = r#"
 use std::geometry::smooth::affine::SmoothR;
 use std::geometry::smooth::affine::Smooth;
@@ -71,13 +72,13 @@ fn main() -> Int {
     // The rank-1 branch: x + y = 3 at p, with d(x + y) = (1, 1) and P = 1.
     42 + verdict(on_l(p, line_at(3)) && !on_l(p, line_at(2)), 1)
        + verdict(same_covector(dl(p, line_at(3)), dplane(p, 1, 1)), 2)
-       + verdict(reads(pl(p, line_at(3)), 1, 1), 3)
+       + verdict(reads(pl(p, line_at(3)), 1, 1), 4)
        // The rank-4 field: tr(D^3) and det(D) as smooth maps, chi(D) = 0, and
        // the entry (e3, e3) of D^2 is (x + y)^2 = 9 at p.
-       + verdict(same_smooth(trd3(), refd3()) && same_smooth(cd0(), refd0()), 4)
-       + verdict(ann_d(p) && reads(act_d(p), 9, 1), 5)
+       + verdict(same_smooth(trd3(), refd3()) && same_smooth(cd0(), refd0()), 8)
+       + verdict(ann_d(p) && reads(act_d(p), 9, 1), 16)
        // The zero field: s annihilates it, and tr(Z^2) = 0 has the zero differential.
-       + verdict(ann_z(p) && same_covector(differential(trz(), p), dplane(p, 0, 0)), 6)
+       + verdict(ann_z(p) && same_covector(differential(trz(), p), dplane(p, 0, 0)), 32)
 }
 "#;
 
@@ -143,15 +144,29 @@ fn spectral_families_from_the_library_check_build_and_run_from_a_path_package() 
     assert_eq!(run(&fixture(MAIN)), b"42\n");
 }
 
-/// Each observation can fail: another eigenvalue, another reference for the
-/// trace power and the entry of D rather than D^2 change the printed number
-/// by their own codes, 1, 4 and 5.
+/// Each observation can fail, and each mutation below falsifies exactly its
+/// own observation: another eigenvalue (bit 1), another covector for the
+/// differential (2), another entry of the projector (4), another reference
+/// for the trace power (8), the entry of D rather than D^2 (16) and the
+/// negated annihilation by s of the zero field (32). With every mutation the
+/// program prints 42 + 63, and the bits name every code.
 #[test]
 fn mutated_spectral_observations_change_the_native_result() {
-    let main = common::checked_replace(MAIN, "on_l(p, line_at(3)) &&", "on_l(p, line_at(4)) &&");
-    let main = common::checked_replace(&main, "(x + y)^3 + 1)", "(x + y)^3 + 2)");
-    let main = common::checked_replace(&main, "element = s^2, e3, e3", "element = s, e3, e3");
-    assert_eq!(run(&fixture(&main)), b"52\n");
+    let mutations = [
+        ("on_l(p, line_at(3)) &&", "on_l(p, line_at(4)) &&"),
+        ("dplane(p, 1, 1)), 2)", "dplane(p, 1, 2)), 2)"),
+        (
+            "reads(pl(p, line_at(3)), 1, 1)",
+            "reads(pl(p, line_at(3)), 1, 2)",
+        ),
+        ("(x + y)^3 + 1)", "(x + y)^3 + 2)"),
+        ("element = s^2, e3, e3", "element = s, e3, e3"),
+        ("verdict(ann_z(p) &&", "verdict(!ann_z(p) &&"),
+    ];
+    let main = mutations.iter().fold(MAIN.to_string(), |main, (from, to)| {
+        common::checked_replace(&main, from, to)
+    });
+    assert_eq!(run(&fixture(&main)), format!("{}\n", 42 + 63).as_bytes());
 }
 
 /// The package `vastitas_linalg` has the root module, which exports the
@@ -270,15 +285,84 @@ fn linalg_exports_exactly_the_spectral_module_and_its_four_families() {
     }
 }
 
-/// A free module of an object outside `CInfAffine` is rejected: the
-/// families index smooth affine objects only.
+/// A free module of `BaseSmooth`, a global object of the smooth grid and no
+/// smooth affine object, is rejected before its family is consulted.
 #[test]
-fn a_free_module_of_an_object_outside_cinf_affine_is_rejected() {
+fn a_free_module_of_an_object_that_is_not_smooth_is_rejected() {
     let stderr = rejects(
         &with(
             "indexed free_module bad: FreeModule<std::geometry::smooth::BaseSmooth> = basis(b1);",
         ),
         "E_SPECTRAL",
     );
-    assert!(stderr.contains("BaseSmooth"), "{stderr}");
+    assert!(
+        stderr.contains(
+            "E_SPECTRAL: the free module `stdlib_spectral_demo::bad` is on \
+             `vastitas_geometry::smooth::BaseSmooth`, which is not a smooth object; it needs a \
+             smooth object declared with `Affine(n)[…]`"
+        ),
+        "{stderr}"
+    );
+}
+
+/// A smooth affine object `Q` of another classification, `Other`, with local
+/// families of `Other` that declare a free module, a field and a spectrum on
+/// `Q`. The library's families index `CInfAffine` only.
+const OTHER: &str = "indexed marker R2;
+indexed implementation SmoothR2(R2, smooth_affine) capabilities();
+indexed classification Other { parents(); domain(SmoothR2); };
+indexed affine Q(SmoothR2) = Affine(1)[q];
+indexed family FM2(object(Other)) = free_module constraints(canonical(0));
+indexed family EN2(object(Other)) = endomorphism constraints(canonical(0));
+indexed family SP2(object(Other)) = spectrum constraints(canonical(0));
+indexed free_module W: FM2<Q> = basis(b1);
+indexed endomorphism K: EN2<Q> = rows((q)) of W;
+indexed spectrum SK: SP2<Q> = eigen(K, s);
+";
+
+/// A free module of the smooth affine object `Q` of `OTHER`, outside
+/// `CInfAffine`, is rejected: it is on `Q`, which its family does not accept.
+/// So is a field, a spectrum and a branch on `Q` at the library's family,
+/// while the same declarations at the local families of `Other` are
+/// accepted.
+#[test]
+fn a_free_module_of_an_object_outside_cinf_affine_is_rejected() {
+    assert_eq!(
+        run(&fixture(&with(&format!(
+            "{OTHER}indexed family BR2(object(Other)) = branch constraints(canonical(0));\n\
+             indexed branch BK: BR2<Q> = simple(SK, localize = 1, witness = 1, exponent = 1);"
+        )))),
+        b"42\n"
+    );
+    for (kind, family, declaration) in [
+        (
+            "free module",
+            "FreeModule",
+            "indexed free_module bad: FreeModule<Q> = basis(b1);",
+        ),
+        (
+            "endomorphism",
+            "Endomorphism",
+            "indexed endomorphism bad: Endomorphism<Q> = rows((q)) of W;",
+        ),
+        (
+            "spectrum",
+            "Spectrum",
+            "indexed spectrum bad: Spectrum<Q> = eigen(K, s);",
+        ),
+        (
+            "branch",
+            "Branch",
+            "indexed branch bad: Branch<Q> = simple(SK, localize = 1, witness = 1, exponent = 1);",
+        ),
+    ] {
+        let stderr = rejects(&with(&format!("{OTHER}{declaration}")), "E_SPECTRAL");
+        assert!(
+            stderr.contains(&format!(
+                "E_SPECTRAL: the {kind} `stdlib_spectral_demo::bad` is on `stdlib_spectral_demo::Q`, \
+                 which its family `vastitas_linalg::spectral::{family}` does not accept"
+            )),
+            "{kind}: {stderr}"
+        );
+    }
 }

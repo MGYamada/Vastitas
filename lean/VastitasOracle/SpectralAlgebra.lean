@@ -26,7 +26,8 @@ instantiate them at `ℝ` or at `MvPolynomial`. Mathlib-free.
   budget is its unbudgeted counterpart (`plainDet`, `plainAddDiagonal`,
   `plainMatrixPolynomial`, `plainPower`, `plainIdentities`), with `Poly.mul`,
   `Poly.add` and `Poly.sub`, as `FrameDeclarations.polyMatMul_ok` is for the
-  frame products. The budget only adds `E_LIMIT`.
+  frame products. The budget only adds `E_LIMIT`; a successful trace power is
+  within the term limit (`tracePower_bounded`).
 * **Evaluation is a ring map on these computations** (`evalIn_detPoly`,
   `evalIn_plainDet`, `evalMatrix_plainMatMul`, `evalMatrix_plainPower`,
   `evalIn_tracePoly`, `evalIn_tracePower`, `evalMatrix_plainMatrixPolynomial`,
@@ -411,7 +412,27 @@ theorem tracePower_ok {arity : Nat} {rows : PolyMatrix} {k : Nat} {r : Poly} {s 
     r = tracePoly (plainPower arity rows.length rows k) := by
   unfold tracePower at h
   obtain ⟨power, _, hpower, h⟩ := bind_ok h
-  rw [pure_ok h, matrixPower_ok hpower]
+  rw [bounded_ok h, matrixPower_ok hpower]
+
+/-- A successful `AlgebraBasis.bounded` has at most `algebraTerms` terms. -/
+theorem bounded_length {p r : Poly} {s s' : Nat} (h : (AlgebraBasis.bounded p).run s = .ok (r, s')) :
+    r.length ≤ Limits.algebraTerms := by
+  unfold AlgebraBasis.bounded at h
+  split at h
+  · simp [StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift, bind, StateT.bind,
+      Except.bind] at h
+  · rename_i hle
+    simp [StateT.run, pure, StateT.pure, Except.pure] at h
+    rw [← h.1]
+    omega
+
+/-- A successful `tracePower` is within the term limit: the image of
+`trace_power(H, k)` has at most `algebraTerms` terms. -/
+theorem tracePower_bounded {arity : Nat} {rows : PolyMatrix} {k : Nat} {r : Poly} {s s' : Nat}
+    (h : (tracePower arity rows k).run s = .ok (r, s')) : r.length ≤ Limits.algebraTerms := by
+  unfold tracePower at h
+  obtain ⟨_, _, _, h⟩ := bind_ok h
+  exact bounded_length h
 
 /-- Identity 5 with no budget: `adj² − χ′·adj − Q·χ`, entrywise, as
 `identities` computes it. -/
@@ -432,6 +453,7 @@ def plainJacobi (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertifi
 def plainIdentities (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertificate) : Identities where
   determinant := plainDet (arity + 1) rows.length (charMatrix arity rows)
   product := plainMatMul rows.length (charMatrix arity rows) certificate.adjugate
+  rightProduct := plainMatMul rows.length certificate.adjugate (charMatrix arity rows)
   cayleyHamilton := plainMatrixPolynomial rows.length rows certificate.characteristic
   idempotence := plainIdempotence arity rows.length certificate
   jacobi := plainJacobi arity rows certificate
@@ -443,6 +465,7 @@ theorem identities_ok {arity : Nat} {rows : PolyMatrix} {certificate : SpectralC
   unfold identities at h
   obtain ⟨determinant, _, hdeterminant, h⟩ := bind_ok h
   obtain ⟨product, _, hproduct, h⟩ := bind_ok h
+  obtain ⟨rightProduct, _, hrightProduct, h⟩ := bind_ok h
   obtain ⟨cayley, _, hcayley, h⟩ := bind_ok h
   obtain ⟨square, _, hsquare, h⟩ := bind_ok h
   obtain ⟨idempotence, _, hidempotence, h⟩ := bind_ok h
@@ -467,7 +490,8 @@ theorem identities_ok {arity : Nat} {rows : PolyMatrix} {certificate : SpectralC
     intro i _ s s' r hi
     obtain ⟨derivative, _, hderivative, hi⟩ := bind_ok hi
     rw [add_ok hi, polyMatMul_ok hderivative]
-  rw [pure_ok h, detPoly_ok hdeterminant, polyMatMul_ok hproduct, matrixPolynomial_ok hcayley, e1, e2]
+  rw [pure_ok h, detPoly_ok hdeterminant, polyMatMul_ok hproduct, polyMatMul_ok hrightProduct,
+    matrixPolynomial_ok hcayley, e1, e2]
   rfl
 
 /-! ## Arities -/

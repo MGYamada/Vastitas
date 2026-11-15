@@ -63,13 +63,19 @@ def add (p q : Poly) : Work Poly := do
   charge (cost p + cost q + 1)
   bounded (Poly.add p q)
 
-def mul (p q : Poly) : Work Poly := do
-  charge (cost p * cost q + 1)
-  bounded (Poly.mul p q)
-
 def mulTerm (t : Term) (p : Poly) : Work Poly := do
   charge (cost p + 1)
   bounded (Poly.mulTerm t p)
+
+/-- `Poly.mul p q`, charged for the steps that it performs. `Poly.mul` folds
+over the terms of `p`: each step multiplies `q` by one term of `p` (`mulTerm`)
+and merges the result into the sum of the earlier products (`add`). Each step
+is charged before it runs, and each partial sum is bounded by
+`Limits.algebraTerms`, so no merge runs on a sum beyond the term limit and the
+work budget bounds the steps of the whole product (#768). A single charge of
+`cost p * cost q + 1` did not grow with the merges, which rebuild the sum. -/
+def mul (p q : Poly) : Work Poly :=
+  p.foldlM (fun sum t => do add sum (← mulTerm t q)) []
 
 def sub (p q : Poly) : Work Poly := do
   charge (cost p + cost q + 1)

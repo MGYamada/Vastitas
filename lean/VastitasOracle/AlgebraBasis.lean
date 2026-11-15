@@ -149,15 +149,28 @@ end Monad
 /-! The budgeted operations compute exactly the unbudgeted ones whenever they
 succeed. The budget only adds the possibility of `E_LIMIT`. -/
 
-theorem mul_ok {p q r : Poly} {s s' : Nat} (h : (mul p q).run s = .ok (r, s')) : r = Poly.mul p q := by
-  unfold mul at h
-  obtain ⟨_, _, _, h⟩ := bind_ok h
-  exact bounded_ok h
-
 theorem add_ok {p q r : Poly} {s s' : Nat} (h : (add p q).run s = .ok (r, s')) : r = Poly.add p q := by
   unfold add at h
   obtain ⟨_, _, _, h⟩ := bind_ok h
   exact bounded_ok h
+
+theorem mulTerm_ok {t : Term} {p r : Poly} {s s' : Nat} (h : (mulTerm t p).run s = .ok (r, s')) :
+    r = Poly.mulTerm t p := by
+  unfold mulTerm at h
+  obtain ⟨_, _, _, h⟩ := bind_ok h
+  exact bounded_ok h
+
+/-- The budgeted product runs the fold of `Poly.mul`, one charged and bounded
+step for each term of the left factor (#768). -/
+theorem mul_ok {p q r : Poly} {s s' : Nat} (h : (mul p q).run s = .ok (r, s')) : r = Poly.mul p q := by
+  unfold mul at h
+  unfold Poly.mul
+  refine foldlM_ok (fun sum t s s' r hr => ?_) h
+  obtain ⟨m, _, hm, hr⟩ := bind_ok hr
+  have h1 := add_ok hr
+  have h2 := mulTerm_ok hm
+  subst h1 h2
+  rfl
 
 theorem power_ok {arity n : Nat} {p r : Poly} {s s' : Nat}
     (h : (power arity p n).run s = .ok (r, s')) : r = Poly.pow arity p n := by

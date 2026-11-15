@@ -633,7 +633,7 @@ steps of `Poly.mul`, which grow with the square of the terms of its left
 factor. `AlgebraBasis.mul` charged 456 units for the product of a 455-term
 polynomial and the constant 1, which takes about 10⁵ merge steps, so a frame
 of such products within its budget took 12 to 90 seconds (the Stage 4
-review, #759). -/
+review, #759). Since #768 it charges each of those steps as it performs it. -/
 
 /-- The coordinates `c0, …, c15` of `Big`. -/
 private def bigCoordinates : List String := (List.range 16).map fun i => s!"c{i}"
@@ -661,8 +661,11 @@ private def charged {α : Type} (action : AlgebraBasis.Work α) (used : Nat := 0
     FrameDeclarations.productWork cube [] == 456 && FrameDeclarations.productWork [] cube == 1 &&
     charged (FrameDeclarations.polyMul cube one) == some (456 * 455 + 456) &&
     charged (FrameDeclarations.polyMul one cube) == some (2 * 455 + 2) &&
-    -- `AlgebraBasis.mul`, which Stage 2 and 3 use, charges less.
-    charged (AlgebraBasis.mul cube one) == some 456)
+    -- `AlgebraBasis.mul`, which Stage 2 and 3 use, charges its steps as it
+    -- performs them (#768): for term `i` of `cube`, 2 units for the term times
+    -- 1 and `(i - 1) + 1 + 1` for merging it into the sum of the earlier ones.
+    charged (AlgebraBasis.mul cube one) == some (455 * 4 + 454 * 455 / 2) &&
+    charged (AlgebraBasis.mul one cube) == some (2 * 455 + 2))
 #eval check "a frame product beyond the budget is E_LIMIT before it is computed"
   (match (FrameDeclarations.polyMul cube (Poly.one 16)).run (Limits.algebraWork - 456 * 455) with
     | .error (.limit "work") => true

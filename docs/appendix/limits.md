@@ -263,6 +263,13 @@ describes the checker and what is Proved about it.
 | `algebraBasis` | 64 | The elements of the basis that the kernel computes for the relations of an object. While it computes the basis, the kernel keeps at most four times as many elements, 256 | An object |
 | `algebraWork` | 8,000,000 | The units of work of one run of the arithmetic: the computation and the verification of a basis, or one substitution | A run |
 
+The kernel charges a product $pq$ of a run for the steps that it performs,
+with $w$ as [Frames](#frames) defines it. One term of $p$ at a time, it
+multiplies $q$ by the term for $w(q) + 1$ units, and it adds the result $r$
+to the sum $s$ of the earlier products for $w(s) + w(r) + 1$ units. It
+charges each step before it runs it, and each partial sum must have at most
+`algebraTerms` terms.
+
 ### Smooth objects and maps
 
 [Smooth affine declarations](../language/smooth-declarations.md) have the

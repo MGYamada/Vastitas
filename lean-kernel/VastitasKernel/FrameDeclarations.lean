@@ -74,8 +74,8 @@ with at most one sum of coefficients; the charge weighs `|p|·|q|` as
 coefficients cost more. The charge also bounds the number of terms of every
 intermediate polynomial of the product, at most `|p|·|q|`, so no product is
 built beyond the budget. `AlgebraBasis.mul`, which the Stage 2 and 3 checks
-use, charges `cost p * cost q + 1`, which does not bound the merge steps;
-the frame products do not use it. -/
+use, charges instead each step of the fold as it performs it (#768); the
+frame products charge this bound before they start. -/
 def productWork (p q : Poly) : Nat :=
   (p.length + 1) * (AlgebraBasis.cost p * AlgebraBasis.cost q) + p.length + 1
 

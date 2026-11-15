@@ -2389,3 +2389,29 @@ fn tampered_acceptance_bodies_are_rejected_by_the_kernel() {
         assert_wire_rejected(&kernel(forged(&path, value), "emit"), code);
     }
 }
+
+/// A product of the 455-term image `(1 + c0 + … + c11)^3` and the constant 1
+/// takes about 10⁵ merge steps. The kernel charges each product of an image
+/// for the steps that it performs (`AlgebraBasis.mul`, #768), about 10⁵ units
+/// here. It charged 456 units before, so the image with 300 such factors was
+/// accepted after about 6 seconds on a developer machine.
+#[test]
+fn an_image_with_many_constant_factors_ends_on_work() {
+    let sum: Vec<String> = (0..12).map(|i| format!("c{i}")).collect();
+    let image = |factors: usize| format!("(1 + {})^3{}", sum.join(" + "), " * 1".repeat(factors));
+    let declarations = |factors: usize| {
+        format!(
+            "{}\nindexed morphism wide: Smooth<Big, Line> = pullback(t -> {});",
+            big_object(),
+            image(factors)
+        )
+    };
+    success(&check(&fixture(&with(&declarations(2)))));
+    let started = std::time::Instant::now();
+    let message = rejects(&with(&declarations(300)), "E_LIMIT");
+    assert!(
+        message.contains("algebraic work limit exceeded"),
+        "{message}"
+    );
+    assert!(started.elapsed() < std::time::Duration::from_secs(30));
+}

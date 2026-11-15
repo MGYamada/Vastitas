@@ -60,7 +60,8 @@ manifest loads these files directly; there is no generated or copied
 geometry source tree.
 
 The manifest [`Vastitas.toml`](Vastitas.toml) has no dependencies. In
-particular, the geometry package does not depend on `std::differential`. It
+particular, the geometry package does not depend on `std::differential` or
+`std::linalg`. It
 holds the export `[geometry_compat]`, with the subtables `scheme` and
 `smooth`, which maps the core syntax of geometry to the declarations of the
 package; the page of [`std::geometry`](../../docs/geometry.md) links its

@@ -1,0 +1,20 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::linalg::spectral::FreeModule;
+use std::linalg::spectral::Endomorphism;
+use std::linalg::spectral::Spectrum;
+use std::linalg::spectral::Branch;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed free_module V: FreeModule<Plane> = basis(e1, e2);
+indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric;
+indexed spectrum S: Spectrum<Plane> = eigen(H, t);
+
+// ANCHOR: declarations
+// The witness t / 2 perturbed by 10^-20 t. The certificate is an exact
+// identity of polynomials, so no perturbation passes, however small:
+// W·chi' - (x^2 + y^2) is (1/50000000000000000000)·(x^2 + y^2) modulo chi,
+// not zero.
+indexed branch B: Branch<Plane> = simple(S, localize = x^2 + y^2, witness = (frac(1, 2) + frac(1, 100000000000000000000)) * t, exponent = 1);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

@@ -131,7 +131,8 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
 
 /// The promotion example against a copy of the stdlib without its Stage 2
 /// `scheme::affine` module, its Stage 3 `smooth::affine` and `metric`
-/// modules and `differential` package, and its Stage 4 `frame` module. That
+/// modules and `differential` package, its Stage 4 `frame` module and its
+/// Stage 5 `linalg` package. That
 /// closure still uses protocol 7, so the Indexed.Wire sweep keeps the
 /// geometry-compatibility, dependency and function-body records that only the
 /// stdlib supplies.
@@ -159,14 +160,14 @@ fn promotion_without_affine() -> Value {
     );
     strip(
         "Vastitas.toml",
-        "differential_library = { path = \"src/differential\" }\n",
+        "differential_library = { path = \"src/differential\" }\nlinalg_library = { path = \"src/linalg\" }\n",
     );
     strip("src/geometry/scheme/mod.vast", "pub mod affine;\n");
     strip("src/geometry/smooth/mod.vast", "pub mod affine;\n");
     strip("src/geometry/mod.vast", "pub mod metric;\npub mod frame;\n");
     strip(
         "target/package/lib.vast",
-        "pub use differential_library as differential;\n",
+        "pub use differential_library as differential;\npub use linalg_library as linalg;\n",
     );
     let example = root.join("examples/packages/promotion");
     s.write(

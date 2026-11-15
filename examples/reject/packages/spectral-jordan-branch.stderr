@@ -1,0 +1,1 @@
+examples/reject/packages/spectral-jordan-branch/main.vast:16:1: E_SPECTRAL: the witness of the branch `spectral_jordan_branch::BJ` does not certify the gap: W·χ′ − g^e is not a multiple of the characteristic polynomial χ

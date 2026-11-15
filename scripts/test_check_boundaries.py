@@ -121,6 +121,14 @@ class RepositoryBoundaryTests(unittest.TestCase):
         errors = check_boundaries(self.root)
         self.assertEqual(errors, ["runtime must not import compiler module VastitasKernel.FrameDeclarations"])
 
+    def test_spectral_runtime_may_import_only_other_runtimes(self):
+        self.write("lean-kernel/VastitasKernel/SpectralRuntime.lean", "import VastitasKernel.FrameRuntime\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-kernel/VastitasKernel/SpectralRuntime.lean",
+                   "import VastitasKernel.FrameRuntime\nimport VastitasKernel.SpectralDeclarations\n")
+        errors = check_boundaries(self.root)
+        self.assertEqual(errors, ["runtime must not import compiler module VastitasKernel.SpectralDeclarations"])
+
     def test_algebra_fixture_library_cannot_enter_the_compiler(self):
         self.write("lean-kernel/VastitasAlgebraTest/BasisRegression.lean",
                    "import VastitasKernel.AlgebraBasis\nimport Lean.Data.Json\n")
@@ -638,9 +646,11 @@ name = "VastitasBridge"
     def library_packages(self):
         """The layout of the std and nature packages (ADR 0002 §1)."""
         self.manifest("stdlib", 'geometry_library = { path = "src/geometry" }\n'
-                                'differential_library = { path = "src/differential" }\n')
+                                'differential_library = { path = "src/differential" }\n'
+                                'linalg_library = { path = "src/linalg" }\n')
         self.manifest("stdlib/src/geometry")
         self.manifest("stdlib/src/differential", 'geometry = { path = "../geometry" }\n')
+        self.manifest("stdlib/src/linalg", 'geometry = { path = "../geometry" }\n')
         self.manifest("nature", 'std = { path = "../stdlib" }\n')
 
     def test_std_and_nature_manifests_follow_the_library_boundary(self):
@@ -661,6 +671,38 @@ name = "VastitasBridge"
                     f"{directory}/Vastitas.toml: dependency `nature` on {path} leaves stdlib/; "
                     "a stdlib/ manifest may depend only on packages inside stdlib/")
                 self.write(f"{directory}/Vastitas.toml", original)
+        self.assertEqual(check_boundaries(self.root), [])
+
+    def test_std_packages_depend_only_on_the_listed_packages(self):
+        self.library_packages()
+        # Geometry depends on no package of stdlib/src/, and differential and
+        # linalg on geometry alone: no edge from geometry to linalg, none
+        # between differential and linalg, and none to the std root.
+        for directory, dependencies, expected in [
+            ("stdlib/src/geometry", 'linalg = { path = "../linalg" }\n',
+             "dependency `linalg` on ../linalg is not a package that it may depend on; "
+             "it may depend on no package"),
+            ("stdlib/src/linalg", 'geometry = { path = "../geometry" }\ndifferential = { path = "../differential" }\n',
+             "dependency `differential` on ../differential is not a package that it may depend on; "
+             "it may depend on stdlib/src/geometry/"),
+            ("stdlib/src/differential", 'geometry = { path = "../geometry" }\nlinalg = { path = "../linalg" }\n',
+             "dependency `linalg` on ../linalg is not a package that it may depend on"),
+            ("stdlib/src/linalg", 'std = { path = "../.." }\n',
+             "dependency `std` on ../.. is not a package that it may depend on"),
+        ]:
+            with self.subTest(directory=directory, dependencies=dependencies):
+                original = (self.root / directory / "Vastitas.toml").read_text()
+                self.manifest(directory, dependencies)
+                self.assert_boundary_error(f"{directory}/Vastitas.toml: {expected}")
+                self.write(f"{directory}/Vastitas.toml", original)
+        self.assertEqual(check_boundaries(self.root), [])
+        # A package of stdlib/src/ that the table does not list, and a nested one.
+        for directory in ["stdlib/src/tensor", "stdlib/src/linalg/inner"]:
+            with self.subTest(directory=directory):
+                self.manifest(directory)
+                self.assert_boundary_error(f"{directory}/Vastitas.toml: no library package of stdlib/src/ "
+                                           "that scripts/check_boundaries.py lists")
+                (self.root / directory / "Vastitas.toml").unlink()
         self.assertEqual(check_boundaries(self.root), [])
 
     def test_nature_depends_on_nothing_outside_std_and_nature(self):

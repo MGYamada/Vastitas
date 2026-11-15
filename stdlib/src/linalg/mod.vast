@@ -1,0 +1,6 @@
+// Linear algebra over the smooth affine objects of the geometry package
+// (ADR 0001 §4 and §12). The package opens with the module spectral alone:
+// finite linear maps, tensor ports and contractions in general stay Planned.
+// It depends on the geometry package, and the geometry package does not
+// depend on it.
+pub mod spectral;

@@ -1,0 +1,89 @@
+// The declarations of the Stage 5 acceptance program (#806): a polynomial
+// matrix field on the plane with its spectral pair and a simple branch, its
+// invariants as smooth maps, a dimensionless Euclidean chart, and four
+// constant fields on the point. The families come from std::linalg::spectral
+// and nature::dimension; the program declares its modules, fields, spectra,
+// branches and charts, as it declares its metrics. The kernel computes every
+// characteristic polynomial, adjugate and quotient and checks them before
+// code generation; none is written here.
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::smooth::affine::Line;
+use std::geometry::metric::MetricForm;
+use std::linalg::spectral::FreeModule;
+use std::linalg::spectral::Endomorphism;
+use std::linalg::spectral::Spectrum;
+use std::linalg::spectral::Branch;
+use nature::dimension::Reading;
+use nature::dimension::PhysicalMetric;
+
+// ANCHOR: field
+// H = rows((x, y), (y, -x)) acts on V = A^2, A = QQ[x, y], with the basis
+// e1, e2. It is symmetric, and the kernel checks H = H^T.
+pub indexed affine Plane(SmoothR) = Affine(2)[x, y];
+pub indexed free_module V: FreeModule<Plane> = basis(e1, e2);
+pub indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric;
+// ANCHOR_END: field
+
+// ANCHOR: spectrum
+// The spectral pair of H, with the fiber coordinate t: the kernel computes
+// chi = det(tI - H) = t^2 - x^2 - y^2 and adj(tI - H), and checks them.
+pub indexed spectrum S: Spectrum<Plane> = eigen(H, t);
+// On D(x^2 + y^2) both eigenvalues are simple: (t / 2) * chi' = t^2 is
+// x^2 + y^2 modulo chi, and the kernel checks it with a quotient it computes.
+pub indexed branch B: Branch<Plane> = simple(S, localize = x^2 + y^2, witness = frac(1, 2) * t, exponent = 1);
+// ANCHOR_END: spectrum
+
+// ANCHOR: invariants
+// The invariants tr(H), tr(H^2) and the coefficient of t^0 in chi are
+// ordinary smooth maps to the line; ref2 = 2x^2 + 2y^2 is declared by hand.
+pub indexed morphism tr1: Smooth<Plane, Line> = trace_power(H, 1);
+pub indexed morphism tr2: Smooth<Plane, Line> = trace_power(H, 2);
+pub indexed morphism c0: Smooth<Plane, Line> = char_coefficient(S, 0);
+pub indexed morphism ref2: Smooth<Plane, Line> = pullback(t -> 2*x^2 + 2*y^2);
+// ANCHOR_END: invariants
+
+// ANCHOR: chart
+// The plane read as a dimensionless chart, and the Euclidean metric
+// interpreted on it: dx^2 + dy^2 has the dimension 1.
+indexed quantity Ratio = 1;
+indexed reading r: Reading<Plane> = (x: Ratio, y: Ratio);
+pub indexed metric Euclid: MetricForm<Plane> = euclidean;
+pub indexed evidence EuclidInvertible = nondegenerate(Euclid);
+indexed physical PE: PhysicalMetric<Plane> = interpret(Euclid, reading = r, euclidean, value = 1);
+// ANCHOR_END: chart
+
+// ANCHOR: point
+// Four constant fields on the point: 0 and N = [[0, 1], [0, 0]] share
+// chi = t^2, and 2I and J = [[2, 1], [0, 2]] share chi = (t - 2)^2.
+pub indexed free_module W: FreeModule<Pt> = basis(f1, f2);
+pub indexed endomorphism Zero: Endomorphism<Pt> = rows((0, 0), (0, 0)) of W symmetric;
+pub indexed endomorphism N: Endomorphism<Pt> = rows((0, 1), (0, 0)) of W;
+pub indexed endomorphism TwoI: Endomorphism<Pt> = rows((2, 0), (0, 2)) of W symmetric;
+pub indexed endomorphism J: Endomorphism<Pt> = rows((2, 1), (0, 2)) of W;
+pub indexed spectrum SZero: Spectrum<Pt> = eigen(Zero, t);
+pub indexed spectrum SN: Spectrum<Pt> = eigen(N, t);
+pub indexed spectrum STwoI: Spectrum<Pt> = eigen(TwoI, t);
+pub indexed spectrum SJ: Spectrum<Pt> = eigen(J, t);
+// ANCHOR_END: point
+
+// ANCHOR: point-invariants
+// Their trace powers k = 1, 2 and the coefficients of t^0 and t^1.
+pub indexed morphism zero_tr1: Smooth<Pt, Line> = trace_power(Zero, 1);
+pub indexed morphism zero_tr2: Smooth<Pt, Line> = trace_power(Zero, 2);
+pub indexed morphism zero_c0: Smooth<Pt, Line> = char_coefficient(SZero, 0);
+pub indexed morphism zero_c1: Smooth<Pt, Line> = char_coefficient(SZero, 1);
+pub indexed morphism n_tr1: Smooth<Pt, Line> = trace_power(N, 1);
+pub indexed morphism n_tr2: Smooth<Pt, Line> = trace_power(N, 2);
+pub indexed morphism n_c0: Smooth<Pt, Line> = char_coefficient(SN, 0);
+pub indexed morphism n_c1: Smooth<Pt, Line> = char_coefficient(SN, 1);
+pub indexed morphism two_tr1: Smooth<Pt, Line> = trace_power(TwoI, 1);
+pub indexed morphism two_tr2: Smooth<Pt, Line> = trace_power(TwoI, 2);
+pub indexed morphism two_c0: Smooth<Pt, Line> = char_coefficient(STwoI, 0);
+pub indexed morphism two_c1: Smooth<Pt, Line> = char_coefficient(STwoI, 1);
+pub indexed morphism j_tr1: Smooth<Pt, Line> = trace_power(J, 1);
+pub indexed morphism j_tr2: Smooth<Pt, Line> = trace_power(J, 2);
+pub indexed morphism j_c0: Smooth<Pt, Line> = char_coefficient(SJ, 0);
+pub indexed morphism j_c1: Smooth<Pt, Line> = char_coefficient(SJ, 1);
+// ANCHOR_END: point-invariants

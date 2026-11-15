@@ -6,7 +6,7 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 26 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 27 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 0 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
 | [mathlib](#assumption.mathlib) | 12 |
@@ -48,6 +48,7 @@ Cited by:
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`bridge`)
 - [`metric.flat-sharp`](std-geometry-metric.md#metric.flat-sharp) (`binding`)
 - [`metric.flat-sharp`](std-geometry-metric.md#metric.flat-sharp) (`bridge`)
+- [`spectral.static-identity`](std-linalg-spectral.md#spectral.static-identity) (`binding`)
 
 <a id="assumption.lean-to-c"></a>
 

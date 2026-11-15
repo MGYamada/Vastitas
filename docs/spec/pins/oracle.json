@@ -17,7 +17,8 @@
     "VastitasOracle.SmoothMetrics",
     "VastitasOracle.SmoothReverseCompiled",
     "VastitasOracle.SmoothReverseCore",
-    "VastitasOracle.SmoothRuntime"
+    "VastitasOracle.SmoothRuntime",
+    "VastitasOracle.SpectralPrimitives"
   ],
   "entries": [
     {"name": "VastitasKernel.Indexed.Source.certifyEvidence", "module": "VastitasKernel.IndexedMetricSource", "kind": "definition"},
@@ -112,6 +113,11 @@
     {"name": "VastitasOracle.SmoothRuntime.cot_identity", "module": "VastitasOracle.SmoothRuntime", "kind": "theorem", "statement": "sha256:e3e96533b47300379de2ef828f88933582e33f39a14860fbe1510ace18b038fb"},
     {"name": "VastitasOracle.SmoothRuntime.pullback_identity", "module": "VastitasOracle.SmoothRuntime", "kind": "theorem", "statement": "sha256:041cd96e4ad2b18436eb5aedcaed0ee0c89ccdd304352b854b4ec2b8a9545c7c"},
     {"name": "VastitasOracle.SmoothRuntime.pullback_stepwise", "module": "VastitasOracle.SmoothRuntime", "kind": "theorem", "statement": "sha256:842a17146d18b8a731bf85abb43fe469aae10ffeb8cf8de3cd98ef173450589f"},
-    {"name": "VastitasOracle.SmoothRuntime.pullback_stepwise_of_wellTyped", "module": "VastitasOracle.SmoothRuntime", "kind": "theorem", "statement": "sha256:c5ad4e3e83858d240f989b2096150cd2ecb50aeb97ead934c76ecec2ef48ec2b"}
+    {"name": "VastitasOracle.SmoothRuntime.pullback_stepwise_of_wellTyped", "module": "VastitasOracle.SmoothRuntime", "kind": "theorem", "statement": "sha256:c5ad4e3e83858d240f989b2096150cd2ecb50aeb97ead934c76ecec2ef48ec2b"},
+    {"name": "VastitasOracle.SpectralPrimitives.actionEntry_association", "module": "VastitasOracle.SpectralPrimitives", "kind": "theorem", "statement": "sha256:5f2d0c470d202d06b030655aed0a8f495a7b380207beb4a374cc65c29e3d36ed"},
+    {"name": "VastitasOracle.SpectralPrimitives.annihilates_association", "module": "VastitasOracle.SpectralPrimitives", "kind": "theorem", "statement": "sha256:7e96dd8808f8a1101b832b8eb0c1842b57cf9239743ec79edf0e5e9d2ffb6caf"},
+    {"name": "VastitasOracle.SpectralPrimitives.branchDifferential_association", "module": "VastitasOracle.SpectralPrimitives", "kind": "theorem", "statement": "sha256:5572cd7adc5252e0958e0482cf2592581f0aac14699511b4f0fff86db14ae514"},
+    {"name": "VastitasOracle.SpectralPrimitives.branchProjector_association", "module": "VastitasOracle.SpectralPrimitives", "kind": "theorem", "statement": "sha256:2e222755ff672397b176b07db7ddf55404ab252072f8c58d05875d6674ee93d4"},
+    {"name": "VastitasOracle.SpectralPrimitives.onBranch_association", "module": "VastitasOracle.SpectralPrimitives", "kind": "theorem", "statement": "sha256:b43eaa91a9c82919eb2dd14aeb2344583c4c87582549439cda18a21864e297cf"}
   ]
 }

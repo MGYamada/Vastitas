@@ -132,6 +132,10 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/vector-cells/Vastitas.toml", "42"),
     ("examples/packages/runtime-extents/Vastitas.toml", "42"),
     ("examples/packages/payloads/Vastitas.toml", "42"),
+    (
+        "examples/packages/spectral-observations/Vastitas.toml",
+        "42",
+    ),
 ];
 
 /// The package programs of the book whose build links OpenBLAS, by manifest,
@@ -243,6 +247,12 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/affine-not-preimage",
     "examples/reject/packages/affine-other-object",
     "examples/reject/packages/callee-region",
+    "examples/reject/packages/spectral-gap-at-origin",
+    "examples/reject/packages/spectral-jordan-branch",
+    "examples/reject/packages/spectral-not-symmetric",
+    "examples/reject/packages/spectral-other-object",
+    "examples/reject/packages/spectral-wrong-witness",
+    "examples/reject/packages/spectral-rank-limit",
 ];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {

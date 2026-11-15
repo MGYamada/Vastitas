@@ -1,0 +1,16 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::linalg::spectral::FreeModule;
+use std::linalg::spectral::Endomorphism;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed free_module V: FreeModule<Plane> = basis(e1, e2);
+
+// ANCHOR: declarations
+// A second plane is another object, although it has the dimension of Plane.
+// An endomorphism field acts on a free module of its own object, so no field
+// on Image acts on V.
+indexed affine Image(SmoothR) = Affine(2)[u, v];
+indexed endomorphism H: Endomorphism<Image> = rows((u, v), (v, -u)) of V symmetric;
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

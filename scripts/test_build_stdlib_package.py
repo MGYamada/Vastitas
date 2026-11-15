@@ -77,7 +77,8 @@ class PackageGenerationTests(unittest.TestCase):
             generator.HEADER
             + b"pub mod arithmetic;\n"
             + b"pub use geometry_library as geometry;\n"
-            + b"pub use differential_library as differential;\n",
+            + b"pub use differential_library as differential;\n"
+            + b"pub use linalg_library as linalg;\n",
         )
         # The tracked manifest declares exactly the re-exported packages.
         stdlib = generator.ROOT / "stdlib"
@@ -86,11 +87,12 @@ class PackageGenerationTests(unittest.TestCase):
             manifest["dependencies"],
             {alias: {"path": f"src/{name}"} for alias, name in generator.LIBRARIES},
         )
-        # Differential depends on geometry; geometry depends on nothing.
+        # Differential and linalg depend on geometry; geometry depends on nothing.
         geometry = tomllib.loads((stdlib / "src/geometry/Vastitas.toml").read_text())
-        differential = tomllib.loads((stdlib / "src/differential/Vastitas.toml").read_text())
         self.assertNotIn("dependencies", geometry)
-        self.assertEqual(differential["dependencies"], {"geometry": {"path": "../geometry"}})
+        for name in ("differential", "linalg"):
+            library = tomllib.loads((stdlib / f"src/{name}/Vastitas.toml").read_text())
+            self.assertEqual(library["dependencies"], {"geometry": {"path": "../geometry"}}, name)
 
 
 if __name__ == "__main__":

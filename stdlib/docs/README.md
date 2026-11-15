@@ -24,6 +24,7 @@ generates. It exports:
 | `arithmetic` | module | Exact arithmetic on `Int` and `Nat`, generated from the flat sources of [`stdlib/src/arithmetic/`](../src/arithmetic) ([page](arithmetic.md)) |
 | `geometry` | re-export | The root module of the package `vastitas_geometry` of [`stdlib/src/geometry/`](../src/geometry), the dependency `geometry_library` ([page](geometry.md)) |
 | `differential` | re-export | The root module of the package `vastitas_differential` of [`stdlib/src/differential/`](../src/differential), the dependency `differential_library` ([page](differential.md)) |
+| `linalg` | re-export | The root module of the package `vastitas_linalg` of [`stdlib/src/linalg/`](../src/linalg), the dependency `linalg_library` ([page](linalg.md)) |
 
 The re-exports keep the owners of the declarations: `std::geometry::Point`
 and a path to `Point` through a direct dependency on `stdlib/src/geometry`
@@ -42,6 +43,8 @@ name one declaration.
 | [`std::geometry::metric`](geometry/metric.md) | `vastitas_geometry` | The family of the metric forms of smooth affine objects |
 | [`std::geometry::frame`](geometry/frame.md) | `vastitas_geometry` | The families of frames, frame arrays and map arrays |
 | [`std::differential`](differential.md) | `vastitas_differential` | Pullbacks, differentials and tapes of smooth maps |
+| [`std::linalg`](linalg.md) | `vastitas_linalg` | Linear algebra over smooth affine objects, with the module `spectral` alone |
+| [`std::linalg::spectral`](linalg/spectral.md) | `vastitas_linalg` | The families of free modules, endomorphism fields, spectral pairs and simple branches |
 
 The physical interpretations of these objects are not in `std`. The package
 [`nature`](../../nature/docs/README.md) holds them, and it depends on `std`.

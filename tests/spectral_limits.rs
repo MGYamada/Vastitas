@@ -163,9 +163,29 @@ fn powers_and_exponents_are_bounded() {
 /// An entry of 969 terms, a characteristic polynomial, a trace power and a
 /// power of the localization beyond the term limit are each `E_LIMIT`. The
 /// entry is out of place in a field declared `symmetric`, and the limit comes
-/// before that comparison.
+/// before that comparison. The image of a trace power is bounded too: the
+/// diagonal entries `(1 + x{4i} + … + x{4i+3})^8` of 495 terms each are within
+/// the limit, and so is every entry of `H¹`, but their sum `tr(H)` has 1977
+/// terms.
 #[test]
 fn terms_are_bounded_before_any_comparison() {
+    let block = |i: usize| {
+        let terms: Vec<String> = (4 * i..4 * i + 4).map(|k| format!("x{k}")).collect();
+        format!("(1 + {})^8", terms.join(" + "))
+    };
+    limited(
+        &check(
+            16,
+            &format!(
+                "indexed free_module V: FreeModule<C> = {};\n\
+                 indexed endomorphism H: Endomorphism<C> = {} of V symmetric;\n\
+                 indexed morphism tr: Smooth<C, Line> = trace_power(H, 1);",
+                basis(4),
+                rows(4, |i, j| if i == j { block(i) } else { "0".into() })
+            ),
+        ),
+        "the `trace_power` declaration `spectral_limits::tr`: algebraic term limit exceeded",
+    );
     limited(
         &check(
             16,

@@ -34,8 +34,9 @@ the bridge can instantiate it at `ℝ` or at `MvPolynomial`.
   a declared branch's spectrum has a valid certificate of the rows of its
   endomorphism, and its gap certificate is valid for that `χ`).
 * **The invariants** (`invariant_sound`, `tracePowerImage_at`,
-  `charCoefficient_at`): an accepted `trace_power(H, k)` is `tr(H(x)ᵏ)` at
-  every point, `1 ≤ k ≤ spectralPower`, and an accepted
+  `tracePowerImage_bounded`, `charCoefficient_at`): an accepted
+  `trace_power(H, k)` is `tr(H(x)ᵏ)` at every point, `1 ≤ k ≤ spectralPower`,
+  with at most `algebraTerms` terms, and an accepted
   `char_coefficient(S, i)` is the coefficient of `tⁱ` in
   `χ(x, t) = Σₖ χₖ(x) tᵏ`, `i ≤ n`.
 * **`Examples`**, the Stage 5 matrix `H = rows((x, y), (y, −x))`: its
@@ -839,6 +840,24 @@ theorem tracePowerImage_sound {m k : Nat} {rows : PolyMatrix} {image : Poly}
     cases k with
     | zero => exact absurd rfl hk0
     | succ k => omega
+
+/-- **An accepted `trace_power(H, k)` is within the term limit**: its image
+has at most `algebraTerms` terms, as every polynomial that the kernel reads
+or computes. -/
+theorem tracePowerImage_bounded {m k : Nat} {rows : PolyMatrix} {image : Poly}
+    (h : tracePowerImage m rows k = .ok image) : image.length ≤ Limits.algebraTerms := by
+  unfold tracePowerImage at h
+  obtain ⟨_, _, h⟩ := except_bind_ok h
+  obtain ⟨_, h⟩ := guard_ok h
+  cases hrun : AlgebraBasis.run (tracePower m rows k) with
+  | error e =>
+    rw [hrun] at h
+    cases h
+  | ok r =>
+    rw [hrun] at h
+    cases h
+    obtain ⟨_, hrun'⟩ := run_ok hrun
+    exact tracePower_bounded hrun'
 
 /-- **An accepted `trace_power(H, k)` is `tr(H(x)ᵏ)`** at every point `x` of
 every ring, for rows of arity `m`. -/

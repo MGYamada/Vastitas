@@ -47,8 +47,8 @@ power limits are checked before any product. `Failure.code` is `E_LIMIT` for
 the limits and the budget and `E_SPECTRAL` otherwise.
 
 The invariants are `tracePower` (`tr(Hᵏ)`, `1 ≤ k ≤ spectralPower`, by
-budgeted matrix products) and `charCoefficient` (the coefficient of `tⁱ` in
-`χ`).
+budgeted matrix products, the image bounded by `algebraTerms`) and
+`charCoefficient` (the coefficient of `tⁱ` in `χ`).
 
 `Entry.Valid` (`IndexedValidity`) calls one environment check per
 declaration: `checkFreeModule`, `checkEndomorphism`, `checkSpectrum` and
@@ -205,9 +205,11 @@ def matrixPower (arity n : Nat) (rows : PolyMatrix) : Nat → Work PolyMatrix
   | 0 => pure (identityOf n arity)
   | k + 1 => do FrameDeclarations.polyMatMul n (← matrixPower arity n rows k) rows
 
-/-- The invariant `tr(Hᵏ)`, a polynomial of `A`. -/
+/-- The invariant `tr(Hᵏ)`, a polynomial of `A`. The diagonal sum is linear,
+but it can exceed `algebraTerms` when the diagonal entries of `Hᵏ` have
+disjoint terms, so the image is bounded like every other result. -/
 def tracePower (arity : Nat) (rows : PolyMatrix) (power : Nat) : Work Poly := do
-  pure (tracePoly (← matrixPower arity rows.length rows power))
+  AlgebraBasis.bounded (tracePoly (← matrixPower arity rows.length rows power))
 
 /-- The invariant `char_coefficient(S, i)`: the coefficient of `tⁱ` in `χ`, a
 polynomial of `A`. -/

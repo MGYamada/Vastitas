@@ -119,6 +119,28 @@ run_cmd do
       `VastitasBridge.Spectral.charPoly_eval_real,
       `VastitasBridge.Spectral.branch_mem_spectrum,
       `VastitasBridge.Spectral.unit_witness_localization,
+      -- Accepted spectral bindings (#806).
+      `VastitasBridge.Spectral.endo_realField_symm,
+      `VastitasBridge.Spectral.realProgram_tracePower,
+      `VastitasBridge.Spectral.covector_fderiv_tracePower,
+      `VastitasBridge.Spectral.tracePower_fderiv_dk,
+      `VastitasBridge.Spectral.checked_trace_power_dk,
+      `VastitasBridge.Spectral.TracePowerSiteDK,
+      `VastitasBridge.Spectral.EntryFrechet.trace_power_dk,
+      `VastitasBridge.Spectral.TracePowerDK,
+      `VastitasBridge.Spectral.trace_power_dk_of_frechet,
+      `VastitasBridge.Spectral.compiled_trace_power_dk,
+      `VastitasBridge.Spectral.public_resource_entries_trace_power_dk,
+      `VastitasBridge.Spectral.public_pure_entry_trace_power_dk,
+      `VastitasBridge.Spectral.stage5Field,
+      `VastitasBridge.Spectral.stage5Field_symm,
+      `VastitasBridge.Spectral.realPoly_var_two,
+      `VastitasBridge.Spectral.stage5Field_eq,
+      `VastitasBridge.Spectral.stage5_dk_gradient,
+      `VastitasBridge.Spectral.eval_map_ratCast,
+      `VastitasBridge.Spectral.eval_realPoly_pderiv,
+      `VastitasBridge.Spectral.realPoint_snoc,
+      `VastitasBridge.Spectral.checked_branch_differential_implicit,
       `VastitasBridge.AlgebraicGeometry.Buchberger.exists_isStandardRep,
       `VastitasBridge.AlgebraicGeometry.Buchberger.isGroebnerBasis_of_sPairReduces,
       `VastitasBridge.AlgebraicGeometry.Buchberger.IsGroebnerBasis.span_leadingTerm,
@@ -406,7 +428,9 @@ def vastitasClosure (env : Environment) (root : Name) : NameSet := Id.run do
 -- contains the Oracle's `SmoothCalculus`, so check the constants their proofs use: none may
 -- reach a chain-rule theorem of `ChainRule.lean` or of the Oracle, or `pderiv_aeval`. The frame
 -- matrix theorems of `Frame.lean` (#759) read the reverse pass the same way, and not through the
--- Oracle's `FrameRuntime.frameMatrix_eq`, which uses `backward_eq_cot` (a positive control).
+-- Oracle's `FrameRuntime.frameMatrix_eq`, which uses `backward_eq_cot` (a positive control). The
+-- Stage 5 theorems of `Spectral/Accepted.lean` (#806) read the reverse pass and the branch
+-- differential the same way.
 run_cmd do
   let env ← getEnv
   let chainRule := #[
@@ -474,7 +498,14 @@ run_cmd do
       `VastitasBridge.Differential.frameMatrix_comp_toMatrix,
       `VastitasBridge.Differential.checked_frame_matrix_fderiv,
       `VastitasBridge.Differential.checked_frame_arrays_same_map,
-      `VastitasBridge.Differential.checked_frame_chain_rule]
+      `VastitasBridge.Differential.checked_frame_chain_rule,
+      `VastitasBridge.Spectral.checked_trace_power_dk,
+      `VastitasBridge.Spectral.EntryFrechet.trace_power_dk,
+      `VastitasBridge.Spectral.trace_power_dk_of_frechet,
+      `VastitasBridge.Spectral.compiled_trace_power_dk,
+      `VastitasBridge.Spectral.public_resource_entries_trace_power_dk,
+      `VastitasBridge.Spectral.public_pure_entry_trace_power_dk,
+      `VastitasBridge.Spectral.checked_branch_differential_implicit]
   for name in independent do
     unless env.contains name do
       throwError "missing theorem {name} of the independence check"

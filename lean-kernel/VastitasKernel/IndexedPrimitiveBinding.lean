@@ -43,6 +43,49 @@ structure FrameRef where
   inverse : PolyMatrix
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-- An endomorphism as a binding embeds it (Stage 5): the endomorphism
+declaration, its smooth object, its free module, its rows `H` and its
+`symmetric` claim. The audit compares each embedded copy with the declaration. -/
+structure EndoRef where
+  endomorphism : DeclId
+  object : DeclId
+  module : DeclId
+  rows : PolyMatrix
+  symmetric : Bool
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- A spectrum as a binding embeds it (Stage 5): the spectrum declaration, its
+endomorphism, and `χ = det(tI − H)` and `adj(tI − H)` from its certificate.
+The idempotence quotient stays in the declaration. The audit compares each
+embedded copy with the declarations. -/
+structure SpectrumRef where
+  spectrum : DeclId
+  endomorphism : EndoRef
+  characteristic : AlgebraRuntime.Poly
+  adjugate : PolyMatrix
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- A branch as a binding embeds it (Stage 5): the branch declaration, its
+spectrum, and its localization `g`, witness `W` and exponent `e`. The quotient
+of the gap certificate stays in the declaration. The audit compares each
+embedded copy with the declarations. -/
+structure BranchRef where
+  branch : DeclId
+  spectrum : SpectrumRef
+  localize : AlgebraRuntime.Poly
+  witness : AlgebraRuntime.Poly
+  exponent : Nat
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- What a spectral invariant computes (Stage 5): `tracePower H k` is
+`p ↦ tr(H(p)ᵏ)`, and `charCoefficient S i` the coefficient of `tⁱ` in the
+characteristic polynomial of `S`. It is the provenance of the invariant's map,
+which the audit recomputes. -/
+inductive SpectralInvariant where
+  | tracePower (endomorphism : EndoRef) (power : Nat)
+  | charCoefficient (spectrum : SpectrumRef) (index : Nat)
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 /-- Explicit bindings to the closed registry. Family/base IDs are part of the
 binding contract; displayed names and arbitrary certificates are not inputs. -/
 inductive PrimitiveBinding where
@@ -158,6 +201,32 @@ inductive PrimitiveBinding where
   | frameEqual (family : DeclId)
   /-- Whether coordinates of `family` lie over a point in `smooth`. -/
   | frameAt (family smooth : DeclId)
+  /-- A spectral invariant (Stage 5): the declared smooth map `X → Line` of
+  type `application` with its exact polynomial image `map`, and what it
+  computes. The kernel declares it from `trace_power(H, k)` or
+  `char_coefficient(S, i)`; it is an ordinary smooth map, so its reverse rule
+  is that of a declared map. -/
+  | spectralInvariant (application : Application) (map : AlgebraRuntime.Map) (invariant : SpectralInvariant)
+  /-- Whether `element(H(p)) = 0` for a point `p` in `smooth` of the object of
+  the spectrum `spectrum`: `element` is a polynomial in the object's
+  coordinates and the fiber coordinate, last. -/
+  | annihilates (smooth : DeclId) (spectrum : SpectrumRef) (element : AlgebraRuntime.Poly)
+  /-- The entry in row `row` and column `column`, indices of basis vectors of
+  the module, of `element(H(p))` for a point `p` in `smooth`, as a reduced
+  fraction. -/
+  | actionEntry (smooth : DeclId) (spectrum : SpectrumRef) (element : AlgebraRuntime.Poly) (row column : Nat)
+  /-- Whether a point `p` and a value `t`, both in `smooth` (`t` into the
+  1-dimensional object `line`), lie on the branch `branch`: `g(p) ≠ 0` and
+  `χ(p, t) = 0`. -/
+  | onBranch (smooth line : DeclId) (branch : BranchRef)
+  /-- The differential at `p` of the eigenvalue of the branch `branch` through
+  `(p, t)`, a covector of `cotangent`: `−Σᵢ ∂ᵢχ(p, t) / χ′(p, t) dxᵢ`, or the
+  failure value off the branch. -/
+  | branchDifferential (smooth cotangent line : DeclId) (branch : BranchRef)
+  /-- The entry in row `row` and column `column` of the eigenprojector
+  `adj(tI − H(p)) / χ′(p, t)` of the branch `branch` at `(p, t)`, as a reduced
+  fraction, or `(0, 0)` off the branch. -/
+  | branchProjector (smooth line : DeclId) (branch : BranchRef) (row column : Nat)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 def isRelativeFamily (env : Environment) (family : DeclId) : Bool :=

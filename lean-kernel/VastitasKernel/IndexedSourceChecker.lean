@@ -7,6 +7,7 @@ import VastitasKernel.IndexedSmoothSource
 import VastitasKernel.IndexedMetricSource
 import VastitasKernel.IndexedFrameSource
 import VastitasKernel.IndexedNatureSource
+import VastitasKernel.IndexedSpectralSource
 import VastitasKernel.IndexedDeclarationRules
 
 namespace VastitasKernel.Indexed.Source
@@ -83,6 +84,13 @@ def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
   | .presentedAffine field => pure (.presentedAffine field)
   | .smoothAffine => pure .smoothAffine
 
+/-- The one object of a spectral declaration `form<X>` (Stage 5). -/
+def spectralObject (span : Span) (what form : String) (indices : List DeclId) : ResolveM DeclId :=
+  match indices with
+  | [object] => pure object
+  | _ => Namespace.problem span "E_SPECTRAL" <|
+      s!"{what} names one object, as in `{form}<X>`, but {indices.length} are given"
+
 def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : Body)
     (env : Core.Declarations) : ResolveM Core.Declarations := do
   let scope := owner.scope
@@ -102,8 +110,10 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
   | .primitive binding =>
       return { env with primitives := env.primitives ++ [⟨owner, ← resolvePrimitive p scope binding⟩] }
   | .morphism family indices definition => do
-      if let .restrict morphism := definition then
+      match definition with
+      | .restrict morphism | .tracePower morphism _ | .charCoefficient morphism _ =>
         let _ ← resolveId p scope morphism
+      | _ => pure ()
       -- The exact map is elaborated once objects are known.
       let application : Application :=
         ⟨← resolveId p scope family, ← indices.mapM fun index => return .object (.global (← resolveId p scope index))⟩
@@ -210,6 +220,25 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
         | .normalized scales => do
           pure (.normalized (← scales.mapM fun (_, scale) => resolveId p scope scale))
       return add (.physicalMetric family object metric reading value entries)
+  /- Spectral declarations (Stage 5). Every path is resolved here; the rows,
+  the certificates and the polynomials are elaborated once the objects are
+  known (`elaborateSpectral`). -/
+  | .freeModule family indices basis => do
+      let family ← resolveId p scope family
+      let object ← spectralObject span "a free module" "FreeModule" (← indices.mapM (resolveId p scope))
+      return add (.freeModule family object basis)
+  | .endomorphism family indices module _ symmetric => do
+      let family ← resolveId p scope family
+      let object ← spectralObject span "an endomorphism" "Endomorphism" (← indices.mapM (resolveId p scope))
+      return add (.endomorphism family object (← resolveId p scope module) [] symmetric)
+  | .spectrum family indices endomorphism fiber => do
+      let family ← resolveId p scope family
+      let object ← spectralObject span "a spectrum" "Spectrum" (← indices.mapM (resolveId p scope))
+      return add (.spectrum family object (← resolveId p scope endomorphism) fiber ⟨[], [], []⟩)
+  | .branch family indices spectrum _ _ exponent => do
+      let family ← resolveId p scope family
+      let object ← spectralObject span "a branch" "Branch" (← indices.mapM (resolveId p scope))
+      return add (.branch family object (← resolveId p scope spectrum) [] [] exponent [])
 
 /-- How a diagnostic names the export of a package. The request has no span
 for a manifest, so the message names the package as its manifest does, and the
@@ -317,6 +346,7 @@ def lower (p : Program) : Namespace.Result Resolved := do
   let declarations ← elaborateMetrics sources declarations
   let declarations ← elaborateFrames sources declarations
   let declarations ← elaborateNature sources declarations
+  let declarations ← elaborateSpectral sources declarations
   let restrictTargets ← p.owned.filterMapM fun (owner, d) => match d.body with
     | .morphism _ _ (.restrict morphism) => do
       let target ← Namespace.resolve index owner.scope morphism.path morphism.span

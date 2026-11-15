@@ -178,6 +178,13 @@ def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := d
   | "first" => fields j ["kind"]; return .first
   | "second" => fields j ["kind"]; return .second
   | "restrict" => fields j ["kind", "morphism"]; return .restrict (← path (← field j "morphism"))
+  -- Stage 5 spectral invariants; a morphism declaration exists only in protocol 9.
+  | "trace_power" =>
+    fields j ["kind", "endomorphism", "power"]
+    return .tracePower (← path (← field j "endomorphism")) (← naturalField (← str j "power"))
+  | "char_coefficient" =>
+    fields j ["kind", "spectrum", "index"]
+    return .charCoefficient (← path (← field j "spectrum")) (← naturalField (← str j "index"))
   | _ => throw "unknown morphism definition"
 
 /-- A primitive call. `primitive` and `algebraicPrimitive` admit exactly the
@@ -278,6 +285,18 @@ def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String 
   | "physical_metric" =>
     unless algebraic do throw "physical dimension declarations require protocol 9"
     return .physicalMetric
+  | "free_module" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    return .freeModule
+  | "endomorphism" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    return .endomorphism
+  | "spectrum" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    return .spectrum
+  | "branch" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    return .branch
   | _ => throw "unsupported indexed family representation"
 
 /-- The Gram matrix of a metric: `euclidean`, or rows of polynomial
@@ -382,6 +401,22 @@ def dimensionValue (j : Json) : Except String (Option (List (Source.Path × Int)
   | .null => return none
   | value => return some (← (← value.getArr?).toList.mapM dimensionFactor)
 
+/-! ### Spectral observations (Stage 5, #806; protocol 9 only)
+
+The wire carries no certificate of a spectrum or a branch: the kernel computes
+`χ`, `adj(tI − H)` and every quotient, and a certificate field is an unknown
+field. -/
+
+/-- The exponent of a gap certificate: an unsigned decimal string with at most
+`algebraCoefficientDigits` digits. The kernel bounds it by `spectralPower`
+after decoding. -/
+def certificateExponent (text : String) : Except String Nat := do
+  if text.length > Limits.algebraCoefficientDigits then
+    throw s!"the exponent of a branch has at most {Limits.algebraCoefficientDigits} decimal digits"
+  match decimalNat? text with
+  | some n => return n
+  | none => throw "the exponent of a branch is an unsigned decimal string"
+
 def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
     Except String Source.Body := do
   let common := ["kind", "name", "public", "span"]
@@ -477,6 +512,27 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     return .physicalMetric (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← path (← field j "metric")) (← path (← field j "reading")) (← dimensionValue (← field j "value"))
       (← physicalGram (← field j "entries"))
+  | "free_module" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "basis"])
+    return .freeModule (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← (← array j "basis").mapM Json.getStr?)
+  | "endomorphism" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "module", "rows", "symmetric"])
+    return .endomorphism (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← path (← field j "module")) (← polyRows j "rows") (← j.getObjValAs? Bool "symmetric")
+  | "spectrum" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "endomorphism", "fiber"])
+    return .spectrum (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← path (← field j "endomorphism")) (← str j "fiber")
+  | "branch" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "spectrum", "localize", "witness", "exponent"])
+    return .branch (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← path (← field j "spectrum")) (← polyExpr Limits.algebraNesting (← field j "localize"))
+      (← polyExpr Limits.algebraNesting (← field j "witness")) (← certificateExponent (← str j "exponent"))
   | "affine" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     fields j (common ++ ["implementation", "generators", "relations", "base", "bindings"])

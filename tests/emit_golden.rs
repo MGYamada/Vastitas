@@ -229,6 +229,21 @@ const WIRE_OPERATIONS: &[(&str, Option<&str>)] = &[
     ("frame_at", Some("VastitasKernel.SmoothRuntime.fiberAt ")),
 ];
 
+/// The families of the generated table that no emit fixture declares yet:
+/// the observations of the Stage 5 skeleton (#806), which the kernel rejects
+/// until their registry entries are implemented. The registry lane of Stage 5
+/// gives each an entry of `WIRE_OPERATIONS` and a fixture and removes it from
+/// this list; `generated_lean_matches_the_emit_fixtures` fails until it does
+/// both, since it requires each of them to be in the table, absent from
+/// `WIRE_OPERATIONS` and declared by no fixture.
+const UNEMITTED: &[&str] = &[
+    "annihilates",
+    "action_entry",
+    "on_branch",
+    "branch_differential",
+    "branch_projector",
+];
+
 /// The `op` of every `primitive` declaration anywhere in a wire request.
 fn primitive_operations(value: &Value, found: &mut BTreeSet<String>) {
     match value {
@@ -350,6 +365,7 @@ fn generated_lean_matches_the_emit_fixtures() {
     let mut families: Vec<&str> = vastitas::indexed::primitive_families()
         .iter()
         .map(|family| family.op)
+        .filter(|op| !UNEMITTED.contains(op))
         .collect();
     listed.sort_unstable();
     families.sort_unstable();
@@ -366,6 +382,14 @@ fn generated_lean_matches_the_emit_fixtures() {
     let mut all = declared.clone();
     for (_, manifest, version) in FRAME_CASES {
         primitive_operations(&request(manifest, *version), &mut all);
+    }
+    for op in UNEMITTED {
+        assert!(
+            vastitas::indexed::primitive_family(op).is_some(),
+            "{op} is not in the table"
+        );
+        assert!(!listed.contains(op), "{op} is in WIRE_OPERATIONS");
+        assert!(!all.contains(*op), "an emit fixture declares {op}");
     }
     let expected: BTreeSet<String> = WIRE_OPERATIONS
         .iter()

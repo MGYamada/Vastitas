@@ -36,6 +36,9 @@ lake -d lean-kernel build \
   VastitasKernel.FrameDeclarationRegression \
   VastitasKernel.NatureRegression \
   VastitasKernel.FrameRegression \
+  VastitasKernel.SpectralRuntimeRegression \
+  VastitasKernel.SpectralDeclarationRegression \
+  VastitasKernel.SpectralRegression \
   VastitasKernel.IndexedSourceTypeRegression \
   VastitasKernel.IndexedSourceBodyRegression \
   VastitasKernel.IndexedFunctionRegression \
@@ -69,5 +72,6 @@ lake -d lean-kernel build \
   VastitasAlgebraTest.SmoothReferenceRegression \
   VastitasAlgebraTest.ReverseExampleRegression \
   VastitasAlgebraTest.FrameReferenceRegression \
+  VastitasAlgebraTest.SpectralReferenceRegression \
   VastitasPromotion.Regression \
   VastitasPromotion.IndexedRegression

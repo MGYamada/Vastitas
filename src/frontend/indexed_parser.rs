@@ -282,20 +282,25 @@ impl Parser {
         Ok(values)
     }
 
-    /// `, n`: the natural field `field` of `op`, an unsigned decimal literal
-    /// with at most as many digits as the kernel's decoder admits
-    /// (`algebraCoefficientDigits`), as for polynomial literals. The digits
-    /// go to the wire as written.
+    /// `, n`: the natural field `field` of `op` (`natural_literal`).
     fn indexed_natural(
         &mut self,
         op: &str,
         field: &'static str,
     ) -> Result<(&'static str, WireValue), Diagnostic> {
         self.expect(",")?;
+        Ok((field, WireValue::Natural(self.natural_literal(op, field)?)))
+    }
+
+    /// The natural `field` of `op`: an unsigned decimal literal with at most
+    /// as many digits as the kernel's decoder admits
+    /// (`algebraCoefficientDigits`), as for polynomial literals. The digits
+    /// go to the wire as written; the kernel applies every other bound.
+    fn natural_literal(&mut self, op: &str, field: &str) -> Result<String, Diagnostic> {
         let token = self.advance();
         match token.kind {
             TokenKind::Number(digits) if digits.len() <= crate::limits::MAX_ALGEBRA_DIGITS => {
-                Ok((field, WireValue::Natural(digits)))
+                Ok(digits)
             }
             TokenKind::Number(_) => Err(diagnostic(
                 "E_LIMIT",
@@ -313,6 +318,49 @@ impl Parser {
                 token.span,
             )),
         }
+    }
+
+    /// `Smooth, spectrum = S, element = f`: the leading fields of the module
+    /// observations `annihilates` and `action_entry`. The spectrum and the
+    /// element of `A[t]` are named explicitly; the element is a polynomial
+    /// in the coordinates of the object and the fiber coordinate.
+    fn indexed_spectral_element(
+        &mut self,
+        op: &str,
+    ) -> Result<Vec<(&'static str, WireValue)>, Diagnostic> {
+        let mut fields = self.indexed_paths(&["map_family"])?;
+        let spectrum = self.indexed_selection(op, "spectrum", "an explicit spectrum")?;
+        fields.push(("spectrum", WireValue::Path(spectrum)));
+        self.indexed_keyword(op, "element", "an explicit element")?;
+        fields.push(("element", WireValue::Polynomial(self.polynomial()?)));
+        Ok(fields)
+    }
+
+    /// `, branch = B`: the branch that a branch observation names.
+    fn indexed_branch_field(&mut self, op: &str) -> Result<(&'static str, WireValue), Diagnostic> {
+        let branch = self.indexed_selection(op, "branch", "an explicit branch")?;
+        Ok(("branch", WireValue::Path(branch)))
+    }
+
+    /// `, e_i, e_j`: the row and the column of an observed matrix entry, each
+    /// a basis name of the free module, as written in its `basis(…)`.
+    fn indexed_basis_entry(
+        &mut self,
+        op: &str,
+    ) -> Result<Vec<(&'static str, WireValue)>, Diagnostic> {
+        let mut fields = Vec::with_capacity(2);
+        for field in ["row", "column"] {
+            self.expect(",")?;
+            if !matches!(self.peek().kind, TokenKind::Name(_)) {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    format!("the {field} of `{op}` is a basis name, as in `e1`"),
+                    self.peek().span,
+                ));
+            }
+            fields.push((field, WireValue::Coordinate(self.name()?.0)));
+        }
+        Ok(fields)
     }
 
     /// One arm per surface form. An op that the generated table
@@ -444,6 +492,36 @@ impl Parser {
             }
             "frame_equal" => self.indexed_paths(&["family"])?,
             "frame_at" => self.indexed_paths(&["family", "map_family"])?,
+            // Stage 5 (#806): the spectrum or the branch that an observation
+            // embeds, and the element of `A[t]` it observes, are named
+            // explicitly, `spectrum =`, `element =` and `branch =`.
+            "annihilates" => self.indexed_spectral_element("annihilates")?,
+            "action_entry" => {
+                let mut fields = self.indexed_spectral_element("action_entry")?;
+                fields.extend(self.indexed_basis_entry("action_entry")?);
+                fields
+            }
+            "on_branch" => {
+                let mut fields = self.indexed_paths(&["map_family", "line"])?;
+                fields.push(self.indexed_branch_field("on_branch")?);
+                fields
+            }
+            "branch_differential" => {
+                // The source names the families of the operands, `Smooth,
+                // Line`, as every branch observation does, and then the
+                // cotangent family of the result. The wire keeps the order
+                // of `differential`: the cotangent family before the line.
+                let mut fields = self.indexed_paths(&["map_family", "line", "cotangent"])?;
+                fields.swap(1, 2);
+                fields.push(self.indexed_branch_field("branch_differential")?);
+                fields
+            }
+            "branch_projector" => {
+                let mut fields = self.indexed_paths(&["map_family", "line"])?;
+                fields.push(self.indexed_branch_field("branch_projector")?);
+                fields.extend(self.indexed_basis_entry("branch_projector")?);
+                fields
+            }
             // A table op without a surface arm; the per-entry test fails.
             _ => return Err(unknown()),
         };
@@ -534,10 +612,14 @@ impl Parser {
                     "frame_map" => indexed::FamilyRepresentation::FrameMap,
                     "reading" => indexed::FamilyRepresentation::Reading,
                     "physical_metric" => indexed::FamilyRepresentation::PhysicalMetric,
+                    "free_module" => indexed::FamilyRepresentation::FreeModule,
+                    "endomorphism" => indexed::FamilyRepresentation::Endomorphism,
+                    "spectrum" => indexed::FamilyRepresentation::Spectrum,
+                    "branch" => indexed::FamilyRepresentation::Branch,
                     _ => {
                         return Err(diagnostic(
                             "E_TYPE",
-                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
                             span,
                         ));
                     }
@@ -598,6 +680,10 @@ impl Parser {
                 }
             }
             "physical" => self.indexed_physical()?,
+            "free_module" => self.indexed_free_module()?,
+            "endomorphism" => self.indexed_endomorphism()?,
+            "spectrum" => self.indexed_spectrum()?,
+            "branch" => self.indexed_branch()?,
             "evidence" => {
                 self.expect("=")?;
                 let span = self.peek().span;
@@ -874,7 +960,9 @@ impl Parser {
         Ok((family, indices))
     }
 
-    /// `: Family<X, Y, S> = pullback(y -> p, ...) | identity | structure`
+    /// `: Family<X, Y, S> = pullback(y -> p, ...) | identity | structure`, and
+    /// the other definitions: `first`, `second`, `restrict(φ)`,
+    /// `trace_power(H, k)` and `char_coefficient(S, i)`.
     fn indexed_morphism(&mut self) -> Result<DeclarationBody, Diagnostic> {
         let (family, indices) = self.indexed_application()?;
         let span = self.peek().span;
@@ -891,6 +979,27 @@ impl Parser {
                 let morphism = self.type_path()?;
                 self.expect(")")?;
                 indexed::MorphismDefinition::Restrict { morphism }
+            }
+            // Stage 5 (#806): the invariants of an endomorphism and of a
+            // spectrum, with their natural argument as written.
+            "trace_power" => {
+                self.expect("(")?;
+                let endomorphism = self.type_path()?;
+                self.expect(",")?;
+                let power = self.natural_literal("trace_power", "power")?;
+                self.expect(")")?;
+                indexed::MorphismDefinition::TracePower {
+                    endomorphism,
+                    power,
+                }
+            }
+            "char_coefficient" => {
+                self.expect("(")?;
+                let spectrum = self.type_path()?;
+                self.expect(",")?;
+                let index = self.natural_literal("char_coefficient", "index")?;
+                self.expect(")")?;
+                indexed::MorphismDefinition::CharCoefficient { spectrum, index }
             }
             _ => {
                 return Err(diagnostic(
@@ -1180,15 +1289,101 @@ impl Parser {
         })
     }
 
-    /// `, keyword = path`: the metric or evidence that `flat` and `sharp`
-    /// name explicitly, the reading that `interpret` names, and the frames
-    /// of the frame primitives. No default is ever selected.
-    fn indexed_selection(
+    /// `: Family<X> = basis(e1, …)`: a free module with its named ordered
+    /// basis, in source order. The kernel checks the names and the rank.
+    fn indexed_free_module(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("basis")?;
+        let basis = self.delimited_list("(", ")", |p| Ok(p.name()?.0))?;
+        Ok(DeclarationBody::FreeModule {
+            family,
+            indices,
+            basis,
+        })
+    }
+
+    /// `: Family<X> = rows((p, …), …) of V [symmetric]`: an endomorphism of
+    /// the free module `V`, each row a parenthesized tuple of polynomials in
+    /// the coordinates of `X`, in source order. `symmetric` is the claim
+    /// H = Hᵀ, which the kernel checks; without it the claim is not made.
+    fn indexed_endomorphism(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("rows")?;
+        let rows = self.delimited_list("(", ")", |p| {
+            if !p.peek().is("(") {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "an endomorphism row is a parenthesized tuple of entries, as in `rows((x, y), (y, -x))`",
+                    p.peek().span,
+                ));
+            }
+            p.delimited_list("(", ")", Self::polynomial)
+        })?;
+        self.expect("of")?;
+        let module = self.type_path()?;
+        let symmetric = self.consume("symmetric");
+        Ok(DeclarationBody::Endomorphism {
+            family,
+            indices,
+            module,
+            rows,
+            symmetric,
+        })
+    }
+
+    /// `: Family<X> = eigen(H, t)`: the spectrum of the endomorphism `H`,
+    /// whose fiber coordinate is named `t`. The wire carries no certificate.
+    fn indexed_spectrum(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("eigen")?;
+        self.expect("(")?;
+        let endomorphism = self.type_path()?;
+        self.expect(",")?;
+        let fiber = self.name()?.0;
+        self.expect(")")?;
+        Ok(DeclarationBody::Spectrum {
+            family,
+            indices,
+            endomorphism,
+            fiber,
+        })
+    }
+
+    /// `: Family<X> = simple(S, localize = g, witness = W, exponent = e)`: a
+    /// simple branch of the spectrum `S` on the principal open of `g`, with
+    /// its gap witness `W` and the exponent `e`, each named explicitly and
+    /// in this order. The wire carries no quotient.
+    fn indexed_branch(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("simple")?;
+        self.expect("(")?;
+        let spectrum = self.type_path()?;
+        self.indexed_keyword("simple", "localize", "an explicit localization")?;
+        let localize = self.polynomial()?;
+        self.indexed_keyword("simple", "witness", "an explicit gap witness")?;
+        let witness = self.polynomial()?;
+        self.indexed_keyword("simple", "exponent", "an explicit exponent")?;
+        let exponent = self.natural_literal("simple", "exponent")?;
+        self.expect(")")?;
+        Ok(DeclarationBody::Branch {
+            family,
+            indices,
+            spectrum,
+            localize,
+            witness,
+            exponent,
+        })
+    }
+
+    /// `, keyword =`: the start of a field that `operation` names explicitly.
+    /// A missing keyword is `E_PARSE` naming it, at the token where the
+    /// field was expected. No default is ever selected.
+    fn indexed_keyword(
         &mut self,
         operation: &str,
         keyword: &str,
         what: &str,
-    ) -> Result<TypePath, Diagnostic> {
+    ) -> Result<(), Diagnostic> {
         let token = self.peek().clone();
         if !(self.consume(",") && self.consume(keyword)) {
             return Err(diagnostic(
@@ -1198,6 +1393,20 @@ impl Parser {
             ));
         }
         self.expect("=")?;
+        Ok(())
+    }
+
+    /// `, keyword = path` (`indexed_keyword`): the metric or evidence that
+    /// `flat` and `sharp` name explicitly, the reading that `interpret`
+    /// names, the frames of the frame primitives, and the spectrum or branch
+    /// of the spectral observations.
+    fn indexed_selection(
+        &mut self,
+        operation: &str,
+        keyword: &str,
+        what: &str,
+    ) -> Result<TypePath, Diagnostic> {
+        self.indexed_keyword(operation, keyword, what)?;
         self.type_path()
     }
 
@@ -1405,21 +1614,7 @@ fn poly_levels(expression: &indexed::PolyExpr) -> usize {
 mod tests {
     use super::*;
 
-    /// The families of the generated table that have no surface form yet:
-    /// the observations of the Stage 5 skeleton (#806). The parser lane of
-    /// Stage 5 adds their arms and snippets and removes them from this list;
-    /// `every_table_entry_parses_to_its_wire_fields` fails until it does
-    /// both, since it requires each of them to be the unknown contract.
-    const UNPARSED: &[&str] = &[
-        "annihilates",
-        "action_entry",
-        "on_branch",
-        "branch_differential",
-        "branch_projector",
-    ];
-
-    /// One surface form per family of the generated table, in table order,
-    /// except the families of `UNPARSED`.
+    /// One surface form per family of the generated table, in table order.
     const SNIPPETS: &[(&str, &str)] = &[
         ("descriptor", "descriptor(AffineQQ)"),
         ("global", "global(SpecQQ)"),
@@ -1480,6 +1675,23 @@ mod tests {
         ("frame_entry", "frame_entry(FrameMap, 0, 1)"),
         ("frame_equal", "frame_equal(Coords)"),
         ("frame_at", "frame_at(Coords, Smooth)"),
+        (
+            "annihilates",
+            "annihilates(Smooth, spectrum = S, element = t - 2)",
+        ),
+        (
+            "action_entry",
+            "action_entry(Smooth, spectrum = S, element = t - 2, e1, e2)",
+        ),
+        ("on_branch", "on_branch(Smooth, Line, branch = B)"),
+        (
+            "branch_differential",
+            "branch_differential(Smooth, Line, Cotangent, branch = B)",
+        ),
+        (
+            "branch_projector",
+            "branch_projector(Smooth, Line, branch = B, e1, e2)",
+        ),
     ];
 
     /// The one indexed declaration of a package module.
@@ -1517,25 +1729,16 @@ mod tests {
     /// algebraic.
     #[test]
     fn every_table_entry_parses_to_its_wire_fields() {
-        let parsed = || {
-            indexed::primitive_families()
-                .iter()
-                .filter(|family| !UNPARSED.contains(&family.op))
-        };
-        let table: Vec<&str> = parsed().map(|family| family.op).collect();
+        let table: Vec<&str> = indexed::primitive_families()
+            .iter()
+            .map(|family| family.op)
+            .collect();
         let snippets: Vec<&str> = SNIPPETS.iter().map(|(op, _)| *op).collect();
         assert_eq!(
             snippets, table,
             "one snippet per table entry, in table order"
         );
-        for op in UNPARSED {
-            assert!(indexed::primitive_family(op).is_some(), "{op}");
-            let source = format!("indexed primitive p = {op}(Smooth);");
-            let error = parse_binding(&source).expect_err(op);
-            assert_eq!(error.code, "E_TYPE", "{op}");
-            assert_eq!(error.message, "unknown indexed primitive contract", "{op}");
-        }
-        for (family, (_, snippet)) in parsed().zip(SNIPPETS) {
+        for (family, (_, snippet)) in indexed::primitive_families().iter().zip(SNIPPETS) {
             let source = format!("indexed primitive p = {snippet};");
             let binding = parse_binding(&source)
                 .unwrap_or_else(|error| panic!("`{snippet}` does not parse: {error:?}"));
@@ -1884,6 +2087,325 @@ mod tests {
                 Some(error.span.start),
                 "{source}: {error:?}"
             );
+        }
+    }
+
+    /// Asserts that `source` is rejected with exactly `code` and `message` at
+    /// the token `place`, where `context` starts with `place`, occurs once in
+    /// `source` and starts at the place, so a `,` or `)` place is the one
+    /// meant.
+    #[track_caller]
+    fn assert_rejected_at(source: &str, code: &str, message: &str, place: &str, context: &str) {
+        let error = parse_declaration(source).expect_err(source);
+        assert_eq!(
+            (error.code.as_str(), error.message.as_str()),
+            (code, message),
+            "{source}"
+        );
+        assert_eq!(
+            &source[error.span.start..error.span.end],
+            place,
+            "{source}: {error:?}"
+        );
+        assert_eq!(source.matches(context).count(), 1, "{source}: {context}");
+        assert!(context.starts_with(place), "{source}: {context}");
+        assert_eq!(
+            source.find(context),
+            Some(error.span.start),
+            "{source}: {error:?}"
+        );
+    }
+
+    /// A parsed declaration serializes to the wire and reads back as itself,
+    /// spans included.
+    #[track_caller]
+    fn assert_round_trip(declaration: &indexed::Declaration) {
+        let wire = serde_json::to_value(declaration).unwrap();
+        let read: indexed::Declaration = serde_json::from_value(wire).unwrap();
+        assert_eq!(&read, declaration);
+    }
+
+    fn sum(terms: Vec<Value>) -> Value {
+        json!({ "op": "sum", "terms": terms })
+    }
+
+    fn product(factors: Vec<Value>) -> Value {
+        json!({ "op": "product", "factors": factors })
+    }
+
+    fn neg(operand: Value) -> Value {
+        json!({ "op": "neg", "operand": operand })
+    }
+
+    fn pow(base: Value, exponent: &str) -> Value {
+        json!({ "op": "pow", "base": base, "exponent": exponent })
+    }
+
+    /// The observations of Stage 5 (#806), each with the binding that the
+    /// kernel's protocol-9 decoder reads: the positional fields, the
+    /// spectrum or branch and the element under their keywords, and the row
+    /// and the column as basis names. The source lists the families of a
+    /// branch observation as `Smooth, Line[, Cotangent]`; the wire keeps the
+    /// table's order. Every one is algebraic, so it selects protocol 9.
+    #[test]
+    fn every_spectral_primitive_parses_to_its_wire_record() {
+        let shifted = || sum(vec![coordinate("t"), neg(n("2"))]);
+        let cases: Vec<(&str, Value)> = vec![
+            (
+                "indexed primitive ann = annihilates(Smooth, spectrum = S, element = t - 2);",
+                json!({ "op": "annihilates", "map_family": p("Smooth"), "spectrum": p("S"),
+                    "element": shifted() }),
+            ),
+            (
+                "indexed primitive act = action_entry(Smooth, spectrum = S, element = t - 2, e1, e2);",
+                json!({ "op": "action_entry", "map_family": p("Smooth"), "spectrum": p("S"),
+                    "element": shifted(), "row": "e1", "column": "e2" }),
+            ),
+            (
+                "indexed primitive on = on_branch(Smooth, Line, branch = B);",
+                json!({ "op": "on_branch", "map_family": p("Smooth"), "line": p("Line"),
+                    "branch": p("B") }),
+            ),
+            (
+                "indexed primitive dl = branch_differential(Smooth, Line, Cotangent, branch = B);",
+                json!({ "op": "branch_differential", "map_family": p("Smooth"),
+                    "cotangent": p("Cotangent"), "line": p("Line"), "branch": p("B") }),
+            ),
+            (
+                "indexed primitive pr = branch_projector(Smooth, Line, branch = B, e1, e2);",
+                json!({ "op": "branch_projector", "map_family": p("Smooth"), "line": p("Line"),
+                    "branch": p("B"), "row": "e1", "column": "e2" }),
+            ),
+            // Qualified paths; an element in the chart coordinates and the
+            // fiber coordinate, kept as written; a diagonal entry.
+            (
+                "indexed primitive ann = annihilates(geo::Smooth, spectrum = spectral::S, element = frac(-1, 2) * t^2 + x * t + 1);",
+                json!({ "op": "annihilates", "map_family": { "path": ["geo", "Smooth"] },
+                    "spectrum": { "path": ["spectral", "S"] },
+                    "element": sum(vec![
+                        product(vec![fraction("-1", "2"), pow(coordinate("t"), "2")]),
+                        product(vec![coordinate("x"), coordinate("t")]),
+                        n("1"),
+                    ]) }),
+            ),
+            (
+                "indexed primitive act = action_entry(Smooth, spectrum = S, element = 0, e2, e2);",
+                json!({ "op": "action_entry", "map_family": p("Smooth"), "spectrum": p("S"),
+                    "element": n("0"), "row": "e2", "column": "e2" }),
+            ),
+            (
+                "indexed primitive dl = branch_differential(geo::Smooth, geo::Line, geo::Cotangent, branch = super::B);",
+                json!({ "op": "branch_differential",
+                    "map_family": { "path": ["geo", "Smooth"] },
+                    "cotangent": { "path": ["geo", "Cotangent"] },
+                    "line": { "path": ["geo", "Line"] }, "branch": { "path": ["super", "B"] } }),
+            ),
+        ];
+        for (source, expected) in cases {
+            let declaration = parse_declaration(source)
+                .unwrap_or_else(|error| panic!("`{source}` does not parse: {error:?}"));
+            assert!(declaration.body.is_algebraic(), "{source}");
+            let record = without_spans(serde_json::to_value(&declaration.body).unwrap());
+            assert_eq!(
+                record,
+                json!({ "kind": "primitive", "binding": expected }),
+                "{source}"
+            );
+            assert_eq!(
+                &source[declaration.span.start..declaration.span.end],
+                source
+            );
+            assert_round_trip(&declaration);
+        }
+        // The cotangent family precedes the line on the wire, as for
+        // `differential`.
+        let binding = parse_binding(
+            "indexed primitive dl = branch_differential(Smooth, Line, Cotangent, branch = B);",
+        )
+        .unwrap();
+        let order: Vec<&str> = binding.fields().map(|(name, _)| name).collect();
+        assert_eq!(order, ["map_family", "cotangent", "line", "branch"]);
+    }
+
+    /// Malformed observations are rejected at the offending token: a missing
+    /// keyword, a row or column that is no basis name, and a wrong number of
+    /// fields. The polynomial limits of the element are those of every
+    /// polynomial.
+    #[test]
+    fn malformed_spectral_primitives_are_rejected_at_their_place() {
+        let long = "9".repeat(crate::limits::MAX_ALGEBRA_DIGITS + 1);
+        let long_element = format!(
+            "indexed primitive p = annihilates(Smooth, spectrum = S, element = t - {long});"
+        );
+        let spectrum = "`annihilates` needs an explicit spectrum: write `spectrum = …`";
+        let element = "`annihilates` needs an explicit element: write `element = …`";
+        let branch = |op: &str| format!("`{op}` needs an explicit branch: write `branch = …`");
+        let on_branch = branch("on_branch");
+        let differential = branch("branch_differential");
+        let projector = branch("branch_projector");
+        let cases: Vec<(&str, &str, &str, &str, &str)> = vec![
+            // The spectrum, then the element, each under its keyword.
+            (
+                "indexed primitive p = annihilates(Smooth, S, element = t);",
+                "E_PARSE",
+                spectrum,
+                ",",
+                ", S,",
+            ),
+            (
+                "indexed primitive p = annihilates(Smooth, element = t, spectrum = S);",
+                "E_PARSE",
+                spectrum,
+                ",",
+                ", element",
+            ),
+            (
+                "indexed primitive p = annihilates(Smooth, spectrum = S);",
+                "E_PARSE",
+                element,
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = annihilates(Smooth, spectrum = S, t - 2);",
+                "E_PARSE",
+                element,
+                ",",
+                ", t - 2",
+            ),
+            (
+                "indexed primitive p = annihilates(Smooth, spectrum = S, element t);",
+                "E_PARSE",
+                "expected `=`, found `t`",
+                "t",
+                "t);",
+            ),
+            (
+                "indexed primitive p = annihilates(Smooth, spectrum = S, element = );",
+                "E_PARSE",
+                "expected an identifier",
+                ")",
+                ");",
+            ),
+            (
+                &long_element,
+                "E_LIMIT",
+                "polynomial literals have at most 64 decimal digits",
+                &long,
+                &long,
+            ),
+            (
+                "indexed primitive p = annihilates(Smooth, spectrum = S, element = t, e1);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", e1",
+            ),
+            // The row and the column are basis names, positional.
+            (
+                "indexed primitive p = action_entry(Smooth, spectrum = S, element = t, e1);",
+                "E_PARSE",
+                "expected `,`, found `)`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = action_entry(Smooth, spectrum = S, element = t, 0, 1);",
+                "E_PARSE",
+                "the row of `action_entry` is a basis name, as in `e1`",
+                "0",
+                "0, 1",
+            ),
+            (
+                "indexed primitive p = action_entry(Smooth, spectrum = S, element = t, e1, -e2);",
+                "E_PARSE",
+                "the column of `action_entry` is a basis name, as in `e1`",
+                "-",
+                "-e2",
+            ),
+            (
+                "indexed primitive p = action_entry(Smooth, spectrum = S, element = t, row = e1, e2);",
+                "E_PARSE",
+                "expected `,`, found `=`",
+                "=",
+                "= e1",
+            ),
+            (
+                "indexed primitive p = action_entry(Smooth, spectrum = S, element = t, V::e1, e2);",
+                "E_PARSE",
+                "expected `,`, found `::`",
+                "::",
+                "::e1",
+            ),
+            (
+                "indexed primitive p = action_entry(Smooth, spectrum = S, element = t, e1, e2, e3);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", e3",
+            ),
+            // The branch, under its keyword, after the families.
+            (
+                "indexed primitive p = on_branch(Smooth, Line, B);",
+                "E_PARSE",
+                &on_branch,
+                ",",
+                ", B)",
+            ),
+            // Without its line, `branch` is read as the line family, and the
+            // branch is missing.
+            (
+                "indexed primitive p = on_branch(Smooth, branch = B);",
+                "E_PARSE",
+                &on_branch,
+                "=",
+                "= B",
+            ),
+            (
+                "indexed primitive p = on_branch(Smooth, Line, branch = B, e1);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", e1",
+            ),
+            (
+                "indexed primitive p = branch_differential(Smooth, Line, Cotangent);",
+                "E_PARSE",
+                &differential,
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = branch_differential(Smooth, Line, branch = B);",
+                "E_PARSE",
+                &differential,
+                "=",
+                "= B",
+            ),
+            (
+                "indexed primitive p = branch_projector(Smooth, Line, branch = B);",
+                "E_PARSE",
+                "expected `,`, found `)`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed primitive p = branch_projector(Smooth, Line, e1, e2, branch = B);",
+                "E_PARSE",
+                &projector,
+                ",",
+                ", e1",
+            ),
+            (
+                "indexed primitive p = branch_projector(Smooth, Line, branch = B, e1, 2);",
+                "E_PARSE",
+                "the column of `branch_projector` is a basis name, as in `e1`",
+                "2",
+                "2)",
+            ),
+        ];
+        for (source, code, message, place, context) in cases {
+            assert_rejected_at(source, code, message, place, context);
         }
     }
 
@@ -2329,7 +2851,7 @@ mod tests {
             (
                 "indexed family F(object(CInfAffine)) = frames constraints(canonical(0));",
                 "E_TYPE",
-                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
                 "frames",
             ),
             (
@@ -2470,4 +2992,524 @@ fn scale(physical: Int) -> Int { let interpret = physical; interpret }
             ["frame", "quantity", "reading", "of", "value", "inverse"]
         );
     }
+
+    /// Every Stage 5 declaration form (#806) with the record that the kernel's
+    /// protocol-9 decoder reads, spans omitted. The shapes are S1's
+    /// (`indexed::tests::every_spectral_form_serializes_to_its_wire_shape_and_is_algebraic`).
+    /// The frontend checks no spectral rule: an empty basis or empty rows,
+    /// and naturals of any size up to the decoder's digit bound, are sent as
+    /// written for the kernel to judge.
+    fn stage5_declarations() -> Vec<(String, Value)> {
+        let family = |representation: &str| {
+            json!({ "kind": "family",
+                "parameters": [{ "kind": "object", "domain": p("CInfAffine") }],
+                "constraints": [{ "kind": "canonical", "object": 0 }],
+                "representation": representation })
+        };
+        let free_module = |object: &str, basis: Value| {
+            json!({ "kind": "free_module", "family": p("FreeModule"), "indices": [p(object)],
+                "basis": basis })
+        };
+        let endomorphism = |object: &str, module: &str, rows: Value, symmetric: bool| {
+            json!({ "kind": "endomorphism", "family": p("Endomorphism"), "indices": [p(object)],
+                "module": p(module), "rows": rows, "symmetric": symmetric })
+        };
+        let invariant = |definition: Value| {
+            json!({ "kind": "morphism", "family": p("Smooth"),
+                "indices": [p("Plane"), p("Line")], "definition": definition })
+        };
+        let widest = "9".repeat(crate::limits::MAX_ALGEBRA_DIGITS);
+        let x = || coordinate("x");
+        let y = || coordinate("y");
+        let mut cases: Vec<(String, Value)> = vec![
+            (
+                "indexed family FreeModule(object(CInfAffine)) = free_module constraints(canonical(0));".into(),
+                family("free_module"),
+            ),
+            (
+                "indexed family Endomorphism(object(CInfAffine)) = endomorphism constraints(canonical(0));".into(),
+                family("endomorphism"),
+            ),
+            (
+                "indexed family Spectrum(object(CInfAffine)) = spectrum constraints(canonical(0));".into(),
+                family("spectrum"),
+            ),
+            (
+                "indexed family Branch(object(CInfAffine)) = branch constraints(canonical(0));".into(),
+                family("branch"),
+            ),
+            (
+                "indexed free_module V: FreeModule<Plane> = basis(e1, e2);".into(),
+                free_module("Plane", json!(["e1", "e2"])),
+            ),
+            (
+                "indexed free_module W: FreeModule<Pt> = basis();".into(),
+                free_module("Pt", json!([])),
+            ),
+            (
+                "indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric;"
+                    .into(),
+                endomorphism(
+                    "Plane",
+                    "V",
+                    json!([[x(), y()], [y(), neg(x())]]),
+                    true,
+                ),
+            ),
+            // Without `symmetric` no claim is made.
+            (
+                "indexed endomorphism J: Endomorphism<Pt> = rows((2, 1), (0, 2)) of V;".into(),
+                endomorphism(
+                    "Pt",
+                    "V",
+                    json!([[n("2"), n("1")], [n("0"), n("2")]]),
+                    false,
+                ),
+            ),
+            (
+                "indexed endomorphism Z: Endomorphism<Pt> = rows() of W;".into(),
+                endomorphism("Pt", "W", json!([]), false),
+            ),
+            (
+                "indexed endomorphism Q: geo::Endomorphism<geo::Plane> = rows((x^2 * y, frac(1, 3))) of spectral::V symmetric;".into(),
+                json!({ "kind": "endomorphism", "family": { "path": ["geo", "Endomorphism"] },
+                    "indices": [{ "path": ["geo", "Plane"] }],
+                    "module": { "path": ["spectral", "V"] },
+                    "rows": [[product(vec![pow(x(), "2"), y()]), fraction("1", "3")]],
+                    "symmetric": true }),
+            ),
+            (
+                "indexed spectrum S: Spectrum<Plane> = eigen(H, t);".into(),
+                json!({ "kind": "spectrum", "family": p("Spectrum"), "indices": [p("Plane")],
+                    "endomorphism": p("H"), "fiber": "t" }),
+            ),
+            (
+                "indexed spectrum S: Spectrum<Plane> = eigen(spectral::H, lambda);".into(),
+                json!({ "kind": "spectrum", "family": p("Spectrum"), "indices": [p("Plane")],
+                    "endomorphism": { "path": ["spectral", "H"] }, "fiber": "lambda" }),
+            ),
+            (
+                "indexed branch B: Branch<Plane> = simple(S, localize = x^2 + y^2, witness = frac(1, 2) * t, exponent = 1);".into(),
+                json!({ "kind": "branch", "family": p("Branch"), "indices": [p("Plane")],
+                    "spectrum": p("S"),
+                    "localize": sum(vec![pow(x(), "2"), pow(y(), "2")]),
+                    "witness": product(vec![fraction("1", "2"), coordinate("t")]),
+                    "exponent": "1" }),
+            ),
+            (
+                "indexed morphism tr2: Smooth<Plane, Line> = trace_power(H, 2);".into(),
+                invariant(json!({ "kind": "trace_power", "endomorphism": p("H"), "power": "2" })),
+            ),
+            (
+                "indexed morphism c0: Smooth<Plane, Line> = char_coefficient(S, 0);".into(),
+                invariant(json!({ "kind": "char_coefficient", "spectrum": p("S"), "index": "0" })),
+            ),
+            // Naturals are kept as written, up to the decoder's digit bound.
+            (
+                "indexed morphism tr: Smooth<Plane, Line> = trace_power(spectral::H, 007);".into(),
+                invariant(json!({ "kind": "trace_power",
+                    "endomorphism": { "path": ["spectral", "H"] }, "power": "007" })),
+            ),
+        ];
+        cases.push((
+            format!("indexed morphism tr: Smooth<Plane, Line> = trace_power(H, {widest});"),
+            invariant(json!({ "kind": "trace_power", "endomorphism": p("H"), "power": widest })),
+        ));
+        cases.push((
+            format!("indexed morphism c: Smooth<Plane, Line> = char_coefficient(S, {widest});"),
+            invariant(json!({ "kind": "char_coefficient", "spectrum": p("S"), "index": widest })),
+        ));
+        cases.push((
+            format!(
+                "indexed branch B: Branch<Plane> = simple(S, localize = 1, witness = 1, exponent = {widest});"
+            ),
+            json!({ "kind": "branch", "family": p("Branch"), "indices": [p("Plane")],
+                "spectrum": p("S"), "localize": n("1"), "witness": n("1"),
+                "exponent": widest }),
+        ));
+        cases
+    }
+
+    /// Each Stage 5 declaration form parses to the record of its S1 wire
+    /// shape, which exists only in protocol 9, and reads back as itself.
+    #[test]
+    fn every_stage5_declaration_parses_to_its_wire_record() {
+        for (source, expected) in stage5_declarations() {
+            let declaration = parse_declaration(&source)
+                .unwrap_or_else(|error| panic!("`{source}` does not parse: {error:?}"));
+            assert!(declaration.body.is_algebraic(), "{source}");
+            let record = without_spans(serde_json::to_value(&declaration.body).unwrap());
+            assert_eq!(record, expected, "{source}");
+            assert_eq!(
+                &source[declaration.span.start..declaration.span.end],
+                source
+            );
+            assert_round_trip(&declaration);
+        }
+    }
+
+    /// Malformed Stage 5 declarations are rejected at the offending token.
+    #[test]
+    fn malformed_stage5_declarations_are_rejected_at_their_place() {
+        let long = "9".repeat(crate::limits::MAX_ALGEBRA_DIGITS + 1);
+        let long_power =
+            format!("indexed morphism tr: Smooth<Plane, Line> = trace_power(H, {long});");
+        let long_index =
+            format!("indexed morphism c: Smooth<Plane, Line> = char_coefficient(S, {long});");
+        let long_exponent = format!(
+            "indexed branch B: Branch<Plane> = simple(S, localize = g, witness = t, exponent = {long});"
+        );
+        let row = "an endomorphism row is a parenthesized tuple of entries, as in `rows((x, y), (y, -x))`";
+        let exponent =
+            "the exponent of `simple` is a natural literal, written as an unsigned integer";
+        let power =
+            "the power of `trace_power` is a natural literal, written as an unsigned integer";
+        let cases: Vec<(&str, &str, &str, &str, &str)> = vec![
+            // A free module lists its basis names in `basis(…)`.
+            (
+                "indexed free_module V: FreeModule<Plane> = (e1, e2);",
+                "E_PARSE",
+                "expected `basis`, found `(`",
+                "(",
+                "(e1",
+            ),
+            (
+                "indexed free_module V: FreeModule<Plane> = basis[e1, e2];",
+                "E_PARSE",
+                "expected `(`, found `[`",
+                "[",
+                "[e1",
+            ),
+            (
+                "indexed free_module V: FreeModule<Plane> = basis(e1, 2);",
+                "E_PARSE",
+                "expected an identifier",
+                "2",
+                "2)",
+            ),
+            (
+                "indexed free_module V = basis(e1);",
+                "E_PARSE",
+                "expected `:`, found `=`",
+                "=",
+                "= basis",
+            ),
+            // An endomorphism has rows of tuples, then `of` its module, then
+            // at most the word `symmetric`.
+            (
+                "indexed endomorphism H: Endomorphism<Plane> = rows(x, y) of V;",
+                "E_PARSE",
+                row,
+                "x",
+                "x, y",
+            ),
+            (
+                "indexed endomorphism H: Endomorphism<Plane> = rows((x, y), y) of V;",
+                "E_PARSE",
+                row,
+                "y",
+                "y) of",
+            ),
+            (
+                "indexed endomorphism H: Endomorphism<Plane> = columns((x, y), (y, -x)) of V;",
+                "E_PARSE",
+                "expected `rows`, found `columns`",
+                "columns",
+                "columns",
+            ),
+            (
+                "indexed endomorphism H: Endomorphism<Plane> = symmetric rows((x, y), (y, -x)) of V;",
+                "E_PARSE",
+                "expected `rows`, found `symmetric`",
+                "symmetric",
+                "symmetric rows",
+            ),
+            (
+                "indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) V symmetric;",
+                "E_PARSE",
+                "expected `of`, found `V`",
+                "V",
+                "V symmetric",
+            ),
+            (
+                "indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetrical;",
+                "E_PARSE",
+                "expected `;`, found `symmetrical`",
+                "symmetrical",
+                "symmetrical",
+            ),
+            (
+                "indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric symmetric;",
+                "E_PARSE",
+                "expected `;`, found `symmetric`",
+                "symmetric",
+                "symmetric;",
+            ),
+            // A spectrum names its endomorphism and an unqualified fiber
+            // coordinate.
+            (
+                "indexed spectrum S: Spectrum<Plane> = spectrum(H, t);",
+                "E_PARSE",
+                "expected `eigen`, found `spectrum`",
+                "spectrum",
+                "spectrum(H",
+            ),
+            (
+                "indexed spectrum S: Spectrum<Plane> = eigen(H);",
+                "E_PARSE",
+                "expected `,`, found `)`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed spectrum S: Spectrum<Plane> = eigen(H, 2);",
+                "E_PARSE",
+                "expected an identifier",
+                "2",
+                "2)",
+            ),
+            (
+                "indexed spectrum S: Spectrum<Plane> = eigen(H, X::t);",
+                "E_PARSE",
+                "expected `)`, found `::`",
+                "::",
+                "::t",
+            ),
+            (
+                "indexed spectrum S: Spectrum<Plane> = eigen(H, t, s);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", s",
+            ),
+            // A branch names its localization, witness and exponent, in this
+            // order.
+            (
+                "indexed branch B: Branch<Plane> = simple(S, x^2 + y^2, witness = t, exponent = 1);",
+                "E_PARSE",
+                "`simple` needs an explicit localization: write `localize = …`",
+                ",",
+                ", x^2",
+            ),
+            (
+                "indexed branch B: Branch<Plane> = simple(S, localize = g, exponent = 1, witness = t);",
+                "E_PARSE",
+                "`simple` needs an explicit gap witness: write `witness = …`",
+                ",",
+                ", exponent",
+            ),
+            (
+                "indexed branch B: Branch<Plane> = simple(S, localize = g, witness = t);",
+                "E_PARSE",
+                "`simple` needs an explicit exponent: write `exponent = …`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed branch B: Branch<Plane> = simple(S, localize = g, witness = t, exponent = -1);",
+                "E_PARSE",
+                exponent,
+                "-",
+                "-1",
+            ),
+            (
+                "indexed branch B: Branch<Plane> = simple(S, localize = g, witness = t, exponent = frac(1, 2));",
+                "E_PARSE",
+                exponent,
+                "frac",
+                "frac",
+            ),
+            (
+                "indexed branch B: Branch<Plane> = simple(S, localize = g, witness = t, exponent = e);",
+                "E_PARSE",
+                exponent,
+                "e",
+                "e)",
+            ),
+            (
+                &long_exponent,
+                "E_LIMIT",
+                "the exponent of `simple` has at most 64 decimal digits",
+                &long,
+                &long,
+            ),
+            // No certificate is written in the source either.
+            (
+                "indexed branch B: Branch<Plane> = simple(S, localize = g, witness = t, exponent = 1, quotient = 0);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", quotient",
+            ),
+            // The invariants take their endomorphism or spectrum and a
+            // natural literal.
+            (
+                "indexed morphism tr: Smooth<Plane, Line> = trace_power(H);",
+                "E_PARSE",
+                "expected `,`, found `)`",
+                ")",
+                ");",
+            ),
+            (
+                "indexed morphism tr: Smooth<Plane, Line> = trace_power(H, k);",
+                "E_PARSE",
+                power,
+                "k",
+                "k)",
+            ),
+            (
+                "indexed morphism tr: Smooth<Plane, Line> = trace_power(H, -2);",
+                "E_PARSE",
+                power,
+                "-",
+                "-2",
+            ),
+            (
+                "indexed morphism tr: Smooth<Plane, Line> = trace_power(H, 2, 3);",
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", 3",
+            ),
+            (
+                "indexed morphism c: Smooth<Plane, Line> = char_coefficient(S, frac(1, 2));",
+                "E_PARSE",
+                "the index of `char_coefficient` is a natural literal, written as an unsigned integer",
+                "frac",
+                "frac",
+            ),
+            (
+                &long_power,
+                "E_LIMIT",
+                "the power of `trace_power` has at most 64 decimal digits",
+                &long,
+                &long,
+            ),
+            (
+                &long_index,
+                "E_LIMIT",
+                "the index of `char_coefficient` has at most 64 decimal digits",
+                &long,
+                &long,
+            ),
+            // The family tags list the new ones.
+            (
+                "indexed family F(object(CInfAffine)) = free_modules constraints(canonical(0));",
+                "E_TYPE",
+                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                "free_modules",
+                "free_modules",
+            ),
+            // A spectral family states its constraints.
+            (
+                "indexed family Spectrum(object(CInfAffine)) = spectrum;",
+                "E_PARSE",
+                "expected `constraints`, found `;`",
+                ";",
+                ";",
+            ),
+        ];
+        for (source, code, message, place, context) in cases {
+            assert_rejected_at(source, code, message, place, context);
+        }
+    }
+
+    /// The Stage 5 words are contextual: they are reserved nowhere, so
+    /// programs that use them as names keep parsing, and they name indexed
+    /// declarations, basis names and coordinates next to the new forms.
+    #[test]
+    fn stage5_words_remain_ordinary_names() {
+        for word in STAGE5_WORDS {
+            assert!(!super::super::reserved(word), "{word}");
+        }
+        let functions: String = STAGE5_WORDS
+            .iter()
+            .map(|w| format!("fn {w}(n: Int) -> Int {{ n }}\n"))
+            .collect();
+        let calls: Vec<String> = STAGE5_WORDS.iter().map(|w| format!("{w}(1)")).collect();
+        let named = format!("{functions}fn main() -> Int {{ {} }}\n", calls.join(" + "));
+        let parameters: Vec<String> = STAGE5_WORDS.iter().map(|w| format!("{w}: Int")).collect();
+        let lets: String = STAGE5_WORDS
+            .iter()
+            .map(|w| format!("let {w} = 1; "))
+            .collect();
+        let bound = format!(
+            "fn all({}) -> Int {{ {} }}\nfn main() -> Int {{ {lets}all({}) }}\n",
+            parameters.join(", "),
+            STAGE5_WORDS.join(" + "),
+            STAGE5_WORDS.join(", ")
+        );
+        for flat in [named, bound] {
+            crate::frontend::parse(&flat, "names.vast")
+                .unwrap_or_else(|errors| panic!("{errors:?}\n{flat}"));
+        }
+        let package = "indexed free_module rows: FreeModule<Plane> = basis(basis, symmetric);
+indexed endomorphism symmetric: Endomorphism<Plane> = rows((eigen, simple), (simple, element)) of rows symmetric;
+indexed spectrum eigen: Spectrum<Plane> = eigen(symmetric, branch);
+indexed branch simple: Branch<Plane> = simple(eigen, localize = localize, witness = witness * exponent, exponent = 1);
+indexed morphism trace_power: Smooth<Plane, Line> = trace_power(symmetric, 2);
+indexed morphism char_coefficient: Smooth<Plane, Line> = char_coefficient(eigen, 0);
+indexed primitive element = annihilates(Smooth, spectrum = eigen, element = element);
+indexed primitive spectrum = action_entry(Smooth, spectrum = spectrum, element = branch, basis, symmetric);
+indexed primitive branch = on_branch(Smooth, Line, branch = branch);
+indexed primitive on_branch = branch_projector(Smooth, Line, branch = simple, basis, basis);
+fn exponent(witness: Int) -> Int { let localize = witness; localize }
+";
+        let parsed = parse_module_source(
+            SourceInput {
+                source: package,
+                file: "names.vast",
+                offset: 0,
+            },
+            vec![],
+            true,
+            None,
+        )
+        .unwrap_or_else(|error| panic!("{error:?}"));
+        let names: Vec<&str> = parsed.modules[0]
+            .indexed_declarations
+            .iter()
+            .map(|d| d.declaration.name.as_str())
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "rows",
+                "symmetric",
+                "eigen",
+                "simple",
+                "trace_power",
+                "char_coefficient",
+                "element",
+                "spectrum",
+                "branch",
+                "on_branch"
+            ]
+        );
+    }
+
+    /// The words of the Stage 5 forms (#806): declaration kinds, family
+    /// representations, definition and observation tags, and keywords.
+    const STAGE5_WORDS: [&str; 20] = [
+        "free_module",
+        "endomorphism",
+        "spectrum",
+        "branch",
+        "basis",
+        "rows",
+        "symmetric",
+        "eigen",
+        "simple",
+        "localize",
+        "witness",
+        "exponent",
+        "element",
+        "trace_power",
+        "char_coefficient",
+        "annihilates",
+        "action_entry",
+        "on_branch",
+        "branch_differential",
+        "branch_projector",
+    ];
 }

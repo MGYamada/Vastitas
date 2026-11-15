@@ -1,4 +1,5 @@
 import VastitasKernel.FrameDeclarations
+import VastitasKernel.Keywords
 import VastitasKernel.SpectralRuntime
 
 set_option autoImplicit false
@@ -15,8 +16,9 @@ Over the coordinate ring `A = ℚ[x₁, …, x_m]` of a smooth object `X`:
   `n` canonical polynomials of arity `m`, and with `symmetric` checks `H = Hᵀ`,
   naming the first entry that differs from its mirror;
 - a spectrum `Spectrum<X>` of `H` is the characteristic scheme `Σ_H` with the
-  module action. Its fiber coordinate `t` is a new identifier, no coordinate
-  of `X` and no basis vector of the free module (`fiberValid`). Its
+  module action. Its fiber coordinate `t` is a new identifier, no strict
+  keyword, no coordinate of `X` and no basis vector of the free module
+  (`fiberValid`). Its
   certificate (`SpectralCertificate`) holds `χ` and
   `adj(tI − H)` in `A[t]`, `t` the last variable, and the matrix quotient `Q`
   of idempotence. `checkCertificate` checks, within one `algebraWork` run:
@@ -171,17 +173,19 @@ def duplicate? : List String → Option String
   | [] => none
   | name :: rest => if rest.contains name then some name else duplicate? rest
 
-/-- The identifier rule of the frontend: an ASCII letter or `_`, then ASCII
-letters, digits and `_`. -/
+/-- The identifier rule of the source grammar, as the frontend's
+`Parser::name` applies it: an ASCII letter or `_`, then ASCII letters,
+digits and `_`, and no strict keyword (`strictKeywords`, #831). -/
 def isIdentifier (name : String) : Bool :=
-  match name.toList with
-  | [] => false
-  | first :: rest => (first.isAlpha && first.toNat < 128 || first == '_') &&
-      rest.all fun c => c.isAlphanum && c.toNat < 128 || c == '_'
+  (match name.toList with
+    | [] => false
+    | first :: rest => (first.isAlpha && first.toNat < 128 || first == '_') &&
+        rest.all fun c => c.isAlphanum && c.toNat < 128 || c == '_') &&
+    !strictKeywords.contains name
 
 /-- The fiber coordinate `t` of a spectrum `eigen(H, t)` is a new name: an
-identifier that is no coordinate of the object and no basis vector of the
-free module of `H`. -/
+identifier, so no strict keyword, that is no coordinate of the object and no
+basis vector of the free module of `H`. -/
 def fiberValid (coordinates basis : List String) (fiber : String) : Bool :=
   isIdentifier fiber && !coordinates.contains fiber && !basis.contains fiber
 

@@ -235,20 +235,32 @@ depend on the order of the declarations. -/
       "E_SPECTRAL" "a free module names one object, as in `FreeModule<X>`, but 0 are given")
 
 /- The fiber coordinate of a spectrum is a new identifier: the wire carries any
-string, and the source checker rejects one that is not an identifier or that
-names a basis vector of the free module. -/
+string, and the source checker rejects one that is not an identifier, a
+strict keyword among them (#831), or that names a basis vector of the free
+module. -/
 #eval check "the fiber coordinate of a spectrum is a new identifier"
   ((["", "t t", "0", "1t", "t-1", "λ"].all fun fiber =>
       rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
         s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is not an identifier") &&
+    (strictKeywords.all fun fiber =>
+      rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
+        (s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is a strict keyword, not an " ++
+          "identifier; `eigen(H, t)` names the fiber coordinate with a new identifier")) &&
     (["e1", "e2"].all fun fiber =>
       rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
         (s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is a basis vector of the free module " ++
           "`spectral::V`")) &&
     rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" "y"]) "E_SPECTRAL"
       "the fiber coordinate `y` of the spectrum `spectral::S` is a coordinate of `spectral::Plane`" &&
-    (["t", "_t", "lambda2", "H", "V"].all fun fiber =>
+    (["t", "_t", "lambda2", "H", "V", "indexed", "witness", "eigen", "If", "iff", "type_"].all fun fiber =>
       (outcome 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber])).1 == "accepted"))
+
+/- The identifier rule of the fiber audit is the source grammar's: the ASCII
+pattern without the strict keywords (#831). -/
+#eval check "a strict keyword is no identifier and no fiber coordinate; an ordinary name is"
+  (strictKeywords.length == 21 && strictKeywords.all (!SpectralDeclarations.isIdentifier ·) &&
+    !SpectralDeclarations.fiberValid ["x"] ["e"] "if" && SpectralDeclarations.fiberValid ["x"] ["e"] "t" &&
+    ["t", "_", "x1", "witness", "indexed", "Fn", "If"].all SpectralDeclarations.isIdentifier)
 
 #eval check "the names of a spectral declaration resolve"
   (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [endoH]) "E_NAME" "undefined name 'V'" &&
@@ -610,6 +622,9 @@ private def tampered : List (String × String × (Declaration → Declaration)) 
   ("a basis vector as the fiber name", "S", fun
     | .spectrum f o e _ cert => .spectrum f o e "e1" cert
     | d => d),
+  ("a strict keyword as the fiber name", "S", fun
+    | .spectrum f o e _ cert => .spectrum f o e "if" cert
+    | d => d),
   ("the rows", "H", fun
     | .endomorphism f o m rows s => .endomorphism f o m rows.reverse s
     | d => d),
@@ -635,6 +650,17 @@ where
   (match checked stage5 with
     | some env => validEnvironment env.indexed &&
       tampered.all fun (_, name, change) => !validEnvironment (tamper env.indexed name change)
+    | none => false)
+/- The branch stores polynomials, not the fiber name, so another ordinary name
+of the fiber coordinate passes the audit, and a strict keyword does not (#831). -/
+#eval check "the audit accepts an ordinary fiber name and rejects a strict keyword"
+  (match checked stage5 with
+    | some env =>
+      let renamed (fiber : String) := tamper env.indexed "S" fun
+        | .spectrum f o e _ cert => .spectrum f o e fiber cert
+        | d => d
+      (["lam", "witness", "If"].all fun fiber => validEnvironment (renamed fiber)) &&
+        strictKeywords.all fun fiber => !validEnvironment (renamed fiber)
     | none => false)
 #eval check "the declaration audit rejects a spectral entry outside its environment"
   (match checked stage5 with

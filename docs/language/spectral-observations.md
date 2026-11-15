@@ -306,7 +306,8 @@ adj(tI − H) = tI + H, so χ′ = 2t.
 > A failed check is an error (`E_SPECTRAL`) that names the identity. The
 > declaration audit checks every spectrum again
 > (`SpectralDeclarations.checkSpectrum`), and it requires the fiber
-> coordinate of a request to be an identifier. The oracle theorem
+> coordinate of a request to be an identifier, which no strict keyword is.
+> The oracle theorem
 > `VastitasOracle.SpectralDeclarations.checkCertificate_sound` states that
 > an accepted spectrum satisfies the seven identities in every commutative
 > ring that receives the rationals, and the bridge theorem

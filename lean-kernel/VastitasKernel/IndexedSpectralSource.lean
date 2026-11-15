@@ -26,8 +26,9 @@ result does not depend on the order of the declarations:
    Stage 2 polynomial resolver, all entries of one endomorphism within one
    `algebraWork` budget, then `checkRows` (`symmetric` names the first entry
    that differs from its mirror by the names of the basis);
-3. every spectrum: its fiber coordinate a new identifier, no coordinate of
-   the object and no basis vector of the free module (`fiberValid`), the
+3. every spectrum: its fiber coordinate a new identifier, no strict keyword,
+   no coordinate of the object and no basis vector of the free module
+   (`fiberValid`), the
    certificate by Faddeev–LeVerrier and the idempotence quotients
    (`SpectralDeclarations.certify`), then `checkCertificate`;
 4. every branch: `g` and `W` expanded in the coordinates and the fiber
@@ -181,7 +182,9 @@ private def elaborateSpectrum (span : Span) (env : Environment) (name family obj
     | spectralProblem span <| s!"the endomorphism `{qualified endomorphism}` of {subject} acts on " ++
         s!"`{qualified module}`, which is not a free module declaration"
   unless isIdentifier fiber do
-    spectralProblem span <| s!"the fiber coordinate `{fiber}` of {subject} is not an identifier; " ++
+    let what := if strictKeywords.contains fiber then "is a strict keyword, not an identifier"
+      else "is not an identifier"
+    spectralProblem span <| s!"the fiber coordinate `{fiber}` of {subject} {what}; " ++
       "`eigen(H, t)` names the fiber coordinate with a new identifier"
   if coordinates.contains fiber then
     spectralProblem span <| s!"the fiber coordinate `{fiber}` of {subject} is a coordinate of `{qualified object}`; " ++

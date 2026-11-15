@@ -3,9 +3,10 @@
 //! most `spectralPower` = 8; every polynomial that the kernel reads or computes
 //! stays within the term limit `algebraTerms`, and the computation of a
 //! spectral pair, a trace power and a witness check within the work budget
-//! `algebraWork`. Each limit is the kernel's `E_LIMIT`, the only diagnostic of
-//! its package, reported before any identity is compared, and each check ends
-//! within seconds. The declarations at the limits are accepted.
+//! `algebraWork`. Each limit is the kernel's `E_LIMIT` with its exact message,
+//! reported instead of the error of the comparison that it guards (no
+//! `E_SPECTRAL` identity or symmetry message appears), and within a time bound
+//! far below that of a check. The declarations at the limits are accepted.
 mod common;
 use common::{Scratch, expect_code, root, success};
 use std::process::Output;
@@ -14,6 +15,35 @@ use std::time::{Duration, Instant};
 /// The time that one check may take. On a developer machine each check below
 /// takes less than a second.
 const BOUND: Duration = Duration::from_secs(30);
+
+/// The time within which a limit is reported. A limit stops the check before
+/// the products and comparisons that it guards; on a developer machine each
+/// limit below is reported within half a second.
+const LIMIT_BOUND: Duration = Duration::from_secs(10);
+
+/// Parts of the messages of the comparisons that the limits guard: the
+/// identities of a certificate, the gap certificate and `symmetric`.
+const COMPARISONS: &[&str] = &[
+    "E_SPECTRAL",
+    "failed its check",
+    "failed Jacobi's formula",
+    "does not certify the gap",
+    "differs from its entry",
+];
+
+/// The output of a check and the time that it took.
+struct Checked {
+    output: Output,
+    elapsed: Duration,
+}
+
+impl std::ops::Deref for Checked {
+    type Target = Output;
+
+    fn deref(&self) -> &Output {
+        &self.output
+    }
+}
 
 /// `(1 + x0 + … + x{k-1})^power`.
 fn sum(k: usize, power: usize) -> String {
@@ -39,9 +69,9 @@ fn rows(n: usize, entry: impl Fn(usize, usize) -> String) -> String {
 }
 
 /// Checks a package with the object `C = Affine(dimension)[x0, …]` and the
-/// spectral declarations `declarations`, and returns the output. The check
-/// must end within `BOUND`.
-fn check(dimension: usize, declarations: &str) -> Output {
+/// spectral declarations `declarations`, and returns the output and the time.
+/// The check must end within `BOUND`.
+fn check(dimension: usize, declarations: &str) -> Checked {
     common::prepare_stdlib_package();
     let s = Scratch::empty("spectral limits");
     s.write(
@@ -70,20 +100,31 @@ fn check(dimension: usize, declarations: &str) -> Output {
     );
     let started = Instant::now();
     let output = s.check_manifest("Vastitas.toml");
-    assert!(
-        started.elapsed() < BOUND,
-        "the check took {:?}",
-        started.elapsed()
-    );
-    output
+    let elapsed = started.elapsed();
+    assert!(elapsed < BOUND, "the check took {elapsed:?}");
+    Checked { output, elapsed }
 }
 
-/// The check fails with exactly one diagnostic, `E_LIMIT`, that says `message`.
+/// The check fails within `LIMIT_BOUND` with `E_LIMIT` at `main.vast`, whose
+/// first diagnostic says exactly `message`, and no message of a comparison
+/// appears.
 #[track_caller]
-fn limited(output: &Output, message: &str) {
-    let error = expect_code(output, "E_LIMIT");
-    assert!(error.contains(&format!("E_LIMIT: {message}")), "{error}");
-    assert_eq!(error.lines().count(), 1, "{error}");
+fn limited(checked: &Checked, message: &str) {
+    let error = expect_code(checked, "E_LIMIT");
+    let first = error.lines().next().unwrap_or_default();
+    let (location, reported) = first
+        .split_once(": E_LIMIT: ")
+        .unwrap_or_else(|| panic!("no E_LIMIT diagnostic first: {error}"));
+    assert!(location.contains("main.vast:"), "{error}");
+    assert_eq!(reported, message, "{error}");
+    for comparison in COMPARISONS {
+        assert!(!error.contains(comparison), "{comparison}: {error}");
+    }
+    assert!(
+        checked.elapsed < LIMIT_BOUND,
+        "the limit took {:?}",
+        checked.elapsed
+    );
 }
 
 /// The rotation field of the plane with its spectrum.
@@ -92,9 +133,9 @@ indexed endomorphism H: Endomorphism<C> = rows((x0, x1), (x1, -x0)) of V symmetr
 indexed spectrum S: Spectrum<C> = eigen(H, t);";
 
 /// A free module of rank 4 is at the limit, with a field, its spectrum and its
-/// eighth trace power. A fifth basis vector is `E_LIMIT` at the free module,
-/// the only diagnostic: the field on it is declared `symmetric` and is not,
-/// and that comparison is never made (C1, C12).
+/// eighth trace power. A fifth basis vector is `E_LIMIT` at the free module:
+/// the field on it is declared `symmetric` and is not, and the limit is
+/// reported instead of that comparison's `E_SPECTRAL` (C1, C12).
 #[test]
 fn the_rank_is_bounded_at_the_free_module() {
     let field = |n: usize| {

@@ -24,3 +24,4 @@ import VastitasBridge.Differential.Frame
 import VastitasBridge.Differential.Accepted
 import VastitasBridge.Differential.AcceptedFrames
 import VastitasBridge.Differential.ReverseCore
+import VastitasBridge.Spectral.Prerequisites

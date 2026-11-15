@@ -62,7 +62,9 @@ Rules:
 
 - The package graph must not have a cycle. A cycle is an error (`E_CYCLE`).
 - The depth of dependencies has a limit, which
-  [Appendix D](appendix/limits.md#inputs) gives (`E_LIMIT`).
+  [Appendix D](appendix/limits.md#inputs) gives (`E_LIMIT`). It holds for
+  every chain of dependencies, also for a chain that reaches a package
+  through another alias after the package has been read.
 - Only path dependencies exist. There is no registry, no download from Git, no
   version solving, no choice of several build targets and no compilation
   cache.

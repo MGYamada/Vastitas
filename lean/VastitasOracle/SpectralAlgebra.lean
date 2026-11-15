@@ -33,6 +33,11 @@ instantiate them at `ℝ` or at `MvPolynomial`. Mathlib-free.
   `evalMatrix_charMatrix`): the value of the result at a point is the same
   computation over `R` on the evaluated entries. The hypotheses are the
   arities of the entries, which the checks establish (`squareOf`).
+* **Entries** (`ringEntry_ringMatMul`, `ringTrace_eq`, `ringEntry_ringScalar`,
+  `ringEntry_ringCharMatrix`, `shape_ringPow`): a product entry and the trace
+  are finite sums of entries (`ringSum`), so the bridge can read the list
+  matrices as matrices indexed by `Fin n`. At `R = ℚ` the products are the
+  runtime's (`ringMatMul_rat`, `evalMatrix_id`).
 
 Everything here holds for all inputs; nothing is decided per input. That
 `ringDet` is the determinant and `ringMatMul` the matrix product of Mathlib
@@ -933,6 +938,139 @@ theorem evalMatrix_id (matrix : PolyMatrix) (x : List Rat) :
   simp only [evalMatrix, VastitasKernel.FrameRuntime.matrixAt]
   refine List.map_congr_left fun row _ => List.map_congr_left fun e _ => ?_
   exact (SmoothCalculus.evalAt_eq_evalIn e x).symm
+
+/-! ### Shapes and entries
+
+The entry formulas by which the bridge reads these list matrices as matrices
+`Fin n → Fin n → R`: products and traces are finite sums of entries
+(`ringEntry_ringMatMul`, `ringTrace_eq`), and the scalar matrices and `tI − M`
+have their entries (`ringEntry_ringScalar`, `ringEntry_ringCharMatrix`). -/
+
+theorem ringSum_succ_left : ∀ (n : Nat) (f : Nat → R), ringSum (n + 1) f = f 0 + ringSum n (fun k => f (k + 1))
+  | 0, f => by
+    show 0 + f 0 = f 0 + 0
+    grind
+  | n + 1, f => by
+    rw [ringSum_succ, ringSum_succ_left n f, ringSum_succ]
+    grind
+
+theorem getD_map_of_lt' {α β : Type _} (f : α → β) {l : List α} {i : Nat} (hi : i < l.length) (d : α) (e : β) :
+    (l.map f).getD i e = f (l.getD i d) := by
+  rw [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_eq_getElem hi]
+  rfl
+
+theorem getD_map_range' {α : Type _} {n i : Nat} (f : Nat → α) (hi : i < n) (d : α) :
+    ((List.range n).map f).getD i d = f i := by
+  rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hi]
+  rfl
+
+theorem ringDot_eq_ringSum : ∀ (a b : List R) (k : Nat), a.length = k → b.length = k →
+    ringDot a b = ringSum k (fun i => a.getD i 0 * b.getD i 0)
+  | [], _, k, ha, _ => by
+    subst ha
+    rw [ringDot_nil_left]
+    rfl
+  | _ :: _, [], k, ha, hb => by
+    simp only [List.length_cons, List.length_nil] at ha hb
+    omega
+  | x :: a, y :: b, k, ha, hb => by
+    cases k with
+    | zero => simp at ha
+    | succ k =>
+      rw [ringDot_cons, ringSum_succ_left,
+        ringDot_eq_ringSum a b k (by simpa using ha) (by simpa using hb)]
+      simp only [List.getD_cons_zero, List.getD_cons_succ]
+
+theorem length_evalMatrix (ι : RatHom R) (matrix : PolyMatrix) (x : List R) :
+    (evalMatrix ι matrix x).length = matrix.length := by
+  simp [evalMatrix]
+
+theorem length_row_evalMatrix (ι : RatHom R) {matrix : PolyMatrix} {n : Nat}
+    (h : ∀ row ∈ matrix, row.length = n) (x : List R) : ∀ row ∈ evalMatrix ι matrix x, row.length = n := by
+  intro row hrow
+  obtain ⟨r, hr, rfl⟩ := List.mem_map.mp hrow
+  simp [h r hr]
+
+theorem length_ringMatMul (n : Nat) (left right : List (List R)) :
+    (ringMatMul n left right).length = left.length := by
+  simp [ringMatMul]
+
+theorem length_row_ringMatMul (n : Nat) (left right : List (List R)) :
+    ∀ row ∈ ringMatMul n left right, row.length = n := by
+  intro row hrow
+  obtain ⟨r, _, rfl⟩ := List.mem_map.mp hrow
+  simp
+
+theorem length_ringScalar (n : Nat) (value : R) : (ringScalar n value).length = n := by
+  simp [ringScalar]
+
+theorem length_row_ringScalar (n : Nat) (value : R) : ∀ row ∈ ringScalar n value, row.length = n := by
+  intro row hrow
+  obtain ⟨i, _, rfl⟩ := List.mem_map.mp hrow
+  simp
+
+/-- `Mᵏ` is `n × n`. -/
+theorem shape_ringPow (n : Nat) (matrix : List (List R)) :
+    ∀ k, (ringPow n matrix k).length = n ∧ ∀ row ∈ ringPow n matrix k, row.length = n
+  | 0 => ⟨length_ringScalar n 1, length_row_ringScalar n 1⟩
+  | k + 1 => ⟨by rw [ringPow, length_ringMatMul]; exact (shape_ringPow n matrix k).1,
+      length_row_ringMatMul n _ _⟩
+
+/-- **An entry of a product** is `Σₗ Lᵢₗ Rₗⱼ` over the `k` columns of `L`
+and rows of `R`. -/
+theorem ringEntry_ringMatMul {n k : Nat} {left right : List (List R)} {i j : Nat} (hi : i < left.length)
+    (hj : j < n) (hleft : ∀ row ∈ left, row.length = k) (hright : right.length = k) :
+    ringEntry (ringMatMul n left right) i j = ringSum k (fun l => ringEntry left i l * ringEntry right l j) := by
+  have hrow : left.getD i [] ∈ left := by
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi, Option.getD_some]
+    exact List.getElem_mem hi
+  have hcolumn : ∀ l, (ringColumn right j).getD l 0 = ringEntry right l j := fun l => by
+    unfold ringColumn ringEntry
+    exact getD_map' (fun row : List R => row.getD j 0) right l []
+  rw [ringEntry, ringMatMul, getD_map_of_lt' _ hi [], getD_map_range' _ hj,
+    ringDot_eq_ringSum _ _ k (hleft _ hrow) (by simp [ringColumn, hright])]
+  exact ringSum_congr fun l _ => by rw [hcolumn l]; rfl
+
+theorem foldl_zipIdx_add (g : R → List R × Nat → R) (hg : ∀ acc row i, g acc (row, i) = acc + row.getD i 0) :
+    ∀ (L : List (List R)) (s : Nat) (acc : R),
+      (L.zipIdx s).foldl g acc = acc + ringSum L.length (fun i => (L.getD i []).getD (i + s) 0)
+  | [], _, acc => by
+    show acc = acc + 0
+    grind
+  | row :: L, s, acc => by
+    rw [List.zipIdx_cons, List.foldl_cons, hg, foldl_zipIdx_add g hg L (s + 1), List.length_cons,
+      ringSum_succ_left]
+    simp only [List.getD_cons_zero, List.getD_cons_succ, Nat.zero_add]
+    have e : (fun k => (L.getD k []).getD (k + 1 + s) 0) = (fun i => (L.getD i []).getD (i + (s + 1)) 0) :=
+      funext fun i => by congr 1; omega
+    rw [e]
+    grind
+
+/-- **The trace** is `Σᵢ Mᵢᵢ` over the rows. -/
+theorem ringTrace_eq (matrix : List (List R)) :
+    ringTrace matrix = ringSum matrix.length (fun i => ringEntry matrix i i) := by
+  unfold ringTrace
+  rw [foldl_zipIdx_add]
+  · have e : ∀ a : R, 0 + a = a := fun a => by grind
+    rw [e]
+    rfl
+  · intro acc row i
+    rfl
+
+theorem ringEntry_ringScalar {n i j : Nat} (value : R) (hi : i < n) (hj : j < n) :
+    ringEntry (ringScalar n value) i j = if i == j then value else 0 := by
+  rw [ringEntry, ringScalar, getD_map_range' _ hi, getD_map_range' _ hj]
+
+/-- The entries of `tI − M`. -/
+theorem ringEntry_ringCharMatrix (t : R) {matrix : List (List R)} {i j : Nat} (hi : i < matrix.length)
+    (hj : j < (matrix.getD i []).length) :
+    ringEntry (ringCharMatrix t matrix) i j = (if i == j then t else 0) - ringEntry matrix i j := by
+  have hj' : j < matrix[i].length := by
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi, Option.getD_some] at hj
+    exact hj
+  simp only [ringEntry, ringCharMatrix, List.getD_eq_getElem?_getD, List.getElem?_map,
+    List.getElem?_zipIdx, List.getElem?_eq_getElem hi, List.getElem?_eq_getElem hj', Option.map_some,
+    Option.getD_some, Nat.zero_add]
 
 end RingMatrices
 

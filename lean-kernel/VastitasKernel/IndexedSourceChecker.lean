@@ -346,7 +346,13 @@ def lower (p : Program) : Namespace.Result Resolved := do
   let declarations ← elaborateMetrics sources declarations
   let declarations ← elaborateFrames sources declarations
   let declarations ← elaborateNature sources declarations
-  let declarations ← elaborateSpectral sources declarations
+  -- The endomorphism or spectrum that each spectral invariant names.
+  let spectralTargets ← p.owned.filterMapM fun (owner, d) => match d.body with
+    | .morphism _ _ (.tracePower target _) | .morphism _ _ (.charCoefficient target _) => do
+      let resolved ← Namespace.resolve index owner.scope target.path target.span
+      pure (some (owner, resolved.owner))
+    | _ => pure none
+  let declarations ← elaborateSpectral sources spectralTargets declarations
   let restrictTargets ← p.owned.filterMapM fun (owner, d) => match d.body with
     | .morphism _ _ (.restrict morphism) => do
       let target ← Namespace.resolve index owner.scope morphism.path morphism.span

@@ -6,7 +6,7 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 27 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 34 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 0 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
 | [mathlib](#assumption.mathlib) | 12 |
@@ -49,6 +49,13 @@ Cited by:
 - [`metric.flat-sharp`](std-geometry-metric.md#metric.flat-sharp) (`binding`)
 - [`metric.flat-sharp`](std-geometry-metric.md#metric.flat-sharp) (`bridge`)
 - [`spectral.static-identity`](std-linalg-spectral.md#spectral.static-identity) (`binding`)
+- [`spectral.pair`](std-linalg-spectral.md#spectral.pair) (`oracle`)
+- [`spectral.module-action`](std-linalg-spectral.md#spectral.module-action) (`oracle`)
+- [`spectral.invariants`](std-linalg-spectral.md#spectral.invariants) (`oracle`)
+- [`spectral.branch-chart`](std-linalg-spectral.md#spectral.branch-chart) (`oracle`)
+- [`spectral.branch-observations`](std-linalg-spectral.md#spectral.branch-observations) (`oracle`)
+- [`spectral.limits`](std-linalg-spectral.md#spectral.limits) (`oracle`)
+- [`spectral.weakening`](std-linalg-spectral.md#spectral.weakening) (`oracle`)
 
 <a id="assumption.lean-to-c"></a>
 

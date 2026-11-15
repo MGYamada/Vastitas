@@ -9,12 +9,13 @@ The properties of the exact spectral profile of polynomial matrix fields, from A
 | Property | Claims |
 | --- | --- |
 | [Objects and spectra are static](#spectral.static-identity) | Proved (oracle), Tested |
-| [The spectral pair is computed and checked](#spectral.pair) | Tested, Planned, Planned |
-| [The module action tells fields apart](#spectral.module-action) | Tested, Planned, Not claimed |
-| [Invariants are smooth maps](#spectral.invariants) | Tested, Planned, Planned |
-| [A branch is a certified finite chart](#spectral.branch-chart) | Tested, Planned |
-| [Branch points, differentials and eigenprojectors](#spectral.branch-observations) | Tested, Planned, Planned, Not claimed |
-| [The finite profile](#spectral.limits) | Tested |
+| [The spectral pair is computed and checked](#spectral.pair) | Tested, Proved (oracle), Planned |
+| [The module action tells fields apart](#spectral.module-action) | Tested, Proved (oracle), Not claimed |
+| [Invariants are smooth maps](#spectral.invariants) | Tested, Proved (oracle), Planned |
+| [A branch is a certified finite chart](#spectral.branch-chart) | Tested, Proved (oracle) |
+| [Branch points, differentials and eigenprojectors](#spectral.branch-observations) | Tested, Proved (oracle), Planned, Not claimed |
+| [The finite profile](#spectral.limits) | Proved (oracle), Tested |
+| [Spectral declarations change nothing else](#spectral.weakening) | Proved (oracle), Tested |
 
 <a id="spectral.static-identity"></a>
 
@@ -69,9 +70,15 @@ Claims:
     - [`VastitasKernel.SpectralDeclarationRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralDeclarationRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: `SpectralDeclarationRegression` runs the producer and the checks of the spectral pair on the fields of the acceptance program and on fields whose certificates are forged, which the checks reject. `SpectralRegression` forges the characteristic polynomial and the adjugate embedded in checked Core, which the kernel's audit rejects.
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
-  - Note: The oracle lane of the tracker proves that a spectrum that the checks accept satisfies the six identities in every ring that receives the rationals (`checkSpectral_sound`).
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SpectralDeclarations`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralDeclarations.lean): `VastitasOracle.SpectralDeclarations.checkCertificate_sound`, `VastitasOracle.SpectralDeclarations.SpectralValid.characteristic_eq_det`, `VastitasOracle.SpectralDeclarations.SpectralValid.adjugate_eq`, `VastitasOracle.SpectralDeclarations.SpectralValid.adjugateTrace_at`, `VastitasOracle.SpectralDeclarations.SpectralValid.cayleyHamilton_at`, `VastitasOracle.SpectralDeclarations.SpectralValid.idempotence_at`, `VastitasOracle.SpectralDeclarations.SpectralValid.jacobi_at`, `VastitasOracle.SpectralDeclarations.spectrum_sound`
+    - [`VastitasOracle.SpectralAcceptance`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralAcceptance.lean): `VastitasOracle.SpectralAcceptance.c2_spectral_pair`
+  - Premises:
+    - for the readings of `SpectralValid`: the certificate is valid, which `checkCertificate_sound` proves from the kernel's check and `spectrum_sound` for every spectrum of a valid environment; for `characteristic_eq_det` and `adjugate_eq`, the point x has one coordinate for each coordinate of the object
+    - for `spectrum_sound` and `c2_spectral_pair`: the declaration environment is valid
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `checkCertificate_sound` states that a certificate that the kernel's check accepts satisfies the six identities as exact polynomial identities, and the readings state them at every point of every commutative ring that receives the rationals: χ(x, t) = det(tI − H(x)) by the cofactor recursion, (tI − H)·adj = χ·I, tr adj = χ′, χ(H) = 0 by Horner's rule, adj² − χ′·adj = Q·χ entrywise, and ∂ᵢχ + tr(adj·∂ᵢH) = 0. That the Faddeev–LeVerrier producer gives a certificate that passes the checks for every field is tested, not proved; soundness does not depend on it.
 - `bridge`: [Planned](../specifications.md#planned)
   - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
   - Note: The bridge lane of the tracker proves that the checked χ is `Matrix.charpoly` of the field in Mathlib.
@@ -99,9 +106,16 @@ Claims:
     - `spectral_families_from_the_library_check_build_and_run_from_a_path_package` in [`tests/stdlib_spectral.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_spectral.rs)
     - [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The acceptance program observes the contrasts of 2I and J and of 0 and N, each with its own failure code, and the mutation test falsifies each code.
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
-  - Note: The oracle lane of the tracker proves the contrast of the scalar field and the Jordan block for the runtime (`scalar_jordan_regression`).
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SpectralRuntime`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralRuntime.lean): `VastitasOracle.SpectralRuntime.annihilates_iff`, `VastitasOracle.SpectralRuntime.annihilates_char`, `VastitasOracle.SpectralRuntime.Examples.scalar_jordan_regression`
+    - [`VastitasOracle.SpectralAcceptance`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralAcceptance.lean): `VastitasOracle.SpectralAcceptance.c3_scalar_jordan`
+    - [`VastitasOracle.SpectralCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralCore.lean): `VastitasOracle.SpectralCore.core_spectral_annihilates`, `VastitasOracle.SpectralCore.core_spectral_action_entry`
+  - Premises:
+    - for `annihilates_char`: the certificate is valid, which `VastitasOracle.SpectralDeclarations.spectrum_sound` proves for every spectrum of a valid environment
+    - for `core_spectral_annihilates` and `core_spectral_action_entry`: the declaration environment of the module is valid, and the operands of the call evaluate to values of their checked types
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `annihilates_iff` reads `annihilates` as f(H(p)) = 0, and `annihilates_char` states that χ annihilates H(p) at every point (Cayley–Hamilton). `scalar_jordan_regression`, decided by the kernel, states that 2I and the Jordan block, and 0 and N, have valid certificates with one characteristic polynomial and equal trace powers for every power, and that t − 2, or t, annihilates one of them and not the other, with the entries 0 and 1. The Core theorems state that an accepted call evaluates to the runtime operation on the declared rows of the spectrum's field.
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The spectral runtime is Lean code that the checker and the generated programs share. No claim states that the compiled native code refines it. Tests run the native code.
 
@@ -128,9 +142,19 @@ Claims:
     - `mutated_spectral_observations_change_the_native_result` in [`tests/stdlib_spectral.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_spectral.rs)
     - [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The library test compares tr(D³) and the coefficient of s⁰ of a field D = diag(x, y, x + y, 1) of rank 4 with declared reference maps.
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
-  - Note: The oracle lane of the tracker proves that an accepted invariant is tr(Hᵏ) or the coefficient of the declared field (`invariant_sound`), and the gradient (4p₀, 4p₁) of the example at every rational point.
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SpectralDeclarations`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralDeclarations.lean): `VastitasOracle.SpectralDeclarations.invariant_sound`, `VastitasOracle.SpectralDeclarations.tracePowerImage_at`, `VastitasOracle.SpectralDeclarations.SpectralValid.charCoefficient_at`
+    - [`VastitasOracle.SpectralCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralCore.lean): `VastitasOracle.SpectralCore.spectralInvariant_valid_sound`, `VastitasOracle.SpectralCore.core_spectral_invariant`, `VastitasOracle.SpectralCore.compiled_invariant_step`
+    - [`VastitasOracle.SpectralAcceptance`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralAcceptance.lean): `VastitasOracle.SpectralAcceptance.c4_invariants`, `VastitasOracle.SpectralAcceptance.c4_stage5_invariants`, `VastitasOracle.SpectralAcceptance.s4_trace_square_gradient`, `VastitasOracle.SpectralAcceptance.c5_roadmap_gradient`, `VastitasOracle.SpectralAcceptance.c6_reverse_core_invariant`
+  - Premises:
+    - for `tracePowerImage_at`: every entry of the rows has the arity of the object
+    - for `SpectralValid.charCoefficient_at`: the certificate is valid and the point has one coordinate for each coordinate of the object
+    - for `c4_invariants`, `c4_stage5_invariants` and `s4_trace_square_gradient`: the declaration environment is valid, and for the last two the field has the rows of the example
+    - for `core_spectral_invariant` and `c5_roadmap_gradient`: the declaration environment of the module is valid, and the operands of the call evaluate to values of their checked types
+    - for `compiled_invariant_step` and `c6_reverse_core_invariant`: the step belongs to a site of compiled reverse Core of a checked module
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `invariant_sound` states that an accepted image is tr(Hᵏ) with 1 ≤ k ≤ 8, or the coefficient of tⁱ in χ with i ≤ n, of the declared field, and the readings state it at every point of every ring. The Core theorems state that an accepted invariant is a declared smooth map with that one image, whose derivative rule is `morphism` with that map, so a compiled reverse step along it is the `cotangentJacobian` of that map. `s4_trace_square_gradient` states that the gradient of `trace_power(H, 2)` of the example under the Euclidean metric is (4p₀, 4p₁) at every rational point p, and `c5_roadmap_gradient` that an accepted `differential` node of it computes the covector (4p₀, 4p₁).
 - `bridge`: [Planned](../specifications.md#planned)
   - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
   - Note: The bridge lane of the tracker proves that the checked trace power is the trace of the power in Mathlib, that its emitted reverse Core is the Daleckii–Krein cotangent after the derivative of the field, and the gradient (4x, 4y) of the example at every real point.
@@ -157,9 +181,16 @@ Claims:
     - `powers_and_exponents_are_bounded` in [`tests/spectral_limits.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_limits.rs)
     - [`VastitasKernel.SpectralDeclarationRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralDeclarationRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The rejected packages `spectral-gap-at-origin`, `spectral-jordan-branch` and `spectral-wrong-witness` print their diagnostics. The tampered wire gives the branch of the example the localization 1, 0 and t, a perturbed witness and an unreduced one.
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
-  - Note: The oracle lane of the tracker proves that an accepted branch makes χ′ a unit at each of its points (`checkSpectral_sound`, `SpectralValid.unit_at`), and that the field of the example has no witness at all for g = 1 (`unit_gap_no_witness`).
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SpectralDeclarations`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralDeclarations.lean): `VastitasOracle.SpectralDeclarations.checkWitness_sound`, `VastitasOracle.SpectralDeclarations.WitnessValid.gap_at`, `VastitasOracle.SpectralDeclarations.SpectralValid.unit_at`, `VastitasOracle.SpectralDeclarations.SpectralValid.derivative_ne_zero`, `VastitasOracle.SpectralDeclarations.branch_sound`, `VastitasOracle.SpectralDeclarations.Examples.origin_off_chart`, `VastitasOracle.SpectralDeclarations.Examples.unit_gap_no_witness`
+    - [`VastitasOracle.SpectralAcceptance`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralAcceptance.lean): `VastitasOracle.SpectralAcceptance.c8_gap_certificate`
+  - Premises:
+    - for `SpectralValid.unit_at` and `SpectralValid.derivative_ne_zero`: the certificate and the gap witness are valid, which `branch_sound` proves for every branch of a valid environment, and χ vanishes at the point, where g has an inverse, or is not zero for the rational form
+    - for `WitnessValid.gap_at`: χ has the arity of the object and the fiber coordinate
+    - for `branch_sound` and `c8_gap_certificate`: the declaration environment is valid
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `checkWitness_sound` states that an accepted chart has a nonzero localization without the fiber coordinate, a reduced witness, an exponent of at most 8 and W·χ′ − gᵉ = Q·χ, and `gap_at` that the identity holds at every point of every ring. `unit_at` states that where χ vanishes and g has an inverse u, χ′ has the inverse W·uᵉ, so over ℚ χ′ ≠ 0 at a branch point. `unit_gap_no_witness` states that the localization 1 has no witness, exponent and quotient at all for the field of the example: at (0, 0, ε) in the dual numbers χ = ε² = 0 and g = 1, so χ′ = 2ε would be a unit. `origin_off_chart` states that every accepted localization of that spectrum vanishes at the origin. The rejections of the Jordan block and of the perturbed witness are decided for those inputs in `c8_gap_certificate`.
 
 <a id="spectral.branch-observations"></a>
 
@@ -184,9 +215,16 @@ Claims:
     - [`VastitasKernel.SpectralRuntimeRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRuntimeRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The library test observes the branch of a field of rank 1, whose chart is the whole plane with the witness 1.
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
-  - Note: The oracle lane of the tracker proves the membership and the failure value of the runtime, that the eigenprojector is an idempotent of trace one with H(p)·P = t·P, and the implicit-function and Hellmann–Feynman forms of the differential (`branch_some_iff`, `off_chart_bottom`, `projector_idempotent`, `projector_trace_one`, `projector_eigen`, `branchDifferential_implicit`, `branchDifferential_hellmann_feynman`).
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SpectralRuntime`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralRuntime.lean): `VastitasOracle.SpectralRuntime.branch_some_iff`, `VastitasOracle.SpectralRuntime.off_chart_bottom`, `VastitasOracle.SpectralRuntime.projector_idempotent`, `VastitasOracle.SpectralRuntime.projector_trace_one`, `VastitasOracle.SpectralRuntime.projector_eigen`, `VastitasOracle.SpectralRuntime.eigenvector_exists`, `VastitasOracle.SpectralRuntime.branchDifferential_implicit`, `VastitasOracle.SpectralRuntime.branchDifferential_hellmann_feynman`
+    - [`VastitasOracle.SpectralCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralCore.lean): `VastitasOracle.SpectralCore.core_spectral_on_branch`, `VastitasOracle.SpectralCore.core_spectral_branch_differential`, `VastitasOracle.SpectralCore.core_spectral_branch_projector`
+    - [`VastitasOracle.SpectralAcceptance`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralAcceptance.lean): `VastitasOracle.SpectralAcceptance.c9_branch_points`, `VastitasOracle.SpectralAcceptance.c10_branch_derivative`, `VastitasOracle.SpectralAcceptance.c11_eigenprojector`
+  - Premises:
+    - for the laws of the eigenprojector and the differential: the certificate and the gap witness of the branch are valid, which `VastitasOracle.SpectralDeclarations.branch_sound` proves for every branch of a valid environment, and the point has one coordinate for each coordinate of the object, and the value one
+    - for the Core theorems, `c10_branch_derivative` and `c11_eigenprojector`: the declaration environment of the module is valid, and the operands of the call evaluate to values of their checked types
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `branch_some_iff` and `off_chart_bottom` state that the differential and the eigenprojector are defined exactly where g(p) ≠ 0 and χ(p, t) = 0, and that off the chart the differential is ⊥ and every entry `(0, 0)`. On the branch P·P = P, tr P = 1 and H(p)·P = t·P, a column with Pⱼⱼ ≠ 0 is an eigenvector of H(p) for t, the components of the differential satisfy cᵢ·χ′(p, t) = −∂ᵢχ(p, t), and cᵢ = tr(P·∂ᵢH(p)). The components are built from the evaluated partial derivatives of χ, never from a reverse pass. `c9_branch_points` decides the branch points of the example. That P is symmetric for a symmetric field, and that the two eigenprojectors of the example sum to the identity, are tested, not stated.
 - `bridge`: [Planned](../specifications.md#planned)
   - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
   - Note: The bridge lane of the tracker proves that the differential of an accepted branch is the derivative of the eigenvalue by the implicit function theorem, under the hypotheses that it states.
@@ -208,6 +246,14 @@ A free module has at most 4 basis vectors (`spectralRank`), and a trace power an
 
 Claims:
 
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SpectralAcceptance`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralAcceptance.lean): `VastitasOracle.SpectralAcceptance.c1_fields_and_modules`, `VastitasOracle.SpectralAcceptance.c12_degenerate`
+    - [`VastitasOracle.SpectralDeclarations`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralDeclarations.lean): `VastitasOracle.SpectralDeclarations.checkModule_sound`, `VastitasOracle.SpectralDeclarations.invariant_sound`, `VastitasOracle.SpectralDeclarations.checkWitness_sound`
+  - Premises:
+    - for `c1_fields_and_modules`: the declaration environment is valid
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: The theorems state the soundness half of the profile: an accepted free module has 1 to 4 distinct basis names, an accepted field has a rank of at most 4, an accepted trace power and an accepted exponent are at most 8, and `c12_degenerate` decides that a field of rank 4 is accepted and one of rank 5 is not. That a declaration beyond a limit is rejected with `E_LIMIT` before any identity is compared, and within seconds, is tested.
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `the_rank_is_bounded_at_the_free_module` in [`tests/spectral_limits.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_limits.rs)
@@ -216,3 +262,35 @@ Claims:
     - `the_spectral_pair_is_bounded_by_the_work_budget` in [`tests/spectral_limits.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_limits.rs)
     - `rejected_stage5_packages_print_their_diagnostics` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
   - Note: Each check of `tests/spectral_limits.rs` ends within 30 seconds, and each rejected one prints its `E_LIMIT` as its only diagnostic.
+
+<a id="spectral.weakening"></a>
+
+## Spectral declarations change nothing else
+
+- Property: `spectral.weakening`
+- Subject: `std::linalg::spectral`
+- Rule: [ADR 0001 §12, Contract and jurisdiction](../adr/0001-mathematics-first-stdlib.md#contract-and-jurisdiction-2)
+
+A spectral declaration changes neither the validity of a declaration of another kind nor the validity or the value of a primitive that names none of the spectral declarations, the primitives of smooth geometry, metrics and frames included. No spectral primitive reads a metric, a frame or a physical dimension, and each evaluates the same in every environment.
+
+- Example: The metric `Euclid`, its evidence and `sharp` of the acceptance program have the same validity and values with and without the free modules, fields, spectra and branches of the program, and a program without observations or invariants is accepted on its own.
+- Run by: [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+
+Claims:
+
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SpectralWeakening`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralWeakening.lean): `VastitasOracle.SpectralWeakening.spectral_weakening_binding`, `VastitasOracle.SpectralWeakening.spectral_weakening_entry`, `VastitasOracle.SpectralWeakening.stage4_bindings_spectral_free`, `VastitasOracle.SpectralWeakening.spectral_bindings_metric_free`, `VastitasOracle.SpectralWeakening.spectral_bindings_frame_free`, `VastitasOracle.SpectralWeakening.spectral_bindings_nature_free`
+    - [`VastitasOracle.SpectralCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralCore.lean): `VastitasOracle.SpectralCore.spectral_bindings_environment_free`
+    - [`VastitasOracle.SpectralAcceptance`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralAcceptance.lean): `VastitasOracle.SpectralAcceptance.c13_weakening`
+  - Premises:
+    - the environment with the added declarations has unique ids
+    - for `spectral_weakening_binding`: the binding names none of the added declarations
+    - for `spectral_bindings_frame_free`: the binding names no frame
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: The declaration statements hold for every table of class ranks. That the kernel computes the same table of class ranks with and without the added declarations is not proved, so the statements are not stated for the validity of a whole program.
+- `test`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasKernel.SpectralDeclarationRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralDeclarationRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+  - Note: `SpectralRegression` accepts the profile without observations or invariants on its own and in either order of the declarations.

@@ -34,7 +34,8 @@ result does not depend on the order of the declarations:
 4. every branch: `g` and `W` expanded in the coordinates and the fiber
    coordinate, `g` without the fiber coordinate and nonzero, `W` of degree
    below `n` in it, the quotient of `W·χ′ − gᵉ` by `χ`
-   (`SpectralDeclarations.witnessQuotient`), then `checkWitness`;
+   (`SpectralDeclarations.witnessQuotient`), then `checkWitness`, whose
+   failure names a term of the remainder (`residualText`);
 5. every spectral invariant becomes `.spectralInvariant` with its exact image,
    `tr(Hᵏ)` or the coefficient of `tⁱ` in `χ` (`tracePowerImage`,
    `charCoefficientImage`), and its provenance, the embedded endomorphism or
@@ -75,9 +76,51 @@ private def spectralBody (sources : List (DeclId × Span × Body)) (id : DeclId)
 private def countText (count : Nat) (one many : String) : String :=
   s!"{count} {if count == 1 then one else many}"
 
+/-- The longest preview of a polynomial term in a diagnostic, in characters. -/
+private def previewLength : Nat := 80
+
+/-- `text`, or its first `previewLength − 1` characters and `…`. -/
+private def preview (text : String) : String :=
+  if text.length ≤ previewLength then text else (text.take (previewLength - 1)).toString ++ "…"
+
+/-- A rational coefficient as the source writes it: `3`, `-3`, `frac(1, 2)`
+or `-frac(1, 2)`. -/
+private def rationalText (value : Rat) : String :=
+  if value.den == 1 then toString value.num
+  else if value.num < 0 then s!"-frac({-value.num}, {value.den})"
+  else s!"frac({value.num}, {value.den})"
+
+/-- Presentation only: a term `c·z₁^a₁⋯` with the names `names` of its
+variables, as the source writes a product: `-1`, `x^2`, `-t` or
+`frac(1, 3) * x * y^2`. A variable beyond `names`, which the elaboration
+never produces, is `x` with its position. -/
+def termText (names : List String) (term : AlgebraRuntime.Term) : String :=
+  let factors := term.monomial.zipIdx.filterMap fun (exponent, i) =>
+    let name := names.getD i s!"x{i + 1}"
+    if exponent == 0 then none else if exponent == 1 then some name else some s!"{name}^{exponent}"
+  match factors with
+  | [] => rationalText term.coefficient
+  | _ =>
+    let product := String.intercalate " * " factors
+    if term.coefficient == 1 then product
+    else if term.coefficient == -1 then "-" ++ product
+    else s!"{rationalText term.coefficient} * {product}"
+
+/-- Presentation only: the residual of a failed gap identity, from its first
+term and its number of terms (`Failure.witness`). The elaboration computes
+the quotient `Q` by division by `χ`, monic in the fiber coordinate, so the
+residual `W·χ′ − gᵉ − Q·χ` is the remainder of `W·χ′ − gᵉ` modulo `χ`. The
+term is named with `names`, the coordinates of the object and the fiber
+coordinate, and is at most `previewLength` characters long (#833). -/
+def residualText (names : List String) (term : AlgebraRuntime.Term) (terms : Nat) : String :=
+  let text := preview (termText names term)
+  if terms == 1 then s!"its remainder modulo χ is `{text}`"
+  else s!"its remainder modulo χ has {terms} terms, among them `{text}`"
+
 /-- What a diagnostic says for a failure of a spectral check about `subject`,
-such as "the endomorphism `p::H`". -/
-private def failureReason (subject : String) : Failure → String
+such as "the endomorphism `p::H`". `names` names the variables of a residual:
+the coordinates of the object and the fiber coordinate of a branch. -/
+private def failureReason (subject : String) (names : List String := []) : Failure → String
   | .rank size => s!"{subject} has rank {size}, beyond the limit of {Limits.spectralRank} (`spectralRank`)"
   | .emptyBasis => s!"{subject} has no basis vector; a free module needs at least one"
   | .duplicateBasis name => s!"{subject} names the basis vector `{name}` twice"
@@ -104,13 +147,14 @@ private def failureReason (subject : String) : Failure → String
   | .unreducedWitness d =>
     s!"the witness of {subject} has degree {d} in the fiber coordinate; a witness is reduced, of degree " ++
       "below the rank"
-  | .witness =>
+  | .witness term terms =>
     s!"the witness of {subject} does not certify the gap: W·χ′ − g^e is not a multiple of the " ++
-      "characteristic polynomial χ"
+      s!"characteristic polynomial χ; {residualText names term terms}"
   | .work error => s!"{subject}: {error.message}"
 
-private def failureProblem {α : Type} (span : Span) (subject : String) (failure : Failure) : Namespace.Result α :=
-  Namespace.problem span failure.code (failureReason subject failure)
+private def failureProblem {α : Type} (span : Span) (subject : String) (failure : Failure)
+    (names : List String := []) : Namespace.Result α :=
+  Namespace.problem span failure.code (failureReason subject names failure)
 
 /-- The coordinates of the smooth object `object` of the spectral declaration
 `name` of `kind`, declared at `family`, after its family and its object are
@@ -235,7 +279,7 @@ private def elaborateBranch (span : Span) (env : Environment) (name family objec
     | .ok quotient =>
       match checkWitness m n certificate.characteristic g w exponent quotient with
       | .ok () => pure (g, w, quotient)
-      | .error failure => failureProblem span subject failure
+      | .error failure => failureProblem span subject failure (names := fibered)
 
 /-! ## The declarations that bindings embed -/
 

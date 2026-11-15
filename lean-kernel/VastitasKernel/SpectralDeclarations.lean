@@ -33,7 +33,10 @@ Over the coordinate ring `A = ℚ[x₁, …, x_m]` of a smooth object `X`:
 - a branch `Branch<X>` of a spectrum is a gap certificate on the principal
   open `D(g)`: `checkWitness` accepts `g` in `A` (arity `m`, so without `t`),
   `g ≠ 0`, `W` reduced (`deg_t W < n`), `e ≤ spectralPower`, and
-  `W·χ′ − gᵉ = Q·χ` for the stored quotient `Q`.
+  `W·χ′ − gᵉ = Q·χ` for the stored quotient `Q`. A failed identity
+  (`Failure.witness`) carries the first term of the residual
+  `W·χ′ − gᵉ − Q·χ` that the check computed, and its number of terms, for
+  the diagnostic.
 
 Every identity "modulo `χ`" is checked as `X − Q·χ = []` with a quotient that
 the kernel computes during elaboration (`divideT`, division by `χ` as a monic
@@ -116,8 +119,10 @@ inductive Failure where
   | witnessShape
   /-- The witness of a branch has degree `degree ≥ n` in `t`. -/
   | unreducedWitness (degree : Nat)
-  /-- `W·χ′ − gᵉ ≠ Q·χ`. -/
-  | witness
+  /-- `W·χ′ − gᵉ ≠ Q·χ`: the residual `W·χ′ − gᵉ − Q·χ` that the check
+  computed has `terms` terms, the first `term`, in the canonical order.
+  Presentation only: acceptance reads no field. -/
+  | witness (term : AlgebraRuntime.Term) (terms : Nat)
   /-- The products exceed an algebra limit. -/
   | work (error : AlgebraBasis.Error)
   deriving Repr, DecidableEq, Inhabited
@@ -394,7 +399,10 @@ def checkCertificate (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCe
 /-- The gap certificate of a branch of the spectrum with characteristic
 polynomial `χ` of an endomorphism of rank `n` over `A` (`arity = m`): the
 exponent limit first, `g` canonical of arity `m` and nonzero, `W` and `Q`
-canonical of arity `m + 1`, `deg_t W < n`, and `W·χ′ − gᵉ − Q·χ = []`. -/
+canonical of arity `m + 1`, `deg_t W < n`, and `W·χ′ − gᵉ − Q·χ = []`.
+A failed identity names the first term of that residual and its number of
+terms, which the check has computed: no other product is formed for the
+diagnostic (#833). -/
 def checkWitness (arity n : Nat) (characteristic localize witness : Poly) (exponent : Nat) (quotient : Poly) :
     Except Failure Unit := do
   if exponent > Limits.spectralPower then throw (.exponent exponent)
@@ -405,7 +413,7 @@ def checkWitness (arity n : Nat) (characteristic localize witness : Poly) (expon
   match AlgebraBasis.run (do
       residual characteristic (← witnessDifference arity characteristic localize witness exponent) quotient) with
   | .error error => throw (.work error)
-  | .ok difference => unless difference.isEmpty do throw .witness
+  | .ok difference => unless difference.isEmpty do throw (.witness (difference.headD default) difference.length)
 
 /-- The power of `trace_power(H, k)`: `1 ≤ k ≤ spectralPower`, the limit first. -/
 def checkPower (power : Nat) : Except Failure Unit := do

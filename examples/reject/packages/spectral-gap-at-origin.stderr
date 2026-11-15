@@ -1,1 +1,1 @@
-examples/reject/packages/spectral-gap-at-origin/main.vast:16:1: E_SPECTRAL: the witness of the branch `spectral_gap_at_origin::B` does not certify the gap: W·χ′ − g^e is not a multiple of the characteristic polynomial χ
+examples/reject/packages/spectral-gap-at-origin/main.vast:16:1: E_SPECTRAL: the witness of the branch `spectral_gap_at_origin::B` does not certify the gap: W·χ′ − g^e is not a multiple of the characteristic polynomial χ; its remainder modulo χ has 3 terms, among them `x^2`

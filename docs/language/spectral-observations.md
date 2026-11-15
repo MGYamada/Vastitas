@@ -543,8 +543,11 @@ Rules:
 - The gap witness W must have a degree in the fiber coordinate below the
   rank n of the field. Otherwise it is an error (`E_SPECTRAL`).
 - W·χ′ − gᵉ must be a multiple of χ. Otherwise it is an error
-  (`E_SPECTRAL`). The computation must stay within the term and work budgets
-  of [exact affine algebra](../appendix/limits.md#exact-affine-algebra).
+  (`E_SPECTRAL`), whose message shows a term of the remainder of W·χ′ − gᵉ
+  modulo χ, with the names of the coordinates and of the fiber coordinate,
+  and the number of its terms. The computation must stay within the term
+  and work budgets of
+  [exact affine algebra](../appendix/limits.md#exact-affine-algebra).
   Otherwise it is an error (`E_LIMIT`).
 - A branch used as a value is an error (`E_TYPE`).
 

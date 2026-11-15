@@ -888,3 +888,48 @@ fn strict_keywords_are_no_fiber_coordinates() {
     }
 }
 
+/// A failed gap identity shows a term of the remainder of W·χ′ − gᵉ modulo χ
+/// that the kernel computed, with the names of the coordinates and the fiber
+/// coordinate (#833). For H = diag(t, −t) with the fiber coordinate z,
+/// χ = z² − t², and the witness z/2 gives W·χ′ − (t² + 1) = χ − 1: the
+/// remainder is the constant −1. The localization t² is certified by the same
+/// witness, and the witness z/2 + t leaves the remainder 2tz.
+#[test]
+fn a_failed_gap_identity_shows_a_term_of_its_remainder() {
+    let header: String = MAIN
+        .lines()
+        .take_while(|line| !line.starts_with("indexed free_module"))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    let branch = |localize: &str, witness: &str| {
+        format!(
+            "{header}indexed affine T(SmoothR) = Affine(1)[t];\n\
+             indexed free_module VT: FreeModule<T> = basis(e1, e2);\n\
+             indexed endomorphism D: Endomorphism<T> = rows((t, 0), (0, -t)) of VT symmetric;\n\
+             indexed spectrum SD: Spectrum<T> = eigen(D, z);\n\
+             indexed branch BD: Branch<T> = simple(SD, localize = {localize}, witness = {witness}, exponent = 1);\n\
+             fn main() -> Int {{ 42 }}\n"
+        )
+    };
+    let row = |source: &str| {
+        source
+            .lines()
+            .position(|line| line.starts_with("indexed branch BD"))
+            .unwrap()
+            + 1
+    };
+    let failure = "E_SPECTRAL: the witness of the branch `spectral_declarations::BD` does not certify the \
+                   gap: W·χ′ − g^e is not a multiple of the characteristic polynomial χ; its remainder \
+                   modulo χ";
+    let constant = branch("t^2 + 1", "frac(1, 2) * z");
+    rejected_at(
+        &constant,
+        &format!("main.vast:{}:1: {failure} is `-1`", row(&constant)),
+    );
+    let linear = branch("t^2", "frac(1, 2) * z + t");
+    rejected_at(
+        &linear,
+        &format!("main.vast:{}:1: {failure} is `2 * t * z`", row(&linear)),
+    );
+    success(&package(&branch("t^2", "frac(1, 2) * z")).check_manifest("Vastitas.toml"));
+}

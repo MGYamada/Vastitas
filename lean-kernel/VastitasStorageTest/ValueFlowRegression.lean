@@ -60,8 +60,10 @@ private def scalarOnly : ResourceSource.Program := changeMain fun f => {f with
   let some function := source.lowered.functions[entry]? | throw (IO.userError "missing lowered main")
   let some (fragment, arguments, _) := function.valueResult | throw (IO.userError "missing main return")
   let some target := source.targets.entries[fragment]? | throw (IO.userError "missing main Core target")
-  require "terminal signature excludes branch-local scalars"
-    (target.signature.parameters == [.bool, .int] && arguments.length == 2)
+  -- The terminal block names `answerInput` only: the visible `decision` is
+  -- no parameter (#797), and the branch-local scalars are out of scope.
+  require "terminal signature takes the one scalar it names, and no branch-local one"
+    (target.signature.parameters == [.int] && arguments.length == 1)
   let .ok generated := ResourceSource.Codegen.generate fixture
     | throw (IO.userError "mixed code generation rejected")
   require "runtime condition rendered from actual slot" ((generated.source.splitOn "if resourceValue_").length > 1)

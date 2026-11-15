@@ -442,8 +442,12 @@ private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : N
       (← coefficient alpha) (← coefficient beta))
 
 /-- Reconstruct the pure function and its argument symbols together, at the
-exact enclosing owner and structural source position. Only live scalar bindings
-enter this pure context; resource handles and nominal metadata never do. -/
+exact enclosing owner and structural source position. Only the live scalar
+bindings that the body names enter this pure context, in frame order; resource
+handles and nominal metadata never do. The whole frame still decides shadowing
+and lambda independence. The names are the free names of the body, so a
+binding that the body does not name cannot be observed: shadowing is rejected
+and lambdas may not capture. -/
 private def fragment (index : Namespace.Indexed) (owner : Indexed.DeclId) (position : List Nat)
     (frame : Frame) (type : Indexed.Core.PureType) (body : Indexed.FunctionSource.Block)
     (span : Span) (terminal : Bool := false) : M (Nat × List Symbol) := do
@@ -454,8 +458,9 @@ private def fragment (index : Namespace.Indexed) (owner : Indexed.DeclId) (posit
   unless (Indexed.FunctionSource.blockScopes (frame.map Prod.fst) body).all (fun lambda =>
       decide (Indexed.FunctionSource.ScopeSafe index owner.scope lambda)) do
     throw {code := "E_CAPTURE", message := "resource value lambdas must be independent of enclosing bindings", span}
+  let named := Indexed.FunctionSource.freeBlock [] body
   let scalarBindings := frame.reverse.filterMap fun (name, symbol, kind) => match kind with
-    | .scalar type => some (name, symbol, type)
+    | .scalar type => if named.any (·.path == [name]) then some (name, symbol, type) else none
     | _ => none
   let params := scalarBindings.map fun (name, _, type) =>
     Indexed.FunctionSource.Param.mk name (.data (.pure type)) span

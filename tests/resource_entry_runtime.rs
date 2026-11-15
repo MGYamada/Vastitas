@@ -43,12 +43,13 @@ resource fn main() -> Int {
     let picked: Int = call pick(flag, base) -> ();
     value { picked + 1 }
 }";
+/// Each value call passes the scalar bindings that its block names (#797).
 const SCALAR_FLOW_MAIN: &str = "
 def main : IO Unit := do
   let resourceValue_0 := VastitasGenerated.f_2
-  let resourceValue_1 := VastitasGenerated.f_3 resourceValue_0
+  let resourceValue_1 := VastitasGenerated.f_3
   if resourceValue_0 then
-    let resourceValue_2 := VastitasGenerated.f_4 resourceValue_0 resourceValue_1
+    let resourceValue_2 := VastitasGenerated.f_4 resourceValue_1
     pure ()
   else
     pure ()
@@ -56,9 +57,9 @@ def main : IO Unit := do
     pure ()
   else
     pure ()
-  let resourceValue_5 := VastitasGenerated.f_0 resourceValue_0 resourceValue_1
+  let resourceValue_5 := VastitasGenerated.f_0 resourceValue_1
   let resourceValue_6 := VastitasGenerated.f_1 resourceValue_0 resourceValue_1 resourceValue_5
-  IO.println (VastitasGenerated.f_5 resourceValue_0 resourceValue_1 resourceValue_6)
+  IO.println (VastitasGenerated.f_5 resourceValue_6)
 ";
 
 /// Numerical declarations without an allocation. Spaces and bases are

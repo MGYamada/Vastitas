@@ -561,3 +561,89 @@ fn public_resource_function_recursion_is_rejected_directly_mutually_and_unused()
         common::assert_wire_rejected(&kernel(forged, "emit"), "E_RESOURCE_RECURSION");
     }
 }
+
+/// The generated signature of pure fragment `index` and the arguments of its
+/// one call in `main`.
+fn fragment(lean: &str, index: usize) -> (usize, Vec<String>) {
+    let name = format!("f_{index}");
+    let signature = lean
+        .lines()
+        .find(|line| line.starts_with(&format!("def {name} ")))
+        .unwrap_or_else(|| panic!("no fragment {name}:\n{lean}"));
+    let call = format!("VastitasGenerated.{name}");
+    // The call of `f_5` is not a prefix of a call of `f_51`.
+    let rest = lean
+        .lines()
+        .find_map(|line| {
+            let (_, rest) = line.split_once(&call)?;
+            (!rest.starts_with(|c: char| c.is_ascii_digit())).then_some(rest)
+        })
+        .unwrap_or_else(|| panic!("no call of {name}:\n{lean}"));
+    let arguments = rest
+        .split_whitespace()
+        .map(|argument| argument.trim_end_matches(')').to_owned())
+        .filter(|argument| !argument.is_empty())
+        .collect();
+    (signature.matches("(v_").count(), arguments)
+}
+
+/// A `value` block becomes a function of the scalar bindings that it names,
+/// in binding order, and its call passes exactly those (#797). Every visible
+/// scalar binding used to be a parameter of every fragment, so independent
+/// constants grew the generated source quadratically.
+#[test]
+fn value_fragments_take_only_the_scalar_bindings_they_name() {
+    let source = "resource fn main() -> Int {
+    let a: Int = value { 1 };
+    let b: Int = value { 2 };
+    let unused: Int = value { 3 };
+    let c: Int = value { if a == 1 { b } else { 0 } };
+    let d: Int = value { let local: Int = b; local + a };
+    value { c + d }
+}
+";
+    let scratch = fixture(source);
+    let emitted = kernel(request(&scratch), "emit");
+    assert_eq!(emitted["ok"], true, "{emitted}");
+    let lean = emitted["lean_source"].as_str().unwrap();
+    let value = |index: usize| format!("resourceValue_{index}");
+    for index in 0..3 {
+        assert_eq!(fragment(lean, index), (0, vec![]), "{lean}");
+    }
+    // The branch and the block name `a` and `b`, in binding order; the
+    // terminal block names `c` and `d`. `unused` is passed to nothing.
+    assert_eq!(fragment(lean, 3), (2, vec![value(0), value(1)]), "{lean}");
+    assert_eq!(fragment(lean, 4), (2, vec![value(0), value(1)]), "{lean}");
+    assert_eq!(fragment(lean, 5), (2, vec![value(3), value(4)]), "{lean}");
+    let executable = scratch.0.join("program");
+    success(
+        &cli()
+            .args(["build", "--manifest-path"])
+            .arg(scratch.0.join("Vastitas.toml"))
+            .arg("-o")
+            .arg(&executable)
+            .output()
+            .unwrap(),
+    );
+    let output = Command::new(executable).output().unwrap();
+    success(&output);
+    assert_eq!(output.stdout, b"5\n");
+
+    // Independent constants: no fragment takes a parameter, and the source
+    // grows linearly. 512 of them generated 4,477,420 bytes before, and 1,600
+    // exceeded the elaboration budget.
+    let constants = |count: usize| {
+        let body: String = (0..count)
+            .map(|i| format!("    let s{i}: Int = value {{ {i} }};\n"))
+            .collect();
+        format!("resource fn main() -> Int {{\n{body}    value {{ 42 }}\n}}\n")
+    };
+    let emitted = kernel(request(&fixture(&constants(512))), "emit");
+    assert_eq!(emitted["ok"], true, "{emitted}");
+    let lean = emitted["lean_source"].as_str().unwrap();
+    for index in [0, 255, 511, 512] {
+        assert_eq!(fragment(lean, index), (0, vec![]));
+    }
+    assert!(lean.len() < 100_000, "{} bytes", lean.len());
+    success(&check(&fixture(&constants(1600))));
+}

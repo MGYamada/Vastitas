@@ -506,13 +506,10 @@ impl Parser {
                 fields.push(self.indexed_branch_field("on_branch")?);
                 fields
             }
+            // The families in wire order, as for `differential`: the
+            // cotangent family before the line.
             "branch_differential" => {
-                // The source names the families of the operands, `Smooth,
-                // Line`, as every branch observation does, and then the
-                // cotangent family of the result. The wire keeps the order
-                // of `differential`: the cotangent family before the line.
-                let mut fields = self.indexed_paths(&["map_family", "line", "cotangent"])?;
-                fields.swap(1, 2);
+                let mut fields = self.indexed_paths(&["map_family", "cotangent", "line"])?;
                 fields.push(self.indexed_branch_field("branch_differential")?);
                 fields
             }
@@ -1686,7 +1683,7 @@ mod tests {
         ("on_branch", "on_branch(Smooth, Line, branch = B)"),
         (
             "branch_differential",
-            "branch_differential(Smooth, Line, Cotangent, branch = B)",
+            "branch_differential(Smooth, Cotangent, Line, branch = B)",
         ),
         (
             "branch_projector",
@@ -2144,9 +2141,10 @@ mod tests {
     /// The observations of Stage 5 (#806), each with the binding that the
     /// kernel's protocol-9 decoder reads: the positional fields, the
     /// spectrum or branch and the element under their keywords, and the row
-    /// and the column as basis names. The source lists the families of a
-    /// branch observation as `Smooth, Line[, Cotangent]`; the wire keeps the
-    /// table's order. Every one is algebraic, so it selects protocol 9.
+    /// and the column as basis names. The positional families come in wire
+    /// order, so `branch_differential` lists the cotangent family before the
+    /// line, as `differential` does. Every one is algebraic, so it selects
+    /// protocol 9.
     #[test]
     fn every_spectral_primitive_parses_to_its_wire_record() {
         let shifted = || sum(vec![coordinate("t"), neg(n("2"))]);
@@ -2167,7 +2165,7 @@ mod tests {
                     "branch": p("B") }),
             ),
             (
-                "indexed primitive dl = branch_differential(Smooth, Line, Cotangent, branch = B);",
+                "indexed primitive dl = branch_differential(Smooth, Cotangent, Line, branch = B);",
                 json!({ "op": "branch_differential", "map_family": p("Smooth"),
                     "cotangent": p("Cotangent"), "line": p("Line"), "branch": p("B") }),
             ),
@@ -2194,7 +2192,7 @@ mod tests {
                     "element": n("0"), "row": "e2", "column": "e2" }),
             ),
             (
-                "indexed primitive dl = branch_differential(geo::Smooth, geo::Line, geo::Cotangent, branch = super::B);",
+                "indexed primitive dl = branch_differential(geo::Smooth, geo::Cotangent, geo::Line, branch = super::B);",
                 json!({ "op": "branch_differential",
                     "map_family": { "path": ["geo", "Smooth"] },
                     "cotangent": { "path": ["geo", "Cotangent"] },
@@ -2217,10 +2215,10 @@ mod tests {
             );
             assert_round_trip(&declaration);
         }
-        // The cotangent family precedes the line on the wire, as for
-        // `differential`.
+        // The source order is the wire order: the cotangent family precedes
+        // the line, as for `differential`.
         let binding = parse_binding(
-            "indexed primitive dl = branch_differential(Smooth, Line, Cotangent, branch = B);",
+            "indexed primitive dl = branch_differential(Smooth, Cotangent, Line, branch = B);",
         )
         .unwrap();
         let order: Vec<&str> = binding.fields().map(|(name, _)| name).collect();
@@ -2369,14 +2367,14 @@ mod tests {
                 ", e1",
             ),
             (
-                "indexed primitive p = branch_differential(Smooth, Line, Cotangent);",
+                "indexed primitive p = branch_differential(Smooth, Cotangent, Line);",
                 "E_PARSE",
                 &differential,
                 ")",
                 ");",
             ),
             (
-                "indexed primitive p = branch_differential(Smooth, Line, branch = B);",
+                "indexed primitive p = branch_differential(Smooth, Cotangent, branch = B);",
                 "E_PARSE",
                 &differential,
                 "=",

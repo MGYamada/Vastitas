@@ -40,7 +40,7 @@ indexed morphism c0: Smooth<Plane, Line> = char_coefficient(S, 0);
 indexed primitive ann = annihilates(Smooth, spectrum = S, element = t - 2);
 indexed primitive act = action_entry(Smooth, spectrum = S, element = t - 2, e1, e2);
 indexed primitive on = on_branch(Smooth, Line, branch = B);
-indexed primitive dl = branch_differential(Smooth, Line, Cotangent, branch = B);
+indexed primitive dl = branch_differential(Smooth, Cotangent, Line, branch = B);
 indexed primitive pr = branch_projector(Smooth, Line, branch = B, e1, e2);
 
 fn main() -> Int { 42 }
@@ -208,7 +208,7 @@ const LONE_FORMS: &[(&str, &str)] = &[
         "unknown indexed primitive contract",
     ),
     (
-        "indexed primitive dl = branch_differential(Smooth, Line, Cotangent, branch = B);",
+        "indexed primitive dl = branch_differential(Smooth, Cotangent, Line, branch = B);",
         "unknown indexed primitive contract",
     ),
     (
@@ -520,8 +520,9 @@ fn natural_digits_are_bounded_as_the_decoder_bounds_them() {
 /// The frontend checks no spectral rule: a rank beyond `spectralRank`,
 /// repeated or unknown basis names, ragged rows, a false `symmetric` claim, a
 /// fiber name that clashes with a coordinate, a localization in the fiber
-/// coordinate, an exponent or a power beyond `spectralPower`, and a second
-/// object all go to the wire as written. The kernel decodes and rejects each.
+/// coordinate, an exponent or a power beyond `spectralPower`, a second
+/// object, and families in the wrong places all go to the wire as written.
+/// The kernel decodes and rejects each.
 #[test]
 fn the_frontend_leaves_spectral_rules_to_the_kernel() {
     let v = "indexed free_module V: FreeModule<Plane> = basis(e1, e2);";
@@ -531,6 +532,7 @@ fn the_frontend_leaves_spectral_rules_to_the_kernel() {
     let tr2 = "indexed morphism tr2: Smooth<Plane, Line> = trace_power(H, 2);";
     let act =
         "indexed primitive act = action_entry(Smooth, spectrum = S, element = t - 2, e1, e2);";
+    let dl = "indexed primitive dl = branch_differential(Smooth, Cotangent, Line, branch = B);";
     let cases: Vec<(&str, &str, &str, Value)> = vec![
         (
             v,
@@ -597,6 +599,16 @@ fn the_frontend_leaves_spectral_rules_to_the_kernel() {
             "indexed primitive act = action_entry(Smooth, spectrum = S, element = t - 2, e3, e1);",
             "act/binding/row",
             json!("e3"),
+        ),
+        // The positional families are taken in wire order and never
+        // reordered: with the line before the cotangent family, each lands
+        // in the other's field.
+        (
+            dl,
+            "indexed primitive dl = branch_differential(Smooth, Line, Cotangent, branch = B);",
+            "dl/binding",
+            json!({ "op": "branch_differential", "map_family": p("Smooth"),
+                "cotangent": p("Line"), "line": p("Cotangent"), "branch": p("B") }),
         ),
     ];
     for (from, to, field, expected) in cases {

@@ -1,0 +1,12 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::linalg::spectral::FreeModule;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// ANCHOR: declarations
+// The finite profile admits free modules of rank at most 4 (`spectralRank`),
+// so a fifth basis vector is over the limit before any field acts on it.
+indexed free_module V5: FreeModule<Plane> = basis(e1, e2, e3, e4, e5);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

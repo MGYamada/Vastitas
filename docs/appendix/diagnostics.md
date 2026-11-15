@@ -160,7 +160,7 @@ the source.
 
 The errors of an `indexed` declaration that concern its type have the code
 `E_TYPE`. These codes report the other errors of the geometric declarations,
-of frames and of physical dimensions.
+of frames, of physical dimensions and of spectral observations.
 
 | Code | Reports | Rules |
 | --- | --- | --- |
@@ -171,6 +171,7 @@ of frames and of physical dimensions.
 | <a id="e-smooth-fibers"></a>`E_SMOOTH` in primitives on tangent or cotangent fibers and tapes | A binding that names a tangent family where its primitive requires a cotangent family, or a cotangent family where it requires a tangent family, and an object of a binding that is no smooth affine object of the required dimension, such as the object of a `smooth_int_point`, of a `fiber_vector` or of a `differential` binding. An operand of the wrong kind, family or object has the code `E_TYPE` or `E_ENDPOINT` | [Smooth map primitives](../language/smooth-declarations.md#smooth-map-primitives) · [Fiber primitives](../language/smooth-declarations.md#fiber-primitives) · [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) · [Flat and sharp](../language/smooth-declarations.md#flat-and-sharp) · [Operand checks](../language/smooth-declarations.md#operand-checks) |
 | <a id="e-frame"></a>`E_FRAME` | A frame that its rules do not admit: another family than a frame family, another number of objects than one, an object that is no smooth affine object, columns of another number or length, a singular constant frame, a constant frame with a declared inverse, a frame that depends on the point without a declared inverse, and a declared inverse of another shape or that is not the inverse. A frame primitive whose frame path names no frame, and an encoding or a decoding between a family of vectors and a family of covector arrays, or the reverse. A request that holds the inverse of a constant frame | [Frame declarations](../language/frames.md#frame-declarations) · [Encoding and decoding](../language/frames.md#encoding-and-decoding) · [Map arrays and transitions](../language/frames.md#map-arrays-and-transitions) |
 | <a id="e-dimension"></a>`E_DIMENSION` | A declaration of [Physical dimensions](../language/physical-dimensions.md) that its rules do not admit: a dimension that names something other than a base dimension, or one base dimension twice. A reading that does not name each coordinate of its object once with a quantity kind. A scale whose magnitude is not a positive constant, including one with a coordinate or a fraction with the denominator 0, or whose path names no quantity kind. A physical interpretation whose metric or reading is of another object, whose entries have a coefficient with the denominator 0 or do not give the Gram matrix of the metric, whose terms have different dimensions, whose declared value differs from them, or whose `normalized` scale has another kind than its coordinate. A family, an object or a number of objects that a reading or an interpretation does not admit | [Base dimensions and quantity kinds](../language/physical-dimensions.md#base-dimensions-and-quantity-kinds) · [Readings](../language/physical-dimensions.md#readings) · [Scales](../language/physical-dimensions.md#scales) · [Physical interpretations](../language/physical-dimensions.md#physical-interpretations) |
+| <a id="e-spectral"></a>`E_SPECTRAL` | A declaration of [Spectral observations](../language/spectral-observations.md) that its rules do not admit: another family than a family of its representation, another number of objects than one, an object that is no smooth affine object or that its family does not accept. A free module without a basis vector or with a basis name that repeats. An endomorphism field whose module is no free module or is on another object, whose rows are not a square matrix of the rank of the module, or that is declared `symmetric` and is not, with the first entry that differs from its mirror. A spectrum whose field is no endomorphism field or is on another object, or whose fiber coordinate is a coordinate of the object. A branch whose spectrum is no spectrum or is on another object, whose localization contains the fiber coordinate or is zero, whose gap witness is not reduced, or whose gap witness does not certify the gap. A spectral invariant at a family that is not smooth, with a target that is not of dimension 1, with a field or a spectrum of another object or of another kind, with the power 0, or with a coefficient index above the rank. An observation whose spectrum or branch path names a declaration of another kind, or whose row or column is no basis name of its module. A computed spectral pair that fails one of its checks | [Free modules](../language/spectral-observations.md#free-modules) · [Endomorphism fields](../language/spectral-observations.md#endomorphism-fields) · [Spectral pairs](../language/spectral-observations.md#spectral-pairs) · [Spectral invariants](../language/spectral-observations.md#spectral-invariants) · [Module observations](../language/spectral-observations.md#module-observations) · [Branches](../language/spectral-observations.md#branches) · [Branch observations](../language/spectral-observations.md#branch-observations) |
 | <a id="e-metric"></a>`E_METRIC` | A metric that its rules do not admit: another family than a metric form, an object that is no smooth affine object, a Gram matrix of another size, an entry that is not constant, or a matrix that is not symmetric. Evidence that does not hold, such as `riemannian(g)` for a matrix that is not positive definite. A `flat` or a `sharp` whose `using =` names something other than a metric, and a `sharp` whose evidence is for another metric | [Metrics](../language/smooth-declarations.md#metrics) · [Metric evidence](../language/smooth-declarations.md#metric-evidence) · [Flat and sharp](../language/smooth-declarations.md#flat-and-sharp) |
 
 The sections of the last column give every rule with its code, including the
@@ -191,12 +192,16 @@ than `coordinates` and `columns`, a physical Gram form other than
 is no unsigned decimal string of at most 64 digits, an exponent that is no
 such string with an optional leading `-`, and a frame binding that holds a
 matrix, an inverse or an object. An inverse declared for a
-constant frame decodes, and the kernel rejects it (`E_FRAME`).
+constant frame decodes, and the kernel rejects it (`E_FRAME`). So is a
+spectral record in a request of protocol 7 or 8, and a spectral record that
+holds a characteristic polynomial, an adjugate, a quotient, the image of an
+invariant or the data of an embedded declaration.
 [Smooth forms](../protocol.md#protocol-9-smooth-forms),
 [Metric forms](../protocol.md#protocol-9-metric-forms),
-[Frame forms](../protocol.md#protocol-9-frame-forms) and
+[Frame forms](../protocol.md#protocol-9-frame-forms),
 [Physical-dimension forms](../protocol.md#protocol-9-physical-dimension-forms)
-give the forms of a request.
+and [Spectral forms](../protocol.md#protocol-9-spectral-forms) give the forms
+of a request.
 
 ### Resource functions
 
@@ -262,7 +267,7 @@ These codes report rules on runtime extents that the compiler decides.
 
 | Code | Reports | Rules |
 | --- | --- | --- |
-| `E_LIMIT` | A program beyond a limit of the compiler, including an `indexed` declaration beyond a limit on its implementations, parameters, cases or fields, a constant frame beyond the bounds of its entries, and a base dimension, an exponent or an entry of a physical interpretation beyond its limit | [Limits](../language/limits.md) · [Appendix D](limits.md) · [Indexed declarations](../indexed-source.md) · [Frame declarations](../language/frames.md#frame-declarations) · [Physical dimensions](../language/physical-dimensions.md) |
+| `E_LIMIT` | A program beyond a limit of the compiler, including an `indexed` declaration beyond a limit on its implementations, parameters, cases or fields, a constant frame beyond the bounds of its entries, a base dimension, an exponent or an entry of a physical interpretation beyond its limit, and a free module beyond its rank or a trace power or the exponent of a branch beyond its power | [Limits](../language/limits.md) · [Appendix D](limits.md) · [Indexed declarations](../indexed-source.md) · [Frame declarations](../language/frames.md#frame-declarations) · [Physical dimensions](../language/physical-dimensions.md) |
 
 Other codes report the limits of their constructs, as
 [Kinds of limits](../language/limits.md#kinds-of-limits) says:

@@ -10,9 +10,14 @@ pub fn read(path: &Path) -> String {
 }
 
 /// The stdlib directories that an application's copy of the stdlib holds:
-/// the generated `std` entrypoint package and the geometry and differential
-/// packages.
-pub const STDLIB_PACKAGES: [&str; 3] = ["target/package", "src/geometry", "src/differential"];
+/// the generated `std` entrypoint package and the geometry, differential and
+/// linalg packages.
+pub const STDLIB_PACKAGES: [&str; 4] = [
+    "target/package",
+    "src/geometry",
+    "src/differential",
+    "src/linalg",
+];
 
 impl Scratch {
     /// Copies every `.vast` and `.toml` file under `from` to the same relative

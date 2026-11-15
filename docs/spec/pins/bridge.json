@@ -8,7 +8,10 @@
     "VastitasBridge.Differential.Frame",
     "VastitasBridge.Differential.Kaehler",
     "VastitasBridge.Differential.Metric",
-    "VastitasBridge.Differential.ReverseCore"
+    "VastitasBridge.Differential.ReverseCore",
+    "VastitasBridge.Spectral.Accepted",
+    "VastitasBridge.Spectral.Algebra",
+    "VastitasBridge.Spectral.Prerequisites"
   ],
   "entries": [
     {"name": "VastitasBridge.Differential.backward_eq_cot", "module": "VastitasBridge.Differential.ChainRule", "kind": "theorem", "statement": "sha256:1c3c3c6f88785488ffc1dba50e129670759cc877d6af7645b9802c0eb9b32729"},
@@ -47,6 +50,22 @@
     {"name": "VastitasBridge.Differential.site_differential_rewrite_frechet", "module": "VastitasBridge.Differential.ReverseCore", "kind": "theorem", "statement": "sha256:c885d9125467b213a6685c5ca92f8269339e5539b6f55b7d0232055b5fa8f564"},
     {"name": "VastitasBridge.Differential.site_recomputed_rewrite_frechet", "module": "VastitasBridge.Differential.ReverseCore", "kind": "theorem", "statement": "sha256:2b7d9dab219398208fbfdb938ae3d2782a4e10c6fb9501eed120877351d47a37"},
     {"name": "VastitasBridge.Differential.site_saved_rewrite_frechet", "module": "VastitasBridge.Differential.ReverseCore", "kind": "theorem", "statement": "sha256:04bc92dddf8b2eaa73b87d12f4ccbf2b051a98c57ae21c8501c2d4321aabd634"},
-    {"name": "VastitasBridge.Differential.site_tape_rewrite_frechet", "module": "VastitasBridge.Differential.ReverseCore", "kind": "theorem", "statement": "sha256:5a0367887693dfee2037ee3ac92d79e3e63db66508700c728d14700d69ac71c3"}
+    {"name": "VastitasBridge.Differential.site_tape_rewrite_frechet", "module": "VastitasBridge.Differential.ReverseCore", "kind": "theorem", "statement": "sha256:5a0367887693dfee2037ee3ac92d79e3e63db66508700c728d14700d69ac71c3"},
+    {"name": "VastitasBridge.Spectral.branch_mem_spectrum", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:d025e851fbaeafb8d9399658005715942adfdec372693c8dc2d6b9763ea46e82"},
+    {"name": "VastitasBridge.Spectral.charPoly_eval_real", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:3c9430e6b24acf693402a00c35d6c9d22143f63585134859d2d43a65b118d015"},
+    {"name": "VastitasBridge.Spectral.checked_branch_differential_implicit", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:5d260b4151ce932bd6ffbb392b859636d098c0fc746079d14bb94eb57cadb372"},
+    {"name": "VastitasBridge.Spectral.checked_trace_power_dk", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:b1574e447a6885627506f7d4b3c4cb0389a95a2eab38b30dff3df4b702c6b888"},
+    {"name": "VastitasBridge.Spectral.compiled_trace_power_dk", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:77d42ce01e30598dbc86c5f3ca59abfb11edfad757c121f074ab8be6e540da45"},
+    {"name": "VastitasBridge.Spectral.implicit_branch_fderiv_eval", "module": "VastitasBridge.Spectral.Prerequisites", "kind": "theorem", "statement": "sha256:14d5355f7fd8befbf5936d8aafae78eabda6b92af4de604d2ee77291b1b555d7"},
+    {"name": "VastitasBridge.Spectral.public_pure_entry_trace_power_dk", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:098209e19988916e830424603d57f432372886e801feadd6b7ec4f3c2c6e180f"},
+    {"name": "VastitasBridge.Spectral.public_resource_entries_trace_power_dk", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:99aabd3d802987242495f2bd24a0cb10aed64ff13786302787c6f3d661eda579"},
+    {"name": "VastitasBridge.Spectral.realProgram_tracePower", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:bfe31c37419e1311de0353976d5c951ba1cfc5b0a1e220001189bbf52ef68335"},
+    {"name": "VastitasBridge.Spectral.ringDet_ofFn", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:44a839bc5548f31cfc0299cd427b6c7089f77d04b2b100b6b8c2d29da7851b8c"},
+    {"name": "VastitasBridge.Spectral.stage5_dk_gradient", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:7d3615841841c802587422a9950d6b3ee6a8805c274ee06b4ace691fc0f7ed32"},
+    {"name": "VastitasBridge.Spectral.toMv_charPoly", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:dd1abc4610bebf68b498db82ac631abc6ab1b5cc95cb94e54a30ba5b0f6b7abb"},
+    {"name": "VastitasBridge.Spectral.toMv_tCoefficient", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:81c3fc39a29cb51c188da9117d3e9e1156bf4c1cb13bd7c068162e764fc22a6d"},
+    {"name": "VastitasBridge.Spectral.toMv_tracePower", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:7b6b8f9efc326fb2648406817c8ed805870b448cbd2ee5621f5e1ec8b5791e7d"},
+    {"name": "VastitasBridge.Spectral.tracePower_fderiv_dk", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:6dea0e1df939b6f4c4a61464525005db1f36dda8d50a3134b9538d536921697b"},
+    {"name": "VastitasBridge.Spectral.unit_witness_localization", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:20f579acfdd809c9208272bbd7b02c9e54b117eef7399e9dc12c99b99242d9f6"}
   ]
 }

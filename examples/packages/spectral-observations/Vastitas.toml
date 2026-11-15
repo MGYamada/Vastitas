@@ -1,0 +1,8 @@
+[package]
+name = "spectral_observations"
+version = "0.1.0"
+root = "src/main.vast"
+
+[dependencies]
+std = { path = "../../../stdlib" }
+nature = { path = "../../../nature" }

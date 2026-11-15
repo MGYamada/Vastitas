@@ -1,0 +1,10 @@
+[package]
+name = "vastitas_linalg"
+version = "0.1.0"
+root = "mod.vast"
+
+# std::linalg, which the root module of vastitas_std re-exports. It depends on
+# the geometry package and on nothing else; the geometry package does not
+# depend on it (ADR 0001 §12, checked by scripts/check_boundaries.py).
+[dependencies]
+geometry = { path = "../geometry" }

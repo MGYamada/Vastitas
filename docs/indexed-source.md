@@ -36,7 +36,7 @@ profiles:
 >     | PackageDeclaration | PrimitiveDeclaration
 >     | ScalarBaseImplementation | LinearImplementation
 >     | SmoothDeclaration | AffineDeclaration
->     | FrameProfileDeclaration | DimensionDeclaration
+>     | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
 > ```
 
 The word after `indexed` is the kind of the declaration:
@@ -47,24 +47,28 @@ The word after `indexed` is the kind of the declaration:
 | `implementation` | An [implementation](#implementations) | `DescriptorImplementation` here, `ScalarBaseImplementation` and `LinearImplementation` in [Linear implementations](linalg/maps-and-gemm.md#linear-implementations), `SmoothImplementation` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), and a form of `AffineDeclaration` |
 | `classification` | A [classification](#classifications) | `ClassificationDeclaration` |
 | `global` | A [global object](#global-objects) | `GlobalDeclaration` |
-| `family` | A [family](#families) of types | `FamilyDeclaration` here, `SmoothFamily` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), `FrameFamily` in [The frame profile](language/frames.md#the-frame-profile), `DimensionFamily` in [Families of readings and interpretations](language/physical-dimensions.md#families-of-readings-and-interpretations), and a form of `AffineDeclaration` |
+| `family` | A [family](#families) of types | `FamilyDeclaration` here, `SmoothFamily` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), `FrameFamily` in [The frame profile](language/frames.md#the-frame-profile), `DimensionFamily` in [Families of readings and interpretations](language/physical-dimensions.md#families-of-readings-and-interpretations), `SpectralFamily` in [The spectral profile](language/spectral-observations.md#the-spectral-profile), and a form of `AffineDeclaration` |
 | `package` | The types of [existential packages](#existential-packages) | `PackageDeclaration` |
 | `primitive` | A [primitive](#primitives) | `PrimitiveDeclaration` |
 | `affine` | A smooth affine object or a presented affine object | `AffineSpaceDeclaration` in [Smooth affine objects](language/smooth-declarations.md#smooth-affine-objects), and a form of `AffineDeclaration` |
-| `morphism` | A smooth map or a morphism over a base | `MorphismDeclaration` in [Smooth maps](language/smooth-declarations.md#smooth-maps) |
+| `morphism` | A smooth map, a spectral invariant or a morphism over a base | `MorphismDeclaration` in [Smooth maps](language/smooth-declarations.md#smooth-maps), with the definitions `SpectralInvariant` of [Spectral invariants](language/spectral-observations.md#spectral-invariants) |
 | `metric`, `evidence` | A metric, and evidence for a metric | `MetricDeclaration` and `EvidenceDeclaration` in [Smooth affine declarations](language/smooth-declarations.md#metrics) |
 | `iso`, `cartesian` | An isomorphism and a Cartesian square of presented affine objects | Forms of `AffineDeclaration` |
 | `frame` | A frame of a smooth affine object | `FrameDeclaration` in [Frame declarations](language/frames.md#frame-declarations) |
 | `base_dimension`, `quantity` | A base dimension and a quantity kind | `BaseDimensionDeclaration` and `QuantityDeclaration` in [Base dimensions and quantity kinds](language/physical-dimensions.md#base-dimensions-and-quantity-kinds) |
 | `reading`, `scale`, `physical` | A reading, a scale and a physical interpretation | `ReadingDeclaration`, `ScaleDeclaration` and `PhysicalDeclaration` in [Physical dimensions](language/physical-dimensions.md) |
+| `free_module`, `endomorphism` | A free module and an endomorphism field of a smooth affine object | `FreeModuleDeclaration` in [Free modules](language/spectral-observations.md#free-modules) and `EndomorphismDeclaration` in [Endomorphism fields](language/spectral-observations.md#endomorphism-fields) |
+| `spectrum`, `branch` | The spectral pair of an endomorphism field and a finite chart of it | `SpectrumDeclaration` in [Spectral pairs](language/spectral-observations.md#spectral-pairs) and `BranchDeclaration` in [Branches](language/spectral-observations.md#branches) |
 
 `SmoothDeclaration` stands for the declarations of
 [Smooth affine declarations](language/smooth-declarations.md),
 `AffineDeclaration` for the declarations that only
 [Presented affine declarations](affine-geometry.md) has,
 `FrameProfileDeclaration` for the declarations of
-[Frames](language/frames.md), and `DimensionDeclaration` for the
-declarations of [Physical dimensions](language/physical-dimensions.md).
+[Frames](language/frames.md), `DimensionDeclaration` for the
+declarations of [Physical dimensions](language/physical-dimensions.md), and
+`SpectralDeclaration` for the declarations of
+[Spectral observations](language/spectral-observations.md).
 
 Rules:
 
@@ -606,7 +610,7 @@ different objects:
 > ```text
 > PrimitiveDeclaration -> `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
 > PrimitiveBinding -> DescriptorBinding | SmoothBinding | RelativeBinding
->     | FrameBinding
+>     | FrameBinding | SpectralBinding
 > DescriptorBinding -> `descriptor` `(` Path `)`
 >     | `global` `(` Path `)`
 >     | `origin` `(` `(` Path `,` Path `)` `,` Path `,` Path `)`
@@ -624,8 +628,10 @@ own, and a primitive binding names no native code. `SmoothBinding` gives the
 bindings of
 [Smooth affine declarations](language/smooth-declarations.md#smooth-map-primitives),
 `RelativeBinding` gives the bindings of
-[Morphism primitives](affine-geometry.md#morphism-primitives), and
-`FrameBinding` gives the bindings of [Frames](language/frames.md).
+[Morphism primitives](affine-geometry.md#morphism-primitives),
+`FrameBinding` gives the bindings of [Frames](language/frames.md), and
+`SpectralBinding` gives the bindings of
+[Spectral observations](language/spectral-observations.md#module-observations).
 
 In the table, `I` is an implementation over the marker `K`, and `G` and `B`
 are global objects. `(D, K)` stands for the object type `Object<D, K>`. `P` is

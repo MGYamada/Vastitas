@@ -1,0 +1,19 @@
+// Exact spectral pairs and simple branches of polynomial matrix fields
+// (historical Stage 5, ADR 0001 §12). Let A be the ring of the polynomials
+// with exact rational coefficients in the coordinates of a smooth affine
+// object X. FreeModule<X> indexes the free modules A^n on X with a named
+// ordered basis, Endomorphism<X> the n x n matrices over A that act on one of
+// them, Spectrum<X> the spectral pairs of those fields (the characteristic
+// polynomial det(tI - H) with a named fiber coordinate t, and the module on
+// which t acts as H), and Branch<X> the finite charts of a spectrum on which
+// every eigenvalue is simple. This library declares the families only: the
+// application declares its modules, fields, spectra, branches, invariants and
+// observations, which name them, as it declares its frames and metrics.
+pub indexed family FreeModule(object(geometry::smooth::affine::CInfAffine))
+    = free_module constraints(canonical(0));
+pub indexed family Endomorphism(object(geometry::smooth::affine::CInfAffine))
+    = endomorphism constraints(canonical(0));
+pub indexed family Spectrum(object(geometry::smooth::affine::CInfAffine))
+    = spectrum constraints(canonical(0));
+pub indexed family Branch(object(geometry::smooth::affine::CInfAffine))
+    = branch constraints(canonical(0));

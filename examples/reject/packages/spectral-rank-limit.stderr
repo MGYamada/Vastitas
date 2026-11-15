@@ -1,0 +1,1 @@
+examples/reject/packages/spectral-rank-limit/main.vast:9:1: E_LIMIT: the free module `spectral_rank_limit::V5` has rank 5, beyond the limit of 4 (`spectralRank`)

@@ -210,6 +210,14 @@ Rules:
   without them has the same generated code, as
   [Scope of physical dimensions](physical-dimensions.md#scope-of-physical-dimensions)
   says.
+- No operation computes, orders or chooses an eigenvalue. A branch
+  observation takes the eigenvalue that it observes as an operand, and no
+  spectral binding reads a metric, a frame or a physical dimension, as
+  [Branch observations](spectral-observations.md#branch-observations) and
+  [Scope of spectral observations](spectral-observations.md#scope-of-spectral-observations)
+  say. A field is symmetric only where its declaration claims it, and the
+  kernel checks the claim, as
+  [Endomorphism fields](spectral-observations.md#endomorphism-fields) says.
 - The rule on allocation concerns the cells of allocations. It says nothing
   about the memory that an executable uses for integers and other pure
   values.
@@ -235,13 +243,18 @@ physical dimensions: no frame primitive reads a metric declaration, a frame
 declaration changes neither the validity of another declaration nor the
 validity of a primitive that names none of its frames, and a declaration of
 a physical dimension changes neither the validity of a declaration of another
-kind nor the validity or the value of any primitive. The two statements on
+kind nor the validity or the value of any primitive. Also Proved, for
+spectral observations: a spectral declaration changes neither the validity
+of a declaration of another kind nor the validity or the value of a
+primitive that names none of its declarations, and no spectral primitive
+reads a metric, a frame or a physical dimension. The statements on
 the validity of declarations hold for every table of class ranks. That the
 table of class ranks stays the same is not proved, so they are not stated
 for the validity of a whole program. That the generated code stays the
 same is Tested. [What is outside these claims](../verification.md#what-is-outside-these-claims),
-[Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
-and [Frames and physical dimensions](../verification.md#frames-and-physical-dimensions)
+[Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks),
+[Frames and physical dimensions](../verification.md#frames-and-physical-dimensions)
+and [Spectral observations](../verification.md#spectral-observations)
 state these theorems. They are facts about the checked program, not laws of
 the arithmetic that a native routine performs.
 
@@ -266,6 +279,12 @@ Rules:
   are different kinds even when their dimensions are equal, as
   [Base dimensions and quantity kinds](physical-dimensions.md#base-dimensions-and-quantity-kinds)
   says.
+- Free modules, endomorphism fields, spectra and branches are nominal too. A
+  field acts only on a free module of its own object, even when two objects
+  have one dimension, and two fields with one characteristic polynomial keep
+  their own module actions, as
+  [Endomorphism fields](spectral-observations.md#endomorphism-fields) and
+  [Spectral pairs](spectral-observations.md#spectral-pairs) say.
 - Identity is a property of the checked program. An executable holds no
   identities, and two objects of one setting and one dimension have equal
   descriptors when the program runs.
@@ -287,13 +306,19 @@ morphism keep both endpoints. The checked numerical operations keep the
 objects and the bases of their maps. An accepted call of a frame primitive
 has its operands in the frames that its declaration or its other operands
 name, and `normalized` accepts only a scale of the kind of its coordinate.
+An accepted call of a spectral primitive reads the declared field, spectrum
+or branch that its binding names, at a point of their object, and a scalar
+field and a Jordan block with one characteristic polynomial differ in their
+module actions.
 [Verification boundaries](../verification.md#indexed-term-function-and-checked-program-evaluation)
 and [Code generation entries](../verification.md#code-generation-entries)
 state the first,
 [What is outside these claims](../verification.md#what-is-outside-these-claims)
-the second, and
+the second,
 [Frames and physical dimensions](../verification.md#frames-and-physical-dimensions)
-the last two.
+the next two, and
+[Spectral observations](../verification.md#spectral-observations) the last
+one.
 
 ## Storage
 

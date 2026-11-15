@@ -1,0 +1,190 @@
+mod profile;
+
+// The Stage 5 acceptance program (#806). On the plane, H = rows((x, y),
+// (y, -x)) has chi = t^2 - x^2 - y^2, the invariant tr(H^2) = 2x^2 + 2y^2
+// with the gradient (4x, 4y), and on D(x^2 + y^2) the simple eigenvalues
+// +-sqrt(x^2 + y^2). At p = (3, 4) they are 5 and -5, with the
+// differentials (3/5, 4/5) and (-3/5, -4/5) and the eigenprojectors
+// (1/5)[[4, 2], [2, 1]] and (1/5)[[1, -2], [-2, 4]]. No primitive computes an
+// eigenvalue: each branch observation takes t as an input. On the point, 2I
+// and J, and 0 and N, have the same invariants and different actions. The
+// observations below cover the runtime rows of the #806 checklist: C3, C4,
+// C5, C9, C10 and C11. Observation k adds 2^(k - 1) when it fails, so `main`
+// prints 42 + m, where the bits of m name the failed observations, and 42
+// only when all of them hold.
+// ANCHOR: imports
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::smooth::affine::Line;
+use std::geometry::smooth::affine::same_smooth;
+use std::geometry::smooth::affine::line_at;
+use std::geometry::smooth::affine::same_vector;
+use std::geometry::smooth::affine::same_covector;
+use std::geometry::smooth::affine::lies_over;
+use std::geometry::smooth::affine::pairing;
+use std::differential::differential;
+use profile::Plane;
+use profile::S;
+use profile::B;
+use profile::SZero;
+use profile::SN;
+use profile::STwoI;
+use profile::SJ;
+use profile::Euclid;
+use profile::EuclidInvertible;
+use profile::tr1;
+use profile::tr2;
+use profile::c0;
+use profile::ref2;
+use profile::zero_tr1;
+use profile::zero_tr2;
+use profile::zero_c0;
+use profile::zero_c1;
+use profile::n_tr1;
+use profile::n_tr2;
+use profile::n_c0;
+use profile::n_c1;
+use profile::two_tr1;
+use profile::two_tr2;
+use profile::two_c0;
+use profile::two_c1;
+use profile::j_tr1;
+use profile::j_tr2;
+use profile::j_c0;
+use profile::j_c1;
+// ANCHOR_END: imports
+
+// Points from runtime integers, and vectors and covectors from their
+// coordinates, which read as reduced fractions (numerator, denominator).
+indexed primitive pt_at = smooth_int_point(Smooth, Pt, Pt);
+indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+indexed primitive dplane = fiber_vector(Cotangent, Smooth, Plane);
+indexed primitive vx = fiber_component(Tangent, Plane, x);
+indexed primitive vy = fiber_component(Tangent, Plane, y);
+indexed primitive dx = fiber_component(Cotangent, Plane, x);
+indexed primitive dy = fiber_component(Cotangent, Plane, y);
+
+// ANCHOR: gradient
+// The gradient on the Euclidean chart: sharp, which names its metric,
+// applied to the metric-free differential.
+indexed primitive sharp_euclid = sharp(Cotangent, Tangent, using = Euclid, evidence = EuclidInvertible);
+fn gradient(phi: Smooth<Plane, Line>, a: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_euclid(differential(phi, a))
+}
+// ANCHOR_END: gradient
+
+// ANCHOR: action
+// The module action: whether f(H(p)) = 0, and an entry of f(H(p)), for an
+// element f of A[t]. On the plane, t and chi itself; on the point, t and
+// t - 2, and the squares that Cayley-Hamilton gives.
+indexed primitive ann_h = annihilates(Smooth, spectrum = S, element = t);
+indexed primitive ann_chi = annihilates(Smooth, spectrum = S, element = t^2 - x^2 - y^2);
+indexed primitive ann_zero = annihilates(Smooth, spectrum = SZero, element = t);
+indexed primitive ann_n = annihilates(Smooth, spectrum = SN, element = t);
+indexed primitive ann_n2 = annihilates(Smooth, spectrum = SN, element = t^2);
+indexed primitive ann_two = annihilates(Smooth, spectrum = STwoI, element = t - 2);
+indexed primitive ann_j = annihilates(Smooth, spectrum = SJ, element = t - 2);
+indexed primitive ann_j2 = annihilates(Smooth, spectrum = SJ, element = (t - 2)^2);
+indexed primitive act_zero = action_entry(Smooth, spectrum = SZero, element = t, f1, f2);
+indexed primitive act_n = action_entry(Smooth, spectrum = SN, element = t, f1, f2);
+indexed primitive act_two = action_entry(Smooth, spectrum = STwoI, element = t - 2, f1, f2);
+indexed primitive act_j = action_entry(Smooth, spectrum = SJ, element = t - 2, f1, f2);
+// ANCHOR_END: action
+
+// ANCHOR: branch
+// The branch B: whether (p, t) is a branch point, the differential of the
+// eigenvalue at it, and the entries of its eigenprojector. Off the chart the
+// differential is the failure value, and an entry reads (0, 0).
+indexed primitive on = on_branch(Smooth, Line, branch = B);
+indexed primitive dlambda = branch_differential(Smooth, Cotangent, Line, branch = B);
+indexed primitive p11 = branch_projector(Smooth, Line, branch = B, e1, e1);
+indexed primitive p12 = branch_projector(Smooth, Line, branch = B, e1, e2);
+indexed primitive p21 = branch_projector(Smooth, Line, branch = B, e2, e1);
+indexed primitive p22 = branch_projector(Smooth, Line, branch = B, e2, e2);
+// ANCHOR_END: branch
+
+// The failure of an observation adds its bit.
+fn verdict(ok: Bool, bit: Int) -> Int { if ok { 0 } else { bit } }
+
+// A component, an entry or a pairing reads n / d; the failure value reads 0 / 0.
+fn reads(value: Pair<Int>, n: Int, d: Int) -> Bool {
+    pair_first(value) == n && pair_second(value) == d
+}
+
+// left = -right / 2 as rationals, and neither is the failure value.
+fn minus_half(left: Pair<Int>, right: Pair<Int>) -> Bool {
+    pair_second(left) != 0 && pair_second(right) != 0
+        && 2 * pair_first(left) * pair_second(right) == -pair_first(right) * pair_second(left)
+}
+
+// ANCHOR: main
+fn main() -> Int {
+    let o: Smooth<Pt, Pt> = pt_at();
+    let a: Smooth<Pt, Plane> = plane_at(1, 2);
+    let p: Smooth<Pt, Plane> = plane_at(3, 4);
+    let q: Smooth<Pt, Plane> = plane_at(1, 0);
+    let z: Smooth<Pt, Plane> = plane_at(0, 0);
+    let d_plus: Cotangent<Plane> = dlambda(p, line_at(5));
+    let d_minus: Cotangent<Plane> = dlambda(p, line_at(-5));
+    // C4: tr2 is the declared 2x^2 + 2y^2; tr(H) = 0 has the zero
+    // differential, a covector over p and not the failure value; by Newton's
+    // identity c0 = -tr2 / 2, so its gradient is -1/2 times that of tr2.
+    42 + verdict(same_smooth(tr2(), ref2()), 1)
+       + verdict(same_covector(differential(tr1(), p), dplane(p, 0, 0)) && lies_over(differential(tr1(), p), p), 2)
+       + verdict(minus_half(vx(gradient(c0(), a)), vx(gradient(tr2(), a)))
+           && minus_half(vy(gradient(c0(), a)), vy(gradient(tr2(), a)))
+           && minus_half(vx(gradient(c0(), p)), vx(gradient(tr2(), p)))
+           && minus_half(vy(gradient(c0(), p)), vy(gradient(tr2(), p))), 4)
+       // C5: the roadmap gradient (4x, 4y) on the dimensionless Euclidean
+       // chart, at (1, 2), at (3, 4) and at the origin.
+       + verdict(same_vector(gradient(tr2(), a), vplane(a, 4, 8)), 8)
+       + verdict(same_vector(gradient(tr2(), p), vplane(p, 12, 16)), 16)
+       + verdict(same_vector(gradient(tr2(), z), vplane(z, 0, 0)), 32)
+       // C9: the branch points over (3, 4) and (1, 0); 4 is no eigenvalue at
+       // (3, 4), and the origin is off the chart although chi(0, 0) = 0.
+       + verdict(on(p, line_at(5)), 64)
+       + verdict(on(p, line_at(-5)), 128)
+       + verdict(on(q, line_at(1)), 256)
+       + verdict(on(q, line_at(-1)), 512)
+       + verdict(!on(p, line_at(4)), 1024)
+       + verdict(!on(z, line_at(0)), 2048)
+       // C10: d lambda = (3/5, 4/5) and (-3/5, -4/5) at (3, 4); each is a
+       // unit covector, so its sharp is a unit vector.
+       + verdict(reads(dx(d_plus), 3, 5) && reads(dy(d_plus), 4, 5), 4096)
+       + verdict(reads(dx(d_minus), -3, 5) && reads(dy(d_minus), -4, 5), 8192)
+       + verdict(reads(pairing(d_plus, sharp_euclid(d_plus)), 1, 1)
+           && reads(pairing(d_minus, sharp_euclid(d_minus)), 1, 1), 16384)
+       // C11: the eigenprojectors (1/5)[[4, 2], [2, 1]] and
+       // (1/5)[[1, -2], [-2, 4]] at (3, 4), symmetric as H is.
+       + verdict(reads(p11(p, line_at(5)), 4, 5) && reads(p12(p, line_at(5)), 2, 5)
+           && reads(p21(p, line_at(5)), 2, 5) && reads(p22(p, line_at(5)), 1, 5), 32768)
+       + verdict(reads(p11(p, line_at(-5)), 1, 5) && reads(p12(p, line_at(-5)), -2, 5)
+           && reads(p21(p, line_at(-5)), -2, 5) && reads(p22(p, line_at(-5)), 4, 5), 65536)
+       // C3: t annihilates H(0) = 0 and not H(3, 4); chi annihilates H at
+       // every point (Cayley-Hamilton).
+       + verdict(ann_h(z), 131072)
+       + verdict(!ann_h(p), 262144)
+       + verdict(ann_chi(p) && ann_chi(a), 524288)
+       // 2I and J: t - 2 annihilates 2I and not J, and the entry (f1, f2) of
+       // J - 2I is 1, although every invariant agrees.
+       + verdict(ann_two(o), 1048576)
+       + verdict(!ann_j(o), 2097152)
+       + verdict(reads(act_two(o), 0, 1), 4194304)
+       + verdict(reads(act_j(o), 1, 1), 8388608)
+       + verdict(same_smooth(two_tr1(), j_tr1()) && same_smooth(two_tr2(), j_tr2())
+           && same_smooth(two_c0(), j_c0()) && same_smooth(two_c1(), j_c1()), 16777216)
+       // 0 and N likewise, with the element t.
+       + verdict(ann_zero(o), 33554432)
+       + verdict(!ann_n(o), 67108864)
+       + verdict(reads(act_zero(o), 0, 1), 134217728)
+       + verdict(reads(act_n(o), 1, 1), 268435456)
+       + verdict(same_smooth(zero_tr1(), n_tr1()) && same_smooth(zero_tr2(), n_tr2())
+           && same_smooth(zero_c0(), n_c0()) && same_smooth(zero_c1(), n_c1()), 536870912)
+       // Cayley-Hamilton on the point: (t - 2)^2 annihilates J and t^2
+       // annihilates N.
+       + verdict(ann_j2(o) && ann_n2(o), 1073741824)
+}
+// ANCHOR_END: main

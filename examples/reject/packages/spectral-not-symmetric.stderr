@@ -1,0 +1,1 @@
+examples/reject/packages/spectral-not-symmetric/main.vast:11:1: E_SPECTRAL: the endomorphism `spectral_not_symmetric::K` is declared `symmetric`, but its entry (e1, e2) differs from its entry (e2, e1)

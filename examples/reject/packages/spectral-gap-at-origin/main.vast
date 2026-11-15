@@ -1,0 +1,19 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::linalg::spectral::FreeModule;
+use std::linalg::spectral::Endomorphism;
+use std::linalg::spectral::Spectrum;
+use std::linalg::spectral::Branch;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed free_module V: FreeModule<Plane> = basis(e1, e2);
+indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric;
+indexed spectrum S: Spectrum<Plane> = eigen(H, t);
+
+// ANCHOR: declarations
+// The two eigenvalues of H meet at the origin, so no chart that contains it
+// separates them: localize = 1 asks for the whole plane. With the witness of
+// D(x^2 + y^2), W·chi' - 1 = t^2 - 1, which is not a multiple of chi.
+indexed branch B: Branch<Plane> = simple(S, localize = 1, witness = frac(1, 2) * t, exponent = 1);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

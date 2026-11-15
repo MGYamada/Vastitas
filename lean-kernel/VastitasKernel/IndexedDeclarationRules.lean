@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedMetricSource
 import VastitasKernel.IndexedFrameContracts
+import VastitasKernel.IndexedSpectralContracts
 
 set_option autoImplicit false
 
@@ -287,6 +288,41 @@ def primitiveRule (env : Environment) (name : DeclId) (op : String) (binding : P
     | none => some s!"`{qualified frame.frame}` of {subject} must be a frame declaration"
     | some _ => rule (frameDeclared env frame) <| s!"{subject} must embed the object, the matrix and the " ++
         s!"inverse of the frame declaration `{qualified frame.frame}`"
+  -- The spectral bindings (Stage 5): their lines, cotangent families and
+  -- embedded declarations, an element and the indices of an entry.
+  let line (id : DeclId) :=
+    rule (smoothDimension? env id == some 1)
+      s!"the line `{qualified id}` of {subject} must be a smooth object of dimension 1"
+  let endomorphism (endo : EndoRef) : Option String :=
+    match endomorphismData? env endo.endomorphism with
+    | none => some s!"`{qualified endo.endomorphism}` of {subject} must be an endomorphism declaration"
+    | some _ => rule (endoDeclared env endo) <| s!"{subject} must embed the object, the free module, the rows " ++
+        s!"and the `symmetric` claim of the endomorphism declaration `{qualified endo.endomorphism}`"
+  let spectrum (spec : SpectrumRef) : Option String :=
+    match spectrumData? env spec.spectrum with
+    | none => some s!"`{qualified spec.spectrum}` of {subject} must be a spectrum declaration"
+    | some (_, object, endo, _, _) =>
+      if object != spec.object || endo != spec.endomorphism.endomorphism then
+        some s!"{subject} must embed the endomorphism `{qualified endo}` of the spectrum declaration `{qualified spec.spectrum}`"
+      else (endomorphism spec.endomorphism).orElse fun _ =>
+        rule (spectrumDeclared env spec) <| s!"{subject} must embed the characteristic polynomial and the " ++
+          s!"adjugate of the spectrum declaration `{qualified spec.spectrum}`"
+  let branch (branchRef : BranchRef) : Option String :=
+    match branchData? env branchRef.branch with
+    | none => some s!"`{qualified branchRef.branch}` of {subject} must be a branch declaration"
+    | some (_, object, spec, _, _, _, _) =>
+      if object != branchRef.object || spec != branchRef.spectrum.spectrum then
+        some s!"{subject} must embed the spectrum `{qualified spec}` of the branch declaration `{qualified branchRef.branch}`"
+      else (spectrum branchRef.spectrum).orElse fun _ =>
+        rule (branchDeclared env branchRef) <| s!"{subject} must embed the localization, the witness and the " ++
+          s!"exponent of the branch declaration `{qualified branchRef.branch}`"
+  let element (spec : SpectrumRef) (value : AlgebraRuntime.Poly) :=
+    rule (spectralElementValid env spec value) <| s!"the element of {subject} must be a polynomial in the " ++
+      s!"coordinates of `{qualified spec.object}` and the fiber coordinate of `{qualified spec.spectrum}`"
+  let entry (rank row column : Nat) :=
+    rule (decide (row < rank) && decide (column < rank)) <|
+      s!"the row and the column of {subject} must name basis vectors of " ++
+      s!"the free module of rank {rank}"
   match binding with
   | .descriptor implementation =>
     first [rule (implementationMarker env implementation).isSome
@@ -389,6 +425,30 @@ def primitiveRule (env : Environment) (name : DeclId) (op : String) (binding : P
     family operands ((frameFiberVariance? env operands).isSome || isFrameMapFamily env operands)
       "have the representation `frame_vector`, `frame_covector` or `frame_map`"
   | .frameAt coords maps => first [arrays coords, smooth maps]
+  | .spectralInvariant application map invariant =>
+    let (what, declared) := match invariant with
+      | .tracePower endo power =>
+        (s!"the trace of the power {power} of the endomorphism `{qualified endo.endomorphism}`", endomorphism endo)
+      | .charCoefficient spec index =>
+        (s!"the coefficient of t^{index} of the characteristic polynomial of the spectrum " ++
+          s!"`{qualified spec.spectrum}`", spectrum spec)
+    first [smooth application.family, result application "the type" ["the source", "the target"],
+      rule (smoothConstantValid env application map) <|
+        s!"{subject} must be a smooth map with one image in the coordinates of its source",
+      rule (smoothSource? application == some invariant.object) <|
+        s!"{subject} must be a smooth map on `{qualified invariant.object}`, the object of {what}",
+      declared,
+      rule (match invariant.image? map.arity with | some image => map.images == [image] | none => false) <|
+        s!"the image of {subject} must be {what}"]
+  | .annihilates maps spec value => first [smooth maps, spectrum spec, element spec value]
+  | .actionEntry maps spec value row column =>
+    first [smooth maps, spectrum spec, element spec value, entry spec.rank row column]
+  | .onBranch maps lineId branchRef => first [smooth maps, line lineId, branch branchRef]
+  | .branchDifferential maps cotangent lineId branchRef =>
+    first [smooth maps, variance cotangent .cotangent, line lineId, branch branchRef,
+      result ⟨cotangent, [.object (.global branchRef.object)]⟩ "the result type" ["the branch's object"]]
+  | .branchProjector maps lineId branchRef row column =>
+    first [smooth maps, line lineId, branch branchRef, entry branchRef.spectrum.rank row column]
   | _ => none
 
 end VastitasKernel.Indexed.Source

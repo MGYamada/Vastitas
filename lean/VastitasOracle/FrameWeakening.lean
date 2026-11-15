@@ -83,7 +83,8 @@ def applicationFrames (application : Application) : List DeclId :=
 /-- The frame declarations that a binding names: the frames it embeds, and the
 frame indices of the applications it carries. -/
 def bindingFrames : PrimitiveBinding → List DeclId
-  | .relativeConstant application _ | .smoothConstant application _ | .cotangentJacobian _ application _ =>
+  | .relativeConstant application _ | .smoothConstant application _ | .cotangentJacobian _ application _
+  | .spectralInvariant application _ _ =>
     applicationFrames application
   | .relativeIso forward backward => applicationFrames forward.1 ++ applicationFrames backward.1
   | .relativeCartesian first second inverse _ =>
@@ -359,6 +360,21 @@ theorem relativeCartesianValid_append (first second inverse : Application × Alg
     relativeConstantValid_append ext second.2 secondFrames, relativeConstantValid_append ext inverse.2 inverseFrames,
     plainFiber_append ext.profile, affineData_append ext.profile]
 
+/-! ### The spectral contracts (Stage 5)
+
+A frame extension adds no spectral declaration, so the embedded
+endomorphisms, spectra and branches are compared with the same declarations. -/
+
+theorem endoDeclared_append (endo : EndoRef) : endoDeclared big endo = endoDeclared small endo := by
+  simp only [endoDeclared, endomorphismData_append ext.profile]
+
+theorem spectrumDeclared_append (spectrum : SpectrumRef) :
+    spectrumDeclared big spectrum = spectrumDeclared small spectrum := by
+  simp only [spectrumDeclared, spectrumData_append ext.profile, endoDeclared_append ext]
+
+theorem branchDeclared_append (branch : BranchRef) : branchDeclared big branch = branchDeclared small branch := by
+  simp only [branchDeclared, branchData_append ext.profile, spectrumDeclared_append ext]
+
 /-! ### Bindings -/
 
 /-- **Weakening of binding validity.** A frame extension does not change the
@@ -386,6 +402,13 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding}
   | smoothConstant application map =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, smoothConstantValid,
       isSmoothFamily_append ext.profile, smoothEndpoints_append ext.profile, validApplication_append ext names]
+  | spectralInvariant application map invariant =>
+    have applicationNames : ∀ id ∈ applicationFrames application, lookup big id = lookup small id := names
+    cases invariant <;>
+      simp only [validPrimitiveBinding, PrimitiveBinding.contract, SpectralRegistry.spectralInvariant,
+        PrimitiveDescriptor.ofBool, spectralInvariantValid, smoothConstantValid, isSmoothFamily_append ext.profile,
+        smoothEndpoints_append ext.profile, validApplication_append ext applicationNames, SpectralInvariant.declared,
+        endoDeclared_append ext, spectrumDeclared_append ext]
   | cotangentJacobian cotangent application map =>
     have contract : ∀ env, validPrimitiveBinding env (.cotangentJacobian cotangent application map) =
         cotangentJacobianValid env cotangent application map := by
@@ -465,9 +488,11 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding}
       frameApplyValid, frameCoapplyValid, frameComposeValid, framePairingValid, frameComponentValid,
       frameEntryValid, frameEqualValid, frameAtValid, frameFiberVariance_append ext.profile,
       isFrameMapFamily_append ext.profile,
-      -- The spectral entries of Stage 5 reject every binding.
-      PrimitiveDescriptor.evidence, SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
-      SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector]
+      -- The spectral observations of Stage 5, which name no frame.
+      SpectralRegistry.annihilates, SpectralRegistry.actionEntry, SpectralRegistry.onBranch,
+      SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector, annihilatesValid, actionEntryValid,
+      onBranchValid, branchDifferentialValid, branchProjectorValid, spectralElementValid,
+      spectrumDeclared_append ext, branchDeclared_append ext]
 
 /-- **Weakening of evaluation.** A frame extension does not change the value of
 any primitive, whether or not it names an added frame: only `global`,

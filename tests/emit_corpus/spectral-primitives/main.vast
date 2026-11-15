@@ -1,0 +1,132 @@
+// The spectral primitives of Stage 5 (#806), each lowered from `main`; the
+// emit golden test pins the generated Lean. On the plane: H = rows((x, y),
+// (y, -x)) on V = basis(e1, e2), its spectrum S with chi = t^2 - x^2 - y^2,
+// and the branch B on D(x^2 + y^2) with witness t/2. On the point: the
+// constant endomorphisms 0, N = [[0, 1], [0, 0]], 2I and J = [[2, 1], [0, 2]].
+// The invariants tr1, tr2 and c0 are smooth maps Plane -> Line, and ref2 is
+// the declared reference 2x^2 + 2y^2. Each group of observations adds its own
+// power of two, so `main` returns 42 only when all hold.
+indexed marker CInfReal;
+indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+indexed classification CInfAffine { parents(); domain(SmoothR); };
+indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+indexed family Tangent(object(CInfAffine)) = tangent constraints(canonical(0));
+indexed family MetricForm(object(CInfAffine)) = metric_form constraints(canonical(0));
+indexed family FreeModule(object(CInfAffine)) = free_module constraints(canonical(0));
+indexed family Endomorphism(object(CInfAffine)) = endomorphism constraints(canonical(0));
+indexed family Spectrum(object(CInfAffine)) = spectrum constraints(canonical(0));
+indexed family Branch(object(CInfAffine)) = branch constraints(canonical(0));
+indexed affine Pt(SmoothR) = Affine(0)[];
+indexed affine Line(SmoothR) = Affine(1)[t];
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+// The Stage 5 field, its spectral pair and its simple branch.
+indexed free_module V: FreeModule<Plane> = basis(e1, e2);
+indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric;
+indexed spectrum S: Spectrum<Plane> = eigen(H, t);
+indexed branch B: Branch<Plane> = simple(S, localize = x^2 + y^2, witness = frac(1, 2) * t, exponent = 1);
+
+// The scalar and Jordan pairs over the point.
+indexed free_module W: FreeModule<Pt> = basis(f1, f2);
+indexed endomorphism Zero: Endomorphism<Pt> = rows((0, 0), (0, 0)) of W symmetric;
+indexed endomorphism N: Endomorphism<Pt> = rows((0, 1), (0, 0)) of W;
+indexed endomorphism TwoI: Endomorphism<Pt> = rows((2, 0), (0, 2)) of W symmetric;
+indexed endomorphism J: Endomorphism<Pt> = rows((2, 1), (0, 2)) of W;
+indexed spectrum SZero: Spectrum<Pt> = eigen(Zero, t);
+indexed spectrum SN: Spectrum<Pt> = eigen(N, t);
+indexed spectrum STwoI: Spectrum<Pt> = eigen(TwoI, t);
+indexed spectrum SJ: Spectrum<Pt> = eigen(J, t);
+
+// Invariants are ordinary smooth maps.
+indexed morphism tr1: Smooth<Plane, Line> = trace_power(H, 1);
+indexed morphism tr2: Smooth<Plane, Line> = trace_power(H, 2);
+indexed morphism c0: Smooth<Plane, Line> = char_coefficient(S, 0);
+indexed morphism ref2: Smooth<Plane, Line> = pullback(t -> 2 * x^2 + 2 * y^2);
+indexed morphism tr_zero: Smooth<Pt, Line> = trace_power(Zero, 2);
+indexed morphism tr_n: Smooth<Pt, Line> = trace_power(N, 2);
+indexed morphism tr_two: Smooth<Pt, Line> = trace_power(TwoI, 2);
+indexed morphism tr_j: Smooth<Pt, Line> = trace_power(J, 2);
+indexed morphism c_two: Smooth<Pt, Line> = char_coefficient(STwoI, 1);
+indexed morphism c_j: Smooth<Pt, Line> = char_coefficient(SJ, 1);
+
+// Points, covectors and vectors, and the Euclidean metric.
+indexed primitive pt_at = smooth_int_point(Smooth, Pt, Pt);
+indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+indexed primitive same_smooth = smooth_equal(Smooth);
+indexed primitive differential = differential(Smooth, Cotangent, Line);
+indexed primitive dplane = fiber_vector(Cotangent, Smooth, Plane);
+indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+indexed primitive dx = fiber_component(Cotangent, Plane, x);
+indexed primitive dy = fiber_component(Cotangent, Plane, y);
+indexed primitive same_covector = fiber_equal(Cotangent);
+indexed primitive same_vector = fiber_equal(Tangent);
+indexed primitive pairing = fiber_pairing(Cotangent, Tangent);
+indexed metric Euclid: MetricForm<Plane> = euclidean;
+indexed evidence EuclidInvertible = nondegenerate(Euclid);
+indexed primitive sharp_euclid = sharp(Cotangent, Tangent, using = Euclid, evidence = EuclidInvertible);
+
+// The module action: f(H) for f in A[t], and its entries.
+indexed primitive ann_zero = annihilates(Smooth, spectrum = SZero, element = t);
+indexed primitive ann_n = annihilates(Smooth, spectrum = SN, element = t);
+indexed primitive ann_two = annihilates(Smooth, spectrum = STwoI, element = t - 2);
+indexed primitive ann_j = annihilates(Smooth, spectrum = SJ, element = t - 2);
+indexed primitive ann_j2 = annihilates(Smooth, spectrum = SJ, element = (t - 2)^2);
+indexed primitive act_zero = action_entry(Smooth, spectrum = SZero, element = t, f1, f2);
+indexed primitive act_n = action_entry(Smooth, spectrum = SN, element = t, f1, f2);
+indexed primitive act_two = action_entry(Smooth, spectrum = STwoI, element = t - 2, f1, f2);
+indexed primitive act_j = action_entry(Smooth, spectrum = SJ, element = t - 2, f1, f2);
+indexed primitive act_h = action_entry(Smooth, spectrum = S, element = t - x, e2, e2);
+
+// The branch: membership, the eigenvalue's differential and the eigenprojector.
+indexed primitive on = on_branch(Smooth, Line, branch = B);
+indexed primitive dlambda = branch_differential(Smooth, Cotangent, Line, branch = B);
+indexed primitive p11 = branch_projector(Smooth, Line, branch = B, e1, e1);
+indexed primitive p12 = branch_projector(Smooth, Line, branch = B, e1, e2);
+indexed primitive p22 = branch_projector(Smooth, Line, branch = B, e2, e2);
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A pair reads n / d; the failure value reads 0 / 0.
+fn reads(value: Pair<Int>, n: Int, d: Int) -> Bool {
+    pair_first(value) == n && pair_second(value) == d
+}
+
+fn main() -> Int {
+    let o: Smooth<Pt, Pt> = pt_at();
+    let p: Smooth<Pt, Plane> = plane_at(3, 4);
+    let q: Smooth<Pt, Plane> = plane_at(1, 0);
+    let r: Smooth<Pt, Plane> = plane_at(1, 2);
+    let z: Smooth<Pt, Plane> = plane_at(0, 0);
+    // 0 and N, 2I and J have the same invariants.
+    42 + verdict(same_smooth(tr_zero(), tr_n()) && same_smooth(tr_two(), tr_j()) && same_smooth(c_two(), c_j()), 1)
+       // But not the same action; (t - 2)^2 annihilates J (Cayley-Hamilton).
+       + verdict(ann_zero(o) && !ann_n(o) && ann_two(o) && !ann_j(o) && ann_j2(o)
+           && reads(act_zero(o), 0, 1) && reads(act_n(o), 1, 1) && reads(act_two(o), 0, 1) && reads(act_j(o), 1, 1)
+           && reads(act_h(p), -6, 1), 2)
+       // tr2 is the reference; d tr1 = 0 is a covector; d c0 = -d tr2 / 2.
+       + verdict(same_smooth(tr2(), ref2()) && same_covector(differential(tr1(), p), dplane(p, 0, 0))
+           && same_covector(differential(c0(), r), dplane(r, -2, -4)), 4)
+       // The roadmap gradient (4x, 4y) through the Euclidean sharp.
+       + verdict(same_vector(sharp_euclid(differential(tr2(), r)), vplane(r, 4, 8))
+           && same_vector(sharp_euclid(differential(tr2(), p)), vplane(p, 12, 16))
+           && same_vector(sharp_euclid(differential(tr2(), z)), vplane(z, 0, 0)), 8)
+       // The branch points; the origin is off the chart although chi(0, 0) = 0.
+       + verdict(on(p, line_at(5)) && on(p, line_at(-5)) && on(q, line_at(1)) && on(q, line_at(-1))
+           && !on(p, line_at(4)) && !on(z, line_at(0)), 16)
+       // d lambda = (3/5, 4/5) and (-3/5, -4/5) at (3, 4), a unit covector; (1, 0) and (-1, 0) at (1, 0).
+       + verdict(reads(dx(dlambda(p, line_at(5))), 3, 5) && reads(dy(dlambda(p, line_at(5))), 4, 5)
+           && reads(dx(dlambda(p, line_at(-5))), -3, 5) && reads(dy(dlambda(p, line_at(-5))), -4, 5)
+           && reads(pairing(dlambda(p, line_at(5)), sharp_euclid(dlambda(p, line_at(5)))), 1, 1)
+           && same_covector(dlambda(q, line_at(1)), dplane(q, 1, 0))
+           && same_covector(dlambda(q, line_at(-1)), dplane(q, -1, 0)), 32)
+       // The eigenprojectors (1/5)[[4, 2], [2, 1]] and (1/5)[[1, -2], [-2, 4]], and [[1, 0], [0, 0]].
+       + verdict(reads(p11(p, line_at(5)), 4, 5) && reads(p12(p, line_at(5)), 2, 5) && reads(p22(p, line_at(5)), 1, 5)
+           && reads(p11(p, line_at(-5)), 1, 5) && reads(p12(p, line_at(-5)), -2, 5)
+           && reads(p22(p, line_at(-5)), 4, 5) && reads(p11(q, line_at(1)), 1, 1) && reads(p22(q, line_at(1)), 0, 1), 64)
+       // Off the branch: the failure values.
+       + verdict(reads(dx(dlambda(p, line_at(4))), 0, 0) && reads(dx(dlambda(z, line_at(0))), 0, 0)
+           && reads(p12(p, line_at(4)), 0, 0) && reads(p11(z, line_at(0)), 0, 0), 128)
+}

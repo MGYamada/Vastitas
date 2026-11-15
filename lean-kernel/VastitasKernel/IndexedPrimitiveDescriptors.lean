@@ -59,6 +59,16 @@ inductive SharedLiteral where
   the coordinates as rows, declared as `frame_k` and named by every frame call
   that reads it. -/
   | frame (matrix : PolyMatrix)
+  /-- A polynomial that a spectral call reads (Stage 5): the element of a
+  module action, or the localization `g` or the characteristic polynomial `χ`
+  of a branch, declared as `poly_k` and named by every spectral call that
+  reads it. -/
+  | poly (polynomial : AlgebraRuntime.Poly)
+  /-- A matrix of polynomials that a spectral call reads (Stage 5), as rows:
+  the rows `H` of an endomorphism or the adjugate `adj(tI − H)` of a
+  spectrum, declared as `rows_k` and named by every spectral call that reads
+  it. -/
+  | rows (matrix : PolyMatrix)
   deriving Repr, DecidableEq
 
 /-- The kind of a shared literal, which begins its name. -/
@@ -68,6 +78,8 @@ def SharedLiteral.kind : SharedLiteral → String
   | .map _ => "map"
   | .jacobian _ => "jacobian"
   | .frame _ => "frame"
+  | .poly _ => "poly"
+  | .rows _ => "rows"
 
 /-- What the lowering of a call reads from the whole module: the distinct
 literals that the module declares once, and the Jacobian tables that it
@@ -121,6 +133,7 @@ def runtime (name : String) : String := "VastitasKernel.IndexedRuntime." ++ name
 def algebra (name : String) : String := "VastitasKernel.AlgebraRuntime." ++ name
 def smooth (name : String) : String := "VastitasKernel.SmoothRuntime." ++ name
 def frame (name : String) : String := "VastitasKernel.FrameRuntime." ++ name
+def spectral (name : String) : String := "VastitasKernel.SpectralRuntime." ++ name
 
 /-- `(name arg₁ … argₙ)`. -/
 def application (name : String) (args : List String) : String :=
@@ -141,12 +154,15 @@ def literalType : SharedLiteral → String
   | .map _ => algebra "Map"
   | .jacobian _ => s!"List (List {algebra "Poly"})"
   | .frame _ => s!"List (List {algebra "Poly"})"
+  | .poly _ => algebra "Poly"
+  | .rows _ => s!"List (List {algebra "Poly"})"
 /-- A literal in place, as the module writes it where it declares the literal:
 a basis; a checked metric matrix, row by row, with exact rational entries; a
 checked map, with its basis by name when the module shares the basis; a
 Jacobian table, column by column, with exact rational coefficients; the
 matrix or the inverse of a frame, row by row, with exact rational
-coefficients. -/
+coefficients; a polynomial of a spectral call, and a matrix of polynomials of
+a spectral call row by row, with exact rational coefficients. -/
 def literalValue (ctx : RenderContext) : SharedLiteral → String
   | .basis basis => renderPolys basis
   | .matrix matrix =>
@@ -158,6 +174,8 @@ def literalValue (ctx : RenderContext) : SharedLiteral → String
   | .jacobian map =>
     s!"([{String.intercalate ", " ((ctx.jacobian map).map renderPolys)}] : List (List {algebra "Poly"}))"
   | .frame matrix => s!"([{String.intercalate ", " (matrix.map renderPolys)}] : List (List {algebra "Poly"}))"
+  | .poly polynomial => renderPoly polynomial
+  | .rows matrix => s!"([{String.intercalate ", " (matrix.map renderPolys)}] : List (List {algebra "Poly"}))"
 /-- A literal at a call: by name when the module shares it, else in place. -/
 def renderLiteral (ctx : RenderContext) (literal : SharedLiteral) : String :=
   (ctx.name? literal).getD (literalValue ctx literal)
@@ -169,6 +187,11 @@ def renderMap (ctx : RenderContext) (map : AlgebraRuntime.Map) : String := rende
 def renderJacobian (ctx : RenderContext) (map : AlgebraRuntime.Map) : String := renderLiteral ctx (.jacobian map)
 /-- The matrix or the inverse of a checked frame at a call. -/
 def renderFrame (ctx : RenderContext) (matrix : PolyMatrix) : String := renderLiteral ctx (.frame matrix)
+/-- A polynomial of a checked spectral binding at a call. -/
+def renderPolynomial (ctx : RenderContext) (polynomial : AlgebraRuntime.Poly) : String :=
+  renderLiteral ctx (.poly polynomial)
+/-- A matrix of polynomials of a checked spectral binding at a call. -/
+def renderRows (ctx : RenderContext) (matrix : PolyMatrix) : String := renderLiteral ctx (.rows matrix)
 /-- The lowering of a call whose rendered operands do not fit its entry. -/
 def arityMismatch : Except String String := .error "closed primitive arity mismatch"
 

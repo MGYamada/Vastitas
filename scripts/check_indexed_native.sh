@@ -17,32 +17,40 @@ lake build \
   VastitasKernel.MetricFormRegression \
   VastitasKernel.ReverseCoreRegression \
   VastitasKernel.FrameRegression \
+  VastitasKernel.SpectralRegression \
   VastitasKernel.IndexedCodegen \
   VastitasKernel.IndexedRuntime:c.o \
   VastitasKernel.AlgebraRuntime:c.o \
   VastitasKernel.SmoothRuntime:c.o \
-  VastitasKernel.FrameRuntime:c.o
+  VastitasKernel.FrameRuntime:c.o \
+  VastitasKernel.SpectralRuntime:c.o
 lake env lean --run ../scripts/check_indexed_codegen.lean "$work"
 
 # Each worker links its own generated module with only the runtime objects that
-# module imports. SmoothRuntime imports AlgebraRuntime, and FrameRuntime imports
-# SmoothRuntime, so each also links the runtimes it imports.
+# module imports. SmoothRuntime imports AlgebraRuntime, FrameRuntime imports
+# SmoothRuntime, and SpectralRuntime imports FrameRuntime, so each also links
+# the runtimes it imports.
 lake env xargs -n 2 -P 4 bash -euc '
   work=$1
   fixture=$2
   expected=$3
   runtime=.lake/build/ir/VastitasKernel
   objects=("$runtime/IndexedRuntime.c.o.export")
+  spectral=false
   frame=false
   smooth=false
-  if grep -q "^import VastitasKernel.FrameRuntime$" "$work/$fixture.lean"; then frame=true; fi
+  if grep -q "^import VastitasKernel.SpectralRuntime$" "$work/$fixture.lean"; then spectral=true; fi
+  if $spectral || grep -q "^import VastitasKernel.FrameRuntime$" "$work/$fixture.lean"; then frame=true; fi
   if $frame || grep -q "^import VastitasKernel.SmoothRuntime$" "$work/$fixture.lean"; then smooth=true; fi
   if $smooth || grep -q "^import VastitasKernel.AlgebraRuntime$" "$work/$fixture.lean"; then
     objects+=("$runtime/AlgebraRuntime.c.o.export")
   fi
   if $smooth; then objects+=("$runtime/SmoothRuntime.c.o.export"); fi
   if $frame; then objects+=("$runtime/FrameRuntime.c.o.export"); fi
+  if $spectral; then objects+=("$runtime/SpectralRuntime.c.o.export"); fi
   case "$fixture:${#objects[@]}" in
+    spectral_*:5) ;;
+    spectral_*:*) echo "$fixture: expected the algebra, smooth, frame and spectral runtimes" >&2; exit 1 ;;
     frame_*:4) ;;
     frame_*:*) echo "$fixture: expected the algebra, smooth and frame runtimes" >&2; exit 1 ;;
     smooth_*:3) ;;
@@ -87,5 +95,7 @@ smooth_metric_programs 42
 smooth_reverse_programs 42
 smooth_reverse_extended 42
 frame_programs 42
+spectral_programs 42
+spectral_reverse_programs 42
 FIXTURES
 echo 'indexed Core: all standalone native fixtures passed'

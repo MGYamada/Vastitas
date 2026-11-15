@@ -186,6 +186,45 @@ theorem relativeCartesianValid_append (first second inverse : Application × Alg
   simp only [relativeCartesianValid, relativeCartesianCheck, relativeConstantValid_append ext,
     plainFiber_append ext.profile, affineData_append ext.profile]
 
+/-! ### The spectral contracts (Stage 5)
+
+An extension by metric or nature declarations adds no spectral declaration,
+so the embedded endomorphisms, spectra and branches are compared with the
+same declarations. -/
+
+theorem endoDeclared_append (endo : EndoRef) : endoDeclared big endo = endoDeclared small endo := by
+  simp only [endoDeclared, endomorphismData_append ext.profile]
+
+theorem spectrumDeclared_append (spectrum : SpectrumRef) :
+    spectrumDeclared big spectrum = spectrumDeclared small spectrum := by
+  simp only [spectrumDeclared, spectrumData_append ext.profile, endoDeclared_append ext]
+
+theorem branchDeclared_append (branch : BranchRef) : branchDeclared big branch = branchDeclared small branch := by
+  simp only [branchDeclared, branchData_append ext.profile, spectrumDeclared_append ext]
+
+theorem smoothConstantValid_append (application : Application) (map : AlgebraRuntime.Map) :
+    smoothConstantValid big application map = smoothConstantValid small application map := by
+  simp only [smoothConstantValid, isSmoothFamily_append ext.profile, smoothEndpoints_append ext.profile]
+  cases smooth : isSmoothFamily small application.family
+  · simp
+  · simp only [validApplication_of_found ext (application := application) (found_of_isSmoothFamily smooth)]
+
+theorem spectralInvariantValid_append (application : Application) (map : AlgebraRuntime.Map)
+    (invariant : SpectralInvariant) :
+    spectralInvariantValid big application map invariant = spectralInvariantValid small application map invariant := by
+  cases invariant <;>
+    simp only [spectralInvariantValid, smoothConstantValid_append ext, SpectralInvariant.declared,
+      endoDeclared_append ext, spectrumDeclared_append ext]
+
+theorem branchDifferentialValid_append (smooth cotangent line : DeclId) (branch : BranchRef) :
+    branchDifferentialValid big smooth cotangent line branch =
+      branchDifferentialValid small smooth cotangent line branch := by
+  simp only [branchDifferentialValid, isSmoothFamily_append ext.profile, fiberVariance_append ext.profile,
+    smoothDimension_append ext.profile, branchDeclared_append ext]
+  cases cotangentFamily : fiberVariance? small cotangent == some .cotangent
+  · simp
+  · simp only [validApplication_mk_of_found ext (found_of_fiberVariance (isSome_of_beq_some cotangentFamily))]
+
 /-- **Weakening of binding validity.** An extension by metric or nature
 declarations does not change the validity of any binding other than `flat`
 and `sharp`. -/
@@ -319,9 +358,12 @@ theorem validPrimitiveBinding_of_metricOrNature {binding : PrimitiveBinding} (fr
       frameApplyValid, frameCoapplyValid, frameComposeValid, framePairingValid, frameComponentValid,
       frameEntryValid, frameEqualValid, frameAtValid, frameFiberVariance_append ext.profile,
       isFrameMapFamily_append ext.profile,
-      -- The spectral entries of Stage 5 reject every binding.
+      -- The spectral entries of Stage 5.
       SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
-      SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector]
+      SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector,
+      spectralInvariantValid_append ext, annihilatesValid, actionEntryValid, onBranchValid, branchProjectorValid,
+      spectralElementValid, spectrumDeclared_append ext, branchDeclared_append ext,
+      branchDifferentialValid_append ext]
 
 end MetricOrNature
 

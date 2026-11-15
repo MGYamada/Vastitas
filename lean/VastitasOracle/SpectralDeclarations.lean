@@ -17,7 +17,8 @@ the bridge can instantiate it at `ℝ` or at `MvPolynomial`.
   `SpectralAlgebra`. Read at a point `z` of a ring (`SpectralValid.*_at`):
   `χ(z) = det(zI − H)` by the cofactor recursion (`characteristic_at`,
   `characteristic_eq_det` at `z = (x, t)`), `(tI − H)·adj = χ·I`
-  (`adjugate_at`), `tr adj = χ′` (`adjugateTrace_at`), `χ(H) = 0` by Horner's
+  (`adjugate_at`) and `adj·(tI − H) = χ·I` (`adjugateRight_at`,
+  `adjugateRight_eq`), `tr adj = χ′` (`adjugateTrace_at`), `χ(H) = 0` by Horner's
   rule (`cayleyHamilton_at`), `adj² − χ′·adj = Q·χ` entrywise
   (`idempotence_at`) and `∂ᵢχ + tr(adj·∂ᵢH) = 0` (`jacobi_at`).
 * **The gap certificate** (`WitnessValid`, `checkWitness_sound`,
@@ -34,8 +35,9 @@ the bridge can instantiate it at `ℝ` or at `MvPolynomial`.
   a declared branch's spectrum has a valid certificate of the rows of its
   endomorphism, and its gap certificate is valid for that `χ`).
 * **The invariants** (`invariant_sound`, `tracePowerImage_at`,
-  `charCoefficient_at`): an accepted `trace_power(H, k)` is `tr(H(x)ᵏ)` at
-  every point, `1 ≤ k ≤ spectralPower`, and an accepted
+  `tracePowerImage_bounded`, `charCoefficient_at`): an accepted
+  `trace_power(H, k)` is `tr(H(x)ᵏ)` at every point, `1 ≤ k ≤ spectralPower`,
+  with at most `algebraTerms` terms, and an accepted
   `char_coefficient(S, i)` is the coefficient of `tⁱ` in
   `χ(x, t) = Σₖ χₖ(x) tᵏ`, `i ≤ n`.
 * **`Examples`**, the Stage 5 matrix `H = rows((x, y), (y, −x))`: its
@@ -237,6 +239,9 @@ structure SpectralValid (m : Nat) (rows : PolyMatrix) (certificate : SpectralCer
   /-- Identity 2: `(tI − H)·adj = χ·I`. -/
   adjugate : plainMatMul rows.length (charMatrix m rows) certificate.adjugate =
     scalarMatrix rows.length certificate.characteristic
+  /-- Identity 2′: `adj·(tI − H) = χ·I`. -/
+  adjugateRight : plainMatMul rows.length certificate.adjugate (charMatrix m rows) =
+    scalarMatrix rows.length certificate.characteristic
   /-- Identity 3: `Σᵢ adjᵢᵢ = χ′`. -/
   adjugateTrace : tracePoly certificate.adjugate = partialDerivative m certificate.characteristic
   /-- Identity 4: `χ(H) = 0`, by Horner's rule in `t`. -/
@@ -271,6 +276,7 @@ theorem checkCertificate_sound {m : Nat} {rows : PolyMatrix} {certificate : Spec
     subst hvalues
     obtain ⟨i1, h⟩ := unless_ok h
     obtain ⟨i2, h⟩ := unless_ok h
+    obtain ⟨i2', h⟩ := unless_ok h
     obtain ⟨i3, h⟩ := unless_ok h
     obtain ⟨i4, h⟩ := unless_ok h
     obtain ⟨i5, h⟩ := unless_ok h
@@ -291,6 +297,7 @@ theorem checkCertificate_sound {m : Nat} {rows : PolyMatrix} {certificate : Spec
       idempotenceSquare := hidem
       characteristic := beq_iff_eq.mp i1
       adjugate := beq_iff_eq.mp i2
+      adjugateRight := beq_iff_eq.mp i2'
       adjugateTrace := beq_iff_eq.mp i3
       cayleyHamilton := i4
       idempotence := i5
@@ -342,6 +349,20 @@ theorem adjugate_eq (hv : SpectralValid m rows certificate) (ι : RatHom R) {x :
     ringMatMul rows.length (ringCharMatrix t (evalMatrix ι rows x)) (evalMatrix ι certificate.adjugate (x ++ [t])) =
       ringScalar rows.length (evalIn ι certificate.characteristic (x ++ [t])) := by
   rw [← evalMatrix_charMatrix ι hv.rows_arity hx, hv.adjugate_at]
+
+/-- **Identity 2′ at a point.** -/
+theorem adjugateRight_at (hv : SpectralValid m rows certificate) (ι : RatHom R) (z : List R) :
+    ringMatMul rows.length (evalMatrix ι certificate.adjugate z) (evalMatrix ι (charMatrix m rows) z) =
+      ringScalar rows.length (evalIn ι certificate.characteristic z) := by
+  rw [← evalMatrix_plainMatMul ι hv.adjugate_arity (arity_charMatrix hv.rows_arity), hv.adjugateRight,
+    evalMatrix_scalarMatrix]
+
+/-- **`adj(x, t)·(tI − H(x)) = χ(x, t)·I`.** -/
+theorem adjugateRight_eq (hv : SpectralValid m rows certificate) (ι : RatHom R) {x : List R}
+    (hx : x.length = m) (t : R) :
+    ringMatMul rows.length (evalMatrix ι certificate.adjugate (x ++ [t])) (ringCharMatrix t (evalMatrix ι rows x)) =
+      ringScalar rows.length (evalIn ι certificate.characteristic (x ++ [t])) := by
+  rw [← evalMatrix_charMatrix ι hv.rows_arity hx, hv.adjugateRight_at]
 
 /-- **Identity 3 at a point**: `tr adj(z) = χ′(z)`. -/
 theorem adjugateTrace_at (hv : SpectralValid m rows certificate) (ι : RatHom R) (z : List R) :
@@ -639,17 +660,33 @@ theorem checkEndomorphism_sound {env : Environment} {family object module : Decl
       obtain ⟨hrank, hsquare, hsym⟩ := checkRows_sound (isOk_ok hrows)
       exact ⟨implementation, coordinates, moduleFamily, basis, found, rfl, hrank, hsquare, hsym⟩
 
+/-- **An accepted fiber name** is an identifier, no coordinate of the object
+and no basis vector of the module. -/
+theorem fiberValid_spec {coordinates basis : List String} {fiber : String}
+    (h : fiberValid coordinates basis fiber = true) :
+    isIdentifier fiber = true ∧ fiber ∉ coordinates ∧ fiber ∉ basis := by
+  simp only [fiberValid, Bool.and_eq_true, Bool.not_eq_true'] at h
+  obtain ⟨⟨hidentifier, hcoordinates⟩, hbasis⟩ := h
+  refine ⟨hidentifier, fun hmem => ?_, fun hmem => ?_⟩
+  · rw [List.contains_iff_mem.mpr hmem] at hcoordinates
+    cases hcoordinates
+  · rw [List.contains_iff_mem.mpr hmem] at hbasis
+    cases hbasis
+
 /-- **An accepted spectrum declaration**: its endomorphism is on the same
-object, its fiber name is no coordinate, and its certificate is valid for the
-endomorphism's rows. -/
+object, its fiber name is a new identifier (no coordinate of the object and
+no basis vector of the endomorphism's free module), and its certificate is
+valid for the endomorphism's rows. -/
 theorem checkSpectrum_sound {env : Environment} {family object endomorphism : DeclId} {fiber : String}
     {certificate : SpectralCertificate}
     (h : checkSpectrum env family object endomorphism fiber certificate = true) :
     isSpectrumFamily env family = true ∧ validApplication env ⟨family, [.object (.global object)]⟩ = true ∧
       ∃ implementation coordinates, lookup env object = some (.smoothAffine implementation coordinates) ∧
-        fiber ∉ coordinates ∧
+        isIdentifier fiber = true ∧ fiber ∉ coordinates ∧
         ∃ endomorphismFamily module rows symmetric,
           endomorphismData? env endomorphism = some (endomorphismFamily, object, module, rows, symmetric) ∧
+          (∃ moduleFamily moduleObject basis,
+            freeModuleData? env module = some (moduleFamily, moduleObject, basis) ∧ fiber ∉ basis) ∧
           SpectralValid coordinates.length rows certificate := by
   simp only [checkSpectrum, Bool.and_eq_true] at h
   obtain ⟨hdeclared, hmatch⟩ := h
@@ -663,15 +700,18 @@ theorem checkSpectrum_sound {env : Environment} {family object endomorphism : De
     | some data =>
       obtain ⟨endomorphismFamily, endomorphismObject, module, rows, symmetric⟩ := data
       rw [hc, he] at hmatch
-      simp only [Bool.and_eq_true, beq_iff_eq, Bool.not_eq_true'] at hmatch
+      simp only [Bool.and_eq_true, beq_iff_eq] at hmatch
       obtain ⟨⟨hobject, hfiber⟩, hcert⟩ := hmatch
       subst hobject
       obtain ⟨implementation, found⟩ := smoothCoordinates_spec hc
-      have hnot : fiber ∉ coordinates := fun hmem => by
-        rw [List.contains_iff_mem.mpr hmem] at hfiber
-        cases hfiber
-      exact ⟨implementation, coordinates, found, hnot, endomorphismFamily, module, rows, symmetric, rfl,
-        checkCertificate_sound (isOk_ok hcert)⟩
+      cases hm : freeModuleData? env module with
+      | none => rw [hm] at hfiber; cases hfiber
+      | some moduleData =>
+        obtain ⟨moduleFamily, moduleObject, basis⟩ := moduleData
+        rw [hm] at hfiber
+        obtain ⟨hidentifier, hcoordinates, hbasis⟩ := fiberValid_spec hfiber
+        exact ⟨implementation, coordinates, found, hidentifier, hcoordinates, endomorphismFamily, module, rows,
+          symmetric, rfl, ⟨moduleFamily, moduleObject, basis, hm, hbasis⟩, checkCertificate_sound (isOk_ok hcert)⟩
 
 /-- **An accepted branch declaration**: its gap certificate is valid for the
 characteristic polynomial of its spectrum and the rank of that spectrum's
@@ -759,9 +799,11 @@ theorem spectrum_sound {env : Environment} (envValid : env.Valid) {id family obj
     (found : lookup env id = some (.spectrum family object endomorphism fiber certificate)) :
     isSpectrumFamily env family = true ∧ validApplication env ⟨family, [.object (.global object)]⟩ = true ∧
       ∃ implementation coordinates, lookup env object = some (.smoothAffine implementation coordinates) ∧
-        fiber ∉ coordinates ∧
+        isIdentifier fiber = true ∧ fiber ∉ coordinates ∧
         ∃ endomorphismFamily module rows symmetric,
           endomorphismData? env endomorphism = some (endomorphismFamily, object, module, rows, symmetric) ∧
+          (∃ moduleFamily moduleObject basis,
+            freeModuleData? env module = some (moduleFamily, moduleObject, basis) ∧ fiber ∉ basis) ∧
           SpectralValid coordinates.length rows certificate :=
   checkSpectrum_sound (valid_of_lookup envValid found)
 
@@ -783,7 +825,7 @@ theorem branch_sound {env : Environment} (envValid : env.Valid) {id family objec
             quotient := by
   obtain ⟨hfamily, happ, m, spectrumFamily, endomorphism, fiber, certificate, hm, hs, endomorphismFamily,
     endomorphismObject, module, rows, symmetric, he, hw⟩ := checkBranch_sound (valid_of_lookup envValid found)
-  obtain ⟨-, -, implementation, coordinates, hobject, -, endomorphismFamily', module', rows', symmetric', he',
+  obtain ⟨-, -, implementation, coordinates, hobject, -, -, endomorphismFamily', module', rows', symmetric', he', -,
     hv⟩ := spectrum_sound envValid (spectrumData_lookup hs)
   have hsame := he.symm.trans he'
   simp only [Option.some.injEq, Prod.mk.injEq] at hsame
@@ -839,6 +881,24 @@ theorem tracePowerImage_sound {m k : Nat} {rows : PolyMatrix} {image : Poly}
     cases k with
     | zero => exact absurd rfl hk0
     | succ k => omega
+
+/-- **An accepted `trace_power(H, k)` is within the term limit**: its image
+has at most `algebraTerms` terms, as every polynomial that the kernel reads
+or computes. -/
+theorem tracePowerImage_bounded {m k : Nat} {rows : PolyMatrix} {image : Poly}
+    (h : tracePowerImage m rows k = .ok image) : image.length ≤ Limits.algebraTerms := by
+  unfold tracePowerImage at h
+  obtain ⟨_, _, h⟩ := except_bind_ok h
+  obtain ⟨_, h⟩ := guard_ok h
+  cases hrun : AlgebraBasis.run (tracePower m rows k) with
+  | error e =>
+    rw [hrun] at h
+    cases h
+  | ok r =>
+    rw [hrun] at h
+    cases h
+    obtain ⟨_, hrun'⟩ := run_ok hrun
+    exact tracePower_bounded hrun'
 
 /-- **An accepted `trace_power(H, k)` is `tr(H(x)ᵏ)`** at every point `x` of
 every ring, for rows of arity `m`. -/

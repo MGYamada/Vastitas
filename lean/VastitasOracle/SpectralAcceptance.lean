@@ -31,7 +31,7 @@ level theorem with a runtime or algebra theorem.
 | C8 gap certificate | `c8_gap_certificate` | `SpectralDeclarations.branch_sound`, `SpectralValid.unit_at`, `Examples.unit_gap_no_witness`, `origin_off_chart`; `jordan_no_witness`, `perturbed_witness_rejected` |
 | C9 branch points and ⊥ | `c9_branch_points` | `SpectralRuntime.branch_some_iff`, `off_chart_bottom`; the points by `decide +kernel` |
 | C10 branch derivative | `c10_branch_derivative`, `Stage5.branch_differentials` | `SpectralCore.core_spectral_branch_differential`, `DeclaredBranch.checked`; `SpectralRuntime.branchDifferential_implicit`, `branchDifferential_hellmann_feynman` |
-| C11 eigenprojector | `c11_eigenprojector`, `Stage5.projectors` | `SpectralCore.core_spectral_branch_projector`, `DeclaredBranch.checked`; `SpectralRuntime.projector_idempotent`, `projector_trace_one`, `projector_eigen` |
+| C11 eigenprojector | `c11_eigenprojector`, `Stage5.projectors` | `SpectralCore.core_spectral_branch_projector`, `DeclaredBranch.checked`; `SpectralRuntime.projector_idempotent`, `projector_trace_one`, `projector_eigen`, `projector_commutes` |
 | C12 degenerate cases | `c12_degenerate` | `SpectralRuntime.Examples.zero_accepted`; `Examples.origin_off_chart`; the rank-1 and rank-4 cases by `decide +kernel` |
 | C13 weakening | `c13_weakening` | `SpectralWeakening.spectral_weakening_binding`, `spectral_weakening_entry`, `stage4_bindings_spectral_free`, `spectral_bindings_metric_free`, `spectral_bindings_frame_free`; `SpectralCore.spectral_bindings_environment_free` |
 
@@ -73,7 +73,8 @@ universe u
 `1 ≤ n ≤ spectralRank` distinct basis names over a declared smooth object; an
 endomorphism has `n × n` canonical polynomial rows in the coordinates of its
 object, for the rank `n` of its free module on the same object, symmetric when
-declared so; and a spectrum's fiber name is no coordinate of its object. -/
+declared so; and a spectrum's fiber name is a new identifier: no coordinate
+of its object and no basis vector of the free module of its endomorphism. -/
 theorem c1_fields_and_modules {env : Indexed.Environment} (valid : env.Valid) :
     (∀ {id family object : DeclId} {basis : List String},
       lookup env id = some (.freeModule family object basis) →
@@ -88,7 +89,11 @@ theorem c1_fields_and_modules {env : Indexed.Environment} (valid : env.Valid) :
           (symmetric = true → ∀ i j, polyEntry rows i j = polyEntry rows j i)) ∧
     (∀ {id family object endomorphism : DeclId} {fiber : String} {certificate : SpectralCertificate},
       lookup env id = some (.spectrum family object endomorphism fiber certificate) →
-        ∃ coordinates, smoothCoordinates? env object = some coordinates ∧ fiber ∉ coordinates) := by
+        ∃ coordinates basis, smoothCoordinates? env object = some coordinates ∧
+          (∃ endomorphismFamily module rows symmetric moduleFamily moduleObject,
+            endomorphismData? env endomorphism = some (endomorphismFamily, object, module, rows, symmetric) ∧
+            freeModuleData? env module = some (moduleFamily, moduleObject, basis)) ∧
+          SpectralDeclarations.isIdentifier fiber = true ∧ fiber ∉ coordinates ∧ fiber ∉ basis) := by
   refine ⟨fun found => ?_, fun found => ?_, fun found => ?_⟩
   · obtain ⟨-, -, hobject, hbasis⟩ :=
       VastitasOracle.SpectralDeclarations.checkFreeModule_sound
@@ -100,9 +105,12 @@ theorem c1_fields_and_modules {env : Indexed.Environment} (valid : env.Valid) :
     rw [← hlength] at hrank hsquare
     exact ⟨coordinates.length, basis, SpectralCore.smoothDimension_of_lookup hobject, ⟨moduleFamily, hmodule⟩,
       hlength, hrank, hsquare, hsym⟩
-  · obtain ⟨-, -, implementation, coordinates, hobject, hfiber, -⟩ :=
+  · obtain ⟨-, -, implementation, coordinates, hobject, hidentifier, hfiber, endomorphismFamily, module, rows,
+      symmetric, hend, ⟨moduleFamily, moduleObject, basis, hmodule, hbasis⟩, -⟩ :=
       VastitasOracle.SpectralDeclarations.spectrum_sound valid found
-    exact ⟨coordinates, by simp [smoothCoordinates?, hobject], hfiber⟩
+    exact ⟨coordinates, basis, by simp [smoothCoordinates?, hobject],
+      ⟨endomorphismFamily, module, rows, symmetric, moduleFamily, moduleObject, hend, hmodule⟩, hidentifier, hfiber,
+      hbasis⟩
 
 /-- **C2 The spectral pair.** In a valid environment the certificate of a
 declared spectrum, which the kernel computes and checks and never reads from
@@ -129,7 +137,8 @@ theorem c2_spectral_pair {R : Type u} [Lean.Grind.CommRing R] {env : Indexed.Env
           ringTrace (ringMatMul rows.length (evalMatrix ι certificate.adjugate z)
             (evalMatrix ι (SpectralDeclarations.derivativeMatrix i rows) z)) = 0) ∧
       (∀ point, annihilates rows certificate.characteristic point = true) := by
-  obtain ⟨-, -, implementation, coordinates, hobject, -, endomorphismFamily, module, rows, symmetric, hend, hv⟩ :=
+  obtain ⟨-, -, implementation, coordinates, hobject, -, -, endomorphismFamily, module, rows, symmetric, hend, -,
+      hv⟩ :=
     VastitasOracle.SpectralDeclarations.spectrum_sound valid found
   exact ⟨coordinates.length, rows, SpectralCore.smoothDimension_of_lookup hobject,
     ⟨endomorphismFamily, module, symmetric, hend⟩, hv,
@@ -682,7 +691,8 @@ theorem c10_branch_derivative {point valueTerm : Core.Term} {smooth cotangent li
 accepted `branch_projector(p, t, branch = B, eᵢ, eⱼ)` evaluates to an entry,
 in range, of the runtime eigenprojector `P` of the declared data of `B`: off
 the chart `(0, 0)`; on the branch the entry `(i, j)` of `P`, which satisfies
-`P·P = P`, `tr P = 1` and `H(p)·P = P·t`. -/
+`P·P = P`, `tr P = 1`, `H(p)·P = P·t` and `P·H(p) = P·t`, so `P` commutes
+with `H(p)`. -/
 theorem c11_eigenprojector {point valueTerm : Core.Term} {smooth line : DeclId} {branch : BranchRef}
     {row column : Nat} {pointValue valueValue : Value} (envValid : module.declarations.indexed.Valid)
     (found : module.declarations.primitive? id = some (.branchProjector smooth line branch row column))
@@ -708,6 +718,9 @@ theorem c11_eigenprojector {point valueTerm : Core.Term} {smooth line : DeclId} 
             ringTrace P = 1 ∧
             VastitasKernel.FrameRuntime.matrixProduct branch.spectrum.endomorphism.rows.length
               (VastitasKernel.FrameRuntime.matrixAt branch.spectrum.endomorphism.rows (coordinates x)) P =
+                scaleMatrix t P ∧
+            VastitasKernel.FrameRuntime.matrixProduct branch.spectrum.endomorphism.rows.length P
+              (VastitasKernel.FrameRuntime.matrixAt branch.spectrum.endomorphism.rows (coordinates x)) =
                 scaleMatrix t P) := by
   obtain ⟨declared, -, hrow, hcolumn, m, x, v, hm, rfl, rfl, hx, hv, evaluated⟩ :=
     SpectralCore.core_spectral_branch_projector found input outputType accepted pointEval valueEval typed
@@ -727,12 +740,14 @@ theorem c11_eigenprojector {point valueTerm : Core.Term} {smooth line : DeclId} 
   · have hP := VastitasOracle.SpectralRuntime.projectorMatrix_of_onBranch (adjugate := branch.spectrum.adjugate) hon
     have certificate : SpectralValid m branch.spectrum.endomorphism.rows
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩ := hvalid
-    refine ⟨_, hP, by simp [projectorEntry, hP], ?_, ?_, ?_⟩
+    refine ⟨_, hP, by simp [projectorEntry, hP], ?_, ?_, ?_, ?_⟩
     · exact VastitasOracle.SpectralRuntime.projector_idempotent (certificate :=
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩) certificate hw hx hP
     · exact VastitasOracle.SpectralRuntime.projector_trace_one (certificate :=
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩) certificate hw hx hP
     · exact VastitasOracle.SpectralRuntime.projector_eigen (certificate :=
+        ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩) certificate hw hx ht hP
+    · exact VastitasOracle.SpectralRuntime.projector_commutes (certificate :=
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩) certificate hw hx ht hP
 
 end Accepted

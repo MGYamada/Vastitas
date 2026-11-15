@@ -20,7 +20,8 @@ the runtime is exact over `ℚ`.
 * **The eigenprojector** `P = adj(tI − H(p)) / χ′(p, t)` on the branch:
   `projector_idempotent` (`P·P = P`, from identity 5 at `χ = 0`),
   `projector_trace_one` (`tr P = 1`, identity 3), `projector_eigen`
-  (`H(p)·P = t·P`, identity 2) and `eigenvector_exists` (a column `j` of `P`
+  (`H(p)·P = t·P`, identity 2), `projector_commutes` (`P·H(p) = t·P`,
+  identity 2′, so `P` commutes with `H(p)`) and `eigenvector_exists` (a column `j` of `P`
   with `Pⱼⱼ ≠ 0` is an eigenvector of `H(p)` for `t`: it is nonzero because
   `tr P = 1`, so no determinant theory is needed). The divisions are by a
   nonzero number (`SpectralValid.slopeAt_ne_zero`, from the gap certificate).
@@ -232,6 +233,33 @@ theorem ringEntry_charMatrix_mul {n : Nat} (t : R) {matrix right : List (List R)
     rw [ringEntry_ringCharMatrix t hrow hlrow]
     grind
   rw [ringSum_congr step, ringSum_sub, ringSum_single t _ hi]
+
+/-- An entry of `N·(tI − M)` is `t·Nᵢⱼ − (N·M)ᵢⱼ`. -/
+theorem ringEntry_mul_charMatrix {n : Nat} (t : R) {matrix left : List (List R)} (hm : Square n matrix)
+    (hl : Square n left) {i j : Nat} (hi : i < n) (hj : j < n) :
+    ringEntry (ringMatMul n left (ringCharMatrix t matrix)) i j =
+      t * ringEntry left i j - ringEntry (ringMatMul n left matrix) i j := by
+  have hc := square_ringCharMatrix t hm
+  have hrow : i < left.length := by rw [hl.1]; exact hi
+  rw [ringEntry_ringMatMul (k := n) hrow hj hl.2 hc.1, ringEntry_ringMatMul (k := n) hrow hj hl.2 hm.1]
+  have step : ∀ l < n, ringEntry left i l * ringEntry (ringCharMatrix t matrix) l j =
+      (if j == l then t else 0) * ringEntry left i l - ringEntry left i l * ringEntry matrix l j := by
+    intro l hl
+    have hlrow : l < matrix.length := by rw [hm.1]; exact hl
+    have hjcol : j < (matrix.getD l []).length := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hlrow, Option.getD_some,
+        hm.2 _ (List.getElem_mem hlrow)]
+      exact hj
+    rw [ringEntry_ringCharMatrix t hlrow hjcol]
+    by_cases hlj : l = j
+    · subst hlj
+      simp only [beq_self_eq_true, ↓reduceIte]
+      grind
+    · have h1 : (l == j) = false := by simp [hlj]
+      have h2 : (j == l) = false := by simp [Ne.symm hlj]
+      simp only [h1, h2, Bool.false_eq_true, ↓reduceIte]
+      grind
+  rw [ringSum_congr step, ringSum_sub, ringSum_single t _ hj]
 
 theorem ringEntry_ringScalar_zero {n i j : Nat} (hi : i < n) (hj : j < n) :
     ringEntry (ringScalar n (0 : R)) i j = 0 := by
@@ -481,6 +509,25 @@ theorem adjugate_eigen (hv : SpectralValid m rows certificate)
   rw [ringEntry_scale]
   grind
 
+/-- `adj(p, t)·H(p) = t·adj(p, t)` on the branch: `adj·(tI − H) = χ·I`
+(identity 2′) at `χ(p, t) = 0`. -/
+theorem adjugate_eigen_right (hv : SpectralValid m rows certificate)
+    (hp : (coordinates point).length = m) {t : Rat} (ht : coordinates value = [t])
+    (hχ : evalIn RatHom.id certificate.characteristic (branchPoint point value) = 0) :
+    ringMatMul rows.length (evalMatrix RatHom.id certificate.adjugate (branchPoint point value))
+        (evalMatrix RatHom.id rows (coordinates point)) =
+      scaleMatrix t (evalMatrix RatHom.id certificate.adjugate (branchPoint point value)) := by
+  have hz : branchPoint point value = coordinates point ++ [t] := by rw [branchPoint, ht]
+  have hA := square_evalMatrix RatHom.id hv.adjugateSquare (branchPoint point value)
+  have hH := square_evalMatrix RatHom.id hv.rowsSquare (coordinates point)
+  have hident := hv.adjugateRight_eq RatHom.id hp t
+  rw [← hz, hχ] at hident
+  refine matrix_ext (square_ringMatMul _ (by rw [hA.1])) (square_scale _ hA) fun i hi j hj => ?_
+  have e := congrArg (ringEntry · i j) hident
+  rw [ringEntry_mul_charMatrix t hH hA hi hj, ringEntry_ringScalar_zero hi hj] at e
+  rw [ringEntry_scale]
+  grind
+
 /-- **The eigenprojector projects onto the eigenvalue**: `H(p)·P = P·t` on
 the branch, with `t` the value. -/
 theorem projector_eigen (hv : SpectralValid m rows certificate)
@@ -493,6 +540,29 @@ theorem projector_eigen (hv : SpectralValid m rows certificate)
   obtain ⟨-, hχ, hA⟩ := branch_facts hv hw hp hon
   rw [← ringMatMul_rat, ← evalMatrix_id, projectorAt_eq_scale, ringMatMul_scale_right,
     adjugate_eigen hv hp ht hχ]
+  refine matrix_ext (square_scale _ (square_scale _ hA)) (square_scale _ (square_scale _ hA))
+    fun i _ j _ => ?_
+  rw [ringEntry_scale, ringEntry_scale, ringEntry_scale, ringEntry_scale]
+  grind
+
+/-- **The eigenprojector commutes with the field**: `P·H(p) = P·t` on the
+branch, from `adj·(tI − H) = χ·I` (identity 2′) at `χ(p, t) = 0`; with
+`projector_eigen`, `P·H(p) = H(p)·P`. Without this law the others do not
+determine `P`: `H(p)·P = P·t`, `P·P = P` and `tr P = 1` hold for every
+rank-one idempotent onto the eigenline. With it, `P` vanishes on the image
+of `H(p) − t`, which for the simple eigenvalue `t` of the branch is the
+projection along that image; that argument, and the identification with
+Mathlib's spectral projection, are not stated here. -/
+theorem projector_commutes (hv : SpectralValid m rows certificate)
+    (hw : WitnessValid m rows.length certificate.characteristic localize witness exponent quotient)
+    (hp : (coordinates point).length = m) {t : Rat} (ht : coordinates value = [t]) {P : Matrix}
+    (h : projectorMatrix localize certificate.characteristic certificate.adjugate point value = some P) :
+    VastitasKernel.FrameRuntime.matrixProduct rows.length P
+        (VastitasKernel.FrameRuntime.matrixAt rows (coordinates point)) = scaleMatrix t P := by
+  obtain ⟨hon, rfl⟩ := projectorMatrix_some h
+  obtain ⟨-, hχ, hA⟩ := branch_facts hv hw hp hon
+  rw [← ringMatMul_rat, ← evalMatrix_id, projectorAt_eq_scale, ringMatMul_scale_left,
+    adjugate_eigen_right hv hp ht hχ]
   refine matrix_ext (square_scale _ (square_scale _ hA)) (square_scale _ (square_scale _ hA))
     fun i _ j _ => ?_
   rw [ringEntry_scale, ringEntry_scale, ringEntry_scale, ringEntry_scale]

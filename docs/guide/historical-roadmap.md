@@ -3,10 +3,10 @@
 This chapter is the roadmap of the language after its first executable core,
 the finite Stage 1. It has six Stages and keeps their historical numbers. Each
 Stage states a mathematical target and an acceptance example, an example that
-could establish the completion of the Stage. Stages 2, 3 and 4 are
-Implemented as finite profiles over the rational numbers: each has a Status
-paragraph, Reference chapters and a [delivery record](../appendix/history.md).
-Stages 5 to 7 are Planned, and Stage 5 is in progress.
+could establish the completion of the Stage. Stages 2 to 5 are Implemented
+as finite profiles over the rational numbers: each has a Status paragraph,
+Reference chapters and a [delivery record](../appendix/history.md). Stages 6
+and 7 are Planned.
 
 The Stages answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
@@ -14,9 +14,10 @@ survive a change of coordinates, an eigenvalue collision, or a change of
 physical convention?
 
 The GitHub issues that the chapter links govern the plan, including changes to
-earlier proposals. Their states were checked on 12 November 2026 (JST), and
-those of Stage 4 on 14 November 2026. The Status paragraphs of Stages 2, 3
-and 4 describe the delivered profiles, and the opening of Stage 3 gives the
+earlier proposals. Their states were checked on 12 November 2026 (JST),
+those of Stage 4 on 14 November 2026 and those of Stage 5 on 15 November
+2026. The Status paragraphs of Stages 2, 3 and 4 describe the delivered
+profiles, and the opening of Stage 3 gives the
 declaration forms of its profile. Every other
 implementation claim refers to the finite Stage 1 delivery at `7d612a4`.
 [Stage 1 acceptance map](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/stage1-acceptance.md)
@@ -184,14 +185,14 @@ including repeated eigenvalues. Its codomain is the ambient algebra. The
 typed Hermitian lift, cotangent action and agreement with emitted reverse
 Core remain open. [Proved Daleckii–Krein statement](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/daleckii-krein.md) · [Spectral AD obligations, #471](https://github.com/MGYamada/Vastitas/issues/471)
 
-**Status.** In progress ([acceptance map](../stage5-acceptance.md), tracker
-#806): a finite, checked profile over QQ implements this example, and the
-tracker closes after its continuous integration and its independent
-whole-stage review. It has free modules with a named basis on smooth affine
+**Status.** A finite, checked profile over QQ implements this example
+([acceptance map](../stage5-acceptance.md), tracker #806, closed after its
+continuous integration and the fixes of its independent whole-stage review).
+It has free modules with a named basis on smooth affine
 objects and polynomial matrix fields of them, with a `symmetric` claim that
 the kernel checks. The kernel computes the characteristic polynomial and the
 adjugate by the Faddeev–LeVerrier recursion, checks them by cofactor
-expansion and five more identities, and keeps the module action, so that a
+expansion and six more identities, and keeps the module action, so that a
 scalar matrix and a Jordan block with one characteristic polynomial stay
 different. Trace powers and characteristic coefficients are smooth maps,
 whose gradients come from the reverse pass: tr(H²) has the gradient
@@ -201,21 +202,26 @@ with the branch differential and the eigenprojector at rational branch
 points; no primitive computes an eigenvalue, and the origin is off every
 chart of the example. The oracle proves the identities of accepted spectra
 and branches, what the invariants and the branch observations compute, the
-roadmap gradient at every rational point and weakening, for accepted
-programs. The mathlib bridge proves that the characteristic polynomial and
+differential of the roadmap invariant at every rational point and
+weakening, for accepted programs; the gradient vector through the declared
+metric is tested. The mathlib bridge proves that the characteristic polynomial and
 the trace powers are those of Mathlib, steps 1 and 2 of #471, and that the
 emitted reverse Core of a trace power of a symmetric field computes the
-Daleckii–Krein cotangent composed with the derivative of the field, without
-the kernel chain rule: the gradient of the example is (4x, 4y) at every real
+Daleckii–Krein cotangent composed with the derivative of the field, under
+the premises of the compiled reverse entries and without the kernel chain
+rule; for the field of the example that cotangent is (4x, 4y) at every real
 point. It also proves that an accepted branch differential is the derivative
 of every differentiable branch through its point; the existence of the
 branch is not claimed. The acceptance example runs natively.
 [ADR 0001 §12](../adr/0001-mathematics-first-stdlib.md#12-exact-spectral-pairs-and-simple-branches-of-polynomial-matrix-fields-amendment-2026-11-15)
 admits the module `std::linalg::spectral`. Planned, in open issues: covers,
 image opens and cluster splits (#765), the branch as a smooth function on an
-open (#606), similarity, base change and the band-crossing consumer (#337,
+open and the characteristic scheme as a presented object (#606, #814),
+spectral derivatives beyond trace powers (#815), Hermitian fields over
+QQ(i) (#816), similarity, base change and the band-crossing consumer (#337,
 #247), numerical eigensolvers (#324), steps 3 to 5 of #471 (#361, #290,
-#164) and performance (#222).
+#164), the proof gaps of the review (#813), the repeated check of
+trace-power invariants (#812) and performance (#222).
 
 ## Stage 6. A first physical model
 

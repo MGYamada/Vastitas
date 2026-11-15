@@ -16,6 +16,12 @@ frame and physical dimensions over QQ: constant and polynomial frames of
 smooth affine objects, arrays and map arrays that keep their frames, and a
 minimal `nature::dimension` that rejects dx² + dt² under a length and a time
 coordinate. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/frames-and-dimensions.md) · [Reference: frames](https://github.com/MGYamada/Vastitas/blob/main/docs/language/frames.md) · [physical dimensions](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-dimensions.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage4-acceptance.md)
+Historical Stage 5 adds a checked finite profile of exact spectral observations
+over QQ: polynomial matrix fields of free modules on smooth affine objects, their
+characteristic polynomials with the module action, trace powers and coefficients
+as smooth maps with their gradients, and simple eigenvalue branches on a chart
+certified by a gap witness; the bridge proves that the compiled reverse pass of a
+trace power computes the Daleckii–Krein cotangent. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/spectral-observations.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/spectral-observations.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage5-acceptance.md)
 
 ## Build and use
 

@@ -1750,7 +1750,11 @@ symmetric matrix with rows `(x, y)` and `(y, −x)`.
 > and `VastitasAlgebraTest.SpectralReferenceRegression` compares the kernel's
 > spectral pairs, trace powers, coefficients, gap witnesses and branch
 > observations with it; `python3 scripts/spectral_fixture.py --check` compares
-> the fixture with the models. The fixture's first subject, `stage5`, is the
+> the fixture with the models. This model gives the characteristic
+> polynomials, the adjugates, the trace powers and the verdicts of the
+> charts. The writer computes the eigenprojectors and the branch
+> differentials from them, by the formulas of the kernel, and asserts their
+> laws. The fixture's first subject, `stage5`, is the
 > matrix above, and its charts include `D(x² + y²)` with `W = t/2`, the
 > localizer 1, the witness changed by `10^-20`, a wrong exponent, an
 > unreduced witness and a zero localizer. The kernel's finite spectral

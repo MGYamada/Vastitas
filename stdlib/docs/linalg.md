@@ -18,9 +18,12 @@ general are not part of it.
 The package depends on the geometry package, and the geometry package does
 not depend on it. It does not depend on
 [`std::differential`](differential.md) either: an application that
-differentiates an invariant or declares the differential of a branch uses
-both packages. `scripts/check_boundaries.py` checks the direction of each
-edge.
+differentiates an invariant with the `differential` of `std::differential`
+uses both packages. An application declares the differential of a branch
+with the smooth and cotangent families and the line of
+[`std::geometry::smooth::affine`](geometry/smooth/affine.md), so it needs
+no `std::differential` for it. `scripts/check_boundaries.py` checks the
+direction of each edge.
 
 ## Exports
 

@@ -234,6 +234,22 @@ depend on the order of the declarations. -/
     rejectsWith 9 (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1"] []])
       "E_SPECTRAL" "a free module names one object, as in `FreeModule<X>`, but 0 are given")
 
+/- The fiber coordinate of a spectrum is a new identifier: the wire carries any
+string, and the source checker rejects one that is not an identifier or that
+names a basis vector of the free module. -/
+#eval check "the fiber coordinate of a spectrum is a new identifier"
+  ((["", "t t", "0", "1t", "t-1", "λ"].all fun fiber =>
+      rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
+        s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is not an identifier") &&
+    (["e1", "e2"].all fun fiber =>
+      rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
+        (s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is a basis vector of the free module " ++
+          "`spectral::V`")) &&
+    rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" "y"]) "E_SPECTRAL"
+      "the fiber coordinate `y` of the spectrum `spectral::S` is a coordinate of `spectral::Plane`" &&
+    (["t", "_t", "lambda2", "H", "V"].all fun fiber =>
+      (outcome 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber])).1 == "accepted"))
+
 #eval check "the names of a spectral declaration resolve"
   (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [endoH]) "E_NAME" "undefined name 'V'" &&
     rejectsWith 9 (smoothBase ++ spectralFamilies ++ [spectrumS]) "E_NAME" "undefined name 'H'" &&
@@ -581,6 +597,18 @@ private def tampered : List (String × String × (Declaration → Declaration)) 
     | d => d),
   ("the fiber name", "S", fun
     | .spectrum f o e _ cert => .spectrum f o e "x" cert
+    | d => d),
+  ("an empty fiber name", "S", fun
+    | .spectrum f o e _ cert => .spectrum f o e "" cert
+    | d => d),
+  ("a fiber name with a space", "S", fun
+    | .spectrum f o e _ cert => .spectrum f o e "t t" cert
+    | d => d),
+  ("a numeral as the fiber name", "S", fun
+    | .spectrum f o e _ cert => .spectrum f o e "0" cert
+    | d => d),
+  ("a basis vector as the fiber name", "S", fun
+    | .spectrum f o e _ cert => .spectrum f o e "e1" cert
     | d => d),
   ("the rows", "H", fun
     | .endomorphism f o m rows s => .endomorphism f o m rows.reverse s

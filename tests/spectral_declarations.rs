@@ -134,14 +134,16 @@ fn decoded(response: &Value) {
 }
 
 /// Each Stage 5 form alone in a package, with the frontend's only other item
-/// `fn main`, and the part of the message with which protocols 7 and 8
-/// reject it. Paths are unresolved on the wire; the kernel resolves them. A
-/// spectral family of the library's shape is rejected at its `object(…)`
-/// parameter already, so each representation also appears without one.
+/// `fn main`, and the exact message with which protocols 7 and 8 reject it. Paths
+/// are unresolved on the wire; the kernel resolves them. A spectral family of
+/// the library's shape is rejected at its constraint `canonical(0)`, a smooth
+/// form, before its representation is read, so each representation also
+/// appears without parameters and constraints, where the representation
+/// decides. A morphism declaration is an algebraic affine form.
 const LONE_FORMS: &[(&str, &str)] = &[
     (
         "indexed family FreeModule(object(CInfAffine)) = free_module constraints(canonical(0));",
-        "require protocol 9",
+        "smooth declarations require protocol 9",
     ),
     (
         "indexed family FreeModule() = free_module constraints();",
@@ -149,7 +151,7 @@ const LONE_FORMS: &[(&str, &str)] = &[
     ),
     (
         "indexed family Endomorphism(object(CInfAffine)) = endomorphism constraints(canonical(0));",
-        "require protocol 9",
+        "smooth declarations require protocol 9",
     ),
     (
         "indexed family Endomorphism() = endomorphism constraints();",
@@ -157,7 +159,7 @@ const LONE_FORMS: &[(&str, &str)] = &[
     ),
     (
         "indexed family Spectrum(object(CInfAffine)) = spectrum constraints(canonical(0));",
-        "require protocol 9",
+        "smooth declarations require protocol 9",
     ),
     (
         "indexed family Spectrum() = spectrum constraints();",
@@ -165,7 +167,7 @@ const LONE_FORMS: &[(&str, &str)] = &[
     ),
     (
         "indexed family Branch(object(CInfAffine)) = branch constraints(canonical(0));",
-        "require protocol 9",
+        "smooth declarations require protocol 9",
     ),
     (
         "indexed family Branch() = branch constraints();",
@@ -189,11 +191,11 @@ const LONE_FORMS: &[(&str, &str)] = &[
     ),
     (
         "indexed morphism tr2: Smooth<Plane, Line> = trace_power(H, 2);",
-        "require protocol 9",
+        "algebraic affine declarations require protocol 9",
     ),
     (
         "indexed morphism c0: Smooth<Plane, Line> = char_coefficient(S, 0);",
-        "require protocol 9",
+        "algebraic affine declarations require protocol 9",
     ),
     (
         "indexed primitive ann = annihilates(Smooth, spectrum = S, element = t - 2);",
@@ -233,9 +235,8 @@ fn spectral_forms_select_protocol_nine_only() {
             older["version"] = json!(version);
             let response = kernel(older, "emit");
             assert_wire_rejected(&response, "E_PROTOCOL");
-            let message = response["diagnostics"][0]["message"].as_str().unwrap();
-            assert!(
-                message.contains(older_message),
+            assert_eq!(
+                response["diagnostics"][0]["message"], *older_message,
                 "{form} in protocol {version}: {response}"
             );
         }
@@ -529,12 +530,13 @@ fn natural_digits_are_bounded_as_the_decoder_bounds_them() {
     }
 }
 
-/// The frontend checks no spectral rule: a rank beyond `spectralRank`,
-/// repeated or unknown basis names, ragged rows, a false `symmetric` claim, a
-/// fiber name that clashes with a coordinate, a localization in the fiber
-/// coordinate, an exponent or a power beyond `spectralPower`, a second
-/// object, and families in the wrong places all go to the wire as written.
-/// The kernel decodes and rejects each.
+/// The frontend checks no spectral rule: a repeated basis name, a rank beyond
+/// `spectralRank`, an unknown basis name, ragged rows, a false `symmetric`
+/// claim, a fiber name that clashes with a coordinate or a basis name, a
+/// localization in the fiber coordinate, an exponent or a power beyond
+/// `spectralPower`, a second object, and families in the wrong places all go
+/// to the wire as written. The kernel decodes each and rejects it with its
+/// own code and exact message.
 #[test]
 fn the_frontend_leaves_spectral_rules_to_the_kernel() {
     let v = "indexed free_module V: FreeModule<Plane> = basis(e1, e2);";
@@ -545,18 +547,36 @@ fn the_frontend_leaves_spectral_rules_to_the_kernel() {
     let act =
         "indexed primitive act = action_entry(Smooth, spectrum = S, element = t - 2, e1, e2);";
     let dl = "indexed primitive dl = branch_differential(Smooth, Cotangent, Line, branch = B);";
-    let cases: Vec<(&str, &str, &str, Value)> = vec![
+    let v_name = "`spectral_declarations::V`";
+    let h_name = "`spectral_declarations::H`";
+    let s_name = "`spectral_declarations::S`";
+    let b_name = "`spectral_declarations::B`";
+    let tr2_name = "`spectral_declarations::tr2`";
+    // (line, replacement, field, wire value, code, message)
+    let cases: Vec<(&str, &str, &str, Value, &str, String)> = vec![
         (
             v,
-            "indexed free_module V: FreeModule<Plane> = basis(e1, e1, e2, e3, e4);",
+            "indexed free_module V: FreeModule<Plane> = basis(e1, e1);",
             "V/basis",
-            json!(["e1", "e1", "e2", "e3", "e4"]),
+            json!(["e1", "e1"]),
+            "E_SPECTRAL",
+            format!("the free module {v_name} names the basis vector `e1` twice"),
+        ),
+        (
+            v,
+            "indexed free_module V: FreeModule<Plane> = basis(e1, e2, e3, e4, e5);",
+            "V/basis",
+            json!(["e1", "e2", "e3", "e4", "e5"]),
+            "E_LIMIT",
+            format!("the free module {v_name} has rank 5, beyond the limit of 4 (`spectralRank`)"),
         ),
         (
             v,
             "indexed free_module V: FreeModule<Plane, Pt> = basis(e1, e2);",
             "V/indices",
             json!([p("Plane"), p("Pt")]),
+            "E_SPECTRAL",
+            "a free module names one object, as in `FreeModule<X>`, but 2 are given".into(),
         ),
         (
             h,
@@ -566,6 +586,11 @@ fn the_frontend_leaves_spectral_rules_to_the_kernel() {
                 [coordinate("x"), coordinate("y"), n("1")],
                 [coordinate("y")]
             ]),
+            "E_SPECTRAL",
+            format!(
+                "the endomorphism {h_name} of the free module {v_name} of rank 2 needs 2 entries \
+                 in each row, but row 1 has 3"
+            ),
         ),
         (
             h,
@@ -575,42 +600,87 @@ fn the_frontend_leaves_spectral_rules_to_the_kernel() {
                 [coordinate("x"), coordinate("y")],
                 [coordinate("x"), coordinate("y")]
             ]),
+            "E_SPECTRAL",
+            format!(
+                "the endomorphism {h_name} is declared `symmetric`, but its entry (e1, e2) differs \
+                 from its entry (e2, e1)"
+            ),
         ),
         (
             s,
             "indexed spectrum S: Spectrum<Plane> = eigen(H, x);",
             "S/fiber",
             json!("x"),
+            "E_SPECTRAL",
+            format!(
+                "the fiber coordinate `x` of the spectrum {s_name} is a coordinate of \
+                 `spectral_declarations::Plane`; `eigen(H, t)` needs a new name for the fiber coordinate"
+            ),
+        ),
+        (
+            s,
+            "indexed spectrum S: Spectrum<Plane> = eigen(H, e1);",
+            "S/fiber",
+            json!("e1"),
+            "E_SPECTRAL",
+            format!(
+                "the fiber coordinate `e1` of the spectrum {s_name} is a basis vector of the free \
+                 module {v_name}; `eigen(H, t)` needs a new name for the fiber coordinate"
+            ),
         ),
         (
             b,
             "indexed branch B: Branch<Plane> = simple(S, localize = t, witness = frac(1, 2) * t, exponent = 1);",
             "B/localize",
             coordinate("t"),
+            "E_SPECTRAL",
+            format!(
+                "the localization of the branch {b_name} contains the fiber coordinate `t`; it is a \
+                 polynomial in the coordinates of `spectral_declarations::Plane`"
+            ),
         ),
         (
             b,
             "indexed branch B: Branch<Plane> = simple(S, localize = x^2 + y^2, witness = frac(1, 2) * t, exponent = 9);",
             "B/exponent",
             json!("9"),
+            "E_LIMIT",
+            format!(
+                "the branch {b_name} has the exponent 9, beyond the limit of 8 (`spectralPower`)"
+            ),
         ),
         (
             tr2,
             "indexed morphism tr2: Smooth<Plane, Line> = trace_power(H, 9);",
             "tr2/definition/power",
             json!("9"),
+            "E_LIMIT",
+            format!(
+                "the `trace_power` declaration {tr2_name} takes the power 9, beyond the limit of 8 \
+                 (`spectralPower`)"
+            ),
         ),
         (
             tr2,
             "indexed morphism tr2: Smooth<Plane, Line> = trace_power(H, 0);",
             "tr2/definition/power",
             json!("0"),
+            "E_SPECTRAL",
+            format!(
+                "the `trace_power` declaration {tr2_name} takes the power 0; `trace_power(H, k)` needs \
+                 1 ≤ k ≤ 8"
+            ),
         ),
         (
             act,
             "indexed primitive act = action_entry(Smooth, spectrum = S, element = t - 2, e3, e1);",
             "act/binding/row",
             json!("e3"),
+            "E_SPECTRAL",
+            format!(
+                "`e3` is not a basis vector of the free module {v_name} of `action_entry`, whose basis \
+                 is e1, e2"
+            ),
         ),
         // The positional families are taken in wire order and never
         // reordered: with the line before the cotangent family, each lands
@@ -621,9 +691,13 @@ fn the_frontend_leaves_spectral_rules_to_the_kernel() {
             "dl/binding",
             json!({ "op": "branch_differential", "map_family": p("Smooth"),
                 "cotangent": p("Line"), "line": p("Cotangent"), "branch": p("B") }),
+            "E_TYPE",
+            "the family `spectral_declarations::Line` of the `branch_differential` primitive \
+             `spectral_declarations::dl` must have the representation `cotangent`"
+                .into(),
         ),
     ];
-    for (from, to, field, expected) in cases {
+    for (from, to, field, expected, code, message) in cases {
         let raw = request(&replaced(from, to), 9);
         let (name, rest) = field.split_once('/').unwrap();
         let path = format!("{}/{rest}", pointer(&raw, name));
@@ -633,6 +707,9 @@ fn the_frontend_leaves_spectral_rules_to_the_kernel() {
         let response = kernel(&raw, "check");
         assert_eq!(response["ok"], false, "{to}: {response}");
         decoded(&response);
+        let diagnostic = &response["diagnostics"][0];
+        assert_eq!(diagnostic["code"], code, "{to}: {response}");
+        assert_eq!(diagnostic["message"], message.as_str(), "{to}: {response}");
     }
 }
 

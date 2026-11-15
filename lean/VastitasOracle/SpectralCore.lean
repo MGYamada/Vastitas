@@ -177,7 +177,8 @@ theorem DeclaredSpectrum.checked {env : Indexed.Environment} (valid : env.Valid)
     ∃ m idempotence, smoothDimension? env spectrum.object = some m ∧
       SpectralValid m spectrum.endomorphism.rows ⟨spectrum.characteristic, spectrum.adjugate, idempotence⟩ := by
   obtain ⟨⟨endomorphismFamily, endomorphismFound⟩, family, fiber, certificate, found, hcharacteristic, hadjugate⟩ := h
-  obtain ⟨-, -, implementation, coordinates, hobject, -, endomorphismFamily', module, rows, symmetric, hend, hv⟩ :=
+  obtain ⟨-, -, implementation, coordinates, hobject, -, -, endomorphismFamily', module, rows, symmetric, hend, -,
+      hv⟩ :=
     VastitasOracle.SpectralDeclarations.spectrum_sound valid
       (VastitasOracle.SpectralDeclarations.spectrumData_lookup found)
   rw [endomorphismFound] at hend

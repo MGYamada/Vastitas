@@ -1374,7 +1374,11 @@ impl Parser {
 
     /// `, keyword =`: the start of a field that `operation` names explicitly.
     /// A missing keyword is `E_PARSE` naming it, at the token where the
-    /// field was expected. No default is ever selected.
+    /// field was expected. No default is ever selected. When the keyword is
+    /// written but the comma before it is missing, the diagnostic asks for
+    /// the comma; when the keyword was read as a positional argument, because
+    /// an argument before it is missing, the diagnostic says so at the
+    /// keyword.
     fn indexed_keyword(
         &mut self,
         operation: &str,
@@ -1382,6 +1386,23 @@ impl Parser {
         what: &str,
     ) -> Result<(), Diagnostic> {
         let token = self.peek().clone();
+        if token.is(keyword) && self.second_is("=") {
+            return Err(diagnostic(
+                "E_PARSE",
+                format!("expected `,` before `{keyword}` in `{operation}`"),
+                token.span,
+            ));
+        }
+        if token.is("=") && self.previous().is(keyword) {
+            return Err(diagnostic(
+                "E_PARSE",
+                format!(
+                    "`{operation}` is missing an argument before `{keyword} = …`; \
+                     `{keyword}` was read in its place"
+                ),
+                self.previous().span,
+            ));
+        }
         if !(self.consume(",") && self.consume(keyword)) {
             return Err(diagnostic(
                 "E_PARSE",
@@ -1949,13 +1970,22 @@ mod tests {
                 ", c)",
             ),
             // Without its frame map, `source` is read as the frame map, and
-            // the source frame is missing.
+            // the diagnostic says that an argument before `source =` is
+            // missing.
             (
                 "indexed primitive p = frame_matrix(Smooth, source = b, target = c);",
                 "E_PARSE",
-                source_frame,
-                "=",
-                "= b,",
+                "`frame_matrix` is missing an argument before `source = …`; `source` was read in its place",
+                "source",
+                "source = b,",
+            ),
+            // A comma that is missing before a keyword is asked for.
+            (
+                "indexed primitive p = frame_matrix(Smooth, FrameMap source = b, target = c);",
+                "E_PARSE",
+                "expected `,` before `source` in `frame_matrix`",
+                "source",
+                "source = b,",
             ),
             (
                 "indexed primitive p = frame_encode(Tangent, Coords, frame = b, frame = c);",
@@ -2241,6 +2271,16 @@ mod tests {
         let on_branch = branch("on_branch");
         let differential = branch("branch_differential");
         let projector = branch("branch_projector");
+        // A keyword read as a positional argument: the argument before it is
+        // missing.
+        let misread = |op: &str, keyword: &str| {
+            format!(
+                "`{op}` is missing an argument before `{keyword} = …`; `{keyword}` was read in its place"
+            )
+        };
+        let misread_branch = misread("on_branch", "branch");
+        let misread_differential = misread("branch_differential", "branch");
+        let misread_spectrum = misread("annihilates", "spectrum");
         let cases: Vec<(&str, &str, &str, &str, &str)> = vec![
             // The spectrum, then the element, each under its keyword.
             (
@@ -2350,14 +2390,30 @@ mod tests {
                 ",",
                 ", B)",
             ),
-            // Without its line, `branch` is read as the line family, and the
-            // branch is missing.
+            // Without its line, `branch` is read as the line, and the
+            // diagnostic says that an argument before `branch =` is missing.
             (
                 "indexed primitive p = on_branch(Smooth, branch = B);",
                 "E_PARSE",
-                &on_branch,
-                "=",
-                "= B",
+                &misread_branch,
+                "branch",
+                "branch = B",
+            ),
+            // Without its smooth family, `spectrum` is read as the family.
+            (
+                "indexed primitive p = annihilates(spectrum = S, element = t);",
+                "E_PARSE",
+                &misread_spectrum,
+                "spectrum",
+                "spectrum = S",
+            ),
+            // A comma that is missing before a keyword is asked for.
+            (
+                "indexed primitive p = annihilates(Smooth, spectrum = S element = t);",
+                "E_PARSE",
+                "expected `,` before `element` in `annihilates`",
+                "element",
+                "element = t",
             ),
             (
                 "indexed primitive p = on_branch(Smooth, Line, branch = B, e1);",
@@ -2376,9 +2432,16 @@ mod tests {
             (
                 "indexed primitive p = branch_differential(Smooth, Cotangent, branch = B);",
                 "E_PARSE",
-                &differential,
-                "=",
-                "= B",
+                &misread_differential,
+                "branch",
+                "branch = B",
+            ),
+            (
+                "indexed primitive p = branch_differential(Smooth, Line, branch = B);",
+                "E_PARSE",
+                &misread_differential,
+                "branch",
+                "branch = B",
             ),
             (
                 "indexed primitive p = branch_projector(Smooth, Line, branch = B);",
@@ -3288,6 +3351,13 @@ fn scale(physical: Int) -> Int { let interpret = physical; interpret }
                 "`simple` needs an explicit localization: write `localize = …`",
                 ",",
                 ", x^2",
+            ),
+            (
+                "indexed branch B: Branch<Plane> = simple(S localize = g, witness = t, exponent = 1);",
+                "E_PARSE",
+                "expected `,` before `localize` in `simple`",
+                "localize",
+                "localize",
             ),
             (
                 "indexed branch B: Branch<Plane> = simple(S, localize = g, exponent = 1, witness = t);",

@@ -186,5 +186,7 @@ fn main() -> Int {
        // Cayley-Hamilton on the point: (t - 2)^2 annihilates J and t^2
        // annihilates N.
        + verdict(ann_j2(o) && ann_n2(o), 1073741824)
+       // C10: both differentials of the eigenvalue lie over p.
+       + verdict(lies_over(d_plus, p) && lies_over(d_minus, p), 2147483648)
 }
 // ANCHOR_END: main

@@ -170,8 +170,8 @@ of H holds the components of H eⱼ.
 claim. Without `symmetric` the declaration makes no claim, even when H is
 symmetric. The claim selects the pairing Re tr(KX) of symmetric matrices,
 which the [Daleckii–Krein statements](../daleckii-krein.md) of the
-mathematical bridge use, and an eigenprojector of a symmetric field is
-symmetric. The profile inserts no conjugation, metric or adjoint.
+mathematical bridge use. The profile inserts no conjugation, metric or
+adjoint.
 
 An endomorphism field is a declaration. It is not a value.
 
@@ -254,8 +254,8 @@ monic of degree n in t, and χ′ is its partial derivative in t. The
 **spectral pair** of H is the characteristic scheme Σ_H, the spectrum of the
 ring A[t]/(χ_H), together with the module of H: V, on which t acts as H.
 The kernel computes χ_H and the adjugate adj(tI − H), the matrix with
-(tI − H)·adj(tI − H) = χ_H·I, and checks both before it accepts the
-declaration. No source text and no request holds them.
+(tI − H)·adj(tI − H) = adj(tI − H)·(tI − H) = χ_H·I, and checks both before
+it accepts the declaration. No source text and no request holds them.
 
 Σ_H is always the characteristic scheme. It is never replaced by the reduced
 spectrum, by the distinct eigenvalues or by the locus of the annihilator of
@@ -278,9 +278,9 @@ Rules:
   Otherwise it is an error (`E_SPECTRAL`).
 - The field must be a field on the object of the spectrum. Otherwise it is
   an error (`E_SPECTRAL`).
-- The fiber coordinate must not be a coordinate of the object. Otherwise it
-  is an error (`E_SPECTRAL`). It may be any other name, including the name of
-  a basis vector or of another declaration.
+- The fiber coordinate must be neither a coordinate of the object nor a
+  name of the basis of the free module of the field. Otherwise it is an
+  error (`E_SPECTRAL`). It may be the name of another declaration.
 - The fiber coordinate is an identifier, not a path. A path there is an
   error (`E_PARSE`).
 - The computation and the checks of the spectral pair must stay within the
@@ -297,17 +297,19 @@ adj(tI − H) = tI + H, so χ′ = 2t.
 > **Implementation note.** The kernel computes χ_H and adj(tI − H) with the
 > Faddeev–LeVerrier recursion (`SpectralDeclarations.faddeevLeVerrier` in
 > the kernel). It then checks, within one work budget: χ_H equals the
-> cofactor expansion of det(tI − H), a second route; (tI − H)·adj = χ_H·I;
-> the trace of the adjugate is χ′; χ_H(H) = 0 in the n × n matrices over A
-> (Cayley–Hamilton); adj² − χ′·adj is a multiple of χ_H; and
-> ∂ᵢχ_H + tr(adj·∂ᵢH) = 0 for each coordinate xᵢ (Jacobi's formula). Each
-> identity modulo χ_H is checked against a quotient that the kernel computes
-> and multiplies back, so no check depends on the division. A failed check
-> is an error (`E_SPECTRAL`) that names the identity. The declaration audit
-> checks every spectrum again (`SpectralDeclarations.checkSpectrum`). The
-> oracle theorem `VastitasOracle.SpectralDeclarations.checkCertificate_sound`
-> states that an accepted spectrum satisfies the six identities in every
-> commutative ring that receives the rationals, and the bridge theorem
+> cofactor expansion of det(tI − H), a second route; (tI − H)·adj = χ_H·I
+> and adj·(tI − H) = χ_H·I; the trace of the adjugate is χ′; χ_H(H) = 0 in
+> the n × n matrices over A (Cayley–Hamilton); adj² − χ′·adj is a multiple
+> of χ_H; and ∂ᵢχ_H + tr(adj·∂ᵢH) = 0 for each coordinate xᵢ (Jacobi's
+> formula). Each identity modulo χ_H is checked against a quotient that the
+> kernel computes and multiplies back, so no check depends on the division.
+> A failed check is an error (`E_SPECTRAL`) that names the identity. The
+> declaration audit checks every spectrum again
+> (`SpectralDeclarations.checkSpectrum`), and it requires the fiber
+> coordinate of a request to be an identifier. The oracle theorem
+> `VastitasOracle.SpectralDeclarations.checkCertificate_sound` states that
+> an accepted spectrum satisfies the seven identities in every commutative
+> ring that receives the rationals, and the bridge theorem
 > `VastitasBridge.Spectral.toMv_charPoly` that χ_H is the characteristic
 > polynomial of the field in Mathlib.
 
@@ -358,7 +360,8 @@ Rules:
 - The power k must be at most `spectralPower` = 8
   ([limits](../appendix/limits.md#spectral-observations)). Otherwise it is
   an error (`E_LIMIT`).
-- The products of tr(Hᵏ) must stay within the term and work budgets of
+- The polynomial tr(Hᵏ) and each product that computes it must stay within
+  the term and work budgets of
   [exact affine algebra](../appendix/limits.md#exact-affine-algebra).
   Otherwise it is an error (`E_LIMIT`).
 - The index i must be at most the rank n of the field of the spectrum.
@@ -388,7 +391,8 @@ constant −4. The invariants of `Zero` and `N` are all 0.
 
 > **Implementation note.** The kernel computes tr(Hᵏ) by products of
 > polynomial matrices, each charged to the work budget before it is
-> computed. A spectral invariant is a declared smooth map whose binding
+> computed, and it bounds each product and the trace by the term limit. A
+> spectral invariant is a declared smooth map whose binding
 > records its provenance, the field or the spectrum that it reads, so the
 > declaration audit computes the polynomial again from that declaration and
 > compares it. Its derivative rule is the rule of a declared smooth map, and
@@ -396,8 +400,9 @@ constant −4. The invariants of `Zero` and `N` are all 0.
 > The oracle theorem `VastitasOracle.SpectralDeclarations.invariant_sound`
 > states that an accepted invariant is tr(Hᵏ) or the coefficient of the
 > declared field, and `VastitasOracle.SpectralAcceptance.s4_trace_square_gradient`
-> that the gradient of `tr2` under the Euclidean metric is (4p₀, 4p₁) at
-> every rational point p. The bridge theorem
+> that the differential of `tr2` is the covector (4p₀, 4p₁) at every
+> rational point p, which `sharp` with the identity matrix as its Gram
+> inverse maps to the vector (4p₀, 4p₁). The bridge theorem
 > `VastitasBridge.Spectral.toMv_tracePower` states that the polynomial is the
 > trace of the k-th power of the field in Mathlib, and
 > `VastitasBridge.Spectral.checked_trace_power_dk` that for a field declared
@@ -498,10 +503,12 @@ g(p)ᵉ ≠ 0, so χ′(p, t) ≠ 0: the root is simple. The certificate is an e
 identity of polynomials. No tolerance, sample or bound enters it.
 
 A **branch point** of B is a pair (p, t) of a rational point p of `X` and a
-rational number t with g(p) ≠ 0 and χ(p, t) = 0. Near a branch point the
-eigenvalue t extends to a function λ of the point with λ(p) = t. The branch
-names no eigenvalue: each [branch observation](#branch-observations) takes
-the eigenvalue as an operand.
+rational number t with g(p) ≠ 0 and χ(p, t) = 0. There χ′(p, t) ≠ 0, so by
+the implicit function theorem of real analysis the eigenvalue t extends,
+near p, to a differentiable function λ of the real point with λ(p) = t and
+χ(x, λ(x)) = 0. The language does not construct λ. The branch names no
+eigenvalue: each [branch observation](#branch-observations) takes the
+eigenvalue as an operand.
 
 A branch is a declaration. It is not a value, and it is not a smooth map.
 
@@ -588,11 +595,12 @@ A gap witness that differs from a valid one by 10⁻²⁰·t fails too:
 > audit checks every branch again (`SpectralDeclarations.checkBranch`). The
 > oracle theorem `VastitasOracle.SpectralDeclarations.SpectralValid.unit_at`
 > states that at a point of any commutative ring where χ vanishes and g has
-> an inverse u, χ′ has the inverse W·uᵉ. `Examples.unit_gap_no_witness`
+> an inverse u, χ′ has the inverse W·uᵉ.
 > `VastitasOracle.SpectralDeclarations.Examples.unit_gap_no_witness`
 > states that the localization 1 has no gap witness, exponent and quotient
-> at all for the field of the example, and `Examples.origin_off_chart` that
-> every accepted localization of its spectrum vanishes at the origin.
+> at all for the characteristic polynomial of the example, and
+> `Examples.origin_off_chart` that every localization that the gap check
+> accepts for that polynomial vanishes at the origin.
 
 ## Branch observations
 
@@ -622,12 +630,14 @@ $$
 | `branch_differential(S, C, L, branch = B)` | `S<Z, X>`, `S<Z, L>` | `C<X>` | At a branch point, the covector −Σᵢ (∂ᵢχ(p, t)/χ′(p, t)) dxᵢ at p; ⊥ otherwise |
 | `branch_projector(S, L, branch = B, eᵢ, eⱼ)` | `S<Z, X>`, `S<Z, L>` | `Pair<Int>` | At a branch point, the entry in row eᵢ and column eⱼ of P, as a reduced fraction; `(0, 0)` otherwise |
 
-The covector of `branch_differential` is the differential dλ of the
-eigenvalue at p, by the implicit function theorem for χ(x, λ(x)) = 0. By
+For the function λ of [Branches](#branches), the derivative of
+χ(x, λ(x)) = 0 at p gives ∂ᵢχ + χ′·∂ᵢλ = 0, so the covector of
+`branch_differential` is the differential dλ(p) of the eigenvalue. By
 Jacobi's formula it is also Σᵢ tr(P·∂ᵢH(p)) dxᵢ (Hellmann–Feynman). The
-eigenprojector satisfies P² = P, tr P = 1 and H(p)·P = t·P. Each column of P
-that is not zero is an eigenvector of H(p) for t, and P has such a column.
-For a field declared `symmetric`, P is symmetric.
+eigenprojector satisfies P² = P, tr P = 1 and H(p)·P = P·H(p) = t·P. Each
+column of P that is not zero is an eigenvector of H(p) for t, and P has such
+a column. For a field declared `symmetric`, P is symmetric, because the
+adjugate of a symmetric matrix is symmetric.
 
 No observation computes, orders or chooses an eigenvalue. An eigenvalue that
 is not rational has no branch point, because no rational t is a root. A
@@ -674,15 +684,17 @@ difference is H(p).
 > operand, not a smooth map, so no reverse pass opens them. The oracle
 > theorems `VastitasOracle.SpectralRuntime.branch_some_iff`,
 > `projector_idempotent`, `projector_trace_one`, `projector_eigen`,
-> `branchDifferential_implicit` and `branchDifferential_hellmann_feynman`
-> state the definedness of the observations, the laws of P and the two forms
-> of the differential, for an accepted spectrum and branch. The bridge
-> theorem `VastitasBridge.Spectral.checked_branch_differential_implicit`
-> states that an accepted branch differential is the derivative at p of
-> every differentiable real branch λ with λ(p) = t and χ(x, λ(x)) = 0 near p.
-> The sum of the
-> two eigenprojectors of the example is a property of that field: no
-> observation forms a sum over the eigenvalues of a field.
+> `projector_commutes`, `branchDifferential_implicit` and
+> `branchDifferential_hellmann_feynman` state the definedness of the
+> observations, the laws of P and the two forms of the differential, for an
+> accepted spectrum and branch. No theorem states that P is symmetric for a
+> symmetric field; the acceptance program tests it. The bridge theorem
+> `VastitasBridge.Spectral.checked_branch_differential_implicit` states that
+> an accepted branch differential is the derivative at p of every
+> differentiable real branch λ with λ(p) = t and χ(x, λ(x)) = 0 near p. It
+> takes λ as a hypothesis, and no theorem states that such a λ exists. The
+> sum of the two eigenprojectors of the example is a property of that field:
+> no observation forms a sum over the eigenvalues of a field.
 
 ## Operand checks
 
@@ -708,8 +720,11 @@ Rules:
 > **Implementation note.** The kernel checks every operand before code
 > generation, and the generated code checks no identity: the kernel has
 > checked the spectral pair and the gap witness of every declaration that a
-> call reads. The message of an `E_ENDPOINT` names the operand, the object
-> that the binding expects and the one supplied.
+> call reads. The message of an `E_ENDPOINT` for an operand of another
+> object or of another source names the operand, the object that the
+> binding expects and the one supplied. When the kernel finds no single
+> operand at fault, as for a point whose source is not 0-dimensional, the
+> message lists the types of the supplied operands instead.
 
 ## Scope of spectral observations
 

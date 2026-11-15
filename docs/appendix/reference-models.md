@@ -77,8 +77,9 @@ as an oracle of one. Each is described next to that component:
   [Stage 4 acceptance record](../stage4-acceptance.md#c15) states.
 - the models of [standard étale charts](../reference/geometry.md#etale-reference)
   and of [finite spectral pairs](../reference/algebra-and-symmetry.md#finite-spectral-reference),
-  through `scripts/spectral_fixture.py`, which writes a fixture from both. It
-  is an oracle: a kernel regression compares the spectral declarations and
+  through `scripts/spectral_fixture.py`, which writes a fixture from both;
+  the writer computes the branch observations from the adjugates of the
+  étale model. It is an oracle: a kernel regression compares the spectral declarations and
   the spectral runtime of the kernel with that fixture, as the
   [Stage 5 acceptance record](../stage5-acceptance.md#c15) states.
 

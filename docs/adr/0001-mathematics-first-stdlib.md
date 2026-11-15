@@ -920,8 +920,12 @@ chapter links the tracker and the issues that this section refers to.
     certifies a chart; covers by several charts are outside this amendment.
   - A branch observation takes the eigenvalue as an input and gives the
     failure value ⊥ of §10 off the chart.
-  - The branch differential is a differentiation, so its contract belongs to
-    `std::differential` (§10), as the map array of §11 does.
+  - The branch differential is a primitive that the application declares
+    with the smooth and cotangent families and the line of the geometry
+    package (§10) and a branch. It needs no `std::differential`, and its contract
+    belongs to this amendment:
+    [Branch observations](../language/spectral-observations.md#branch-observations)
+    states it.
 - **Symmetry.** `symmetric` is explicit. It selects the pairing
   `⟨K, X⟩ = Re tr(KX)` on symmetric matrices, which the orthogonality of the
   eigenprojector and the Daleckii–Krein statements of §9 use. The profile
@@ -947,13 +951,14 @@ chapter links the tracker and the issues that this section refers to.
 
 #### Laws
 
-- `(tI − H)·adj(tI − H) = χ_H·I`, and the trace of the adjugate is `χ_H′`.
+- `(tI − H)·adj(tI − H) = adj(tI − H)·(tI − H) = χ_H·I`, and the trace of
+  the adjugate is `χ_H′`.
 - Cayley–Hamilton: `χ_H(H) = 0`, so `M_H` is a module over `A_H`.
 - Jacobi's formula: `∂ᵢχ_H = −tr(adj(tI − H)·∂ᵢH)` for each coordinate.
 - Newton's identities relate the trace powers and the coefficients of `χ_H`.
 - At a branch point, `χ_H′(p, t) ≠ 0`, and the eigenprojector `P` is an
-  idempotent of trace one with `H(p)·P = t·P`. For a symmetric field `P` is
-  symmetric.
+  idempotent of trace one with `H(p)·P = P·H(p) = t·P`. For a symmetric
+  field `P` is symmetric.
 - The branch differential is
   `dλ = −Σᵢ (∂ᵢχ_H/∂ₜχ_H) dxᵢ = Σᵢ tr(P·∂ᵢH) dxᵢ` (Hellmann–Feynman).
 - Daleckii–Krein (§9): for a symmetric field seen in the Hermitian matrices,
@@ -1029,7 +1034,8 @@ chapter links the tracker and the issues that this section refers to.
   from source modules declared with `mod`; none converts to another.
 - **Packages.** The module belongs to a `std::linalg` package of its own,
   which depends on the geometry package. The geometry package does not depend
-  on it, and the application declares the branch differential.
+  on it, and the application declares the branch differential with the
+  families and the line of the geometry package.
 
 ## Consequences, validation and migration
 

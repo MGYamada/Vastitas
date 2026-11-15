@@ -453,6 +453,7 @@ def plainJacobi (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertifi
 def plainIdentities (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertificate) : Identities where
   determinant := plainDet (arity + 1) rows.length (charMatrix arity rows)
   product := plainMatMul rows.length (charMatrix arity rows) certificate.adjugate
+  rightProduct := plainMatMul rows.length certificate.adjugate (charMatrix arity rows)
   cayleyHamilton := plainMatrixPolynomial rows.length rows certificate.characteristic
   idempotence := plainIdempotence arity rows.length certificate
   jacobi := plainJacobi arity rows certificate
@@ -464,6 +465,7 @@ theorem identities_ok {arity : Nat} {rows : PolyMatrix} {certificate : SpectralC
   unfold identities at h
   obtain ⟨determinant, _, hdeterminant, h⟩ := bind_ok h
   obtain ⟨product, _, hproduct, h⟩ := bind_ok h
+  obtain ⟨rightProduct, _, hrightProduct, h⟩ := bind_ok h
   obtain ⟨cayley, _, hcayley, h⟩ := bind_ok h
   obtain ⟨square, _, hsquare, h⟩ := bind_ok h
   obtain ⟨idempotence, _, hidempotence, h⟩ := bind_ok h
@@ -488,7 +490,8 @@ theorem identities_ok {arity : Nat} {rows : PolyMatrix} {certificate : SpectralC
     intro i _ s s' r hi
     obtain ⟨derivative, _, hderivative, hi⟩ := bind_ok hi
     rw [add_ok hi, polyMatMul_ok hderivative]
-  rw [pure_ok h, detPoly_ok hdeterminant, polyMatMul_ok hproduct, matrixPolynomial_ok hcayley, e1, e2]
+  rw [pure_ok h, detPoly_ok hdeterminant, polyMatMul_ok hproduct, polyMatMul_ok hrightProduct,
+    matrixPolynomial_ok hcayley, e1, e2]
   rfl
 
 /-! ## Arities -/

@@ -31,7 +31,7 @@ level theorem with a runtime or algebra theorem.
 | C8 gap certificate | `c8_gap_certificate` | `SpectralDeclarations.branch_sound`, `SpectralValid.unit_at`, `Examples.unit_gap_no_witness`, `origin_off_chart`; `jordan_no_witness`, `perturbed_witness_rejected` |
 | C9 branch points and ⊥ | `c9_branch_points` | `SpectralRuntime.branch_some_iff`, `off_chart_bottom`; the points by `decide +kernel` |
 | C10 branch derivative | `c10_branch_derivative`, `Stage5.branch_differentials` | `SpectralCore.core_spectral_branch_differential`, `DeclaredBranch.checked`; `SpectralRuntime.branchDifferential_implicit`, `branchDifferential_hellmann_feynman` |
-| C11 eigenprojector | `c11_eigenprojector`, `Stage5.projectors` | `SpectralCore.core_spectral_branch_projector`, `DeclaredBranch.checked`; `SpectralRuntime.projector_idempotent`, `projector_trace_one`, `projector_eigen` |
+| C11 eigenprojector | `c11_eigenprojector`, `Stage5.projectors` | `SpectralCore.core_spectral_branch_projector`, `DeclaredBranch.checked`; `SpectralRuntime.projector_idempotent`, `projector_trace_one`, `projector_eigen`, `projector_commutes` |
 | C12 degenerate cases | `c12_degenerate` | `SpectralRuntime.Examples.zero_accepted`; `Examples.origin_off_chart`; the rank-1 and rank-4 cases by `decide +kernel` |
 | C13 weakening | `c13_weakening` | `SpectralWeakening.spectral_weakening_binding`, `spectral_weakening_entry`, `stage4_bindings_spectral_free`, `spectral_bindings_metric_free`, `spectral_bindings_frame_free`; `SpectralCore.spectral_bindings_environment_free` |
 
@@ -691,7 +691,8 @@ theorem c10_branch_derivative {point valueTerm : Core.Term} {smooth cotangent li
 accepted `branch_projector(p, t, branch = B, eᵢ, eⱼ)` evaluates to an entry,
 in range, of the runtime eigenprojector `P` of the declared data of `B`: off
 the chart `(0, 0)`; on the branch the entry `(i, j)` of `P`, which satisfies
-`P·P = P`, `tr P = 1` and `H(p)·P = P·t`. -/
+`P·P = P`, `tr P = 1`, `H(p)·P = P·t` and `P·H(p) = P·t`, so `P` commutes
+with `H(p)`. -/
 theorem c11_eigenprojector {point valueTerm : Core.Term} {smooth line : DeclId} {branch : BranchRef}
     {row column : Nat} {pointValue valueValue : Value} (envValid : module.declarations.indexed.Valid)
     (found : module.declarations.primitive? id = some (.branchProjector smooth line branch row column))
@@ -717,6 +718,9 @@ theorem c11_eigenprojector {point valueTerm : Core.Term} {smooth line : DeclId} 
             ringTrace P = 1 ∧
             VastitasKernel.FrameRuntime.matrixProduct branch.spectrum.endomorphism.rows.length
               (VastitasKernel.FrameRuntime.matrixAt branch.spectrum.endomorphism.rows (coordinates x)) P =
+                scaleMatrix t P ∧
+            VastitasKernel.FrameRuntime.matrixProduct branch.spectrum.endomorphism.rows.length P
+              (VastitasKernel.FrameRuntime.matrixAt branch.spectrum.endomorphism.rows (coordinates x)) =
                 scaleMatrix t P) := by
   obtain ⟨declared, -, hrow, hcolumn, m, x, v, hm, rfl, rfl, hx, hv, evaluated⟩ :=
     SpectralCore.core_spectral_branch_projector found input outputType accepted pointEval valueEval typed
@@ -736,12 +740,14 @@ theorem c11_eigenprojector {point valueTerm : Core.Term} {smooth line : DeclId} 
   · have hP := VastitasOracle.SpectralRuntime.projectorMatrix_of_onBranch (adjugate := branch.spectrum.adjugate) hon
     have certificate : SpectralValid m branch.spectrum.endomorphism.rows
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩ := hvalid
-    refine ⟨_, hP, by simp [projectorEntry, hP], ?_, ?_, ?_⟩
+    refine ⟨_, hP, by simp [projectorEntry, hP], ?_, ?_, ?_, ?_⟩
     · exact VastitasOracle.SpectralRuntime.projector_idempotent (certificate :=
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩) certificate hw hx hP
     · exact VastitasOracle.SpectralRuntime.projector_trace_one (certificate :=
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩) certificate hw hx hP
     · exact VastitasOracle.SpectralRuntime.projector_eigen (certificate :=
+        ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩) certificate hw hx ht hP
+    · exact VastitasOracle.SpectralRuntime.projector_commutes (certificate :=
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩) certificate hw hx ht hP
 
 end Accepted

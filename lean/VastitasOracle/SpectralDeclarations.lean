@@ -17,7 +17,8 @@ the bridge can instantiate it at `ℝ` or at `MvPolynomial`.
   `SpectralAlgebra`. Read at a point `z` of a ring (`SpectralValid.*_at`):
   `χ(z) = det(zI − H)` by the cofactor recursion (`characteristic_at`,
   `characteristic_eq_det` at `z = (x, t)`), `(tI − H)·adj = χ·I`
-  (`adjugate_at`), `tr adj = χ′` (`adjugateTrace_at`), `χ(H) = 0` by Horner's
+  (`adjugate_at`) and `adj·(tI − H) = χ·I` (`adjugateRight_at`,
+  `adjugateRight_eq`), `tr adj = χ′` (`adjugateTrace_at`), `χ(H) = 0` by Horner's
   rule (`cayleyHamilton_at`), `adj² − χ′·adj = Q·χ` entrywise
   (`idempotence_at`) and `∂ᵢχ + tr(adj·∂ᵢH) = 0` (`jacobi_at`).
 * **The gap certificate** (`WitnessValid`, `checkWitness_sound`,
@@ -238,6 +239,9 @@ structure SpectralValid (m : Nat) (rows : PolyMatrix) (certificate : SpectralCer
   /-- Identity 2: `(tI − H)·adj = χ·I`. -/
   adjugate : plainMatMul rows.length (charMatrix m rows) certificate.adjugate =
     scalarMatrix rows.length certificate.characteristic
+  /-- Identity 2′: `adj·(tI − H) = χ·I`. -/
+  adjugateRight : plainMatMul rows.length certificate.adjugate (charMatrix m rows) =
+    scalarMatrix rows.length certificate.characteristic
   /-- Identity 3: `Σᵢ adjᵢᵢ = χ′`. -/
   adjugateTrace : tracePoly certificate.adjugate = partialDerivative m certificate.characteristic
   /-- Identity 4: `χ(H) = 0`, by Horner's rule in `t`. -/
@@ -272,6 +276,7 @@ theorem checkCertificate_sound {m : Nat} {rows : PolyMatrix} {certificate : Spec
     subst hvalues
     obtain ⟨i1, h⟩ := unless_ok h
     obtain ⟨i2, h⟩ := unless_ok h
+    obtain ⟨i2', h⟩ := unless_ok h
     obtain ⟨i3, h⟩ := unless_ok h
     obtain ⟨i4, h⟩ := unless_ok h
     obtain ⟨i5, h⟩ := unless_ok h
@@ -292,6 +297,7 @@ theorem checkCertificate_sound {m : Nat} {rows : PolyMatrix} {certificate : Spec
       idempotenceSquare := hidem
       characteristic := beq_iff_eq.mp i1
       adjugate := beq_iff_eq.mp i2
+      adjugateRight := beq_iff_eq.mp i2'
       adjugateTrace := beq_iff_eq.mp i3
       cayleyHamilton := i4
       idempotence := i5
@@ -343,6 +349,20 @@ theorem adjugate_eq (hv : SpectralValid m rows certificate) (ι : RatHom R) {x :
     ringMatMul rows.length (ringCharMatrix t (evalMatrix ι rows x)) (evalMatrix ι certificate.adjugate (x ++ [t])) =
       ringScalar rows.length (evalIn ι certificate.characteristic (x ++ [t])) := by
   rw [← evalMatrix_charMatrix ι hv.rows_arity hx, hv.adjugate_at]
+
+/-- **Identity 2′ at a point.** -/
+theorem adjugateRight_at (hv : SpectralValid m rows certificate) (ι : RatHom R) (z : List R) :
+    ringMatMul rows.length (evalMatrix ι certificate.adjugate z) (evalMatrix ι (charMatrix m rows) z) =
+      ringScalar rows.length (evalIn ι certificate.characteristic z) := by
+  rw [← evalMatrix_plainMatMul ι hv.adjugate_arity (arity_charMatrix hv.rows_arity), hv.adjugateRight,
+    evalMatrix_scalarMatrix]
+
+/-- **`adj(x, t)·(tI − H(x)) = χ(x, t)·I`.** -/
+theorem adjugateRight_eq (hv : SpectralValid m rows certificate) (ι : RatHom R) {x : List R}
+    (hx : x.length = m) (t : R) :
+    ringMatMul rows.length (evalMatrix ι certificate.adjugate (x ++ [t])) (ringCharMatrix t (evalMatrix ι rows x)) =
+      ringScalar rows.length (evalIn ι certificate.characteristic (x ++ [t])) := by
+  rw [← evalMatrix_charMatrix ι hv.rows_arity hx, hv.adjugateRight_at]
 
 /-- **Identity 3 at a point**: `tr adj(z) = χ′(z)`. -/
 theorem adjugateTrace_at (hv : SpectralValid m rows certificate) (ι : RatHom R) (z : List R) :

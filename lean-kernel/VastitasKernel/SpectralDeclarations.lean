@@ -22,7 +22,8 @@ Over the coordinate ring `A = ℚ[x₁, …, x_m]` of a smooth object `X`:
   of idempotence. `checkCertificate` checks, within one `algebraWork` run:
   1. `χ = det(tI − H)`, by cofactor expansion (`detPoly`: Laplace along row
      0, the minors by `List.eraseIdx`), a route independent of the producer;
-  2. `(tI − H)·adj = χ·I`;
+  2. `(tI − H)·adj = χ·I`, and 2′. `adj·(tI − H) = χ·I`, so that the
+     eigenprojector `adj/χ′` commutes with `H` on the branch;
   3. `Σᵢ adjᵢᵢ = χ′` (`χ′ = ∂_t χ`);
   4. `χ(H) = 0` in `Mₙ(A)` (Cayley–Hamilton), by Horner's rule in `t`;
   5. `adj² − χ′·adj = Q·χ` (the eigenprojector is idempotent modulo `χ`);
@@ -85,6 +86,8 @@ inductive Failure where
   | characteristic
   /-- Identity 2: `(tI − H)·adj ≠ χ·I`. -/
   | adjugate
+  /-- Identity 2′: `adj·(tI − H) ≠ χ·I`. -/
+  | adjugateRight
   /-- Identity 3: `Σᵢ adjᵢᵢ ≠ χ′`. -/
   | adjugateTrace
   /-- Identity 4: `χ(H) ≠ 0`. -/
@@ -330,6 +333,8 @@ structure Identities where
   determinant : Poly
   /-- `(tI − H)·adj`. -/
   product : PolyMatrix
+  /-- `adj·(tI − H)`. -/
+  rightProduct : PolyMatrix
   /-- `χ(H)`. -/
   cayleyHamilton : PolyMatrix
   /-- `adj² − χ′·adj − Q·χ`, entrywise. -/
@@ -338,8 +343,9 @@ structure Identities where
   jacobi : List Poly
   deriving Repr, Inhabited
 
-/-- The values of identities 1, 2, 4, 5 and 6 for `H` over `A` (`arity = m`)
-and a certificate, in one budget. Identity 3 needs no product. -/
+/-- The values of identities 1, 2, 2′, 4, 5 and 6 for `H` over `A`
+(`arity = m`) and a certificate, in one budget. Identity 3 needs no
+product. -/
 def identities (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertificate) : Work Identities := do
   let n := rows.length
   let characteristic := certificate.characteristic
@@ -347,6 +353,7 @@ def identities (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertific
   let shifted := charMatrix arity rows
   let determinant ← detPoly (arity + 1) n shifted
   let product ← FrameDeclarations.polyMatMul n shifted adjugate
+  let rightProduct ← FrameDeclarations.polyMatMul n adjugate shifted
   let cayleyHamilton ← matrixPolynomial n rows characteristic
   let slope := SmoothRuntime.partialDerivative arity characteristic
   let square ← FrameDeclarations.polyMatMul n adjugate adjugate
@@ -356,10 +363,10 @@ def identities (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertific
   let jacobi ← (List.range arity).mapM fun i => do
     let derivative ← FrameDeclarations.polyMatMul n adjugate (extendMatrix (derivativeMatrix i rows))
     AlgebraBasis.add (SmoothRuntime.partialDerivative i characteristic) (tracePoly derivative)
-  pure ⟨determinant, product, cayleyHamilton, idempotence, jacobi⟩
+  pure ⟨determinant, product, rightProduct, cayleyHamilton, idempotence, jacobi⟩
 
 /-- The certificate of the spectrum of `H` over `A` (`arity = m`): the rank
-first, then the shapes, then identities 1–6 in order. -/
+first, then the shapes, then identities 1, 2, 2′ and 3–6 in order. -/
 def checkCertificate (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCertificate) :
     Except Failure Unit := do
   let n := rows.length
@@ -373,6 +380,7 @@ def checkCertificate (arity : Nat) (rows : PolyMatrix) (certificate : SpectralCe
   | .ok values =>
     unless values.determinant == certificate.characteristic do throw .characteristic
     unless values.product == scalarMatrix n certificate.characteristic do throw .adjugate
+    unless values.rightProduct == scalarMatrix n certificate.characteristic do throw .adjugateRight
     unless tracePoly certificate.adjugate == SmoothRuntime.partialDerivative arity certificate.characteristic do
       throw .adjugateTrace
     unless isZeroPolyMatrix values.cayleyHamilton do throw .cayleyHamilton

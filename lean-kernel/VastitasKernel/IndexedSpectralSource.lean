@@ -87,6 +87,7 @@ private def failureReason (subject : String) : Failure → String
   | .certificateShape => s!"the computed certificate of {subject} is not well formed"
   | .characteristic => s!"the characteristic polynomial computed for {subject} failed its check: χ ≠ det(tI − H)"
   | .adjugate => s!"the adjugate computed for {subject} failed its check: (tI − H)·adj ≠ χ·I"
+  | .adjugateRight => s!"the adjugate computed for {subject} failed its check: adj·(tI − H) ≠ χ·I"
   | .adjugateTrace => s!"the adjugate computed for {subject} failed its check: its trace is not χ′"
   | .cayleyHamilton => s!"the characteristic polynomial computed for {subject} failed its check: χ(H) ≠ 0"
   | .idempotence => s!"the idempotence quotient computed for {subject} failed its check: adj² − χ′·adj ≠ Q·χ"

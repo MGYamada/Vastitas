@@ -416,12 +416,12 @@ free modules, endomorphism fields, spectra and branches, the definitions
 `trace_power` and `char_coefficient` of a morphism declaration and the five
 spectral primitives are validated optional fields of protocol 9. Any module
 that uses one selects protocol 9. Protocols 7 and 8 reject each form with
-`E_PROTOCOL`. For a declaration and for a family with the representation
-`"free_module"`, `"endomorphism"`, `"spectrum"` or `"branch"`, the decoder's
-message says that spectral declarations require protocol 9. A valid family
-has the parameter `object(…)` and the constraint `canonical(0)`, which the
-decoder reads before the representation, so its message says that smooth
-declarations require protocol 9. A morphism declaration exists only in
+`E_PROTOCOL`. For a declaration, and for a family with the representation
+`"free_module"`, `"endomorphism"`, `"spectrum"` or `"branch"` whose other
+fields protocol 7 admits, the decoder's message says that spectral
+declarations require protocol 9. A valid family has the constraint
+`canonical(0)`, which the decoder reads before the representation, so its
+message says that smooth declarations require protocol 9. A morphism declaration exists only in
 protocol 9, so the message for an invariant says that algebraic affine
 declarations require it. A spectral primitive in protocol 7 or 8 is an
 unknown indexed primitive contract.
@@ -479,8 +479,8 @@ the element and the basis names. The declaration audit checks that each
 copy equals its declaration. A record with any other field, such as
 `characteristic`, `adjugate`, `quotient`, `map`, `rows` or `localize` in a
 binding, is an error (`E_PROTOCOL`).
-[Spectral observations](language/spectral-observations.md) gives the errors of the declarations and the
-primitives. The [`E_SPECTRAL` row](appendix/diagnostics.md#e-spectral) of the
+[Spectral observations](language/spectral-observations.md) gives the errors
+of the declarations and the primitives. The [`E_SPECTRAL` row](appendix/diagnostics.md#e-spectral) of the
 diagnostics reference links its sections, and its
 [`E_ENDPOINT` row](appendix/diagnostics.md#geometric-types) covers object
 mismatches of a call. The

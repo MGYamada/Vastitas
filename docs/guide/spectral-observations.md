@@ -69,8 +69,8 @@ of the matrices that act on `V`. `rows((x, y), (y, -x))` gives the rows of
 has the rows (3, 4) and (4, −3).
 
 `symmetric` claims that H equals its transpose, and the compiler checks the
-claim, entry by entry. A matrix with the entry y in row `e1` and −y in row
-`e2` is not symmetric:
+claim, entry by entry. A matrix whose entry in row `e1` and column `e2` is y
+and whose entry in row `e2` and column `e1` is −y is not symmetric:
 
 ```vast
 {{#include ../../examples/reject/packages/spectral-not-symmetric/main.vast:declarations}}

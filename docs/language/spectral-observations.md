@@ -39,11 +39,10 @@ The declarations of this chapter are the forms of `SpectralDeclaration`:
 Each declaration of this chapter is an [item](items.md):
 `SpectralDeclaration` is one form of
 [`IndexedDeclaration`](../indexed-source.md). So is `PrimitiveDeclaration`,
-whose bindings in this chapter are the forms of `SpectralBinding`. The
-definitions of this chapter of a `MorphismDeclaration` of
-[Smooth maps](smooth-declarations.md#smooth-maps) are the forms of
-`SpectralInvariant`. `pub` before a declaration makes it visible outside its
-module.
+whose bindings in this chapter are the forms of `SpectralBinding`. A
+`MorphismDeclaration` of [Smooth maps](smooth-declarations.md#smooth-maps)
+may have a definition of this chapter, a form of `SpectralInvariant`. `pub`
+before a declaration makes it visible outside its module.
 
 ## The spectral profile
 

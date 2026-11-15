@@ -14,9 +14,18 @@ spectrum and a branch, of the four family representations, of the morphism
 definitions `trace_power` and `char_coefficient`, and of the five observation
 primitives; protocols 7 and 8 reject each with `E_PROTOCOL`. No shape has a
 field for a certificate. The spectral families are data-model rules and are
-checked in full. Nothing else is implemented yet: the source checker rejects
-every spectral declaration, invariant and observation with `E_SPECTRAL`, and
-the declaration audit rejects every spectral entry. -/
+checked in full.
+
+Through the source checker, the Stage 5 example is accepted in any order of
+its declarations, with the kernel's certificate (`χ = t² − x² − y²`,
+`adj = tI + H`, the idempotence quotient `−I`) and the gap quotient `1`; each
+rejection of the profile is `E_SPECTRAL` with a message that names the
+declaration, or `E_LIMIT` for the rank, power and exponent limits; the
+declaration audit rejects every tampered certificate, quotient, localization,
+witness, exponent, basis and row. The elaboration turns the invariants into
+smooth maps with their exact images and provenance, and fills the
+declarations, elements and basis indices of the observations; their registry
+entries are the spectral registry's (`SpectralRegression`). -/
 namespace VastitasKernel.Indexed.SpectralDeclarationRegression
 
 open Lean
@@ -186,7 +195,7 @@ private def rejectsFamily (families : List Json) (text : String) : Bool :=
         "exactly one parameter, of the form `object(…)`" &&
       rejectsFamily [family name [objectParameter] [] representation] "exactly the constraint `canonical(0)`")
 
-/-! ## Spectral declarations: protocol 9 only, rejected until implemented -/
+/-! ## Spectral declarations: protocol 9 only -/
 
 /-- Each spectral declaration shape, with what the source checker calls it and
 the declarations it names, which follow it in a request. -/
@@ -202,18 +211,22 @@ private def declarations : List (String × String × Json × List Json) := [
   (declarations.all fun (_, _, j, _) => !decodes j false)
 #eval check "protocols 7 and 8 reject each spectral declaration with E_PROTOCOL"
   (declarations.all fun (_, _, j, _) => rejectedBefore9 j "spectral declarations require protocol 9")
-#eval check "the source checker rejects each spectral declaration with E_SPECTRAL until it is implemented"
-  (declarations.all fun (kind, name, j, named) =>
-    rejectsWith 9 (smoothBase ++ spectralFamilies ++ [j] ++ named) "E_SPECTRAL"
-      s!"the {kind} `spectral::{name}` is not implemented yet")
+/- A declaration comes before the declarations it names, so acceptance does not
+depend on the order of the declarations. -/
+#eval check "protocol 9 accepts each declaration of the Stage 5 example before the declarations it names"
+  (declarations.all fun (_, _, j, named) => (outcome 9 (smoothBase ++ spectralFamilies ++ [j] ++ named)).1 == "accepted")
+#eval check "protocol 9 accepts the four declarations of the Stage 5 example"
+  ((outcome 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrumS, branchB])).1 == "accepted")
 #eval check "an endomorphism without rows, a free module without a basis and a long exponent decode"
   (decodes (endomorphism "H" "V" [] false) true && decodes (freeModule "V" []) true &&
     decodes (branch "B" "S" (natural 1) (natural 1) "123456789") true)
-#eval check "the source checker rejects the whole Stage 5 example at its first declaration"
-  (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrumS, branchB] ++
-      [invariant "tr2" (tracePower "H" "2"), invariant "c0" (charCoefficient "S" "0")] ++
-      (observations "S" "B").map (·.2.2))
-    "E_SPECTRAL" "the free module `spectral::V` is not implemented yet")
+#eval check "the source checker names the first spectral declaration that fails"
+  (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1", "e1"], endoH]) "E_SPECTRAL"
+    "the free module `spectral::V` names the basis vector `e1` twice")
+#eval check "a long exponent is a limit, before any product"
+  (rejectsWith 9 (smoothBase ++ spectralFamilies ++
+      [branch "B" "S" (natural 1) (natural 1) "123456789", spectrumS, endoH, moduleV])
+    "E_LIMIT" "the branch `spectral::B` has the exponent 123456789, beyond the limit of 8")
 
 #eval check "a spectral declaration names one object"
   (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1"] ["Plane", "Pt"]])
@@ -246,7 +259,7 @@ field is an unknown field. -/
   (!decodes (branch "B" "S" (natural 1) (natural 1) (String.ofList (List.replicate 65 '1'))) true &&
     decodes (branch "B" "S" (natural 1) (natural 1) (String.ofList (List.replicate 64 '1'))) true)
 
-/-! ## Spectral invariants: declared morphisms, rejected until implemented -/
+/-! ## Spectral invariants on the wire -/
 
 private def invariants : List (String × String × Json) := [
   ("tr2", "trace_power", invariant "tr2" (tracePower "H" "2")),
@@ -256,13 +269,13 @@ private def invariants : List (String × String × Json) := [
   (invariants.all fun (_, _, j) => decodes j true)
 #eval check "protocols 7 and 8 reject each spectral invariant with E_PROTOCOL"
   (invariants.all fun (_, _, j) => rejectedBefore9 j "require protocol 9")
-/- The invariant names a declaration that is not spectral, so that no spectral
-declaration is rejected before it. -/
-#eval check "the source checker rejects each spectral invariant with E_SPECTRAL until it is implemented"
+#eval check "a spectral invariant names an endomorphism or a spectrum"
   (rejectsWith 9 (smoothBase ++ [invariant "tr2" (tracePower "Plane" "2")]) "E_SPECTRAL"
-      "the `trace_power` declaration `spectral::tr2` is not implemented yet" &&
+      ("the `trace_power` declaration `spectral::tr2` takes the trace of a power of `spectral::Plane`, which " ++
+        "is not an endomorphism declaration") &&
     rejectsWith 9 (smoothBase ++ [invariant "c0" (charCoefficient "Plane" "0")]) "E_SPECTRAL"
-      "the `char_coefficient` declaration `spectral::c0` is not implemented yet")
+      ("the `char_coefficient` declaration `spectral::c0` takes a coefficient of the characteristic " ++
+        "polynomial of `spectral::Plane`, which is not a spectrum declaration"))
 #eval check "the endomorphism or spectrum of an invariant resolves"
   (rejectsWith 9 (smoothBase ++ [invariant "tr2" (tracePower "Missing" "2")]) "E_NAME" "undefined name 'Missing'" &&
     rejectsWith 9 (smoothBase ++ [invariant "c0" (charCoefficient "Missing" "0")]) "E_NAME"
@@ -274,40 +287,432 @@ declaration is rejected before it. -/
     !decodes (invariant "tr2" (tracePower "H" "-2")) true &&
     !decodes (invariant "c0" (charCoefficient "S" (String.ofList (List.replicate 65 '1')))) true)
 
-/-! ## Spectral observations: protocol 9 only, rejected until implemented -/
+/-! ## Spectral observations on the wire -/
 
 #eval check "protocol 9 decodes each spectral observation"
   ((observations "S" "B").all fun (_, _, j) => decodes j true)
 #eval check "protocols 7 and 8 reject each spectral observation with E_PROTOCOL"
   ((observations "S" "B").all fun (_, _, j) => rejectedBefore9 j "unknown indexed primitive contract")
-/- The observations name a declaration that is not spectral, so that no
-spectral declaration is rejected before them. -/
-#eval check "the source checker rejects each spectral observation with E_SPECTRAL until it is implemented"
-  ((observations "Plane" "Plane").all fun (name, op, j) =>
+#eval check "a spectral observation names a spectrum or a branch"
+  ((observations "Plane" "Plane").all fun (_, op, j) =>
     rejectsWith 9 (smoothBase ++ [j]) "E_SPECTRAL"
-      s!"the `{op}` declaration `spectral::{name}` is not implemented yet")
+      (if op == "annihilates" || op == "action_entry" then
+        s!"the spectrum of `{op}` must be a spectrum, but `spectral::Plane` is not a spectrum declaration"
+      else s!"the branch of `{op}` must be a branch, but `spectral::Plane` is not a branch declaration"))
 #eval check "a spectral observation takes exactly its fields"
   ((observations "S" "B").all fun (_, _, j) =>
     let binding := (j.getObjValD "binding")
     !decodes (withField j "binding" (withField binding "certificate" (toJson ([] : List Json)))) true &&
       !decodes (withField j "binding" (withoutField binding "map_family")) true)
 
-/-! ## A spectral entry is invalid in the declaration audit
+/-! ## Through the source checker
 
-A checked environment never holds a spectral declaration: `Entry.Valid` calls
-the checks of `SpectralDeclarations`, which reject every entry until they are
-implemented. -/
+The source programs below declare the Stage 5 example and its variants
+directly, without the wire. `Source.checkDeclarations` runs the elaboration
+and the whole declaration audit; `Source.lower` runs the elaboration alone,
+which shows the elaborated invariants and observations: their registry
+entries belong to the spectral registry (`IndexedSpectralRegistry`), which
+the audit consults afterwards. -/
 
 private def pkg : Namespace.PackageId := ⟨"/spectral/Vastitas.toml", "spectral", "0.1.0"⟩
 private def sid (name : String) : DeclId := ⟨⟨pkg, []⟩, name⟩
+private def spath (name : String) : Source.Path := ⟨[name], {}⟩
+private def sdecl (name : String) (body : Source.Body) : Source.Declaration := ⟨name, body, true, {}⟩
+private def n (value : Nat) : Source.PolyExpr := .natural value
+private def c (name : String) : Source.PolyExpr := .coordinate name
+private def neg (e : Source.PolyExpr) : Source.PolyExpr := .neg e
+private def frac (numerator : Int) (denominator : Nat) : Source.PolyExpr := .fraction numerator denominator
+private def sq (e : Source.PolyExpr) : Source.PolyExpr := .pow e 2
 
-private def entries : List Entry := [
-  ⟨sid "V", .freeModule (sid "FreeModule") (sid "Plane") ["e1", "e2"]⟩,
-  ⟨sid "H", .endomorphism (sid "Endomorphism") (sid "Plane") (sid "V") [] true⟩,
-  ⟨sid "S", .spectrum (sid "Spectrum") (sid "Plane") (sid "H") "t" ⟨[], [], []⟩⟩,
-  ⟨sid "B", .branch (sid "Branch") (sid "Plane") (sid "S") [] [] 1 []⟩]
+private def space (name : String) (coordinates : List String) : Source.Declaration :=
+  sdecl name (.smoothAffine (spath "SmoothR") coordinates.length coordinates)
+private def objectFamily (name : String) (representation : FamilyRepresentation) : Source.Declaration :=
+  sdecl name (.family ⟨[.object (spath "CInfAffine")], [.canonical 0], representation⟩)
 
-#eval check "the declaration audit rejects each spectral entry"
-  (entries.all fun entry => !validEntry [] [] entry && !validEnvironment [entry])
+/-- Smooth objects of dimension 0, 1 and 2, the smooth, cotangent and spectral
+families, and a presented object for contrast. -/
+private def sourceBase : List Source.Declaration := [
+  sdecl "CInfReal" .marker,
+  sdecl "SmoothR" (.implementation (spath "CInfReal") .smoothAffine []),
+  sdecl "CInfAffine" (.classification [] [spath "SmoothR"]),
+  sdecl "Smooth" (.family ⟨[.object (spath "CInfAffine"), .object (spath "CInfAffine")],
+    [.canonical 0, .canonical 1], .smooth⟩),
+  objectFamily "Cotangent" (.fiber .cotangent),
+  objectFamily "FreeModule" .freeModule,
+  objectFamily "Endomorphism" .endomorphism,
+  objectFamily "Spectrum" .spectrum,
+  objectFamily "Branch" .branch,
+  space "Pt" [],
+  space "Line" ["s"],
+  space "Plane" ["x", "y"],
+  sdecl "QQ" .marker,
+  sdecl "AffineQQ" (.implementation (spath "QQ") (.presentedAffine .rational) []),
+  sdecl "SpecQQ" (.affine (spath "AffineQQ") [] [] none [])]
+
+private def moduleDecl (name : String) (basis : List String) (object := "Plane") (family := "FreeModule") :
+    Source.Declaration :=
+  sdecl name (.freeModule (spath family) [spath object] basis)
+private def endoDecl (name module : String) (rows : List (List Source.PolyExpr)) (symmetric := true)
+    (object := "Plane") (family := "Endomorphism") : Source.Declaration :=
+  sdecl name (.endomorphism (spath family) [spath object] (spath module) rows symmetric)
+private def spectrumDecl (name endomorphism : String) (fiber := "t") (object := "Plane") (family := "Spectrum") :
+    Source.Declaration :=
+  sdecl name (.spectrum (spath family) [spath object] (spath endomorphism) fiber)
+private def branchDecl (name spectrum : String) (localize witness : Source.PolyExpr) (exponent : Nat)
+    (object := "Plane") (family := "Branch") : Source.Declaration :=
+  sdecl name (.branch (spath family) [spath object] (spath spectrum) localize witness exponent)
+
+private def gapExpr : Source.PolyExpr := .sum [sq (c "x"), sq (c "y")]
+private def halfT : Source.PolyExpr := .product [frac 1 2, c "t"]
+private def moduleSource : Source.Declaration := moduleDecl "V" ["e1", "e2"]
+private def endoSource : Source.Declaration := endoDecl "H" "V" [[c "x", c "y"], [c "y", neg (c "x")]]
+private def spectrumSource : Source.Declaration := spectrumDecl "S" "H"
+/-- `V`, `H`, `S` and `B` of the Stage 5 example. -/
+private def stage5 : List Source.Declaration :=
+  [moduleSource, endoSource, spectrumSource, branchDecl "B" "S" gapExpr halfT 1]
+/-- `V`, `H` and `S`, and the branch `branch`. -/
+private def withBranch (branch : Source.Declaration) : List Source.Declaration :=
+  [moduleSource, endoSource, spectrumSource, branch]
+
+private def program (ds : List Source.Declaration) : Source.Program := {
+  file := "spectral", root := pkg.source,
+  packages := [⟨pkg, [], [{
+    module := {path := [], isPublic := true, imports := [], functions := [], generics := [], methods := [], span := {}}
+    declarations := sourceBase ++ ds }], none⟩] }
+
+private def code (ds : List Source.Declaration) : String :=
+  match Source.checkDeclarations (program ds) with
+  | .ok _ => "accepted"
+  | .error e => e.code
+
+private def message (ds : List Source.Declaration) : String :=
+  match Source.checkDeclarations (program ds) with
+  | .ok _ => ""
+  | .error e => e.message
+
+/-- `ds` is rejected with `expected` and a message that contains `text`. -/
+private def rejects (ds : List Source.Declaration) (expected text : String) : Bool :=
+  code ds == expected && mentions (message ds) text
+
+private def checked (ds : List Source.Declaration) : Option Core.Declarations :=
+  match Source.checkDeclarations (program ds) with
+  | .ok result => some result.resolved.declarations
+  | .error _ => none
+
+private def lowered (ds : List Source.Declaration) : Option Core.Declarations :=
+  match Source.lower (program ds) with
+  | .ok resolved => some resolved.declarations
+  | .error _ => none
+
+private def lowerCode (ds : List Source.Declaration) : String :=
+  match Source.lower (program ds) with
+  | .ok _ => "lowered"
+  | .error e => e.code
+
+private def lowerMessage (ds : List Source.Declaration) : String :=
+  match Source.lower (program ds) with
+  | .ok _ => ""
+  | .error e => e.message
+
+private def lowerRejects (ds : List Source.Declaration) (expected text : String) : Bool :=
+  lowerCode ds == expected && mentions (lowerMessage ds) text
+
+private def declarationIn (env : Option Core.Declarations) (name : String) : Option Declaration :=
+  env.bind fun env => lookup env.indexed (sid name)
+
+private def bindingIn (env : Option Core.Declarations) (name : String) : Option PrimitiveBinding :=
+  env.bind fun env => (env.primitives.find? (·.id == sid name)).map (·.binding)
+
+/-! ### The elaborated Stage 5 example -/
+
+open AlgebraRuntime in
+private def x : Poly := Poly.var 2 0
+open AlgebraRuntime in
+private def y : Poly := Poly.var 2 1
+open AlgebraRuntime in
+private def x3 : Poly := Poly.var 3 0
+open AlgebraRuntime in
+private def y3 : Poly := Poly.var 3 1
+open AlgebraRuntime in
+private def t3 : Poly := Poly.var 3 2
+private def rowsH : PolyMatrix := [[x, y], [y, AlgebraRuntime.Poly.neg x]]
+open AlgebraRuntime in
+/-- `χ = t² − x² − y²`. -/
+private def chi : Poly := Poly.sub (Poly.mul t3 t3) (Poly.add (Poly.mul x3 x3) (Poly.mul y3 y3))
+open AlgebraRuntime in
+/-- `adj(tI − H) = tI + H`. -/
+private def adjugate : PolyMatrix := [[Poly.add t3 x3, y3], [y3, Poly.sub t3 x3]]
+open AlgebraRuntime in
+/-- `adj² − χ′·adj = −χ·I`. -/
+private def idempotence : PolyMatrix := [[Poly.const 3 (-1), []], [[], Poly.const 3 (-1)]]
+open AlgebraRuntime in
+private def gap : Poly := Poly.add (Poly.mul x x) (Poly.mul y y)
+open AlgebraRuntime in
+private def witness : Poly := Poly.scale (1 / 2) t3
+
+private def endoRef : EndoRef := ⟨sid "H", sid "Plane", sid "V", rowsH, true⟩
+private def spectrumRef : SpectrumRef := ⟨sid "S", endoRef, chi, adjugate⟩
+private def branchRef : BranchRef := ⟨sid "B", spectrumRef, gap, witness, 1⟩
+
+#eval check "the source checker accepts the Stage 5 example in any order"
+  (code stage5 == "accepted" && code stage5.reverse == "accepted" &&
+    ["V", "H", "S", "B"].all fun name =>
+      (declarationIn (checked stage5) name).isSome &&
+        declarationIn (checked stage5) name == declarationIn (checked stage5.reverse) name)
+#eval check "the endomorphism has its rows, expanded in the coordinates"
+  (declarationIn (checked stage5) "H" == some (.endomorphism (sid "Endomorphism") (sid "Plane") (sid "V") rowsH true))
+#eval check "the spectrum has the kernel's certificate: χ = t² − x² − y², adj = tI + H, Q = −I"
+  (declarationIn (checked stage5) "S" ==
+    some (.spectrum (sid "Spectrum") (sid "Plane") (sid "H") "t" ⟨chi, adjugate, idempotence⟩))
+#eval check "the branch has its localization in the base and the kernel's quotient 1"
+  (declarationIn (checked stage5) "B" ==
+    some (.branch (sid "Branch") (sid "Plane") (sid "S") gap witness 1 (AlgebraRuntime.Poly.one 3)))
+#eval check "the squared gap (2t·g, 4g²) is a valid chart too"
+  (code (withBranch (branchDecl "B" "S" (.product [n 4, sq gapExpr]) (.product [n 2, c "t", gapExpr]) 1)) ==
+    "accepted")
+
+/-! ### Rejections
+
+Each variant of the example is rejected at the first declaration that fails,
+with `E_SPECTRAL` and a message that names it, or `E_LIMIT` for a limit. -/
+
+private def jordan : List Source.Declaration :=
+  [moduleSource, endoDecl "J" "V" [[n 2, n 1], [n 0, n 2]] (symmetric := false), spectrumDecl "SJ" "J"]
+
+/-- `(label, declarations, code, text)`. -/
+private def rejections : List (String × List Source.Declaration × String × String) := [
+  ("rank 5", [moduleDecl "V" ["a", "b", "c", "d", "e"]], "E_LIMIT",
+    "the free module `spectral::V` has rank 5, beyond the limit of 4"),
+  ("no basis", [moduleDecl "V" []], "E_SPECTRAL", "the free module `spectral::V` has no basis vector"),
+  ("a repeated basis vector", [moduleDecl "V" ["e1", "e2", "e1"]], "E_SPECTRAL",
+    "the free module `spectral::V` names the basis vector `e1` twice"),
+  ("another family", [moduleDecl "V" ["e1"] (family := "Spectrum")], "E_SPECTRAL",
+    "the free module `spectral::V` is declared at `spectral::Spectrum`, which is not a family with the " ++
+      "representation `free_module`"),
+  ("a presented object", [moduleDecl "V" ["e1"] (object := "SpecQQ")], "E_SPECTRAL",
+    "the free module `spectral::V` is on `spectral::SpecQQ`, which is not a smooth object"),
+  ("not symmetric", [moduleSource, endoDecl "H" "V" [[c "x", c "y"], [c "x", neg (c "x")]]], "E_SPECTRAL",
+    "the endomorphism `spectral::H` is declared `symmetric`, but its entry (e1, e2) differs from its entry (e2, e1)"),
+  ("too few rows", [moduleSource, endoDecl "H" "V" [[c "x", c "y"]]], "E_SPECTRAL",
+    "needs 2 rows, one for each basis vector, but it has 1"),
+  ("a short row", [moduleSource, endoDecl "H" "V" [[c "x"], [c "y", c "x"]]], "E_SPECTRAL",
+    "needs 2 entries in each row, but row 1 has 1"),
+  ("a module of another object", [moduleDecl "W" ["e1"] (object := "Line"), endoDecl "H" "W" [[c "x"]]],
+    "E_SPECTRAL", "an endomorphism and its free module have one object"),
+  ("no module", [endoDecl "H" "Plane" [[c "x"]]], "E_SPECTRAL",
+    "the endomorphism `spectral::H` acts on `spectral::Plane`, which is not a free module declaration"),
+  ("an unknown coordinate", [moduleSource, endoDecl "H" "V" [[c "z", n 0], [n 0, n 0]]], "E_AFFINE_COORDINATE",
+    "unknown coordinate z"),
+  ("a fiber name that is a coordinate", [moduleSource, endoSource, spectrumDecl "S" "H" (fiber := "x")],
+    "E_SPECTRAL", "the fiber coordinate `x` of the spectrum `spectral::S` is a coordinate of `spectral::Plane`"),
+  ("a spectrum of a module", [moduleSource, spectrumDecl "S" "V"], "E_SPECTRAL",
+    "the spectrum `spectral::S` is the spectrum of `spectral::V`, which is not an endomorphism declaration"),
+  ("a spectrum of another object", [moduleSource, endoSource, spectrumDecl "S" "H" (object := "Line")],
+    "E_SPECTRAL", "a spectrum and its endomorphism have one object"),
+  ("a branch of an endomorphism", [moduleSource, endoSource, branchDecl "B" "H" gapExpr halfT 1], "E_SPECTRAL",
+    "the branch `spectral::B` is a branch of `spectral::H`, which is not a spectrum declaration"),
+  ("a localization with t", withBranch (branchDecl "B" "S" (.sum [sq (c "x"), sq (c "t")]) halfT 1),
+    "E_SPECTRAL", "the localization of the branch `spectral::B` contains the fiber coordinate `t`"),
+  ("a zero localization", withBranch (branchDecl "B" "S" (n 0) halfT 1), "E_SPECTRAL",
+    "the localization of the branch `spectral::B` is zero"),
+  ("an unreduced witness", withBranch (branchDecl "B" "S" gapExpr (.sum [halfT, .pow (c "t") 3]) 1), "E_SPECTRAL",
+    "the witness of the branch `spectral::B` has degree 3 in the fiber coordinate `t`"),
+  ("a wrong witness", withBranch (branchDecl "B" "S" gapExpr (.product [frac 1 3, c "t"]) 1), "E_SPECTRAL",
+    "the witness of the branch `spectral::B` does not certify the gap"),
+  ("a witness perturbed by 10⁻²⁰",
+    withBranch (branchDecl "B" "S" gapExpr (.product [frac (5 * 10 ^ 19 + 1) (10 ^ 20), c "t"]) 1), "E_SPECTRAL",
+    "the witness of the branch `spectral::B` does not certify the gap"),
+  ("a wrong exponent", withBranch (branchDecl "B" "S" gapExpr halfT 2), "E_SPECTRAL",
+    "the witness of the branch `spectral::B` does not certify the gap"),
+  ("the gap at the origin", withBranch (branchDecl "B" "S" (n 1) halfT 0), "E_SPECTRAL",
+    "the witness of the branch `spectral::B` does not certify the gap"),
+  ("an exponent beyond the limit", withBranch (branchDecl "B" "S" gapExpr halfT 9), "E_LIMIT",
+    "the branch `spectral::B` has the exponent 9, beyond the limit of 8"),
+  ("the Jordan block", jordan ++ [branchDecl "BJ" "SJ" (n 1) (n 1) 0], "E_SPECTRAL",
+    "the witness of the branch `spectral::BJ` does not certify the gap"),
+  ("the Jordan block with a shifted witness", jordan ++ [branchDecl "BJ" "SJ" (n 1) (.sum [c "t", neg (n 2)]) 0],
+    "E_SPECTRAL", "the witness of the branch `spectral::BJ` does not certify the gap")]
+
+#eval show IO Unit from do
+  for (label, ds, expected, text) in rejections do
+    check s!"{label}: rejected with {expected} ({code ds}: {message ds})" (rejects ds expected text)
+
+/-! ### Degenerate cases and the rank limit -/
+
+private def basis4 : List String := ["e1", "e2", "e3", "e4"]
+
+#eval check "the zero endomorphism has the spectrum t² and no chart at all"
+  (let zero := [moduleSource, endoDecl "Z" "V" [[n 0, n 0], [n 0, n 0]], spectrumDecl "SZ" "Z"];
+    code zero == "accepted" &&
+      declarationIn (checked zero) "SZ" == some (.spectrum (sid "Spectrum") (sid "Plane") (sid "Z") "t"
+        ⟨AlgebraRuntime.Poly.mul t3 t3, [[t3, []], [[], t3]], [[AlgebraRuntime.Poly.const 3 (-1), []],
+          [[], AlgebraRuntime.Poly.const 3 (-1)]]⟩) &&
+      [n 1, n 0, c "t", .product [frac 1 2, c "t"]].all fun w =>
+        code (zero ++ [branchDecl "BZ" "SZ" (n 1) w 0]) == "E_SPECTRAL")
+#eval check "a rank-1 endomorphism has the chart g = 1, W = 1, e = 0"
+  (code [moduleDecl "L" ["e"], endoDecl "K" "L" [[c "x"]], spectrumDecl "SK" "K", branchDecl "BK" "SK" (n 1) (n 1) 0] ==
+    "accepted")
+#eval check "a 4 × 4 symmetric endomorphism, at the rank limit, has a checked spectrum"
+  (code [moduleDecl "V4" basis4,
+      endoDecl "H4" "V4" [[c "x", c "y", n 1, n 0], [c "y", n 0, c "x", n 1], [n 1, c "x", neg (c "y"), n 0],
+        [n 0, n 1, n 0, c "x"]],
+      spectrumDecl "S4" "H4"] == "accepted")
+#eval check "a free module of rank 5 is beyond the limit before any endomorphism is read"
+  (rejects [moduleDecl "V5" (basis4 ++ ["e5"]), endoDecl "H5" "V5" []] "E_LIMIT" "has rank 5")
+
+/-! ### The declaration audit
+
+The audit checks every stored declaration again: a tampered certificate,
+quotient, localization, witness or row fails it. -/
+
+private def tamper (env : Environment) (name : String) (change : Declaration → Declaration) : Environment :=
+  env.map fun entry => if entry.id == sid name then ⟨entry.id, change entry.declaration⟩ else entry
+
+open AlgebraRuntime in
+private def tampered : List (String × String × (Declaration → Declaration)) := [
+  ("χ", "S", fun
+    | .spectrum f o e fiber cert => .spectrum f o e fiber {cert with characteristic := Poly.add cert.characteristic (Poly.one 3)}
+    | d => d),
+  ("adj", "S", fun
+    | .spectrum f o e fiber cert => .spectrum f o e fiber {cert with adjugate := cert.adjugate.reverse}
+    | d => d),
+  ("the idempotence quotient", "S", fun
+    | .spectrum f o e fiber cert => .spectrum f o e fiber {cert with idempotence := scalarZero}
+    | d => d),
+  ("the fiber name", "S", fun
+    | .spectrum f o e _ cert => .spectrum f o e "x" cert
+    | d => d),
+  ("the rows", "H", fun
+    | .endomorphism f o m rows s => .endomorphism f o m rows.reverse s
+    | d => d),
+  ("the branch quotient", "B", fun
+    | .branch f o s g w e _ => .branch f o s g w e []
+    | d => d),
+  ("the localization", "B", fun
+    | .branch f o s g w e q => .branch f o s (Poly.scale 2 g) w e q
+    | d => d),
+  ("the witness", "B", fun
+    | .branch f o s g w e q => .branch f o s g (Poly.scale 2 w) e q
+    | d => d),
+  ("the exponent", "B", fun
+    | .branch f o s g w _ q => .branch f o s g w 2 q
+    | d => d),
+  ("the basis", "V", fun
+    | .freeModule f o _ => .freeModule f o ["e1"]
+    | d => d)]
+where
+  scalarZero : PolyMatrix := [[[], []], [[], []]]
+
+#eval check "the audit accepts the elaborated example and rejects each tampered declaration"
+  (match checked stage5 with
+    | some env => validEnvironment env.indexed &&
+      tampered.all fun (_, name, change) => !validEnvironment (tamper env.indexed name change)
+    | none => false)
+#eval check "the declaration audit rejects a spectral entry outside its environment"
+  (match checked stage5 with
+    | some env => env.indexed.all fun entry =>
+      match entry.declaration with
+      | .freeModule .. | .endomorphism .. | .spectrum .. | .branch .. => !validEntry [] [] entry
+      | _ => true
+    | none => false)
+
+/-! ### Invariants -/
+
+private def invariantDecl (name : String) (definition : Source.MorphismDefinition) (source := "Plane")
+    (target := "Line") : Source.Declaration :=
+  sdecl name (.morphism (spath "Smooth") [spath source, spath target] definition)
+
+private def lineMap : Application := ⟨sid "Smooth", [.object (.global (sid "Plane")), .object (.global (sid "Line"))]⟩
+
+private def withInvariants : List Source.Declaration := stage5 ++ [
+  invariantDecl "tr1" (.tracePower (spath "H") 1),
+  invariantDecl "tr2" (.tracePower (spath "H") 2),
+  invariantDecl "c0" (.charCoefficient (spath "S") 0),
+  invariantDecl "c1" (.charCoefficient (spath "S") 1),
+  invariantDecl "c2" (.charCoefficient (spath "S") 2)]
+
+open AlgebraRuntime in
+#eval check "an invariant is a smooth map with its exact image and its provenance"
+  (let env := lowered withInvariants;
+    bindingIn env "tr2" == some (.spectralInvariant lineMap ⟨2, [], [Poly.scale 2 gap]⟩ (.tracePower endoRef 2)) &&
+      bindingIn env "tr1" == some (.spectralInvariant lineMap ⟨2, [], [[]]⟩ (.tracePower endoRef 1)) &&
+      bindingIn env "c0" ==
+        some (.spectralInvariant lineMap ⟨2, [], [Poly.neg gap]⟩ (.charCoefficient spectrumRef 0)) &&
+      bindingIn env "c1" == some (.spectralInvariant lineMap ⟨2, [], [[]]⟩ (.charCoefficient spectrumRef 1)) &&
+      bindingIn env "c2" ==
+        some (.spectralInvariant lineMap ⟨2, [], [Poly.one 2]⟩ (.charCoefficient spectrumRef 2)))
+#eval check "Newton's identity: c0 = −½ tr2 for the trace-free H"
+  (match bindingIn (lowered withInvariants) "c0", bindingIn (lowered withInvariants) "tr2" with
+    | some (.spectralInvariant _ c0 _), some (.spectralInvariant _ tr2 _) =>
+      c0.images == tr2.images.map (AlgebraRuntime.Poly.scale (-1 / 2))
+    | _, _ => false)
+
+private def invariantRejections : List (String × Source.Declaration × String × String) := [
+  ("the power 0", invariantDecl "bad" (.tracePower (spath "H") 0), "E_SPECTRAL",
+    "the `trace_power` declaration `spectral::bad` takes the power 0"),
+  ("the power 9", invariantDecl "bad" (.tracePower (spath "H") 9), "E_LIMIT",
+    "the `trace_power` declaration `spectral::bad` takes the power 9, beyond the limit of 8"),
+  ("the coefficient of t³", invariantDecl "bad" (.charCoefficient (spath "S") 3), "E_SPECTRAL",
+    "takes the coefficient of t^3, but the characteristic polynomial has degree 2"),
+  ("a trace power of a spectrum", invariantDecl "bad" (.tracePower (spath "S") 2), "E_SPECTRAL",
+    "takes the trace of a power of `spectral::S`, which is not an endomorphism declaration"),
+  ("a coefficient of an endomorphism", invariantDecl "bad" (.charCoefficient (spath "H") 0), "E_SPECTRAL",
+    "the characteristic polynomial of `spectral::H`, which is not a spectrum declaration"),
+  ("a target of dimension 2", invariantDecl "bad" (.tracePower (spath "H") 2) (target := "Plane"), "E_SPECTRAL",
+    "the target `spectral::Plane` of the `trace_power` declaration `spectral::bad` must be 1-dimensional"),
+  ("another source", invariantDecl "bad" (.charCoefficient (spath "S") 0) (source := "Line"), "E_SPECTRAL",
+    "is a smooth map on `spectral::Line`, but its spectrum `spectral::S` is on `spectral::Plane`")]
+
+#eval show IO Unit from do
+  for (label, d, expected, text) in invariantRejections do
+    check s!"{label}: rejected with {expected} ({lowerCode (stage5 ++ [d])}: {lowerMessage (stage5 ++ [d])})"
+      (lowerRejects (stage5 ++ [d]) expected text)
+
+/-! ### Observations -/
+
+private def observe (name op : String) (arguments : List (String × Source.WireArgument)) : Source.Declaration :=
+  sdecl name (.primitive ⟨op, arguments⟩)
+private def ref (name : String) : Source.WireArgument := .path (spath name)
+private def tMinus2 : Source.PolyExpr := .sum [c "t", neg (n 2)]
+
+private def sourceObservations : List Source.Declaration := [
+  observe "ann" "annihilates" [("map_family", ref "Smooth"), ("spectrum", ref "S"), ("element", .polynomial tMinus2)],
+  observe "entry" "action_entry" [("map_family", ref "Smooth"), ("spectrum", ref "S"),
+    ("element", .polynomial (c "t")), ("row", .coordinate "e1"), ("column", .coordinate "e2")],
+  observe "on" "on_branch" [("map_family", ref "Smooth"), ("line", ref "Line"), ("branch", ref "B")],
+  observe "dlam" "branch_differential" [("map_family", ref "Smooth"), ("cotangent", ref "Cotangent"),
+    ("line", ref "Line"), ("branch", ref "B")],
+  observe "proj" "branch_projector" [("map_family", ref "Smooth"), ("line", ref "Line"), ("branch", ref "B"),
+    ("row", .coordinate "e2"), ("column", .coordinate "e1")]]
+
+open AlgebraRuntime in
+#eval check "each observation embeds the declarations it names, its element and its basis indices"
+  (let env := lowered (stage5 ++ sourceObservations);
+    bindingIn env "ann" == some (.annihilates (sid "Smooth") spectrumRef (Poly.sub t3 (Poly.const 3 2))) &&
+      bindingIn env "entry" == some (.actionEntry (sid "Smooth") spectrumRef t3 0 1) &&
+      bindingIn env "on" == some (.onBranch (sid "Smooth") (sid "Line") branchRef) &&
+      bindingIn env "dlam" == some (.branchDifferential (sid "Smooth") (sid "Cotangent") (sid "Line") branchRef) &&
+      bindingIn env "proj" == some (.branchProjector (sid "Smooth") (sid "Line") branchRef 1 0))
+
+private def observationRejections : List (String × Source.Declaration × String × String) := [
+  ("an unknown row", observe "bad" "action_entry" [("map_family", ref "Smooth"), ("spectrum", ref "S"),
+      ("element", .polynomial (c "t")), ("row", .coordinate "e3"), ("column", .coordinate "e2")], "E_SPECTRAL",
+    "`e3` is not a basis vector of the free module `spectral::V` of `action_entry`, whose basis is e1, e2"),
+  ("an unknown column", observe "bad" "branch_projector" [("map_family", ref "Smooth"), ("line", ref "Line"),
+      ("branch", ref "B"), ("row", .coordinate "e1"), ("column", .coordinate "x")], "E_SPECTRAL",
+    "`x` is not a basis vector of the free module `spectral::V` of `branch_projector`"),
+  ("an unknown coordinate", observe "bad" "annihilates" [("map_family", ref "Smooth"), ("spectrum", ref "S"),
+      ("element", .polynomial (c "z"))], "E_AFFINE_COORDINATE", "unknown coordinate z"),
+  ("a branch for a spectrum", observe "bad" "annihilates" [("map_family", ref "Smooth"), ("spectrum", ref "B"),
+      ("element", .polynomial (c "t"))], "E_SPECTRAL",
+    "the spectrum of `annihilates` must be a spectrum, but `spectral::B` is not a spectrum declaration"),
+  ("a spectrum for a branch", observe "bad" "on_branch" [("map_family", ref "Smooth"), ("line", ref "Line"),
+      ("branch", ref "S")], "E_SPECTRAL",
+    "the branch of `on_branch` must be a branch, but `spectral::S` is not a branch declaration")]
+
+#eval show IO Unit from do
+  for (label, d, expected, text) in observationRejections do
+    check s!"{label}: rejected with {expected} ({lowerCode (stage5 ++ [d])}: {lowerMessage (stage5 ++ [d])})"
+      (lowerRejects (stage5 ++ [d]) expected text)
 
 end VastitasKernel.Indexed.SpectralDeclarationRegression

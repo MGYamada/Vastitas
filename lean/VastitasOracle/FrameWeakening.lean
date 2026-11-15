@@ -561,14 +561,23 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
   | scale quantity magnitude => simp only [validEntry, h, NatureDimension.checkScale, quantityDimension_append ext]
   | physicalMetric family object metric reading value entries =>
     simp only [validEntry, h, checkPhysicalMetric_append ext]
-  -- The spectral checks of Stage 5 reject every entry.
-  | freeModule family object basis => simp only [validEntry, h, SpectralDeclarations.checkFreeModule]
+  -- The spectral checks of Stage 5 read no frame declaration.
+  | freeModule family object basis =>
+    simp only [validEntry, h, SpectralDeclarations.checkFreeModule, SpectralDeclarations.declaredAt,
+      isFreeModuleFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile]
   | endomorphism family object module rows symmetric =>
-    simp only [validEntry, h, SpectralDeclarations.checkEndomorphism]
+    simp only [validEntry, h, SpectralDeclarations.checkEndomorphism, SpectralDeclarations.declaredAt,
+      isEndomorphismFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, freeModuleData_append ext.profile]
   | spectrum family object endomorphism fiber certificate =>
-    simp only [validEntry, h, SpectralDeclarations.checkSpectrum]
+    simp only [validEntry, h, SpectralDeclarations.checkSpectrum, SpectralDeclarations.declaredAt,
+      isSpectrumFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, smoothCoordinates_append ext.profile, endomorphismData_append ext.profile]
   | branch family object spectrum localize witness exponent quotient =>
-    simp only [validEntry, h, SpectralDeclarations.checkBranch]
+    simp only [validEntry, h, SpectralDeclarations.checkBranch, SpectralDeclarations.declaredAt,
+      isBranchFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, spectrumData_append ext.profile, endomorphismData_append ext.profile]
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
     entry.Valid big ranks ↔ entry.Valid small ranks := by

@@ -481,6 +481,7 @@ evidence = [
   "VastitasOracle.SpectralRuntime.projector_idempotent",
   "VastitasOracle.SpectralRuntime.projector_trace_one",
   "VastitasOracle.SpectralRuntime.projector_eigen",
+  "VastitasOracle.SpectralRuntime.projector_commutes",
   "VastitasOracle.SpectralRuntime.eigenvector_exists",
   "VastitasOracle.SpectralRuntime.branchDifferential_implicit",
   "VastitasOracle.SpectralRuntime.branchDifferential_hellmann_feynman",

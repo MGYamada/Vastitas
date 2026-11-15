@@ -174,6 +174,7 @@
     {"name": "VastitasOracle.SpectralRuntime.branch_some_iff", "module": "VastitasOracle.SpectralRuntime", "kind": "theorem", "statement": "sha256:f00131e3fac616da38c903c9758fa0b7f2c97f0fd2e96276da1e81572ad25118"},
     {"name": "VastitasOracle.SpectralRuntime.eigenvector_exists", "module": "VastitasOracle.SpectralRuntime", "kind": "theorem", "statement": "sha256:16aaa685093a122cf44ab34b9646c38c6e037548d0126c348881a19f93082da6"},
     {"name": "VastitasOracle.SpectralRuntime.off_chart_bottom", "module": "VastitasOracle.SpectralRuntime", "kind": "theorem", "statement": "sha256:527dfe6e0b5b72fa655ab2df1fb8c92d8f923fdee4e5869b5657acb09d53c0e9"},
+    {"name": "VastitasOracle.SpectralRuntime.projector_commutes", "module": "VastitasOracle.SpectralRuntime", "kind": "theorem", "statement": "sha256:b8dff35b208cde61ab312c93521a85a966f4a50cde6781ccd724480b0c43f067"},
     {"name": "VastitasOracle.SpectralRuntime.projector_eigen", "module": "VastitasOracle.SpectralRuntime", "kind": "theorem", "statement": "sha256:12c5ae6c8f755ce5d8558c1058d86a5ccfbcbdbcebc5d854194de464227dd203"},
     {"name": "VastitasOracle.SpectralRuntime.projector_idempotent", "module": "VastitasOracle.SpectralRuntime", "kind": "theorem", "statement": "sha256:00f30d028638507ae7155e8cc8ab756c973773278d850d73d5a082c7488931d6"},
     {"name": "VastitasOracle.SpectralRuntime.projector_trace_one", "module": "VastitasOracle.SpectralRuntime", "kind": "theorem", "statement": "sha256:a0208d4338af2b01b8fc8148727861d9db653b7957001f7780bf9608919e9beb"},

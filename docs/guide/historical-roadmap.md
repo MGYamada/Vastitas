@@ -3,10 +3,10 @@
 This chapter is the roadmap of the language after its first executable core,
 the finite Stage 1. It has six Stages and keeps their historical numbers. Each
 Stage states a mathematical target and an acceptance example, an example that
-could establish the completion of the Stage. Stages 2, 3 and 4 are
-Implemented as finite profiles over the rational numbers: each has a Status
-paragraph, Reference chapters and a [delivery record](../appendix/history.md).
-Stages 6 and 7 are Planned, and Stage 5 is in progress.
+could establish the completion of the Stage. Stages 2 to 5 are Implemented
+as finite profiles over the rational numbers: each has a Status paragraph,
+Reference chapters and a [delivery record](../appendix/history.md). Stages 6
+and 7 are Planned.
 
 The Stages answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
@@ -185,10 +185,10 @@ including repeated eigenvalues. Its codomain is the ambient algebra. The
 typed Hermitian lift, cotangent action and agreement with emitted reverse
 Core remain open. [Proved Daleckii–Krein statement](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/daleckii-krein.md) · [Spectral AD obligations, #471](https://github.com/MGYamada/Vastitas/issues/471)
 
-**Status.** In progress ([acceptance map](../stage5-acceptance.md), tracker
-#806): a finite, checked profile over QQ implements this example, and the
-tracker closes after its continuous integration and the fixes of its
-independent whole-stage review. It has free modules with a named basis on smooth affine
+**Status.** A finite, checked profile over QQ implements this example
+([acceptance map](../stage5-acceptance.md), tracker #806, closed after its
+continuous integration and the fixes of its independent whole-stage review).
+It has free modules with a named basis on smooth affine
 objects and polynomial matrix fields of them, with a `symmetric` claim that
 the kernel checks. The kernel computes the characteristic polynomial and the
 adjugate by the Faddeev–LeVerrier recursion, checks them by cofactor

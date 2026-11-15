@@ -17,7 +17,7 @@ const MANIFEST: &str = include_str!("../examples/packages/spectral-observations/
 const PROFILE: &str = include_str!("../examples/packages/spectral-observations/src/profile.vast");
 const MAIN: &str = include_str!("../examples/packages/spectral-observations/src/main.vast");
 /// The program has the observations `1..=CODES`.
-const CODES: u32 = 31;
+const CODES: u32 = 32;
 /// The name of the program's package.
 const PACKAGE: &str = "spectral_observations";
 
@@ -318,11 +318,12 @@ fn mutated_observations_change_the_native_result() {
                 "!on(p, line_at(-5)), 1024)",
                 &[11],
             ),
-            // C10: d lambda at ((1, 0), 1) is (1, 0), still a unit covector.
+            // C10: d lambda at ((1, 0), 1) is (1, 0), still a unit covector,
+            // and it lies over (1, 0), not over p.
             (
                 "d_plus: Cotangent<Plane> = dlambda(p, line_at(5))",
                 "d_plus: Cotangent<Plane> = dlambda(q, line_at(1))",
-                &[13],
+                &[13, 32],
             ),
             // C11: the entry (e1, e2) read at (e2, e2), in both projectors.
             (
@@ -422,6 +423,12 @@ fn mutated_observations_change_the_native_result() {
                 "reads(pairing(d_plus, sharp_euclid(d_plus)), 1, 1)",
                 "reads(pairing(d_plus, sharp_euclid(d_minus)), 1, 1)",
                 &[15],
+            ),
+            // d lambda at -5 lies over p, not over (1, 0).
+            (
+                "lies_over(d_minus, p), 2147483648)",
+                "lies_over(d_minus, q), 2147483648)",
+                &[32],
             ),
             // C11: the entry (e2, e2) at 5 is 1/5.
             (

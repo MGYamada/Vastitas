@@ -19,7 +19,10 @@ use std::fs;
 /// (stdlib-differential). The generated backward functions of compiled
 /// reverse Core (#623) are pinned for the Stage 3 acceptance program
 /// (smooth-differential), for maps that a branch chooses (reverse-branch) and
-/// for a tape bound by `let` or passed to a function (reverse-tape).
+/// for a tape bound by `let` or passed to a function (reverse-tape). The
+/// spectral invariants and observations of Stage 5 (#806), with the compiled
+/// reverse Core of the differential of an invariant, are pinned in
+/// spectral-primitives.
 const CASES: &[(&str, &str, u64)] = &[
     ("indexed", "examples/packages/indexed/Vastitas.toml", 7),
     (
@@ -75,6 +78,11 @@ const CASES: &[(&str, &str, u64)] = &[
     (
         "reverse-domain",
         "tests/emit_corpus/reverse-domain/Vastitas.toml",
+        9,
+    ),
+    (
+        "spectral-primitives",
+        "tests/emit_corpus/spectral-primitives/Vastitas.toml",
         9,
     ),
 ];
@@ -227,21 +235,26 @@ const WIRE_OPERATIONS: &[(&str, Option<&str>)] = &[
         Some("VastitasKernel.FrameRuntime.matrixEqual "),
     ),
     ("frame_at", Some("VastitasKernel.SmoothRuntime.fiberAt ")),
-];
-
-/// The families of the generated table that no emit fixture declares yet:
-/// the observations of the Stage 5 skeleton (#806), which the kernel rejects
-/// until their registry entries are implemented. The registry lane of Stage 5
-/// gives each an entry of `WIRE_OPERATIONS` and a fixture and removes it from
-/// this list; `generated_lean_matches_the_emit_fixtures` fails until it does
-/// both, since it requires each of them to be in the table, absent from
-/// `WIRE_OPERATIONS` and declared by no fixture.
-const UNEMITTED: &[&str] = &[
-    "annihilates",
-    "action_entry",
-    "on_branch",
-    "branch_differential",
-    "branch_projector",
+    (
+        "annihilates",
+        Some("VastitasKernel.SpectralRuntime.annihilates rows_"),
+    ),
+    (
+        "action_entry",
+        Some("VastitasKernel.SpectralRuntime.actionEntry rows_"),
+    ),
+    (
+        "on_branch",
+        Some("VastitasKernel.SpectralRuntime.onBranch poly_"),
+    ),
+    (
+        "branch_differential",
+        Some("VastitasKernel.SpectralRuntime.branchDifferential poly_"),
+    ),
+    (
+        "branch_projector",
+        Some("VastitasKernel.SpectralRuntime.projectorEntry poly_"),
+    ),
 ];
 
 /// The `op` of every `primitive` declaration anywhere in a wire request.
@@ -365,7 +378,6 @@ fn generated_lean_matches_the_emit_fixtures() {
     let mut families: Vec<&str> = vastitas::indexed::primitive_families()
         .iter()
         .map(|family| family.op)
-        .filter(|op| !UNEMITTED.contains(op))
         .collect();
     listed.sort_unstable();
     families.sort_unstable();
@@ -382,14 +394,6 @@ fn generated_lean_matches_the_emit_fixtures() {
     let mut all = declared.clone();
     for (_, manifest, version) in FRAME_CASES {
         primitive_operations(&request(manifest, *version), &mut all);
-    }
-    for op in UNEMITTED {
-        assert!(
-            vastitas::indexed::primitive_family(op).is_some(),
-            "{op} is not in the table"
-        );
-        assert!(!listed.contains(op), "{op} is in WIRE_OPERATIONS");
-        assert!(!all.contains(*op), "an emit fixture declares {op}");
     }
     let expected: BTreeSet<String> = WIRE_OPERATIONS
         .iter()

@@ -78,6 +78,7 @@ pub const KERNEL: Package = Package {
     modules: &[
         "VastitasKernel.IndexedRuntime",
         "VastitasKernel.AlgebraRuntime",
+        "VastitasKernel.SpectralRuntime",
         "VastitasKernel.FrameRuntime",
         "VastitasKernel.SmoothRuntime",
     ],

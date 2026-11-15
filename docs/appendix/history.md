@@ -10,8 +10,8 @@ is Planned.
   development, from the coordinate ring of an affine scheme to an observable
   that is compared with physical measurements. Each Stage has an example that
   could establish its completion. Stages 2, 3 and 4 are delivered as finite
-  profiles, and Stages 5 to 7 are Planned. The GitHub issues that the chapter
-  links govern the plan.
+  profiles, and Stages 5 to 7 are Planned; Stage 5 is in progress. The GitHub
+  issues that the chapter links govern the plan.
 - A **delivery record** maps the acceptance conditions of a delivery to their
   evidence at recorded revisions: the implementation, the tests, the theorems
   and the native measurements. The delivery records are archived. They keep
@@ -31,8 +31,11 @@ is Planned.
     record of the reverse passes that the kernel compiles.
   - [Stage 4 frames and dimensions acceptance](../stage4-acceptance.md) is
     the record of ordered frames, change of frame and physical dimensions
-    over the rational numbers. Its conditions on continuous integration and
-    on the independent review stay Planned until the stage closes.
+    over the rational numbers.
+  - [Stage 5 spectral observations acceptance](../stage5-acceptance.md) is
+    the record of exact spectral observations of polynomial matrix fields
+    over the rational numbers. The stage is in progress, and its conditions
+    stay Planned until it closes.
 
 A delivery record states what held at its revisions. For the behaviour of the
 compiler today, read the guide and the Vastitas Reference. For the theorems

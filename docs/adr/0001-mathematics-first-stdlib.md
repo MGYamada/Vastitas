@@ -38,8 +38,12 @@ standard library hold of it:
   the application declares its frames and frame primitives. The
   [Stage 4 acceptance record](../stage4-acceptance.md) states what is Tested
   and what is Proved, and lists the parts of §11 that stay outside.
+- Planned, for the finite profile of spectral observations: the module
+  `std::linalg::spectral`, which §12 admits. The tracker
+  [#806](https://github.com/MGYamada/Vastitas/issues/806) follows it.
 - Planned: the families of §4 that the standard library does not hold, among
-  them `std::algebra`, `std::analysis` and `std::linalg`. The tracker
+  them `std::algebra`, `std::analysis` and `std::linalg` beyond
+  `std::linalg::spectral`. The tracker
   [#160](https://github.com/MGYamada/Vastitas/issues/160) follows them.
 
 ## Record
@@ -52,6 +56,7 @@ standard library hold of it:
 - **Dependency boundary:** §9 records the merged local-kernel-only oracle and the separate mathematical bridge, and its amendment of 2026-11-12 records that the bridge reads the kernel and the oracle one way. [#285](https://github.com/MGYamada/Vastitas/issues/285) tracks the broader alignment work.
 - **Stage 3 admission:** §10 admits `std::differential`, `std::geometry::metric` and `std::geometry::smooth::affine` for the finite smooth affine profile ([#604](https://github.com/MGYamada/Vastitas/issues/604)).
 - **Stage 4 admission:** §11 admits `std::geometry::frame` for the finite profile of frames and change of frame ([#759](https://github.com/MGYamada/Vastitas/issues/759)). [ADR 0002](0002-nature-dimension.md) admits `nature::dimension` for the same profile.
+- **Stage 5 admission:** §12 admits `std::linalg::spectral` for the finite profile of exact spectral observations of polynomial matrix fields ([#806](https://github.com/MGYamada/Vastitas/issues/806)).
 
 ## Context and decision
 
@@ -866,6 +871,166 @@ give ⊥.
 - **Versions and migration.** The profile adds no wire protocol version.
   Existing programs keep their meaning.
 
+### 12. Exact spectral pairs and simple branches of polynomial matrix fields (amendment, 2026-11-15)
+
+This amendment admits the module `std::linalg::spectral` under the
+`std::linalg` family of §4, through the §8 procedure. It serves the finite
+profile of historical Stage 5. It admits these contracts; it does not claim
+that they are implemented or proved. The History section at the end of this
+chapter links the tracker and the issues that this section refers to.
+
+#### Terms
+
+- A *free module* `V` on a smooth affine object `X` (§10) is `Aⁿ`, where `A`
+  is the ring of polynomials with exact rational coefficients in the
+  coordinates of `X`, with a named ordered basis.
+- An *endomorphism field* `H` of `V` is an `n × n` matrix of elements of `A`.
+  `H(p)` is its value at the point `p`. `H` is *symmetric* when `H = Hᵀ` is
+  declared and checked.
+- The *spectral pair* of `H` (§3) has the characteristic polynomial
+  `χ_H(t) = det(tI − H)` in `A[t]`, with a named fiber coordinate `t`, the
+  characteristic algebra `A_H = A[t]/(χ_H)`, the characteristic scheme
+  `Σ_H = Spec A_H`, and the module `M_H`, which is `V` with `t` acting as `H`.
+- An *invariant* of `H` is a trace power `tr(Hᵏ)` or a coefficient of `χ_H`:
+  an element of `A`, and so a smooth map from `X` to the line.
+- A *finite chart* of `Σ_H` is given by a nonzero `g` in `A`, a witness `W` in
+  `A[t]` of degree in `t` below `n`, and an exponent `e`, with
+  `W·χ_H′ ≡ gᵉ` modulo `χ_H`. On the principal open `D(g)` of `X` every
+  eigenvalue of `H(p)` is simple. A *branch point* is a pair `(p, t)` with
+  `g(p) ≠ 0` and `χ_H(p, t) = 0`; its *eigenprojector* is
+  `adj(tI − H(p))/χ_H′(p, t)`.
+
+#### Contract and jurisdiction
+
+- **Spectral pair.**
+  - The executable kernel computes `χ_H` and `adj(tI − H)` and checks them by
+    an independent route, with every identity modulo `χ_H` checked against a
+    quotient that the kernel computes.
+  - `Σ_H` is the characteristic scheme. It is never replaced by the reduced
+    spectrum or by the locus of the annihilator of `M_H`.
+  - No eigenvalue is computed, ordered or chosen, and no eigenvector is chosen
+    at a repeated eigenvalue.
+- **Module action.** The profile observes `f(H(p))` for `f` in `A[t]`. Equal
+  characteristic polynomials do not identify the modules: a scalar matrix and
+  a Jordan block with the same `χ_H` stay different.
+- **Invariants.** An invariant is a smooth map of §10, and its differential is
+  the differential of §10. It needs no reverse rule of its own.
+- **Branches.**
+  - A branch is certified by a finite chart, as the standard-étale profile
+    certifies a chart; covers by several charts are outside this amendment.
+  - A branch observation takes the eigenvalue as an input and gives the
+    failure value ⊥ of §10 off the chart.
+  - The branch differential is a differentiation, so its contract belongs to
+    `std::differential` (§10), as the map array of §11 does.
+- **Symmetry.** `symmetric` is explicit. It selects the pairing
+  `⟨K, X⟩ = Re tr(KX)` on symmetric matrices, which the orthogonality of the
+  eigenprojector and the Daleckii–Krein statements of §9 use. The profile
+  inserts no conjugation, metric or adjoint. Hermitian fields over `QQ(i)`
+  are outside this amendment.
+- **Split between Core, `std` and backends.**
+  - Core supplies declarations of free modules, endomorphism fields, spectral
+    pairs and finite charts. Each primitive embeds the data it reads, and the
+    executable kernel checks every embedded copy against the declaration.
+    Core gains no rule keyed by a type name.
+  - `std` declares the families `FreeModule`, `Endomorphism`, `Spectrum` and
+    `Branch`.
+  - The executable kernel computes every value exactly. There is no
+    selectable backend. Numerical eigensolvers stay optional observations of
+    §3 with their provenance, outside this amendment.
+- **`std::linalg`.** This amendment opens the `std::linalg` package with the
+  module `spectral` only. Finite linear maps, tensor ports and contractions in
+  general stay Planned (§4). `FreeModule` and `Endomorphism` are to be
+  reconciled with the module theory of the algebra family and the bundles of
+  §11.
+- **Versions and migration.** The profile adds no wire protocol version.
+  Existing programs keep their meaning.
+
+#### Laws
+
+- `(tI − H)·adj(tI − H) = χ_H·I`, and the trace of the adjugate is `χ_H′`.
+- Cayley–Hamilton: `χ_H(H) = 0`, so `M_H` is a module over `A_H`.
+- Jacobi's formula: `∂ᵢχ_H = −tr(adj(tI − H)·∂ᵢH)` for each coordinate.
+- Newton's identities relate the trace powers and the coefficients of `χ_H`.
+- At a branch point, `χ_H′(p, t) ≠ 0`, and the eigenprojector `P` is an
+  idempotent of trace one with `H(p)·P = t·P`. For a symmetric field `P` is
+  symmetric.
+- The branch differential is
+  `dλ = −Σᵢ (∂ᵢχ_H/∂ₜχ_H) dxᵢ = Σᵢ tr(P·∂ᵢH) dxᵢ` (Hellmann–Feynman).
+- Daleckii–Krein (§9): for a symmetric field seen in the Hermitian matrices,
+  the derivative of `tr f(H)` is `tr(f′(H)·dH)`. For `f(t) = tᵏ` this is the
+  differential of the trace-power invariant.
+
+#### Admission argument
+
+- **A, intrinsic denotation.** `χ_H`, the adjugate, the trace powers, the
+  module action and the finite chart are determined by `H` and the declared
+  `g` and `W`. They do not depend on the algorithm that computes them.
+- **B, foundational target.** The characteristic polynomial, Cayley–Hamilton
+  and the simple-root locus are basic constructions of linear algebra and
+  algebraic geometry, not approximations of another object.
+- **C, no hidden numerical choice.** Arithmetic is exact over the rationals.
+  The profile chooses no eigenvalue, orders nothing and uses no tolerance. The
+  gap is certified by a polynomial identity, never sampled.
+- **D, contract.** Modules, fields, spectra and charts are explicit and
+  static; branch points are checked at run time. The planned acceptance map
+  must keep three kinds of claim apart:
+  - structural facts about the runtime and the checks, whose proofs belong in
+    the oracle;
+  - the meaning in Mathlib (`Matrix.charpoly`, `Matrix.trace`, the
+    continuous functional calculus), whose proofs belong in the mathlib
+    bridge;
+  - tests, which are evidence but not proofs.
+
+#### Execution and evidence profile
+
+- The profile is finite: at most four basis vectors, trace powers up to the
+  eighth, and the term and work limits of the exact algebra of §10.
+- Values are exact rationals at run time. Floating-point realizations are
+  outside this amendment.
+- The acceptance map of historical Stage 5 records the evidence of each
+  condition.
+
+#### Outside this admission
+
+- Covers by several charts, image opens and cluster splits by Bézout
+  identities; charts with a localizer outside `A`.
+- `Σ_H` as a presented affine object, and the branch as a smooth function on
+  an open.
+- Derivatives of eigenprojectors and eigenvectors; higher derivatives.
+- Similarity and base change of spectral pairs, and evidence that `M_H` is
+  locally free of rank one.
+- Hermitian fields over `QQ(i)`, numerical eigensolvers, singular value
+  decompositions and spectral measures of operators on Hilbert spaces.
+
+#### Negative tests
+
+- **Modules:** a scalar matrix and a Jordan block with the same `χ_H` must not
+  be identified by any observation that claims to observe the module.
+- **Charts:** a chart without a witness; the localizer `g = 1` where two
+  eigenvalues meet; a perturbed witness; a chart of a Jordan block; a
+  localizer that contains `t` (`E_SPECTRAL`).
+- **Fields:** a nonsymmetric field declared symmetric; a field of another
+  object; a rank above the limit.
+- **Inputs and transport:** protocols 7 and 8, a wire payload that carries a
+  characteristic polynomial, an adjugate or a quotient, and tampered Core.
+
+#### Compatibility and public-name audit
+
+- **Names.** The families are `FreeModule<X>`, `Endomorphism<X>`,
+  `Spectrum<X>` and `Branch<X>`. The declaration forms are `basis(…)`,
+  `rows(…) of V`, `eigen(H, t)` and `simple(S, localize = …, witness = …,
+  exponent = …)`. The invariants are `trace_power` and `char_coefficient`,
+  and the observations `annihilates`, `action_entry`, `on_branch`,
+  `branch_differential` and `branch_projector`. The diagnostic code is
+  `E_SPECTRAL`. The names are provisional until the module is delivered.
+- **Other meanings.** A spectrum here is the characteristic scheme of a
+  finite endomorphism, not a spectral measure. A free module here is
+  nominally distinct from the protocol-8 numerical `Space` and `Basis` and
+  from source modules declared with `mod`; none converts to another.
+- **Packages.** The module belongs to a `std::linalg` package of its own,
+  which depends on the geometry package. The geometry package does not depend
+  on it, and the application declares the branch differential.
+
 ## Consequences, validation and migration
 
 - A *thick* foundational `std` can cover algebra, topology/geometry, analysis, infinite-dimensional quantum mechanics and the mathematical formulation of equations, while a potentially infinite space of approximation algorithms remains in the ecosystem.
@@ -946,6 +1111,34 @@ give ⊥.
   [#201](https://github.com/MGYamada/Vastitas/issues/201) and
   [#387](https://github.com/MGYamada/Vastitas/issues/387); frames of open sets
   in topology, [#98](https://github.com/MGYamada/Vastitas/issues/98);
+  performance, [#222](https://github.com/MGYamada/Vastitas/issues/222).
+
+§12 was adopted for the Stage 5 tracker
+[#806](https://github.com/MGYamada/Vastitas/issues/806). Its references are:
+
+- **Spectral pair.** The finite algebraic contract of
+  [#337](https://github.com/MGYamada/Vastitas/issues/337); its similarity,
+  base change and cyclic evidence stay there, and band crossings with
+  [#247](https://github.com/MGYamada/Vastitas/issues/247).
+- **Charts.** The standard-étale profile of
+  [#765](https://github.com/MGYamada/Vastitas/issues/765); its covers, image
+  opens and cluster splits stay there. Opens belong to
+  [#606](https://github.com/MGYamada/Vastitas/issues/606).
+- **Spectral differentiation.** Steps 1 and 2 of
+  [#471](https://github.com/MGYamada/Vastitas/issues/471) and the agreement of
+  trace-power invariants with emitted reverse Core; the C∞ comparison
+  ([#361](https://github.com/MGYamada/Vastitas/issues/361)), the general
+  correspondence ([#290](https://github.com/MGYamada/Vastitas/issues/290))
+  and pass preservation
+  ([#164](https://github.com/MGYamada/Vastitas/issues/164)) stay open.
+- **Linear algebra and modules.** `std::linalg` in general belongs to
+  [#160](https://github.com/MGYamada/Vastitas/issues/160) and
+  [#66](https://github.com/MGYamada/Vastitas/issues/66); modules to
+  [#259](https://github.com/MGYamada/Vastitas/issues/259) and bundles to
+  [#261](https://github.com/MGYamada/Vastitas/issues/261).
+- **Outside the admission:** checked extraction adapters and numerical
+  eigensolvers, [#324](https://github.com/MGYamada/Vastitas/issues/324);
+  spectral measures, [#262](https://github.com/MGYamada/Vastitas/issues/262);
   performance, [#222](https://github.com/MGYamada/Vastitas/issues/222).
 
 The amendment of 2026-11-12 in §9, on the implementation correspondence in

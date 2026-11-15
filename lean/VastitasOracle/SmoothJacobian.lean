@@ -333,6 +333,22 @@ theorem smoothConstant_reverse (application : Application) (map : AlgebraRuntime
   · rintro ⟨rfl, rfl⟩
     rfl
 
+/-- A spectral invariant (Stage 5) is a declared smooth map: it evaluates, with
+no operands, to its own map as one program node. -/
+theorem spectralInvariant_reverse (application : Application) (map : AlgebraRuntime.Map)
+    (invariant : SpectralInvariant) :
+    ReverseSound (PrimitiveBinding.spectralInvariant application map invariant).contract := by
+  simp only [ReverseSound, PrimitiveBinding.contract, SpectralRegistry.spectralInvariant, PrimitiveDescriptor.ofBool]
+  intro env values value
+  constructor
+  · intro evaluated
+    split at evaluated
+    · cases evaluated
+      exact ⟨rfl, rfl⟩
+    · contradiction
+  · rintro ⟨rfl, rfl⟩
+    rfl
+
 /-- `compose` evaluates exactly on two programs, to the program node that
 composes them: the first operand runs after the second. -/
 theorem smoothCompose_reverse (family : DeclId) :
@@ -473,7 +489,7 @@ theorem registry_reverse_sound : ∀ binding : PrimitiveBinding, ReverseSound bi
   | .frameEntry _ _ _ => trivial
   | .frameEqual _ => trivial
   | .frameAt _ _ => trivial
-  | .spectralInvariant _ _ _ => trivial
+  | .spectralInvariant application map invariant => spectralInvariant_reverse application map invariant
   | .annihilates _ _ _ => trivial
   | .actionEntry _ _ _ _ _ => trivial
   | .onBranch _ _ _ => trivial

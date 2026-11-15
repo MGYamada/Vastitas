@@ -1,8 +1,8 @@
 import VastitasKernel.IndexedTypeAudit
 
 /-! Native lowering of the independently audited declaration-driven Core.
-Generated modules import IndexedRuntime, and AlgebraRuntime, SmoothRuntime or
-FrameRuntime only when they use them. Names and representation choices come from numeric
+Generated modules import IndexedRuntime, and AlgebraRuntime, SmoothRuntime,
+FrameRuntime or SpectralRuntime only when they use them. Names and representation choices come from numeric
 positions and validated contracts, never source spellings. The text of a
 primitive call comes from the registry entry of its binding
 (`PrimitiveBinding.contract`), in the vocabulary of `Lowering`. The literals
@@ -14,7 +14,7 @@ them. A call names such a literal, so the size of a module does not grow by a
 literal per call. -/
 namespace VastitasKernel.Indexed.Core.Codegen
 open Typing
-open VastitasKernel.Indexed.Lowering (runtime algebra smooth frame application literalType literalValue)
+open VastitasKernel.Indexed.Lowering (runtime algebra smooth frame spectral application literalType literalValue)
 
 /-- The primitives that a term calls, once per call. -/
 private def primitiveIds : Term → List DeclId
@@ -31,9 +31,10 @@ private def primitiveIds : Term → List DeclId
 /-- What the lowering of a call reads from the module: the distinct literals
 that the module declares once and every call names. The bases are those that
 the entries of all its checked primitives share, in declaration order
-(`basis_k`). The matrices, maps, Jacobian tables and frame matrices are those
-that the entries of the `called` primitives share, in declaration order
-(`matrix_k`, `map_k`, `jacobian_k`, `frame_k`), so a primitive that no
+(`basis_k`). The matrices, maps, Jacobian tables, frame matrices and the
+polynomials and polynomial matrices of spectral calls are those that the
+entries of the `called` primitives share, in declaration order (`matrix_k`,
+`map_k`, `jacobian_k`, `frame_k`, `poly_k`, `rows_k`), so a primitive that no
 generated function calls adds none. The context computes the Jacobian table of each such map once, and
 lists the frame map families of the module, which `frame_equal` reads. -/
 def renderContext (env : Declarations) (called : DeclId → Bool) : RenderContext :=
@@ -164,16 +165,18 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
     (ctx.name? literal).map fun name => s!"def {name} : {literalType literal} :=\n  {literalValue ctx literal}\n"
   let (bases, calledLiterals) := ctx.literals.partition (· matches .basis _)
   let literalDefinitions := declare calledLiterals
-  -- Only programs that use exact algebra, smooth programs or frame matrices
-  -- import those runtimes.
+  -- Only programs that use exact algebra, smooth programs, frame matrices or
+  -- spectral observations import those runtimes.
   let texts := literalDefinitions ++ packages ++ functions
   let usesAlgebra := texts.any fun text => (text.splitOn (algebra "")).length > 1
   let usesSmooth := texts.any fun text => (text.splitOn (smooth "")).length > 1
   let usesFrame := texts.any fun text => (text.splitOn (frame "")).length > 1
+  let usesSpectral := texts.any fun text => (text.splitOn (spectral "")).length > 1
   let imports := "import VastitasKernel.IndexedRuntime\n" ++
     (if usesAlgebra then "import VastitasKernel.AlgebraRuntime\n" else "") ++
     (if usesSmooth then "import VastitasKernel.SmoothRuntime\n" else "") ++
-    (if usesFrame then "import VastitasKernel.FrameRuntime\n" else "")
+    (if usesFrame then "import VastitasKernel.FrameRuntime\n" else "") ++
+    (if usesSpectral then "import VastitasKernel.SpectralRuntime\n" else "")
   -- A map names its basis, so the bases come first.
   let basisDefinitions := if usesAlgebra then declare bases else []
   return imports ++ "\nset_option maxRecDepth 32768\n" ++

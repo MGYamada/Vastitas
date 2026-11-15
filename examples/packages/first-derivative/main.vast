@@ -1,0 +1,16 @@
+// The first derivative of square(t) = t^2 at t = 3. The differential of
+// square at 3 is the covector 6 dt, and the program prints its numerator, 6.
+// ANCHOR: all
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Line;
+use std::geometry::smooth::affine::line_at;
+use std::differential::differential;
+
+indexed morphism square: Smooth<Line, Line> = pullback(t -> t^2);
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+
+fn main() -> Int {
+    pair_first(dt(differential(square(), line_at(3))))
+}
+// ANCHOR_END: all

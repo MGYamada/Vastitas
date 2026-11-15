@@ -124,6 +124,7 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/affine-geometry/Vastitas.toml", "42"),
     ("examples/packages/stdlib-affine/Vastitas.toml", "42"),
     ("examples/packages/smooth-geometry/Vastitas.toml", "42"),
+    ("examples/packages/first-derivative/Vastitas.toml", "6"),
     ("examples/packages/frames/Vastitas.toml", "42"),
     ("examples/packages/physical-dimensions/Vastitas.toml", "42"),
     ("examples/packages/stdlib-frames/Vastitas.toml", "42"),

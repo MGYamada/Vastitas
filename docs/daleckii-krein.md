@@ -10,10 +10,12 @@ cotangent action, are Proved (bridge) as well, and so is the derivative of
 the trace of a power of a symmetric polynomial field as the Daleckii–Krein
 cotangent composed with the derivative of the field. The
 [spectral invariants](language/spectral-observations.md#spectral-invariants)
-of the language compute such trace powers: the bridge proves that an
-accepted invariant is the trace of the power of its field in Mathlib. That
-the emitted reverse Core of an accepted trace-power invariant computes the
-Daleckii–Krein cotangent is Planned. Steps 3 to 5 stay open.
+of the language compute such trace powers, and the agreement with emitted
+reverse Core is Proved (bridge): for an accepted trace-power invariant whose
+field is declared `symmetric`, an accepted `differential` node and every
+compiled reverse site of one declared step along it compute the
+Daleckii–Krein cotangent composed with the derivative of the field. Steps 3
+to 5 stay open.
 
 The source is
 [`lean-bridge/VastitasBridge/Analysis/DaleckiiKrein.lean`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Analysis/DaleckiiKrein.lean),
@@ -22,7 +24,9 @@ and steps 1 and 2 are in
 which leaves the first file unchanged. All their declarations are in
 `VastitasBridge.Analysis.DaleckiiKrein` and are exported by
 `import VastitasBridge`. The trace powers of fields are in
-`lean-bridge/VastitasBridge/Spectral/Prerequisites.lean`, in
+`lean-bridge/VastitasBridge/Spectral/Prerequisites.lean` and their
+agreement with accepted Core in
+`lean-bridge/VastitasBridge/Spectral/Accepted.lean`, both in
 `VastitasBridge.Spectral`. The package pins Lean v4.35.0 and Mathlib commit
 `56a005855ea17e0b0958f73ec801ae140b0a1679`, matching ADR 0001's reference.
 
@@ -111,11 +115,21 @@ The kernel's side is in `lean-bridge/VastitasBridge/Spectral/Algebra.lean`.
 `toMv_tracePower` states that an accepted `trace_power(H, k)` is the trace of
 the k-th power of the field, and `toMv_charPoly` that the checked
 characteristic polynomial is `Matrix.charpoly` of the field.
+The composition of the two is in `lean-bridge/VastitasBridge/Spectral/Accepted.lean`.
+For an accepted trace power whose endomorphism is declared `symmetric`,
+`tracePower_fderiv_dk` states that the derivative of its real map is the
+Daleckii–Krein cotangent of `trPairing 1` at H(y) composed with DH(y), and
+`checked_trace_power_dk` that an accepted `differential` node of it computes
+that covector. `compiled_trace_power_dk`,
+`public_resource_entries_trace_power_dk` and
+`public_pure_entry_trace_power_dk` state that every compiled reverse site of
+one declared step along it, in every compiled module and on the public paths
+of protocols 8 and 9, computes the seed's component times that covector, and
+`stage5_dk_gradient` that for the field of the example it is (4y₀, 4y₁) at
+every real point. The proofs use no chain-rule theorem of the kernel.
 [Verification boundaries](verification.md#spectral-observations) lists these
-theorems with the others of the spectral profile. The composition of the
-two, that the emitted reverse Core of an accepted trace power computes
-`fderiv_trace_pow_field` for the field that the declaration names, is
-Planned, and the [acceptance map](stage5-acceptance.md#c7) records it.
+theorems with the others of the spectral profile, and the
+[acceptance map](stage5-acceptance.md#c7) records them.
 
 ## Reproduce the checks
 
@@ -177,9 +191,10 @@ steps; none of them is discharged by the mathematical theorem alone:
    objects. For every point in the certified region and every valid seed, bind
    the residual relation and dual action to the actual code, basepoint and pinned
    environment, preserving ownership and rule authority. For the trace
-   powers of the spectral profile, the emitted reverse Core of an accepted
-   invariant is the part of this step that the plan of the stage takes up;
-   it is Planned.
+   powers of symmetric fields in the spectral profile this part is Proved
+   (bridge): the accepted `differential` node, the compiled reverse sites and
+   the public entries compute the Daleckii–Krein cotangent. The general
+   correspondence for other spectral functions stays open.
 5. **Composition and preservation:** connect the result to cotangent composition
    with its endpoint/basepoint transports and prove preservation through each
    certified compiler pass. Only the combined premises establish scoped CF.
@@ -202,8 +217,8 @@ and the separately tracked mathematical architecture that
 
 - **Connection to future Vastitas work.** The remaining proof plan is
   [#471](https://github.com/MGYamada/Vastitas/issues/471). Steps 1 and 2,
-  the trace powers of fields and the Planned agreement with emitted reverse
-  Core belong to the Stage 5 tracker
+  the trace powers of fields and their agreement with emitted reverse Core
+  belong to the Stage 5 tracker
   [#806](https://github.com/MGYamada/Vastitas/issues/806); the C∞ comparison
   of step 3 is [#361](https://github.com/MGYamada/Vastitas/issues/361), the
   general correspondence of step 4

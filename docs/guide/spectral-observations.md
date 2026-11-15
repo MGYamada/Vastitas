@@ -249,8 +249,9 @@ fraction, and `minus_half` checks that one rational is −1/2 times another.
 > eigenprojector, the two forms of the differential of an eigenvalue, the
 > two matrices with one characteristic polynomial, and the fact that the
 > spectral declarations change no other declaration. They also cover the
-> comparison of the characteristic polynomial and of the trace powers with
-> those of real analysis. Tests cover native execution, the diagnostics and
+> comparison of the characteristic polynomial, of the trace powers and their
+> derivatives, and of the derivative of an eigenvalue with those of real
+> analysis. Tests cover native execution, the diagnostics and
 > agreement with an independent reference program. A number that is no
 > eigenvalue gives `false`, the failure value or `(0, 0)` at run time, not
 > an error of the compiler.

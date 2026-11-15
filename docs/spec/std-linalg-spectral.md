@@ -9,11 +9,11 @@ The properties of the exact spectral profile of polynomial matrix fields, from A
 | Property | Claims |
 | --- | --- |
 | [Objects and spectra are static](#spectral.static-identity) | Proved (oracle), Tested |
-| [The spectral pair is computed and checked](#spectral.pair) | Tested, Proved (oracle), Planned |
+| [The spectral pair is computed and checked](#spectral.pair) | Tested, Proved (oracle), Proved (bridge) |
 | [The module action tells fields apart](#spectral.module-action) | Tested, Proved (oracle), Not claimed |
-| [Invariants are smooth maps](#spectral.invariants) | Tested, Proved (oracle), Planned |
+| [Invariants are smooth maps](#spectral.invariants) | Tested, Proved (oracle), Proved (bridge) |
 | [A branch is a certified finite chart](#spectral.branch-chart) | Tested, Proved (oracle) |
-| [Branch points, differentials and eigenprojectors](#spectral.branch-observations) | Tested, Proved (oracle), Planned, Not claimed |
+| [Branch points, differentials and eigenprojectors](#spectral.branch-observations) | Tested, Proved (oracle), Proved (bridge), Not claimed |
 | [The finite profile](#spectral.limits) | Proved (oracle), Tested |
 | [Spectral declarations change nothing else](#spectral.weakening) | Proved (oracle), Tested |
 
@@ -79,9 +79,13 @@ Claims:
     - for `spectrum_sound` and `c2_spectral_pair`: the declaration environment is valid
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: `checkCertificate_sound` states that a certificate that the kernel's check accepts satisfies the six identities as exact polynomial identities, and the readings state them at every point of every commutative ring that receives the rationals: χ(x, t) = det(tI − H(x)) by the cofactor recursion, (tI − H)·adj = χ·I, tr adj = χ′, χ(H) = 0 by Horner's rule, adj² − χ′·adj = Q·χ entrywise, and ∂ᵢχ + tr(adj·∂ᵢH) = 0. That the Faddeev–LeVerrier producer gives a certificate that passes the checks for every field is tested, not proved; soundness does not depend on it.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
-  - Note: The bridge lane of the tracker proves that the checked χ is `Matrix.charpoly` of the field in Mathlib.
+- `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
+  - Evidence:
+    - [`VastitasBridge.Spectral.Algebra`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Spectral/Algebra.lean): `VastitasBridge.Spectral.toMv_charPoly`, `VastitasBridge.Spectral.toMv_tCoefficient`, `VastitasBridge.Spectral.charPoly_eval_real`, `VastitasBridge.Spectral.ringDet_ofFn`
+  - Premises:
+    - the certificate is valid (`SpectralValid`), which `VastitasOracle.SpectralDeclarations.checkCertificate_sound` proves from the kernel's check
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+  - Note: `toMv_charPoly` states that the checked χ, with t the last of m + 1 variables, is `Polynomial.eval₂ (rename Fin.castSucc) (X (Fin.last m))` of `Matrix.charpoly` of the field over `MvPolynomial (Fin m) ℚ`, and `toMv_tCoefficient` that its coefficients in t are those of the characteristic polynomial. `charPoly_eval_real` states that χ at a real point (x, t) is the characteristic polynomial of H(x) at t, and `ringDet_ofFn` that the oracle's cofactor determinant is `Matrix.det`.
 
 <a id="spectral.module-action"></a>
 
@@ -155,9 +159,17 @@ Claims:
     - for `compiled_invariant_step` and `c6_reverse_core_invariant`: the step belongs to a site of compiled reverse Core of a checked module
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: `invariant_sound` states that an accepted image is tr(Hᵏ) with 1 ≤ k ≤ 8, or the coefficient of tⁱ in χ with i ≤ n, of the declared field, and the readings state it at every point of every ring. The Core theorems state that an accepted invariant is a declared smooth map with that one image, whose derivative rule is `morphism` with that map, so a compiled reverse step along it is the `cotangentJacobian` of that map. `s4_trace_square_gradient` states that the gradient of `trace_power(H, 2)` of the example under the Euclidean metric is (4p₀, 4p₁) at every rational point p, and `c5_roadmap_gradient` that an accepted `differential` node of it computes the covector (4p₀, 4p₁).
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
-  - Note: The bridge lane of the tracker proves that the checked trace power is the trace of the power in Mathlib, that its emitted reverse Core is the Daleckii–Krein cotangent after the derivative of the field, and the gradient (4x, 4y) of the example at every real point.
+- `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
+  - Evidence:
+    - [`VastitasBridge.Spectral.Algebra`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Spectral/Algebra.lean): `VastitasBridge.Spectral.toMv_tracePower`
+    - [`VastitasBridge.Spectral.Accepted`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Spectral/Accepted.lean): `VastitasBridge.Spectral.realProgram_tracePower`, `VastitasBridge.Spectral.tracePower_fderiv_dk`, `VastitasBridge.Spectral.checked_trace_power_dk`, `VastitasBridge.Spectral.compiled_trace_power_dk`, `VastitasBridge.Spectral.public_resource_entries_trace_power_dk`, `VastitasBridge.Spectral.public_pure_entry_trace_power_dk`, `VastitasBridge.Spectral.stage5_dk_gradient`
+  - Premises:
+    - for `toMv_tracePower`: every entry of the rows has the arity of the object
+    - for `realProgram_tracePower` and `tracePower_fderiv_dk`: the declaration environment is valid and so is the binding of the invariant; `tracePower_fderiv_dk` also needs the real field to be symmetric
+    - for `checked_trace_power_dk`: the declaration environment of the module is valid, the invariant's binding is valid, its endomorphism is declared `symmetric`, and the operands of the `differential` node evaluate to values of their checked types
+    - for `compiled_trace_power_dk`, `public_resource_entries_trace_power_dk` and `public_pure_entry_trace_power_dk`: `TracePowerDK` concerns a site of one declared step along a trace-power invariant whose endomorphism is declared `symmetric`, and keeps the premises of the compiled reverse entries: the arguments evaluate, the start point has one coordinate for each coordinate of the object, the seed lies over the image with one component, and for a saved site the residual relation holds
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib), [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `toMv_tracePower` states that an accepted trace power is the trace of the k-th power of the field over `MvPolynomial (Fin m) ℚ`, and `realProgram_tracePower` that its real map is y ↦ tr(H(y)ᵏ). For a symmetric field `tracePower_fderiv_dk` states that its derivative read with the covector 1 is the Daleckii–Krein cotangent `dkCotangent (· ^ k) (hermAt M hM y) (trPairing 1)` composed with `hermDeriv M hM y`. `checked_trace_power_dk` states that an accepted `differential` node of the invariant computes that covector, and `compiled_trace_power_dk`, `public_resource_entries_trace_power_dk` and `public_pure_entry_trace_power_dk` that every compiled reverse site of one declared step along it, in every compiled module and on the public paths of protocols 8 and 9, computes the seed's component times it. `stage5_dk_gradient` states that for the field of the example the cotangent is (4y₀, 4y₁) at every real point. `lean-bridge/Audit.lean` checks that the theorems about accepted Core reach no chain-rule theorem.
 
 <a id="spectral.branch-chart"></a>
 
@@ -225,9 +237,17 @@ Claims:
     - for the Core theorems, `c10_branch_derivative` and `c11_eigenprojector`: the declaration environment of the module is valid, and the operands of the call evaluate to values of their checked types
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: `branch_some_iff` and `off_chart_bottom` state that the differential and the eigenprojector are defined exactly where g(p) ≠ 0 and χ(p, t) = 0, and that off the chart the differential is ⊥ and every entry `(0, 0)`. On the branch P·P = P, tr P = 1 and H(p)·P = t·P, a column with Pⱼⱼ ≠ 0 is an eigenvector of H(p) for t, the components of the differential satisfy cᵢ·χ′(p, t) = −∂ᵢχ(p, t), and cᵢ = tr(P·∂ᵢH(p)). The components are built from the evaluated partial derivatives of χ, never from a reverse pass. `c9_branch_points` decides the branch points of the example. That P is symmetric for a symmetric field, and that the two eigenprojectors of the example sum to the identity, are tested, not stated.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#806](https://github.com/MGYamada/Vastitas/issues/806)
-  - Note: The bridge lane of the tracker proves that the differential of an accepted branch is the derivative of the eigenvalue by the implicit function theorem, under the hypotheses that it states.
+- `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
+  - Evidence:
+    - [`VastitasBridge.Spectral.Accepted`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Spectral/Accepted.lean): `VastitasBridge.Spectral.checked_branch_differential_implicit`
+    - [`VastitasBridge.Spectral.Prerequisites`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Spectral/Prerequisites.lean): `VastitasBridge.Spectral.implicit_branch_fderiv_eval`
+    - [`VastitasBridge.Spectral.Algebra`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Spectral/Algebra.lean): `VastitasBridge.Spectral.branch_mem_spectrum`, `VastitasBridge.Spectral.unit_witness_localization`
+  - Premises:
+    - for `checked_branch_differential_implicit`: the declaration environment of the module is valid, the operands evaluate to values of their checked types, and the real function λ is differentiable at p, has λ(p) = t and keeps χ(x, λ(x)) = 0 near p; the existence of such a λ is not claimed
+    - for `implicit_branch_fderiv_eval`: the same hypotheses on λ, and ∂ₜχ(p, λ(p)) ≠ 0
+    - for `branch_mem_spectrum` and `unit_witness_localization`: the certificate, and for the second the gap witness, are valid
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib), [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `checked_branch_differential_implicit` states that on the branch an accepted `branch_differential(p, t, branch = B)` is the covector of `fderiv ℝ λ p` for every real λ that is differentiable at p, passes through (p, t) and keeps χ(x, λ(x)) = 0 near p. That such a λ exists, by the implicit function theorem, is not claimed. `branch_mem_spectrum` states that a real zero of χ is an eigenvalue of H(x), and `unit_witness_localization` that ∂ₜχ is a unit in the localization away from g of ℚ[x, t]/(χ).
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The spectral runtime is Lean code that the checker and the generated programs share. No claim states that the compiled native code refines it. Tests run the native code.
 

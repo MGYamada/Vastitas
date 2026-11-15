@@ -203,10 +203,13 @@ chart of the example. The oracle proves the identities of accepted spectra
 and branches, what the invariants and the branch observations compute, the
 roadmap gradient at every rational point and weakening, for accepted
 programs. The mathlib bridge proves that the characteristic polynomial and
-the trace powers are those of Mathlib, and steps 1 and 2 of #471 with the
-trace powers of symmetric fields; that the emitted reverse Core of a trace
-power computes the Daleckii–Krein cotangent is Planned. The acceptance
-example runs natively.
+the trace powers are those of Mathlib, steps 1 and 2 of #471, and that the
+emitted reverse Core of a trace power of a symmetric field computes the
+Daleckii–Krein cotangent composed with the derivative of the field, without
+the kernel chain rule: the gradient of the example is (4x, 4y) at every real
+point. It also proves that an accepted branch differential is the derivative
+of every differentiable branch through its point; the existence of the
+branch is not claimed. The acceptance example runs natively.
 [ADR 0001 §12](../adr/0001-mathematics-first-stdlib.md#12-exact-spectral-pairs-and-simple-branches-of-polynomial-matrix-fields-amendment-2026-11-15)
 admits the module `std::linalg::spectral`. Planned, in open issues: covers,
 image opens and cluster splits (#765), the branch as a smooth function on an

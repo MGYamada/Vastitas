@@ -399,7 +399,10 @@ constant −4. The invariants of `Zero` and `N` are all 0.
 > that the gradient of `tr2` under the Euclidean metric is (4p₀, 4p₁) at
 > every rational point p. The bridge theorem
 > `VastitasBridge.Spectral.toMv_tracePower` states that the polynomial is the
-> trace of the k-th power of the field in Mathlib.
+> trace of the k-th power of the field in Mathlib, and
+> `VastitasBridge.Spectral.checked_trace_power_dk` that for a field declared
+> `symmetric` an accepted `differential` of the invariant is the
+> Daleckii–Krein cotangent composed with the derivative of the field.
 
 ## Module observations
 
@@ -673,7 +676,11 @@ difference is H(p).
 > `projector_idempotent`, `projector_trace_one`, `projector_eigen`,
 > `branchDifferential_implicit` and `branchDifferential_hellmann_feynman`
 > state the definedness of the observations, the laws of P and the two forms
-> of the differential, for an accepted spectrum and branch. The sum of the
+> of the differential, for an accepted spectrum and branch. The bridge
+> theorem `VastitasBridge.Spectral.checked_branch_differential_implicit`
+> states that an accepted branch differential is the derivative at p of
+> every differentiable real branch λ with λ(p) = t and χ(x, λ(x)) = 0 near p.
+> The sum of the
 > two eigenprojectors of the example is a property of that field: no
 > observation forms a sum over the eigenvalues of a field.
 

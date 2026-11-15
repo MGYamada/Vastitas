@@ -3125,8 +3125,10 @@ The proofs keep three kinds of claim apart:
 - The **bridge** states what these values mean in Mathlib: the checked χ is
   `Matrix.charpoly` of the field, a trace power is `Matrix.trace` of the
   power, a root of χ at a real point is an eigenvalue, the gap witness makes
-  χ′ a unit in the localization, and the Daleckii–Krein derivative has its
-  typed Hermitian lift and its cotangent action.
+  χ′ a unit in the localization, the Daleckii–Krein derivative has its
+  typed Hermitian lift and its cotangent action, the emitted reverse Core of
+  an accepted symmetric trace power computes that cotangent, and an accepted
+  branch differential is the derivative of every branch through its point.
 - **Tests** are evidence for the diagnostics, the wire, the generated code,
   the agreement with the Python references, the completeness of the
   producer and native execution. They prove nothing for all inputs.
@@ -3159,7 +3161,18 @@ name.
 | --- | --- | --- |
 | `Analysis/DaleckiiKreinTyped.lean`, in `VastitasBridge.Analysis.DaleckiiKrein` | `dslope_comm`, `fderivCandidate_isSelfAdjoint`, `hermCfc`, `hermDerivative`, `hasFDerivAt_selfAdjoint_of_val`, `hasFDerivAt_cfc_selfAdjoint`, `matrix_hasFDerivAt_cfc_selfAdjoint`, `trPairing`, `dkCotangent`, `dkCotangent_trPairing`, `dkCotangent_trPairing_eq`, `dkCotangent_trace`, `dkCotangent_trace_pow`, `dk_cotangent_two_point`, `dk_cotangent_two_point_example` | Steps 1 and 2 of the [Daleckii–Krein plan](daleckii-krein.md#connection-to-future-vastitas-work), pure Mathlib. The divided difference is symmetric, so the derivative keeps self-adjoint directions self-adjoint, and the derivative of `cfc f` is a real continuous linear map of the self-adjoint elements. On complex Hermitian matrices `trPairing K` is X ↦ Re tr(KX), with no star on K, and `dkCotangent` pulls a covector back along the derivative. Its representative is Σ f^[s, r] P_s K P_r, which equals the order of the derivative only through `dslope_comm`. The derivative of b ↦ Re tr(bᵏ) has the representative k·aᵏ⁻¹. At diag(0, 1) with f = t³ and K = [[0, 1], [1, 0]] the representative is K, where a commuting formula gives 0 |
 | `Spectral/Prerequisites.lean`, in `VastitasBridge.Spectral` | `hermAt`, `hermDeriv`, `hasFDerivAt_hermAt`, `fderiv_trace_pow_field`, `fderiv_trace_pow_field_apply`, `laplaceDet`, `det_eq_of_laplace`, `laplace_det_eq`, `charpoly_eval₂`, `implicit_branch_hasFDerivAt`, `implicit_branch_fderiv`, `implicit_branch_fderiv_eval` | Pure Mathlib. A symmetric matrix of real polynomials is a complex Hermitian matrix at each real point, with its derivative. The derivative of z ↦ tr(M(z)ᵏ) is the Daleckii–Krein cotangent of the pairing with 1, composed with the derivative of the field, with no hypothesis left. The Laplace expansion along the first row with `List.eraseIdx` is `Matrix.det`. The characteristic polynomial at the last variable is det(tI − M). If χ(x, λ(x)) = 0 near p, χ is differentiable with ∂ₜχ ≠ 0 and λ is differentiable at p, then Dλ(p) = −(∂ₜχ)⁻¹·∇ₓχ; the existence and differentiability of λ are hypotheses |
+| `Spectral/Accepted.lean`, in `VastitasBridge.Spectral` | `realProgram_tracePower`, `covector_fderiv_tracePower`, `tracePower_fderiv_dk`, `checked_trace_power_dk`, `EntryFrechet.trace_power_dk`, `compiled_trace_power_dk`, `public_resource_entries_trace_power_dk`, `public_pure_entry_trace_power_dk`, `stage5_dk_gradient`, `checked_branch_differential_implicit` | Accepted Core, composed from the oracle's `SpectralCore` and `SpectralAcceptance` and the Fréchet theorems of the smooth profile. The real map of an accepted `trace_power(H, k)` is y ↦ tr(H(y)ᵏ); for a symmetric field its derivative read with a covector c is c₀ times the Daleckii–Krein cotangent of Re tr at H(y) composed with DH(y). An accepted `differential` node of it computes that covector, and every compiled reverse site of one declared step along it, in every compiled module and on the public paths of protocols 8 and 9, computes the seed's component times it, in both modes. For the field of the example the cotangent is (4y₀, 4y₁) at every real point. On the branch, an accepted `branch_differential` is the covector of `fderiv ℝ λ p` for every real λ that is differentiable at p, passes through (p, t) and keeps χ(x, λ(x)) = 0 near p; the existence of λ is not claimed |
 | `Spectral/Algebra.lean`, in `VastitasBridge.Spectral` | `evalIn_ofFn`, `evalIn_ofFn_X`, `ringTrace_eq_trace`, `listMatrix_ringMatMul`, `listMatrix_ringPow`, `listMatrix_ringCharMatrix`, `ringDet_eq_det`, `toMv_tracePower`, `toMv_charPoly`, `charpoly_eq_sum`, `toMv_tCoefficient`, `realField_transpose`, `realPoly_tracePower`, `charPoly_eval_real`, `branch_mem_spectrum`, `unit_witness_localization` | The oracle's list matrices read as Mathlib matrices, and its cofactor determinant is `Matrix.det`. An accepted trace power is the trace of the k-th power of the field over `MvPolynomial (Fin m) ℚ` and over ℝ. For a valid certificate χ, with t the last variable, is `Matrix.charpoly` of the field, and its coefficients in t are those of the characteristic polynomial. χ(x, t) is the characteristic polynomial of H(x) at t, so a real zero of χ is an eigenvalue. In the localization away from g of ℚ[x, t]/(χ), the class of ∂ₜχ is a unit |
+
+The accepted-Core theorems of `Spectral/Accepted.lean` read the reverse pass
+through the Fréchet theorems of the smooth profile, not through the
+kernel's chain rule: `lean-bridge/Audit.lean` adds `checked_trace_power_dk`,
+`EntryFrechet.trace_power_dk`, `trace_power_dk_of_frechet`,
+`compiled_trace_power_dk`, `public_resource_entries_trace_power_dk`,
+`public_pure_entry_trace_power_dk` and `checked_branch_differential_implicit`
+to its walk
+of constants, which fails if one reaches a chain-rule theorem of
+`ChainRule.lean` or of the oracle, or `pderiv_aeval`.
 
 ### Hypotheses and gaps of the spectral proofs
 
@@ -3168,18 +3181,22 @@ name.
   to values of their checked types, as the frame theorems do. These are not
   composed with whole-term preservation,
   `IndexedEvaluationSafety.evaluation_total_and_typed`.
-- **The emitted reverse Core of a trace power.** The bridge theorems read
-  the trace power and the characteristic polynomial of a checked field and
-  the Daleckii–Krein derivative of a symmetric polynomial field. That the
-  emitted reverse Core of an accepted trace-power invariant computes the
-  Daleckii–Krein cotangent composed with the derivative of the field, the
-  gradient (4x, 4y) at every real point, and the implicit-function form of
-  an accepted branch differential are Planned, for the integration step of
-  the bridge that [History](#history) names.
+- **The emitted reverse Core of a trace power.** The theorems of
+  `Spectral/Accepted.lean` that read it as the Daleckii–Krein cotangent are
+  stated for a trace power whose endomorphism is declared `symmetric`, which
+  makes the real field symmetric. The compiled and public theorems keep the
+  premises of the compiled reverse entries: the arguments evaluate, the start
+  point has one coordinate for each coordinate of the object, the seed lies
+  over the image with one component, and for a saved site the residual
+  relation holds. A site whose steps are not one declared step along the
+  invariant is outside `TracePowerDK`.
 - **The branch as a function.** The oracle states the implicit-function
-  form of the differential at a branch point. That the eigenvalue extends
-  to a function near the point is the implicit function theorem, a
-  hypothesis of `implicit_branch_fderiv`. The eigenprojector P is not
+  form of the differential at a branch point, and
+  `checked_branch_differential_implicit` states that an accepted branch
+  differential is Dλ(p) for every real λ that is differentiable at p, has
+  λ(p) = t and keeps χ(x, λ(x)) = 0 near p. That such a λ exists is the
+  implicit function theorem, which no theorem applies: the existence of the
+  branch is not claimed. The eigenprojector P is not
   identified with Mathlib's `spectralProjection`, and the resolution
   identities Σ P = I and Σ t P = H are not stated.
 - **Symmetric eigenprojectors.** That P is symmetric for a field declared
@@ -3271,10 +3288,10 @@ each comes from.
 - **Spectral observations.** The tracker of Stage 5's finite profile of
   exact spectral observations is
   [#806](https://github.com/MGYamada/Vastitas/issues/806). Its bridge
-  integration step states the Planned theorems of the section: the emitted
-  reverse Core of an accepted trace power as the Daleckii–Krein cotangent,
-  the gradient at every real point and the implicit-function form of an
-  accepted branch differential. The exact spectral pair of
+  integration step added `Spectral/Accepted.lean`: the emitted reverse Core
+  of an accepted trace power as the Daleckii–Krein cotangent, the gradient
+  at every real point and the implicit-function form of an accepted branch
+  differential. The exact spectral pair of
   [#337](https://github.com/MGYamada/Vastitas/issues/337), the finite charts
   of [#765](https://github.com/MGYamada/Vastitas/issues/765) and steps 1 and
   2 of [#471](https://github.com/MGYamada/Vastitas/issues/471) are the parts

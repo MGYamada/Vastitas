@@ -6,10 +6,10 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 34 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 36 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 0 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
-| [mathlib](#assumption.mathlib) | 12 |
+| [mathlib](#assumption.mathlib) | 15 |
 | [Promotion fixture reflection](#assumption.promotion-reflection) | 7 |
 
 <a id="assumption.rust-frontend"></a>
@@ -52,8 +52,10 @@ Cited by:
 - [`spectral.pair`](std-linalg-spectral.md#spectral.pair) (`oracle`)
 - [`spectral.module-action`](std-linalg-spectral.md#spectral.module-action) (`oracle`)
 - [`spectral.invariants`](std-linalg-spectral.md#spectral.invariants) (`oracle`)
+- [`spectral.invariants`](std-linalg-spectral.md#spectral.invariants) (`bridge`)
 - [`spectral.branch-chart`](std-linalg-spectral.md#spectral.branch-chart) (`oracle`)
 - [`spectral.branch-observations`](std-linalg-spectral.md#spectral.branch-observations) (`oracle`)
+- [`spectral.branch-observations`](std-linalg-spectral.md#spectral.branch-observations) (`bridge`)
 - [`spectral.limits`](std-linalg-spectral.md#spectral.limits) (`oracle`)
 - [`spectral.weakening`](std-linalg-spectral.md#spectral.weakening) (`oracle`)
 
@@ -99,6 +101,9 @@ Cited by:
 - [`frame.pairing`](std-geometry-frame.md#frame.pairing) (`bridge`)
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`bridge`)
 - [`metric.flat-sharp`](std-geometry-metric.md#metric.flat-sharp) (`bridge`)
+- [`spectral.pair`](std-linalg-spectral.md#spectral.pair) (`bridge`)
+- [`spectral.invariants`](std-linalg-spectral.md#spectral.invariants) (`bridge`)
+- [`spectral.branch-observations`](std-linalg-spectral.md#spectral.branch-observations) (`bridge`)
 
 <a id="assumption.promotion-reflection"></a>
 

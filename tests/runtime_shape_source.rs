@@ -278,9 +278,7 @@ fn literal_runtime_guards_reject_contradictions_and_erase_true_checks() {
     assert_eq!(space["op"], "space");
     space["dimension"] = json!({"kind":"literal","value":3});
     let response = kernel(changed, "emit");
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(response["diagnostics"][0]["code"], "E_RUNTIME_GUARD");
-    assert!(response.get("lean_source").is_none());
+    common::assert_wire_rejected(&response, "E_RUNTIME_GUARD");
 }
 
 /// A condition in which every extent is a literal is decided when the program

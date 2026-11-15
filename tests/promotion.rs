@@ -82,8 +82,7 @@ fn flat_request(source: &str) -> Value {
 }
 fn rejects(raw: &Value, code: &str) {
     let result = check_raw(raw);
-    assert_eq!(result["ok"], false, "{result}");
-    assert_eq!(result["diagnostics"][0]["code"], code, "{result}");
+    common::assert_wire_rejected(&result, code);
 }
 
 const VALUES: &str = "

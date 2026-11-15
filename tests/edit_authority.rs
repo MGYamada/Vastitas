@@ -181,10 +181,7 @@ fn every_unused_recipient_declaration_rejects_ambiguous_packages_before_modules(
             }
             for mode in ["check", "emit"] {
                 let result = kernel(&raw, mode);
-                assert_eq!(
-                    result["diagnostics"][0]["code"], "E_OWNER",
-                    "{kind}/{mode}: {result}"
-                );
+                common::assert_wire_rejected(&result, "E_OWNER");
                 assert!(
                     result["diagnostics"][0]["message"]
                         .as_str()
@@ -218,10 +215,7 @@ fn named_recipient_wire_rejects_forged_locations_and_unselected_records() {
                     item.as_object_mut().unwrap().remove("grantee_package");
                 }
             }
-            assert_eq!(
-                kernel(&bad, "check")["diagnostics"][0]["code"],
-                "E_PROTOCOL"
-            );
+            common::assert_wire_rejected(&kernel(&bad, "check"), "E_PROTOCOL");
         }
     }
     let mut orphan = raw;
@@ -237,10 +231,7 @@ fn named_recipient_wire_rejects_forged_locations_and_unselected_records() {
         .retain(|d| d["alias"] == "base");
     app["modules"][0]["functions"][0]["body"]["result"] =
         json!({"kind":"integer","value":"0","span":{"start":0,"end":0,"line":1,"column":1}});
-    assert_eq!(
-        kernel(&orphan, "check")["diagnostics"][0]["code"],
-        "E_OWNER"
-    );
+    common::assert_wire_rejected(&kernel(&orphan, "check"), "E_OWNER");
 }
 
 #[test]
@@ -439,7 +430,7 @@ fn protocol_nine_reconstructs_authority_and_checks_all_bodies() {
     for version in 2..=8 {
         let mut bad = raw.clone();
         bad["version"] = json!(version);
-        assert_eq!(kernel(bad, "check")["diagnostics"][0]["code"], "E_PROTOCOL");
+        common::assert_wire_rejected(&kernel(bad, "check"), "E_PROTOCOL");
     }
     for mutation in ["issuer", "permission", "event", "body"] {
         let mut bad = raw.clone();
@@ -465,8 +456,7 @@ fn protocol_nine_reconstructs_authority_and_checks_all_bodies() {
             _ => unreachable!(),
         };
         let response = kernel(bad, "check");
-        assert_eq!(response["diagnostics"][0]["code"], code, "{response}");
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&response, code);
     }
 }
 
@@ -541,9 +531,6 @@ fn transfer_does_not_grant_membership_or_abstract_contract_authority() {
     ] {
         let mut flat = common::request("fn main() -> Int { 42 }", "downgrade.vast");
         flat[field] = json!([]);
-        assert_eq!(
-            kernel(flat, "check")["diagnostics"][0]["code"],
-            "E_PROTOCOL"
-        );
+        common::assert_wire_rejected(&kernel(flat, "check"), "E_PROTOCOL");
     }
 }

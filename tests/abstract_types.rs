@@ -93,11 +93,11 @@ fn raw_indirect_membership_authority_is_recomputed_after_input_changes() {
     ]});
     assert_eq!(kernel(&raw, "check")["ok"], true);
     raw["packages"][0]["modules"][0]["subtypes"][0]["scalar"] = json!("Nat");
-    assert_eq!(kernel(&raw, "check")["diagnostics"][0]["code"], "E_OWNER");
+    common::assert_wire_rejected(&kernel(&raw, "check"), "E_OWNER");
     raw["packages"][1]["modules"][0]["subtypes"][0]["scalar"] = json!("Nat");
     assert_eq!(kernel(&raw, "check")["ok"], true);
     raw["packages"][1]["modules"][0]["subtypes"] = json!([]);
-    assert_eq!(kernel(&raw, "check")["diagnostics"][0]["code"], "E_OWNER");
+    common::assert_wire_rejected(&kernel(&raw, "check"), "E_OWNER");
 }
 
 #[test]
@@ -226,7 +226,7 @@ fn malformed_hierarchies_and_memberships_are_rejected_even_without_generics() {
         reject(source, code);
         let response = kernel(request(source, "abstract.vast"), "check");
         assert_eq!(response["ok"], false, "{source}: {response}");
-        assert_eq!(response["diagnostics"][0]["code"], code, "{response}");
+        common::assert_wire_rejected(&response, code);
     }
     let allowed = (0..58)
         .map(|i| format!("abstract type A{i};\n"))
@@ -248,7 +248,7 @@ fn selectors_do_not_create_value_types_or_change_body_audits() {
         "abstract.vast",
     );
     forged["functions"][0]["params"][0]["ty"]["name"] = json!("Numeric");
-    assert_eq!(kernel(forged, "check")["diagnostics"][0]["code"], "E_TYPE");
+    common::assert_wire_rejected(&kernel(forged, "check"), "E_TYPE");
     for source in [
         format!("{NUMERIC} generic f(x) {{ domain (Numeric); }}"),
         format!("{NUMERIC} generic f(x) {{ domain; }} method f(x: Numeric) -> Nat {{ x }}"),
@@ -376,22 +376,13 @@ fn raw_package_ir_cannot_forge_membership_authority_visibility_or_winners() {
     let mut membership = unauthorized["packages"][1]["modules"][0]["subtypes"][0].clone();
     membership["target"]["path"] = json!(["lib", "Numeric"]);
     unauthorized["packages"][0]["modules"][0]["subtypes"] = json!([membership]);
-    assert_eq!(
-        kernel(unauthorized, "check")["diagnostics"][0]["code"],
-        "E_OWNER"
-    );
+    common::assert_wire_rejected(&kernel(unauthorized, "check"), "E_OWNER");
     let mut hidden = raw.clone();
     hidden["packages"][1]["modules"][0]["abstract_types"][0]["public"] = json!(false);
-    assert_eq!(
-        kernel(hidden, "check")["diagnostics"][0]["code"],
-        "E_VISIBILITY"
-    );
+    common::assert_wire_rejected(&kernel(hidden, "check"), "E_VISIBILITY");
     for field in ["owner", "selected", "hierarchy"] {
         let mut forged = raw.clone();
         forged["packages"][0]["modules"][0]["methods"][0][field] = json!("trusted");
-        assert_eq!(
-            kernel(forged, "check")["diagnostics"][0]["code"],
-            "E_PROTOCOL"
-        );
+        common::assert_wire_rejected(&kernel(forged, "check"), "E_PROTOCOL");
     }
 }

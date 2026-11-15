@@ -39,8 +39,7 @@ fn check(raw: &Value) -> Value {
 
 fn rejects(raw: &Value, code: &str) {
     let response = check(raw);
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(response["diagnostics"][0]["code"], code, "{response}");
+    common::assert_wire_rejected(&response, code);
 }
 
 #[test]

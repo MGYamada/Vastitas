@@ -921,11 +921,7 @@ fn raw_numerical_wire_rejects_forged_ids_flags_and_old_envelopes() {
         operation[key] = value;
         let response = kernel(changed, "emit");
         assert_eq!(response["ok"], false, "{op}/{key}: {response}");
-        assert_eq!(
-            response["diagnostics"][0]["code"], "E_PROTOCOL",
-            "{response}"
-        );
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
     // Nested paths have their own strict decoder. A checked ID or proof tag
     // cannot be smuggled beside the otherwise valid unresolved path.
@@ -941,10 +937,7 @@ fn raw_numerical_wire_rejects_forged_ids_flags_and_old_envelopes() {
         .find(|s| s["operation"]["op"] == "gemm")
         .unwrap()["operation"];
     operation["left"] = json!("input_a");
-    assert_eq!(
-        kernel(changed, "check")["diagnostics"][0]["code"],
-        "E_NUMERICAL_TYPE"
-    );
+    common::assert_wire_rejected(&kernel(changed, "check"), "E_NUMERICAL_TYPE");
 }
 
 #[test]
@@ -1257,8 +1250,7 @@ fn typed_linear_transform_wire_rejects_forged_evidence_and_old_protocols() {
         local_operation(transform_body(&mut changed), name)[key] = value;
         let response = kernel(changed, "emit");
         assert_eq!(response["ok"], false, "{name}/{key}: {response}");
-        assert_eq!(response["diagnostics"][0]["code"], expected, "{response}");
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&response, expected);
     }
     for field in ["conjugate", "allocation", "origin", "checked"] {
         let mut changed = raw.clone();
@@ -1276,12 +1268,7 @@ fn typed_linear_transform_wire_rejects_forged_evidence_and_old_protocols() {
             .unwrap();
         helper["body"][0]["operation"]["operation"][field] = json!(true);
         let response = kernel(changed, "emit");
-        assert_eq!(response["ok"], false, "{response}");
-        assert_eq!(
-            response["diagnostics"][0]["code"], "E_PROTOCOL",
-            "{response}"
-        );
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
 }
 
@@ -1986,11 +1973,7 @@ fn vector_evaluation_wire_rejects_injected_authority_and_downgrades() {
             .unwrap();
         function["body"][0]["operation"]["operation"][field] = json!(true);
         let response = kernel(changed, "emit");
-        assert_eq!(response["ok"], false, "{response}");
-        assert_eq!(
-            response["diagnostics"][0]["code"], "E_PROTOCOL",
-            "{response}"
-        );
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
 }
 
@@ -2532,11 +2515,7 @@ fn vector_cell_wire_rejects_vectors_that_the_checker_refuses() {
         );
         let response = kernel(changed, "emit");
         assert_eq!(response["ok"], false, "{function} {op} {label}: {response}");
-        assert_eq!(
-            response["diagnostics"][0]["code"], code,
-            "{function} {op} {label}: {response}"
-        );
-        assert!(response.get("lean_source").is_none(), "{response}");
+        common::assert_wire_rejected(&response, code);
     }
     // A header cannot widen the access of its body, and a removed write
     // breaks the promise.

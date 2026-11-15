@@ -477,7 +477,7 @@ fn forged_value_wire_cannot_bypass_scalar_audits_or_legacy_envelopes() {
         forged.pointer_mut(&format!("{base}{path}")).unwrap()[key] = value;
         let response = kernel(forged, "emit");
         assert_eq!(response["ok"], false, "accepted {path}/{key}: {response}");
-        assert_eq!(response["diagnostics"][0]["code"], "E_PROTOCOL");
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
     for version in 2..8 {
         let mut old = raw.clone();
@@ -496,8 +496,7 @@ fn forged_value_wire_cannot_bypass_scalar_audits_or_legacy_envelopes() {
         .pointer_mut(&format!("{base}/3/body/0/body/result"))
         .unwrap() = expression;
     let response = kernel(deep, "emit");
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(response["diagnostics"][0]["code"], "E_PROTOCOL");
+    common::assert_wire_rejected(&response, "E_PROTOCOL");
     assert!(
         response["diagnostics"][0]["message"]
             .as_str()

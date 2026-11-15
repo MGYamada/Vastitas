@@ -4,7 +4,6 @@
 mod common;
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 
 const PROFILE: &str = include_str!("../examples/packages/affine-geometry/src/profile.vast");
 const MAIN: &str = include_str!("../examples/packages/affine-geometry/src/main.vast");
@@ -31,27 +30,15 @@ fn with(extra: &str) -> String {
 }
 
 fn rejects(main: &str, code: &str) -> String {
-    let output = check(&fixture(main));
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    assert!(!output.status.success(), "accepted {main}");
-    assert!(stderr.contains(code), "expected {code}: {stderr}");
-    stderr
+    common::expect_code(&check(&fixture(main)), code)
 }
 
 fn request(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":9,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let result = cli()
+    let mut command = cli();
+    command
         .current_dir(&s.0)
-        .env("VASTITAS_KERNEL", stub)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains("E_CAPTURED"),
-        "{result:?}"
-    );
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+        .args(["check", "--manifest-path", "Vastitas.toml"]);
+    common::captured_wire(command, 9)
 }
 
 /// JSON pointer to a named declaration in the root module.
@@ -69,10 +56,7 @@ fn declaration_pointer(raw: &Value, name: &str) -> String {
 }
 
 fn rejected_with(changed: Value, code: &str) {
-    let result = kernel(changed, "emit");
-    assert_eq!(result["ok"], false, "{result}");
-    assert_eq!(result["diagnostics"][0]["code"], code, "{result}");
-    assert!(result.get("lean_source").is_none(), "{result}");
+    common::assert_wire_rejected(&kernel(changed, "emit"), code);
 }
 
 /// The result type `R<P, X, P>` of `relative_int_point(R, X, P)` is fixed by

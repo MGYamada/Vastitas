@@ -308,10 +308,7 @@ fn protocol_five_rejects_forged_authority_targets_and_stale_inputs() {
             _ => bad["packages"][1]["modules"][0]["contributions"][0]["id"] = json!("trusted"),
         }
         let response = kernel(bad, "check");
-        assert_eq!(
-            response["diagnostics"][0]["code"], code,
-            "{mutation}: {response}"
-        );
+        common::assert_wire_rejected(&response, code);
     }
 }
 
@@ -353,7 +350,7 @@ fn omitted_assembly_keeps_all_declaration_and_unapplied_body_audits() {
     assert_eq!(kernel(&raw, "check")["ok"], true);
     raw["packages"][1]["modules"][0]["contributions"][0]["methods"][0]["return_type"] =
         json!({"kind":"named","name":"Bool"});
-    assert_eq!(kernel(&raw, "check")["diagnostics"][0]["code"], "E_TYPE");
+    common::assert_wire_rejected(&kernel(&raw, "check"), "E_TYPE");
 }
 
 #[test]

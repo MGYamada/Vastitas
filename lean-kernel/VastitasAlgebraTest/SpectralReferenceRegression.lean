@@ -16,10 +16,17 @@ from `scripts/etale_reference.py` and `scripts/finite_spectral_reference.py`)
   is a second route), and the kernel's trace powers `tr(Hᵏ)`, `k ≤ 5`, and the
   coefficients of `χ` are the reference's;
 - `charts`: the kernel's gap check (`checkWitness`, with the quotient that the
-  kernel computes) gives the reference's verdict on every chart;
+  kernel computes) gives the reference's verdict on every chart, and rejects
+  it for the reason of the reference's first failing check: `.witness` for
+  `UNIT_WITNESS_MISMATCH`, `.unreducedWitness` for `NOT_REDUCED` and
+  `.localizeZero` for `EMPTY_CHART`. Some charts fail only reducedness or
+  only the zero localizer in the reference, so each of these kernel rules is
+  compared on its own;
 - `branchPoints`: `onBranch`, the eigenprojector and the branch differential
-  of the runtime agree with the reference on the chart of the spectrum with
-  the reference's localization;
+  of the runtime agree with the values that the fixture writer computes from
+  the reference's `χ` and adjugate on the chart of the spectrum with the
+  reference's localization, and on the branch the eigenprojector commutes
+  with the field, `H(p)·P = P·H(p) = t·P`;
 - `modules`: `f(H)` over `ℚ` (`evalMatrixPoly`, `annihilates`) agrees with the
   reference for the four `2 × 2` matrices `0`, `N`, `2I` and `J`, whose
   characteristic polynomials are the reference's.
@@ -85,6 +92,8 @@ structure ChartCase where
   witness : Poly
   exponent : Nat
   accepted : Bool
+  /-- The code of the reference's first failing check, `none` when accepted. -/
+  failure : Option String
 
 structure BranchCase where
   label : String
@@ -134,7 +143,8 @@ private def decodeChart (json : Json) : Except String ChartCase := do
     localizer := ← optional (← field json "localizer") poly
     witness := ← poly (← field json "witness")
     exponent := ← (← field json "exponent").getNat?
-    accepted := ← (← field json "accepted").getBool? }
+    accepted := ← (← field json "accepted").getBool?
+    failure := ← optional (← field json "failure") (·.getStr?) }
 
 private def decodeBranch (json : Json) : Except String BranchCase := do
   pure {
@@ -226,10 +236,33 @@ private def spectrumNamed (data : Fixture) (name : String) : IO SpectrumCase :=
 
 /-! ## Gap certificates -/
 
+/-- The kernel's verdict on a chart: `none` when its gap check accepts, with
+the quotient that the kernel computes, and otherwise the failure. -/
+private def chartFailure (m n : Nat) (characteristic localizer witness : Poly) (exponent : Nat) :
+    Option SpectralDeclarations.Failure :=
+  match AlgebraBasis.run (witnessQuotient m n characteristic localizer witness exponent) with
+  | .error error => some (.work error)
+  | .ok quotient =>
+    match checkWitness m n characteristic localizer witness exponent quotient with
+    | .ok () => none
+    | .error failure => some failure
+
+/-- The reference's code of its first failing check names the kernel's failure. -/
+private def sameFailure : Option String → Option SpectralDeclarations.Failure → Bool
+  | none, none => true
+  | some "UNIT_WITNESS_MISMATCH", some .witness => true
+  | some "NOT_REDUCED", some (.unreducedWitness _) => true
+  | some "EMPTY_CHART", some .localizeZero => true
+  | _, _ => false
+
 #eval show IO Unit from do
   let data ← IO.ofExcept fixture
   check "fixture has accepted and rejected charts"
     (data.charts.any (·.accepted) && data.charts.any (!·.accepted))
+  check "fixture has a chart for each failure code of the reference"
+    (["UNIT_WITNESS_MISMATCH", "NOT_REDUCED", "EMPTY_CHART"].all fun code => data.charts.any (·.failure == some code))
+  check "fixture records a failure exactly for the rejected charts"
+    (data.charts.all fun c => c.accepted == c.failure.isNone)
   for c in data.charts do
     let s ← spectrumNamed data c.spectrum
     let m := s.variables.length
@@ -239,10 +272,10 @@ private def spectrumNamed (data : Fixture) (name : String) : IO SpectrumCase :=
       | check s!"{c.label}: a localization with the fiber coordinate is rejected" (!c.accepted)
     let localizer ← canonical c.label m localizer
     let witness ← canonical c.label (m + 1) c.witness
-    let verdict := match AlgebraBasis.run (witnessQuotient m n certificate.characteristic localizer witness c.exponent) with
-      | .ok quotient => (checkWitness m n certificate.characteristic localizer witness c.exponent quotient).isOk
-      | .error _ => false
-    check s!"{c.label}: the kernel's verdict is the reference's" (verdict == c.accepted)
+    let failure := chartFailure m n certificate.characteristic localizer witness c.exponent
+    check s!"{c.label}: the kernel's verdict is the reference's" (failure.isNone == c.accepted)
+    check s!"{c.label}: the kernel's failure {repr failure} is the reference's {c.failure}"
+      (sameFailure c.failure failure)
 
 /-! ## Branch points -/
 
@@ -267,6 +300,13 @@ private def chartOf (data : Fixture) (spectrum : String) : IO Poly :=
       (onBranch g certificate.characteristic point value == c.onChart)
     check s!"{c.label}: the eigenprojector is the reference's"
       (projectorMatrix g certificate.characteristic certificate.adjugate point value == c.projector)
+    -- On the branch the eigenprojector commutes with the field: H(p)·P = P·H(p) = t·P.
+    if let some P := projectorMatrix g certificate.characteristic certificate.adjugate point value then
+      let rows ← canonicalMatrix c.label s.variables.length s.matrix
+      let field := FrameRuntime.matrixAt rows c.point
+      let scaled := P.map (·.map (· * c.eigenvalue))
+      check s!"{c.label}: H(p)·P = t·P" (FrameRuntime.matrixProduct rows.length field P == scaled)
+      check s!"{c.label}: P·H(p) = t·P" (FrameRuntime.matrixProduct rows.length P field == scaled)
     check s!"{c.label}: the branch differential is the reference's"
       (branchDifferential g certificate.characteristic point value ==
         c.differential.map fun components => (⟨c.point, components⟩ : Fiber))

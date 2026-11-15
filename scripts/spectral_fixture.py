@@ -7,15 +7,20 @@ computes the same values:
 
 - `etale_reference.py` (#765): characteristic polynomials and adjugates of
   exact matrices over QQ[x_1..x_m] (its verifier recomputes both by cofactor
-  expansion and checks the spectral identities), trace powers, unit-witness
-  charts, and the eigenprojector and the branch differential at rational
-  branch points of a finite chart;
+  expansion and checks the spectral identities), trace powers, and the
+  verdicts of unit-witness charts with the code of the first check that
+  fails (`UNIT_WITNESS_MISMATCH`, `NOT_REDUCED`, `EMPTY_CHART`);
 - `finite_spectral_reference.py` (#337): the 2 by 2 spectral pairs over QQ,
   where a scalar matrix and a Jordan block share the characteristic
   polynomial and differ in the action of t.
 
-The writer asserts the identities it relies on (Newton's identities, Jacobi's
-formula, Hellmann-Feynman, P^2 = P, tr P = 1) before it writes anything.
+The branch points are not output of a reference model: the writer computes
+the eigenprojector P = adj / chi' and the branch differential
+-d_i chi / chi' at rational points of a finite chart from the reference's
+chi and adjugate, with the kernel's formulas, and asserts the laws that
+they satisfy. The writer asserts the identities it relies on (Newton's
+identities, Jacobi's formula, Hellmann-Feynman, P^2 = P, tr P = 1,
+H P = P H = t P) before it writes anything.
 
 Encoding, as in `tests/fixtures/frames.json`: a polynomial is a list of terms
 `[exponents, "num/den"]` in strictly decreasing degLex order, coordinate 0
@@ -178,13 +183,19 @@ def chart_cases(table):
         ("stage5 perturbed witness", s5, gap, t * (Q(1, 2) + Q(1, 10 ** 20)), 1),
         ("stage5 wrong exponent", s5, gap, t * Q(1, 2), 2),
         ("stage5 unreduced witness", s5, gap, t * Q(1, 2) + t * t * t, 1),
+        # W = t/2 + chi certifies the gap (W chi' - g = chi (1 + 2t)) and fails
+        # only reducedness: deg_t W = 2 is the rank.
+        ("stage5 unreduced witness that certifies the gap", s5, gap, t * Q(1, 2) + (t * t - gap), 1),
         ("stage5 zero localizer", s5, Poly.constant(0, 3), t * Q(1, 2), 1),
+        # g = 0 with W = 0: W chi' - g^1 = 0, so the chart fails only the zero
+        # localizer.
+        ("stage5 zero localizer with the zero witness", s5, Poly.constant(0, 3), Poly.constant(0, 3), 1),
         ("cubic off the discriminant", cu, xc * xc - 4, cubic_witness, 1),
         ("cubic without a gap", cu, Poly.constant(1, 2), cubic_witness, 0),
         ("jordan without a gap", jo, Poly.constant(1, 1), Poly.constant(1, 1), 0),
         ("jordan shifted witness", jo, Poly.constant(1, 1), tp - 2, 0),
     )
-    out = []
+    out, failures = [], []
     for label, subject, localizer, witness, exponent in cases:
         name = next(n for n, s in table.items() if s is subject)
         chi = er.propose_spectral(subject).characteristic
@@ -197,6 +208,11 @@ def chart_cases(table):
                     "localizerWithFiber": encode_poly(localizer, m + 1),
                     "witness": encode_poly(witness, m + 1), "exponent": exponent,
                     "accepted": report.accepted, "failure": failed[0] if failed else None})
+        failures.append(failed)
+    # Each specific failure code occurs alone in some chart, so the kernel's
+    # reducedness and zero-localizer rules are compared on their own.
+    for code in ("NOT_REDUCED", "EMPTY_CHART"):
+        assert [code] in failures, code
     return out
 
 
@@ -220,7 +236,9 @@ def branch_case(label, name, subject, localizer, point, value):
     assert rational_product(projector, projector) == projector, label
     assert sum(projector[i][i] for i in range(rank)) == 1, label
     h = evaluate_matrix(subject.matrix, full)
-    assert rational_product(h, projector) == tuple(tuple(Q(value) * e for e in row) for row in projector), label
+    scaled = tuple(tuple(Q(value) * e for e in row) for row in projector)
+    assert rational_product(h, projector) == scaled, label
+    assert rational_product(projector, h) == scaled, label
     differential = []
     for i in range(arity - 1):
         implicit = -evaluate(chi.derivative(i), full) / slope

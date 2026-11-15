@@ -360,7 +360,7 @@ IndexedDeclaration -> MarkerDeclaration | DescriptorImplementation
     | PackageDeclaration | PrimitiveDeclaration
     | ScalarBaseImplementation | LinearImplementation
     | SmoothDeclaration | AffineDeclaration
-    | FrameProfileDeclaration | DimensionDeclaration
+    | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
 ```
 
 [Markers](../indexed-source.md#markers):
@@ -423,7 +423,7 @@ BoundIndex -> `witness` | INTEGER_LITERAL | `global` `(` Path `)`
 ```text
 PrimitiveDeclaration -> `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
 PrimitiveBinding -> DescriptorBinding | SmoothBinding | RelativeBinding
-    | FrameBinding
+    | FrameBinding | SpectralBinding
 DescriptorBinding -> `descriptor` `(` Path `)`
     | `global` `(` Path `)`
     | `origin` `(` `(` Path `,` Path `)` `,` Path `,` Path `)`
@@ -550,6 +550,7 @@ MorphismDeclaration -> `indexed` `morphism` IDENTIFIER `:` Path
     `<` Path ( `,` Path )* `>` `=` MorphismDefinition `;`
 MorphismDefinition -> `pullback` `(` ImageBindings? `)` | `identity`
     | `structure` | `first` | `second` | `restrict` `(` Path `)`
+    | SpectralInvariant
 ImageBindings -> ImageBinding ( `,` ImageBinding )* `,`?
 ImageBinding -> CoordinateName `->` Polynomial
 ```
@@ -727,6 +728,83 @@ ScaleRow -> `(` ( ScaleMonomial ( `,` ScaleMonomial )* `,`? )? `)`
 ScaleMonomial -> `-`? ScaleFactor ( `*` ScaleFactor )*
 ScaleFactor -> INTEGER_LITERAL | Fraction | Path ( `^` `-`? INTEGER_LITERAL )?
 CoordinateScale -> CoordinateName `:` Path
+```
+
+## Spectral observations
+
+Chapter: [Spectral observations](../language/spectral-observations.md).
+
+```text
+SpectralDeclaration -> SpectralFamily | FreeModuleDeclaration
+    | EndomorphismDeclaration | SpectrumDeclaration | BranchDeclaration
+```
+
+[The spectral profile](../language/spectral-observations.md#the-spectral-profile):
+
+```text
+SpectralFamily -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
+    `=` SpectralRepresentation `constraints` `(` Constraints? `)` `;`
+SpectralRepresentation -> `free_module` | `endomorphism` | `spectrum` | `branch`
+```
+
+[Free modules](../language/spectral-observations.md#free-modules):
+
+```text
+FreeModuleDeclaration -> `indexed` `free_module` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `basis` `(` BasisNames? `)` `;`
+BasisNames -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
+```
+
+[Endomorphism fields](../language/spectral-observations.md#endomorphism-fields):
+
+```text
+EndomorphismDeclaration -> `indexed` `endomorphism` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `rows` `(` EndomorphismRows? `)`
+    `of` Path `symmetric`? `;`
+EndomorphismRows -> EndomorphismRow ( `,` EndomorphismRow )* `,`?
+EndomorphismRow -> `(` ( Polynomial ( `,` Polynomial )* `,`? )? `)`
+```
+
+[Spectral pairs](../language/spectral-observations.md#spectral-pairs):
+
+```text
+SpectrumDeclaration -> `indexed` `spectrum` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `eigen` `(` Path `,` IDENTIFIER `)` `;`
+```
+
+[Spectral invariants](../language/spectral-observations.md#spectral-invariants):
+
+```text
+SpectralInvariant -> `trace_power` `(` Path `,` INTEGER_LITERAL `)`
+    | `char_coefficient` `(` Path `,` INTEGER_LITERAL `)`
+```
+
+[Module observations](../language/spectral-observations.md#module-observations):
+
+```text
+SpectralBinding -> ModuleObservationBinding | BranchObservationBinding
+ModuleObservationBinding -> `annihilates` `(` Path `,` `spectrum` `=` Path
+      `,` `element` `=` Polynomial `)`
+    | `action_entry` `(` Path `,` `spectrum` `=` Path
+      `,` `element` `=` Polynomial `,` IDENTIFIER `,` IDENTIFIER `)`
+```
+
+[Branches](../language/spectral-observations.md#branches):
+
+```text
+BranchDeclaration -> `indexed` `branch` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `simple` `(` Path
+    `,` `localize` `=` Polynomial `,` `witness` `=` Polynomial
+    `,` `exponent` `=` INTEGER_LITERAL `)` `;`
+```
+
+[Branch observations](../language/spectral-observations.md#branch-observations):
+
+```text
+BranchObservationBinding -> `on_branch` `(` Path `,` Path `,` `branch` `=` Path `)`
+    | `branch_differential` `(` Path `,` Path `,` Path `,` `branch` `=` Path `)`
+    | `branch_projector` `(` Path `,` Path `,` `branch` `=` Path
+      `,` IDENTIFIER `,` IDENTIFIER `)`
 ```
 
 ## Resource programs

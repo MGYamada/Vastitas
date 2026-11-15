@@ -274,6 +274,7 @@ The following image has the exponent 17:
 >     `<` Path ( `,` Path )* `>` `=` MorphismDefinition `;`
 > MorphismDefinition -> `pullback` `(` ImageBindings? `)` | `identity`
 >     | `structure` | `first` | `second` | `restrict` `(` Path `)`
+>     | SpectralInvariant
 > ImageBindings -> ImageBinding ( `,` ImageBinding )* `,`?
 > ImageBinding -> CoordinateName `->` Polynomial
 > ```
@@ -286,6 +287,10 @@ polynomial map x ↦ (p₁(x), …, pₘ(x)). `identity` is the identity map of 
 The declaration defines a function of no operands: `f()` is the map, of type
 `S<X, Y>`. The definitions `structure`, `first`, `second` and `restrict(…)`
 belong to [morphisms over a base](../affine-geometry.md#morphisms-over-a-base).
+The definitions `trace_power(…)` and `char_coefficient(…)` of
+`SpectralInvariant` declare the smooth maps of
+[Spectral invariants](spectral-observations.md#spectral-invariants), whose
+rules are in that section.
 
 Rules:
 

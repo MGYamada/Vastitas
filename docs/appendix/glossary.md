@@ -187,7 +187,8 @@ eigenvalue of the field is simple, declared with `indexed branch` and
 `simple(…)` at a family with the `branch` representation. The kernel checks
 its [gap witness](#gap-witness). A branch names no eigenvalue, and it is a
 declaration, not a value or a smooth map. See
-[Branches](../language/spectral-observations.md#branches).
+[Branches](../language/spectral-observations.md#branches) and the
+[guide](../guide/spectral-observations.md#simple-eigenvalues-on-a-chart).
 
 ## Branch point
 
@@ -546,7 +547,8 @@ The matrix adj(tI − H(p))/χ′(p, t) of a [branch point](#branch-point) (p, t
 of an [endomorphism field](#endomorphism-field) H with the characteristic
 polynomial χ. It is an idempotent of trace one with H(p)·P = t·P, and
 `branch_projector` reads its entries. See
-[Branch observations](../language/spectral-observations.md#branch-observations).
+[Branch observations](../language/spectral-observations.md#branch-observations) and the
+[guide](../guide/spectral-observations.md#eigenvalues-as-inputs).
 
 ## Endomorphism field
 
@@ -554,7 +556,8 @@ An n × n matrix H of polynomials with rational coefficients in the
 coordinates of a smooth affine object, declared with `indexed endomorphism`
 as `rows(…) of V`, which acts on the [free module](#free-module) V of rank n.
 A field declared `symmetric` has a checked H = Hᵀ. See
-[Endomorphism fields](../language/spectral-observations.md#endomorphism-fields).
+[Endomorphism fields](../language/spectral-observations.md#endomorphism-fields) and the
+[guide](../guide/spectral-observations.md#a-matrix-field-on-the-plane).
 
 ## Entry point
 
@@ -670,7 +673,8 @@ The variable t that `eigen(H, t)` names for a [spectral pair](#spectral-pair).
 It follows the coordinates of the object, so the characteristic polynomial,
 the adjugate, an element of a module observation and a
 [gap witness](#gap-witness) are polynomials in the coordinates and t. It is
-no coordinate of the object. See [Spectral pairs](../language/spectral-observations.md#spectral-pairs).
+no coordinate of the object. See [Spectral pairs](../language/spectral-observations.md#spectral-pairs) and
+the [guide](../guide/spectral-observations.md#the-characteristic-polynomial).
 
 ## Fiber product
 
@@ -749,7 +753,8 @@ The module Aⁿ on a smooth affine object, where A is the ring of polynomials
 with rational coefficients in its coordinates, with a named ordered basis of
 n vectors, declared with `indexed free_module` and `basis(…)`. Its rank is at
 most four. An [endomorphism field](#endomorphism-field) acts on it. See
-[Free modules](../language/spectral-observations.md#free-modules).
+[Free modules](../language/spectral-observations.md#free-modules) and the
+[guide](../guide/spectral-observations.md#a-matrix-field-on-the-plane).
 
 ## Frontend
 
@@ -783,7 +788,8 @@ characteristic polynomial χ, of degree in the
 multiple of χ for the localization g and the exponent e. It certifies that
 every eigenvalue is simple where g is not zero. It is not the
 [witness](#witness) of an existential package. See
-[Branches](../language/spectral-observations.md#branches).
+[Branches](../language/spectral-observations.md#branches) and the
+[guide](../guide/spectral-observations.md#simple-eigenvalues-on-a-chart).
 
 ## Generic
 

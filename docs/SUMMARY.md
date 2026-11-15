@@ -19,6 +19,7 @@
 - [Presented affine geometry](guide/affine-geometry.md)
 - [Smooth geometry and reverse pullbacks](guide/smooth-geometry.md)
 - [Frames and physical dimensions](guide/frames-and-dimensions.md)
+  - [Matrix fields and their spectra](guide/spectral-observations.md)
 - [Storage and resource programs](guide/storage.md)
 - [Numerical maps, GEMM, metrics and tensor networks](guide/numerical.md)
 - [Diagnostics and the CLI](guide/diagnostics-and-cli.md)

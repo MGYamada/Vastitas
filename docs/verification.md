@@ -100,6 +100,8 @@ sections that hold its route theorems and its component theorems.
   [Smooth affine geometry and reverse pullbacks](#smooth-affine-geometry-and-reverse-pullbacks).
 - **Frames, change of frame and physical dimensions.**
   [Frames and physical dimensions](#frames-and-physical-dimensions).
+- **Free modules, endomorphism fields, spectral pairs and branches.**
+  [Spectral observations](#spectral-observations).
 - **Storage, resource programs, numerical maps, networks and code
   generation.** [What is outside these claims](#what-is-outside-these-claims),
   the [tensor packing profile](#tensor-packing-profile),
@@ -220,7 +222,10 @@ oracle definitions they read.
 Mathlib's actual `cfc` on self-adjoint elements at a finite-spectrum basepoint,
 and specializes to finite complex Hermitian matrices without a simple-spectrum
 assumption. The theorem documentation records all regularity assumptions and
-the separate obligations for future AD/Core/native realization.
+the separate obligations for future AD/Core/native realization. The same
+namespace holds its typed Hermitian lift and its cotangent action, and
+`VastitasBridge.Spectral` the Mathlib meaning of the spectral checks, as
+[Spectral observations](#spectral-observations) states.
 
 This independent Lake package uses Lean v4.35.0 and Mathlib commit
 `56a005855ea17e0b0958f73ec801ae140b0a1679`, with every transitive package locked.
@@ -3084,6 +3089,135 @@ Exact rationals inside `frameMatrix` are not bounded; their growth, and the
 cost of one interpreted reverse run per row, are a recorded gap of the
 [acceptance map](stage4-acceptance.md#gaps).
 
+## Spectral observations
+
+**Components of the current routes.** The theorems of this section are about
+the spectral runtime, the checks of spectral declarations, the registry
+entries of the spectral bindings and accepted Core nodes, which the routes
+use. No theorem of this section takes the `CheckedInput` of an entry point.
+The bridge theorems read these kernel and oracle definitions.
+
+The spectral observations run on
+`lean-kernel/VastitasKernel/SpectralRuntime.lean`, which the checker and
+generated programs share and which imports only `FrameRuntime`, and through
+it `SmoothRuntime`. `SpectralDeclarations.lean` holds the checks of free
+modules, endomorphism fields, spectra and branches, the producer of the
+spectral pair and the invariants; `IndexedSpectralSource.lean` elaborates
+the declarations, invariants and observations; `IndexedSpectralContracts.lean`
+and `IndexedSpectralRegistry.lean` hold the contracts and the registry
+entries of the bindings. `Entry.Valid` of `IndexedValidity.lean` calls
+`checkFreeModule`, `checkEndomorphism`, `checkSpectrum` and `checkBranch`.
+The [acceptance map](stage5-acceptance.md) links each acceptance condition to
+the evidence below, and [Spectral observations](language/spectral-observations.md)
+states the rules. The status words are those of
+[How to read this chapter](#how-to-read-this-chapter).
+
+The proofs keep three kinds of claim apart:
+
+- The **oracle** states structural facts about the kernel's definitions:
+  what an accepted declaration satisfies, what the spectral runtime
+  computes, which runtime value an accepted Core node evaluates to, and
+  which declarations and bindings a weakening leaves unchanged. Its
+  statements over a ring hold in every `Lean.Grind.CommRing` that receives
+  the rationals (`SmoothCalculus.RatHom`), so that the bridge can read them
+  at ℝ or at `MvPolynomial`. Its matrices are lists of rows, and its
+  derivatives are formal partial derivatives of polynomials.
+- The **bridge** states what these values mean in Mathlib: the checked χ is
+  `Matrix.charpoly` of the field, a trace power is `Matrix.trace` of the
+  power, a root of χ at a real point is an eigenvalue, the gap witness makes
+  χ′ a unit in the localization, and the Daleckii–Krein derivative has its
+  typed Hermitian lift and its cotangent action.
+- **Tests** are evidence for the diagnostics, the wire, the generated code,
+  the agreement with the Python references, the completeness of the
+  producer and native execution. They prove nothing for all inputs.
+
+### Oracle theorems of spectral observations
+
+All of these are Proved (oracle). Names are relative to `VastitasOracle`.
+
+| Module | Theorems | Statement |
+| --- | --- | --- |
+| `SpectralAlgebra` | `evalIn_eq_of_sub_eq_nil`, `evalIn_extend`, `evalIn_liftT`, `evalIn_tCoefficient`, `sub_ok`, `detPoly_ok`, `addDiagonal_ok`, `matrixPolynomial_ok`, `matrixPower_ok`, `tracePower_ok`, `identities_ok`, `evalIn_detPoly`, `evalIn_plainDet`, `evalMatrix_plainMatMul`, `evalMatrix_plainPower`, `evalIn_tracePoly`, `evalIn_tracePower`, `evalMatrix_plainMatrixPolynomial`, `evalMatrix_charMatrix`, `ringEntry_ringMatMul`, `ringTrace_eq` | A checked identity `Poly.sub p q = []` gives p(z) = q(z) at every point of every such ring. A polynomial of A read in A[t] keeps its value, and a polynomial of A[t] is Σₖ pₖ(x) tᵏ. A budgeted computation that succeeds is its unbudgeted counterpart, so the budget only adds `E_LIMIT`. Evaluation is a ring map on the cofactor determinant `ringDet`, matrix products and powers, traces, Horner's rule and tI − H. A product entry and a trace are finite sums of entries |
+| `SpectralDeclarations` | `checkModule_sound`, `checkRows_sound`, `checkCertificate_sound`, `SpectralValid.characteristic_eq_det`, `SpectralValid.adjugate_eq`, `SpectralValid.adjugateTrace_at`, `SpectralValid.cayleyHamilton_at`, `SpectralValid.idempotence_at`, `SpectralValid.jacobi_at`, `SpectralValid.charCoefficient_at`, `checkWitness_sound`, `WitnessValid.gap_at`, `SpectralValid.unit_at`, `SpectralValid.derivative_ne_zero`, `SpectralValid.slopeAt_ne_zero`, `checkFreeModule_sound`, `checkEndomorphism_sound`, `checkSpectrum_sound`, `checkBranch_sound`, `endomorphism_sound`, `spectrum_sound`, `branch_sound`, `tracePowerImage_sound`, `tracePowerImage_at`, `charCoefficientImage_sound`, `invariant_sound`, `Examples.certify_rows`, `Examples.stage5_valid`, `Examples.stage5_witness_valid`, `Examples.trace_square`, `Examples.trace_square_at`, `Examples.origin_off_chart`, `Examples.unit_gap_no_witness` | An accepted free module has 1 to 4 distinct basis names, an accepted field is an n × n matrix of canonical polynomials of its object for the rank n of its module, with Hᵢⱼ = Hⱼᵢ when declared `symmetric`. An accepted certificate satisfies the six identities exactly: χ = det(tI − H) by the cofactor recursion, (tI − H)·adj = χ·I, tr adj = χ′, χ(H) = 0, adj² − χ′·adj = Q·χ and ∂ᵢχ + tr(adj·∂ᵢH) = 0. An accepted gap witness gives W·χ′ − gᵉ = Q·χ at every point, so where χ = 0 and g has an inverse u, χ′ has the inverse W·uᵉ, and over ℚ χ′ ≠ 0 at a branch point. An accepted invariant is tr(H(x)ᵏ) with 1 ≤ k ≤ 8 at every point of every ring, or the coefficient of tⁱ in χ with i ≤ n. For the field of the example the elaboration's certificate is decided, its trace square is 2x² + 2y², every accepted localization of its spectrum vanishes at the origin, and the localization 1 has no gap witness at all: at (0, 0, ε) in the dual numbers χ = ε² = 0 and g = 1, so χ′ = 2ε would be a unit |
+| `SpectralRuntime` | `onBranch_iff`, `branch_some_iff`, `branchDifferential_fits`, `projectorEntry_ne_failure_iff`, `off_chart_bottom`, `projector_idempotent`, `projector_trace_one`, `adjugate_eigen`, `projector_eigen`, `eigenvector_exists`, `branchDifferential_implicit`, `branchDifferential_hellmann_feynman`, `evalMatrixPoly_eq`, `annihilates_iff`, `annihilates_char`, `Examples.scalar_jordan_regression` | For an accepted spectrum and branch: the differential and the eigenprojector are defined exactly where g(p) ≠ 0 and χ(p, t) = 0, a projector entry is a rational exactly there and in range, the differential lies over p with one component per coordinate, and off the chart every fiber is ⊥ and every entry `(0, 0)`. On the chart P·P = P (identity 5), tr P = 1 (identity 3) and H(p)·P = t·P (identity 2), and a column with Pⱼⱼ ≠ 0 is an eigenvector, so no determinant theory is needed. The components of the differential satisfy cᵢ·χ′ = −∂ᵢχ and cᵢ = tr(P·∂ᵢH(p)) (Jacobi's formula), built from the evaluated partial derivatives, never from `cot`. f(H(p)) is Horner's rule over the evaluated matrix, and χ annihilates every fiber. 2I and the Jordan block, and 0 and N, have valid certificates with equal χ and equal trace powers for every power, and t − 2, or t, annihilates one and not the other |
+| `SpectralPrimitives` | `branchDifferential_typed`, `spectralInvariantValid_constant`, the `_association`, `_shape`, `_total` and `_sound` theorems of the six spectral bindings | Each spectral binding has its association, its operand list, typed totality and its `Sound` instance, which `IndexedSemantics.registry_sound` cites. A spectral invariant is a declared smooth map with no operands; the observations take a point of the object of their spectrum or branch, and the branch observations a value of the declared line from the same 0-dimensional source; `branch_differential` returns ⊥ or a covector over the point with one component per coordinate |
+| `SpectralCore` | `DeclaredEndo.checked`, `DeclaredSpectrum.checked`, `DeclaredBranch.checked`, `DeclaredEndo.unique`, `DeclaredSpectrum.unique`, `DeclaredBranch.unique`, `spectralInvariant_valid_sound`, `spectralInvariant_tracePower_at`, `spectralInvariant_charCoefficient_at`, `spectral_runtime_operations`, `spectral_bindings_environment_free`, `spectralInvariant_rule`, `compiled_invariant_step`, `core_spectral_invariant`, `core_spectral_annihilates`, `core_spectral_action_entry`, `core_spectral_on_branch`, `core_spectral_branch_differential`, `core_spectral_branch_projector` | A valid binding embeds its field, spectrum and branch as declared, down the chain branch, spectrum, field, and in a valid environment the embedded data passes the kernel's checks (`SpectralValid`, `WitnessValid`). An accepted invariant is a declared smooth map with the one image tr(H(x)ᵏ), or the coefficient, at every point of every ring; its derivative rule is `morphism` with that map, so a compiled reverse step along it is the `cotangentJacobian` of that map. An accepted call of each observation evaluates one unit of fuel later to the `SpectralRuntime` operation on the program values of its operands and the declared data. The erased evaluator applies the same operations, and every spectral binding evaluates the same in every environment |
+| `SpectralWeakening` | `spectral_weakening_binding`, `spectral_weakening_entry`, `spectral_weakening_binding_of_valid`, `spectral_weakening_entry_of_valid`, `stage4_bindings_spectral_free`, `spectral_bindings_metric_free`, `spectral_bindings_frame_free`, `spectral_bindings_nature_free` | Spectral declarations at any position of an environment with unique ids change the validity and the value of no binding that names none of them, the bindings of the earlier profiles included, and the validity of no declaration that is no spectral declaration, and of no free module, for every table of class ranks. Every spectral binding is `MetricFree`; frame declarations change no spectral binding that names no frame, and nature declarations none |
+| `SpectralAcceptance` | `c1_fields_and_modules`, `c2_spectral_pair`, `c3_scalar_jordan`, `c4_invariants`, `c4_stage5_invariants`, `s4_trace_square_gradient`, `c5_roadmap_gradient`, `c6_reverse_core_invariant`, `c8_gap_certificate`, `c9_branch_points`, `c10_branch_derivative`, `c11_eigenprojector`, `c12_degenerate`, `c13_weakening` | One theorem per acceptance condition that the oracle states, about accepted programs: each composes a declaration or Core theorem with a runtime or algebra theorem. The gradient of `trace_power(H, 2)` of the example under the Euclidean metric is (4p₀, 4p₁) at every rational point, and its accepted `differential` node computes the covector (4p₀, 4p₁). The values at ((3, 4), ±5) and ((1, 0), ±1), the rank-1, rank-4 and Jordan cases are decided by `decide +kernel` |
+
+`SmoothJacobian.spectralInvariant_reverse` and the case of
+`registry_reverse_sound` cover the spectral invariant by name. The
+observations have the derivative rule `none`, and `SmoothMetricWeakening`
+excludes no spectral binding from `MetricFree`.
+
+### Bridge theorems of spectral observations
+
+All of these are Proved (bridge). `lean-bridge/Audit.lean` requires each
+name.
+
+| File | Theorems | Statement |
+| --- | --- | --- |
+| `Analysis/DaleckiiKreinTyped.lean`, in `VastitasBridge.Analysis.DaleckiiKrein` | `dslope_comm`, `fderivCandidate_isSelfAdjoint`, `hermCfc`, `hermDerivative`, `hasFDerivAt_selfAdjoint_of_val`, `hasFDerivAt_cfc_selfAdjoint`, `matrix_hasFDerivAt_cfc_selfAdjoint`, `trPairing`, `dkCotangent`, `dkCotangent_trPairing`, `dkCotangent_trPairing_eq`, `dkCotangent_trace`, `dkCotangent_trace_pow`, `dk_cotangent_two_point`, `dk_cotangent_two_point_example` | Steps 1 and 2 of the [Daleckii–Krein plan](daleckii-krein.md#connection-to-future-vastitas-work), pure Mathlib. The divided difference is symmetric, so the derivative keeps self-adjoint directions self-adjoint, and the derivative of `cfc f` is a real continuous linear map of the self-adjoint elements. On complex Hermitian matrices `trPairing K` is X ↦ Re tr(KX), with no star on K, and `dkCotangent` pulls a covector back along the derivative. Its representative is Σ f^[s, r] P_s K P_r, which equals the order of the derivative only through `dslope_comm`. The derivative of b ↦ Re tr(bᵏ) has the representative k·aᵏ⁻¹. At diag(0, 1) with f = t³ and K = [[0, 1], [1, 0]] the representative is K, where a commuting formula gives 0 |
+| `Spectral/Prerequisites.lean`, in `VastitasBridge.Spectral` | `hermAt`, `hermDeriv`, `hasFDerivAt_hermAt`, `fderiv_trace_pow_field`, `fderiv_trace_pow_field_apply`, `laplaceDet`, `det_eq_of_laplace`, `laplace_det_eq`, `charpoly_eval₂`, `implicit_branch_hasFDerivAt`, `implicit_branch_fderiv`, `implicit_branch_fderiv_eval` | Pure Mathlib. A symmetric matrix of real polynomials is a complex Hermitian matrix at each real point, with its derivative. The derivative of z ↦ tr(M(z)ᵏ) is the Daleckii–Krein cotangent of the pairing with 1, composed with the derivative of the field, with no hypothesis left. The Laplace expansion along the first row with `List.eraseIdx` is `Matrix.det`. The characteristic polynomial at the last variable is det(tI − M). If χ(x, λ(x)) = 0 near p, χ is differentiable with ∂ₜχ ≠ 0 and λ is differentiable at p, then Dλ(p) = −(∂ₜχ)⁻¹·∇ₓχ; the existence and differentiability of λ are hypotheses |
+| `Spectral/Algebra.lean`, in `VastitasBridge.Spectral` | `evalIn_ofFn`, `evalIn_ofFn_X`, `ringTrace_eq_trace`, `listMatrix_ringMatMul`, `listMatrix_ringPow`, `listMatrix_ringCharMatrix`, `ringDet_eq_det`, `toMv_tracePower`, `toMv_charPoly`, `charpoly_eq_sum`, `toMv_tCoefficient`, `realField_transpose`, `realPoly_tracePower`, `charPoly_eval_real`, `branch_mem_spectrum`, `unit_witness_localization` | The oracle's list matrices read as Mathlib matrices, and its cofactor determinant is `Matrix.det`. An accepted trace power is the trace of the k-th power of the field over `MvPolynomial (Fin m) ℚ` and over ℝ. For a valid certificate χ, with t the last variable, is `Matrix.charpoly` of the field, and its coefficients in t are those of the characteristic polynomial. χ(x, t) is the characteristic polynomial of H(x) at t, so a real zero of χ is an eigenvalue. In the localization away from g of ℚ[x, t]/(χ), the class of ∂ₜχ is a unit |
+
+### Hypotheses and gaps of the spectral proofs
+
+- **Operand evaluation and typing.** Every accepted-node theorem of the
+  oracle keeps the premises that the leaf operands evaluate, at some fuel,
+  to values of their checked types, as the frame theorems do. These are not
+  composed with whole-term preservation,
+  `IndexedEvaluationSafety.evaluation_total_and_typed`.
+- **The emitted reverse Core of a trace power.** The bridge theorems read
+  the trace power and the characteristic polynomial of a checked field and
+  the Daleckii–Krein derivative of a symmetric polynomial field. That the
+  emitted reverse Core of an accepted trace-power invariant computes the
+  Daleckii–Krein cotangent composed with the derivative of the field, the
+  gradient (4x, 4y) at every real point, and the implicit-function form of
+  an accepted branch differential are Planned, for the integration step of
+  the bridge that [History](#history) names.
+- **The branch as a function.** The oracle states the implicit-function
+  form of the differential at a branch point. That the eigenvalue extends
+  to a function near the point is the implicit function theorem, a
+  hypothesis of `implicit_branch_fderiv`. The eigenprojector P is not
+  identified with Mathlib's `spectralProjection`, and the resolution
+  identities Σ P = I and Σ t P = H are not stated.
+- **Symmetric eigenprojectors.** That P is symmetric for a field declared
+  `symmetric` is observed by the acceptance program, not stated.
+- **Class ranks.** `spectral_weakening_entry` holds for every table of class
+  ranks; that `classRanks` computes the same table with and without the
+  added declarations is not proved, as for frames.
+- **Daleckii–Krein steps 3 to 5.** The C∞ comparison, the general
+  correspondence of accepted Core and pass preservation stay open; see
+  [Daleckii–Krein mathematical bridge](daleckii-krein.md).
+
+### Spectral observations: tested, not proved
+
+- The diagnostics of spectral declarations, invariants and rejected calls:
+  the kernel regressions `SpectralDeclarationRegression` and
+  `SpectralRegression`, `tests/spectral_declarations.rs`,
+  `tests/spectral_primitives.rs`, `tests/spectral_observations.rs`,
+  `tests/stdlib_spectral.rs` and the six rejected packages.
+- Raw-wire and tampered-Core rejection, protocols 7 and 8, and the absence of
+  certificates on the wire: the same tests.
+- That the Faddeev–LeVerrier producer gives a certificate that passes the
+  checks for every field, and that the elaboration produces the declarations
+  of the example from its source. Soundness does not depend on either: the
+  kernel checks every certificate.
+- That the limits are reached before any identity is compared and within
+  seconds (`tests/spectral_limits.rs`).
+- Agreement with the Python references: `VastitasAlgebraTest.SpectralReferenceRegression`
+  with `tests/fixtures/spectral.json`, which `scripts/spectral_fixture.py`
+  writes from the models of [standard étale charts](reference/geometry.md#etale-reference)
+  and [finite spectral pairs](reference/algebra-and-symmetry.md#finite-spectral-reference).
+- The generated code of the spectral primitives, byte for byte
+  (`tests/emit_golden.rs`), and the native fixture `spectral_programs` of
+  `scripts/check_indexed_native.sh`.
+- Native execution of the acceptance program and its mutations.
+
+Exact rationals inside the observations are not bounded; their growth is
+not measured.
+
 ## History
 
 This section holds the issue references of the chapter, by the section that
@@ -3134,6 +3268,17 @@ each comes from.
   and the minimal `nature::dimension` of
   [#300](https://github.com/MGYamada/Vastitas/issues/300) are the parts of
   those issues that the section's theorems cover.
+- **Spectral observations.** The tracker of Stage 5's finite profile of
+  exact spectral observations is
+  [#806](https://github.com/MGYamada/Vastitas/issues/806). Its bridge
+  integration step states the Planned theorems of the section: the emitted
+  reverse Core of an accepted trace power as the Daleckii–Krein cotangent,
+  the gradient at every real point and the implicit-function form of an
+  accepted branch differential. The exact spectral pair of
+  [#337](https://github.com/MGYamada/Vastitas/issues/337), the finite charts
+  of [#765](https://github.com/MGYamada/Vastitas/issues/765) and steps 1 and
+  2 of [#471](https://github.com/MGYamada/Vastitas/issues/471) are the parts
+  of those issues that the section's theorems cover.
 
 The rewrite of the book ([#605](https://github.com/MGYamada/Vastitas/issues/605)) retitled these sections and
 kept their former anchors:

@@ -98,12 +98,20 @@ name = "frameFixture"
 path = "../tests/fixtures/frames.json"
 text = true
 
+# Independent Python-reference cross-check for the spectral profile (Stage 5, #806).
+[[input_file]]
+name = "spectralFixture"
+path = "../tests/fixtures/spectral.json"
+text = true
+
 [[lean_lib]]
 name = "VastitasAlgebraTest"
 leanOptions = { autoImplicit = false }
 roots = ["VastitasAlgebraTest.BasisRegression", "VastitasAlgebraTest.SmoothReferenceRegression",
-  "VastitasAlgebraTest.ReverseExampleRegression", "VastitasAlgebraTest.FrameReferenceRegression"]
-needs = ["compilerLimits", "algebraFixture", "smoothFixture", "reverseExampleFixture", "frameFixture"]
+  "VastitasAlgebraTest.ReverseExampleRegression", "VastitasAlgebraTest.FrameReferenceRegression",
+  "VastitasAlgebraTest.SpectralReferenceRegression"]
+needs = ["compilerLimits", "algebraFixture", "smoothFixture", "reverseExampleFixture", "frameFixture",
+  "spectralFixture"]
 
 [[input_file]]
 name = "storageFixture"

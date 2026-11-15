@@ -473,5 +473,11 @@ theorem registry_reverse_sound : ∀ binding : PrimitiveBinding, ReverseSound bi
   | .frameEntry _ _ _ => trivial
   | .frameEqual _ => trivial
   | .frameAt _ _ => trivial
+  | .spectralInvariant _ _ _ => trivial
+  | .annihilates _ _ _ => trivial
+  | .actionEntry _ _ _ _ _ => trivial
+  | .onBranch _ _ _ => trivial
+  | .branchDifferential _ _ _ _ => trivial
+  | .branchProjector _ _ _ _ _ => trivial
 
 end VastitasOracle.SmoothJacobian

@@ -24,6 +24,13 @@ import VastitasOracle.FrameWeakening
 import VastitasOracle.NatureDimension
 import VastitasOracle.NatureWeakening
 import VastitasOracle.FrameAcceptance
+import VastitasOracle.SpectralAlgebra
+import VastitasOracle.SpectralDeclarations
+import VastitasOracle.SpectralRuntime
+import VastitasOracle.SpectralPrimitives
+import VastitasOracle.SpectralCore
+import VastitasOracle.SpectralWeakening
+import VastitasOracle.SpectralAcceptance
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

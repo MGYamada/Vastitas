@@ -393,6 +393,19 @@ exponent bound of a dimension, so that `value = …` can write it.
 | `dimensionScaleFactors` | 16 | The scale factors of one entry of a physical metric | An entry | `E_LIMIT` |
 | `metricEntryBits` | 512 | The bits of the numerator and of the denominator of a scale magnitude, of the coefficient of an entry of a physical metric, and of the entry multiplied out | A scale or an entry | `E_LIMIT` |
 
+## Spectral observations
+
+The kernel bounds the free modules, endomorphisms, spectra and branches of
+`std::linalg::spectral`, and the trace powers of endomorphisms. It checks the
+rank of a free module and the power of an invariant before it computes a
+product. Degrees, terms and work have the bounds of
+[Exact affine algebra](#exact-affine-algebra).
+
+| Limit | Value | Counts | Holds for | Code |
+| --- | --- | --- | --- | --- |
+| `spectralRank` | 4 | The vectors of the basis of a free module, so the rows and the columns of an endomorphism of it | A free module | `E_LIMIT` |
+| `spectralPower` | 8 | The power `k` of `trace_power(H, k)` and the exponent `e` of `simple(S, …, exponent = e)` | An invariant or a branch | `E_LIMIT` |
+
 ## Resource functions
 
 [Resource programs](../storage/resource-programs.md) gives the rules of

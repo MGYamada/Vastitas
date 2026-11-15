@@ -168,6 +168,44 @@ pub enum DeclarationBody {
         value: Option<Vec<DimensionFactor>>,
         entries: PhysicalGram,
     },
+    /// A free module `family<object>` over the coordinate ring of a smooth
+    /// object, with its named ordered basis (protocol 9, Stage 5).
+    FreeModule {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        basis: Vec<String>,
+    },
+    /// An endomorphism `family<object>` of a free module: rows of
+    /// polynomials in the object's coordinates, and whether `symmetric` is
+    /// declared (protocol 9, Stage 5). The kernel checks the claim.
+    Endomorphism {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        module: TypePath,
+        rows: Vec<Vec<PolyExpr>>,
+        symmetric: bool,
+    },
+    /// The spectrum `family<object>` of an endomorphism, with the name of its
+    /// fiber coordinate (protocol 9, Stage 5). The kernel computes the
+    /// certificate; the wire never carries one.
+    Spectrum {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        endomorphism: TypePath,
+        fiber: String,
+    },
+    /// A simple branch `family<object>` of a spectrum on the principal open
+    /// of `localize`, with its gap witness and its exponent, an unsigned
+    /// decimal string (protocol 9, Stage 5). The kernel computes the
+    /// quotient; the wire never carries one.
+    Branch {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        spectrum: TypePath,
+        localize: PolyExpr,
+        witness: PolyExpr,
+        exponent: String,
+    },
 }
 
 /// The columns of a frame: `coordinates`, the coordinate frame, or
@@ -276,11 +314,25 @@ pub enum MorphismDefinition {
     Restrict {
         morphism: TypePath,
     },
+    /// `trace_power(H, k)`: the smooth map `p ↦ tr(H(p)^k)` of an
+    /// endomorphism (Stage 5). The power is an unsigned decimal string.
+    TracePower {
+        endomorphism: TypePath,
+        power: String,
+    },
+    /// `char_coefficient(S, i)`: the coefficient of `t^i` in the
+    /// characteristic polynomial of a spectrum (Stage 5). The index is an
+    /// unsigned decimal string.
+    CharCoefficient {
+        spectrum: TypePath,
+        index: String,
+    },
 }
 
 impl DeclarationBody {
-    /// Stage 2 algebraic, Stage 3 smooth and metric, and Stage 4 frame and
-    /// physical dimension forms. They exist only in protocol 9.
+    /// Stage 2 algebraic, Stage 3 smooth and metric, Stage 4 frame and
+    /// physical dimension, and Stage 5 spectral forms. They exist only in
+    /// protocol 9.
     pub fn is_algebraic(&self) -> bool {
         match self {
             DeclarationBody::Affine { .. }
@@ -297,7 +349,11 @@ impl DeclarationBody {
             | DeclarationBody::Quantity { .. }
             | DeclarationBody::Reading { .. }
             | DeclarationBody::Scale { .. }
-            | DeclarationBody::PhysicalMetric { .. } => true,
+            | DeclarationBody::PhysicalMetric { .. }
+            | DeclarationBody::FreeModule { .. }
+            | DeclarationBody::Endomorphism { .. }
+            | DeclarationBody::Spectrum { .. }
+            | DeclarationBody::Branch { .. } => true,
             DeclarationBody::Primitive { binding } => binding.family().algebraic,
             DeclarationBody::Implementation { representation, .. } => matches!(
                 representation,
@@ -322,6 +378,10 @@ impl DeclarationBody {
                         | FamilyRepresentation::FrameMap
                         | FamilyRepresentation::Reading
                         | FamilyRepresentation::PhysicalMetric
+                        | FamilyRepresentation::FreeModule
+                        | FamilyRepresentation::Endomorphism
+                        | FamilyRepresentation::Spectrum
+                        | FamilyRepresentation::Branch
                 ) || constraints.iter().any(|c| {
                     matches!(
                         c,
@@ -459,6 +519,18 @@ pub enum FamilyRepresentation {
     /// `PhysicalMetric(X)`: indexes the physical interpretations of the
     /// metrics of a chart (protocol 9, Stage 4). No value has this type.
     PhysicalMetric,
+    /// `FreeModule(X)`: indexes the free modules over a smooth object
+    /// (protocol 9, Stage 5). No value has this type.
+    FreeModule,
+    /// `Endomorphism(X)`: indexes the endomorphisms of free modules over a
+    /// smooth object (protocol 9, Stage 5). No value has this type.
+    Endomorphism,
+    /// `Spectrum(X)`: indexes the spectra of endomorphisms over a smooth
+    /// object (protocol 9, Stage 5). No value has this type.
+    Spectrum,
+    /// `Branch(X)`: indexes the simple branches of spectra over a smooth
+    /// object (protocol 9, Stage 5). No value has this type.
+    Branch,
 }
 
 /// How a cotangent pullback obtains forward values.
@@ -1104,6 +1176,211 @@ mod tests {
         }
     }
 
+    /// The spectral forms of Stage 5 serialize to the wire shapes that the
+    /// kernel decodes, read back, and exist only in protocol 9. No form has a
+    /// field for a certificate.
+    #[test]
+    fn every_spectral_form_serializes_to_its_wire_shape_and_is_algebraic() {
+        let p = |name: &str| serde_json::to_value(path(name)).unwrap();
+        let natural = |value: &str| PolyExpr::Natural {
+            value: value.into(),
+        };
+        let coordinate = |name: &str| PolyExpr::Coordinate { name: name.into() };
+        let cases: Vec<(DeclarationBody, serde_json::Value)> = vec![
+            (
+                DeclarationBody::FreeModule {
+                    family: path("FreeModule"),
+                    indices: vec![path("Plane")],
+                    basis: vec!["e1".into(), "e2".into()],
+                },
+                serde_json::json!({
+                    "kind": "free_module", "family": p("FreeModule"), "indices": [p("Plane")],
+                    "basis": ["e1", "e2"]
+                }),
+            ),
+            (
+                DeclarationBody::Endomorphism {
+                    family: path("Endomorphism"),
+                    indices: vec![path("Plane")],
+                    module: path("V"),
+                    rows: vec![
+                        vec![coordinate("x"), coordinate("y")],
+                        vec![
+                            coordinate("y"),
+                            PolyExpr::Neg {
+                                operand: Box::new(coordinate("x")),
+                            },
+                        ],
+                    ],
+                    symmetric: true,
+                },
+                serde_json::json!({
+                    "kind": "endomorphism", "family": p("Endomorphism"), "indices": [p("Plane")],
+                    "module": p("V"), "rows": [
+                        [{"op": "coordinate", "name": "x"}, {"op": "coordinate", "name": "y"}],
+                        [{"op": "coordinate", "name": "y"},
+                            {"op": "neg", "operand": {"op": "coordinate", "name": "x"}}]],
+                    "symmetric": true
+                }),
+            ),
+            (
+                DeclarationBody::Spectrum {
+                    family: path("Spectrum"),
+                    indices: vec![path("Plane")],
+                    endomorphism: path("H"),
+                    fiber: "t".into(),
+                },
+                serde_json::json!({
+                    "kind": "spectrum", "family": p("Spectrum"), "indices": [p("Plane")],
+                    "endomorphism": p("H"), "fiber": "t"
+                }),
+            ),
+            (
+                DeclarationBody::Branch {
+                    family: path("Branch"),
+                    indices: vec![path("Plane")],
+                    spectrum: path("S"),
+                    localize: natural("1"),
+                    witness: coordinate("t"),
+                    exponent: "1".into(),
+                },
+                serde_json::json!({
+                    "kind": "branch", "family": p("Branch"), "indices": [p("Plane")],
+                    "spectrum": p("S"), "localize": {"op": "natural", "value": "1"},
+                    "witness": {"op": "coordinate", "name": "t"}, "exponent": "1"
+                }),
+            ),
+            (
+                DeclarationBody::Morphism {
+                    family: path("Smooth"),
+                    indices: vec![path("Plane"), path("Line")],
+                    definition: MorphismDefinition::TracePower {
+                        endomorphism: path("H"),
+                        power: "2".into(),
+                    },
+                },
+                serde_json::json!({
+                    "kind": "morphism", "family": p("Smooth"), "indices": [p("Plane"), p("Line")],
+                    "definition": {"kind": "trace_power", "endomorphism": p("H"), "power": "2"}
+                }),
+            ),
+            (
+                DeclarationBody::Morphism {
+                    family: path("Smooth"),
+                    indices: vec![path("Plane"), path("Line")],
+                    definition: MorphismDefinition::CharCoefficient {
+                        spectrum: path("S"),
+                        index: "0".into(),
+                    },
+                },
+                serde_json::json!({
+                    "kind": "morphism", "family": p("Smooth"), "indices": [p("Plane"), p("Line")],
+                    "definition": {"kind": "char_coefficient", "spectrum": p("S"), "index": "0"}
+                }),
+            ),
+            (
+                primitive(
+                    "annihilates",
+                    vec![
+                        ("map_family", WireValue::Path(path("Smooth"))),
+                        ("spectrum", WireValue::Path(path("S"))),
+                        ("element", WireValue::Polynomial(coordinate("t"))),
+                    ],
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "annihilates", "map_family": p("Smooth"),
+                        "spectrum": p("S"), "element": {"op": "coordinate", "name": "t"}}
+                }),
+            ),
+            (
+                primitive(
+                    "action_entry",
+                    vec![
+                        ("map_family", WireValue::Path(path("Smooth"))),
+                        ("spectrum", WireValue::Path(path("S"))),
+                        ("element", WireValue::Polynomial(coordinate("t"))),
+                        ("row", WireValue::Coordinate("e1".into())),
+                        ("column", WireValue::Coordinate("e2".into())),
+                    ],
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "action_entry", "map_family": p("Smooth"),
+                        "spectrum": p("S"), "element": {"op": "coordinate", "name": "t"},
+                        "row": "e1", "column": "e2"}
+                }),
+            ),
+            (
+                primitive(
+                    "on_branch",
+                    paths(&[("map_family", "Smooth"), ("line", "Line"), ("branch", "B")]),
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "on_branch", "map_family": p("Smooth"),
+                        "line": p("Line"), "branch": p("B")}
+                }),
+            ),
+            (
+                primitive(
+                    "branch_differential",
+                    paths(&[
+                        ("map_family", "Smooth"),
+                        ("cotangent", "Cotangent"),
+                        ("line", "Line"),
+                        ("branch", "B"),
+                    ]),
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "branch_differential",
+                        "map_family": p("Smooth"), "cotangent": p("Cotangent"), "line": p("Line"),
+                        "branch": p("B")}
+                }),
+            ),
+            (
+                primitive(
+                    "branch_projector",
+                    vec![
+                        ("map_family", WireValue::Path(path("Smooth"))),
+                        ("line", WireValue::Path(path("Line"))),
+                        ("branch", WireValue::Path(path("B"))),
+                        ("row", WireValue::Coordinate("e1".into())),
+                        ("column", WireValue::Coordinate("e2".into())),
+                    ],
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "branch_projector", "map_family": p("Smooth"),
+                        "line": p("Line"), "branch": p("B"), "row": "e1", "column": "e2"}
+                }),
+            ),
+        ];
+        for (body, expected) in &cases {
+            assert!(body.is_algebraic(), "{body:?}");
+            let json = serde_json::to_value(body).unwrap();
+            assert_eq!(&json, expected, "{body:?}");
+            assert_eq!(
+                &serde_json::from_value::<DeclarationBody>(json).unwrap(),
+                body
+            );
+        }
+        for (representation, wire) in [
+            (FamilyRepresentation::FreeModule, "free_module"),
+            (FamilyRepresentation::Endomorphism, "endomorphism"),
+            (FamilyRepresentation::Spectrum, "spectrum"),
+            (FamilyRepresentation::Branch, "branch"),
+        ] {
+            assert_eq!(serde_json::to_value(representation).unwrap(), wire);
+            let family = DeclarationBody::Family {
+                parameters: Vec::new(),
+                constraints: Vec::new(),
+                representation,
+            };
+            assert!(family.is_algebraic(), "{family:?}");
+        }
+        // A morphism definition rejects an unknown field, as the kernel does.
+        let certificate = serde_json::json!({"kind": "trace_power", "endomorphism": p("H"),
+            "power": "2", "certificate": []});
+        assert!(serde_json::from_value::<MorphismDefinition>(certificate).is_err());
+    }
+
     #[test]
     fn descriptor_forms_are_not_algebraic() {
         let forms = [
@@ -1173,6 +1450,11 @@ mod tests {
             "frame_entry",
             "frame_equal",
             "frame_at",
+            "annihilates",
+            "action_entry",
+            "on_branch",
+            "branch_differential",
+            "branch_projector",
         ];
         let mut table: Vec<&str> = primitive_families()
             .iter()

@@ -38,5 +38,7 @@
   "metricMatrixBits": 16384,
   "dimensionBases": 16,
   "dimensionExponent": 64,
-  "dimensionScaleFactors": 16
+  "dimensionScaleFactors": 16,
+  "spectralRank": 4,
+  "spectralPower": 8
 }

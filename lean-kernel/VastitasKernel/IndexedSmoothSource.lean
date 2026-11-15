@@ -104,7 +104,9 @@ def requireSmoothObject (env : Environment) (span : Span) (operation : String) (
 /-- Elaborate the declared morphisms of smooth families, resolve the
 coordinate of every `fiber_component`, and check the objects and variances of
 the smooth, fiber and tape contracts. Declared morphisms of other families are
-left to the Stage 2 elaboration. -/
+left to the Stage 2 elaboration, and the spectral invariants `trace_power` and
+`char_coefficient` (Stage 5) to `elaborateSpectral`, which reads their
+endomorphism or spectrum once it is elaborated. -/
 def elaborateSmooth (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
     Namespace.Result Core.Declarations := do
   let mut primitives := []
@@ -143,11 +145,14 @@ def elaborateSmooth (sources : List (DeclId × Span × Body)) (env : Core.Declar
       | none =>
         smoothProblem span (.smooth s!"the line object `{line.name}` of `differential` is not a smooth object")
     | .relativeConstant application _, some (.morphism _ _ definition) =>
-      if isSmoothFamily env.indexed application.family then
-        let map ← smoothMap env.indexed span application definition
-        primitives := primitives ++ [⟨entry.id, .smoothConstant application map⟩]
-      else
-        primitives := primitives ++ [entry]
+      match definition with
+      | .tracePower .. | .charCoefficient .. => primitives := primitives ++ [entry]
+      | _ =>
+        if isSmoothFamily env.indexed application.family then
+          let map ← smoothMap env.indexed span application definition
+          primitives := primitives ++ [⟨entry.id, .smoothConstant application map⟩]
+        else
+          primitives := primitives ++ [entry]
     | .smoothIntPoint _ object point, _ =>
       if (smoothDimension? env.indexed object).isNone then
         smoothProblem span (.smooth s!"the object `{object.name}` of `smooth_int_point` is not a smooth object")

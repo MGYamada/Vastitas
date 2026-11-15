@@ -292,4 +292,54 @@ pub(crate) const FAMILIES: &[PrimitiveFamily] = &[
         algebraic: true,
         fields: &[("family", WireKind::Path), ("map_family", WireKind::Path)],
     },
+    PrimitiveFamily {
+        op: "annihilates",
+        algebraic: true,
+        fields: &[
+            ("map_family", WireKind::Path),
+            ("spectrum", WireKind::Path),
+            ("element", WireKind::Polynomial),
+        ],
+    },
+    PrimitiveFamily {
+        op: "action_entry",
+        algebraic: true,
+        fields: &[
+            ("map_family", WireKind::Path),
+            ("spectrum", WireKind::Path),
+            ("element", WireKind::Polynomial),
+            ("row", WireKind::Coordinate),
+            ("column", WireKind::Coordinate),
+        ],
+    },
+    PrimitiveFamily {
+        op: "on_branch",
+        algebraic: true,
+        fields: &[
+            ("map_family", WireKind::Path),
+            ("line", WireKind::Path),
+            ("branch", WireKind::Path),
+        ],
+    },
+    PrimitiveFamily {
+        op: "branch_differential",
+        algebraic: true,
+        fields: &[
+            ("map_family", WireKind::Path),
+            ("cotangent", WireKind::Path),
+            ("line", WireKind::Path),
+            ("branch", WireKind::Path),
+        ],
+    },
+    PrimitiveFamily {
+        op: "branch_projector",
+        algebraic: true,
+        fields: &[
+            ("map_family", WireKind::Path),
+            ("line", WireKind::Path),
+            ("branch", WireKind::Path),
+            ("row", WireKind::Coordinate),
+            ("column", WireKind::Coordinate),
+        ],
+    },
 ];

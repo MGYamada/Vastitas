@@ -66,6 +66,10 @@ def representationText : FamilyRepresentation → String
   | .frameMap => "frame_map"
   | .reading => "reading"
   | .physicalMetric => "physical_metric"
+  | .freeModule => "free_module"
+  | .endomorphism => "endomorphism"
+  | .spectrum => "spectrum"
+  | .branch => "branch"
 
 def boundIndexText : Indexed.BoundIndex → String
   | .witness => "witness"
@@ -202,7 +206,8 @@ def familyRule (env : Environment) (entry : Entry) : Option Rule := do
     else if contract.constraints != [.canonical 0, .canonical 1] then
       shape "exactly the constraints `canonical(0), canonical(1)`"
     else implementationsOf "smooth_affine" (smoothImplementation env)
-  | .fiber _ | .metricForm | .frame | .reading | .physicalMetric =>
+  | .fiber _ | .metricForm | .frame | .reading | .physicalMetric
+  | .freeModule | .endomorphism | .spectrum | .branch =>
     if !objects 1 then shape "exactly one parameter, of the form `object(…)`"
     else if contract.constraints != [.canonical 0] then shape "exactly the constraint `canonical(0)`"
     else implementationsOf "smooth_affine" (smoothImplementation env)

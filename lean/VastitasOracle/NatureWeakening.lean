@@ -253,6 +253,49 @@ theorem checkFrame_append (family object : DeclId) (matrix inverse : PolyMatrix)
   · simp
   · simp only [validApplication_mk_of_found ext.metricOrNature (found_of_familyRepresentation frame)]
 
+/-- The family and object of a spectral declaration (Stage 5): a family of a
+representation that no nature extension adds, applied to a smooth object. -/
+theorem spectralDeclaredAt_append {representation : FamilyRepresentation}
+    (other : representation ≠ .metricForm ∧ representation ≠ .reading ∧ representation ≠ .physicalMetric)
+    (family object : DeclId) :
+    SpectralDeclarations.declaredAt big (familyRepresentation big family == some representation) family object =
+      SpectralDeclarations.declaredAt small (familyRepresentation small family == some representation) family
+        object := by
+  simp only [SpectralDeclarations.declaredAt, familyRepresentation_append ext.profile family other,
+    smoothDimension_append ext.profile]
+  cases found : familyRepresentation small family == some representation
+  · simp
+  · simp only [validApplication_mk_of_found ext.metricOrNature (found_of_familyRepresentation found)]
+
+theorem checkFreeModule_append (family object : DeclId) (basis : List String) :
+    SpectralDeclarations.checkFreeModule big family object basis =
+      SpectralDeclarations.checkFreeModule small family object basis := by
+  simp only [SpectralDeclarations.checkFreeModule, isFreeModuleFamily,
+    spectralDeclaredAt_append ext (representation := .freeModule) (by decide)]
+
+theorem checkEndomorphism_append (family object module : DeclId) (rows : PolyMatrix) (symmetric : Bool) :
+    SpectralDeclarations.checkEndomorphism big family object module rows symmetric =
+      SpectralDeclarations.checkEndomorphism small family object module rows symmetric := by
+  simp only [SpectralDeclarations.checkEndomorphism, isEndomorphismFamily,
+    spectralDeclaredAt_append ext (representation := .endomorphism) (by decide),
+    smoothDimension_append ext.profile, freeModuleData_append ext.profile]
+
+theorem checkSpectrum_append (family object endomorphism : DeclId) (fiber : String)
+    (certificate : SpectralCertificate) :
+    SpectralDeclarations.checkSpectrum big family object endomorphism fiber certificate =
+      SpectralDeclarations.checkSpectrum small family object endomorphism fiber certificate := by
+  simp only [SpectralDeclarations.checkSpectrum, isSpectrumFamily,
+    spectralDeclaredAt_append ext (representation := .spectrum) (by decide),
+    smoothCoordinates_append ext.profile, endomorphismData_append ext.profile]
+
+theorem checkBranch_append (family object spectrum : DeclId) (localize witness : AlgebraRuntime.Poly)
+    (exponent : Nat) (quotient : AlgebraRuntime.Poly) :
+    SpectralDeclarations.checkBranch big family object spectrum localize witness exponent quotient =
+      SpectralDeclarations.checkBranch small family object spectrum localize witness exponent quotient := by
+  simp only [SpectralDeclarations.checkBranch, isBranchFamily,
+    spectralDeclaredAt_append ext (representation := .branch) (by decide),
+    smoothDimension_append ext.profile, spectrumData_append ext.profile, endomorphismData_append ext.profile]
+
 theorem lookup_classification_iff (id : DeclId) (parents implementations : List DeclId) :
     lookup big id = some (.classification parents implementations) ↔
       lookup small id = some (.classification parents implementations) :=
@@ -280,6 +323,14 @@ theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   | metric family object gram => simp only [Entry.Valid, validMetric_append ext]
   | metricEvidence metric evidence => simp only [Entry.Valid, validMetricEvidence_append ext]
   | frame family object matrix inverse => simp only [Entry.Valid, checkFrame_append ext]
+  -- The spectral checks of Stage 5 read no nature declaration.
+  | freeModule family object basis => simp only [Entry.Valid, checkFreeModule_append ext]
+  | endomorphism family object module rows symmetric =>
+    simp only [Entry.Valid, checkEndomorphism_append ext]
+  | spectrum family object endomorphism fiber certificate =>
+    simp only [Entry.Valid, checkSpectrum_append ext]
+  | branch family object spectrum localize witness exponent quotient =>
+    simp only [Entry.Valid, checkBranch_append ext]
   | _ => exact absurd trivial other
 
 /-- The executable check is unchanged as well. -/

@@ -1,12 +1,14 @@
 import VastitasKernel.FrameDeclarations
 import VastitasKernel.NatureDimension
+import VastitasKernel.SpectralDeclarations
 
 /-! The validity of indexed declaration entries (`Entry.Valid`, `validEntry`)
 and of the whole declaration environment (`Environment.Valid`,
 `validEnvironment`), over the data model of `Indexed`.
 
 The checks of the frame declarations (`FrameDeclarations`) and of the nature
-declarations (`NatureDimension`) of Stage 4 (#759) read the environment
+declarations (`NatureDimension`) of Stage 4 (#759), and of the spectral
+declarations (`SpectralDeclarations`) of Stage 5 (#806), read the environment
 through the views of `Indexed`, so this module imports them and they import
 `Indexed`. -/
 namespace VastitasKernel.Indexed
@@ -88,6 +90,13 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
   | .scale quantity magnitude => NatureDimension.checkScale env quantity magnitude = true
   | .physicalMetric family object metric reading value entries =>
       NatureDimension.checkPhysicalMetric env family object metric reading value entries = true
+  | .freeModule family object basis => SpectralDeclarations.checkFreeModule env family object basis = true
+  | .endomorphism family object module rows symmetric =>
+      SpectralDeclarations.checkEndomorphism env family object module rows symmetric = true
+  | .spectrum family object endomorphism fiber certificate =>
+      SpectralDeclarations.checkSpectrum env family object endomorphism fiber certificate = true
+  | .branch family object spectrum localize witness exponent quotient =>
+      SpectralDeclarations.checkBranch env family object spectrum localize witness exponent quotient = true
 
 /-- A separately structured executable parent check, avoiding unbounded search
 for a classification record in the finite validation procedure. -/
@@ -123,6 +132,13 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
   | .scale quantity magnitude => NatureDimension.checkScale env quantity magnitude
   | .physicalMetric family object metric reading value entries =>
       NatureDimension.checkPhysicalMetric env family object metric reading value entries
+  | .freeModule family object basis => SpectralDeclarations.checkFreeModule env family object basis
+  | .endomorphism family object module rows symmetric =>
+      SpectralDeclarations.checkEndomorphism env family object module rows symmetric
+  | .spectrum family object endomorphism fiber certificate =>
+      SpectralDeclarations.checkSpectrum env family object endomorphism fiber certificate
+  | .branch family object spectrum localize witness exponent quotient =>
+      SpectralDeclarations.checkBranch env family object spectrum localize witness exponent quotient
 
 structure Environment.Valid (env : Environment) : Prop where
   bounded : env.length ≤ 4096

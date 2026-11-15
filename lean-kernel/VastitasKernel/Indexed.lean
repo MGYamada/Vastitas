@@ -86,7 +86,12 @@ sealed two-index `FrameMap(b, c)` of two frames: its runtime value is the
 matrix of a linear map between tangent fibers in those frames, or the failure
 value. `reading` is the sealed one-index `Reading(X)` and `physicalMetric` the
 sealed one-index `PhysicalMetric(X)` of a smooth object: they index nature
-declarations, and no runtime value has their types. -/
+declarations, and no runtime value has their types.
+
+Stage 5 (#806): `freeModule`, `endomorphism`, `spectrum` and `branch` are the
+sealed one-index `FreeModule(X)`, `Endomorphism(X)`, `Spectrum(X)` and
+`Branch(X)` of a smooth object: they index the spectral declarations, and no
+runtime value has their types. -/
 inductive FamilyRepresentation where
   | token | point | morphism | relative | smooth
   | fiber (variance : Variance)
@@ -97,6 +102,10 @@ inductive FamilyRepresentation where
   | frameMap
   | reading
   | physicalMetric
+  | freeModule
+  | endomorphism
+  | spectrum
+  | branch
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure Family where
@@ -147,6 +156,27 @@ inductive PhysicalGram where
   | normalized (scales : List DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-! ## Spectral payloads (Stage 5, #806)
+
+The data that the spectral declarations carry beyond their source. Their views
+are in the section *Spectral declarations* below. -/
+
+/-- The certificate of a spectrum `eigen(H, t)` of an `n × n` endomorphism `H`
+over `A = ℚ[x₁, …, x_d]`, in `A[t]` with the fiber coordinate `t` as the last
+variable (arity `d + 1`):
+
+- `characteristic`: `χ = det(tI − H)`, monic in `t`;
+- `adjugate`: `adj(tI − H)`, as rows;
+- `idempotence`: the matrix quotient `Q` with `adj² − χ′·adj = Q·χ`.
+
+The kernel computes it during elaboration and `Entry.Valid` checks it again;
+it never comes from the wire. -/
+structure SpectralCertificate where
+  characteristic : AlgebraRuntime.Poly
+  adjugate : PolyMatrix
+  idempotence : PolyMatrix
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 /-! ## Declarations, the environment and its views -/
 
 inductive Declaration where
@@ -188,6 +218,28 @@ inductive Declaration where
   terms of scales. It is evidence about the metric and never produces one. -/
   | physicalMetric (family object metric reading : DeclId) (value : Option DimensionVector)
       (entries : PhysicalGram)
+  /-- A free module `FreeModule<object>` of the family `family` (Stage 5): `Aⁿ`
+  over the coordinate ring `A` of the smooth object `object`, with the named
+  ordered basis `basis` (`n = basis.length`). It is nominal: two endomorphisms
+  act on one module only when they name the same declaration. -/
+  | freeModule (family object : DeclId) (basis : List String)
+  /-- An endomorphism `Endomorphism<object>` of the family `family` of the free
+  module `module` (Stage 5): `n × n` polynomials in the coordinates of
+  `object`, as rows in the module's basis. `symmetric` is the declared claim
+  `H = Hᵀ`, which the kernel checks. -/
+  | endomorphism (family object module : DeclId) (rows : PolyMatrix) (symmetric : Bool)
+  /-- The spectral pair `Spectrum<object>` of the family `family` of the
+  endomorphism `endomorphism` (Stage 5), with the fiber coordinate named
+  `fiber`, and its certificate. -/
+  | spectrum (family object endomorphism : DeclId) (fiber : String) (certificate : SpectralCertificate)
+  /-- A simple branch `Branch<object>` of the family `family` of the spectrum
+  `spectrum` (Stage 5): on the principal open `D(localize)` every eigenvalue is
+  simple, certified by `witness · χ′ − localize ^ exponent = quotient · χ`. The
+  localization `g` is a polynomial in the coordinates of `object`, the witness
+  `W` and the quotient in `A[t]`. The kernel computes `quotient` during
+  elaboration; it never comes from the wire. -/
+  | branch (family object spectrum : DeclId) (localize witness : AlgebraRuntime.Poly) (exponent : Nat)
+      (quotient : AlgebraRuntime.Poly)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- The implementation of a canonical global object: a descriptor global, a
@@ -525,7 +577,8 @@ def Family.Valid (env : Environment) (f : Family) : Prop :=
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (smoothImplementation env)
         | _ => false) = true
-  | .metricForm | .frame | .reading | .physicalMetric => f.parameters.length = 1 ∧
+  | .metricForm | .frame | .reading | .physicalMetric
+  | .freeModule | .endomorphism | .spectrum | .branch => f.parameters.length = 1 ∧
       f.constraints = [.canonical 0] ∧
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (smoothImplementation env)
@@ -640,6 +693,59 @@ def readingData? (env : Environment) (id : DeclId) : Option (DeclId × DeclId ×
 def scaleData? (env : Environment) (id : DeclId) : Option (DeclId × Rat) :=
   match lookup env id with
   | some (.scale quantity magnitude) => some (quantity, magnitude)
+  | _ => none
+
+/-! ## Spectral declarations (Stage 5, #806)
+
+The views of the spectral declarations. Their checks are in
+`SpectralDeclarations`, which `Entry.Valid` calls (`IndexedValidity`). -/
+
+/-- The family is declared with the sealed `free_module` representation. -/
+def isFreeModuleFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .freeModule
+
+/-- The family is declared with the sealed `endomorphism` representation. -/
+def isEndomorphismFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .endomorphism
+
+/-- The family is declared with the sealed `spectrum` representation. -/
+def isSpectrumFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .spectrum
+
+/-- The family is declared with the sealed `branch` representation. -/
+def isBranchFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .branch
+
+/-- The family, object and basis of a declared free module. -/
+def freeModuleData? (env : Environment) (id : DeclId) : Option (DeclId × DeclId × List String) :=
+  match lookup env id with
+  | some (.freeModule family object basis) => some (family, object, basis)
+  | _ => none
+
+/-- The family, object, module, rows and `symmetric` claim of a declared
+endomorphism. -/
+def endomorphismData? (env : Environment) (id : DeclId) :
+    Option (DeclId × DeclId × DeclId × PolyMatrix × Bool) :=
+  match lookup env id with
+  | some (.endomorphism family object module rows symmetric) => some (family, object, module, rows, symmetric)
+  | _ => none
+
+/-- The family, object, endomorphism, fiber name and certificate of a declared
+spectrum. -/
+def spectrumData? (env : Environment) (id : DeclId) :
+    Option (DeclId × DeclId × DeclId × String × SpectralCertificate) :=
+  match lookup env id with
+  | some (.spectrum family object endomorphism fiber certificate) =>
+      some (family, object, endomorphism, fiber, certificate)
+  | _ => none
+
+/-- The family, object, spectrum, localization, witness, exponent and quotient
+of a declared branch. -/
+def branchData? (env : Environment) (id : DeclId) :
+    Option (DeclId × DeclId × DeclId × AlgebraRuntime.Poly × AlgebraRuntime.Poly × Nat × AlgebraRuntime.Poly) :=
+  match lookup env id with
+  | some (.branch family object spectrum localize witness exponent quotient) =>
+      some (family, object, spectrum, localize, witness, exponent, quotient)
   | _ => none
 
 /-- Every object-valued argument is traversed, independently of its runtime

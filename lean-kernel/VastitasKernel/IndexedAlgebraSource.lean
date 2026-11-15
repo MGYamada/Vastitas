@@ -258,6 +258,8 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
         let some e := (bindings.find? (·.1 == name)).map (·.2)
           | throw (.coordinate s!"no image for target coordinate {name}")
         run do reduce dx.basis (← e.evaluate dx.generators)
+    | .tracePower .. | .charCoefficient .. =>
+      throw (.base "`trace_power` and `char_coefficient` define smooth maps, not morphisms over a base")
   let sx ← (chainTo x s "the base is not on the source's base chain").mapError (·, some 2)
   let sy ← (chainTo y s "the base is not on the target's base chain").mapError (·, some 2)
   -- Exactly the audit's check and budget (`relativeConstantValid`).

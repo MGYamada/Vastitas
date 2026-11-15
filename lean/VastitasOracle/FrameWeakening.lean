@@ -464,7 +464,10 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding}
       FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt,
       frameApplyValid, frameCoapplyValid, frameComposeValid, framePairingValid, frameComponentValid,
       frameEntryValid, frameEqualValid, frameAtValid, frameFiberVariance_append ext.profile,
-      isFrameMapFamily_append ext.profile]
+      isFrameMapFamily_append ext.profile,
+      -- The spectral entries of Stage 5 reject every binding.
+      PrimitiveDescriptor.evidence, SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
+      SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector]
 
 /-- **Weakening of evaluation.** A frame extension does not change the value of
 any primitive, whether or not it names an added frame: only `global`,
@@ -558,6 +561,23 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
   | scale quantity magnitude => simp only [validEntry, h, NatureDimension.checkScale, quantityDimension_append ext]
   | physicalMetric family object metric reading value entries =>
     simp only [validEntry, h, checkPhysicalMetric_append ext]
+  -- The spectral checks of Stage 5 read no frame declaration.
+  | freeModule family object basis =>
+    simp only [validEntry, h, SpectralDeclarations.checkFreeModule, SpectralDeclarations.declaredAt,
+      isFreeModuleFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile]
+  | endomorphism family object module rows symmetric =>
+    simp only [validEntry, h, SpectralDeclarations.checkEndomorphism, SpectralDeclarations.declaredAt,
+      isEndomorphismFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, freeModuleData_append ext.profile]
+  | spectrum family object endomorphism fiber certificate =>
+    simp only [validEntry, h, SpectralDeclarations.checkSpectrum, SpectralDeclarations.declaredAt,
+      isSpectrumFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, smoothCoordinates_append ext.profile, endomorphismData_append ext.profile]
+  | branch family object spectrum localize witness exponent quotient =>
+    simp only [validEntry, h, SpectralDeclarations.checkBranch, SpectralDeclarations.declaredAt,
+      isBranchFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, spectrumData_append ext.profile, endomorphismData_append ext.profile]
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
     entry.Valid big ranks ↔ entry.Valid small ranks := by

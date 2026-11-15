@@ -16,6 +16,13 @@
 #
 # usage: scripts/replay_lean.sh <lake-package-dir> [-v] <Module> [<Module>...]
 # VASTITAS_REPLAY_THREADS sets LEAN_NUM_THREADS; it defaults to 1.
+#
+# The replay runs under a resource timer, VASTITAS_REPLAY_TIME, which defaults
+# to /usr/bin/time where that program exists; an empty value turns the timer
+# off. The timer only reports. The exit status is the one that leanchecker
+# records itself, so a timer that fails, such as `time -l` in a macOS sandbox
+# that denies `sysctl kern.clockrate` (#798), neither fails a passing replay
+# nor hides a failed one. When no status is recorded, the replay fails.
 set -euo pipefail
 
 usage() {
@@ -59,15 +66,36 @@ esac
 }
 cd "$package"
 
+time_program=/usr/bin/time
+[ -x "$time_program" ] || time_program=
+time_program=${VASTITAS_REPLAY_TIME-$time_program}
 timer=()
-if [ -x /usr/bin/time ]; then
-  if [ "$(uname)" = Darwin ]; then timer=(/usr/bin/time -l); else timer=(/usr/bin/time -v); fi
+if [ -n "$time_program" ]; then
+  if [ "$(uname)" = Darwin ]; then timer=("$time_program" -l); else timer=("$time_program" -v); fi
 fi
 
+status_file=$(mktemp "${TMPDIR:-/tmp}/replay_lean.XXXXXX")
+trap 'rm -f "$status_file"' EXIT
+
 echo "replay_lean: leanchecker ${modules[*]} in $package with LEAN_NUM_THREADS=$threads"
-status=0
-LEAN_NUM_THREADS=$threads "${timer[@]}" lake env leanchecker ${flags[@]+"${flags[@]}"} "${modules[@]}" ||
-  status=$?
+timer_status=0
+# shellcheck disable=SC2016 # the inner shell expands "$@" and the status file
+LEAN_NUM_THREADS=$threads REPLAY_STATUS_FILE=$status_file ${timer[@]+"${timer[@]}"} \
+  /bin/sh -c 'lake env leanchecker "$@"; s=$?; echo "$s" > "$REPLAY_STATUS_FILE"; exit "$s"' replay_lean \
+  ${flags[@]+"${flags[@]}"} "${modules[@]}" || timer_status=$?
+status=$(cat "$status_file")
+case $status in
+  '' | *[!0-9]*)
+    echo "replay_lean: leanchecker recorded no exit status (timer exit $timer_status)" >&2
+    status=$timer_status
+    [ "$status" -ne 0 ] || status=1
+    ;;
+  *)
+    if [ "$timer_status" -ne "$status" ]; then
+      echo "replay_lean: the resource timer exited $timer_status; the status is leanchecker's" >&2
+    fi
+    ;;
+esac
 if [ "$status" -ne 0 ]; then
   echo "replay_lean: exit $status; the replay is not verified" >&2
 fi

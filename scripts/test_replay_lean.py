@@ -1,7 +1,8 @@
 """Regression checks for scripts/replay_lean.sh, the bounded leanchecker runner.
 
 A fake `lake` on PATH records its arguments and LEAN_NUM_THREADS, so these tests
-never run the real replay.
+never run the real replay. Fake resource timers stand in for `/usr/bin/time`
+where a test needs one that fails, so no test needs privileged timing (#798).
 """
 import os
 from pathlib import Path
@@ -30,6 +31,17 @@ class ReplayLeanTests(unittest.TestCase):
             'exit "${FAKE_LAKE_STATUS:-0}"\n'
         )
         fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+        # A timer that runs the replay and then fails, as `time -l` does in a
+        # macOS sandbox that denies `sysctl kern.clockrate`, and one that
+        # fails before it starts the replay.
+        self.failing_timer = self.executable("failing-time", 'shift\n"$@"\nexit 1\n')
+        self.broken_timer = self.executable("broken-time", "exit 1\n")
+
+    def executable(self, name, body):
+        path = self.bin / name
+        path.write_text("#!/bin/sh\n" + body)
+        path.chmod(path.stat().st_mode | stat.S_IEXEC)
+        return str(path)
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -38,6 +50,7 @@ class ReplayLeanTests(unittest.TestCase):
         environment = dict(os.environ)
         environment["PATH"] = f"{self.bin}{os.pathsep}{environment['PATH']}"
         environment.pop("VASTITAS_REPLAY_THREADS", None)
+        environment.pop("VASTITAS_REPLAY_TIME", None)
         environment.update(env)
         return subprocess.run(["bash", str(SCRIPT), *args], capture_output=True, text=True,
                               env=environment, check=False)
@@ -83,6 +96,35 @@ class ReplayLeanTests(unittest.TestCase):
         result = self.run_script(str(self.package), "M", FAKE_LAKE_STATUS="137")
         self.assertEqual(result.returncode, 137)
         self.assertIn("not verified", result.stderr)
+
+    def test_a_failing_timer_keeps_the_status_of_leanchecker(self):
+        for code in ("0", "1", "137"):
+            with self.subTest(code=code):
+                result = self.run_script(str(self.package), "M", FAKE_LAKE_STATUS=code,
+                                         VASTITAS_REPLAY_TIME=self.failing_timer)
+                self.assertEqual(result.returncode, int(code), result.stderr)
+                self.assertEqual(self.recorded(), "threads=1 args=env leanchecker M")
+                self.assertEqual("not verified" in result.stderr, code != "0")
+                self.assertEqual("timer exited 1" in result.stderr, code != "1")
+
+    def test_a_replay_that_records_no_status_fails(self):
+        result = self.run_script(str(self.package), "M", VASTITAS_REPLAY_TIME=self.broken_timer)
+        self.assertEqual(result.returncode, 1)
+        self.assertIsNone(self.recorded())
+        self.assertIn("recorded no exit status", result.stderr)
+        self.assertIn("not verified", result.stderr)
+        missing = self.run_script(str(self.package), "M", VASTITAS_REPLAY_TIME=str(self.bin / "absent"))
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("not verified", missing.stderr)
+
+    def test_an_empty_timer_setting_turns_timing_off(self):
+        for code in ("0", "137"):
+            with self.subTest(code=code):
+                result = self.run_script(str(self.package), "-v", "M", FAKE_LAKE_STATUS=code,
+                                         VASTITAS_REPLAY_TIME="")
+                self.assertEqual(result.returncode, int(code), result.stderr)
+                self.assertEqual(self.recorded(), "threads=1 args=env leanchecker -v M")
+                self.assertNotIn("timer", result.stderr)
 
 
 if __name__ == "__main__":

@@ -362,6 +362,13 @@ The script sets `LEAN_NUM_THREADS` from `VASTITAS_REPLAY_THREADS`, which
 defaults to 1. It requires explicit module names, accepts only `-v` as a flag,
 and reports a failed or killed replay as not verified.
 
+The script runs the replay under `/usr/bin/time`, which reports the wall time
+and the peak resident set size. `VASTITAS_REPLAY_TIME` names another timer,
+and an empty value turns the timer off. The exit status of the script is the
+one that `leanchecker` records. A timer that fails, such as `time -l` in a
+macOS sandbox that denies `sysctl kern.clockrate`, therefore changes no
+result. When `leanchecker` records no status, the replay is not verified.
+
 ```sh
 bash scripts/replay_lean.sh lean-bridge -v VastitasBridge
 ```

@@ -21,8 +21,11 @@ use the same `WireName` definitions as the family entries.
 `build` receives the arguments in wire order and embeds the placeholders that
 the stage passes fill: `relative_coefficient` starts with coordinate `0` and
 the empty monomial, `fiber_component` with coordinate `0`, `flat` and
-`sharp` with the metric's own ID as the object and empty matrices, and the
-frame bindings (Stage 4) with every named frame as `FrameRef.placeholder`.
+`sharp` with the metric's own ID as the object and empty matrices, the
+frame bindings (Stage 4) with every named frame as `FrameRef.placeholder`, and
+the spectral observations (Stage 5) with every named spectrum or branch as
+`SpectrumRef.placeholder` or `BranchRef.placeholder`, the empty element and
+row and column `0`.
 `resolveFirst` names the fields the resolver resolves before the others, in
 that order; the resolver resolves the rest in wire order. The order is
 observable: the first name that does not resolve is the one reported, and the
@@ -79,6 +82,21 @@ frame's own ID as its object and empty matrices. `elaborateFrames` replaces it
 with the declaration's object, matrix and inverse. -/
 def FrameRef.placeholder (frame : DeclId) : FrameRef := ⟨frame, frame, [], []⟩
 
+/-- The placeholder of an endomorphism (Stage 5): its own ID as its object and
+module, no rows, not symmetric. -/
+def EndoRef.placeholder (endomorphism : DeclId) : EndoRef := ⟨endomorphism, endomorphism, endomorphism, [], false⟩
+
+/-- The placeholder of a spectrum that a spectral binding names (Stage 5): its
+own ID as its endomorphism and empty polynomials. `elaborateSpectral` replaces
+it with the declarations' data. -/
+def SpectrumRef.placeholder (spectrum : DeclId) : SpectrumRef :=
+  ⟨spectrum, EndoRef.placeholder spectrum, [], []⟩
+
+/-- The placeholder of a branch that a spectral binding names (Stage 5): its
+own ID as its spectrum, empty polynomials and exponent `0`. `elaborateSpectral`
+replaces it with the declarations' data. -/
+def BranchRef.placeholder (branch : DeclId) : BranchRef := ⟨branch, SpectrumRef.placeholder branch, [], [], 0⟩
+
 /-! The op and field names that a stage pass reads back from a source form.
 The family entries use these definitions, so a pass reads exactly the fields
 that the decoder admits. -/
@@ -89,6 +107,14 @@ def relativeCoefficient : String := "relative_coefficient"
 def fiberComponent : String := "fiber_component"
 def coordinate : String := "coordinate"
 def monomial : String := "monomial"
+/-- `elaborateSpectral` reads the element of these ops (Stage 5). -/
+def annihilates : String := "annihilates"
+def actionEntry : String := "action_entry"
+def element : String := "element"
+/-- `elaborateSpectral` reads the basis names of these ops (Stage 5). -/
+def branchProjector : String := "branch_projector"
+def row : String := "row"
+def column : String := "column"
 end WireName
 
 /-- The families, Stage 1 first and then the protocol-9 operations in the
@@ -301,7 +327,49 @@ def families : List PrimitiveFamily := [
   { op := "frame_at", algebraic := true, fields := [path "family", path "map_family"],
     build := fun
       | [.declaration family, .declaration smooth] => pure (.frameAt family smooth)
-      | _ => mismatch "frame_at" } ]
+      | _ => mismatch "frame_at" },
+  /- Spectral observations (Stage 5, protocol 9). Every spectrum or branch
+  that a binding names is embedded as a placeholder (`SpectrumRef.placeholder`,
+  `BranchRef.placeholder`), an element as the empty polynomial and a basis name
+  as index `0`: `elaborateSpectral` fills them from the declarations once the
+  spectral declarations are elaborated. The spectral invariants have no
+  family: `trace_power` and `char_coefficient` define declared morphisms. -/
+  { op := WireName.annihilates, algebraic := true,
+    fields := [path "map_family", path "spectrum", ⟨WireName.element, .polynomial⟩],
+    resolveFirst := ["spectrum"],
+    build := fun
+      | [.declaration smooth, .declaration spectrum, .polynomial _] =>
+          pure (.annihilates smooth (SpectrumRef.placeholder spectrum) [])
+      | _ => mismatch WireName.annihilates },
+  { op := WireName.actionEntry, algebraic := true,
+    fields := [path "map_family", path "spectrum", ⟨WireName.element, .polynomial⟩,
+      ⟨WireName.row, .coordinate⟩, ⟨WireName.column, .coordinate⟩],
+    resolveFirst := ["spectrum"],
+    build := fun
+      | [.declaration smooth, .declaration spectrum, .polynomial _, .coordinate _, .coordinate _] =>
+          pure (.actionEntry smooth (SpectrumRef.placeholder spectrum) [] 0 0)
+      | _ => mismatch WireName.actionEntry },
+  { op := "on_branch", algebraic := true, fields := [path "map_family", path "line", path "branch"],
+    resolveFirst := ["branch"],
+    build := fun
+      | [.declaration smooth, .declaration line, .declaration branch] =>
+          pure (.onBranch smooth line (BranchRef.placeholder branch))
+      | _ => mismatch "on_branch" },
+  { op := "branch_differential", algebraic := true,
+    fields := [path "map_family", path "cotangent", path "line", path "branch"],
+    resolveFirst := ["branch"],
+    build := fun
+      | [.declaration smooth, .declaration cotangent, .declaration line, .declaration branch] =>
+          pure (.branchDifferential smooth cotangent line (BranchRef.placeholder branch))
+      | _ => mismatch "branch_differential" },
+  { op := WireName.branchProjector, algebraic := true,
+    fields := [path "map_family", path "line", path "branch", ⟨WireName.row, .coordinate⟩,
+      ⟨WireName.column, .coordinate⟩],
+    resolveFirst := ["branch"],
+    build := fun
+      | [.declaration smooth, .declaration line, .declaration branch, .coordinate _, .coordinate _] =>
+          pure (.branchProjector smooth line (BranchRef.placeholder branch) 0 0)
+      | _ => mismatch WireName.branchProjector } ]
 
 /-- The family of a wire op. -/
 def primitiveFamily? (op : String) : Option PrimitiveFamily :=
@@ -327,5 +395,20 @@ def Source.Primitive.relativeCoefficientArguments? (p : Source.Primitive) :
 resolves once objects are known. -/
 def Source.Primitive.fiberComponentCoordinate? (p : Source.Primitive) : Option String :=
   p.coordinate? WireName.fiberComponent WireName.coordinate
+
+/-- The element of an `annihilates` or `action_entry` form (Stage 5), which
+`elaborateSpectral` expands once the spectrum is elaborated. -/
+def Source.Primitive.spectralElement? (p : Source.Primitive) : Option Source.PolyExpr :=
+  (p.polynomial? WireName.annihilates WireName.element).orElse fun _ =>
+    p.polynomial? WireName.actionEntry WireName.element
+
+/-- The basis names of the row and the column of an `action_entry` or
+`branch_projector` form (Stage 5), which `elaborateSpectral` resolves once the
+module is elaborated. -/
+def Source.Primitive.spectralEntry? (p : Source.Primitive) : Option (String × String) :=
+  (do return (← p.coordinate? WireName.actionEntry WireName.row,
+      ← p.coordinate? WireName.actionEntry WireName.column)).orElse fun _ => do
+    return (← p.coordinate? WireName.branchProjector WireName.row,
+      ← p.coordinate? WireName.branchProjector WireName.column)
 
 end VastitasKernel.Indexed

@@ -4,19 +4,19 @@ import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
 
-/-! The spectral declarations, families and invariants (Stage 5, #806;
-`std::linalg::spectral`) through the public wire decoders, the source
+/-! The spectral declarations, families, invariants and observations (Stage 5,
+#806; `std::linalg::spectral`) through the public wire decoders, the source
 checker and the declaration audit. These are executable regressions, not
 proofs.
 
 Protocol 9 decodes each wire shape of a free module, an endomorphism, a
-spectrum and a branch, of the four family representations and of the
-morphism definitions `trace_power` and `char_coefficient`; protocols 7 and 8
-reject each with `E_PROTOCOL`. No shape has a field for a certificate. The
-spectral families are data-model rules and are checked in full. Nothing else
-is implemented yet: the source checker rejects every spectral declaration and
-invariant with `E_SPECTRAL`, and the declaration audit rejects every spectral
-entry. -/
+spectrum and a branch, of the four family representations, of the morphism
+definitions `trace_power` and `char_coefficient`, and of the five observation
+primitives; protocols 7 and 8 reject each with `E_PROTOCOL`. No shape has a
+field for a certificate. The spectral families are data-model rules and are
+checked in full. Nothing else is implemented yet: the source checker rejects
+every spectral declaration, invariant and observation with `E_SPECTRAL`, and
+the declaration audit rejects every spectral entry. -/
 namespace VastitasKernel.Indexed.SpectralDeclarationRegression
 
 open Lean
@@ -100,6 +100,26 @@ private def tracePower (endo : String) (power : String) : Json :=
   Json.mkObj [("kind", toJson "trace_power"), ("endomorphism", pathJson endo), ("power", toJson power)]
 private def charCoefficient (spec : String) (index : String) : Json :=
   Json.mkObj [("kind", toJson "char_coefficient"), ("spectrum", pathJson spec), ("index", toJson index)]
+
+/-- `indexed primitive name = op(fields…)`. -/
+private def primitive (name op : String) (fields : List (String × Json)) : Json :=
+  decl "primitive" name [("binding", Json.mkObj ([("op", toJson op)] ++ fields))]
+/-- `t - 2`, an element of `A[t]`. -/
+private def shifted : Json := sumJson [coordinate "t", negJson (natural 2)]
+
+/-- The five observations, each with its name and op. They name the spectrum
+`spec` or the branch `branch`. -/
+private def observations (spec branch : String) : List (String × String × Json) := [
+  ("ann", "annihilates", primitive "ann" "annihilates" [("map_family", pathJson "Smooth"),
+    ("spectrum", pathJson spec), ("element", shifted)]),
+  ("entry", "action_entry", primitive "entry" "action_entry" [("map_family", pathJson "Smooth"),
+    ("spectrum", pathJson spec), ("element", shifted), ("row", toJson "e1"), ("column", toJson "e2")]),
+  ("on", "on_branch", primitive "on" "on_branch" [("map_family", pathJson "Smooth"), ("line", pathJson "Line"),
+    ("branch", pathJson branch)]),
+  ("dlam", "branch_differential", primitive "dlam" "branch_differential" [("map_family", pathJson "Smooth"),
+    ("cotangent", pathJson "Cotangent"), ("line", pathJson "Line"), ("branch", pathJson branch)]),
+  ("proj", "branch_projector", primitive "proj" "branch_projector" [("map_family", pathJson "Smooth"),
+    ("line", pathJson "Line"), ("branch", pathJson branch), ("row", toJson "e1"), ("column", toJson "e2")])]
 
 /-! ### Requests -/
 
@@ -191,7 +211,8 @@ private def declarations : List (String × String × Json × List Json) := [
     decodes (branch "B" "S" (natural 1) (natural 1) "123456789") true)
 #eval check "the source checker rejects the whole Stage 5 example at its first declaration"
   (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrumS, branchB] ++
-      [invariant "tr2" (tracePower "H" "2"), invariant "c0" (charCoefficient "S" "0")])
+      [invariant "tr2" (tracePower "H" "2"), invariant "c0" (charCoefficient "S" "0")] ++
+      (observations "S" "B").map (·.2.2))
     "E_SPECTRAL" "the free module `spectral::V` is not implemented yet")
 
 #eval check "a spectral declaration names one object"
@@ -252,6 +273,24 @@ declaration is rejected before it. -/
     !decodes (invariant "c0" (withoutField (charCoefficient "S" "0") "index")) true &&
     !decodes (invariant "tr2" (tracePower "H" "-2")) true &&
     !decodes (invariant "c0" (charCoefficient "S" (String.ofList (List.replicate 65 '1')))) true)
+
+/-! ## Spectral observations: protocol 9 only, rejected until implemented -/
+
+#eval check "protocol 9 decodes each spectral observation"
+  ((observations "S" "B").all fun (_, _, j) => decodes j true)
+#eval check "protocols 7 and 8 reject each spectral observation with E_PROTOCOL"
+  ((observations "S" "B").all fun (_, _, j) => rejectedBefore9 j "unknown indexed primitive contract")
+/- The observations name a declaration that is not spectral, so that no
+spectral declaration is rejected before them. -/
+#eval check "the source checker rejects each spectral observation with E_SPECTRAL until it is implemented"
+  ((observations "Plane" "Plane").all fun (name, op, j) =>
+    rejectsWith 9 (smoothBase ++ [j]) "E_SPECTRAL"
+      s!"the `{op}` declaration `spectral::{name}` is not implemented yet")
+#eval check "a spectral observation takes exactly its fields"
+  ((observations "S" "B").all fun (_, _, j) =>
+    let binding := (j.getObjValD "binding")
+    !decodes (withField j "binding" (withField binding "certificate" (toJson ([] : List Json)))) true &&
+      !decodes (withField j "binding" (withoutField binding "map_family")) true)
 
 /-! ## A spectral entry is invalid in the declaration audit
 

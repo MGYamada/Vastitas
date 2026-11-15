@@ -1278,6 +1278,79 @@ mod tests {
                     "definition": {"kind": "char_coefficient", "spectrum": p("S"), "index": "0"}
                 }),
             ),
+            (
+                primitive(
+                    "annihilates",
+                    vec![
+                        ("map_family", WireValue::Path(path("Smooth"))),
+                        ("spectrum", WireValue::Path(path("S"))),
+                        ("element", WireValue::Polynomial(coordinate("t"))),
+                    ],
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "annihilates", "map_family": p("Smooth"),
+                        "spectrum": p("S"), "element": {"op": "coordinate", "name": "t"}}
+                }),
+            ),
+            (
+                primitive(
+                    "action_entry",
+                    vec![
+                        ("map_family", WireValue::Path(path("Smooth"))),
+                        ("spectrum", WireValue::Path(path("S"))),
+                        ("element", WireValue::Polynomial(coordinate("t"))),
+                        ("row", WireValue::Coordinate("e1".into())),
+                        ("column", WireValue::Coordinate("e2".into())),
+                    ],
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "action_entry", "map_family": p("Smooth"),
+                        "spectrum": p("S"), "element": {"op": "coordinate", "name": "t"},
+                        "row": "e1", "column": "e2"}
+                }),
+            ),
+            (
+                primitive(
+                    "on_branch",
+                    paths(&[("map_family", "Smooth"), ("line", "Line"), ("branch", "B")]),
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "on_branch", "map_family": p("Smooth"),
+                        "line": p("Line"), "branch": p("B")}
+                }),
+            ),
+            (
+                primitive(
+                    "branch_differential",
+                    paths(&[
+                        ("map_family", "Smooth"),
+                        ("cotangent", "Cotangent"),
+                        ("line", "Line"),
+                        ("branch", "B"),
+                    ]),
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "branch_differential",
+                        "map_family": p("Smooth"), "cotangent": p("Cotangent"), "line": p("Line"),
+                        "branch": p("B")}
+                }),
+            ),
+            (
+                primitive(
+                    "branch_projector",
+                    vec![
+                        ("map_family", WireValue::Path(path("Smooth"))),
+                        ("line", WireValue::Path(path("Line"))),
+                        ("branch", WireValue::Path(path("B"))),
+                        ("row", WireValue::Coordinate("e1".into())),
+                        ("column", WireValue::Coordinate("e2".into())),
+                    ],
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "branch_projector", "map_family": p("Smooth"),
+                        "line": p("Line"), "branch": p("B"), "row": "e1", "column": "e2"}
+                }),
+            ),
         ];
         for (body, expected) in &cases {
             assert!(body.is_algebraic(), "{body:?}");
@@ -1377,6 +1450,11 @@ mod tests {
             "frame_entry",
             "frame_equal",
             "frame_at",
+            "annihilates",
+            "action_entry",
+            "on_branch",
+            "branch_differential",
+            "branch_projector",
         ];
         let mut table: Vec<&str> = primitive_families()
             .iter()

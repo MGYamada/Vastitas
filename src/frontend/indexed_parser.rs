@@ -1405,7 +1405,21 @@ fn poly_levels(expression: &indexed::PolyExpr) -> usize {
 mod tests {
     use super::*;
 
-    /// One surface form per family of the generated table, in table order.
+    /// The families of the generated table that have no surface form yet:
+    /// the observations of the Stage 5 skeleton (#806). The parser lane of
+    /// Stage 5 adds their arms and snippets and removes them from this list;
+    /// `every_table_entry_parses_to_its_wire_fields` fails until it does
+    /// both, since it requires each of them to be the unknown contract.
+    const UNPARSED: &[&str] = &[
+        "annihilates",
+        "action_entry",
+        "on_branch",
+        "branch_differential",
+        "branch_projector",
+    ];
+
+    /// One surface form per family of the generated table, in table order,
+    /// except the families of `UNPARSED`.
     const SNIPPETS: &[(&str, &str)] = &[
         ("descriptor", "descriptor(AffineQQ)"),
         ("global", "global(SpecQQ)"),
@@ -1503,16 +1517,25 @@ mod tests {
     /// algebraic.
     #[test]
     fn every_table_entry_parses_to_its_wire_fields() {
-        let table: Vec<&str> = indexed::primitive_families()
-            .iter()
-            .map(|family| family.op)
-            .collect();
+        let parsed = || {
+            indexed::primitive_families()
+                .iter()
+                .filter(|family| !UNPARSED.contains(&family.op))
+        };
+        let table: Vec<&str> = parsed().map(|family| family.op).collect();
         let snippets: Vec<&str> = SNIPPETS.iter().map(|(op, _)| *op).collect();
         assert_eq!(
             snippets, table,
             "one snippet per table entry, in table order"
         );
-        for (family, (_, snippet)) in indexed::primitive_families().iter().zip(SNIPPETS) {
+        for op in UNPARSED {
+            assert!(indexed::primitive_family(op).is_some(), "{op}");
+            let source = format!("indexed primitive p = {op}(Smooth);");
+            let error = parse_binding(&source).expect_err(op);
+            assert_eq!(error.code, "E_TYPE", "{op}");
+            assert_eq!(error.message, "unknown indexed primitive contract", "{op}");
+        }
+        for (family, (_, snippet)) in parsed().zip(SNIPPETS) {
             let source = format!("indexed primitive p = {snippet};");
             let binding = parse_binding(&source)
                 .unwrap_or_else(|error| panic!("`{snippet}` does not parse: {error:?}"));

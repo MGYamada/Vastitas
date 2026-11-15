@@ -1,0 +1,14 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::linalg::spectral::FreeModule;
+use std::linalg::spectral::Endomorphism;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed free_module V: FreeModule<Plane> = basis(e1, e2);
+
+// ANCHOR: declarations
+// `symmetric` is a claim that the kernel checks, entry by entry: the entry
+// (e1, e2) of K is y and its entry (e2, e1) is -y.
+indexed endomorphism K: Endomorphism<Plane> = rows((x, y), (-y, x)) of V symmetric;
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

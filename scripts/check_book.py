@@ -550,6 +550,14 @@ PARSE_EXCEPTIONS = {
     # Stage 5 (#806): the Reference gains the productions of the spectral
     # families, declarations and primitives with the tracker's documentation
     # step, which then removes these entries.
+    "examples/packages/spectral-observations/src/main.vast": (False, SPECTRAL_PENDING),
+    "examples/packages/spectral-observations/src/profile.vast": (False, SPECTRAL_PENDING),
+    "examples/reject/packages/spectral-gap-at-origin/main.vast": (False, SPECTRAL_PENDING),
+    "examples/reject/packages/spectral-jordan-branch/main.vast": (False, SPECTRAL_PENDING),
+    "examples/reject/packages/spectral-not-symmetric/main.vast": (False, SPECTRAL_PENDING),
+    "examples/reject/packages/spectral-other-object/main.vast": (False, SPECTRAL_PENDING),
+    "examples/reject/packages/spectral-rank-limit/main.vast": (False, SPECTRAL_PENDING),
+    "examples/reject/packages/spectral-wrong-witness/main.vast": (False, SPECTRAL_PENDING),
     "stdlib/src/linalg/spectral/mod.vast": (False, SPECTRAL_PENDING),
 }
 RECORDED = re.compile(r"^(\S+?\.vast):\d+:\d+: (E_[A-Z][A-Z0-9_]*): ", re.M)

@@ -1,0 +1,1 @@
+examples/reject/packages/spectral-wrong-witness/main.vast:17:1: E_SPECTRAL: the witness of the branch `spectral_wrong_witness::B` does not certify the gap: W·χ′ − g^e is not a multiple of the characteristic polynomial χ

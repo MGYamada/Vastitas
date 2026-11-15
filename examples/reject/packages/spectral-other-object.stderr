@@ -1,0 +1,1 @@
+examples/reject/packages/spectral-other-object/main.vast:13:1: E_SPECTRAL: the endomorphism `spectral_other_object::H` is on `spectral_other_object::Image`, but its free module `spectral_other_object::V` is on `spectral_other_object::Plane`; an endomorphism and its free module have one object

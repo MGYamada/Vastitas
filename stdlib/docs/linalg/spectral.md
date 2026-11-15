@@ -39,18 +39,25 @@ takes the eigenvalue as an input.
 
 ## Use
 
-`tests/stdlib_spectral.rs` runs an application from a copy of the standard
-library that declares, on its plane, a field of rank 1, a field of rank 4 and
-the zero field, such as:
+[`examples/packages/spectral-observations/`](../../../examples/packages/spectral-observations),
+which `tests/spectral_observations.rs` and `tests/examples.rs` build and run,
+and which `tests/spectral_observations.rs` mutates, declares on its plane:
 
-- `indexed free_module U: FreeModule<Plane> = basis(u);`
-- `indexed endomorphism L: Endomorphism<Plane> = rows((x + y)) of U symmetric;`
-- `indexed spectrum SL: Spectrum<Plane> = eigen(L, s);`
-- `indexed branch BL: Branch<Plane> = simple(SL, localize = 1, witness = 1, exponent = 1);`
+- `indexed free_module V: FreeModule<Plane> = basis(e1, e2);`
+- `indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric;`
+- `indexed spectrum S: Spectrum<Plane> = eigen(H, t);`
+- `indexed branch B: Branch<Plane> = simple(S, localize = x^2 + y^2, witness = frac(1, 2) * t, exponent = 1);`
 
-It observes the branch point `(p, 3)` at `p = (1, 2)`, with the differential
-`(1, 1)` and the eigenprojector `1`, a trace power and the determinant of the
-field of rank 4, and prints `42`.
+It observes that `trace_power(H, 2)` is the smooth map `2x² + 2y²` with the
+gradient `(4x, 4y)` on a dimensionless Euclidean chart, the branch points,
+differentials and eigenprojectors of `B` at `(3, 4)`, and that `2I` and the
+Jordan block `[[2, 1], [0, 2]]` on the point have the same invariants and
+different module actions, and it prints `42`. `tests/stdlib_spectral.rs` runs
+an application with a field of rank 1, a field of rank 4 and the zero field
+from a copy of the standard library. The rejected packages
+`examples/reject/packages/spectral-*` show the diagnostics of a chart without
+a gap, a Jordan block, a field that is not symmetric, a field of another
+object, a perturbed witness and a rank above the limit.
 
 ## Rules and proofs
 

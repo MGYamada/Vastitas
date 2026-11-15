@@ -114,7 +114,8 @@ jobs:
             Mathlib.RingTheory.Kaehler.Polynomial \
             Mathlib.LinearAlgebra.Matrix.PosDef \
             Mathlib.LinearAlgebra.Matrix.NonsingularInverse \
-            Mathlib.Algebra.Order.Star.Real
+            Mathlib.Algebra.Order.Star.Real \
+            Mathlib.Analysis.Calculus.Deriv.Pow
       - name: Build the mathematical bridge
         working-directory: lean-bridge
         run: lake build

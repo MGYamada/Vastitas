@@ -10,6 +10,7 @@ import VastitasBridge.AlgebraicGeometry.Kernel.Embed
 import VastitasBridge.AlgebraicGeometry.Kernel.PrincipalOpens
 import VastitasBridge.AlgebraicGeometry.Kernel.FiberProducts
 import VastitasBridge.Analysis.DaleckiiKrein
+import VastitasBridge.Analysis.DaleckiiKreinTyped
 import VastitasBridge.Differential.Prerequisites
 import VastitasBridge.Differential.Derivative
 import VastitasBridge.Differential.ChainRule

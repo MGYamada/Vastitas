@@ -6,7 +6,7 @@ Stage states a mathematical target and an acceptance example, an example that
 could establish the completion of the Stage. Stages 2, 3 and 4 are
 Implemented as finite profiles over the rational numbers: each has a Status
 paragraph, Reference chapters and a [delivery record](../appendix/history.md).
-Stages 5 to 7 are Planned.
+Stages 5 to 7 are Planned, and Stage 5 is in progress.
 
 The Stages answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
@@ -138,7 +138,7 @@ representation also needs a validated lowering, including its floating-point
 and ownership obligations. [Basis adequacy, #518](https://github.com/MGYamada/Vastitas/issues/518) · [Metric operations, #264](https://github.com/MGYamada/Vastitas/issues/264)
 
 **Status.** A finite, checked profile over QQ implements this example
-([acceptance map](../stage4-acceptance.md), tracker #759, open until its
+([acceptance map](../stage4-acceptance.md), tracker #759, closed after its
 continuous integration and its independent whole-stage review). It has
 ordered frames of smooth affine objects, constant or polynomial in the
 point: the kernel computes the inverse of a constant frame and checks the
@@ -183,6 +183,21 @@ finite-spectrum derivative of functional calculus on self-adjoint inputs,
 including repeated eigenvalues. Its codomain is the ambient algebra. The
 typed Hermitian lift, cotangent action and agreement with emitted reverse
 Core remain open. [Proved Daleckii–Krein statement](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/daleckii-krein.md) · [Spectral AD obligations, #471](https://github.com/MGYamada/Vastitas/issues/471)
+
+**Status.** In progress ([acceptance map](../stage5-acceptance.md), tracker
+#806), and Planned until the tracker closes. The planned profile is a finite,
+checked profile over QQ: polynomial matrix fields of a free module on a
+smooth affine object; the characteristic polynomial, computed by the kernel
+and checked by an independent route, together with the module action, so
+that a scalar matrix and a Jordan block stay different; trace powers and
+characteristic coefficients as smooth maps, whose gradients come from the
+reverse pass; and simple eigenvalue branches on a principal open certified
+by a unit witness, with the branch differential and the eigenprojector. The
+mathlib bridge is to prove the typed Hermitian lift and the cotangent action
+of the Daleckii–Krein derivative, and that the emitted reverse Core of a
+trace-power invariant computes that cotangent.
+[ADR 0001 §12](../adr/0001-mathematics-first-stdlib.md#12-exact-spectral-pairs-and-simple-branches-of-polynomial-matrix-fields-amendment-2026-11-15)
+admits the module `std::linalg::spectral`.
 
 ## Stage 6. A first physical model
 

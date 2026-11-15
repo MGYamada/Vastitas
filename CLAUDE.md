@@ -11,8 +11,8 @@ in Git. No release/publication histories.
 
 - Develop `.vast`; status: [README](README.md), tests,
   [acceptance](docs/stage1-acceptance.md)/[completion](docs/stage1-completion.md).
-  Stage 1b is not full Stage 1 completion. Stages 2-4: [affine](docs/stage2-acceptance.md),
-  [smooth](docs/stage3-acceptance.md), [frames](docs/stage4-acceptance.md).
+  Stage 1b is not full Stage 1 completion. Stages 2-5:
+  [delivery records](docs/appendix/history.md).
 - [Roadmap](docs/guide/historical-roadmap.md) follows current issues. Separate
   implemented, tested, proved and planned work.
 - **Fast like C is the primary goal.** Follow [storage ownership](docs/storage-ownership.md):

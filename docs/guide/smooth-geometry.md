@@ -20,6 +20,36 @@ target/debug/vastitas build --manifest-path examples/packages/stdlib-differentia
 The first command generates the standard library's package root; see
 [using the standard library](stdlib.md#using-the-standard-library).
 
+## A first derivative
+
+The smallest program of this geometry computes one derivative. It
+differentiates the map t ↦ t² of the line at the point 3, and it prints the
+derivative, 6:
+
+```vast
+{{#include ../../examples/packages/first-derivative/main.vast:all}}
+```
+
+After the first command above, build and run it:
+
+```sh
+target/debug/vastitas build --manifest-path examples/packages/first-derivative/Vastitas.toml -o target/first-derivative
+./target/first-derivative
+```
+
+Three names compute the result:
+
+- `differential(square(), line_at(3))` is the differential of `square` at
+  the point 3. It is the [covector](#covectors-and-vectors) 6 dt, and
+  [the differential](#the-differential) defines it.
+- `dt` reads the component of a covector at the coordinate `t`. A component
+  is a fraction, a `Pair<Int>` of a numerator and a denominator, so `dt`
+  gives the pair (6, 1).
+- `pair_first` takes the numerator of that pair, 6, which `main` returns.
+
+The sections after this one build the longer program, which composes maps,
+pulls covectors back and uses a metric.
+
 ## The smooth profile of the standard library
 
 A [*smooth affine object*](../appendix/glossary.md#smooth-affine-object) is

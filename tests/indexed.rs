@@ -160,8 +160,7 @@ fn forged_wire_metadata_never_becomes_checked_authority() {
         raw.pointer_mut(parent).unwrap()[key] = json!(true);
         let result = kernel(raw, "emit");
         assert_eq!(result["ok"], false, "{pointer}: {result}");
-        assert_eq!(result["diagnostics"][0]["code"], "E_PROTOCOL", "{result}");
-        assert!(result.get("lean_source").is_none());
+        common::assert_wire_rejected(&result, "E_PROTOCOL");
     }
     let mut raw = original;
     raw["input"] = json!("flat");

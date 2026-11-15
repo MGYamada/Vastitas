@@ -832,12 +832,7 @@ fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
             .unwrap()
             .insert(0, json!({"kind":"action","action":action}));
         let response = kernel(raw, "emit");
-        assert_eq!(response["ok"], false, "{response}");
-        assert_eq!(
-            response["diagnostics"][0]["code"], "E_TENSOR_TREE",
-            "{response}"
-        );
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&response, "E_TENSOR_TREE");
     }
     for field in ["occurrences", "edges", "boundary"] {
         let mut raw = original.clone();
@@ -864,9 +859,7 @@ fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
         .unwrap();
     body.extend(vec![large_tree; 4]);
     let response = kernel(raw, "emit");
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(response["diagnostics"][0]["code"], "E_RESOURCE_LIMIT");
-    assert!(response.get("lean_source").is_none());
+    common::assert_wire_rejected(&response, "E_RESOURCE_LIMIT");
     let mut raw = original.clone();
     tree(&mut raw)["graph"]["edges"][0]["dual"]["axis"] = json!(3);
     wire_rejected(raw, "E_PROTOCOL");

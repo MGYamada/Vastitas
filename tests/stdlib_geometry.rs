@@ -543,9 +543,7 @@ fn opened_objects_do_not_export_dependent_fields_or_merge_identities() {
             let wire = captured_wire(&s);
             for mode in ["check", "emit"] {
                 let response = kernel(&wire, mode);
-                assert_eq!(response["ok"], false, "{response}");
-                assert_eq!(response["diagnostics"][0]["code"], code, "{response}");
-                assert!(response.get("lean_source").is_none(), "{response}");
+                common::assert_wire_rejected(&response, code);
             }
         }
     }

@@ -84,6 +84,21 @@ fn inline_and_external_layouts_and_declaration_order_are_equivalent() {
 }
 
 #[test]
+fn a_regular_file_beside_a_flat_module_is_no_nested_candidate() {
+    // A regular file `math` rules out `math/mod.vast` and leaves `math.vast`
+    // the only candidate of `mod math;` (#795).
+    let s = Scratch::empty("packages");
+    s.package("app", "mod math; fn main() -> Int { math::answer() }", "");
+    s.write("app/src/math.vast", "pub fn answer() -> Int { 42 }");
+    s.write("app/src/math", "an unrelated file");
+    s.native("42");
+    // Without the flat file the module is missing, not uninspectable.
+    fs::remove_file(s.0.join("app/src/math.vast")).unwrap();
+    let message = s.rejects("E_INPUT");
+    assert!(message.contains("module requires"), "{message}");
+}
+
+#[test]
 fn private_paths_reexports_parent_lookup_and_shadowing_are_checked() {
     let s = Scratch::empty("packages");
     for (source, code) in [

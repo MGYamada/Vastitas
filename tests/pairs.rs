@@ -207,10 +207,7 @@ fn pair_results_do_not_change_selection_or_whole_body_audits() {
             let source = format!("{source}\n{extra}");
             let response = backend(&request(&source));
             assert_eq!(response["ok"], false, "{source}: {response}");
-            assert_eq!(
-                response["diagnostics"][0]["code"], expected,
-                "{source}: {response}"
-            );
+            common::assert_wire_rejected(&response, expected);
             let scratch = Scratch::new(&source);
             for package in [false, true] {
                 let output = scratch.compiler("check", package).output().unwrap();

@@ -123,7 +123,7 @@ the specialized instances.
 | `bodyChecking` | 4096 | The units of the longest path of the checker through a body. The second list below the table says which units a path takes | The body of a function, of a method or of a lambda, in each specialized instance | `E_LIMIT` |
 | `generatedLets` | 4096 | The bindings that the compiler generates for a body, in all its branches and nested expressions together | The body of a function, of a method or of a lambda, in each specialized instance | `E_LIMIT` |
 | `specializations` | 4096 | The specialized instances. Each lambda is one. Each higher-order function is one for its check on its own and one more for each combination of function values that the program passes to it. Lambdas and instances of higher-order functions count together | A program | `E_LIMIT` |
-| `elaborationWork` | 1,000,000 | The units of the bodies that the checker elaborates: one for each function and for each of its parameters, and one for each block, statement and expression of its body. A method counts at each key at which it applies, and a lambda or a higher-order function for each specialized instance. A `value` block of a resource function counts with the scalar bindings that it sees as its parameters | A program | `E_LIMIT` |
+| `elaborationWork` | 1,000,000 | The units of the bodies that the checker elaborates: one for each function and for each of its parameters, and one for each block, statement and expression of its body. A method counts at each key at which it applies, and a lambda or a higher-order function for each specialized instance. A `value` block of a resource function counts with the scalar bindings that it names, which are its parameters | A program | `E_LIMIT` |
 
 The compiler generates these bindings for a body:
 
@@ -262,6 +262,13 @@ describes the checker and what is Proved about it.
 | `algebraTerms` | 512 | The terms of each polynomial that a check produces, including each intermediate product | A polynomial |
 | `algebraBasis` | 64 | The elements of the basis that the kernel computes for the relations of an object. While it computes the basis, the kernel keeps at most four times as many elements, 256 | An object |
 | `algebraWork` | 8,000,000 | The units of work of one run of the arithmetic: the computation and the verification of a basis, or one substitution | A run |
+
+The kernel charges a product $pq$ of a run for the steps that it performs,
+with $w$ as [Frames](#frames) defines it. One term of $p$ at a time, it
+multiplies $q$ by the term for $w(q) + 1$ units, and it adds the result $r$
+to the sum $s$ of the earlier products for $w(s) + w(r) + 1$ units. It
+charges each step before it runs it, and each partial sum must have at most
+`algebraTerms` terms.
 
 ### Smooth objects and maps
 

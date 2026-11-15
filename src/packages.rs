@@ -92,6 +92,8 @@ enum Existence {
 /// Case-insensitive filesystems (default macOS APFS) would otherwise resolve
 /// `mod Math;` to `math.vast`, or load one file for both `mod a;` and `mod A;`.
 /// Directory listings are cached, so sibling modules cost one `read_dir`.
+/// A path whose directory component is a regular file is missing: an
+/// unrelated file `math` rules out `math/mod.vast`, not `math.vast` (#795).
 fn existence(
     listings: &mut HashMap<PathBuf, HashSet<OsString>>,
     base: &Path,
@@ -100,8 +102,13 @@ fn existence(
     let path = names
         .iter()
         .fold(base.to_path_buf(), |path, name| path.join(name));
-    if !path.try_exists()? {
-        return Ok(Existence::Missing);
+    match path.try_exists() {
+        Ok(true) => {}
+        Ok(false) => return Ok(Existence::Missing),
+        Err(error) if error.kind() == std::io::ErrorKind::NotADirectory => {
+            return Ok(Existence::Missing);
+        }
+        Err(error) => return Err(error),
     }
     let mut directory = base.to_path_buf();
     for name in names {

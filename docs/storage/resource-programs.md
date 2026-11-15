@@ -390,6 +390,12 @@ Rules:
   is free again there. An owner that an arm allocates must end in that arm
   (`E_RESOURCE_JOIN`).
 
+> **Implementation note.** The kernel compiles each `value` block to a
+> function of its own. Its parameters are the scalar parameters and scalar
+> bindings that the block names, in the order of their bindings, and the
+> program passes exactly those values to it. A block that names no binding,
+> such as `value { 42 }`, takes no parameter.
+
 [`examples/packages/resource-values`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/resource-values)
 passes scalars through resource functions and branches on one:
 

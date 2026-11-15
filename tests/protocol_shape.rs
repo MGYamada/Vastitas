@@ -112,10 +112,7 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
             let response = kernel(changed, "emit");
             assert_eq!(response["version"], raw["version"], "{response}");
             assert_eq!(response["ok"], false, "accepted {path}: {response}");
-            assert_eq!(
-                response["diagnostics"][0]["code"], "E_PROTOCOL",
-                "{path}: {response}"
-            );
+            common::assert_wire_rejected(&response, "E_PROTOCOL");
             assert!(
                 response["diagnostics"][0]["message"]
                     .as_str()
@@ -375,7 +372,7 @@ fn legacy_hint_tolerance_is_limited_to_the_v2_envelope() {
     raw["untrusted_hint"] = json!({"owner":"forged", "checked":true});
     assert_eq!(kernel(&raw, "check")["ok"], true);
     raw["functions"][0]["public"] = json!(true);
-    assert_eq!(kernel(raw, "check")["diagnostics"][0]["code"], "E_PROTOCOL");
+    common::assert_wire_rejected(&kernel(raw, "check"), "E_PROTOCOL");
 }
 
 #[test]
@@ -388,8 +385,7 @@ fn invalid_membership_scalar_is_rejected_before_authority_analysis() {
         let mut raw = package(&flat, version);
         raw["packages"][0]["modules"][0]["subtypes"][0]["scalar"] = json!("Float");
         let response = kernel(raw, "check");
-        assert_eq!(response["ok"], false, "{response}");
-        assert_eq!(response["diagnostics"][0]["code"], "E_TYPE", "{response}");
+        common::assert_wire_rejected(&response, "E_TYPE");
         assert!(
             response["diagnostics"][0]["message"]
                 .as_str()
@@ -411,7 +407,7 @@ fn malformed_versions_and_non_utf8_input_return_protocol_json() {
     ] {
         let response = kernel(json!({"version":version}), "check");
         assert_eq!(response["version"], 2, "{response}");
-        assert_eq!(response["diagnostics"][0]["code"], "E_PROTOCOL");
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
         assert!(
             response["diagnostics"][0]["message"]
                 .as_str()
@@ -419,17 +415,13 @@ fn malformed_versions_and_non_utf8_input_return_protocol_json() {
                 .contains("version must be a natural number")
         );
     }
-    assert_eq!(
-        kernel(json!({}), "check")["diagnostics"][0]["code"],
-        "E_PROTOCOL"
-    );
+    common::assert_wire_rejected(&kernel(json!({}), "check"), "E_PROTOCOL");
     for mode in ["check", "emit"] {
         let result = common::kernel_bytes(mode, b"{\"version\":6,\"file\":\"\xff\"}".to_vec());
         assert!(!result.status.success());
         assert!(result.stderr.is_empty(), "{result:?}");
         let response: Value = serde_json::from_slice(&result.stdout).unwrap();
         assert_eq!(response["version"], 2);
-        assert_eq!(response["diagnostics"][0]["code"], "E_PROTOCOL");
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
 }

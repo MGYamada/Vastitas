@@ -349,9 +349,7 @@ fn raw_wire_cannot_forge_profile_base_or_bypass_representation_schema() {
         let mut changed = raw.clone();
         *changed.pointer_mut(&pointer).unwrap() = representation;
         let result = kernel(changed, "emit");
-        assert_eq!(result["ok"], false, "{result}");
-        assert_eq!(result["diagnostics"][0]["code"], code, "{result}");
-        assert!(result.get("lean_source").is_none());
+        common::assert_wire_rejected(&result, code);
     }
 }
 

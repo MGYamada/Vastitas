@@ -305,9 +305,7 @@ fn complex_views_preserve_elements_through_source_wire_and_native_execution() {
     padded["action"]["layout"]["offset"] = json!(8);
     for operation in ["check", "emit"] {
         let rejected = kernel(&changed, operation);
-        assert_eq!(rejected["ok"], false, "{rejected}");
-        assert_eq!(rejected["diagnostics"][0]["code"], "E_RESOURCE_REGION");
-        assert!(rejected.get("lean_source").is_none());
+        common::assert_wire_rejected(&rejected, "E_RESOURCE_REGION");
     }
 }
 
@@ -445,9 +443,7 @@ fn sequential_branch_writes_preserve_only_common_initialization() {
     // The common store is required by the independently checked raw program.
     body.remove(3);
     let response = kernel(raw, "emit");
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(response["diagnostics"][0]["code"], "E_RESOURCE_INIT");
-    assert!(response.get("lean_source").is_none());
+    common::assert_wire_rejected(&response, "E_RESOURCE_INIT");
 }
 
 #[test]
@@ -527,9 +523,7 @@ fn cell_writes_initialize_padded_call_outputs_without_prefill() {
         .unwrap()
         .pop();
     let response = kernel(changed, "emit");
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(response["diagnostics"][0]["code"], "E_RESOURCE_INIT");
-    assert!(response.get("lean_source").is_none());
+    common::assert_wire_rejected(&response, "E_RESOURCE_INIT");
 }
 
 #[test]
@@ -549,11 +543,7 @@ fn internal_gemm_cannot_supply_public_mathematical_authority() {
             "conjugate_left": false, "conjugate_right": false, "mode": "overwrite", "policy": "native_fast"}
     });
     let response = kernel(changed, "emit");
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(
-        response["diagnostics"][0]["code"], "E_PROTOCOL",
-        "{response}"
-    );
+    common::assert_wire_rejected(&response, "E_PROTOCOL");
     // A missing span used to fail before the action decoder was reached,
     // leaving the resource-only GEMM bypass untested.
     assert!(
@@ -676,11 +666,7 @@ fn raw_resource_wire_cannot_supply_checked_owners_targets_or_alias_evidence() {
         changed.pointer_mut(&pointer).unwrap()[key] = value;
         let response = kernel(changed, "emit");
         assert_eq!(response["ok"], false, "{pointer}/{key}: {response}");
-        assert_eq!(
-            response["diagnostics"][0]["code"], "E_PROTOCOL",
-            "{response}"
-        );
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
     for field in ["arguments", "results"] {
         let mut changed = raw.clone();
@@ -688,11 +674,7 @@ fn raw_resource_wire_cannot_supply_checked_owners_targets_or_alias_evidence() {
             .pointer_mut(&format!("{root}/resource_functions/0/body/0"))
             .unwrap()[field] = json!(vec!["name"; 65]);
         let response = kernel(changed, "emit");
-        assert_eq!(response["ok"], false, "{response}");
-        assert_eq!(
-            response["diagnostics"][0]["code"], "E_RESOURCE_LIMIT",
-            "{response}"
-        );
+        common::assert_wire_rejected(&response, "E_RESOURCE_LIMIT");
     }
     let mut changed = raw.clone();
     let first = changed
@@ -704,21 +686,13 @@ fn raw_resource_wire_cannot_supply_checked_owners_targets_or_alias_evidence() {
         .unwrap()["body"] = json!(vec![first.clone(); 4097]);
     // A single oversized body is rejected by the wire decoder first.
     let response = kernel(&changed, "check");
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(
-        response["diagnostics"][0]["code"], "E_PROTOCOL",
-        "{response}"
-    );
+    common::assert_wire_rejected(&response, "E_PROTOCOL");
     // Individually decodable bodies must still share one global source budget.
     changed
         .pointer_mut(&format!("{root}/resource_functions/0"))
         .unwrap()["body"] = json!(vec![first; 4096]);
     let response = kernel(changed, "check");
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(
-        response["diagnostics"][0]["code"], "E_RESOURCE_LIMIT",
-        "{response}"
-    );
+    common::assert_wire_rejected(&response, "E_RESOURCE_LIMIT");
 }
 
 const FILL: &str = "    fill(w, f64_bits(0));\n";
@@ -1017,6 +991,5 @@ fn resource_source_keeps_nonwinning_pure_bodies_and_library_entry_rules() {
     s.write("app/src/main.vast", "use buffers::make;");
     success(&check(&s));
     let response = kernel(request(&s), "emit");
-    assert_eq!(response["ok"], false);
-    assert_eq!(response["diagnostics"][0]["code"], "E_MAIN");
+    common::assert_wire_rejected(&response, "E_MAIN");
 }

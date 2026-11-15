@@ -72,11 +72,7 @@ fn raw_kernel(input: Vec<u8>) -> Value {
 }
 
 fn assert_protocol(response: &Value, fragment: &str) {
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(
-        response["diagnostics"][0]["code"], "E_PROTOCOL",
-        "{response}"
-    );
+    common::assert_wire_rejected(response, "E_PROTOCOL");
     let message = response["diagnostics"][0]["message"].as_str().unwrap();
     assert!(message.contains(fragment), "{response}");
 }
@@ -246,10 +242,7 @@ fn gram_entries_and_literals_require_plain_decimal_digits() {
         }
         assert!(changed);
         let response = kernel(&forged, "check");
-        assert_eq!(
-            response["diagnostics"][0]["code"], "E_PROTOCOL",
-            "{entry}: {response}"
-        );
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
 }
 
@@ -362,17 +355,10 @@ fn edit_paths_resolve_component_wise() {
         };
         *list = json!([joined]);
         let response = kernel(&forged, "check");
-        assert_eq!(
-            response["diagnostics"][0]["code"], "E_PROTOCOL",
-            "{pointer}: {response}"
-        );
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
         let mut split = raw.clone();
         *split.pointer_mut(&pointer).unwrap() = json!(["a:", ":b"]);
-        assert_eq!(
-            kernel(&split, "check")["diagnostics"][0]["code"],
-            "E_PROTOCOL",
-            "{pointer}"
-        );
+        common::assert_wire_rejected(&kernel(&split, "check"), "E_PROTOCOL");
     }
 }
 
@@ -479,10 +465,7 @@ fn nested_ir(depth: usize, lets: usize) -> Value {
 fn generated_code_at_the_kernel_check_bounds_elaborates() {
     // #563.3: deeper nesting than the parser admits still elaborates with the
     // generated recursion and heartbeat options.
-    assert_eq!(
-        kernel(nested_ir(128, 3710), "check")["diagnostics"][0]["code"],
-        "E_LIMIT"
-    );
+    common::assert_wire_rejected(&kernel(nested_ir(128, 3710), "check"), "E_LIMIT");
     let response = kernel(nested_ir(128, 3709), "emit");
     assert_eq!(response["ok"], true, "{response}");
     let scratch = Scratch::empty("kernel review elaboration");

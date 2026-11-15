@@ -28,8 +28,7 @@ fn family(name: &str, lets: usize) -> String {
 }
 
 fn assert_budget(response: &serde_json::Value) {
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(response["diagnostics"][0]["code"], "E_LIMIT", "{response}");
+    common::assert_wire_rejected(response, "E_LIMIT");
     assert!(
         response["diagnostics"][0]["message"]
             .as_str()

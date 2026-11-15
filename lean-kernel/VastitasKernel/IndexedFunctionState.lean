@@ -228,7 +228,8 @@ def probe (signature : Surface.TypeExpr) : M Target := do
 value is, for the message that rejects it. -/
 def indexedNotValue (declarations : Core.Declarations) (id : DeclId) : String :=
   let primitive := (declarations.primitive? id).map fun
-    | .relativeConstant .. | .smoothConstant .. => ("a declared map", "; call it without operands")
+    | .relativeConstant .. | .smoothConstant .. | .spectralInvariant .. =>
+      ("a declared map", "; call it without operands")
     | .relativeIso .. => ("an isomorphism", "")
     | .relativeCartesian .. => ("a Cartesian square", "")
     | _ => ("a primitive", "; call it with its operands")

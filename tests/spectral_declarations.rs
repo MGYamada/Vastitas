@@ -380,6 +380,18 @@ fn the_kernel_decodes_the_spectral_program_only_in_protocol_nine() {
     }
 }
 
+/// The kernel accepts every form of the program in protocol 9: the
+/// declarations, the invariants and the observations. The program checks,
+/// builds and runs.
+#[test]
+fn the_spectral_program_checks_and_runs() {
+    let response = kernel(request(MAIN, 9), "check");
+    assert_eq!(response["ok"], true, "{response}");
+    let s = package(MAIN);
+    success(&s.check_manifest("Vastitas.toml"));
+    assert_eq!(s.build_and_run("Vastitas.toml"), b"42\n");
+}
+
 /// The wire carries no certificate: the kernel computes χ, the adjugate and
 /// every quotient, so a certificate field is an unknown field. Every field of
 /// a spectral record is required and has its one type. Each forgery is a

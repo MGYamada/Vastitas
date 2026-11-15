@@ -399,7 +399,13 @@ The kernel bounds the free modules, endomorphisms, spectra and branches of
 `std::linalg::spectral`, and the trace powers of endomorphisms. It checks the
 rank of a free module and the power of an invariant before it computes a
 product. Degrees, terms and work have the bounds of
-[Exact affine algebra](#exact-affine-algebra).
+[Exact affine algebra](#exact-affine-algebra), the polynomial of a trace
+power included. Each declaration has these budgets on its own, and no
+budget bounds a whole program
+([#769](https://github.com/MGYamada/Vastitas/issues/769)). The kernel
+computes the polynomial of a trace-power invariant again at each call of
+it, within a budget of its own
+([#812](https://github.com/MGYamada/Vastitas/issues/812)).
 [Spectral observations](../language/spectral-observations.md) states the
 rules.
 

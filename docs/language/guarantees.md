@@ -244,13 +244,14 @@ declaration changes neither the validity of another declaration nor the
 validity of a primitive that names none of its frames, and a declaration of
 a physical dimension changes neither the validity of a declaration of another
 kind nor the validity or the value of any primitive. Also Proved, for
-spectral observations: a spectral declaration changes neither the validity
-of a declaration of another kind nor the validity or the value of a
-primitive that names none of its declarations, and no spectral primitive
-reads a metric, a frame or a physical dimension. The statements on
-the validity of declarations hold for every table of class ranks. That the
-table of class ranks stays the same is not proved, so they are not stated
-for the validity of a whole program. That the generated code stays the
+spectral observations: a free module, a field, a spectrum or a branch
+changes neither the validity of a declaration of another kind nor the
+validity or the value of a primitive that names none of these declarations,
+and no spectral primitive reads a metric, a frame or a physical dimension.
+The families of spectral observations are not among these declarations.
+The statements on the validity of declarations hold for every table of
+class ranks. That the table of class ranks stays the same is not proved, so
+they are not stated for the validity of a whole program. That the generated code stays the
 same is Tested. [What is outside these claims](../verification.md#what-is-outside-these-claims),
 [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks),
 [Frames and physical dimensions](../verification.md#frames-and-physical-dimensions)

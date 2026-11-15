@@ -194,8 +194,8 @@ declaration, not a value or a smooth map. See
 
 A pair (p, t) of a rational point p and a rational number t, with g(p) ≠ 0
 for the localization g of a [branch](#branch) and χ(p, t) = 0 for the
-characteristic polynomial χ of its spectrum. The branch observations read
-the [failure value](#failure-value) or `(0, 0)` at any other pair. See
+characteristic polynomial χ of its spectrum. At any other pair the branch
+observations read `false`, the [failure value](#failure-value) or `(0, 0)`. See
 [Branches](../language/spectral-observations.md#branches) and
 [Branch observations](../language/spectral-observations.md#branch-observations).
 
@@ -545,7 +545,8 @@ See [Assemblies](../language/edit-authority.md#assemblies).
 
 The matrix adj(tI − H(p))/χ′(p, t) of a [branch point](#branch-point) (p, t)
 of an [endomorphism field](#endomorphism-field) H with the characteristic
-polynomial χ. It is an idempotent of trace one with H(p)·P = t·P, and
+polynomial χ. It is an idempotent of trace one with
+H(p)·P = P·H(p) = t·P, and
 `branch_projector` reads its entries. See
 [Branch observations](../language/spectral-observations.md#branch-observations) and the
 [guide](../guide/spectral-observations.md#eigenvalues-as-inputs).
@@ -673,7 +674,7 @@ The variable t that `eigen(H, t)` names for a [spectral pair](#spectral-pair).
 It follows the coordinates of the object, so the characteristic polynomial,
 the adjugate, an element of a module observation and a
 [gap witness](#gap-witness) are polynomials in the coordinates and t. It is
-no coordinate of the object. See [Spectral pairs](../language/spectral-observations.md#spectral-pairs) and
+no coordinate of the object and no basis name of the module of the field. See [Spectral pairs](../language/spectral-observations.md#spectral-pairs) and
 the [guide](../guide/spectral-observations.md#the-characteristic-polynomial).
 
 ## Fiber product

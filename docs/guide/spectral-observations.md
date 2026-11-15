@@ -91,9 +91,10 @@ polynomial det(tI − H). A spectrum declaration asks for it:
 
 `eigen(H, t)` names the variable `t` of the polynomial, the
 [*fiber coordinate*](../appendix/glossary.md#fiber-coordinate), which must
-not be a coordinate of the plane. The compiler computes the characteristic
-polynomial t² − x² − y² and the adjugate of tI − H, the matrix tI + H, and
-checks the two by a second computation before it generates code. The
+differ from the coordinates of the plane and from the basis names of `V`.
+The compiler computes the characteristic polynomial t² − x² − y² and the
+adjugate of tI − H, the matrix tI + H, and checks the two by a second
+computation before it generates code. The
 program never writes them, and the compiler never chooses an eigenvalue. The
 declaration of `B`, the second one of the block, is the subject of
 [a later section](#simple-eigenvalues-on-a-chart).
@@ -244,17 +245,20 @@ fraction, and `minus_half` checks that one rational is −1/2 times another.
 > witness, and rejects an observation of one object at a point of another
 > before the compiler generates code. The
 > [proofs](../verification.md#spectral-observations) cover the identities
-> of the characteristic polynomial, what an invariant is, the gradient of the
-> trace of H², the definedness of the branch observations, the laws of the
-> eigenprojector, the two forms of the differential of an eigenvalue, the
-> two matrices with one characteristic polynomial, and the fact that the
-> spectral declarations change no other declaration. They also cover the
-> comparison of the characteristic polynomial, of the trace powers and their
-> derivatives, and of the derivative of an eigenvalue with those of real
-> analysis. Tests cover native execution, the diagnostics and
-> agreement with an independent reference program. A number that is no
-> eigenvalue gives `false`, the failure value or `(0, 0)` at run time, not
-> an error of the compiler.
+> of the characteristic polynomial, what an invariant is, the differential
+> of the trace of H², the definedness of the branch observations, the laws
+> of the eigenprojector, the two forms of the differential of an
+> eigenvalue, the two matrices with one characteristic polynomial, and the
+> fact that the declarations of modules, matrices, spectra and regions
+> change no other declaration. They also compare the characteristic
+> polynomial, the trace powers and their derivatives with those of real
+> analysis. The differential of an eigenvalue is the derivative of every
+> differentiable function through the point that keeps the eigenvalue a
+> root; that such a function exists is not proved. Tests cover native
+> execution, the gradient under the metric of the program, the symmetry of
+> the eigenprojectors, the diagnostics and agreement with an independent
+> reference program. A number that is no eigenvalue gives `false`, the
+> failure value or `(0, 0)` at run time, not an error of the compiler.
 
 ## See also
 

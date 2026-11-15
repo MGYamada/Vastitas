@@ -14,6 +14,7 @@ names. Each construct has its chapter:
 [Smooth affine declarations](language/smooth-declarations.md),
 [Frames](language/frames.md),
 [Physical dimensions](language/physical-dimensions.md),
+[Spectral observations](language/spectral-observations.md),
 [Resource programs](storage/resource-programs.md) and
 [Numerical maps](linalg/maps-and-gemm.md).
 [The driver](internals/driver.md) describes how the Rust side writes a
@@ -54,7 +55,8 @@ below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assem
 protocol 6 adds nested loans and permanent authority transfer, and package-only
 protocol 7 adds indexed declarations and rich bodies as described below.
 Package-only protocols 8 and 9 add resource functions, named recipients and
-the algebraic, smooth, metric, frame and physical-dimension forms.
+the algebraic, smooth, metric, frame, physical-dimension and spectral
+forms.
 Package requests never fall back to protocol 2. Other versions are rejected.
 
 ## Protocol selection
@@ -67,9 +69,10 @@ mode it takes the first match of this list:
 1. any grant, delegation or transfer, a presented affine declaration of
    [Presented affine geometry](affine-geometry.md), a smooth or metric
    declaration of [Smooth affine declarations](language/smooth-declarations.md),
-   or a [frame](#protocol-9-frame-forms) or
-   [physical-dimension](#protocol-9-physical-dimension-forms) declaration:
-   protocol 9;
+   a [frame](#protocol-9-frame-forms) or
+   [physical-dimension](#protocol-9-physical-dimension-forms) declaration, or
+   a [spectral](#protocol-9-spectral-forms) declaration, invariant or
+   primitive: protocol 9;
 2. resource functions, or an indexed implementation other than an affine
    descriptor: protocol 8;
 3. other indexed declarations, an indexed type annotation, a typed `pack`,
@@ -405,6 +408,84 @@ the declarations, and the
 reference links its sections. The
 [specification of `nature::dimension`](spec/nature-dimension.md) states what
 an accepted interpretation guarantees.
+
+<a id="protocol-9-spectral-forms"></a>
+
+**Protocol-9 spectral forms.** The spectral families, the declarations of
+free modules, endomorphism fields, spectra and branches, the definitions
+`trace_power` and `char_coefficient` of a morphism declaration and the five
+spectral primitives are validated optional fields of protocol 9. Any module
+that uses one selects protocol 9. Protocols 7 and 8 reject each form with
+`E_PROTOCOL`. For a declaration and for a family with the representation
+`"free_module"`, `"endomorphism"`, `"spectrum"` or `"branch"`, the decoder's
+message says that spectral declarations require protocol 9. A valid family
+has the parameter `object(…)` and the constraint `canonical(0)`, which the
+decoder reads before the representation, so its message says that smooth
+declarations require protocol 9. A morphism declaration exists only in
+protocol 9, so the message for an invariant says that algebraic affine
+declarations require it. A spectral primitive in protocol 7 or 8 is an
+unknown indexed primitive contract.
+
+- **Family representation.** A family may use the string `"free_module"`,
+  `"endomorphism"`, `"spectrum"` or `"branch"`.
+- **Free module.** `kind: "free_module"` carries `family` (path), `indices`
+  (paths) and `basis`, the basis names as a list of strings in source order,
+  besides the common `name`, `public` and `span`.
+- **Endomorphism field.** `kind: "endomorphism"` carries `family`,
+  `indices`, `module` (path), `rows` and `symmetric`. `rows` is a list of
+  rows, each a list of polynomial expressions in the form above, and
+  `symmetric` is a JSON boolean.
+- **Spectrum.** `kind: "spectrum"` carries `family`, `indices`,
+  `endomorphism` (path) and `fiber`, the name of the fiber coordinate as a
+  string.
+- **Branch.** `kind: "branch"` carries `family`, `indices`, `spectrum`
+  (path), `localize` and `witness`, two polynomial expressions, and
+  `exponent`, an unsigned decimal string of at most 64 digits.
+- **Invariants.** The `definition` of a morphism declaration may be
+  `{"kind": "trace_power", "endomorphism": TypePath, "power": String}` or
+  `{"kind": "char_coefficient", "spectrum": TypePath, "index": String}`, with
+  the power and the index as natural fields.
+- **Primitives.** The binding `op` may be one of the five spectral
+  operations below. A field of kind `coordinate` holds a basis name, and a
+  field of kind `polynomial` a polynomial expression in the coordinates of
+  the object and the fiber coordinate.
+
+| Op | Fields |
+| --- | --- |
+| `annihilates` | `map_family`, `spectrum`, `element` (polynomial) |
+| `action_entry` | `map_family`, `spectrum`, `element` (polynomial), `row` and `column` (coordinate) |
+| `on_branch` | `map_family`, `line`, `branch` |
+| `branch_differential` | `map_family`, `cotangent`, `line`, `branch` |
+| `branch_projector` | `map_family`, `line`, `branch`, `row` and `column` (coordinate) |
+
+| Form | Decoder |
+| --- | --- |
+| Spectral declarations | `declarationBody`, with `polyRows` and `certificateExponent` |
+| Spectral family representations | `familyRepresentation` |
+| Invariants | `morphismDefinition`, with `naturalField` |
+| Spectral primitives | the families of `IndexedPrimitiveFamilies.lean`, through `primitive` and `wireArgument` |
+
+The wire never carries a characteristic polynomial, an adjugate, a quotient,
+the image of an invariant or an embedded declaration. The kernel computes
+χ and the adjugate of every spectrum, the quotients of its checks and of
+every gap witness, and the polynomial of every invariant, and it checks each
+before acceptance, within the limits of
+[spectral observations](appendix/limits.md#spectral-observations) and of
+[exact affine algebra](appendix/limits.md#exact-affine-algebra). A spectral
+primitive carries the paths of the spectrum or the branch that it names,
+never their data. The kernel resolves the spectrum or the branch first,
+copies the field, the spectrum and the branch into the binding, and expands
+the element and the basis names. The declaration audit checks that each
+copy equals its declaration. A record with any other field, such as
+`characteristic`, `adjugate`, `quotient`, `map`, `rows` or `localize` in a
+binding, is an error (`E_PROTOCOL`).
+[Spectral observations](language/spectral-observations.md) gives the errors of the declarations and the
+primitives. The [`E_SPECTRAL` row](appendix/diagnostics.md#e-spectral) of the
+diagnostics reference links its sections, and its
+[`E_ENDPOINT` row](appendix/diagnostics.md#geometric-types) covers object
+mismatches of a call. The
+[specification of `std::linalg::spectral`](spec/std-linalg-spectral.md)
+states the laws of the forms.
 
 ### Resource statements and numerical forms
 
@@ -1150,6 +1231,16 @@ receipts, doctest execution, or official package admission.
   `raw_wire_rejects_forged_frame_bindings` of the second file rejects a
   natural field that is not an unsigned decimal string of at most 64 digits,
   and a frame binding without one of its fields.
+- `tests/spectral_declarations.rs::spectral_forms_select_protocol_nine_only`,
+  `tests/spectral_primitives.rs::spectral_primitives_select_protocol_nine_and_decode_only_there`
+  and
+  `tests/spectral_observations.rs::the_example_selects_protocol_nine_and_older_envelopes_reject_it`
+  pin the protocol of the spectral forms.
+  `raw_wire_rejects_certificates_and_forged_spectral_fields` of the first
+  file, `raw_wire_rejects_embedded_spectral_data` of the second and
+  `raw_wire_rejects_spectral_certificates_and_forged_maps` of the third
+  reject a certificate, an image, an embedded declaration, a missing field
+  and a field of the wrong kind.
 - `legacy_hint_tolerance_is_limited_to_the_v2_envelope`,
   `invalid_membership_scalar_is_rejected_before_authority_analysis` and
   `malformed_versions_and_non_utf8_input_return_protocol_json` of the same
@@ -1166,19 +1257,23 @@ receipts, doctest execution, or official package admission.
   the driver. `VastitasKernel.FrameDeclarationRegression`,
   `VastitasKernel.FrameRegression` and `VastitasKernel.NatureRegression`
   decode every frame and physical-dimension form in protocol 9 and reject it
-  in protocols 7 and 8. `VastitasKernel.NamespaceRegression` tests the
+  in protocols 7 and 8. `VastitasKernel.SpectralDeclarationRegression` and
+  `VastitasKernel.SpectralRegression` do the same for the spectral forms. `VastitasKernel.NamespaceRegression` tests the
   retained `checkNamespaceProgram` on Lean values and decodes no request.
   `bash scripts/check_kernel_regressions.sh` builds them.
 
 ## History
 
-- Presented affine declarations, smooth forms, metric forms, frame forms and
-  physical-dimension forms are optional fields of protocol 9 and have no
+- Presented affine declarations, smooth forms, metric forms, frame forms,
+  physical-dimension forms and spectral forms are optional fields of
+  protocol 9 and have no
   version of their own, by a decision that
   [#533](https://github.com/MGYamada/Vastitas/issues/533) records. The frame
   and physical-dimension forms belong to the Stage 4 tracker
-  [#759](https://github.com/MGYamada/Vastitas/issues/759). That
-  issue is open. It records the policy of one wire protocol for the release
+  [#759](https://github.com/MGYamada/Vastitas/issues/759), and the
+  spectral forms to the Stage 5 tracker
+  [#806](https://github.com/MGYamada/Vastitas/issues/806). Issue #533 is
+  open. It records the policy of one wire protocol for the release
   v0.1.0: the driver writes one schema, the kernel accepts that schema
   alone, and the other versions with their decoders are retired in one
   verified change. The change is not made: this chapter describes the

@@ -192,12 +192,16 @@ than `coordinates` and `columns`, a physical Gram form other than
 is no unsigned decimal string of at most 64 digits, an exponent that is no
 such string with an optional leading `-`, and a frame binding that holds a
 matrix, an inverse or an object. An inverse declared for a
-constant frame decodes, and the kernel rejects it (`E_FRAME`).
+constant frame decodes, and the kernel rejects it (`E_FRAME`). So is a
+spectral record in a request of protocol 7 or 8, and a spectral record that
+holds a characteristic polynomial, an adjugate, a quotient, the image of an
+invariant or the data of an embedded declaration.
 [Smooth forms](../protocol.md#protocol-9-smooth-forms),
 [Metric forms](../protocol.md#protocol-9-metric-forms),
-[Frame forms](../protocol.md#protocol-9-frame-forms) and
+[Frame forms](../protocol.md#protocol-9-frame-forms),
 [Physical-dimension forms](../protocol.md#protocol-9-physical-dimension-forms)
-give the forms of a request.
+and [Spectral forms](../protocol.md#protocol-9-spectral-forms) give the forms
+of a request.
 
 ### Resource functions
 

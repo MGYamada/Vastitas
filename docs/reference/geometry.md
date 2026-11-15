@@ -21,7 +21,7 @@ is a part of the compiler.
 | [SSH Bloch and Fermi schemes](#ssh-toric-reference) | Model only. Implemented: [presented affine objects](../affine-geometry.md) over the rational numbers and their principal opens. The toric constructions of the model are Planned: [#247](https://github.com/MGYamada/Vastitas/issues/247) |
 | [Elliptic addition](#elliptic-reference) | Model only. Planned: [#253](https://github.com/MGYamada/Vastitas/issues/253) |
 | [Pointwise Hodge star](#hodge-reference) | Model only. Proved: seven theorems of `VastitasOracle.HodgeFinite` in the proof oracle. On basis vectors with integer coefficients they state the defining identity and the square laws of the star, for Euclidean one-forms in rank three and for Minkowski two-forms in rank four. They are about no construct of the language. Planned: [#375](https://github.com/MGYamada/Vastitas/issues/375) |
-| [Standard étale charts](#etale-reference) | Model only. Implemented: [presented affine objects](../affine-geometry.md) over the rational numbers with their principal opens and fiber products. The charts, the descent and the spectral identities of the model are Planned: [#765](https://github.com/MGYamada/Vastitas/issues/765) |
+| [Standard étale charts](#etale-reference) | Implemented: [presented affine objects](../affine-geometry.md) over the rational numbers with their principal opens and fiber products, and the [spectral pairs and finite charts](../language/spectral-observations.md#branches) of polynomial matrix fields, whose identities the proof oracle proves for accepted declarations. Tested: the kernel's spectral profile against a fixture of the model. Function descent, covers, resolutions and the standard étale algebra of a chart are Planned: [#765](https://github.com/MGYamada/Vastitas/issues/765) |
 
 Each section keeps the record of the change that added its model. Its
 statements about the compiler describe the repository at that change.
@@ -1743,6 +1743,21 @@ evidence for three statements over a polynomial base `A = QQ[x_1,…,x_m]`:
 Its first regression is the acceptance example of
 [Stage 5](../guide/historical-roadmap.md#stage-5-spectral-observations): the
 symmetric matrix with rows `(x, y)` and `(y, −x)`.
+
+> **Note.** This regression is also a kernel fixture. `scripts/spectral_fixture.py`
+> writes `tests/fixtures/spectral.json` from this model and from the model of
+> [finite spectral pairs](algebra-and-symmetry.md#finite-spectral-reference),
+> and `VastitasAlgebraTest.SpectralReferenceRegression` compares the kernel's
+> spectral pairs, trace powers, coefficients, gap witnesses and branch
+> observations with it; `python3 scripts/spectral_fixture.py --check` compares
+> the fixture with the models. The fixture's first subject, `stage5`, is the
+> matrix above, and its charts include `D(x² + y²)` with `W = t/2`, the
+> localizer 1, the witness changed by `10^-20`, a wrong exponent, an
+> unreduced witness and a zero localizer. The kernel's finite spectral
+> profile, which [Spectral observations](../language/spectral-observations.md)
+> specifies, checks one chart of a spectral pair as this model does; the
+> rest of the statements below describe the repository at the change that
+> added the model.
 
 There is no root finder, eigensolver, Gröbner basis, witness search, cover
 decision for a family of charts, gluing of modules or objects, or choice of

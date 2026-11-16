@@ -278,7 +278,7 @@ fn spectral_operands_are_checked_at_their_declaration_and_call() {
 /// The program checks, builds and exits with 42: each group of observations
 /// of `main` adds its own power of two when it fails.
 #[test]
-fn spectral_program_checks_builds_and_prints_42() {
+fn spectral_program_checks_builds_and_exits_with_42() {
     let s = package(MAIN);
     success(
         &cli()

@@ -128,7 +128,7 @@ fn raw_wire_rejects_forged_frame_bindings() {
 /// exits with 42 (#836): each observation of `main` adds its own power of two.
 /// The name is cited by docs/spec/std-geometry-frame.toml.
 #[test]
-fn frame_program_checks_builds_and_prints_42() {
+fn frame_program_checks_builds_and_exits_with_42() {
     let s = package();
     success(
         &cli()

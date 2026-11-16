@@ -219,7 +219,7 @@ fn bitmask(main: &str) -> String {
 /// The program checks, builds and shows no failures in place, with the paths
 /// of its manifest (C22).
 #[test]
-fn the_example_checks_builds_and_prints_42_in_place() {
+fn the_example_checks_builds_and_shows_no_failures_in_place() {
     common::prepare_stdlib_package();
     let manifest = format!("{EXAMPLE}/Vastitas.toml");
     success(

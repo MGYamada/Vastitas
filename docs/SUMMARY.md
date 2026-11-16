@@ -101,6 +101,7 @@
     - [Compiled reverse Core acceptance](reverse-core-acceptance.md)
     - [Stage 4 frames and dimensions acceptance](stage4-acceptance.md)
     - [Stage 5 spectral observations acceptance](stage5-acceptance.md)
+    - [Stage 6 physical model acceptance](stage6-acceptance.md)
   - [F: Contributing and validation](appendix/contributing.md)
     - [Run compiler, proof and native checks](development/validation.md)
     - [Maintain the documentation](development/documentation.md)

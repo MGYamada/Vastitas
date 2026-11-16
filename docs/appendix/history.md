@@ -35,6 +35,10 @@ is Planned.
   - [Stage 5 spectral observations acceptance](../stage5-acceptance.md) is
     the record of exact spectral observations of polynomial matrix fields
     over the rational numbers.
+  - [Stage 6 physical model acceptance](../stage6-acceptance.md) is the
+    record of one physical model over the rational numbers, from its
+    assumptions to a comparison with calibrated data. Its conditions are
+    Planned until their steps land.
 
 A delivery record states what held at its revisions. For the behaviour of the
 compiler today, read the guide and the Vastitas Reference. For the theorems

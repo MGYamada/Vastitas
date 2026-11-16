@@ -148,6 +148,8 @@ run_cmd do
       `VastitasBridge.Spectral.trace_pow_eq_sum_eigenvalues,
       `VastitasBridge.Spectral.charpoly_eval_eigenvalue,
       `VastitasBridge.Spectral.eq_eigenprojector,
+      `VastitasBridge.Spectral.derivative_charpoly_eval_eq_zero,
+      `VastitasBridge.Spectral.hasDerivAt_eval_snoc,
       -- The transition average is Σ_k (P_k)²_{ji} (#841, C15).
       `VastitasBridge.Spectral.evalIn_real,
       `VastitasBridge.Spectral.ofFn_snoc,
@@ -162,6 +164,9 @@ run_cmd do
       `VastitasBridge.Spectral.scalar_sub_mul_eq_zero,
       `VastitasBridge.Spectral.mul_scalar_sub_eq_zero,
       `VastitasBridge.Spectral.adjugateAt_eigenvalue,
+      `VastitasBridge.Spectral.realPoly_partial_last,
+      `VastitasBridge.Spectral.slope_eq_derivative,
+      `VastitasBridge.Spectral.simple_spectrum_of_chart,
       `VastitasBridge.Spectral.average_eq_sum_eigenprojector,
       `VastitasBridge.Spectral.accepted_average_eq_sum_eigenprojector,
       `VastitasBridge.AlgebraicGeometry.Buchberger.exists_isStandardRep,
@@ -530,6 +535,7 @@ run_cmd do
       `VastitasBridge.Spectral.public_resource_entries_trace_power_dk,
       `VastitasBridge.Spectral.public_pure_entry_trace_power_dk,
       `VastitasBridge.Spectral.checked_branch_differential_implicit,
+      `VastitasBridge.Spectral.simple_spectrum_of_chart,
       `VastitasBridge.Spectral.average_eq_sum_eigenprojector,
       `VastitasBridge.Spectral.accepted_average_eq_sum_eigenprojector]
   for name in independent do

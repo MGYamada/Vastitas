@@ -19,7 +19,7 @@ field with simple spectrum, the trace form of an accepted transition average is
   chart, `χ′(x, λ_k) ≠ 0` by the gap certificate, and `adj(x, λ_k) = χ′(x, λ_k)·v_k v_kᵀ` when
   the spectrum is simple (`eq_eigenprojector`).
 * **The pointwise theorem** (`average_eq_sum_eigenprojector`): at a real point `x` with
-  `g(x) ≠ 0`, `D(x) ≠ 0`, `N(x)/D(x) = T(x)/g(x)^{2e}` and
+  `g(x) ≠ 0`, the spectrum is simple, `D(x) ≠ 0`, `N(x)/D(x) = T(x)/g(x)^{2e}` and
   `T(x)/g(x)^{2e} = Σ_k (P_k)²_{ji}`. The proof: `T(x) = Σ_{d<n} r_d(x)·tr(H(x)ᵈ)` (Oracle
   `trace_at`), `tr(H(x)ᵈ) = Σ_k λ_kᵈ` (`trace_pow_eq_sum_eigenvalues`), so
   `T(x) = Σ_k r(x, λ_k) = Σ_k F(x, λ_k)` because `χ(x, λ_k) = 0` (`integrand_at_root`), and
@@ -30,8 +30,13 @@ field with simple spectrum, the trace form of an accepted transition average is
   transition average declaration, the field being symmetric at every real point
   (`realFieldAt_isHermitian`).
 
-The simple spectrum is a hypothesis (`Function.Injective hA.eigenvalues`). That the sum is the
-long-time average of a transition probability is not claimed (ADR 0001 §13, Meaning).
+* **The simple spectrum** (`slope_eq_derivative`, `simple_spectrum_of_chart`): `χ′(x, t)` is the
+  derivative of `charpoly H(x)` at `t`, and a repeated eigenvalue is a root of that derivative,
+  while the gap certificate makes `χ′(x, λ) ≠ 0` at every eigenvalue on the chart. So the
+  spectrum of `H(x)` is simple at every real point of `D(g)`, a conclusion, not a hypothesis.
+
+That the sum is the long-time average of a transition probability is not claimed (ADR 0001 §13,
+Meaning).
 
 Checked with Lean 4.35.0 and Mathlib commit
 56a005855ea17e0b0958f73ec801ae140b0a1679.
@@ -179,14 +184,58 @@ theorem adjugateAt_eigenvalue (x : Fin m → ℝ) (hA : (realFieldAt m rows.leng
 
 end Adjugate
 
+/-! ## The simple spectrum on the chart -/
+
+/-- The formal partial derivative in the last variable commutes with `realPoly`. -/
+theorem realPoly_partial_last {m : ℕ} {p : Poly} (hp : Arity (m + 1) p) :
+    realPoly (m + 1) (SmoothRuntime.partialDerivative m p) = pderiv (Fin.last m) (realPoly (m + 1) p) := by
+  rw [realPoly, VastitasBridge.Differential.toMv_partial (Nat.lt_succ_self m) hp, ← MvPolynomial.pderiv_map]
+  rfl
+
+/-- **The slope is the derivative of the characteristic polynomial**: `χ′(x, t)`, the formal
+partial derivative of the kernel's `χ` in `t`, is `(charpoly H(x))′(t)` at every real point. -/
+theorem slope_eq_derivative {m : ℕ} {rows : PolyMatrix} {characteristic : Poly}
+    {adjugate idempotence : PolyMatrix} (hv : SpectralValid m rows ⟨characteristic, adjugate, idempotence⟩)
+    (x : Fin m → ℝ) (t : ℝ) :
+    evalIn (algebraRatHom ℝ) (SmoothRuntime.partialDerivative m characteristic) (List.ofFn x ++ [t]) =
+      (Polynomial.derivative (realFieldAt m rows.length rows x).charpoly).eval t := by
+  have hχ : Arity (m + 1) characteristic := hv.characteristic_arity
+  have hfun : (fun s => eval (Fin.snoc x s : Fin (m + 1) → ℝ) (realPoly (m + 1) characteristic)) =
+      fun s => (realFieldAt m rows.length rows x).charpoly.eval s :=
+    funext fun s => charPoly_eval_real hv x s
+  have hd := hasDerivAt_eval_snoc (realPoly (m + 1) characteristic) x t
+  rw [hfun] at hd
+  rw [← ofFn_snoc, evalIn_real (arity_partial hχ m), realPoly_partial_last hχ]
+  exact hd.unique (Polynomial.hasDerivAt _ t)
+
+/-- **The spectrum is simple on the chart.** At a real point `x` with `g(x) ≠ 0` the gap
+certificate makes `χ′(x, λ) ≠ 0` at every eigenvalue `λ` of `H(x)`, so no eigenvalue is
+repeated: Mathlib's eigenvalues of the real symmetric `H(x)` are distinct. -/
+theorem simple_spectrum_of_chart {m : ℕ} {rows : PolyMatrix} {characteristic : Poly}
+    {adjugate idempotence : PolyMatrix} {localize witness quotient : Poly} {exponent : ℕ}
+    (hv : SpectralValid m rows ⟨characteristic, adjugate, idempotence⟩)
+    (hw : WitnessValid m rows.length characteristic localize witness exponent quotient)
+    (x : Fin m → ℝ) (hg : eval x (realPoly m localize) ≠ 0) (hA : (realFieldAt m rows.length rows x).IsHermitian) :
+    Function.Injective hA.eigenvalues := by
+  intro a b hab
+  by_contra hne
+  have hroot := characteristic_eigenvalue hv x hA a
+  have hgap := hw.gap_at hv.characteristic_arity (algebraRatHom ℝ) (List.ofFn x ++ [hA.eigenvalues a])
+  have hg' : evalIn (algebraRatHom ℝ) localize (List.ofFn x ++ [hA.eigenvalues a]) = eval x (realPoly m localize) := by
+    rw [evalIn_append_of_arity _ (p := localize) (by simpa using arity_of_canonical hw.localizeCanonical),
+      evalIn_real (arity_of_canonical hw.localizeCanonical)]
+  rw [hroot, mul_zero, hg', slope_eq_derivative hv, derivative_charpoly_eval_eq_zero hA hne hab, mul_zero, zero_sub,
+    neg_eq_zero] at hgap
+  exact pow_ne_zero exponent hg hgap
+
 /-! ## The pointwise theorem -/
 
 /-- **The trace form is the sum of the squared eigenprojector entries (C15).** For the rows `H`
-of a symmetric field with a valid spectral certificate and gap certificate, and an accepted
-transition average from `i = source` to `j = target` with closed form `N / D` and trace form
-`T`, at every real point `x` of the chart, `g(x) ≠ 0`, where the spectrum of `H(x)` is simple:
-`D(x) ≠ 0`, `N(x)/D(x) = T(x)/g(x)^{2e}`, and `T(x)/g(x)^{2e} = Σ_k (P_k)²_{ji}` with the
-eigenprojectors `P_k = v_k v_kᵀ` of Mathlib's orthonormal eigenvector basis. -/
+of a field with a valid spectral certificate and gap certificate, and an accepted transition
+average from `i = source` to `j = target` with closed form `N / D` and trace form `T`, at every
+real point `x` of the chart, `g(x) ≠ 0`, where `H(x)` is real symmetric: the spectrum of `H(x)` is
+simple, `D(x) ≠ 0`, `N(x)/D(x) = T(x)/g(x)^{2e}`, and `T(x)/g(x)^{2e} = Σ_k (P_k)²_{ji}` with
+the eigenprojectors `P_k = v_k v_kᵀ` of Mathlib's orthonormal eigenvector basis. -/
 theorem average_eq_sum_eigenprojector {m : ℕ} {rows : PolyMatrix} {characteristic : Poly}
     {adjugate idempotence : PolyMatrix} {localize witness quotient : Poly} {exponent source target : ℕ}
     {numerator denominator : Poly} {certificate : AverageCertificate}
@@ -195,12 +244,14 @@ theorem average_eq_sum_eigenprojector {m : ℕ} {rows : PolyMatrix} {characteris
     (ha : AverageValid m rows characteristic adjugate localize witness exponent source target numerator denominator
       certificate)
     (x : Fin m → ℝ) (hg : eval x (realPoly m localize) ≠ 0)
-    (hA : (realFieldAt m rows.length rows x).IsHermitian) (hsimple : Function.Injective hA.eigenvalues) :
-    eval x (realPoly m denominator) ≠ 0 ∧
+    (hA : (realFieldAt m rows.length rows x).IsHermitian) :
+    Function.Injective hA.eigenvalues ∧ eval x (realPoly m denominator) ≠ 0 ∧
       eval x (realPoly m numerator) / eval x (realPoly m denominator) =
         eval x (realPoly m certificate.trace) / eval x (realPoly m localize) ^ (2 * exponent) ∧
       eval x (realPoly m certificate.trace) / eval x (realPoly m localize) ^ (2 * exponent) =
         ∑ k, eigenprojector hA k ⟨target, ha.targetBasis⟩ ⟨source, ha.sourceBasis⟩ ^ 2 := by
+  have hsimple := simple_spectrum_of_chart hv hw x hg hA
+  refine ⟨hsimple, ?_⟩
   set ι := algebraRatHom ℝ
   set z := List.ofFn x
   have hz : z.length = m := by simp [z]
@@ -288,10 +339,10 @@ theorem average_eq_sum_eigenprojector {m : ℕ} {rows : PolyMatrix} {characteris
 In a valid environment, every transition average declaration from `i = source` to
 `j = target`, with the closed form `N / D` and the certificate whose trace form is `T`, names a
 branch with localization `g` and exponent `e` of a spectrum of a symmetric endomorphism with rows
-`H` on its object of dimension `m`. At every real point `x` with `g(x) ≠ 0` where the spectrum of
-the real symmetric matrix `H(x)` is simple: `D(x) ≠ 0`, the closed form is `N(x)/D(x) =
-Σ_k (P_k)²_{ji}`, and so is the trace form `T(x)/g(x)^{2e}`, with Mathlib's eigenvalues and
-eigenprojectors `P_k = v_k v_kᵀ` of `H(x)`. -/
+`H` on its object of dimension `m`; `H(x)` is real symmetric at every real point `x`. At every
+real point `x` with `g(x) ≠ 0`: the spectrum of `H(x)` is simple, `D(x) ≠ 0`, the closed form is
+`N(x)/D(x) = Σ_k (P_k)²_{ji}`, and so is the trace form `T(x)/g(x)^{2e}`, with Mathlib's
+eigenvalues and eigenprojectors `P_k = v_k v_kᵀ` of `H(x)`. -/
 theorem accepted_average_eq_sum_eigenprojector {env : Environment} (envValid : env.Valid)
     {id family object branch : DeclId} {source target : ℕ} {numerator denominator : Poly}
     {certificate : AverageCertificate}
@@ -306,8 +357,8 @@ theorem accepted_average_eq_sum_eigenprojector {env : Environment} (envValid : e
         endomorphismData? env endomorphism = some (endomorphismFamily, object, module, rows, true)) ∧
       (∀ x : Fin m → ℝ, (realFieldAt m rows.length rows x).IsHermitian) ∧
       ∀ x : Fin m → ℝ, eval x (realPoly m localize) ≠ 0 →
-        ∀ (hA : (realFieldAt m rows.length rows x).IsHermitian), Function.Injective hA.eigenvalues →
-          eval x (realPoly m denominator) ≠ 0 ∧
+        ∀ hA : (realFieldAt m rows.length rows x).IsHermitian,
+          Function.Injective hA.eigenvalues ∧ eval x (realPoly m denominator) ≠ 0 ∧
           eval x (realPoly m numerator) / eval x (realPoly m denominator) =
             ∑ k, eigenprojector hA k ⟨target, htarget⟩ ⟨source, hsource⟩ ^ 2 ∧
           eval x (realPoly m certificate.trace) / eval x (realPoly m localize) ^ (2 * exponent) =
@@ -322,8 +373,8 @@ theorem accepted_average_eq_sum_eigenprojector {env : Environment} (envValid : e
   refine ⟨coordinates.length, rows, localize, exponent, ha.sourceBasis, ha.targetBasis,
     VastitasOracle.SpectralCore.smoothDimension_of_lookup hobject,
     ⟨branchFamily, spectrum, witness, quotient, spectrumFamily, endomorphism, fiber, _, endomorphismFamily, module,
-      hb, hs, he⟩, fun x => realFieldAt_isHermitian (hsym rfl) x, fun x hg hA hsimple => ?_⟩
-  obtain ⟨hD, hclosed, hsum⟩ := average_eq_sum_eigenprojector hv hw ha x hg hA hsimple
-  exact ⟨hD, hclosed.trans hsum, hsum⟩
+      hb, hs, he⟩, fun x => realFieldAt_isHermitian (hsym rfl) x, fun x hg hA => ?_⟩
+  obtain ⟨hsimple, hD, hclosed, hsum⟩ := average_eq_sum_eigenprojector hv hw ha x hg hA
+  exact ⟨hsimple, hD, hclosed.trans hsum, hsum⟩
 
 end VastitasBridge.Spectral

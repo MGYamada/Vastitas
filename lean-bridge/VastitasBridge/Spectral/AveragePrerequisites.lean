@@ -2,6 +2,10 @@ module
 
 public import Mathlib.Analysis.Matrix.Spectrum
 public import Mathlib.LinearAlgebra.Matrix.Charpoly.Eigs
+public import Mathlib.Analysis.Calculus.Deriv.Polynomial
+public import Mathlib.Analysis.Calculus.Deriv.Mul
+public import Mathlib.Analysis.Calculus.Deriv.Comp
+public import VastitasBridge.Differential.Prerequisites
 
 set_option autoImplicit false
 
@@ -24,6 +28,11 @@ For a real symmetric matrix `A` (`Matrix.IsHermitian`), with Mathlib's eigenvalu
   distinct, a matrix `P` with `A·P = λ_k·P`, `P·A = λ_k·P` and `tr P = 1` is `v_k v_kᵀ`. In the
   eigenbasis `B = Uᴴ·P·U` satisfies `λ_a·B_ab = λ_k·B_ab = B_ab·λ_b`, so only `B_kk` is nonzero,
   and it is `tr B = tr P = 1`.
+* **A repeated eigenvalue is a root of the derivative** (`derivative_charpoly_eval_eq_zero`):
+  if `λ_a = λ_b` for `a ≠ b`, then `(A.charpoly)′(λ_a) = 0`, by the product rule on
+  `A.charpoly = Π_c (X − λ_c)`.
+* **The formal derivative in the last variable** (`hasDerivAt_eval_snoc`): for a real polynomial
+  `P` in `m + 1` variables, `t ↦ P(x, t)` has the derivative `(∂ₜP)(x, t)`.
 
 Checked with Lean 4.35.0 and Mathlib commit
 56a005855ea17e0b0958f73ec801ae140b0a1679.
@@ -162,5 +171,44 @@ theorem eq_eigenprojector {A : Matrix n n ℝ} (hA : A.IsHermitian) (hsimple : F
   rw [Finset.sum_eq_single k (fun x _ hx => by simp [Ne.symm hx]) (by simp)]
   rw [Finset.sum_eq_single k (fun x _ hx => by simp [Ne.symm hx]) (by simp)]
   simp
+
+/-- **A repeated eigenvalue is a root of the derivative of the characteristic polynomial.** -/
+theorem derivative_charpoly_eval_eq_zero {A : Matrix n n ℝ} (hA : A.IsHermitian) {a b : n} (hab : a ≠ b)
+    (heq : hA.eigenvalues a = hA.eigenvalues b) :
+    (Polynomial.derivative A.charpoly).eval (hA.eigenvalues a) = 0 := by
+  rw [hA.charpoly_eq, Polynomial.derivative_prod_finset, Polynomial.eval_finsetSum]
+  refine Finset.sum_eq_zero fun c _ => ?_
+  rw [Polynomial.eval_mul, Polynomial.eval_prod]
+  by_cases hc : c = a
+  · subst hc
+    rw [Finset.prod_eq_zero (i := b) (Finset.mem_erase.mpr ⟨Ne.symm hab, Finset.mem_univ b⟩) (by simp [heq]),
+      zero_mul]
+  · rw [Finset.prod_eq_zero (i := a) (Finset.mem_erase.mpr ⟨Ne.symm hc, Finset.mem_univ a⟩) (by simp), zero_mul]
+
+/-- **The formal derivative in the last variable is the derivative.** For a real polynomial `P`
+in `m + 1` variables and a point `x` of `ℝᵐ`, `t ↦ P(x, t)` has the derivative `(∂ₜP)(x, t)`,
+`t` the last variable. -/
+theorem hasDerivAt_eval_snoc {m : ℕ} (P : MvPolynomial (Fin (m + 1)) ℝ) (x : Fin m → ℝ) (t : ℝ) :
+    HasDerivAt (fun s => MvPolynomial.eval (Fin.snoc x s : Fin (m + 1) → ℝ) P)
+      (MvPolynomial.eval (Fin.snoc x t : Fin (m + 1) → ℝ) (MvPolynomial.pderiv (Fin.last m) P)) t := by
+  have hline : (fun s : ℝ => (Fin.snoc x s : Fin (m + 1) → ℝ)) =
+      fun s => (Fin.snoc x 0 : Fin (m + 1) → ℝ) + s • (Fin.snoc 0 1 : Fin (m + 1) → ℝ) := by
+    funext s i
+    refine Fin.lastCases ?_ (fun i => ?_) i <;> simp
+  have hinner : HasDerivAt (fun s : ℝ => (Fin.snoc x s : Fin (m + 1) → ℝ)) (Fin.snoc 0 1 : Fin (m + 1) → ℝ) t := by
+    have h1 : HasDerivAt (fun s : ℝ => s • (Fin.snoc 0 1 : Fin (m + 1) → ℝ))
+        ((1 : ℝ) • (Fin.snoc 0 1 : Fin (m + 1) → ℝ)) t := (hasDerivAt_id' t).smul_const _
+    have h2 := h1.const_add (Fin.snoc x 0 : Fin (m + 1) → ℝ)
+    rw [one_smul] at h2
+    rw [hline]
+    exact h2
+  have h := (VastitasBridge.Differential.hasFDerivAt_eval P (Fin.snoc x t : Fin (m + 1) → ℝ)).comp_hasDerivAt t hinner
+  have hval : (VastitasBridge.Differential.gradientCLM P (Fin.snoc x t : Fin (m + 1) → ℝ))
+      (Fin.snoc 0 1 : Fin (m + 1) → ℝ) =
+        MvPolynomial.eval (Fin.snoc x t : Fin (m + 1) → ℝ) (MvPolynomial.pderiv (Fin.last m) P) := by
+    rw [VastitasBridge.Differential.gradientCLM_apply, Fin.sum_univ_castSucc]
+    simp
+  rw [hval] at h
+  exact h
 
 end VastitasBridge.Spectral

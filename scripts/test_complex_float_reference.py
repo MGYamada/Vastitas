@@ -90,6 +90,9 @@ class FixedGraphTests(unittest.TestCase):
             result = complex_ref.divide(complex_ref.ComplexBits(one, plus),
                                         complex_ref.ComplexBits(one, one))
             self.assertEqual(tuple((s.name, s.operation) for s in result.steps), ORDER)
+            self.assertTrue(complex_ref.verify_trace(
+                complex_ref.ComplexBits(one, plus),
+                complex_ref.ComplexBits(one, one), result))
             self.assertEqual(len(result.steps), 20)
             half = kind(0x3F000000 if kind is scalar.F32 else 0x3FE0000000000000)
             self.assertEqual((result.value.real, result.value.imag),
@@ -186,11 +189,19 @@ class FixedGraphTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             complex_ref.divide(f32, f64)
         result = complex_ref.divide(f32, f32)
+        self.assertTrue(complex_ref.verify_trace(f32, f32, result))
         forged = replace(result, steps=result.steps[:-1])  # A shortcut/optimized graph.
-        self.assertNotEqual(tuple((s.name, s.operation) for s in forged.steps), ORDER)
+        self.assertFalse(complex_ref.verify_trace(f32, f32, forged))
         forged = replace(result, steps=(replace(result.steps[15],
                                                 operation="fma"),) + result.steps[1:])
-        self.assertNotEqual(tuple((s.name, s.operation) for s in forged.steps), ORDER)
+        self.assertFalse(complex_ref.verify_trace(f32, f32, forged))
+        forged = replace(result, steps=(replace(result.steps[3],
+                                                selected_primitive="div"),) + result.steps[1:])
+        self.assertFalse(complex_ref.verify_trace(f32, f32, forged))
+        forged = replace(result, flags=F.INVALID)
+        self.assertFalse(complex_ref.verify_trace(f32, f32, forged))
+        forged = replace(result, graph_id="unselected-robust-fallback-v1")
+        self.assertFalse(complex_ref.verify_trace(f32, f32, forged))
 
 
 if __name__ == "__main__":

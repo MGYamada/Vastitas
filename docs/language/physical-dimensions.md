@@ -330,7 +330,10 @@ Rules:
 > below. `VastitasOracle.NatureWeakening.entryValid_nature_weakening`,
 > `evalPrimitive_nature_weakening`, `metric_nature_free` and
 > `flat_sharp_nature_free` state that nature declarations change no
-> declaration of another kind and no value.
+> declaration of another kind and no value. Another kind leaves out the
+> conventions, models, calibrations, datasets and comparisons of
+> [Physical models](physical-models.md), which are nature declarations too
+> and whose checks read readings.
 
 Example, from `main.vast`:
 

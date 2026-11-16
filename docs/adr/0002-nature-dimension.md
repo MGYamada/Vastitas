@@ -281,7 +281,8 @@ contract is implemented or proved.
 
 #### Compatibility and public-name audit
 
-- **Names.** `Convention`, `hbar_one`, `Model`, and
+- **Names.** The declaration kind `convention` with its one value
+  `hbar_one`, which has no family, the family `Model`, and
   `model(hamiltonian =, reading =, convention =, prepare =, observe =,
   predicts =, regime = assume(…))`. The code is `E_MODEL`. The names are
   provisional until the module is delivered.
@@ -333,7 +334,8 @@ contract is implemented or proved.
 #### Laws
 
 - The verdict depends only on the model's prediction, the dataset and the
-  calibration; changing the calibration changes the fingerprint.
+  calibration; changing the calibration changes the fingerprint, unless the
+  64-bit digest collides.
 - Removing a calibration, a dataset or a comparison leaves every `std`
   declaration and every value unchanged.
 

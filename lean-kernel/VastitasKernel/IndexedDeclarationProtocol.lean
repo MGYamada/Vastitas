@@ -439,7 +439,23 @@ The transition average of `std::linalg::spectral` and the declarations of
 average and no fingerprint that the kernel computes: a certificate field is an
 unknown field, and the fingerprint of a comparison is the recorded one.
 Values, uncertainties and the coverage factor are constant polynomial
-expressions, so their digits have the bound of every polynomial literal. -/
+expressions, so their digits have the bound of every polynomial literal. The
+recorded texts (`recordText`) have the bound `recordTextBytes` and the
+characters of the string literals that the frontend reads. -/
+
+/-- A recorded text of a Stage 6 declaration, the field `key` of `j`: the
+regime of a model, the reference or the revision of a calibration, or the
+fingerprint of a comparison. It holds at most `recordTextBytes` bytes of
+printable ASCII (0x20–0x7E) other than `\` and `"`, exactly the content of a
+string literal that the frontend accepts there, so that a forged text with an
+escape, a control character or another character is a protocol error. -/
+def recordText (j : Json) (key : String) : Except String String := do
+  let text ← str j key
+  unless text.utf8ByteSize ≤ Limits.recordTextBytes do
+    throw s!"the field {key} has more than {Limits.recordTextBytes} bytes (recordTextBytes)"
+  unless text.all fun c => 0x20 ≤ c.toNat && c.toNat ≤ 0x7E && c != '\\' && c != '"' do
+    throw s!"the field {key} holds a character other than printable ASCII without a backslash or a double quote"
+  return text
 
 /-- The convention of `convention name = value`: `hbar_one`. -/
 def convention (j : Json) : Except String Convention := do
@@ -616,13 +632,13 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
       "predicts", "regime"])
     return .model (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← path (← field j "hamiltonian")) (← path (← field j "reading")) (← path (← field j "convention"))
-      (← str j "prepare") (← str j "observe") (← path (← field j "predicts")) (← str j "regime")
+      (← str j "prepare") (← str j "observe") (← path (← field j "predicts")) (← recordText j "regime")
   | "calibration" =>
     unless algebraic do throw "errorbar declarations require protocol 9"
     fields j (common ++ ["family", "indices", "parameters", "method", "reference", "revision"])
     return .calibration (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← (← array j "parameters").mapM calibrated) (← calibrationMethod (← field j "method"))
-      (← str j "reference") (← str j "revision")
+      (← recordText j "reference") (← recordText j "revision")
   | "dataset" =>
     unless algebraic do throw "errorbar declarations require protocol 9"
     fields j (common ++ ["family", "indices", "model", "calibration", "coverage", "points"])
@@ -633,7 +649,7 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     unless algebraic do throw "errorbar declarations require protocol 9"
     fields j (common ++ ["family", "indices", "dataset", "calibration", "fingerprint", "verdict"])
     return .comparison (← path (← field j "family")) (← (← array j "indices").mapM path)
-      (← path (← field j "dataset")) (← path (← field j "calibration")) (← str j "fingerprint")
+      (← path (← field j "dataset")) (← path (← field j "calibration")) (← recordText j "fingerprint")
       (← verdict (← field j "verdict"))
   | "affine" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"

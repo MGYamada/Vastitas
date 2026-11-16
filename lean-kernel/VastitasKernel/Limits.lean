@@ -104,4 +104,9 @@ the rank of the module of a model's field is bounded by `spectralRank`. -/
 /-- The points of one dataset. -/
 def datasetPoints : Nat := compiler_limit% "datasetPoints"
 
+/-- The bytes of one recorded text of a Stage 6 declaration: the regime of a
+model, the reference and the revision of a calibration and the fingerprint of
+a comparison. -/
+def recordTextBytes : Nat := compiler_limit% "recordTextBytes"
+
 end VastitasKernel.Limits

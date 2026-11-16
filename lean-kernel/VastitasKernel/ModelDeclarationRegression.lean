@@ -15,7 +15,9 @@ These are executable regressions, not proofs.
 
 Protocol 9 decodes each wire shape of the six declarations, of the five
 family representations and of the observation `average_at`; protocols 7 and
-8 reject each with `E_PROTOCOL`. No shape has a field for a certificate. The
+8 reject each with `E_PROTOCOL`. No shape has a field for a certificate, and
+a recorded text holds at most `recordTextBytes` bytes of printable ASCII
+without a backslash or a double quote, as the frontend reads it. The
 Stage 6 families are data-model rules and are checked in full. The source
 checker elaborates every Stage 6 declaration (`AverageRegression` and
 `NatureModelRegression` check them); here each names only `Plane`, so the
@@ -278,6 +280,29 @@ certificate field is an unknown field. Every other field is required. -/
     decodes (calibrationJson "K" |> fun j => withField (withoutField j "parameters") "parameters"
       (toJson [calibrated "omega" (Json.mkObj [("op", toJson "natural"),
         ("value", toJson (String.ofList (List.replicate 64 '1')))]) (natural 1)])) true)
+
+/-- `j` with its text field `name` set to `text`. -/
+private def withText (j : Json) (name text : String) : Json := withField (withoutField j name) name (toJson text)
+
+/-- The recorded texts: the regime of a model, the reference and the revision
+of a calibration and the fingerprint of a comparison. -/
+private def texts : List (Json × String) := [(modelJson "M" "H", "regime"), (calibrationJson "K", "reference"),
+  (calibrationJson "K", "revision"), (comparisonJson "C" "D", "fingerprint")]
+
+private def repeated (count : Nat) (c : Char) : String := String.ofList (List.replicate count c)
+
+#eval check "a recorded text has at most recordTextBytes bytes of printable ASCII without a backslash or a quote"
+  (texts.all fun (j, name) =>
+    decodes (withText j name (repeated Limits.recordTextBytes '~')) true && decodes (withText j name "") true &&
+      decodes (withText j name " !#[]~") true &&
+      !decodes (withText j name (repeated (Limits.recordTextBytes + 1) 'a')) true &&
+      ["a\\b", "a\"b", "a\nb", "a\tb", "\x7F", "Ω"].all fun text => !decodes (withText j name text) true)
+#eval check "a forged recorded text is E_PROTOCOL"
+  (rejectsWith 9 (smoothBase ++ stage6Families ++ [withText (calibrationJson "K") "reference" "a\\b"]) "E_PROTOCOL"
+      "the field reference holds a character other than printable ASCII" &&
+    rejectsWith 9 (smoothBase ++ stage6Families ++ [withText (comparisonJson "C" "D") "fingerprint"
+      (repeated (Limits.recordTextBytes + 1) 'f')]) "E_PROTOCOL"
+      s!"the field fingerprint has more than {Limits.recordTextBytes} bytes")
 
 /-! ## `average_at`: protocol 9 only, rejected until implemented -/
 

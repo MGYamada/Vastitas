@@ -41,6 +41,12 @@ decoder and the checker:
 | 7 | Package | `Indexed.Wire.program` in `IndexedProtocol.lean` | `Indexed.Wire.check` |
 | 8, 9 | Package | `ResourceSource.Wire.program` in `ResourceProtocol.lean` | `ResourceSource.Wire.check` |
 
+The decoders that the package protocols share, those of the module envelope
+and of its types, generics, abstract declarations, imports, grants, transfers,
+contributions and assembly, are in `EnvelopeProtocol.lean`.
+`SurfaceProtocol.lean` and `NamespaceProtocol.lean` hold the requests of
+protocols 2 to 6 and their expression and body decoders.
+
 In the mode `emit`, `Main` passes the Core of the check result of protocols
 2 to 7 to `Indexed.Core.Codegen.generate`. For protocols 8 and 9 it calls
 `ResourceSource.Wire.emit`, which runs the check and passes its result to

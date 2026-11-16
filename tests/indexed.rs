@@ -5,8 +5,8 @@ use serde_json::{Value, json};
 const GEO: &str = include_str!("../examples/packages/indexed/geo.vast");
 const MAIN: &str = include_str!("../examples/packages/indexed/main.vast");
 
-/// The example without its observation (#836): `show!` makes a protocol-9
-/// request, and this file pins the protocol-7 wire.
+/// The example without its observation (#836), so that the requests of this
+/// file carry no observations.
 fn unobserved_main() -> String {
     common::checked_replace(MAIN, "show!(", "(")
 }
@@ -27,7 +27,7 @@ fn check(s: &Scratch) -> std::process::Output {
 }
 
 fn request(s: &Scratch) -> Value {
-    s.captured("Vastitas.toml", 7)
+    s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
 #[track_caller]
@@ -123,10 +123,15 @@ fn indexed_calls_explain_missing_conversion_and_literal_pair_inference() {
 }
 
 #[test]
-fn actual_rust_wire_is_seven_and_older_envelopes_reject_declarations() {
+fn actual_rust_wire_is_current_and_older_envelopes_reject_declarations() {
     let original = request(&fixture(&unobserved_main()));
-    assert_eq!(original["version"], 7);
+    assert_eq!(original["version"], common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&original, "check")["ok"], true);
+    // old-route(#533): the frontend wrote this program as protocol 7 before
+    // #533 round 1, which still accepts it until the cutover.
+    let mut seven = original.clone();
+    seven["version"] = json!(7);
+    assert_eq!(kernel(&seven, "check")["ok"], true);
     // old-route(#533): the retiring envelopes reject this program.
     for version in [2, 3, 4, 5, 6] {
         let mut raw = original.clone();

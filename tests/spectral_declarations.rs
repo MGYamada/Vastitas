@@ -223,8 +223,12 @@ const LONE_FORMS: &[(&str, &str)] = &[
 /// records decode: protocols 7 and 8 reject each with `E_PROTOCOL`.
 #[test]
 fn spectral_forms_select_protocol_nine_only() {
-    // Without a Stage 5 form, an indexed package uses protocol 7.
-    request("indexed marker M;\nfn main() -> Int { 0 }\n", 7);
+    // An indexed package without a Stage 5 form uses the current protocol as
+    // well (#533).
+    request(
+        "indexed marker M;\nfn main() -> Int { 0 }\n",
+        common::CURRENT_PROTOCOL,
+    );
     for (form, older_message) in LONE_FORMS {
         let raw = request(
             &format!("{form}\nfn main() -> Int {{ 0 }}\n"),

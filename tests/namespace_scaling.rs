@@ -148,10 +148,13 @@ fn alias_heavy_indexed(count: usize) -> String {
 // program-wide namespace budget both accept the same indexed program and
 // reject the next larger one: 12 of these functions fit and 13 do not. Before
 // the passes ran once on protocol 9, it accepted only 7 of them.
+// old-route(#533): the frontend wrote these programs as protocol 7 before
+// #533 round 1; the request at protocol 7 retires at the cutover.
 #[test]
 fn indexed_programs_have_the_same_namespace_budget_on_protocols_seven_and_nine() {
     for (count, accepted) in [(12, true), (13, false)] {
-        let raw = fixture(&alias_heavy_indexed(count)).captured("Vastitas.toml", 7);
+        let raw = fixture(&alias_heavy_indexed(count))
+            .captured("Vastitas.toml", common::CURRENT_PROTOCOL);
         for version in [7, common::CURRENT_PROTOCOL] {
             let mut request = raw.clone();
             request["version"] = serde_json::json!(version);

@@ -34,7 +34,7 @@ const CASES: &[(&str, &str, u64)] = &[
     (
         "indexed-calls",
         "tests/emit_corpus/indexed-calls/Vastitas.toml",
-        7,
+        CURRENT_PROTOCOL,
     ),
     (
         "affine-geometry",

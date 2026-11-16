@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 // the first of 9 down to 3 that the declarations of the program, or the
 // `geometry_compat` export of a manifest, select (`packages::request_protocol`);
 // 9 also carries the algebraic forms and the observations of `show!` (#836),
-// and the resource programs that protocol 8 carried (#533), so the driver no
-// longer writes 8.
+// and the indexed and resource programs that protocols 7 and 8 carried
+// (#533), so the driver no longer writes 7 or 8.
 // A flat unit with an observation is sent as a protocol-9 package request
 // (`packages::flat_request`).
 pub const PROTOCOL_VERSION: u32 = 2;

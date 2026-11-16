@@ -18,6 +18,7 @@ lake build \
   VastitasKernel.ReverseCoreRegression \
   VastitasKernel.FrameRegression \
   VastitasKernel.SpectralRegression \
+  VastitasKernel.AverageRegression \
   VastitasKernel.IndexedCodegen \
   VastitasKernel.IndexedRuntime:c.o \
   VastitasKernel.AlgebraRuntime:c.o \
@@ -112,5 +113,6 @@ smooth_reverse_extended 42
 frame_programs 42
 spectral_programs 42
 spectral_reverse_programs 42
+spectral_average_programs 42
 FIXTURES
 echo 'indexed Core: all standalone native fixtures passed'

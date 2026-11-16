@@ -1,6 +1,6 @@
 //! Bodyless contracts extend callable domains, without entering dispatch selection.
 mod common;
-use common::{Scratch, check, cli, kernel, native, request, success};
+use common::{Scratch, check, cli, exits, kernel, native, ran, request, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
@@ -24,7 +24,7 @@ fn abstract_domains_extend_empty_generic_domains_with_and_without_functions() {
         native(
             &format!("{TYPES} generic widen(x) {{ domain; }} {CONTRACT} {METHODS} {main}"),
             &[],
-            "42",
+            exits(42),
             "contracts.vast",
         );
     }
@@ -36,7 +36,7 @@ fn abstract_domains_extend_empty_generic_domains_with_and_without_functions() {
     native(
         "fn main() -> Int { widen(42) }",
         &[library],
-        "42",
+        exits(42),
         "contracts.vast",
     );
 }
@@ -61,7 +61,7 @@ fn callable_union_and_overlapping_contracts_are_order_independent() {
             &(parts.join("\n")
                 + "fn main() -> Int { let n: Nat = 20; widen(n) + widen(20) + widen(true) }"),
             &[],
-            "42",
+            exits(42),
             "contracts.vast",
         );
     }
@@ -84,7 +84,7 @@ fn empty_domains_are_explicit_and_nullary_contracts_are_callable() {
     native(
         "generic f() { domain; } abstract method f() -> Int { domain (); } method f() -> Int { 42 } fn main() -> Int { f() }",
         &[],
-        "42",
+        exits(42),
         "contracts.vast",
     );
     reject(
@@ -126,7 +126,7 @@ fn each_contract_domain_must_satisfy_its_selectors_and_capabilities() {
     native(
         "abstract type A; abstract type B; subtype Int <: A; subtype Int <: B; generic f(x) { domain; } abstract method f(x: A) requires (HasOrder) -> Int { domain (B); } method f(x: Int) -> Int { x } fn main() -> Int { f(42) }",
         &[],
-        "42",
+        exits(42),
         "contracts.vast",
     );
 }
@@ -169,7 +169,7 @@ fn pair_contract_results_are_exact_and_do_not_admit_numeric_coercions() {
     native(
         "generic f(x) { domain; } abstract method f(x: Int) -> Pair<Int> { domain (Int); } method f(x: Int) -> Pair<Int> { pair(x, x) } fn main() -> Int { pair_first(f(21)) + pair_second(f(21)) }",
         &[],
-        "42",
+        exits(42),
         "contracts.vast",
     );
     reject(
@@ -260,8 +260,7 @@ fn package_contracts_resolve_aliases_but_keep_exact_generic_owner_authority() {
             .unwrap(),
     );
     let output = Command::new(s.0.join("program")).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(ran(&output), exits(42));
     for source in [
         "abstract method dep::f(x: Int) -> Int { domain (Int); }",
         "use dep::f as imported; abstract method imported(x: Int) -> Int { domain; }",
@@ -334,7 +333,7 @@ fn tuple_domains_expand_products_and_preserve_the_key_space_limit() {
             "{TYPES} generic f(x, y) {{ domain; }} abstract method f(x: Numeric, y: Bool) requires (HasEq) -> Int {{ domain (Numeric, Bool); }} method f(x: Nat, y: Bool) -> Int {{ if y {{ int(x) }} else {{ 0 }} }} method f(x: Int, y: Bool) -> Int {{ if y {{ x }} else {{ 0 }} }} fn main() -> Int {{ let n: Nat = 20; f(n, true) + f(22, true) }}"
         ),
         &[],
-        "42",
+        exits(42),
         "contracts.vast",
     );
     reject(

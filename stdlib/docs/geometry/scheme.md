@@ -54,12 +54,16 @@ Packages that depend on `std`, built and run by `tests/examples.rs` and
 - [`examples/packages/stdlib-geometry/`](../../../examples/packages/stdlib-geometry)
   binds the module as in `use std::geometry::scheme as scheme;`, constructs
   points and identity morphisms, composes and applies them, opens
-  `scheme::pointed(20)` and `smooth::pointed(22)`, and prints `42`.
+  `scheme::pointed(20)` and `smooth::pointed(22)`. It writes
+  `std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42`
+  and exits with status 0.
 - [`examples/packages/stdlib-geometry/pointed/`](../../../examples/packages/stdlib-geometry/pointed)
-  packs, opens and repacks an origin with qualified syntax, and prints `42`.
+  packs, opens and repacks an origin with qualified syntax. It writes
+  `scheme::dim(Y) = 3` and exits with status 0.
 - [`examples/packages/geometry-compat/`](../../../examples/packages/geometry-compat)
   writes the same declarations in the core syntax, as in
-  `let X = Affine(QQ, n);`, and prints `42`.
+  `let X = Affine(QQ, n);`. It writes `int(scheme::dim(Y)) = 42` and exits
+  with status 0.
 
 The book chapter
 [Indexed declarations and the geometry library](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/indexed-geometry.md#the-geometry-library)

@@ -10,5 +10,6 @@ fn main() -> Int {
     unpack packed as { witness: Y, fields: [p] };
     let q: Point<Y, Base(QQ)> = p;
     let r: scheme::Point<Y, scheme::BaseQQ> = apply(scheme::id(Y), q);
-    int(scheme::dim(Y))
+    let size = show!(int(scheme::dim(Y)));
+    0
 }

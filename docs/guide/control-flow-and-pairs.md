@@ -54,11 +54,12 @@ target/debug/vastitas build examples/arithmetic.vast -o target/arithmetic
 
 ```text
 built target/arithmetic
-1234567890123456789012345678900
+value * 10 = 1234567890123456789012345678900
 ```
 
 The condition `twice(21) == 42 && !(3 > 4)` is true, so the value of the
-`if` is the value of its first block, `value * 10`.
+`if` is the value of its first block, `0`, and the executable exits with
+status 0.
 
 `if` is an expression, not a statement. It always has a value, and two
 rules follow from that:
@@ -145,10 +146,17 @@ target/debug/vastitas build examples/book/types/pair-result.vast -o target/pair-
 ./target/pair-result
 ```
 
-The executable prints `42`. `ordered(50, 8)` is the pair of 8 and 50, and
-`main` subtracts its first component from its second. The `if` in `ordered`
-chooses between two pairs. A pair can be an argument, a result, the value of
-a binding and the value of an `if`.
+The executable writes these lines and exits with status 0:
+
+```text
+ordered(50, 8) = (8, 50)
+pair_second(bounds) - pair_first(bounds) = 42
+```
+
+`ordered(50, 8)` is the pair of 8 and 50, and `main` subtracts its first
+component from its second. The `if` in `ordered` chooses between two pairs.
+A pair can be an argument, a result, the value of a binding and the value of
+an `if`.
 
 ## Literals in a pair
 

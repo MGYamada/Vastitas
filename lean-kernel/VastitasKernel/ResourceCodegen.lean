@@ -81,7 +81,8 @@ def generateChecked {program : Program} (checked : Checked program true) : Excep
   | none =>
     let core : Core.Typing.CheckedModule true := by
       simpa [entry] using checked.pureProgram.compiled.core
-    let source ← (Core.Codegen.generate core).mapError fun message => {code := "E_CODEGEN", message}
+    let source ← (Core.Codegen.generate core checked.observations).mapError fun message =>
+      {code := "E_CODEGEN", message}
     return ⟨source, false, false⟩
   | some id =>
     let entryTarget ← entryValue checked id
@@ -99,9 +100,10 @@ def generateChecked {program : Program} (checked : Checked program true) : Excep
     let some (result, type) := execution.checked.context.returnedValue | error "entry result slot is absent"
     unless type == .int && ValueFlow.type? execution.checked.values.finalState.slots result == some .int do
       error "entry result slot is not an available Int"
-    -- Inline only the last checked value call into printing. This keeps the
-    -- established straight-line resource envelope while evaluating the exact
-    -- entry result once, after all resource operations have completed.
+    -- Inline only the last checked value call into the exit status (#836).
+    -- This keeps the established straight-line resource envelope while
+    -- evaluating the exact entry result once, after all resource operations
+    -- have completed. The program writes nothing for the result.
     let flow := execution.checked.context.flow.toList
     let some (.value terminal fragment arguments) := flow.getLast?
       | error "entry result is not the terminal mixed operation"
@@ -134,26 +136,34 @@ def generateChecked {program : Program} (checked : Checked program true) : Excep
     if needsNumerical && !storageRuntime then
       error "numerical operation without a storage arena"
     let numericalImport := if needsNumerical then "import VastitasGemmNative\n" else ""
+    -- The status is set inside the cleanup of the arenas and returned after
+    -- they are closed.
+    let status := Core.Codegen.exitStatus s!"({resultCall})"
     let envelope :=
       if hasShapes && hasStatic then
+        "  let mut status : UInt32 := 0\n" ++
         s!"  let arena ← newArena {Storage.byteLimit}\n" ++
         Native.withUnitCleanup 2
           (s!"    let shapeArena ← newArena {Storage.byteLimit}\n" ++
-            Native.withUnitCleanup 4 (operations ++ s!"      IO.println ({resultCall})\n")
-              ["close shapeArena"]) ["close arena"]
+            Native.withUnitCleanup 4 (operations ++ s!"      status := {status}\n")
+              ["close shapeArena"]) ["close arena"] ++ "  pure status\n"
       else if hasShapes then
+        "  let mut status : UInt32 := 0\n" ++
         s!"  let shapeArena ← newArena {Storage.byteLimit}\n" ++
-        Native.withUnitCleanup 2 (operations ++ s!"    IO.println ({resultCall})\n") ["close shapeArena"]
+        Native.withUnitCleanup 2 (operations ++ s!"    status := {status}\n") ["close shapeArena"] ++
+        "  pure status\n"
       else if hasStatic then
+        "  let mut status : UInt32 := 0\n" ++
         s!"  let arena ← newArena {Storage.byteLimit}\n" ++
-        Native.withUnitCleanup 2 (operations ++ s!"    IO.println ({resultCall})\n") ["close arena"]
+        Native.withUnitCleanup 2 (operations ++ s!"    status := {status}\n") ["close arena"] ++
+        "  pure status\n"
       else
-        -- No arena, so no cleanup: the checked value flow, then the result.
-        operations ++ s!"  IO.println ({resultCall})\n"
+        -- No arena, so no cleanup: the checked value flow, then the status.
+        operations ++ s!"  pure {status}\n"
     let (storageImport, storageOpen) := if storageRuntime then
       ("import VastitasStorageNative\n", "\nopen VastitasStorageNative\n") else ("", "")
     let source := storageImport ++ numericalImport ++ pureSource ++ storageOpen ++
-      "\ndef main : IO Unit := do\n" ++ envelope
+      "\ndef main : IO UInt32 := do\n" ++ envelope
     return ⟨source, storageRuntime, needsNumerical⟩
 
 /-- Internal source-component entry. Public emission receives the wire check's exact result. -/

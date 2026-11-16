@@ -8,7 +8,8 @@ It then shows what the compiler prints for a program that it rejects.
 A program that you can run has an
 [*entry point*](../appendix/glossary.md#entry-point): the function `main`,
 which takes no arguments and returns an `Int`. Running the program computes
-that integer.
+that integer, and the executable exits with it: the integer becomes its
+[*exit status*](../appendix/glossary.md#exit-status).
 [`examples/book/programs/hello.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/programs/hello.vast)
 holds the smallest program:
 
@@ -18,12 +19,16 @@ holds the smallest program:
 
 `fn` declares a function, and `main` is its name. The empty parentheses say
 that it takes no arguments, and `-> Int` says that it returns an integer.
-The braces hold the body. The body ends with the expression `42`, and the
-value of that expression is the result of the function. A function has no
-`return` statement, and no semicolon follows the result.
+The braces hold the body. The statement `let answer = show!(40 + 2);` binds
+the name `answer` to the value of `40 + 2`, and `show!` writes that value when
+the program runs. The body ends with the expression `0`, and the value of that
+expression is the result of the function. A function has no `return`
+statement, and no semicolon follows the result.
 
-The language has no strings and no input or output. A program tells you one
-thing, the integer that `main` returns, and the executable prints it.
+The language has no strings and no input. A program tells you two things:
+`show!` writes a line with the value of an expression, and the integer that
+`main` returns is the exit status of the executable. A program returns 0 when
+it succeeds.
 
 ## `check` and `build`
 
@@ -48,15 +53,23 @@ executable for your machine and writes it to the path after `-o`:
 ```sh
 target/debug/vastitas build examples/book/programs/hello.vast -o target/hello
 ./target/hello
+echo $?
 ```
 
 ```text
 built target/hello
-42
+40 + 2 = 42
+0
 ```
 
-The first line comes from the compiler and the second from the program. The
-executable prints the integer that `main` returns and exits with status 0.
+The first line comes from the compiler, the second from the program and the
+third from the shell. `show!` writes the text of its expression, ` = ` and
+the value. The executable then exits with the integer that `main` returns,
+and `echo $?` prints that exit status. A status lies between 0 and 255;
+[The entry point](../language/programs.md#the-entry-point) says how another
+result becomes one, and
+[Showing values with `show!`](../language/programs.md#showing-values-with-show)
+gives the rules of `show!`.
 
 The two commands differ in what they need and in what they leave behind:
 
@@ -109,12 +122,13 @@ target/debug/vastitas build examples/pointed.vast -o target/pointed
 ./target/pointed
 ```
 
-The executable prints `42`. The program builds an affine space of dimension
-3 with its origin and passes the two around as one value. The type
-`Point<X, Base(QQ)>` of a point names the object `X` that the point lies on.
-The compiler follows that object through every call. It accepts
-`preserve(X, x)` because `x` is a point of `X`, and it rejects a point of
-another object, even an object of the same dimension.
+The executable writes no line and exits with status 0. The program builds an
+affine space of dimension 3 with its origin and passes the two around as one
+value. `main` returns 0 when the object that comes back has dimension 3, and
+1 otherwise. The type `Point<X, Base(QQ)>` of a point names the object `X`
+that the point lies on. The compiler follows that object through every call.
+It accepts `preserve(X, x)` because `x` is a point of `X`, and it rejects a
+point of another object, even an object of the same dimension.
 
 You do not need to read this program yet.
 [Chapter 7](indexed-geometry.md) explains objects, points and the constructs
@@ -130,8 +144,9 @@ You do not need to read this program yet.
 ## See also
 
 - [Programs](../language/programs.md): source files, the two ways to give
-  the compiler a program, and
-  [the entry point](../language/programs.md#the-entry-point).
+  the compiler a program,
+  [the entry point](../language/programs.md#the-entry-point) with its exit
+  status, and [`show!`](../language/programs.md#showing-values-with-show).
 - [Functions](../language/functions.md) and
   [Block expressions](../language/expressions.md#block-expressions): the
   form of `main` and of its body.

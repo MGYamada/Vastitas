@@ -52,7 +52,8 @@ It observes that `trace_power(H, 2)` is the smooth map `2x² + 2y²` with the
 gradient `(4x, 4y)` on a dimensionless Euclidean chart, the branch points,
 differentials and eigenprojectors of `B` at `(3, 4)`, and that `2I` and the
 Jordan block `[[2, 1], [0, 2]]` on the point have the same invariants and
-different module actions, and it prints `42`. `tests/stdlib_spectral.rs` runs
+different module actions. It writes `failures = 0` and exits with status 0.
+`tests/stdlib_spectral.rs` runs
 an application with a field of rank 1, a field of rank 4 and the zero field
 from a copy of the standard library. The rejected packages
 `examples/reject/packages/spectral-*` show the diagnostics of a chart without

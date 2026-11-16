@@ -1,3 +1,4 @@
 fn main() -> Int {
-    int_abs(int_sub(8, 50))
+    let distance = show!(int_abs(int_sub(8, 50)));
+    0
 }

@@ -19,7 +19,7 @@ target/debug/vastitas build examples/book/functions/calls.vast -o target/calls
 ./target/calls
 ```
 
-The executable prints `42`.
+The executable writes `add_twice(2, 20) = 42` and exits with status 0.
 
 A function declares a type for each parameter and a type for its result.
 `fn twice(x: Int) -> Int` takes one `Int`, which its body calls `x`, and
@@ -56,7 +56,7 @@ has five `let` statements:
 {{#include ../../examples/book/statements/bindings.vast}}
 ```
 
-The executable prints `42`.
+The executable writes `first + second - base = 42` and exits with status 0.
 
 `let base: Int = 20;` states the type of `base` with an annotation. The
 annotation is optional: the statement that binds `first` has none, and
@@ -105,8 +105,10 @@ target/debug/vastitas build examples/book/expressions/unbounded-integers.vast -o
 
 ```text
 built target/unbounded-integers
-15241578753238836750495351562536198787501905199875019052101
+value * value + 1 = 15241578753238836750495351562536198787501905199875019052101
 ```
+
+The executable exits with status 0.
 
 No operation on integers overflows, wraps around or rounds.
 
@@ -128,7 +130,8 @@ uses both:
 {{#include ../../examples/book/expressions/natural-subtraction.vast}}
 ```
 
-The executable prints `42`. The program shows three things:
+The executable writes `int(floor) + below * -21 = 42` and exits with
+status 0. The program shows three things:
 
 - A literal takes its type from its place. The annotation of `n` asks for a
   `Nat`, so `3` is a `Nat` there. In `n - 5`, the literal stands next to a

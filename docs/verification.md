@@ -809,6 +809,18 @@ allocations/loans. `IndexedCodegen.library_checked` and `generated_checked` reta
 the actual repeated Core check, unchanged module, typing, dependency order and
 main signature. `library_roots_present` checks every requested root; the executable
 wrapper theorem records the actual generated library and selected main.
+`IndexedCodegen.generated_rechecked` states the text of the entry point
+without observations: the library of `main`, then
+`def main : IO UInt32 := pure (Codegen.exitStatus …)`, which returns the
+`Int` result of `main` modulo 256 and writes nothing. `observed_rechecked`
+states that a program with observations of `show!` is the same library followed
+by the text that `Codegen.entryPoint` writes for them. No theorem interprets
+that text: that the native program writes each observed value once, in order,
+and exits with the status of `main` is tested through native execution, not
+proved. The label of an observation is presentation only. The kernel checks
+where each observation stands and that its value can be displayed
+(`ResourceSource.checkObservations`), and never reads the label; code
+generation quotes it as a Lean string literal.
 
 `ResourceCodegen.public_generated_checked` connects successful protocol-8/9
 `Wire.emit` to the exact `Wire.check` result, its namespace receipt and the
@@ -818,7 +830,8 @@ reuses the accepted source program. The internal component entry's
 `public_resource_plan` identifies the `Native.compile` call on the same
 accepted entry schedule and its audited closed native plan. `generated_pure_entry` retains
 the same returned pure Core and the disabled optional-runtime flags when there
-is no resource entry. `generated_pure_entry_total` adds that this generated
+is no resource entry, generated with the observations of the certificate,
+`checked.observations`. `generated_pure_entry_total` adds that this generated
 module is the certificate's `pureProgram.compiled` module, the executable Core
 with its reverse passes compiled into Core, that every function
 has typed, finite evaluation and that its `main` evaluates to an `Int`. `ResourceSource.pure_entry_functions_total` and
@@ -2227,8 +2240,9 @@ arithmetic. Its explicit
 `geometry_compat` export supplies old syntax through independently resolved and
 validated declaration roles, without runtime forwarding or further editing rights.
 
-`tests/stdlib_geometry.rs` holds the integration tests: native `42`/`2`
-workflows including unchanged original source, mixed annotations/pack/unpack,
+`tests/stdlib_geometry.rs` holds the integration tests: native workflows,
+whose programs exit with a fixed status or show the dimension that they check,
+including unchanged original source, mixed annotations/pack/unpack,
 dependent test objects, coherent source/profile renaming, re-export identity,
 nominal separation, visibility, missing capabilities, Fn capture and unused-body
 checking. Actual wire mutations change visibility, primitive/base roles,

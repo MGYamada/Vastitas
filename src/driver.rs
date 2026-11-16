@@ -144,18 +144,61 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         probe_output_directory(output)?;
     }
     let display_input = manifest.as_ref().or(input.as_ref()).unwrap().clone();
-    let (sources, request, version) = if let Some(manifest) = manifest {
+    let (sources, request, version, shape) = if let Some(manifest) = manifest {
         let (sources, module) = crate::packages::load(&manifest, output.as_deref())?;
         let request = kernel_request(&module, &sources, "packages")?;
-        (sources, request, module.version)
+        let observed = module.observes();
+        (
+            sources,
+            request,
+            module.version,
+            Request {
+                flat_package: false,
+                observed,
+            },
+        )
     } else {
         let sources = Sources::load(input.as_ref().unwrap(), &libraries)?;
         if let Some(output) = &output {
             sources.protect_output(output)?;
         }
         let module = sources.parse()?;
-        let request = kernel_request(&module, &sources, "module")?;
-        (sources, request, module.version)
+        // Only protocol 9 carries the observations of `show!` (#836).
+        if module
+            .functions
+            .iter()
+            .any(|function| !function.observations.is_empty())
+        {
+            if let Some(span) = crate::frontend::legacy_geometry(&module) {
+                return Err(sources.diagnostic(
+                    "E_UNSUPPORTED",
+                    "a flat program that uses `show!` is checked as a package, which has no legacy geometry; use a package with `std::geometry`, or leave out `show!`",
+                    span,
+                ));
+            }
+            let program = crate::packages::flat_request(module);
+            let request = kernel_request(&program, &sources, "module")?;
+            (
+                sources,
+                request,
+                program.version,
+                Request {
+                    flat_package: true,
+                    observed: true,
+                },
+            )
+        } else {
+            let request = kernel_request(&module, &sources, "module")?;
+            (
+                sources,
+                request,
+                module.version,
+                Request {
+                    flat_package: false,
+                    observed: false,
+                },
+            )
+        }
     };
     let configured_executable = std::env::var_os("VASTITAS_KERNEL").map(PathBuf::from);
     let default_executable = configured_executable.is_none();
@@ -189,6 +232,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         &sources,
         version,
         root.as_deref(),
+        shape,
     )?;
     if let Some(output) = output {
         let lean_source = response
@@ -404,6 +448,24 @@ fn bounded_json(
     Ok(Some(text))
 }
 
+/// What the driver knows of a request that it renders the kernel's
+/// diagnostics for (#836).
+#[derive(Clone, Copy)]
+struct Request {
+    /// A flat unit sent as a protocol-9 package.
+    flat_package: bool,
+    /// A function of the request has `show!` observations.
+    observed: bool,
+}
+
+/// The kernel's message for legacy geometry without a compatibility export.
+const LEGACY_GEOMETRY: &str =
+    "legacy geometry syntax requires exactly one explicit library compatibility export";
+
+/// The note that the driver adds to [`LEGACY_GEOMETRY`] in a program that
+/// uses `show!` (#836).
+const LEGACY_GEOMETRY_WITH_SHOW: &str = "help: a program that uses `show!` has the legacy geometry only with a `[geometry_compat]` export; use `std::geometry`, declare the export, or leave out `show!`";
+
 fn invoke_kernel(
     executable: &Path,
     mode: &str,
@@ -411,7 +473,17 @@ fn invoke_kernel(
     sources: &Sources,
     version: u32,
     root: Option<&Path>,
+    shape: Request,
 ) -> Result<Value, String> {
+    // A flat unit sent as a package names its declarations as the kernel's
+    // own adaptation of a flat unit shows them: without the package (#836).
+    let shown_message = |message: &str| {
+        if shape.flat_package {
+            message.replace(&format!("{}::", crate::packages::FLAT_PACKAGE), "")
+        } else {
+            message.to_owned()
+        }
+    };
     let mut command = Command::new(executable);
     command.arg(mode);
     let retention = crate::process::Retention::Complete(MAX_BACKEND_RESPONSE);
@@ -442,14 +514,27 @@ fn invoke_kernel(
                     .get("message")
                     .and_then(Value::as_str)
                     .unwrap_or("backend rejected input");
-                let mut rendered = sources.diagnostic(code, message, response_span(item));
+                let mut rendered =
+                    sources.diagnostic(code, &shown_message(message), response_span(item));
+                // `show!` makes a request use the current protocol, whose
+                // legacy geometry needs a `[geometry_compat]` export. The
+                // kernel's message does not name `show!`, which is the cause
+                // when the same program without it checks (#836).
+                if shape.observed && code == "E_TYPE" && message == LEGACY_GEOMETRY {
+                    rendered.push('\n');
+                    rendered.push_str(&sources.diagnostic(
+                        "note",
+                        LEGACY_GEOMETRY_WITH_SHOW,
+                        response_span(item),
+                    ));
+                }
                 if let Some(notes) = item.get("notes").and_then(Value::as_array) {
                     for note in notes {
                         if let Some(message) = note.get("message").and_then(Value::as_str) {
                             rendered.push('\n');
                             rendered.push_str(&sources.diagnostic(
                                 "note",
-                                message,
+                                &shown_message(message),
                                 response_span(note),
                             ));
                         }

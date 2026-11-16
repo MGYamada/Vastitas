@@ -47,8 +47,12 @@ target/debug/vastitas build examples/book/geometric-types/objects.vast -o target
 ./target/objects
 ```
 
-The program prints `42`. [Operations](../language/geometric-types.md#operations)
-lists the operations with their types.
+The program writes no line and exits with status 0: `main` returns 0 when
+the object has dimension 42, and 1 otherwise. A flat program with this
+geometry cannot use
+[`show!`](../language/programs.md#showing-values-with-show).
+[Operations](../language/geometric-types.md#operations) lists the operations
+with their types.
 
 ## Identity is nominal
 
@@ -117,7 +121,8 @@ target/debug/vastitas build examples/smooth.vast -o target/smooth
 ./target/smooth
 ```
 
-The program prints `2`.
+The program writes no line and exits with status 0, because the object has
+dimension 2.
 
 Each `unpack` gives the object a fresh identity, even when a program opens
 one package twice. The point is a point of that object, and it cannot leave
@@ -174,7 +179,9 @@ target/debug/vastitas build --manifest-path examples/packages/stdlib-geometry/Va
 ./target/stdlib-geometry
 ```
 
-The program prints `42`, the sum of the two dimensions. The rules of identity
+The program writes
+`std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42`,
+the sum of the two dimensions, and exits with status 0. The rules of identity
 are those of the core: `p` is a point of `X`, and no operation accepts it as
 a point of `Y`.
 [The standard geometry library](../indexed-source.md#the-standard-geometry-library)
@@ -203,7 +210,7 @@ target/debug/vastitas build --manifest-path examples/packages/geometry-compat/Va
 ./target/geometry-compat
 ```
 
-The program prints `42`.
+The program writes `int(scheme::dim(Y)) = 42` and exits with status 0.
 
 A flat program uses the built-in core, as the first sections of this chapter
 do. So does a package, until its program has an indexed declaration or one

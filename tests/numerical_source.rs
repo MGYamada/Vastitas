@@ -282,8 +282,8 @@ fn owned_numerical_results_build_without_openblas() {
             .unwrap(),
     );
     let output = Command::new(s.0.join("program")).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    // The example's entry point returns 0 (#836).
+    assert_eq!(common::ran(&output), common::exits(0));
 }
 
 #[test]
@@ -296,8 +296,8 @@ fn owned_numerical_results_build_execute_real_complex_transfers() {
     build.args(["-o", "program"]).args(&options);
     success(&build.output().unwrap());
     let output = Command::new(s.0.join("program")).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    // The example's entry point returns 0 (#836).
+    assert_eq!(common::ran(&output), common::exits(0));
 }
 
 fn coefficient_source(complex: bool) -> String {
@@ -637,8 +637,7 @@ fn public_numerical_check_and_emit_do_not_require_openblas() {
     assert_eq!(response["numerical_runtime"], false);
     success(&command(&s, "build").args(["-o", "pure"]).output().unwrap());
     let output = Command::new(s.0.join("pure")).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(common::ran(&output), common::exits(42));
     s.write(
         "src/real/mod.vast",
         &REAL.replace(
@@ -1015,8 +1014,8 @@ fn numerical_coefficients_build_execute_computed_real_complex_scalars() {
         build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let output = Command::new(s.0.join("program")).output().unwrap();
-        success(&output);
-        assert_eq!(output.stdout, b"42\n");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&output), common::exits(0));
     }
 }
 
@@ -1033,8 +1032,8 @@ fn numerical_inputs_build_execute_nested_real_complex_products() {
     build.args(["-o", "program"]).args(&options);
     success(&build.output().unwrap());
     let output = Command::new(s.0.join("program")).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    // The example's entry point returns 0 (#836).
+    assert_eq!(common::ran(&output), common::exits(0));
 }
 
 #[test]
@@ -1059,8 +1058,8 @@ fn public_real_complex_products_build_execute_and_keep_output_protection() {
     };
     success(&build("program"));
     let result = Command::new(s.0.join("program")).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    // The example's entry point returns 0 (#836).
+    assert_eq!(common::ran(&result), common::exits(0));
     s.write(
         "src/real/mod.vast",
         &REAL.replace(
@@ -1289,8 +1288,7 @@ fn typed_transform_metadata_builds_without_openblas_and_checks_unused_helpers() 
             .unwrap(),
     );
     let output = Command::new(s.0.join("program")).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(common::ran(&output), common::exits(42));
     // Removing calls does not bypass independent checking of invalid bodies.
     s.write(
         "src/main.vast",
@@ -1453,21 +1451,22 @@ fn owned_transform_source() -> String {
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn typed_linear_transforms_build_execute_real_complex_and_rectangular_calls() {
     let options = common::numerical_build_options(None);
-    let mut sources = vec![TRANSFORMS.to_owned(), real_transforms()];
-    sources.push(owned_transform_source());
+    // The example's entry point returns 0 (#836); the rectangular programs
+    // return 42.
+    let mut sources = vec![(TRANSFORMS.to_owned(), 0), (real_transforms(), 0)];
+    sources.push((owned_transform_source(), 42));
     for complex in [false, true] {
         for kind in ["dual", "conjugate", "adjoint"] {
-            sources.push(rectangular_transform_source(complex, kind));
+            sources.push((rectangular_transform_source(complex, kind), 42));
         }
     }
-    for source in sources {
+    for (source, status) in sources {
         let s = transform_fixture(&source);
         let mut build = command(&s, "build");
         build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let result = Command::new(s.0.join("program")).output().unwrap();
-        success(&result);
-        assert_eq!(result.stdout, b"42\n");
+        assert_eq!(common::ran(&result), common::exits(status));
     }
 }
 
@@ -1704,8 +1703,8 @@ fn finite_network_build_execute_rectangular_complex_reuse_and_calls() {
         build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let output = Command::new(s.0.join("program")).output().unwrap();
-        success(&output);
-        assert_eq!(output.stdout, b"42\n");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&output), common::exits(0));
     }
 }
 
@@ -1728,8 +1727,7 @@ fn finite_network_unused_bodies_keep_ordinary_build_independent_of_blas() {
             .unwrap(),
     );
     let output = Command::new(s.0.join("ordinary")).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(common::ran(&output), common::exits(42));
 }
 
 #[test]
@@ -1994,8 +1992,7 @@ fn vector_evaluation_unused_helpers_need_no_blas_but_remain_checked() {
             .unwrap(),
     );
     let result = Command::new(s.0.join("program")).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    assert_eq!(common::ran(&result), common::exits(42));
     let binary = std::fs::read(s.0.join("program")).unwrap();
     s.write(
         "src/main.vast",
@@ -2030,8 +2027,8 @@ fn vector_evaluation_builds_executes_real_complex_empty_and_transposed() {
         build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let result = Command::new(s.0.join("program")).output().unwrap();
-        success(&result);
-        assert_eq!(result.stdout, b"42\n");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&result), common::exits(0));
     }
 }
 
@@ -2169,8 +2166,8 @@ fn vector_cell_statements_write_and_read_stored_cells_and_run_without_openblas()
         assert_eq!(generated.matches("expect arena").count(), 6);
         assert!(!generated.contains("VastitasGemmNative"));
         let result = cells_run(source);
-        success(&result);
-        assert_eq!(result.stdout, b"42\n");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&result), common::exits(0));
     }
     // The wire names the vector in the fields of the existing actions.
     let mut raw = captured(&cells_fixture(CELLS));
@@ -2250,8 +2247,7 @@ fn vector_cell_statements_write_and_read_stored_cells_and_run_without_openblas()
     ] {
         let source = cells_source(&body, &functions);
         let result = cells_run(&source);
-        success(&result);
-        assert_eq!(result.stdout, b"42\n", "{source}");
+        assert_eq!(common::ran(&result), common::exits(42), "{source}");
     }
 }
 
@@ -2577,6 +2573,6 @@ fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
     build.args(["-o", "program"]).args(&options);
     success(&build.output().unwrap());
     let output = Command::new(s.0.join("program")).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    // The example's entry point returns 0 (#836).
+    assert_eq!(common::ran(&output), common::exits(0));
 }

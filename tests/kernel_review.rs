@@ -3,7 +3,7 @@
 //! frontend and kernel; captured requests are mutated only to forge inputs that
 //! the frontend never emits.
 mod common;
-use common::{Scratch, cli, kernel, root, success};
+use common::{Scratch, cli, exits, kernel, ran, root, success};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -425,8 +425,9 @@ fn generated_code_at_the_source_check_bounds_builds() {
             .unwrap(),
     );
     let output = Command::new(&program).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"3907\n");
+    // The program stays at the bound, so it returns the chain's value, 3907,
+    // whose exit status is 3907 mod 256 (#836).
+    assert_eq!(ran(&output), exits(3907 % 256));
 }
 
 /// Protocol-2 IR beyond the frontend's parser nesting: `depth` nested

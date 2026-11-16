@@ -439,17 +439,45 @@ def function (j : Json) : Except String Function := do
     valueBody := ← Indexed.Wire.block Limits.sourceNesting (← field j "value_body"),
     isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j }
 
+/-- The optional `observations` of a pure function (#836): a nonempty array of
+`{"statement", "label"}` objects, by the function's name, and the function
+without them. -/
+private def observedFunction (j : Json) :
+    Except String (Json × Option (String × List Indexed.Core.Observation)) := do
+  match j.getObjVal? "observations" with
+  | .error _ => return (j, none)
+  | .ok value =>
+    let entries ← value.getArr?
+    if entries.isEmpty then throw "an observation list must not be empty"
+    let observations ← entries.toList.mapM fun entry => do
+      fields entry ["statement", "label"]
+      return ({ statement := ← size entry "statement", label := ← str entry "label" } :
+        Indexed.Core.Observation)
+    return (← without j "observations", some (← str j "name", observations))
+
+/-- A module without the observations of its functions, and the observations.
+Protocol 9 is the current schema epoch (#533); only it admits the
+observations of `show!` (#836), and other protocols keep them, so that the
+strict decoder of functions rejects them. -/
+private def observedModule (j : Json) (observed : Bool) :
+    Except String (Json × List (String × List Indexed.Core.Observation)) := do
+  if !observed then return (j, [])
+  let functions ← (← array j "functions").mapM observedFunction
+  return (j.setObjVal! "functions" (toJson (functions.map (·.1))), functions.filterMap (·.2))
+
 def module (j : Json) (namedRecipients : Bool := false) : Except String Module := do
   -- Protocol 9 is the current schema epoch (#533); only it admits Stage 2 forms.
+  let (j, observations) ← observedModule j namedRecipients
   let pureModule ← Indexed.Wire.module (← without j "resource_functions") true namedRecipients
     namedRecipients
-  return ⟨pureModule, ← (← optionalArray j "resource_functions").mapM function⟩
+  return ⟨pureModule, ← (← optionalArray j "resource_functions").mapM function, observations⟩
 
 def package (j : Json) (namedRecipients : Bool := false) : Except String Package := do
   let modules ← (← array j "modules").mapM (module · namedRecipients)
   -- Reuse the exact package metadata decoder, with no resource body projected
   -- into a pure function. Unknown metadata fields remain rejected.
-  let stripped ← (← array j "modules").mapM (without · "resource_functions")
+  let stripped ← (← array j "modules").mapM fun m => do
+    without (← observedModule m namedRecipients).1 "resource_functions"
   let metadata := (← without j "modules").setObjVal! "modules" (toJson stripped)
   let pkg ← Indexed.Wire.package metadata true namedRecipients namedRecipients
   return ⟨pkg.id, pkg.dependencies, modules, pkg.geometryCompat⟩

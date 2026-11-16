@@ -85,20 +85,22 @@ fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
 
 fn main() -> Int {
     // Same underlying point, different first-order data: e is preserved.
-    42 + verdict(!same(p(), q()), 1)
-       + verdict(same(compose(p(), closed()), compose(q(), closed())), 2)
-       + verdict(pair_first(eps(p())) == 1, 3)
-       // (t + 1)^2 versus t^2 + 1.
-       + verdict(pair_first(slope(compose(sq(), shift()))) == 2, 4)
-       + verdict(pair_first(slope(compose(shift(), sq()))) == 0, 5)
-       // The triangle over S commutes.
-       + verdict(same(compose(toS(), toX()), dsToS()), 6)
-       // Pulling t back along sq at the point 3 gives 9.
-       + verdict(pair_first(value(compose(sq(), at(3)))) == 9, 7)
-       // The universal map into the fiber recovers both arrows.
-       + verdict(same(compose(prX(), lift(toX(), toOrigin())), toX()), 8)
-       + verdict(pair_first(fiberX(lift(toX(), toOrigin()))) == 1, 9)
-       // On opens, u pulls back to v: 1/t pulls back to 1/t^2.
-       + verdict(pair_first(inverseImage(onOpens())) == 1, 10)
-       + verdict(same(compose(unglue(), glue()), compose(unglue(), glue())), 11)
+    let failures = verdict(!same(p(), q()), 1)
+        + verdict(same(compose(p(), closed()), compose(q(), closed())), 2)
+        + verdict(pair_first(eps(p())) == 1, 3)
+        // (t + 1)^2 versus t^2 + 1.
+        + verdict(pair_first(slope(compose(sq(), shift()))) == 2, 4)
+        + verdict(pair_first(slope(compose(shift(), sq()))) == 0, 5)
+        // The triangle over S commutes.
+        + verdict(same(compose(toS(), toX()), dsToS()), 6)
+        // Pulling t back along sq at the point 3 gives 9.
+        + verdict(pair_first(value(compose(sq(), at(3)))) == 9, 7)
+        // The universal map into the fiber recovers both arrows.
+        + verdict(same(compose(prX(), lift(toX(), toOrigin())), toX()), 8)
+        + verdict(pair_first(fiberX(lift(toX(), toOrigin()))) == 1, 9)
+        // On opens, u pulls back to v: 1/t pulls back to 1/t^2.
+        + verdict(pair_first(inverseImage(onOpens())) == 1, 10)
+        + verdict(same(compose(unglue(), glue()), compose(unglue(), glue())), 11);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }

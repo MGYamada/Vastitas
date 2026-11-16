@@ -96,8 +96,9 @@ through the same dependency:
 {{#include ../../examples/packages/demo/src/main.vast}}
 ```
 
-The executable prints `42`. `package` is a binding here, because it does not
-begin a path with `::`.
+The executable writes `pipeline::twice(callback, package) = 42` and exits
+with status 0. `package` is a binding here, because it does not begin a path
+with `::`.
 
 ## Visibility
 

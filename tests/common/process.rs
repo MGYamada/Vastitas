@@ -60,9 +60,8 @@ impl Scratch {
         captured_wire(self.command("check", manifest), version)
     }
     /// Builds the package of `manifest` to `program` in this directory and
-    /// runs it. The build and the program must succeed; returns its standard
-    /// output.
-    pub fn build_and_run(&self, manifest: &str) -> Vec<u8> {
+    /// runs it. The build must succeed; returns what the program did.
+    pub fn build_and_run(&self, manifest: &str) -> Run {
         success(
             &self
                 .command("build", manifest)
@@ -70,12 +69,10 @@ impl Scratch {
                 .output()
                 .unwrap(),
         );
-        let output = Command::new(self.0.join("program")).output().unwrap();
-        success(&output);
-        output.stdout
+        ran(&Command::new(self.0.join("program")).output().unwrap())
     }
     /// [`Scratch::build_and_run`] after a successful check of `manifest`.
-    pub fn check_build_and_run(&self, manifest: &str) -> Vec<u8> {
+    pub fn check_build_and_run(&self, manifest: &str) -> Run {
         success(&self.check_manifest(manifest));
         self.build_and_run(manifest)
     }
@@ -191,7 +188,59 @@ pub fn numerical_build_options(default_cc: Option<&str>) -> Vec<String> {
     options.extend(native_cc_options(default_cc));
     options
 }
-pub fn native(source: &str, libraries: &[PathBuf], expected: &str, filename: &str) {
+/// What a built program did (#836): its exit status, which is the `Int`
+/// result of `main` modulo 256, and what it wrote on standard output, the
+/// `label = value` lines of its `show!`. Its standard error is kept for the
+/// failure message of a comparison only.
+#[derive(Debug)]
+pub struct Run {
+    pub status: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
+impl PartialEq for Run {
+    fn eq(&self, other: &Self) -> bool {
+        self.status == other.status && self.stdout == other.stdout
+    }
+}
+/// A program that exits with `status` and writes nothing on standard output.
+pub fn exits(status: i32) -> Run {
+    Run {
+        status,
+        stdout: String::new(),
+        stderr: String::new(),
+    }
+}
+/// A program that exits with 0 and writes `lines` on standard output, each
+/// with a line feed: the `label = value` lines of its `show!`.
+pub fn shows(lines: &[&str]) -> Run {
+    Run {
+        status: 0,
+        stdout: lines.iter().map(|line| format!("{line}\n")).collect(),
+        stderr: String::new(),
+    }
+}
+/// What the program of `output` did. It must have exited, not stopped at a
+/// signal.
+#[track_caller]
+pub fn ran(output: &Output) -> Run {
+    let status = output.status.code().unwrap_or_else(|| {
+        panic!(
+            "program stopped without an exit status: {}\nstderr:\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+    Run {
+        status,
+        stdout: String::from_utf8(output.stdout.clone()).unwrap(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    }
+}
+/// Builds the flat program `source` with `libraries` and runs it; it must do
+/// what `expected` says.
+#[track_caller]
+pub fn native(source: &str, libraries: &[PathBuf], expected: Run, filename: &str) {
     let scratch = Scratch::empty("native");
     let output_path = scratch.0.join("native program");
     let mut command = cli();
@@ -205,9 +254,5 @@ pub fn native(source: &str, libraries: &[PathBuf], expected: &str, filename: &st
     }
     success(&command.output().unwrap());
     let output = Command::new(output_path).output().unwrap();
-    success(&output);
-    assert_eq!(
-        String::from_utf8(output.stdout).unwrap(),
-        format!("{expected}\n")
-    );
+    assert_eq!(ran(&output), expected, "{source}");
 }

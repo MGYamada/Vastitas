@@ -7,5 +7,6 @@ fn adder() -> Fn<(Int, Int), Int> {
 }
 
 fn main() -> Int {
-    adder()(constant()(), 2)
+    let sum = show!(adder()(constant()(), 2));
+    0
 }

@@ -5,6 +5,12 @@ use serde_json::{Value, json};
 const GEO: &str = include_str!("../examples/packages/indexed/geo.vast");
 const MAIN: &str = include_str!("../examples/packages/indexed/main.vast");
 
+/// The example without its observation (#836): `show!` makes a protocol-9
+/// request, and this file pins the protocol-7 wire.
+fn unobserved_main() -> String {
+    common::checked_replace(MAIN, "show!(", "(")
+}
+
 fn fixture(source: &str) -> Scratch {
     let s = Scratch::empty("indexed wire");
     s.write(
@@ -79,8 +85,10 @@ fn declaration_package_and_static_fn_compile_to_native() {
     let output = std::process::Command::new(s.0.join("program"))
         .output()
         .unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(
+        common::ran(&output),
+        common::shows(&["increment(int(geo::dim(Y))) = 42"])
+    );
 }
 
 #[test]
@@ -116,7 +124,7 @@ fn indexed_calls_explain_missing_conversion_and_literal_pair_inference() {
 
 #[test]
 fn actual_rust_wire_is_seven_and_older_envelopes_reject_declarations() {
-    let original = request(&fixture(MAIN));
+    let original = request(&fixture(&unobserved_main()));
     assert_eq!(original["version"], 7);
     assert_eq!(kernel(&original, "check")["ok"], true);
     for version in [2, 3, 4, 5, 6] {
@@ -133,7 +141,7 @@ fn actual_rust_wire_is_seven_and_older_envelopes_reject_declarations() {
 
 #[test]
 fn forged_wire_metadata_never_becomes_checked_authority() {
-    let original = request(&fixture(MAIN));
+    let original = request(&fixture(&unobserved_main()));
     let root = original["packages"][0]["modules"]
         .as_array()
         .unwrap()

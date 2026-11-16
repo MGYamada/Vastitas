@@ -68,7 +68,9 @@ vastitas build examples/pointed.vast -o pointed
 ./pointed
 ```
 
-The example prints `42`. An installed `vastitas` has no built kernel of its
+The example prints `42`: an executable of the alpha release prints the
+result of `main`, where the executables of this book exit with it and write
+only the lines of `show!`. An installed `vastitas` has no built kernel of its
 own, so `VASTITAS_KERNEL_ROOT` names one. Set the variable to the same
 absolute path in each shell that you open.
 

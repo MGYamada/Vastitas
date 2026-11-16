@@ -125,8 +125,7 @@ fn a_padded_transposed_read_names_its_uncovered_cell_in_both_conventions() {
     let output = std::process::Command::new(scratch.0.join("program"))
         .output()
         .unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"0\n");
+    assert_eq!(common::ran(&output), common::exits(0));
 
     // The logical coordinates are those that `store` takes: writing the named
     // cell moves the diagnostic to the other uncovered cell, in stored column 1.

@@ -31,7 +31,8 @@ Rules:
 {{#include ../examples/functions.vast}}
 ```
 
-The executable prints `42`.
+The executable writes `invoke(keep(increment), 41) = 42` and exits with
+status 0.
 
 ## Lambdas and their names
 

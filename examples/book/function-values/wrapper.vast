@@ -9,5 +9,6 @@ fn add_ints(x: Int, y: Int) -> Int { add(x, y) }
 fn fold(f: Fn<(Int, Int), Int>, x: Int, y: Int) -> Int { f(x, y) }
 
 fn main() -> Int {
-    fold(add_ints, 40, 2)
+    let sum = show!(fold(add_ints, 40, 2));
+    0
 }

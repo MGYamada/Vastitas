@@ -226,9 +226,18 @@ the sizes of the inputs, the handling of signals and concurrent builds.
 
 ## After the build
 
-An executable runs the program and prints the value of `main`. A program
-that the compiler accepts can still stop when it runs, because some checks
-need values that only the run has. The `expect` statement of
+An executable runs the program. It writes to standard output only the lines
+of `show!`: one line `label = value` for each `let` of `main` that shows its
+value, in the order of the statements, where the label is the text of the
+expression. It then exits with the result of `main` as its exit status. The
+status is the result modulo 256, a number from 0 to 255, so 300 gives 44 and
+−1 gives 255. A program returns 0 when it succeeds.
+[The entry point](../language/programs.md#the-entry-point) and
+[Showing values with `show!`](../language/programs.md#showing-values-with-show)
+give the rules.
+
+A program that the compiler accepts can still stop when it runs, because
+some checks need values that only the run has. The `expect` statement of
 [the storage chapter](storage.md#parameters) is such a run-time check. This
 program writes 3 to two cells and expects 4 in one of them:
 
@@ -250,8 +259,9 @@ that the cell holds and the payload that the statement expects.
 [Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics)
 gives the form of such a line.
 
-A program that stops in this way prints no result. The writes that it
-completed before it stopped are not undone, and it frees its allocations.
+A program that stops in this way writes nothing to standard output. The
+writes to its cells that it completed before it stopped are not undone, and
+it frees its allocations.
 
 An executable makes other run-time checks too. It checks the
 conditions on [sizes that the program computes](storage.md#sizes-that-the-program-computes),

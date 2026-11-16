@@ -68,21 +68,23 @@ fn main() -> Int {
     let dg: Cotangent<Plane> = differential(g(), p);
     let v: Tangent<Plane> = vplane(p, 5, -7);
     // dg = (2, 1) at (1, 2); no metric is involved.
-    42 + verdict(pair_first(dx(dg)) == 2 && pair_first(dy(dg)) == 1 && pair_second(dy(dg)) == 1, 1)
-       // Euclid gives (2, 1), Skew (1, 0) and Lorentz (2, -1).
-       + verdict(reads(gradient_euclid(g(), p), 2, 1), 2)
-       + verdict(reads(gradient_skew(g(), p), 1, 0), 3)
-       + verdict(reads(gradient_lorentz(g(), p), 2, -1), 4)
-       // Two metrics give two gradients of the same differential, and each lies over p.
-       + verdict(!same_vector(gradient_euclid(g(), p), gradient_skew(g(), p)), 5)
-       + verdict(tangent_over(gradient_skew(g(), p), p) && tangent_over(gradient_lorentz(g(), p), p), 6)
-       // sharp after flat is the identity; flat (5, -7) under Skew is (3, -2).
-       + verdict(same_vector(sharp_euclid(flat_euclid(v)), v), 7)
-       + verdict(same_vector(sharp_skew(flat_skew(v)), v), 8)
-       + verdict(same_covector(flat_skew(v), dplane(p, 3, -2)), 9)
-       // dg(grad) = 2, and it equals the metric's value g(grad, grad).
-       + verdict(pair_first(pairing(dg, gradient_skew(g(), p))) == 2 && pair_second(pairing(dg, gradient_skew(g(), p))) == 1, 10)
-       + verdict(pair_first(pairing(flat_skew(gradient_skew(g(), p)), gradient_skew(g(), p))) == 2, 11)
-       // flat of the gradient is the differential again.
-       + verdict(same_covector(flat_skew(gradient_skew(g(), p)), dg), 12)
+    let failures = verdict(pair_first(dx(dg)) == 2 && pair_first(dy(dg)) == 1 && pair_second(dy(dg)) == 1, 1)
+        // Euclid gives (2, 1), Skew (1, 0) and Lorentz (2, -1).
+        + verdict(reads(gradient_euclid(g(), p), 2, 1), 2)
+        + verdict(reads(gradient_skew(g(), p), 1, 0), 3)
+        + verdict(reads(gradient_lorentz(g(), p), 2, -1), 4)
+        // Two metrics give two gradients of the same differential, and each lies over p.
+        + verdict(!same_vector(gradient_euclid(g(), p), gradient_skew(g(), p)), 5)
+        + verdict(tangent_over(gradient_skew(g(), p), p) && tangent_over(gradient_lorentz(g(), p), p), 6)
+        // sharp after flat is the identity; flat (5, -7) under Skew is (3, -2).
+        + verdict(same_vector(sharp_euclid(flat_euclid(v)), v), 7)
+        + verdict(same_vector(sharp_skew(flat_skew(v)), v), 8)
+        + verdict(same_covector(flat_skew(v), dplane(p, 3, -2)), 9)
+        // dg(grad) = 2, and it equals the metric's value g(grad, grad).
+        + verdict(pair_first(pairing(dg, gradient_skew(g(), p))) == 2 && pair_second(pairing(dg, gradient_skew(g(), p))) == 1, 10)
+        + verdict(pair_first(pairing(flat_skew(gradient_skew(g(), p)), gradient_skew(g(), p))) == 2, 11)
+        // flat of the gradient is the differential again.
+        + verdict(same_covector(flat_skew(gradient_skew(g(), p)), dg), 12);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }

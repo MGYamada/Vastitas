@@ -18,9 +18,8 @@ impl Scratch {
         assert!(!output.status.success(), "accepted invalid package");
         common::expect_code(&output, code)
     }
-    fn native(&self, expected: &str) {
-        let stdout = self.check_build_and_run("app/Vastitas.toml");
-        assert_eq!(String::from_utf8(stdout).unwrap(), format!("{expected}\n"));
+    fn native(&self, expected: common::Run) {
+        assert_eq!(self.check_build_and_run("app/Vastitas.toml"), expected);
     }
 }
 
@@ -29,7 +28,7 @@ fn path_aliases_reexports_and_higher_order_dispatch_execute() {
     let s = Scratch::empty("packages");
     s.package("lib", "mod inner { pub generic add(x, y) { domain (Int, Int); } method add(x: Int, y: Int) -> Int { x + y } pub fn next(x: Int) -> Int { add(x, 1) } } pub use inner::next; pub fn invoke(f: Fn<Int, Int>, x: Int) -> Int { f(x) }", "");
     s.package("app", "use math::next as increment; fn main() -> Int { let package = 40; let f: Fn<Int, Int> = if true { increment } else { alias::next }; math::invoke(f, f(package)) }", "math = { path = '../lib' }\nalias = { path = '../lib/.' }");
-    s.native("42");
+    s.native(common::exits(42));
 }
 
 #[test]
@@ -42,7 +41,7 @@ fn distinct_locations_and_versions_never_merge_owners() {
         "fn main() -> Int { left::value() + right::value() }",
         "left = { path = '../left' }\nright = { path = '../right' }",
     );
-    s.native("42");
+    s.native(common::exits(42));
     s.write(
         "app/src/main.vast",
         "fn main() -> Int { let f = if true { left::value } else { right::value }; f() }",
@@ -64,21 +63,21 @@ fn inline_and_external_layouts_and_declaration_order_are_equivalent() {
         &format!("{source} mod math {{ pub fn value() -> Int {{ 42 }} }}"),
         "",
     );
-    s.native("42");
+    s.native(common::exits(42));
     s.write("app/src/main.vast", &format!("mod math; {source}"));
     s.write(
         "app/src/math.vast",
         "pub fn value() -> Int { deep::answer() } mod deep;",
     );
     s.write("app/src/math/deep.vast", "pub fn answer() -> Int { 42 }");
-    s.native("42");
+    s.native(common::exits(42));
     fs::create_dir_all(s.0.join("app/src/math")).unwrap();
     fs::rename(
         s.0.join("app/src/math.vast"),
         s.0.join("app/src/math/mod.vast"),
     )
     .unwrap();
-    s.native("42");
+    s.native(common::exits(42));
     s.write("app/src/math.vast", "pub fn value() -> Int { 0 }");
     s.rejects("E_INPUT");
 }
@@ -91,7 +90,7 @@ fn a_regular_file_beside_a_flat_module_is_no_nested_candidate() {
     s.package("app", "mod math; fn main() -> Int { math::answer() }", "");
     s.write("app/src/math.vast", "pub fn answer() -> Int { 42 }");
     s.write("app/src/math", "an unrelated file");
-    s.native("42");
+    s.native(common::exits(42));
     // Without the flat file the module is missing, not uninspectable.
     fs::remove_file(s.0.join("app/src/math.vast")).unwrap();
     let message = s.rejects("E_INPUT");
@@ -200,7 +199,7 @@ fn private_paths_reexports_parent_lookup_and_shadowing_are_checked() {
         s.rejects(code);
     }
     s.package("app", "fn value() -> Int { 42 } mod child { pub mod nested { pub fn call() -> Int { super::super::value() } } } fn main() -> Int { child::nested::call() }", "");
-    s.native("42");
+    s.native(common::exits(42));
 }
 
 /// `package` is no name of a module either. The diagnostic is at the name; the
@@ -260,7 +259,7 @@ fn a_use_cannot_bind_the_name_package() {
         "fn package() -> Int { 42 }\nuse package as root;\nfn main() -> Int { root() }",
         "",
     );
-    s.native("42");
+    s.native(common::exits(42));
     // The kernel keeps its own check of the name for a request that the
     // frontend did not write.
     s.package(
@@ -321,7 +320,7 @@ fn main() -> Int {
 }",
         "",
     );
-    s.native("42");
+    s.native(common::exits(42));
     // Paths through `self`, `super`, `package` and a dependency, a `use` of
     // an item of the module, and a `use` of the module under another name.
     s.package(
@@ -343,7 +342,7 @@ fn main() -> Int {
 }",
         "dep = { path = '../lib' }",
     );
-    s.native("42");
+    s.native(common::exits(42));
 }
 
 /// The seven names stay reserved for every other declaration and binding:
@@ -499,7 +498,7 @@ fn dimension_is_an_ordinary_name() {
 }",
         "dimension = { path = '../lib' }",
     );
-    s.native("42");
+    s.native(common::exits(42));
     // Modules, and a `use … as` that binds a function.
     s.package(
         "app",
@@ -518,7 +517,7 @@ fn main() -> Int {
 }",
         "",
     );
-    s.native("42");
+    s.native(common::exits(42));
     // A plain `use` of a module named `dimension`.
     s.package(
         "app",
@@ -528,14 +527,14 @@ fn twice(n: Int) -> Int { n + n }
 fn main() -> Int { dimension::value() + twice(1) }",
         "",
     );
-    s.native("42");
+    s.native(common::exits(42));
     // A function named `dimension`, and its call.
     s.package(
         "app",
         "fn dimension(n: Int) -> Int { n + 1 }\nfn main() -> Int { dimension(41) }",
         "",
     );
-    s.native("42");
+    s.native(common::exits(42));
     // An unresolved call explains `dim` and `nature::dimension`, at the root
     // and in a child module.
     for source in [
@@ -805,7 +804,7 @@ fn only_exact_generic_owner_can_add_methods() {
         s.rejects("E_OWNER");
     }
     s.package("app", "pub generic g() { domain (); } use g as alias; method alias() -> Int { 21 } fn main() -> Int { g() + g() }", "");
-    s.native("42");
+    s.native(common::exits(42));
 }
 
 #[test]
@@ -1057,7 +1056,7 @@ fn all_manifests_and_module_sources_are_protected_from_output() {
 fn dependent_geometry_survives_namespaces_and_unpack() {
     let s = Scratch::empty("packages");
     s.package("app", "mod geometry { pub fn retain(X: Scheme, p: Point<X, Base(QQ)>) -> Pointed<Scheme, QQ> { pack { scheme: X, point: p } } } fn main() -> Int { let X = Affine(QQ, 42); let p = origin(X); let parcel = geometry::retain(X, p); unpack parcel as { scheme: Y, point: q }; int(dim(Y)) }", "");
-    s.native("42");
+    s.native(common::exits(42));
 }
 
 #[test]

@@ -63,10 +63,14 @@ Package requests never fall back to protocol 2. Other versions are rejected.
 
 The driver selects the protocol of a request from the declarations that the
 source contains. In flat mode it uses protocol 2, or protocol 4 when the
-program declares abstract types, subtypes or abstract methods. In manifest
+program declares abstract types, subtypes or abstract methods. A flat program
+that uses [`show!`](language/programs.md#showing-values-with-show) is sent as a
+protocol-9 package request instead
+([Observations of `show!`](#protocol-9-observations-of-show)). In manifest
 mode it takes the first match of this list:
 
-1. any grant, delegation or transfer, a presented affine declaration of
+1. any grant, delegation or transfer, an observation of `show!`, a presented
+   affine declaration of
    [Presented affine geometry](affine-geometry.md), a smooth or metric
    declaration of [Smooth affine declarations](language/smooth-declarations.md),
    a [frame](#protocol-9-frame-forms) or
@@ -127,6 +131,36 @@ even alongside `grantee_package`. Earlier versions retain their strict schemas.
 source migration, and
 [Geometry compatibility exports](packages.md#geometry-compatibility-exports)
 the explicit geometry compatibility requirement.
+
+<a id="protocol-9-observations-of-show"></a>
+
+**Protocol-9 observations of `show!`.** A pure function of a protocol-9 module
+may have the optional field `observations`: a nonempty array of objects with
+exactly the fields `statement` (a natural number below 2^64) and `label` (a
+string). Each names the `statement`-th top-level statement of the function's
+body, whose `let` the request sends without `show!`. Protocols 7 and 8 reject
+the field with `E_PROTOCOL`, as an unknown field of a function. The kernel
+checks the observations after it checks the pure program, before code
+generation and in `check` mode too:
+
+- only the entry point `main` of the root module of the root package may have
+  observations. An observation on another function is an error
+  (`E_UNSUPPORTED`), with the message of the frontend;
+- the statements must increase strictly, and each must exist. Another list,
+  an empty list or another field is an error (`E_PROTOCOL`). A statement that
+  is an `unpack` is an error (`E_UNSUPPORTED`);
+- the value of each observed `let`, in the compiled Core of the checked
+  program, must have type `Int`, `Nat`, `Bool`, `Unit` or `Pair`. Another type,
+  including a function value, which Core erases to `Unit`, is an error
+  (`E_TYPE`).
+
+The label is presentation only: the kernel never reads it for acceptance, and
+code generation writes it as a quoted Lean string literal. A flat program with
+observations is sent as one package with the identity that the kernel gives a
+flat program of protocols 2–6, `vastitas:compat:flat`, `legacy_flat` and
+`1.0.0`, with every declaration public. That request has no legacy geometry
+profile. The driver shows the kernel's names of its functions without the
+package prefix.
 
 <a id="protocol-9-algebraic-affine-forms"></a>
 
@@ -858,7 +892,17 @@ primitive result compatibility, source regressions and the limits of the
 source/native proof claims. The compatibility adapter is not an additional wire
 version or a privileged semantic checker.
 User symbols are always renamed to generated identifiers; source text is never
-inserted as Lean syntax. Integers are validated decimal literals.
+inserted as Lean syntax. Integers are validated decimal literals. The label of
+an observation of `show!` is written as a quoted Lean string literal.
+
+The generated `main` has type `IO UInt32`. It returns the exit status of the
+`Int` result of the entry point, the result modulo 256 (`Int.emod`), and
+writes nothing for the result. A resource entry point sets the status inside
+the cleanup of its arenas and returns it after they are closed. With
+observations, the entry point binds the top-level statements of the body of
+`main` in order, up to the last observed one, writes `label = value` and a
+line feed after each observed `let`, and returns the exit status of the rest
+of the body.
 
 
 ## Protocol 3: package namespaces
@@ -1253,6 +1297,13 @@ receipts, doctest execution, or official package admission.
 - `tests/edit_authority.rs::named_recipient_wire_rejects_forged_locations_and_unselected_records`
   and `recipient_source_migration_keeps_legacy_wire_and_optional_runtime_boundaries`
   pin the recipient fields of protocols 6 to 9.
+- `tests/show.rs::show_selects_protocol_nine_and_check_is_unchanged` pins the
+  protocol of a program with observations of `show!` and their wire field,
+  and `the_kernel_refuses_tampered_observations` refuses an observation
+  outside `main`, of a function value, of a missing statement, an empty list,
+  a foreign field and protocol 8. The kernel regression
+  `VastitasKernel.ObservationRegression` decodes, checks and generates the
+  observations without the driver.
 - The kernel regressions `VastitasKernel.IndexedWireRegression`,
   `VastitasKernel.LegacySourceRegression` and
   `VastitasPublicTest.AuthorityRegression` decode and check requests without

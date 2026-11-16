@@ -5,4 +5,7 @@ assembly {
   seal base::choose;
 }
 
-fn main() -> Int { base::choose(40, 2) }
+fn main() -> Int {
+    let chosen = show!(base::choose(40, 2));
+    0
+}

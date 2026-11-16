@@ -3,7 +3,8 @@
 // metrics, G = diag(1/9, 1/4) and M = diag(1, -9). The interpretations are
 // checked declarations and change no value: `main` computes gradients with
 // the std metrics alone. Each observation has its own failure code, so
-// `main` prints 42 only when all of them hold.
+// `main` shows `failures = 0` and exits with status 0 only when all of them
+// hold.
 // ANCHOR: imports
 use std::geometry::smooth::affine::SmoothR;
 use std::geometry::smooth::affine::Smooth;
@@ -77,6 +78,8 @@ fn main() -> Int {
     // The gradients of h(x, t) = x + t under G and under M.
     let grad: Tangent<C> = sharp_g(differential(h(), p));
     let lorentz: Tangent<C> = sharp_m(differential(h(), p));
-    42 + verdict(reads(vx(grad), 9, 1) && reads(vt(grad), 4, 1), 1)
-       + verdict(reads(vx(lorentz), 1, 1) && reads(vt(lorentz), -1, 9), 2)
+    let failures = verdict(reads(vx(grad), 9, 1) && reads(vt(grad), 4, 1), 1)
+        + verdict(reads(vx(lorentz), 1, 1) && reads(vt(lorentz), -1, 9), 2);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }

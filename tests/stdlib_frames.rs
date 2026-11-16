@@ -4,7 +4,7 @@
 //! those frames, and observes their values natively. The tests also audit the
 //! module's public names and its family contracts (ADR 0001 §11).
 mod common;
-use common::{Scratch, expect_code};
+use common::{Run, Scratch, exits, expect_code};
 use serde_json::{Value, json};
 
 /// The plane with the constant frame b = columns((1, 0), (1, 2)), the frame
@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 /// inverse, and the frame l = columns((2)) of the line. At p = (1, 2) the
 /// array (1, 2) in r is the vector (3, 2), whose array in b is (2, 1), and
 /// f(x, y) = x^2 + y has the differential (2, 1), whose array in b is (2, 4).
-/// Each observation has its own failure code, so `main` prints 42 only when
+/// Each observation has its own failure code, so `main` returns 42 only when
 /// all of them hold.
 const MAIN: &str = r#"
 use std::geometry::smooth::affine::SmoothR;
@@ -102,7 +102,7 @@ fn check(s: &Scratch) -> std::process::Output {
     s.check_manifest("app/Vastitas.toml")
 }
 
-fn run(s: &Scratch) -> Vec<u8> {
+fn run(s: &Scratch) -> Run {
     s.check_build_and_run("app/Vastitas.toml")
 }
 
@@ -144,11 +144,11 @@ fn without_spans(value: &Value) -> Value {
 
 #[test]
 fn frames_from_the_library_check_build_and_run_from_a_path_package() {
-    assert_eq!(run(&fixture(MAIN)), b"42\n");
+    assert_eq!(run(&fixture(MAIN)), exits(42));
 }
 
 /// Each observation can fail: a wrong component, a vector other than the
-/// decoded one and an entry of another map array change the printed number
+/// decoded one and an entry of another map array change the exit status
 /// by their own codes, 1, 4 and 7.
 #[test]
 fn mutated_frame_observations_change_the_native_result() {
@@ -165,7 +165,7 @@ fn mutated_frame_observations_change_the_native_result() {
     );
     // 42 + 1 + 4 + 7: the components of w are (2, 1); the array (1, 2) in r
     // is (3, 2), not (1, 2); M_rl = (1, 3/2).
-    assert_eq!(run(&fixture(&main)), b"54\n");
+    assert_eq!(run(&fixture(&main)), exits(54));
 }
 
 /// The module exports exactly the four families, and nothing else (C21).

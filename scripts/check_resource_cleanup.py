@@ -161,7 +161,10 @@ def main():
             canonical = package / "program"
             runner.run([frontend, "build", "--manifest-path", package / "Vastitas.toml",
                         "-o", canonical])
-            assert runner.run([canonical])["stdout"] == "42\n"
+            # The entry point exits with the result of `value`, 42, and writes
+            # nothing (#836).
+            built = runner.run([canonical], required=False)
+            assert built["returncode"] == 42 and built["stdout"] == "", built
             response = json.loads(runner.run([kernel, "emit"], input=wire)["stdout"])
             assert response["ok"] and response["version"] == 8 and not response["numerical_runtime"]
             generated = response["lean_source"]
@@ -186,10 +189,13 @@ def main():
                     env, VASTITAS_CLEANUP_NEW=str(failed_new), VASTITAS_CLEANUP_BODY=str(failed_body),
                     VASTITAS_CLEANUP_CLOSE=str(failed_close)))
                 stderr = observation["stderr"]
-                assert (observation["returncode"] == 0) == (error is None), observation
+                # Success exits with the status 42 after every cleanup; a failure
+                # exits with another nonzero status.
+                assert (observation["returncode"] == 42) == (error is None), observation
+                assert observation["returncode"] != 0, observation
                 diagnostics = re.findall(r"E_CLEANUP_[A-Z]+_\d+", stderr)
                 assert diagnostics == ([error] if error else []), observation
-                assert observation["stdout"] == ("" if failed_new or failed_body else "42\n"), observation
+                assert observation["stdout"] == "", observation
                 events = re.findall(r"^CLEANUP (new|close|final) (\d+)$", stderr, re.MULTILINE)
                 observed = lambda operation: [int(n) for op, n in events if op == operation]
                 assert observed("new") == created and observed("close") == close_order, observation

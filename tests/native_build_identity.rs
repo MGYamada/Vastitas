@@ -41,10 +41,16 @@ fn executable(path: &Path, source: &str) {
     fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
 }
 
+/// The standard output of a program that a mocked Lake installs.
 fn run(program: &Path) -> String {
     let output = Command::new(program).output().unwrap();
     success(&output);
     String::from_utf8(output.stdout).unwrap()
+}
+
+/// What a program that the real Lake built did.
+fn ran(program: &Path) -> common::Run {
+    common::ran(&Command::new(program).output().unwrap())
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -204,7 +210,7 @@ fn changed_runtime_source_under_an_unchanged_checker_is_rejected_before_lake() {
     };
     // The untouched copy is a working root: Lake compiles its runtime.
     success(&build("pointed"));
-    assert_eq!(run(&s.0.join("pointed")), "42\n");
+    assert_eq!(ran(&s.0.join("pointed")), common::exits(0));
     let compiled = kernel.join(".lake/build/lib/lean/VastitasKernel/IndexedRuntime.olean");
     let compiled_at = fs::metadata(&compiled).unwrap().modified().unwrap();
 
@@ -234,12 +240,12 @@ fn changed_runtime_source_under_an_unchanged_checker_is_rejected_before_lake() {
         compiled_at,
         "Lake compiled the changed runtime"
     );
-    assert_eq!(run(&s.0.join("pointed")), "42\n");
+    assert_eq!(ran(&s.0.join("pointed")), common::exits(0));
 
     // The same root with its source restored builds again.
     fs::write(&runtime, original).unwrap();
     success(&build("restored"));
-    assert_eq!(run(&s.0.join("restored")), "42\n");
+    assert_eq!(ran(&s.0.join("restored")), common::exits(0));
 }
 
 // A separately selected checker passes the identity check for any root, so the

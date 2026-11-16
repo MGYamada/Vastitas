@@ -65,7 +65,7 @@ resource fn main() -> Int {
     drop(a);
     drop(identity);
     drop(out);
-    value { 42 }
+    value { 0 }
 }
 
 // ANCHOR: dual-into

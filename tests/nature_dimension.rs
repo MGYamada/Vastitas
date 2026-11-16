@@ -6,7 +6,7 @@
 //! the gradient natively, compare the generated Lean with and without the
 //! nature declarations, and audit the module's public names (ADR 0002).
 mod common;
-use common::{Scratch, expect_code, kernel, read, success};
+use common::{Run, Scratch, expect_code, kernel, read, success};
 use serde_json::{Value, json};
 
 /// The nature declarations of `MAIN`: a reading, two scales and the physical
@@ -19,7 +19,8 @@ indexed physical PG: PhysicalMetric<C> = interpret(G, reading = phys, gram((l0^-
 
 /// The chart C = Affine(2)[x, t] with the std metric G = diag(1/9, 1/4) and
 /// its evidence, and the gradient of h(x, t) = x + t under G at (1, 2), which
-/// is (9, 4). `main` prints 100 times its x component plus its t component.
+/// is (9, 4). `main` shows its x and t components, exact fractions as
+/// `(numerator, denominator)`.
 const MAIN: &str = "use std::geometry::smooth::affine::SmoothR;
 use std::geometry::smooth::affine::Smooth;
 use std::geometry::smooth::affine::Tangent;
@@ -54,11 +55,9 @@ fn gradient(f: Smooth<C, Line>, p: Smooth<Pt, C>) -> Tangent<C> {
 
 fn main() -> Int {
     let grad: Tangent<C> = gradient(h(), chart_at(1, 2));
-    if pair_second(vx(grad)) == 1 && pair_second(vt(grad)) == 1 {
-        100 * pair_first(vx(grad)) + pair_first(vt(grad))
-    } else {
-        0
-    }
+    let horizontal = show!(vx(grad));
+    let vertical = show!(vt(grad));
+    0
 }
 ";
 
@@ -77,7 +76,7 @@ fn check(s: &Scratch) -> std::process::Output {
     s.check_manifest("app/Vastitas.toml")
 }
 
-fn run(s: &Scratch) -> Vec<u8> {
+fn run(s: &Scratch) -> Run {
     s.check_build_and_run("app/Vastitas.toml")
 }
 
@@ -93,6 +92,11 @@ fn with(extra: &str) -> String {
 #[track_caller]
 fn rejects(main: &str, code: &str) -> String {
     expect_code(&check(&fixture(main)), code)
+}
+
+/// The components (9, 4) of the gradient that `MAIN` shows.
+fn gradient() -> Run {
+    common::shows(&["vx(grad) = (9, 1)", "vt(grad) = (4, 1)"])
 }
 
 fn request(s: &Scratch) -> Value {
@@ -113,7 +117,7 @@ fn packages<'a>(wire: &'a Value, name: &str) -> Vec<&'a Value> {
 /// matrix (C18).
 #[test]
 fn the_scaled_metric_is_accepted_and_its_gradient_is_nine_four() {
-    assert_eq!(run(&fixture(MAIN)), b"904\n");
+    assert_eq!(run(&fixture(MAIN)), gradient());
 }
 
 /// The application and the package of `nature::dimension` reach one std
@@ -283,8 +287,8 @@ fn generated_code_is_byte_identical_without_the_nature_declarations() {
     assert!(packages(&wire, "vastitas_nature").is_empty());
     assert!(packages(&wire, "vastitas_dimension").is_empty());
     assert_eq!(source, generated(&alone));
-    assert_eq!(run(&with_nature), b"904\n");
-    assert_eq!(run(&alone), b"904\n");
+    assert_eq!(run(&with_nature), gradient());
+    assert_eq!(run(&alone), gradient());
 }
 
 /// The module exports exactly the two families, the three base dimensions

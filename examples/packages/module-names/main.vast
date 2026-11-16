@@ -5,5 +5,5 @@ fn main() -> Int {
     let X = Affine(QQ, 2);
     // A path through `dim` names the module. The bare name in a call
     // is the geometric operation.
-    length() + self::dim::width() + int(dim(X))
+    if length() + self::dim::width() + int(dim(X)) == 42 { 0 } else { 1 }
 }

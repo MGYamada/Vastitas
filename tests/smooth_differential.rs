@@ -5,7 +5,9 @@
 //! selection and forged wire. The last section runs the Stage 3 acceptance
 //! program, `examples/packages/smooth-differential`.
 mod common;
-use common::{Scratch, assert_wire_rejected, cli, expect_code, kernel, remove_spans, success};
+use common::{
+    Run, Scratch, assert_wire_rejected, cli, exits, expect_code, kernel, remove_spans, success,
+};
 use serde_json::{Value, json};
 
 const PROFILE: &str = include_str!("../examples/packages/smooth-objects/src/profile.vast");
@@ -44,8 +46,18 @@ fn rejects(main: &str, code: &str) -> String {
     expect_code(&check(&fixture(main)), code)
 }
 
-fn run(s: &Scratch) -> Vec<u8> {
+fn run(s: &Scratch) -> Run {
     s.build_and_run("Vastitas.toml")
+}
+
+/// What a verdict program does when the codes of its failed checks add up to
+/// `failures`: it shows the sum, and returns 0 only when it is 0.
+fn failed(failures: u64) -> Run {
+    Run {
+        status: i32::from(failures != 0),
+        stdout: format!("failures = {failures}\n"),
+        stderr: String::new(),
+    }
 }
 
 fn request(s: &Scratch) -> Value {
@@ -70,7 +82,7 @@ fn declaration_pointer(raw: &Value, name: &str) -> String {
 fn objects_example_checks_builds_and_executes() {
     let s = fixture(MAIN);
     success(&check(&s));
-    assert_eq!(run(&s), b"42\n");
+    assert_eq!(run(&s), failed(0));
 }
 
 #[test]
@@ -106,7 +118,7 @@ fn mutated_object_observations_change_the_native_result() {
         "same(plane_at(1, 2), onePlusTwo())",
         "same(plane_at(2, 1), onePlusTwo())",
     );
-    assert_eq!(run(&fixture(&main)), b"83\n");
+    assert_eq!(run(&fixture(&main)), failed(41));
 }
 
 #[test]
@@ -490,8 +502,7 @@ fn main() -> Int {
     let result = std::process::Command::new(s.0.join("program"))
         .output()
         .unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    assert_eq!(common::ran(&result), exits(42));
 }
 
 // Covectors, vectors, tapes and the reverse pass (protocol 9). The example
@@ -527,7 +538,7 @@ fn rejects_cotangent(main: &str, code: &str) -> String {
 fn cotangent_example_checks_builds_and_executes() {
     let s = cotangent_fixture(COTANGENT_MAIN);
     success(&check(&s));
-    assert_eq!(run(&s), b"42\n");
+    assert_eq!(run(&s), failed(0));
 }
 
 #[test]
@@ -552,7 +563,7 @@ fn mutated_cotangent_observations_change_the_native_result() {
         "dplane(plane_at(0, 0), 1, 1)), 14)",
         "dplane(plane_at(0, 0), 2, 1)), 14)",
     );
-    assert_eq!(run(&cotangent_fixture(&main)), b"90\n");
+    assert_eq!(run(&cotangent_fixture(&main)), failed(48));
 }
 
 #[test]
@@ -564,7 +575,7 @@ fn a_right_intermediate_point_flips_the_failure_checks() {
         "compose(f(), line_at(2)), dline(line_at(8), 1)",
         "compose(f(), line_at(3)), dline(line_at(18), 1)",
     );
-    assert_eq!(run(&cotangent_fixture(&main)), b"72\n");
+    assert_eq!(run(&cotangent_fixture(&main)), failed(30));
 }
 
 /// The lowered source of a program whose only pullback uses `binding`.
@@ -583,7 +594,7 @@ fn main() -> Int {{ if lies_over({binding}(sq(), line_at(3), dline(line_at(9), 1
 "
     );
     let s = cotangent_fixture(&main);
-    assert_eq!(run(&s), b"42\n");
+    assert_eq!(run(&s), exits(42));
     let emitted = kernel(request(&s), "emit");
     assert_eq!(emitted["ok"], true, "{emitted}");
     emitted["lean_source"].as_str().unwrap().to_string()
@@ -786,7 +797,7 @@ fn through(tape: Tape<Line, Line>, seed: Cotangent<Line>) -> Cotangent<Line> {{ 
     ] {
         assert!(source.contains(expected), "{expected}\n{source}");
     }
-    assert_eq!(run(&s), b"6\n");
+    assert_eq!(run(&s), exits(6));
 }
 
 #[test]
@@ -803,15 +814,17 @@ fn a_composite_with_exponent_two_to_the_eighteen_runs_in_constant_native_stack()
     let two: Smooth<Pt, Line> = line_at(2);
     let top: Cotangent<Line> = dline(compose(power, two), 1);
     // At 1 the pullback of dt is the exponent.
-    pair_first(dt(pullback(whole, one, dline(one, 1))))
+    let result: Int = pair_first(dt(pullback(whole, one, dline(one, 1))))
        // At 2 the composite agrees with the 18 squarings pulled back one at a time.
        + verdict(same_covector(pullback(whole, two, top), pullback(power, two, top)), 1)
        + verdict(same_covector(pullback_recomputed(whole, two, top), pullback(power, two, top)), 2)
-       + verdict(lies_over(dline(compose(whole, two), 1), compose(power, two)), 3)"
+       + verdict(lies_over(dline(compose(whole, two), 1), compose(power, two)), 3);
+    let shown = show!(result);
+    0"
     );
     let s = stack_program("", &main);
     success(&check(&s));
-    assert_eq!(run(&s), b"262144\n");
+    assert_eq!(run(&s), common::shows(&["result = 262144"]));
 }
 
 #[test]
@@ -835,7 +848,7 @@ fn nineteen_squarings_nested_on_the_left_denote_one_map_in_constant_native_stack
     );
     let s = stack_program("", &main);
     success(&check(&s));
-    assert_eq!(run(&s), b"42\n");
+    assert_eq!(run(&s), exits(42));
 }
 
 /// The sum of the monomials of degree at most `degree` in three coordinates.
@@ -886,7 +899,7 @@ fn agrees(whole: Smooth<Space, Line>, product: Smooth<Space, Line>, p: Smooth<Pt
     if agrees(composite(product), product, space_at(1, -1, 2, 1, 2, -1)) { 42 } else { 0 }";
     let s = stack_program(&items, main);
     success(&check(&s));
-    assert_eq!(run(&s), b"42\n");
+    assert_eq!(run(&s), exits(42));
 }
 
 #[test]
@@ -1146,7 +1159,7 @@ fn rejects_metric(main: &str, code: &str) -> String {
 fn metric_example_checks_builds_and_executes() {
     let s = metric_fixture(METRIC_MAIN);
     success(&check(&s));
-    assert_eq!(run(&s), b"42\n");
+    assert_eq!(run(&s), failed(0));
 }
 
 #[test]
@@ -1162,7 +1175,7 @@ fn mutated_metric_observations_change_the_native_result() {
     let main = common::checked_replace(&main, "gram((2, 1), (1, 1))", "gram((2, 1), (1, 2))");
     // Code 4: with the Euclidean Gram matrix, Lorentz no longer flips dy.
     let main = common::checked_replace(&main, "gram((1, 0), (0, -1))", "gram((1, 0), (0, 1))");
-    assert_eq!(run(&metric_fixture(&main)), b"58\n");
+    assert_eq!(run(&metric_fixture(&main)), failed(16));
 }
 
 #[test]
@@ -1194,8 +1207,13 @@ fn metric_programs_lower_to_the_shared_smooth_runtime() {
         assert!(source.contains(expected), "{expected}\n{source}");
     }
     // The five flat calls and the five sharp calls name four matrices, and
-    // the calls of g name one map: no call repeats a literal.
-    let count = |text: &str| source.matches(text).count();
+    // the calls of g name one map: no call repeats a literal. The library is
+    // counted: the entry point of the example's `show!` binds the top-level
+    // statements of `main` again (#836).
+    let library = &source[..source
+        .find("\nend VastitasGenerated\n")
+        .expect("generated namespace")];
+    let count = |text: &str| library.matches(text).count();
     assert_eq!(count("(VastitasKernel.SmoothRuntime.flat matrix_"), 5);
     assert_eq!(count("(VastitasKernel.SmoothRuntime.sharp matrix_"), 5);
     assert_eq!(count(": VastitasKernel.SmoothRuntime.Matrix)"), 4);
@@ -1619,7 +1637,10 @@ fn metric_selection_is_explicit_and_unambiguous() {
             "use profile::pairing;\n",
             &format!("use profile::pairing;\n{imports}"),
         );
-        // The program prints the Skew gradient as 10 for (1, 0) or 21 for (2, 1).
+        // The observations of the example move to a function of their own,
+        // which cannot show them.
+        let main = common::checked_replace(&main, "show!(failures)", "failures");
+        // The program returns the Skew gradient as 10 for (1, 0) or 21 for (2, 1).
         common::checked_replace(
             &main,
             "fn main() -> Int {",
@@ -1636,14 +1657,14 @@ fn observations() -> Int {",
             &profile,
             &two_metrics("use alt::Skew;\n")
         )),
-        b"10\n"
+        exits(10)
     );
     assert_eq!(
         run(&metric_fixture_with(
             &profile,
             &two_metrics("use profile::Skew;\n")
         )),
-        b"21\n"
+        exits(21)
     );
     let stderr = expect_code(
         &check(&metric_fixture_with(
@@ -1993,8 +2014,8 @@ fn differential_is_unchanged_by_metric_declarations() {
         "{free_source}"
     );
     assert_eq!(free_source, generated(&metric));
-    assert_eq!(run(&free), b"42\n");
-    assert_eq!(run(&metric), b"42\n");
+    assert_eq!(run(&free), exits(42));
+    assert_eq!(run(&metric), exits(42));
 }
 
 // The Stage 3 acceptance program (protocol 9). Each observation has its own
@@ -2057,8 +2078,8 @@ fn mutate(source: &str, from: &str, to: &str) -> String {
 }
 
 /// The program with the failure code `k` of every `verdict` call replaced by
-/// `2^(k - 1)`. Its native result `42 + m` then names exactly the failed
-/// observations, as the bits of `m`, so two sets of failures never print the
+/// `2^(k - 1)`. The failures `m` that it shows then name exactly the failed
+/// observations, as the bits of `m`, so two sets of failures never show the
 /// same number. The codes must be exactly `1..=CODES`, each used once.
 fn bitmask(main: &str) -> String {
     let mut masked = String::new();
@@ -2103,7 +2124,7 @@ fn bitmask(main: &str) -> String {
 fn smooth_example_checks_builds_and_executes() {
     let s = acceptance_fixture(ACCEPTANCE_MAIN);
     success(&check(&s));
-    assert_eq!(run(&s), b"42\n");
+    assert_eq!(run(&s), failed(0));
 }
 
 /// A source mutation and the codes of the observations it falsifies.
@@ -2149,7 +2170,7 @@ fn mutated_observations_change_the_native_result() {
                     &[19],
                 ),
             ],
-            298_059,
+            298_017,
         ),
         (
             &[
@@ -2189,7 +2210,7 @@ fn mutated_observations_change_the_native_result() {
                     &[25],
                 ),
             ],
-            17_896_684,
+            17_896_642,
         ),
         (
             &[
@@ -2225,7 +2246,7 @@ fn mutated_observations_change_the_native_result() {
                     &[24],
                 ),
             ],
-            10_625_838,
+            10_625_796,
         ),
         (
             &[
@@ -2253,7 +2274,7 @@ fn mutated_observations_change_the_native_result() {
                     &[23],
                 ),
             ],
-            13_124_162,
+            13_124_120,
         ),
     ];
     let mut shown = std::collections::BTreeSet::new();
@@ -2267,15 +2288,15 @@ fn mutated_observations_change_the_native_result() {
             }
         }
         let bits: u64 = flipped.iter().map(|code| 1u64 << (code - 1)).sum();
-        assert_eq!(*expected, 42 + bits, "group {index}: {flipped:?}");
+        assert_eq!(*expected, bits, "group {index}: {flipped:?}");
         assert_eq!(
-            String::from_utf8(run(&acceptance_fixture(&bitmask(&main)))).unwrap(),
-            format!("{expected}\n"),
+            run(&acceptance_fixture(&bitmask(&main))),
+            failed(*expected),
             "group {index}: {flipped:?}"
         );
         if index == 0 {
-            // The shipped codes add up: 42 + 1 + 6 + 11 + 12 + 16 + 19.
-            assert_eq!(run(&acceptance_fixture(&main)), b"107\n");
+            // The shipped codes add up: 1 + 6 + 11 + 12 + 16 + 19.
+            assert_eq!(run(&acceptance_fixture(&main)), failed(65));
         }
         shown.extend(flipped);
     }

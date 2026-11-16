@@ -6,8 +6,8 @@ from one basis to another, and writes the derivative of a map as a matrix in
 two pairs of bases. It then gives the coordinates of a chart physical
 meanings, a length and a time, and lets the compiler check that a metric on
 the chart adds quantities of one dimension. Every number in the program is a
-rational number, and the program prints `42` only when every observation
-holds.
+rational number. The program writes `failures = 0` and exits with status 0
+only when every observation holds.
 
 The program is
 [`examples/packages/stdlib-frames/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-frames/main.vast).
@@ -238,7 +238,8 @@ Two helper functions keep `main` short, as in the previous chapter:
 {{#include ../../examples/packages/stdlib-frames/main.vast:helpers}}
 ```
 
-Each observation adds its code to 42 when it fails:
+Each observation adds its code to `failures` when it fails. `main` shows
+`failures` and returns 1 when it is not 0:
 
 ```vast
 {{#include ../../examples/packages/stdlib-frames/main.vast:main}}

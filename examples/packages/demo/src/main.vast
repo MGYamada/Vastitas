@@ -6,5 +6,6 @@ mod pipeline {
 fn main() -> Int {
     let package = 40;
     let callback: Fn<Int, Int> = if true { next } else { arithmetic::increment };
-    pipeline::twice(callback, package)
+    let result = show!(pipeline::twice(callback, package));
+    0
 }

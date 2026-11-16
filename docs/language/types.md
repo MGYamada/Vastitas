@@ -77,7 +77,13 @@ passes pairs to functions and returns them:
 {{#include ../../examples/pairs.vast}}
 ```
 
-The executable prints `42`.
+The executable writes these lines and exits with status 0:
+
+```text
+reverse(pair(big, zero)) = (0, 123456789012345678901234567890)
+choose(false, pair(0, 0), pair(-7, 42)) = (-7, 42)
+offset(40) = 42
+```
 
 ## Function types
 

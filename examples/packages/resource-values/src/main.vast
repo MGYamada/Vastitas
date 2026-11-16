@@ -30,5 +30,5 @@ resource fn main() -> Int {
     release(view);
     let seed: Int = value { 41 };
     let answer: Int = call finish(data, seed) -> ();
-    value { answer }
+    value { if answer == 42 { 0 } else { 1 } }
 }

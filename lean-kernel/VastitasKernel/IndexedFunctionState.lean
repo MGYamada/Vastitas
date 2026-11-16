@@ -123,6 +123,10 @@ structure State where
   calls : List CallReference := []
   staticUses : List StaticUse := []
   dispatchCalls : List DispatchCall := []
+  /-- The Core symbol of each `let` whose value is a Fn value, which Core
+  erases to `Unit`, with the Fn signature. `show!` displays no Fn value
+  (#836). -/
+  functionLets : List (Nat × Surface.TypeExpr) := []
   nextProbe : Nat := 0
   specializations : Nat := 0
   elaborationWork : Nat := 0

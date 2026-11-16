@@ -97,9 +97,11 @@ Rules:
 
 ## The output of `build`
 
-`build` writes one file, the executable `OUTPUT`. An executable prints the
-value of its [entry point](../language/programs.md#the-entry-point), as that
-section says.
+`build` writes one file, the executable `OUTPUT`. An executable exits with
+the exit status of its
+[entry point](../language/programs.md#the-entry-point) and writes only the
+lines of [`show!`](../language/programs.md#showing-values-with-show), as
+those sections say.
 
 Rules:
 

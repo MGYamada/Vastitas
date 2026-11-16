@@ -66,7 +66,7 @@ never sees the text of a file.
 | --- | --- | --- |
 | `E_LEX` | Text that forms no token: a byte order mark, a line separator that the language excludes, a character outside ASCII in code, a character that begins no token, and a control or invisible character in a comment | [Source text](../language/lexical-structure.md#source-text) · [Comments](../language/lexical-structure.md#comments) · [Integer literals](../language/lexical-structure.md#integer-literals) |
 | `E_PARSE` | Tokens that do not form the construct that a Syntax block gives | The Syntax block of the construct, in the [grammar summary](grammar.md), and the rules that name the code, such as [Source files](../language/programs.md#source-files) and [Kinds of items](../language/items.md#kinds-of-items) |
-| `E_UNSUPPORTED` | Syntax that the language does not have, such as a block comment, a string literal or a mutable binding, a type name that the language does not define, and an item that the mode of the command does not have, such as a module in flat mode | [Keywords](../language/lexical-structure.md#keywords) · [Other literals](../language/lexical-structure.md#other-literals) · [Kinds of items](../language/items.md#kinds-of-items) · [`let` statements](../language/statements.md#let-statements) · [Types](../language/types.md) |
+| `E_UNSUPPORTED` | Syntax that the language does not have, such as a block comment, a string literal or a mutable binding, a type name that the language does not define, and an item that the mode of the command does not have, such as a module in flat mode. Also a macro invocation `name!(…)` other than `show!`, `show!` anywhere but as the whole initializer of a top-level `let` of `fn main`, and `show!` in a flat program with legacy geometry | [Keywords](../language/lexical-structure.md#keywords) · [Other literals](../language/lexical-structure.md#other-literals) · [Kinds of items](../language/items.md#kinds-of-items) · [`let` statements](../language/statements.md#let-statements) · [Types](../language/types.md) · [Showing values with `show!`](../language/programs.md#showing-values-with-show) |
 | `E_RESOURCE_LITERAL` | A payload that is not a binary64 value as written, such as `f64(0.1)` | [Payloads](../storage/resource-programs.md#payloads) |
 
 ### Errors that the frontend reports before the kernel
@@ -124,7 +124,7 @@ the source.
 
 | Code | Reports | Rules |
 | --- | --- | --- |
-| `E_TYPE` | A value of another type than its place requires, and a declaration or a type that its rules do not admit. The code serves every construct, including `indexed` declarations and resource functions | [Types](../language/types.md) · [Expressions](../language/expressions.md) · [Indexed declarations](../indexed-source.md) · the chapter of the construct |
+| `E_TYPE` | A value of another type than its place requires, and a declaration or a type that its rules do not admit. The code serves every construct, including `indexed` declarations, resource functions and a value that `show!` cannot display | [Types](../language/types.md) · [Expressions](../language/expressions.md) · [Indexed declarations](../indexed-source.md) · [Showing values with `show!`](../language/programs.md#showing-values-with-show) · the chapter of the construct |
 | `E_ARITY` | A call, an `unpack` or a declaration with another number of arguments, operands, fields or parameters than its rule fixes | [Calls](../language/functions.md#calls) · [Call expressions](../language/expressions.md#call-expressions) · [Built-in functions](../language/expressions.md#built-in-functions) · [Calls of primitives](../indexed-source.md#calls-of-primitives) |
 | `E_OPERATOR` | An operator whose operands have types that it does not accept, including `==` on geometric values | [Operator expressions](../language/expressions.md#operator-expressions) · [Object identity](../language/geometric-types.md#object-identity) |
 | `E_RECURSION` | A cycle of calls between functions, methods or specialized instances | [Calls](../language/functions.md#calls) · [Selection](../stage1a.md#selection) · [Specialization](../stage1b.md#specialization) |
@@ -330,6 +330,7 @@ Codes of a check that the kernel repeats on its own result:
 | `E_INTERNAL_FUNCTION` | A specialized instance, a lifted lambda or a static target that fails its audit |
 | `E_INTERNAL_GRAPH` | An order of the functions that is no order of their calls |
 | `E_INTERNAL_NAMESPACE` | Names or references that fail the audit of name resolution |
+| `E_INTERNAL_OBSERVATION` | A compiled entry point that does not bind the top-level statements of its source in order, so that an observation of `show!` names no `let` |
 | `E_INTERNAL_REVERSE` | A compiled reverse pass that fails the audit of [Core](glossary.md#core) |
 | `E_INTERNAL_TYPE` | A Core module that fails the second check of its types |
 | `E_DEPENDENCY` | A Core module whose functions do not stand after the functions that they call |

@@ -1,6 +1,6 @@
 //! Selector-only abstract declarations cross protocol 4 and independent Lean checks.
 mod common;
-use common::{Scratch, cli, kernel, native, request, success};
+use common::{Scratch, cli, exits, kernel, native, ran, request, success};
 use serde_json::json;
 use std::process::Command;
 
@@ -163,7 +163,7 @@ method choose(x: Specific) -> Int {{ 42 }}
 fn main() -> Int {{ let f = fn(x: Int) -> Int {{ choose(x) }}; f(1) }}",
             items.join("\n")
         );
-        native(&source, &[], "42", "abstract.vast");
+        native(&source, &[], exits(42), "abstract.vast");
     }
     reject(
         "abstract type Left; abstract type Right; subtype Int <: Left; subtype Int <: Right;
@@ -183,7 +183,7 @@ method choose(x: Left) -> Int { 0 }
 method choose(x: Right) -> Int { 0 }
 method choose(x: Both) -> Int { 42 }
 fn main() -> Int { let n: Nat = 1; choose(n) }";
-    native(source, &[], "42", "abstract.vast");
+    native(source, &[], exits(42), "abstract.vast");
     let crossed = format!(
         "{NUMERIC}
 generic choose(x) {{ domain (Int); }}
@@ -198,7 +198,7 @@ method choose(x: Numeric) requires (HasOrder) -> Int {{ 42 }}
 fn main() -> Int {{ choose(1) }}"
         ),
         &[],
-        "42",
+        exits(42),
         "abstract.vast",
     );
 }
@@ -327,8 +327,7 @@ fn package_aliases_preserve_nominal_identity_and_exact_module_membership_authori
             .unwrap(),
     );
     let out = Command::new(s.0.join("program")).output().unwrap();
-    success(&out);
-    assert_eq!(out.stdout, b"42\n");
+    assert_eq!(ran(&out), exits(42));
     for source in [
         format!("{app} subtype Nat <: N;"),
         "mod a { pub abstract type A; mod child { subtype Int <: super::A; } }".into(),

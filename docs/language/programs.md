@@ -74,7 +74,8 @@ target/debug/vastitas build examples/stdlib-arithmetic.vast \
   --lib stdlib/src/arithmetic/nat.vast -o target/stdlib-arithmetic
 ```
 
-The executable prints `42`.
+The executable writes `int_abs(int_neg(answer)) = 42` and
+`nat_sub(nat_add(2, 3), 8) = 0`, and exits with status 0.
 
 ## Manifest mode
 
@@ -95,10 +96,12 @@ Rules:
 
 The **entry point** of a program is the function `main` of its entry file in
 flat mode, or of the root module of its root package in manifest mode. An
-executable evaluates `main`, prints the resulting integer in decimal followed
-by a line feed, and exits with status 0. The language has no other input or
-output. The compiler checks every function of a program, whether or not `main`
-calls it, before it generates any code.
+executable evaluates `main` and exits with the **exit status** of its result:
+the `Int` result modulo 256, which is never negative, as in C and POSIX. The
+executable writes nothing for the result. A program returns 0 on success. The
+only other output of a program is the lines of
+[`show!`](#showing-values-with-show). The compiler checks every function of a
+program, whether or not `main` calls it, before it generates any code.
 
 Rules:
 
@@ -113,9 +116,79 @@ Rules:
 - In manifest mode the entry point may also be a resource function
   `resource fn main() -> Int`, under the rules of
   [Resource functions](../storage/resource-programs.md#resource-functions).
+  Its `Int` result is the exit status in the same way.
+- The exit status of the result `r` is the remainder of `r` divided by 256
+  that lies in 0 to 255: 300 gives 44, and −1 gives 255.
+- An error at run time, such as a failed `expect`, stops the executable with
+  a message on standard error and a nonzero exit status.
 
-`main` in this program returns `-42`, so the executable prints `-42`:
+In this program `main` returns `0` when the subtraction stops at zero, after
+it shows the difference:
 
 ```vast
 {{#include ../../examples/book/expressions/saturating-subtraction.vast}}
 ```
+
+The executable writes `n - 5 = 0` and exits with status 0.
+
+## Showing values with `show!`
+
+> **Syntax**
+>
+> ```text
+> ShowStatement -> `let` IDENTIFIER ( `:` Type )? `=` `show` `!` `(` Expression `)` `;`
+> ```
+
+`let x = show!(e);` at the top level of the body of `main` is a
+[`let` statement](statements.md#let-statements) that binds `x` to the value of
+`e`, and the executable writes the **label** of `e`, ` = `, the value and a line
+feed on standard output when it binds `x`. The label is the source text of `e`,
+with each run of whitespace replaced by one space and without leading or
+trailing whitespace. `show!` is built into the compiler: it has no
+declaration and no other form.
+
+Rules:
+
+- `show!` may stand only as the whole initializer of a `let` statement at the
+  top level of the body of the entry point `fn main`. `show!` anywhere else,
+  such as in another function, in a nested block, in a function expression, in
+  an argument, in an operand or as the result of `main`, is an error
+  (`E_UNSUPPORTED`).
+- `show!` in a resource entry point `resource fn main` is an error
+  (`E_UNSUPPORTED`).
+- Any other macro invocation `name!(…)` is an error (`E_UNSUPPORTED`). There are
+  no user macros.
+- The value must have type `Int`, `Nat`, `Bool`, `Unit` or `Pair<T>`. A value of
+  another type, including a function value or an object, is an error
+  (`E_TYPE`), and the message names the type.
+- `Int` and `Nat` values are written in decimal, `Bool` values as `true` or
+  `false`, the `Unit` value as `()`, and a `Pair<T>` as `(a, b)`.
+- The executable writes the lines in the order of the `let` statements, and
+  evaluates each shown expression once. The binding has the value and the type
+  of the expression, as without `show!`.
+- The label is presentation only. It never decides whether a program is
+  accepted.
+- `vastitas check` checks `show!` like the rest of the program and writes no
+  line of it.
+- A flat program that uses `show!` must not use the legacy geometry of flat
+  mode, such as `Scheme`, `Point`, `pack` or `Affine`. Such a program is an
+  error (`E_UNSUPPORTED`). In manifest mode, geometry needs a
+  `geometry_compat` export or an `indexed` profile, as in
+  [Indexed declarations](../indexed-source.md). A package program that uses
+  `show!` and a legacy form such as `Affine(QQ, 2)` without a
+  `geometry_compat` export is an error at the legacy form (`E_TYPE`), with a
+  note that names `show!` as the cause.
+
+```vast
+{{#include ../../examples/book/functions/calls.vast}}
+```
+
+The executable writes `add_twice(2, 20) = 42` and exits with status 0.
+
+> **Implementation note.** A program that uses `show!` is sent to the kernel as
+> a protocol-9 request, with an `observations` field on `main`
+> ([Wire protocols](../protocol.md)); a flat program becomes the root module of
+> one package. The kernel checks the observations again: only the entry point
+> has them, each names a top-level `let` of its body in order, and each value
+> has a displayable type. Core stays pure: the observations are metadata of the
+> entry point, and only code generation sequences the writes.

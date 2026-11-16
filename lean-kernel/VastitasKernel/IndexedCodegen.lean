@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedTypeAudit
+import VastitasKernel.IndexedObservation
 
 /-! Native lowering of the independently audited declaration-driven Core.
 Generated modules import IndexedRuntime, and AlgebraRuntime, SmoothRuntime,
@@ -139,6 +140,22 @@ private def renderFunction (env : Declarations) (ctx : RenderContext) (function 
   return s!"def {functionName function.id}{parameterText} : {← renderType env function.returnType} :=\n  " ++
     (← renderTerm env ctx function.body) ++ "\n"
 
+/-- The functions that a library with the roots `roots` emits: the roots and
+every function that they call, in module order. -/
+def reachableFunctions (module : Module) (roots : List Nat) : List Function := Id.run do
+  let mut reachable : Std.HashSet Nat := Std.HashSet.ofList roots
+  for function in module.functions.reverse do
+    if reachable.contains function.id then
+      for callee in function.body.callIds do
+        reachable := reachable.insert callee
+  return module.functions.filter fun function => reachable.contains function.id
+
+/-- The context that renders the functions `emitted` of `module`: the literals
+that the primitives they call share. -/
+def libraryContext (module : Module) (emitted : List Function) : RenderContext :=
+  let called : Std.HashSet DeclId := Std.HashSet.ofList (emitted.flatMap fun function => primitiveIds function.body)
+  renderContext module.declarations called.contains
+
 /-- Recheck all declarations, bodies, identities and actual dependencies at the
 last compiler boundary, including functions omitted by reachability lowering. -/
 def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule requireMain)
@@ -149,16 +166,10 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
   | .ok _ => pure ()
   unless roots.all (fun id => module.functions.any (·.id == id)) do
     throw "native library root has no checked function"
-  let mut reachable : Std.HashSet Nat := Std.HashSet.ofList roots
-  for function in module.functions.reverse do
-    if reachable.contains function.id then
-      for callee in function.body.callIds do
-        reachable := reachable.insert callee
   let packages ← (packageCases module.declarations).zipIdx.mapM fun (entry, index) =>
     renderPackage module.declarations entry.2 index
-  let emitted := module.functions.filter fun function => reachable.contains function.id
-  let called : Std.HashSet DeclId := Std.HashSet.ofList (emitted.flatMap fun function => primitiveIds function.body)
-  let ctx := renderContext module.declarations called.contains
+  let emitted := reachableFunctions module roots
+  let ctx := libraryContext module emitted
   let functions ← emitted.mapM (renderFunction module.declarations ctx)
   -- Each shared literal is declared once, under the name that its calls write.
   let declare := fun (literals : List SharedLiteral) => literals.filterMap fun literal =>
@@ -186,9 +197,67 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
 
 def functionReference (id : Nat) : String := "VastitasGenerated." ++ functionName id
 
-def generate (checked : Typing.CheckedModule true) : Except String String := do
+/-- The exit status of a native program: the `Int` result of its entry point
+modulo 256, Euclidean as in C and POSIX, so 300 is 44 and −1 is 255 (#836). -/
+def exitStatus (result : String) : String :=
+  s!"(UInt32.ofNat (Int.toNat (Int.emod {result} 256)))"
+
+/-- The text that `show!` writes for the value `value` of type `type` (#836):
+`Int` and `Nat` in decimal, `Bool` as `true` or `false`, `Unit` as `()` and a
+`Pair` as `(a, b)`. No other type has one. -/
+def display : DataType → String → Option String
+  | .pure .nat, value | .pure .int, value => some s!"(toString {value})"
+  | .pure .bool, value => some s!"(if {value} then \"true\" else \"false\")"
+  | .pure .unit, _ => some "\"()\""
+  | .pure (.pair _), value =>
+    some s!"(\"(\" ++ toString {value}.1 ++ \", \" ++ toString {value}.2 ++ \")\")"
+  | _, _ => none
+
+/-- The entry point of the native program for the checked function `main` of
+`module`. It returns the exit status of the result of `main` and writes
+nothing else (#836). With observations, it binds the top-level statements of
+the body of `main` in order, up to the last observed one, and writes each
+observed value once, after binding it, as `label = value` with a line feed on
+standard output; then it returns the exit status of the rest of the body. The
+values are those of the pure library's terms: the entry point renders them
+with the same context, inside the generated namespace. -/
+def entryPoint (module : Module) (main : Nat) : List Observation → Except String String
+  | [] => .ok ("\ndef main : IO UInt32 :=\n  pure " ++ exitStatus (functionReference main) ++ "\n")
+  | observations@(_ :: _) => do
+    let some function := module.functions.find? (·.id == main)
+      | throw "observed entry point has no checked function"
+    let .scope body := function.body | throw "observed entry point is not a block"
+    let some (steps, rest) := Observation.statements (Observation.extent observations) body
+      | throw "an observation names no top-level statement of main"
+    let env := module.declarations
+    let ctx := libraryContext module (reachableFunctions module [main])
+    let mut lines := ""
+    for (step, position) in steps.zipIdx do
+      let observed := observations.find? (·.statement == position)
+      match step, observed with
+      | .letE symbol value, _ =>
+        lines := lines ++ s!"  let {variableName symbol} := ({← renderTerm env ctx value})\n"
+        if let some observation := observed then
+          let some text := display value.result.type (variableName symbol)
+            | throw "an observed value cannot be displayed"
+          lines := lines ++ s!"  IO.println ({observation.label.quote} ++ \" = \" ++ {text})\n"
+      | .unpack witness fields package, none =>
+        let name := s!"packed_{witness}"
+        lines := lines ++ s!"  let {name} := ({← renderTerm env ctx package})\n" ++
+          s!"  let {variableName witness} := {name}.witness\n" ++
+          String.join (fields.zipIdx.map fun (symbol, index) =>
+            s!"  let {variableName symbol} := {name}.field_{index}\n")
+      | .unpack .., some _ => throw "an observation names an unpack statement"
+    let result ← renderTerm env ctx rest
+    return "\nopen VastitasGenerated in\ndef main : IO UInt32 := do\n" ++ lines ++
+      "  pure " ++ exitStatus ("(" ++ result ++ ")") ++ "\n"
+
+/-- The native program of a checked module with an entry point: the library of
+`main`, then the entry point with the observations `observations`. -/
+def generate (checked : Typing.CheckedModule true) (observations : List Observation := []) :
+    Except String String := do
   let some main := checked.module.main | throw "native compilation requires an entrypoint"
   let source ← generateLibrary checked [main]
-  return source ++ "\ndef main : IO Unit :=\n  IO.println (" ++ functionReference main ++ ")\n"
+  return source ++ (← entryPoint checked.module main observations)
 
 end VastitasKernel.Indexed.Core.Codegen

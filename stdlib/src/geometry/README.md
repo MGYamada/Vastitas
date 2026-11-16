@@ -85,7 +85,7 @@ cargo run --locked -- check --manifest-path stdlib/src/geometry/Vastitas.toml
 cargo run --locked -- check --manifest-path stdlib/Vastitas.toml
 cargo run --locked -- build --manifest-path examples/packages/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
 ./target/stdlib-geometry
-# 42
+# std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42
 ```
 
 A direct dependency on `stdlib/src/geometry` under the alias `geo` exposes

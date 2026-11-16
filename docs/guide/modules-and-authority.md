@@ -29,7 +29,7 @@ target/debug/vastitas build --manifest-path examples/packages/inline-module/Vast
 ./target/inline-module
 ```
 
-The program prints `42`.
+The program writes `next(41) = 42` and exits with status 0.
 
 A *file module* has its items in a file of its own. The package
 [`examples/packages/module-paths`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/module-paths)
@@ -78,7 +78,9 @@ target/debug/vastitas build --manifest-path examples/packages/module-paths/Vasti
 ./target/module-paths
 ```
 
-The program prints `42`.
+The program writes
+`rectangle(4, 8) + shapes::square(3) + self::unit() = 42` and exits with
+status 0.
 
 ## Paths
 
@@ -112,7 +114,8 @@ inline module `pipeline` has a `use` of its own, because the names of the
 root module are not in scope in it. Only the dependencies that the manifest
 of a package declares have aliases in that package. A dependency of a
 dependency has none. In `main`, `package` is an ordinary binding: the word
-begins a path only before `::`. This program prints `42` too.
+begins a path only before `::`. This program writes
+`pipeline::twice(callback, package) = 42` and exits with status 0.
 
 ## Imports
 

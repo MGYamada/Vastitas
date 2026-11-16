@@ -10,5 +10,6 @@ fn main() -> Int {
     let problem = make_smooth(2);
     unpack problem as { witness: X, fields: [p] };
     let result: smooth::Point<X, smooth::BaseSmooth> = smooth::apply(smooth::id(X), p);
-    if smooth::dim(X) == 2 { 2 } else { -1 }
+    let size = show!(smooth::dim(X));
+    if size == 2 { 0 } else { 1 }
 }

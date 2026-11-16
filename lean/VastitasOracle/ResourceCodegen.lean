@@ -113,7 +113,7 @@ theorem generated_pure_entry {program : VastitasKernel.ResourceSource.Program}
       VastitasKernel.ResourceSource.check program true = .ok checked ∧
       ∃ core : Core.Typing.CheckedModule true,
         core.module = checked.pureProgram.compiled.core.module ∧
-        Core.Codegen.generate core = .ok generated.source ∧
+        Core.Codegen.generate core checked.observations = .ok generated.source ∧
         generated.storageRuntime = false ∧ generated.numericalRuntime = false := by
   unfold VastitasKernel.ResourceSource.Codegen.generate at emitted
   obtain ⟨checked, accepted, emitted⟩ := bind_success emitted
@@ -144,7 +144,7 @@ theorem generated_pure_entry_total {program : VastitasKernel.ResourceSource.Prog
       VastitasKernel.ResourceSource.check program true = .ok checked ∧
     ∃ core : Core.Typing.CheckedModule true,
       core.module = checked.pureProgram.compiled.core.module ∧
-      Core.Codegen.generate core = .ok generated.source ∧
+      Core.Codegen.generate core checked.observations = .ok generated.source ∧
       (∀ function ∈ core.module.functions, IndexedFunctionSafety.FunctionReturns core.module function) ∧
       ∃ id function result,
         core.module.main = some id ∧

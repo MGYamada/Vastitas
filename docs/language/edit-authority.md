@@ -223,7 +223,7 @@ contribution, returns the loan and seals `choose`:
 {{#include ../../examples/packages/edit-borrow/app/main.vast}}
 ```
 
-The executable prints `42`.
+The executable writes `base::choose(40, 2) = 42` and exits with status 0.
 
 ## Sealing
 
@@ -298,4 +298,5 @@ applies the recipient's contribution without a loan:
 {{#include ../../examples/packages/edit-authority/app/main.vast}}
 ```
 
-The executable prints `44`.
+The executable writes `base::choose(40, 2) + base::choose(true, true) = 44`
+and exits with status 0.

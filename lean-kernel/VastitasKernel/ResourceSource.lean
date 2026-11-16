@@ -1,5 +1,6 @@
 import VastitasKernel.NumericalCoverage
 import VastitasKernel.ResourcePure
+import VastitasKernel.IndexedObservation
 
 /-! Unresolved resource functions in the same package namespace as pure indexed
 functions, dispatch and edit authority. No owner, local symbol or callee ID is
@@ -150,6 +151,10 @@ structure Function where
 structure Module where
   pureModule : Indexed.DispatchSource.Module
   functions : List Function
+  /-- The `show!` observations of pure functions of the module, by function
+  name (#836). Only protocol 9 carries them, and only the entry point `main`
+  may have them (`checkObservations`). -/
+  observations : List (String × List Indexed.Core.Observation) := []
   deriving Repr, Inhabited
 
 structure Package where
@@ -180,6 +185,11 @@ def Program.pureProgram (program : Program) : Indexed.DispatchSource.Program := 
 def Program.owned (program : Program) : List (Indexed.DeclId × Function) :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
     m.functions.map fun function => (⟨⟨pkg.id, m.pureModule.module.path⟩, function.name⟩, function)
+
+/-- The observations of the program, by the function that has them. -/
+def Program.observations (program : Program) : List (Indexed.DeclId × List Indexed.Core.Observation) :=
+  program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
+    m.observations.map fun (name, observations) => (⟨⟨pkg.id, m.pureModule.module.path⟩, name⟩, observations)
 
 def Program.entry (program : Program) : Option Nat :=
   ((program.owned.zipIdx).find? fun ((owner, _), _) => owner.name == "main" &&
@@ -794,10 +804,78 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   runtimeProductOrigins : ∀ receipt ∈ checked.context.shapes.products.toList, receipt.environment = environment
   runtimeInputOrigins : ∀ receipt ∈ checked.context.shapeInputs.toList, receipt.environment = environment
 
+/-- The diagnostic of a `show!` outside the top-level `let` statements of the
+entry point, as the frontend reports it. -/
+def misplacedObservation : String :=
+  "`show!` is allowed only as the whole initializer of a `let` statement at the top level of `fn main`"
+
+/-- The compiled entry point does not bind the top-level statements of its
+source in order. Elaboration keeps them, so no accepted program reaches it. -/
+private def unbound (span : Span) : Namespace.Result α :=
+  Namespace.problem span "E_INTERNAL_OBSERVATION" "the compiled entry point does not bind its top-level statements in order"
+
+/-- The observations of the entry point, checked independently of the
+frontend (#836): only the pure entry point `main` has them; each names a
+top-level `let` statement of its body, each statement at most once and in the
+order of the statements; and its value, in the compiled Core of the checked
+pure program, has a type that `show!` writes. The labels are presentation only
+and are not checked. -/
+def checkObservations (program : Program) {requireMain : Bool}
+    (checked : Indexed.AuthoritySource.CheckedProgram program.pureProgram requireMain) :
+    Namespace.Result (List Indexed.Core.Observation) := do
+  let source := program.pureProgram.source
+  let span (owner : Indexed.DeclId) : Span :=
+    ((source.functions.find? (·.1 == owner)).map (·.2.span)).getD {}
+  let entry := (Indexed.FunctionSource.Compiler.entryDefinition source).bind (source.functions[·]?)
+  let mut shown : Option (List Indexed.Core.Observation) := none
+  for (owner, observations) in program.observations do
+    let some (main, _) := entry | Namespace.problem (span owner) "E_UNSUPPORTED" misplacedObservation
+    unless owner == main do Namespace.problem (span owner) "E_UNSUPPORTED" misplacedObservation
+    if shown.isSome then Namespace.problem (span owner) "E_PROTOCOL" "the entry point has two observation lists"
+    shown := some observations
+  let some observations := shown | return []
+  let some (_, function) := entry | return []
+  let .mk statements _ _ := function.body
+  unless Indexed.Core.Observation.ordered observations do
+    Namespace.problem function.span "E_PROTOCOL" "observations must name top-level statements of main in order"
+  for observation in observations do
+    match statements[observation.statement]? with
+    | some (.letE ..) => pure ()
+    | some (.unpack _ _ _ span) => Namespace.problem span "E_UNSUPPORTED" misplacedObservation
+    | none => Namespace.problem function.span "E_PROTOCOL" "an observation names no top-level statement of main"
+  let core := checked.compiled.core.module
+  let some id := core.main | unbound function.span
+  let some compiled := core.functions.find? (·.id == id) | unbound function.span
+  let .scope body := compiled.body | unbound function.span
+  let some (steps, _) := Indexed.Core.Observation.statements (Indexed.Core.Observation.extent observations) body
+    | unbound function.span
+  for observation in observations do
+    let some (.letE _ _ _ statementSpan) := statements[observation.statement]? | unbound function.span
+    let some (.letE symbol value) := steps[observation.statement]? | unbound function.span
+    -- Core erases a Fn value to `Unit`; elaboration remembers it.
+    if let some (_, signature) := checked.executable.lowered.functionLets.find? (·.1 == symbol) then
+      Namespace.problem statementSpan "E_TYPE"
+        s!"`show!` cannot display a value of type {signature.label}; it displays Int, Nat, Bool, Unit and Pair values"
+    unless Indexed.Core.Observation.displayable value.result.type do
+      let label := Indexed.Source.Diagnostics.typeLabel core.declarations checked.compiler.input.body.geometry {}
+        value.result.type
+      Namespace.problem statementSpan "E_TYPE"
+        s!"`show!` cannot display a value of type {label}; it displays Int, Nat, Bool, Unit and Pair values"
+  return observations
+
+/-- The value of an accepted result with the equation that accepts it. -/
+private def withAcceptance (result : Namespace.Result α) : Namespace.Result {value // result = .ok value} :=
+  match result with
+  | .ok value => .ok ⟨value, rfl⟩
+  | .error diagnostic => .error diagnostic
+
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
   pureProgram : Indexed.AuthoritySource.CheckedProgram program.pureProgram (requireMain && program.entry.isNone)
   pureAccepted : Indexed.AuthoritySource.checkProgram program.pureProgram (requireMain && program.entry.isNone) = .ok pureProgram
+  /-- The observations of the entry point (#836). -/
+  observations : List Indexed.Core.Observation
+  observed : checkObservations program pureProgram = .ok observations
   values : ResourcePure.Checked program.pureProgram pureProgram program.pureFragments
   targets : ResourcePure.Targets values
   lowered : Lowered
@@ -1008,6 +1086,7 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
   | .ok () => match pureAccepted : Indexed.AuthoritySource.checkProgram program.pureProgram (requireMain && program.entry.isNone) with
     | .error diagnostic => .error diagnostic
     | .ok pureProgram => do
+      let ⟨observations, observed⟩ ← withAcceptance (checkObservations program pureProgram)
       let values ← ResourcePure.check program.pureProgram pureProgram program.pureFragments
       let targets ← ResourcePure.checkTargets values
       match reconstructed : lower program with
@@ -1017,7 +1096,7 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
           match libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures with
           | .error diagnostic => .error (resourceError program lowered diagnostic)
           | .ok library => match entry : program.entry with
-            | none => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
+            | none => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, observations, observed, values, targets, lowered, reconstructed, provenance,
                 library, libraryAccepted, fun _ impossible => by simp [entry] at impossible⟩
             | some id => match reused : Functions.checkWithLibrary ⟨lowered.functions, id⟩ library with
               | .error diagnostic => .error (resourceError program lowered diagnostic)
@@ -1086,7 +1165,7 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                     (∀ receipt ∈ executable.context.shapeInputs.toList,
                       receipt.environment = numericalEnvironment pureProgram))
                   "runtime GEMM lost its accepted declaration environment"
-                .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
+                .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, observations, observed, values, targets, lowered, reconstructed, provenance,
                   library, libraryAccepted, fun actual same => by
                     have : actual = id := Option.some.inj (same.symm.trans entry)
                     subst actual

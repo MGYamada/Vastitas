@@ -273,7 +273,7 @@ it:
 {{#include ../../examples/packages/storage/app/src/main.vast}}
 ```
 
-The executable prints `42`.
+The executable writes no line and exits with status 0.
 
 ## Payloads
 
@@ -328,7 +328,7 @@ It then reads the cells back and expects the bits of the same numbers:
 {{#include ../../examples/packages/payloads/main.vast:bits}}
 ```
 
-The executable prints `42`.
+The executable writes no line and exits with status 0.
 
 ## Scalar values and calls
 
@@ -403,13 +403,15 @@ passes scalars through resource functions and branches on one:
 {{#include ../../examples/packages/resource-values/src/main.vast}}
 ```
 
-The executable prints `42`.
+The executable writes no line and exits with status 0.
 
 ## Running a resource program
 
 The executable of a resource program whose entry point is a resource function
-runs the statements of the entry point in order and then prints the value of
-its `value` block. A `call` statement runs the statements of its callee.
+runs the statements of the entry point in order and then exits with the
+[exit status](../language/programs.md#the-entry-point) of the value of its
+`value` block. It writes nothing to standard output. A `call` statement runs
+the statements of its callee.
 
 Rules:
 
@@ -419,8 +421,8 @@ Rules:
 - A failing condition on [runtime extents](#runtime-extents) stops the program
   in the same way with an `E_RUNTIME_GUARD` message. An extent that is
   negative or above 2⁶³ − 1 stops it with an `E_RUNTIME_EXTENT` message.
-- A program that stops prints no result. Writes that it completed before it
-  stopped are not undone.
+- A program that stops writes nothing to standard output. Writes to cells
+  that it completed before it stopped are not undone.
 - The program frees its allocations when it ends, even when it stops early.
 
 > **Implementation note.** A call that binds the result of its callee

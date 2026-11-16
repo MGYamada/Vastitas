@@ -1,6 +1,6 @@
 //! Actual stdlib sources through flat and package inputs, including raw-IR tampering.
 mod common;
-use common::{Scratch, kernel_path as kernel, root, success};
+use common::{Scratch, exits, kernel_path as kernel, ran, root, success};
 use serde_json::{Value, json};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
@@ -116,8 +116,7 @@ fn promotion_values_types_reversal_and_idempotence_execute_in_both_modes() {
                 .unwrap(),
         );
         let output = Command::new(scratch.0.join("program")).output().unwrap();
-        assert_eq!(output.stdout, b"42\n");
-        success(&output);
+        assert_eq!(ran(&output), exits(42));
     }
     success(
         &Command::new("python3")
@@ -334,8 +333,7 @@ fn mixed_arithmetic_delegates_to_homogeneous_kernels_in_both_modes() {
                 .unwrap(),
         );
         let output = Command::new(scratch.0.join("program")).output().unwrap();
-        assert_eq!(output.stdout, b"42\n");
-        success(&output);
+        assert_eq!(ran(&output), exits(42));
     }
 }
 

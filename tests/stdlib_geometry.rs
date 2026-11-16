@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, cli, kernel};
+use common::{Run, Scratch, cli, exits, kernel, shows};
 use serde_json::{Value, json};
 
 const LIBRARY: &[(&str, &str)] = &[
@@ -91,38 +91,42 @@ fn reject(source: &str, code: &str) {
     common::expect_code(&result, code);
 }
 
+/// The program checks, builds and exits with 42, writing nothing.
 fn native(s: &Scratch) {
-    native_result(s, b"42\n");
+    native_result(s, exits(42));
 }
 
-fn native_result(s: &Scratch, expected: &[u8]) {
+fn native_result(s: &Scratch, expected: Run) {
     assert_eq!(s.check_build_and_run("app/Vastitas.toml"), expected);
 }
 
 #[test]
 fn pointed_and_smooth_workflows_migrate_without_erasing_abstract_annotations() {
-    native(&fixture(
-        include_str!("../examples/packages/stdlib-geometry/pointed/main.vast"),
-        str::to_owned,
-    ));
+    native_result(
+        &fixture(
+            include_str!("../examples/packages/stdlib-geometry/pointed/main.vast"),
+            str::to_owned,
+        ),
+        shows(&["scheme::dim(Y) = 3"]),
+    );
     native_result(
         &fixture(
             include_str!("../examples/packages/stdlib-geometry/smooth/main.vast"),
             str::to_owned,
         ),
-        b"2\n",
+        shows(&["smooth::dim(X) = 2"]),
     );
 }
 
 #[test]
 fn unchanged_legacy_examples_use_the_declared_stdlib_profile() {
-    native(&fixture(
-        include_str!("../examples/pointed.vast"),
-        str::to_owned,
-    ));
+    native_result(
+        &fixture(include_str!("../examples/pointed.vast"), str::to_owned),
+        exits(0),
+    );
     native_result(
         &fixture(include_str!("../examples/smooth.vast"), str::to_owned),
-        b"2\n",
+        exits(0),
     );
 }
 
@@ -150,12 +154,15 @@ fn main() -> Int {
 
 #[test]
 fn legacy_profile_paths_can_be_coherently_renamed() {
-    native(&fixture(include_str!("../examples/pointed.vast"), |text| {
-        text.replace("Scheme", "Space")
-            .replace("QQ", "Rational")
-            .replace("Point", "Position")
-            .replace("Morphism", "Arrow")
-    }));
+    native_result(
+        &fixture(include_str!("../examples/pointed.vast"), |text| {
+            text.replace("Scheme", "Space")
+                .replace("QQ", "Rational")
+                .replace("Point", "Position")
+                .replace("Morphism", "Arrow")
+        }),
+        exits(0),
+    );
 }
 
 #[test]
@@ -306,11 +313,19 @@ fn missing_or_ambiguous_profiles_do_not_supply_legacy_meaning() {
 
 #[test]
 fn ordinary_and_smooth_stdlib_packages_preserve_points_and_run() {
-    native(&fixture(DEMO, str::to_owned));
-    native(&fixture(
-        &DEMO.replace("scheme::apply", "same::scheme::apply"),
-        str::to_owned,
-    ));
+    native_result(&fixture(DEMO, str::to_owned), demo());
+    native_result(
+        &fixture(
+            &DEMO.replace("scheme::apply", "same::scheme::apply"),
+            str::to_owned,
+        ),
+        demo(),
+    );
+}
+
+/// What `DEMO` writes: the sum of the dimensions of its two objects.
+fn demo() -> Run {
+    shows(&["std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42"])
 }
 
 #[test]
@@ -322,7 +337,7 @@ fn coherent_renaming_retains_contracts_without_privileged_geometry_names() {
             .replace("Point", "Position")
             .replace("Morphism", "Arrow")
     };
-    native(&fixture(&rename(DEMO), rename));
+    native_result(&fixture(&rename(DEMO), rename), demo());
 }
 
 /// The primary message of a rejected check, after its location and code.
@@ -489,7 +504,7 @@ fn opened_objects_survive_blocks_in_both_geometry_modules() {
 "#,
         );
         let s = fixture(&source, str::to_owned);
-        native_result(&s, b"83\n");
+        native_result(&s, exits(83));
         let wire = captured_wire(&s);
         for mode in ["check", "emit"] {
             let response = kernel(&wire, mode);
@@ -588,7 +603,7 @@ fn main() -> Int {{
 "#
         );
         // Both legacy flat protocol 2 and the explicit stdlib adapter.
-        common::native(&source, &[], "42", "opened-object.vast");
+        common::native(&source, &[], exits(42), "opened-object.vast");
         native(&fixture(&source, str::to_owned));
         let mismatched = source.replace("let A = open(make(1));", &format!(
             "let A = open(packed); let B = open(packed); let bad: Point<B, Base({marker})> = origin(A);"

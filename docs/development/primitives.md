@@ -516,12 +516,12 @@ premise excludes `descriptor`, the one allocating binding.
 - The native check. `scripts/check_indexed_native.sh` generates the Lean
   program of each fixture module that `scripts/check_indexed_codegen.lean`
   lists, compiles it with the runtime objects, runs it and compares its
-  output with the fixture list of the script. A call of the primitive in a
-  fixture module of a kernel regression, such as `smoothFixture` of
-  `SmoothObjectRegression.lean`, runs there. A fixture module of another
-  regression joins the imports and the fixture list of
+  exit status with the result in the fixture list of the script. A call of
+  the primitive in a fixture module of a kernel regression, such as
+  `smoothFixture` of `SmoothObjectRegression.lean`, runs there. A fixture
+  module of another regression joins the imports and the fixture list of
   `check_indexed_codegen.lean`, the fixture list of the script with its
-  expected output, and the `lake build` list of the script.
+  expected result, and the `lake build` list of the script.
 - The other Rust tests. The unit test `every_smooth_form_is_algebraic` in
   `src/indexed.rs` covers the protocol-9 gate of the smooth forms,
   `tests/smooth_differential.rs` the source diagnostics and

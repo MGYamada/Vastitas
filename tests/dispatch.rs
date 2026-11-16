@@ -1,6 +1,6 @@
 //! Stage 1a source declarations must be independently resolved by the Lean kernel.
 mod common;
-use common::{Scratch, cli, root, success};
+use common::{Run, Scratch, cli, exits, root, shows, success};
 use serde_json::{Value, json};
 use std::fs;
 use std::path::PathBuf;
@@ -17,7 +17,7 @@ fn reject(source: &str, code: &str) -> String {
     common::reject(source, code, FILE)
 }
 
-fn native(source: &str, libraries: &[PathBuf], expected: &str) {
+fn native(source: &str, libraries: &[PathBuf], expected: Run) {
     common::native(source, libraries, expected, FILE);
 }
 
@@ -42,7 +42,7 @@ fn native_generic_arithmetic_uses_explicit_source_libraries() {
     native(
         include_str!("../examples/dispatch-arithmetic.vast"),
         &libraries,
-        "42",
+        shows(&["maximum(nat_to_int(total), 41) = 42"]),
     );
 }
 
@@ -109,7 +109,7 @@ fn main() -> Int {
     scalar_dimension(dim(Z)) + scalar_dimension(dim(Y)) + 35
 }",
         &[],
-        "42",
+        exits(42),
     );
 }
 
@@ -196,7 +196,7 @@ generic rank(value) { domain (Int), (Nat), (Bool), (Unit); }";
         native(
             &format!("{families}\n{}\n{main}", ordered.join("\n")),
             &[],
-            "42",
+            exits(42),
         );
     }
 }
@@ -209,7 +209,7 @@ generic constant() { domain (); }
 method constant() -> Int { 42 }
 fn main() -> Int { constant() }",
         &[],
-        "42",
+        exits(42),
     );
     reject(
         "generic empty(x) { domain; }
@@ -368,7 +368,7 @@ method promote(x: Nat) -> Int { promote(int(x)) }
 method promote(x: Int) -> Int { x + 1 }
 fn main() -> Int { let n: Nat = 41; promote(n) }",
         &[],
-        "42",
+        exits(42),
     );
 }
 

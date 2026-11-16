@@ -3,7 +3,10 @@
 A **statement** binds names for the rest of a block. Statements occur only at
 the beginning of a [block expression](expressions.md#block-expressions), before
 its result. A block has two kinds of statements, `let` and `unpack`, and no
-expression statements. The body of a resource function consists of other
+expression statements. A `let` at the top level of the body of `fn main` may
+observe its value with
+[`show!`](programs.md#showing-values-with-show) (`ShowStatement`), and no
+other statement may. The body of a resource function consists of other
 statements, the
 [resource statements](../storage/resource-programs.md#resource-statements),
 which this chapter does not cover.
@@ -11,7 +14,7 @@ which this chapter does not cover.
 > **Syntax**
 >
 > ```text
-> Statement -> LetStatement | UnpackStatement
+> Statement -> LetStatement | UnpackStatement | ShowStatement
 > ```
 
 ## Scopes of bindings
@@ -50,8 +53,8 @@ In this program the two blocks bind `step` once each:
 {{#include ../../examples/book/statements/bindings.vast}}
 ```
 
-The executable prints `42`. A block that binds a name of its enclosing block is
-an error:
+The executable writes `first + second - base = 42` and exits with status 0.
+A block that binds a name of its enclosing block is an error:
 
 ```vast
 {{#include ../../examples/reject/statements/nested-rebinding.vast}}
@@ -130,5 +133,5 @@ returns. `X` is the object of the opening, and `p` is a point of `X`:
 {{#include ../../examples/book/geometric-types/pointed-origin.vast}}
 ```
 
-The executable prints `42`. [Opening](../indexed-source.md#opening) shows
-the form with `witness`.
+The executable writes no line and exits with status 0.
+[Opening](../indexed-source.md#opening) shows the form with `witness`.

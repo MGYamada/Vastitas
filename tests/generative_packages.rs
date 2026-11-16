@@ -200,7 +200,7 @@ fn owned_packages_build_and_execute_without_openblas() {
                 .unwrap(),
         );
         let output = Command::new(s.0.join("program")).output().unwrap();
-        success(&output);
-        assert_eq!(output.stdout, b"42\n");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&output), common::exits(0));
     }
 }

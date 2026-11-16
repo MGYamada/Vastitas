@@ -8,7 +8,7 @@
 //! `examples/reject/packages/`. The byte identity of C17 is tested in
 //! `tests/nature_dimension.rs`.
 mod common;
-use common::{Scratch, assert_wire_rejected, cli, expect_code, kernel, root, success};
+use common::{Run, Scratch, assert_wire_rejected, cli, expect_code, kernel, root, success};
 use serde_json::{Value, json};
 
 const EXAMPLE: &str = "examples/packages/frames-and-dimensions";
@@ -57,8 +57,18 @@ fn check(s: &Scratch) -> std::process::Output {
     s.check_manifest("app/Vastitas.toml")
 }
 
-fn run(s: &Scratch) -> Vec<u8> {
+fn run(s: &Scratch) -> Run {
     s.check_build_and_run("app/Vastitas.toml")
+}
+
+/// What the program does when its failed checks have codes that add up to
+/// `failures`: it shows the sum, and returns 0 only when it is 0.
+fn failed(failures: u64) -> Run {
+    Run {
+        status: i32::from(failures != 0),
+        stdout: format!("failures = {failures}\n"),
+        stderr: String::new(),
+    }
 }
 
 /// `MAIN` with extra items inserted before its helpers.
@@ -164,8 +174,8 @@ impl Program {
 }
 
 /// The program with the failure code `k` of every `verdict` call replaced by
-/// `2^(k - 1)`, as in `tests/smooth_differential.rs`. Its native result
-/// `42 + m` then names exactly the failed observations, as the bits of `m`.
+/// `2^(k - 1)`, as in `tests/smooth_differential.rs`. The failures `m` that
+/// it shows then name exactly the failed observations, as the bits of `m`.
 /// The codes must be exactly `1..=CODES`, each used once.
 fn bitmask(main: &str) -> String {
     let mut masked = String::new();
@@ -206,10 +216,10 @@ fn bitmask(main: &str) -> String {
     masked
 }
 
-/// The program checks, builds and prints 42 in place, with the paths of its
-/// manifest (C22).
+/// The program checks, builds and shows no failures in place, with the paths
+/// of its manifest (C22).
 #[test]
-fn the_example_checks_builds_and_prints_42_in_place() {
+fn the_example_checks_builds_and_shows_no_failures_in_place() {
     common::prepare_stdlib_package();
     let manifest = format!("{EXAMPLE}/Vastitas.toml");
     success(
@@ -230,10 +240,9 @@ fn the_example_checks_builds_and_prints_42_in_place() {
             .unwrap(),
     );
     let output = std::process::Command::new(&program).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(common::ran(&output), failed(0));
     // The copy that the other tests mutate is the same program.
-    assert_eq!(run(&Program::shipped().fixture()), b"42\n");
+    assert_eq!(run(&Program::shipped().fixture()), failed(0));
 }
 
 /// A source mutation and the codes of the observations it falsifies.
@@ -294,7 +303,7 @@ fn mutated_observations_change_the_native_result() {
                 // another inverse.
                 ("gram((2, 1), (1, 1))", "gram((3, 1), (1, 1))", &[33, 35]),
             ],
-            22_298_038_451,
+            22_298_038_409,
         ),
         (
             &[
@@ -342,7 +351,7 @@ fn mutated_observations_change_the_native_result() {
                     &[26],
                 ),
             ],
-            103_424_316,
+            103_424_274,
         ),
         (
             &[
@@ -401,7 +410,7 @@ fn mutated_observations_change_the_native_result() {
                     &[34],
                 ),
             ],
-            10_876_110_414,
+            10_876_110_372,
         ),
         (
             &[
@@ -429,7 +438,7 @@ fn mutated_observations_change_the_native_result() {
                 // C18: the gradient of x + 2t is (9, 8).
                 ("pullback(t -> x + t)", "pullback(t -> x + 2*t)", &[36]),
             ],
-            52_621_772_906,
+            52_621_772_864,
         ),
     ];
     let mut shown = std::collections::BTreeSet::new();
@@ -443,20 +452,20 @@ fn mutated_observations_change_the_native_result() {
             }
         }
         let bits: u64 = flipped.iter().map(|code| 1u64 << (code - 1)).sum();
-        assert_eq!(*expected, 42 + bits, "group {index}: {flipped:?}");
+        assert_eq!(*expected, bits, "group {index}: {flipped:?}");
         let masked = Program {
             main: bitmask(&program.main),
             ..program.clone()
         };
         assert_eq!(
-            String::from_utf8(run(&masked.fixture())).unwrap(),
-            format!("{expected}\n"),
+            run(&masked.fixture()),
+            failed(*expected),
             "group {index}: {flipped:?}"
         );
         if index == 0 {
-            // The shipped codes add up: 42 + 1 + 4 + 8 + 13 + 17 + 21 + 25 +
-            // 29 + 30 + 33 + 35.
-            assert_eq!(run(&program.fixture()), b"258\n");
+            // The shipped codes add up: 1 + 4 + 8 + 13 + 17 + 21 + 25 + 29 +
+            // 30 + 33 + 35.
+            assert_eq!(run(&program.fixture()), failed(216));
         }
         shown.extend(flipped);
     }

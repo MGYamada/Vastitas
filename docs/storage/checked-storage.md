@@ -276,7 +276,9 @@ cleanup result directly; its error handler runs cleanup once and rethrows the
 body error. A cleanup error takes precedence over that body error, as with the
 previous `finally` envelope. Nested static/runtime-shape arenas close inside out,
 including failure to construct the inner arena. This is a Unit-only codegen
-choice, not an implementation of cleanup for arbitrary result types. The actual
+choice, not an implementation of cleanup for arbitrary result types. The entry
+point sets its exit status inside that body and returns the status after the
+arenas close. The actual
 public source/build and 23 fault-injection executions in
 [`check_resource_cleanup.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_resource_cleanup.py) check all three
 arena envelopes, original error propagation, cleanup-error precedence, single

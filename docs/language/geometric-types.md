@@ -212,8 +212,8 @@ its object:
 {{#include ../../examples/book/geometric-types/pointed-origin.vast}}
 ```
 
-The executable prints `42`. Without its object the point cannot leave the
-block that opened the existential package:
+The executable writes no line and exits with status 0. Without its object
+the point cannot leave the block that opened the existential package:
 
 ```vast
 {{#include ../../examples/reject/geometric-types/escaping-point.vast}}

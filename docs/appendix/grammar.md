@@ -71,6 +71,12 @@ Chapter: [Programs](../language/programs.md).
 SourceFile -> Item*
 ```
 
+[Showing values with `show!`](../language/programs.md#showing-values-with-show):
+
+```text
+ShowStatement -> `let` IDENTIFIER ( `:` Type )? `=` `show` `!` `(` Expression `)` `;`
+```
+
 ## Items
 
 Chapter: [Items](../language/items.md).
@@ -100,7 +106,7 @@ FunctionParameter -> IDENTIFIER `:` Type
 Chapter: [Statements](../language/statements.md).
 
 ```text
-Statement -> LetStatement | UnpackStatement
+Statement -> LetStatement | UnpackStatement | ShowStatement
 ```
 
 [`let` statements](../language/statements.md#let-statements):

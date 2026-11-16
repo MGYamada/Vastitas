@@ -113,7 +113,9 @@ std = { path = "../Vastitas/stdlib" }
 python3 scripts/build_stdlib_package.py
 cargo run -- build --manifest-path examples/packages/promotion/Vastitas.toml -o target/promotion
 ./target/promotion
-# 42
+# maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42
+echo $?
+# 0
 ```
 
 A copy of the library at another location is another package, with distinct

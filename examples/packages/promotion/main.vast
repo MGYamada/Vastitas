@@ -5,5 +5,6 @@ use std::arithmetic::generic::maximum;
 fn main() -> Int {
     let n: Nat = 20;
     let p: Pair<Int> = promote(n, 22);
-    maximum(add(pair_first(p), pair_second(p)), add(n, -7))
+    let largest = show!(maximum(add(pair_first(p), pair_second(p)), add(n, -7)));
+    0
 }

@@ -129,7 +129,7 @@ Claims:
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `frames_from_the_library_check_build_and_run_from_a_path_package` in [`tests/stdlib_frames.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_frames.rs)
-    - `frame_program_checks_builds_and_prints_42` in [`tests/frame_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/frame_primitives.rs)
+    - `frame_program_checks_builds_and_exits_with_42` in [`tests/frame_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/frame_primitives.rs)
     - [`VastitasKernel.FrameRuntimeRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/FrameRuntimeRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - [`VastitasKernel.FrameRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/FrameRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
 
@@ -170,7 +170,7 @@ Claims:
   - Evidence:
     - `frames_from_the_library_check_build_and_run_from_a_path_package` in [`tests/stdlib_frames.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_frames.rs)
     - `mutated_frame_observations_change_the_native_result` in [`tests/stdlib_frames.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_frames.rs)
-    - `frame_program_checks_builds_and_prints_42` in [`tests/frame_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/frame_primitives.rs)
+    - `frame_program_checks_builds_and_exits_with_42` in [`tests/frame_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/frame_primitives.rs)
     - [`VastitasKernel.FrameRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/FrameRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
 
 <a id="frame.pairing"></a>
@@ -207,4 +207,4 @@ Claims:
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `frames_from_the_library_check_build_and_run_from_a_path_package` in [`tests/stdlib_frames.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_frames.rs)
-    - `frame_program_checks_builds_and_prints_42` in [`tests/frame_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/frame_primitives.rs)
+    - `frame_program_checks_builds_and_exits_with_42` in [`tests/frame_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/frame_primitives.rs)

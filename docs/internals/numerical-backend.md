@@ -44,7 +44,7 @@ Core independently audits its complete declaration environment again before
 generation. No frontend-selected checked IDs or profile certificates are accepted.
 
 The example under `examples/packages/numerical-declarations` checks these
-declarations while compiling an ordinary program that returns `42`. It requires
+declarations while compiling an ordinary program that returns 0. It requires
 neither OpenBLAS nor the storage native runtime. Declaration acceptance is not
 evidence of numerical execution or C-level performance.
 
@@ -763,7 +763,7 @@ cargo run --locked -- build --manifest-path examples/packages/linear-transforms/
 On Linux, add the explicit `--native-cc cc` numerical consumer option as in
 [the adapter guide](#native-gemm-adapter). The example uses three original
 buffers, padded layouts, two levels of function calls and one reused destination.
-It checks every one-dimensional output, then prints `42`.
+It checks every one-dimensional output, writes no line and exits with status 0.
 
 `TransformRegression` checks rectangular real/complex transformed composition,
 origin and metric mutations, actual allocation retention, parent suspension,
@@ -837,7 +837,8 @@ cargo run --locked -- build --manifest-path examples/packages/vector-evaluation/
 ```
 
 On Linux add `--native-cc cc`, as in [the adapter guide](#native-gemm-adapter).
-The program checks both distinct complex results and prints `42`. Empty
+The program checks both distinct complex results, writes no line and exits
+with status 0. Empty
 evaluation uses the adapter's documented zero-inner convention; it supplies
 no separate exact-field theorem.
 
@@ -906,7 +907,7 @@ cargo run --locked -- build --manifest-path examples/packages/vector-cells/Vasti
 /tmp/vector-cells
 ```
 
-The program prints `42`.
+The program writes no line and exits with status 0.
 
 ### Diagonal metrics
 
@@ -1000,7 +1001,8 @@ cargo run --locked -- build --manifest-path examples/packages/diagonal-metrics/V
 ```
 
 The example checks real/complex padded rectangular adjoints and repeated
-scratch-backed pairings, then prints `42`. `MetricRegression`, source/wire tests,
+scratch-backed pairings, writes no line and exits with status 0.
+`MetricRegression`, source/wire tests,
 standalone native sanitizers and exact checked-schedule execution cover stale
 dependencies, incorrect metric/basis/loan provenance, malformed coefficients,
 zero dimensions, aliasing, forged native flags, resource restoration and costs.

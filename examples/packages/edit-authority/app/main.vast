@@ -8,4 +8,7 @@ assembly {
   apply addon::boolean;
   seal base::choose;
 }
-fn main() -> Int { base::choose(40, 2) + base::choose(true, true) }
+fn main() -> Int {
+    let total = show!(base::choose(40, 2) + base::choose(true, true));
+    0
+}

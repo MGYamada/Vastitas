@@ -242,8 +242,7 @@ fn literal_runtime_guards_reject_contradictions_and_erase_true_checks() {
             .unwrap(),
     );
     let result = Command::new(output).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"0\n");
+    assert_eq!(common::ran(&result), common::exits(0));
 
     for invalid in [
         LITERAL_SHAPES.replace("RealSmooth, 2)", "RealSmooth, 3)"),
@@ -591,8 +590,7 @@ fn runtime_native_executes_caller_shapes_padding_empty_axes_and_preflight_failur
                 .unwrap(),
         );
         let output = Command::new(&program).output().unwrap();
-        success(&output);
-        assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), "42");
+        assert_eq!(common::ran(&output), common::exits(42));
     }
     // Each invalid caller shape must stop in physical preflight, before any
     // write. A missing preflight would let GEMM write with the wrong shape and
@@ -685,6 +683,5 @@ resource fn main() -> Int {
             .unwrap(),
     );
     let output = Command::new(program).output().unwrap();
-    success(&output);
-    assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), "42");
+    assert_eq!(common::ran(&output), common::exits(42));
 }

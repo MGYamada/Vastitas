@@ -4,7 +4,7 @@
 // pass in the function keeps the runtime reverse pass, since the function cannot see
 // how its tape was built (tests/reverse_core.rs). g after f is 2t^2, so dt at
 // g(f(3)) = 18 pulls back to 12 dt at 3. Each observation adds its own power of
-// two, so `main` prints 42 only when all hold.
+// two, so `main` returns 42 only when all hold.
 indexed marker CInfReal;
 indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
 indexed classification CInfAffine { parents(); domain(SmoothR); };

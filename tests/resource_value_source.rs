@@ -198,8 +198,7 @@ pub resource fn compute(n: Nat, flag: Bool) -> Int {
             .unwrap(),
     );
     let output = Command::new(executable).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(common::ran(&output), common::exits(42));
     for invalid in [
         helpers.replace("pub resource fn", "resource fn"),
         helpers.replace("increment(converted)", "missing(converted)"),
@@ -235,10 +234,9 @@ fn scalar_calls_and_runtime_bool_branches_execute_with_owned_results() {
                 .unwrap(),
         );
         let output = Command::new(executable).output().unwrap();
-        success(&output);
-        assert_eq!(output.stdout, b"42\n");
+        assert_eq!(common::ran(&output), common::exits(42));
     }
-    // A demanded scalar result cannot publish success after its actual callee
+    // A demanded scalar result cannot report success after its actual callee
     // has failed, even though that result's pure Core fragment is well typed.
     let failing = source(false).replace(
         "release(output);",
@@ -579,10 +577,14 @@ fn fragment(lean: &str, index: usize) -> (usize, Vec<String>) {
             (!rest.starts_with(|c: char| c.is_ascii_digit())).then_some(rest)
         })
         .unwrap_or_else(|| panic!("no call of {name}:\n{lean}"));
+    // The terminal call stands inside the exit status (#836), so its
+    // arguments end at the first `)`.
     let arguments = rest
+        .split(')')
+        .next()
+        .unwrap()
         .split_whitespace()
-        .map(|argument| argument.trim_end_matches(')').to_owned())
-        .filter(|argument| !argument.is_empty())
+        .map(str::to_owned)
         .collect();
     (signature.matches("(v_").count(), arguments)
 }
@@ -626,8 +628,7 @@ fn value_fragments_take_only_the_scalar_bindings_they_name() {
             .unwrap(),
     );
     let output = Command::new(executable).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"5\n");
+    assert_eq!(common::ran(&output), common::exits(5));
 
     // Independent constants: no fragment takes a parameter, and the source
     // grows linearly. 512 of them generated 4,477,420 bytes before, and 1,600

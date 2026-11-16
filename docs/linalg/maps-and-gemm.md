@@ -538,8 +538,10 @@ target/debug/vastitas build --manifest-path examples/packages/numerical/Vastitas
 ./target/numerical-example
 ```
 
-The executable prints `42`. [Numerical builds](../guide/cli.md#numerical-builds)
-gives the pinned OpenBLAS version and the way to build it.
+The executable writes no line and exits with status 0: its entry point is a
+resource function, and its `expect` statements check the products.
+[Numerical builds](../guide/cli.md#numerical-builds) gives the pinned OpenBLAS
+version and the way to build it.
 
 Rules:
 

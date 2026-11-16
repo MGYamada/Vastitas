@@ -35,7 +35,7 @@ target/debug/vastitas build examples/abstract-selectors.vast -o target/abstract-
 ./target/abstract-selectors
 ```
 
-The program prints `42`.
+The program writes `classify(n) = 42` and exits with status 0.
 
 `Variety` and `Manifold` have no members, and no method uses them. Such a
 declaration is valid. An abstract type is a name and its place among the
@@ -101,7 +101,8 @@ The abstract method does two things. It adds its keys to the
 generic, the keys at which callers may call it. It also fixes the result type
 at those keys: the winner at `(Nat)` and the winner at `(Int)` must both
 return `Int`. The abstract method itself never wins and never runs. The two
-methods with bodies do the work, and the program prints `42`.
+methods with bodies do the work. The program writes
+`widen(n) + widen(22) = 42` and exits with status 0.
 
 A winner with another result type breaks the promise:
 

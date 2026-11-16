@@ -22,5 +22,5 @@ resource fn main() -> Int {
     release(complex_input);
     drop(reals);
     drop(pairs);
-    value { 42 }
+    value { 0 }
 }

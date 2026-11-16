@@ -200,14 +200,14 @@ the entry (f1, f2) of J − 2I is 1, that of 2I − 2I is 0. (t − 2)² annihil
 both (Cayley–Hamilton). The fields 0 and N = [[0, 1], [0, 0]] differ in the
 same way.
 """
-example_test = "tests/spectral_observations.rs::the_example_checks_builds_and_prints_42_in_place"
+example_test = "tests/spectral_observations.rs::the_example_checks_builds_and_shows_no_failures_in_place"
 
 [property."spectral.module-action".claim.test]
 status = "tested"
 evidence = [
-  "tests/spectral_observations.rs::the_example_checks_builds_and_prints_42_in_place",
+  "tests/spectral_observations.rs::the_example_checks_builds_and_shows_no_failures_in_place",
   "tests/spectral_observations.rs::mutated_observations_change_the_native_result",
-  "tests/spectral_primitives.rs::spectral_program_checks_builds_and_prints_42",
+  "tests/spectral_primitives.rs::spectral_program_checks_builds_and_exits_with_42",
   "tests/stdlib_spectral.rs::spectral_families_from_the_library_check_build_and_run_from_a_path_package",
   "VastitasKernel.SpectralRegression",
 ]
@@ -271,12 +271,12 @@ Euclidean chart is (4x, 4y): (4, 8) at (1, 2) and (0, 0) at the origin. tr(H)
 is 0, whose differential is the zero covector over the point and not ⊥, and
 the coefficient of t⁰ is −x² − y², whose gradient is −1/2 that of tr(H²).
 """
-example_test = "tests/spectral_observations.rs::the_example_checks_builds_and_prints_42_in_place"
+example_test = "tests/spectral_observations.rs::the_example_checks_builds_and_shows_no_failures_in_place"
 
 [property."spectral.invariants".claim.test]
 status = "tested"
 evidence = [
-  "tests/spectral_observations.rs::the_example_checks_builds_and_prints_42_in_place",
+  "tests/spectral_observations.rs::the_example_checks_builds_and_shows_no_failures_in_place",
   "tests/spectral_observations.rs::mutated_observations_change_the_native_result",
   "tests/stdlib_spectral.rs::spectral_families_from_the_library_check_build_and_run_from_a_path_package",
   "tests/stdlib_spectral.rs::mutated_spectral_observations_change_the_native_result",
@@ -457,12 +457,12 @@ differentials are (3/5, 4/5) and (−3/5, −4/5), unit covectors under the
 Euclidean metric, and the eigenprojectors are (1/5)[[4, 2], [2, 1]] and
 (1/5)[[1, −2], [−2, 4]].
 """
-example_test = "tests/spectral_observations.rs::the_example_checks_builds_and_prints_42_in_place"
+example_test = "tests/spectral_observations.rs::the_example_checks_builds_and_shows_no_failures_in_place"
 
 [property."spectral.branch-observations".claim.test]
 status = "tested"
 evidence = [
-  "tests/spectral_observations.rs::the_example_checks_builds_and_prints_42_in_place",
+  "tests/spectral_observations.rs::the_example_checks_builds_and_shows_no_failures_in_place",
   "tests/spectral_observations.rs::mutated_observations_change_the_native_result",
   "tests/stdlib_spectral.rs::spectral_families_from_the_library_check_build_and_run_from_a_path_package",
   "VastitasKernel.SpectralRuntimeRegression",

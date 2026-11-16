@@ -200,7 +200,7 @@ and that no transition between frames of two objects is accepted.
 status = "tested"
 evidence = [
   "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package",
-  "tests/frame_primitives.rs::frame_program_checks_builds_and_prints_42",
+  "tests/frame_primitives.rs::frame_program_checks_builds_and_exits_with_42",
   "VastitasKernel.FrameRuntimeRegression",
   "VastitasKernel.FrameRegression",
 ]
@@ -266,7 +266,7 @@ status = "tested"
 evidence = [
   "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package",
   "tests/stdlib_frames.rs::mutated_frame_observations_change_the_native_result",
-  "tests/frame_primitives.rs::frame_program_checks_builds_and_prints_42",
+  "tests/frame_primitives.rs::frame_program_checks_builds_and_exits_with_42",
   "VastitasKernel.FrameRegression",
 ]
 
@@ -319,5 +319,5 @@ as a basis of ℝⁿ, and it equals α ⬝ᵥ v.
 status = "tested"
 evidence = [
   "tests/stdlib_frames.rs::frames_from_the_library_check_build_and_run_from_a_path_package",
-  "tests/frame_primitives.rs::frame_program_checks_builds_and_prints_42",
+  "tests/frame_primitives.rs::frame_program_checks_builds_and_exits_with_42",
 ]

@@ -138,6 +138,23 @@ class RuleTests(unittest.TestCase):
                                                     "generic as a path segment in flat mode"])
 
 
+    def test_show_stands_only_at_the_top_level_of_main(self):
+        def show(value):
+            return Node("ShowStatement", ["let", "x", "=", "show", "!", "(", value, ")", ";"])
+
+        top = Node("Statement", [show(expression("a"))])
+        self.assertEqual(self.names(top), [])
+        nested = Node("Expression", [Node("BlockExpression", ["{", show(expression("a")), expression("b"), "}"])])
+        self.assertEqual(self.names(nested), ["show! outside the top level of main"])
+        inner = Node("Statement", [show(Node("Expression", [Node("BlockExpression", [
+            "{", show(expression("a")), expression("b"), "}"])]))])
+        self.assertEqual(self.names(inner), ["show! outside the top level of main"])
+        # The legacy geometry of flat mode with show! may be refused, in flat mode only.
+        legacy = Node("Statement", [show(expression("dim"))])
+        self.assertEqual(self.names(legacy), [])
+        self.assertEqual(self.names(legacy, "flat"), ["show! with the legacy geometry in flat mode"])
+
+
 class VerdictTests(unittest.TestCase):
     RULE = derivations.RULES[0]
 
@@ -164,6 +181,14 @@ class VerdictTests(unittest.TestCase):
                           derivations.verdict(self.case(broken), found), found)
         self.assertEqual(derivations.verdict(self.case(broken), [((1, 1), "E_UNSUPPORTED")]),
                          "the compiler gives E_UNSUPPORTED")
+
+    def test_an_optional_rule_allows_its_code_without_requiring_it(self):
+        optional = next(rule for rule in derivations.RULES if rule.optional)
+        broken = [(optional, (2, 9))]
+        self.assertIsNone(derivations.verdict(self.case(broken), []))
+        self.assertIsNone(derivations.verdict(self.case(broken), [((2, 9), "E_UNSUPPORTED")]))
+        self.assertEqual(derivations.verdict(self.case(broken), [((2, 9), "E_PARSE")]),
+                         "the compiler gives E_PARSE")
 
     def test_a_break_may_give_the_codes_of_the_rules_of_its_type(self):
         def pair(*arguments):

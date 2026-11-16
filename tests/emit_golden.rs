@@ -24,7 +24,9 @@ use std::fs;
 /// reverse Core of the differential of an invariant, are pinned in
 /// spectral-primitives.
 const CASES: &[(&str, &str, u64)] = &[
-    ("indexed", "examples/packages/indexed/Vastitas.toml", 7),
+    // The Stage 1 example observes its result with `show!`, so it is a
+    // protocol-9 request (#836).
+    ("indexed", "examples/packages/indexed/Vastitas.toml", 9),
     (
         "indexed-calls",
         "tests/emit_corpus/indexed-calls/Vastitas.toml",

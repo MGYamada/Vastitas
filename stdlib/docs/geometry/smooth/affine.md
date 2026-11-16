@@ -65,16 +65,17 @@ names:
   (`tests/examples.rs`, `tests/stdlib_differential.rs`) declares
   `indexed affine Plane(SmoothR) = Affine(2)[x, y];` and the maps
   `indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);` and
-  `f`, pulls covectors back, compares them and pairs them, and prints `42`.
+  `f`, pulls covectors back, compares them and pairs them. It writes
+  `failures = 0` and exits with status 0.
 - [`examples/packages/stdlib-frames/`](../../../../examples/packages/stdlib-frames)
   (`tests/examples.rs`) and
   [`examples/packages/physical-dimensions/`](../../../../examples/packages/physical-dimensions)
   (`tests/examples.rs`) declare their objects, points and fibers on the
-  profile and print `42`.
+  profile. Each writes `failures = 0` and exits with status 0.
 - [`examples/packages/frames-and-dimensions/`](../../../../examples/packages/frames-and-dimensions)
   (`tests/frames_dimensions.rs`) uses `compose_smooth`, `line_at`,
-  `lies_over`, `tangent_over`, `same_covector`, `same_vector` and `pairing`,
-  and prints `42`.
+  `lies_over`, `tangent_over`, `same_covector`, `same_vector` and `pairing`.
+  It writes `failures = 0` and exits with status 0.
 
 `tests/stdlib_differential.rs` also runs `composite`, `same_smooth` and
 `Tape` from an application, the name audit of the module, and a program

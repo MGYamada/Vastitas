@@ -1,6 +1,6 @@
 //! Standard-library inclusion is source composition, with independent checking.
 mod common;
-use common::{Scratch, cli, success};
+use common::{Scratch, cli, exits, ran, success};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -132,8 +132,7 @@ fn generated_package_preserves_comment_boundaries_in_native_programs() {
             success(&command.output().unwrap());
             if mode == "build" {
                 let output = Command::new(scratch.0.join("program")).output().unwrap();
-                success(&output);
-                assert_eq!(output.stdout, b"5\n");
+                assert_eq!(ran(&output), exits(5));
             }
         }
     }
@@ -193,8 +192,7 @@ fn main() -> Int {
         .unwrap();
     success(&result);
     let result = Command::new(&output).output().unwrap();
-    success(&result);
-    assert_eq!(String::from_utf8(result.stdout).unwrap(), "42\n");
+    assert_eq!(ran(&result), exits(42));
 }
 
 #[test]

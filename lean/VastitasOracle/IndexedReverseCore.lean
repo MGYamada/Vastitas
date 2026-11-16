@@ -545,7 +545,7 @@ theorem generated_pure_entry_compiled {program : VastitasKernel.ResourceSource.P
       VastitasKernel.ResourceSource.check program true = .ok checked ∧
     ∃ core : Core.Typing.CheckedModule true,
       core.module = checked.pureProgram.compiled.core.module ∧
-      Core.Codegen.generate core = .ok generated.source ∧
+      Core.Codegen.generate core checked.observations = .ok generated.source ∧
       Core.Reverse.generate checked.pureProgram.executable.lowered.module =
         (core.module, checked.pureProgram.compiled.entries) ∧
       ∀ entry ∈ checked.pureProgram.compiled.entries,
@@ -572,7 +572,7 @@ theorem public_pure_entry_compiled {json : Lean.Json} {program : VastitasKernel.
       VastitasKernel.ResourceSource.check program true = .ok checked ∧
     ∃ core : Core.Typing.CheckedModule true,
       core.module = checked.pureProgram.compiled.core.module ∧
-      Core.Codegen.generate core = .ok generated.source ∧
+      Core.Codegen.generate core checked.observations = .ok generated.source ∧
       Core.Reverse.generate checked.pureProgram.executable.lowered.module =
         (core.module, checked.pureProgram.compiled.entries) ∧
       ∀ entry ∈ checked.pureProgram.compiled.entries,

@@ -106,7 +106,7 @@ An inline module and a `use` with an alias:
 {{#include ../../examples/packages/inline-module/main.vast}}
 ```
 
-The executable prints `42`.
+The executable writes `next(41) = 42` and exits with status 0.
 
 In this package `main.vast` declares the module `shapes`:
 

@@ -493,14 +493,53 @@ def dimension_literal(tree, mode, grammar):
                 and node.children[0] != "1")
 
 
+def misplaced_show(tree, mode, grammar):
+    """A show! statement anywhere but at the top level of fn main.
+
+    Only the statement context places its text at the top level of `fn main`,
+    and there only the derived statement itself is at the top level; a show!
+    statement in a nested block, a lambda or another function is misplaced.
+    The frontend reads the name and the type of the `let` before `show`, so
+    the break lies at the shown expression, after any error of the name.
+    """
+    for node in tree.nodes():
+        if node.name == "ShowStatement" and not (tree.name == "Statement" and tree.children[0] is node):
+            yield [child for child in node.children if isinstance(child, Node) and child.name == "Expression"][-1]
+
+
+# The forms of the legacy geometry of flat mode, as the frontend finds them
+# (`frontend::legacy_geometry`): the geometric types, pack, unpack and the
+# geometric operations.
+LEGACY_NODES = frozenset({"SettingType", "PointType", "MorphismType", "PointedType", "PackExpression",
+                          "UnpackStatement"})
+GEOMETRIC_OPERATIONS = frozenset({"Affine", "Base", "origin", "id", "compose", "apply", "dim"})
+
+
+def flat_show_legacy(tree, mode, grammar):
+    """In flat mode, a show! statement in a text that uses a form of the legacy geometry.
+
+    A derived name can spell a geometric operation, which the frontend counts
+    only where it calls or names that operation, so this rule may apply where
+    the compiler accepts the text: it is optional.
+    """
+    if mode == "flat":
+        shows = [node for node in tree.nodes() if node.name == "ShowStatement"]
+        legacy = any(node.name in LEGACY_NODES for node in tree.nodes()) or \
+            any(leaf in GEOMETRIC_OPERATIONS for leaf in tree.leaves())
+        if shows and legacy:
+            yield shows[0]
+
+
 @dataclass(frozen=True)
 class Rule:
     """A rule of the Reference: applies(tree, mode, grammar) yields each node that breaks it, or
-    (node, codes) where the codes of the break differ from code."""
+    (node, codes) where the codes of the break differ from code. An optional rule allows its codes
+    without requiring a diagnostic: it may apply where the compiler accepts the text."""
     name: str
     place: str
     code: str
     applies: object
+    optional: bool = False
 
 
 # The rules of the Reference that make a derived text an error of the parse
@@ -535,6 +574,11 @@ RULES = (
          "form is an error", "E_PARSE", flat_unpack_witness),
     Rule("integer literal of a dimension", "Physical dimensions, Base dimensions and quantity kinds: the only "
          "integer literal of a dimension is 1", "E_PARSE", dimension_literal),
+    Rule("show! outside the top level of main", "Programs, Showing values with show!: show! stands only as "
+         "the whole initializer of a let statement at the top level of fn main", "E_UNSUPPORTED", misplaced_show),
+    Rule("show! with the legacy geometry in flat mode", "Programs, Showing values with show!: a flat program "
+         "that uses show! must not use the legacy geometry of flat mode", "E_UNSUPPORTED", flat_show_legacy,
+         optional=True),
 )
 
 
@@ -626,8 +670,9 @@ def verdict(case, found):
     wrong = [code for code in codes if code in PARSE_CODES and code not in allowed]
     if wrong:
         return f"the compiler gives {wrong[0]}"
-    if case.broken:
-        first = min(place for _, place, _ in case.broken)
+    required = [(rule, place, codes) for rule, place, codes in case.broken if not rule.optional]
+    if required:
+        first = min(place for _, place, _ in required)
         place, code = found[0] if found else (None, None)
         if code in allowed or (code not in PARSE_CODES and place is not None and place <= first):
             return None

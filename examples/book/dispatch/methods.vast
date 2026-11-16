@@ -7,5 +7,7 @@ method double(x: Int) -> Int { x + x }
 
 fn main() -> Int {
     let n: Nat = 10;
-    int(double(n)) + double(11)
+    let natural = show!(double(n));
+    let integer = show!(double(11));
+    0
 }

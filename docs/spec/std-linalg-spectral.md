@@ -101,15 +101,15 @@ Claims:
 `annihilates(…, spectrum = S, element = f)` at a point p is true exactly when f(H(p)) = 0, and `action_entry(…, spectrum = S, element = f, eᵢ, eⱼ)` is the entry (eᵢ, eⱼ) of f(H(p)), for f in A[t]. The spectrum is the characteristic scheme of H, never its reduced spectrum or the locus of an annihilator: two fields with the same χ, the same trace powers and the same coefficients can differ in their module action.
 
 - Example: On the point, 2I and J = [[2, 1], [0, 2]] both have χ = (t − 2)², the trace powers 4 and 8 and the same coefficients. t − 2 annihilates 2I and not J, and the entry (f1, f2) of J − 2I is 1, that of 2I − 2I is 0. (t − 2)² annihilates both (Cayley–Hamilton). The fields 0 and N = [[0, 1], [0, 0]] differ in the same way.
-- Run by: `the_example_checks_builds_and_prints_42_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
+- Run by: `the_example_checks_builds_and_shows_no_failures_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
 
 Claims:
 
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
-    - `the_example_checks_builds_and_prints_42_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
+    - `the_example_checks_builds_and_shows_no_failures_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
     - `mutated_observations_change_the_native_result` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
-    - `spectral_program_checks_builds_and_prints_42` in [`tests/spectral_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_primitives.rs)
+    - `spectral_program_checks_builds_and_exits_with_42` in [`tests/spectral_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_primitives.rs)
     - `spectral_families_from_the_library_check_build_and_run_from_a_path_package` in [`tests/stdlib_spectral.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_spectral.rs)
     - [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The acceptance program observes the contrasts of 2I and J and of 0 and N, each with its own failure code, and the mutation test falsifies each code.
@@ -137,13 +137,13 @@ Claims:
 `trace_power(H, k)`, for 1 ≤ k ≤ 8, is the smooth map tr(Hᵏ) from the object of H to a line, and `char_coefficient(S, i)` is the coefficient of tⁱ in χ. Each is an ordinary smooth map: its differential, its gradient under a metric and its compiled reverse pass are those of `std::differential`, and it has no reverse rule of its own. The kernel computes the map from the declaration; a map on the wire is an error (`E_PROTOCOL`).
 
 - Example: For H = rows((x, y), (y, −x)), `trace_power(H, 2)` is the map 2x² + 2y², equal to the map `pullback(t -> 2*x^2 + 2*y^2)`. Its gradient on the dimensionless Euclidean chart is (4x, 4y): (4, 8) at (1, 2) and (0, 0) at the origin. tr(H) is 0, whose differential is the zero covector over the point and not ⊥, and the coefficient of t⁰ is −x² − y², whose gradient is −1/2 that of tr(H²).
-- Run by: `the_example_checks_builds_and_prints_42_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
+- Run by: `the_example_checks_builds_and_shows_no_failures_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
 
 Claims:
 
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
-    - `the_example_checks_builds_and_prints_42_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
+    - `the_example_checks_builds_and_shows_no_failures_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
     - `mutated_observations_change_the_native_result` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
     - `spectral_families_from_the_library_check_build_and_run_from_a_path_package` in [`tests/stdlib_spectral.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_spectral.rs)
     - `mutated_spectral_observations_change_the_native_result` in [`tests/stdlib_spectral.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_spectral.rs)
@@ -218,13 +218,13 @@ Claims:
 Let p be a point and t a rational on the line. `on_branch` is true exactly when g(p) ≠ 0 and χ(p, t) = 0. At such a branch point, `branch_differential` is the covector −Σᵢ (∂ᵢχ / χ′)(p, t) dxᵢ, and `branch_projector` with eᵢ and eⱼ is the entry (eᵢ, eⱼ) of adj(tI − H(p)) / χ′(p, t). Off the chart the differential is ⊥ and an entry reads (0, 0). No observation computes, orders or chooses an eigenvalue.
 
 - Example: At p = (3, 4) the eigenvalues 5 and −5 are on the branch of D(x² + y²), and 4 is not; the origin is off the chart, although χ(0, 0) = 0 at t = 0. The differentials are (3/5, 4/5) and (−3/5, −4/5), unit covectors under the Euclidean metric, and the eigenprojectors are (1/5)[[4, 2], [2, 1]] and (1/5)[[1, −2], [−2, 4]].
-- Run by: `the_example_checks_builds_and_prints_42_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
+- Run by: `the_example_checks_builds_and_shows_no_failures_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
 
 Claims:
 
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
-    - `the_example_checks_builds_and_prints_42_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
+    - `the_example_checks_builds_and_shows_no_failures_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
     - `mutated_observations_change_the_native_result` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
     - `spectral_families_from_the_library_check_build_and_run_from_a_path_package` in [`tests/stdlib_spectral.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_spectral.rs)
     - [`VastitasKernel.SpectralRuntimeRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRuntimeRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)

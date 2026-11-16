@@ -58,5 +58,5 @@ def f_6 : Int :=
 
 end VastitasGenerated
 
-def main : IO Unit :=
-  IO.println (VastitasGenerated.f_6)
+def main : IO UInt32 :=
+  pure (UInt32.ofNat (Int.toNat (Int.emod VastitasGenerated.f_6 256)))

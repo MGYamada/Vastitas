@@ -388,8 +388,8 @@ fn materialized_diagonal_adjoint_builds_without_openblas() {
                 .unwrap(),
         );
         let result = Command::new(output).output().unwrap();
-        success(&result);
-        assert_eq!(String::from_utf8_lossy(&result.stdout).trim(), "42");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&result), common::exits(0));
     }
 }
 
@@ -431,7 +431,7 @@ fn diagonal_pairing_builds_executes_real_complex_and_empty_forms() {
         build.arg("-o").arg(&output).args(&options);
         success(&build.output().unwrap());
         let result = Command::new(output).output().unwrap();
-        success(&result);
-        assert_eq!(String::from_utf8_lossy(&result.stdout).trim(), "42");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&result), common::exits(0));
     }
 }

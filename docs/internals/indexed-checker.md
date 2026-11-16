@@ -727,8 +727,9 @@ static compatibility. This runtime is not an arbitrary scheme implementation.
 `IndexedCoreRegression` has 34 cases, including actual package/function/primitive
 composition and forged annotation, substitution, scope, freshness, declaration
 and dependency failures. `bash scripts/check_indexed_native.sh` compiles and runs
-three standalone fixtures (package output `2`, all primitives output `42`, and
-arbitrary-precision scalar/Pair arithmetic). Both OS no-mathlib CI jobs run them.
+three standalone fixtures (package exit status 2, all primitives exit status
+42, and arbitrary-precision scalar/Pair arithmetic). Both OS no-mathlib CI
+jobs run them.
 
 Public protocol 7 parses and independently resolves declarations. The structural
 theorem alone does not establish evaluation; `IndexedProgramSafety` supplies
@@ -755,9 +756,10 @@ distinction, missing capabilities, dependent morphism calls with retained test
 objects/repacking, composition with arithmetic in the same protocol-7 closure,
 private support visibility, external method authority, legacy client compatibility
 and rejection of mutated actual wire contracts by both checking and emission.
-The combined and pointed examples return `42`; the smooth example preserves
-its explicit abstract annotation and returns `2` after unpacking. The implementation still uses the finite descriptor
-representation; no general polynomial map, chart, tensor or numerical buffer is
+The combined example shows 42 and the pointed example shows the dimension 3;
+the smooth example preserves its explicit abstract annotation and shows the
+dimension 2 after unpacking. All three exit with status 0. The implementation
+still uses the finite descriptor representation; no general polynomial map, chart, tensor or numerical buffer is
 added. Primitive/package proofs retain their original stated scope. Historical
 Stage 2 later adds presented objects and polynomial maps as a separate,
 separately checked profile ([affine geometry](../affine-geometry.md)). It does not

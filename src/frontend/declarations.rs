@@ -116,7 +116,6 @@ impl Parser {
         inline: bool,
         parsed: &mut crate::namespace::Parsed,
     ) -> Result<(), Diagnostic> {
-        use crate::namespace::{External, Import, Module as NamespaceModule, Public};
         if path.len() > MAX_MODULE_NESTING {
             return Err(diagnostic(
                 "E_LIMIT",
@@ -124,6 +123,21 @@ impl Parser {
                 span,
             ));
         }
+        let entry_module = std::mem::replace(&mut self.entry_module, path.is_empty());
+        let result = self.namespace_items(path, public, span, inline, parsed);
+        self.entry_module = entry_module;
+        result
+    }
+
+    fn namespace_items(
+        &mut self,
+        path: Vec<String>,
+        public: bool,
+        span: Span,
+        inline: bool,
+        parsed: &mut crate::namespace::Parsed,
+    ) -> Result<(), Diagnostic> {
+        use crate::namespace::{External, Import, Module as NamespaceModule, Public};
         let mut module = NamespaceModule {
             path: path.clone(),
             public,
@@ -319,7 +333,13 @@ impl Parser {
         let params = self.parameters(false)?;
         self.expect("->")?;
         let return_type = self.ty()?;
-        let body = self.block()?;
+        // Only the top-level `let` statements of `fn main` of a root module
+        // may observe their values with `show!` (#836).
+        self.observing = name == "main" && self.entry_module;
+        let body = self.block();
+        self.observing = false;
+        let body = body?;
+        let observations = std::mem::take(&mut self.observations);
         let span = start.through(body.span);
         Ok(Function {
             name,
@@ -327,6 +347,7 @@ impl Parser {
             return_type,
             body,
             span,
+            observations,
         })
     }
 

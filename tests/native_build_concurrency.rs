@@ -418,7 +418,6 @@ fn simultaneous_cold_resource_builds_execute_and_reuse_native_artifacts() {
     }
     for name in ["first", "second", "third"] {
         let output = Command::new(s.0.join(name)).output().unwrap();
-        success(&output);
-        assert_eq!(output.stdout, b"42\n");
+        assert_eq!(common::ran(&output), common::exits(42));
     }
 }

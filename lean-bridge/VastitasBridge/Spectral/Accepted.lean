@@ -375,7 +375,7 @@ theorem public_pure_entry_trace_power_dk {json : Lean.Json}
       VastitasKernel.ResourceSource.check program true = .ok checked ∧
     ∃ core : Core.Typing.CheckedModule true,
       core.module = checked.pureProgram.compiled.core.module ∧
-      Core.Codegen.generate core = .ok generated.source ∧
+      Core.Codegen.generate core checked.observations = .ok generated.source ∧
       ∀ entry ∈ checked.pureProgram.compiled.entries, TracePowerDK core.module entry := by
   obtain ⟨checked, accepted, core, same, emittedCore, frechet⟩ :=
     VastitasBridge.Differential.public_pure_entry_frechet decoded found emitted

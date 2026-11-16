@@ -9,5 +9,6 @@ fn main() -> Int {
         let step = 21;
         base + step
     };
-    first + second - base
+    let total = show!(first + second - base);
+    0
 }

@@ -38,7 +38,7 @@ fn reject(s: &Scratch, code: &str) {
     assert!(!output.status.success(), "accepted invalid authority");
     common::expect_code(&output, code);
 }
-fn native(s: &Scratch, expected: &[u8]) {
+fn native(s: &Scratch, expected: common::Run) {
     assert_eq!(s.check_build_and_run("app/Vastitas.toml"), expected);
 }
 fn request(s: &Scratch) -> Value {
@@ -125,7 +125,7 @@ fn named_recipients_keep_manifest_identity_and_ignore_dependency_aliases() {
     std::fs::rename(s.0.join("addon"), &moved).unwrap();
     s.write("vendor/deep/receiver/Vastitas.toml", "[package]\nname='addon'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../../../base'}\n");
     s.write("app/Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../base'}\naddon={path='../vendor/deep/receiver'}\nalias={path='../vendor/deep/receiver'}\n");
-    native(&s, b"44\n");
+    native(&s, common::exits(44));
 }
 
 #[test]
@@ -268,24 +268,24 @@ fn recipient_source_migration_keeps_legacy_wire_and_optional_runtime_boundaries(
     assert_eq!(raw["version"], 9);
     assert_eq!(response["storage_runtime"], true, "{response}");
     assert_eq!(response["numerical_runtime"], false);
-    native(&s, b"0\n");
+    native(&s, common::exits(0));
 }
 
 #[test]
 fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() {
     let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
     let s = fixture(BASE, ADDON, &events);
-    native(&s, b"44\n");
+    native(&s, common::exits(44));
     // Reexports/aliases preserve both declaration identity and provenance.
     let replay = events.replace(
         "return child;",
         "apply alias::ops::sum using child; return child;",
     );
-    native(&fixture(BASE, ADDON, &replay), b"44\n");
+    native(&fixture(BASE, ADDON, &replay), common::exits(44));
     // Grants survive permanent transfer; using the original grant still needs
     // an explicit active loan, while its old owner cannot directly edit.
     let events = format!("transfer base::handoff; {NESTED} apply addon::fresh; seal base::choose;");
-    native(&fixture(BASE, ADDON, &events), b"44\n");
+    native(&fixture(BASE, ADDON, &events), common::exits(44));
     let deeper = ADDON.replace("to addon::ops {", "to addon::ops delegable {").replace(
         "pub mod ops {",
         r#"pub mod ops {
@@ -295,7 +295,7 @@ fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() 
     );
     let events = events.replace("apply addon::ops::sum using child;",
         "reborrow child via addon::ops::deeper as grandchild; apply addon::ops::deep::sum using grandchild; return grandchild;");
-    native(&fixture(BASE, &deeper, &events), b"44\n");
+    native(&fixture(BASE, &deeper, &events), common::exits(44));
     let addon = format!(
         "{ADDON} pub contribution numeric : base::choose {{ method base::choose(x: Int, y: Int) -> Int {{ x + y }} }}"
     );
@@ -309,7 +309,7 @@ fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() 
                 &addon,
                 &format!("transfer base::handoff; {order} seal base::choose;"),
             ),
-            b"44\n",
+            common::exits(44),
         );
     }
 }
@@ -318,7 +318,7 @@ fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() 
 fn indexed_declarations_preserve_nested_loans_transfer_and_unapplied_audits() {
     let base = format!("indexed marker Wire; {BASE}");
     let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
-    native(&fixture(&base, ADDON, &events), b"44\n");
+    native(&fixture(&base, ADDON, &events), common::exits(44));
     reject(
         &fixture(
             &base,
@@ -413,7 +413,7 @@ fn transfer_revokes_old_authority_and_requires_returned_loans_and_completion() {
             &addon,
             "transfer base::handoff; borrow addon::own as edit; apply addon::ops::sum using edit; return edit; seal base::choose;",
         ),
-        b"42\n",
+        common::exits(42),
     );
 }
 
@@ -489,7 +489,7 @@ pub mod ops {{ pub contribution sum : base::choose {{
     );
     let repaired =
         format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
-    native(&fixture(&base, &addon, &repaired), b"42\n");
+    native(&fixture(&base, &addon, &repaired), common::exits(42));
     reject(
         &fixture(&base, &addon.replace("{ 1 }", "{ true }"), &repaired),
         "E_TYPE",

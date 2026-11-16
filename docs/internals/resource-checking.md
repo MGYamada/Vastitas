@@ -120,9 +120,9 @@ runtime-shape event: an operation of a `runtime_` statement or a guard on
 runtime extents. An entry with neither holds `value` statements, scalar
 branches, declarations of spaces and bases, and calls that expand to these.
 The declarations are metadata of the checker and lower to nothing. The `main`
-of such an entry holds the value calls and the branches and then prints the
-result. It creates no arena and has no cleanup. The kernel states the
-requirement with the source, as
+of such an entry holds the value calls and the branches and then returns the
+exit status of the result. It creates no arena and has no cleanup. The
+kernel states the requirement with the source, as
 `storage_runtime` in the [emit response](../protocol.md). The source imports
 the storage runtime when the requirement holds. The driver compares and links
 the storage package under that requirement. It refuses a source that imports

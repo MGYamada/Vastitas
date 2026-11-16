@@ -1,7 +1,7 @@
 //! Regressions for the Stage 1 stabilization gate; acceptance and diagnostics
 //! are tested at the actual CLI/wire boundary, including native branch results.
 mod common;
-use common::{Scratch, cli, kernel, native, reject, request};
+use common::{Scratch, cli, exits, kernel, native, reject, request, shows};
 use serde_json::json;
 
 #[test]
@@ -15,7 +15,7 @@ fn closed_integer_expression_typing_is_symmetric_without_conversion_or_folding()
                 "fn left(n: Nat, c: Bool) -> Nat {{ let v = if c {{ 1 + 2 }} else {{ n }}; v }} fn right(n: Nat, c: Bool) -> Nat {{ let v = if c {{ n }} else {{ 1 + 2 }}; v }} fn main() -> Int {{ let n: Nat = 7; if (1 + 2) < n && n > (1 + 2) && (1 + 2) * n == n * (1 + 2) && left(n, true) == 3 && left(n, false) == n && right(n, true) == n && right(n, false) == 3 {{ 42 }} else {{ -1 }} }} {extra}"
             ),
             &[],
-            "42",
+            exits(42),
             "constants.vast",
         );
     }
@@ -30,9 +30,9 @@ fn closed_integer_expression_typing_is_symmetric_without_conversion_or_folding()
         "variable.vast",
     );
     native(
-        "fn main() -> Int { (1 - 2) * 3 }",
+        "fn main() -> Int { let shown: Int = show!((1 - 2) * 3); 0 }",
         &[],
-        "-3",
+        shows(&["(1 - 2) * 3 = -3"]),
         "default.vast",
     );
 }
@@ -48,7 +48,7 @@ fn else_if_limit_names_the_chain_and_accepts_the_documented_boundary() {
                 .join(" else ")
         )
     };
-    native(&source(62), &[], "7", "chain.vast");
+    native(&source(62), &[], exits(7), "chain.vast");
     let message = reject(&source(63), "E_LIMIT", "chain.vast");
     assert!(
         message.contains("`else if` chain") && message.contains("62"),

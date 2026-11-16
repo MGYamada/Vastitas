@@ -30,7 +30,7 @@ resource fn main() -> Int {
     release(read_input);
     drop(input);
     drop(output);
-    value { 42 }
+    value { 0 }
 }
 
 // ANCHOR: pairings

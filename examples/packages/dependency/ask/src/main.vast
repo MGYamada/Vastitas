@@ -1,5 +1,6 @@
 use answers::answer;
 
 fn main() -> Int {
-    answer()
+    let reply = show!(answer());
+    0
 }

@@ -259,7 +259,15 @@ grouping of operators:
 {{#include ../../examples/book/expressions/operators.vast}}
 ```
 
-The executable prints `42`. A comparison chain is an error:
+The executable writes these lines and exits with status 0:
+
+```text
+n - 5 = 0
+int(n) - 5 = -2
+2 + 3 * -below = 8
+```
+
+A comparison chain is an error:
 
 ```vast
 {{#include ../../examples/reject/expressions/chained-comparison.vast}}
@@ -358,5 +366,5 @@ packs the object that it opened with another point of it:
 {{#include ../../examples/pointed.vast}}
 ```
 
-The executable prints `42`.
+The executable writes no line and exits with status 0.
 [Packing](../indexed-source.md#packing) shows the form with a type.

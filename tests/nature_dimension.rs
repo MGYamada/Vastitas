@@ -407,9 +407,9 @@ fn dimension_module_exports_exactly_its_names() {
 /// `Model` and `nature::errorbar` exactly the families `Calibration`,
 /// `Dataset` and `Comparison`. Each is the root module of a package of its
 /// own that depends on std alone, and each family indexes std's smooth
-/// affine objects, canonically. The kernel accepts the families, so a program
-/// that depends on `nature` still checks, builds and runs; it rejects every
-/// model and every datum until their checks are implemented.
+/// affine objects, canonically. The kernel accepts the families, and a
+/// program that depends on `nature` and declares none of their declarations
+/// checks.
 #[test]
 fn model_and_errorbar_modules_export_exactly_their_families() {
     let wire = request(&fixture(MAIN));

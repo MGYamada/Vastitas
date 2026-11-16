@@ -1607,8 +1607,9 @@ mod tests {
     /// serialize to the wire shapes that the kernel decodes and read back. The
     /// transition average, its family and `average_at` are algebraic; the
     /// model and data forms are not, and select protocol 9 only as package
-    /// input (#533). No form has a field for a certificate, and each record
-    /// rejects an unknown field, as the kernel does.
+    /// input (#533). No form has a field for a certificate. The nested
+    /// records of a calibrated coordinate and of a data point reject an unknown
+    /// field, as the kernel does; the frontend never decodes a request.
     #[test]
     fn every_stage6_form_serializes_to_its_wire_shape() {
         let p = |name: &str| serde_json::to_value(path(name)).unwrap();

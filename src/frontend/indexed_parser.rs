@@ -613,10 +613,15 @@ impl Parser {
                     "endomorphism" => indexed::FamilyRepresentation::Endomorphism,
                     "spectrum" => indexed::FamilyRepresentation::Spectrum,
                     "branch" => indexed::FamilyRepresentation::Branch,
+                    "transition_average" => indexed::FamilyRepresentation::TransitionAverage,
+                    "model" => indexed::FamilyRepresentation::Model,
+                    "calibration" => indexed::FamilyRepresentation::Calibration,
+                    "dataset" => indexed::FamilyRepresentation::Dataset,
+                    "comparison" => indexed::FamilyRepresentation::Comparison,
                     _ => {
                         return Err(diagnostic(
                             "E_TYPE",
-                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, transition_average, frame, frame_vector, frame_covector, frame_map, reading, physical_metric, model, calibration, dataset or comparison",
                             span,
                         ));
                     }
@@ -2929,7 +2934,7 @@ mod tests {
             (
                 "indexed family F(object(CInfAffine)) = frames constraints(canonical(0));",
                 "E_TYPE",
-                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, transition_average, frame, frame_vector, frame_covector, frame_map, reading, physical_metric, model, calibration, dataset or comparison",
                 "frames",
             ),
             (
@@ -3481,7 +3486,7 @@ fn scale(physical: Int) -> Int { let interpret = physical; interpret }
             (
                 "indexed family F(object(CInfAffine)) = free_modules constraints(canonical(0));",
                 "E_TYPE",
-                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, transition_average, frame, frame_vector, frame_covector, frame_map, reading, physical_metric, model, calibration, dataset or comparison",
                 "free_modules",
                 "free_modules",
             ),

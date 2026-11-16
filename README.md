@@ -27,7 +27,8 @@ model over QQ: a two-level field whose dephased transition average is a closed
 form that the kernel checks against the trace form of its branch, a model that
 records the meaning of the field and its regime, a calibration, a dataset and a
 recorded comparison whose verdict the kernel computes again exactly and which is
-stale once the calibration changes; its oracle and bridge proofs are Planned. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/physical-models.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-models.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage6-acceptance.md)
+stale once the calibration changes; the oracle proves what accepted averages, models and comparisons satisfy,
+and the bridge proves that an accepted average is the sum of the squared eigenprojector entries. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/physical-models.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-models.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage6-acceptance.md)
 
 ## Build and use
 

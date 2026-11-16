@@ -131,8 +131,8 @@ standard uncertainty 1/20, evaluated by other means than statistics
 ```
 
 The compiler computes a fingerprint of the calibration from its values,
-uncertainties, method, reference and revision. Any change to one of them
-gives another fingerprint.
+uncertainties, method, reference and revision. A change to one of them gives
+another fingerprint, unless the 64-bit digest happens to collide.
 
 ## Measured points
 
@@ -234,12 +234,19 @@ verdict that the compiler computes.
 > matrix of its model by identities of polynomials, checks the references of
 > each model, each point against the region of its branch, each verdict from
 > the numbers and each fingerprint against its calibration, before the
-> compiler generates code. Tests cover the predictions that the program
-> shows, the rejected programs of this chapter, the changed calibration, and
-> the program without its comparison and without every declaration of
-> `nature`, which generates the same code. The meaning of the model, its
-> regime, the long-time reading of the average and the first-order
-> propagation of uncertainties are assumptions that the program records.
+> compiler generates code. The [proofs](../verification.md#physical-models)
+> cover what an accepted average, model and comparison satisfy: the closed
+> form is the trace form and gives the observed values, the verdict is the
+> one that the inequality decides, a comparison records the fingerprint of
+> its calibration, and the model and its data change no value of the
+> standard library. They also show that an accepted average is the sum of
+> the squared entries of the eigenprojectors of the real matrix. Tests cover
+> the predictions that the program shows, the rejected programs of this
+> chapter, the changed calibration, and the program without its comparison
+> and without every declaration of `nature`, which generates the same code.
+> The meaning of the model, its regime, the long-time reading of the average
+> and the first-order propagation of uncertainties are assumptions that the
+> program records.
 
 ## See also
 

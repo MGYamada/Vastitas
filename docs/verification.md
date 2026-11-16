@@ -3316,42 +3316,60 @@ state the rules. The status words are those of
 
 The evidence keeps four kinds of claim apart:
 
-- The **oracle** is to state what an accepted average, model and comparison
-  satisfy, about the kernel's definitions. These theorems are Planned.
-- The **bridge** is to state what an accepted average means in Mathlib.
-  This theorem is Planned.
-- **Tests** are evidence for the checks, the diagnostics, the wire, the
-  generated code, staleness and native execution. They prove nothing for
-  all inputs.
+- The **oracle** states what an accepted transition average, model,
+  calibration, dataset and comparison satisfies, about the kernel's
+  definitions: the identities of the closed form, the value of
+  `average_at`, the references of a model, the exact verdict, the recorded
+  fingerprint, and that the declarations of `nature::model` and
+  `nature::errorbar` change no `std` validity or value.
+- The **bridge** states what an accepted transition average means in
+  Mathlib: at a real point of its chart it is the sum of the squared
+  entries of the eigenprojectors of the real symmetric field.
+- **Tests** are evidence for the diagnostics, the codes, the wire, the
+  generated code, the byte identity of the generated code without the model
+  and its data, and native execution. They prove nothing for all inputs.
 - **Assumed** are the physical readings of a model, which no theorem and no
   test can establish.
 
 ### Oracle theorems of physical models
 
-These theorems are Planned. The table states what each is to state; the
-names follow when the proofs are merged.
+All of these are Proved (oracle). Names are relative to `VastitasOracle`.
 
-<!-- O+B: theorem names. Replace "Planned" with "Proved (oracle)" and the
-     names, and update the claims of docs/spec/nature-physical-model.toml and
-     docs/spec/std-linalg-spectral.toml. -->
-
-| Subject | Theorems | Statement |
+| Module | Theorems | Statement |
 | --- | --- | --- |
-| Transition averages | Planned | An accepted transition average satisfies N·g²ᵉ = D·T, with T the trace form of the kernel's definition, and D·Q = gᵐ for its certificate. At every rational point with g(p) ≠ 0 the value of `average_at` is N(p)/D(p), which equals T(p)/g(p)²ᵉ; off the chart it is the failure value |
-| Models | Planned | An accepted model's reading is on the object of its field, its prepared and observed vectors are basis vectors of the module of its field, and the average that it predicts is an average of a branch of its field from the prepared to the observed vector |
-| Comparisons | Planned | An accepted comparison records the fingerprint `calibrationFingerprint` of its calibration, and its verdict is `consistent` exactly when every point satisfies the inequality of [Comparisons](language/physical-models.md#comparisons), computed from the average and its exact derivative |
-| Weakening | Planned | Conventions, models, calibrations, datasets and comparisons change no validity, no value and no generated code of a `std` declaration; transition averages weaken as the other spectral declarations do |
+| `SpectralAverage` | `checkAverage_sound`, `AverageValid.value_at`, `AverageValid.averageAt_on_chart`, `averageAt_off_chart`, `transitionAverage_sound`, `accepted_average_at`, `Examples.example_value` | An accepted transition average has a symmetric field and satisfies `AverageValid`, the structure of its checked identities: the rank and exponent limits, basis indices below the rank, canonical polynomials, a nonzero denominator, the reduction of the integrand by χ, N·g²ᵉ = D·T for the checked trace form T, and D·Q = gᵐ with m at most the total degree of D. At a rational point with g(p) ≠ 0, D(p) ≠ 0 and N(p)/D(p) = T(p)/g(p)²ᵉ, and `average_at` is that rational, never the failure pair; where g(p) = 0 it is `(0, 0)`, whatever the closed form. Every average of a valid environment is an average of a branch of a spectrum of a symmetric endomorphism on its object, and an accepted call of `average_at` evaluates to that value. For the field of the spectral observations, the average at (3, 4) is 8/25, decided by `decide +kernel` |
+| `NatureModel` | `checkModel_sound`, `predictsAverage_sound`, `model_sound`, `checkModel_regime_free` | An accepted model names a `model` family at a declared smooth object X, an endomorphism on X whose free module has the prepared and the observed vector among its basis indices, a reading of X, a convention and a transition average on X from the prepared to the observed vector of a branch of a spectrum of the endomorphism; for every model of a valid environment the rows are symmetric and the average satisfies `AverageValid`. The check of a model does not read its regime |
+| `NatureErrorbar` | `checkCalibration_sound`, `checkDataset_sound`, `gradient_exact`, `verdict?_sound`, `checkComparison_sound`, `checkComparison_verdict_unique`, `comparison_fingerprint`, `checkComparison_stale`, `comparison_sound` | An accepted calibration calibrates at least one coordinate, at distinct coordinates of its object, with positive uncertainties. An accepted dataset has a positive coverage factor, between 1 and `datasetPoints` points, a model and a calibration of its object, and every point with a positive uncertainty and, with the calibrated values, on the chart D(g) of the prediction. The derivative that the kernel computes is the derivative of N/D, as a quotient of dual numbers where D(p) ≠ 0. A computed verdict is `consistent` exactly when every point satisfies (A(p) − v)² ≤ k²·(u² + Σ_c (∂A/∂c)²·u_c²), and two accepted comparisons of one dataset under one calibration record one verdict. An accepted comparison records the fingerprint of the canonical content of its calibration, and one that records another fingerprint is rejected, whatever its verdict |
+| `NatureWeakening` | `model_errorbar_free`, `model_errorbar_free_of_valid`, `model_errorbar_weakening`, `average_model_free` | Conventions, models, calibrations, datasets, comparisons and their families, at any position of an environment with unique ids, change the validity of no entry that the nature checks do not check, transition averages included, for every class ranking, the validity of no binding, `average_at` included, and the value of no binding; appended at the end they need no hypothesis on ids. A transition average and `average_at` are as valid, with the same values, with and without them |
+| `SpectralWeakening` | `average_weakening` | Transition averages at any position of an environment with unique ids change neither the validity nor the value of a binding that names none of them, and the validity of no entry that names no spectral declaration, for every table of class ranks. The weakening theorems of the spectral observations cover averages with their statements unchanged |
 
 ### Bridge theorem of the transition average
 
-This theorem is Planned.
+All of these are Proved (bridge). `lean-bridge/Audit.lean` requires each
+name.
 
-<!-- O+B: bridge theorem name. Replace "Planned" with "Proved (bridge)" and the
-     name required by lean-bridge/Audit.lean. -->
-
-| Subject | Theorem | Statement |
+| Module | Theorems | Statement |
 | --- | --- | --- |
-| Transition averages | Planned | For a real symmetric field with a simple spectrum at a real point of D(g), the trace-form value of an accepted transition average equals Σₖ Pₖ[j, i]², with Mathlib's eigenvalues and eigenprojectors Pₖ |
+| `Spectral` | `simple_spectrum_of_chart`, `average_eq_sum_eigenprojector`, `accepted_average_eq_sum_eigenprojector` | At a real point x of the chart, g(x) ≠ 0, the gap certificate makes Mathlib's eigenvalues of the real symmetric H(x) distinct. There D(x) ≠ 0 and N(x)/D(x) = T(x)/g(x)²ᵉ = Σₖ Pₖ[j, i]², where `eigenprojector` is the real vₖvₖᵀ of Mathlib's orthonormal `eigenvectorBasis`. For every average of a valid environment this holds at every real point of its chart |
+
+### Hypotheses and gaps of the physical model proofs
+
+- The premises of each theorem are those of its claim in the
+  [specification](spec/nature-physical-model.md) and in
+  [`spectral.transition-average`](spec/std-linalg-spectral.md#spectral.transition-average):
+  a valid environment, an accepted check, a point of the chart, and for the
+  bridge a real symmetric field at the point.
+- The fingerprint is a 64-bit FNV-1a digest, which can collide. What is
+  proved is that an accepted comparison records the current fingerprint of
+  its calibration and that a comparison that records another one is
+  rejected, not that every change of a calibration changes its fingerprint.
+- That the rejection of a stale comparison has the code `E_STALE`, with the
+  message that names the current fingerprint, is Tested.
+- That the generated code is byte identical without the model and its data
+  is Tested; the weakening theorems state validity and values.
+- No theorem composes `accepted_average_at`, whose value is a rational, with
+  the real sum of the bridge: the step from the rational value of the
+  observation to its real cast is not proved.
 
 ### Assumed in physical models
 

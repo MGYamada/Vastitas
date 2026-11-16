@@ -254,9 +254,12 @@ changes neither the validity of a declaration of another kind nor the
 validity or the value of a primitive that names none of these declarations,
 and no spectral primitive reads a metric, a frame or a physical dimension.
 The families of spectral observations are not among these declarations.
-For physical models, that the declarations of `nature::model` and
-`nature::errorbar` leave the generated code the same is Tested, and the
-theorems are Planned.
+Also Proved, for physical models: a convention, a model, a calibration, a
+dataset or a comparison changes neither the validity of a declaration of the
+standard library nor the validity or the value of a primitive, and a
+transition average changes neither the validity nor the value of a binding
+that names none of them. That the generated code stays the same without
+them is Tested.
 The statements on the validity of declarations hold for every table of
 class ranks. That the table of class ranks stays the same is not proved, so
 they are not stated for the validity of a whole program. That the generated code stays the
@@ -265,7 +268,7 @@ same is Tested. [What is outside these claims](../verification.md#what-is-outsid
 [Frames and physical dimensions](../verification.md#frames-and-physical-dimensions),
 [Spectral observations](../verification.md#spectral-observations)
 and [Physical models](../verification.md#physical-models) state these
-theorems and plans. The theorems are facts about the checked program, not laws of
+theorems. The theorems are facts about the checked program, not laws of
 the arithmetic that a native routine performs.
 
 ## Nominal identity

@@ -233,9 +233,11 @@ canonical content lists the calibrated coordinates in the order of the
 coordinates of the object, each with its name, value and uncertainty, then
 the method, the reference and the revision. A value or an uncertainty is
 written as a reduced fraction, and a name or a text with its length in
-bytes, so that no text can stand for another. The fingerprint therefore
-changes with every value, uncertainty, method, reference and revision, and
-it does not depend on the order in which the source lists the coordinates.
+bytes, so that no text can stand for another. A change to a value, an
+uncertainty, the method, the reference or the revision changes the
+canonical content, and so the fingerprint, unless the 64-bit digest
+collides. The fingerprint does not depend on the order in which the source
+lists the coordinates.
 
 Example, from `main.vast`:
 

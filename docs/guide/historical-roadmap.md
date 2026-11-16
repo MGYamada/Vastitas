@@ -6,8 +6,8 @@ Stage states a mathematical target and an acceptance example, an example that
 could establish the completion of the Stage. Stages 2 to 5 are Implemented
 as finite profiles over the rational numbers: each has a Status paragraph,
 Reference chapters and a [delivery record](../appendix/history.md). Stage 6
-is Implemented and Tested as a finite profile whose proofs are Planned, and
-Stage 7 is Planned.
+is Implemented as a finite profile, with its tests and proofs, and its
+continuous integration and review are Planned. Stage 7 is Planned.
 
 The Stages answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
@@ -243,7 +243,7 @@ and physical measurement uncertainty each need their own evidence.
 **Status.** In progress: tracker #841, with the
 [acceptance map](../stage6-acceptance.md). A finite, exact profile over QQ
 implements the exact prediction and the comparison with data of this
-example, and its tests cover every acceptance condition but the proofs. A
+example. A
 symmetric two-level field and its simple branch give a dephased transition
 average, declared as a closed form `ratio(N, D)` that the kernel checks
 against the trace form of the branch, with a unit certificate of the
@@ -256,9 +256,15 @@ the kernel computes again exactly, with first-order propagation of the
 calibration (ADR 0002 §4 and §5). A changed calibration makes the comparison
 stale (`E_STALE`), while the derivation and the `std` declarations still
 check and generate the same code. The acceptance example runs natively. The
-oracle theorems about accepted averages, models and comparisons and the
-bridge theorem that the average is Σₖ (Pₖ)²ⱼᵢ are Planned, as are
-continuous integration and the whole-stage review. The named solver and the
+oracle proves the identities and the observed values of accepted averages,
+the references of accepted models, the recorded fingerprint and the exact
+verdict of accepted comparisons, and that models and data change no `std`
+validity or value; the mathlib bridge proves that an accepted average is
+Σₖ (Pₖ)²ⱼᵢ, the sum of the squared entries of Mathlib's eigenprojectors, at
+every real point of its chart. The reading of that sum as a long-time
+average of the dynamics stays Assumed, and the code of a stale comparison
+and the byte identity of the generated code are tested. Continuous
+integration and the whole-stage review are Planned. The named solver and the
 numerical error bound stay Planned with #318.
 
 ## Stage 7. Broader geometry and physics

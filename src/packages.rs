@@ -28,7 +28,7 @@ struct Package {
     dependencies: Vec<Dependency>,
     modules: Vec<Module>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    geometry_compat: Option<crate::indexed::GeometryProfile>,
+    geometry_compat: Option<crate::indexed::WireGeometryProfile>,
 }
 
 #[derive(Debug, Serialize)]
@@ -340,7 +340,7 @@ impl Loader {
             version: parsed.package.version,
             dependencies,
             modules,
-            geometry_compat: parsed.geometry_compat,
+            geometry_compat: parsed.geometry_compat.map(Into::into),
         });
         self.active.remove(&manifest);
         Ok(source)

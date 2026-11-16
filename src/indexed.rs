@@ -7,9 +7,11 @@ use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 
-/// A library's explicit export of the finite legacy geometry dialect.
-/// Paths remain unresolved until the independent kernel checks every role.
-#[derive(Debug, Deserialize, Serialize)]
+/// A library's explicit export of the finite legacy geometry dialect, as the
+/// `geometry_compat` table of a manifest spells it. Paths remain unresolved
+/// until the independent kernel checks every role. The request carries the
+/// export as a [`WireGeometryProfile`].
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GeometrySetting {
     pub domain: String,
@@ -22,7 +24,9 @@ pub struct GeometrySetting {
     pub dimension: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+/// The `geometry_compat` table of a manifest: the two settings and the roles
+/// that they share.
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GeometryProfile {
     pub scheme: GeometrySetting,
@@ -32,6 +36,81 @@ pub struct GeometryProfile {
     pub pointed: String,
     pub compose: String,
     pub apply: String,
+}
+
+/// A geometry setting in the wire request. Its spelling is separate from the
+/// manifest's (#533): the slot of `dim(…)` is `dimension` on the wire until
+/// the cutover to the single schema epoch, which changes this record alone.
+#[derive(Debug, Serialize)]
+pub struct WireGeometrySetting {
+    pub domain: String,
+    pub marker: String,
+    pub base_object: String,
+    pub affine: String,
+    pub base: String,
+    pub origin: String,
+    pub identity: String,
+    pub dimension: String,
+}
+
+/// The `geometry_compat` export of a package in the wire request.
+#[derive(Debug, Serialize)]
+pub struct WireGeometryProfile {
+    pub scheme: WireGeometrySetting,
+    pub smooth: WireGeometrySetting,
+    pub point: String,
+    pub morphism: String,
+    pub pointed: String,
+    pub compose: String,
+    pub apply: String,
+}
+
+impl From<GeometrySetting> for WireGeometrySetting {
+    fn from(setting: GeometrySetting) -> Self {
+        let GeometrySetting {
+            domain,
+            marker,
+            base_object,
+            affine,
+            base,
+            origin,
+            identity,
+            dimension,
+        } = setting;
+        WireGeometrySetting {
+            domain,
+            marker,
+            base_object,
+            affine,
+            base,
+            origin,
+            identity,
+            dimension,
+        }
+    }
+}
+
+impl From<GeometryProfile> for WireGeometryProfile {
+    fn from(profile: GeometryProfile) -> Self {
+        let GeometryProfile {
+            scheme,
+            smooth,
+            point,
+            morphism,
+            pointed,
+            compose,
+            apply,
+        } = profile;
+        WireGeometryProfile {
+            scheme: scheme.into(),
+            smooth: smooth.into(),
+            point,
+            morphism,
+            pointed,
+            compose,
+            apply,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

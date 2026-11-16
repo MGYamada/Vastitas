@@ -2235,10 +2235,11 @@ The ordinary `.vast` modules behind `std::geometry::scheme` and
 `std::geometry::smooth` use the public source checker. The closure of the
 shipped library selects protocol 9, because its module `scheme::affine`
 declares presented affine forms, so its entry point is
-`ResourceSource.Wire.check`. A package with indexed declarations and none of
-the declarations that select protocol 9 selects protocol 7 and
-`Indexed.Wire.check`;
+`ResourceSource.Wire.check`. Every package with indexed declarations selects
+protocol 9 as well, so the driver does not reach `Indexed.Wire.check`;
 [Protocol selection](protocol.md#protocol-selection) states the rule. The
+theorems on the route of protocol 7 hold for requests of protocol 7, which the
+kernel accepts. The
 single `stdlib` entrypoint re-exports their canonical declarations and
 arithmetic. Its explicit
 `geometry_compat` export supplies old syntax through independently resolved and

@@ -477,8 +477,11 @@ Four additional native fixtures execute nested contribution helpers, transfer,
 obligation repair and the empty-assembly path (twenty-two at that increment).
 The bare opened-object fixture brings the current standalone native suite to
 twenty-three, retaining its opening identity through a block and local aliases.
-Public protocol 7 decodes Rust source into this exact combined checker.
-The geometry stdlib below uses that public path; the explicit library export also supports legacy syntax in the same closure.
+Public protocol 7 decodes the indexed package requests into this combined
+checker, and protocol 9 runs the same checker on their pure bodies. The
+driver writes these requests, and those of the geometry stdlib below, as
+protocol 9 ([Protocol selection](../protocol.md#protocol-selection)). The
+explicit library export also supports legacy syntax in the same closure.
 
 ### Indexed applications and scopes
 

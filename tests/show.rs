@@ -252,7 +252,7 @@ fn show_selects_protocol_nine_and_check_is_unchanged() {
     assert!(plain.to_string().find("observations").is_none());
     let mut observed = flat_wire(
         "fn helper() -> Int { 1 }\nfn main() -> Int { let x = helper(); let y = show!(x + 1); y }",
-        9,
+        common::CURRENT_PROTOCOL,
     );
     assert_eq!(observed["input"], "package");
     assert_eq!(
@@ -273,7 +273,7 @@ fn show_selects_protocol_nine_and_check_is_unchanged() {
 #[test]
 fn the_kernel_refuses_tampered_observations() {
     let source = "fn helper() -> Int { let h = 1 + 1; h }\nfn main() -> Int { let f = helper; let x = show!(f() + 1); x }";
-    let wire = flat_wire(source, 9);
+    let wire = flat_wire(source, common::CURRENT_PROTOCOL);
     for mode in ["check", "emit"] {
         assert_eq!(kernel(&wire, mode)["ok"], true, "{mode}");
     }
@@ -316,6 +316,7 @@ fn the_kernel_refuses_tampered_observations() {
             tampered(&|wire| function(wire, "main")["observations"][0]["type"] = json!("Int")),
             "E_PROTOCOL",
         ),
+        // old-route(#533): the retiring envelopes reject this program.
         (
             "protocol 8",
             tampered(&|wire| wire["version"] = json!(8)),

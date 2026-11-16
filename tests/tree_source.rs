@@ -796,6 +796,7 @@ fn port_and_plan_axis_bounds_are_reported_at_the_port_and_the_view() {
 #[test]
 fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
     let original = captured(&fixture(REAL, COMPLEX));
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut changed = original.clone();
         changed["version"] = json!(version);

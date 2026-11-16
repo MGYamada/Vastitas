@@ -189,6 +189,7 @@ fn stale_dependencies_fail_but_ordinary_snapshots_remain_valid() {
 fn cache_wire_reconstructs_versions_and_disallows_raw_packing_claims() {
     let s = fixture(REAL, COMPLEX);
     let raw = captured(&s);
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..=7 {
         let mut invalid = raw.clone();
         invalid["version"] = json!(version);

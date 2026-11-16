@@ -299,6 +299,7 @@ fn protocol_five_rejects_forged_authority_targets_and_stale_inputs() {
                 bad["packages"][2]["modules"][0]["grants"][0]["grantee_source"] =
                     json!("/app/Vastitas.toml")
             }
+            // old-route(#533): a downgrade to a retiring envelope.
             "downgrade" => bad["version"] = json!(4),
             "input" => bad["input"] = json!("flat"),
             "body" => {

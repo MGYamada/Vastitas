@@ -68,6 +68,7 @@ private def package (version : Nat) : Json :=
     for (key, winner) in [[0, 0], [0, 1], [1, 0], [1, 1]].zip winners do
       checkCase "public checked family selects the actual method" (family.checked.winner key == some winner)
   checkCase "all public families accounted for" (actual.checked.authority.headers.assembled.families.length == 3)
+  -- old-route(#533): the routes of protocols 2 to 7 retire at the cutover.
   for input in [json, (json.setObjVal! "version" (toJson (4 : Nat))).setObjVal! "input" (toJson "flat"),
       package 3, package 4, package 5, package 6] do
     let .ok accepted := Indexed.LegacySource.check input false

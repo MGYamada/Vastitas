@@ -605,6 +605,7 @@ fn resource_wire_preserves_unresolved_names_and_rejects_older_versions() {
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
     assert_eq!(accepted["storage_runtime"], true);
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut old = raw.clone();
         old["version"] = json!(version);

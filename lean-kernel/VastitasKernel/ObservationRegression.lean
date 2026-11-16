@@ -1,4 +1,5 @@
 import VastitasKernel.ResourceProtocol
+import VastitasKernel.RegressionRequest
 
 /-! The observations of `show!` on the protocol-9 wire and the entry point
 that native generation writes (#836). The public decoder and checker accept
@@ -40,12 +41,8 @@ private def mod (functions : List Json) (path : List String := []) : Json := Jso
   ("path", toJson path), ("public", toJson true), ("span", span),
   ("imports", toJson ([] : List Json)), ("generics", toJson ([] : List Json)),
   ("methods", toJson ([] : List Json)), ("functions", toJson functions)]
-private def input (modules : List Json) (version : Nat := 9) : Json := Json.mkObj [
-  ("version", toJson version), ("input", toJson "package"), ("file", toJson "show.vast"),
-  ("root", toJson "/show/Vastitas.toml"),
-  ("packages", toJson [Json.mkObj [
-    ("source", toJson "/show/Vastitas.toml"), ("name", toJson "show"), ("version", toJson "1.0.0"),
-    ("dependencies", toJson ([] : List Json)), ("modules", toJson modules)]])]
+private def input (modules : List Json) (version : Nat := RegressionRequest.currentProtocol) : Json :=
+  RegressionRequest.package "show" modules version "1.0.0"
 
 /-- `let a = show!(20 + 22); let n: Nat = show!(7); let b = show!(a < 50);
 let u = show!(()); let p = show!(pair(a, -3)); a - 342`. -/
@@ -74,6 +71,7 @@ private def inOrder (text : String) (parts : List String) : Bool :=
 
 #eval show IO Unit from do
   let rejected : List (String × Json × String) := [
+    -- old-route(#533): protocol 8 retires at the cutover.
     ("protocol 8 has no observations", input [mod [observed]] 8, "E_PROTOCOL"),
     ("an observation outside main", input [mod [observed none,
       fn "helper" [letE "x" (integer "1") (named "Int")] (var "x") (some [observation 0 "1"])]], "E_UNSUPPORTED"),

@@ -47,7 +47,10 @@ const RECOMPUTED_REFERENCE: &str =
 
 /// The wire request that `check` sends for a manifest.
 fn wire(manifest: &Path) -> Value {
-    captured_wire(common::manifest_command("check", manifest), 9)
+    captured_wire(
+        common::manifest_command("check", manifest),
+        common::CURRENT_PROTOCOL,
+    )
 }
 
 /// The Lean source that the kernel emits for a wire request.

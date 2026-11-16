@@ -106,6 +106,7 @@ fn internal_resource_components_cannot_bypass_public_protocol_acceptance() {
     request["resources"] = fixture();
     let response = common::kernel(&request, "check");
     common::assert_wire_rejected(&response, "E_PROTOCOL");
+    // old-route(#533): the retiring envelopes reject this program.
     request["version"] = json!(8);
     let response = common::kernel(&request, "check");
     common::assert_wire_rejected(&response, "E_PROTOCOL");

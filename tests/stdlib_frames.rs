@@ -117,7 +117,7 @@ fn rejects(main: &str, code: &str) -> String {
 }
 
 fn request(s: &Scratch) -> Value {
-    s.captured("app/Vastitas.toml", 9)
+    s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
 /// The module of a package in the wire.

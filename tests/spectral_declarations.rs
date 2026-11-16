@@ -226,10 +226,14 @@ fn spectral_forms_select_protocol_nine_only() {
     // Without a Stage 5 form, an indexed package uses protocol 7.
     request("indexed marker M;\nfn main() -> Int { 0 }\n", 7);
     for (form, older_message) in LONE_FORMS {
-        let raw = request(&format!("{form}\nfn main() -> Int {{ 0 }}\n"), 9);
+        let raw = request(
+            &format!("{form}\nfn main() -> Int {{ 0 }}\n"),
+            common::CURRENT_PROTOCOL,
+        );
         // The record decodes in protocol 9; its unresolved paths are the
         // kernel's next rejection.
         decoded(&kernel(&raw, "check"));
+        // old-route(#533): the retiring envelopes reject this program.
         for version in [7, 8] {
             let mut older = raw.clone();
             older["version"] = json!(version);
@@ -248,7 +252,7 @@ fn spectral_forms_select_protocol_nine_only() {
 /// record reads back into the frontend's IR and serializes to itself.
 #[test]
 fn the_wire_carries_the_spectral_records() {
-    let raw = request(MAIN, 9);
+    let raw = request(MAIN, common::CURRENT_PROTOCOL);
     let record = |name: &str| {
         let mut value = declaration(&raw, name).clone();
         assert!(value["span"].is_object(), "{name}");
@@ -372,8 +376,9 @@ fn the_wire_carries_the_spectral_records() {
 /// protocol.
 #[test]
 fn the_kernel_decodes_the_spectral_program_only_in_protocol_nine() {
-    let raw = request(MAIN, 9);
+    let raw = request(MAIN, common::CURRENT_PROTOCOL);
     decoded(&kernel(&raw, "check"));
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [7, 8] {
         let mut older = raw.clone();
         older["version"] = json!(version);
@@ -386,7 +391,7 @@ fn the_kernel_decodes_the_spectral_program_only_in_protocol_nine() {
 /// builds and runs.
 #[test]
 fn the_spectral_program_checks_and_runs() {
-    let response = kernel(request(MAIN, 9), "check");
+    let response = kernel(request(MAIN, common::CURRENT_PROTOCOL), "check");
     assert_eq!(response["ok"], true, "{response}");
     let s = package(MAIN);
     success(&s.check_manifest("Vastitas.toml"));
@@ -399,7 +404,7 @@ fn the_spectral_program_checks_and_runs() {
 /// protocol error of the kernel's decoder, whatever the frontend would send.
 #[test]
 fn raw_wire_rejects_certificates_and_forged_spectral_fields() {
-    let raw = request(MAIN, 9);
+    let raw = request(MAIN, common::CURRENT_PROTOCOL);
     let with = |name: &str, path: &str, value: Value| {
         let mut changed = raw.clone();
         let target = format!("{}{path}", pointer(&raw, name));
@@ -516,7 +521,7 @@ fn natural_digits_are_bounded_as_the_decoder_bounds_them() {
     ];
     for ((line, from, to, name, field), message) in cases.into_iter().zip(messages) {
         let wide = replaced(line, &line.replace(from, &to.replace("{}", &widest)));
-        let raw = request(&wide, 9);
+        let raw = request(&wide, common::CURRENT_PROTOCOL);
         let path = format!("{}{field}", pointer(&raw, name));
         assert_eq!(raw.pointer(&path).unwrap(), &json!(widest), "{name}");
         decoded(&kernel(&raw, "check"));
@@ -698,7 +703,7 @@ fn the_frontend_leaves_spectral_rules_to_the_kernel() {
         ),
     ];
     for (from, to, field, expected, code, message) in cases {
-        let raw = request(&replaced(from, to), 9);
+        let raw = request(&replaced(from, to), common::CURRENT_PROTOCOL);
         let (name, rest) = field.split_once('/').unwrap();
         let path = format!("{}/{rest}", pointer(&raw, name));
         let mut sent = raw.pointer(&path).unwrap().clone();
@@ -836,7 +841,7 @@ fn strict_keywords_are_no_fiber_coordinates() {
         .map(|line| format!("{line}\n"))
         .collect();
     let spectrum = "indexed spectrum S: Spectrum<Plane> = eigen(H, t);";
-    let raw = request(&main, 9);
+    let raw = request(&main, common::CURRENT_PROTOCOL);
     let fiber = format!("{}/fiber", pointer(&raw, "S"));
     assert_eq!(raw.pointer(&fiber), Some(&json!("t")));
     let with_fiber = |name: &str| {

@@ -477,6 +477,7 @@ fn forged_value_wire_cannot_bypass_scalar_audits_or_legacy_envelopes() {
         assert_eq!(response["ok"], false, "accepted {path}/{key}: {response}");
         common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut old = raw.clone();
         old["version"] = json!(version);

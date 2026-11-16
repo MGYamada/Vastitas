@@ -66,6 +66,7 @@ fn numerical_declarations_require_version_eight_without_any_resource_function() 
     let result = kernel(&raw, "emit");
     assert_eq!(result["ok"], true, "{result}");
     assert_ne!(result["storage_runtime"], true);
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);

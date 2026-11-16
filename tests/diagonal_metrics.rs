@@ -334,6 +334,7 @@ fn diagonal_entry_limit_is_reported_at_the_metric() {
 #[test]
 fn diagonal_wire_never_accepts_raw_gram_certificates() {
     let raw = captured(&fixture(REAL, COMPLEX));
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..=7 {
         let mut invalid = raw.clone();
         invalid["version"] = json!(version);

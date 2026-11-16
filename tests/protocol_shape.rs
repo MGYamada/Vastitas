@@ -74,6 +74,7 @@ fn record_paths(value: &Value, path: &str, records: &mut BTreeMap<String, String
     }
 }
 
+// old-route(#533): sweeps the legacy decoders of protocols 2 to 6.
 #[test]
 fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
     let geometric = format!(
@@ -133,6 +134,7 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
     );
 }
 
+// old-route(#533): keeps a protocol-7 (`Indexed.Wire`) request in the sweep.
 /// The promotion example against a copy of the stdlib without its Stage 2
 /// `scheme::affine` module, its Stage 3 `smooth::affine` and `metric`
 /// modules and `differential` package, its Stage 4 `frame` module and its
@@ -220,7 +222,7 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
     for (package, version) in [
         ("indexed", 7),
         // Its stdlib dependency declares Stage 2 presented affine geometry.
-        ("promotion", 9),
+        ("promotion", common::CURRENT_PROTOCOL),
         ("resource-values", 8),
         ("numerical", 8),
         ("runtime-shapes", 8),
@@ -228,12 +230,12 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
         ("contraction-tree", 8),
         ("finite_network", 8),
         ("storage/app", 8),
-        ("edit-borrow/app", 9),
-        ("edit-authority/app", 9),
-        ("smooth-objects", 9),
-        ("smooth-cotangent", 9),
-        ("smooth-metric", 9),
-        ("smooth-differential", 9),
+        ("edit-borrow/app", common::CURRENT_PROTOCOL),
+        ("edit-authority/app", common::CURRENT_PROTOCOL),
+        ("smooth-objects", common::CURRENT_PROTOCOL),
+        ("smooth-cotangent", common::CURRENT_PROTOCOL),
+        ("smooth-metric", common::CURRENT_PROTOCOL),
+        ("smooth-differential", common::CURRENT_PROTOCOL),
     ] {
         let manifest = if package == "indexed" {
             indexed.0.join("Vastitas.toml")
@@ -247,7 +249,7 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
     cases.push(("promotion on protocol 7", promotion_without_affine()));
     let recipients: Value =
         serde_json::from_str(include_str!("fixtures/edit-recipients.json")).unwrap();
-    assert_eq!(recipients["version"], 9);
+    assert_eq!(recipients["version"], common::CURRENT_PROTOCOL);
     cases.push(("edit-recipients fixture", recipients));
     let mut forgeries = Vec::new();
     for (name, raw) in &cases {
@@ -302,7 +304,7 @@ fn frame_and_nature_records_reject_unknown_fields() {
     command
         .args(["check", "--manifest-path"])
         .arg(common::root().join("tests/fixtures/frame-dimension-declarations/Vastitas.toml"));
-    let raw = common::captured_wire(command, 9);
+    let raw = common::captured_wire(command, common::CURRENT_PROTOCOL);
     let baseline = kernel(&raw, "check");
     assert!(baseline["ok"] == true, "{baseline}");
     let mut records = BTreeMap::new();
@@ -381,7 +383,11 @@ fn frame_and_nature_records_reject_unknown_fields() {
         let mut changed = raw.clone();
         changed.pointer_mut(path).unwrap()["forged_authority"] = json!("untrusted");
         let response = kernel(changed, "emit");
-        assert_eq!(response["version"], 9, "{path}: {response}");
+        assert_eq!(
+            response["version"],
+            common::CURRENT_PROTOCOL,
+            "{path}: {response}"
+        );
         common::assert_wire_rejected(&response, "E_PROTOCOL");
         let message = response["diagnostics"][0]["message"].as_str().unwrap();
         let tagged = path.ends_with("/representation")
@@ -402,6 +408,7 @@ fn legacy_hint_tolerance_is_limited_to_the_v2_envelope() {
     common::assert_wire_rejected(&kernel(raw, "check"), "E_PROTOCOL");
 }
 
+// old-route(#533): legacy package envelopes of protocols 4 to 6.
 #[test]
 fn invalid_membership_scalar_is_rejected_before_authority_analysis() {
     let flat = request(

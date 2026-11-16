@@ -1,6 +1,7 @@
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.IndexedAcceptance
 import VastitasKernel.RegressionSupport
+import VastitasKernel.RegressionRequest
 
 set_option autoImplicit false
 
@@ -19,6 +20,7 @@ leaves the validity of every other declaration unchanged. -/
 namespace VastitasKernel.Indexed.NatureRegression
 
 open Lean
+open VastitasKernel.RegressionRequest (currentProtocol)
 
 private def check := RegressionSupport.check "nature regression failed"
 
@@ -94,12 +96,8 @@ private def modAt (path : List String) (declarations : List Json) : Json := Json
 private def mod (declarations : List Json) : Json := modAt [] declarations
 
 /-- A request whose one package has `modules`. -/
-private def requestOf (version : Nat) (modules : List Json) : Json := Json.mkObj [
-  ("version", toJson version), ("input", toJson "package"), ("file", toJson "nature.vast"),
-  ("root", toJson "/nature/Vastitas.toml"),
-  ("packages", toJson [Json.mkObj [
-    ("source", toJson "/nature/Vastitas.toml"), ("name", toJson "nature"), ("version", toJson "0.1.0"),
-    ("dependencies", toJson ([] : List Json)), ("modules", toJson modules)]])]
+private def requestOf (version : Nat) (modules : List Json) : Json :=
+  RegressionRequest.package "nature" modules version
 
 private def request (version : Nat) (declarations : List Json) : Json := requestOf version [mod declarations]
 
@@ -126,6 +124,7 @@ private def rejectsWith (version : Nat) (declarations : List Json) (code text : 
   let (actual, message) := outcome version declarations
   actual == code && mentions message text
 
+-- old-route(#533): protocols 7 and 8 retire at the cutover.
 /-- Protocols 7 and 8 reject a request whose one declaration is `j`, with
 `E_PROTOCOL` and the protocol-9 message of its decoder. -/
 private def rejectedBefore9 (j : Json) : Bool :=
@@ -172,15 +171,15 @@ private def nature : List Json := [
 
 private def program (extra : List Json) : List Json := std ++ nature ++ extra
 
-private def accepts (extra : List Json) : Bool := (outcome 9 (program extra)).1 == "accepted"
+private def accepts (extra : List Json) : Bool := (outcome currentProtocol (program extra)).1 == "accepted"
 
 /-- The program with `extra` is rejected with `E_DIMENSION` and `text`. -/
 private def dimensionError (extra : List Json) (text : String) : Bool :=
-  rejectsWith 9 (program extra) "E_DIMENSION" text
+  rejectsWith currentProtocol (program extra) "E_DIMENSION" text
 
 /-- The program with `extra` is rejected with `E_LIMIT` and `text`. -/
 private def limitError (extra : List Json) (text : String) : Bool :=
-  rejectsWith 9 (program extra) "E_LIMIT" text
+  rejectsWith currentProtocol (program extra) "E_LIMIT" text
 
 /-! ## Wire shapes: protocol 9 only -/
 
@@ -194,13 +193,13 @@ private def natureForms : List Json := [
   interpret "Q" "Chart" "G" "phys" none (normalized [("x", "l0"), ("t", "t0")])]
 
 #eval check "protocol 9 accepts the std part, the reading and physical-metric families and the nature part"
-  ((outcome 9 std).1 == "accepted" && accepts [])
+  ((outcome currentProtocol std).1 == "accepted" && accepts [])
 #eval check "protocols 7 and 8 reject each nature family representation with E_PROTOCOL"
   (["reading", "physical_metric"].all fun representation =>
     rejectedBefore9 (decl "family" "F" [("parameters", toJson ([] : List Json)),
       ("constraints", toJson ([] : List Json)), ("representation", toJson representation)]))
 #eval check "a reading family has one object parameter and the constraint canonical(0)"
-  (rejectsWith 9 (std ++ [decl "family" "Reading" [("parameters", toJson [objectParameter]),
+  (rejectsWith currentProtocol (std ++ [decl "family" "Reading" [("parameters", toJson [objectParameter]),
       ("constraints", toJson ([] : List Json)), ("representation", toJson "reading")]])
     "E_TYPE" "exactly the constraint `canonical(0)`")
 #eval check "protocol 9 decodes each nature declaration shape" (natureForms.all (decodes · true))
@@ -310,8 +309,8 @@ private def bases (count : Nat) : List Json := (List.range count).map fun i => b
     ("in the physical metric `nature::P`, the term x·x has dimension L^2 and the term t·t has dimension T^2; " ++
       "every nonzero term of an interpreted metric has one dimension"))
 #eval check "C17: the std metric stays valid; only the nature declaration is rejected"
-  ((outcome 9 (std ++ nature)).1 == "accepted" &&
-    rejectsWith 9 (std ++ nature ++ [interpret "P" "Chart" "E" "phys" none euclidean]) "E_DIMENSION"
+  ((outcome currentProtocol (std ++ nature)).1 == "accepted" &&
+    rejectsWith currentProtocol (std ++ nature ++ [interpret "P" "Chart" "E" "phys" none euclidean]) "E_DIMENSION"
       "the physical metric `nature::P`")
 #eval check "the Euclidean metric under a reading with two lengths is accepted, with value L^2"
   (accepts [interpret "P" "Plane" "EP" "plane" (some [("L", "2")]) euclidean] &&
@@ -457,7 +456,7 @@ private def onGB (entry : Json) : List Json := sized [interpret "P" "Line" "GB" 
 #eval check "a diagnostic writes a magnitude only within 512 bits"
   (let wide := [scale "wide" "Length" (twoPower 100 3),
       interpret "P" "Chart" "G" "phys" none (normalized [("x", "wide"), ("t", "t0")])]
-    let (code, message) := outcome 9 (program wide)
+    let (code, message) := outcome currentProtocol (program wide)
     code == "E_DIMENSION" && message.length < 400 &&
       mentions message ("the physical metric `nature::P` gives the x·x entry, in row 1, column 1, a magnitude " ++
         "with more than 512 bits in its numerator or denominator, but the metric `nature::G` has 1/9 there"))
@@ -486,7 +485,7 @@ private def diagonalOf (value : Option (List (String × String))) (entry : Json)
 private def mine : Json := modAt ["mine"] [base "L", quantity "Len" [("L", "1")]]
 
 /-- `program extra` with the module `mine`. -/
-private def withMine (extra : List Json) : String × String := outcomeOf 9 (requestOf 9 [mod (program extra), mine])
+private def withMine (extra : List Json) : String × String := outcomeOf currentProtocol (requestOf currentProtocol [mod (program extra), mine])
 
 private def minePath (name : String) : Json := Json.mkObj [("path", toJson ["mine", name]), ("span", span)]
 

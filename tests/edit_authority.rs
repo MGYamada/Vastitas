@@ -44,7 +44,7 @@ fn native(s: &Scratch, expected: common::Run) {
 fn request(s: &Scratch) -> Value {
     // Capture the actual frontend's wire request, then use the real kernel for
     // all mutations. The stub has no acceptance authority.
-    s.captured("app/Vastitas.toml", 9)
+    s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
 #[test]
@@ -234,6 +234,7 @@ fn named_recipient_wire_rejects_forged_locations_and_unselected_records() {
     common::assert_wire_rejected(&kernel(&orphan, "check"), "E_OWNER");
 }
 
+// old-route(#533): the legacy recipient fixture under protocols 6 to 8.
 #[test]
 fn recipient_source_migration_keeps_legacy_wire_and_optional_runtime_boundaries() {
     let legacy: Value = serde_json::from_str(include_str!("fixtures/edit-authority.json")).unwrap();
@@ -265,7 +266,7 @@ fn recipient_source_migration_keeps_legacy_wire_and_optional_runtime_boundaries(
     s.write("app/main.vast", "resource fn main() -> Int { allocate data: F64[1]; borrow w = write(data, layout(0, 1, 1, 1, false)); fill(w, f64(2.0)); release(w); drop(data); value { base::choose(40, 2) } }");
     let raw = request(&s);
     let response = kernel(&raw, "emit");
-    assert_eq!(raw["version"], 9);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     assert_eq!(response["storage_runtime"], true, "{response}");
     assert_eq!(response["numerical_runtime"], false);
     native(&s, common::exits(0));
@@ -422,11 +423,12 @@ fn protocol_nine_reconstructs_authority_and_checks_all_bodies() {
     let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
     let s = fixture(BASE, ADDON, &events);
     let raw = request(&s);
-    assert_eq!(raw["version"], 9);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     let packages = raw["packages"].as_array().unwrap();
     let base = packages.iter().position(|p| p["name"] == "base").unwrap();
     let app = packages.iter().position(|p| p["name"] == "app").unwrap();
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..=8 {
         let mut bad = raw.clone();
         bad["version"] = json!(version);

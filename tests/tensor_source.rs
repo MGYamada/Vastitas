@@ -377,6 +377,7 @@ fn tensor_wire_rejects_forged_axes_groupings_authority_and_old_envelopes() {
             "{response}"
         );
     }
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);

@@ -795,6 +795,7 @@ fn native_options_require_a_numerical_program() {
 
 // #557: only protocols 8 and 9 may ask for the optional native runtimes; an
 // older success response that carries either flag is a protocol error.
+// old-route(#533): responses of protocols 2, 3 and 7.
 #[test]
 fn optional_runtime_flags_are_refused_for_protocols_before_eight() {
     let s = fixture();

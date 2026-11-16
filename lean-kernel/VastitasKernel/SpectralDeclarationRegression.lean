@@ -235,20 +235,32 @@ depend on the order of the declarations. -/
       "E_SPECTRAL" "a free module names one object, as in `FreeModule<X>`, but 0 are given")
 
 /- The fiber coordinate of a spectrum is a new identifier: the wire carries any
-string, and the source checker rejects one that is not an identifier or that
-names a basis vector of the free module. -/
+string, and the source checker rejects one that is not an identifier, a
+strict keyword among them (#831), or that names a basis vector of the free
+module. -/
 #eval check "the fiber coordinate of a spectrum is a new identifier"
   ((["", "t t", "0", "1t", "t-1", "λ"].all fun fiber =>
       rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
         s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is not an identifier") &&
+    (strictKeywords.all fun fiber =>
+      rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
+        (s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is a strict keyword, not an " ++
+          "identifier; `eigen(H, t)` names the fiber coordinate with a new identifier")) &&
     (["e1", "e2"].all fun fiber =>
       rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
         (s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is a basis vector of the free module " ++
           "`spectral::V`")) &&
     rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" "y"]) "E_SPECTRAL"
       "the fiber coordinate `y` of the spectrum `spectral::S` is a coordinate of `spectral::Plane`" &&
-    (["t", "_t", "lambda2", "H", "V"].all fun fiber =>
+    (["t", "_t", "lambda2", "H", "V", "indexed", "witness", "eigen", "If", "iff", "type_"].all fun fiber =>
       (outcome 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber])).1 == "accepted"))
+
+/- The identifier rule of the fiber audit is the source grammar's: the ASCII
+pattern without the strict keywords (#831). -/
+#eval check "a strict keyword is no identifier and no fiber coordinate; an ordinary name is"
+  (strictKeywords.length == 21 && strictKeywords.all (!SpectralDeclarations.isIdentifier ·) &&
+    !SpectralDeclarations.fiberValid ["x"] ["e"] "if" && SpectralDeclarations.fiberValid ["x"] ["e"] "t" &&
+    ["t", "_", "x1", "witness", "indexed", "Fn", "If"].all SpectralDeclarations.isIdentifier)
 
 #eval check "the names of a spectral declaration resolve"
   (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [endoH]) "E_NAME" "undefined name 'V'" &&
@@ -553,6 +565,55 @@ private def rejections : List (String × List Source.Declaration × String × St
   for (label, ds, expected, text) in rejections do
     check s!"{label}: rejected with {expected} ({code ds}: {message ds})" (rejects ds expected text)
 
+/-! ### The residual of a failed gap identity (#833)
+
+A failed gap identity names a term of the remainder of `W·χ′ − gᵉ` modulo `χ`,
+which the check has computed, with the names of the coordinates and of the
+fiber coordinate, and the number of its terms. -/
+
+private def gapFailure (name : String) : String :=
+  s!"the witness of the branch `spectral::{name}` does not certify the gap: W·χ′ − g^e is not a multiple of " ++
+    "the characteristic polynomial χ; its remainder modulo χ "
+
+/-- `D = diag(s, −s)` on the line with the fiber coordinate `z`, so
+`χ = z² − s²`, and its branch with the witness `z/2` at `localize`. -/
+private def diagonal (localize : Source.PolyExpr) : List Source.Declaration := [
+  moduleDecl "VL" ["f1", "f2"] (object := "Line"),
+  endoDecl "D" "VL" [[c "s", n 0], [n 0, neg (c "s")]] (object := "Line"),
+  spectrumDecl "SD" "D" (fiber := "z") (object := "Line"),
+  branchDecl "BD" "SD" localize (.product [frac 1 2, c "z"]) 1 (object := "Line")]
+
+#eval check "a failed gap identity names a term of its remainder modulo χ"
+  -- W·χ′ − (s² + 1) = χ − 1, so the remainder is the constant −1; with s² it is 0.
+  (message (diagonal (.sum [sq (c "s"), n 1])) == gapFailure "BD" ++ "is `-1`" &&
+    code (diagonal (sq (c "s"))) == "accepted" &&
+    -- (t/2 + x)·2t − (x² + y²) = χ + 2xt.
+    message (withBranch (branchDecl "B" "S" gapExpr (.sum [halfT, c "x"]) 1)) ==
+      gapFailure "B" ++ "is `2 * x * t`" &&
+    -- (t/3)·2t − (x² + y²) = (2/3)·χ − (x² + y²)/3.
+    message (withBranch (branchDecl "B" "S" gapExpr (.product [frac 1 3, c "t"]) 1)) ==
+      gapFailure "B" ++ "has 2 terms, among them `-frac(1, 3) * x^2`" &&
+    -- (t/2 + 10⁻²⁰·t)·2t − (x² + y²) = (1 + 2·10⁻²⁰)·χ + 2·10⁻²⁰·(x² + y²).
+    message (withBranch (branchDecl "B" "S" gapExpr (.product [frac (5 * 10 ^ 19 + 1) (10 ^ 20), c "t"]) 1)) ==
+      gapFailure "B" ++ "has 2 terms, among them `frac(1, 50000000000000000000) * x^2`" &&
+    -- (t/2)·2t − 1 = χ + x² + y² − 1.
+    message (withBranch (branchDecl "B" "S" (n 1) halfT 0)) ==
+      gapFailure "B" ++ "has 3 terms, among them `x^2`" &&
+    code stage5 == "accepted")
+
+private def residualNames : List String := ["x", "y", "t"]
+private def longTerm : String := "frac(1, 1" ++ String.ofList (List.replicate 200 '0') ++ ") * x^2 * t"
+
+#eval check "a residual term is written as the source writes it, in at most 80 characters"
+  (Source.termText residualNames ⟨[0, 0, 0], -1⟩ == "-1" &&
+    Source.termText residualNames ⟨[1, 0, 0], -1⟩ == "-x" &&
+    Source.termText residualNames ⟨[0, 1, 0], 7⟩ == "7 * y" &&
+    Source.termText residualNames ⟨[2, 0, 0], 1⟩ == "x^2" &&
+    Source.termText residualNames ⟨[0, 3, 1], -3 / 4⟩ == "-frac(3, 4) * y^3 * t" &&
+    Source.residualText residualNames ⟨[2, 0, 1], 1 / (10 ^ 200 : Nat)⟩ 2 ==
+      s!"its remainder modulo χ has 2 terms, among them `{(longTerm.take 79).toString}…`" &&
+    (Source.residualText residualNames ⟨[2, 0, 1], 1 / (10 ^ 200 : Nat)⟩ 2).length < 140)
+
 /-! ### Degenerate cases and the rank limit -/
 
 private def basis4 : List String := ["e1", "e2", "e3", "e4"]
@@ -610,6 +671,9 @@ private def tampered : List (String × String × (Declaration → Declaration)) 
   ("a basis vector as the fiber name", "S", fun
     | .spectrum f o e _ cert => .spectrum f o e "e1" cert
     | d => d),
+  ("a strict keyword as the fiber name", "S", fun
+    | .spectrum f o e _ cert => .spectrum f o e "if" cert
+    | d => d),
   ("the rows", "H", fun
     | .endomorphism f o m rows s => .endomorphism f o m rows.reverse s
     | d => d),
@@ -635,6 +699,17 @@ where
   (match checked stage5 with
     | some env => validEnvironment env.indexed &&
       tampered.all fun (_, name, change) => !validEnvironment (tamper env.indexed name change)
+    | none => false)
+/- The branch stores polynomials, not the fiber name, so another ordinary name
+of the fiber coordinate passes the audit, and a strict keyword does not (#831). -/
+#eval check "the audit accepts an ordinary fiber name and rejects a strict keyword"
+  (match checked stage5 with
+    | some env =>
+      let renamed (fiber : String) := tamper env.indexed "S" fun
+        | .spectrum f o e _ cert => .spectrum f o e fiber cert
+        | d => d
+      (["lam", "witness", "If"].all fun fiber => validEnvironment (renamed fiber)) &&
+        strictKeywords.all fun fiber => !validEnvironment (renamed fiber)
     | none => false)
 #eval check "the declaration audit rejects a spectral entry outside its environment"
   (match checked stage5 with

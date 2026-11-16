@@ -276,7 +276,7 @@ Claims:
   - Premises:
     - for `c1_fields_and_modules`: the declaration environment is valid
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: The theorems state the soundness half of the profile: an accepted free module has 1 to 4 distinct basis names, an accepted field has a rank of at most 4, an accepted trace power and an accepted exponent are at most 8, and `c12_degenerate` decides that a field of rank 4 is accepted and one of rank 5 is not. That a declaration beyond a limit is rejected with `E_LIMIT` before any identity is compared, and within seconds, is tested. The budgets hold for each declaration, and no budget bounds a whole program (#769); each call of a trace-power invariant computes its polynomial again (#812).
+  - Note: The theorems state the soundness half of the profile: an accepted free module has 1 to 4 distinct basis names, an accepted field has a rank of at most 4, an accepted trace power and an accepted exponent are at most 8, and `c12_degenerate` decides that a field of rank 4 is accepted and one of rank 5 is not. That a declaration beyond a limit is rejected with `E_LIMIT` before any identity is compared, and within seconds, is tested. The budgets hold for each declaration, and no budget bounds a whole program (#769). The polynomial of a trace-power invariant is computed once in each pass over the program, not at each call of it (#812).
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `the_rank_is_bounded_at_the_free_module` in [`tests/spectral_limits.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_limits.rs)

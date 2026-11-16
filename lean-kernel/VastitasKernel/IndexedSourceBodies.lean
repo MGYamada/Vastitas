@@ -27,6 +27,11 @@ structure State where
   references : List Source.Reference := []
   calls : List CallReference := []
   queries : Option Namespace.QuerySession := none
+  /-- The declared primitives whose binding contract a call has accepted.
+  `emitPrimitive` decides the contract of a declared binding at its first call
+  and reuses the verdict at the others (#812). The final Core audit decides
+  every contract again. -/
+  acceptedBindings : Std.HashSet DeclId := {}
   deriving Inhabited
 
 abbrev M := StateT State Namespace.Result
@@ -169,9 +174,13 @@ def primitiveResult : ValueType → Core.Result
   | .integerPair => ⟨.pure (.pair .int), none⟩
 
 /-- Both declared calls and the legacy syntax adapter use this same primitive
-contract check. The final independent Core audit remains mandatory. A rejected
-call is explained from its resolved binding and actual operand types; when no
-cause is established, the message lists the operand types instead. -/
+contract check, `validPrimitive`. The binding's contract does not depend on
+the call, so it is decided at the first call of a declared primitive and its
+verdict is reused at the others (`State.acceptedBindings`, #812); every call
+decides its operands, result and association (`validPrimitiveCall`). The
+final independent Core audit remains mandatory. A rejected call is explained
+from its resolved binding and actual operand types; when no cause is
+established, the message lists the operand types instead. -/
 def emitPrimitive (input : Input) (ctx : TypeContext) (id : DeclId)
     (values : List Core.Term) (span : Span) : M Core.Term := do
   let some binding := input.declarations.primitive? id | fail span "E_TYPE" "unknown declared primitive"
@@ -181,7 +190,9 @@ def emitPrimitive (input : Input) (ctx : TypeContext) (id : DeclId)
   let some output := inferPrimitiveResult input.declarations.indexed binding brand operands
     | fail span "E_TYPE" "primitive operand shape mismatch"
   let allowed := Core.Typing.contextRefs ctx.core
-  unless validPrimitive input.declarations.indexed binding allowed brand operands output do
+  let accepted := (← get).acceptedBindings.contains id
+  unless (accepted || validPrimitiveBinding input.declarations.indexed binding) &&
+      validPrimitiveCall input.declarations.indexed binding allowed brand operands output do
     let results := values.map Core.Term.result
     match Diagnostics.explainPrimitive input.declarations.indexed binding allowed brand operands output with
     | some failure =>
@@ -189,6 +200,7 @@ def emitPrimitive (input : Input) (ctx : TypeContext) (id : DeclId)
         (← typeLabel input (primitiveResult output).type) failure
       fail span "E_ENDPOINT" message (← endpointNotes input results span)
     | none => endpointFailure input results span "primitive capability, endpoint or coefficient contract failed"
+  unless accepted do modify fun state => { state with acceptedBindings := state.acceptedBindings.insert id }
   if binding.allocates then
     if let .object _ reference := output then
       let legacy := input.geometry.any fun profile => id == profile.scheme.affine || id == profile.smooth.affine

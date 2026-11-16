@@ -250,7 +250,7 @@ private def chartFailure (m n : Nat) (characteristic localizer witness : Poly) (
 /-- The reference's code of its first failing check names the kernel's failure. -/
 private def sameFailure : Option String → Option SpectralDeclarations.Failure → Bool
   | none, none => true
-  | some "UNIT_WITNESS_MISMATCH", some .witness => true
+  | some "UNIT_WITNESS_MISMATCH", some (.witness ..) => true
   | some "NOT_REDUCED", some (.unreducedWitness _) => true
   | some "EMPTY_CHART", some .localizeZero => true
   | _, _ => false

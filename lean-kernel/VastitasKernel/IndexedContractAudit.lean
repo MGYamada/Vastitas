@@ -61,4 +61,14 @@ instance (env : Environment) (binding : PrimitiveBinding) (allowed : List Object
   decidable_of_iff (validPrimitive env binding allowed brand arguments result = true)
     (validPrimitive_iff env binding allowed brand arguments result)
 
+/-- A call of a binding whose contract is known to hold is typed exactly when
+`validPrimitiveCall` accepts it: a checker that knows the contract need not
+decide it again (#812). -/
+theorem validPrimitiveCall_iff {env : Environment} {binding : PrimitiveBinding} (known : binding.Valid env)
+    (allowed : List ObjectRef) (brand : Nat) (arguments : List ValueType) (result : ValueType) :
+    validPrimitiveCall env binding allowed brand arguments result = true ↔
+      PrimitiveTyped env binding allowed brand arguments result := by
+  rw [← validPrimitive_iff, validPrimitive_eq_call, (validPrimitiveBinding_iff env binding).mpr known,
+    Bool.true_and]
+
 end VastitasKernel.Indexed.Audit

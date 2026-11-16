@@ -305,3 +305,50 @@ fn the_spectral_pair_is_bounded_by_the_work_budget() {
         "computing the spectral pair of the spectrum `spectral_limits::S`: algebraic work limit exceeded",
     );
 }
+
+/// The contract of a trace power computes its image tr(Hᵏ). It does not depend
+/// on the call, so the kernel decides it once for each binding in each pass and
+/// reuses the verdict at the calls and at their Core nodes (#812). A rank-4
+/// field on the line with dense entries of degree 8 and its eighth trace power,
+/// called from 64 functions, checks within a few times the time of one call;
+/// when each call and each Core node computed the image again, each call added
+/// more than half a second, and the 64 calls exceeded `BOUND`.
+#[test]
+fn many_calls_of_a_trace_power_reuse_its_checked_image() {
+    let entry = |i: usize, j: usize| {
+        let terms: Vec<String> = (0..=8)
+            .map(|d| {
+                let c = (i + j + d) % 3 + 1;
+                match d {
+                    0 => format!("{c}"),
+                    1 => format!("{c} * x0"),
+                    _ => format!("{c} * x0^{d}"),
+                }
+            })
+            .collect();
+        terms.join(" + ")
+    };
+    let program = |calls: usize| {
+        let uses: String = (0..calls)
+            .map(|k| format!("fn use{k}() -> Smooth<C, Line> {{ tr8() }}\n"))
+            .collect();
+        format!(
+            "indexed free_module V: FreeModule<C> = {};\n\
+             indexed endomorphism H: Endomorphism<C> = {} of V;\n\
+             indexed morphism tr8: Smooth<C, Line> = trace_power(H, 8);\n\
+             {uses}",
+            basis(4),
+            rows(4, entry)
+        )
+    };
+    let one = check(1, &program(1));
+    success(&one);
+    let many = check(1, &program(64));
+    success(&many);
+    assert!(
+        many.elapsed < one.elapsed * 3 + Duration::from_secs(5),
+        "64 calls took {:?}, one call {:?}",
+        many.elapsed,
+        one.elapsed
+    );
+}

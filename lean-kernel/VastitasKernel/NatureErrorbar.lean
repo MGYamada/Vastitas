@@ -12,7 +12,9 @@ set_option autoImplicit false
 - A dataset `Dataset<X>` of a model under a calibration has one positive
   coverage factor `k` and at most `datasetPoints` points: the values of the
   coordinates that the calibration does not give and a measured value of the
-  observable.
+  observable. With the calibrated values, every point lies on the chart
+  `D(g)` of the branch of the model's prediction; a point off it is
+  `E_ERRORBAR`, whatever the closed form of the average.
 - A comparison `Comparison<X>` records a dataset, the fingerprint of its
   calibration and a verdict. The kernel evaluates the prediction of the model
   exactly at each point and propagates the calibration to first order with

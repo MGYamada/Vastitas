@@ -16,7 +16,9 @@ after the models (`elaborateModels`), is to elaborate them:
    object, each value and uncertainty a constant rational;
 2. every dataset: at most `Limits.datasetPoints` points, its coverage factor
    and each value and uncertainty a constant rational, the coordinates of a
-   point those of the object that the calibration does not give;
+   point those of the object that the calibration does not give, and each
+   point, with the calibrated values, on the chart `D(g)` of the branch of the
+   model's prediction;
 3. every comparison: the fingerprint of its calibration, the prediction of
    the model at each point and the verdict (`NatureErrorbar.checkComparison`).
 

@@ -197,8 +197,10 @@ object, or the failure value off the branch. -/
     .none
     (literals := [.poly branch.localize, .poly branch.spectrum.characteristic, .rows branch.spectrum.adjugate])
 
-/-- The entry of `averageAt` (Stage 6, #841): the exact value of a transition
-average at a point. Not implemented yet: it is the entry of an evidence
+/-- The entry of `averageAt` (Stage 6, #841): the exact value `N(p)/D(p)` of a
+transition average at a point `p` of the chart `D(g)` of its branch, and the
+failure value `(0, 0)` off the chart, whatever the closed form. Not
+implemented yet: it is the entry of an evidence
 binding whose check rejects, so no `averageAt` binding is valid, no call is
 well formed, none evaluates and none is lowered. -/
 @[simp] def averageAt (_smooth _line : DeclId) (_average : AverageRef) : PrimitiveDescriptor :=

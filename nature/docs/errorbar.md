@@ -17,7 +17,9 @@ smooth affine object `X` of a [model](model.md):
   kernel's digest of its content;
 - a dataset of a model under a calibration has one coverage factor `k` and at
   most 64 points (`datasetPoints`): the values of the other coordinates and a
-  measured value of the observable;
+  measured value of the observable; with the calibrated values, every point
+  lies on the chart `D(g)` of the branch of the model's prediction, and a
+  point off it is `E_ERRORBAR`, whatever the closed form of the average;
 - a comparison records a dataset, the fingerprint of its calibration and a
   verdict, consistent or inconsistent.
 

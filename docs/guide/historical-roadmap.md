@@ -5,8 +5,9 @@ the finite Stage 1. It has six Stages and keeps their historical numbers. Each
 Stage states a mathematical target and an acceptance example, an example that
 could establish the completion of the Stage. Stages 2 to 5 are Implemented
 as finite profiles over the rational numbers: each has a Status paragraph,
-Reference chapters and a [delivery record](../appendix/history.md). Stages 6
-and 7 are Planned.
+Reference chapters and a [delivery record](../appendix/history.md). Stage 6
+is Implemented and Tested as a finite profile whose proofs are Planned, and
+Stage 7 is Planned.
 
 The Stages answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
@@ -240,14 +241,25 @@ and physical measurement uncertainty each need their own evidence.
 [Uncertainty and provenance, #299](https://github.com/MGYamada/Vastitas/issues/299)
 
 **Status.** In progress: tracker #841, with the
-[acceptance map](../stage6-acceptance.md). The profile is exact. A symmetric
-two-level field and its simple branch give a dephased transition average,
-declared as a closed form that the kernel checks against the trace form
-(ADR 0001 §13). `nature::model` names the meaning of the model, and
-`nature::errorbar` holds the calibration, the dataset and a recorded
-comparison whose verdict the kernel recomputes and which goes stale when the
-calibration changes (ADR 0002 §4 and §5). The named solver and the numerical
-error bound stay Planned with #318.
+[acceptance map](../stage6-acceptance.md). A finite, exact profile over QQ
+implements the exact prediction and the comparison with data of this
+example, and its tests cover every acceptance condition but the proofs. A
+symmetric two-level field and its simple branch give a dephased transition
+average, declared as a closed form `ratio(N, D)` that the kernel checks
+against the trace form of the branch, with a unit certificate of the
+denominator on the chart (ADR 0001 §13). `nature::model` names the meaning
+of the field: its reading, the convention ħ = 1, the prepared and the
+observed state, the predicted average and the regime, which it records as
+an assumption. `nature::errorbar` holds a calibration with its fingerprint,
+a dataset with a coverage factor, and a recorded comparison whose verdict
+the kernel computes again exactly, with first-order propagation of the
+calibration (ADR 0002 §4 and §5). A changed calibration makes the comparison
+stale (`E_STALE`), while the derivation and the `std` declarations still
+check and generate the same code. The acceptance example runs natively. The
+oracle theorems about accepted averages, models and comparisons and the
+bridge theorem that the average is Σₖ (Pₖ)²ⱼᵢ are Planned, as are
+continuous integration and the whole-stage review. The named solver and the
+numerical error bound stay Planned with #318.
 
 ## Stage 7. Broader geometry and physics
 

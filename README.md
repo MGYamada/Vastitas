@@ -22,6 +22,12 @@ characteristic polynomials with the module action, trace powers and coefficients
 as smooth maps with their gradients, and simple eigenvalue branches on a chart
 certified by a gap witness; the bridge proves that the compiled reverse pass of a
 trace power computes the Daleckii–Krein cotangent. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/spectral-observations.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/spectral-observations.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage5-acceptance.md)
+Historical Stage 6, in progress, adds a checked finite profile of one physical
+model over QQ: a two-level field whose dephased transition average is a closed
+form that the kernel checks against the trace form of its branch, a model that
+records the meaning of the field and its regime, a calibration, a dataset and a
+recorded comparison whose verdict the kernel computes again exactly and which is
+stale once the calibration changes; its oracle and bridge proofs are Planned. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/physical-models.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-models.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage6-acceptance.md)
 
 ## Build and use
 

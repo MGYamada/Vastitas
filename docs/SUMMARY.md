@@ -77,6 +77,7 @@
   - [std::geometry::frame](spec/std-geometry-frame.md)
   - [std::linalg::spectral](spec/std-linalg-spectral.md)
   - [nature::dimension](spec/nature-dimension.md)
+  - [nature::model and nature::errorbar](spec/nature-physical-model.md)
   - [Metric evidence](spec/metric-evidence.md)
   - [std::arithmetic::generic](spec/std-arithmetic-generic.md)
   - [Assumptions](spec/assumptions.md)

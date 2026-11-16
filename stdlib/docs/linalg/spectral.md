@@ -36,7 +36,7 @@ takes the eigenvalue as an input.
 | `Endomorphism<X>` | family | `endomorphism`, over `CInfAffine`, with `canonical(0)`: the endomorphism fields on `X`, each acting on one free module of `X` and checked when it is declared `symmetric` |
 | `Spectrum<X>` | family | `spectrum`, over `CInfAffine`, with `canonical(0)`: the spectral pairs of the fields on `X`, each with its fiber coordinate, its characteristic polynomial and its adjugate, which the kernel computes and checks |
 | `Branch<X>` | family | `branch`, over `CInfAffine`, with `canonical(0)`: the finite charts of the spectra on `X` on which every eigenvalue is simple, each certified by its localization, witness and exponent |
-| `TransitionAverage<X>` | family | `transition_average`, over `CInfAffine`, with `canonical(0)`: the dephased transition averages `Σ_k P_k[j, i]²` of the simple branches on `X` between two basis vectors of the module of a symmetric field, each with a closed form `N / D` that the kernel checks against the trace form of its branch, with `D` a unit on the chart; `average_at` gives `N(p)/D(p)` at a point `p` of the chart `D(g)` of the branch and the failure value off it, whatever the closed form. Historical Stage 6 ([#841](https://github.com/MGYamada/Vastitas/issues/841)) |
+| `TransitionAverage<X>` | family | `transition_average`, over `CInfAffine`, with `canonical(0)`: the dephased transition averages `Σ_k P_k[j, i]²` of the simple branches on `X` between two basis vectors of the module of a symmetric field, each with a closed form `ratio(N, D)` that the kernel checks against the trace form of its branch, with `D` a unit on the chart; `average_at` gives `N(p)/D(p)` at a point `p` of the chart `D(g)` of the branch and the failure value off it, whatever the closed form. Historical Stage 6 ([#841](https://github.com/MGYamada/Vastitas/issues/841)) |
 
 ## Use
 
@@ -60,6 +60,20 @@ from a copy of the standard library. The rejected packages
 `examples/reject/packages/spectral-*` show the diagnostics of a chart without
 a gap, a Jordan block, a field that is not symmetric, a field of another
 object, a perturbed witness and a rank above the limit.
+
+[`examples/packages/two-level/`](../../../examples/packages/two-level), the
+acceptance program of historical Stage 6, which `tests/two_level.rs` and
+`tests/examples.rs` build, run and mutate, declares on the chart
+`P = Affine(2)[delta, omega]`:
+
+- `indexed endomorphism H: Endomorphism<P> = rows((frac(1, 2) * delta, frac(1, 2) * omega), (frac(1, 2) * omega, frac(-1, 2) * delta)) of V symmetric;`
+- `indexed branch B: Branch<P> = simple(S, localize = delta^2 + omega^2, witness = 2 * t, exponent = 1);`
+- `indexed average A: TransitionAverage<P> = transition_average(B, from = g, to = e) = ratio(frac(1, 2) * omega^2, delta^2 + omega^2);`
+
+`average_at` shows `(1, 2)`, `(25, 58)`, `(25, 82)`, `(25, 58)` and `(1, 4)`
+at `omega = 5/2` and `delta` = 0, 1, 2, −1 and 5/2. The rejected package
+`examples/reject/packages/two-level-wrong-average` shows the `E_SPECTRAL` of a
+closed form without the factor 1/2.
 
 ## Rules and proofs
 

@@ -26,9 +26,8 @@ angular frequencies (`ħ = 1`). An application declares it, as in
 `indexed convention c = hbar_one;`.
 
 The module declares the family only; the application declares its
-conventions and models. The source syntax of these declarations and the
-tested example come with the later steps of the Stage 6 tracker
-[#841](https://github.com/MGYamada/Vastitas/issues/841).
+conventions and models. [Physical models](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-models.md#models) gives their syntax
+and rules.
 
 ## Exports
 
@@ -36,7 +35,31 @@ tested example come with the later steps of the Stage 6 tracker
 | --- | --- | --- |
 | `Model<X>` | family | `model`, over `CInfAffine` of `std::geometry::smooth::affine`, with `canonical(0)`: the models on the smooth affine object `X`, each naming a field, a reading, a convention, a prepared and an observed basis vector, a predicted transition average and its regime |
 
+## Use
+
+[`examples/packages/two-level/`](../../examples/packages/two-level), which
+`tests/two_level.rs` and `tests/examples.rs` check, build, run and mutate,
+models a two-level system on the chart `P = Affine(2)[delta, omega]` of the
+detuning and the Rabi frequency. Its field is
+`H = (delta/2) sigma_z + (omega/2) sigma_x` on the basis `g, e` of
+[`std::linalg::spectral`](../../stdlib/docs/linalg/spectral.md), and it
+declares:
+
+- `indexed quantity Frequency = T^-1;`
+- `indexed reading r: Reading<P> = (delta: Frequency, omega: Frequency);`
+- `indexed convention c = hbar_one;`
+- `indexed model M: Model<P> = model(hamiltonian = H, reading = r, convention = c, prepare = g, observe = e, predicts = A, regime = assume("rotating-wave approximation, drive far below the transition frequency"));`
+
+`A` is the transition average from `g` to `e`, with the closed form
+`ratio(frac(1, 2) * omega^2, delta^2 + omega^2)`. The rejected packages
+`examples/reject/packages/two-level-other-basis` and
+`examples/reject/packages/two-level-other-reading` show the `E_MODEL` of a
+prepared vector of another free module and of a reading of another object.
+
 ## Rules and proofs
+
+- [Physical models](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-models.md):
+  the syntax and the rules of conventions and models, with their diagnostics.
 
 - [ADR 0002](https://github.com/MGYamada/Vastitas/blob/main/docs/adr/0002-nature-dimension.md):
   the responsibility boundary of `nature`, its admission test, and the

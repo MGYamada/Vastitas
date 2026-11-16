@@ -39,9 +39,8 @@ the order of the coordinates of the object with their values and
 uncertainties, its method, its reference and its revision.
 
 The module declares the families only; the application declares its
-calibrations, datasets and comparisons. The source syntax of these
-declarations and the tested example come with the later steps of the Stage 6
-tracker [#841](https://github.com/MGYamada/Vastitas/issues/841).
+calibrations, datasets and comparisons. [Physical models](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-models.md#calibrations)
+gives their syntax and rules.
 
 ## Exports
 
@@ -51,7 +50,32 @@ tracker [#841](https://github.com/MGYamada/Vastitas/issues/841).
 | `Dataset<X>` | family | `dataset`, over `CInfAffine`, with `canonical(0)`: the datasets of a model on `X` under a calibration, each with its coverage factor and at most 64 points |
 | `Comparison<X>` | family | `comparison`, over `CInfAffine`, with `canonical(0)`: the recorded comparisons of a dataset on `X` with its model, each with the fingerprint of its calibration and a verdict that the kernel recomputes |
 
+## Use
+
+[`examples/packages/two-level/`](../../examples/packages/two-level) compares
+the model `M` of [`nature::model`](model.md) with five measured points. It
+declares:
+
+- `indexed calibration K: Calibration<P> = calibrate(omega = measured(frac(5, 2), u = frac(1, 20)), method = type_b, reference = "Rabi frequency from the drive power, JCGM 100:2008", revision = "2026-11-16");`
+- `indexed dataset D: Dataset<P> = measure(model = M, calibration = K, coverage = 2, points = [(delta = 0, value = measured(frac(1, 2), u = frac(1, 50))), …]);`,
+  with the points at `delta` = 0, 1, 2, −1 and 5/2;
+- `indexed comparison C: Comparison<P> = compare(D, calibration = K, fingerprint = "fnv1a64:fd1f7edd812db49f", verdict = consistent);`
+
+At `omega = 5/2` the prediction at `delta` is `25/(8·delta² + 50)`, and each
+measured value lies within twice its uncertainty of it, so the kernel
+computes the verdict `consistent`. `tests/two_level.rs` changes the
+calibration, which makes the comparison stale (`E_STALE`, naming the current
+fingerprint), removes the comparison, which leaves the generated code byte
+identical, and records it again. The rejected packages
+`examples/reject/packages/two-level-stale`, `two-level-wrong-verdict` and
+`two-level-off-chart` show the diagnostics of a stale comparison, a wrong
+verdict and a point off the chart of the branch.
+
 ## Rules and proofs
+
+- [Physical models](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-models.md):
+  the syntax and the rules of calibrations, datasets and comparisons, with
+  their diagnostics.
 
 - [ADR 0002](https://github.com/MGYamada/Vastitas/blob/main/docs/adr/0002-nature-dimension.md):
   the responsibility boundary of `nature`, its admission test, and the

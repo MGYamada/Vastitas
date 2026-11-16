@@ -208,7 +208,7 @@ status = "tested"
 evidence = [
   "tests/spectral_observations.rs::the_example_checks_builds_and_shows_no_failures_in_place",
   "tests/spectral_observations.rs::mutated_observations_change_the_native_result",
-  "tests/spectral_primitives.rs::spectral_program_checks_builds_and_exits_with_42",
+  "tests/spectral_primitives.rs::spectral_program_checks_builds_and_shows_no_failure",
   "tests/stdlib_spectral.rs::spectral_families_from_the_library_check_build_and_run_from_a_path_package",
   "VastitasKernel.SpectralRegression",
 ]

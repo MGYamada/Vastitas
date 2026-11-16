@@ -4,7 +4,8 @@
 // pulled back by the runtime reverse pass over the program it holds
 // (tests/reverse_core.rs). g after f is 2t^2 and h is 6t: both send 3 to 18,
 // where dt pulls back to 12 dt along g after f and to 6 dt along h. Each
-// observation adds its own power of two, so `main` returns 42 only when all hold.
+// observation adds its own power of two to `failures`, which `main` shows; it
+// exits with status 0 only when all hold, and with 1 otherwise.
 indexed marker CInfReal;
 indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
 indexed classification CInfAffine { parents(); domain(SmoothR); };
@@ -61,7 +62,7 @@ fn main() -> Int {
     // dt at 18, and at sq(18) = 324.
     let seed: Cotangent<Line> = dline(line_at(18), 1);
     let outer: Cotangent<Line> = dline(line_at(324), 1);
-    42 + verdict(reads(chosen(true, x, seed), x, 12), 1)
+    let failures = verdict(reads(chosen(true, x, seed), x, 12), 1)
        + verdict(reads(chosen(false, x, seed), x, 6), 2)
        + verdict(reads(recomputed(true, x, seed), x, 12), 4)
        + verdict(reads(recomputed(false, x, seed), x, 6), 8)
@@ -72,5 +73,7 @@ fn main() -> Int {
        + verdict(reads(slope(false, x), x, 6), 128)
        // A seed at 17 fails along either map.
        + verdict(!lies_over(chosen(true, x, dline(line_at(17), 1)), x), 256)
-       + verdict(!lies_over(chosen(false, x, dline(line_at(17), 1)), x), 512)
+       + verdict(!lies_over(chosen(false, x, dline(line_at(17), 1)), x), 512);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }

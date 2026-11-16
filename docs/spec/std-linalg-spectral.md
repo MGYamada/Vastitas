@@ -110,7 +110,7 @@ Claims:
   - Evidence:
     - `the_example_checks_builds_and_shows_no_failures_in_place` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
     - `mutated_observations_change_the_native_result` in [`tests/spectral_observations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_observations.rs)
-    - `spectral_program_checks_builds_and_exits_with_42` in [`tests/spectral_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_primitives.rs)
+    - `spectral_program_checks_builds_and_shows_no_failure` in [`tests/spectral_primitives.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_primitives.rs)
     - `spectral_families_from_the_library_check_build_and_run_from_a_path_package` in [`tests/stdlib_spectral.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_spectral.rs)
     - [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The acceptance program observes the contrasts of 2I and J and of 0 and N, each with its own failure code, and the mutation test falsifies each code.

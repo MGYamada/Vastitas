@@ -7,8 +7,9 @@
 // The invariants tr1, tr2 and c0 are smooth maps Plane -> Line, and ref2 is
 // the declared reference 2x^2 + 2y^2. The average A from e1 to e2 of B is
 // y^2 / (2(x^2 + y^2)), observed only on the chart of B. Each group of
-// observations adds its own power of two, so `main` returns 42 only when all
-// hold.
+// observations adds its own power of two to `failures`, which `main` shows;
+// it exits with status 0 only when all hold, and with 1 otherwise, so no
+// failure is hidden by the exit status modulo 256.
 indexed marker CInfReal;
 indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
 indexed classification CInfAffine { parents(); domain(SmoothR); };
@@ -109,7 +110,7 @@ fn main() -> Int {
     let r: Smooth<Pt, Plane> = plane_at(1, 2);
     let z: Smooth<Pt, Plane> = plane_at(0, 0);
     // 0 and N, 2I and J have the same invariants.
-    42 + verdict(same_smooth(tr_zero(), tr_n()) && same_smooth(tr_two(), tr_j()) && same_smooth(c_two(), c_j()), 1)
+    let failures = verdict(same_smooth(tr_zero(), tr_n()) && same_smooth(tr_two(), tr_j()) && same_smooth(c_two(), c_j()), 1)
        // But not the same action; (t - 2)^2 annihilates J (Cayley-Hamilton).
        + verdict(ann_zero(o) && !ann_n(o) && ann_two(o) && !ann_j(o) && ann_j2(o)
            && reads(act_zero(o), 0, 1) && reads(act_n(o), 1, 1) && reads(act_two(o), 0, 1) && reads(act_j(o), 1, 1)
@@ -138,5 +139,7 @@ fn main() -> Int {
        + verdict(reads(dx(dlambda(p, line_at(4))), 0, 0) && reads(dx(dlambda(z, line_at(0))), 0, 0)
            && reads(p12(p, line_at(4)), 0, 0) && reads(p11(z, line_at(0)), 0, 0), 128)
        // The average y^2 / (2(x^2 + y^2)): 8/25 at (3, 4), 0 at (1, 0), and (0, 0) at the origin.
-       + verdict(reads(avg(p), 8, 25) && reads(avg(q), 0, 1) && reads(avg(z), 0, 0), 256)
+       + verdict(reads(avg(p), 8, 25) && reads(avg(q), 0, 1) && reads(avg(z), 0, 0), 256);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }

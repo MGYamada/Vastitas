@@ -455,11 +455,20 @@ fn the_wire_cannot_name_the_compiled_declarations() {
 fn a_branch_chooses_the_map_of_a_reverse_pass() {
     // Both branches are observed: g after f and h send 3 to 18 with
     // derivatives 12 and 6, and every observation has its own power of two.
-    assert_eq!(run(&package(BRANCH_MANIFEST, BRANCH_MAIN)), exits(42));
+    assert_eq!(
+        run(&package(BRANCH_MANIFEST, BRANCH_MAIN)),
+        common::shows(&["failures = 0"])
+    );
+    // The program shows its failures and exits with status 1 when one fails.
+    let failed = |failures: i32| Run {
+        status: 1,
+        stdout: format!("failures = {failures}\n"),
+        stderr: String::new(),
+    };
     // h(t) = 5t + 3 has h(3) = 18 and derivative 5: the observations of the
     // else branch fail (2 + 8 + 32 + 128).
     let main = checked_replace(BRANCH_MAIN, "pullback(t -> 6*t)", "pullback(t -> 5*t + 3)");
-    assert_eq!(run(&package(BRANCH_MANIFEST, &main)), exits(212));
+    assert_eq!(run(&package(BRANCH_MANIFEST, &main)), failed(170));
     // g(x, y) = x + y + 6 has g(f(3)) = 18 and (g after f)'(3) = 7: the
     // observations of the then branch fail (1 + 4 + 16 + 64).
     let main = checked_replace(
@@ -467,7 +476,7 @@ fn a_branch_chooses_the_map_of_a_reverse_pass() {
         "pullback(t -> x^2 + y)",
         "pullback(t -> x + y + 6)",
     );
-    assert_eq!(run(&package(BRANCH_MANIFEST, &main)), exits(127));
+    assert_eq!(run(&package(BRANCH_MANIFEST, &main)), failed(85));
     // Each of the four sites is compiled. The branch stays in the function
     // that holds the site and is one step, pulled back by the runtime reverse
     // pass in the site's policy; in `squared` the declared sq after it is a

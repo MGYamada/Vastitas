@@ -1,129 +1,23 @@
 import VastitasKernel.Namespace
 import VastitasKernel.SurfaceProtocol
 
+/-! The legacy package request of protocols 3 to 6. The module envelope and its
+records are decoded by `EnvelopeProtocol`, with the legacy body decoders of
+`SurfaceProtocol`. -/
 namespace VastitasKernel
 open Lean JsonDecode
 
--- In particular, claimed owner/target IDs are not accepted wire fields.
-private def fields3 (j : Json) (allowed : List String) : Except String Unit := do
-  let fields ← j.getObj?
-  for (key, _) in fields.toArray do
-    if !allowed.contains key then throw s!"unknown protocol 3 field '{key}'"
-
-private def import3 (j : Json) : Except String Namespace.Import := do
-  fields3 j ["path", "alias", "public", "span"]
-  return {
-    path := ← segments j "path", alias := ← j.getObjValAs? String "alias",
-    isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j }
-
-
-private def recipient (named : Bool) (j : Json) : Except String Namespace.RecipientPackage :=
-  if named then .name <$> str j "grantee_package" else .source <$> str j "grantee_source"
-
-private def grant5 (authority named : Bool) (j : Json) : Except String Namespace.Grant := do
-  fields3 j (["name", "target", "grantee_path", "region", "span", "public"] ++
-    [if named then "grantee_package" else "grantee_source"] ++
-    if authority then ["delegable"] else [])
-  let delegable ← match j.getObjVal? "delegable" with
-    | .error _ => pure false
-    | .ok value => value.getBool?
-  return {
-    name := ← str j "name", target := ← segments j "target",
-    granteePackage := ← recipient named j, granteePath := ← segments j "grantee_path",
-    region := ← (← array j "region").mapM fun key => do (← key.getArr?).toList.mapM Json.getStr?,
-    delegable, span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
-
-private def transfer6 (named : Bool) (j : Json) : Except String Namespace.Transfer := do
-  fields3 j (["name", "target", "grantee_path", "span", "public"] ++
-    [if named then "grantee_package" else "grantee_source"])
-  return {
-    name := ← str j "name", target := ← segments j "target",
-    granteePackage := ← recipient named j, granteePath := ← segments j "grantee_path",
-    span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
-
-private def contribution5 (j : Json) : Except String Namespace.Contribution := do
-  fields3 j ["name", "target", "methods", "span", "public"]
-  let methods ← (← array j "methods").mapM fun method => do
-    fields3 method ["name", "params", "return_type", "body", "span", "requires"]
-    decodeSurfaceMethod method
-  return {
-    name := ← str j "name", target := ← segments j "target", methods,
-    span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
-
-private def event5 (authority : Bool) (j : Json) : Except String Namespace.EditEvent := do
-  let op ← str j "op"
-  let span ← decodeSpan j
-  match op with
-  | "borrow" =>
-    fields3 j ["op", "grant", "loan", "span"]
-    return .borrow (← segments j "grant") (← str j "loan") span
-  | "apply" =>
-    fields3 j ["op", "contribution", "loan", "span"]
-    let loan ← field j "loan"
-    let loan ← if loan == Json.null then pure none else some <$> loan.getStr?
-    return .apply (← segments j "contribution") loan span
-  | "return" =>
-    fields3 j ["op", "loan", "span"]
-    return .release (← str j "loan") span
-  | "seal" =>
-    fields3 j ["op", "target", "span"]
-    return .seal (← segments j "target") span
-  | "reborrow" =>
-    if !authority then throw "reborrowing requires protocol 6"
-    fields3 j ["op", "parent", "delegation", "loan", "span"]
-    return .reborrow (← str j "parent") (← segments j "delegation") (← str j "loan") span
-  | "transfer" =>
-    if !authority then throw "transfer requires protocol 6"
-    fields3 j ["op", "declaration", "span"]
-    return .transfer (← segments j "declaration") span
-  | _ => throw "unknown assembly event"
-
-private def assembly5 (authority : Bool) (j : Json) : Except String Namespace.Assembly := do
-  fields3 j ["events", "span"]
-  let events ← array j "events"
-  if events.length > Limits.assemblyEvents then throw "assembly event limit exceeded"
-  return { events := ← events.mapM (event5 authority), span := ← decodeSpan j }
-
-
-/-- Shared strict namespace-envelope decoder. Rich indexed wire inputs first
-validate their own field set and replace all bodies with empty metadata lists;
-their actual bodies are decoded and independently checked on the rich path. -/
+/-- The namespace envelope of a module of protocols 3 to 6, with the legacy
+body decoders. -/
 def decodeNamespaceModule (extended editable authority : Bool) (j : Json)
-    (namedRecipients : Bool := false) : Except String Namespace.Module := do
-  fields3 j (["path", "public", "span", "imports", "functions", "generics", "methods"] ++
-    (if extended then ["abstract_types", "subtypes", "abstract_methods"] else []) ++
-    (if editable then ["grants", "contributions", "assembly"] else []) ++
-    (if authority then ["delegations", "transfers"] else []))
-  let functions ← (← array j "functions").mapM fun f => do
-    fields3 f ["name", "params", "return_type", "body", "span", "public"]
-    return { (← decodeSurfaceFunction f true) with isPublic := ← f.getObjValAs? Bool "public" : Namespace.Function }
-  let generics ← (← array j "generics").mapM fun g => do
-    fields3 g ["name", "params", "domain", "span", "public"]
-    return { (← decodeSurfaceGeneric g true) with isPublic := ← g.getObjValAs? Bool "public" : Namespace.Generic }
-  let methods ← (← array j "methods").mapM fun m => do
-    fields3 m ["name", "params", "return_type", "body", "span", "requires"]
-    decodeSurfaceMethod m
-  let abstractTypes ← (← optionalArray j "abstract_types").mapM fun t => do
-    fields3 t ["name", "parents", "span", "public"]
-    return { (← decodeAbstractType t true) with isPublic := ← t.getObjValAs? Bool "public" : Namespace.AbstractType }
-  let subtypes ← (← optionalArray j "subtypes").mapM decodeSubtype
-  let assembly ← match j.getObjVal? "assembly" with
-    | .error _ => pure none
-    | .ok value => some <$> assembly5 authority value
-  return {
-    path := ← segments j "path", isPublic := ← j.getObjValAs? Bool "public",
-    span := ← decodeSpan j, imports := ← (← array j "imports").mapM import3,
-    functions, generics, methods, abstractTypes, subtypes, assembly,
-    grants := ← (← optionalArray j "grants").mapM (grant5 authority namedRecipients),
-    delegations := ← (← optionalArray j "delegations").mapM (grant5 authority namedRecipients),
-    transfers := ← (← optionalArray j "transfers").mapM (transfer6 namedRecipients),
-    contributions := ← (← optionalArray j "contributions").mapM contribution5,
-    abstractMethods := ← (← optionalArray j "abstract_methods").mapM decodeAbstractMethod }
+    (namedRecipients : Bool := false) : Except String Namespace.Module :=
+  decodeModuleEnvelope (decodeSurfaceFunction · true) decodeSurfaceMethod extended editable authority j
+    namedRecipients
 
 private def package3 (extended editable authority : Bool) (j : Json) : Except String Namespace.Package := do
-  fields3 j ["source", "name", "version", "dependencies", "modules"]
+  namespaceFields j ["source", "name", "version", "dependencies", "modules"]
   let dependencies ← (← array j "dependencies").mapM fun dep => do
-    fields3 dep ["alias", "target"]
+    namespaceFields dep ["alias", "target"]
     return { alias := ← dep.getObjValAs? String "alias", target := ← dep.getObjValAs? String "target" : Namespace.Dependency }
   return {
     id := {
@@ -137,7 +31,7 @@ def decodeNamespaceProgram (j : Json) : Except String Namespace.Program := do
   let editable := version == 5 || authority
   let extended := version == 4 || editable
   if version != 3 && !extended then throw "expected protocol 3, 4, 5 or 6"
-  fields3 j (["version", "file", "root", "packages"] ++ if extended then ["input"] else [])
+  namespaceFields j (["version", "file", "root", "packages"] ++ if extended then ["input"] else [])
   if extended then
     if (← str j "input") != "package" then throw "protocol 4/5/6 namespace input must be package"
   return {

@@ -363,3 +363,132 @@ fn observations_name_the_position_of_their_statement_among_all_statements() {
     assert_eq!(statements[2]["value"]["kind"], "binary");
     assert_eq!(statements[4]["value"]["kind"], "variable");
 }
+
+/// #533 (#762): a package source that begins with `vastitas:compat:` is
+/// reserved. Protocol 9 accepts one only in the request of a flat unit that
+/// `packages::flat_request` writes: its one package `legacy_flat`, which is the
+/// root, without dependencies or `geometry_compat`, with one public root
+/// module. Every other use, in that request or in a package request, is
+/// `E_PROTOCOL`.
+#[test]
+fn compatibility_package_identities_are_reserved_for_the_flat_unit() {
+    common::prepare_stdlib_package();
+    let flat = flat_wire(
+        "fn main() -> Int { let x = show!(1 + 1); x }",
+        common::CURRENT_PROTOCOL,
+    );
+    assert_eq!(flat["packages"][0]["source"], "vastitas:compat:flat");
+    assert_eq!(kernel(&flat, "check")["ok"], true, "{flat}");
+    let manifest =
+        |name: &str| common::root().join(format!("examples/packages/{name}/Vastitas.toml"));
+    let package = captured_wire(
+        common::manifest_command("check", manifest("hello")),
+        common::CURRENT_PROTOCOL,
+    );
+    assert_eq!(kernel(&package, "check")["ok"], true, "{package}");
+    let geometry = captured_wire(
+        common::manifest_command("check", manifest("geometry-compat")),
+        common::CURRENT_PROTOCOL,
+    );
+    let profile = geometry["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find_map(|package| package.get("geometry_compat").cloned())
+        .expect("a geometry_compat export");
+    let changed = |wire: &Value, change: &dyn Fn(&mut Value)| {
+        let mut wire = wire.clone();
+        change(&mut wire);
+        wire
+    };
+    let root_module = flat["packages"][0]["modules"][0].clone();
+    let cases = [
+        (
+            "another name",
+            changed(&flat, &|wire| {
+                wire["packages"][0]["name"] = json!("other_flat")
+            }),
+        ),
+        (
+            "another version",
+            changed(&flat, &|wire| {
+                wire["packages"][0]["version"] = json!("2.0.0")
+            }),
+        ),
+        (
+            "another root",
+            changed(&flat, &|wire| {
+                wire["root"] = json!("/elsewhere/Vastitas.toml")
+            }),
+        ),
+        (
+            "a dependency",
+            changed(&flat, &|wire| {
+                wire["packages"][0]["dependencies"] =
+                    json!([{"alias": "dep", "target": "vastitas:compat:flat"}])
+            }),
+        ),
+        (
+            "a geometry_compat export",
+            changed(&flat, &|wire| {
+                wire["packages"][0]["geometry_compat"] = profile.clone()
+            }),
+        ),
+        (
+            "a second module",
+            changed(&flat, &|wire| {
+                let mut inner = root_module.clone();
+                inner["path"] = json!(["inner"]);
+                inner["functions"] = json!([]);
+                wire["packages"][0]["modules"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(inner);
+            }),
+        ),
+        (
+            "a private root module",
+            changed(&flat, &|wire| {
+                wire["packages"][0]["modules"][0]["public"] = json!(false)
+            }),
+        ),
+        (
+            "a second package",
+            changed(&flat, &|wire| {
+                let other = package["packages"][0].clone();
+                wire["packages"].as_array_mut().unwrap().push(other);
+            }),
+        ),
+        (
+            "a package with the profile's source",
+            changed(&package, &|wire| {
+                wire["root"] = json!("vastitas:compat:2-6");
+                wire["packages"][0]["source"] = json!("vastitas:compat:2-6");
+            }),
+        ),
+        (
+            "a root with the flat source",
+            changed(&package, &|wire| {
+                wire["root"] = json!("vastitas:compat:flat")
+            }),
+        ),
+        (
+            "a dependency on the profile",
+            changed(&package, &|wire| {
+                wire["packages"][0]["dependencies"] =
+                    json!([{"alias": "stolen", "target": "vastitas:compat:2-6"}])
+            }),
+        ),
+    ];
+    for (name, wire) in cases {
+        for mode in ["check", "emit"] {
+            let response = kernel(&wire, mode);
+            common::assert_wire_rejected(&response, "E_PROTOCOL");
+            let message = response["diagnostics"][0]["message"].as_str().unwrap();
+            assert!(
+                message.contains("is reserved for the package of a flat unit"),
+                "{name} ({mode}): {message}"
+            );
+        }
+    }
+}

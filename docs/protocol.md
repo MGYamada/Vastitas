@@ -41,6 +41,12 @@ decoder and the checker:
 | 7 | Package | `Indexed.Wire.program` in `IndexedProtocol.lean` | `Indexed.Wire.check` |
 | 8, 9 | Package | `ResourceSource.Wire.program` in `ResourceProtocol.lean` | `ResourceSource.Wire.check` |
 
+The decoders that the package protocols share, those of the module envelope
+and of its types, generics, abstract declarations, imports, grants, transfers,
+contributions and assembly, are in `EnvelopeProtocol.lean`.
+`SurfaceProtocol.lean` and `NamespaceProtocol.lean` hold the requests of
+protocols 2 to 6 and their expression and body decoders.
+
 In the mode `emit`, `Main` passes the Core of the check result of protocols
 2 to 7 to `Indexed.Core.Codegen.generate`. For protocols 8 and 9 it calls
 `ResourceSource.Wire.emit`, which runs the check and passes its result to
@@ -164,6 +170,12 @@ flat program of protocols 2–6, `vastitas:compat:flat`, `legacy_flat` and
 `1.0.0`, with every declaration public. That request has no legacy geometry
 profile. The driver shows the kernel's names of its functions without the
 package prefix.
+
+A package source that begins with `vastitas:compat:` is reserved. A request of
+protocol 8 or 9 may use one only as this package: the one package of the
+request and its root, with the identity above, no dependencies, no
+`geometry_compat` export and one public root module. Any other package,
+dependency target or root with such a source is an error (`E_PROTOCOL`).
 
 <a id="protocol-9-algebraic-affine-forms"></a>
 

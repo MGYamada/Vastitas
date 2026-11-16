@@ -642,6 +642,28 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
     };
     let root = loader.package(manifest)?;
     reserved_module_uses(&loader.packages, &loader.sources)?;
+    // Only the entry point observes values (#836): `fn main` of the root
+    // module of the root package. The parser takes `show!` in the root module
+    // of every package.
+    for package in loader
+        .packages
+        .iter()
+        .filter(|package| package.source != root)
+    {
+        let observed = package
+            .modules
+            .iter()
+            .flat_map(|module| &module.functions)
+            .flat_map(|function| &function.declaration.observations)
+            .next();
+        if let Some(observation) = observed {
+            return Err(loader.sources.diagnostic(
+                "E_UNSUPPORTED",
+                frontend::MISPLACED_SHOW,
+                observation.span,
+            ));
+        }
+    }
     // The kernel bounds the `value` blocks of all resource functions of the
     // program, and refuses more without a place in the source. The frontend
     // counts the same blocks in the order of the request and reports the
@@ -710,7 +732,11 @@ fn request_protocol(packages: &[Package]) -> (u32, Option<String>) {
         .flat_map(|m| &m.indexed_declarations)
         .any(|d| d.declaration.body.is_algebraic());
     let resources = modules(packages).any(|m| !m.resource_functions.is_empty());
-    let version = if named_recipients || algebraic {
+    // Only protocol 9 carries the observations of `show!` (#836).
+    let observed = modules(packages)
+        .flat_map(|m| &m.functions)
+        .any(|function| !function.declaration.observations.is_empty());
+    let version = if named_recipients || algebraic || observed {
         NAMED_RECIPIENT_PROTOCOL
     } else if resources
         || modules(packages).any(|m| {
@@ -733,8 +759,73 @@ fn request_protocol(packages: &[Package]) -> (u32, Option<String>) {
     } else {
         PACKAGE_PROTOCOL
     };
-    let input = (indexed || extended || editable || resources).then(|| "package".into());
+    let input =
+        (indexed || extended || editable || resources || observed).then(|| "package".into());
     (version, input)
+}
+
+/// The package of a flat compilation unit in a protocol-9 request: the
+/// identity that the kernel gives a flat unit of protocols 2 to 6
+/// (`LegacySource.flatId`), so the kernel's diagnostics name its functions
+/// `legacy_flat::name`, and the driver shows them as the flat unit's names.
+pub(crate) const FLAT_PACKAGE: &str = "legacy_flat";
+const FLAT_SOURCE: &str = "vastitas:compat:flat";
+
+/// The request of a flat compilation unit that uses `show!` (#836). Only
+/// protocol 9 carries observations, and it takes only package input, so the
+/// unit becomes the root module of one package, with every declaration
+/// public, as the kernel adapts a flat unit of protocols 2 to 6. That
+/// adaptation also supplies the legacy geometry (`Scheme`, `Point`, …);
+/// protocol 9 does not, so a flat unit that uses it cannot use `show!`.
+pub(crate) fn flat_request(module: crate::ir::Module) -> Program {
+    use crate::namespace::Public;
+    fn public<T>(declarations: Vec<T>) -> Vec<Public<T>> {
+        declarations
+            .into_iter()
+            .map(|declaration| Public {
+                declaration,
+                public: true,
+            })
+            .collect()
+    }
+    Program {
+        version: NAMED_RECIPIENT_PROTOCOL,
+        input: Some("package".into()),
+        file: module.file,
+        root: FLAT_SOURCE.into(),
+        packages: vec![Package {
+            source: FLAT_SOURCE.into(),
+            name: FLAT_PACKAGE.into(),
+            version: "1.0.0".into(),
+            dependencies: Vec::new(),
+            modules: vec![Module {
+                path: Vec::new(),
+                public: true,
+                imports: Vec::new(),
+                functions: public(module.functions),
+                resource_functions: Vec::new(),
+                generics: public(module.generics),
+                methods: module.methods,
+                indexed_declarations: Vec::new(),
+                uses_indexed: false,
+                abstract_types: public(module.abstract_types),
+                subtypes: module.subtypes,
+                abstract_methods: module.abstract_methods,
+                grants: Vec::new(),
+                delegations: Vec::new(),
+                transfers: Vec::new(),
+                contributions: Vec::new(),
+                assembly: None,
+                span: Span {
+                    start: 0,
+                    end: 0,
+                    line: 1,
+                    column: 1,
+                },
+            }],
+            geometry_compat: None,
+        }],
+    }
 }
 
 #[cfg(test)]

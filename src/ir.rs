@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 // abstract declarations (`frontend::parse_sources`). A package request writes
 // the first of 9 down to 3 that the declarations of the program, or the
 // `geometry_compat` export of a manifest, select (`packages::request_protocol`);
-// 9 also carries the algebraic forms.
+// 9 also carries the algebraic forms and the observations of `show!` (#836).
+// A flat unit with an observation is sent as a protocol-9 package request
+// (`packages::flat_request`).
 pub const PROTOCOL_VERSION: u32 = 2;
 pub(crate) const PACKAGE_PROTOCOL: u32 = 3;
 pub const ABSTRACT_PROTOCOL_VERSION: u32 = 4;
@@ -27,7 +29,7 @@ pub(crate) const PUBLIC_PROTOCOLS: [u32; 8] = [
     NAMED_RECIPIENT_PROTOCOL,
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Span {
     pub start: usize,
     pub end: usize,
@@ -128,6 +130,25 @@ pub struct Function {
     pub params: Vec<Param>,
     pub return_type: Type,
     pub body: Block,
+    pub span: Span,
+    /// The `show!` of the top-level `let` statements of `fn main` (#836).
+    /// Only protocol 9 carries them (`packages::request_protocol`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observations: Vec<Observation>,
+}
+
+/// One `show!(expr)` of the entry point (#836): the `statement`-th top-level
+/// statement of the body of `fn main` is `let name = show!(expr);`, which the
+/// request sends as `let name = expr;`. The program writes `label = value`
+/// when it binds the value. The label is the source text of `expr` with each
+/// run of whitespace replaced by one space; it is presentation only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Observation {
+    pub statement: usize,
+    pub label: String,
+    /// The place of `show!(expr)`, for the frontend's own diagnostics. Not
+    /// part of the request.
+    #[serde(skip)]
     pub span: Span,
 }
 

@@ -102,6 +102,30 @@ fn diagnostic(code: &str, message: impl Into<String>, span: Span) -> Diagnostic 
     }
 }
 
+/// The diagnostic of `show!` anywhere but as the whole initializer of a
+/// top-level `let` of `fn main` (#836). The kernel reports the same for such
+/// a request (`ResourceSource.misplacedObservation`).
+pub(crate) const MISPLACED_SHOW: &str = "`show!` is allowed only as the whole initializer of a `let` statement at the top level of `fn main`";
+
+fn misplaced_show(span: Span) -> Diagnostic {
+    diagnostic("E_UNSUPPORTED", MISPLACED_SHOW, span)
+}
+
+// The macro invocation `name!(…)` at `span`, other than an observation. There
+// are no user macros yet, and `show!` is the only built-in one.
+fn unsupported_macro(name: &str, span: Span) -> Diagnostic {
+    if name == "show" {
+        return misplaced_show(span);
+    }
+    diagnostic(
+        "E_UNSUPPORTED",
+        format!(
+            "`{name}!` is not supported: `show!` is the only built-in macro, and there are no user macros"
+        ),
+        span,
+    )
+}
+
 // `E_RESERVED` for a name with the prefix of compiler-generated names.
 fn reserved_prefix(span: Span) -> Diagnostic {
     diagnostic(
@@ -557,6 +581,17 @@ struct Parser {
     indexed: bool,
     // Open `else if` links. Each consumes one level of the nesting budget.
     else_if_links: usize,
+    // The source and the byte position of its start, for the labels of
+    // `show!` (#836).
+    text: String,
+    text_offset: usize,
+    // The current module is the root module of its package: a flat unit, or
+    // the module path `[]`.
+    entry_module: bool,
+    // The next block is the body of `fn main` of a root module.
+    observing: bool,
+    // The `show!` of the body of the function being parsed.
+    observations: Vec<crate::ir::Observation>,
 }
 
 impl Parser {
@@ -592,7 +627,19 @@ impl Parser {
             packages,
             indexed: false,
             else_if_links: 0,
+            text: input.source.into(),
+            text_offset: input.offset,
+            entry_module: true,
+            observing: false,
+            observations: Vec::new(),
         })
+    }
+
+    // The source text at `span`, with each run of whitespace replaced by one
+    // space and without leading or trailing whitespace: the label of `show!`.
+    fn label(&self, span: Span) -> String {
+        let text = &self.text[span.start - self.text_offset..span.end - self.text_offset];
+        text.split_whitespace().collect::<Vec<_>>().join(" ")
     }
 
     fn peek(&self) -> &Token {
@@ -817,6 +864,99 @@ pub(crate) fn parse_module_source(
     };
     parser.namespace(path, public, span, false, &mut parsed)?;
     Ok(parsed)
+}
+
+/// The first use of the legacy geometry of a flat unit (`Scheme`, `Point`,
+/// `pack`, `Affine`, …), which the kernel supplies only to protocols 2 to 6.
+/// A flat unit that uses `show!` is a protocol-9 request (#836), so it cannot
+/// use it.
+pub(crate) fn legacy_geometry(module: &Module) -> Option<Span> {
+    fn legacy(ty: &Type) -> bool {
+        match ty {
+            Type::Point { .. } | Type::Morphism { .. } | Type::Pointed { .. } => true,
+            Type::Named { name } => name == "Scheme" || name == "CInfScheme",
+            Type::Function {
+                params,
+                return_type,
+            } => params.iter().any(legacy) || legacy(return_type),
+            _ => false,
+        }
+    }
+    fn params(params: &[Param]) -> Option<Span> {
+        params
+            .iter()
+            .find(|param| legacy(&param.ty))
+            .map(|param| param.span)
+    }
+    fn block(block: &Block) -> Option<Span> {
+        for statement in &block.statements {
+            let found = match &statement.kind {
+                StatementKind::Let {
+                    annotation, value, ..
+                } => {
+                    if annotation.as_ref().is_some_and(legacy) {
+                        return Some(statement.span);
+                    }
+                    expr(value)
+                }
+                StatementKind::Unpack { .. } | StatementKind::UnpackFields { .. } => {
+                    Some(statement.span)
+                }
+            };
+            if found.is_some() {
+                return found;
+            }
+        }
+        expr(&block.result)
+    }
+    fn expr(value: &Expr) -> Option<Span> {
+        match &value.kind {
+            ExprKind::Pack { .. } | ExprKind::IndexedPack { .. } => Some(value.span),
+            ExprKind::Call { callee, args } => {
+                if GEOMETRIC_OPERATIONS.contains(&callee.as_str()) {
+                    Some(value.span)
+                } else {
+                    args.iter().find_map(expr)
+                }
+            }
+            ExprKind::Variable { name } if GEOMETRIC_OPERATIONS.contains(&name.as_str()) => {
+                Some(value.span)
+            }
+            ExprKind::Invoke { callee, args } => {
+                expr(callee).or_else(|| args.iter().find_map(expr))
+            }
+            ExprKind::Lambda {
+                params: parameters,
+                return_type,
+                body,
+            } => params(parameters)
+                .or_else(|| legacy(return_type).then_some(value.span))
+                .or_else(|| block(body)),
+            ExprKind::Unary { operand, .. } => expr(operand),
+            ExprKind::Binary { left, right, .. } => expr(left).or_else(|| expr(right)),
+            ExprKind::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => expr(condition)
+                .or_else(|| block(then_branch))
+                .or_else(|| block(else_branch)),
+            ExprKind::Block { body } => block(body),
+            _ => None,
+        }
+    }
+    let functions = module.functions.iter().find_map(|function| {
+        params(&function.params)
+            .or_else(|| legacy(&function.return_type).then_some(function.span))
+            .or_else(|| block(&function.body))
+    });
+    functions.or_else(|| {
+        module.methods.iter().find_map(|method| {
+            params(&method.params)
+                .or_else(|| legacy(&method.return_type).then_some(method.span))
+                .or_else(|| block(&method.body))
+        })
+    })
 }
 
 /// Parse and resolve a single `.vast` source. Semantic acceptance belongs to Lean.

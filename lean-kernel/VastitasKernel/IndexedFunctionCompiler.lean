@@ -186,6 +186,9 @@ structure Pass where
   probeReuses : List ProbeReuse := []
   elaborationWork : Nat := 0
   namespaceWork : Fin (Limits.namespaceProgramWork + 1) := 0
+  /-- The Core symbols of the `let` bindings of Fn values, with their
+  signatures (`State.functionLets`). -/
+  functionLets : List (Nat × Surface.TypeExpr) := []
   deriving Inhabited
 
 def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pass := do
@@ -206,6 +209,6 @@ def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pas
     (state.origins.toList.zipIdx.find? (fun (key, _) => key.definition == main)).map Prod.snd
   return ⟨⟨prepared.input.body.declarations, state.functions.toList, main⟩, state.origins,
     state.emittedCalls, state.calls, state.staticUses, state.body.references, state.dispatchCalls,
-    state.probeReuses, state.elaborationWork, (state.body.queries.map (·.units)).getD 0⟩
+    state.probeReuses, state.elaborationWork, (state.body.queries.map (·.units)).getD 0, state.functionLets⟩
 
 end VastitasKernel.Indexed.FunctionSource.Compiler

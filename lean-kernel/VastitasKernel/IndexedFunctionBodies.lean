@@ -280,6 +280,8 @@ mutual
         if let some type := type then checkAnnotation type value span
         let term := match hint with | some type => Core.Term.ascribe type value.term | none => value.term
         let symbol ← fresh
+        if let some selected := value.target then
+          modify fun state => { state with functionLets := (symbol, selected.signature) :: state.functionLets }
         body (Source.Bodies.nameObject term.result.reference name)
         let inner := ctx ++ [⟨⟨name, ⟨symbol, term.result⟩, span⟩, value.target⟩]
         let value ← statementsThen fuel input scope inner rest output expected blockSpan

@@ -1471,7 +1471,7 @@ theorem public_pure_entry_computes {json : Lean.Json} {program : VastitasKernel.
       VastitasKernel.ResourceSource.check program true = .ok checked ∧
     ∃ core : Typing.CheckedModule true,
       core.module = checked.pureProgram.compiled.core.module ∧
-      Codegen.generate core = .ok generated.source ∧
+      Codegen.generate core checked.observations = .ok generated.source ∧
       ∀ entry ∈ checked.pureProgram.compiled.entries, EntryComputes core.module entry := by
   obtain ⟨checked, accepted, core, same, emittedCore, _, _⟩ :=
     IndexedReverseCore.public_pure_entry_compiled decoded found emitted

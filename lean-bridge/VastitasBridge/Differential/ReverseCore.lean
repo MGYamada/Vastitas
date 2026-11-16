@@ -865,7 +865,7 @@ theorem public_pure_entry_frechet {json : Lean.Json}
       VastitasKernel.ResourceSource.check program true = .ok checked ∧
     ∃ core : Indexed.Core.Typing.CheckedModule true,
       core.module = checked.pureProgram.compiled.core.module ∧
-      Indexed.Core.Codegen.generate core = .ok generated.source ∧
+      Indexed.Core.Codegen.generate core checked.observations = .ok generated.source ∧
       ∀ entry ∈ checked.pureProgram.compiled.entries, EntryFrechet core.module entry := by
   obtain ⟨checked, accepted, core, same, emittedCore, computes⟩ :=
     VastitasOracle.SmoothReverseCompiled.public_pure_entry_computes decoded found emitted

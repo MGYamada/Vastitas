@@ -11,11 +11,14 @@ impl Parser {
     // A block is one level deeper than its result and its statement values;
     // each statement value also counts its statement edge.
     fn block_with_depth(&mut self) -> Result<(Block, usize), Diagnostic> {
+        // Only the statements of this block, not those of a nested one, may
+        // observe their values.
+        let observing = std::mem::take(&mut self.observing);
         let start = self.expect("{")?.span;
         let mut statements = Vec::new();
         let mut depth = 0;
         while self.peek().is("let") || self.peek().is("unpack") {
-            let (statement, value) = self.statement()?;
+            let (statement, value) = self.statement(observing.then_some(statements.len()))?;
             depth = depth.max(value + 1);
             statements.push(statement);
         }
@@ -55,8 +58,10 @@ impl Parser {
         Ok((block, 1 + depth.max(result_depth)))
     }
 
-    // Also returns the depth of the statement's value expression.
-    fn statement(&mut self) -> Result<(Statement, usize), Diagnostic> {
+    // Also returns the depth of the statement's value expression. `position`
+    // is the place of the statement among the top-level statements of the
+    // body of `fn main`, whose `let` may observe its value with `show!`.
+    fn statement(&mut self, position: Option<usize>) -> Result<(Statement, usize), Diagnostic> {
         let token = self.advance();
         if token.is("let") {
             if self.peek().is("mut")
@@ -77,7 +82,14 @@ impl Parser {
                 None
             };
             self.expect("=")?;
-            let (value, depth) = self.expression_with_depth(0)?;
+            let (value, depth) = match position {
+                Some(statement) if self.macro_invocation() => {
+                    let (value, depth, observation) = self.observation(statement)?;
+                    self.observations.push(observation);
+                    (value, depth)
+                }
+                _ => self.expression_with_depth(0)?,
+            };
             let end = self.expect(";")?.span;
             let statement = Statement {
                 kind: StatementKind::Let {
@@ -134,6 +146,51 @@ impl Parser {
             };
             Ok((statement, depth))
         }
+    }
+
+    // `name!(` at the current token: a macro invocation.
+    fn macro_invocation(&self) -> bool {
+        matches!(self.peek().kind, TokenKind::Name(_))
+            && self.second_is("!")
+            && self
+                .tokens
+                .get(self.position + 2)
+                .is_some_and(|token| token.is("("))
+    }
+
+    // `show!(expr)` as the whole initializer of the `statement`-th top-level
+    // `let` of `fn main` (#836): the value `expr` and the observation of it.
+    // No other macro exists.
+    #[inline(never)]
+    fn observation(
+        &mut self,
+        statement: usize,
+    ) -> Result<(Expr, usize, crate::ir::Observation), Diagnostic> {
+        let name = self.advance();
+        let bang = self.advance();
+        if !name.is("show") {
+            let TokenKind::Name(spelling) = &name.kind else {
+                unreachable!("a macro invocation starts with a name")
+            };
+            return Err(unsupported_macro(spelling, name.span.through(bang.span)));
+        }
+        self.advance();
+        let (value, depth) = self.expression_with_depth(0)?;
+        let end = self.expect(")")?.span;
+        let span = name.span.through(end);
+        if !self.peek().is(";") {
+            return Err(misplaced_show(span));
+        }
+        let label = self.label(value.span);
+        Ok((
+            value,
+            depth,
+            crate::ir::Observation {
+                statement,
+                label,
+                span,
+            },
+        ))
     }
 
     // Every node returns its depth with it, so parents combine checked child
@@ -334,6 +391,11 @@ impl Parser {
                         name.push_str("::");
                         name.push_str(&component);
                     }
+                }
+                // `show!` stands only where `statement` takes it (#836).
+                if self.peek().is("!") && self.second_is("(") {
+                    let span = start.through(self.peek().span);
+                    return Err(unsupported_macro(&name, span));
                 }
                 (ExprKind::Variable { name }, 0)
             }

@@ -598,8 +598,9 @@ adds no Domain Checker or constitutional theorem, and does not close #303.
 
 This is a bounded Python reference for [#318](https://github.com/MGYamada/Vastitas/issues/318),
 following its current Slice A and the pure-reference/execution split in
-[#322](https://github.com/MGYamada/Vastitas/issues/322). It does not complete either
-issue or install public `std::float` / `monad::float` packages. The mathematical
+[#322](https://github.com/MGYamada/Vastitas/issues/322). The pure reference also
+contains the pinned complex graph of [#855](https://github.com/MGYamada/Vastitas/issues/855).
+It does not complete these issues or install public `std::float` / `monad::float` packages. The mathematical
 contracts in [#310](https://github.com/MGYamada/Vastitas/issues/310) and
 [#313](https://github.com/MGYamada/Vastitas/issues/313) are unchanged.
 
@@ -618,10 +619,12 @@ Lean, BLAS or third-party Python dependency is needed for these reference tests.
 
 | File | Responsibility |
 | --- | --- |
-| [float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/float_reference.py) | Integer bit carrier, finite rational decoding, explicit rational conversion, add/sub/mul/raw division, and operation-local symbolic flags. Imports no execution layer. |
+| [float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/float_reference.py) | F32/F64 bit carriers, finite rational decoding, explicit rational conversion, add/sub/mul/raw division, totalized `rdiv`, absolute-value bits and operation-local symbolic flags. Imports no execution layer. |
 | [safe_float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/safe_float_reference.py) | Dedicated `Float` / `SafeFloat`, immutable Unit configuration, `pure`, `bind`, canonical lift, checked division, lazy branching, and internal audit events. Reuses the same reference primitives. |
+| [complex_division_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/complex_division_reference.py) | Exact ordered F32/F64 complex bit graph, 20 primitive trace occurrences, sticky symbolic flags and reciprocal via division. No backend/CUDA calls. |
 | [test_float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_float_reference.py) | Representation and arithmetic checks independent of sequencing laws. |
 | [test_safe_float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_safe_float_reference.py) | Separate unit/associativity, flag monoid, morphism, equality, failure, and operational-trace tests. |
+| [test_complex_float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_complex_float_reference.py) | Independent F32 rounding vectors and bit roundtrips; exhaustive signed-zero input classes, edge values, NaNs, infinities, reciprocal, forbidden mixed precision and trace shape. |
 
 There is no general Reader/Writer/Except/State or transformer API. `Ok` and `Err`
 are ordinary tagged reference Result values, not a production exception
@@ -632,9 +635,9 @@ Python exceptions propagate as model/programming errors, not `DivisionByZero`.
 
 ### Fixed binary64 profile
 
-The pure profile is `binary64-rne-gradual-tiny-after-first-nan-v1`:
+The original execution profile is `binary64-rne-gradual-tiny-after-first-nan-v1`:
 
-- Binary64 only, `roundTiesToEven`, no excess precision or FMA contraction.
+- Binary64 in this original `SafeFloat` fragment, `roundTiesToEven`, no excess precision or FMA contraction.
 - Gradual underflow, no DAZ input conversion and no FTZ output conversion.
 - Underflow is flagged for an inexact result that is tiny **after rounding**.
   An exactly represented subnormal does not raise underflow. A value that rounds
@@ -661,9 +664,61 @@ there is no claim of full IEEE conformance or a proved rounding implementation.
 
 The execution profile appends `/left-to-right-short-circuit-v1`. `Config` is
 immutable Unit: there are no dynamic choices within this profile. Directed
-rounding, alternate NaN profiles, binary32, complex arithmetic, arrays, mutable
-rounding state, flag inspection/clearing, traps, and native execution are outside
-this increment. Unsupported primitive names/configurations are rejected.
+rounding, alternate NaN profiles, binary32 or complex **execution effects**,
+arrays, mutable rounding state, flag inspection/clearing, traps, and native
+execution remain outside that original `SafeFloat` increment. The new F32
+primitives and complex graph below are *pure* references, not `SafeFloat`
+execution extensions. Unsupported primitive names/configurations are rejected.
+
+### Fixed complex bit reference and zero-sign theorem boundary (#855)
+
+`float_reference.py` additionally names
+`binary32-rne-gradual-tiny-after-first-nan-v1` with the same bit-level
+conventions as the original binary64 reference: exact `Fraction` conversion,
+roundTiesToEven, gradual underflow/tininess after rounding, chosen left-first
+NaN propagation, signaling NaN quieting, and five symbolic local flags. No
+operation implicitly converts F32 to F64. Scalar `rdiv(a, ±0)` evaluates
+`mul(a, +0)` and takes that multiplication's flags; nonzero denominators use
+the existing raw division. `abs_bits` clears the sign without quieting a NaN.
+
+`complex_division_reference.py` pins
+`cuda-scaled-rdiv-rne-gradual-no-fma-no-fallback-v1`. It applies the same
+**20 scalar primitive occurrences** for both F32/CC and F64/CC, with the
+schedule `abs_c, abs_d, s, t, A, B, C, D, CC, DD, v, u, AC, BD, qr_sum, qr,
+BC, AD, qi_diff, qi`. Each occurrence records input/output bits, its local
+flags, and whether `rdiv` selected `mul_zero` or raw `div`. The sticky mask
+unions each occurrence's flags in order. It never performs FMA contraction,
+an unlisted fallback, a complex-specific special-value branch or mixed-format
+promotion. `reciprocal(z)` invokes this same division with numerator `(1,+0)`.
+
+The pure regression enumerates both signs of both zero divisor components,
+both numerator signs and the numerator's zero/nonzero class (64 cases per
+format). For finite numerator signs `a,b` and divisor zero signs `c,d`, the
+output sign bits, **derived through the graph**, are
+
+```text
+qr_sign = (a XOR c) AND (b XOR d)
+qi_sign = (b XOR c) AND NOT (a XOR d)
+```
+
+Thus `(1-i)/(+0+i(+0))` yields `(+0,-0)` even though componentwise complex
+multiplication yields `(+0,+0)`. Raw IEEE `1/+0` produces infinity and the
+divide-by-zero flag, while the graph's totalized `rdiv(1,+0)` produces `+0`
+without that flag. At nonzero extreme inputs the graph can instead overflow,
+underflow, yield NaN, or lose a mathematically nonzero answer: none causes
+an implicit `safediv` failure or a correction path.
+
+The independent mathlib-free
+`lean-kernel/VastitasKernel/ComplexDivision.lean` defines the 20-occurrence
+composition over a parameterized scalar primitive interface and proves the
+`rdiv` zero/nonzero selection and reciprocal entry-point identity. It also
+instantiates the graph with an **explicit signed-zero abstraction** and
+contains exhaustive theorems for the formula above, F32/F64 zero-bit encoding,
+and absence of additional flags on this finite/zero path. Those Lean claims
+require an actual Lean build/axiom audit before being reported as **Proved**;
+they do not verify general IEEE rounding, NaN payloads, compiler IR, LLVM,
+CUDA equivalence or A100 performance. Python checks establish **Tested**
+reference behavior only; pure bit patterns are not actual GPU flag readings.
 
 ### Denotation and equality
 

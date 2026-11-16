@@ -926,7 +926,7 @@
    "code": "E_TYPE",
    "line": 1,
    "column": 31,
-   "message": "frame, frame_vector, frame_covector, frame_map, reading or physical_metric"
+   "message": "frame, frame_vector, frame_covector, frame_map, reading, physical_metric, model, calibration, dataset or comparison"
   },
   {
    "issue": 759,

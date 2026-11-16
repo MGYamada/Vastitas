@@ -689,5 +689,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
   | .branchDifferential smooth cotangent line branch =>
       SpectralRegistry.branchDifferential smooth cotangent line branch
   | .branchProjector smooth line branch row column => SpectralRegistry.branchProjector smooth line branch row column
+  /- Transition averages (Stage 6, #841). The entry is in `IndexedSpectralRegistry`. -/
+  | .averageAt smooth line average => SpectralRegistry.averageAt smooth line average
 
 end VastitasKernel.Indexed

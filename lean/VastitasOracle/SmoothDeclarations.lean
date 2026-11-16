@@ -177,7 +177,8 @@ theorem smooth_objects_are_declared {env : Environment} (envValid : env.Valid) {
       exact ⟨coordinates, rfl, (smoothAffine_sound entryValid).2.2.2⟩
     | marker | implementation | classification | family | metric | metricEvidence
     | frame | baseDimension | quantity | reading | scale | physicalMetric
-    | freeModule | endomorphism | spectrum | branch =>
+    | freeModule | endomorphism | spectrum | branch
+    | transitionAverage | convention | model | calibration | dataset | comparison =>
       simp [declared, Declaration.objectImplementation?] at found
 
 /-- **Reification.** The value of `compose` is the program node

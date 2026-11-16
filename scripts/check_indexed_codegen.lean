@@ -13,6 +13,7 @@ import VastitasKernel.MetricFormRegression
 import VastitasKernel.ReverseCoreRegression
 import VastitasKernel.FrameRegression
 import VastitasKernel.SpectralRegression
+import VastitasKernel.AverageRegression
 
 open VastitasKernel.Indexed.Core
 
@@ -108,7 +109,8 @@ def main (arguments : List String) : IO Unit := do
       ("smooth_cotangent_programs", VastitasKernel.Indexed.CotangentRegression.cotangentFixture),
       ("smooth_metric_programs", VastitasKernel.Indexed.MetricFormRegression.metricFixture),
       ("frame_programs", VastitasKernel.Indexed.FrameRegression.frameFixture),
-      ("spectral_programs", VastitasKernel.Indexed.SpectralRegression.spectralFixture)] ++ bodies do
+      ("spectral_programs", VastitasKernel.Indexed.SpectralRegression.spectralFixture),
+      ("spectral_average_programs", VastitasKernel.Indexed.AverageRegression.averageFixture)] ++ bodies do
     emit directory name module
   -- Compiled reverse Core (#623): the reverse sites compiled into Core, checked
   -- again and validated, then lowered.

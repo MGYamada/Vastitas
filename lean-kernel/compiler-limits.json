@@ -40,5 +40,7 @@
   "dimensionExponent": 64,
   "dimensionScaleFactors": 16,
   "spectralRank": 4,
-  "spectralPower": 8
+  "spectralPower": 8,
+  "datasetPoints": 64,
+  "recordTextBytes": 256
 }

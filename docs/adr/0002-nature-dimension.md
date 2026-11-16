@@ -374,9 +374,9 @@ contract is implemented or proved.
 
 - **Names.** `Calibration`, `calibrate(…, method =, reference =, revision =)`,
   `measured(v, u =)`, `Dataset`, `measure(model =, calibration =, coverage =,
-  points = […])`, `Comparison`, `compare(D, calibration = K @ "…", verdict =
-  …)`. The codes are `E_ERRORBAR` and `E_STALE`. The names are provisional
-  until the module is delivered.
+  points = […])`, `Comparison`, `compare(D, calibration = K, fingerprint =
+  "…", verdict = …)`. The codes are `E_ERRORBAR` and `E_STALE`. The names
+  are provisional until the module is delivered.
 - **Other meanings.** `errorbar` is physical uncertainty. It never means the
   rounding error or the enclosure of a numerical algorithm.
 

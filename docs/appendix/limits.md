@@ -418,6 +418,28 @@ rules.
 | `spectralRank` | 4 | The vectors of the basis of a free module, so the rows and the columns of an endomorphism of it | A free module | `E_LIMIT` |
 | `spectralPower` | 8 | The power `k` of `trace_power(H, k)` and the exponent `e` of `simple(S, …, exponent = e)` | An invariant or a branch | `E_LIMIT` |
 
+## Physical models and data
+
+The kernel bounds the datasets of `nature::errorbar`, which historical
+Stage 6 admits
+([#841](https://github.com/MGYamada/Vastitas/issues/841)), and the frontend
+and the kernel bound the [recorded texts](../language/physical-models.md#recorded-texts)
+of `nature::model` and `nature::errorbar`. The values,
+uncertainties and coverage factors of calibrations and datasets, and the
+closed forms of the transition averages of `std::linalg::spectral`, are
+polynomial literals: their digits have the bound `algebraCoefficientDigits`
+of [Exact affine algebra](#exact-affine-algebra). The module of the field of
+a model has at most `spectralRank` basis vectors, as in
+[Spectral observations](#spectral-observations). A dataset beyond the bound
+is rejected before any of its points is read. A recorded text beyond the
+bound is the frontend's `E_LIMIT` at its string literal, and on the wire it
+is a protocol error (`E_PROTOCOL`).
+
+| Limit | Value | Counts | Holds for | Code |
+| --- | --- | --- | --- | --- |
+| `datasetPoints` | 64 | The points of a dataset | A dataset | `E_LIMIT` |
+| `recordTextBytes` | 256 | The bytes between the quotes of a recorded text: a regime, a reference, a revision or a fingerprint | A recorded text | `E_LIMIT` |
+
 ## Resource functions
 
 [Resource programs](../storage/resource-programs.md) gives the rules of

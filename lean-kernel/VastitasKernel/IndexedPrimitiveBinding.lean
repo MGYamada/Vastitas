@@ -77,6 +77,17 @@ structure BranchRef where
   exponent : Nat
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-- A transition average as a binding embeds it (Stage 6, #841): the
+transition average declaration, its branch, and its closed form
+`numerator / denominator`. The certificate stays in the declaration. The audit
+compares each embedded copy with the declarations. -/
+structure AverageRef where
+  average : DeclId
+  branch : BranchRef
+  numerator : AlgebraRuntime.Poly
+  denominator : AlgebraRuntime.Poly
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 /-- What a spectral invariant computes (Stage 5): `tracePower H k` is
 `p ↦ tr(H(p)ᵏ)`, and `charCoefficient S i` the coefficient of `tⁱ` in the
 characteristic polynomial of `S`. It is the provenance of the invariant's map,
@@ -227,6 +238,14 @@ inductive PrimitiveBinding where
   `adj(tI − H(p)) / χ′(p, t)` of the branch `branch` at `(p, t)`, as a reduced
   fraction, or `(0, 0)` off the branch. -/
   | branchProjector (smooth line : DeclId) (branch : BranchRef) (row column : Nat)
+  /-- The exact value at a point `p` in `smooth` of the transition average
+  `average` (Stage 6, #841) on the chart `D(g)` of its branch: when
+  `g(p) ≠ 0`, `numerator(p) / denominator(p)` as a reduced fraction (the
+  denominator is a unit on `D(g)`, so it does not vanish there); off the
+  chart, the failure value `(0, 0)`, whatever the closed form, so a cancelled
+  denominator gives no value where `g` vanishes. `line` is the 1-dimensional
+  object of the observation's family. -/
+  | averageAt (smooth line : DeclId) (average : AverageRef)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 def isRelativeFamily (env : Environment) (family : DeclId) : Bool :=

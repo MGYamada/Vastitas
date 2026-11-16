@@ -23,6 +23,8 @@ fn main() {
         ("algebraCoefficientDigits", "MAX_ALGEBRA_DIGITS"),
         ("algebraGenerators", "MAX_ALGEBRA_GENERATORS"),
         ("assemblyEvents", "MAX_ASSEMBLY_EVENTS"),
+        ("datasetPoints", "MAX_DATASET_POINTS"),
+        ("recordTextBytes", "MAX_RECORD_TEXT_BYTES"),
     ] {
         let value = limits[key]
             .as_u64()

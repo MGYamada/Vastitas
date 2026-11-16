@@ -151,6 +151,23 @@ private def failureReason (subject : String) (names : List String := []) : Failu
     s!"the witness of {subject} does not certify the gap: W·χ′ − g^e is not a multiple of the " ++
       s!"characteristic polynomial χ; {residualText names term terms}"
   | .work error => s!"{subject}: {error.message}"
+  | .averageField =>
+    s!"{subject} needs a symmetric field, but the endomorphism of its branch is not declared `symmetric`"
+  | .averageBasis i n => s!"{subject} names the basis vector {i + 1}, but the module of its field has rank {n}"
+  | .averageShape =>
+    s!"the closed form of {subject} is not a quotient of two polynomials in the coordinates of its object " ++
+      "with a nonzero denominator"
+  | .averageCertificateShape => s!"the computed certificate of {subject} is not well formed"
+  | .averageReduction => s!"the reduction modulo χ computed for {subject} failed its check"
+  | .averageTrace => s!"the trace form stored for {subject} is not the trace form of its branch"
+  | .closedForm term terms =>
+    let text := preview (termText names term)
+    let residual := if terms == 1 then s!"it is `{text}`" else s!"it has {terms} terms, among them `{text}`"
+    s!"the closed form N / D of {subject} is not the average of its branch: N·g^(2e) − D·T is not zero for " ++
+      s!"the trace form T; {residual}"
+  | .denominatorUnit bound =>
+    s!"the denominator of the closed form of {subject} is not a unit on the chart D(g) of its branch: no " ++
+      s!"power g^m with m ≤ {bound} is a multiple of it"
 
 private def failureProblem {α : Type} (span : Span) (subject : String) (failure : Failure)
     (names : List String := []) : Namespace.Result α :=
@@ -466,6 +483,109 @@ def elaborateSpectral (sources : List (DeclId × Span × Body)) (targets : List 
         | spectralProblem span s!"the declaration `{qualified entry.id}` names no endomorphism or spectrum"
       pure ⟨entry.id, ← elaborateInvariant span indexed entry.id application target definition⟩
     | _, _ => elaborateObservation span indexed body entry
+  pure { env with indexed, primitives }
+
+/-! ## Transition averages (Stage 6, #841; ADR 0001 §13)
+
+A transition average `transition_average(B, from = i, to = j) = N / D` is
+declared at a family with the representation `transition_average` and one
+smooth object. `resolveBody` resolves its family, object and branch, and
+leaves its basis indices `0`, its closed form empty and its certificate the
+empty one; the observation `average_at` embeds the placeholder
+`AverageRef.placeholder`. This pass, after `elaborateSpectral`, elaborates
+them:
+
+1. every transition average: its family and object as for every spectral
+   declaration; its branch a branch of that object, of a spectrum of a field
+   declared `symmetric`; `i` and `j` basis vectors of the field's module, as
+   indices; `N` and `D` expanded in the coordinates of the object, `D`
+   nonzero; the certificate (`averageCertificate`), the trace form and a
+   unit certificate of `D` on `D(g)`; then `checkAverage`, whose failure
+   names the residual of the closed form (`residualText`);
+2. every `average_at` observation gets the transition average it names
+   (`AverageRef`), its branch and its closed form.
+
+Rejections are `E_SPECTRAL` at the declaration, naming it; the rank and the
+exponent limits and the algebra budget are `E_LIMIT`, and an unknown
+coordinate or a zero denominator of a literal is `E_AFFINE_COORDINATE`, as in
+the entries of a field. -/
+
+/-- The trace form, the closed form and the certificate of the transition
+average `name` of `branch` from `source` to `target`. -/
+private def elaborateAverage (span : Span) (env : Environment) (name family object branch : DeclId)
+    (source target : String) (numerator denominator : PolyExpr) :
+    Namespace.Result (Nat × Nat × Poly × Poly × AverageCertificate) := do
+  let coordinates ← spectralObject span env "transition average" "transition_average" name family object
+    (isTransitionAverageFamily env family)
+  let subject := s!"the transition average `{qualified name}`"
+  let some (_, branchObject, spectrum, localize, witness, exponent, _) := branchData? env branch
+    | spectralProblem span <| s!"{subject} is an average of `{qualified branch}`, which is not a branch " ++
+        "declaration"
+  unless branchObject == object do
+    spectralProblem span <| s!"{subject} is on `{qualified object}`, but its branch `{qualified branch}` is on " ++
+      s!"`{qualified branchObject}`; an average and its branch have one object"
+  let some (_, _, endomorphism, _, spectral) := spectrumData? env spectrum
+    | spectralProblem span s!"the branch `{qualified branch}` of {subject} is not a branch of a spectrum declaration"
+  let some (_, _, module, rows, symmetric) := endomorphismData? env endomorphism
+    | spectralProblem span <| s!"the spectrum `{qualified spectrum}` of {subject} is not the spectrum of an " ++
+        "endomorphism declaration"
+  let some (_, _, basis) := freeModuleData? env module
+    | spectralProblem span <| s!"the endomorphism `{qualified endomorphism}` of {subject} acts on " ++
+        s!"`{qualified module}`, which is not a free module declaration"
+  unless symmetric do
+    spectralProblem span <| s!"{subject} needs a symmetric field, but the endomorphism `{qualified endomorphism}` " ++
+      s!"of its branch `{qualified branch}` is not declared `symmetric`"
+  let index (role name : String) : Namespace.Result Nat :=
+    match basis.idxOf? name with
+    | some i => pure i
+    | none =>
+      spectralProblem span <| s!"the {role} vector `{name}` of {subject} is not a basis vector of the free module " ++
+        s!"`{qualified module}`, whose basis is {", ".intercalate basis}"
+  let i ← index "source" source
+  let j ← index "target" target
+  let m := coordinates.length
+  if rows.length > Limits.spectralRank then failureProblem span subject (.rank rows.length)
+  if exponent > Limits.spectralPower then failureProblem span subject (.exponent exponent)
+  match AlgebraBasis.run (do pure (← numerator.evaluate coordinates, ← denominator.evaluate coordinates)) with
+  | .error error => Namespace.problem span error.code s!"the closed form of {subject} on `{qualified object}`: {error.message}"
+  | .ok (n, d) =>
+    if d.isEmpty then
+      spectralProblem span s!"the denominator of the closed form of {subject} is zero"
+    match AlgebraBasis.run (averageCertificate m rows spectral.characteristic spectral.adjugate localize witness i j d) with
+    | .error error =>
+      Namespace.problem span error.code s!"computing the trace form of {subject}: {error.message}"
+    | .ok none => failureProblem span subject (.denominatorUnit (unitBound d))
+    | .ok (some certificate) =>
+      match checkAverage m rows symmetric spectral.characteristic spectral.adjugate localize witness exponent i j n d
+          certificate with
+      | .ok () => pure (i, j, n, d, certificate)
+      | .error failure => failureProblem span subject failure (names := coordinates)
+
+/-- The embedded copy of the transition average declaration `average`: its
+branch and its closed form. -/
+def averageRef? (env : Environment) (average : DeclId) : Option AverageRef := do
+  let (_, _, branch, _, _, numerator, denominator, _) ← transitionAverageData? env average
+  pure ⟨average, ← branchRef? env branch, numerator, denominator⟩
+
+/-- Elaborate every transition average and every `average_at` observation. -/
+def elaborateAverages (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
+    Namespace.Result Core.Declarations := do
+  let indexed ← env.indexed.mapM fun entry => do
+    match entry.declaration, spectralBody sources entry.id with
+    | .transitionAverage family object branch _ _ _ _ _,
+        some (.transitionAverage _ _ _ source target numerator denominator) =>
+      let (i, j, n, d, certificate) ← elaborateAverage (spectralSpan sources entry.id) env.indexed entry.id family
+        object branch source target numerator denominator
+      pure ⟨entry.id, .transitionAverage family object branch i j n d certificate⟩
+    | _, _ => pure entry
+  let primitives ← env.primitives.mapM fun entry => do
+    match entry.binding with
+    | .averageAt smooth line average =>
+      let some ref := averageRef? indexed average.average
+        | spectralProblem (spectralSpan sources entry.id) <| s!"the average of `average_at` must be a transition " ++
+            s!"average, but `{qualified average.average}` is not a transition average declaration"
+      pure ⟨entry.id, .averageAt smooth line ref⟩
+    | _ => pure entry
   pure { env with indexed, primitives }
 
 end VastitasKernel.Indexed.Source

@@ -1,0 +1,18 @@
+// Data and their uncertainties (historical Stage 6, ADR 0002 §5). On the
+// smooth affine object X of a model, Calibration<X> indexes the calibrations:
+// measured values, each an exact value with a standard uncertainty, of some
+// coordinates of X, with their method of evaluation, a reference and a
+// revision. Dataset<X> indexes the datasets of a model under a calibration,
+// with one coverage factor and at most 64 points. Comparison<X> indexes the
+// recorded comparisons of a dataset with the model's exact prediction: the
+// fingerprint of the calibration and a verdict, which the kernel recomputes.
+// A comparison whose calibration changed is stale (E_STALE).
+//
+// An uncertainty here is physical. It never means the rounding error or the
+// enclosure of a numerical method. This library declares the families only.
+pub indexed family Calibration(object(std::geometry::smooth::affine::CInfAffine))
+    = calibration constraints(canonical(0));
+pub indexed family Dataset(object(std::geometry::smooth::affine::CInfAffine))
+    = dataset constraints(canonical(0));
+pub indexed family Comparison(object(std::geometry::smooth::affine::CInfAffine))
+    = comparison constraints(canonical(0));

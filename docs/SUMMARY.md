@@ -47,6 +47,7 @@
 - [Frames](language/frames.md)
 - [Physical dimensions](language/physical-dimensions.md)
 - [Spectral observations](language/spectral-observations.md)
+- [Physical models](language/physical-models.md)
 - [Storage and ownership](storage-ownership.md)
   - [Resource programs](storage/resource-programs.md)
 - [Numerical maps](linalg/maps-and-gemm.md)

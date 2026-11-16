@@ -26,6 +26,9 @@ eigenvalue candidate `t`):
   or a pullback; `χ′` is the partial derivative in `t`.
 - `projectorMatrix` and `projectorEntry`: the eigenprojector
   `adj(tI − H(p)) / χ′(p, t)` and one of its entries.
+- `averageAt` (Stage 6): the value `N(p)/D(p)` of the closed form of a
+  transition average on the chart `D(g)` of its branch, and the failure value
+  `(0, 0)` off the chart.
 
 No operation computes or orders eigenvalues: the eigenvalue is an operand.
 None checks an identity either: the kernel checks the spectral certificate,
@@ -161,5 +164,17 @@ def projectorEntry (localize characteristic : Poly) (adjugate : List (List Poly)
   match projectorMatrix localize characteristic adjugate point value with
   | some matrix => matrixEntry matrix row column
   | none => (0, 0)
+
+/-! ## Transition averages (Stage 6, #841) -/
+
+/-- The value at `p` of a transition average with the closed form `N / D` of
+a branch with localization `g`: `N(p)/D(p)` as a reduced fraction on the
+chart, `g(p) ≠ 0`, and `(0, 0)` off it, whatever the closed form. The kernel
+checks that `D` is a unit on `D(g)`, so `D(p) ≠ 0` on the chart; a zero
+`D(p)` also gives `(0, 0)`, which no rational has. -/
+def averageAt (localize numerator denominator : Poly) (point : Program) : Int × Int :=
+  let p := coordinates point
+  let d := evalAt denominator p
+  if evalAt localize p != 0 && d != 0 then ratPair (evalAt numerator p / d) else (0, 0)
 
 end VastitasKernel.SpectralRuntime

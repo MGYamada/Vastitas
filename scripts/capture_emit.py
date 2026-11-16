@@ -89,7 +89,8 @@ KERNEL_FIXTURE_MODULES = [
     "VastitasKernel.IndexedDispatchRegression", "VastitasKernel.IndexedAuthorityRegression",
     "VastitasKernel.SmoothObjectRegression", "VastitasKernel.CotangentRegression",
     "VastitasKernel.MetricFormRegression", "VastitasKernel.ReverseCoreRegression",
-    "VastitasKernel.FrameRegression", "VastitasKernel.SpectralRegression", "VastitasKernel.IndexedCodegen"]
+    "VastitasKernel.FrameRegression", "VastitasKernel.SpectralRegression", "VastitasKernel.AverageRegression",
+    "VastitasKernel.IndexedCodegen"]
 STDLIB_INT = "stdlib/src/arithmetic/int.vast"
 STDLIB_NAT = "stdlib/src/arithmetic/nat.vast"
 STDLIB_GENERIC = "stdlib/src/arithmetic/generic.vast"

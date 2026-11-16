@@ -69,9 +69,12 @@ private def renderType (env : Declarations) : DataType → Except String String
         | .relative => algebra "Map" | .smooth => smooth "Program"
         | .fiber _ => s!"(Option {smooth "Fiber"})" | .tape => smooth "Tape"
         -- No value has a metric form, frame, reading or physical metric type,
-        -- nor a free module, endomorphism, spectrum or branch type (Stage 5).
+        -- nor a free module, endomorphism, spectrum or branch type (Stage 5),
+        -- nor a transition average, model, calibration, dataset or
+        -- comparison type (Stage 6).
         | .metricForm | .frame | .reading | .physicalMetric
-        | .freeModule | .endomorphism | .spectrum | .branch => "Unit"
+        | .freeModule | .endomorphism | .spectrum | .branch
+        | .transitionAverage | .model | .calibration | .dataset | .comparison => "Unit"
         -- The coordinates of a vector or covector in a frame are a fiber.
         | .frameFiber _ => s!"(Option {smooth "Fiber"})"
         | .frameMap => frame "FrameMatrixValue")

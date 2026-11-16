@@ -90,12 +90,14 @@ def bindingSpectral : PrimitiveBinding → List DeclId
   | .spectralInvariant _ _ invariant => invariantNames invariant
   | .annihilates _ spectrum _ | .actionEntry _ spectrum _ _ _ => spectrumNames spectrum
   | .onBranch _ _ branch | .branchDifferential _ _ _ branch | .branchProjector _ _ branch _ _ => branchNames branch
+  | .averageAt _ _ average => branchNames average.branch
   | _ => []
 
-/-- The spectral bindings of Stage 5. -/
+/-- The spectral bindings of Stage 5, and the transition average observation
+of Stage 6. -/
 def SpectralBinding : PrimitiveBinding → Prop
   | .spectralInvariant .. | .annihilates .. | .actionEntry .. | .onBranch .. | .branchDifferential ..
-  | .branchProjector .. => True
+  | .branchProjector .. | .averageAt .. => True
   | _ => False
 
 /-- Every binding other than a spectral one names no spectral declaration. -/
@@ -257,6 +259,9 @@ theorem isSpectrumFamily_append (id : DeclId) : isSpectrumFamily big id = isSpec
 theorem isBranchFamily_append (id : DeclId) : isBranchFamily big id = isBranchFamily small id := by
   simp only [isBranchFamily, familyRepresentation_append ext]
 
+theorem isCalibrationFamily_append (id : DeclId) : isCalibrationFamily big id = isCalibrationFamily small id := by
+  simp only [isCalibrationFamily, familyRepresentation_append ext]
+
 theorem globalObject_append (id : DeclId) : globalObject big id = globalObject small id := by
   simp only [globalObject, objectImplementation_append ext]
 
@@ -295,6 +300,10 @@ theorem isBaseDimension_append (id : DeclId) : isBaseDimension big id = isBaseDi
 
 theorem quantityDimension_append (id : DeclId) : quantityDimension? big id = quantityDimension? small id := by
   spectral_view ext quantityDimension? id
+
+theorem transitionAverageData_append (id : DeclId) :
+    transitionAverageData? big id = transitionAverageData? small id := by
+  spectral_view ext transitionAverageData? id
 
 theorem readingData_append (id : DeclId) : readingData? big id = readingData? small id := by
   spectral_view ext readingData? id
@@ -558,6 +567,10 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding}
     · rw [absent, found]
       cases declaration <;> simp only [SpectralDeclaration] at kind <;>
         (cases metricData? small metric <;> rfl)
+  | averageAt smooth line average =>
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, SpectralRegistry.averageAt,
+      PrimitiveDescriptor.ofBool, averageAtValid, averageDeclared, isSmoothFamily_append ext,
+      smoothDimension_append ext, transitionAverageData_append ext, branchDeclared_append names]
   | _ =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
       implementationType_append ext, affineImplementation_append ext,
@@ -598,7 +611,9 @@ theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List V
     FrameRegistry.frameCoapply, FrameRegistry.frameCompose, FrameRegistry.framePairing,
     FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt,
     SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
-    SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector]
+    SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector,
+      -- The transition average observation of Stage 6 evaluates without the environment.
+      SpectralRegistry.averageAt]
 
 /-! ### Declarations -/
 
@@ -671,9 +686,13 @@ theorem checkPhysicalMetric_append (family object metric reading : DeclId) (valu
     quantityDimension_fun ext, entryValues_append ext]
 
 /-- A declaration whose validity a spectral extension cannot change: every
-declaration that is not an endomorphism, a spectrum or a branch. -/
+declaration that is not an endomorphism, a spectrum, a branch, a transition
+average, a model, a dataset or a comparison (Stage 6), each of which reads
+the spectral declarations that it names through a field, an average or a
+model. -/
 def NamesNoSpectral : Declaration → Prop
-  | .endomorphism .. | .spectrum .. | .branch .. => False
+  | .endomorphism .. | .spectrum .. | .branch .. | .transitionAverage .. | .model .. | .dataset .. | .comparison .. =>
+    False
   | _ => True
 
 /-- **Weakening of declaration validity.** A spectral extension changes the
@@ -718,6 +737,14 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   | endomorphism => rw [h] at other; exact other.elim
   | spectrum => rw [h] at other; exact other.elim
   | branch => rw [h] at other; exact other.elim
+  | transitionAverage => rw [h] at other; exact other.elim
+  | convention value => simp only [validEntry, h, NatureModel.checkConvention]
+  | model => rw [h] at other; exact other.elim
+  | calibration family object parameters method reference revision =>
+    simp only [validEntry, h, NatureErrorbar.checkCalibration, SpectralDeclarations.declaredAt,
+      isCalibrationFamily_append ext, validApplication_fun ext, smoothDimension_append ext]
+  | dataset => rw [h] at other; exact other.elim
+  | comparison => rw [h] at other; exact other.elim
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
     (other : NamesNoSpectral entry.declaration) :

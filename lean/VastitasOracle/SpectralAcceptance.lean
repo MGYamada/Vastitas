@@ -850,7 +850,8 @@ theorem c13_weakening {pre extra post : Environment} (unique : ((pre ++ extra ++
     exact ⟨valid, evaluated values⟩
   · obtain ⟨h1, h2, h3, h4, h5, h6⟩ := SpectralCore.spectral_bindings_environment_free env env' values
     cases binding <;> first | exact (spectralBinding : False).elim | skip
+    -- The transition average observation of Stage 6 evaluates without the environment.
     all_goals first | exact h1 _ _ _ | exact h2 _ _ _ | exact h3 _ _ _ _ _ | exact h4 _ _ _ | exact h5 _ _ _ _ |
-      exact h6 _ _ _ _ _
+      exact h6 _ _ _ _ _ | rfl
 
 end VastitasOracle.SpectralAcceptance

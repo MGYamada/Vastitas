@@ -470,6 +470,11 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding}
       PrimitiveDescriptor.ofBool, frameTransitionValid, isSmoothFamily_append ext.profile,
       isFrameMapFamily_append ext.profile, frameDeclared_of_lookup sameSource, frameDeclared_of_lookup sameTarget,
       validApplication_frame2 ext _ sameSource sameTarget]
+  -- The transition average observation of Stage 6 names no frame.
+  | averageAt smooth line average =>
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, SpectralRegistry.averageAt,
+      PrimitiveDescriptor.ofBool, averageAtValid, averageDeclared, isSmoothFamily_append ext.profile,
+      smoothDimension_append ext.profile, transitionAverageData_append ext.profile, branchDeclared_append ext]
   | _ =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
       implementationType_append ext.profile, affineImplementation_append ext.profile,
@@ -604,6 +609,34 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
     simp only [validEntry, h, SpectralDeclarations.checkBranch, SpectralDeclarations.declaredAt,
       isBranchFamily, familyRepresentation_append ext, validApplication_object1 ext,
       smoothDimension_append ext.profile, spectrumData_append ext.profile, endomorphismData_append ext.profile]
+  -- The transition averages of Stage 6 read no frame declaration (#841).
+  | transitionAverage family object branch source target numerator denominator certificate =>
+    simp only [validEntry, h, SpectralDeclarations.checkTransitionAverage, SpectralDeclarations.declaredAt,
+      isTransitionAverageFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, branchData_append ext.profile, spectrumData_append ext.profile,
+      endomorphismData_append ext.profile]
+  -- The declarations of nature::model and nature::errorbar read no frame declaration (#841).
+  | convention value => simp only [validEntry, h, NatureModel.checkConvention]
+  | model family object hamiltonian reading convention prepare observe predicts regime =>
+    simp only [validEntry, h, NatureModel.checkModel, NatureModel.predictsAverage, SpectralDeclarations.declaredAt,
+      isModelFamily, familyRepresentation_append ext, validApplication_object1 ext, smoothDimension_append ext.profile,
+      endomorphismData_append ext.profile, freeModuleData_append ext.profile, readingData_append ext,
+      conventionData_append ext.profile, transitionAverageData_append ext.profile, branchData_append ext.profile,
+      spectrumData_append ext.profile]
+  | calibration family object parameters method reference revision =>
+    simp only [validEntry, h, NatureErrorbar.checkCalibration, SpectralDeclarations.declaredAt, isCalibrationFamily,
+      familyRepresentation_append ext, validApplication_object1 ext, smoothDimension_append ext.profile]
+  | dataset family object model calibration coverage points =>
+    simp only [validEntry, h, NatureErrorbar.checkDataset, NatureErrorbar.prediction?,
+      SpectralDeclarations.declaredAt, isDatasetFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, modelData_append ext.profile, calibrationData_append ext.profile,
+      transitionAverageData_append ext.profile, branchData_append ext.profile]
+  | comparison family object dataset calibration fingerprint verdict =>
+    simp only [validEntry, h, NatureErrorbar.checkComparison, NatureErrorbar.prediction?,
+      SpectralDeclarations.declaredAt, isComparisonFamily, familyRepresentation_append ext,
+      validApplication_object1 ext, smoothDimension_append ext.profile, smoothCoordinates_append ext.profile,
+      datasetData_append ext.profile, calibrationData_append ext.profile, modelData_append ext.profile,
+      transitionAverageData_append ext.profile, branchData_append ext.profile]
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
     entry.Valid big ranks ↔ entry.Valid small ranks := by

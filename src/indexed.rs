@@ -285,6 +285,125 @@ pub enum DeclarationBody {
         witness: PolyExpr,
         exponent: String,
     },
+    /// A dephased transition average `family<object>` of a simple branch,
+    /// from the basis vector `from` to the basis vector `to` of the module of
+    /// its field, with its closed form `numerator / denominator` (protocol 9,
+    /// Stage 6). The kernel computes the certificate; the wire never carries
+    /// one.
+    TransitionAverage {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        branch: TypePath,
+        from: String,
+        to: String,
+        numerator: PolyExpr,
+        denominator: PolyExpr,
+    },
+    /// A convention of `nature::model` (protocol 9, Stage 6).
+    Convention {
+        value: ConventionKind,
+    },
+    /// A model `family<object>` of `nature::model`: its field, reading,
+    /// convention, prepared and observed basis vectors, predicted average and
+    /// regime, a recorded assumption (protocol 9, Stage 6).
+    Model {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        hamiltonian: TypePath,
+        reading: TypePath,
+        convention: TypePath,
+        prepare: String,
+        observe: String,
+        predicts: TypePath,
+        regime: String,
+    },
+    /// A calibration `family<object>` of `nature::errorbar`: measured values
+    /// of some coordinates, the method of evaluation, a reference and a
+    /// revision (protocol 9, Stage 6).
+    Calibration {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        parameters: Vec<Calibrated>,
+        method: CalibrationMethod,
+        reference: String,
+        revision: String,
+    },
+    /// A dataset `family<object>` of `nature::errorbar` of a model under a
+    /// calibration: a constant coverage factor and its points (protocol 9,
+    /// Stage 6).
+    Dataset {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        model: TypePath,
+        calibration: TypePath,
+        coverage: PolyExpr,
+        points: Vec<DataPoint>,
+    },
+    /// A comparison `family<object>` of `nature::errorbar`: a dataset, the
+    /// recorded fingerprint of its calibration and the recorded verdict,
+    /// which the kernel recomputes (protocol 9, Stage 6).
+    Comparison {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        dataset: TypePath,
+        calibration: TypePath,
+        fingerprint: String,
+        verdict: Verdict,
+    },
+}
+
+/// The convention of a model (Stage 6): `hbar_one` writes energies as
+/// angular frequencies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConventionKind {
+    HbarOne,
+}
+
+/// How the uncertainties of a calibration were evaluated (Stage 6): type A
+/// or type B of the guide to the expression of uncertainty in measurement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CalibrationMethod {
+    TypeA,
+    TypeB,
+}
+
+/// The recorded verdict of a comparison (Stage 6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Verdict {
+    Consistent,
+    Inconsistent,
+}
+
+/// One calibrated coordinate of a calibration (Stage 6): its constant value
+/// and its standard uncertainty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Calibrated {
+    pub coordinate: String,
+    pub value: PolyExpr,
+    pub uncertainty: PolyExpr,
+}
+
+/// The constant value of one coordinate at a point of a dataset (Stage 6).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PointCoordinate {
+    pub coordinate: String,
+    pub value: PolyExpr,
+}
+
+/// One point of a dataset (Stage 6): the values of the coordinates that the
+/// calibration does not give, and the measured value of the observable with
+/// its standard uncertainty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DataPoint {
+    pub coordinates: Vec<PointCoordinate>,
+    pub value: PolyExpr,
+    pub uncertainty: PolyExpr,
 }
 
 /// The columns of a frame: `coordinates`, the coordinate frame, or
@@ -410,8 +529,11 @@ pub enum MorphismDefinition {
 
 impl DeclarationBody {
     /// Stage 2 algebraic, Stage 3 smooth and metric, Stage 4 frame and
-    /// physical dimension, and Stage 5 spectral forms. They exist only in
-    /// protocol 9.
+    /// physical dimension, and Stage 5 and 6 spectral forms (the transition
+    /// average and `average_at` included): the kernel's feature `algebraic`,
+    /// which only protocol 9 admits. The model and data forms of Stage 6 are
+    /// the kernel's feature `physicalModels`; they select no protocol here,
+    /// since every package request is protocol 9 (#533).
     pub fn is_algebraic(&self) -> bool {
         match self {
             DeclarationBody::Affine { .. }
@@ -432,7 +554,8 @@ impl DeclarationBody {
             | DeclarationBody::FreeModule { .. }
             | DeclarationBody::Endomorphism { .. }
             | DeclarationBody::Spectrum { .. }
-            | DeclarationBody::Branch { .. } => true,
+            | DeclarationBody::Branch { .. }
+            | DeclarationBody::TransitionAverage { .. } => true,
             DeclarationBody::Primitive { binding } => binding.family().algebraic,
             DeclarationBody::Implementation { representation, .. } => matches!(
                 representation,
@@ -461,6 +584,7 @@ impl DeclarationBody {
                         | FamilyRepresentation::Endomorphism
                         | FamilyRepresentation::Spectrum
                         | FamilyRepresentation::Branch
+                        | FamilyRepresentation::TransitionAverage
                 ) || constraints.iter().any(|c| {
                     matches!(
                         c,
@@ -610,6 +734,22 @@ pub enum FamilyRepresentation {
     /// `Branch(X)`: indexes the simple branches of spectra over a smooth
     /// object (protocol 9, Stage 5). No value has this type.
     Branch,
+    /// `TransitionAverage(X)`: indexes the transition averages of simple
+    /// branches over a smooth object (protocol 9, Stage 6). No value has this
+    /// type.
+    TransitionAverage,
+    /// `Model(X)`: indexes the models of `nature::model` over a smooth object
+    /// (protocol 9, Stage 6). No value has this type.
+    Model,
+    /// `Calibration(X)`: indexes the calibrations of `nature::errorbar` over a
+    /// smooth object (protocol 9, Stage 6). No value has this type.
+    Calibration,
+    /// `Dataset(X)`: indexes the datasets of `nature::errorbar` over a smooth
+    /// object (protocol 9, Stage 6). No value has this type.
+    Dataset,
+    /// `Comparison(X)`: indexes the comparisons of `nature::errorbar` over a
+    /// smooth object (protocol 9, Stage 6). No value has this type.
+    Comparison,
 }
 
 /// How a cotangent pullback obtains forward values.
@@ -1460,6 +1600,196 @@ mod tests {
         assert!(serde_json::from_value::<MorphismDefinition>(certificate).is_err());
     }
 
+    /// The Stage 6 forms (#841): the transition average of
+    /// `std::linalg::spectral`, the convention and the model of
+    /// `nature::model`, the calibration, the dataset and the comparison of
+    /// `nature::errorbar`, their family representations and `average_at`
+    /// serialize to the wire shapes that the kernel decodes and read back. The
+    /// transition average, its family and `average_at` are algebraic; the
+    /// model and data forms are not, and select protocol 9 only as package
+    /// input (#533). No form has a field for a certificate, and each record
+    /// rejects an unknown field, as the kernel does.
+    #[test]
+    fn every_stage6_form_serializes_to_its_wire_shape() {
+        let p = |name: &str| serde_json::to_value(path(name)).unwrap();
+        let natural = |value: &str| PolyExpr::Natural {
+            value: value.into(),
+        };
+        let fraction = |numerator: &str, denominator: &str| PolyExpr::Fraction {
+            numerator: numerator.into(),
+            denominator: denominator.into(),
+        };
+        let coordinate = |name: &str| PolyExpr::Coordinate { name: name.into() };
+        let n = |value: &str| serde_json::json!({"op": "natural", "value": value});
+        let f = |numerator: &str, denominator: &str| serde_json::json!({"op": "fraction", "numerator": numerator, "denominator": denominator});
+        let c = |name: &str| serde_json::json!({"op": "coordinate", "name": name});
+        let cases: Vec<(DeclarationBody, serde_json::Value)> = vec![
+            (
+                DeclarationBody::TransitionAverage {
+                    family: path("TransitionAverage"),
+                    indices: vec![path("P")],
+                    branch: path("B"),
+                    from: "g".into(),
+                    to: "e".into(),
+                    numerator: coordinate("omega"),
+                    denominator: coordinate("delta"),
+                },
+                serde_json::json!({
+                    "kind": "transition_average", "family": p("TransitionAverage"),
+                    "indices": [p("P")], "branch": p("B"), "from": "g", "to": "e",
+                    "numerator": c("omega"), "denominator": c("delta")
+                }),
+            ),
+            (
+                DeclarationBody::Convention {
+                    value: ConventionKind::HbarOne,
+                },
+                serde_json::json!({"kind": "convention", "value": "hbar_one"}),
+            ),
+            (
+                DeclarationBody::Model {
+                    family: path("Model"),
+                    indices: vec![path("P")],
+                    hamiltonian: path("H"),
+                    reading: path("r"),
+                    convention: path("c"),
+                    prepare: "g".into(),
+                    observe: "e".into(),
+                    predicts: path("A"),
+                    regime: "rotating-wave approximation".into(),
+                },
+                serde_json::json!({
+                    "kind": "model", "family": p("Model"), "indices": [p("P")],
+                    "hamiltonian": p("H"), "reading": p("r"), "convention": p("c"),
+                    "prepare": "g", "observe": "e", "predicts": p("A"),
+                    "regime": "rotating-wave approximation"
+                }),
+            ),
+            (
+                DeclarationBody::Calibration {
+                    family: path("Calibration"),
+                    indices: vec![path("P")],
+                    parameters: vec![Calibrated {
+                        coordinate: "omega".into(),
+                        value: fraction("5", "2"),
+                        uncertainty: fraction("1", "20"),
+                    }],
+                    method: CalibrationMethod::TypeB,
+                    reference: "JCGM 100:2008".into(),
+                    revision: "1".into(),
+                },
+                serde_json::json!({
+                    "kind": "calibration", "family": p("Calibration"), "indices": [p("P")],
+                    "parameters": [{"coordinate": "omega", "value": f("5", "2"),
+                        "uncertainty": f("1", "20")}],
+                    "method": "type_b", "reference": "JCGM 100:2008", "revision": "1"
+                }),
+            ),
+            (
+                DeclarationBody::Dataset {
+                    family: path("Dataset"),
+                    indices: vec![path("P")],
+                    model: path("M"),
+                    calibration: path("K"),
+                    coverage: natural("2"),
+                    points: vec![DataPoint {
+                        coordinates: vec![PointCoordinate {
+                            coordinate: "delta".into(),
+                            value: natural("0"),
+                        }],
+                        value: fraction("1", "2"),
+                        uncertainty: fraction("1", "50"),
+                    }],
+                },
+                serde_json::json!({
+                    "kind": "dataset", "family": p("Dataset"), "indices": [p("P")],
+                    "model": p("M"), "calibration": p("K"), "coverage": n("2"),
+                    "points": [{"coordinates": [{"coordinate": "delta", "value": n("0")}],
+                        "value": f("1", "2"), "uncertainty": f("1", "50")}]
+                }),
+            ),
+            (
+                DeclarationBody::Comparison {
+                    family: path("Comparison"),
+                    indices: vec![path("P")],
+                    dataset: path("D"),
+                    calibration: path("K"),
+                    fingerprint: "0123456789abcdef".into(),
+                    verdict: Verdict::Consistent,
+                },
+                serde_json::json!({
+                    "kind": "comparison", "family": p("Comparison"), "indices": [p("P")],
+                    "dataset": p("D"), "calibration": p("K"),
+                    "fingerprint": "0123456789abcdef", "verdict": "consistent"
+                }),
+            ),
+            (
+                primitive(
+                    "average_at",
+                    paths(&[("map_family", "Smooth"), ("line", "Line"), ("average", "A")]),
+                ),
+                serde_json::json!({
+                    "kind": "primitive", "binding": {"op": "average_at", "map_family": p("Smooth"),
+                        "line": p("Line"), "average": p("A")}
+                }),
+            ),
+        ];
+        for (body, expected) in &cases {
+            let spectral = matches!(
+                body,
+                DeclarationBody::TransitionAverage { .. } | DeclarationBody::Primitive { .. }
+            );
+            assert_eq!(body.is_algebraic(), spectral, "{body:?}");
+            let json = serde_json::to_value(body).unwrap();
+            assert_eq!(&json, expected, "{body:?}");
+            assert_eq!(
+                &serde_json::from_value::<DeclarationBody>(json).unwrap(),
+                body
+            );
+        }
+        for (representation, wire) in [
+            (
+                FamilyRepresentation::TransitionAverage,
+                "transition_average",
+            ),
+            (FamilyRepresentation::Model, "model"),
+            (FamilyRepresentation::Calibration, "calibration"),
+            (FamilyRepresentation::Dataset, "dataset"),
+            (FamilyRepresentation::Comparison, "comparison"),
+        ] {
+            assert_eq!(serde_json::to_value(representation).unwrap(), wire);
+            let family = DeclarationBody::Family {
+                parameters: Vec::new(),
+                constraints: Vec::new(),
+                representation,
+            };
+            assert_eq!(
+                family.is_algebraic(),
+                representation == FamilyRepresentation::TransitionAverage,
+                "{family:?}"
+            );
+        }
+        for (method, wire) in [
+            (CalibrationMethod::TypeA, "type_a"),
+            (CalibrationMethod::TypeB, "type_b"),
+        ] {
+            assert_eq!(serde_json::to_value(method).unwrap(), wire);
+        }
+        assert_eq!(
+            serde_json::to_value(Verdict::Inconsistent).unwrap(),
+            "inconsistent"
+        );
+        // A calibrated coordinate and a point reject an unknown field, as
+        // the kernel does; no record carries a certificate or a fingerprint
+        // that the kernel computes.
+        let unit = serde_json::json!({"coordinate": "omega", "value": n("1"),
+            "uncertainty": n("1"), "unit": "Hz"});
+        assert!(serde_json::from_value::<Calibrated>(unit).is_err());
+        let weight = serde_json::json!({"coordinates": [], "value": n("1"),
+            "uncertainty": n("1"), "weight": n("1")});
+        assert!(serde_json::from_value::<DataPoint>(weight).is_err());
+    }
+
     #[test]
     fn descriptor_forms_are_not_algebraic() {
         let forms = [
@@ -1534,6 +1864,7 @@ mod tests {
             "on_branch",
             "branch_differential",
             "branch_projector",
+            "average_at",
         ];
         let mut table: Vec<&str> = primitive_families()
             .iter()

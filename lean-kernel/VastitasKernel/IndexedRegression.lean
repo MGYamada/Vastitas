@@ -124,6 +124,19 @@ private def renameDeclaration : Declaration → Declaration
     .spectrum (renameId family) (renameId object) (renameId endomorphism) fiber certificate
   | .branch family object spectrum localize witness exponent quotient =>
     .branch (renameId family) (renameId object) (renameId spectrum) localize witness exponent quotient
+  | .transitionAverage family object branch source target numerator denominator certificate =>
+    .transitionAverage (renameId family) (renameId object) (renameId branch) source target numerator denominator
+      certificate
+  | .convention value => .convention value
+  | .model family object hamiltonian reading convention prepare observe predicts regime =>
+    .model (renameId family) (renameId object) (renameId hamiltonian) (renameId reading) (renameId convention)
+      prepare observe (renameId predicts) regime
+  | .calibration family object parameters method reference revision =>
+    .calibration (renameId family) (renameId object) parameters method reference revision
+  | .dataset family object model calibration coverage points =>
+    .dataset (renameId family) (renameId object) (renameId model) (renameId calibration) coverage points
+  | .comparison family object dataset calibration fingerprint verdict =>
+    .comparison (renameId family) (renameId object) (renameId dataset) (renameId calibration) fingerprint verdict
 private def renamed : Environment := env.map fun e => ⟨renameId e.id, renameDeclaration e.declaration⟩
 #eval check "coherent library renaming preserves acceptance" (validEnvironment renamed &&
   validApplication renamed ⟨renameId (id "Position"), [

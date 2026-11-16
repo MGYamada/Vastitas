@@ -25,7 +25,8 @@ the empty monomial, `fiber_component` with coordinate `0`, `flat` and
 frame bindings (Stage 4) with every named frame as `FrameRef.placeholder`, and
 the spectral observations (Stage 5) with every named spectrum or branch as
 `SpectrumRef.placeholder` or `BranchRef.placeholder`, the empty element and
-row and column `0`.
+row and column `0`, and `average_at` (Stage 6) with the named average as
+`AverageRef.placeholder`.
 `resolveFirst` names the fields the resolver resolves before the others, in
 that order; the resolver resolves the rest in wire order. The order is
 observable: the first name that does not resolve is the one reported, and the
@@ -96,6 +97,11 @@ def SpectrumRef.placeholder (spectrum : DeclId) : SpectrumRef :=
 own ID as its spectrum, empty polynomials and exponent `0`. `elaborateSpectral`
 replaces it with the declarations' data. -/
 def BranchRef.placeholder (branch : DeclId) : BranchRef := ⟨branch, SpectrumRef.placeholder branch, [], [], 0⟩
+
+/-- The placeholder of a transition average that `average_at` names (Stage 6):
+its own ID as its branch and an empty closed form. `elaborateAverages` is to
+replace it with the declarations' data. -/
+def AverageRef.placeholder (average : DeclId) : AverageRef := ⟨average, BranchRef.placeholder average, [], []⟩
 
 /-! The op and field names that a stage pass reads back from a source form.
 The family entries use these definitions, so a pass reads exactly the fields
@@ -369,7 +375,16 @@ def families : List PrimitiveFamily := [
     build := fun
       | [.declaration smooth, .declaration line, .declaration branch, .coordinate _, .coordinate _] =>
           pure (.branchProjector smooth line (BranchRef.placeholder branch) 0 0)
-      | _ => mismatch WireName.branchProjector } ]
+      | _ => mismatch WireName.branchProjector },
+  /- Transition averages (Stage 6, #841, protocol 9). The average that the
+  binding names is embedded as a placeholder (`AverageRef.placeholder`):
+  `elaborateAverages` is to fill it from the declarations. -/
+  { op := "average_at", algebraic := true, fields := [path "map_family", path "line", path "average"],
+    resolveFirst := ["average"],
+    build := fun
+      | [.declaration smooth, .declaration line, .declaration average] =>
+          pure (.averageAt smooth line (AverageRef.placeholder average))
+      | _ => mismatch "average_at" } ]
 
 /-- The family of a wire op. -/
 def primitiveFamily? (op : String) : Option PrimitiveFamily :=

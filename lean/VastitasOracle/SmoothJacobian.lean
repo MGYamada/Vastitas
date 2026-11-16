@@ -495,5 +495,6 @@ theorem registry_reverse_sound : ∀ binding : PrimitiveBinding, ReverseSound bi
   | .onBranch _ _ _ => trivial
   | .branchDifferential _ _ _ _ => trivial
   | .branchProjector _ _ _ _ _ => trivial
+  | .averageAt _ _ _ => trivial
 
 end VastitasOracle.SmoothJacobian

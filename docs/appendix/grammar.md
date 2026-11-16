@@ -49,6 +49,8 @@ EXPONENT -> ( `e` | `E` ) ( `+` | `-` )? ASCII_DIGIT+
 HEX_FLOAT -> ( `0x` | `0X` ) ( HEX_DIGIT+ ( `.` HEX_DIGIT* )? | `.` HEX_DIGIT+ )
     ( `p` | `P` ) ( `+` | `-` )? ASCII_DIGIT+
 HEX_DIGIT -> ASCII_DIGIT | [`a`-`f`] | [`A`-`F`]
+STRING_LITERAL -> `"` STRING_CHARACTER* `"`
+STRING_CHARACTER -> [` `-`!`] | [`#`-`[`] | [`]`-`~`]
 ```
 
 [Punctuation](../language/lexical-structure.md#punctuation):
@@ -367,6 +369,7 @@ IndexedDeclaration -> MarkerDeclaration | DescriptorImplementation
     | ScalarBaseImplementation | LinearImplementation
     | SmoothDeclaration | AffineDeclaration
     | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
+    | PhysicalModelDeclaration
 ```
 
 [Markers](../indexed-source.md#markers):
@@ -743,6 +746,7 @@ Chapter: [Spectral observations](../language/spectral-observations.md).
 ```text
 SpectralDeclaration -> SpectralFamily | FreeModuleDeclaration
     | EndomorphismDeclaration | SpectrumDeclaration | BranchDeclaration
+    | TransitionAverageDeclaration
 ```
 
 [The spectral profile](../language/spectral-observations.md#the-spectral-profile):
@@ -751,6 +755,7 @@ SpectralDeclaration -> SpectralFamily | FreeModuleDeclaration
 SpectralFamily -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
     `=` SpectralRepresentation `constraints` `(` Constraints? `)` `;`
 SpectralRepresentation -> `free_module` | `endomorphism` | `spectrum` | `branch`
+    | `transition_average`
 ```
 
 [Free modules](../language/spectral-observations.md#free-modules):
@@ -789,6 +794,7 @@ SpectralInvariant -> `trace_power` `(` Path `,` INTEGER_LITERAL `)`
 
 ```text
 SpectralBinding -> ModuleObservationBinding | BranchObservationBinding
+    | AverageObservationBinding
 ModuleObservationBinding -> `annihilates` `(` Path `,` `spectrum` `=` Path
       `,` `element` `=` Polynomial `)`
     | `action_entry` `(` Path `,` `spectrum` `=` Path
@@ -811,6 +817,89 @@ BranchObservationBinding -> `on_branch` `(` Path `,` Path `,` `branch` `=` Path 
     | `branch_differential` `(` Path `,` Path `,` Path `,` `branch` `=` Path `)`
     | `branch_projector` `(` Path `,` Path `,` `branch` `=` Path
       `,` IDENTIFIER `,` IDENTIFIER `)`
+```
+
+[Transition averages](../language/spectral-observations.md#transition-averages):
+
+```text
+TransitionAverageDeclaration -> `indexed` `average` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `transition_average` `(` Path
+    `,` `from` `=` IDENTIFIER `,` `to` `=` IDENTIFIER `)`
+    `=` `ratio` `(` Polynomial `,` Polynomial `)` `;`
+```
+
+[Average observations](../language/spectral-observations.md#average-observations):
+
+```text
+AverageObservationBinding -> `average_at` `(` Path `,` Path `,` `average` `=` Path `)`
+```
+
+## Physical models
+
+Chapter: [Physical models](../language/physical-models.md).
+
+```text
+PhysicalModelDeclaration -> ModelFamily | ConventionDeclaration
+    | ModelDeclaration | CalibrationDeclaration | DatasetDeclaration
+    | ComparisonDeclaration
+```
+
+[The model profile](../language/physical-models.md#the-model-profile):
+
+```text
+ModelFamily -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
+    `=` ModelRepresentation `constraints` `(` Constraints? `)` `;`
+ModelRepresentation -> `model` | `calibration` | `dataset` | `comparison`
+```
+
+[Conventions](../language/physical-models.md#conventions):
+
+```text
+ConventionDeclaration -> `indexed` `convention` IDENTIFIER `=` `hbar_one` `;`
+```
+
+[Models](../language/physical-models.md#models):
+
+```text
+ModelDeclaration -> `indexed` `model` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `model` `(` `hamiltonian` `=` Path
+    `,` `reading` `=` Path `,` `convention` `=` Path
+    `,` `prepare` `=` IDENTIFIER `,` `observe` `=` IDENTIFIER
+    `,` `predicts` `=` Path `,` `regime` `=` `assume` `(` STRING_LITERAL `)` `)` `;`
+```
+
+[Calibrations](../language/physical-models.md#calibrations):
+
+```text
+CalibrationDeclaration -> `indexed` `calibration` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `calibrate` `(`
+    ( CoordinateName `=` Measured `,` )*
+    `method` `=` CalibrationMethod `,` `reference` `=` STRING_LITERAL
+    `,` `revision` `=` STRING_LITERAL `)` `;`
+CalibrationMethod -> `type_a` | `type_b`
+Measured -> `measured` `(` Rational `,` `u` `=` Rational `)`
+Rational -> `-`? ( Fraction | INTEGER_LITERAL )
+```
+
+[Datasets](../language/physical-models.md#datasets):
+
+```text
+DatasetDeclaration -> `indexed` `dataset` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `measure` `(` `model` `=` Path
+    `,` `calibration` `=` Path `,` `coverage` `=` Rational
+    `,` `points` `=` DataPoints `)` `;`
+DataPoints -> `[` ( DataPoint ( `,` DataPoint )* `,`? )? `]`
+DataPoint -> `(` ( CoordinateName `=` Rational `,` )* `value` `=` Measured `)`
+```
+
+[Comparisons](../language/physical-models.md#comparisons):
+
+```text
+ComparisonDeclaration -> `indexed` `comparison` IDENTIFIER `:` Path
+    `<` Path ( `,` Path )* `>` `=` `compare` `(` Path
+    `,` `calibration` `=` Path `,` `fingerprint` `=` STRING_LITERAL
+    `,` `verdict` `=` Verdict `)` `;`
+Verdict -> `consistent` | `inconsistent`
 ```
 
 ## Resource programs

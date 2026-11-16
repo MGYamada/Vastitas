@@ -34,6 +34,7 @@ The declarations of this chapter are the forms of `SpectralDeclaration`:
 > ```text
 > SpectralDeclaration -> SpectralFamily | FreeModuleDeclaration
 >     | EndomorphismDeclaration | SpectrumDeclaration | BranchDeclaration
+>     | TransitionAverageDeclaration
 > ```
 
 Each declaration of this chapter is an [item](items.md):
@@ -52,6 +53,7 @@ before a declaration makes it visible outside its module.
 > SpectralFamily -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
 >     `=` SpectralRepresentation `constraints` `(` Constraints? `)` `;`
 > SpectralRepresentation -> `free_module` | `endomorphism` | `spectrum` | `branch`
+>     | `transition_average`
 > ```
 
 [Families](../indexed-source.md#families) gives the productions
@@ -66,6 +68,7 @@ the types has a value. In the table, `X` is a smooth affine object.
 | `endomorphism` | `Endomorphism<X>` | The [endomorphism fields](#endomorphism-fields) on `X` |
 | `spectrum` | `Spectrum<X>` | The [spectral pairs](#spectral-pairs) of the fields on `X` |
 | `branch` | `Branch<X>` | The [finite charts](#branches) of the spectra on `X` |
+| `transition_average` | `TransitionAverage<X>` | The [transition averages](#transition-averages) of the branches on `X` |
 
 Rules:
 
@@ -416,6 +419,7 @@ constant −4. The invariants of `Zero` and `N` are all 0.
 >
 > ```text
 > SpectralBinding -> ModuleObservationBinding | BranchObservationBinding
+>     | AverageObservationBinding
 > ModuleObservationBinding -> `annihilates` `(` Path `,` `spectrum` `=` Path
 >       `,` `element` `=` Polynomial `)`
 >     | `action_entry` `(` Path `,` `spectrum` `=` Path
@@ -699,6 +703,86 @@ difference is H(p).
 > takes λ as a hypothesis, and no theorem states that such a λ exists. The
 > sum of the two eigenprojectors of the example is a property of that field:
 > no observation forms a sum over the eigenvalues of a field.
+
+## Transition averages
+
+> **Syntax**
+>
+> ```text
+> TransitionAverageDeclaration -> `indexed` `average` IDENTIFIER `:` Path
+>     `<` Path ( `,` Path )* `>` `=` `transition_average` `(` Path
+>     `,` `from` `=` IDENTIFIER `,` `to` `=` IDENTIFIER `)`
+>     `=` `ratio` `(` Polynomial `,` Polynomial `)` `;`
+> ```
+
+A transition average of a branch is the sum Σₖ Pₖ[j, i]² over the
+eigenprojectors Pₖ of a symmetric field, from the basis vector eᵢ to the
+basis vector eⱼ of its module. `indexed average A: F<X> =
+transition_average(B, from = eᵢ, to = eⱼ) = ratio(N, D);` declares the
+average of the branch B with the closed form N/D, where N and D are elements
+of A. On
+the chart D(g) of B, the identity 1/χ′ = W/gᵉ modulo χ of its gap witness
+makes the average the trace form T/g²ᵉ, where T is the trace on A[t]/χ of
+adj(tI − H)[j, i]·adj(tI − H)[i, j]·W². The kernel accepts the closed form
+only when
+
+$$
+N \cdot g^{2e} = D \cdot T \quad\text{and}\quad D \cdot Q = g^{m}
+$$
+
+for a polynomial Q and an exponent m at most the total degree of D. The
+second identity makes D a unit on D(g). No eigenvalue is computed. The
+average is a declaration, and the [average observation](#average-observations)
+reads it at a point.
+
+`ratio(N, D)` writes the quotient in the style of `frac(n, d)`, since the
+language has no division: `/` is an error here too
+([Punctuation](lexical-structure.md#punctuation)).
+
+Rules:
+
+- The family must have the `transition_average` representation, the
+  declaration must name exactly one smooth affine object, and the family
+  must accept it. Otherwise it is an error (`E_SPECTRAL`).
+- The first argument of `transition_average` must name a branch on the
+  object of the declaration. Otherwise it is an error (`E_SPECTRAL`).
+- The field of the spectrum of the branch must be declared `symmetric`, and
+  `from` and `to` must name basis vectors of its module. Otherwise it is an
+  error (`E_SPECTRAL`).
+- The fields must be `from =` and `to =`, in this order, and the closed form
+  must be `ratio(N, D)`. A missing or a misplaced field and another closed
+  form are errors (`E_PARSE`). A basis vector that is not an identifier is an
+  error (`E_PARSE`).
+- The rules of [polynomial expressions](smooth-declarations.md#polynomial-expressions)
+  apply to N and to D, with the coordinates of the object. Any other name is
+  an error (`E_AFFINE_COORDINATE`). D must not be zero.
+- The closed form must satisfy both identities. Otherwise it is an error
+  (`E_SPECTRAL`), whose message shows a term of the residual. The
+  computation must stay within the budgets of
+  [exact affine algebra](../appendix/limits.md#exact-affine-algebra).
+  Otherwise it is an error (`E_LIMIT`).
+
+## Average observations
+
+> **Syntax**
+>
+> ```text
+> AverageObservationBinding -> `average_at` `(` Path `,` Path `,` `average` `=` Path `)`
+> ```
+
+`average_at(S, L, average = A)` takes a point p, of type `S<Z, X>`, and
+gives a `Pair<Int>`: N(p)/D(p) as a reduced fraction when p lies on the
+chart D(g) of the branch of A, and `(0, 0)` otherwise, whatever the closed
+form. The binding names the line `L` as the branch observations do, and the
+call takes no eigenvalue.
+
+Rules:
+
+- `S` must have the `smooth` representation, and `L` must be a smooth affine
+  object of dimension 1. Otherwise it is an error (`E_TYPE`).
+- The path after `average =` must name a transition average. Otherwise it is
+  an error (`E_SPECTRAL`). A missing `average =` is an error (`E_PARSE`).
+- The rules of [operand checks](#operand-checks) apply.
 
 ## Operand checks
 

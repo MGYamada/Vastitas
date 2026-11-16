@@ -361,6 +361,8 @@ theorem validPrimitiveBinding_of_metricOrNature {binding : PrimitiveBinding} (fr
       -- The spectral entries of Stage 5.
       SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
       SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector,
+      -- The transition average observation of Stage 6 reads no metric or nature declaration.
+      SpectralRegistry.averageAt, averageAtValid, averageDeclared, transitionAverageData_append ext.profile,
       spectralInvariantValid_append ext, annihilatesValid, actionEntryValid, onBranchValid, branchProjectorValid,
       spectralElementValid, spectrumDeclared_append ext, branchDeclared_append ext,
       branchDifferentialValid_append ext]

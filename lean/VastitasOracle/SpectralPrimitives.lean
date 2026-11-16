@@ -65,7 +65,7 @@ theorem spectralInvariantValid_constant {env : Indexed.Environment} {application
 local macro "spectral_association_simp" : tactic =>
   `(tactic| (simp only [PrimitiveAssociation, PrimitiveBinding.contract, SpectralRegistry.spectralInvariant,
       SpectralRegistry.annihilates, SpectralRegistry.actionEntry, SpectralRegistry.onBranch,
-      SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector];
+      SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector, SpectralRegistry.averageAt];
              association_simp))
 
 theorem spectralInvariant_association {env : Environment} {application : Application} {map : AlgebraRuntime.Map}
@@ -105,6 +105,13 @@ theorem branchDifferential_association {env : Environment} {smooth cotangent lin
       [.indexed ⟨sf, [.object (.global point), .object x]⟩, .indexed ⟨vf, [.object p, .object l]⟩] result ↔
       sf = smooth ∧ .global branch.object = x ∧ vf = smooth ∧ .global line = l ∧ .global point = p ∧
         smoothDimension? env point = some 0 ∧ .indexed ⟨cotangent, [.object (.global branch.object)]⟩ = result := by
+  spectral_association_simp
+
+theorem averageAt_association {env : Environment} {smooth line sf point : DeclId} {average : AverageRef}
+    {x : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef} {brand : Nat} {result : ValueType} :
+    PrimitiveAssociation env (.averageAt smooth line average) allowed brand
+      [.indexed ⟨sf, [.object (.global point), .object x]⟩] result ↔
+      sf = smooth ∧ .global average.object = x ∧ smoothDimension? env point = some 0 ∧ .integerPair = result := by
   spectral_association_simp
 
 theorem branchProjector_association {env : Environment} {smooth line sf vf point : DeclId} {branch : BranchRef}
@@ -155,6 +162,22 @@ theorem actionEntry_shape {env : Environment} {smooth : DeclId} {spectrum : Spec
   obtain ⟨h, relations, -⟩ := association
   have atOrigin := relations (.pointDimension ⟨0, 0⟩ 0)
     (by simp [PrimitiveBinding.contract, SpectralRegistry.actionEntry, PrimitiveDescriptor.ofBool])
+  operand_cons a ma h
+  operands_end h
+  indexed_operand ia sa ma
+  slot_var ref sa
+  slot_fixed sa
+  slots_end sa
+  obtain ⟨point, rfl⟩ := point_global (by rfl) atOrigin
+  exact ⟨point, rfl⟩
+
+theorem averageAt_shape {env : Environment} {smooth line : DeclId} {average : AverageRef}
+    {allowed : List Indexed.ObjectRef} {brand : Nat} {arguments : List ValueType} {result : ValueType}
+    (association : PrimitiveAssociation env (.averageAt smooth line average) allowed brand arguments result) :
+    ∃ point : DeclId, arguments = [.indexed ⟨smooth, [.object (.global point), .object (.global average.object)]⟩] := by
+  obtain ⟨h, relations, -⟩ := association
+  have atOrigin := relations (.pointDimension ⟨0, 0⟩ 0)
+    (by simp [PrimitiveBinding.contract, SpectralRegistry.averageAt, PrimitiveDescriptor.ofBool])
   operand_cons a ma h
   operands_end h
   indexed_operand ia sa ma
@@ -295,6 +318,24 @@ theorem actionEntry_total {env : Indexed.Environment} {world : World} {smooth po
   exact ⟨.pairInt (SpectralRuntime.actionEntry spectrum.endomorphism.rows element program row column).1
     (SpectralRuntime.actionEntry spectrum.endomorphism.rows element program row column).2, rfl, trivial⟩
 
+theorem averageAt_total {env : Indexed.Environment} {world : World} {smooth line point : DeclId}
+    {average : AverageRef} {allowed : List Indexed.ObjectRef} {brand : Nat} {output : ValueType}
+    {values : List Value}
+    (rule : PrimitiveTyped env (.averageAt smooth line average) allowed brand
+      [.indexed ⟨smooth, [.object (.global point), .object (.global average.object)]⟩] output)
+    (typed : PrimitiveValuesHaveTypes env world values
+      [.indexed ⟨smooth, [.object (.global point), .object (.global average.object)]⟩]) :
+    SmoothOutcome env world (.averageAt smooth line average) values output := by
+  have valid : averageAtValid env smooth line average = true := rule.bindingValid
+  obtain ⟨-, -, -, rfl⟩ := averageAt_association.mp rule.association
+  unfold averageAtValid at valid
+  simp only [Bool.and_eq_true] at valid
+  obtain ⟨value, rfl, valueTyped⟩ := values_single typed
+  obtain ⟨program, _, _, _, _, rfl, _⟩ := smooth_value (smooth_family valid.1.1) valueTyped
+  exact ⟨.pairInt (SpectralRuntime.averageAt average.branch.localize average.numerator average.denominator program).1
+    (SpectralRuntime.averageAt average.branch.localize average.numerator average.denominator program).2, rfl,
+    trivial⟩
+
 theorem onBranch_total {env : Indexed.Environment} {world : World} {smooth line point : DeclId}
     {branch : BranchRef} {p : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef} {brand : Nat}
     {output : ValueType} {values : List Value}
@@ -368,7 +409,8 @@ expose the entry's match, split it, and erase by computation. -/
 local macro "erase_spectral" h:ident : tactic =>
   `(tactic| (simp only [evalPrimitive, PrimitiveBinding.contract, SpectralRegistry.spectralInvariant,
       SpectralRegistry.annihilates, SpectralRegistry.actionEntry, SpectralRegistry.onBranch,
-      SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector, PrimitiveDescriptor.ofBool] at $h:ident;
+      SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector, SpectralRegistry.averageAt,
+      PrimitiveDescriptor.ofBool] at $h:ident;
              split at $h:ident <;> first | contradiction | (cases $h:ident; exact ⟨_, _, rfl, rfl, rfl⟩)))
 
 /-! ## Soundness instances -/
@@ -436,6 +478,19 @@ theorem branchProjector_sound (smooth line : DeclId) (branch : BranchRef) (row c
       intro env world allowed brand arguments output values rule typed
       obtain ⟨point, p, rfl⟩ := branchProjector_shape rule.association
       exact branchProjector_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_spectral evaluated)
+
+/-- The transition average observation of Stage 6 (#841): an integer pair on a
+point of the average's object. -/
+theorem averageAt_sound (smooth line : DeclId) (average : AverageRef) :
+    Sound (PrimitiveBinding.averageAt smooth line average).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨point, rfl⟩ := averageAt_shape rule.association
+      exact averageAt_total rule typed)
     (by
       intro env values value evaluated
       erase_spectral evaluated)

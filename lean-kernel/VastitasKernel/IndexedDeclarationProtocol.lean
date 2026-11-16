@@ -14,10 +14,15 @@ inductive Feature where
   /-- Recipients named by package (`grantee_package`). -/
   | namedRecipients
   /-- The presented affine, smooth, metric, frame, physical-dimension and
-  spectral forms. -/
+  spectral forms; the spectral forms include the transition averages of
+  `std::linalg::spectral` and their observation `average_at` (Stage 6). -/
   | algebraic
   /-- The observations of `show!`. -/
   | observations
+  /-- The conventions and models of `nature::model` and the calibrations,
+  datasets and comparisons of `nature::errorbar`, with their family
+  representations (Stage 6, #841). -/
+  | physicalModels
   deriving DecidableEq, Repr
 
 /-- Whether protocol `version` admits the records of `feature`. Every version
@@ -26,7 +31,7 @@ protocol 8 adds the numerical records to protocol 7, and protocol 9, the
 current schema epoch, admits every feature. -/
 def admits (version : Nat) : Feature → Bool
   | .numerical => version == 8 || version == 9
-  | .namedRecipients | .algebraic | .observations => version == 9
+  | .namedRecipients | .algebraic | .observations | .physicalModels => version == 9
 
 def path (j : Json) : Except String Source.Path := do
   fields j ["path", "span"]
@@ -265,7 +270,8 @@ def capability (j : Json) : Except String Capability := do
   | "dimension" => return .dimension
   | _ => throw "unsupported implementation capability"
 
-def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String FamilyRepresentation := do
+def familyRepresentation (j : Json) (algebraic : Bool := false) (physicalModels : Bool := false) :
+    Except String FamilyRepresentation := do
   match ← j.getStr? with
   | "token" => return .token
   | "point" => return .point
@@ -318,6 +324,21 @@ def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String 
   | "branch" =>
     unless algebraic do throw "spectral declarations require protocol 9"
     return .branch
+  | "transition_average" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    return .transitionAverage
+  | "model" =>
+    unless physicalModels do throw "model declarations require protocol 9"
+    return .model
+  | "calibration" =>
+    unless physicalModels do throw "errorbar declarations require protocol 9"
+    return .calibration
+  | "dataset" =>
+    unless physicalModels do throw "errorbar declarations require protocol 9"
+    return .dataset
+  | "comparison" =>
+    unless physicalModels do throw "errorbar declarations require protocol 9"
+    return .comparison
   | _ => throw "unsupported indexed family representation"
 
 /-- The Gram matrix of a metric: `euclidean`, or rows of polynomial
@@ -438,8 +459,75 @@ def certificateExponent (text : String) : Except String Nat := do
   | some n => return n
   | none => throw "the exponent of a branch is an unsigned decimal string"
 
-def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
-    Except String Source.Body := do
+/-! ### A first physical model (Stage 6, #841; protocol 9 only)
+
+The transition average of `std::linalg::spectral` and the declarations of
+`nature::model` and `nature::errorbar`. The wire carries no certificate of an
+average and no fingerprint that the kernel computes: a certificate field is an
+unknown field, and the fingerprint of a comparison is the recorded one.
+Values, uncertainties and the coverage factor are constant polynomial
+expressions, so their digits have the bound of every polynomial literal. The
+recorded texts (`recordText`) have the bound `recordTextBytes` and the
+characters of the string literals that the frontend reads. -/
+
+/-- A recorded text of a Stage 6 declaration, the field `key` of `j`: the
+regime of a model, the reference or the revision of a calibration, or the
+fingerprint of a comparison. It holds at most `recordTextBytes` bytes of
+printable ASCII (0x20–0x7E) other than `\` and `"`, exactly the content of a
+string literal that the frontend accepts there, so that a forged text with an
+escape, a control character or another character is a protocol error. -/
+def recordText (j : Json) (key : String) : Except String String := do
+  let text ← str j key
+  unless text.utf8ByteSize ≤ Limits.recordTextBytes do
+    throw s!"the field {key} has more than {Limits.recordTextBytes} bytes (recordTextBytes)"
+  unless text.all fun c => 0x20 ≤ c.toNat && c.toNat ≤ 0x7E && c != '\\' && c != '"' do
+    throw s!"the field {key} holds a character other than printable ASCII without a backslash or a double quote"
+  return text
+
+/-- The convention of `convention name = value`: `hbar_one`. -/
+def convention (j : Json) : Except String Convention := do
+  match ← j.getStr? with
+  | "hbar_one" => return .hbarOne
+  | _ => throw "a convention is hbar_one"
+
+/-- The method of a calibration: `type_a` or `type_b`. -/
+def calibrationMethod (j : Json) : Except String CalibrationMethod := do
+  match ← j.getStr? with
+  | "type_a" => return .typeA
+  | "type_b" => return .typeB
+  | _ => throw "the method of a calibration is type_a or type_b"
+
+/-- The recorded verdict of a comparison: `consistent` or `inconsistent`. -/
+def verdict (j : Json) : Except String Verdict := do
+  match ← j.getStr? with
+  | "consistent" => return .consistent
+  | "inconsistent" => return .inconsistent
+  | _ => throw "the verdict of a comparison is consistent or inconsistent"
+
+/-- A measured value `measured(value, u = uncertainty)`, from the fields
+`value` and `uncertainty` of `j`. -/
+def sourceMeasured (j : Json) : Except String Source.SourceMeasured := do
+  return ⟨← polyExpr Limits.algebraNesting (← field j "value"),
+    ← polyExpr Limits.algebraNesting (← field j "uncertainty")⟩
+
+/-- One calibrated coordinate of a calibration. -/
+def calibrated (j : Json) : Except String Source.Calibrated := do
+  fields j ["coordinate", "value", "uncertainty"]
+  return ⟨← str j "coordinate", ← sourceMeasured j⟩
+
+/-- The value of one coordinate at a point of a dataset. -/
+def pointCoordinate (j : Json) : Except String (String × Source.PolyExpr) := do
+  fields j ["coordinate", "value"]
+  return (← str j "coordinate", ← polyExpr Limits.algebraNesting (← field j "value"))
+
+/-- One point of a dataset. The kernel bounds the number of points by
+`datasetPoints` after decoding. -/
+def sourcePoint (j : Json) : Except String Source.SourcePoint := do
+  fields j ["coordinates", "value", "uncertainty"]
+  return ⟨← (← array j "coordinates").mapM pointCoordinate, ← sourceMeasured j⟩
+
+def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false)
+    (physicalModels : Bool := false) : Except String Source.Body := do
   let common := ["kind", "name", "public", "span"]
   match ← str j "kind" with
   | "marker" => fields j common; return .marker
@@ -458,7 +546,7 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     fields j (common ++ ["parameters", "constraints", "representation"])
     return .family ⟨← (← array j "parameters").mapM (parameter · algebraic),
       ← (← array j "constraints").mapM (constraint · algebraic),
-      ← familyRepresentation (← field j "representation") algebraic⟩
+      ← familyRepresentation (← field j "representation") algebraic physicalModels⟩
   | "package" => fields j (common ++ ["cases"]); return .package (← (← array j "cases").mapM packageShape)
   | "primitive" =>
     fields j (common ++ ["binding"]); return .primitive (← primitive (← field j "binding") algebraic)
@@ -554,6 +642,42 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     return .branch (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← path (← field j "spectrum")) (← polyExpr Limits.algebraNesting (← field j "localize"))
       (← polyExpr Limits.algebraNesting (← field j "witness")) (← certificateExponent (← str j "exponent"))
+  | "transition_average" =>
+    unless algebraic do throw "spectral declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "branch", "from", "to", "numerator", "denominator"])
+    return .transitionAverage (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← path (← field j "branch")) (← str j "from") (← str j "to")
+      (← polyExpr Limits.algebraNesting (← field j "numerator"))
+      (← polyExpr Limits.algebraNesting (← field j "denominator"))
+  | "convention" =>
+    unless physicalModels do throw "model declarations require protocol 9"
+    fields j (common ++ ["value"])
+    return .convention (← convention (← field j "value"))
+  | "model" =>
+    unless physicalModels do throw "model declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "hamiltonian", "reading", "convention", "prepare", "observe",
+      "predicts", "regime"])
+    return .model (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← path (← field j "hamiltonian")) (← path (← field j "reading")) (← path (← field j "convention"))
+      (← str j "prepare") (← str j "observe") (← path (← field j "predicts")) (← recordText j "regime")
+  | "calibration" =>
+    unless physicalModels do throw "errorbar declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "parameters", "method", "reference", "revision"])
+    return .calibration (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← (← array j "parameters").mapM calibrated) (← calibrationMethod (← field j "method"))
+      (← recordText j "reference") (← recordText j "revision")
+  | "dataset" =>
+    unless physicalModels do throw "errorbar declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "model", "calibration", "coverage", "points"])
+    return .dataset (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← path (← field j "model")) (← path (← field j "calibration"))
+      (← polyExpr Limits.algebraNesting (← field j "coverage")) (← (← array j "points").mapM sourcePoint)
+  | "comparison" =>
+    unless physicalModels do throw "errorbar declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "dataset", "calibration", "fingerprint", "verdict"])
+    return .comparison (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← path (← field j "dataset")) (← path (← field j "calibration")) (← recordText j "fingerprint")
+      (← verdict (← field j "verdict"))
   | "affine" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     fields j (common ++ ["implementation", "generators", "relations", "base", "bindings"])
@@ -566,9 +690,9 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
       base (← (← array j "bindings").mapM binding)
   | _ => throw "unknown indexed declaration kind"
 
-def declaration (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
-    Except String Source.Declaration := do
-  let body ← declarationBody j numerical algebraic
+def declaration (j : Json) (numerical : Bool := false) (algebraic : Bool := false)
+    (physicalModels : Bool := false) : Except String Source.Declaration := do
+  let body ← declarationBody j numerical algebraic physicalModels
   return ⟨← str j "name", body, ← j.getObjValAs? Bool "public", ← decodeSpan j⟩
 
 end VastitasKernel.Indexed.Wire

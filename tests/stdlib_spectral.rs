@@ -170,8 +170,9 @@ fn mutated_spectral_observations_change_the_native_result() {
 }
 
 /// The package `vastitas_linalg` has the root module, which exports the
-/// module `spectral` alone, and `spectral` exports exactly the four families,
-/// and nothing else (C17). It depends on the geometry package alone.
+/// module `spectral` alone, and `spectral` exports exactly the four families
+/// of Stage 5 and the family `TransitionAverage` of the Stage 6 skeleton
+/// (#841), and nothing else (C17). It depends on the geometry package alone.
 #[test]
 fn linalg_exports_exactly_the_spectral_module_and_its_four_families() {
     let wire = request(&fixture(MAIN));
@@ -227,17 +228,25 @@ fn linalg_exports_exactly_the_spectral_module_and_its_four_families() {
             family("Endomorphism", "endomorphism"),
             family("Spectrum", "spectrum"),
             family("Branch", "branch"),
+            family("TransitionAverage", "transition_average"),
         ])
     );
     // The library declares no module, field, spectrum, branch, invariant or
     // observation: the application declares them.
-    let kinds = ["free_module", "endomorphism", "spectrum", "branch"];
+    let kinds = [
+        "free_module",
+        "endomorphism",
+        "spectrum",
+        "branch",
+        "transition_average",
+    ];
     let ops = [
         "annihilates",
         "action_entry",
         "on_branch",
         "branch_differential",
         "branch_projector",
+        "average_at",
     ];
     for p in wire["packages"].as_array().unwrap() {
         if p["name"] == "stdlib_spectral_demo" {
@@ -269,6 +278,8 @@ fn linalg_exports_exactly_the_spectral_module_and_its_four_families() {
         "spectral::char_coefficient",
         "spectral::annihilates",
         "spectral::on_branch",
+        "spectral::transition_average",
+        "spectral::average_at",
         "FreeModule",
         "Endomorphism",
         "geometry",

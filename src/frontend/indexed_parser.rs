@@ -519,6 +519,16 @@ impl Parser {
                 fields.extend(self.indexed_basis_entry("branch_projector")?);
                 fields
             }
+            "average_at" => {
+                let mut fields = self.indexed_paths(&["map_family", "line"])?;
+                let average = self.indexed_selection(
+                    "average_at",
+                    "average",
+                    "an explicit transition average",
+                )?;
+                fields.push(("average", WireValue::Path(average)));
+                fields
+            }
             // A table op without a surface arm; the per-entry test fails.
             _ => return Err(unknown()),
         };
@@ -613,10 +623,15 @@ impl Parser {
                     "endomorphism" => indexed::FamilyRepresentation::Endomorphism,
                     "spectrum" => indexed::FamilyRepresentation::Spectrum,
                     "branch" => indexed::FamilyRepresentation::Branch,
+                    "transition_average" => indexed::FamilyRepresentation::TransitionAverage,
+                    "model" => indexed::FamilyRepresentation::Model,
+                    "calibration" => indexed::FamilyRepresentation::Calibration,
+                    "dataset" => indexed::FamilyRepresentation::Dataset,
+                    "comparison" => indexed::FamilyRepresentation::Comparison,
                     _ => {
                         return Err(diagnostic(
                             "E_TYPE",
-                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, transition_average, frame, frame_vector, frame_covector, frame_map, reading, physical_metric, model, calibration, dataset or comparison",
                             span,
                         ));
                     }
@@ -678,6 +693,27 @@ impl Parser {
             }
             "physical" => self.indexed_physical()?,
             "free_module" => self.indexed_free_module()?,
+            "average" => self.indexed_average()?,
+            "convention" => {
+                self.expect("=")?;
+                let span = self.peek().span;
+                match self.indexed_tag()?.as_str() {
+                    "hbar_one" => DeclarationBody::Convention {
+                        value: indexed::ConventionKind::HbarOne,
+                    },
+                    _ => {
+                        return Err(diagnostic(
+                            "E_TYPE",
+                            "a convention is `hbar_one`, the one convention of the profile",
+                            span,
+                        ));
+                    }
+                }
+            }
+            "model" => self.indexed_model()?,
+            "calibration" => self.indexed_calibration()?,
+            "dataset" => self.indexed_dataset()?,
+            "comparison" => self.indexed_comparison()?,
             "endomorphism" => self.indexed_endomorphism()?,
             "spectrum" => self.indexed_spectrum()?,
             "branch" => self.indexed_branch()?,
@@ -1372,6 +1408,396 @@ impl Parser {
         })
     }
 
+    /// `: Family<X> = transition_average(B, from = i, to = j) = ratio(N, D)`
+    /// (Stage 6, #841): the dephased transition average of the branch `B` from
+    /// the basis vector `i` to `j`, with its closed form N/D, two polynomials
+    /// in the coordinates of `X`, written as `ratio(…)` in the style of
+    /// `frac(…)`: the language has no `/`. The wire carries no certificate.
+    fn indexed_average(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("transition_average")?;
+        self.expect("(")?;
+        let branch = self.type_path()?;
+        self.indexed_keyword("transition_average", "from", "an explicit source vector")?;
+        let from = self.basis_word("transition_average", "source vector")?;
+        self.indexed_keyword("transition_average", "to", "an explicit target vector")?;
+        let to = self.basis_word("transition_average", "target vector")?;
+        self.expect(")")?;
+        self.expect("=")?;
+        if !(self.peek().is("ratio") && self.second_is("(")) {
+            return Err(diagnostic(
+                "E_PARSE",
+                "the closed form of `transition_average` is `ratio(N, D)` of two polynomials",
+                self.peek().span,
+            ));
+        }
+        self.advance();
+        self.advance();
+        let numerator = self.polynomial()?;
+        self.expect(",")?;
+        let denominator = self.polynomial()?;
+        self.expect(")")?;
+        Ok(DeclarationBody::TransitionAverage {
+            family,
+            indices,
+            branch,
+            from,
+            to,
+            numerator,
+            denominator,
+        })
+    }
+
+    /// A basis name that `operation` takes as `what`, as written in the
+    /// `basis(…)` of a free module.
+    fn basis_word(&mut self, operation: &str, what: &str) -> Result<String, Diagnostic> {
+        if !matches!(self.peek().kind, TokenKind::Name(_)) {
+            return Err(diagnostic(
+                "E_PARSE",
+                format!("the {what} of `{operation}` is a basis name, as in `e1`"),
+                self.peek().span,
+            ));
+        }
+        Ok(self.name()?.0)
+    }
+
+    /// `keyword =`: the first field of `operation`, named explicitly.
+    fn indexed_first_keyword(
+        &mut self,
+        operation: &str,
+        keyword: &str,
+        what: &str,
+    ) -> Result<(), Diagnostic> {
+        let token = self.peek().clone();
+        if !(token.is(keyword) && self.second_is("=")) {
+            return Err(diagnostic(
+                "E_PARSE",
+                format!("`{operation}` needs {what}: write `{keyword} = …`"),
+                token.span,
+            ));
+        }
+        self.advance();
+        self.expect("=")?;
+        Ok(())
+    }
+
+    /// A string literal that `operation` takes as `what` (Stage 6, #841): text
+    /// between double quotes of printable ASCII characters other than `\` and
+    /// `"`, at most `recordTextBytes` bytes, which the wire carries as written
+    /// and the kernel checks again. Only the regime of a model, the reference
+    /// and the revision of a calibration and the fingerprint of a comparison
+    /// take a string literal; no escape is decoded, so no escape reaches a
+    /// diagnostic or a terminal.
+    fn stage6_text(&mut self, operation: &str, what: &str) -> Result<String, Diagnostic> {
+        let token = self.peek().clone();
+        if !matches!(token.kind, TokenKind::Text) {
+            return Err(diagnostic(
+                "E_PARSE",
+                format!("the {what} of `{operation}` is a string literal, as in \"…\""),
+                token.span,
+            ));
+        }
+        self.advance();
+        let raw =
+            &self.text[token.span.start - self.text_offset..token.span.end - self.text_offset];
+        let closed = raw.len() >= 2 && raw.ends_with('"');
+        let inner = if closed {
+            &raw[1..raw.len() - 1]
+        } else {
+            &raw[1..]
+        };
+        if !closed
+            || !inner
+                .chars()
+                .all(|c| (' '..='~').contains(&c) && c != '\\' && c != '"')
+        {
+            return Err(diagnostic(
+                "E_PARSE",
+                format!(
+                    "the {what} of `{operation}` holds printable ASCII characters other than `\\` between \
+                     double quotes"
+                ),
+                token.span,
+            ));
+        }
+        let limit = crate::limits::MAX_RECORD_TEXT_BYTES;
+        if inner.len() > limit {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "the {what} of `{operation}` has at most {limit} bytes (`recordTextBytes`), but this one has {}",
+                    inner.len()
+                ),
+                token.span,
+            ));
+        }
+        Ok(inner.to_string())
+    }
+
+    /// A rational literal: an unsigned decimal literal or `frac(i, n)`, with
+    /// an optional `-` before it. The kernel evaluates it as a constant.
+    fn rational(&mut self) -> Result<indexed::PolyExpr, Diagnostic> {
+        let negative = self.consume("-");
+        let value = if self.at_fraction() {
+            self.fraction()?
+        } else if matches!(self.peek().kind, TokenKind::Number(_)) {
+            indexed::PolyExpr::Natural {
+                value: self.poly_literal()?,
+            }
+        } else {
+            return Err(diagnostic(
+                "E_PARSE",
+                "a rational number is an integer literal or `frac(i, n)`, with an optional `-`",
+                self.peek().span,
+            ));
+        };
+        Ok(if negative {
+            indexed::PolyExpr::Neg {
+                operand: Box::new(value),
+            }
+        } else {
+            value
+        })
+    }
+
+    /// `measured(v, u = w)`: a measured value and its standard uncertainty,
+    /// two rational literals.
+    fn measured(
+        &mut self,
+        operation: &str,
+    ) -> Result<(indexed::PolyExpr, indexed::PolyExpr), Diagnostic> {
+        if !self.peek().is("measured") {
+            return Err(diagnostic(
+                "E_PARSE",
+                format!("`{operation}` needs a measured value: write `measured(v, u = w)`"),
+                self.peek().span,
+            ));
+        }
+        self.advance();
+        self.expect("(")?;
+        let value = self.rational()?;
+        self.indexed_keyword("measured", "u", "an explicit standard uncertainty")?;
+        let uncertainty = self.rational()?;
+        self.expect(")")?;
+        Ok((value, uncertainty))
+    }
+
+    /// `: Family<X> = model(hamiltonian = H, reading = r, convention = c,
+    /// prepare = i, observe = j, predicts = A, regime = assume("…"))` (Stage
+    /// 6, #841): every field named explicitly, in this order.
+    fn indexed_model(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("model")?;
+        self.expect("(")?;
+        self.indexed_first_keyword("model", "hamiltonian", "an explicit hamiltonian")?;
+        let hamiltonian = self.type_path()?;
+        let reading = self.indexed_selection("model", "reading", "an explicit reading")?;
+        let convention = self.indexed_selection("model", "convention", "an explicit convention")?;
+        self.indexed_keyword("model", "prepare", "an explicit prepared vector")?;
+        let prepare = self.basis_word("model", "prepared vector")?;
+        self.indexed_keyword("model", "observe", "an explicit observed vector")?;
+        let observe = self.basis_word("model", "observed vector")?;
+        let predicts =
+            self.indexed_selection("model", "predicts", "an explicit predicted average")?;
+        self.indexed_keyword("model", "regime", "an explicit regime")?;
+        if !self.peek().is("assume") {
+            return Err(diagnostic(
+                "E_PARSE",
+                "the regime of `model` is a recorded assumption: write `regime = assume(\"…\")`",
+                self.peek().span,
+            ));
+        }
+        self.advance();
+        self.expect("(")?;
+        let regime = self.stage6_text("model", "regime")?;
+        self.expect(")")?;
+        self.expect(")")?;
+        Ok(DeclarationBody::Model {
+            family,
+            indices,
+            hamiltonian,
+            reading,
+            convention,
+            prepare,
+            observe,
+            predicts,
+            regime,
+        })
+    }
+
+    /// `: Family<X> = calibrate(x = measured(v, u = w), …, method = m,
+    /// reference = "…", revision = "…")` (Stage 6, #841): the calibrated
+    /// coordinates in source order, then the method `type_a` or `type_b`,
+    /// the reference and the revision. `method` ends the coordinates.
+    fn indexed_calibration(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("calibrate")?;
+        self.expect("(")?;
+        let mut parameters = Vec::new();
+        while !(self.peek().is("method") && self.second_is("=")) {
+            let coordinate = self.coordinate_name()?;
+            self.expect("=")?;
+            let (value, uncertainty) = self.measured("calibrate")?;
+            parameters.push(indexed::Calibrated {
+                coordinate,
+                value,
+                uncertainty,
+            });
+            if !self.consume(",") {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "`calibrate` needs an explicit method after its coordinates: write `, method = …`",
+                    self.peek().span,
+                ));
+            }
+        }
+        self.indexed_first_keyword("calibrate", "method", "an explicit method")?;
+        let span = self.peek().span;
+        let method = match self.indexed_tag()?.as_str() {
+            "type_a" => indexed::CalibrationMethod::TypeA,
+            "type_b" => indexed::CalibrationMethod::TypeB,
+            _ => {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "the method of a calibration is `type_a` or `type_b`",
+                    span,
+                ));
+            }
+        };
+        self.indexed_keyword("calibrate", "reference", "an explicit reference")?;
+        let reference = self.stage6_text("calibrate", "reference")?;
+        self.indexed_keyword("calibrate", "revision", "an explicit revision")?;
+        let revision = self.stage6_text("calibrate", "revision")?;
+        self.expect(")")?;
+        Ok(DeclarationBody::Calibration {
+            family,
+            indices,
+            parameters,
+            method,
+            reference,
+            revision,
+        })
+    }
+
+    /// `: Family<X> = measure(model = M, calibration = K, coverage = k,
+    /// points = [(x = v, …, value = measured(v, u = w)), …])` (Stage 6, #841):
+    /// each point gives coordinates and then its measured value; `value` ends
+    /// the coordinates. A dataset of more than `datasetPoints` points is
+    /// `E_LIMIT`, as in the kernel.
+    fn indexed_dataset(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("measure")?;
+        self.expect("(")?;
+        self.indexed_first_keyword("measure", "model", "an explicit model")?;
+        let model = self.type_path()?;
+        let calibration =
+            self.indexed_selection("measure", "calibration", "an explicit calibration")?;
+        self.indexed_keyword("measure", "coverage", "an explicit coverage factor")?;
+        let coverage = self.rational()?;
+        self.indexed_keyword("measure", "points", "explicit points")?;
+        let open = self.peek().span;
+        let points = self.delimited_list("[", "]", |p| {
+            if !p.peek().is("(") {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "a point of a dataset is a parenthesized tuple, as in `(x = 1, value = measured(v, u = w))`",
+                    p.peek().span,
+                ));
+            }
+            p.advance();
+            let mut coordinates = Vec::new();
+            // `value = measured(…)` ends the coordinates; a coordinate may be
+            // named `value`, since a rational never begins with `measured`.
+            while !(p.peek().is("value")
+                && p.second_is("=")
+                && p.tokens.get(p.position + 2).is_some_and(|token| token.is("measured")))
+            {
+                let coordinate = p.coordinate_name()?;
+                p.expect("=")?;
+                coordinates.push(indexed::PointCoordinate {
+                    coordinate,
+                    value: p.rational()?,
+                });
+                if !p.consume(",") {
+                    return Err(diagnostic(
+                        "E_PARSE",
+                        "a point of a dataset ends with its measured value: write `, value = measured(v, u = w)`",
+                        p.peek().span,
+                    ));
+                }
+            }
+            p.indexed_first_keyword("measure", "value", "the measured value of each point")?;
+            let (value, uncertainty) = p.measured("measure")?;
+            p.expect(")")?;
+            Ok(indexed::DataPoint {
+                coordinates,
+                value,
+                uncertainty,
+            })
+        })?;
+        if points.len() > crate::limits::MAX_DATASET_POINTS {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "a dataset has at most {} points (`datasetPoints`), but this one has {}",
+                    crate::limits::MAX_DATASET_POINTS,
+                    points.len()
+                ),
+                open.through(self.previous().span),
+            ));
+        }
+        self.expect(")")?;
+        Ok(DeclarationBody::Dataset {
+            family,
+            indices,
+            model,
+            calibration,
+            coverage,
+            points,
+        })
+    }
+
+    /// `: Family<X> = compare(D, calibration = K, fingerprint = "…", verdict = v)`
+    /// (Stage 6, #841): the dataset, its calibration, the recorded fingerprint
+    /// of the calibration, and the recorded verdict `consistent` or
+    /// `inconsistent`.
+    fn indexed_comparison(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        let (family, indices) = self.indexed_application()?;
+        self.expect("compare")?;
+        self.expect("(")?;
+        let dataset = self.type_path()?;
+        let calibration =
+            self.indexed_selection("compare", "calibration", "an explicit calibration")?;
+        self.indexed_keyword(
+            "compare",
+            "fingerprint",
+            "the recorded fingerprint of its calibration",
+        )?;
+        let fingerprint = self.stage6_text("compare", "fingerprint")?;
+        self.indexed_keyword("compare", "verdict", "an explicit verdict")?;
+        let span = self.peek().span;
+        let verdict = match self.indexed_tag()?.as_str() {
+            "consistent" => indexed::Verdict::Consistent,
+            "inconsistent" => indexed::Verdict::Inconsistent,
+            _ => {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "the verdict of a comparison is `consistent` or `inconsistent`",
+                    span,
+                ));
+            }
+        };
+        self.expect(")")?;
+        Ok(DeclarationBody::Comparison {
+            family,
+            indices,
+            dataset,
+            calibration,
+            fingerprint,
+            verdict,
+        })
+    }
+
     /// `, keyword =`: the start of a field that `operation` names explicitly.
     /// A missing keyword is `E_PARSE` naming it, at the token where the
     /// field was expected. No default is ever selected. When the keyword is
@@ -1710,7 +2136,23 @@ mod tests {
             "branch_projector",
             "branch_projector(Smooth, Line, branch = B, e1, e2)",
         ),
+        ("average_at", "average_at(Smooth, Line, average = A)"),
     ];
+
+    /// A package module, for the checks that need more than one item.
+    fn parse_module(source: &str) -> Result<(), Diagnostic> {
+        parse_module_source(
+            SourceInput {
+                source,
+                file: "module.vast",
+                offset: 0,
+            },
+            vec![],
+            true,
+            None,
+        )
+        .map(|_| ())
+    }
 
     /// The one indexed declaration of a package module.
     fn parse_declaration(source: &str) -> Result<indexed::Declaration, Diagnostic> {
@@ -2912,7 +3354,7 @@ mod tests {
             (
                 "indexed family F(object(CInfAffine)) = frames constraints(canonical(0));",
                 "E_TYPE",
-                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, transition_average, frame, frame_vector, frame_covector, frame_map, reading, physical_metric, model, calibration, dataset or comparison",
                 "frames",
             ),
             (
@@ -3464,7 +3906,7 @@ fn scale(physical: Int) -> Int { let interpret = physical; interpret }
             (
                 "indexed family F(object(CInfAffine)) = free_modules constraints(canonical(0));",
                 "E_TYPE",
-                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, frame, frame_vector, frame_covector, frame_map, reading or physical_metric",
+                "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape, metric_form, free_module, endomorphism, spectrum, branch, transition_average, frame, frame_vector, frame_covector, frame_map, reading, physical_metric, model, calibration, dataset or comparison",
                 "free_modules",
                 "free_modules",
             ),
@@ -3554,6 +3996,496 @@ fn exponent(witness: Int) -> Int { let localize = witness; localize }
                 "on_branch"
             ]
         );
+    }
+
+    /// The Stage 6 declarations (#841), each with the record of its wire
+    /// shape, which the kernel decodes in protocol 9.
+    fn stage6_declarations() -> Vec<(&'static str, Value)> {
+        let pow = |name: &str| json!({ "op": "pow", "base": coordinate(name), "exponent": "2" });
+        let neg = |value: Value| json!({ "op": "neg", "operand": value });
+        vec![
+            (
+                "indexed average A: TransitionAverage<P> = transition_average(B, from = g, to = e) = ratio(frac(1, 2) * omega^2, delta^2 + omega^2);",
+                json!({ "kind": "transition_average", "family": p("TransitionAverage"), "indices": [p("P")],
+                    "branch": p("B"), "from": "g", "to": "e",
+                    "numerator": { "op": "product", "factors": [fraction("1", "2"), pow("omega")] },
+                    "denominator": { "op": "sum", "terms": [pow("delta"), pow("omega")] } }),
+            ),
+            (
+                "indexed average AK: TransitionAverage<X> = transition_average(BK, from = u1, to = u2) = ratio(1, 2);",
+                json!({ "kind": "transition_average", "family": p("TransitionAverage"), "indices": [p("X")],
+                    "branch": p("BK"), "from": "u1", "to": "u2", "numerator": n("1"), "denominator": n("2") }),
+            ),
+            (
+                "indexed convention c = hbar_one;",
+                json!({ "kind": "convention", "value": "hbar_one" }),
+            ),
+            (
+                r#"indexed model M: Model<P> = model(hamiltonian = H, reading = r, convention = c, prepare = g, observe = e, predicts = A, regime = assume("rotating-wave approximation, Omega << Delta"));"#,
+                json!({ "kind": "model", "family": p("Model"), "indices": [p("P")], "hamiltonian": p("H"),
+                    "reading": p("r"), "convention": p("c"), "prepare": "g", "observe": "e",
+                    "predicts": p("A"), "regime": "rotating-wave approximation, Omega << Delta" }),
+            ),
+            (
+                r#"indexed calibration K: Calibration<P> = calibrate(omega = measured(frac(5, 2), u = frac(1, 20)), method = type_b, reference = "JCGM 100:2008", revision = "2026-11-16");"#,
+                json!({ "kind": "calibration", "family": p("Calibration"), "indices": [p("P")],
+                    "parameters": [{ "coordinate": "omega", "value": fraction("5", "2"),
+                        "uncertainty": fraction("1", "20") }],
+                    "method": "type_b", "reference": "JCGM 100:2008", "revision": "2026-11-16" }),
+            ),
+            (
+                r#"indexed calibration K2: Calibration<P> = calibrate(delta = measured(-1, u = 1), omega = measured(-frac(1, 2), u = 2), method = type_a, reference = "", revision = "r");"#,
+                json!({ "kind": "calibration", "family": p("Calibration"), "indices": [p("P")],
+                    "parameters": [
+                        { "coordinate": "delta", "value": neg(n("1")), "uncertainty": n("1") },
+                        { "coordinate": "omega", "value": neg(fraction("1", "2")), "uncertainty": n("2") }],
+                    "method": "type_a", "reference": "", "revision": "r" }),
+            ),
+            (
+                "indexed dataset D: Dataset<P> = measure(model = M, calibration = K, coverage = 2, points = [(delta = 0, value = measured(frac(1, 2), u = frac(1, 50))), (delta = -1, value = measured(frac(9, 20), u = frac(1, 50)))]);",
+                json!({ "kind": "dataset", "family": p("Dataset"), "indices": [p("P")], "model": p("M"),
+                    "calibration": p("K"), "coverage": n("2"), "points": [
+                        { "coordinates": [{ "coordinate": "delta", "value": n("0") }],
+                            "value": fraction("1", "2"), "uncertainty": fraction("1", "50") },
+                        { "coordinates": [{ "coordinate": "delta", "value": neg(n("1")) }],
+                            "value": fraction("9", "20"), "uncertainty": fraction("1", "50") }] }),
+            ),
+            (
+                "indexed dataset DK: Dataset<X> = measure(model = MK, calibration = KK, coverage = frac(196, 100), points = [(value = measured(1, u = 1)),]);",
+                json!({ "kind": "dataset", "family": p("Dataset"), "indices": [p("X")], "model": p("MK"),
+                    "calibration": p("KK"), "coverage": fraction("196", "100"), "points": [
+                        { "coordinates": [], "value": n("1"), "uncertainty": n("1") }] }),
+            ),
+            (
+                "indexed dataset E: Dataset<P> = measure(model = M, calibration = K, coverage = 1, points = []);",
+                json!({ "kind": "dataset", "family": p("Dataset"), "indices": [p("P")], "model": p("M"),
+                    "calibration": p("K"), "coverage": n("1"), "points": [] }),
+            ),
+            (
+                r#"indexed comparison C: Comparison<P> = compare(D, calibration = K, fingerprint = "fnv1a64:0123456789abcdef", verdict = consistent);"#,
+                json!({ "kind": "comparison", "family": p("Comparison"), "indices": [p("P")], "dataset": p("D"),
+                    "calibration": p("K"), "fingerprint": "fnv1a64:0123456789abcdef", "verdict": "consistent" }),
+            ),
+            (
+                r#"indexed comparison C2: Comparison<P> = compare(D, calibration = K, fingerprint = "", verdict = inconsistent);"#,
+                json!({ "kind": "comparison", "family": p("Comparison"), "indices": [p("P")], "dataset": p("D"),
+                    "calibration": p("K"), "fingerprint": "", "verdict": "inconsistent" }),
+            ),
+        ]
+    }
+
+    /// Each Stage 6 declaration form parses to the record of its S1 wire
+    /// shape, which exists only in protocol 9, and reads back as itself.
+    #[test]
+    fn every_stage6_declaration_parses_to_its_wire_record() {
+        for (source, expected) in stage6_declarations() {
+            let declaration = parse_declaration(source)
+                .unwrap_or_else(|error| panic!("`{source}` does not parse: {error:?}"));
+            // Only the transition average is algebraic; the model and data
+            // forms select protocol 9 as package input (#533).
+            assert_eq!(
+                declaration.body.is_algebraic(),
+                matches!(declaration.body, DeclarationBody::TransitionAverage { .. }),
+                "{source}"
+            );
+            let record = without_spans(serde_json::to_value(&declaration.body).unwrap());
+            assert_eq!(record, expected, "{source}");
+            assert_eq!(
+                &source[declaration.span.start..declaration.span.end],
+                source
+            );
+            assert_round_trip(&declaration);
+        }
+        // The forms parse after `pub` in a module too.
+        for source in [
+            "pub indexed average A: TransitionAverage<P> = transition_average(B, from = g, to = e) = ratio(1, 2);",
+            r#"pub indexed comparison C: Comparison<P> = compare(D, calibration = K, fingerprint = "f", verdict = consistent);"#,
+        ] {
+            parse_module(source).unwrap_or_else(|error| panic!("{error:?}\n{source}"));
+        }
+    }
+
+    /// Malformed Stage 6 declarations are rejected at the offending token.
+    #[test]
+    fn malformed_stage6_declarations_are_rejected_at_their_place() {
+        let average = "indexed average A: TransitionAverage<P> = transition_average";
+        let cases: Vec<(String, &str, &str, &str, &str)> = vec![
+            (
+                format!("{average}(B, to = e) = ratio(1, 2);"),
+                "E_PARSE",
+                "`transition_average` needs an explicit source vector: write `from = …`",
+                ",",
+                ", to",
+            ),
+            (
+                format!("{average}(B, from = g, to = 2) = ratio(1, 2);"),
+                "E_PARSE",
+                "the target vector of `transition_average` is a basis name, as in `e1`",
+                "2",
+                "2) = ratio",
+            ),
+            (
+                format!("{average}(B, from = g, to = e) = 1;"),
+                "E_PARSE",
+                "the closed form of `transition_average` is `ratio(N, D)` of two polynomials",
+                "1",
+                "1;",
+            ),
+            (
+                format!("{average}(B, from = g, to = e) = ratio;"),
+                "E_PARSE",
+                "the closed form of `transition_average` is `ratio(N, D)` of two polynomials",
+                "ratio",
+                "ratio;",
+            ),
+            (
+                format!("{average}(B, from = g, to = e) = ratio(1);"),
+                "E_PARSE",
+                "expected `,`, found `)`",
+                ")",
+                ");",
+            ),
+            (
+                format!("{average}(B, from = g, to = e) = ratio(1, 2, 3);"),
+                "E_PARSE",
+                "expected `)`, found `,`",
+                ",",
+                ", 3",
+            ),
+            (
+                "indexed convention c = hbar_two;".into(),
+                "E_TYPE",
+                "a convention is `hbar_one`, the one convention of the profile",
+                "hbar_two",
+                "hbar_two",
+            ),
+            (
+                r#"indexed model M: Model<P> = model(H, reading = r, convention = c, prepare = g, observe = e, predicts = A, regime = assume("a"));"#.into(),
+                "E_PARSE",
+                "`model` needs an explicit hamiltonian: write `hamiltonian = …`",
+                "H",
+                "H,",
+            ),
+            (
+                r#"indexed model M: Model<P> = model(hamiltonian = H, convention = c, prepare = g, observe = e, predicts = A, regime = assume("a"));"#.into(),
+                "E_PARSE",
+                "`model` needs an explicit reading: write `reading = …`",
+                ",",
+                ", convention",
+            ),
+            (
+                r#"indexed model M: Model<P> = model(hamiltonian = H, reading = r, convention = c, prepare = g, observe = e, predicts = A, regime = "a");"#.into(),
+                "E_PARSE",
+                "the regime of `model` is a recorded assumption: write `regime = assume(\"…\")`",
+                "\"a\"",
+                "\"a\"",
+            ),
+            (
+                "indexed model M: Model<P> = model(hamiltonian = H, reading = r, convention = c, prepare = g, observe = e, predicts = A, regime = assume(a));".into(),
+                "E_PARSE",
+                "the regime of `model` is a string literal, as in \"…\"",
+                "a",
+                "a))",
+            ),
+            (
+                r#"indexed model M: Model<P> = model(hamiltonian = H, reading = r, convention = c, prepare = g, observe = e, predicts = A, regime = assume("a\"b"));"#.into(),
+                "E_PARSE",
+                "the regime of `model` holds printable ASCII characters other than `\\` between double quotes",
+                "\"a\\\"b\"",
+                "\"a\\\"b\"",
+            ),
+            (
+                "indexed model M: Model<P> = model(hamiltonian = H, reading = r, convention = c, prepare = g, observe = e, predicts = A, regime = assume(\"\u{3a9}\"));".into(),
+                "E_PARSE",
+                "the regime of `model` holds printable ASCII characters other than `\\` between double quotes",
+                "\"\u{3a9}\"",
+                "\"\u{3a9}\"",
+            ),
+            (
+                "indexed calibration K: Calibration<P> = calibrate(omega = measured(1, u = 1));".into(),
+                "E_PARSE",
+                "`calibrate` needs an explicit method after its coordinates: write `, method = …`",
+                ")",
+                ");",
+            ),
+            (
+                r#"indexed calibration K: Calibration<P> = calibrate(omega = measured(1, u = 1), method = type_c, reference = "a", revision = "b");"#.into(),
+                "E_TYPE",
+                "the method of a calibration is `type_a` or `type_b`",
+                "type_c",
+                "type_c",
+            ),
+            (
+                r#"indexed calibration K: Calibration<P> = calibrate(omega = measured(1), method = type_a, reference = "a", revision = "b");"#.into(),
+                "E_PARSE",
+                "`measured` needs an explicit standard uncertainty: write `u = …`",
+                ")",
+                "), method",
+            ),
+            (
+                r#"indexed calibration K: Calibration<P> = calibrate(omega = measured(x, u = 1), method = type_a, reference = "a", revision = "b");"#.into(),
+                "E_PARSE",
+                "a rational number is an integer literal or `frac(i, n)`, with an optional `-`",
+                "x",
+                "x, u",
+            ),
+            (
+                r#"indexed calibration K: Calibration<P> = calibrate(omega = 1, method = type_a, reference = "a", revision = "b");"#.into(),
+                "E_PARSE",
+                "`calibrate` needs a measured value: write `measured(v, u = w)`",
+                "1",
+                "1, method",
+            ),
+            (
+                "indexed calibration K: Calibration<P> = calibrate(omega = measured(1, u = 1), method = type_a, reference = a, revision = \"b\");".into(),
+                "E_PARSE",
+                "the reference of `calibrate` is a string literal, as in \"…\"",
+                "a",
+                "a, revision",
+            ),
+            (
+                "indexed dataset D: Dataset<P> = measure(model = M, calibration = K, coverage = 2, points = [(delta = 0)]);".into(),
+                "E_PARSE",
+                "a point of a dataset ends with its measured value: write `, value = measured(v, u = w)`",
+                ")",
+                ")]",
+            ),
+            (
+                "indexed dataset D: Dataset<P> = measure(model = M, calibration = K, coverage = 2, points = [delta = 0]);".into(),
+                "E_PARSE",
+                "a point of a dataset is a parenthesized tuple, as in `(x = 1, value = measured(v, u = w))`",
+                "delta",
+                "delta = 0]",
+            ),
+            (
+                "indexed dataset D: Dataset<P> = measure(model = M, calibration = K, coverage = k, points = []);".into(),
+                "E_PARSE",
+                "a rational number is an integer literal or `frac(i, n)`, with an optional `-`",
+                "k",
+                "k, points",
+            ),
+            (
+                "indexed dataset D: Dataset<P> = measure(calibration = K, model = M, coverage = 1, points = []);".into(),
+                "E_PARSE",
+                "`measure` needs an explicit model: write `model = …`",
+                "calibration",
+                "calibration = K, model",
+            ),
+            (
+                "indexed comparison C: Comparison<P> = compare(D, calibration = K, verdict = consistent);".into(),
+                "E_PARSE",
+                "`compare` needs the recorded fingerprint of its calibration: write `fingerprint = …`",
+                ",",
+                ", verdict",
+            ),
+            (
+                "indexed comparison C: Comparison<P> = compare(D, calibration = K, fingerprint = f, verdict = consistent);".into(),
+                "E_PARSE",
+                "the fingerprint of `compare` is a string literal, as in \"…\"",
+                "f",
+                "f, verdict",
+            ),
+            (
+                r#"indexed comparison C: Comparison<P> = compare(D, fingerprint = "f", calibration = K, verdict = consistent);"#.into(),
+                "E_PARSE",
+                "`compare` needs an explicit calibration: write `calibration = …`",
+                ",",
+                ", fingerprint",
+            ),
+            (
+                r#"indexed comparison C: Comparison<P> = compare(D, calibration = K, fingerprint = "f", verdict = stale);"#.into(),
+                "E_TYPE",
+                "the verdict of a comparison is `consistent` or `inconsistent`",
+                "stale",
+                "stale",
+            ),
+        ];
+        for (source, code, message, place, context) in &cases {
+            assert_rejected_at(source, code, message, place, context);
+        }
+        let limit = crate::limits::MAX_DATASET_POINTS;
+        let points = vec!["(delta = 0, value = measured(1, u = 1))"; limit + 1].join(", ");
+        let source = format!(
+            "indexed dataset D: Dataset<P> = measure(model = M, calibration = K, coverage = 1, points = [{points}]);"
+        );
+        let error = parse_declaration(&source).expect_err("too many points");
+        assert_eq!(error.code, "E_LIMIT");
+        assert_eq!(
+            error.message,
+            format!(
+                "a dataset has at most {limit} points (`datasetPoints`), but this one has {}",
+                limit + 1
+            )
+        );
+        assert_eq!(
+            &source[error.span.start..error.span.end],
+            format!("[{points}]")
+        );
+        let at_limit = vec!["(delta = 0, value = measured(1, u = 1))"; limit].join(", ");
+        parse_declaration(&format!(
+            "indexed dataset D: Dataset<P> = measure(model = M, calibration = K, coverage = 1, points = [{at_limit}]);"
+        ))
+        .expect("a dataset at the limit");
+        // A recorded text has at most `recordTextBytes` bytes, at each of the
+        // four places that take one.
+        let bytes = crate::limits::MAX_RECORD_TEXT_BYTES;
+        let texts = |text: &str| {
+            [
+                format!(
+                    "indexed model M: Model<P> = model(hamiltonian = H, reading = r, convention = c, prepare = g, observe = e, predicts = A, regime = assume(\"{text}\"));"
+                ),
+                format!(
+                    "indexed calibration K: Calibration<P> = calibrate(method = type_a, reference = \"{text}\", revision = \"r\");"
+                ),
+                format!(
+                    "indexed calibration K: Calibration<P> = calibrate(method = type_a, reference = \"r\", revision = \"{text}\");"
+                ),
+                format!(
+                    "indexed comparison C: Comparison<P> = compare(D, calibration = K, fingerprint = \"{text}\", verdict = consistent);"
+                ),
+            ]
+        };
+        for (source, what) in
+            texts(&"~".repeat(bytes))
+                .iter()
+                .zip(["regime", "reference", "revision", "fingerprint"])
+        {
+            let declaration = parse_declaration(source).expect("a text at the limit");
+            let record = serde_json::to_value(&declaration.body).unwrap();
+            assert_eq!(record[what], json!("~".repeat(bytes)), "{source}");
+        }
+        let long = "a".repeat(bytes + 1);
+        for (source, (what, operation)) in texts(&long).iter().zip([
+            ("regime", "model"),
+            ("reference", "calibrate"),
+            ("revision", "calibrate"),
+            ("fingerprint", "compare"),
+        ]) {
+            assert_rejected_at(
+                source,
+                "E_LIMIT",
+                &format!(
+                    "the {what} of `{operation}` has at most {bytes} bytes (`recordTextBytes`), but this one has {}",
+                    bytes + 1
+                ),
+                &format!("\"{long}\""),
+                &format!("\"{long}\""),
+            );
+        }
+    }
+
+    /// The Stage 6 forms add no token: `/` and `@` keep their errors
+    /// everywhere, the Stage 6 declarations included, and a string literal is
+    /// read only at the four places that take one.
+    #[test]
+    fn slash_at_and_strings_keep_their_errors_outside_the_four_text_fields() {
+        let first = |source: &str| {
+            let error = parse_module(source).expect_err(source);
+            (
+                error.code,
+                error.message,
+                source[error.span.start..error.span.end].to_string(),
+            )
+        };
+        let division = (
+            "E_UNSUPPORTED".to_string(),
+            "division is not supported".to_string(),
+            "/".to_string(),
+        );
+        assert_eq!(first("fn main() -> Int { 4 / 2 }"), division);
+        assert_eq!(first("indexed quantity Speed = L / T;"), division);
+        assert_eq!(
+            first(r#"indexed model M: Model<P> = model(hamiltonian = H / 2);"#),
+            division
+        );
+        assert_eq!(
+            first(
+                "indexed average A: TransitionAverage<P> = transition_average(B, from = g, to = e) = 1 / 2;"
+            ),
+            division
+        );
+        assert_eq!(
+            first(
+                "indexed average A: TransitionAverage<P> = transition_average(B, from = g, to = e) = ratio(1, 2) / 3;"
+            ),
+            division
+        );
+        let (code, _, place) = first("fn main() -> Int { 4 @ 2 }");
+        assert_eq!((code.as_str(), place.as_str()), ("E_LEX", "@"));
+        let (code, _, place) = first(
+            r#"indexed comparison C: Comparison<P> = compare(D, calibration = K @ "f", verdict = consistent);"#,
+        );
+        assert_eq!((code.as_str(), place.as_str()), ("E_LEX", "@"));
+        let (code, _, place) = first(r#"fn main() -> Int { let s = "a"; 0 }"#);
+        assert_eq!((code.as_str(), place.as_str()), ("E_UNSUPPORTED", "\"a\""));
+        let (code, _, place) = first(
+            r#"indexed dataset D: Dataset<P> = measure(model = M, calibration = K, coverage = "2", points = []);"#,
+        );
+        assert_eq!((code.as_str(), place.as_str()), ("E_PARSE", "\"2\""));
+    }
+
+    /// The words of the Stage 6 forms (#841): declaration kinds, family
+    /// representations, tags and keywords. `method` is a keyword already.
+    const STAGE6_WORDS: [&str; 32] = [
+        "average",
+        "transition_average",
+        "ratio",
+        "from",
+        "to",
+        "convention",
+        "hbar_one",
+        "model",
+        "hamiltonian",
+        "prepare",
+        "observe",
+        "predicts",
+        "regime",
+        "assume",
+        "calibration",
+        "calibrate",
+        "measured",
+        "u",
+        "type_a",
+        "type_b",
+        "reference",
+        "revision",
+        "dataset",
+        "measure",
+        "coverage",
+        "points",
+        "comparison",
+        "compare",
+        "fingerprint",
+        "verdict",
+        "consistent",
+        "average_at",
+    ];
+
+    /// The Stage 6 words are contextual: they are reserved nowhere, so
+    /// programs that use them as names keep parsing.
+    #[test]
+    fn stage6_words_remain_ordinary_names() {
+        for word in STAGE6_WORDS.iter().chain(&["inconsistent"]) {
+            assert!(!super::super::reserved(word), "{word}");
+        }
+        let functions: String = STAGE6_WORDS
+            .iter()
+            .map(|w| format!("fn {w}(n: Int) -> Int {{ n }}\n"))
+            .collect();
+        let calls: Vec<String> = STAGE6_WORDS.iter().map(|w| format!("{w}(1)")).collect();
+        let named = format!("{functions}fn main() -> Int {{ {} }}\n", calls.join(" + "));
+        let lets: String = STAGE6_WORDS
+            .iter()
+            .map(|w| format!("let {w} = 1; "))
+            .collect();
+        let bound = format!(
+            "fn main() -> Int {{ {lets}{} }}\n",
+            STAGE6_WORDS.join(" + ")
+        );
+        for flat in [named, bound] {
+            crate::frontend::parse(&flat, "names.vast")
+                .unwrap_or_else(|errors| panic!("{errors:?}\n{flat}"));
+        }
     }
 
     /// The words of the Stage 5 forms (#806): declaration kinds, family

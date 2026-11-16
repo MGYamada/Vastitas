@@ -261,6 +261,10 @@ const WIRE_OPERATIONS: &[(&str, Option<&str>)] = &[
         "branch_projector",
         Some("VastitasKernel.SpectralRuntime.projectorEntry poly_"),
     ),
+    (
+        "average_at",
+        Some("VastitasKernel.SpectralRuntime.averageAt poly_"),
+    ),
 ];
 
 /// The `op` of every `primitive` declaration anywhere in a wire request.

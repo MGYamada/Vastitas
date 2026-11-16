@@ -258,6 +258,12 @@ def indexedNotValue (declarations : Core.Declarations) (id : DeclId) : String :=
     | some (.endomorphism ..) => "an endomorphism"
     | some (.spectrum ..) => "a spectrum"
     | some (.branch ..) => "a branch"
+    | some (.transitionAverage ..) => "a transition average"
+    | some (.convention _) => "a convention"
+    | some (.model ..) => "a model"
+    | some (.calibration ..) => "a calibration"
+    | some (.dataset ..) => "a dataset"
+    | some (.comparison ..) => "a comparison"
     | none => "an indexed declaration"
   s!"names {kind}, which is not a value{advice}"
 

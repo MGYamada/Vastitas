@@ -1121,7 +1121,8 @@ History section at the end of this chapter links the tracker.
 #### Compatibility and public-name audit
 
 - **Names.** The family is `TransitionAverage<X>`, the declaration form
-  `transition_average(B, from = i, to = j) = N / D`, and the observation
+  `transition_average(B, from = i, to = j) = ratio(N, D)`, in the style of
+  `frac(…)` because the language has no `/`, and the observation
   `average_at`. The names are provisional until the module is delivered.
 - **Other meanings.** The average is no expectation value of a measurement and
   no statistical mean of data; those belong to `nature::model` and

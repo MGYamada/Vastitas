@@ -183,6 +183,28 @@ inductive MorphismDefinition where
   | charCoefficient (spectrum : Path) (index : Nat)
   deriving Repr, Inhabited
 
+/-- A measured value as the source writes it (Stage 6, `nature::errorbar`):
+`measured(value, u = uncertainty)`, two constant polynomial expressions. -/
+structure SourceMeasured where
+  value : PolyExpr
+  uncertainty : PolyExpr
+  deriving Repr, Inhabited
+
+/-- One calibrated coordinate `coordinate = measured(…)` of a calibration
+(Stage 6). -/
+structure Calibrated where
+  coordinate : String
+  measured : SourceMeasured
+  deriving Repr, Inhabited
+
+/-- One point of a dataset (Stage 6): the values of coordinates
+`coordinate = value`, in the order of the source, and the measured value of
+the observable. -/
+structure SourcePoint where
+  coordinates : List (String × PolyExpr)
+  measured : SourceMeasured
+  deriving Repr, Inhabited
+
 inductive Body where
   | marker
   | implementation (marker : Path) (representation : Representation)
@@ -250,6 +272,35 @@ inductive Body where
   the spectrum's fiber coordinate. The kernel computes the quotient. -/
   | branch (family : Path) (indices : List Path) (spectrum : Path) (localize witness : PolyExpr)
       (exponent : Nat)
+  /-- `average name : family<object> = transition_average(branch, from = i,
+  to = j) = numerator / denominator` (Stage 6): `i` and `j` are basis names of
+  the module of the branch's field, and the closed form is in the object's
+  coordinates. The kernel computes the certificate. -/
+  | transitionAverage (family : Path) (indices : List Path) (branch : Path) (source target : String)
+      (numerator denominator : PolyExpr)
+  /-- `convention name = value` (Stage 6, `nature::model`). -/
+  | convention (value : Convention)
+  /-- `model name : family<object> = model(hamiltonian = H, reading = r,
+  convention = c, prepare = i, observe = j, predicts = A, regime =
+  assume("…"))` (Stage 6, `nature::model`): `i` and `j` are basis names of the
+  module of `H`, and the regime is the recorded text. -/
+  | model (family : Path) (indices : List Path) (hamiltonian reading convention : Path) (prepare observe : String)
+      (predicts : Path) (regime : String)
+  /-- `calibration name : family<object> = calibrate(x = measured(v, u = w), …,
+  method = m, reference = "…", revision = "…")` (Stage 6, `nature::errorbar`):
+  each calibrated coordinate with its constant value and uncertainty. -/
+  | calibration (family : Path) (indices : List Path) (parameters : List Calibrated) (method : CalibrationMethod)
+      (reference revision : String)
+  /-- `dataset name : family<object> = measure(model = M, calibration = K,
+  coverage = k, points = [(x = v, …, value = measured(v, u = w)), …])` (Stage
+  6, `nature::errorbar`): a constant coverage factor and the points. -/
+  | dataset (family : Path) (indices : List Path) (model calibration : Path) (coverage : PolyExpr)
+      (points : List SourcePoint)
+  /-- `comparison name : family<object> = compare(D, calibration = K @ "…",
+  verdict = v)` (Stage 6, `nature::errorbar`): the recorded fingerprint and
+  verdict. -/
+  | comparison (family : Path) (indices : List Path) (dataset calibration : Path) (fingerprint : String)
+      (verdict : Verdict)
   deriving Repr, Inhabited
 
 structure Declaration where

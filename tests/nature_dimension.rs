@@ -123,7 +123,8 @@ fn the_scaled_metric_is_accepted_and_its_gradient_is_nine_four() {
 /// The application and the package of `nature::dimension` reach one std
 /// package, so the reading of the application's chart is a reading of a
 /// `CInfAffine` object of the one std package (C21). The root package of
-/// `nature` depends on the dimension package alone and re-exports it.
+/// `nature` depends on the dimension package and, since the Stage 6
+/// skeleton (#841), on the model and errorbar packages, and re-exports each.
 #[test]
 fn nature_and_the_application_share_one_std_package() {
     let wire = request(&fixture(MAIN));
@@ -142,11 +143,18 @@ fn nature_and_the_application_share_one_std_package() {
         assert_eq!(std_dependency[0]["target"], std["source"]);
     }
     // The dimension package depends on std alone, and the root of nature on
-    // the dimension package alone.
+    // the dimension, errorbar and model packages alone, in the order of their
+    // aliases.
     assert_eq!(dimension["dependencies"].as_array().unwrap().len(), 1);
+    let [model] = packages(&wire, "vastitas_model").try_into().unwrap();
+    let [errorbar] = packages(&wire, "vastitas_errorbar").try_into().unwrap();
     assert_eq!(
         nature["dependencies"],
-        json!([{ "alias": "dimension_library", "target": dimension["source"] }])
+        json!([
+            { "alias": "dimension_library", "target": dimension["source"] },
+            { "alias": "errorbar_library", "target": errorbar["source"] },
+            { "alias": "model_library", "target": model["source"] },
+        ])
     );
     // No std package depends on nature or on its dimension package.
     for name in ["vastitas_std", "vastitas_geometry", "vastitas_differential"] {
@@ -294,7 +302,8 @@ fn generated_code_is_byte_identical_without_the_nature_declarations() {
 /// The module exports exactly the two families, the three base dimensions
 /// and the seven quantity kinds, and nothing else (C21). It is the root module
 /// of the package `vastitas_dimension`, and the one module of the root of
-/// `nature` re-exports it as `nature::dimension`.
+/// `nature` re-exports it as `nature::dimension`, next to `nature::model` and
+/// `nature::errorbar` (Stage 6, #841).
 #[test]
 fn dimension_module_exports_exactly_its_names() {
     let wire = request(&fixture(MAIN));
@@ -316,7 +325,11 @@ fn dimension_module_exports_exactly_its_names() {
         .for_each(common::remove_spans);
     assert_eq!(
         imports,
-        json!([{ "path": ["dimension_library"], "alias": "dimension", "public": true }])
+        json!([
+            { "path": ["dimension_library"], "alias": "dimension", "public": true },
+            { "path": ["model_library"], "alias": "model", "public": true },
+            { "path": ["errorbar_library"], "alias": "errorbar", "public": true },
+        ])
     );
     for items in ["functions", "generics", "methods"] {
         assert_eq!(root[items], json!([]), "{items}");
@@ -386,6 +399,82 @@ fn dimension_module_exports_exactly_its_names() {
         assert!(
             stderr.contains(&format!("undefined name '{name}'")),
             "{stderr}"
+        );
+    }
+}
+
+/// The Stage 6 skeleton (#841): `nature::model` exports exactly the family
+/// `Model` and `nature::errorbar` exactly the families `Calibration`,
+/// `Dataset` and `Comparison`. Each is the root module of a package of its
+/// own that depends on std alone, and each family indexes std's smooth
+/// affine objects, canonically. The kernel accepts the families, so a program
+/// that depends on `nature` still checks, builds and runs; it rejects every
+/// model and every datum until their checks are implemented.
+#[test]
+fn model_and_errorbar_modules_export_exactly_their_families() {
+    let wire = request(&fixture(MAIN));
+    let [std] = packages(&wire, "vastitas_std").try_into().unwrap();
+    let object = json!([{ "kind": "object",
+        "domain": { "path": ["std", "geometry", "smooth", "affine", "CInfAffine"] } }]);
+    for (name, families) in [
+        ("vastitas_model", &[("Model", "model")][..]),
+        (
+            "vastitas_errorbar",
+            &[
+                ("Calibration", "calibration"),
+                ("Dataset", "dataset"),
+                ("Comparison", "comparison"),
+            ][..],
+        ),
+    ] {
+        let [package] = packages(&wire, name).try_into().unwrap();
+        assert_eq!(
+            package["dependencies"],
+            json!([{ "alias": "std", "target": std["source"] }]),
+            "{name}"
+        );
+        let [module] = package["modules"].as_array().unwrap().as_slice() else {
+            panic!("{package}");
+        };
+        assert_eq!(module["path"], json!([]), "{name}");
+        assert_eq!(module["public"], true, "{name}");
+        for items in ["imports", "functions", "generics", "methods"] {
+            assert_eq!(module[items], json!([]), "{name}: {items}");
+        }
+        let mut declarations = module["indexed_declarations"].as_array().unwrap().clone();
+        declarations.iter_mut().for_each(common::remove_spans);
+        let expected: Vec<Value> = families
+            .iter()
+            .map(|(family, representation)| {
+                json!({ "name": family, "kind": "family", "public": true, "parameters": object,
+                    "constraints": [{ "kind": "canonical", "object": 0 }],
+                    "representation": representation })
+            })
+            .collect();
+        assert_eq!(declarations, expected, "{name}");
+    }
+    // The families resolve through the root of nature, and no other name
+    // does: the conventions, models and data are the application's.
+    success(&check(&fixture(&with(concat!(
+        "use nature::model::Model;
+",
+        "use nature::errorbar::Calibration;
+",
+        "use nature::errorbar::Dataset;
+",
+        "use nature::errorbar::Comparison;",
+    )))));
+    for name in [
+        "model::hbar_one",
+        "model::Convention",
+        "errorbar::measured",
+        "errorbar::Measured",
+    ] {
+        let leaf = name.rsplit("::").next().unwrap();
+        let stderr = rejects(&with(&format!("use nature::{name};")), "E_NAME");
+        assert!(
+            stderr.contains(&format!("undefined name '{leaf}'")),
+            "{name}: {stderr}"
         );
     }
 }

@@ -125,6 +125,31 @@ inductive Failure where
   | witness (term : AlgebraRuntime.Term) (terms : Nat)
   /-- The products exceed an algebra limit. -/
   | work (error : AlgebraBasis.Error)
+  /-- The field of the branch of a transition average is not declared
+  `symmetric` (Stage 6). -/
+  | averageField
+  /-- A basis index `index` of a transition average beyond the rank `rank`
+  of the module of its field (Stage 6). -/
+  | averageBasis (index rank : Nat)
+  /-- The closed form of a transition average is not two canonical
+  polynomials of the base, of arity `m`, or its denominator is zero (Stage
+  6). -/
+  | averageShape
+  /-- The certificate of a transition average is not canonical of arity `m`,
+  or its unit exponent is beyond `unitBound` (Stage 6). -/
+  | averageCertificateShape
+  /-- The reduction `F = Q·χ + r` of the integrand `F` of a transition
+  average failed its check, or `deg_t r ≥ n` (Stage 6). -/
+  | averageReduction
+  /-- The stored trace `T` of a transition average is not the trace form
+  that the check computes (Stage 6). -/
+  | averageTrace
+  /-- `N·g^{2e} ≠ D·T`: the residual `N·g^{2e} − D·T` has `terms` terms, the
+  first `term`, in the canonical order (Stage 6). Presentation only. -/
+  | closedForm (term : AlgebraRuntime.Term) (terms : Nat)
+  /-- The denominator `D` of a transition average is not a unit on `D(g)`:
+  no `m ≤ bound` has `D·Q = g^m` (Stage 6). -/
+  | denominatorUnit (bound : Nat)
   deriving Repr, DecidableEq, Inhabited
 
 def Failure.code : Failure → String
@@ -492,6 +517,166 @@ def checkBranch (env : Environment) (family object spectrum : DeclId) (localize 
         match endomorphismData? env endomorphism with
         | some (_, _, _, rows, _) =>
           (checkWitness m rows.length certificate.characteristic localize witness exponent quotient).isOk
+        | none => false
+    | _, _ => false
+
+/-! ## Transition averages (Stage 6, #841; ADR 0001 §13)
+
+A transition average `TransitionAverage<X>` of a branch `B` with
+localization `g`, witness `W` and exponent `e`, from the basis vector `i` to
+the basis vector `j` of the module of a `symmetric` field `H` of rank `n`,
+states a closed form `N / D` in the coordinates of `X` (arity `m`). On
+`D(g)`, `1/χ′ = W/gᵉ` modulo `χ`, so the average `Σ_k P_k[j, i]²` is the
+trace form `T / g^{2e}` with
+
+`T = Tr_{A[t]/χ}(F)`, `F = adj[j, i]·adj[i, j]·W²` in `A[t]`.
+
+The check (`checkAverage`) computes `T` without trusting a producer:
+
+1. `F` by budgeted products;
+2. its reduction `F = Q·χ + r` by `χ`, monic of degree `n` in `t`
+   (`divideT`), checked as `F − Q·χ − r = []` with `deg_t r < n`;
+3. `T = Σ_{d < n} r_d·tr(Hᵈ)`, with `tr(H⁰) = n` and `tr(Hᵈ)` the budgeted
+   `tracePower`; the trace of `tᵈ` on the free `A`-module `A[t]/χ` with the
+   basis `1, t, …, t^{n−1}` is the power sum of the eigenvalues, `tr(Hᵈ)`.
+
+It then checks the stored `T`, the closed form `N·g^{2e} = D·T`, and that
+`D` is a unit on `D(g)`: `D·Q = g^m` for the stored quotient `Q` and
+exponent `m ≤ unitBound D`, the total degree of `D`. If `D` divides some
+`g^m`, it divides `g^m` for `m` the largest multiplicity of a prime factor
+in `D`, which is at most `deg D`, so the bound loses no unit. Nothing is
+divided but by the monic `χ` and, in the producer only, by `D`
+(`unitCertificate`), whose quotient the check multiplies back. No
+eigenvalue is computed. -/
+
+/-- The total degree of a polynomial; `0` for the zero polynomial. -/
+def totalDegree (p : Poly) : Nat := p.foldl (fun degree term => max degree term.monomial.degree) 0
+
+/-- The largest exponent `m` that a unit certificate `D·Q = g^m` of the
+denominator `D` may state: the total degree of `D`. -/
+def unitBound (denominator : Poly) : Nat := totalDegree denominator
+
+/-- The integrand `F = adj[j, i]·adj[i, j]·W²` of the trace form, in `A[t]`,
+for `source = i` and `target = j`. -/
+def averageIntegrand (adjugate : PolyMatrix) (witness : Poly) (source target : Nat) : Work Poly := do
+  let forward := (adjugate.getD target []).getD source []
+  let backward := (adjugate.getD source []).getD target []
+  let entries ← AlgebraBasis.mul forward backward
+  AlgebraBasis.mul entries (← AlgebraBasis.mul witness witness)
+
+/-- `Σ_{d < n} r_d·tr(Hᵈ)` for `r` of degree below `n` in `t`, over `A`
+(`arity = m`): the trace of `r` on `A[t]/χ`. `tr(H⁰) = n`. -/
+def traceForm (arity : Nat) (rows : PolyMatrix) (remainder : Poly) : Work Poly :=
+  (List.range rows.length).foldlM (fun sum d => do
+    let power ← if d == 0 then pure (Poly.const arity (rows.length : Rat)) else tracePower arity rows d
+    AlgebraBasis.add sum (← AlgebraBasis.mul (tCoefficient remainder d) power)) []
+
+/-- The values that the check of a transition average compares, all computed
+within one work budget (`averageIdentities`). -/
+structure AverageIdentities where
+  /-- `F − Q·χ − r` for the reduction of the integrand. -/
+  reduction : Poly
+  /-- The remainder `r` of the integrand modulo `χ`. -/
+  remainder : Poly
+  /-- The trace form `T`. -/
+  trace : Poly
+  /-- `N·g^{2e} − D·T`. -/
+  closedForm : Poly
+  /-- `D·Q − g^m` for the stored unit certificate. -/
+  unit : Poly
+  deriving Repr, Inhabited
+
+/-- The trace form `T` of the integrand of a transition average, with the
+reduction residual and the remainder that it uses. -/
+def averageTrace (arity : Nat) (rows : PolyMatrix) (characteristic : Poly) (adjugate : PolyMatrix)
+    (witness : Poly) (source target : Nat) : Work (Poly × Poly × Poly) := do
+  let integrand ← averageIntegrand adjugate witness source target
+  let (quotient, remainder) ← divideT rows.length characteristic integrand
+  let reduction ← AlgebraBasis.sub (← residual characteristic integrand quotient) remainder
+  pure (reduction, remainder, ← traceForm arity rows remainder)
+
+/-- The values of the identities of a transition average in one budget. -/
+def averageIdentities (arity : Nat) (rows : PolyMatrix) (characteristic : Poly) (adjugate : PolyMatrix)
+    (localize witness : Poly) (exponent source target : Nat) (numerator denominator : Poly)
+    (certificate : AverageCertificate) : Work AverageIdentities := do
+  let (reduction, remainder, trace) ← averageTrace arity rows characteristic adjugate witness source target
+  let left ← AlgebraBasis.mul numerator (← AlgebraBasis.power arity localize (2 * exponent))
+  let closedForm ← AlgebraBasis.sub left (← AlgebraBasis.mul denominator trace)
+  let unit ← AlgebraBasis.sub (← AlgebraBasis.mul denominator certificate.unitQuotient)
+    (← AlgebraBasis.power arity localize certificate.unitExponent)
+  pure ⟨reduction, remainder, trace, closedForm, unit⟩
+
+/-- The unit certificate of `D` on `D(g)` (untrusted producer): the least
+`m ≤ unitBound D` such that `D` divides `g^m`, with the quotient, or `none`.
+Division by the single polynomial `D` leaves the remainder zero exactly when
+`D` divides, since `{D}` is a Gröbner basis of `(D)`. -/
+def unitCertificate (arity : Nat) (localize denominator : Poly) : Work (Option (Poly × Nat)) :=
+  go (unitBound denominator + 1) 0
+where
+  go : Nat → Nat → Work (Option (Poly × Nat))
+    | 0, _ => pure none
+    | fuel + 1, m => do
+      let power ← AlgebraBasis.power arity localize m
+      let division ← AlgebraBasis.divide [denominator] power
+      if division.remainder.isEmpty then pure (some (division.quotients.headD [], m)) else go fuel (m + 1)
+
+/-- The certificate of a transition average (untrusted producer): the trace
+form and the unit certificate of the denominator, or `none` when `D` is no
+unit on `D(g)` within `unitBound`. `checkAverage` checks it. -/
+def averageCertificate (arity : Nat) (rows : PolyMatrix) (characteristic : Poly) (adjugate : PolyMatrix)
+    (localize witness : Poly) (source target : Nat) (denominator : Poly) : Work (Option AverageCertificate) := do
+  let (_, _, trace) ← averageTrace arity rows characteristic adjugate witness source target
+  match ← unitCertificate arity localize denominator with
+  | some (quotient, m) => pure (some ⟨trace, quotient, m⟩)
+  | none => pure none
+
+/-- The transition average from the basis vector `source` to `target` of a
+`symmetric` field `H` of rank `n` over `A` (`arity = m`), of a branch with
+`χ`, `adj(tI − H)`, `g`, `W` and `e`, with the closed form `N / D` and its
+certificate: the rank and the exponent first, then the field, the indices
+and the shapes, then the identities in order. -/
+def checkAverage (arity : Nat) (rows : PolyMatrix) (symmetric : Bool) (characteristic : Poly) (adjugate : PolyMatrix)
+    (localize witness : Poly) (exponent source target : Nat) (numerator denominator : Poly)
+    (certificate : AverageCertificate) : Except Failure Unit := do
+  let n := rows.length
+  if n > Limits.spectralRank then throw (.rank n)
+  if exponent > Limits.spectralPower then throw (.exponent exponent)
+  unless symmetric do throw .averageField
+  unless source < n do throw (.averageBasis source n)
+  unless target < n do throw (.averageBasis target n)
+  unless Poly.canonical arity numerator && Poly.canonical arity denominator && !denominator.isEmpty do
+    throw .averageShape
+  unless Poly.canonical arity certificate.trace && Poly.canonical arity certificate.unitQuotient &&
+      decide (certificate.unitExponent ≤ unitBound denominator) do
+    throw .averageCertificateShape
+  match AlgebraBasis.run (averageIdentities arity rows characteristic adjugate localize witness exponent source target
+      numerator denominator certificate) with
+  | .error error => throw (.work error)
+  | .ok values =>
+    unless values.reduction.isEmpty && (values.remainder.isEmpty || degT values.remainder < n) do
+      throw .averageReduction
+    unless values.trace == certificate.trace do throw .averageTrace
+    unless values.closedForm.isEmpty do throw (.closedForm (values.closedForm.headD default) values.closedForm.length)
+    unless values.unit.isEmpty do throw (.denominatorUnit (unitBound denominator))
+
+/-- The transition average declaration `transitionAverage family object branch
+source target numerator denominator certificate`: a `transition_average`
+family applied to a declared smooth object of dimension `m`, a branch of that
+object of a spectrum of an endomorphism, and a closed form with its
+certificate that `checkAverage` accepts. -/
+def checkTransitionAverage (env : Environment) (family object branch : DeclId) (source target : Nat)
+    (numerator denominator : Poly) (certificate : AverageCertificate) : Bool :=
+  declaredAt env (isTransitionAverageFamily env family) family object &&
+    match smoothDimension? env object, branchData? env branch with
+    | some m, some (_, branchObject, spectrum, localize, witness, exponent, _) =>
+      branchObject == object &&
+        match spectrumData? env spectrum with
+        | some (_, _, endomorphism, _, spectral) =>
+          match endomorphismData? env endomorphism with
+          | some (_, _, _, rows, symmetric) =>
+            (checkAverage m rows symmetric spectral.characteristic spectral.adjugate localize witness exponent source
+              target numerator denominator certificate).isOk
+          | none => false
         | none => false
     | _, _ => false
 

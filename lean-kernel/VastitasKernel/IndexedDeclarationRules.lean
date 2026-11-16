@@ -71,6 +71,11 @@ def representationText : FamilyRepresentation → String
   | .endomorphism => "endomorphism"
   | .spectrum => "spectrum"
   | .branch => "branch"
+  | .transitionAverage => "transition_average"
+  | .model => "model"
+  | .calibration => "calibration"
+  | .dataset => "dataset"
+  | .comparison => "comparison"
 
 def boundIndexText : Indexed.BoundIndex → String
   | .witness => "witness"
@@ -208,7 +213,8 @@ def familyRule (env : Environment) (entry : Entry) : Option Rule := do
       shape "exactly the constraints `canonical(0), canonical(1)`"
     else implementationsOf "smooth_affine" (smoothImplementation env)
   | .fiber _ | .metricForm | .frame | .reading | .physicalMetric
-  | .freeModule | .endomorphism | .spectrum | .branch =>
+  | .freeModule | .endomorphism | .spectrum | .branch
+  | .transitionAverage | .model | .calibration | .dataset | .comparison =>
     if !objects 1 then shape "exactly one parameter, of the form `object(…)`"
     else if contract.constraints != [.canonical 0] then shape "exactly the constraint `canonical(0)`"
     else implementationsOf "smooth_affine" (smoothImplementation env)
@@ -316,6 +322,17 @@ def primitiveRule (env : Environment) (name : DeclId) (op : String) (binding : P
       else (spectrum branchRef.spectrum).orElse fun _ =>
         rule (branchDeclared env branchRef) <| s!"{subject} must embed the localization, the witness and the " ++
           s!"exponent of the branch declaration `{qualified branchRef.branch}`"
+  let average (averageRef : AverageRef) : Option String :=
+    match transitionAverageData? env averageRef.average with
+    | none => some s!"`{qualified averageRef.average}` of {subject} must be a transition average declaration"
+    | some (_, object, branchId, _, _, numerator, denominator, _) =>
+      if object != averageRef.object || branchId != averageRef.branch.branch then
+        some <| s!"{subject} must embed the branch `{qualified branchId}` of the transition average " ++
+          s!"declaration `{qualified averageRef.average}`"
+      else if numerator != averageRef.numerator || denominator != averageRef.denominator then
+        some <| s!"{subject} must embed the closed form of the transition average declaration " ++
+          s!"`{qualified averageRef.average}`"
+      else branch averageRef.branch
   let element (spec : SpectrumRef) (value : AlgebraRuntime.Poly) :=
     rule (spectralElementValid env spec value) <| s!"the element of {subject} must be a polynomial in the " ++
       s!"coordinates of `{qualified spec.object}` and the fiber coordinate of `{qualified spec.spectrum}`"
@@ -449,6 +466,7 @@ def primitiveRule (env : Environment) (name : DeclId) (op : String) (binding : P
       result ⟨cotangent, [.object (.global branchRef.object)]⟩ "the result type" ["the branch's object"]]
   | .branchProjector maps lineId branchRef row column =>
     first [smooth maps, line lineId, branch branchRef, entry branchRef.spectrum.rank row column]
+  | .averageAt maps lineId averageRef => first [smooth maps, line lineId, average averageRef]
   | _ => none
 
 end VastitasKernel.Indexed.Source

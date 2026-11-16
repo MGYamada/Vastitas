@@ -29,7 +29,7 @@ direction of each edge.
 
 | Name | Kind | Contract |
 | --- | --- | --- |
-| `spectral` | module | The families of free modules, endomorphism fields, spectral pairs and simple branches ([page](linalg/spectral.md)) |
+| `spectral` | module | The families of free modules, endomorphism fields, spectral pairs, simple branches and transition averages ([page](linalg/spectral.md)) |
 
 ## Rules and proofs
 

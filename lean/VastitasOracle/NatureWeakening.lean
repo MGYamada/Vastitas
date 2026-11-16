@@ -70,9 +70,12 @@ open VastitasOracle.SmoothMetricWeakening (lookup_append lookup_insert found_of_
   found_of_familyRepresentation validApplication_mk_of_found validPrimitiveBinding_of_metricOrNature)
 
 /-- The declarations that `NatureDimension` checks: base dimensions,
-quantities, readings, scales and physical metrics. -/
+quantities, readings, scales and physical metrics; and the declarations of
+`nature::model` and `nature::errorbar` (Stage 6), whose checks read readings,
+models and calibrations. -/
 def NatureCheck : Declaration → Prop
   | .baseDimension | .quantity .. | .reading .. | .scale .. | .physicalMetric .. => True
+  | .convention .. | .model .. | .calibration .. | .dataset .. | .comparison .. => True
   | _ => False
 
 /-- A declaration that only `nature::dimension` contributes: one that
@@ -296,6 +299,17 @@ theorem checkBranch_append (family object spectrum : DeclId) (localize witness :
     spectralDeclaredAt_append ext (representation := .branch) (by decide),
     smoothDimension_append ext.profile, spectrumData_append ext.profile, endomorphismData_append ext.profile]
 
+theorem checkTransitionAverage_append (family object branch : DeclId) (source target : Nat)
+    (numerator denominator : AlgebraRuntime.Poly) (certificate : AverageCertificate) :
+    SpectralDeclarations.checkTransitionAverage big family object branch source target numerator denominator
+        certificate =
+      SpectralDeclarations.checkTransitionAverage small family object branch source target numerator denominator
+        certificate := by
+  simp only [SpectralDeclarations.checkTransitionAverage, isTransitionAverageFamily,
+    spectralDeclaredAt_append ext (representation := .transitionAverage) (by decide),
+    smoothDimension_append ext.profile, branchData_append ext.profile, spectrumData_append ext.profile,
+    endomorphismData_append ext.profile]
+
 theorem lookup_classification_iff (id : DeclId) (parents implementations : List DeclId) :
     lookup big id = some (.classification parents implementations) ↔
       lookup small id = some (.classification parents implementations) :=
@@ -331,6 +345,9 @@ theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
     simp only [Entry.Valid, checkSpectrum_append ext]
   | branch family object spectrum localize witness exponent quotient =>
     simp only [Entry.Valid, checkBranch_append ext]
+  -- The transition averages of Stage 6 read no nature declaration (#841).
+  | transitionAverage family object branch source target numerator denominator certificate =>
+    simp only [Entry.Valid, checkTransitionAverage_append ext]
   | _ => exact absurd trivial other
 
 /-- The executable check is unchanged as well. -/

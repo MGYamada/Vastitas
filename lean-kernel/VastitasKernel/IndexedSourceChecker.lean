@@ -8,6 +8,8 @@ import VastitasKernel.IndexedMetricSource
 import VastitasKernel.IndexedFrameSource
 import VastitasKernel.IndexedNatureSource
 import VastitasKernel.IndexedSpectralSource
+import VastitasKernel.IndexedModelSource
+import VastitasKernel.IndexedErrorbarSource
 import VastitasKernel.IndexedDeclarationRules
 
 namespace VastitasKernel.Indexed.Source
@@ -89,6 +91,15 @@ def spectralObject (span : Span) (what form : String) (indices : List DeclId) : 
   match indices with
   | [object] => pure object
   | _ => Namespace.problem span "E_SPECTRAL" <|
+      s!"{what} names one object, as in `{form}<X>`, but {indices.length} are given"
+
+/-- The one object of a Stage 6 declaration `form<X>` (#841), with the code
+of its module: `E_SPECTRAL` for a transition average, `E_MODEL` for a model
+and `E_ERRORBAR` for a calibration, a dataset or a comparison. -/
+def stage6Object (code : String) (span : Span) (what form : String) (indices : List DeclId) : ResolveM DeclId :=
+  match indices with
+  | [object] => pure object
+  | _ => Namespace.problem span code <|
       s!"{what} names one object, as in `{form}<X>`, but {indices.length} are given"
 
 def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : Body)
@@ -239,6 +250,37 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       let family ← resolveId p scope family
       let object ← spectralObject span "a branch" "Branch" (← indices.mapM (resolveId p scope))
       return add (.branch family object (← resolveId p scope spectrum) [] [] exponent [])
+  /- Stage 6 declarations (#841). Every path is resolved here; the basis and
+  coordinate names, the closed forms, the values and the certificates are
+  elaborated once the objects are known (`elaborateAverages`,
+  `elaborateModels`, `elaborateErrorbars`). -/
+  | .transitionAverage family indices branch _ _ _ _ => do
+      let family ← resolveId p scope family
+      let object ← stage6Object "E_SPECTRAL" span "a transition average" "TransitionAverage"
+        (← indices.mapM (resolveId p scope))
+      return add (.transitionAverage family object (← resolveId p scope branch) 0 0 [] [] ⟨[], [], 0⟩)
+  | .convention value => return add (.convention value)
+  | .model family indices hamiltonian reading convention _ _ predicts regime => do
+      let family ← resolveId p scope family
+      let object ← stage6Object "E_MODEL" span "a model" "Model" (← indices.mapM (resolveId p scope))
+      let hamiltonian ← resolveId p scope hamiltonian
+      let reading ← resolveId p scope reading
+      let convention ← resolveId p scope convention
+      return add (.model family object hamiltonian reading convention 0 0 (← resolveId p scope predicts) regime)
+  | .calibration family indices _ method reference revision => do
+      let family ← resolveId p scope family
+      let object ← stage6Object "E_ERRORBAR" span "a calibration" "Calibration" (← indices.mapM (resolveId p scope))
+      return add (.calibration family object [] method reference revision)
+  | .dataset family indices model calibration _ _ => do
+      let family ← resolveId p scope family
+      let object ← stage6Object "E_ERRORBAR" span "a dataset" "Dataset" (← indices.mapM (resolveId p scope))
+      let model ← resolveId p scope model
+      return add (.dataset family object model (← resolveId p scope calibration) 0 [])
+  | .comparison family indices dataset calibration fingerprint verdict => do
+      let family ← resolveId p scope family
+      let object ← stage6Object "E_ERRORBAR" span "a comparison" "Comparison" (← indices.mapM (resolveId p scope))
+      let dataset ← resolveId p scope dataset
+      return add (.comparison family object dataset (← resolveId p scope calibration) fingerprint verdict)
 
 /-- How a diagnostic names the export of a package. The request has no span
 for a manifest, so the message names the package as its manifest does, and the
@@ -353,6 +395,9 @@ def lower (p : Program) : Namespace.Result Resolved := do
       pure (some (owner, resolved.owner))
     | _ => pure none
   let declarations ← elaborateSpectral sources spectralTargets declarations
+  let declarations ← elaborateAverages sources declarations
+  let declarations ← elaborateModels sources declarations
+  let declarations ← elaborateErrorbars sources declarations
   let restrictTargets ← p.owned.filterMapM fun (owner, d) => match d.body with
     | .morphism _ _ (.restrict morphism) => do
       let target ← Namespace.resolve index owner.scope morphism.path morphism.span

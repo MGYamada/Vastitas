@@ -296,6 +296,17 @@ theorem checkBranch_append (family object spectrum : DeclId) (localize witness :
     spectralDeclaredAt_append ext (representation := .branch) (by decide),
     smoothDimension_append ext.profile, spectrumData_append ext.profile, endomorphismData_append ext.profile]
 
+theorem checkTransitionAverage_append (family object branch : DeclId) (source target : Nat)
+    (numerator denominator : AlgebraRuntime.Poly) (certificate : AverageCertificate) :
+    SpectralDeclarations.checkTransitionAverage big family object branch source target numerator denominator
+        certificate =
+      SpectralDeclarations.checkTransitionAverage small family object branch source target numerator denominator
+        certificate := by
+  simp only [SpectralDeclarations.checkTransitionAverage, isTransitionAverageFamily,
+    spectralDeclaredAt_append ext (representation := .transitionAverage) (by decide),
+    smoothDimension_append ext.profile, branchData_append ext.profile, spectrumData_append ext.profile,
+    endomorphismData_append ext.profile]
+
 theorem lookup_classification_iff (id : DeclId) (parents implementations : List DeclId) :
     lookup big id = some (.classification parents implementations) ↔
       lookup small id = some (.classification parents implementations) :=
@@ -331,9 +342,10 @@ theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
     simp only [Entry.Valid, checkSpectrum_append ext]
   | branch family object spectrum localize witness exponent quotient =>
     simp only [Entry.Valid, checkBranch_append ext]
-  -- The Stage 6 checks reject every entry until they are implemented (#841).
+  -- The transition averages of Stage 6 read no nature declaration (#841).
   | transitionAverage family object branch source target numerator denominator certificate =>
-    simp only [Entry.Valid, SpectralDeclarations.checkTransitionAverage]
+    simp only [Entry.Valid, checkTransitionAverage_append ext]
+  -- The other Stage 6 checks reject every entry until they are implemented (#841).
   | convention value => simp only [Entry.Valid, NatureModel.checkConvention]
   | model family object hamiltonian reading convention prepare observe predicts regime =>
     simp only [Entry.Valid, NatureModel.checkModel]

@@ -470,10 +470,11 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding}
       PrimitiveDescriptor.ofBool, frameTransitionValid, isSmoothFamily_append ext.profile,
       isFrameMapFamily_append ext.profile, frameDeclared_of_lookup sameSource, frameDeclared_of_lookup sameTarget,
       validApplication_frame2 ext _ sameSource sameTarget]
-  -- The transition average observation of Stage 6 rejects every binding.
+  -- The transition average observation of Stage 6 names no frame.
   | averageAt smooth line average =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, SpectralRegistry.averageAt,
-      PrimitiveDescriptor.evidence, PrimitiveDescriptor.ofBool]
+      PrimitiveDescriptor.ofBool, averageAtValid, averageDeclared, isSmoothFamily_append ext.profile,
+      smoothDimension_append ext.profile, transitionAverageData_append ext.profile, branchDeclared_append ext]
   | _ =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
       implementationType_append ext.profile, affineImplementation_append ext.profile,
@@ -608,9 +609,13 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
     simp only [validEntry, h, SpectralDeclarations.checkBranch, SpectralDeclarations.declaredAt,
       isBranchFamily, familyRepresentation_append ext, validApplication_object1 ext,
       smoothDimension_append ext.profile, spectrumData_append ext.profile, endomorphismData_append ext.profile]
-  -- The Stage 6 checks reject every entry until they are implemented (#841).
+  -- The transition averages of Stage 6 read no frame declaration (#841).
   | transitionAverage family object branch source target numerator denominator certificate =>
-    simp only [validEntry, h, SpectralDeclarations.checkTransitionAverage]
+    simp only [validEntry, h, SpectralDeclarations.checkTransitionAverage, SpectralDeclarations.declaredAt,
+      isTransitionAverageFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, branchData_append ext.profile, spectrumData_append ext.profile,
+      endomorphismData_append ext.profile]
+  -- The other Stage 6 checks reject every entry until they are implemented (#841).
   | convention value => simp only [validEntry, h, NatureModel.checkConvention]
   | model family object hamiltonian reading convention prepare observe predicts regime =>
     simp only [validEntry, h, NatureModel.checkModel]

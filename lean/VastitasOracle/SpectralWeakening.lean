@@ -90,12 +90,14 @@ def bindingSpectral : PrimitiveBinding → List DeclId
   | .spectralInvariant _ _ invariant => invariantNames invariant
   | .annihilates _ spectrum _ | .actionEntry _ spectrum _ _ _ => spectrumNames spectrum
   | .onBranch _ _ branch | .branchDifferential _ _ _ branch | .branchProjector _ _ branch _ _ => branchNames branch
+  | .averageAt _ _ average => branchNames average.branch
   | _ => []
 
-/-- The spectral bindings of Stage 5. -/
+/-- The spectral bindings of Stage 5, and the transition average observation
+of Stage 6. -/
 def SpectralBinding : PrimitiveBinding → Prop
   | .spectralInvariant .. | .annihilates .. | .actionEntry .. | .onBranch .. | .branchDifferential ..
-  | .branchProjector .. => True
+  | .branchProjector .. | .averageAt .. => True
   | _ => False
 
 /-- Every binding other than a spectral one names no spectral declaration. -/
@@ -295,6 +297,10 @@ theorem isBaseDimension_append (id : DeclId) : isBaseDimension big id = isBaseDi
 
 theorem quantityDimension_append (id : DeclId) : quantityDimension? big id = quantityDimension? small id := by
   spectral_view ext quantityDimension? id
+
+theorem transitionAverageData_append (id : DeclId) :
+    transitionAverageData? big id = transitionAverageData? small id := by
+  spectral_view ext transitionAverageData? id
 
 theorem readingData_append (id : DeclId) : readingData? big id = readingData? small id := by
   spectral_view ext readingData? id
@@ -558,10 +564,10 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding}
     · rw [absent, found]
       cases declaration <;> simp only [SpectralDeclaration] at kind <;>
         (cases metricData? small metric <;> rfl)
-  -- The transition average observation of Stage 6 rejects every binding.
   | averageAt smooth line average =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, SpectralRegistry.averageAt,
-      PrimitiveDescriptor.evidence, PrimitiveDescriptor.ofBool]
+      PrimitiveDescriptor.ofBool, averageAtValid, averageDeclared, isSmoothFamily_append ext,
+      smoothDimension_append ext, transitionAverageData_append ext, branchDeclared_append names]
   | _ =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
       implementationType_append ext, affineImplementation_append ext,
@@ -677,9 +683,10 @@ theorem checkPhysicalMetric_append (family object metric reading : DeclId) (valu
     quantityDimension_fun ext, entryValues_append ext]
 
 /-- A declaration whose validity a spectral extension cannot change: every
-declaration that is not an endomorphism, a spectrum or a branch. -/
+declaration that is not an endomorphism, a spectrum, a branch or a transition
+average (Stage 6), which reads the branch it names. -/
 def NamesNoSpectral : Declaration → Prop
-  | .endomorphism .. | .spectrum .. | .branch .. => False
+  | .endomorphism .. | .spectrum .. | .branch .. | .transitionAverage .. => False
   | _ => True
 
 /-- **Weakening of declaration validity.** A spectral extension changes the
@@ -724,9 +731,8 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   | endomorphism => rw [h] at other; exact other.elim
   | spectrum => rw [h] at other; exact other.elim
   | branch => rw [h] at other; exact other.elim
-  -- The Stage 6 checks reject every entry until they are implemented (#841).
-  | transitionAverage family object branch source target numerator denominator certificate =>
-    simp only [validEntry, h, SpectralDeclarations.checkTransitionAverage]
+  | transitionAverage => rw [h] at other; exact other.elim
+  -- The other Stage 6 checks reject every entry until they are implemented (#841).
   | convention value => simp only [validEntry, h, NatureModel.checkConvention]
   | model family object hamiltonian reading convention prepare observe predicts regime =>
     simp only [validEntry, h, NatureModel.checkModel]

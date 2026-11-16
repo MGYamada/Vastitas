@@ -153,6 +153,28 @@ def branchDifferentialValid (env : Environment) (smooth cotangent line : DeclId)
     smoothDimension? env line == some 1 && branchDeclared env branch &&
     validApplication env ⟨cotangent, [.object (.global branch.object)]⟩
 
+/-! ## Transition averages (Stage 6, #841) -/
+
+/-- The object of the embedded branch of a transition average. -/
+def AverageRef.object (average : AverageRef) : DeclId := average.branch.object
+
+/-- The embedded transition average is its declaration: `average.average` is
+a transition average declaration on the object of its branch, of exactly the
+embedded branch, with exactly the embedded closed form, and the embedded
+branch is its declaration. -/
+def averageDeclared (env : Environment) (average : AverageRef) : Bool :=
+  match transitionAverageData? env average.average with
+  | some (_, object, branch, _, _, numerator, denominator, _) =>
+    object == average.object && branch == average.branch.branch && numerator == average.numerator &&
+      denominator == average.denominator && branchDeclared env average.branch
+  | none => false
+
+/-- `average_at(S, L, average = A)`: the value of the transition average `A`
+at a point `p` in the smooth family `S` of the object of `A`, with `L` a
+1-dimensional object, the line of its values. -/
+def averageAtValid (env : Environment) (smooth line : DeclId) (average : AverageRef) : Bool :=
+  isSmoothFamily env smooth && smoothDimension? env line == some 1 && averageDeclared env average
+
 /-- `branch_projector(S, L, branch = B, eᵢ, eⱼ)`: an entry of the
 eigenprojector of `B`, in a row and a column below the rank of the module. -/
 def branchProjectorValid (env : Environment) (smooth line : DeclId) (branch : BranchRef) (row column : Nat) :

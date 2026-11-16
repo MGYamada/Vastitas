@@ -198,12 +198,33 @@ object, or the failure value off the branch. -/
     (literals := [.poly branch.localize, .poly branch.spectrum.characteristic, .rows branch.spectrum.adjugate])
 
 /-- The entry of `averageAt` (Stage 6, #841): the exact value `N(p)/D(p)` of a
-transition average at a point `p` of the chart `D(g)` of its branch, and the
-failure value `(0, 0)` off the chart, whatever the closed form. Not
-implemented yet: it is the entry of an evidence
-binding whose check rejects, so no `averageAt` binding is valid, no call is
-well formed, none evaluates and none is lowered. -/
-@[simp] def averageAt (_smooth _line : DeclId) (_average : AverageRef) : PrimitiveDescriptor :=
-  .evidence fun _ => false
+transition average at a point `p` of its object on the chart `D(g)` of its
+branch, and the failure value `(0, 0)` off the chart, whatever the closed
+form (`SpectralRuntime.averageAt`). -/
+@[simp] def averageAt (smooth line : DeclId) (average : AverageRef) : PrimitiveDescriptor :=
+  .ofBool
+    { operands := [pointOperand smooth average.object "the average's object"],
+      relations := [.pointDimension ⟨0, 0⟩ 0], result := .integerPair }
+    (fun env => averageAtValid env smooth line average)
+    (fun _ values => match values with
+      | [.indexed (.smooth point)] =>
+        let (numerator, denominator) :=
+          SpectralRuntime.averageAt average.branch.localize average.numerator average.denominator point
+        some (.pairInt numerator denominator)
+      | _ => none)
+    (fun values => match values with
+      | [.smooth point] =>
+        let (numerator, denominator) :=
+          SpectralRuntime.averageAt average.branch.localize average.numerator average.denominator point
+        some (.pairInt numerator denominator)
+      | _ => none)
+    (fun ctx args => match args with
+      | [point] =>
+        .ok (application (spectral "averageAt")
+          [renderPolynomial ctx average.branch.localize, renderPolynomial ctx average.numerator,
+            renderPolynomial ctx average.denominator, point])
+      | _ => arityMismatch)
+    .none
+    (literals := [.poly average.branch.localize, .poly average.numerator, .poly average.denominator])
 
 end VastitasKernel.Indexed.SpectralRegistry

@@ -180,6 +180,13 @@ theorem spectrumData_append (id : DeclId) : spectrumData? big id = spectrumData?
 theorem branchData_append (id : DeclId) : branchData? big id = branchData? small id := by
   profile_view ext branchData? id
 
+/-! The view of the transition averages (Stage 6): no profile declaration is
+a transition average. -/
+
+theorem transitionAverageData_append (id : DeclId) :
+    transitionAverageData? big id = transitionAverageData? small id := by
+  profile_view ext transitionAverageData? id
+
 /-- A profile family is the only way a profile family representation can
 appear; every other view compares with another representation. -/
 theorem familyRepresentation_eq_append (id : DeclId) {representation : FamilyRepresentation}

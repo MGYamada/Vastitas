@@ -16,12 +16,12 @@ These are executable regressions, not proofs.
 Protocol 9 decodes each wire shape of the six declarations, of the five
 family representations and of the observation `average_at`; protocols 7 and
 8 reject each with `E_PROTOCOL`. No shape has a field for a certificate. The
-Stage 6 families are data-model rules and are checked in full. Nothing else is
-implemented yet: the source checker rejects a transition average and
-`average_at` with `E_SPECTRAL`, a convention and a model with `E_MODEL`, and a
+Stage 6 families are data-model rules and are checked in full. The source
+checker elaborates transition averages and `average_at` (`AverageRegression`
+checks them); it still rejects a convention and a model with `E_MODEL`, and a
 calibration, a dataset and a comparison with `E_ERRORBAR`, each at its place;
-the declaration audit rejects every Stage 6 entry; and the `averageAt`
-binding is invalid, evaluates nothing and is not lowered. -/
+the declaration audit rejects every Stage 6 entry of this module, which names
+no declaration; and an `averageAt` binding of no declaration is invalid. -/
 namespace VastitasKernel.Indexed.ModelDeclarationRegression
 
 open Lean
@@ -188,7 +188,6 @@ private def rejectsFamily (families : List Json) (text : String) : Bool :=
 calls it and its name. Each names only `Plane`, so that it is the first
 declaration that the source checker rejects. -/
 private def declarations : List (String × String × String × Json) := [
-  ("E_SPECTRAL", "transition average", "A", averageJson "A" "Plane"),
   ("E_MODEL", "convention", "c", conventionJson "c"),
   ("E_MODEL", "model", "M", modelJson "M" "Plane"),
   ("E_ERRORBAR", "calibration", "K", calibrationJson "K"),
@@ -201,12 +200,17 @@ private def declarations : List (String × String × String × Json) := [
   (declarations.all fun (_, _, _, j) => !decodes j false)
 #eval check "protocols 7 and 8 reject each Stage 6 declaration with E_PROTOCOL"
   (declarations.all fun (_, _, _, j) => rejectedBefore9 j "require protocol 9")
-#eval check "the source checker rejects each Stage 6 declaration with its code until it is implemented"
+#eval check "the source checker rejects each Stage 6 declaration of nature with its code until it is implemented"
   (declarations.all fun (code, kind, name, j) =>
     rejectsWith 9 (smoothBase ++ stage6Families ++ [j]) code s!"the {kind} `model::{name}` is not implemented yet")
+#eval check "protocol 9 decodes a transition average, and the source checker elaborates it"
+  (decodes (averageJson "A" "Plane") true && !decodes (averageJson "A" "Plane") false &&
+    rejectedBefore9 (averageJson "A" "Plane") "require protocol 9" &&
+    rejectsWith 9 (smoothBase ++ stage6Families ++ [averageJson "A" "Plane"]) "E_SPECTRAL"
+      "the transition average `model::A` is an average of `model::Plane`, which is not a branch declaration")
 #eval check "the transition averages are checked before the models, and the models before the data"
   (rejectsWith 9 (smoothBase ++ stage6Families ++ [comparisonJson "C" "Plane", modelJson "M" "Plane",
-      averageJson "A" "Plane"]) "E_SPECTRAL" "the transition average `model::A` is not implemented yet" &&
+      averageJson "A" "Plane"]) "E_SPECTRAL" "the transition average `model::A` is an average of `model::Plane`" &&
     rejectsWith 9 (smoothBase ++ stage6Families ++ [comparisonJson "C" "Plane", conventionJson "c"]) "E_MODEL"
       "the convention `model::c` is not implemented yet")
 
@@ -277,9 +281,9 @@ certificate field is an unknown field. Every other field is required. -/
   (rejectedBefore9 (averageAt "at" "A") "unknown indexed primitive contract")
 /- The observation names a declaration that is no transition average, so that
 no Stage 6 declaration is rejected before it. -/
-#eval check "the source checker rejects average_at with E_SPECTRAL until it is implemented"
+#eval check "the source checker rejects average_at of a declaration that is no transition average"
   (rejectsWith 9 (smoothBase ++ [averageAt "at" "Plane"]) "E_SPECTRAL"
-    "the `average_at` declaration `model::at` is not implemented yet")
+    "the average of `average_at` must be a transition average, but `model::Plane` is not a transition average declaration")
 #eval check "the average of average_at resolves first"
   (rejectsWith 9 (smoothBase ++ [primitive "at" "average_at" [("map_family", pathJson "Missing"),
     ("line", pathJson "Line"), ("average", pathJson "Absent")]]) "E_NAME" "undefined name 'Absent'")
@@ -309,22 +313,24 @@ private def entries : List Entry := [
 #eval check "the declaration audit rejects each Stage 6 entry"
   (entries.all fun entry => !validEntry [] [] entry && !validEnvironment [entry])
 
-/-! ## The `averageAt` binding is not implemented
+/-! ## An `averageAt` binding of no declaration
 
-Its registry entry rejects every binding, so no call is well formed, none
-evaluates and none is lowered. -/
+Its contract reads the transition average it embeds, so a binding whose
+average is not declared is invalid; it takes one point, evaluates nothing
+without one, and is not lowered without one (`AverageRegression` checks the
+declared ones). -/
 
 private def averageRef : AverageRef := ⟨sid "A", BranchRef.placeholder (sid "B"), [], []⟩
 
 private def averageBinding : PrimitiveBinding := .averageAt (sid "Smooth") (sid "Line") averageRef
 
-#eval check "the averageAt binding is invalid until it is implemented"
+#eval check "an averageAt binding of no declaration is invalid"
   (!validPrimitiveBinding [] averageBinding)
-#eval check "the averageAt binding evaluates nothing, allocates nothing and takes no operand"
+#eval check "the averageAt binding evaluates nothing without its point, allocates nothing and takes one operand"
   ((Core.Semantics.evalPrimitive [] averageBinding []).isNone &&
     (Core.Semantics.evalRuntimePrimitive averageBinding []).isNone && !averageBinding.allocates &&
-    averageBinding.arity [] == 0)
-#eval check "the averageAt binding is not lowered and has no derivative rule"
+    averageBinding.arity [] == 1)
+#eval check "the averageAt binding is not lowered without its point and has no derivative rule"
   (!(averageBinding.contract.render { literals := [] } []).toBool &&
     match averageBinding.contract.reverse with | .none => true | _ => false)
 

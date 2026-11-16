@@ -49,9 +49,16 @@ ring holds in every `Lean.Grind.CommRing` that receives `ℚ`
   `SpectralRuntime.averageAt g N D p` with the declared data, which is
   `N(p)/D(p) = T(p)/g(p)^{2e}` on the chart and `(0, 0)` off it.
 
-Proved for all inputs. That the trace form is `Σ_k P_k[j, i]²` for a real
-symmetric field with simple spectrum is the bridge statement
-(`VastitasBridge.Spectral.Average`). -/
+* **`Examples`**: the Stage 5 field `rows((x, y), (y, −x))` with the branch on
+  `D(x² + y²)` and the closed form `frac(1, 2)·y² / (x² + y²)` from the first to
+  the second basis vector is accepted (`example_average_valid`), with the
+  trace form `y²(x² + y²)/2` (`averageCert_eq`), and its value at `(3, 4)` is
+  `8/25` (`example_value`).
+
+Proved for all inputs: every theorem outside `Examples`. Decided per input:
+the acceptances in `Examples`. That the trace form is `Σ_k P_k[j, i]²` for a
+real symmetric field, whose spectrum is simple on the chart, is the bridge
+statement (`VastitasBridge.Spectral.accepted_average_eq_sum_eigenprojector`). -/
 namespace VastitasOracle.SpectralAverage
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core VastitasKernel.Indexed.Core.Semantics
@@ -903,5 +910,46 @@ theorem accepted_average_at {point : Core.Term} {smooth line : DeclId} {average 
     fun hgp => averageAt_off_chart hgp⟩
 
 end Accepted
+
+/-! ## The Stage 5 field as a two-level example -/
+
+namespace Examples
+
+open VastitasOracle.SpectralDeclarations.Examples (x y rows certificate localize witness)
+
+/-- The closed form `frac(1, 2)·y² / (x² + y²)` of the average from the first to the second
+basis vector of `H = rows((x, y), (y, −x))`, which is `2·((Δ/2)σ_z + (Ω/2)σ_x)` at
+`x = Δ`, `y = Ω`. -/
+def numerator : Poly := Poly.scale (1 / 2) (Poly.mul y y)
+def denominator : Poly := localize
+
+/-- The elaboration's certificate (`averageCertificate`). -/
+def averageCert : AverageCertificate :=
+  ((AlgebraBasis.run (averageCertificate 2 rows certificate.characteristic certificate.adjugate localize witness 0 1
+    denominator)).toOption.join).getD default
+
+/-- The trace form is `T = y²(x² + y²)/2`, and the denominator is the localization: `D·1 = g¹`. -/
+theorem averageCert_eq : averageCert = ⟨Poly.scale (1 / 2) (Poly.mul (Poly.mul y y) localize), Poly.one 2, 1⟩ := by
+  decide +kernel
+
+theorem average_accepted :
+    (checkAverage 2 rows true certificate.characteristic certificate.adjugate localize witness 1 0 1 numerator
+      denominator averageCert).isOk = true := by
+  decide +kernel
+
+/-- **The example average is valid** (decided once, then read through `checkAverage_sound`):
+the hypotheses of the theorems above are satisfiable. -/
+theorem example_average_valid :
+    AverageValid 2 rows certificate.characteristic certificate.adjugate localize witness 1 0 1 numerator denominator
+      averageCert :=
+  (checkAverage_sound (VastitasOracle.FrameDeclarations.isOk_ok average_accepted)).2
+
+/-- At `(x, y) = (3, 4)`: `N/D = 8/25 = T/g²`. -/
+theorem example_value :
+    evalAt numerator [3, 4] / evalAt denominator [3, 4] = 8 / 25 ∧
+      evalAt averageCert.trace [3, 4] / evalAt localize [3, 4] ^ 2 = 8 / 25 := by
+  decide +kernel
+
+end Examples
 
 end VastitasOracle.SpectralAverage

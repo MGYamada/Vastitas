@@ -1251,7 +1251,11 @@ namespace and scope. `importWorkStep_exact` connects the import debit to
 the actual remaining member budget. The public `namespace_work_bound`
 theorems in `LegacySource`, `IndexedWire` and `ResourceSource` connect each
 accepted JSON request to its wire price and the sum of its body-pass
-receipts. These bounds concern logical work; they do not establish a
+receipts. For protocols 8 and 9 the receipts are those of the pure program's
+passes and, for a program with resource functions, those of the passes with
+their pure fragments. A program without resource functions uses the pure
+program's passes for both (`ResourcePure.reuse`), so they run and count once.
+These bounds concern logical work; they do not establish a
 wall-clock bound. The long-chain cases in `tests/namespace_scaling.rs` cover
 public check/build/execution, unused bodies, cycles, import sums across
 modules, repeated queries in unused functions and output preservation.
@@ -2231,10 +2235,11 @@ The ordinary `.vast` modules behind `std::geometry::scheme` and
 `std::geometry::smooth` use the public source checker. The closure of the
 shipped library selects protocol 9, because its module `scheme::affine`
 declares presented affine forms, so its entry point is
-`ResourceSource.Wire.check`. A package with indexed declarations and none of
-the declarations that select protocol 9 selects protocol 7 and
-`Indexed.Wire.check`;
+`ResourceSource.Wire.check`. Every package with indexed declarations selects
+protocol 9 as well, so the driver does not reach `Indexed.Wire.check`;
 [Protocol selection](protocol.md#protocol-selection) states the rule. The
+theorems on the route of protocol 7 hold for requests of protocol 7, which the
+kernel accepts. The
 single `stdlib` entrypoint re-exports their canonical declarations and
 arithmetic. Its explicit
 `geometry_compat` export supplies old syntax through independently resolved and

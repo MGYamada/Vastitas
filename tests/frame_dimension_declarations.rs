@@ -74,8 +74,12 @@ const LONE_FORMS: &[&str] = &[
 /// there do the records decode: protocols 7 and 8 reject them.
 #[test]
 fn frame_and_nature_declarations_select_protocol_nine_only() {
-    // Without a Stage 4 declaration, an indexed package uses protocol 7.
-    request(&package("indexed marker M;\nfn main() -> Int { 0 }\n"), 7);
+    // An indexed package without a Stage 4 declaration uses the current
+    // protocol as well (#533).
+    request(
+        &package("indexed marker M;\nfn main() -> Int { 0 }\n"),
+        common::CURRENT_PROTOCOL,
+    );
     for form in LONE_FORMS {
         let raw = request(
             &package(&format!("{form}\nfn main() -> Int {{ 0 }}\n")),

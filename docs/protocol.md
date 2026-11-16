@@ -70,25 +70,25 @@ protocol-9 package request instead
 mode it takes the first match of this list:
 
 1. any grant, delegation or transfer, an observation of `show!`, resource
-   functions, an indexed implementation other than an affine descriptor, a
-   presented affine declaration of
-   [Presented affine geometry](affine-geometry.md), a smooth or metric
-   declaration of [Smooth affine declarations](language/smooth-declarations.md),
-   a [frame](#protocol-9-frame-forms) or
-   [physical-dimension](#protocol-9-physical-dimension-forms) declaration, or
-   a [spectral](#protocol-9-spectral-forms) declaration, invariant or
-   primitive: protocol 9;
-2. other indexed declarations, an indexed type annotation, a typed `pack`,
-   an `unpack` with ordered fields, or a `geometry_compat` export of a loaded
-   package: protocol 7;
-3. `reborrow` or `transfer` events in an assembly: protocol 6;
-4. contributions or an assembly: protocol 5;
-5. abstract declarations: protocol 4;
-6. none of these: protocol 3.
+   functions, an indexed declaration, an indexed type annotation, a typed
+   `pack`, an `unpack` with ordered fields, or a `geometry_compat` export of a
+   loaded package: protocol 9. The presented affine declarations of
+   [Presented affine geometry](affine-geometry.md), the smooth and metric
+   declarations of
+   [Smooth affine declarations](language/smooth-declarations.md), the
+   [frame](#protocol-9-frame-forms),
+   [physical-dimension](#protocol-9-physical-dimension-forms) and
+   [spectral](#protocol-9-spectral-forms) forms are indexed declarations, and
+   only protocol 9 decodes them;
+2. `reborrow` or `transfer` events in an assembly: protocol 6;
+3. contributions or an assembly: protocol 5;
+4. abstract declarations: protocol 4;
+5. none of these: protocol 3.
 
-The driver does not write protocol 8 ([History](#history)). The kernel
-accepts it, and [Protocols 8 and 9](#protocols-8-and-9) describes its
-envelope.
+The driver writes neither protocol 7 nor protocol 8 ([History](#history)).
+The kernel accepts both, and
+[Protocol 7](#protocol-7-indexed-declarations-and-rich-package-bodies) and
+[Protocols 8 and 9](#protocols-8-and-9) describe their envelopes.
 
 A root package without an assembly selects an empty edit trace; the kernel
 still validates every grant and checks every unapplied contribution.
@@ -1137,11 +1137,12 @@ The package-only envelope is `{version:7,input:"package",file,root,packages}`.
 Package/module identity, dependencies, imports, abstract selectors/contracts and
 all protocol-6 authority metadata retain their existing schemas and checks.
 Each module may add `indexed_declarations`, defaulting to an empty array.
-Rust selects 7 when no condition of protocol 9 holds
-([Protocol selection](#protocol-selection)) and any loaded module uses an
-indexed declaration, annotation, typed pack or ordered-field unpack, or any
-package exports `geometry_compat`. Every body in that package closure then uses
-the rich source path. Flat input and explicit `--lib` keep protocol 2/4.
+The driver does not write protocol 7. A package closure in which a loaded
+module uses an indexed declaration, annotation, typed pack or ordered-field
+unpack, or in which a package exports `geometry_compat`, selects protocol 9
+([Protocol selection](#protocol-selection)), which keeps this envelope. Every
+body in that package closure uses the rich source path. Flat input and
+explicit `--lib` keep protocol 2/4.
 
 A declaration has `{kind,name,public,span,...}` with these additional fields:
 
@@ -1334,10 +1335,11 @@ receipts, doctest execution, or official package admission.
   alone, and the other versions with their decoders are retired in one
   verified change. The change is not made: this chapter describes the
   versions 2 to 9 that the kernel accepts.
-- The driver wrote protocol 8 for resource functions and indexed
-  implementations. Round 1 of
-  [#533](https://github.com/MGYamada/Vastitas/issues/533) sends them as
-  protocol 9, whose envelope keeps protocol 8's.
+- The driver wrote protocol 7 for packages with indexed declarations or a
+  `geometry_compat` export, and protocol 8 for resource functions and
+  indexed implementations. Round 1 of
+  [#533](https://github.com/MGYamada/Vastitas/issues/533) sends both as
+  protocol 9, whose envelope keeps theirs.
 - The doctest result contract of
   [Expected-rejection doctest consumer](#expected-rejection-doctest-consumer-reference-only)
   belongs to [#236](https://github.com/MGYamada/Vastitas/issues/236).

@@ -138,10 +138,11 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
 /// The promotion example against a copy of the stdlib without its Stage 2
 /// `scheme::affine` module, its Stage 3 `smooth::affine` and `metric`
 /// modules and `differential` package, its Stage 4 `frame` module and its
-/// Stage 5 `linalg` package. That
-/// closure still uses protocol 7, so the Indexed.Wire sweep keeps the
-/// geometry-compatibility, dependency and function-body records that only the
-/// stdlib supplies.
+/// Stage 5 `linalg` package, as protocol 7. The frontend wrote that closure
+/// as protocol 7 before #533 round 1 and writes it as the current protocol
+/// now; with its version set to 7, the Indexed.Wire sweep keeps the
+/// geometry-compatibility, dependency and function-body records that only
+/// the stdlib supplies.
 fn promotion_without_affine() -> Value {
     let root = common::root();
     let stdlib = root.join("stdlib");
@@ -191,10 +192,12 @@ fn promotion_without_affine() -> Value {
             "(",
         ),
     );
-    common::captured_wire(
+    let mut wire = common::captured_wire(
         common::manifest_command("check", s.0.join("app/Vastitas.toml")),
-        7,
-    )
+        common::CURRENT_PROTOCOL,
+    );
+    wire["version"] = json!(7);
+    wire
 }
 
 // #557: the same sweep over the public Indexed.Wire (7) and ResourceSource.Wire
@@ -205,9 +208,8 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
     // The promotion example depends on the generated stdlib package.
     common::prepare_stdlib_package();
     let examples = common::root().join("examples/packages");
-    // The indexed example observes its result with `show!`, which only
-    // protocol 9 carries (#836); without the observation it is the protocol-7
-    // fixture.
+    // The indexed example without its observation (#836), as the frontend
+    // wrote it as protocol 7 before #533 round 1.
     let indexed = common::Scratch::empty("protocol seven indexed");
     indexed.copy_sources(&examples.join("indexed"), "", &[]);
     indexed.write(
@@ -220,11 +222,11 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
     );
     let mut cases: Vec<(String, Value)> = Vec::new();
     // Each package with the protocol that the frontend writes for it and, for
-    // a program that the frontend wrote as protocol 8 before #533 round 1, a
-    // copy at that protocol.
-    // old-route(#533): the copies at protocol 8 retire at the cutover.
+    // a program that the frontend wrote as protocol 7 or 8 before #533 round
+    // 1, a copy at that protocol.
+    // old-route(#533): the copies at protocols 7 and 8 retire at the cutover.
     for (package, version, old) in [
-        ("indexed", 7, None),
+        ("indexed", common::CURRENT_PROTOCOL, Some(7)),
         // Its stdlib dependency declares Stage 2 presented affine geometry.
         ("promotion", common::CURRENT_PROTOCOL, None),
         ("resource-values", common::CURRENT_PROTOCOL, Some(8)),

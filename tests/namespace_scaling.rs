@@ -129,6 +129,50 @@ fn alias_queries_in_unused_functions_share_the_request_budget() {
     assert_eq!(std::fs::read(previous).unwrap(), b"previous output");
 }
 
+/// `count` unused functions of an indexed package, each with 100 references
+/// that resolve an alias through a chain of 600 imports.
+fn alias_heavy_indexed(count: usize) -> String {
+    let mut program = format!("indexed marker BudgetMarker;\n{}", source(600, 1));
+    let mut body = String::new();
+    for i in 0..100 {
+        body.push_str(&format!("let v{i} = a0(41);\n"));
+    }
+    for i in 0..count {
+        program.push_str(&format!("fn f{i}() -> Int {{\n{body}v99\n}}\n"));
+    }
+    program
+}
+
+// #533: protocol 9 runs the pure passes of a program without resource
+// functions once, as protocol 7 does, and charges them once. Near the
+// program-wide namespace budget both accept the same indexed program and
+// reject the next larger one: 12 of these functions fit and 13 do not. Before
+// the passes ran once on protocol 9, it accepted only 7 of them.
+// old-route(#533): the frontend wrote these programs as protocol 7 before
+// #533 round 1; the request at protocol 7 retires at the cutover.
+#[test]
+fn indexed_programs_have_the_same_namespace_budget_on_protocols_seven_and_nine() {
+    for (count, accepted) in [(12, true), (13, false)] {
+        let raw = fixture(&alias_heavy_indexed(count))
+            .captured("Vastitas.toml", common::CURRENT_PROTOCOL);
+        for version in [7, common::CURRENT_PROTOCOL] {
+            let mut request = raw.clone();
+            request["version"] = serde_json::json!(version);
+            let response = common::kernel(&request, "check");
+            if accepted {
+                assert_eq!(response["ok"], true, "{count} on {version}: {response}");
+            } else {
+                common::assert_wire_rejected(&response, "E_LIMIT");
+                let message = response["diagnostics"][0]["message"].as_str().unwrap();
+                assert!(
+                    message.contains("program-wide namespace resolution"),
+                    "{count} on {version}: {message}"
+                );
+            }
+        }
+    }
+}
+
 // A root with many dependencies that all depend on one shared package. Each
 // manifest is loaded once, with a constant-time loaded-package lookup (#532).
 #[test]

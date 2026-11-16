@@ -65,6 +65,42 @@ def check (program : DispatchSource.Program) {requireMain : Bool}
       else Namespace.problem {} "E_OWNER" "resource pure fragment lifting changed lexical owners"
   else Namespace.problem {} "E_CAPTURE" "invalid resource pure-fragment owner, header or independent lambda scope"
 
+/-- A module that meets the entry-point condition with `requireMain` also
+meets it without: only a missing `main` depends on the flag. -/
+theorem mainValid_relax {module : Core.Module} {requireMain : Bool}
+    (valid : Core.Typing.MainValid module requireMain) : Core.Typing.MainValid module false := by
+  unfold Core.Typing.MainValid at valid ⊢
+  revert valid
+  cases module.main with
+  | none => intro _; rfl
+  | some _ => exact id
+
+/-- The checked module `core` without its entry-point requirement. -/
+def relaxModule {requireMain : Bool} (core : Core.Typing.CheckedModule requireMain) :
+    Core.Typing.CheckedModule false :=
+  ⟨core.module, core.typed, core.ordered, mainValid_relax core.entry⟩
+
+/-- The checked pass `pass` without its entry-point requirement. -/
+def relaxPass {prepared : Compiler.PreparedProgram} {audit requireMain : Bool}
+    (pass : Compiler.CheckedPass prepared audit requireMain) : Compiler.CheckedPass prepared audit false :=
+  ⟨pass.lowered, pass.reconstructed, pass.accepted, relaxModule pass.core, pass.coreInput⟩
+
+/-- The compiled reverse Core of a checked module, for that module without its
+entry-point requirement. -/
+def relaxCompiled {requireMain : Bool} {source : Core.Typing.CheckedModule requireMain}
+    (compiled : Core.Reverse.Compiled source) : Core.Reverse.Compiled (relaxModule source) :=
+  ⟨compiled.entries, relaxModule compiled.core, compiled.validated⟩
+
+/-- The pure passes of a program without resource fragments (#533): those of
+its checked pure program. `check` with no fragments lifts, prepares, audits and
+compiles the same input, so nothing runs a second time. -/
+def reuse {program : DispatchSource.Program} {requireMain : Bool}
+    (authority : AuthoritySource.CheckedProgram program requireMain) : Checked program authority [] :=
+  ⟨by simp [validFragments], authority.lifted, authority.liftFrom,
+    by simpa [seeds] using authority.definitions, authority.compiler, authority.prepareFrom,
+    authority.preparation, authority.instances, authority.audit, authority.coverage,
+    relaxPass authority.executable, relaxCompiled authority.compiled⟩
+
 structure Target where
   function : Nat
   signature : Storage.ValueFlow.Signature

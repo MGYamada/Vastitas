@@ -273,6 +273,22 @@ fn wire_parity_report() {
         "divergences of no class:\n{}",
         unclassified.join("\n")
     );
+    // Since #533 round 1 (W3, W4) the frontend writes neither protocol 7 nor
+    // protocol 8, so no captured request has a 7 → 9 or 8 → 9 pair.
+    let older: Vec<&str> = programs
+        .iter()
+        .zip(&outcomes)
+        .filter(|(program, outcome)| {
+            !matches!(program.input, Input::Wire(_))
+                && matches!(outcome, Outcome::Pair(pair) if matches!(pair.from, 7 | 8))
+        })
+        .map(|(program, _)| program.name.as_str())
+        .collect();
+    assert!(
+        older.is_empty(),
+        "the frontend wrote protocol 7 or 8 for:\n{}",
+        older.join("\n")
+    );
 }
 
 /// The divergence classes of a pair, or why its differences fit none.

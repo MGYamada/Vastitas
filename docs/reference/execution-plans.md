@@ -666,7 +666,7 @@ The execution profile appends `/left-to-right-short-circuit-v1`. `Config` is
 immutable Unit: there are no dynamic choices within this profile. Directed
 rounding, alternate NaN profiles, binary32 or complex **execution effects**,
 arrays, mutable rounding state, flag inspection/clearing, traps, and native
-execution remain outside that original `SafeFloat` increment. The new F32
+execution remain outside that original `SafeFloat` increment. The added F32
 primitives and complex graph below are *pure* references, not `SafeFloat`
 execution extensions. Unsupported primitive names/configurations are rejected.
 

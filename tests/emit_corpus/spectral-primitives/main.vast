@@ -1,11 +1,14 @@
-// The spectral primitives of Stage 5 (#806), each lowered from `main`; the
+// The spectral primitives of Stage 5 (#806) and the transition average of
+// Stage 6 (#841), each lowered from `main`; the
 // emit golden test pins the generated Lean. On the plane: H = rows((x, y),
 // (y, -x)) on V = basis(e1, e2), its spectrum S with chi = t^2 - x^2 - y^2,
 // and the branch B on D(x^2 + y^2) with witness t/2. On the point: the
 // constant endomorphisms 0, N = [[0, 1], [0, 0]], 2I and J = [[2, 1], [0, 2]].
 // The invariants tr1, tr2 and c0 are smooth maps Plane -> Line, and ref2 is
-// the declared reference 2x^2 + 2y^2. Each group of observations adds its own
-// power of two, so `main` returns 42 only when all hold.
+// the declared reference 2x^2 + 2y^2. The average A from e1 to e2 of B is
+// y^2 / (2(x^2 + y^2)), observed only on the chart of B. Each group of
+// observations adds its own power of two, so `main` returns 42 only when all
+// hold.
 indexed marker CInfReal;
 indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
 indexed classification CInfAffine { parents(); domain(SmoothR); };
@@ -18,6 +21,7 @@ indexed family FreeModule(object(CInfAffine)) = free_module constraints(canonica
 indexed family Endomorphism(object(CInfAffine)) = endomorphism constraints(canonical(0));
 indexed family Spectrum(object(CInfAffine)) = spectrum constraints(canonical(0));
 indexed family Branch(object(CInfAffine)) = branch constraints(canonical(0));
+indexed family TransitionAverage(object(CInfAffine)) = transition_average constraints(canonical(0));
 indexed affine Pt(SmoothR) = Affine(0)[];
 indexed affine Line(SmoothR) = Affine(1)[t];
 indexed affine Plane(SmoothR) = Affine(2)[x, y];
@@ -27,6 +31,7 @@ indexed free_module V: FreeModule<Plane> = basis(e1, e2);
 indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric;
 indexed spectrum S: Spectrum<Plane> = eigen(H, t);
 indexed branch B: Branch<Plane> = simple(S, localize = x^2 + y^2, witness = frac(1, 2) * t, exponent = 1);
+indexed average A: TransitionAverage<Plane> = transition_average(B, from = e1, to = e2) = ratio(frac(1, 2) * y^2, x^2 + y^2);
 
 // The scalar and Jordan pairs over the point.
 indexed free_module W: FreeModule<Pt> = basis(f1, f2);
@@ -87,6 +92,9 @@ indexed primitive p11 = branch_projector(Smooth, Line, branch = B, e1, e1);
 indexed primitive p12 = branch_projector(Smooth, Line, branch = B, e1, e2);
 indexed primitive p22 = branch_projector(Smooth, Line, branch = B, e2, e2);
 
+// The transition average: its value on the chart, and the failure value off it.
+indexed primitive avg = average_at(Smooth, Line, average = A);
+
 fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
 
 // A pair reads n / d; the failure value reads 0 / 0.
@@ -129,4 +137,6 @@ fn main() -> Int {
        // Off the branch: the failure values.
        + verdict(reads(dx(dlambda(p, line_at(4))), 0, 0) && reads(dx(dlambda(z, line_at(0))), 0, 0)
            && reads(p12(p, line_at(4)), 0, 0) && reads(p11(z, line_at(0)), 0, 0), 128)
+       // The average y^2 / (2(x^2 + y^2)): 8/25 at (3, 4), 0 at (1, 0), and (0, 0) at the origin.
+       + verdict(reads(avg(p), 8, 25) && reads(avg(q), 0, 1) && reads(avg(z), 0, 0), 256)
 }

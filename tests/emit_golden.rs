@@ -257,16 +257,11 @@ const WIRE_OPERATIONS: &[(&str, Option<&str>)] = &[
         "branch_projector",
         Some("VastitasKernel.SpectralRuntime.projectorEntry poly_"),
     ),
+    (
+        "average_at",
+        Some("VastitasKernel.SpectralRuntime.averageAt poly_"),
+    ),
 ];
-
-/// The families of the generated table that no emit fixture declares yet:
-/// the observation of the Stage 6 skeleton (#841), which the kernel rejects
-/// until its registry entry is implemented. The kernel lane of Stage 6 (S6-2)
-/// gives it an entry of `WIRE_OPERATIONS` and a fixture and removes it from
-/// this list; `generated_lean_matches_the_emit_fixtures` fails until it does
-/// both, since it requires each of them to be in the table, absent from
-/// `WIRE_OPERATIONS` and declared by no fixture.
-const UNEMITTED: &[&str] = &["average_at"];
 
 /// The `op` of every `primitive` declaration anywhere in a wire request.
 fn primitive_operations(value: &Value, found: &mut BTreeSet<String>) {
@@ -389,7 +384,6 @@ fn generated_lean_matches_the_emit_fixtures() {
     let mut families: Vec<&str> = vastitas::indexed::primitive_families()
         .iter()
         .map(|family| family.op)
-        .filter(|op| !UNEMITTED.contains(op))
         .collect();
     listed.sort_unstable();
     families.sort_unstable();
@@ -415,14 +409,6 @@ fn generated_lean_matches_the_emit_fixtures() {
         all, expected,
         "the emit fixtures must declare every wire operation"
     );
-    for op in UNEMITTED {
-        assert!(
-            vastitas::indexed::primitive_family(op).is_some(),
-            "{op} is not in the table"
-        );
-        assert!(!listed.contains(op), "{op} is in WIRE_OPERATIONS");
-        assert!(!all.contains(*op), "an emit fixture declares {op}");
-    }
     assert_witnessed(&declared, &sources);
 }
 

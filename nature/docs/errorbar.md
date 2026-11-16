@@ -23,8 +23,8 @@ smooth affine object `X` of a [model](model.md):
 - a comparison records a dataset, the fingerprint of its calibration and a
   verdict, consistent or inconsistent.
 
-The kernel is to evaluate the model's prediction exactly at each point and
-to recompute the verdict: a point is consistent when
+The kernel evaluates the model's prediction exactly at each point and
+recomputes the verdict: a point is consistent when
 `(prediction − value)² ≤ k²·(u² + Σ (∂prediction)²·u_c²)`. A wrong verdict is
 `E_ERRORBAR`. A comparison whose calibration changed is stale (`E_STALE`),
 and the diagnostic names the current fingerprint. The propagation is first
@@ -33,10 +33,15 @@ comparison. An uncertainty is physical: it never means the rounding error or
 the enclosure of a numerical method. Calibrations, datasets and comparisons
 change no value, no validity and no generated code of a `std` declaration.
 
-Status: the module declares the families only. The kernel rejects every
-calibration, dataset and comparison (`E_ERRORBAR`) until the checks of
-Stage 6 are implemented
-([#841](https://github.com/MGYamada/Vastitas/issues/841)).
+The fingerprint is `fnv1a64:` and 16 hexadecimal digits: the FNV-1a digest
+of the canonical content of the calibration, its calibrated coordinates in
+the order of the coordinates of the object with their values and
+uncertainties, its method, its reference and its revision.
+
+The module declares the families only; the application declares its
+calibrations, datasets and comparisons. The source syntax of these
+declarations and the tested example come with the later steps of the Stage 6
+tracker [#841](https://github.com/MGYamada/Vastitas/issues/841).
 
 ## Exports
 

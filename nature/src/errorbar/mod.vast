@@ -5,12 +5,11 @@
 // revision. Dataset<X> indexes the datasets of a model under a calibration,
 // with one coverage factor and at most 64 points. Comparison<X> indexes the
 // recorded comparisons of a dataset with the model's exact prediction: the
-// fingerprint of the calibration and a verdict, which the kernel is to
-// recompute. A comparison whose calibration changed is stale (E_STALE).
+// fingerprint of the calibration and a verdict, which the kernel recomputes.
+// A comparison whose calibration changed is stale (E_STALE).
 //
 // An uncertainty here is physical. It never means the rounding error or the
-// enclosure of a numerical method. The kernel does not check calibrations,
-// datasets and comparisons yet, so this library declares the families only.
+// enclosure of a numerical method. This library declares the families only.
 pub indexed family Calibration(object(std::geometry::smooth::affine::CInfAffine))
     = calibration constraints(canonical(0));
 pub indexed family Dataset(object(std::geometry::smooth::affine::CInfAffine))

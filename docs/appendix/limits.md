@@ -428,9 +428,8 @@ closed forms of the transition averages of `std::linalg::spectral`, are
 polynomial literals: their digits have the bound `algebraCoefficientDigits`
 of [Exact affine algebra](#exact-affine-algebra). The module of the field of
 a model has at most `spectralRank` basis vectors, as in
-[Spectral observations](#spectral-observations). The kernel does not check
-these declarations yet and rejects each of them; the bound is the one that
-the checks will apply.
+[Spectral observations](#spectral-observations). A dataset beyond the bound
+is rejected before any of its points is read.
 
 | Limit | Value | Counts | Holds for | Code |
 | --- | --- | --- | --- | --- |

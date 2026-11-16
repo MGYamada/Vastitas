@@ -15,8 +15,8 @@ names a symmetric endomorphism field of
 [`std::linalg::spectral`](../../stdlib/docs/linalg/spectral.md) on `X`, a
 reading of `X` of [`nature::dimension`](dimension.md), a convention, a
 prepared and an observed basis vector of the module of the field, the
-transition average that it predicts, and its regime. The kernel is to check
-that these references fit together. The regime, such as the rotating-wave
+transition average that it predicts, and its regime. The kernel checks
+that these references fit together (`E_MODEL`). The regime, such as the rotating-wave
 approximation, is a recorded assumption, which no check proves. A model and a
 convention compute nothing, and they change no value, no validity and no
 generated code of a `std` declaration.
@@ -25,9 +25,10 @@ The one convention of the profile is `hbar_one`, which writes energies as
 angular frequencies (`ħ = 1`). An application declares it, as in
 `indexed convention c = hbar_one;`.
 
-Status: the module declares the family only. The kernel rejects every
-convention and every model (`E_MODEL`) until the checks of Stage 6 are
-implemented ([#841](https://github.com/MGYamada/Vastitas/issues/841)).
+The module declares the family only; the application declares its
+conventions and models. The source syntax of these declarations and the
+tested example come with the later steps of the Stage 6 tracker
+[#841](https://github.com/MGYamada/Vastitas/issues/841).
 
 ## Exports
 

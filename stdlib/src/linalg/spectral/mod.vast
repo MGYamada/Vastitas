@@ -21,7 +21,7 @@ pub indexed family Branch(object(geometry::smooth::affine::CInfAffine))
 // dephased transition averages of simple branches on X: the sum over the
 // eigenprojectors P_k of a symmetric field of P_k[j, i]^2 between two basis
 // vectors, stated by the application as a closed form N / D that the kernel
-// checks against the trace form of the branch. The kernel does not check
-// these declarations yet; the family is declared for the application.
+// checks against the trace form of the branch; average_at observes it on the
+// chart of the branch only. The family is declared for the application.
 pub indexed family TransitionAverage(object(geometry::smooth::affine::CInfAffine))
     = transition_average constraints(canonical(0));

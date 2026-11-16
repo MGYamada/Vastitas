@@ -4081,7 +4081,13 @@ fn exponent(witness: Int) -> Int { let localize = witness; localize }
         for (source, expected) in stage6_declarations() {
             let declaration = parse_declaration(source)
                 .unwrap_or_else(|error| panic!("`{source}` does not parse: {error:?}"));
-            assert!(declaration.body.is_algebraic(), "{source}");
+            // Only the transition average is algebraic; the model and data
+            // forms select protocol 9 as package input (#533).
+            assert_eq!(
+                declaration.body.is_algebraic(),
+                matches!(declaration.body, DeclarationBody::TransitionAverage { .. }),
+                "{source}"
+            );
             let record = without_spans(serde_json::to_value(&declaration.body).unwrap());
             assert_eq!(record, expected, "{source}");
             assert_eq!(

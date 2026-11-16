@@ -153,13 +153,15 @@ fn pow(name: &str) -> Value {
     json!({ "op": "pow", "base": { "op": "coordinate", "name": name }, "exponent": "2" })
 }
 
-/// A program with a Stage 6 form selects protocol 9: a convention alone
-/// does, as the algebraic forms do. Every form serializes to the record
-/// that the kernel decodes, and protocols 7 and 8 reject the request.
+/// A program with a Stage 6 form is sent as protocol 9, as every package
+/// request is (#533): a convention alone, which is no algebraic form, is.
+/// Every form serializes to the record that the kernel decodes, and
+/// protocols 7 and 8 reject the request.
 #[test]
 fn the_stage6_forms_select_protocol_nine_and_serialize_to_their_records() {
     let alone = package("indexed convention c = hbar_one;\nfn main() -> Int { 0 }\n");
     let wire = alone.captured("Vastitas.toml", 9);
+    assert_eq!(wire["version"], 9);
     assert_eq!(declaration(&wire, "c")["kind"], "convention");
     assert_eq!(declaration(&wire, "c")["value"], "hbar_one");
     let source = accepted();

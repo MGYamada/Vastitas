@@ -529,8 +529,11 @@ pub enum MorphismDefinition {
 
 impl DeclarationBody {
     /// Stage 2 algebraic, Stage 3 smooth and metric, Stage 4 frame and
-    /// physical dimension, Stage 5 spectral, and Stage 6 model and data
-    /// forms. They exist only in protocol 9.
+    /// physical dimension, and Stage 5 and 6 spectral forms (the transition
+    /// average and `average_at` included): the kernel's feature `algebraic`,
+    /// which only protocol 9 admits. The model and data forms of Stage 6 are
+    /// the kernel's feature `physicalModels`; they select no protocol here,
+    /// since every package request is protocol 9 (#533).
     pub fn is_algebraic(&self) -> bool {
         match self {
             DeclarationBody::Affine { .. }
@@ -552,12 +555,7 @@ impl DeclarationBody {
             | DeclarationBody::Endomorphism { .. }
             | DeclarationBody::Spectrum { .. }
             | DeclarationBody::Branch { .. }
-            | DeclarationBody::TransitionAverage { .. }
-            | DeclarationBody::Convention { .. }
-            | DeclarationBody::Model { .. }
-            | DeclarationBody::Calibration { .. }
-            | DeclarationBody::Dataset { .. }
-            | DeclarationBody::Comparison { .. } => true,
+            | DeclarationBody::TransitionAverage { .. } => true,
             DeclarationBody::Primitive { binding } => binding.family().algebraic,
             DeclarationBody::Implementation { representation, .. } => matches!(
                 representation,
@@ -587,10 +585,6 @@ impl DeclarationBody {
                         | FamilyRepresentation::Spectrum
                         | FamilyRepresentation::Branch
                         | FamilyRepresentation::TransitionAverage
-                        | FamilyRepresentation::Model
-                        | FamilyRepresentation::Calibration
-                        | FamilyRepresentation::Dataset
-                        | FamilyRepresentation::Comparison
                 ) || constraints.iter().any(|c| {
                     matches!(
                         c,
@@ -1610,11 +1604,13 @@ mod tests {
     /// `std::linalg::spectral`, the convention and the model of
     /// `nature::model`, the calibration, the dataset and the comparison of
     /// `nature::errorbar`, their family representations and `average_at`
-    /// serialize to the wire shapes that the kernel decodes, read back, and
-    /// exist only in protocol 9. No form has a field for a certificate, and
-    /// each record rejects an unknown field, as the kernel does.
+    /// serialize to the wire shapes that the kernel decodes and read back. The
+    /// transition average, its family and `average_at` are algebraic; the
+    /// model and data forms are not, and select protocol 9 only as package
+    /// input (#533). No form has a field for a certificate, and each record
+    /// rejects an unknown field, as the kernel does.
     #[test]
-    fn every_stage6_form_serializes_to_its_wire_shape_and_is_algebraic() {
+    fn every_stage6_form_serializes_to_its_wire_shape() {
         let p = |name: &str| serde_json::to_value(path(name)).unwrap();
         let natural = |value: &str| PolyExpr::Natural {
             value: value.into(),
@@ -1739,7 +1735,11 @@ mod tests {
             ),
         ];
         for (body, expected) in &cases {
-            assert!(body.is_algebraic(), "{body:?}");
+            let spectral = matches!(
+                body,
+                DeclarationBody::TransitionAverage { .. } | DeclarationBody::Primitive { .. }
+            );
+            assert_eq!(body.is_algebraic(), spectral, "{body:?}");
             let json = serde_json::to_value(body).unwrap();
             assert_eq!(&json, expected, "{body:?}");
             assert_eq!(
@@ -1763,7 +1763,11 @@ mod tests {
                 constraints: Vec::new(),
                 representation,
             };
-            assert!(family.is_algebraic(), "{family:?}");
+            assert_eq!(
+                family.is_algebraic(),
+                representation == FamilyRepresentation::TransitionAverage,
+                "{family:?}"
+            );
         }
         for (method, wire) in [
             (CalibrationMethod::TypeA, "type_a"),

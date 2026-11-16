@@ -292,7 +292,7 @@ write the cells of a vector and copy them to another vector:
 
 `main` of the example lends uninitialized cells as the vectors that the two
 functions write, and it reads the cells back with `expect`. The executable
-prints `42`.
+writes no line and exits with status 0.
 
 ## Pairings
 

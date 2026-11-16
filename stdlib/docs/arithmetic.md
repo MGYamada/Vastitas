@@ -77,10 +77,12 @@ Packages, built and run by `tests/examples.rs`:
 
 - [`examples/packages/stdlib-arithmetic/`](../../examples/packages/stdlib-arithmetic)
   imports two functions of `integers`, as in
-  `use std::arithmetic::integers::int_abs;`, and prints `42`.
+  `use std::arithmetic::integers::int_abs;`. It writes
+  `int_abs(int_sub(8, 50)) = 42` and exits with status 0.
 - [`examples/packages/promotion/`](../../examples/packages/promotion) imports
-  the three generics, as in `use std::arithmetic::generic::promote;`, and
-  prints `42`.
+  the three generics, as in `use std::arithmetic::generic::promote;`. It
+  writes `maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42` and
+  exits with status 0.
 - [`examples/packages/stdlib-geometry/`](../../examples/packages/stdlib-geometry)
   calls `std::arithmetic::generic::add` by its full path.
 
@@ -101,15 +103,18 @@ cargo run -- build examples/stdlib-arithmetic.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   -o target/stdlib-arithmetic
 ./target/stdlib-arithmetic
-# 42
+# int_abs(int_neg(answer)) = 42
+# nat_sub(nat_add(2, 3), 8) = 0
 cargo run -- build examples/dispatch-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   --lib stdlib/src/arithmetic/generic.vast \
   -o target/dispatch-arithmetic
 ./target/dispatch-arithmetic
-# 42
+# maximum(nat_to_int(total), 41) = 42
 ```
+
+Each executable exits with status 0.
 
 The three files have no `main`, and `generic.vast` needs the other two. In a
 package, the generics and their methods belong to `std::arithmetic::generic`,

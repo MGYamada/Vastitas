@@ -4,8 +4,8 @@ This chapter builds one program step by step. It declares two polynomial
 maps between real affine spaces and composes them. It then pulls a covector
 back along the composite, from the target of the maps to their source, and
 computes a differential and a gradient. Every number in the program is an
-exact rational number, and the program prints `42` only when every
-observation holds.
+exact rational number. The program writes `failures = 0` and exits with
+status 0 only when every observation holds.
 
 The program is
 [`examples/packages/stdlib-differential/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-differential/main.vast).
@@ -23,7 +23,7 @@ The first command generates the standard library's package root; see
 ## A first derivative
 
 The smallest program of this geometry computes one derivative. It
-differentiates the map t ↦ t² of the line at the point 3, and it prints the
+differentiates the map t ↦ t² of the line at the point 3, and it shows the
 derivative, 6:
 
 ```vast
@@ -45,7 +45,9 @@ Three names compute the result:
 - `dt` reads the component of a covector at the coordinate `t`. A component
   is a fraction, a `Pair<Int>` of a numerator and a denominator, so `dt`
   gives the pair (6, 1).
-- `pair_first` takes the numerator of that pair, 6, which `main` returns.
+- `pair_first` takes the numerator of that pair, 6, which `main` shows. The
+  program writes `pair_first(dt(differential(square(), line_at(3)))) = 6` and
+  exits with status 0.
 
 The sections after this one build the longer program, which composes maps,
 pulls covectors back and uses a metric.
@@ -316,7 +318,8 @@ into its code, and `reads` compares a component with a fraction:
 {{#include ../../examples/packages/stdlib-differential/main.vast:helpers}}
 ```
 
-Each observation adds its code to 42 when it fails:
+Each observation adds its code to `failures` when it fails. `main` shows
+`failures` and returns 1 when it is not 0:
 
 ```vast
 {{#include ../../examples/packages/stdlib-differential/main.vast:main}}

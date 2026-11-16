@@ -23,9 +23,9 @@ declaration, concerns a path that names a declaration of another kind.
 
 The examples quote the tested package
 [`examples/packages/frames/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/frames),
-whose executable prints `42`. Each rejected program is a package on the
-profile of the standard library. It appears with the diagnostic that the
-compiler prints for it.
+whose executable writes `failures = 0` and exits with status 0. Each
+rejected program is a package on the profile of the standard library. It
+appears with the diagnostic that the compiler prints for it.
 
 The declarations of this chapter are the forms of `FrameProfileDeclaration`:
 

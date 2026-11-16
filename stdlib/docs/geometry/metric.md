@@ -43,7 +43,8 @@ the declarations that name it:
   maps a covector to a vector with the metric and its evidence.
 
 The program computes a gradient as `sharp_skew` applied to a differential of
-[`std::differential`](../differential.md), and prints `42`.
+[`std::differential`](../differential.md). It writes `failures = 0` and exits
+with status 0.
 
 ## Use
 

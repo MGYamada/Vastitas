@@ -25,7 +25,9 @@ target/debug/vastitas build --manifest-path examples/packages/storage/app/Vastit
 ./target/storage-example
 ```
 
-The program prints `42`.
+The program writes no line and exits with status 0. Its entry point is a
+resource function, which cannot use `show!`, and it returns 0 when
+`increment(answer(40))` is 42.
 
 ## Resource functions
 
@@ -271,7 +273,8 @@ The integers are the unbounded integers of the earlier chapters. The
 difference in the second line of `main` is a `Nat`, which is 0 where the
 result would be negative, so `flag` is `true`. The commands at the start of
 this chapter build and run the program with the manifest
-`examples/packages/resource-values/Vastitas.toml`, and it prints `42`.
+`examples/packages/resource-values/Vastitas.toml`. It writes no line and
+exits with status 0, because `answer` is 42.
 
 ## Sizes that the program computes
 
@@ -307,7 +310,7 @@ literal.
 {{#include ../../examples/packages/runtime-extents/main.vast:main}}
 ```
 
-Built with its manifest, the program prints `42`.
+Built with its manifest, the program writes no line and exits with status 0.
 [Runtime extents](../storage/resource-programs.md#runtime-extents) gives the
 conditions and the restrictions of these statements. One of them is that a
 `runtime_` statement cannot stand in a branch.

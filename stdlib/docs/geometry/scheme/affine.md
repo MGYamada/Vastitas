@@ -46,8 +46,8 @@ which `tests/examples.rs` builds and runs, imports every export apart from
 `indexed morphism p: Over<DualNumbers, Line, SpecQQ> = pullback(t -> e);`,
 the curve
 `indexed affine Curve(AffineQQ) = spec[t, x] relations(x^2 - t) over Line by(t -> t);`,
-a fiber product, principal opens and an isomorphism, and prints `42` when
-its eleven observations hold.
+a fiber product, principal opens and an isomorphism. It writes
+`failures = 0` and exits with status 0 when its eleven observations hold.
 
 The book chapter
 [Presented affine geometry](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/affine-geometry.md)

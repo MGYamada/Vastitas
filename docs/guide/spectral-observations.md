@@ -10,8 +10,8 @@ derivatives and their eigenprojectors at rational points of a region where
 the eigenvalues stay apart. No part of the program computes an eigenvalue:
 the program supplies each eigenvalue that it observes, and the compiler
 checks the facts that make the observations meaningful. Every number is a
-rational number, and the program prints `42` only when every observation
-holds.
+rational number. The program writes `failures = 0` and exits with status 0
+only when every observation holds.
 
 The program is the package
 [`examples/packages/spectral-observations/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/spectral-observations).
@@ -228,14 +228,15 @@ and both are symmetric, as H is.
 
 ## The observations
 
-`main` builds the points and the two differentials, and adds the verdict of
-each observation to 42:
+`main` builds the points and the two differentials, adds the verdict of each
+observation to `failures` and shows it. It returns 1 when `failures` is
+nonzero:
 
 ```vast
 {{#include ../../examples/packages/spectral-observations/src/main.vast:main}}
 ```
 
-Each observation adds its own power of two when it fails, so the printed
+Each observation adds its own power of two when it fails, so the shown
 number names every failed observation. `verdict`, `reads` and `minus_half`
 are small functions of `main.vast`: `reads` compares a pair with a reduced
 fraction, and `minus_half` checks that one rational is −1/2 times another.

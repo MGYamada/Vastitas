@@ -332,7 +332,8 @@ of both `measure` and `hide`:
 {{#include ../examples/packages/indexed-objects/main.vast:object-types}}
 ```
 
-The executable prints `42`. The witness `Y` has the object type
+The executable writes `int(measure(X)) = 42` and exits with status 0. The
+witness `Y` has the object type
 `Object<shapes::Shape, shapes::QQ>`, so `measure(Y)` is an error. In the next
 program the annotation gives `Y` an object type that has the implementation
 `Plain`, which lacks the capability `dim`:
@@ -864,7 +865,7 @@ depends on the standard library, whose geometry package holds an export:
 ```
 
 `p`, `q` and `r` are points of one type, written in both spellings. The
-executable prints `42`.
+executable writes `int(scheme::dim(Y)) = 42` and exits with status 0.
 
 > **Implementation note.** The kernel resolves the paths of every export and
 > checks each entry against the declarations themselves. A call in the core
@@ -899,7 +900,9 @@ syntax to these declarations.
 {{#include ../examples/packages/stdlib-geometry/main.vast}}
 ```
 
-The executable prints `42`.
+The executable writes
+`std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42`
+and exits with status 0.
 
 ## A complete program
 
@@ -916,9 +919,10 @@ target/debug/vastitas build --manifest-path examples/packages/indexed/Vastitas.t
 ./target/indexed-demo
 ```
 
-The executable prints `42`. `make` hides an object of dimension 41 together
-with its origin. `main` opens the existential package, applies the identity
-morphism of the witness to the point, and adds 1 to the dimension.
+The executable writes `increment(int(geo::dim(Y))) = 42` and exits with
+status 0. `make` hides an object of dimension 41 together with its origin.
+`main` opens the existential package, applies the identity morphism of the
+witness to the point, and shows the dimension plus 1.
 
 ## Scope of the descriptor profile
 

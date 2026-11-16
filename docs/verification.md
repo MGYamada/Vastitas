@@ -2240,8 +2240,9 @@ arithmetic. Its explicit
 `geometry_compat` export supplies old syntax through independently resolved and
 validated declaration roles, without runtime forwarding or further editing rights.
 
-`tests/stdlib_geometry.rs` holds the integration tests: native `42`/`2`
-workflows including unchanged original source, mixed annotations/pack/unpack,
+`tests/stdlib_geometry.rs` holds the integration tests: native workflows,
+whose programs exit with a fixed status or show the dimension that they check,
+including unchanged original source, mixed annotations/pack/unpack,
 dependent test objects, coherent source/profile renaming, re-export identity,
 nominal separation, visibility, missing capabilities, Fn capture and unused-body
 checking. Actual wire mutations change visibility, primitive/base roles,

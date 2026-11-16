@@ -35,7 +35,8 @@ target/debug/vastitas build examples/pointed.vast -o target/pointed
 ./target/pointed
 ```
 
-The program prints `42`. [Getting started](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/getting-started.md) ·
+The program writes no line and exits with status 0: an executable exits with
+the result of `main` and writes only the lines of `show!`. [Getting started](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/getting-started.md) ·
 [CLI reference](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/cli.md) · [Creating a package](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/creating-a-package.md)
 
 ## Install the alpha
@@ -56,7 +57,9 @@ vastitas build examples/pointed.vast -o pointed
 ./pointed
 ```
 
-The example prints `42`. Set `VASTITAS_KERNEL_ROOT` to this same absolute
+The example prints `42`: executables of the alpha print the result of
+`main`, where those built from this repository exit with it. Set
+`VASTITAS_KERNEL_ROOT` to this same absolute
 path in each new shell. The first build that needs the storage or numerical
 runtime compiles it inside that directory, so keep it writable. For programs
 that import the combined standard library, run

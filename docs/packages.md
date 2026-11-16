@@ -99,7 +99,8 @@ target/debug/vastitas build --manifest-path examples/packages/demo/Vastitas.toml
 ./target/demo
 ```
 
-The executable prints `42`.
+The executable writes `pipeline::twice(callback, package) = 42` and exits
+with status 0.
 
 ## Geometry compatibility exports
 

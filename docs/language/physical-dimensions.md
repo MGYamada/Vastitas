@@ -26,10 +26,11 @@ path that names a declaration of another kind.
 
 The examples quote the tested package
 [`examples/packages/physical-dimensions/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/physical-dimensions),
-whose executable prints `42`. It depends on the standard library and on the
-library [`nature::dimension`](#the-library-naturedimension). Each rejected
-program is a package on the same libraries. It appears with the diagnostic
-that the compiler prints for it.
+whose executable writes `failures = 0` and exits with status 0. It depends
+on the standard library and on the library
+[`nature::dimension`](#the-library-naturedimension). Each rejected program is
+a package on the same libraries. It appears with the diagnostic that the
+compiler prints for it.
 
 The declarations of this chapter are the forms of `DimensionDeclaration`:
 

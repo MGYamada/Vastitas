@@ -37,7 +37,8 @@ calls a function that the file declares after the caller:
 {{#include ../../examples/arithmetic.vast}}
 ```
 
-The executable prints `1234567890123456789012345678900`.
+The executable writes `value * 10 = 1234567890123456789012345678900` and
+exits with status 0.
 
 ## Calls
 
@@ -96,4 +97,4 @@ Rules:
 {{#include ../../examples/book/functions/function-values.vast}}
 ```
 
-The executable prints `42`.
+The executable writes `invoke(alias, 41) = 42` and exits with status 0.

@@ -163,7 +163,10 @@ target/debug/vastitas build --manifest-path examples/packages/numerical/Vastitas
 ./target/numerical-example
 ```
 
-The program prints `42`. [Numerical builds](cli.md#numerical-builds) in
+The program writes no line and exits with status 0. Its entry point is a
+resource function, which cannot use `show!`, and its `expect` statements
+stop the program when a product is wrong.
+[Numerical builds](cli.md#numerical-builds) in
 Appendix A gives the version of OpenBLAS that the compiler accepts and the
 command that builds it into the prefix. On Linux the build command also
 takes `--native-cc cc`.
@@ -261,7 +264,7 @@ the adjoint. While `transformed` is live, `input` gives no access, and
 
 `main` of the example applies the three transforms to the matrix with the one
 entry i. The dual has the entry i, and the conjugate and the adjoint have the
-entry −i. The program prints `42`.
+entry −i. The program writes no line and exits with status 0.
 
 For other metrics the entries of the adjoint also depend on the two Gram
 matrices, so the adjoint is not a view of the cells of `a`. The statement
@@ -287,7 +290,7 @@ write the cells of a vector and copy them to another vector:
 of the vector, as `initializes` does for a map. `main` of the example declares the vectors with
 `vector e = view(cells, bv);`, calls the two functions and reads the cells
 back. The program has no product statement, so it builds without the
-library, and it prints `42`.
+library. It writes no line and exits with status 0.
 
 A pairing computes one number from two vectors and writes it to a view with
 one cell:
@@ -326,7 +329,7 @@ computes the product of this chapter in that form:
 
 The block computes `left` after `right`, the product of the `gemm` statement
 above. It inserts no conjugation, no metric and no change of basis. The
-program prints `42`.
+program writes no line and exits with status 0.
 
 Larger networks contract
 [*tensors*](../appendix/glossary.md#tensor). A tensor presents a loan as an
@@ -394,7 +397,7 @@ The compiler checks the bases of `runtime_gemm` as it checks the bases of
 `gemm`. An extent never shows that two spaces or two bases are the same. The
 executable checks the sizes when the program runs. `runtime_gemm` is a
 product statement, so the build of this example takes `--openblas-prefix`.
-The program checks its own results and prints `0`.
+The program checks its own results, writes no line and exits with status 0.
 [Runtime maps](../storage/resource-programs.md#runtime-maps) gives the
 statements and their rules.
 

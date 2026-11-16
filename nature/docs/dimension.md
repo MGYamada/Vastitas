@@ -52,8 +52,8 @@ length and a time coordinate:
   a physical interpretation of the metric `G`;
 - `indexed quantity Frequency = T^-1;`, a quantity kind of its own.
 
-It computes gradients under its metrics and prints `42`; the
-interpretations change no value.
+It computes gradients under its metrics, writes `failures = 0` and exits
+with status 0; the interpretations change no value.
 [`examples/packages/stdlib-frames/`](../../examples/packages/stdlib-frames)
 (`tests/examples.rs`) and
 [`examples/packages/frames-and-dimensions/`](../../examples/packages/frames-and-dimensions)

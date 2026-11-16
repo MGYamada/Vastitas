@@ -70,8 +70,9 @@ target/debug/vastitas build --manifest-path examples/packages/stdlib-arithmetic/
 ./target/stdlib-arithmetic
 ```
 
-The executable prints `42`. The compiler checks the whole library with the
-program, as it checks every dependency.
+The executable writes `int_abs(int_sub(8, 50)) = 42` and exits with
+status 0. The compiler checks the whole library with the program, as it
+checks every dependency.
 
 ## Flat mode with `--lib`
 
@@ -91,7 +92,8 @@ target/debug/vastitas build examples/book/programs/flat-library.vast \
 ./target/flat-library
 ```
 
-The executable prints `42`. In flat mode every function of every file is
+The executable writes `int_abs(int_sub(8, 50)) = 42` and exits with
+status 0. In flat mode every function of every file is
 visible in every other file, so the program calls `int_sub` without an
 import. The program holds only the files that the command names. Without
 the option, the compiler does not know `int_sub`.

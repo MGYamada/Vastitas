@@ -57,11 +57,14 @@ Packages that depend on `std`, built and run by `tests/examples.rs` and
 
 - [`examples/packages/stdlib-geometry/`](../../../examples/packages/stdlib-geometry)
   binds the module as in `use std::geometry::smooth as smooth;`, applies an
-  identity morphism to the point of `smooth::pointed(22)` and prints `42`.
+  identity morphism to the point of `smooth::pointed(22)`. It writes
+  `std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42`
+  and exits with status 0.
 - [`examples/packages/stdlib-geometry/smooth/`](../../../examples/packages/stdlib-geometry/smooth)
   keeps the annotation
   `let X: Object<smooth::CInfScheme, smooth::CInfReal> = smooth::Affine(n);`,
-  checks the dimension after it opens the package and prints `2`.
+  and shows and checks the dimension after it opens the package. It writes
+  `smooth::dim(X) = 2` and exits with status 0.
 
 The book chapter
 [Indexed declarations and the geometry library](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/indexed-geometry.md#two-settings)

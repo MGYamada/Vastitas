@@ -162,7 +162,7 @@ Rules:
   [Fast like C](../storage-ownership.md#fast-like-c) says.
 
 This program subtracts 5 from the `Nat` value 2 and compares the result with
-0. Its executable prints `-42`:
+0. Its executable writes `n - 5 = 0` and exits with status 0:
 
 ```vast
 {{#include ../../examples/book/expressions/saturating-subtraction.vast}}
@@ -388,7 +388,7 @@ Rules:
   `gemm`.
 - A run-time check that fails stops the executable with a
   [run-time diagnostic](diagnostics.md#run-time-diagnostics). The executable
-  prints no result and exits with an unsuccessful status.
+  writes nothing to standard output and exits with an unsuccessful status.
 - Writes that the executable completed before it stopped are not undone. It
   frees its allocations, as
   [Running a resource program](../storage/resource-programs.md#running-a-resource-program)

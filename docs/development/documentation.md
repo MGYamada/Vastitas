@@ -257,9 +257,10 @@ chapter.
   `// ANCHOR: name` and `// ANCHOR_END: name` comments to include only that
   part.
 - List the program in `BOOK_PROGRAMS` or `BOOK_PACKAGES` in
-  `tests/examples.rs` with the output that the chapter states.
-  `cargo test --locked --test examples` builds and runs it, and fails on a
-  file under `examples/book/` that the lists omit.
+  `tests/examples.rs` with the lines of `show!` that the chapter states.
+  `cargo test --locked --test examples` builds and runs it, requires exit
+  status 0 and these lines, and fails on a file under `examples/book/` that
+  the lists omit.
 - Put a rejected program in `examples/reject/<construct>/` and list it in
   `BOOK_REJECTIONS`. The file `<name>.stderr` next to it holds the lines that
   `vastitas check` prints for it from the repository root. Include both files,

@@ -146,8 +146,9 @@ target/debug/vastitas build --manifest-path examples/packages/indexed/Vastitas.t
 ./target/indexed-demo
 ```
 
-The program prints `42`: `make(41)` hides an object of dimension 41, and
-`main` adds 1 to the dimension.
+The program writes `increment(int(geo::dim(Y))) = 42` and exits with
+status 0: `make(41)` hides an object of dimension 41, and `main` adds 1 to
+the dimension.
 
 ## Capabilities and object types
 
@@ -207,7 +208,8 @@ module of `indexed-objects` uses two object types:
 `Object<shapes::Grid, shapes::QQ>`. `Grid` is in the domains of `Measured`
 and of `Shape`, so both `measure` and `hide` accept `X`. The witness `Y` has
 the type that the first case of `Hidden` declares,
-`Object<shapes::Shape, shapes::QQ>`. The program prints `42`.
+`Object<shapes::Shape, shapes::QQ>`. The program writes
+`int(measure(X)) = 42` and exits with status 0.
 
 The object type belongs to a binding, not to the object: two bindings of
 one object can have different object types. An annotation with a wider

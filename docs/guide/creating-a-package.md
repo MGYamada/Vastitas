@@ -55,8 +55,10 @@ target/debug/vastitas build --manifest-path examples/packages/hello/Vastitas.tom
 ```text
 checked examples/packages/hello/Vastitas.toml
 built target/hello-package
-42
+40 + 2 = 42
 ```
+
+The executable exits with status 0.
 
 The compiler does not search for a manifest, so every command on a package
 names its manifest. A command that names a manifest runs in
@@ -118,9 +120,10 @@ target/debug/vastitas build --manifest-path examples/packages/dependency/ask/Vas
 ./target/ask
 ```
 
-The executable prints `42`. The compiler reads the manifest of `ask`, follows
-its dependencies and checks every package that it reaches. It checks all of
-each package, including functions that the program never calls.
+The executable writes `answer() = 42` and exits with status 0. The compiler
+reads the manifest of `ask`, follows its dependencies and checks every
+package that it reaches. It checks all of each package, including functions
+that the program never calls.
 
 `pub` and `use` belong to packages. A program in flat mode has neither, and
 the compiler rejects them there with a message that points you to a package.

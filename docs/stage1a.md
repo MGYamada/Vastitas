@@ -220,8 +220,9 @@ declares a small hierarchy and dispatches on it:
 {{#include ../examples/abstract-selectors.vast}}
 ```
 
-The executable prints `42`. `Variety` and `Manifold` are declarations without
-members; they carry no mathematical axioms.
+The executable writes `classify(n) = 42` and exits with status 0. `Variety`
+and `Manifold` are declarations without members; they carry no mathematical
+axioms.
 
 ## Abstract methods
 
@@ -271,7 +272,7 @@ Rules:
 {{#include ../examples/abstract-contracts.vast}}
 ```
 
-The executable prints `42`.
+The executable writes `widen(n) + widen(22) = 42` and exits with status 0.
 
 ## Promotion
 
@@ -303,4 +304,6 @@ target/debug/vastitas build examples/promotion.vast \
   --lib stdlib/src/arithmetic/generic.vast -o target/promotion
 ```
 
-The executable prints `42`.
+The executable writes
+`maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42` and exits with
+status 0.

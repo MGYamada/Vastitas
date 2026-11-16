@@ -32,7 +32,8 @@ target/debug/vastitas build examples/functions.vast -o target/functions
 ./target/functions
 ```
 
-The program prints `42`.
+The program writes `invoke(keep(increment), 41) = 42` and exits with
+status 0.
 
 A function type lists its parameter types in parentheses when the function
 has several parameters or none.
@@ -48,7 +49,7 @@ returns functions of both kinds:
 parameters. They are not a tuple type, and `Fn<Unit, Int>` is a different
 type: a function with one parameter of type `Unit`. Calls chain: `constant()`
 returns a function, and `constant()()` calls that function. The program
-prints `42`.
+writes `adder()(constant()(), 2) = 42` and exits with status 0.
 
 The parameter and result types of a function type are scalar types and
 function types. A function with another type in its signature, such as a
@@ -78,7 +79,7 @@ value as a parameter instead, in
 {{#include ../../examples/book/function-values/explicit-parameter.vast}}
 ```
 
-This program prints `42`.
+This program writes `shift(40, offset) = 42` and exits with status 0.
 
 The rule holds for everything that the surrounding function binds,
 including its parameters and a function value in one of its bindings. A
@@ -101,8 +102,8 @@ returns one of two function parameters:
 
 The call in `main` passes the named function `increment` for both `f` and
 `g`. Both branches of the `if` are therefore the same definition, and the
-call that follows has the static target `increment`. The program prints
-`42`.
+call that follows has the static target `increment`. The program writes
+`pick(true, increment, increment)(41) = 42` and exits with status 0.
 
 When the branches are different definitions, the target would depend on a
 value that the program computes:
@@ -142,9 +143,10 @@ passes such a function:
 {{#include ../../examples/book/function-values/wrapper.vast}}
 ```
 
-This program prints `42`. Inside `add_ints`, the compiler chooses the method
-of `add` by the argument types, as for every call of a generic. A function
-type is never part of a key: dispatch uses the scalar types only.
+This program writes `fold(add_ints, 40, 2) = 42` and exits with status 0.
+Inside `add_ints`, the compiler chooses the method of `add` by the argument
+types, as for every call of a generic. A function type is never part of a
+key: dispatch uses the scalar types only.
 
 ## Specialization
 

@@ -101,9 +101,9 @@ during a compilation or in a generated program.
    path and renames it onto that path.
    [Output files](../internals/driver.md#output-files).
 
-`check` ends after step 7. The executable of step 9 prints the integer that
-`main` returns, as [The entry point](../language/programs.md#the-entry-point)
-says.
+`check` ends after step 7. The executable of step 9 exits with the integer
+that `main` returns as its exit status and writes only the lines of `show!`,
+as [The entry point](../language/programs.md#the-entry-point) says.
 
 ## The three checker routes
 

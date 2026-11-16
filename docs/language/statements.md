@@ -53,8 +53,8 @@ In this program the two blocks bind `step` once each:
 {{#include ../../examples/book/statements/bindings.vast}}
 ```
 
-The executable prints `42`. A block that binds a name of its enclosing block is
-an error:
+The executable writes `first + second - base = 42` and exits with status 0.
+A block that binds a name of its enclosing block is an error:
 
 ```vast
 {{#include ../../examples/reject/statements/nested-rebinding.vast}}
@@ -133,5 +133,5 @@ returns. `X` is the object of the opening, and `p` is a point of `X`:
 {{#include ../../examples/book/geometric-types/pointed-origin.vast}}
 ```
 
-The executable prints `42`. [Opening](../indexed-source.md#opening) shows
-the form with `witness`.
+The executable writes no line and exits with status 0.
+[Opening](../indexed-source.md#opening) shows the form with `witness`.

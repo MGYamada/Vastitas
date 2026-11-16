@@ -77,9 +77,10 @@ target/debug/vastitas build --manifest-path examples/packages/edit-borrow/app/Va
 ./target/edit-borrow
 ```
 
-The program prints `42`: `choose(40, 2)` is a call of the method that the
-add-on contributed. Without the `assembly` block, the same call selects the
-method of the library, and the program prints `0`.
+The program writes `base::choose(40, 2) = 42` and exits with status 0:
+`choose(40, 2)` is a call of the method that the add-on contributed. Without
+the `assembly` block, the same call selects the method of the library, and
+the program writes `base::choose(40, 2) = 0`.
 
 A program has at most one assembly. It stands in the root module of the
 root package, the package whose manifest the command names. The assembly
@@ -181,7 +182,8 @@ target/debug/vastitas build --manifest-path examples/packages/edit-authority/app
 ./target/edit-authority
 ```
 
-The program prints `44`. `choose(40, 2)` is a call of the method of `sum`
+The program writes `base::choose(40, 2) + base::choose(true, true) = 44`
+and exits with status 0. `choose(40, 2)` is a call of the method of `sum`
 and gives 42. `choose(true, true)` is a call of the method of `boolean` and
 gives 2. [Transfers](../language/edit-authority.md#transfers) gives the
 rules.

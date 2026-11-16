@@ -39,11 +39,12 @@ the primitives that name them, such as:
 - `indexed primitive to_b = frame_encode(Tangent, Coords, frame = b);`
 - `indexed primitive b_to_e = frame_transition(Smooth, FrameMap, source = b, target = e);`
 
-It encodes, decodes and changes frames, reads the matrix of a map, and prints
-`42`.
+It encodes, decodes and changes frames and reads the matrix of a map. It
+writes `failures = 0` and exits with status 0.
 [`examples/packages/frames-and-dimensions/`](../../../examples/packages/frames-and-dimensions),
 which `tests/frames_dimensions.rs` builds, runs and mutates, uses `Coords`,
-`CoCoords` and `FrameMap` across several frames and prints `42`.
+`CoCoords` and `FrameMap` across several frames. It writes `failures = 0` and
+exits with status 0.
 `tests/stdlib_frames.rs` runs an application that declares frames on its own
 objects. The book chapter
 [Frames and physical dimensions](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/frames-and-dimensions.md)

@@ -16,9 +16,9 @@ markers and classifications, are in
 
 The examples quote the tested package
 [`examples/packages/affine-geometry/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/affine-geometry),
-whose executable prints `42`. Each rejected program is a package on the
-profile of the standard library. It appears with the diagnostic that the
-compiler prints for it.
+whose executable writes `failures = 0` and exits with status 0. Each
+rejected program is a package on the profile of the standard library. It
+appears with the diagnostic that the compiler prints for it.
 
 > **Syntax**
 >

@@ -55,7 +55,7 @@ two subtypes, a generic, an abstract method, two methods and a function:
 {{#include ../../examples/abstract-contracts.vast}}
 ```
 
-The executable prints `42`.
+The executable writes `widen(n) + widen(22) = 42` and exits with status 0.
 
 ## Visibility
 
@@ -77,7 +77,7 @@ it:
 {{#include ../../examples/packages/inline-module/main.vast}}
 ```
 
-The executable prints `42`.
+The executable writes `next(41) = 42` and exits with status 0.
 
 ## Names of items
 

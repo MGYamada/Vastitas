@@ -51,8 +51,8 @@ has the body `sharp_skew(differential(h, p))`.
   imports the four operations, as in `use std::differential::pullback;`. It
   pulls the seed `dt` at 18 back along g after f to 12 `dt` at 3, compares
   the saved, recomputed and tape pullbacks, gives the failure value for a
-  seed at 17, computes the differential `(2, 1)` and a gradient, and prints
-  `42`.
+  seed at 17, and computes the differential `(2, 1)` and a gradient. It
+  writes `failures = 0` and exits with status 0.
 - [`examples/packages/stdlib-frames/`](../../examples/packages/stdlib-frames)
   and [`examples/packages/physical-dimensions/`](../../examples/packages/physical-dimensions)
   (`tests/examples.rs`) compute gradients under their metrics from

@@ -44,7 +44,8 @@ target/debug/vastitas build examples/book/dispatch/methods.vast -o target/method
 ./target/methods
 ```
 
-The program prints `42`.
+The program writes `double(n) = 20` and `double(11) = 22`, and exits with
+status 0.
 
 Each type of a key is one of the four scalar types `Nat`, `Int`, `Bool` and
 `Unit`. A value of another type, such as a pair, is not an argument of a
@@ -69,7 +70,8 @@ when its selectors accept the types of the key. All three methods of `rank`
 apply at `(Int)`, and the first two apply at `(Nat)`. The compiler chooses
 the method with the narrowest selector: the `Int` method for `7` and `-7`,
 the `Number` method for `n`, and the `Any` method for `true`. The program
-prints `42`.
+writes `rank(true) + rank(n) + rank(n) + rank(7) + rank(-7) = 42` and exits
+with status 0.
 
 A method can also require a
 [*capability*](../appendix/glossary.md#capability): a property that some
@@ -87,7 +89,14 @@ method therefore applies at `(Nat)` and at `(Int)`, and not at `(Bool)`. Both
 methods apply at `(Nat)` and at `(Int)`, and the second one is chosen there,
 because it requires more. A method `below_ten(x: Any)` without the `requires`
 clause also applies at `(Bool)`, where the body `x < 10` is an error. The
-program prints `42`.
+program writes these lines, and it exits with status 0 because `main` returns
+0 when the three values are the expected ones:
+
+```text
+below_ten(n) = true
+below_ten(-7) = true
+below_ten(true) = false
+```
 
 The other capability is `HasEq`, which holds for every scalar type. A program
 declares no capabilities of its own.
@@ -197,7 +206,8 @@ target/debug/vastitas build examples/dispatch-arithmetic.vast \
 ./target/dispatch-arithmetic
 ```
 
-The program prints `42`.
+The program writes `maximum(nat_to_int(total), 41) = 42` and exits with
+status 0.
 
 For two arguments of one type, `add` and `maximum` return that type. For a
 `Nat` and an `Int`, in either order, they return an `Int`. The methods for
@@ -214,7 +224,9 @@ calls `promote` itself:
 
 `promote(n, 22)` has the key `(Nat, Int)`, and its result holds 20 and 22 as
 `Int` values. `add(n, -7)` has the same key and returns the `Int` 13. Build
-the program with the same three libraries. It prints `42`.
+the program with the same three libraries. It writes
+`maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42` and exits with
+status 0.
 
 > **What is checked.** The compiler builds the table of winners of every
 > generic before it generates code. It rejects the whole program for a key

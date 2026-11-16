@@ -152,7 +152,7 @@ its functions through paths and calls the geometric operation `dim`:
 {{#include ../../examples/packages/module-names/dim.vast}}
 ```
 
-The executable prints `42`.
+The executable writes no line and exits with status 0.
 
 In this package `units.vast` declares a module `dim`:
 

@@ -3,8 +3,9 @@
 This chapter builds one program step by step. It declares geometric objects
 by polynomial equations and maps between them. It then puts a curve over a
 line, takes the fiber of the curve over a point, and restricts a map to an
-open subset. Every coefficient in the program is an exact rational number,
-and the program prints `42` only when every observation holds.
+open subset. Every coefficient in the program is an exact rational number.
+The program writes `failures = 0` and exits with status 0 only when every
+observation holds.
 
 The program is
 [`examples/packages/stdlib-affine/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-affine/main.vast).
@@ -235,7 +236,8 @@ into its code, and `reads` compares a coefficient with a fraction:
 {{#include ../../examples/packages/stdlib-affine/main.vast:helpers}}
 ```
 
-Each observation adds its code to 42 when it fails:
+Each observation adds its code to `failures` when it fails. `main` shows
+`failures` and returns 1 when it is not 0:
 
 ```vast
 {{#include ../../examples/packages/stdlib-affine/main.vast:main}}

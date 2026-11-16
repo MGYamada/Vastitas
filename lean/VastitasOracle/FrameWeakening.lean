@@ -230,6 +230,22 @@ theorem readingData_append (id : DeclId) : readingData? big id = readingData? sm
 theorem scaleData_append (id : DeclId) : scaleData? big id = scaleData? small id := by
   frame_view ext scaleData? id
 
+/-! The views of the declarations of `nature::model` and `nature::errorbar`
+(Stage 6), which are profile declarations: no frame declaration is one of
+them. -/
+
+theorem conventionData_append (id : DeclId) : conventionData? big id = conventionData? small id := by
+  frame_view ext conventionData? id
+
+theorem modelData_append (id : DeclId) : modelData? big id = modelData? small id := by
+  frame_view ext modelData? id
+
+theorem calibrationData_append (id : DeclId) : calibrationData? big id = calibrationData? small id := by
+  frame_view ext calibrationData? id
+
+theorem datasetData_append (id : DeclId) : datasetData? big id = datasetData? small id := by
+  frame_view ext datasetData? id
+
 theorem metricData_append (id : DeclId) : metricData? big id = metricData? small id := by
   rcases ext.lookups id with same | ⟨absent, declaration, found, kind⟩
   · simp only [metricData?, same, smoothDimension_append ext.profile]
@@ -621,7 +637,7 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
     simp only [validEntry, h, NatureModel.checkModel, NatureModel.predictsAverage, SpectralDeclarations.declaredAt,
       isModelFamily, familyRepresentation_append ext, validApplication_object1 ext, smoothDimension_append ext.profile,
       endomorphismData_append ext.profile, freeModuleData_append ext.profile, readingData_append ext,
-      conventionData_append ext.profile, transitionAverageData_append ext.profile, branchData_append ext.profile,
+      conventionData_append ext, transitionAverageData_append ext.profile, branchData_append ext.profile,
       spectrumData_append ext.profile]
   | calibration family object parameters method reference revision =>
     simp only [validEntry, h, NatureErrorbar.checkCalibration, SpectralDeclarations.declaredAt, isCalibrationFamily,
@@ -629,13 +645,13 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
   | dataset family object model calibration coverage points =>
     simp only [validEntry, h, NatureErrorbar.checkDataset, NatureErrorbar.prediction?,
       SpectralDeclarations.declaredAt, isDatasetFamily, familyRepresentation_append ext, validApplication_object1 ext,
-      smoothDimension_append ext.profile, modelData_append ext.profile, calibrationData_append ext.profile,
+      smoothDimension_append ext.profile, modelData_append ext, calibrationData_append ext,
       transitionAverageData_append ext.profile, branchData_append ext.profile]
   | comparison family object dataset calibration fingerprint verdict =>
     simp only [validEntry, h, NatureErrorbar.checkComparison, NatureErrorbar.prediction?,
       SpectralDeclarations.declaredAt, isComparisonFamily, familyRepresentation_append ext,
       validApplication_object1 ext, smoothDimension_append ext.profile, smoothCoordinates_append ext.profile,
-      datasetData_append ext.profile, calibrationData_append ext.profile, modelData_append ext.profile,
+      datasetData_append ext, calibrationData_append ext, modelData_append ext,
       transitionAverageData_append ext.profile, branchData_append ext.profile]
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :

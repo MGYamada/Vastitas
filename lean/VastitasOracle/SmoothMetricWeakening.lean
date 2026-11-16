@@ -137,7 +137,7 @@ theorem frameData_append (id : DeclId) : frameData? big id = frameData? small id
   · simp only [frameData?, same]
   · simp only [frameData?, none, found]
     cases declaration <;> simp only [MetricOrNatureDeclaration] at kind <;>
-      (try rcases kind with kind | kind | kind) <;> simp_all
+      (try rcases kind with kind | kind | kind | kind | kind | kind | kind) <;> simp_all
 
 theorem frameFamily_append (id : DeclId) : frameFamily? big id = frameFamily? small id := by
   simp only [frameFamily?, frameData_append ext]

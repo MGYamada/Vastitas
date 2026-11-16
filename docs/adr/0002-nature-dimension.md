@@ -309,8 +309,9 @@ contract is implemented or proved.
 
 #### Contract and jurisdiction
 
-- **Verdict.** The executable kernel evaluates the prediction of the model
-  exactly at each point, with the calibrated parameter values, and the
+- **Verdict.** Every point, with the calibrated parameter values, lies on the
+  chart of the predicted average (ADR 0001 §13). The executable kernel
+  evaluates the prediction of the model exactly at each point, and the
   derivative of the prediction in each calibrated parameter. A point is
   consistent when `(prediction − value)² ≤ k²·(u² + Σ (∂prediction)²·u_c²)`,
   with `u` the uncertainty of the point and `u_c` those of the calibration.
@@ -363,7 +364,8 @@ contract is implemented or proved.
 #### Negative tests
 
 - A changed calibration under an old comparison (`E_STALE`); a wrong verdict;
-  a point off the domain of the prediction; a nonpositive uncertainty or
+  a point off the chart of the predicted average (ADR 0001 §13), even where
+  the denominator of its closed form does not vanish; a nonpositive uncertainty or
   coverage factor; a calibration of a parameter that the model does not
   have (`E_ERRORBAR`); more points than the limit (`E_LIMIT`); protocols 7
   and 8.

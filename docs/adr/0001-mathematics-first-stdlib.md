@@ -1063,9 +1063,12 @@ History section at the end of this chapter links the tracker.
   kernel computes `T` from trace powers of §12 and checks the two identities
   against a quotient that it computes; nothing is divided, and no eigenvalue
   is computed.
-- **Observation.** At a rational point `p` with `D(p) ≠ 0`, the observation
-  gives `N(p)/D(p)` as an exact rational; elsewhere it gives the failure
-  value ⊥ of §10.
+- **Observation.** At a rational point `p` of the chart, `g(p) ≠ 0`, the
+  observation gives `N(p)/D(p)` as an exact rational; `D(p) ≠ 0` follows,
+  because `D` is a unit on `D(g)`. Off the chart it gives the failure value
+  ⊥ of §10, whatever the closed form: a closed form whose denominator lost
+  the factor `g` by cancellation, such as `1/2` for `[[0, x], [x, 0]]` on
+  `D(x)`, gives no value at `x = 0`, where the certificate does not apply.
 - **Meaning.** The average is a function of `H` and the two basis vectors
   only. That it is the long-time average of a transition probability under
   the unitary group of `H` is a physical reading of `nature::model`
@@ -1112,6 +1115,8 @@ History section at the end of this chapter links the tracker.
 - A closed form that differs from the trace form; a denominator that is not a
   unit on `D(g)`; a nonsymmetric field; a basis vector of another module; a
   chart of another spectrum (`E_SPECTRAL`).
+- An observation off the chart of a closed form whose denominator does not
+  vanish there gives ⊥.
 
 #### Compatibility and public-name audit
 

@@ -17,6 +17,9 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+# The current wire schema epoch (#533), as `CURRENT_PROTOCOL` in
+# tests/common/wire.rs: the protocol of the resource requests the frontend writes.
+CURRENT_PROTOCOL = 9
 
 
 class Runner:
@@ -42,14 +45,14 @@ def capture_wire(runner, frontend, package):
     capture.write_text(f'''#!{sys.executable}
 import json, pathlib, sys
 pathlib.Path({str(wire)!r}).write_text(sys.stdin.read())
-print(json.dumps({{"version":8,"ok":False,"diagnostics":[{{"code":"E_CAPTURED","message":"capture only"}}]}}))
+print(json.dumps({{"version":{CURRENT_PROTOCOL},"ok":False,"diagnostics":[{{"code":"E_CAPTURED","message":"capture only"}}]}}))
 sys.exit(1)
 ''')
     capture.chmod(0o755)
     result = runner.run([frontend, "check", "--manifest-path", package / "Vastitas.toml"],
                         env=dict(runner.env, VASTITAS_KERNEL=str(capture)), required=False)
     assert result["returncode"] == 1 and "E_CAPTURED" in result["stderr"], result
-    assert json.loads(wire.read_text())["version"] == 8
+    assert json.loads(wire.read_text())["version"] == CURRENT_PROTOCOL
     return wire.read_text()
 
 STATIC = """    allocate data: F64[1];
@@ -166,7 +169,8 @@ def main():
             built = runner.run([canonical], required=False)
             assert built["returncode"] == 42 and built["stdout"] == "", built
             response = json.loads(runner.run([kernel, "emit"], input=wire)["stdout"])
-            assert response["ok"] and response["version"] == 8 and not response["numerical_runtime"]
+            assert (response["ok"] and response["version"] == CURRENT_PROTOCOL
+                    and not response["numerical_runtime"])
             generated = response["lean_source"]
             assert generated.count("catch cleanupError =>") == arenas and "finally" not in generated
             (work / "Main.lean").write_text(generated)  # exact returned source

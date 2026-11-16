@@ -30,7 +30,7 @@ resource fn main() -> Int {
     release(copied);
     drop(first);
     drop(second);
-    value { 42 }
+    value { 0 }
 }
 
 // ANCHOR: cells

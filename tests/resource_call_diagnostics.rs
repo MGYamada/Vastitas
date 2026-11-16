@@ -256,20 +256,17 @@ fn rejected(scratch: &Scratch) -> String {
     rendered.swap_remove(0)
 }
 
-/// `check` accepts `source`, and the built executable prints `expected`.
+/// `check` accepts `source`, and the built executable does what `expected`
+/// says.
 #[track_caller]
-fn accepted(source: &str, expected: &str) {
+fn accepted(source: &str, expected: common::Run) {
     let scratch = fixture(source);
     success(&run(&scratch, "check"));
     success(&run(&scratch, "build"));
     let output = std::process::Command::new(scratch.0.join("program"))
         .output()
         .unwrap();
-    success(&output);
-    assert_eq!(
-        String::from_utf8(output.stdout).unwrap(),
-        format!("{expected}\n")
-    );
+    assert_eq!(common::ran(&output), expected);
 }
 
 /// The diagnostics without their `path:line:column: ` locations.
@@ -401,7 +398,7 @@ fn the_matching_arguments_are_accepted_and_run() {
         (RESULT, "basis_arg, other_arg);", "basis_arg, basis_arg);"),
         (RUNTIME, MAP_VIEW, "view(input, sensor_basis, sensor_basis)"),
     ] {
-        accepted(&checked_replace(&program(body), from, to), "0");
+        accepted(&checked_replace(&program(body), from, to), common::exits(0));
     }
 }
 
@@ -504,7 +501,7 @@ fn each_endpoint_is_compared_with_the_basis_of_its_own_parameter() {
             "view(input, alternate_basis, sensor_basis)",
             "view(input, sensor_basis, alternate_basis)",
         ),
-        "0",
+        common::exits(0),
     );
 }
 
@@ -682,7 +679,7 @@ fn one_map_for_two_parameters_names_the_parameter_that_rejects_it() {
             "call consume(sensors, sensor_basis, alternate_basis, measured, measured)",
             "call consume(sensors, sensor_basis, sensor_basis, measured, measured)",
         ),
-        "0",
+        common::exits(0),
     );
 }
 

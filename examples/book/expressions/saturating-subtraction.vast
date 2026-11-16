@@ -2,5 +2,6 @@ fn empty() -> Unit {}
 fn main() -> Int {
     let u: Unit = empty();
     let n: Nat = 2;
-    if n - 5 == 0 { -42 } else { 1 }
+    let floor = show!(n - 5);
+    if floor == 0 { 0 } else { 1 }
 }

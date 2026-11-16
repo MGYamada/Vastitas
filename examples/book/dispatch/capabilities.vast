@@ -12,6 +12,9 @@ method below_ten(x: Any) -> Bool requires (HasOrder) { x < 10 }
 
 fn main() -> Int {
     let n: Nat = 7;
-    if below_ten(n) && below_ten(-7) && !below_ten(true) { 42 } else { 0 }
+    let natural = show!(below_ten(n));
+    let integer = show!(below_ten(-7));
+    let boolean = show!(below_ten(true));
+    if natural && integer && !boolean { 0 } else { 1 }
 }
 // ANCHOR_END: program

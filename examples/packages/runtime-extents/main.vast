@@ -22,6 +22,6 @@ resource fn main() -> Int {
     call table(rows, columns) -> ();
     let wide: Nat = value { columns + 4 };
     call table(rows, wide) -> ();
-    value { 42 }
+    value { 0 }
 }
 // ANCHOR_END: main

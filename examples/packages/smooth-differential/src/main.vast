@@ -117,43 +117,45 @@ fn main() -> Int {
     let v: Tangent<Plane> = vplane(p, 5, -7);
     // The roadmap identity: stepwise, along the composite program, along the
     // composite as one map, and along the declared gf.
-    42 + verdict(reads(stepped, 12, 1), 1)
-       + verdict(same_covector(stepped, pullback(gAfterF, x, seed)), 2)
-       + verdict(same_covector(stepped, pullback(composite(gAfterF), x, seed)), 3)
-       + verdict(same_covector(stepped, pullback(gf(), x, seed)), 4)
-       + verdict(same(gAfterF, gf()), 5)
-       // The result lies in the cotangent space at 3, not at g(f(3)) = 18.
-       + verdict(lies_over(stepped, x), 6)
-       + verdict(!lies_over(stepped, line_at(18)), 7)
-       // Wrong seeds fail. A failure stays a failure, even after the identity,
-       // and its component reads (0, 0).
-       + verdict(!lies_over(wrong, x), 8)
-       + verdict(!lies_over(detour, x), 9)
-       + verdict(!lies_over(pullback(idL(), x, detour), x), 10)
-       + verdict(reads(wrong, 0, 0), 11)
-       // Saved, recomputed and the first-class tape agree; a tape from 3
-       // rejects a seed at sq(4) = 16.
-       + verdict(same_covector(pullback_recomputed(gAfterF, x, seed), pullback(gAfterF, x, seed)), 12)
-       + verdict(same_covector(backward(linearize(gAfterF, x), seed), pullback(gAfterF, x, seed)), 13)
-       + verdict(!lies_over(backward(linearize(sq(), x), dline(line_at(16), 1)), x), 14)
-       // Recomputing evaluates each outer map at its own forward point:
-       // sq'(18) = 36 times 12 is 432. sq' at the input 3 would give 6 times 12.
-       + verdict(reads(pullback_recomputed(compose(sq(), gAfterF), x, dline(line_at(324), 1)), 432, 1), 25)
-       // The identity of the plane pulls every covector back to itself.
-       + verdict(same_covector(pullback(idP(), p, dplane(p, 5, 7)), dplane(p, 5, 7)), 15)
-       // The shears at the origin: B after A pulls dx back to (1, 1), A after B to (2, 1).
-       + verdict(same_covector(pullback(compose(shearB(), shearA()), zero, dplane(zero, 1, 0)), dplane(zero, 1, 1)), 16)
-       + verdict(same_covector(pullback(compose(shearA(), shearB()), zero, dplane(zero, 1, 0)), dplane(zero, 2, 1)), 17)
-       // dg = (2, 1) at (1, 2); no metric is involved.
-       + verdict(reads_covector(dg, 2, 1), 18)
-       // Euclid gives the gradient (2, 1), Skew (1, 0) and Lorentz (2, -1).
-       + verdict(reads_vector(gradient_euclid(g(), p), 2, 1), 19)
-       + verdict(reads_vector(gradient_skew(g(), p), 1, 0), 20)
-       + verdict(reads_vector(gradient_lorentz(g(), p), 2, -1), 21)
-       // Two metrics give two gradients of the same differential.
-       + verdict(!same_vector(gradient_euclid(g(), p), gradient_skew(g(), p)), 22)
-       // sharp after flat is the identity.
-       + verdict(same_vector(sharp_euclid(flat_euclid(v)), v) && same_vector(sharp_skew(flat_skew(v)), v), 23)
-       // dg pairs with the Skew gradient to 2 = Skew(grad, grad).
-       + verdict(pair_first(pairing(dg, gradient_skew(g(), p))) == 2 && pair_second(pairing(dg, gradient_skew(g(), p))) == 1, 24)
+    let failures = verdict(reads(stepped, 12, 1), 1)
+        + verdict(same_covector(stepped, pullback(gAfterF, x, seed)), 2)
+        + verdict(same_covector(stepped, pullback(composite(gAfterF), x, seed)), 3)
+        + verdict(same_covector(stepped, pullback(gf(), x, seed)), 4)
+        + verdict(same(gAfterF, gf()), 5)
+        // The result lies in the cotangent space at 3, not at g(f(3)) = 18.
+        + verdict(lies_over(stepped, x), 6)
+        + verdict(!lies_over(stepped, line_at(18)), 7)
+        // Wrong seeds fail. A failure stays a failure, even after the identity,
+        // and its component reads (0, 0).
+        + verdict(!lies_over(wrong, x), 8)
+        + verdict(!lies_over(detour, x), 9)
+        + verdict(!lies_over(pullback(idL(), x, detour), x), 10)
+        + verdict(reads(wrong, 0, 0), 11)
+        // Saved, recomputed and the first-class tape agree; a tape from 3
+        // rejects a seed at sq(4) = 16.
+        + verdict(same_covector(pullback_recomputed(gAfterF, x, seed), pullback(gAfterF, x, seed)), 12)
+        + verdict(same_covector(backward(linearize(gAfterF, x), seed), pullback(gAfterF, x, seed)), 13)
+        + verdict(!lies_over(backward(linearize(sq(), x), dline(line_at(16), 1)), x), 14)
+        // Recomputing evaluates each outer map at its own forward point:
+        // sq'(18) = 36 times 12 is 432. sq' at the input 3 would give 6 times 12.
+        + verdict(reads(pullback_recomputed(compose(sq(), gAfterF), x, dline(line_at(324), 1)), 432, 1), 25)
+        // The identity of the plane pulls every covector back to itself.
+        + verdict(same_covector(pullback(idP(), p, dplane(p, 5, 7)), dplane(p, 5, 7)), 15)
+        // The shears at the origin: B after A pulls dx back to (1, 1), A after B to (2, 1).
+        + verdict(same_covector(pullback(compose(shearB(), shearA()), zero, dplane(zero, 1, 0)), dplane(zero, 1, 1)), 16)
+        + verdict(same_covector(pullback(compose(shearA(), shearB()), zero, dplane(zero, 1, 0)), dplane(zero, 2, 1)), 17)
+        // dg = (2, 1) at (1, 2); no metric is involved.
+        + verdict(reads_covector(dg, 2, 1), 18)
+        // Euclid gives the gradient (2, 1), Skew (1, 0) and Lorentz (2, -1).
+        + verdict(reads_vector(gradient_euclid(g(), p), 2, 1), 19)
+        + verdict(reads_vector(gradient_skew(g(), p), 1, 0), 20)
+        + verdict(reads_vector(gradient_lorentz(g(), p), 2, -1), 21)
+        // Two metrics give two gradients of the same differential.
+        + verdict(!same_vector(gradient_euclid(g(), p), gradient_skew(g(), p)), 22)
+        // sharp after flat is the identity.
+        + verdict(same_vector(sharp_euclid(flat_euclid(v)), v) && same_vector(sharp_skew(flat_skew(v)), v), 23)
+        // dg pairs with the Skew gradient to 2 = Skew(grad, grad).
+        + verdict(pair_first(pairing(dg, gradient_skew(g(), p))) == 2 && pair_second(pairing(dg, gradient_skew(g(), p))) == 1, 24);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }

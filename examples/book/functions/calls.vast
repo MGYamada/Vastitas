@@ -1,5 +1,6 @@
 fn main() -> Int {
-    add_twice(2, 20)
+    let answer = show!(add_twice(2, 20));
+    0
 }
 
 // A call may name a function that the file declares later.

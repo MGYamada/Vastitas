@@ -3,5 +3,6 @@ fn keep(callback: Fn<Int, Int>) -> Fn<Int, Int> { callback }
 fn main() -> Int {
     let increment = fn(x: Int) -> Int { x + 1 };
     let alias = keep(increment);
-    invoke(alias, 41)
+    let result = show!(invoke(alias, 41));
+    0
 }

@@ -9,5 +9,6 @@ fn main() -> Int {
     let px: scheme::Point<X, scheme::BaseQQ> =
         scheme::apply(scheme::compose(scheme::id(X), scheme::id(X)), p);
     let qy: smooth::Point<Y, smooth::BaseSmooth> = smooth::apply(smooth::id(Y), q);
-    std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y)))
+    let total = show!(std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))));
+    0
 }

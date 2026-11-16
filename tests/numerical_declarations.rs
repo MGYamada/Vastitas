@@ -47,8 +47,8 @@ fn declared_numerical_profiles_compose_with_pure_check_build_and_execution() {
             .unwrap(),
     );
     let result = std::process::Command::new(output).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    // The example's `main` returns 0 (#836).
+    assert_eq!(common::ran(&result), common::exits(0));
     // An unrelated, unused ordinary body still passes through the full checker.
     s.write(
         "src/main.vast",

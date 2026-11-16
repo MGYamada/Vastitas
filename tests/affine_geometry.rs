@@ -137,8 +137,7 @@ fn affine_example_checks_builds_and_executes() {
             .unwrap(),
     );
     let result = std::process::Command::new(output).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    assert_eq!(common::ran(&result), common::shows(&["failures = 0"]));
 }
 
 #[test]
@@ -599,8 +598,16 @@ fn mutated_observations_change_the_native_result() {
             .unwrap(),
     );
     let result = std::process::Command::new(output).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"50\n");
+    // Checks 1 and 7 fail: the program shows the sum of their codes and
+    // returns 1.
+    assert_eq!(
+        common::ran(&result),
+        common::Run {
+            status: 1,
+            stdout: "failures = 8\n".into(),
+            stderr: String::new(),
+        }
+    );
 }
 
 #[test]
@@ -641,8 +648,7 @@ fn main() -> Int {{
             .unwrap(),
     );
     let result = std::process::Command::new(output).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    assert_eq!(common::ran(&result), common::exits(42));
 }
 
 #[test]

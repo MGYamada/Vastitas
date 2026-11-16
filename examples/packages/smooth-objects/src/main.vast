@@ -38,21 +38,23 @@ fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
 
 fn main() -> Int {
     // g after f is t |-> t^2 + t^2.
-    42 + verdict(same(compose(g(), f()), gf()), 1)
-       // The shears do not commute.
-       + verdict(!same(compose(shearA(), shearB()), compose(shearB(), shearA())), 2)
-       + verdict(same(compose(shearB(), shearA()), shearBA()), 3)
-       // The composite as one map denotes the same map as the program.
-       + verdict(same(composite(compose(g(), f())), gf()), 4)
-       + verdict(same(compose(idP(), f()), f()), 5)
-       // The integer point 3 of the line, then t |-> t^2, is the point 9.
-       + verdict(same(compose(sq(), line_at(3)), nine()), 6)
-       + verdict(!same(line_at(3), nine()), 7)
-       + verdict(same(twice(sq()), quartic()), 8)
-       + verdict(same(shearAYFirst(), shearA()), 9)
-       // Integer points keep their sign and their coordinate order.
-       + verdict(same(line_at(3), three()), 10)
-       + verdict(same(line_at(-3), minusThree()), 11)
-       + verdict(same(plane_at(1, 2), onePlusTwo()), 12)
-       + verdict(!same(plane_at(2, 1), onePlusTwo()), 13)
+    let failures = verdict(same(compose(g(), f()), gf()), 1)
+        // The shears do not commute.
+        + verdict(!same(compose(shearA(), shearB()), compose(shearB(), shearA())), 2)
+        + verdict(same(compose(shearB(), shearA()), shearBA()), 3)
+        // The composite as one map denotes the same map as the program.
+        + verdict(same(composite(compose(g(), f())), gf()), 4)
+        + verdict(same(compose(idP(), f()), f()), 5)
+        // The integer point 3 of the line, then t |-> t^2, is the point 9.
+        + verdict(same(compose(sq(), line_at(3)), nine()), 6)
+        + verdict(!same(line_at(3), nine()), 7)
+        + verdict(same(twice(sq()), quartic()), 8)
+        + verdict(same(shearAYFirst(), shearA()), 9)
+        // Integer points keep their sign and their coordinate order.
+        + verdict(same(line_at(3), three()), 10)
+        + verdict(same(line_at(-3), minusThree()), 11)
+        + verdict(same(plane_at(1, 2), onePlusTwo()), 12)
+        + verdict(!same(plane_at(2, 1), onePlusTwo()), 13);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }

@@ -1,6 +1,6 @@
 //! Pair values cross the frontend, independently checked core and native runtime.
 mod common;
-use common::{Scratch, success};
+use common::{Scratch, exits, ran, shows, success};
 use serde_json::{Value, json};
 use std::fs;
 use std::process::Command;
@@ -55,8 +55,14 @@ fn pairs_preserve_values_arguments_results_branches_and_lambda_bodies() {
                 .unwrap(),
         );
         let output = Command::new(scratch.0.join("program")).output().unwrap();
-        assert_eq!(output.stdout, b"42\n");
-        success(&output);
+        assert_eq!(
+            ran(&output),
+            shows(&[
+                "reverse(pair(big, zero)) = (0, 123456789012345678901234567890)",
+                "choose(false, pair(0, 0), pair(-7, 42)) = (-7, 42)",
+                "offset(40) = 42",
+            ])
+        );
     }
     let first_order =
         request("fn reverse(p: Pair<Int>) -> Pair<Int> { pair(pair_second(p), pair_first(p)) }");
@@ -182,8 +188,7 @@ fn main() -> Int {
                     .unwrap(),
             );
             let output = Command::new(scratch.0.join("program")).output().unwrap();
-            assert_eq!(output.stdout, b"42\n");
-            success(&output);
+            assert_eq!(ran(&output), exits(42));
         }
     }
 }

@@ -5,5 +5,8 @@ fn sign(x: Int) -> Int {
 // ANCHOR_END: sign
 
 fn main() -> Int {
-    sign(-5) + sign(0) + 41 * sign(7) + 2
+    let below = show!(sign(-5));
+    let zero = show!(sign(0));
+    let above = show!(sign(7));
+    if below == -1 && zero == 0 && above == 1 { 0 } else { 1 }
 }

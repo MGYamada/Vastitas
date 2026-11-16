@@ -11,6 +11,7 @@ indexed morphism square: Smooth<Line, Line> = pullback(t -> t^2);
 indexed primitive dt = fiber_component(Cotangent, Line, t);
 
 fn main() -> Int {
-    pair_first(dt(differential(square(), line_at(3))))
+    let slope = show!(pair_first(dt(differential(square(), line_at(3)))));
+    0
 }
 // ANCHOR_END: all

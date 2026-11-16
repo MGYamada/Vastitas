@@ -401,8 +401,7 @@ fn unused_tensors_are_audited_and_do_not_require_numerical_runtime() {
             .unwrap(),
     );
     let run = Command::new(s.0.join("ordinary")).output().unwrap();
-    success(&run);
-    assert_eq!(run.stdout, b"42\n");
+    assert_eq!(common::ran(&run), common::exits(42));
     s.write(
         "src/real/mod.vast",
         &REAL.replace("view3(output, bu, bw, bxd", "view3(output, bw, bu, bxd"),
@@ -515,7 +514,7 @@ fn tensor_native_executes_rank_three_permutation_bilinear_products_and_empty_axe
         build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let run = Command::new(s.0.join("program")).output().unwrap();
-        success(&run);
-        assert_eq!(run.stdout, b"42\n");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&run), common::exits(0));
     }
 }

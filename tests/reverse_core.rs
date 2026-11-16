@@ -13,8 +13,9 @@
 //! with its mutations.
 mod common;
 use common::{
-    Scratch, assert_wire_rejected, captured_wire, checked_replace, generated_reverse_functions,
-    kernel, lean_definitions, lean_function_id, lean_shared_literal, regenerate_fixture, root,
+    Run, Scratch, assert_wire_rejected, captured_wire, checked_replace, exits,
+    generated_reverse_functions, kernel, lean_definitions, lean_function_id, lean_shared_literal,
+    regenerate_fixture, root,
 };
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -54,6 +55,16 @@ fn emitted(request: &Value) -> String {
     let response = kernel(request, "emit");
     assert_eq!(response["ok"], true, "{response}");
     response["lean_source"].as_str().unwrap().to_owned()
+}
+
+/// The generated namespace of an emitted module, without its entry point.
+/// The entry point of a program that observes values binds the top-level
+/// statements of `main` again in `IO` (#836), so the sites of `main` that it
+/// renders would be counted twice.
+fn library(source: &str) -> String {
+    let end = "\nend VastitasGenerated\n";
+    let at = source.find(end).expect("generated namespace") + end.len();
+    source[..at].to_owned()
 }
 
 /// The functions of the root module, in wire order.
@@ -147,15 +158,15 @@ fn package(manifest: &str, main: &str) -> Scratch {
     s
 }
 
-/// `check`, `build` and run a package; its standard output.
-fn run(s: &Scratch) -> String {
-    String::from_utf8(s.check_build_and_run("Vastitas.toml")).unwrap()
+/// `check`, `build` and run a package; what the program did.
+fn run(s: &Scratch) -> Run {
+    s.check_build_and_run("Vastitas.toml")
 }
 
 #[test]
 fn acceptance_sites_compile_to_generated_backward_functions() {
     let request = wire(&root().join(ACCEPTANCE));
-    let source = emitted(&request);
+    let source = library(&emitted(&request));
     let count = functions(&request).len();
     // The 22 reverse calls of the acceptance program, and one generated
     // function for each, numbered after the source functions and placed first.
@@ -357,8 +368,18 @@ fn the_wire_cannot_name_the_compiled_declarations() {
     let stepwise = format!("{module}/functions/{}/body/result", function("stepwise"));
     assert_eq!(raw.pointer(&stepwise).unwrap()["callee"], "pullback");
     let verdict = format!("{module}/functions/{}", function("verdict"));
-    let main = format!("{module}/functions/{}/body/result", function("main"));
-    // `42 + verdict(…, 1) + … + verdict(…, 24)`: the last addition's right operand.
+    // `let failures = verdict(…, 1) + … + verdict(…, 24);`: the last
+    // addition's right operand.
+    let main = format!("{module}/functions/{}/body/statements", function("main"));
+    let failures = raw
+        .pointer(&main)
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|statement| statement["name"] == "failures")
+        .unwrap();
+    let main = format!("{main}/{failures}/value");
     assert_eq!(
         raw.pointer(&format!("{main}/right")).unwrap()["callee"],
         "verdict",
@@ -431,11 +452,11 @@ fn the_wire_cannot_name_the_compiled_declarations() {
 fn a_branch_chooses_the_map_of_a_reverse_pass() {
     // Both branches are observed: g after f and h send 3 to 18 with
     // derivatives 12 and 6, and every observation has its own power of two.
-    assert_eq!(run(&package(BRANCH_MANIFEST, BRANCH_MAIN)), "42\n");
+    assert_eq!(run(&package(BRANCH_MANIFEST, BRANCH_MAIN)), exits(42));
     // h(t) = 5t + 3 has h(3) = 18 and derivative 5: the observations of the
     // else branch fail (2 + 8 + 32 + 128).
     let main = checked_replace(BRANCH_MAIN, "pullback(t -> 6*t)", "pullback(t -> 5*t + 3)");
-    assert_eq!(run(&package(BRANCH_MANIFEST, &main)), "212\n");
+    assert_eq!(run(&package(BRANCH_MANIFEST, &main)), exits(212));
     // g(x, y) = x + y + 6 has g(f(3)) = 18 and (g after f)'(3) = 7: the
     // observations of the then branch fail (1 + 4 + 16 + 64).
     let main = checked_replace(
@@ -443,7 +464,7 @@ fn a_branch_chooses_the_map_of_a_reverse_pass() {
         "pullback(t -> x^2 + y)",
         "pullback(t -> x + y + 6)",
     );
-    assert_eq!(run(&package(BRANCH_MANIFEST, &main)), "127\n");
+    assert_eq!(run(&package(BRANCH_MANIFEST, &main)), exits(127));
     // Each of the four sites is compiled. The branch stays in the function
     // that holds the site and is one step, pulled back by the runtime reverse
     // pass in the site's policy; in `squared` the declared sq after it is a
@@ -500,7 +521,7 @@ fn a_branch_chooses_the_map_of_a_reverse_pass() {
 
 #[test]
 fn a_tape_bound_by_let_compiles_and_a_tape_passed_to_a_function_keeps_its_routine() {
-    assert_eq!(run(&package(TAPE_MANIFEST, TAPE_MAIN)), "42\n");
+    assert_eq!(run(&package(TAPE_MANIFEST, TAPE_MAIN)), exits(42));
     // g(x, y) = x + y + 6: (g after f)'(3) = 7. The compiled passes of the
     // let-bound tape and the pass in `through` both read the new map, so
     // codes 1, 2 and 8 fail, and the comparisons still hold.
@@ -509,7 +530,7 @@ fn a_tape_bound_by_let_compiles_and_a_tape_passed_to_a_function_keeps_its_routin
         "pullback(t -> x^2 + y)",
         "pullback(t -> x + y + 6)",
     );
-    assert_eq!(run(&package(TAPE_MANIFEST, &main)), "53\n");
+    assert_eq!(run(&package(TAPE_MANIFEST, &main)), exits(53));
     // The four passes in `main` (three on the tape, one pullback) are
     // compiled; the tape's `let` stays, and `through` runs the Stage 3
     // routine on the tape it receives.
@@ -551,11 +572,11 @@ fn a_reverse_pass_through_an_object_outside_the_cotangent_domain_keeps_the_runti
     // psi after phi passes through `Out`, which the cotangent family does not
     // cover; the two sites through it keep the runtime reverse pass, and the
     // site along `twice` is compiled.
-    assert_eq!(run(&package(DOMAIN_MANIFEST, DOMAIN_MAIN)), "42\n");
+    assert_eq!(run(&package(DOMAIN_MANIFEST, DOMAIN_MAIN)), exits(42));
     // phi(t) = t^3 makes psi after phi 3t^3, which is 24 at 2, so both
     // observations through `Out` fail (2 + 4).
     let main = checked_replace(DOMAIN_MAIN, "pullback(u -> t^2)", "pullback(u -> t^3)");
-    assert_eq!(run(&package(DOMAIN_MANIFEST, &main)), "48\n");
+    assert_eq!(run(&package(DOMAIN_MANIFEST, &main)), exits(48));
     let request = wire(&root().join("tests/emit_corpus/reverse-domain/Vastitas.toml"));
     let source = emitted(&request);
     let generated = generated_reverse_functions(&source, functions(&request).len());

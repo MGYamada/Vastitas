@@ -208,8 +208,7 @@ fn unused_tree_bodies_are_audited_without_linking_the_numerical_runtime() {
             .unwrap(),
     );
     let run = Command::new(s.0.join("ordinary")).output().unwrap();
-    success(&run);
-    assert_eq!(run.stdout, b"42\n");
+    assert_eq!(common::ran(&run), common::exits(42));
     s.write(
         "src/real/mod.vast",
         &REAL.replace("(ew, ta, b, c)", "(ev, ta, b, c)"),
@@ -914,7 +913,7 @@ fn tree_native_executes_multiedge_branching_and_written_operand_order() {
         build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let result = Command::new(s.0.join("program")).output().unwrap();
-        success(&result);
-        assert_eq!(result.stdout, b"42\n");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&result), common::exits(0));
     }
 }

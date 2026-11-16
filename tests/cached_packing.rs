@@ -238,8 +238,7 @@ fn unused_cached_numerical_body_does_not_link_openblas() {
             .unwrap(),
     );
     let run = Command::new(s.0.join("ordinary")).output().unwrap();
-    success(&run);
-    assert_eq!(run.stdout, b"42\n");
+    assert_eq!(common::ran(&run), common::exits(42));
 }
 #[test]
 #[ignore = "requires pinned OpenBLAS; numerical CI runs this test"]
@@ -263,7 +262,7 @@ fn cached_native_real_complex_reuse_and_source_destination_lifetimes() {
         build.args(["-o", "program"]).args(&options);
         success(&build.output().unwrap());
         let run = Command::new(s.0.join("program")).output().unwrap();
-        success(&run);
-        assert_eq!(run.stdout, b"42\n");
+        // The example's entry point returns 0 (#836).
+        assert_eq!(common::ran(&run), common::exits(0));
     }
 }

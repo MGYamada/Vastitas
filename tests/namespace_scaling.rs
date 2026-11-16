@@ -51,8 +51,7 @@ fn long_import_chains_preserve_static_targets_and_unused_body_checks() {
             let output = std::process::Command::new(s.0.join("program"))
                 .output()
                 .unwrap();
-            success(&output);
-            assert_eq!(output.stdout, b"42\n");
+            assert_eq!(common::ran(&output), common::exits(42));
             s.write("main.vast", &(source + "fn unused() -> Int { true }\n"));
             let output = check(&s);
             assert!(!output.status.success());
@@ -178,6 +177,5 @@ fn wide_diamond_dependency_closures_load_shared_packages_once() {
     let output = std::process::Command::new(s.0.join("program"))
         .output()
         .unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(common::ran(&output), common::exits(42));
 }

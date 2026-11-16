@@ -6,7 +6,7 @@
 //! names of the package `vastitas_linalg` and its family contracts (ADR 0001
 //! §12).
 mod common;
-use common::{Scratch, expect_code};
+use common::{Run, Scratch, exits, expect_code};
 use serde_json::{Value, json};
 
 /// The plane with three fields: L = (x + y) of rank 1, whose one eigenvalue
@@ -97,7 +97,7 @@ fn check(s: &Scratch) -> std::process::Output {
     s.check_manifest("app/Vastitas.toml")
 }
 
-fn run(s: &Scratch) -> Vec<u8> {
+fn run(s: &Scratch) -> Run {
     s.check_build_and_run("app/Vastitas.toml")
 }
 
@@ -141,7 +141,7 @@ fn without_spans(value: &Value) -> Value {
 /// build and run from a path package (C12).
 #[test]
 fn spectral_families_from_the_library_check_build_and_run_from_a_path_package() {
-    assert_eq!(run(&fixture(MAIN)), b"42\n");
+    assert_eq!(run(&fixture(MAIN)), exits(42));
 }
 
 /// Each observation can fail, and each mutation below falsifies exactly its
@@ -149,7 +149,7 @@ fn spectral_families_from_the_library_check_build_and_run_from_a_path_package() 
 /// differential (2), another entry of the projector (4), another reference
 /// for the trace power (8), the entry of D rather than D^2 (16) and the
 /// negated annihilation by s of the zero field (32). With every mutation the
-/// program prints 42 + 63, and the bits name every code.
+/// program exits with 42 + 63, and the bits name every code.
 #[test]
 fn mutated_spectral_observations_change_the_native_result() {
     let mutations = [
@@ -166,7 +166,7 @@ fn mutated_spectral_observations_change_the_native_result() {
     let main = mutations.iter().fold(MAIN.to_string(), |main, (from, to)| {
         common::checked_replace(&main, from, to)
     });
-    assert_eq!(run(&fixture(&main)), format!("{}\n", 42 + 63).as_bytes());
+    assert_eq!(run(&fixture(&main)), exits(42 + 63));
 }
 
 /// The package `vastitas_linalg` has the root module, which exports the
@@ -332,7 +332,7 @@ fn a_free_module_of_an_object_outside_cinf_affine_is_rejected() {
             "{OTHER}indexed family BR2(object(Other)) = branch constraints(canonical(0));\n\
              indexed branch BK: BR2<Q> = simple(SK, localize = 1, witness = 1, exponent = 1);"
         )))),
-        b"42\n"
+        exits(42)
     );
     for (kind, family, declaration) in [
         (

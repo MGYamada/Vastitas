@@ -13,7 +13,8 @@ fn main() -> Int {
     let X = shapes::grid(42);
     let hidden = hide(X);
     unpack hidden as { witness: Y, fields: [] };
-    int(measure(X))
+    let size = show!(int(measure(X)));
+    0
 }
 // ANCHOR_END: object-types
 

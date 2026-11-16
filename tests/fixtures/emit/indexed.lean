@@ -17,9 +17,18 @@ def f_1 (v_2 : Int) : Int :=
   (v_2 + (1 : Int))
 
 def f_2 : Int :=
-  (let v_6 := (let v_5 := (41 : Nat); (f_0 v_5)); (let packed_7 := v_6; let v_7 := packed_7.witness; let v_8 := packed_7.field_0; (let v_9 := (VastitasKernel.IndexedRuntime.apply (VastitasKernel.IndexedRuntime.identity v_7) v_8); (let v_10 := (); (let v_11 := (Int.ofNat (v_7).dimension); (f_1 v_11))))))
+  (let v_6 := (let v_5 := (41 : Nat); (f_0 v_5)); (let packed_7 := v_6; let v_7 := packed_7.witness; let v_8 := packed_7.field_0; (let v_9 := (VastitasKernel.IndexedRuntime.apply (VastitasKernel.IndexedRuntime.identity v_7) v_8); (let v_10 := (); (let v_12 := (let v_11 := (Int.ofNat (v_7).dimension); (f_1 v_11)); (0 : Int))))))
 
 end VastitasGenerated
 
-def main : IO Unit :=
-  IO.println (VastitasGenerated.f_2)
+open VastitasGenerated in
+def main : IO UInt32 := do
+  let v_6 := ((let v_5 := (41 : Nat); (f_0 v_5)))
+  let packed_7 := (v_6)
+  let v_7 := packed_7.witness
+  let v_8 := packed_7.field_0
+  let v_9 := ((VastitasKernel.IndexedRuntime.apply (VastitasKernel.IndexedRuntime.identity v_7) v_8))
+  let v_10 := (())
+  let v_12 := ((let v_11 := (Int.ofNat (v_7).dimension); (f_1 v_11)))
+  IO.println ("increment(int(geo::dim(Y)))" ++ " = " ++ (toString v_12))
+  pure (UInt32.ofNat (Int.toNat (Int.emod ((0 : Int)) 256)))

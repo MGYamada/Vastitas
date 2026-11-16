@@ -2,4 +2,7 @@ mod math {
     pub fn increment(x: Int) -> Int { x + 1 }
 }
 use math::increment as next;
-fn main() -> Int { next(41) }
+fn main() -> Int {
+    let successor = show!(next(41));
+    0
+}

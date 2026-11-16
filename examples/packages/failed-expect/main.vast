@@ -8,5 +8,5 @@ resource fn main() -> Int {
     expect(input, 1, 0, f64(4));
     release(input);
     drop(data);
-    value { 42 }
+    value { 0 }
 }

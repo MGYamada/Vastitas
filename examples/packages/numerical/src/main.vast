@@ -5,5 +5,5 @@ mod complex;
 resource fn main() -> Int {
     call real::product() -> ();
     call complex::product() -> ();
-    value { 42 }
+    value { 0 }
 }

@@ -14,5 +14,6 @@ method classify(x: NaturalNumeric) -> Int { 42 }
 
 fn main() -> Int {
     let n: Nat = 1;
-    classify(n)
+    let class = show!(classify(n));
+    0
 }

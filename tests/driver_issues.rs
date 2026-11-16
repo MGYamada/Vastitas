@@ -561,8 +561,7 @@ fn runtime_native_artifacts_are_prebuilt_and_reused() {
         );
     }
     let result = Command::new(scratch.0.join("program")).output().unwrap();
-    assert!(result.status.success());
-    assert_eq!(result.stdout, b"42\n");
+    assert_eq!(common::ran(&result), common::exits(42));
 }
 
 #[test]

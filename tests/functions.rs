@@ -1,6 +1,6 @@
 //! Stage 1b function values are independently checked and specialized by Lean.
 mod common;
-use common::{Scratch, cli, success};
+use common::{Run, Scratch, cli, exits, ran, shows, success};
 use serde_json::{Value, json};
 use std::fs;
 use std::path::PathBuf;
@@ -17,7 +17,7 @@ fn reject(source: &str, code: &str) -> String {
     common::reject(source, code, FILE)
 }
 
-fn native(source: &str, libraries: &[PathBuf], expected: &str) {
+fn native(source: &str, libraries: &[PathBuf], expected: Run) {
     common::native(source, libraries, expected, FILE);
 }
 
@@ -71,7 +71,7 @@ fn function_result_dependencies_resume_with_the_original_static_target() {
     native(
         "fn main() -> Int { first()(41) }\nfn first() -> Fn<Int, Int> { second() }\nfn second() -> Fn<Int, Int> { fn(value: Int) -> Int { value + 1 } }",
         &[],
-        "42",
+        exits(42),
     );
     reject(
         "fn first() -> Fn<Int, Int> { second() }\nfn second() -> Fn<Int, Int> { first() }\nfn main() -> Int { first()(1) }",
@@ -96,7 +96,7 @@ fn shared_specializations_preserve_native_results_and_recursion_diagnostics() {
             "fn main() -> Int { left(10) + right(22) + left(10) }",
             "fn main() -> Int { let g = fn(x: Int) -> Int { x }; g(left(10) + right(22) + left(10)) }",
         ] {
-            native(&(functions.join("\n") + main), &[], "42");
+            native(&(functions.join("\n") + main), &[], exits(42));
         }
     }
     for extra in [
@@ -147,7 +147,7 @@ fn forwarded_signature_probes_do_not_exhaust_the_specialization_limit() {
         for reversed in [false, true] {
             let source = forwarding_chain(90, returns_function, reversed);
             success(&check(&source));
-            native(&source, &[], "42");
+            native(&source, &[], exits(42));
         }
         success(&check(&forwarding_chain(180, returns_function, false)));
     }
@@ -174,7 +174,7 @@ fn forwarded_factory_results_preserve_concrete_identity_across_wrappers() {
     definitions.push("fn main() -> Int { let direct = factory(()); let via = forward89(factory); let repeated = forward89(factory); pick(pick(direct, via), repeated)(41) }".to_owned());
     let source = definitions.join("\n");
     success(&check(&source));
-    native(&source, &[], "42");
+    native(&source, &[], exits(42));
 }
 
 #[test]
@@ -211,8 +211,7 @@ fn indexed_packages_use_the_same_probe_reuse_checker() {
             .unwrap(),
     );
     let output = std::process::Command::new(executable).output().unwrap();
-    success(&output);
-    assert_eq!(String::from_utf8(output.stdout).unwrap(), "42\n");
+    assert_eq!(ran(&output), exits(42));
 }
 
 #[test]
@@ -233,7 +232,7 @@ fn relay(a: Fn<Int, Int>, b: Fn<Int, Int>) -> Fn<Int, Int> {
             "{definitions}\nfn main() -> Int {{ let selected = relay(add1, add2); pick(false, keep(add1), selected)(41) }}"
         ),
         &[],
-        "42",
+        exits(42),
     );
     for args in ["add1, add2", "keep(add1), keep(add2)"] {
         reject(
@@ -278,18 +277,22 @@ fn lambdas_cannot_shadow_enclosing_parameters_lets_or_unpacked_objects() {
     native(
         "fn main() -> Int { let f = fn(x: Int) -> Int { x + 1 }; let g = fn(x: Int) -> Int { x + 1 }; f(g(40)) }",
         &[],
-        "42",
+        exits(42),
     );
 }
 
 #[test]
 fn native_function_values_pass_return_and_invoke() {
-    native(include_str!("../examples/functions.vast"), &[], "42");
+    native(
+        include_str!("../examples/functions.vast"),
+        &[],
+        shows(&["invoke(keep(increment), 41) = 42"]),
+    );
     native("fn inc(x: Int) -> Int { x + 1 }
 fn keep(callback: Fn<Int, Int>) -> Fn<Int, Int> { callback }
 fn choose(flag: Bool, a: Fn<Int, Int>, b: Fn<Int, Int>) -> Fn<Int, Int> { if flag { a } else { b } }
 fn factory(unused: Int) -> Fn<Int, Int> { let checked = unused + 2; fn(x: Int) -> Int { x + 1 } }
-fn main() -> Int { let first = keep(inc); let selected = choose(false, first, inc); selected(factory(8)(40)) }", &[], "42");
+fn main() -> Int { let first = keep(inc); let selected = choose(false, first, inc); selected(factory(8)(40)) }", &[], exits(42));
 }
 
 #[test]
@@ -303,7 +306,7 @@ fn native_function_arity_and_nested_fn_types() {
  if truth(false) { int(natural(43)) } else { 0 }
 }",
         &[],
-        "42",
+        exits(42),
     );
     native("fn binary(callback: Fn<(Int, Int), Int>, x: Int, y: Int) -> Int { callback(x, y) }
 fn nullary(callback: Fn<(), Int>) -> Int { callback() }
@@ -315,7 +318,7 @@ fn main() -> Int {
  let one: Fn<Unit, Int> = fn(ignored: Unit) -> Int { 21 };
  let inc = fn(x: Int) -> Int { x + 1 };
  transform(inc)(binary(plus, nullary(zero), unitary(one)))
-}", &[], "42");
+}", &[], exits(42));
 }
 
 #[test]
@@ -325,7 +328,7 @@ fn native_nested_independent_lambdas_and_geometry_inside_bodies() {
    fn(n: Nat) -> Int { let X = Affine(QQ, n); let p = origin(X); let q = apply(id(X), p); int(dim(X)) }
  };
  factory(0)(42)
-}", &[], "42");
+}", &[], exits(42));
 }
 
 #[test]
@@ -335,8 +338,9 @@ fn function_lowering_preserves_existing_dependent_geometry() {
             "fn main() -> Int {",
             "fn main() -> Int { let scalar = fn(x: Int) -> Int { x };",
         )
-        .replace("{ 42 } else", "{ scalar(42) } else");
-    native(&source, &[], "42");
+        .replace("{ 0 } else", "{ scalar(0) } else");
+    assert!(source.contains("{ scalar(0) } else"), "{source}");
+    native(&source, &[], exits(0));
     reject(
         "fn main() -> Int {
  let callback = fn(x: Int) -> Int { x };
@@ -352,17 +356,17 @@ fn named_functions_can_be_values_without_fn_annotations() {
     native(
         "fn main() -> Int { let unused = fn() -> Int { main() }; 42 }",
         &[],
-        "42",
+        exits(42),
     );
     native(
         "fn inc(x: Int) -> Int { x + 1 } fn main() -> Int { let alias = inc; alias(41) }",
         &[],
-        "42",
+        exits(42),
     );
     native(
         "fn inc(x: Int) -> Int { x + 1 } fn main() -> Int { (if true { inc } else { inc })(41) }",
         &[],
-        "42",
+        exits(42),
     );
 }
 
@@ -378,7 +382,7 @@ fn main() -> Int {
  first + middle + last + chained
 }";
     success(&check(source));
-    native(source, &[], "168");
+    native(source, &[], exits(168));
 }
 
 #[test]
@@ -389,7 +393,7 @@ method offset(x: Int) -> Int { run(fn(y: Int) -> Int { y + 1 }, x) }
 fn run(callback: Fn<Int, Int>, x: Int) -> Int { callback(x) }
 fn main() -> Int { let wrapped = fn(x: Int) -> Int { offset(x) }; run(wrapped, 41) }",
         &[],
-        "42",
+        exits(42),
     );
     let scratch = Scratch::empty("functions");
     let library = scratch.0.join("functions.vast");
@@ -403,7 +407,7 @@ fn main() -> Int { let wrapped = fn(x: Int) -> Int { offset(x) }; run(wrapped, 4
     native(
         "fn main() -> Int { run(increment, 41) }",
         &[library, helper],
-        "42",
+        exits(42),
     );
 }
 
@@ -666,7 +670,7 @@ fn main() -> Int {{
  {nested} + int(natural(1))
 }}"
         );
-        native(&source, &[], "42");
+        native(&source, &[], exits(42));
         reject(
             &source.replace("let q: Point<X", "let q: Point<Y"),
             "E_TYPE",

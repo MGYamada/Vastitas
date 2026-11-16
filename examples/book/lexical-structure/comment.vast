@@ -4,5 +4,6 @@ fn twice(x: Int) -> Int { x + x }
 // ANCHOR_END: comment
 
 fn main() -> Int {
-    twice(21)
+    let doubled = show!(twice(21));
+    0
 }

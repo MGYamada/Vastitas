@@ -10,5 +10,6 @@ fn main() -> Int {
     unpack packed as { witness: Y, fields: [p] };
     let q: geo::Point<Y, geo::Base> = geo::apply(geo::identity(Y), p);
     let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
-    increment(int(geo::dim(Y)))
+    let answer = show!(increment(int(geo::dim(Y))));
+    0
 }

@@ -57,8 +57,7 @@ fn external_edit_and_diamond_replay_execute_once() {
     let output = std::process::Command::new(s.0.join("program"))
         .output()
         .unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(common::ran(&output), common::exits(42));
 }
 
 #[test]
@@ -128,11 +127,12 @@ fn final_winning_footprint_and_all_bodies_are_checked() {
             .unwrap(),
     );
     assert_eq!(
-        std::process::Command::new(s.0.join("program"))
-            .output()
-            .unwrap()
-            .stdout,
-        b"0\n"
+        common::ran(
+            &std::process::Command::new(s.0.join("program"))
+                .output()
+                .unwrap()
+        ),
+        common::exits(0)
     );
     let duplicate = format!(
         "{ADDON} pub contribution other : base::choose {{ method base::choose(a: Int, b: Int) -> Int {{ 1 }} }}"

@@ -8,5 +8,6 @@ method rank(x: Int) -> Int { 20 }
 
 fn main() -> Int {
     let n: Nat = 7;
-    rank(true) + rank(n) + rank(n) + rank(7) + rank(-7)
+    let total = show!(rank(true) + rank(n) + rank(n) + rank(7) + rank(-7));
+    0
 }

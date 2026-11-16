@@ -80,15 +80,19 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
         "{}\nfn preserve_map(X: Scheme, f: Morphism<X, X>) -> Morphism<X, X> {{ f }}",
         include_str!("../examples/pointed.vast")
     );
+    // The examples observe values with `show!`, which only protocol 9 carries
+    // (#836); without the observations they are flat requests of protocols 2
+    // and 4.
+    let flat_example = |source: &str| common::checked_replace(source, "show!(", "(");
     let mut cases = Vec::new();
     for source in [
-        include_str!("../examples/functions.vast"),
-        include_str!("../examples/pairs.vast"),
-        &geometric,
-        "fn empty() -> Unit { { () } } generic f(x) { domain (Int); } method f(x: Int) -> Int { x } fn main() -> Int { f(0) }",
-        include_str!("../examples/abstract-contracts.vast"),
+        flat_example(include_str!("../examples/functions.vast")),
+        flat_example(include_str!("../examples/pairs.vast")),
+        geometric,
+        "fn empty() -> Unit { { () } } generic f(x) { domain (Int); } method f(x: Int) -> Int { x } fn main() -> Int { f(0) }".to_string(),
+        flat_example(include_str!("../examples/abstract-contracts.vast")),
     ] {
-        let flat = request(source, "shape.vast");
+        let flat = request(&source, "shape.vast");
         cases.push(flat.clone());
         for version in 3..=6 {
             if version == 3 && flat["version"] == 4 {
@@ -176,9 +180,14 @@ fn promotion_without_affine() -> Value {
             .unwrap()
             .replace("../../../stdlib", "../stdlib"),
     );
+    // Without its observation (#836), which only protocol 9 carries.
     s.write(
         "app/main.vast",
-        &std::fs::read_to_string(example.join("main.vast")).unwrap(),
+        &common::checked_replace(
+            &std::fs::read_to_string(example.join("main.vast")).unwrap(),
+            "show!(",
+            "(",
+        ),
     );
     common::captured_wire(
         common::manifest_command("check", s.0.join("app/Vastitas.toml")),
@@ -194,6 +203,19 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
     // The promotion example depends on the generated stdlib package.
     common::prepare_stdlib_package();
     let examples = common::root().join("examples/packages");
+    // The indexed example observes its result with `show!`, which only
+    // protocol 9 carries (#836); without the observation it is the protocol-7
+    // fixture.
+    let indexed = common::Scratch::empty("protocol seven indexed");
+    indexed.copy_sources(&examples.join("indexed"), "", &[]);
+    indexed.write(
+        "main.vast",
+        &common::checked_replace(
+            &std::fs::read_to_string(indexed.0.join("main.vast")).unwrap(),
+            "show!(",
+            "(",
+        ),
+    );
     let mut cases = Vec::new();
     for (package, version) in [
         ("indexed", 7),
@@ -213,7 +235,11 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
         ("smooth-metric", 9),
         ("smooth-differential", 9),
     ] {
-        let manifest = examples.join(package).join("Vastitas.toml");
+        let manifest = if package == "indexed" {
+            indexed.0.join("Vastitas.toml")
+        } else {
+            examples.join(package).join("Vastitas.toml")
+        };
         let mut command = common::cli();
         command.args(["check", "--manifest-path"]).arg(manifest);
         cases.push((package, common::captured_wire(command, version)));

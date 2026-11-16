@@ -4,7 +4,7 @@
 //! `examples/packages/stdlib-differential` against copies of the stdlib, and
 //! check the name audit and the package boundaries of ADR 0001 §10.
 mod common;
-use common::{Scratch, expect_code, read, success};
+use common::{Run, Scratch, exits, expect_code, read, success};
 use serde_json::Value;
 
 const MAIN: &str = include_str!("../examples/packages/stdlib-differential/main.vast");
@@ -58,8 +58,18 @@ fn check(s: &Scratch) -> std::process::Output {
     s.check_manifest("app/Vastitas.toml")
 }
 
-fn run(s: &Scratch) -> Vec<u8> {
+fn run(s: &Scratch) -> Run {
     s.check_build_and_run("app/Vastitas.toml")
+}
+
+/// What the example does when the codes of its failed checks add up to
+/// `failures`: it shows the sum, and returns 0 only when it is 0.
+fn failed(failures: u64) -> Run {
+    Run {
+        status: i32::from(failures != 0),
+        stdout: format!("failures = {failures}\n"),
+        stderr: String::new(),
+    }
 }
 
 /// The example with extra items inserted before its helpers.
@@ -98,7 +108,7 @@ fn strings(value: &Value, out: &mut Vec<String>) {
 #[test]
 fn library_profile_checks_builds_and_runs_from_a_path_package() {
     let s = fixture(MAIN, &[]);
-    assert_eq!(run(&s), b"42\n");
+    assert_eq!(run(&s), failed(0));
     // The library and the application share one protocol-9 closure.
     let wire = request(&s);
     for name in ["vastitas_geometry", "vastitas_differential", "vastitas_std"] {
@@ -249,10 +259,10 @@ fn library_fiber_and_map_operations_work_from_an_application() {
     );
     let main = common::checked_replace(
         &main,
-        "    42 + verdict(",
+        "    let failures = verdict(",
         concat!(
             "    let tape: Tape<Line, Line> = linearize(gAfterF, x);\n",
-            "    42 + verdict(tangent_over(grad, p), 12)\n",
+            "    let failures = verdict(tangent_over(grad, p), 12)\n",
             "       + verdict(!tangent_over(vplane(plane_at(0, 0), 1, 0), p), 13)\n",
             "       + verdict(same_smooth(composite(gAfterF), twice_square()), 14)\n",
             "       + verdict(same_smooth(gAfterF, twice_square()), 15)\n",
@@ -261,7 +271,7 @@ fn library_fiber_and_map_operations_work_from_an_application() {
             "       + verdict(",
         ),
     );
-    assert_eq!(run(&fixture(&main, &[])), b"42\n");
+    assert_eq!(run(&fixture(&main, &[])), failed(0));
     // Each new check can fail: a vector at (1, 2) does not lie over (0, 0),
     // and the composite is not t^2.
     let failing = common::checked_replace(
@@ -274,7 +284,7 @@ fn library_fiber_and_map_operations_work_from_an_application() {
         "verdict(same_smooth(gAfterF, twice_square()), 15)",
         "verdict(same_smooth(gAfterF, square()), 15)",
     );
-    assert_eq!(run(&fixture(&failing, &[])), b"69\n");
+    assert_eq!(run(&fixture(&failing, &[])), failed(27));
 }
 
 #[test]
@@ -299,7 +309,7 @@ fn mutated_observations_change_the_native_result() {
         "indexed evidence SkewInvertible",
         "indexed metric Euclid: MetricForm<Plane> = euclidean;\nindexed evidence EuclidInvertible = nondegenerate(Euclid);\nindexed evidence SkewInvertible",
     );
-    assert_eq!(run(&fixture(&main, &[])), b"87\n");
+    assert_eq!(run(&fixture(&main, &[])), failed(45));
 }
 
 #[test]
@@ -438,10 +448,10 @@ fn smooth_operations_are_not_ambiguous_with_stage_one_geometry() {
     );
     let main = common::checked_replace(
         &main,
-        "    42 + verdict(",
-        "    let X = std::geometry::smooth::Affine(2);\n    let m: std::geometry::Morphism<X, X> = compose(id(X), id(X));\n    42 + verdict(",
+        "    let failures = verdict(",
+        "    let X = std::geometry::smooth::Affine(2);\n    let m: std::geometry::Morphism<X, X> = compose(id(X), id(X));\n    let failures = verdict(",
     );
-    assert_eq!(run(&fixture(&main, &[])), b"42\n");
+    assert_eq!(run(&fixture(&main, &[])), failed(0));
 }
 
 #[test]
@@ -532,7 +542,7 @@ fn metric_free_programs_need_no_metric_module() {
         &common::checked_replace(&root, "pub mod metric;\n", ""),
     );
     assert!(!s.0.join("stdlib/src/geometry/metric").exists());
-    assert_eq!(run(&s), b"42\n");
+    assert_eq!(run(&s), exits(42));
     s.write("app/main.vast", MAIN);
     expect_code(&check(&s), "E_NAME");
 }

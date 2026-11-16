@@ -132,61 +132,63 @@ fn main() -> Int {
     // C4: tr2 is the declared 2x^2 + 2y^2; tr(H) = 0 has the zero
     // differential, a covector over p and not the failure value; by Newton's
     // identity c0 = -tr2 / 2, so its gradient is -1/2 times that of tr2.
-    42 + verdict(same_smooth(tr2(), ref2()), 1)
-       + verdict(same_covector(differential(tr1(), p), dplane(p, 0, 0)) && lies_over(differential(tr1(), p), p), 2)
-       + verdict(minus_half(vx(gradient(c0(), a)), vx(gradient(tr2(), a)))
+    let failures = verdict(same_smooth(tr2(), ref2()), 1)
+        + verdict(same_covector(differential(tr1(), p), dplane(p, 0, 0)) && lies_over(differential(tr1(), p), p), 2)
+        + verdict(minus_half(vx(gradient(c0(), a)), vx(gradient(tr2(), a)))
            && minus_half(vy(gradient(c0(), a)), vy(gradient(tr2(), a)))
            && minus_half(vx(gradient(c0(), p)), vx(gradient(tr2(), p)))
            && minus_half(vy(gradient(c0(), p)), vy(gradient(tr2(), p))), 4)
-       // C5: the roadmap gradient (4x, 4y) on the dimensionless Euclidean
-       // chart, at (1, 2), at (3, 4) and at the origin.
-       + verdict(same_vector(gradient(tr2(), a), vplane(a, 4, 8)), 8)
-       + verdict(same_vector(gradient(tr2(), p), vplane(p, 12, 16)), 16)
-       + verdict(same_vector(gradient(tr2(), z), vplane(z, 0, 0)), 32)
-       // C9: the branch points over (3, 4) and (1, 0); 4 is no eigenvalue at
-       // (3, 4), and the origin is off the chart although chi(0, 0) = 0.
-       + verdict(on(p, line_at(5)), 64)
-       + verdict(on(p, line_at(-5)), 128)
-       + verdict(on(q, line_at(1)), 256)
-       + verdict(on(q, line_at(-1)), 512)
-       + verdict(!on(p, line_at(4)), 1024)
-       + verdict(!on(z, line_at(0)), 2048)
-       // C10: d lambda = (3/5, 4/5) and (-3/5, -4/5) at (3, 4); each is a
-       // unit covector, so its sharp is a unit vector.
-       + verdict(reads(dx(d_plus), 3, 5) && reads(dy(d_plus), 4, 5), 4096)
-       + verdict(reads(dx(d_minus), -3, 5) && reads(dy(d_minus), -4, 5), 8192)
-       + verdict(reads(pairing(d_plus, sharp_euclid(d_plus)), 1, 1)
+        // C5: the roadmap gradient (4x, 4y) on the dimensionless Euclidean
+        // chart, at (1, 2), at (3, 4) and at the origin.
+        + verdict(same_vector(gradient(tr2(), a), vplane(a, 4, 8)), 8)
+        + verdict(same_vector(gradient(tr2(), p), vplane(p, 12, 16)), 16)
+        + verdict(same_vector(gradient(tr2(), z), vplane(z, 0, 0)), 32)
+        // C9: the branch points over (3, 4) and (1, 0); 4 is no eigenvalue at
+        // (3, 4), and the origin is off the chart although chi(0, 0) = 0.
+        + verdict(on(p, line_at(5)), 64)
+        + verdict(on(p, line_at(-5)), 128)
+        + verdict(on(q, line_at(1)), 256)
+        + verdict(on(q, line_at(-1)), 512)
+        + verdict(!on(p, line_at(4)), 1024)
+        + verdict(!on(z, line_at(0)), 2048)
+        // C10: d lambda = (3/5, 4/5) and (-3/5, -4/5) at (3, 4); each is a
+        // unit covector, so its sharp is a unit vector.
+        + verdict(reads(dx(d_plus), 3, 5) && reads(dy(d_plus), 4, 5), 4096)
+        + verdict(reads(dx(d_minus), -3, 5) && reads(dy(d_minus), -4, 5), 8192)
+        + verdict(reads(pairing(d_plus, sharp_euclid(d_plus)), 1, 1)
            && reads(pairing(d_minus, sharp_euclid(d_minus)), 1, 1), 16384)
-       // C11: the eigenprojectors (1/5)[[4, 2], [2, 1]] and
-       // (1/5)[[1, -2], [-2, 4]] at (3, 4), symmetric as H is.
-       + verdict(reads(p11(p, line_at(5)), 4, 5) && reads(p12(p, line_at(5)), 2, 5)
+        // C11: the eigenprojectors (1/5)[[4, 2], [2, 1]] and
+        // (1/5)[[1, -2], [-2, 4]] at (3, 4), symmetric as H is.
+        + verdict(reads(p11(p, line_at(5)), 4, 5) && reads(p12(p, line_at(5)), 2, 5)
            && reads(p21(p, line_at(5)), 2, 5) && reads(p22(p, line_at(5)), 1, 5), 32768)
-       + verdict(reads(p11(p, line_at(-5)), 1, 5) && reads(p12(p, line_at(-5)), -2, 5)
+        + verdict(reads(p11(p, line_at(-5)), 1, 5) && reads(p12(p, line_at(-5)), -2, 5)
            && reads(p21(p, line_at(-5)), -2, 5) && reads(p22(p, line_at(-5)), 4, 5), 65536)
-       // C3: t annihilates H(0) = 0 and not H(3, 4); chi annihilates H at
-       // every point (Cayley-Hamilton).
-       + verdict(ann_h(z), 131072)
-       + verdict(!ann_h(p), 262144)
-       + verdict(ann_chi(p) && ann_chi(a), 524288)
-       // 2I and J: t - 2 annihilates 2I and not J, and the entry (f1, f2) of
-       // J - 2I is 1, although every invariant agrees.
-       + verdict(ann_two(o), 1048576)
-       + verdict(!ann_j(o), 2097152)
-       + verdict(reads(act_two(o), 0, 1), 4194304)
-       + verdict(reads(act_j(o), 1, 1), 8388608)
-       + verdict(same_smooth(two_tr1(), j_tr1()) && same_smooth(two_tr2(), j_tr2())
+        // C3: t annihilates H(0) = 0 and not H(3, 4); chi annihilates H at
+        // every point (Cayley-Hamilton).
+        + verdict(ann_h(z), 131072)
+        + verdict(!ann_h(p), 262144)
+        + verdict(ann_chi(p) && ann_chi(a), 524288)
+        // 2I and J: t - 2 annihilates 2I and not J, and the entry (f1, f2) of
+        // J - 2I is 1, although every invariant agrees.
+        + verdict(ann_two(o), 1048576)
+        + verdict(!ann_j(o), 2097152)
+        + verdict(reads(act_two(o), 0, 1), 4194304)
+        + verdict(reads(act_j(o), 1, 1), 8388608)
+        + verdict(same_smooth(two_tr1(), j_tr1()) && same_smooth(two_tr2(), j_tr2())
            && same_smooth(two_c0(), j_c0()) && same_smooth(two_c1(), j_c1()), 16777216)
-       // 0 and N likewise, with the element t.
-       + verdict(ann_zero(o), 33554432)
-       + verdict(!ann_n(o), 67108864)
-       + verdict(reads(act_zero(o), 0, 1), 134217728)
-       + verdict(reads(act_n(o), 1, 1), 268435456)
-       + verdict(same_smooth(zero_tr1(), n_tr1()) && same_smooth(zero_tr2(), n_tr2())
+        // 0 and N likewise, with the element t.
+        + verdict(ann_zero(o), 33554432)
+        + verdict(!ann_n(o), 67108864)
+        + verdict(reads(act_zero(o), 0, 1), 134217728)
+        + verdict(reads(act_n(o), 1, 1), 268435456)
+        + verdict(same_smooth(zero_tr1(), n_tr1()) && same_smooth(zero_tr2(), n_tr2())
            && same_smooth(zero_c0(), n_c0()) && same_smooth(zero_c1(), n_c1()), 536870912)
-       // Cayley-Hamilton on the point: (t - 2)^2 annihilates J and t^2
-       // annihilates N.
-       + verdict(ann_j2(o) && ann_n2(o), 1073741824)
-       // C10: both differentials of the eigenvalue lie over p.
-       + verdict(lies_over(d_plus, p) && lies_over(d_minus, p), 2147483648)
+        // Cayley-Hamilton on the point: (t - 2)^2 annihilates J and t^2
+        // annihilates N.
+        + verdict(ann_j2(o) && ann_n2(o), 1073741824)
+        // C10: both differentials of the eigenvalue lie over p.
+        + verdict(lies_over(d_plus, p) && lies_over(d_minus, p), 2147483648);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }
 // ANCHOR_END: main

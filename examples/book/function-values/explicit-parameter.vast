@@ -1,5 +1,6 @@
 fn main() -> Int {
     let offset = 2;
     let shift = fn(x: Int, by: Int) -> Int { x + by };
-    shift(40, offset)
+    let shifted = show!(shift(40, offset));
+    0
 }

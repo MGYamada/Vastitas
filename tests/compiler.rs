@@ -1,6 +1,6 @@
 //! End-to-end tests require `lake -d lean-kernel build vastitas-kernel` first.
 mod common;
-use common::{Scratch, assert_rejected, cli, kernel, success as assert_success};
+use common::{Run, Scratch, assert_rejected, cli, exits, kernel, shows, success as assert_success};
 use serde_json::{Value, json};
 use std::fs;
 use std::process::Output;
@@ -14,7 +14,7 @@ fn check(source: &str) -> Output {
 fn reject(source: &str, code: &str) -> String {
     common::reject(source, code, FILE)
 }
-fn native(source: &str, expected: &str) {
+fn native(source: &str, expected: Run) {
     common::native(source, &[], expected, FILE);
 }
 fn request(source: &str) -> Value {
@@ -23,27 +23,27 @@ fn request(source: &str) -> Value {
 
 #[test]
 fn native_pointed_object_survives_return_unpack_and_dependent_call() {
-    native(include_str!("../examples/pointed.vast"), "42");
+    native(include_str!("../examples/pointed.vast"), exits(0));
 }
 
 #[test]
 fn native_smooth_objects_preserve_their_setting() {
-    native(include_str!("../examples/smooth.vast"), "2");
+    native(include_str!("../examples/smooth.vast"), exits(0));
 }
 
 #[test]
 fn native_arbitrary_precision_and_forward_calls() {
     native(
         include_str!("../examples/arithmetic.vast"),
-        "1234567890123456789012345678900",
+        shows(&["value * 10 = 1234567890123456789012345678900"]),
     );
 }
 
 #[test]
 fn native_nat_subtraction_and_unit() {
     native(
-        "fn empty() -> Unit {} fn main() -> Int { let u: Unit = empty(); let n: Nat = 2; if n - 5 == 0 { -42 } else { 1 } }",
-        "-42",
+        "fn empty() -> Unit {} fn main() -> Int { let u: Unit = empty(); let n: Nat = 2; let shown = show!(if n - 5 == 0 { -42 } else { 1 }); 0 }",
+        shows(&["if n - 5 == 0 { -42 } else { 1 } = -42"]),
     );
 }
 
@@ -227,7 +227,7 @@ fn anonymous_outer_endpoints_remain_in_scope_for_nested_returns() {
 fn native_base_objects_pack_and_unpack_in_both_settings() {
     native(
         "fn main() -> Int { let X = Base(QQ); let Y = Base(CInfReal); let ordinary = pack { scheme: X, point: origin(X) }; let smooth = pack { scheme: Y, point: origin(Y) }; unpack ordinary as { scheme: A, point: a }; unpack smooth as { scheme: B, point: b }; let p: Point<A, Base(QQ)> = apply(id(A), a); let q: Point<B, Base(CInfReal)> = apply(id(B), b); if dim(A) == 0 && dim(B) == 0 { 42 } else { -1 } }",
-        "42",
+        exits(42),
     );
 }
 
@@ -261,7 +261,7 @@ fn pair_literal_arguments_explain_independent_inference_without_changing_it() {
         &format!(
             "{header} fn main() -> Int {{ let a: Nat = 0; let b: Nat = 1; int(first(pair(a, b))) }}"
         ),
-        "0",
+        exits(0),
     );
 }
 
@@ -269,7 +269,7 @@ fn pair_literal_arguments_explain_independent_inference_without_changing_it() {
 fn conditional_literal_typing_is_symmetric_and_branch_order_is_preserved() {
     native(
         "fn first(n: Nat, choice: Bool) -> Nat { let x = if choice { n } else { 1 }; x } fn second(n: Nat, choice: Bool) -> Nat { let x = if choice { 1 } else { n }; x } fn main() -> Int { if first(7, true) == 7 && first(7, false) == 1 && second(7, true) == 1 && second(7, false) == 7 { 42 } else { -1 } }",
-        "42",
+        exits(42),
     );
     for branches in ["if true { -1 } else { n }", "if true { n } else { -1 }"] {
         reject(
@@ -309,7 +309,7 @@ fn recursion_diagnostics_identify_the_cycle_not_its_caller() {
 fn shared_and_repeated_dependencies_have_a_valid_native_order() {
     native(
         "fn main() -> Int { left() + right() + left() } fn left() -> Int { leaf() } fn right() -> Int { leaf() } fn leaf() -> Int { 14 }",
-        "42",
+        exits(42),
     );
     let mut forged = request(
         "fn main() -> Int { 0 }\nfn unused_a() -> Int { unused_b() }\nfn unused_b() -> Int { 1 }",
@@ -365,9 +365,9 @@ fn native_long_straight_line_blocks_match_checker_limits() {
     for i in 1..4090 {
         writeln!(source, "let x{i} = x{} + 1;", i - 1).unwrap();
     }
-    source.push_str("x4089\n}");
+    source.push_str("if x4089 == 4090 { 0 } else { 1 }\n}");
     assert_success(&check(&source));
-    native(&source, "4090");
+    native(&source, exits(0));
 }
 
 fn unpack_budget_source(extra_let: bool) -> String {
@@ -392,7 +392,7 @@ fn unpack_budget_source(extra_let: bool) -> String {
 fn native_unpack_expansion_at_the_generated_let_budget() {
     let source = unpack_budget_source(false);
     assert_success(&check(&source));
-    native(&source, "2");
+    native(&source, exits(2));
 }
 
 #[test]

@@ -83,20 +83,22 @@ fn main() -> Int {
     let p: Smooth<Pt, Plane> = plane_at(1, 2);
     let dg: Cotangent<Plane> = differential(g(), p);
     let grad: Tangent<Plane> = gradient(g(), p);
-    42 + verdict(reads(dt(stepped), 12, 1), 1)
-       + verdict(same_covector(stepped, pullback(gAfterF, x, seed)), 2)
-       + verdict(lies_over(stepped, x), 3)
-       // Saved, recomputed and tape-based pullbacks agree.
-       + verdict(same_covector(pullback_recomputed(gAfterF, x, seed), stepped), 4)
-       + verdict(same_covector(backward(linearize(gAfterF, x), seed), stepped), 5)
-       // A seed over another point gives the failure value.
-       + verdict(!lies_over(pullback(gAfterF, x, dline(line_at(17), 1)), x), 6)
-       // dg = (2, 1) at (1, 2); no metric is involved.
-       + verdict(reads(dx(dg), 2, 1) && reads(dy(dg), 1, 1), 7)
-       // The Skew gradient is (1, 0), flat of it is dg, and dg(grad) = 2.
-       + verdict(reads(vx(grad), 1, 1) && reads(vy(grad), 0, 1), 8)
-       + verdict(same_covector(flat_skew(grad), dg), 9)
-       + verdict(reads(pairing(dg, grad), 2, 1), 10)
-       + verdict(same_vector(grad, vplane(p, 1, 0)), 11)
+    let failures = verdict(reads(dt(stepped), 12, 1), 1)
+        + verdict(same_covector(stepped, pullback(gAfterF, x, seed)), 2)
+        + verdict(lies_over(stepped, x), 3)
+        // Saved, recomputed and tape-based pullbacks agree.
+        + verdict(same_covector(pullback_recomputed(gAfterF, x, seed), stepped), 4)
+        + verdict(same_covector(backward(linearize(gAfterF, x), seed), stepped), 5)
+        // A seed over another point gives the failure value.
+        + verdict(!lies_over(pullback(gAfterF, x, dline(line_at(17), 1)), x), 6)
+        // dg = (2, 1) at (1, 2); no metric is involved.
+        + verdict(reads(dx(dg), 2, 1) && reads(dy(dg), 1, 1), 7)
+        // The Skew gradient is (1, 0), flat of it is dg, and dg(grad) = 2.
+        + verdict(reads(vx(grad), 1, 1) && reads(vy(grad), 0, 1), 8)
+        + verdict(same_covector(flat_skew(grad), dg), 9)
+        + verdict(reads(pairing(dg, grad), 2, 1), 10)
+        + verdict(same_vector(grad, vplane(p, 1, 0)), 11);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }
 // ANCHOR_END: main

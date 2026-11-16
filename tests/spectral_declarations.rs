@@ -390,7 +390,7 @@ fn the_spectral_program_checks_and_runs() {
     assert_eq!(response["ok"], true, "{response}");
     let s = package(MAIN);
     success(&s.check_manifest("Vastitas.toml"));
-    assert_eq!(s.build_and_run("Vastitas.toml"), b"42\n");
+    assert_eq!(s.build_and_run("Vastitas.toml"), common::exits(42));
 }
 
 /// The wire carries no certificate: the kernel computes χ, the adjugate and

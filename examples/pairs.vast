@@ -9,14 +9,13 @@ fn choose(flag: Bool, left: Pair<Int>, right: Pair<Int>) -> Pair<Int> {
 fn main() -> Int {
     let big: Nat = 123456789012345678901234567890;
     let zero: Nat = 0;
-    let values = reverse(pair(big, zero));
-    let signed = choose(false, pair(0, 0), pair(-7, 42));
+    let values = show!(reverse(pair(big, zero)));
+    let signed = show!(choose(false, pair(0, 0), pair(-7, 42)));
     let offset = fn(x: Int) -> Int {
         let parts = pair(x, 2);
         pair_first(parts) + pair_second(parts)
     };
+    let shifted = show!(offset(40));
     if pair_first(values) == zero && pair_second(values) == big &&
-       pair_first(signed) == -7 && pair_second(signed) == 42 {
-        offset(40)
-    } else { -1 }
+       pair_first(signed) == -7 && pair_second(signed) == 42 { 0 } else { 1 }
 }

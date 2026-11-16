@@ -11,5 +11,6 @@ method widen(x: Int) -> Int { x }
 
 fn main() -> Int {
     let n: Nat = 20;
-    widen(n) + widen(22)
+    let total = show!(widen(n) + widen(22));
+    0
 }

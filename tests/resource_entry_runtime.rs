@@ -21,8 +21,8 @@ const PINNED: &str = include_str!("../lean-kernel/lean-toolchain");
 /// The reproduction of #681.
 const SCALAR: &str = "resource fn main() -> Int { value { 42 } }";
 const SCALAR_MAIN: &str = "
-def main : IO Unit := do
-  IO.println (VastitasGenerated.f_0)
+def main : IO UInt32 := do
+  pure (UInt32.ofNat (Int.toNat (Int.emod (VastitasGenerated.f_0) 256)))
 ";
 
 /// Every scalar statement of a resource function: values, a branch on a
@@ -45,7 +45,7 @@ resource fn main() -> Int {
 }";
 /// Each value call passes the scalar bindings that its block names (#797).
 const SCALAR_FLOW_MAIN: &str = "
-def main : IO Unit := do
+def main : IO UInt32 := do
   let resourceValue_0 := VastitasGenerated.f_2
   let resourceValue_1 := VastitasGenerated.f_3
   if resourceValue_0 then
@@ -59,7 +59,7 @@ def main : IO Unit := do
     pure ()
   let resourceValue_5 := VastitasGenerated.f_0 resourceValue_1
   let resourceValue_6 := VastitasGenerated.f_1 resourceValue_0 resourceValue_1 resourceValue_5
-  IO.println (VastitasGenerated.f_5 resourceValue_6)
+  pure (UInt32.ofNat (Int.toNat (Int.emod (VastitasGenerated.f_5 resourceValue_6) 256)))
 ";
 
 /// Numerical declarations without an allocation. Spaces and bases are
@@ -88,18 +88,20 @@ const STATIC: &str = "    allocate data: F64[1];
 const STATIC_MAIN: &str = "
 open VastitasStorageNative
 
-def main : IO Unit := do
+def main : IO UInt32 := do
+  let mut status : UInt32 := 0
   let arena ← newArena 9223372036854775807
   try
     allocate arena 0 0 1
     store arena 0 0 1 1 1 false 0 0 0 4631107791820423168 0
     expect arena 0 0 1 1 1 false 0 0 0 4631107791820423168 0
     drop arena 0
-    IO.println (VastitasGenerated.f_0)
+    status := (UInt32.ofNat (Int.toNat (Int.emod (VastitasGenerated.f_0) 256)))
   catch cleanupError =>
     close arena
     throw cleanupError
   close arena
+  pure status
 ";
 
 /// Operations on an allocation whose extent is a scalar slot.
@@ -175,10 +177,10 @@ fn executable(path: &Path, source: &str) {
     fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
 }
 
-fn run(program: &Path) -> String {
-    let output = Command::new(program).output().unwrap();
-    success(&output);
-    String::from_utf8(output.stdout).unwrap()
+/// What the program at `program` did: its exit status is the entry's result
+/// modulo 256 (#836).
+fn run(program: &Path) -> common::Run {
+    common::ran(&Command::new(program).output().unwrap())
 }
 
 /// A scratch kernel root with the runtime inputs of the kernel package and,
@@ -280,7 +282,8 @@ fn scalar_only_entry_emits_its_value_flow_and_requires_no_storage_runtime() {
         assert_eq!(response["numerical_runtime"], false, "{response}");
         let lean = generated(&response);
         assert_eq!(header_imports(lean), ["VastitasKernel.IndexedRuntime"]);
-        // The value calls, the branches and the result, directly in `main`.
+        // The value calls, the branches and the exit status of the result,
+        // directly in `main`.
         assert_eq!(generated_main(lean), main, "{lean}");
         assert!(arenas(lean).is_empty(), "{lean}");
         for absent in [
@@ -314,11 +317,11 @@ fn scalar_only_entry_builds_and_runs_in_a_root_without_the_storage_package() {
             .unwrap()
     };
     success(&build("scalar"));
-    assert_eq!(run(&s.0.join("scalar")), "42\n");
+    assert_eq!(run(&s.0.join("scalar")), common::exits(42));
     for (output, source) in [("flow", SCALAR_FLOW), ("declarations", DECLARATIONS)] {
         s.write("main.vast", source);
         success(&build(output));
-        assert_eq!(run(&s.0.join(output)), "42\n");
+        assert_eq!(run(&s.0.join(output)), common::exits(42));
     }
     assert!(!kernel.join("native").exists());
     // An entry that allocates still needs the storage package of the root.
@@ -334,7 +337,8 @@ fn scalar_only_entry_builds_and_runs_in_a_root_without_the_storage_package() {
 
 // An entry with an operation on an arena keeps the arenas that its operations
 // use and the import of the storage runtime. The source of an entry with
-// static operations is the one that the kernel generated before #681.
+// static operations is the one that the kernel generated before #681, with
+// the exit status of #836 in place of the printed result.
 #[test]
 fn entries_with_storage_operations_keep_their_arenas_and_the_storage_runtime() {
     let nested = format!("{STATIC}{SHAPED}");
@@ -484,7 +488,7 @@ fn a_response_cannot_import_the_storage_runtime_without_selecting_it() {
 }
 
 // An entry with storage still links the storage runtime of the kernel root:
-// its program calls the arena and gives its result.
+// its program calls the arena and returns its result as the exit status.
 #[test]
 fn entry_with_storage_builds_and_runs_with_the_storage_runtime() {
     let nested = format!("{STATIC}{SHAPED}");
@@ -500,6 +504,6 @@ fn entry_with_storage_builds_and_runs_with_the_storage_runtime() {
                 .output()
                 .unwrap(),
         );
-        assert_eq!(run(&s.0.join("program")), "42\n");
+        assert_eq!(run(&s.0.join("program")), common::exits(42));
     }
 }

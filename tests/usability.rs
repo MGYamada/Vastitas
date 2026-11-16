@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, success};
+use common::{Scratch, exits, ran, success};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -55,7 +55,7 @@ fn byte_order_marks_have_a_specific_diagnostic_and_exact_span() {
 #[test]
 fn native_explicit_embedding_and_else_if_preserve_exact_arithmetic() {
     let scratch = Scratch::new(
-        "fn main() -> Int { let n: Nat = 123456789012345678901234567890; if false { 0 } else if dim(Base(QQ)) == 0 { nat_to_int(n) - int(1) } else { -1 } }",
+        "fn main() -> Int { let n: Nat = 123456789012345678901234567890; let result = if false { 0 } else if dim(Base(QQ)) == 0 { nat_to_int(n) - int(1) } else { -1 }; if result == 123456789012345678901234567889 { 0 } else { 1 } }",
     );
     let library = Path::new(env!("CARGO_MANIFEST_DIR")).join("stdlib/src/arithmetic/nat.vast");
     let output = scratch
@@ -67,8 +67,7 @@ fn native_explicit_embedding_and_else_if_preserve_exact_arithmetic() {
         .unwrap();
     success(&output);
     let output = Command::new(scratch.0.join("program")).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"123456789012345678901234567889\n");
+    assert_eq!(ran(&output), exits(0));
 }
 
 #[test]

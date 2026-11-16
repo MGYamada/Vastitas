@@ -77,6 +77,8 @@ fn main() -> Int {
     // The gradients of h(x, t) = x + t under G and under M.
     let grad: Tangent<C> = sharp_g(differential(h(), p));
     let lorentz: Tangent<C> = sharp_m(differential(h(), p));
-    42 + verdict(reads(vx(grad), 9, 1) && reads(vt(grad), 4, 1), 1)
-       + verdict(reads(vx(lorentz), 1, 1) && reads(vt(lorentz), -1, 9), 2)
+    let failures = verdict(reads(vx(grad), 9, 1) && reads(vt(grad), 4, 1), 1)
+        + verdict(reads(vx(lorentz), 1, 1) && reads(vt(lorentz), -1, 9), 2);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
 }

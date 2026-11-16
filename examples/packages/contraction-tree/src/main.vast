@@ -1,4 +1,4 @@
 mod profiles;
 mod real;
 mod complex;
-resource fn main() -> Int { call real::product() -> (); call complex::product() -> (); value { 42 } }
+resource fn main() -> Int { call real::product() -> (); call complex::product() -> (); value { 0 } }

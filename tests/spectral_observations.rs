@@ -8,7 +8,7 @@
 //! the kernel, and run the rejected packages of Stage 5 under
 //! `examples/reject/packages/`.
 mod common;
-use common::{Scratch, assert_wire_rejected, cli, expect_code, kernel, root, success};
+use common::{Run, Scratch, assert_wire_rejected, cli, expect_code, kernel, root, success};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
@@ -58,8 +58,18 @@ fn check(s: &Scratch) -> std::process::Output {
     s.check_manifest("app/Vastitas.toml")
 }
 
-fn run(s: &Scratch) -> Vec<u8> {
+fn run(s: &Scratch) -> Run {
     s.check_build_and_run("app/Vastitas.toml")
+}
+
+/// What the program does when the bits of its failed observations add up to
+/// `failures`: it shows the sum, and returns 0 only when it is 0.
+fn failed(failures: u64) -> Run {
+    Run {
+        status: i32::from(failures != 0),
+        stdout: format!("failures = {failures}\n"),
+        stderr: String::new(),
+    }
 }
 
 /// `MAIN` with extra items inserted before its helpers.
@@ -235,8 +245,8 @@ impl Program {
 }
 
 /// Observation `k` adds `2^(k - 1)`: the bits of `main` are exactly those of
-/// `1..=CODES`, each once, so the printed `42 + m` names the failed
-/// observations.
+/// `1..=CODES`, each once, so the failures `m` that the program shows name
+/// the failed observations.
 #[test]
 fn each_observation_adds_its_own_bit() {
     let found = bits(MAIN);
@@ -247,8 +257,8 @@ fn each_observation_adds_its_own_bit() {
     );
 }
 
-/// The program checks, builds and prints 42 in place, with the paths of its
-/// manifest (C18).
+/// The program checks, builds and shows no failures in place, with the paths
+/// of its manifest (C18).
 #[test]
 fn the_example_checks_builds_and_prints_42_in_place() {
     common::prepare_stdlib_package();
@@ -271,17 +281,16 @@ fn the_example_checks_builds_and_prints_42_in_place() {
             .unwrap(),
     );
     let output = std::process::Command::new(&program).output().unwrap();
-    success(&output);
-    assert_eq!(output.stdout, b"42\n");
+    assert_eq!(common::ran(&output), failed(0));
     // The copy that the other tests mutate is the same program.
-    assert_eq!(run(&Program::shipped().fixture()), b"42\n");
+    assert_eq!(run(&Program::shipped().fixture()), failed(0));
 }
 
 /// A source mutation and the observations it falsifies.
 type Mutation = (&'static str, &'static str, &'static [u32]);
 
 /// Each observation can fail. Within a group, the mutations falsify disjoint
-/// observations, the native result is exactly 42 plus their bits, and every
+/// observations, the program shows exactly the sum of their bits, and every
 /// observation is falsified by some group.
 #[test]
 fn mutated_observations_change_the_native_result() {
@@ -481,10 +490,10 @@ fn mutated_observations_change_the_native_result() {
                 assert!(flipped.insert(*code), "group {index} repeats code {code}");
             }
         }
-        let expected = 42 + flipped.iter().map(|code| bit(*code)).sum::<u64>();
+        let expected = flipped.iter().map(|code| bit(*code)).sum::<u64>();
         assert_eq!(
-            String::from_utf8(run(&program.fixture())).unwrap(),
-            format!("{expected}\n"),
+            run(&program.fixture()),
+            failed(expected),
             "group {index}: {flipped:?}"
         );
         shown.extend(flipped);

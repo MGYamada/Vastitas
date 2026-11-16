@@ -121,8 +121,7 @@ fn exact_payload_spellings_emit_identical_bits_and_execute_without_blas() {
             .unwrap(),
     );
     let result = Command::new(s.0.join("program")).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    assert_eq!(common::ran(&result), common::exits(42));
     let explicit = source
         .replace("f64(1.5)", "f64_bits(4609434218613702656)")
         .replace("f64(0.5)", "f64_bits(4602678819172646912)")
@@ -264,8 +263,7 @@ fn complex_views_preserve_elements_through_source_wire_and_native_execution() {
             .unwrap(),
     );
     let result = Command::new(s.0.join("program")).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    assert_eq!(common::ran(&result), common::exits(42));
     for layout in ["layout(0, 1, 1, 1, false)", "layout(16, 1, 2, 3, true)"] {
         let invalid = COMPLEX_BOUNDARIES.replace(
             layout,
@@ -329,8 +327,7 @@ fn initialized_self_copy_is_checked_and_erased_before_native_generation() {
             .unwrap(),
     );
     let result = Command::new(output).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"0\n");
+    assert_eq!(common::ran(&result), common::exits(0));
 
     // The kernel must reject a forged returned source even though a self-copy
     // would disappear from native instructions after successful checking.
@@ -418,8 +415,7 @@ fn sequential_branch_writes_preserve_only_common_initialization() {
                 .unwrap(),
         );
         let output = Command::new(s.0.join("program")).output().unwrap();
-        success(&output);
-        assert_eq!(output.stdout, b"42\n");
+        assert_eq!(common::ran(&output), common::exits(42));
     }
     for offset in [0, 8] {
         rejected(
@@ -509,8 +505,7 @@ fn cell_writes_initialize_padded_call_outputs_without_prefill() {
             .unwrap(),
     );
     let result = Command::new(s.0.join("program")).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    assert_eq!(common::ran(&result), common::exits(42));
     rejected(&main.replace(&stores[5], ""), OPERATIONS, "E_RESOURCE_INIT");
     // The untaken arm also needs a complete initialization guarantee. Tampered
     // raw IR cannot reuse acceptance of the valid original source.
@@ -571,9 +566,9 @@ fn package_resource_entry_builds_owned_returns_and_pure_fn_dispatch_together() {
             .unwrap(),
     );
     let result = Command::new(output).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
-    // Runtime failure occurs before the pure return expression publishes 42.
+    // The example's entry point returns 0 (#836).
+    assert_eq!(common::ran(&result), common::exits(0));
+    // Runtime failure occurs before the pure return expression is evaluated.
     s.write(
         "buffers/src/operations/mod.vast",
         &OPERATIONS.replace(
@@ -908,7 +903,11 @@ fn resource_source_enforces_move_borrow_initialization_and_name_scopes() {
         "E_RESOURCE_ACCESS",
     );
     rejected(
-        &MAIN.replace("increment(answer(40))", "let data: Int = 1; data"),
+        &common::checked_replace(
+            MAIN,
+            "if increment(answer(40)) == 42 { 0 } else { 1 }",
+            "let data: Int = 1; data",
+        ),
         OPERATIONS,
         "E_SHADOW",
     );
@@ -921,7 +920,11 @@ fn resource_source_enforces_move_borrow_initialization_and_name_scopes() {
         "E_CAPTURE",
     );
     rejected(
-        &MAIN.replace("increment(answer(40))", "make()"),
+        &common::checked_replace(
+            MAIN,
+            "if increment(answer(40)) == 42 { 0 } else { 1 }",
+            "make()",
+        ),
         OPERATIONS,
         "E_TYPE",
     );
@@ -986,8 +989,7 @@ fn resource_source_keeps_nonwinning_pure_bodies_and_library_entry_rules() {
             .unwrap(),
     );
     let result = Command::new(executable).output().unwrap();
-    success(&result);
-    assert_eq!(result.stdout, b"42\n");
+    assert_eq!(common::ran(&result), common::exits(42));
     s.write("app/src/main.vast", "use buffers::make;");
     success(&check(&s));
     let response = kernel(request(&s), "emit");

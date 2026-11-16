@@ -11,8 +11,9 @@ set_option autoImplicit false
 `/vastitas`; `tests/reverse_core.rs` keeps it current. The public protocol-9
 checker accepts it. The Core evaluator then runs `main` on the executable
 Core, whose reverse passes call the runtime reverse pass, and on the compiled
-Core, which `emit` lowers. Both evaluate to 42, so each of the 25
-observations agrees. This is an executable regression, not a proof. -/
+Core, which `emit` lowers. Both evaluate to 0, the exit status for no
+failure (#836), so each of the 25 observations agrees. This is an executable
+regression, not a proof. -/
 namespace VastitasAlgebraTest.ReverseExampleRegression
 
 open VastitasKernel VastitasKernel.Indexed.Core
@@ -36,9 +37,9 @@ private def mainValue (module : Module) : Option Semantics.Value := do
   check "the acceptance example compiles 22 reverse sites" (checked.compiled.entries.length == 22)
   check "four sites keep an opaque step" ((checked.compiled.entries.filter fun (entry : Reverse.Entry) =>
     entry.site.steps.any (·.kind == Reverse.StepKind.opaque)).length == 4)
-  check "main evaluates to 42 on the executable Core, through the runtime reverse pass"
-    (mainValue source == some (Semantics.Value.integer 42))
-  check "main evaluates to 42 on the compiled Core" (mainValue compiled == some (Semantics.Value.integer 42))
+  check "main evaluates to 0 on the executable Core, through the runtime reverse pass"
+    (mainValue source == some (Semantics.Value.integer 0))
+  check "main evaluates to 0 on the compiled Core" (mainValue compiled == some (Semantics.Value.integer 0))
   check "the compiled module validates against the executable Core"
     (Reverse.validate source checked.compiled.entries compiled)
 

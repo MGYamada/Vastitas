@@ -4,6 +4,7 @@ fn ordered(a: Int, b: Int) -> Pair<Int> {
 }
 
 fn main() -> Int {
-    let bounds = ordered(50, 8);
-    pair_second(bounds) - pair_first(bounds)
+    let bounds = show!(ordered(50, 8));
+    let width = show!(pair_second(bounds) - pair_first(bounds));
+    0
 }

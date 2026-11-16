@@ -804,7 +804,23 @@ fn optional_runtime_flags_are_refused_for_protocols_before_eight() {
         "[package]\nname = 'plain'\nversion = '0.1.0'\nroot = 'main.vast'\n",
     );
     s.write("pkg/main.vast", "fn main() -> Int { 42 }");
-    let indexed = common::root().join("examples/packages/indexed/Vastitas.toml");
+    // The indexed example observes its result with `show!`, which only
+    // protocol 9 carries (#836); without the observation it is a protocol-7
+    // request.
+    s.copy_sources(
+        &common::root().join("examples/packages/indexed"),
+        "indexed",
+        &[],
+    );
+    s.write(
+        "indexed/main.vast",
+        &common::checked_replace(
+            &fs::read_to_string(s.0.join("indexed/main.vast")).unwrap(),
+            "show!(",
+            "(",
+        ),
+    );
+    let indexed = s.0.join("indexed/Vastitas.toml");
     let backend = s.0.join("old-backend");
     // Echo the request's own protocol version, so only the flags are wrong.
     executable(

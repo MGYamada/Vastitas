@@ -239,6 +239,16 @@ assumptions are unchanged can still be checked. The numerical error bound
 and physical measurement uncertainty each need their own evidence.
 [Uncertainty and provenance, #299](https://github.com/MGYamada/Vastitas/issues/299)
 
+**Status.** In progress: tracker #841, with the
+[acceptance map](../stage6-acceptance.md). The profile is exact. A symmetric
+two-level field and its simple branch give a dephased transition average,
+declared as a closed form that the kernel checks against the trace form
+(ADR 0001 §13). `nature::model` names the meaning of the model, and
+`nature::errorbar` holds the calibration, the dataset and a recorded
+comparison whose verdict the kernel recomputes and which goes stale when the
+calibration changes (ADR 0002 §4 and §5). The named solver and the numerical
+error bound stay Planned with #318.
+
 ## Stage 7. Broader geometry and physics
 
 The historical stage groups gluing, additional monoidal structures and

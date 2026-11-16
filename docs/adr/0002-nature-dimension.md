@@ -18,9 +18,10 @@ libraries hold of it:
   and what is Proved.
 - Tested: the dependency rule of §1. No `std` manifest depends on `nature`,
   and `scripts/check_boundaries.py` checks it in the continuous integration.
-- Planned: every other `nature` module, among them `nature::errorbar` and
-  `nature::symmetry`, and the parts of `nature::dimension` that §3 leaves
-  outside.
+- Planned: the modules `nature::model` (§4) and `nature::errorbar` (§5) of
+  historical Stage 6, admitted in the amendments of 2026-11-16; every other
+  `nature` module, among them `nature::symmetry`; and the parts of
+  `nature::dimension` that §3 leaves outside.
 
 ## Record
 
@@ -28,7 +29,8 @@ libraries hold of it:
   [#759](https://github.com/MGYamada/Vastitas/issues/759), in pull request
   [#760](https://github.com/MGYamada/Vastitas/pull/760), which added this
   chapter.
-- **Date:** 2026-11-13
+- **Date:** 2026-11-13; amended on 2026-11-16 (§4 and §5) for the Stage 6
+  tracker [#841](https://github.com/MGYamada/Vastitas/issues/841).
 - **Scope:** the admission of `nature::dimension` for one finite profile, and
   the dependency rule between `std` and `nature` that it needs. It is **not** a
   claim of implemented or proved functionality.
@@ -211,6 +213,173 @@ without a test there remains proposed.
 - **Versions and migration.** The profile adds no wire protocol version.
   Existing programs keep their meaning.
 
+### 4. `nature::model` (amendment, 2026-11-16)
+
+This amendment admits the module `nature::model` for the finite profile of
+historical Stage 6, through the test of §2. It does not claim that the
+contract is implemented or proved.
+
+#### Terms
+
+- A *convention* is a declared statement of how physical quantities are
+  written, with an identity of its own. The profile admits one: `hbar_one`,
+  which writes energies as angular frequencies.
+- A *model* names a `std` endomorphism field `H` on a smooth affine object
+  `X` (ADR 0001 §12), a reading of `X` (§3), a convention, a prepared basis
+  vector and an observed basis vector of the free module of `H`, the
+  transition average that it predicts (ADR 0001 §13), and its regime.
+- The *regime* is a recorded text, such as the rotating-wave approximation
+  and a drive far below the transition frequency. It is an assumption.
+
+#### Contract and jurisdiction
+
+- **Declarations.** Conventions and models are declarations; each introduces
+  one identity.
+- **Checks.** The executable kernel checks that the reading is a reading of
+  the object of `H`, that both basis vectors belong to the module of `H`, and
+  that the predicted average is the average of a branch of `H` from the
+  prepared to the observed vector. A failed check is `E_MODEL`.
+- **No values.** A model and a convention compute nothing. They change no
+  value, no validity and no generated code of a `std` declaration.
+- **Package.** `vastitas_model`, a package of its own under `nature/src/`,
+  re-exported as `nature::model` by `nature/lib.vast`, as §3 does for
+  `nature::dimension`.
+- **Versions and migration.** The profile adds no wire protocol version.
+
+#### Laws
+
+- Removing a model or a convention leaves every `std` declaration and every
+  value of the program unchanged.
+
+#### Admission argument
+
+- **World identification.** That `H` describes a two-level atom driven near
+  resonance, that the atom is prepared in the vector `g`, that the population
+  of `e` is observed and that the rotating-wave approximation holds are
+  statements about the world. No theorem proves them.
+- **No competing mathematics.** The field, its spectrum and its average are
+  `std` objects; the model only names them.
+- **Separate claims.** A checked model establishes that its references fit
+  together, not that the model describes an experiment.
+
+#### Execution and evidence profile
+
+- The profile of historical Stage 6, protocol 9 only. The acceptance map
+  records the regime with the status Assumed.
+
+#### Outside this admission
+
+- Conventions other than `hbar_one`, and natural units as a quotient of the
+  dimension group (§3).
+- Mixed states, time-dependent preparations and measurements other than the
+  population of a basis vector.
+
+#### Negative tests
+
+- A reading of another object; a basis vector of another module; a predicted
+  average of another field or between other vectors; protocols 7 and 8.
+
+#### Compatibility and public-name audit
+
+- **Names.** `Convention`, `hbar_one`, `Model`, and
+  `model(hamiltonian =, reading =, convention =, prepare =, observe =,
+  predicts =, regime = assume(…))`. The code is `E_MODEL`. The names are
+  provisional until the module is delivered.
+
+### 5. `nature::errorbar` (amendment, 2026-11-16)
+
+This amendment admits the module `nature::errorbar` for the finite profile of
+historical Stage 6, through the test of §2. It does not claim that the
+contract is implemented or proved.
+
+#### Terms
+
+- A *measured value* is a rational value with a positive rational standard
+  uncertainty.
+- A *calibration* of a model gives measured values to some of its
+  parameters, with the method of evaluation (type A or type B in the sense of
+  the guide to the expression of uncertainty in measurement), a reference and
+  a revision. Its *fingerprint* is the kernel's digest of its canonical
+  content.
+- A *dataset* of a model under a calibration is a list of points: values of
+  the remaining parameters and a measured value of the observable, with one
+  coverage factor `k`.
+- A *comparison* records a dataset, the fingerprint of its calibration, and a
+  verdict: consistent or inconsistent.
+
+#### Contract and jurisdiction
+
+- **Verdict.** Every point, with the calibrated parameter values, lies on the
+  chart of the predicted average (ADR 0001 §13). The executable kernel
+  evaluates the prediction of the model exactly at each point, and the
+  derivative of the prediction in each calibrated parameter. A point is
+  consistent when `(prediction − value)² ≤ k²·(u² + Σ (∂prediction)²·u_c²)`,
+  with `u` the uncertainty of the point and `u_c` those of the calibration.
+  The verdict is consistent when every point is. A wrong recorded verdict is
+  `E_ERRORBAR`.
+- **Staleness.** A comparison whose recorded fingerprint differs from the
+  fingerprint of its calibration is `E_STALE`; the diagnostic names the
+  current fingerprint, so that the comparison can be recorded again after a
+  review. `std` declarations and the model stay accepted.
+- **Assumptions.** The propagation is first order, and the uncertainties of
+  the points and of the calibration are uncorrelated. Both are recorded as
+  assumptions of the comparison.
+- **No values.** Calibrations, datasets and comparisons change no value, no
+  validity and no generated code of a `std` declaration.
+- **Package.** `vastitas_errorbar`, a package of its own under `nature/src/`,
+  re-exported as `nature::errorbar` by `nature/lib.vast`.
+- **Versions and migration.** The profile adds no wire protocol version.
+
+#### Laws
+
+- The verdict depends only on the model's prediction, the dataset and the
+  calibration; changing the calibration changes the fingerprint.
+- Removing a calibration, a dataset or a comparison leaves every `std`
+  declaration and every value unchanged.
+
+#### Admission argument
+
+- **World identification.** That a value was measured, with that uncertainty,
+  method and revision, is a statement about the world and its provenance.
+- **No competing mathematics.** The prediction and its derivatives are those
+  of the `std` average; the comparison adds an exact inequality of rationals.
+- **Separate claims.** A consistent verdict states that the data do not
+  contradict the model at the stated coverage under the recorded
+  assumptions. It is not a proof of the model, and the uncertainty of a
+  measurement is not the error bound of a numerical method.
+
+#### Execution and evidence profile
+
+- The profile of historical Stage 6, protocol 9 only, with at most 64 points
+  and the digit limits of exact algebraic literals.
+
+#### Outside this admission
+
+- Correlated uncertainties, covariance matrices, global statistics such as
+  χ² tests, and propagation beyond first order.
+- Numerical error bounds of solvers, which belong to the planned computational
+  library family `monad`.
+- Datasets read from files.
+
+#### Negative tests
+
+- A changed calibration under an old comparison (`E_STALE`); a wrong verdict;
+  a point off the chart of the predicted average (ADR 0001 §13), even where
+  the denominator of its closed form does not vanish; a nonpositive uncertainty or
+  coverage factor; a calibration of a parameter that the model does not
+  have (`E_ERRORBAR`); more points than the limit (`E_LIMIT`); protocols 7
+  and 8.
+
+#### Compatibility and public-name audit
+
+- **Names.** `Calibration`, `calibrate(…, method =, reference =, revision =)`,
+  `measured(v, u =)`, `Dataset`, `measure(model =, calibration =, coverage =,
+  points = […])`, `Comparison`, `compare(D, calibration = K @ "…", verdict =
+  …)`. The codes are `E_ERRORBAR` and `E_STALE`. The names are provisional
+  until the module is delivered.
+- **Other meanings.** `errorbar` is physical uncertainty. It never means the
+  rounding error or the enclosure of a numerical algorithm.
+
 ## History
 
 This record was written for the Stage 4 tracker
@@ -229,3 +398,14 @@ uses it. Its references are:
 - **Architecture.** Pull request
   [#370](https://github.com/MGYamada/Vastitas/pull/370) proposes a five-role
   amendment of ADR 0001; it stays the maintainer's decision.
+
+The amendments of 2026-11-16, §4 and §5, were written for the Stage 6 tracker
+[#841](https://github.com/MGYamada/Vastitas/issues/841), after the
+maintainer chose exact predictions and data without a numerical solver, a
+recorded comparison that goes stale, and the two packages `nature::model` and
+`nature::errorbar`. Their references are
+[#299](https://github.com/MGYamada/Vastitas/issues/299) (`nature::errorbar`),
+[#374](https://github.com/MGYamada/Vastitas/issues/374) (physics
+conventions) and [#304](https://github.com/MGYamada/Vastitas/issues/304)
+(library roles); the named solver and its numerical error bound stay with
+[#318](https://github.com/MGYamada/Vastitas/issues/318).

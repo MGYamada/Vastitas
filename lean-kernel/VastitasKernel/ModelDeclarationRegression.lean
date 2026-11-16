@@ -147,8 +147,15 @@ private def outcome (version : Nat) (declarations : List Json) : String × Strin
 
 private def mentions (text part : String) : Bool := (text.splitOn part).length > 1
 
-private def decodes (j : Json) (algebraic : Bool) : Bool :=
-  (Wire.declarationBody j (numerical := true) (algebraic := algebraic)).isOk
+/-- Whether protocol `version` decodes the declaration `j`, with the features
+that `Wire.admits` gives that version. -/
+private def decodesAt (version : Nat) (j : Json) : Bool :=
+  let admits := Wire.admits version
+  (Wire.declarationBody j (numerical := admits .numerical) (algebraic := admits .algebraic)
+    (physicalModels := admits .physicalModels)).isOk
+
+/-- Whether protocol 9 (`true`) or protocol 8 (`false`) decodes `j`. -/
+private def decodes (j : Json) (current : Bool) : Bool := decodesAt (if current then 9 else 8) j
 
 /-- The request of `version` with `declarations` is rejected with `code` and a
 message that contains `text`. -/
@@ -204,7 +211,30 @@ private def declarations : List (String × String × String × Json) := [
 #eval check "protocol 9 decodes each Stage 6 declaration shape"
   (declarations.all fun (_, _, _, j) => decodes j true)
 #eval check "protocols 7 and 8 do not decode a Stage 6 declaration"
-  (declarations.all fun (_, _, _, j) => !decodes j false)
+  (declarations.all fun (_, _, _, j) => !decodesAt 7 j && !decodesAt 8 j)
+
+/- The version gate of the Stage 6 records is `Wire.admits` (#533 W5): the
+declarations and families of `nature::model` and `nature::errorbar` are the
+feature `physicalModels`, and the transition average and `average_at`, spectral
+forms of `std::linalg::spectral`, are `algebraic`. Each feature alone admits
+its records and not the other's. -/
+#eval check "the nature forms are the feature physicalModels, which only protocol 9 admits"
+  ([7, 8, 9].all (fun version => Wire.admits version .physicalModels == (version == 9)) &&
+    declarations.all (fun (_, _, _, j) =>
+      (Wire.declarationBody j (physicalModels := true)).isOk &&
+        !(Wire.declarationBody j (numerical := true) (algebraic := true)).isOk) &&
+    representations.all fun (name, representation) =>
+      let j := family name [objectParameter] [canonical 0] representation
+      if representation == "transition_average" then
+        (Wire.declarationBody j (algebraic := true)).isOk && !(Wire.declarationBody j (physicalModels := true)).isOk
+      else
+        (Wire.declarationBody j (algebraic := true) (physicalModels := true)).isOk &&
+          !(Wire.declarationBody j (algebraic := true)).isOk)
+#eval check "the transition average and average_at are the feature algebraic"
+  ((Wire.declarationBody (averageJson "A" "Plane") (algebraic := true)).isOk &&
+    !(Wire.declarationBody (averageJson "A" "Plane") (numerical := true) (physicalModels := true)).isOk &&
+    (Wire.declarationBody (averageAt "at" "A") (algebraic := true)).isOk &&
+    !(Wire.declarationBody (averageAt "at" "A") (numerical := true) (physicalModels := true)).isOk)
 #eval check "protocols 7 and 8 reject each Stage 6 declaration with E_PROTOCOL"
   (declarations.all fun (_, _, _, j) => rejectedBefore9 j "require protocol 9")
 #eval check "the source checker checks each Stage 6 declaration of nature with its code"

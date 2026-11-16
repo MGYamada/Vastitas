@@ -470,7 +470,7 @@ def module (j : Json) (version : Nat) : Except String Module := do
   let admits := Indexed.Wire.admits version
   let (j, observations) ← observedModule j (admits .observations)
   let pureModule ← Indexed.Wire.module (← without j "resource_functions") (admits .numerical)
-    (admits .namedRecipients) (admits .algebraic)
+    (admits .namedRecipients) (admits .algebraic) (admits .physicalModels)
   return ⟨pureModule, ← (← optionalArray j "resource_functions").mapM function, observations⟩
 
 def package (j : Json) (version : Nat) : Except String Package := do
@@ -482,7 +482,7 @@ def package (j : Json) (version : Nat) : Except String Package := do
     without (← observedModule m (admits .observations)).1 "resource_functions"
   let metadata := (← without j "modules").setObjVal! "modules" (toJson stripped)
   let pkg ← Indexed.Wire.package metadata (admits .numerical) (admits .namedRecipients)
-    (admits .algebraic)
+    (admits .algebraic) (admits .physicalModels)
   return ⟨pkg.id, pkg.dependencies, modules, pkg.geometryCompat⟩
 
 /-- Whether `packages`, with `root`, is the request that `packages::flat_request`

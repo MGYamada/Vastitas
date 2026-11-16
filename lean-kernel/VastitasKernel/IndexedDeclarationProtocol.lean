@@ -14,10 +14,15 @@ inductive Feature where
   /-- Recipients named by package (`grantee_package`). -/
   | namedRecipients
   /-- The presented affine, smooth, metric, frame, physical-dimension and
-  spectral forms. -/
+  spectral forms; the spectral forms include the transition averages of
+  `std::linalg::spectral` and their observation `average_at` (Stage 6). -/
   | algebraic
   /-- The observations of `show!`. -/
   | observations
+  /-- The conventions and models of `nature::model` and the calibrations,
+  datasets and comparisons of `nature::errorbar`, with their family
+  representations (Stage 6, #841). -/
+  | physicalModels
   deriving DecidableEq, Repr
 
 /-- Whether protocol `version` admits the records of `feature`. Every version
@@ -26,7 +31,7 @@ protocol 8 adds the numerical records to protocol 7, and protocol 9, the
 current schema epoch, admits every feature. -/
 def admits (version : Nat) : Feature → Bool
   | .numerical => version == 8 || version == 9
-  | .namedRecipients | .algebraic | .observations => version == 9
+  | .namedRecipients | .algebraic | .observations | .physicalModels => version == 9
 
 def path (j : Json) : Except String Source.Path := do
   fields j ["path", "span"]
@@ -265,7 +270,8 @@ def capability (j : Json) : Except String Capability := do
   | "dimension" => return .dimension
   | _ => throw "unsupported implementation capability"
 
-def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String FamilyRepresentation := do
+def familyRepresentation (j : Json) (algebraic : Bool := false) (physicalModels : Bool := false) :
+    Except String FamilyRepresentation := do
   match ← j.getStr? with
   | "token" => return .token
   | "point" => return .point
@@ -322,16 +328,16 @@ def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String 
     unless algebraic do throw "spectral declarations require protocol 9"
     return .transitionAverage
   | "model" =>
-    unless algebraic do throw "model declarations require protocol 9"
+    unless physicalModels do throw "model declarations require protocol 9"
     return .model
   | "calibration" =>
-    unless algebraic do throw "errorbar declarations require protocol 9"
+    unless physicalModels do throw "errorbar declarations require protocol 9"
     return .calibration
   | "dataset" =>
-    unless algebraic do throw "errorbar declarations require protocol 9"
+    unless physicalModels do throw "errorbar declarations require protocol 9"
     return .dataset
   | "comparison" =>
-    unless algebraic do throw "errorbar declarations require protocol 9"
+    unless physicalModels do throw "errorbar declarations require protocol 9"
     return .comparison
   | _ => throw "unsupported indexed family representation"
 
@@ -520,8 +526,8 @@ def sourcePoint (j : Json) : Except String Source.SourcePoint := do
   fields j ["coordinates", "value", "uncertainty"]
   return ⟨← (← array j "coordinates").mapM pointCoordinate, ← sourceMeasured j⟩
 
-def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
-    Except String Source.Body := do
+def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false)
+    (physicalModels : Bool := false) : Except String Source.Body := do
   let common := ["kind", "name", "public", "span"]
   match ← str j "kind" with
   | "marker" => fields j common; return .marker
@@ -540,7 +546,7 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     fields j (common ++ ["parameters", "constraints", "representation"])
     return .family ⟨← (← array j "parameters").mapM (parameter · algebraic),
       ← (← array j "constraints").mapM (constraint · algebraic),
-      ← familyRepresentation (← field j "representation") algebraic⟩
+      ← familyRepresentation (← field j "representation") algebraic physicalModels⟩
   | "package" => fields j (common ++ ["cases"]); return .package (← (← array j "cases").mapM packageShape)
   | "primitive" =>
     fields j (common ++ ["binding"]); return .primitive (← primitive (← field j "binding") algebraic)
@@ -644,30 +650,30 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
       (← polyExpr Limits.algebraNesting (← field j "numerator"))
       (← polyExpr Limits.algebraNesting (← field j "denominator"))
   | "convention" =>
-    unless algebraic do throw "model declarations require protocol 9"
+    unless physicalModels do throw "model declarations require protocol 9"
     fields j (common ++ ["value"])
     return .convention (← convention (← field j "value"))
   | "model" =>
-    unless algebraic do throw "model declarations require protocol 9"
+    unless physicalModels do throw "model declarations require protocol 9"
     fields j (common ++ ["family", "indices", "hamiltonian", "reading", "convention", "prepare", "observe",
       "predicts", "regime"])
     return .model (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← path (← field j "hamiltonian")) (← path (← field j "reading")) (← path (← field j "convention"))
       (← str j "prepare") (← str j "observe") (← path (← field j "predicts")) (← recordText j "regime")
   | "calibration" =>
-    unless algebraic do throw "errorbar declarations require protocol 9"
+    unless physicalModels do throw "errorbar declarations require protocol 9"
     fields j (common ++ ["family", "indices", "parameters", "method", "reference", "revision"])
     return .calibration (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← (← array j "parameters").mapM calibrated) (← calibrationMethod (← field j "method"))
       (← recordText j "reference") (← recordText j "revision")
   | "dataset" =>
-    unless algebraic do throw "errorbar declarations require protocol 9"
+    unless physicalModels do throw "errorbar declarations require protocol 9"
     fields j (common ++ ["family", "indices", "model", "calibration", "coverage", "points"])
     return .dataset (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← path (← field j "model")) (← path (← field j "calibration"))
       (← polyExpr Limits.algebraNesting (← field j "coverage")) (← (← array j "points").mapM sourcePoint)
   | "comparison" =>
-    unless algebraic do throw "errorbar declarations require protocol 9"
+    unless physicalModels do throw "errorbar declarations require protocol 9"
     fields j (common ++ ["family", "indices", "dataset", "calibration", "fingerprint", "verdict"])
     return .comparison (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← path (← field j "dataset")) (← path (← field j "calibration")) (← recordText j "fingerprint")
@@ -684,9 +690,9 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
       base (← (← array j "bindings").mapM binding)
   | _ => throw "unknown indexed declaration kind"
 
-def declaration (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
-    Except String Source.Declaration := do
-  let body ← declarationBody j numerical algebraic
+def declaration (j : Json) (numerical : Bool := false) (algebraic : Bool := false)
+    (physicalModels : Bool := false) : Except String Source.Declaration := do
+  let body ← declarationBody j numerical algebraic physicalModels
   return ⟨← str j "name", body, ← j.getObjValAs? Bool "public", ← decodeSpan j⟩
 
 end VastitasKernel.Indexed.Wire

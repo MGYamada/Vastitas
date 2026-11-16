@@ -1,0 +1,15 @@
+// Physical models of std objects (historical Stage 6, ADR 0002 §4). Model<X>
+// indexes the models on the smooth affine object X: each names a symmetric
+// endomorphism field of std::linalg::spectral on X, a reading of X, a
+// convention, a prepared and an observed basis vector of the field's module,
+// the transition average that it predicts and its regime. The kernel is to
+// check that the references fit together; the regime is a recorded
+// assumption, which no check proves. A model computes nothing and changes no
+// std declaration.
+//
+// The convention hbar_one, which writes energies as angular frequencies, is
+// declared by the application with `indexed convention c = hbar_one;`. The
+// kernel does not check conventions and models yet, so this library declares
+// the family only.
+pub indexed family Model(object(std::geometry::smooth::affine::CInfAffine))
+    = model constraints(canonical(0));

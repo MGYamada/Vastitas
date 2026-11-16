@@ -44,7 +44,7 @@ name one declaration.
 | [`std::geometry::frame`](geometry/frame.md) | `vastitas_geometry` | The families of frames, frame arrays and map arrays |
 | [`std::differential`](differential.md) | `vastitas_differential` | Pullbacks, differentials and tapes of smooth maps |
 | [`std::linalg`](linalg.md) | `vastitas_linalg` | Linear algebra over smooth affine objects, with the module `spectral` alone |
-| [`std::linalg::spectral`](linalg/spectral.md) | `vastitas_linalg` | The families of free modules, endomorphism fields, spectral pairs and simple branches |
+| [`std::linalg::spectral`](linalg/spectral.md) | `vastitas_linalg` | The families of free modules, endomorphism fields, spectral pairs, simple branches and transition averages |
 
 The physical interpretations of these objects are not in `std`. The package
 [`nature`](../../nature/docs/README.md) holds them, and it depends on `std`.

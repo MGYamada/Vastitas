@@ -17,3 +17,11 @@ pub indexed family Spectrum(object(geometry::smooth::affine::CInfAffine))
     = spectrum constraints(canonical(0));
 pub indexed family Branch(object(geometry::smooth::affine::CInfAffine))
     = branch constraints(canonical(0));
+// TransitionAverage<X> (historical Stage 6, ADR 0001 §13) indexes the
+// dephased transition averages of simple branches on X: the sum over the
+// eigenprojectors P_k of a symmetric field of P_k[j, i]^2 between two basis
+// vectors, stated by the application as a closed form N / D that the kernel
+// checks against the trace form of the branch. The kernel does not check
+// these declarations yet; the family is declared for the application.
+pub indexed family TransitionAverage(object(geometry::smooth::affine::CInfAffine))
+    = transition_average constraints(canonical(0));

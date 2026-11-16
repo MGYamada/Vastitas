@@ -21,8 +21,10 @@ The root module of the package `vastitas_nature`, the package of
 | Name | Kind | Contract |
 | --- | --- | --- |
 | `dimension` | re-export | The root module of the package `vastitas_dimension` of [`nature/src/dimension/`](../src/dimension), the dependency `dimension_library`: the physical dimensions of the coordinates of smooth affine objects ([page](dimension.md)) |
+| `model` | re-export | The root module of the package `vastitas_model` of [`nature/src/model/`](../src/model), the dependency `model_library`: the physical models of `std` fields ([page](model.md)) |
+| `errorbar` | re-export | The root module of the package `vastitas_errorbar` of [`nature/src/errorbar/`](../src/errorbar), the dependency `errorbar_library`: calibrations, datasets and their comparisons with a model ([page](errorbar.md)) |
 
-The re-export keeps the owners of the declarations: `nature::dimension::Length`
+The re-exports keep the owners of the declarations: `nature::dimension::Length`
 and a path to `Length` through a direct dependency on `nature/src/dimension`
 name one declaration.
 
@@ -31,6 +33,8 @@ name one declaration.
 | Module | Package | Content |
 | --- | --- | --- |
 | [`nature::dimension`](dimension.md) | `vastitas_dimension` | Readings, physical interpretations, base dimensions and quantity kinds |
+| [`nature::model`](model.md) | `vastitas_model` | Models of `std` fields: their readings, conventions, preparations, observables, predictions and regimes |
+| [`nature::errorbar`](errorbar.md) | `vastitas_errorbar` | Calibrations, datasets and their recorded comparisons with a model |
 
 ## The check
 

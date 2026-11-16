@@ -8,3 +8,5 @@ root = "lib.vast"
 # checked by scripts/check_boundaries.py).
 [dependencies]
 dimension_library = { path = "src/dimension" }
+model_library = { path = "src/model" }
+errorbar_library = { path = "src/errorbar" }

@@ -22,6 +22,8 @@ exports of its module.
 | --- | --- | --- |
 | `nature` | `vastitas_nature` | [The package root](docs/README.md#the-package-root) |
 | `nature::dimension` | `vastitas_dimension` | [`dimension.md`](docs/dimension.md) |
+| `nature::model` | `vastitas_model` | [`model.md`](docs/model.md) |
+| `nature::errorbar` | `vastitas_errorbar` | [`errorbar.md`](docs/errorbar.md) |
 
 ## The boundary with `std`
 
@@ -40,10 +42,16 @@ exports of its module.
 ```text
 nature/
 ├── Vastitas.toml          the package vastitas_nature
-├── lib.vast               its root module: pub use dimension_library as dimension;
+├── lib.vast               its root module: pub use dimension_library as dimension; …
 ├── docs/                  the API reference
 └── src/
-    └── dimension/         the package vastitas_dimension, nature::dimension
+    ├── dimension/         the package vastitas_dimension, nature::dimension
+    │   ├── Vastitas.toml
+    │   └── mod.vast
+    ├── model/             the package vastitas_model, nature::model
+    │   ├── Vastitas.toml
+    │   └── mod.vast
+    └── errorbar/          the package vastitas_errorbar, nature::errorbar
         ├── Vastitas.toml
         └── mod.vast
 ```
@@ -53,7 +61,8 @@ its own under `src/`, with its manifest and `mod.vast` as its entrypoint,
 as `stdlib/src/geometry/` is. The root package `vastitas_nature` depends on
 each library by a dependency alias, and its root module re-exports the
 library under its public name: [`lib.vast`](lib.vast) holds
-`pub use dimension_library as dimension;`, as the root `lib.vast` of
+`pub use dimension_library as dimension;`, `pub use model_library as model;`
+and `pub use errorbar_library as errorbar;`, as the root `lib.vast` of
 `vastitas_std` holds `pub use geometry_library as geometry;`.
 
 The root module lies at `nature/lib.vast`, beside the manifest and outside

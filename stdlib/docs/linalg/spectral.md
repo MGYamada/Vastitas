@@ -36,6 +36,7 @@ takes the eigenvalue as an input.
 | `Endomorphism<X>` | family | `endomorphism`, over `CInfAffine`, with `canonical(0)`: the endomorphism fields on `X`, each acting on one free module of `X` and checked when it is declared `symmetric` |
 | `Spectrum<X>` | family | `spectrum`, over `CInfAffine`, with `canonical(0)`: the spectral pairs of the fields on `X`, each with its fiber coordinate, its characteristic polynomial and its adjugate, which the kernel computes and checks |
 | `Branch<X>` | family | `branch`, over `CInfAffine`, with `canonical(0)`: the finite charts of the spectra on `X` on which every eigenvalue is simple, each certified by its localization, witness and exponent |
+| `TransitionAverage<X>` | family | `transition_average`, over `CInfAffine`, with `canonical(0)`: the dephased transition averages `Σ_k P_k[j, i]²` of the simple branches on `X` between two basis vectors of the module of a symmetric field, each with its closed form `N / D`. Planned for historical Stage 6: the kernel rejects every transition average and every `average_at` until they are implemented ([#841](https://github.com/MGYamada/Vastitas/issues/841)) |
 
 ## Use
 

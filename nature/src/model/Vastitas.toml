@@ -1,0 +1,10 @@
+[package]
+name = "vastitas_model"
+version = "0.1.0"
+root = "mod.vast"
+
+# nature::model, which nature/lib.vast re-exports. It depends on std and on
+# nothing else; no std manifest depends on it (ADR 0002 §1 and §4, checked by
+# scripts/check_boundaries.py).
+[dependencies]
+std = { path = "../../../stdlib" }

@@ -4,3 +4,5 @@
 // module re-exports under its public name, as stdlib's root re-exports
 // std::geometry and std::differential.
 pub use dimension_library as dimension;
+pub use model_library as model;
+pub use errorbar_library as errorbar;

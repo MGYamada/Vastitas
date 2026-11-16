@@ -456,30 +456,33 @@ private def observedFunction (j : Json) :
     return (← without j "observations", some (← str j "name", observations))
 
 /-- A module without the observations of its functions, and the observations.
-Protocol 9 is the current schema epoch (#533); only it admits the
-observations of `show!` (#836), and other protocols keep them, so that the
-strict decoder of functions rejects them. -/
+Only a protocol that admits observations (`Indexed.Wire.admits`) removes them
+(#836); other protocols keep them, so that the strict decoder of functions
+rejects them. -/
 private def observedModule (j : Json) (observed : Bool) :
     Except String (Json × List (String × List Indexed.Core.Observation)) := do
   if !observed then return (j, [])
   let functions ← (← array j "functions").mapM observedFunction
   return (j.setObjVal! "functions" (toJson (functions.map (·.1))), functions.filterMap (·.2))
 
-def module (j : Json) (namedRecipients : Bool := false) : Except String Module := do
-  -- Protocol 9 is the current schema epoch (#533); only it admits Stage 2 forms.
-  let (j, observations) ← observedModule j namedRecipients
-  let pureModule ← Indexed.Wire.module (← without j "resource_functions") true namedRecipients
-    namedRecipients
+/-- A module of protocol `version`, whose features `Indexed.Wire.admits` gives. -/
+def module (j : Json) (version : Nat) : Except String Module := do
+  let admits := Indexed.Wire.admits version
+  let (j, observations) ← observedModule j (admits .observations)
+  let pureModule ← Indexed.Wire.module (← without j "resource_functions") (admits .numerical)
+    (admits .namedRecipients) (admits .algebraic)
   return ⟨pureModule, ← (← optionalArray j "resource_functions").mapM function, observations⟩
 
-def package (j : Json) (namedRecipients : Bool := false) : Except String Package := do
-  let modules ← (← array j "modules").mapM (module · namedRecipients)
+def package (j : Json) (version : Nat) : Except String Package := do
+  let admits := Indexed.Wire.admits version
+  let modules ← (← array j "modules").mapM (module · version)
   -- Reuse the exact package metadata decoder, with no resource body projected
   -- into a pure function. Unknown metadata fields remain rejected.
   let stripped ← (← array j "modules").mapM fun m => do
-    without (← observedModule m namedRecipients).1 "resource_functions"
+    without (← observedModule m (admits .observations)).1 "resource_functions"
   let metadata := (← without j "modules").setObjVal! "modules" (toJson stripped)
-  let pkg ← Indexed.Wire.package metadata true namedRecipients namedRecipients
+  let pkg ← Indexed.Wire.package metadata (admits .numerical) (admits .namedRecipients)
+    (admits .algebraic)
   return ⟨pkg.id, pkg.dependencies, modules, pkg.geometryCompat⟩
 
 def program (j : Json) : Except String Program := do
@@ -487,7 +490,7 @@ def program (j : Json) : Except String Program := do
   let version ← j.getObjValAs? Nat "version"
   if version != 8 && version != 9 then throw "expected protocol 8 or 9"
   if (← str j "input") != "package" then throw "protocol 8/9 requires package input"
-  return ⟨← str j "file", ← str j "root", ← (← array j "packages").mapM (package · (version == 9))⟩
+  return ⟨← str j "file", ← str j "root", ← (← array j "packages").mapM (package · version)⟩
 
 /-- The namespace work of the body passes that ran: those of the pure program
 and, when the program has resource fragments, the passes with them. Without

@@ -58,11 +58,13 @@ def package (j : Json) (numerical : Bool := false) (namedRecipients : Bool := fa
 
 def program (j : Json) : Except String DispatchSource.Program := do
   fields j ["version", "input", "file", "root", "packages"]
-  if (← j.getObjValAs? Nat "version") != 7 then throw "expected protocol 7"
+  let version ← j.getObjValAs? Nat "version"
+  if version != 7 then throw "expected protocol 7"
   if (← str j "input") != "package" then throw "protocol 7 requires package input"
   return {
     file := ← str j "file", root := ← str j "root",
-    packages := ← (← array j "packages").mapM package,
+    packages := ← (← array j "packages").mapM fun p =>
+      package p (admits version .numerical) (admits version .namedRecipients) (admits version .algebraic),
     extended := true, editable := true, authority := true }
 
 end VastitasKernel.Indexed.Wire

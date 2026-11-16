@@ -9,8 +9,10 @@ set_option autoImplicit false
 An `Extension Hidden small big` says that each lookup in `big` is the lookup
 in `small`, or a declaration satisfying `Hidden` where `small` has nothing.
 `MetricExtension`, `FrameExtension` and `NatureExtension` each contain one,
-for the metric, frame and nature declarations. A *profile declaration*
-(`ProfileDeclaration`) is a declaration of any of the three kinds. This
+for the metric, frame and nature declarations; the nature declarations are
+those of `nature::dimension` and, since Stage 6, those of `nature::model` and
+`nature::errorbar`. A *profile declaration* (`ProfileDeclaration`) is a
+declaration of any of the three kinds. This
 module proves once that the lookup-derived views that the binding contracts,
 the evaluator and the non-profile declaration checks read, apart from the
 views of frame declarations, treat a profile declaration exactly like a
@@ -18,7 +20,9 @@ missing one, and so do not change in any of the three extensions.
 `SmoothMetricWeakening` adds the views that also see frames, for an extension
 by metric or nature declarations (`MetricOrNatureDeclaration`).
 `familyRepresentation` can see a profile family, and is only stated here for
-the other representations. -/
+the other representations. The views of the Stage 6 declarations of
+`nature::model` and `nature::errorbar`, which are profile declarations, are
+stated for frame extensions in `FrameWeakening`. -/
 namespace VastitasOracle.DeclarationExtension
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core
@@ -43,20 +47,27 @@ theorem Extension.mono {Hidden Hidden' : Declaration → Prop}
 profile (a metric, metric evidence, or a family with the `metric_form`
 representation), of `nature::dimension` (a base dimension, a quantity, a
 reading, a scale, a physical metric, or a family with the `reading` or
-`physical_metric` representation), or a frame. -/
+`physical_metric` representation), of `nature::model` and `nature::errorbar`
+(Stage 6: a convention, a model, a calibration, a dataset, a comparison, or a
+family with the `model`, `calibration`, `dataset` or `comparison`
+representation), or a frame. -/
 def ProfileDeclaration : Declaration → Prop
   | .metric .. | .metricEvidence .. | .frame .. | .baseDimension | .quantity .. | .reading .. | .scale ..
-  | .physicalMetric .. => True
+  | .physicalMetric .. | .convention .. | .model .. | .calibration .. | .dataset .. | .comparison .. => True
   | .family contract => contract.representation = .metricForm ∨ contract.representation = .reading ∨
-      contract.representation = .physicalMetric
+      contract.representation = .physicalMetric ∨ contract.representation = .model ∨
+      contract.representation = .calibration ∨ contract.representation = .dataset ∨
+      contract.representation = .comparison
   | _ => False
 
 /-- A profile declaration that is not a frame. -/
 def MetricOrNatureDeclaration : Declaration → Prop
   | .metric .. | .metricEvidence .. | .baseDimension | .quantity .. | .reading .. | .scale ..
-  | .physicalMetric .. => True
+  | .physicalMetric .. | .convention .. | .model .. | .calibration .. | .dataset .. | .comparison .. => True
   | .family contract => contract.representation = .metricForm ∨ contract.representation = .reading ∨
-      contract.representation = .physicalMetric
+      contract.representation = .physicalMetric ∨ contract.representation = .model ∨
+      contract.representation = .calibration ∨ contract.representation = .dataset ∨
+      contract.representation = .comparison
   | _ => False
 
 theorem Extension.profile {small big : Environment} (ext : Extension MetricOrNatureDeclaration small big) :
@@ -91,7 +102,7 @@ local macro "profile_view" ext:term:max view:ident id:term:max : tactic => `(tac
   rcases $ext:term $id with same | ⟨none, declaration, found, kind⟩
   · simp only [$view:ident, same]
   · simp only [$view:ident, none, found]
-    cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind) <;>
+    cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind | kind | kind | kind | kind) <;>
       simp_all))
 
 theorem isMarker_append (id : DeclId) : isMarker big id = isMarker small id := by
@@ -136,7 +147,7 @@ theorem objectImplementation_append (id : DeclId) :
   rcases ext id with same | ⟨none, declaration, found, kind⟩
   · rw [same]
   · rw [none, found]
-    cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind) <;>
+    cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind | kind | kind | kind | kind) <;>
       simp_all [Declaration.objectImplementation?]
 
 theorem fiberVariance_append (id : DeclId) : fiberVariance? big id = fiberVariance? small id := by
@@ -158,7 +169,7 @@ theorem affineGlobal_append (id : DeclId) : affineGlobal big id = affineGlobal s
   rcases ext id with same | ⟨none, declaration, found, kind⟩
   · simp only [affineGlobal, same, affineImplementation_append ext]
   · simp only [affineGlobal, none, found]
-    cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind) <;>
+    cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind | kind | kind | kind | kind) <;>
       simp_all
 
 theorem implementationSupports_append (id : DeclId) (capability : Capability) :
@@ -187,34 +198,23 @@ theorem transitionAverageData_append (id : DeclId) :
     transitionAverageData? big id = transitionAverageData? small id := by
   profile_view ext transitionAverageData? id
 
-/-! The views of the declarations of `nature::model` and `nature::errorbar`
-(Stage 6): no profile declaration is one of them. -/
-
-theorem conventionData_append (id : DeclId) : conventionData? big id = conventionData? small id := by
-  profile_view ext conventionData? id
-
-theorem modelData_append (id : DeclId) : modelData? big id = modelData? small id := by
-  profile_view ext modelData? id
-
-theorem calibrationData_append (id : DeclId) : calibrationData? big id = calibrationData? small id := by
-  profile_view ext calibrationData? id
-
-theorem datasetData_append (id : DeclId) : datasetData? big id = datasetData? small id := by
-  profile_view ext datasetData? id
-
 /-- A profile family is the only way a profile family representation can
 appear; every other view compares with another representation. -/
 theorem familyRepresentation_eq_append (id : DeclId) {representation : FamilyRepresentation}
-    (other : representation ≠ .metricForm ∧ representation ≠ .reading ∧ representation ≠ .physicalMetric) :
+    (other : representation ≠ .metricForm ∧ representation ≠ .reading ∧ representation ≠ .physicalMetric ∧
+      representation ≠ .model ∧ representation ≠ .calibration ∧ representation ≠ .dataset ∧
+      representation ≠ .comparison) :
     familyRepresentation big id = some representation ↔ familyRepresentation small id = some representation := by
   rcases ext id with same | ⟨none, declaration, found, kind⟩
   · simp only [familyRepresentation, same]
   · simp only [familyRepresentation, none, found]
-    cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind) <;>
+    cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind | kind | kind | kind | kind) <;>
       simp_all [eq_comm]
 
 theorem familyRepresentation_append (id : DeclId) {representation : FamilyRepresentation}
-    (other : representation ≠ .metricForm ∧ representation ≠ .reading ∧ representation ≠ .physicalMetric) :
+    (other : representation ≠ .metricForm ∧ representation ≠ .reading ∧ representation ≠ .physicalMetric ∧
+      representation ≠ .model ∧ representation ≠ .calibration ∧ representation ≠ .dataset ∧
+      representation ≠ .comparison) :
     (familyRepresentation big id == some representation) =
       (familyRepresentation small id == some representation) := by
   rw [Bool.eq_iff_iff, beq_iff_eq, beq_iff_eq]
@@ -378,7 +378,7 @@ theorem validAffine_append (id implementation : DeclId) (data : AlgebraDeclarati
     rcases ext base with same | ⟨none, declaration, found, kind⟩
     · simp only [same]
     · simp only [none, found]
-      cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind) <;>
+      cases declaration <;> simp only [ProfileDeclaration] at kind <;> (try rcases kind with kind | kind | kind | kind | kind | kind | kind) <;>
         simp_all
 
 end Profile

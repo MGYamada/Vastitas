@@ -1,0 +1,40 @@
+use std::geometry::smooth::affine::SmoothR;
+use std::linalg::spectral::FreeModule;
+use std::linalg::spectral::Endomorphism;
+use std::linalg::spectral::Spectrum;
+use std::linalg::spectral::Branch;
+use std::linalg::spectral::TransitionAverage;
+use nature::dimension::Reading;
+use nature::dimension::T;
+use nature::model::Model;
+use nature::errorbar::Calibration;
+use nature::errorbar::Dataset;
+use nature::errorbar::Comparison;
+
+// The chart P of (delta, omega), the states g and e, and H, which the kernel
+// checks to be symmetric.
+indexed affine P(SmoothR) = Affine(2)[delta, omega];
+indexed free_module V: FreeModule<P> = basis(g, e);
+indexed endomorphism H: Endomorphism<P> =
+    rows((frac(1, 2) * delta, frac(1, 2) * omega), (frac(1, 2) * omega, frac(-1, 2) * delta)) of V symmetric;
+// chi = t^2 - (delta^2 + omega^2) / 4. On D(delta^2 + omega^2) the two
+// eigenvalues +-sqrt(delta^2 + omega^2) / 2 are simple: the witness 2t gives
+// 2t * chi' = 4t^2, which is delta^2 + omega^2 modulo chi.
+indexed spectrum S: Spectrum<P> = eigen(H, t);
+indexed branch B: Branch<P> = simple(S, localize = delta^2 + omega^2, witness = 2 * t, exponent = 1);
+// The sum over the two eigenprojectors of P_k[e, g]^2, stated as a closed
+// form that the kernel checks against the trace form of B on its chart.
+indexed average A: TransitionAverage<P> = transition_average(B, from = g, to = e)
+    = ratio(frac(1, 2) * omega^2, delta^2 + omega^2);
+// ANCHOR: declarations
+// The prepared state f1 is a basis vector of W, not of the module V of the
+// field H.
+indexed free_module W: FreeModule<P> = basis(f1, f2);
+indexed quantity Frequency = T^-1;
+indexed reading r: Reading<P> = (delta: Frequency, omega: Frequency);
+indexed convention c = hbar_one;
+indexed model M: Model<P> = model(hamiltonian = H, reading = r, convention = c, prepare = f1, observe = e,
+    predicts = A, regime = assume("rotating-wave approximation, drive far below the transition frequency"));
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

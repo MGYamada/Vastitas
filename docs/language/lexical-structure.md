@@ -225,7 +225,11 @@ A **floating-point literal** is a decimal number with a decimal point or an
 exponent, such as `1.5` or `125e-3`, or a hexadecimal number with a binary
 exponent, such as `0x1.8p0`. A **string literal** is text between double
 quotes, which may hold any character apart from the line separators. Each is
-a token. A string literal has no production, for the reason that
+a token. The production `STRING_LITERAL` gives the string literals that a
+construct accepts: printable ASCII characters other than `"` and `\`
+between the quotes, with no escape sequence. Other text between double
+quotes is one token too, and a `\` there keeps the next character inside
+the token. That text has no production, for the reason that
 [Comments](#comments) gives for a comment.
 
 The lexer also reads some malformed numbers as one floating-point token: a
@@ -243,8 +247,16 @@ Rules:
   `complex(…)` in a [payload](../storage/resource-programs.md#payloads) of a
   resource program. Where an expression begins it is an error
   (`E_UNSUPPORTED`), and at any other place it is an error (`E_PARSE`).
-- No construct accepts a string literal. Where an expression begins it is an
-  error (`E_UNSUPPORTED`), and at any other place it is an error (`E_PARSE`).
+- A string literal is valid only as a
+  [recorded text](physical-models.md#recorded-texts): the regime of a
+  model, the reference and the revision of a calibration and the
+  fingerprint of a comparison. Where an expression begins it is an error
+  (`E_UNSUPPORTED`), and at any other place it is an error (`E_PARSE`).
+- At those four places, a string literal that `STRING_LITERAL` does not
+  derive is an error (`E_PARSE`): a literal without a closing quote, or with
+  a character that is not printable ASCII, or with `\`. The literal is never
+  decoded, and [Recorded texts](physical-models.md#recorded-texts) gives its
+  bound on length.
 - [Payloads](../storage/resource-programs.md#payloads) gives the errors of
   both literals in and in place of a payload.
 

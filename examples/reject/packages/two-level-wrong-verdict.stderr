@@ -1,0 +1,1 @@
+examples/reject/packages/two-level-wrong-verdict/main.vast:53:1: E_ERRORBAR: the comparison `two_level_wrong_verdict::C` records the verdict `inconsistent`, but every point of the dataset `two_level_wrong_verdict::D` is consistent

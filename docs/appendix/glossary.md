@@ -224,6 +224,14 @@ packing of the cells of another. `cache` declares one. It is valid until a
 statement writes either allocation, until one of them is dropped, and until
 the end of a branch. See [Caches](../linalg/networks-and-packing.md#caches).
 
+## Calibration
+
+A declaration of `nature::errorbar` that gives [measured values](#measured-value)
+to some coordinates of a smooth affine object, with the method of evaluation
+of the uncertainties, a reference and a revision. Its [fingerprint](#fingerprint)
+identifies its content. See [Calibrations](../language/physical-models.md#calibrations) and the
+[guide](../guide/physical-models.md#a-calibration).
+
 ## Callable domain
 
 The keys at which callers may call a generic: the keys of its domain together
@@ -321,6 +329,13 @@ A function of the [kernel](#kernel) that writes the Lean source of a checked
 program. It checks its input again before it returns source. See
 [The three checker routes](../development/architecture.md#the-three-checker-routes).
 
+## Comparison
+
+A declaration of `nature::errorbar` that names a [dataset](#dataset) and its
+[calibration](#calibration), and records the [fingerprint](#fingerprint) of
+the calibration and a [verdict](#verdict), which the kernel computes again.
+See [Comparisons](../language/physical-models.md#comparisons) and the [guide](../guide/physical-models.md#the-comparison).
+
 ## Compiled reverse Core
 
 The [Core](#core) that the kernel generates for the
@@ -353,6 +368,12 @@ loan, and a contribution of the module that holds the generic's edit authority
 without a loan. See
 [Edit authority across packages](../guide/edit-authority.md#the-contribution) and
 [Contributions](../language/edit-authority.md#contributions).
+
+## Convention
+
+A declaration of `nature::model` that records how a [model](#model) writes its
+physical quantities. The one convention is `hbar_one`, which writes energies
+as angular frequencies. See [Conventions](../language/physical-models.md#conventions).
 
 ## Coordinate frame
 
@@ -401,10 +422,24 @@ the covector `Jᵀη` at `x`. A covector at any other point gives the
 [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
+## Coverage factor
+
+The positive rational k of a [dataset](#dataset) that scales every uncertainty
+when the kernel decides whether a point agrees with the prediction of the
+model. See [Datasets](../language/physical-models.md#datasets) and [Comparisons](../language/physical-models.md#comparisons).
+
 ## Current module
 
 The module in which a path occurs. The first segment of the path resolves in
 it. See [Resolution](../language/names-and-paths.md#resolution).
+
+## Dataset
+
+A declaration of `nature::errorbar` that holds points of the object of a
+[model](#model) under a [calibration](#calibration), each with a
+[measured value](#measured-value) of the observable of the model, and a
+[coverage factor](#coverage-factor). See [Datasets](../language/physical-models.md#datasets) and the
+[guide](../guide/physical-models.md#measured-points).
 
 ## Delegation
 
@@ -699,6 +734,14 @@ declaration lists the fields, each as a family with its
 [bound indices](#bound-index). The word is unrelated to an exact field of
 coefficients. See
 [Existential packages](../indexed-source.md#existential-packages).
+
+## Fingerprint
+
+The text `fnv1a64:` and 16 lowercase hexadecimal digits that the kernel
+computes from the canonical content of a [calibration](#calibration): its
+calibrated coordinates with their values and uncertainties, its method, its
+reference and its revision. A [comparison](#comparison) records it. See
+[Calibrations](../language/physical-models.md#calibrations).
 
 ## Flat mode
 
@@ -1103,6 +1146,11 @@ denominator of a row. It limits the size of the certificates of
 does not. See [Metrics](../language/smooth-declarations.md#metrics) and
 [Smooth metrics](limits.md#smooth-metrics).
 
+## Measured value
+
+`measured(v, u = w)`: an exact rational value v with the standard uncertainty
+w, a positive rational. See [Calibrations](../language/physical-models.md#calibrations).
+
 ## Method
 
 One body of a generic. A method gives each parameter a selector, declares a
@@ -1134,6 +1182,15 @@ metric form is distinct from the diagonal Hermitian `Metric` of
 [transforms and metrics](../linalg/transforms-and-metrics.md). See
 [Metrics](../language/smooth-declarations.md#metrics) and the wire
 [metric forms](../protocol.md#protocol-9-metric-forms).
+
+## Model
+
+A declaration of `nature::model` that gives a symmetric
+[endomorphism field](#endomorphism-field) its physical meaning: a
+[reading](#reading) of its object, a [convention](#convention), the prepared
+and the observed basis vector, the [transition average](#transition-average)
+that it predicts and a regime, which it records as an assumption. See
+[Models](../language/physical-models.md#models) and the [guide](../guide/physical-models.md#what-the-model-means).
 
 ## Module
 
@@ -1618,6 +1675,15 @@ The module that a grant, delegation or transfer names after `to`: the manifest
 name of its package followed by its logical path. See
 [Grants and delegations](../language/edit-authority.md#grants-and-delegations).
 
+## Recorded text
+
+A string literal at one of the four places that take one: the regime of a
+[model](#model), the reference and the revision of a
+[calibration](#calibration) and the fingerprint of a
+[comparison](#comparison). It holds at most 256 bytes of printable ASCII
+other than `\` and `"`, and no check reads its meaning. See
+[Recorded texts](../language/physical-models.md#recorded-texts).
+
 ## Reexport
 
 A `pub use` declaration, which makes a public declaration of another module
@@ -2038,6 +2104,15 @@ A file beside the final place of the output of `vastitas build`. The driver
 copies the executable to it and then renames it onto that place. See
 [Output files](../internals/driver.md#output-files).
 
+## Stale
+
+Said of a [comparison](#comparison) whose recorded
+[fingerprint](#fingerprint) is not the current fingerprint of its
+calibration: the calibration changed after the comparison was recorded. A
+stale comparison is an error (`E_STALE`) that names the current
+fingerprint. See [Comparisons](../language/physical-models.md#comparisons) and the
+[guide](../guide/physical-models.md#when-the-calibration-changes).
+
 ## Standard library
 
 The package in the directory `stdlib` of the repository. It is written in
@@ -2113,7 +2188,8 @@ spells them. See [Keywords](../language/lexical-structure.md#keywords).
 
 ## String literal
 
-Text between double quotes. It is a token, but no construct accepts one. See
+Text between double quotes. It is a token, and only a
+[recorded text](#recorded-text) accepts one. See
 [Other literals](../language/lexical-structure.md#other-literals).
 
 ## Structure map
@@ -2201,6 +2277,15 @@ frame to its array in the second. `frame_transition` gives it. See
 [Map arrays and transitions](../language/frames.md#map-arrays-and-transitions) and the
 [guide](../guide/frames-and-dimensions.md#changing-frames).
 
+## Transition average
+
+The sum Σₖ Pₖ[j, i]² over the [eigenprojectors](#eigenprojector) of a
+symmetric field on the chart of a [branch](#branch), from one basis vector
+to another, declared with a closed form `ratio(N, D)` that the kernel checks
+against the trace form of the branch. See
+[Transition averages](../language/spectral-observations.md#transition-averages)
+and the [guide](../guide/physical-models.md#the-field-and-its-average).
+
 ## Type
 
 What every expression, parameter and binding has, and what decides where a
@@ -2209,11 +2294,25 @@ and results declare theirs. See [Types](../language/types.md),
 [Geometric types](../language/geometric-types.md) and
 [Storage types](../storage/resource-programs.md#storage-types).
 
+## Unit certificate
+
+The identity D·Q = gᵐ that the kernel checks for the denominator D of a
+[transition average](#transition-average), with the localization g of its
+branch: it makes D nonzero on the chart D(g). See
+[Transition averages](../language/spectral-observations.md#transition-averages).
+
 ## Vector
 
 A [view](#view) of storage presented as the column of coordinates of a
 vector of a [space](#space) in a [basis](#basis). `vector` declares one. See
 [Vectors](../linalg/transforms-and-metrics.md#vectors).
+
+## Verdict
+
+`consistent` or `inconsistent`: whether every point of a [dataset](#dataset)
+agrees with the prediction of its model within its uncertainties and the
+[coverage factor](#coverage-factor). A [comparison](#comparison) records it,
+and the kernel computes it again. See [Comparisons](../language/physical-models.md#comparisons).
 
 ## View
 

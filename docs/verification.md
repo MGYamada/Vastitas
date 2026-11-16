@@ -3290,6 +3290,127 @@ of constants, which fails if one reaches a chain-rule theorem of
 Exact rationals inside the observations are not bounded; their growth is
 not measured.
 
+## Physical models
+
+**Components of the current routes.** The checks of this section are about
+the transition averages of `std::linalg::spectral`, the declarations of
+`nature::model` and `nature::errorbar`, and the observation `average_at`.
+
+`SpectralDeclarations.lean` holds the check of a transition average
+(`checkAverage`, `checkTransitionAverage`): the trace form, the closed form
+and the unit certificate. `NatureModel.lean` holds the checks of conventions
+and models (`checkConvention`, `checkModel`, `predictsAverage`), and
+`NatureErrorbar.lean` those of calibrations, datasets and comparisons
+(`checkCalibration`, `checkDataset`, `checkComparison`), the canonical
+content and the fingerprint (`canonicalContent`, `calibrationFingerprint`)
+and the exact verdict (`verdict?`). `IndexedSpectralSource.lean`,
+`IndexedModelSource.lean` and `IndexedErrorbarSource.lean` elaborate the
+declarations and give the diagnostics, and `SpectralRuntime.averageAt` is the
+runtime of the observation. `Entry.Valid` of `IndexedValidity.lean` calls the
+checks. The [acceptance map](stage6-acceptance.md) links each acceptance
+condition to the evidence below, and
+[Physical models](language/physical-models.md) and
+[Transition averages](language/spectral-observations.md#transition-averages)
+state the rules. The status words are those of
+[How to read this chapter](#how-to-read-this-chapter).
+
+The evidence keeps four kinds of claim apart:
+
+- The **oracle** states what an accepted transition average, model,
+  calibration, dataset and comparison satisfies, about the kernel's
+  definitions: the identities of the closed form, the value of
+  `average_at`, the references of a model, the exact verdict, the recorded
+  fingerprint, and that the declarations of `nature::model` and
+  `nature::errorbar` change no `std` validity or value.
+- The **bridge** states what an accepted transition average means in
+  Mathlib: at a real point of its chart it is the sum of the squared
+  entries of the eigenprojectors of the real symmetric field.
+- **Tests** are evidence for the diagnostics, the codes, the wire, the
+  generated code, the byte identity of the generated code without the model
+  and its data, and native execution. They prove nothing for all inputs.
+- **Assumed** are the physical readings of a model, which no theorem and no
+  test can establish.
+
+### Oracle theorems of physical models
+
+All of these are Proved (oracle). Names are relative to `VastitasOracle`.
+
+| Module | Theorems | Statement |
+| --- | --- | --- |
+| `SpectralAverage` | `checkAverage_sound`, `AverageValid.value_at`, `AverageValid.averageAt_on_chart`, `averageAt_off_chart`, `transitionAverage_sound`, `accepted_average_at`, `Examples.example_value` | An accepted transition average has a symmetric field and satisfies `AverageValid`, the structure of its checked identities: the rank and exponent limits, basis indices below the rank, canonical polynomials, a nonzero denominator, the reduction of the integrand by χ, N·g²ᵉ = D·T for the checked trace form T, and D·Q = gᵐ with m at most the total degree of D. At a rational point with g(p) ≠ 0, D(p) ≠ 0 and N(p)/D(p) = T(p)/g(p)²ᵉ, and `average_at` is that rational, never the failure pair; where g(p) = 0 it is `(0, 0)`, whatever the closed form. Every average of a valid environment is an average of a branch of a spectrum of a symmetric endomorphism on its object, and an accepted call of `average_at` evaluates to that value. For the field of the spectral observations, the average at (3, 4) is 8/25, decided by `decide +kernel` |
+| `NatureModel` | `checkModel_sound`, `predictsAverage_sound`, `model_sound`, `checkModel_regime_free` | An accepted model names a `model` family at a declared smooth object X, an endomorphism on X whose free module has the prepared and the observed vector among its basis indices, a reading of X, a convention and a transition average on X from the prepared to the observed vector of a branch of a spectrum of the endomorphism; for every model of a valid environment the rows are symmetric and the average satisfies `AverageValid`. The check of a model does not read its regime |
+| `NatureErrorbar` | `checkCalibration_sound`, `checkDataset_sound`, `gradient_exact`, `verdict?_sound`, `checkComparison_sound`, `checkComparison_verdict_unique`, `comparison_fingerprint`, `checkComparison_stale`, `comparison_sound` | An accepted calibration calibrates at least one coordinate, at distinct coordinates of its object, with positive uncertainties. An accepted dataset has a positive coverage factor, between 1 and `datasetPoints` points, a model and a calibration of its object, and every point with a positive uncertainty and, with the calibrated values, on the chart D(g) of the prediction. The derivative that the kernel computes is the derivative of N/D, as a quotient of dual numbers where D(p) ≠ 0. A computed verdict is `consistent` exactly when every point satisfies (A(p) − v)² ≤ k²·(u² + Σ_c (∂A/∂c)²·u_c²), and two accepted comparisons of one dataset under one calibration record one verdict. An accepted comparison records the fingerprint of the canonical content of its calibration, and one that records another fingerprint is rejected, whatever its verdict |
+| `NatureWeakening` | `model_errorbar_free`, `model_errorbar_free_of_valid`, `model_errorbar_weakening`, `average_model_free` | Conventions, models, calibrations, datasets, comparisons and their families, at any position of an environment with unique ids, change the validity of no entry that the nature checks do not check, transition averages included, for every class ranking, the validity of no binding, `average_at` included, and the value of no binding; appended at the end they need no hypothesis on ids. A transition average and `average_at` are as valid, with the same values, with and without them |
+| `SpectralWeakening` | `average_weakening` | Transition averages at any position of an environment with unique ids change neither the validity nor the value of a binding that names none of them, and the validity of no entry that names no spectral declaration, for every table of class ranks. The weakening theorems of the spectral observations cover averages with their statements unchanged |
+
+### Bridge theorem of the transition average
+
+All of these are Proved (bridge). `lean-bridge/Audit.lean` requires each
+name.
+
+| Module | Theorems | Statement |
+| --- | --- | --- |
+| `Spectral` | `simple_spectrum_of_chart`, `average_eq_sum_eigenprojector`, `accepted_average_eq_sum_eigenprojector` | At a real point x of the chart, g(x) ≠ 0, the gap certificate makes Mathlib's eigenvalues of the real symmetric H(x) distinct. There D(x) ≠ 0 and N(x)/D(x) = T(x)/g(x)²ᵉ = Σₖ Pₖ[j, i]², where `eigenprojector` is the real vₖvₖᵀ of Mathlib's orthonormal `eigenvectorBasis`. For every average of a valid environment this holds at every real point of its chart |
+
+### Hypotheses and gaps of the physical model proofs
+
+- The premises of each theorem are those of its claim in the
+  [specification](spec/nature-physical-model.md) and in
+  [`spectral.transition-average`](spec/std-linalg-spectral.md#spectral.transition-average):
+  a valid environment, an accepted check, a point of the chart, and for the
+  bridge a real symmetric field at the point.
+- The fingerprint is a 64-bit FNV-1a digest, which can collide. What is
+  proved is that an accepted comparison records the current fingerprint of
+  its calibration and that a comparison that records another one is
+  rejected, not that every change of a calibration changes its fingerprint.
+- That the rejection of a stale comparison has the code `E_STALE`, with the
+  message that names the current fingerprint, is Tested.
+- That the generated code is byte identical without the model and its data
+  is Tested; the weakening theorems state validity and values.
+- No theorem composes `accepted_average_at`, whose value is a rational, with
+  the real sum of the bridge: the step from the rational value of the
+  observation to its real cast is not proved.
+
+### Assumed in physical models
+
+These readings are Assumed. A program records them, and no check, theorem
+or test establishes them:
+
+- that the declared field, preparation, observable and regime describe the
+  experiment, the rotating-wave approximation of the example included;
+- that the transition average is the long-time average of the transition
+  probability under the dynamics of the field;
+- that the uncertainty of a calibration propagates to first order, through
+  the exact derivative of the prediction;
+- that the uncertainties of the points and of the calibration are
+  uncorrelated.
+
+The fingerprint detects a changed calibration. It is a 64-bit FNV-1a
+digest, not a cryptographic commitment, and it authenticates nothing.
+
+### Physical models: tested, not proved
+
+- The checks of averages, models, calibrations, datasets and comparisons,
+  with their diagnostics: the kernel regressions `AverageRegression`,
+  `NatureModelRegression` and `ModelDeclarationRegression`,
+  `tests/physical_models.rs`, `tests/two_level.rs` and the six rejected
+  packages `examples/reject/packages/two-level-*`.
+- The wire: protocols 7 and 8 reject every record, no certificate or trace
+  is on the wire, and a forged closed form, verdict, fingerprint, reading,
+  coverage factor or recorded text is rejected: the same tests.
+- Staleness end to end: a changed calibration is `E_STALE` naming the
+  current fingerprint, the program without its comparison and without every
+  `nature` declaration generates byte-identical code, and the comparison
+  recorded again is accepted (`tests/two_level.rs`).
+- That the producer of a certificate finds the trace form and the unit
+  certificate for every accepted average. Soundness does not depend on it:
+  the kernel checks every certificate.
+- The generated code of `average_at` (`tests/emit_golden.rs`), the native
+  fixture `spectral_average_programs` of `scripts/check_indexed_native.sh`,
+  and native execution of the acceptance program and its mutations.
+- The limits `datasetPoints` and `recordTextBytes`, in the frontend and in
+  the kernel.
+
 ## History
 
 This section holds the issue references of the chapter, by the section that

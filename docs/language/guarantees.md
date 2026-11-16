@@ -218,6 +218,11 @@ Rules:
   say. A field is symmetric only where its declaration claims it, and the
   kernel checks the claim, as
   [Endomorphism fields](spectral-observations.md#endomorphism-fields) says.
+- A convention, a model, a calibration, a dataset or a comparison computes
+  nothing: it changes no value, no validity and no generated code of a
+  declaration of the standard library, as
+  [Physical models](physical-models.md) says. A model's regime is recorded,
+  not checked.
 - The rule on allocation concerns the cells of allocations. It says nothing
   about the memory that an executable uses for integers and other pure
   values.
@@ -249,14 +254,21 @@ changes neither the validity of a declaration of another kind nor the
 validity or the value of a primitive that names none of these declarations,
 and no spectral primitive reads a metric, a frame or a physical dimension.
 The families of spectral observations are not among these declarations.
+Also Proved, for physical models: a convention, a model, a calibration, a
+dataset or a comparison changes neither the validity of a declaration of the
+standard library nor the validity or the value of a primitive, and a
+transition average changes neither the validity nor the value of a binding
+that names none of them. That the generated code stays the same without
+them is Tested.
 The statements on the validity of declarations hold for every table of
 class ranks. That the table of class ranks stays the same is not proved, so
 they are not stated for the validity of a whole program. That the generated code stays the
 same is Tested. [What is outside these claims](../verification.md#what-is-outside-these-claims),
 [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks),
-[Frames and physical dimensions](../verification.md#frames-and-physical-dimensions)
-and [Spectral observations](../verification.md#spectral-observations)
-state these theorems. They are facts about the checked program, not laws of
+[Frames and physical dimensions](../verification.md#frames-and-physical-dimensions),
+[Spectral observations](../verification.md#spectral-observations)
+and [Physical models](../verification.md#physical-models) state these
+theorems. The theorems are facts about the checked program, not laws of
 the arithmetic that a native routine performs.
 
 ## Nominal identity

@@ -1,0 +1,371 @@
+# Properties of nature::model and nature::errorbar. docs/specifications.md
+# defines the format; scripts/check_spec.py checks this file and generates
+# nature-physical-model.md.
+
+[spec]
+id = "physical-model"
+title = "nature::model and nature::errorbar"
+subject = "nature::model"
+description = """
+The properties of the physical models of historical Stage 6, from ADR 0002 §4
+and §5. A model on a smooth affine object X names a symmetric endomorphism
+field H of `std::linalg::spectral`, a reading of X, the convention `hbar_one`,
+a prepared and an observed basis vector of the module of H, the transition
+average that it predicts and its regime. A calibration gives measured values,
+an exact value with a standard uncertainty each, to coordinates of X. A
+dataset of a model under a calibration has a coverage factor k and points
+that give the other coordinates and a measured value of the observable. A
+comparison records a dataset, the fingerprint of its calibration and a
+verdict. The modules declare the families `Model<X>`, `Calibration<X>`,
+`Dataset<X>` and `Comparison<X>`; the application declares its conventions,
+models, calibrations, datasets and comparisons.
+"""
+
+[property."physical-model.references"]
+title = "A model names a field, a reading and an average that fit"
+subject = "nature::model::Model"
+statement = """
+An accepted model's reading is a reading of the object of the model, its
+prepared and observed vectors are basis vectors of the free module of its
+hamiltonian, and the average that it predicts is a transition average of a
+branch of that hamiltonian from the prepared to the observed vector. Any
+other model is an error (`E_MODEL`). The convention of a model is `hbar_one`.
+"""
+specified_in = "[ADR 0002 §4, Contract and jurisdiction](adr/0002-nature-dimension.md#contract-and-jurisdiction-1)"
+example = """
+In the two-level program, the model of H = (Δ/2)σ_z + (Ω/2)σ_x prepared in
+g and observed in e predicts the average A from g to e. A prepared vector f1
+of another free module W of the same chart is an error (`E_MODEL`), and so is
+a reading of another chart Q with the same coordinates.
+"""
+example_test = "tests/examples.rs::book_rejected_packages_print_their_diagnostics"
+
+[property."physical-model.references".claim.test]
+status = "tested"
+evidence = [
+  "tests/examples.rs::book_rejected_packages_print_their_diagnostics",
+  "tests/physical_models.rs::forged_stage6_records_are_rejected_by_the_kernel",
+  "VastitasKernel.NatureModelRegression",
+  "VastitasKernel.ModelDeclarationRegression",
+]
+note = """
+The rejected packages `two-level-other-basis` and `two-level-other-reading`
+give the two `E_MODEL` diagnostics of the example. The forged wire prepares
+the observed vector, which the kernel rejects with `E_MODEL`.
+"""
+
+[property."physical-model.references".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureModel.checkModel_sound",
+  "VastitasOracle.NatureModel.predictsAverage_sound",
+  "VastitasOracle.NatureModel.model_sound",
+]
+premises = [
+  "for `model_sound`: the declaration environment is valid",
+]
+assumes = ["rust-frontend"]
+note = """
+`checkModel_sound` states what a model that the kernel's check accepts
+names: a `model` family applied to a declared smooth object X, an
+endomorphism on X whose free module has the prepared and the observed vector
+among its basis indices, a reading of X, a convention declaration and a
+transition average on X from the prepared to the observed vector of a branch
+of a spectrum of the endomorphism. `predictsAverage_sound` characterizes the
+predicted average, and `model_sound` states the same for every model of a
+valid environment, with the symmetric rows of the field and an average whose
+closed form satisfies the identities of its check.
+"""
+
+[property."physical-model.chart"]
+title = "Every data point lies on the chart of the prediction"
+subject = "nature::errorbar::Dataset"
+statement = """
+With the calibrated values, every point of an accepted dataset lies on the
+chart D(g) of the branch of the average that its model predicts, whatever
+the closed form of the average. A point off the chart is an error
+(`E_ERRORBAR`). An accepted dataset has at least one point, and each point
+gives exactly the coordinates that its calibration does not give.
+"""
+specified_in = "[ADR 0002 §5, Contract and jurisdiction](adr/0002-nature-dimension.md#contract-and-jurisdiction-2)"
+example = """
+With the detuning calibrated at Δ = 0, a point with the Rabi frequency
+Ω = 0 lies where the two eigenvalues of H meet, off D(Δ² + Ω²), and is an
+error (`E_ERRORBAR`).
+"""
+example_test = "tests/examples.rs::book_rejected_packages_print_their_diagnostics"
+
+[property."physical-model.chart".claim.test]
+status = "tested"
+evidence = [
+  "tests/examples.rs::book_rejected_packages_print_their_diagnostics",
+  "VastitasKernel.NatureModelRegression",
+]
+note = """
+The rejected package `two-level-off-chart` gives the diagnostic of the
+example.
+"""
+
+[property."physical-model.chart".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureErrorbar.checkDataset_sound",
+  "VastitasOracle.NatureErrorbar.checkCalibration_sound",
+]
+premises = []
+assumes = ["rust-frontend"]
+note = """
+`checkDataset_sound` states that a dataset that the kernel's check accepts
+has a positive coverage factor, between 1 and `datasetPoints` points, a model
+and a calibration of its object, and every point with a positive
+uncertainty and, with the calibrated values, a full point on the chart D(g)
+of the prediction of its model, g(p) ≠ 0. `checkCalibration_sound` states
+that an accepted calibration calibrates at least one coordinate, at distinct
+coordinates of its object, with positive uncertainties.
+"""
+
+[property."physical-model.verdict"]
+title = "The verdict is recomputed exactly"
+subject = "nature::errorbar::Comparison"
+statement = """
+For a dataset with the coverage factor k, the kernel evaluates the model's
+prediction A exactly at each point, with the calibrated values. A point with
+the measured value v and the standard uncertainty u is consistent when
+(A − v)² ≤ k²·(u² + Σ_c (∂A/∂c)²·u_c²), summed over the calibrated
+coordinates c with their uncertainties u_c, with no square root. The verdict
+`consistent` holds exactly when every point is consistent. An accepted
+comparison records that verdict; another is an error (`E_ERRORBAR`), whose
+message names the first inconsistent point or states that every point is
+consistent.
+"""
+specified_in = "[ADR 0002 §5, Contract and jurisdiction](adr/0002-nature-dimension.md#contract-and-jurisdiction-2)"
+example = """
+At Ω = 5/2 the prediction at Δ is 25/(8Δ² + 50). The five points of the
+two-level program at Δ = 0, 1, 2, −1 and 5/2, with the values 1/2, 43/100,
+3/10, 11/25 and 13/50 and the uncertainty 1/50, are consistent under k = 2,
+so the verdict `inconsistent` is an error (`E_ERRORBAR`). Moved to 3/5, the
+value at resonance is inconsistent, and the verdict `consistent` is the
+error.
+"""
+example_test = "tests/two_level.rs::each_mutation_of_an_expected_value_or_the_verdict_is_caught"
+
+[property."physical-model.verdict".claim.test]
+status = "tested"
+evidence = [
+  "tests/two_level.rs::each_mutation_of_an_expected_value_or_the_verdict_is_caught",
+  "tests/physical_models.rs::a_wrong_verdict_is_rejected",
+  "tests/examples.rs::book_rejected_packages_print_their_diagnostics",
+  "VastitasKernel.NatureModelRegression",
+]
+
+[property."physical-model.verdict".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureErrorbar.verdict?_sound",
+  "VastitasOracle.NatureErrorbar.gradient_exact",
+  "VastitasOracle.NatureErrorbar.checkComparison_sound",
+  "VastitasOracle.NatureErrorbar.checkComparison_verdict_unique",
+  "VastitasOracle.NatureErrorbar.comparison_sound",
+]
+premises = [
+  "for `gradient_exact`: D(p) ≠ 0",
+  "for `comparison_sound`: the declaration environment is valid",
+]
+assumes = ["rust-frontend"]
+note = """
+`verdict?_sound` states that when the kernel computes a verdict, every point
+is a full point of the chart where the denominator does not vanish, and the
+verdict is `consistent` exactly when every point satisfies the inequality of
+the statement. `gradient_exact` states that the derivative that the kernel
+computes is the derivative of N/D in the coordinate, as a quotient of dual
+numbers. `checkComparison_sound` states what an accepted comparison names,
+with the recorded verdict the recomputed one, and
+`checkComparison_verdict_unique` that two accepted comparisons of one
+dataset under one calibration record one verdict, so a wrong verdict is
+rejected. `comparison_sound` composes these for every comparison of a valid
+environment, with A(p) = N(p)/D(p) = T(p)/g(p)²ᵉ for the checked trace form.
+"""
+
+[property."physical-model.verdict".claim.propagation]
+status = "not-claimed"
+reason = """
+The inequality propagates the uncertainty of the calibration to first order
+and treats the uncertainties as uncorrelated. Both are assumptions of a
+comparison, which it states; no claim states that they hold for physical
+data, and an uncertainty never bounds the error of a numerical method.
+"""
+
+[property."physical-model.staleness"]
+title = "A changed calibration makes its comparisons stale"
+subject = "nature::errorbar::Comparison"
+statement = """
+The fingerprint of a calibration is `fnv1a64:` and 16 hexadecimal digits:
+the FNV-1a digest of its canonical content, its calibrated coordinates in
+the order of the coordinates of the object with their values and
+uncertainties, its method, its reference and its revision. An accepted
+comparison records the current fingerprint of its calibration. Another
+fingerprint is an error (`E_STALE`) whose message names the current one, so
+that the comparison can be recorded again after a review.
+"""
+specified_in = "[ADR 0002 §5, Contract and jurisdiction](adr/0002-nature-dimension.md#contract-and-jurisdiction-2)"
+example = """
+The two-level program records `fnv1a64:fd1f7edd812db49f` for the calibration
+Ω = 5/2 ± 1/20. Evaluated again with the uncertainty 1/25, the calibration has
+another fingerprint, and the comparison is stale (`E_STALE`) until it records
+that one.
+"""
+example_test = "tests/two_level.rs::a_changed_calibration_is_stale_and_changes_no_std_code"
+
+[property."physical-model.staleness".claim.test]
+status = "tested"
+evidence = [
+  "tests/two_level.rs::a_changed_calibration_is_stale_and_changes_no_std_code",
+  "tests/physical_models.rs::a_changed_calibration_makes_the_comparison_stale",
+  "tests/physical_models.rs::forged_stage6_records_are_rejected_by_the_kernel",
+  "tests/examples.rs::book_rejected_packages_print_their_diagnostics",
+  "VastitasKernel.NatureModelRegression",
+]
+note = """
+The rejected package `two-level-stale` gives the diagnostic of the example.
+The forged wire records another fingerprint, which the kernel rejects with
+`E_STALE`.
+"""
+
+[property."physical-model.staleness".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureErrorbar.comparison_fingerprint",
+  "VastitasOracle.NatureErrorbar.checkComparison_stale",
+  "VastitasOracle.NatureErrorbar.checkComparison_sound",
+]
+premises = []
+assumes = ["rust-frontend"]
+note = """
+`comparison_fingerprint` states that the recorded fingerprint of an accepted
+comparison is the fingerprint of the canonical content of its calibration,
+and `checkComparison_stale` that a comparison that records another
+fingerprint is rejected, whatever its verdict. FNV-1a can collide, so no
+theorem states that a changed calibration always changes its fingerprint:
+what is proved is that an accepted comparison has the current fingerprint
+and that one recording a different fingerprint is rejected. That the
+rejection has the code `E_STALE`, with the message that names the current
+fingerprint, is tested.
+"""
+
+[property."physical-model.limits"]
+title = "Datasets and recorded texts are bounded"
+subject = "nature::errorbar::Dataset"
+statement = """
+A dataset has at most `datasetPoints` = 64 points; a larger one is an error
+(`E_LIMIT`) of the frontend at its list of points and of the kernel before it
+reads a point. A recorded text, the regime of a model, the reference and the
+revision of a calibration or the fingerprint of a comparison, holds at most
+`recordTextBytes` = 256 bytes of printable ASCII other than `\\` and `"`. A
+longer literal is an error (`E_LIMIT`), and on the wire any other text is an
+error (`E_PROTOCOL`).
+"""
+specified_in = "[ADR 0002 §5, Execution and evidence profile](adr/0002-nature-dimension.md#execution-and-evidence-profile-2)"
+example = """
+A dataset of 65 points is an error (`E_LIMIT`) and one of 64 points is
+accepted. A reference of 257 bytes is an error (`E_LIMIT`), and a forged
+regime with a backslash or 257 bytes is an error (`E_PROTOCOL`).
+"""
+example_test = "tests/physical_models.rs::the_points_of_a_dataset_are_bounded"
+
+[property."physical-model.limits".claim.test]
+status = "tested"
+evidence = [
+  "tests/physical_models.rs::the_points_of_a_dataset_are_bounded",
+  "tests/physical_models.rs::stage6_syntax_errors_are_reported_at_their_place",
+  "tests/physical_models.rs::forged_stage6_records_are_rejected_by_the_kernel",
+  "VastitasKernel.ModelDeclarationRegression",
+  "VastitasKernel.NatureModelRegression",
+]
+
+[property."physical-model.weakening"]
+title = "Models and data change no std code"
+subject = "nature::model"
+statement = """
+A convention, a model, a calibration, a dataset or a comparison changes no
+validity, no value and no generated code of a `std` declaration. Without
+them, and without the dependency on `nature`, the program generates the
+same code.
+"""
+specified_in = "[ADR 0002 §5, Laws](adr/0002-nature-dimension.md#laws-2)"
+example = """
+The two-level program without its comparison, and without every
+declaration of `nature`, generates byte-identical Lean and shows the same
+predictions.
+"""
+example_test = "tests/two_level.rs::a_changed_calibration_is_stale_and_changes_no_std_code"
+
+[property."physical-model.weakening".claim.test]
+status = "tested"
+evidence = [
+  "tests/two_level.rs::a_changed_calibration_is_stale_and_changes_no_std_code",
+  "tests/physical_models.rs::a_changed_calibration_makes_the_comparison_stale",
+]
+
+[property."physical-model.weakening".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureWeakening.model_errorbar_free",
+  "VastitasOracle.NatureWeakening.model_errorbar_free_of_valid",
+  "VastitasOracle.NatureWeakening.model_errorbar_weakening",
+  "VastitasOracle.NatureWeakening.average_model_free",
+]
+premises = [
+  "for `model_errorbar_free` and `average_model_free`: the environment with the added declarations has unique ids",
+  "for `model_errorbar_free_of_valid`: the environment with the added declarations is valid",
+]
+assumes = ["rust-frontend"]
+note = """
+`model_errorbar_free` states that conventions, models, calibrations,
+datasets, comparisons and their families, at any position of an environment
+with unique ids, change the validity of no entry that the nature checks do
+not check, transition averages included, for every class ranking, the
+validity of no binding, `average_at` included, and the value of no binding.
+`model_errorbar_weakening` states it for declarations appended at the end
+with no hypothesis on ids, and `average_model_free` that a transition
+average and `average_at` are as valid, with the same values, with and
+without them: a changed calibration, a stale comparison or a removed model
+leaves the derivation as it was. That the generated code is byte identical
+is tested, not proved.
+"""
+
+[property."physical-model.regime"]
+title = "The regime is recorded, not proved"
+subject = "nature::model::Model"
+statement = """
+The regime of a model is a recorded assumption: a text that the kernel
+checks only for its characters and its length. No check reads its meaning,
+and an accepted model does not establish that the regime holds.
+"""
+specified_in = "[ADR 0002 §4, Contract and jurisdiction](adr/0002-nature-dimension.md#contract-and-jurisdiction-1)"
+example = """
+The two-level model records the regime "rotating-wave approximation, drive
+far below the transition frequency"; a model with another text is checked
+the same way.
+"""
+example_not_executed = "the property states what no check establishes"
+
+[property."physical-model.regime".claim.meaning]
+status = "not-claimed"
+reason = """
+Whether a physical system is in the regime of its model, such as the
+rotating-wave approximation, is outside what an exact check of declarations
+can establish.
+"""
+[property."physical-model.regime".claim.check]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureModel.checkModel_regime_free",
+]
+premises = []
+assumes = ["rust-frontend"]
+note = """
+`checkModel_regime_free` states that the check of a model does not read its
+regime: models that differ only in their regime are accepted together or
+rejected together.
+"""
+

@@ -141,6 +141,34 @@ run_cmd do
       `VastitasBridge.Spectral.eval_realPoly_pderiv,
       `VastitasBridge.Spectral.realPoint_snoc,
       `VastitasBridge.Spectral.checked_branch_differential_implicit,
+      -- Transition average prerequisites (pure Mathlib, #841).
+      `VastitasBridge.Spectral.eigenprojector,
+      `VastitasBridge.Spectral.eigenprojector_apply,
+      `VastitasBridge.Spectral.star_eigenvectorUnitary_mul_mul,
+      `VastitasBridge.Spectral.trace_pow_eq_sum_eigenvalues,
+      `VastitasBridge.Spectral.charpoly_eval_eigenvalue,
+      `VastitasBridge.Spectral.eq_eigenprojector,
+      `VastitasBridge.Spectral.derivative_charpoly_eval_eq_zero,
+      `VastitasBridge.Spectral.hasDerivAt_eval_snoc,
+      -- The transition average is Σ_k (P_k)²_{ji} (#841, C15).
+      `VastitasBridge.Spectral.evalIn_real,
+      `VastitasBridge.Spectral.ofFn_snoc,
+      `VastitasBridge.Spectral.realFieldAt_isHermitian,
+      `VastitasBridge.Spectral.listMatrix_ringScalar,
+      `VastitasBridge.Spectral.adjugateAt,
+      `VastitasBridge.Spectral.adjugateAt_shape,
+      `VastitasBridge.Spectral.adjugateAt_left,
+      `VastitasBridge.Spectral.adjugateAt_right,
+      `VastitasBridge.Spectral.trace_adjugateAt,
+      `VastitasBridge.Spectral.characteristic_eigenvalue,
+      `VastitasBridge.Spectral.scalar_sub_mul_eq_zero,
+      `VastitasBridge.Spectral.mul_scalar_sub_eq_zero,
+      `VastitasBridge.Spectral.adjugateAt_eigenvalue,
+      `VastitasBridge.Spectral.realPoly_partial_last,
+      `VastitasBridge.Spectral.slope_eq_derivative,
+      `VastitasBridge.Spectral.simple_spectrum_of_chart,
+      `VastitasBridge.Spectral.average_eq_sum_eigenprojector,
+      `VastitasBridge.Spectral.accepted_average_eq_sum_eigenprojector,
       `VastitasBridge.AlgebraicGeometry.Buchberger.exists_isStandardRep,
       `VastitasBridge.AlgebraicGeometry.Buchberger.isGroebnerBasis_of_sPairReduces,
       `VastitasBridge.AlgebraicGeometry.Buchberger.IsGroebnerBasis.span_leadingTerm,
@@ -430,7 +458,8 @@ def vastitasClosure (env : Environment) (root : Name) : NameSet := Id.run do
 -- matrix theorems of `Frame.lean` (#759) read the reverse pass the same way, and not through the
 -- Oracle's `FrameRuntime.frameMatrix_eq`, which uses `backward_eq_cot` (a positive control). The
 -- Stage 5 theorems of `Spectral/Accepted.lean` (#806) read the reverse pass and the branch
--- differential the same way.
+-- differential the same way, and the Stage 6 transition average theorems of
+-- `Spectral/Average.lean` (#841) read no reverse pass at all.
 run_cmd do
   let env ← getEnv
   let chainRule := #[
@@ -505,7 +534,10 @@ run_cmd do
       `VastitasBridge.Spectral.compiled_trace_power_dk,
       `VastitasBridge.Spectral.public_resource_entries_trace_power_dk,
       `VastitasBridge.Spectral.public_pure_entry_trace_power_dk,
-      `VastitasBridge.Spectral.checked_branch_differential_implicit]
+      `VastitasBridge.Spectral.checked_branch_differential_implicit,
+      `VastitasBridge.Spectral.simple_spectrum_of_chart,
+      `VastitasBridge.Spectral.average_eq_sum_eigenprojector,
+      `VastitasBridge.Spectral.accepted_average_eq_sum_eigenprojector]
   for name in independent do
     unless env.contains name do
       throwError "missing theorem {name} of the independence check"

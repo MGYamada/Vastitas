@@ -1,0 +1,1 @@
+examples/reject/packages/two-level-other-basis/main.vast:36:1: E_MODEL: the prepared vector `f1` of the model `two_level_other_basis::M` is not a basis vector of the free module `two_level_other_basis::V` of its hamiltonian, whose basis is g, e

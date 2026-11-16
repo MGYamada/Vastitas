@@ -257,6 +257,16 @@ const BOOK_PACKAGES: &[(&str, &[&str])] = &[
         "examples/packages/spectral-observations/Vastitas.toml",
         &["failures = 0"],
     ),
+    (
+        "examples/packages/two-level/Vastitas.toml",
+        &[
+            "avg(at(0, 5)) = (1, 2)",
+            "avg(at(2, 5)) = (25, 58)",
+            "avg(at(4, 5)) = (25, 82)",
+            "avg(at(-2, 5)) = (25, 58)",
+            "avg(at(5, 5)) = (1, 4)",
+        ],
+    ),
 ];
 
 /// The package programs of the book whose build links OpenBLAS, by manifest.
@@ -374,6 +384,12 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/spectral-other-object",
     "examples/reject/packages/spectral-wrong-witness",
     "examples/reject/packages/spectral-rank-limit",
+    "examples/reject/packages/two-level-wrong-average",
+    "examples/reject/packages/two-level-other-basis",
+    "examples/reject/packages/two-level-other-reading",
+    "examples/reject/packages/two-level-off-chart",
+    "examples/reject/packages/two-level-wrong-verdict",
+    "examples/reject/packages/two-level-stale",
 ];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {

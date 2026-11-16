@@ -9,13 +9,15 @@ declaration of Stages 1–4; the spectral bindings read no metric, frame or
 nature declaration, and evaluate without the environment.
 
 A *spectral declaration* is a `.freeModule`, `.endomorphism`, `.spectrum` or
-`.branch` entry (`SpectralDeclaration`), valid or not. For every list
+`.branch` entry, or, since Stage 6 (#841), a `.transitionAverage` entry
+(`SpectralDeclaration`), valid or not. For every list
 `extra` of entries whose declarations are all spectral declarations, at any
 position of an environment `pre ++ extra ++ post` with unique ids:
 
 - **bindings** (`spectral_weakening_binding`): every binding that names none
-  of the added declarations (`bindingSpectral`, the endomorphisms, spectra and
-  branches that a binding embeds) has the same validity, `Bool` and `Prop`,
+  of the added declarations (`bindingSpectral`, the endomorphisms, spectra,
+  branches and transition averages that a binding embeds) has the same
+  validity, `Bool` and `Prop`,
   and the same value in `pre ++ extra ++ post` and in `pre ++ post`. Every
   binding of Stages 1–4 names none (`stage4_bindings_spectral_free`). The
   value of every binding is unchanged, named declarations or not: the
@@ -24,7 +26,12 @@ position of an environment `pre ++ extra ++ post` with unique ids:
   spectral declaration, and every free module, has the same validity,
   `Entry.Valid` and `validEntry`, for every table of class ranks. (An
   endomorphism, spectrum or branch checks the declaration it names, which can
-  be an added one.)
+  be an added one; so do a transition average, a model, a dataset and a
+  comparison of Stage 6, `NamesNoSpectral`.)
+- **transition averages** (`average_weakening`, Stage 6): transition averages
+  inserted at any position weaken like the Stage 5 declarations, as the
+  instance of the two statements above for an added list of transition
+  averages.
 - **the other profiles** (`spectral_bindings_metric_free`,
   `spectral_bindings_frame_free`, `spectral_bindings_nature_free`): every
   spectral binding is `MetricFree`, so metric declarations at any position
@@ -40,10 +47,10 @@ big`: each lookup in `big` is the lookup in `small`, or a spectral
 declaration where `small` has nothing, and the entries of `big` that are not
 spectral declarations are those of `small`, in order. Every lookup-derived
 view treats a spectral declaration exactly like a missing one, except
-`freeModuleData?`, `endomorphismData?`, `spectrumData?` and `branchData?` and
-the checks built on them (`endoDeclared`, `spectrumDeclared`,
-`branchDeclared`), which a binding reaches only through the declarations it
-names. A spectral declaration is not a family, so no family representation,
+`freeModuleData?`, `endomorphismData?`, `spectrumData?`, `branchData?` and
+`transitionAverageData?` and the checks built on them (`endoDeclared`,
+`spectrumDeclared`, `branchDeclared`, `averageDeclared`), which a binding
+reaches only through the declarations it names. A spectral declaration is not a family, so no family representation,
 and no application, changes.
 
 Not proved here, as in `FrameWeakening`: the class ranks of the two
@@ -58,14 +65,15 @@ open VastitasOracle.FrameWeakening (FrameDeclaration bindingFrames all_congr_mem
 
 /-! ## Spectral declarations and the declarations a binding names -/
 
-/-- A spectral declaration (Stage 5), valid or not. -/
+/-- A spectral declaration (Stage 5), or a transition average (Stage 6), valid
+or not. -/
 def SpectralDeclaration : Declaration → Prop
-  | .freeModule .. | .endomorphism .. | .spectrum .. | .branch .. => True
+  | .freeModule .. | .endomorphism .. | .spectrum .. | .branch .. | .transitionAverage .. => True
   | _ => False
 
 /-- The executable test of `SpectralDeclaration`. -/
 def isSpectral : Declaration → Bool
-  | .freeModule .. | .endomorphism .. | .spectrum .. | .branch .. => true
+  | .freeModule .. | .endomorphism .. | .spectrum .. | .branch .. | .transitionAverage .. => true
   | _ => false
 
 theorem isSpectral_iff (declaration : Declaration) :
@@ -80,6 +88,8 @@ def spectrumNames (spectrum : SpectrumRef) : List DeclId := spectrum.spectrum ::
 
 def branchNames (branch : BranchRef) : List DeclId := branch.branch :: spectrumNames branch.spectrum
 
+def averageNames (average : AverageRef) : List DeclId := average.average :: branchNames average.branch
+
 def invariantNames : SpectralInvariant → List DeclId
   | .tracePower endomorphism _ => endoNames endomorphism
   | .charCoefficient spectrum _ => spectrumNames spectrum
@@ -90,7 +100,7 @@ def bindingSpectral : PrimitiveBinding → List DeclId
   | .spectralInvariant _ _ invariant => invariantNames invariant
   | .annihilates _ spectrum _ | .actionEntry _ spectrum _ _ _ => spectrumNames spectrum
   | .onBranch _ _ branch | .branchDifferential _ _ _ branch | .branchProjector _ _ branch _ _ => branchNames branch
-  | .averageAt _ _ average => branchNames average.branch
+  | .averageAt _ _ average => averageNames average
   | _ => []
 
 /-- The spectral bindings of Stage 5, and the transition average observation
@@ -301,10 +311,6 @@ theorem isBaseDimension_append (id : DeclId) : isBaseDimension big id = isBaseDi
 theorem quantityDimension_append (id : DeclId) : quantityDimension? big id = quantityDimension? small id := by
   spectral_view ext quantityDimension? id
 
-theorem transitionAverageData_append (id : DeclId) :
-    transitionAverageData? big id = transitionAverageData? small id := by
-  spectral_view ext transitionAverageData? id
-
 theorem readingData_append (id : DeclId) : readingData? big id = readingData? small id := by
   spectral_view ext readingData? id
 
@@ -496,6 +502,14 @@ theorem branchDeclared_append {branch : BranchRef}
   simp only [branchDeclared, branchData?, same,
     spectrumDeclared_append (spectrum := branch.spectrum) (fun id member => names id (by simp [branchNames, member]))]
 
+omit ext in
+theorem averageDeclared_append {average : AverageRef}
+    (names : ∀ id ∈ averageNames average, lookup big id = lookup small id) :
+    averageDeclared big average = averageDeclared small average := by
+  have same := names average.average (by simp [averageNames])
+  simp only [averageDeclared, transitionAverageData?, same,
+    branchDeclared_append (branch := average.branch) (fun id member => names id (by simp [averageNames, member]))]
+
 theorem spectralElementValid_append (spectrum : SpectrumRef) (element : AlgebraRuntime.Poly) :
     spectralElementValid big spectrum element = spectralElementValid small spectrum element := by
   simp only [spectralElementValid, smoothDimension_append ext]
@@ -569,8 +583,8 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding}
         (cases metricData? small metric <;> rfl)
   | averageAt smooth line average =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, SpectralRegistry.averageAt,
-      PrimitiveDescriptor.ofBool, averageAtValid, averageDeclared, isSmoothFamily_append ext,
-      smoothDimension_append ext, transitionAverageData_append ext, branchDeclared_append names]
+      PrimitiveDescriptor.ofBool, averageAtValid, isSmoothFamily_append ext,
+      smoothDimension_append ext, averageDeclared_append names]
   | _ =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
       implementationType_append ext, affineImplementation_append ext,
@@ -919,5 +933,38 @@ theorem spectral_bindings_nature_free {pre extra post : Environment}
       evalPrimitive (pre ++ extra ++ post) binding values = evalPrimitive (pre ++ post) binding values :=
   ⟨NatureWeakening.validPrimitiveBinding_nature_insertion nature unique binding,
     NatureWeakening.evalPrimitive_nature_insertion nature unique binding values⟩
+
+/-! ## Transition averages (Stage 6, #841) -/
+
+/-- A transition average declaration (Stage 6), valid or not. -/
+def AverageDeclaration : Declaration → Prop
+  | .transitionAverage .. => True
+  | _ => False
+
+theorem AverageDeclaration.spectral {declaration : Declaration} (h : AverageDeclaration declaration) :
+    SpectralDeclaration declaration := by
+  cases declaration <;> simp_all [AverageDeclaration, SpectralDeclaration]
+
+/-- **Transition averages weaken like the Stage 5 spectral declarations
+(Stage 6, C10).** Transition averages inserted at any position of an
+environment with unique ids, valid or not, change neither the validity nor
+the value of a binding that names none of them (only `average_at` names a
+transition average), and the validity of no entry that names no spectral
+declaration (`NamesNoSpectral`: every declaration but endomorphisms,
+spectra, branches, transition averages, models, datasets and comparisons),
+for every table of class ranks. -/
+theorem average_weakening {pre extra post : Environment}
+    (averages : ∀ entry ∈ extra, AverageDeclaration entry.declaration)
+    (unique : ((pre ++ extra ++ post).map Entry.id).Nodup) :
+    (∀ binding : PrimitiveBinding, (∀ id ∈ bindingSpectral binding, id ∉ extra.map Entry.id) →
+      validPrimitiveBinding (pre ++ extra ++ post) binding = validPrimitiveBinding (pre ++ post) binding ∧
+        (binding.Valid (pre ++ extra ++ post) ↔ binding.Valid (pre ++ post)) ∧
+        ∀ values, evalPrimitive (pre ++ extra ++ post) binding values = evalPrimitive (pre ++ post) binding values) ∧
+    (∀ (ranks : List (DeclId × Nat)) (entry : Entry), NamesNoSpectral entry.declaration →
+      validEntry (pre ++ extra ++ post) ranks entry = validEntry (pre ++ post) ranks entry ∧
+        (entry.Valid (pre ++ extra ++ post) ranks ↔ entry.Valid (pre ++ post) ranks)) :=
+  ⟨fun _ unnamed => spectral_weakening_binding (fun entry member => (averages entry member).spectral) unique unnamed,
+    fun ranks _ other => spectral_weakening_entry (fun entry member => (averages entry member).spectral) unique ranks
+      other⟩
 
 end VastitasOracle.SpectralWeakening

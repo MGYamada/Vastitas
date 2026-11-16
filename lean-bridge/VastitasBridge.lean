@@ -27,3 +27,5 @@ import VastitasBridge.Differential.ReverseCore
 import VastitasBridge.Spectral.Prerequisites
 import VastitasBridge.Spectral.Algebra
 import VastitasBridge.Spectral.Accepted
+import VastitasBridge.Spectral.AveragePrerequisites
+import VastitasBridge.Spectral.Average

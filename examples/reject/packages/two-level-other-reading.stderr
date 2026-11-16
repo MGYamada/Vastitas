@@ -1,0 +1,1 @@
+examples/reject/packages/two-level-other-reading/main.vast:36:1: E_MODEL: the reading `two_level_other_reading::r` of the model `two_level_other_reading::M` is a reading of `two_level_other_reading::Q`, not of its object `two_level_other_reading::P`

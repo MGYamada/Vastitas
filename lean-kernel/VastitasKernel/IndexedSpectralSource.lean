@@ -163,7 +163,7 @@ private def failureReason (subject : String) (names : List String := []) : Failu
   | .closedForm term terms =>
     let text := preview (termText names term)
     let residual := if terms == 1 then s!"it is `{text}`" else s!"it has {terms} terms, among them `{text}`"
-    s!"the closed form N / D of {subject} is not the average of its branch: N·g^(2e) − D·T is not zero for " ++
+    s!"the closed form ratio(N, D) of {subject} is not the average of its branch: N·g^(2e) − D·T is not zero for " ++
       s!"the trace form T; {residual}"
   | .denominatorUnit bound =>
     s!"the denominator of the closed form of {subject} is not a unit on the chart D(g) of its branch: no " ++
@@ -487,7 +487,7 @@ def elaborateSpectral (sources : List (DeclId × Span × Body)) (targets : List 
 
 /-! ## Transition averages (Stage 6, #841; ADR 0001 §13)
 
-A transition average `transition_average(B, from = i, to = j) = N / D` is
+A transition average `transition_average(B, from = i, to = j) = ratio(N, D)` is
 declared at a family with the representation `transition_average` and one
 smooth object. `resolveBody` resolves its family, object and branch, and
 leaves its basis indices `0`, its closed form empty and its certificate the

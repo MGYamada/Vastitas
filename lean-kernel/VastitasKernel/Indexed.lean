@@ -198,7 +198,7 @@ comparisons of `nature::errorbar` (ADR 0002 §5). Their views are in the
 section *Stage 6 declarations* below. -/
 
 /-- The certificate of a transition average `transition_average(B, from = i,
-to = j) = N / D` of a branch `B` with localization `g`, witness `W` and
+to = j) = ratio(N, D)` of a branch `B` with localization `g`, witness `W` and
 exponent `e`, in the coordinates of the object:
 
 - `trace`: `T = Tr_{A[t]/χ}(adj[j, i]·adj[i, j]·W²)`, so that the average is

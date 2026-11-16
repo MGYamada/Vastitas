@@ -202,6 +202,28 @@ fn show_is_refused_outside_the_entry_point_of_packages() {
             "E_UNSUPPORTED",
         );
     }
+    // A package with the legacy geometry and no `[geometry_compat]` export
+    // cannot use `show!`: the kernel rejects the legacy form, and the driver
+    // adds a note that names `show!` as the cause.
+    let scratch = Scratch::empty("show legacy package");
+    scratch.write_package(
+        "app",
+        "fn main() -> Int {\n    let X = Affine(QQ, 2);\n    let n = show!(int(dim(X)));\n    0\n}",
+        "",
+    );
+    let message = expect_code(&scratch.check_manifest("app/Vastitas.toml"), "E_TYPE");
+    assert!(
+        message.contains("main.vast:2:")
+            && message.contains("note: help: a program that uses `show!` has the legacy geometry only with a `[geometry_compat]` export"),
+        "{message}"
+    );
+    // Without `show!` the same package checks.
+    scratch.write_package(
+        "app",
+        "fn main() -> Int {\n    let X = Affine(QQ, 2);\n    int(dim(X)) - 2\n}",
+        "",
+    );
+    success(&scratch.check_manifest("app/Vastitas.toml"));
     // An object is no displayable value; the kernel names its type.
     let scratch = Scratch::empty("show object");
     scratch.copy_sources(

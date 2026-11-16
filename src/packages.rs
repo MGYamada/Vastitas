@@ -693,6 +693,15 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
     Ok((loader.sources, program))
 }
 
+impl Program {
+    /// Whether a function of the program has `show!` observations (#836).
+    pub(crate) fn observes(&self) -> bool {
+        modules(&self.packages)
+            .flat_map(|module| &module.functions)
+            .any(|function| !function.declaration.observations.is_empty())
+    }
+}
+
 /// The modules of all packages, in the order of the request.
 fn modules(packages: &[Package]) -> impl Iterator<Item = &Module> {
     packages.iter().flat_map(|package| &package.modules)

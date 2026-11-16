@@ -174,7 +174,10 @@ Rules:
   mode, such as `Scheme`, `Point`, `pack` or `Affine`. Such a program is an
   error (`E_UNSUPPORTED`). In manifest mode, geometry needs a
   `geometry_compat` export or an `indexed` profile, as in
-  [Indexed declarations](../indexed-source.md).
+  [Indexed declarations](../indexed-source.md). A package program that uses
+  `show!` and a legacy form such as `Affine(QQ, 2)` without a
+  `geometry_compat` export is an error at the legacy form (`E_TYPE`), with a
+  note that names `show!` as the cause.
 
 ```vast
 {{#include ../../examples/book/functions/calls.vast}}

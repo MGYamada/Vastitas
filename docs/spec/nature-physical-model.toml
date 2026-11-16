@@ -168,7 +168,7 @@ evidence = [
   "VastitasOracle.NatureErrorbar.comparison_sound",
 ]
 premises = [
-  "for `gradient_exact`: D(p) ≠ 0",
+  "for `gradient_exact`: N and D of the arity m of the object, a point of m coordinates, a coordinate below m, and D(p) ≠ 0",
   "for `comparison_sound`: the declaration environment is valid",
 ]
 assumes = ["rust-frontend"]
@@ -183,7 +183,10 @@ with the recorded verdict the recomputed one, and
 `checkComparison_verdict_unique` that two accepted comparisons of one
 dataset under one calibration record one verdict, so a wrong verdict is
 rejected. `comparison_sound` composes these for every comparison of a valid
-environment, with A(p) = N(p)/D(p) = T(p)/g(p)²ᵉ for the checked trace form.
+environment: the model of its dataset predicts an average whose declaration
+records the certificate with the checked trace form T, of a branch with the
+localization g and the exponent e, and A(p) = N(p)/D(p) = T(p)/g(p)²ᵉ at each
+point for that certificate and that exponent.
 """
 
 [property."physical-model.verdict".claim.propagation]
@@ -258,7 +261,10 @@ subject = "nature::errorbar::Dataset"
 statement = """
 A dataset has at most `datasetPoints` = 64 points; a larger one is an error
 (`E_LIMIT`) of the frontend at its list of points and of the kernel before it
-reads a point. A recorded text, the regime of a model, the reference and the
+reads a point. A value, an uncertainty, a coverage factor and the value of a
+coordinate of a point are rational literals with at most
+`algebraCoefficientDigits` = 64 digits each; on the wire any other expression
+is an error (`E_PROTOCOL`) before a value is computed. A recorded text, the regime of a model, the reference and the
 revision of a calibration or the fingerprint of a comparison, holds at most
 `recordTextBytes` = 256 bytes of printable ASCII other than `\\` and `"`. A
 longer literal is an error (`E_LIMIT`), and on the wire any other text is an
@@ -268,7 +274,9 @@ specified_in = "[ADR 0002 §5, Execution and evidence profile](adr/0002-nature-d
 example = """
 A dataset of 65 points is an error (`E_LIMIT`) and one of 64 points is
 accepted. A reference of 257 bytes is an error (`E_LIMIT`), and a forged
-regime with a backslash or 257 bytes is an error (`E_PROTOCOL`).
+regime with a backslash or 257 bytes is an error (`E_PROTOCOL`). A forged
+calibrated value that is a tower of powers of a 64-digit fraction is an error
+(`E_PROTOCOL`) within a second.
 """
 example_test = "tests/physical_models.rs::the_points_of_a_dataset_are_bounded"
 
@@ -329,8 +337,12 @@ validity of no binding, `average_at` included, and the value of no binding.
 with no hypothesis on ids, and `average_model_free` that a transition
 average and `average_at` are as valid, with the same values, with and
 without them: a changed calibration, a stale comparison or a removed model
-leaves the derivation as it was. That the generated code is byte identical
-is tested, not proved.
+leaves the derivation as it was. The theorems state the validity of each
+entry for every fixed table of class ranks; that the kernel computes the same
+table with and without the added declarations is not proved, so they are not
+stated for the validity of a whole program. That a whole program without the
+declarations is accepted, and that its generated code is byte identical, is
+tested, not proved.
 """
 
 [property."physical-model.regime"]

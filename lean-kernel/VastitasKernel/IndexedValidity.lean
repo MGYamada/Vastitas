@@ -1,6 +1,8 @@
 import VastitasKernel.FrameDeclarations
 import VastitasKernel.NatureDimension
 import VastitasKernel.SpectralDeclarations
+import VastitasKernel.NatureModel
+import VastitasKernel.NatureErrorbar
 
 /-! The validity of indexed declaration entries (`Entry.Valid`, `validEntry`)
 and of the whole declaration environment (`Environment.Valid`,
@@ -8,7 +10,9 @@ and of the whole declaration environment (`Environment.Valid`,
 
 The checks of the frame declarations (`FrameDeclarations`) and of the nature
 declarations (`NatureDimension`) of Stage 4 (#759), and of the spectral
-declarations (`SpectralDeclarations`) of Stage 5 (#806), read the environment
+declarations (`SpectralDeclarations`) of Stage 5 (#806), and of the Stage 6
+declarations (`SpectralDeclarations`, `NatureModel`, `NatureErrorbar`, #841),
+read the environment
 through the views of `Indexed`, so this module imports them and they import
 `Indexed`. -/
 namespace VastitasKernel.Indexed
@@ -97,6 +101,18 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
       SpectralDeclarations.checkSpectrum env family object endomorphism fiber certificate = true
   | .branch family object spectrum localize witness exponent quotient =>
       SpectralDeclarations.checkBranch env family object spectrum localize witness exponent quotient = true
+  | .transitionAverage family object branch source target numerator denominator certificate =>
+      SpectralDeclarations.checkTransitionAverage env family object branch source target numerator denominator
+        certificate = true
+  | .convention value => NatureModel.checkConvention env value = true
+  | .model family object hamiltonian reading convention prepare observe predicts regime =>
+      NatureModel.checkModel env family object hamiltonian reading convention prepare observe predicts regime = true
+  | .calibration family object parameters method reference revision =>
+      NatureErrorbar.checkCalibration env family object parameters method reference revision = true
+  | .dataset family object model calibration coverage points =>
+      NatureErrorbar.checkDataset env family object model calibration coverage points = true
+  | .comparison family object dataset calibration fingerprint verdict =>
+      NatureErrorbar.checkComparison env family object dataset calibration fingerprint verdict = true
 
 /-- A separately structured executable parent check, avoiding unbounded search
 for a classification record in the finite validation procedure. -/
@@ -139,6 +155,18 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
       SpectralDeclarations.checkSpectrum env family object endomorphism fiber certificate
   | .branch family object spectrum localize witness exponent quotient =>
       SpectralDeclarations.checkBranch env family object spectrum localize witness exponent quotient
+  | .transitionAverage family object branch source target numerator denominator certificate =>
+      SpectralDeclarations.checkTransitionAverage env family object branch source target numerator denominator
+        certificate
+  | .convention value => NatureModel.checkConvention env value
+  | .model family object hamiltonian reading convention prepare observe predicts regime =>
+      NatureModel.checkModel env family object hamiltonian reading convention prepare observe predicts regime
+  | .calibration family object parameters method reference revision =>
+      NatureErrorbar.checkCalibration env family object parameters method reference revision
+  | .dataset family object model calibration coverage points =>
+      NatureErrorbar.checkDataset env family object model calibration coverage points
+  | .comparison family object dataset calibration fingerprint verdict =>
+      NatureErrorbar.checkComparison env family object dataset calibration fingerprint verdict
 
 structure Environment.Valid (env : Environment) : Prop where
   bounded : env.length ≤ 4096

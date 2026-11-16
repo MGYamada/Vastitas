@@ -468,4 +468,34 @@ def elaborateSpectral (sources : List (DeclId × Span × Body)) (targets : List 
     | _, _ => elaborateObservation span indexed body entry
   pure { env with indexed, primitives }
 
+/-! ## Transition averages (Stage 6, #841; ADR 0001 §13)
+
+A transition average `transition_average(B, from = i, to = j) = N / D` is
+declared at a family with the representation `transition_average` and one
+smooth object. `resolveBody` resolves its family, object and branch, and
+leaves its basis indices `0`, its closed form empty and its certificate the
+empty one; the observation `average_at` embeds the placeholder
+`AverageRef.placeholder`. This pass, after `elaborateSpectral`, is to
+elaborate them: `i` and `j` as indices of the basis of the module of the
+branch's field, `N` and `D` expanded in the coordinates of the object, the
+certificate (`SpectralDeclarations.checkTransitionAverage`), and the data that
+`average_at` embeds. Its rejections are `E_SPECTRAL`.
+
+Not implemented yet: the pass rejects every transition average and every
+`average_at` observation with `E_SPECTRAL` at its place, and leaves a program
+without them unchanged. -/
+
+/-- Elaborate every transition average and every `average_at` observation. -/
+def elaborateAverages (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
+    Namespace.Result Core.Declarations := do
+  for entry in env.indexed do
+    if let .transitionAverage .. := entry.declaration then
+      spectralProblem (spectralSpan sources entry.id)
+        s!"the transition average `{qualified entry.id}` is not implemented yet"
+  for entry in env.primitives do
+    if let .averageAt .. := entry.binding then
+      spectralProblem (spectralSpan sources entry.id)
+        s!"the `average_at` declaration `{qualified entry.id}` is not implemented yet"
+  pure env
+
 end VastitasKernel.Indexed.Source

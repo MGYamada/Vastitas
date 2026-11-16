@@ -65,7 +65,7 @@ theorem spectralInvariantValid_constant {env : Indexed.Environment} {application
 local macro "spectral_association_simp" : tactic =>
   `(tactic| (simp only [PrimitiveAssociation, PrimitiveBinding.contract, SpectralRegistry.spectralInvariant,
       SpectralRegistry.annihilates, SpectralRegistry.actionEntry, SpectralRegistry.onBranch,
-      SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector];
+      SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector, SpectralRegistry.averageAt];
              association_simp))
 
 theorem spectralInvariant_association {env : Environment} {application : Application} {map : AlgebraRuntime.Map}
@@ -368,7 +368,8 @@ expose the entry's match, split it, and erase by computation. -/
 local macro "erase_spectral" h:ident : tactic =>
   `(tactic| (simp only [evalPrimitive, PrimitiveBinding.contract, SpectralRegistry.spectralInvariant,
       SpectralRegistry.annihilates, SpectralRegistry.actionEntry, SpectralRegistry.onBranch,
-      SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector, PrimitiveDescriptor.ofBool] at $h:ident;
+      SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector, SpectralRegistry.averageAt,
+      PrimitiveDescriptor.ofBool] at $h:ident;
              split at $h:ident <;> first | contradiction | (cases $h:ident; exact ⟨_, _, rfl, rfl, rfl⟩)))
 
 /-! ## Soundness instances -/
@@ -439,5 +440,18 @@ theorem branchProjector_sound (smooth line : DeclId) (branch : BranchRef) (row c
     (by
       intro env values value evaluated
       erase_spectral evaluated)
+
+/-- The entry that rejects every binding is sound: its contract never holds and
+it evaluates no call. -/
+theorem rejected_sound : Sound (PrimitiveDescriptor.evidence fun _ => false) where
+  total valid _ _ _ _ _ := absurd valid (by simp [PrimitiveDescriptor.evidence, PrimitiveDescriptor.ofBool])
+  erasure evaluated := by simp [PrimitiveDescriptor.evidence, PrimitiveDescriptor.ofBool] at evaluated
+
+/-- The transition average observation of Stage 6 (#841). Not proved yet
+beyond vacuity: its entry rejects every binding (`rejected_sound`). The
+instance is replaced when the entry is implemented. -/
+theorem averageAt_sound (smooth line : DeclId) (average : AverageRef) :
+    Sound (PrimitiveBinding.averageAt smooth line average).contract :=
+  rejected_sound
 
 end VastitasOracle.SpectralPrimitives

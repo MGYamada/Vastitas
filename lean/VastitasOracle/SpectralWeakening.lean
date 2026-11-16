@@ -558,6 +558,10 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding}
     · rw [absent, found]
       cases declaration <;> simp only [SpectralDeclaration] at kind <;>
         (cases metricData? small metric <;> rfl)
+  -- The transition average observation of Stage 6 rejects every binding.
+  | averageAt smooth line average =>
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, SpectralRegistry.averageAt,
+      PrimitiveDescriptor.evidence, PrimitiveDescriptor.ofBool]
   | _ =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
       implementationType_append ext, affineImplementation_append ext,
@@ -598,7 +602,9 @@ theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List V
     FrameRegistry.frameCoapply, FrameRegistry.frameCompose, FrameRegistry.framePairing,
     FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt,
     SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
-    SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector]
+    SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector,
+      -- The transition average observation of Stage 6 rejects every binding.
+      SpectralRegistry.averageAt]
 
 /-! ### Declarations -/
 
@@ -718,6 +724,18 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   | endomorphism => rw [h] at other; exact other.elim
   | spectrum => rw [h] at other; exact other.elim
   | branch => rw [h] at other; exact other.elim
+  -- The Stage 6 checks reject every entry until they are implemented (#841).
+  | transitionAverage family object branch source target numerator denominator certificate =>
+    simp only [validEntry, h, SpectralDeclarations.checkTransitionAverage]
+  | convention value => simp only [validEntry, h, NatureModel.checkConvention]
+  | model family object hamiltonian reading convention prepare observe predicts regime =>
+    simp only [validEntry, h, NatureModel.checkModel]
+  | calibration family object parameters method reference revision =>
+    simp only [validEntry, h, NatureErrorbar.checkCalibration]
+  | dataset family object model calibration coverage points =>
+    simp only [validEntry, h, NatureErrorbar.checkDataset]
+  | comparison family object dataset calibration fingerprint verdict =>
+    simp only [validEntry, h, NatureErrorbar.checkComparison]
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
     (other : NamesNoSpectral entry.declaration) :

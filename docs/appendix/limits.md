@@ -418,6 +418,24 @@ rules.
 | `spectralRank` | 4 | The vectors of the basis of a free module, so the rows and the columns of an endomorphism of it | A free module | `E_LIMIT` |
 | `spectralPower` | 8 | The power `k` of `trace_power(H, k)` and the exponent `e` of `simple(S, …, exponent = e)` | An invariant or a branch | `E_LIMIT` |
 
+## Physical models and data
+
+The kernel bounds the datasets of `nature::errorbar`, which historical
+Stage 6 admits
+([#841](https://github.com/MGYamada/Vastitas/issues/841)). The values,
+uncertainties and coverage factors of calibrations and datasets, and the
+closed forms of the transition averages of `std::linalg::spectral`, are
+polynomial literals: their digits have the bound `algebraCoefficientDigits`
+of [Exact affine algebra](#exact-affine-algebra). The module of the field of
+a model has at most `spectralRank` basis vectors, as in
+[Spectral observations](#spectral-observations). The kernel does not check
+these declarations yet and rejects each of them; the bound is the one that
+the checks will apply.
+
+| Limit | Value | Counts | Holds for | Code |
+| --- | --- | --- | --- | --- |
+| `datasetPoints` | 64 | The points of a dataset | A dataset | `E_LIMIT` |
+
 ## Resource functions
 
 [Resource programs](../storage/resource-programs.md) gives the rules of

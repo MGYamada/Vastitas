@@ -495,4 +495,25 @@ def checkBranch (env : Environment) (family object spectrum : DeclId) (localize 
         | none => false
     | _, _ => false
 
+/-! ## Transition averages (Stage 6, #841; ADR 0001 §13)
+
+A transition average `TransitionAverage<X>` of a branch `B` with
+localization `g`, witness `W` and exponent `e`, from the basis vector `i` to
+the basis vector `j` of the module of a `symmetric` field, states a closed
+form `N / D` in the coordinates of `X`. With
+`T = Tr_{A[t]/χ}(adj[j, i]·adj[i, j]·W²)`, computed from trace powers, the
+check is `N·g^{2e} = D·T` and `D·Q = g^m` for a quotient `Q` and an exponent
+`m` that the kernel computes (`AverageCertificate`). Nothing is divided and
+no eigenvalue is computed.
+
+Not implemented yet: the check rejects every transition average, so no
+environment with one is valid. -/
+
+/-- The transition average declaration `transitionAverage family object branch
+source target numerator denominator certificate`. It rejects every average
+until the check is implemented. -/
+def checkTransitionAverage (_env : Environment) (_family _object _branch : DeclId) (_source _target : Nat)
+    (_numerator _denominator : Poly) (_certificate : AverageCertificate) : Bool :=
+  false
+
 end VastitasKernel.SpectralDeclarations

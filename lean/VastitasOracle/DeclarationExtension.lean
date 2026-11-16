@@ -327,7 +327,9 @@ theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List V
     FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt,
     -- The spectral entries of Stage 5 evaluate no call.
     SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
-    SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector]
+    SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector,
+      -- The transition average observation of Stage 6 rejects every binding.
+      SpectralRegistry.averageAt]
 
 theorem parameterValid_append (parameter : Indexed.Parameter) : parameter.Valid big ↔ parameter.Valid small := by
   cases parameter <;>

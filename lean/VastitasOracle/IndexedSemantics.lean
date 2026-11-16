@@ -805,6 +805,7 @@ theorem registry_sound : ∀ binding : PrimitiveBinding, Sound binding.contract
     SpectralPrimitives.branchDifferential_sound smooth cotangent line branch
   | .branchProjector smooth line branch row column =>
     SpectralPrimitives.branchProjector_sound smooth line branch row column
+  | .averageAt smooth line average => SpectralPrimitives.averageAt_sound smooth line average
 
 /-- Every accepted registry operation has a typed runtime value. The only
 world mutation is allocation of a fresh local object brand. Whole-term proofs

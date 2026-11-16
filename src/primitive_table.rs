@@ -342,4 +342,13 @@ pub(crate) const FAMILIES: &[PrimitiveFamily] = &[
             ("column", WireKind::Coordinate),
         ],
     },
+    PrimitiveFamily {
+        op: "average_at",
+        algebraic: true,
+        fields: &[
+            ("map_family", WireKind::Path),
+            ("line", WireKind::Path),
+            ("average", WireKind::Path),
+        ],
+    },
 ];

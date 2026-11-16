@@ -39,6 +39,7 @@ lake -d lean-kernel build \
   VastitasKernel.SpectralRuntimeRegression \
   VastitasKernel.SpectralDeclarationRegression \
   VastitasKernel.SpectralRegression \
+  VastitasKernel.ModelDeclarationRegression \
   VastitasKernel.IndexedSourceTypeRegression \
   VastitasKernel.IndexedSourceBodyRegression \
   VastitasKernel.IndexedFunctionRegression \

@@ -91,7 +91,14 @@ declarations, and no runtime value has their types.
 Stage 5 (#806): `freeModule`, `endomorphism`, `spectrum` and `branch` are the
 sealed one-index `FreeModule(X)`, `Endomorphism(X)`, `Spectrum(X)` and
 `Branch(X)` of a smooth object: they index the spectral declarations, and no
-runtime value has their types. -/
+runtime value has their types.
+
+Stage 6 (#841): `transitionAverage` is the sealed one-index
+`TransitionAverage(X)` of `std::linalg::spectral`, `model` the sealed
+one-index `Model(X)` of `nature::model`, and `calibration`, `dataset` and
+`comparison` the sealed one-index `Calibration(X)`, `Dataset(X)` and
+`Comparison(X)` of `nature::errorbar`, each of a smooth object: they index the
+Stage 6 declarations, and no runtime value has their types. -/
 inductive FamilyRepresentation where
   | token | point | morphism | relative | smooth
   | fiber (variance : Variance)
@@ -106,6 +113,11 @@ inductive FamilyRepresentation where
   | endomorphism
   | spectrum
   | branch
+  | transitionAverage
+  | model
+  | calibration
+  | dataset
+  | comparison
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure Family where
@@ -177,6 +189,69 @@ structure SpectralCertificate where
   idempotence : PolyMatrix
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-! ## Stage 6 payloads (#841)
+
+The data that the declarations of a first physical model carry: the dephased
+transition average of `std::linalg::spectral` (ADR 0001 §13), the conventions
+and models of `nature::model` (ADR 0002 §4) and the calibrations, datasets and
+comparisons of `nature::errorbar` (ADR 0002 §5). Their views are in the
+section *Stage 6 declarations* below. -/
+
+/-- The certificate of a transition average `transition_average(B, from = i,
+to = j) = N / D` of a branch `B` with localization `g`, witness `W` and
+exponent `e`, in the coordinates of the object:
+
+- `trace`: `T = Tr_{A[t]/χ}(adj[j, i]·adj[i, j]·W²)`, so that the average is
+  `T / g^{2e}` on `D(g)`;
+- `unitQuotient` and `unitExponent`: `Q` and `m` with `D·Q = g^m`, so that
+  `D` is a unit on `D(g)`.
+
+The closed form is checked by `N·g^{2e} = D·T`. The kernel computes the
+certificate during elaboration and `Entry.Valid` checks it again; it never
+comes from the wire. -/
+structure AverageCertificate where
+  trace : AlgebraRuntime.Poly
+  unitQuotient : AlgebraRuntime.Poly
+  unitExponent : Nat
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- A convention of `nature::model`: how a model writes its physical
+quantities. `hbarOne` (`hbar_one`) writes energies as angular frequencies,
+`ħ = 1`. -/
+inductive Convention where
+  | hbarOne
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- A measured value of `nature::errorbar`: an exact rational value and its
+standard uncertainty. -/
+structure Measured where
+  value : Rat
+  uncertainty : Rat
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- How the uncertainties of a calibration were evaluated, in the sense of the
+guide to the expression of uncertainty in measurement: `typeA` (`type_a`) by
+statistics, `typeB` (`type_b`) by other means. It is recorded and computes
+nothing. -/
+inductive CalibrationMethod where
+  | typeA
+  | typeB
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- One point of a dataset: the values of the coordinates of the object that
+the calibration does not give, as coordinate indices with exact values, and
+the measured value of the observable. -/
+structure DataPoint where
+  coordinates : List (Nat × Rat)
+  measured : Measured
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- The verdict that a comparison records. The kernel recomputes it. -/
+inductive Verdict where
+  | consistent
+  | inconsistent
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 /-! ## Declarations, the environment and its views -/
 
 inductive Declaration where
@@ -240,6 +315,40 @@ inductive Declaration where
   elaboration; it never comes from the wire. -/
   | branch (family object spectrum : DeclId) (localize witness : AlgebraRuntime.Poly) (exponent : Nat)
       (quotient : AlgebraRuntime.Poly)
+  /-- A dephased transition average `TransitionAverage<object>` of the family
+  `family` (Stage 6, `std::linalg::spectral`): the average `Σ_k P_k[j, i]²`
+  of the branch `branch` from the basis vector `source` (`i`) to the basis
+  vector `target` (`j`) of the module of its field, both indices of that
+  basis, with its closed form `numerator / denominator` in the coordinates of
+  `object` and its certificate. The kernel computes `certificate` during
+  elaboration; it never comes from the wire. -/
+  | transitionAverage (family object branch : DeclId) (source target : Nat)
+      (numerator denominator : AlgebraRuntime.Poly) (certificate : AverageCertificate)
+  /-- A convention of `nature::model` (Stage 6), with an identity of its own. -/
+  | convention (value : Convention)
+  /-- A model `Model<object>` of the family `family` (Stage 6,
+  `nature::model`): the endomorphism field `hamiltonian` on `object`, the
+  reading `reading` of `object`, the convention `convention`, the prepared and
+  observed basis vectors `prepare` and `observe` of the module of the field
+  (indices of its basis), the transition average `predicts`, and the regime, a
+  recorded assumption that no check proves. -/
+  | model (family object hamiltonian reading convention : DeclId) (prepare observe : Nat) (predicts : DeclId)
+      (regime : String)
+  /-- A calibration `Calibration<object>` of the family `family` (Stage 6,
+  `nature::errorbar`): measured values of some coordinates of `object`, as
+  coordinate indices, with the method of evaluation, a reference and a
+  revision. -/
+  | calibration (family object : DeclId) (parameters : List (Nat × Measured)) (method : CalibrationMethod)
+      (reference revision : String)
+  /-- A dataset `Dataset<object>` of the family `family` (Stage 6,
+  `nature::errorbar`) of the model `model` under the calibration
+  `calibration`: one coverage factor `k` and its points. -/
+  | dataset (family object model calibration : DeclId) (coverage : Rat) (points : List DataPoint)
+  /-- A comparison `Comparison<object>` of the family `family` (Stage 6,
+  `nature::errorbar`): the dataset `dataset`, the recorded fingerprint of its
+  calibration `calibration`, and the recorded verdict, which the kernel
+  recomputes. -/
+  | comparison (family object dataset calibration : DeclId) (fingerprint : String) (verdict : Verdict)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- The implementation of a canonical global object: a descriptor global, a
@@ -578,7 +687,8 @@ def Family.Valid (env : Environment) (f : Family) : Prop :=
         | .object id => (domain env id).all (smoothImplementation env)
         | _ => false) = true
   | .metricForm | .frame | .reading | .physicalMetric
-  | .freeModule | .endomorphism | .spectrum | .branch => f.parameters.length = 1 ∧
+  | .freeModule | .endomorphism | .spectrum | .branch
+  | .transitionAverage | .model | .calibration | .dataset | .comparison => f.parameters.length = 1 ∧
       f.constraints = [.canonical 0] ∧
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (smoothImplementation env)
@@ -746,6 +856,85 @@ def branchData? (env : Environment) (id : DeclId) :
   match lookup env id with
   | some (.branch family object spectrum localize witness exponent quotient) =>
       some (family, object, spectrum, localize, witness, exponent, quotient)
+  | _ => none
+
+/-! ## Stage 6 declarations (#841)
+
+The views of the transition averages of `std::linalg::spectral` and of the
+declarations of `nature::model` and `nature::errorbar`. Their checks are in
+`SpectralDeclarations`, `NatureModel` and `NatureErrorbar`, which
+`Entry.Valid` calls (`IndexedValidity`). -/
+
+/-- The family is declared with the sealed `transition_average`
+representation. -/
+def isTransitionAverageFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .transitionAverage
+
+/-- The family is declared with the sealed `model` representation. -/
+def isModelFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .model
+
+/-- The family is declared with the sealed `calibration` representation. -/
+def isCalibrationFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .calibration
+
+/-- The family is declared with the sealed `dataset` representation. -/
+def isDatasetFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .dataset
+
+/-- The family is declared with the sealed `comparison` representation. -/
+def isComparisonFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .comparison
+
+/-- The family, object, branch, basis indices, closed form and certificate of
+a declared transition average. -/
+def transitionAverageData? (env : Environment) (id : DeclId) :
+    Option (DeclId × DeclId × DeclId × Nat × Nat × AlgebraRuntime.Poly × AlgebraRuntime.Poly × AverageCertificate) :=
+  match lookup env id with
+  | some (.transitionAverage family object branch source target numerator denominator certificate) =>
+      some (family, object, branch, source, target, numerator, denominator, certificate)
+  | _ => none
+
+/-- The value of a declared convention. -/
+def conventionData? (env : Environment) (id : DeclId) : Option Convention :=
+  match lookup env id with
+  | some (.convention value) => some value
+  | _ => none
+
+/-- The family, object, field, reading, convention, prepared and observed
+basis indices, predicted average and regime of a declared model. -/
+def modelData? (env : Environment) (id : DeclId) :
+    Option (DeclId × DeclId × DeclId × DeclId × DeclId × Nat × Nat × DeclId × String) :=
+  match lookup env id with
+  | some (.model family object hamiltonian reading convention prepare observe predicts regime) =>
+      some (family, object, hamiltonian, reading, convention, prepare, observe, predicts, regime)
+  | _ => none
+
+/-- The family, object, measured parameters, method, reference and revision
+of a declared calibration. -/
+def calibrationData? (env : Environment) (id : DeclId) :
+    Option (DeclId × DeclId × List (Nat × Measured) × CalibrationMethod × String × String) :=
+  match lookup env id with
+  | some (.calibration family object parameters method reference revision) =>
+      some (family, object, parameters, method, reference, revision)
+  | _ => none
+
+/-- The family, object, model, calibration, coverage factor and points of a
+declared dataset. -/
+def datasetData? (env : Environment) (id : DeclId) :
+    Option (DeclId × DeclId × DeclId × DeclId × Rat × List DataPoint) :=
+  match lookup env id with
+  | some (.dataset family object model calibration coverage points) =>
+      some (family, object, model, calibration, coverage, points)
+  | _ => none
+
+/-- The family, object, dataset, calibration, recorded fingerprint and
+recorded verdict of a declared comparison. -/
+def comparisonData? (env : Environment) (id : DeclId) :
+    Option (DeclId × DeclId × DeclId × DeclId × String × Verdict) :=
+  match lookup env id with
+  | some (.comparison family object dataset calibration fingerprint verdict) =>
+      some (family, object, dataset, calibration, fingerprint, verdict)
   | _ => none
 
 /-- Every object-valued argument is traversed, independently of its runtime

@@ -96,4 +96,12 @@ def spectralRank : Nat := compiler_limit% "spectralRank"
 `simple(S, …, exponent = e)`. -/
 def spectralPower : Nat := compiler_limit% "spectralPower"
 
+/-! A first physical model (Stage 6, #841): the points of one dataset of
+`nature::errorbar`. The values, uncertainties and coverage factors of
+calibrations and datasets, and the closed forms of transition averages, are
+polynomial literals with the bound `algebraCoefficientDigits` on their digits;
+the rank of the module of a model's field is bounded by `spectralRank`. -/
+/-- The points of one dataset. -/
+def datasetPoints : Nat := compiler_limit% "datasetPoints"
+
 end VastitasKernel.Limits

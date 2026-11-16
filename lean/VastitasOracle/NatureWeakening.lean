@@ -331,6 +331,18 @@ theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
     simp only [Entry.Valid, checkSpectrum_append ext]
   | branch family object spectrum localize witness exponent quotient =>
     simp only [Entry.Valid, checkBranch_append ext]
+  -- The Stage 6 checks reject every entry until they are implemented (#841).
+  | transitionAverage family object branch source target numerator denominator certificate =>
+    simp only [Entry.Valid, SpectralDeclarations.checkTransitionAverage]
+  | convention value => simp only [Entry.Valid, NatureModel.checkConvention]
+  | model family object hamiltonian reading convention prepare observe predicts regime =>
+    simp only [Entry.Valid, NatureModel.checkModel]
+  | calibration family object parameters method reference revision =>
+    simp only [Entry.Valid, NatureErrorbar.checkCalibration]
+  | dataset family object model calibration coverage points =>
+    simp only [Entry.Valid, NatureErrorbar.checkDataset]
+  | comparison family object dataset calibration fingerprint verdict =>
+    simp only [Entry.Valid, NatureErrorbar.checkComparison]
   | _ => exact absurd trivial other
 
 /-- The executable check is unchanged as well. -/

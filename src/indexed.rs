@@ -1455,6 +1455,7 @@ mod tests {
             "on_branch",
             "branch_differential",
             "branch_projector",
+            "average_at",
         ];
         let mut table: Vec<&str> = primitive_families()
             .iter()

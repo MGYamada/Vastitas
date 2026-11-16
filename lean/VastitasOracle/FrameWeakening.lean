@@ -615,16 +615,28 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
       isTransitionAverageFamily, familyRepresentation_append ext, validApplication_object1 ext,
       smoothDimension_append ext.profile, branchData_append ext.profile, spectrumData_append ext.profile,
       endomorphismData_append ext.profile]
-  -- The other Stage 6 checks reject every entry until they are implemented (#841).
+  -- The declarations of nature::model and nature::errorbar read no frame declaration (#841).
   | convention value => simp only [validEntry, h, NatureModel.checkConvention]
   | model family object hamiltonian reading convention prepare observe predicts regime =>
-    simp only [validEntry, h, NatureModel.checkModel]
+    simp only [validEntry, h, NatureModel.checkModel, NatureModel.predictsAverage, SpectralDeclarations.declaredAt,
+      isModelFamily, familyRepresentation_append ext, validApplication_object1 ext, smoothDimension_append ext.profile,
+      endomorphismData_append ext.profile, freeModuleData_append ext.profile, readingData_append ext,
+      conventionData_append ext.profile, transitionAverageData_append ext.profile, branchData_append ext.profile,
+      spectrumData_append ext.profile]
   | calibration family object parameters method reference revision =>
-    simp only [validEntry, h, NatureErrorbar.checkCalibration]
+    simp only [validEntry, h, NatureErrorbar.checkCalibration, SpectralDeclarations.declaredAt, isCalibrationFamily,
+      familyRepresentation_append ext, validApplication_object1 ext, smoothDimension_append ext.profile]
   | dataset family object model calibration coverage points =>
-    simp only [validEntry, h, NatureErrorbar.checkDataset]
+    simp only [validEntry, h, NatureErrorbar.checkDataset, NatureErrorbar.prediction?,
+      SpectralDeclarations.declaredAt, isDatasetFamily, familyRepresentation_append ext, validApplication_object1 ext,
+      smoothDimension_append ext.profile, modelData_append ext.profile, calibrationData_append ext.profile,
+      transitionAverageData_append ext.profile, branchData_append ext.profile]
   | comparison family object dataset calibration fingerprint verdict =>
-    simp only [validEntry, h, NatureErrorbar.checkComparison]
+    simp only [validEntry, h, NatureErrorbar.checkComparison, NatureErrorbar.prediction?,
+      SpectralDeclarations.declaredAt, isComparisonFamily, familyRepresentation_append ext,
+      validApplication_object1 ext, smoothDimension_append ext.profile, smoothCoordinates_append ext.profile,
+      datasetData_append ext.profile, calibrationData_append ext.profile, modelData_append ext.profile,
+      transitionAverageData_append ext.profile, branchData_append ext.profile]
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
     entry.Valid big ranks ↔ entry.Valid small ranks := by

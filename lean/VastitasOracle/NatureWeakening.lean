@@ -70,9 +70,12 @@ open VastitasOracle.SmoothMetricWeakening (lookup_append lookup_insert found_of_
   found_of_familyRepresentation validApplication_mk_of_found validPrimitiveBinding_of_metricOrNature)
 
 /-- The declarations that `NatureDimension` checks: base dimensions,
-quantities, readings, scales and physical metrics. -/
+quantities, readings, scales and physical metrics; and the declarations of
+`nature::model` and `nature::errorbar` (Stage 6), whose checks read readings,
+models and calibrations. -/
 def NatureCheck : Declaration → Prop
   | .baseDimension | .quantity .. | .reading .. | .scale .. | .physicalMetric .. => True
+  | .convention .. | .model .. | .calibration .. | .dataset .. | .comparison .. => True
   | _ => False
 
 /-- A declaration that only `nature::dimension` contributes: one that
@@ -345,16 +348,6 @@ theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   -- The transition averages of Stage 6 read no nature declaration (#841).
   | transitionAverage family object branch source target numerator denominator certificate =>
     simp only [Entry.Valid, checkTransitionAverage_append ext]
-  -- The other Stage 6 checks reject every entry until they are implemented (#841).
-  | convention value => simp only [Entry.Valid, NatureModel.checkConvention]
-  | model family object hamiltonian reading convention prepare observe predicts regime =>
-    simp only [Entry.Valid, NatureModel.checkModel]
-  | calibration family object parameters method reference revision =>
-    simp only [Entry.Valid, NatureErrorbar.checkCalibration]
-  | dataset family object model calibration coverage points =>
-    simp only [Entry.Valid, NatureErrorbar.checkDataset]
-  | comparison family object dataset calibration fingerprint verdict =>
-    simp only [Entry.Valid, NatureErrorbar.checkComparison]
   | _ => exact absurd trivial other
 
 /-- The executable check is unchanged as well. -/

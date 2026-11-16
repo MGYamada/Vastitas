@@ -259,6 +259,9 @@ theorem isSpectrumFamily_append (id : DeclId) : isSpectrumFamily big id = isSpec
 theorem isBranchFamily_append (id : DeclId) : isBranchFamily big id = isBranchFamily small id := by
   simp only [isBranchFamily, familyRepresentation_append ext]
 
+theorem isCalibrationFamily_append (id : DeclId) : isCalibrationFamily big id = isCalibrationFamily small id := by
+  simp only [isCalibrationFamily, familyRepresentation_append ext]
+
 theorem globalObject_append (id : DeclId) : globalObject big id = globalObject small id := by
   simp only [globalObject, objectImplementation_append ext]
 
@@ -609,7 +612,7 @@ theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List V
     FrameRegistry.frameComponent, FrameRegistry.frameEntry, FrameRegistry.frameEqual, FrameRegistry.frameAt,
     SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
     SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector,
-      -- The transition average observation of Stage 6 rejects every binding.
+      -- The transition average observation of Stage 6 evaluates without the environment.
       SpectralRegistry.averageAt]
 
 /-! ### Declarations -/
@@ -683,10 +686,13 @@ theorem checkPhysicalMetric_append (family object metric reading : DeclId) (valu
     quantityDimension_fun ext, entryValues_append ext]
 
 /-- A declaration whose validity a spectral extension cannot change: every
-declaration that is not an endomorphism, a spectrum, a branch or a transition
-average (Stage 6), which reads the branch it names. -/
+declaration that is not an endomorphism, a spectrum, a branch, a transition
+average, a model, a dataset or a comparison (Stage 6), each of which reads
+the spectral declarations that it names through a field, an average or a
+model. -/
 def NamesNoSpectral : Declaration → Prop
-  | .endomorphism .. | .spectrum .. | .branch .. | .transitionAverage .. => False
+  | .endomorphism .. | .spectrum .. | .branch .. | .transitionAverage .. | .model .. | .dataset .. | .comparison .. =>
+    False
   | _ => True
 
 /-- **Weakening of declaration validity.** A spectral extension changes the
@@ -732,16 +738,13 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   | spectrum => rw [h] at other; exact other.elim
   | branch => rw [h] at other; exact other.elim
   | transitionAverage => rw [h] at other; exact other.elim
-  -- The other Stage 6 checks reject every entry until they are implemented (#841).
   | convention value => simp only [validEntry, h, NatureModel.checkConvention]
-  | model family object hamiltonian reading convention prepare observe predicts regime =>
-    simp only [validEntry, h, NatureModel.checkModel]
+  | model => rw [h] at other; exact other.elim
   | calibration family object parameters method reference revision =>
-    simp only [validEntry, h, NatureErrorbar.checkCalibration]
-  | dataset family object model calibration coverage points =>
-    simp only [validEntry, h, NatureErrorbar.checkDataset]
-  | comparison family object dataset calibration fingerprint verdict =>
-    simp only [validEntry, h, NatureErrorbar.checkComparison]
+    simp only [validEntry, h, NatureErrorbar.checkCalibration, SpectralDeclarations.declaredAt,
+      isCalibrationFamily_append ext, validApplication_fun ext, smoothDimension_append ext]
+  | dataset => rw [h] at other; exact other.elim
+  | comparison => rw [h] at other; exact other.elim
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
     (other : NamesNoSpectral entry.declaration) :

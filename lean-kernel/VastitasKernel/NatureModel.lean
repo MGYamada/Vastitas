@@ -1,4 +1,4 @@
-import VastitasKernel.Indexed
+import VastitasKernel.SpectralDeclarations
 
 set_option autoImplicit false
 
@@ -6,22 +6,25 @@ set_option autoImplicit false
 §4).
 
 - A convention states how a model writes its physical quantities. The profile
-  has one, `hbar_one`: energies are angular frequencies, `ħ = 1`.
-- A model `Model<X>` names a symmetric endomorphism field `H` on the smooth
-  object `X`, a reading of `X`, a convention, a prepared and an observed basis
-  vector of the free module of `H`, the transition average that it predicts
-  and its regime. The check is that the references fit: the reading is a
-  reading of `X`, both basis vectors belong to the module of `H`, and the
-  predicted average is the average of a branch of a spectrum of `H` from the
-  prepared to the observed vector. The regime is a recorded assumption, which
-  no check proves.
+  has one, `hbar_one`: energies are angular frequencies, `ħ = 1`. The decoder
+  admits no other, so every convention declaration is valid
+  (`checkConvention`).
+- A model `Model<X>` names an endomorphism field `H` on the smooth object `X`,
+  a reading of `X`, a convention, a prepared and an observed basis vector of
+  the free module of `H`, the transition average that it predicts and its
+  regime. `checkModel` checks that the references fit:
+  1. the family is a `model` family applied to the declared smooth object `X`;
+  2. `H` is an endomorphism declaration on `X`, and `prepare` and `observe`
+     are indices of the basis of its free module;
+  3. the reading is a reading declaration of `X`;
+  4. the convention is a convention declaration;
+  5. `predicts` is a transition average declaration on `X` of a branch of a
+     spectrum of `H`, from `prepare` to `observe` (`predictsAverage`).
+  The regime is a recorded assumption, which no check proves.
 
 A convention and a model compute nothing: they change no value, no validity
 and no generated code of a `std` declaration. `Entry.Valid`
-(`IndexedValidity`) calls one check per declaration.
-
-Not implemented yet: every check rejects, so no environment with a convention
-or a model is valid. -/
+(`IndexedValidity`) calls one check per declaration. -/
 namespace VastitasKernel.NatureModel
 
 open VastitasKernel.Indexed
@@ -42,16 +45,42 @@ def Problem.code : Problem → String
 def Problem.message : Problem → String
   | .limit message | .invalid message => message
 
-/-- The convention declaration `convention value`. It rejects every
-convention until the checks of `nature::model` are implemented. -/
+/-- The convention declaration `convention value`. `hbar_one` is the only
+convention of the profile, and the decoder admits no other. -/
 def checkConvention (_env : Environment) (_value : Convention) : Bool :=
-  false
+  true
+
+/-- The transition average `predicts` is on `object`, of a branch of a
+spectrum of `hamiltonian`, from the basis vector `prepare` to `observe`. -/
+def predictsAverage (env : Environment) (object hamiltonian : DeclId) (prepare observe : Nat) (predicts : DeclId) :
+    Bool :=
+  match transitionAverageData? env predicts with
+  | some (_, averageObject, branch, source, target, _, _, _) =>
+    averageObject == object && source == prepare && target == observe &&
+      match branchData? env branch with
+      | some (_, _, spectrum, _, _, _, _) =>
+        match spectrumData? env spectrum with
+        | some (_, _, endomorphism, _, _) => endomorphism == hamiltonian
+        | none => false
+      | none => false
+  | none => false
 
 /-- The model declaration `model family object hamiltonian reading convention
-prepare observe predicts regime`. It rejects every model until the checks of
-`nature::model` are implemented. -/
-def checkModel (_env : Environment) (_family _object _hamiltonian _reading _convention : DeclId)
-    (_prepare _observe : Nat) (_predicts : DeclId) (_regime : String) : Bool :=
-  false
+prepare observe predicts regime`: the checks 1–5 of the module comment. -/
+def checkModel (env : Environment) (family object hamiltonian reading convention : DeclId)
+    (prepare observe : Nat) (predicts : DeclId) (_regime : String) : Bool :=
+  SpectralDeclarations.declaredAt env (isModelFamily env family) family object &&
+    (match endomorphismData? env hamiltonian with
+      | some (_, hamiltonianObject, module, _, _) =>
+        hamiltonianObject == object &&
+          match freeModuleData? env module with
+          | some (_, _, basis) => decide (prepare < basis.length) && decide (observe < basis.length)
+          | none => false
+      | none => false) &&
+    (match readingData? env reading with
+      | some (_, readingObject, _) => readingObject == object
+      | none => false) &&
+    (conventionData? env convention).isSome &&
+    predictsAverage env object hamiltonian prepare observe predicts
 
 end VastitasKernel.NatureModel

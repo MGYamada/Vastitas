@@ -187,6 +187,21 @@ theorem transitionAverageData_append (id : DeclId) :
     transitionAverageData? big id = transitionAverageData? small id := by
   profile_view ext transitionAverageData? id
 
+/-! The views of the declarations of `nature::model` and `nature::errorbar`
+(Stage 6): no profile declaration is one of them. -/
+
+theorem conventionData_append (id : DeclId) : conventionData? big id = conventionData? small id := by
+  profile_view ext conventionData? id
+
+theorem modelData_append (id : DeclId) : modelData? big id = modelData? small id := by
+  profile_view ext modelData? id
+
+theorem calibrationData_append (id : DeclId) : calibrationData? big id = calibrationData? small id := by
+  profile_view ext calibrationData? id
+
+theorem datasetData_append (id : DeclId) : datasetData? big id = datasetData? small id := by
+  profile_view ext datasetData? id
+
 /-- A profile family is the only way a profile family representation can
 appear; every other view compares with another representation. -/
 theorem familyRepresentation_eq_append (id : DeclId) {representation : FamilyRepresentation}
@@ -335,7 +350,7 @@ theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List V
     -- The spectral entries of Stage 5 evaluate no call.
     SpectralRegistry.spectralInvariant, SpectralRegistry.annihilates, SpectralRegistry.actionEntry,
     SpectralRegistry.onBranch, SpectralRegistry.branchDifferential, SpectralRegistry.branchProjector,
-      -- The transition average observation of Stage 6 rejects every binding.
+      -- The transition average observation of Stage 6 evaluates without the environment.
       SpectralRegistry.averageAt]
 
 theorem parameterValid_append (parameter : Indexed.Parameter) : parameter.Valid big ↔ parameter.Valid small := by

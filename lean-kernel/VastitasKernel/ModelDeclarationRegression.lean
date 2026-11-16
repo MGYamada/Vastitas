@@ -17,11 +17,12 @@ Protocol 9 decodes each wire shape of the six declarations, of the five
 family representations and of the observation `average_at`; protocols 7 and
 8 reject each with `E_PROTOCOL`. No shape has a field for a certificate. The
 Stage 6 families are data-model rules and are checked in full. The source
-checker elaborates transition averages and `average_at` (`AverageRegression`
-checks them); it still rejects a convention and a model with `E_MODEL`, and a
-calibration, a dataset and a comparison with `E_ERRORBAR`, each at its place;
-the declaration audit rejects every Stage 6 entry of this module, which names
-no declaration; and an `averageAt` binding of no declaration is invalid. -/
+checker elaborates every Stage 6 declaration (`AverageRegression` and
+`NatureModelRegression` check them); here each names only `Plane`, so the
+convention and the calibration are accepted and the others are rejected at
+their first reference with their code; the declaration audit rejects every
+Stage 6 entry of this module that names a missing declaration; and an
+`averageAt` binding of no declaration is invalid. -/
 namespace VastitasKernel.Indexed.ModelDeclarationRegression
 
 open Lean
@@ -184,15 +185,19 @@ private def rejectsFamily (families : List Json) (text : String) : Bool :=
 
 /-! ## Stage 6 declarations: protocol 9 only, rejected until implemented -/
 
-/-- Each Stage 6 declaration shape, with its code, what the source checker
-calls it and its name. Each names only `Plane`, so that it is the first
-declaration that the source checker rejects. -/
+/-- Each Stage 6 declaration shape of nature, with its code (or `accepted`),
+what the source checker says of it, and its name. Each names only `Plane`, so
+that the convention and the calibration are accepted and the others name
+the first reference that is not of its kind. -/
 private def declarations : List (String × String × String × Json) := [
-  ("E_MODEL", "convention", "c", conventionJson "c"),
-  ("E_MODEL", "model", "M", modelJson "M" "Plane"),
-  ("E_ERRORBAR", "calibration", "K", calibrationJson "K"),
-  ("E_ERRORBAR", "dataset", "D", datasetJson "D" "Plane" twoPoints),
-  ("E_ERRORBAR", "comparison", "C", comparisonJson "C" "Plane")]
+  ("accepted", "", "c", conventionJson "c"),
+  ("E_MODEL", "the hamiltonian `model::Plane` of the model `model::M` is not an endomorphism declaration", "M",
+    modelJson "M" "Plane"),
+  ("accepted", "", "K", calibrationJson "K"),
+  ("E_ERRORBAR", "the dataset `model::D` is of `model::Plane`, which is not a model declaration", "D",
+    datasetJson "D" "Plane" twoPoints),
+  ("E_ERRORBAR", "the comparison `model::C` compares `model::Plane`, which is not a dataset declaration", "C",
+    comparisonJson "C" "Plane")]
 
 #eval check "protocol 9 decodes each Stage 6 declaration shape"
   (declarations.all fun (_, _, _, j) => decodes j true)
@@ -200,9 +205,10 @@ private def declarations : List (String × String × String × Json) := [
   (declarations.all fun (_, _, _, j) => !decodes j false)
 #eval check "protocols 7 and 8 reject each Stage 6 declaration with E_PROTOCOL"
   (declarations.all fun (_, _, _, j) => rejectedBefore9 j "require protocol 9")
-#eval check "the source checker rejects each Stage 6 declaration of nature with its code until it is implemented"
-  (declarations.all fun (code, kind, name, j) =>
-    rejectsWith 9 (smoothBase ++ stage6Families ++ [j]) code s!"the {kind} `model::{name}` is not implemented yet")
+#eval check "the source checker checks each Stage 6 declaration of nature with its code"
+  (declarations.all fun (code, text, _, j) =>
+    if code == "accepted" then (outcome 9 (smoothBase ++ stage6Families ++ [j])).1 == "accepted"
+    else rejectsWith 9 (smoothBase ++ stage6Families ++ [j]) code text)
 #eval check "protocol 9 decodes a transition average, and the source checker elaborates it"
   (decodes (averageJson "A" "Plane") true && !decodes (averageJson "A" "Plane") false &&
     rejectedBefore9 (averageJson "A" "Plane") "require protocol 9" &&
@@ -211,8 +217,8 @@ private def declarations : List (String × String × String × Json) := [
 #eval check "the transition averages are checked before the models, and the models before the data"
   (rejectsWith 9 (smoothBase ++ stage6Families ++ [comparisonJson "C" "Plane", modelJson "M" "Plane",
       averageJson "A" "Plane"]) "E_SPECTRAL" "the transition average `model::A` is an average of `model::Plane`" &&
-    rejectsWith 9 (smoothBase ++ stage6Families ++ [comparisonJson "C" "Plane", conventionJson "c"]) "E_MODEL"
-      "the convention `model::c` is not implemented yet")
+    rejectsWith 9 (smoothBase ++ stage6Families ++ [comparisonJson "C" "Plane", modelJson "M" "Plane"]) "E_MODEL"
+      "the hamiltonian `model::Plane` of the model `model::M`")
 
 #eval check "a Stage 6 declaration names one object, with the code of its module"
   (rejectsWith 9 (smoothBase ++ stage6Families ++ [averageJson "A" "Plane" ["Plane", "Pt"]]) "E_SPECTRAL"
@@ -293,25 +299,26 @@ private def averageAtBinding : Json := (averageAt "at" "A").getObjValD "binding"
   (!decodes (withField (averageAt "at" "A") "binding" (withField averageAtBinding "numerator" (natural 1))) true &&
     !decodes (withField (averageAt "at" "A") "binding" (withoutField averageAtBinding "line")) true)
 
-/-! ## A Stage 6 entry is invalid in the declaration audit
+/-! ## A Stage 6 entry that names a missing declaration is invalid
 
-A checked environment never holds a Stage 6 declaration: `Entry.Valid` calls
-the checks of `SpectralDeclarations`, `NatureModel` and `NatureErrorbar`,
-which reject every entry until they are implemented. -/
+`Entry.Valid` calls the checks of `SpectralDeclarations`, `NatureModel` and
+`NatureErrorbar`, which read the declarations that an entry names; alone,
+every entry but a convention names a missing one. -/
 
 private def pkg : Namespace.PackageId := ⟨"/model/Vastitas.toml", "model", "0.1.0"⟩
 private def sid (name : String) : DeclId := ⟨⟨pkg, []⟩, name⟩
 
 private def entries : List Entry := [
   ⟨sid "A", .transitionAverage (sid "TransitionAverage") (sid "Plane") (sid "B") 0 1 [] [] ⟨[], [], 0⟩⟩,
-  ⟨sid "c", .convention .hbarOne⟩,
   ⟨sid "M", .model (sid "Model") (sid "Plane") (sid "H") (sid "r") (sid "c") 0 1 (sid "A") "regime"⟩,
   ⟨sid "K", .calibration (sid "Calibration") (sid "Plane") [(1, ⟨5 / 2, 1 / 20⟩)] .typeB "JCGM 100:2008" "1"⟩,
   ⟨sid "D", .dataset (sid "Dataset") (sid "Plane") (sid "M") (sid "K") 2 [⟨[(0, 0)], ⟨1 / 2, 1 / 50⟩⟩]⟩,
   ⟨sid "C", .comparison (sid "Comparison") (sid "Plane") (sid "D") (sid "K") "0123456789abcdef" .consistent⟩]
 
-#eval check "the declaration audit rejects each Stage 6 entry"
+#eval check "the declaration audit rejects each Stage 6 entry that names no declaration"
   (entries.all fun entry => !validEntry [] [] entry && !validEnvironment [entry])
+#eval check "a convention names nothing, and the declaration audit accepts it alone"
+  (validEntry [] [] ⟨sid "c", .convention .hbarOne⟩ && validEnvironment [⟨sid "c", .convention .hbarOne⟩])
 
 /-! ## An `averageAt` binding of no declaration
 

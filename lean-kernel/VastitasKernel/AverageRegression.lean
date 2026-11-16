@@ -200,7 +200,7 @@ private def withAverage (ds : List Source.Declaration) (avg : Source.Declaration
 
 #eval check "a wrong closed form is rejected, naming the residual"
   (rejectsWith (withAverage twoLevel (average "A" "Plane" "B" "g" "e" (sq (c "omega")) gapExpr)) "E_SPECTRAL"
-    "the closed form N / D of the transition average `average::A` is not the average of its branch: N·g^(2e) − D·T is not zero")
+    "the closed form ratio(N, D) of the transition average `average::A` is not the average of its branch: N·g^(2e) − D·T is not zero")
 #eval check "a denominator that is not a unit on D(g) is rejected, although N·g^(2e) = D·T"
   (rejectsWith (withAverage twoLevel (average "A" "Plane" "B" "g" "e" (.product [c "delta", sq (c "omega")])
       (.product [n 2, c "delta", gapExpr]))) "E_SPECTRAL"

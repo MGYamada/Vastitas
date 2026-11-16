@@ -1037,6 +1037,91 @@ chapter links the tracker and the issues that this section refers to.
   on it, and the application declares the branch differential with the
   families and the line of the geometry package.
 
+### 13. Dephased transition averages of simple-branch spectra (amendment, 2026-11-16)
+
+This amendment extends the module `std::linalg::spectral` of §12 through the
+§8 procedure. It serves the finite profile of historical Stage 6. It admits
+the contract below; it does not claim that it is implemented or proved. The
+History section at the end of this chapter links the tracker.
+
+#### Terms
+
+- Let `H` be a symmetric endomorphism field of a free module `V` with the
+  basis vectors `i` and `j`, and let `(g, W, e)` be a finite chart of §12, so
+  that every eigenvalue of `H(p)` is simple on `D(g)` and `1/χ_H′ = W/gᵉ`
+  holds in `A_H` localized at `g`.
+- The *dephased transition average* from `i` to `j` is the element
+  `Σ_k P_k[j, i]²` of `A` localized at `g`, where `P_k` runs over the
+  eigenprojectors of `H`. In `A_H` it is the trace form
+  `T/g^{2e}` with `T = Tr_{A_H/A}(adj(tI − H)[j, i]·adj(tI − H)[i, j]·W²)`.
+- A *closed form* of the average is a pair `(N, D)` of elements of `A` with
+  `N·g^{2e} = D·T` and `D` a unit on `D(g)`.
+
+#### Contract and jurisdiction
+
+- **Declaration.** A program states the closed form `N/D`. The executable
+  kernel computes `T` from trace powers of §12 and checks the two identities
+  against a quotient that it computes; nothing is divided, and no eigenvalue
+  is computed.
+- **Observation.** At a rational point `p` with `D(p) ≠ 0`, the observation
+  gives `N(p)/D(p)` as an exact rational; elsewhere it gives the failure
+  value ⊥ of §10.
+- **Meaning.** The average is a function of `H` and the two basis vectors
+  only. That it is the long-time average of a transition probability under
+  the unitary group of `H` is a physical reading of `nature::model`
+  (ADR 0002 §4), not part of this contract.
+- **Split between Core, `std` and backends.** As in §12: Core supplies the
+  declaration with its embedded data, `std` declares the family
+  `TransitionAverage`, and the executable kernel computes every value
+  exactly.
+- **Versions and migration.** The profile adds no wire protocol version.
+  Existing programs keep their meaning.
+
+#### Laws
+
+- For a real symmetric `H(p)` with simple spectrum, the average at `p` is
+  `Σ_k P_k(p)[j, i]²`, between 0 and 1, and `Σ_j` of it over the basis is 1.
+- For the two-level field `(Δ/2)σ_z + (Ω/2)σ_x`, the average from the first
+  to the second basis vector is `Ω²/(2(Δ² + Ω²))` on `D(Δ² + Ω²)`.
+
+#### Admission argument
+
+- **A, intrinsic denotation.** The average is determined by `H`, the two
+  basis vectors and the chart; the closed form is checked, not chosen.
+- **B, foundational target.** Sums over eigenprojectors are basic spectral
+  theory of finite symmetric matrices.
+- **C, no hidden numerical choice.** Arithmetic is exact over the rationals,
+  and the identities are polynomial.
+- **D, contract.** The acceptance map keeps apart the structural facts
+  (oracle), the Mathlib meaning `Σ_k (P_k)²` (bridge) and tests.
+
+#### Execution and evidence profile
+
+- The profile is the finite profile of §12; the trace form uses trace powers
+  up to `2n`, within `spectralPower`.
+- Values are exact rationals at run time.
+
+#### Outside this admission
+
+- Averages of nonsymmetric or Hermitian fields over `QQ(i)`; degenerate
+  spectra; time-dependent transition probabilities and their transcendental
+  functions; numerical evaluation.
+
+#### Negative tests
+
+- A closed form that differs from the trace form; a denominator that is not a
+  unit on `D(g)`; a nonsymmetric field; a basis vector of another module; a
+  chart of another spectrum (`E_SPECTRAL`).
+
+#### Compatibility and public-name audit
+
+- **Names.** The family is `TransitionAverage<X>`, the declaration form
+  `transition_average(B, from = i, to = j) = N / D`, and the observation
+  `average_at`. The names are provisional until the module is delivered.
+- **Other meanings.** The average is no expectation value of a measurement and
+  no statistical mean of data; those belong to `nature::model` and
+  `nature::errorbar`.
+
 ## Consequences, validation and migration
 
 - A *thick* foundational `std` can cover algebra, topology/geometry, analysis, infinite-dimensional quantum mechanics and the mathematical formulation of equations, while a potentially infinite space of approximation algorithms remains in the ecosystem.
@@ -1146,6 +1231,22 @@ chapter links the tracker and the issues that this section refers to.
   eigensolvers, [#324](https://github.com/MGYamada/Vastitas/issues/324);
   spectral measures, [#262](https://github.com/MGYamada/Vastitas/issues/262);
   performance, [#222](https://github.com/MGYamada/Vastitas/issues/222).
+
+§13 was adopted for the Stage 6 tracker
+[#841](https://github.com/MGYamada/Vastitas/issues/841). Its references are:
+
+- **Spectral profile.** The spectral pair and finite charts of §12
+  ([#806](https://github.com/MGYamada/Vastitas/issues/806),
+  [#337](https://github.com/MGYamada/Vastitas/issues/337)).
+- **Physical reading.** The model and data of `nature::model` and
+  `nature::errorbar`, ADR 0002 §4 and §5
+  ([#299](https://github.com/MGYamada/Vastitas/issues/299),
+  [#374](https://github.com/MGYamada/Vastitas/issues/374)).
+- **Outside the admission:** Hermitian fields over `QQ(i)`,
+  [#816](https://github.com/MGYamada/Vastitas/issues/816); time evolution
+  and transcendental functions,
+  [#244](https://github.com/MGYamada/Vastitas/issues/244); numerical
+  evaluation, [#318](https://github.com/MGYamada/Vastitas/issues/318).
 
 The amendment of 2026-11-12 in §9, on the implementation correspondence in
 the bridge, records a dependency that commit `449b02d` introduced on

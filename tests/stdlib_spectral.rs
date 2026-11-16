@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 /// coordinate is s. At p = (1, 2) the branch point is (p, 3), where the
 /// eigenvalue has the differential (1, 1) and the eigenprojector 1. Each
 /// observation has its own failure bit, 2^(k−1) for the code k, so `main`
-/// prints 42 only when all of them hold, and the printed number names every
+/// returns 42 only when all of them hold, and the bits above 42 name every
 /// observation that fails.
 const MAIN: &str = r#"
 use std::geometry::smooth::affine::SmoothR;

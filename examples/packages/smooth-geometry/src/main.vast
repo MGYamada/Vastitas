@@ -4,7 +4,7 @@ mod profile;
 // covectors and vectors at rational points, pullbacks, a tape, and three
 // metrics on the plane. f(t) = (t, t^2) and g(x, y) = x^2 + y, so
 // g(f(t)) = 2t^2. Each observation has its own failure code, so `main`
-// prints 42 only when all of them hold.
+// shows `failures = 0` and exits with status 0 only when all of them hold.
 use profile::Smooth;
 use profile::Cotangent;
 use profile::Tangent;

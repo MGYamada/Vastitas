@@ -4,8 +4,8 @@
 // frame e and the line frame l, and (1, 2) in b and l. On the chart C with a
 // length x and a time t, the metric G = diag(1/9, 1/4) is dx^2 / l0^2 +
 // dt^2 / t0^2 with l0 = 3 and t0 = 2, and the gradient of x + t under G is
-// (9, 4). Each observation has its own failure code, so `main` prints 42
-// only when all of them hold.
+// (9, 4). Each observation has its own failure code, so `main` shows
+// `failures = 0` and exits with status 0 only when all of them hold.
 // ANCHOR: imports
 use std::geometry::smooth::affine::SmoothR;
 use std::geometry::smooth::affine::Smooth;

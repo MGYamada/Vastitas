@@ -10,8 +10,8 @@ mod profile;
 // and J, and 0 and N, have the same invariants and different actions. The
 // observations below cover the runtime rows of the #806 checklist: C3, C4,
 // C5, C9, C10 and C11. Observation k adds 2^(k - 1) when it fails, so `main`
-// prints 42 + m, where the bits of m name the failed observations, and 42
-// only when all of them hold.
+// shows `failures = m`, where the bits of m name the failed observations,
+// and exits with status 0 only when m is 0.
 // ANCHOR: imports
 use std::geometry::smooth::affine::Smooth;
 use std::geometry::smooth::affine::Tangent;

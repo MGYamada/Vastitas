@@ -1,5 +1,5 @@
 // The first derivative of square(t) = t^2 at t = 3. The differential of
-// square at 3 is the covector 6 dt, and the program prints its numerator, 6.
+// square at 3 is the covector 6 dt, and the program shows its numerator, 6.
 // ANCHOR: all
 use std::geometry::smooth::affine::Smooth;
 use std::geometry::smooth::affine::Cotangent;

@@ -8,7 +8,7 @@ mod profile;
 // the frames and the physical interpretations included, before code
 // generation. The observations below cover the runtime rows of the #759
 // checklist: C1, C2, C4 to C12 and C18. Each has its own failure code, 1 to
-// 36, so `main` prints 42 only when all of them hold.
+// 36, so `main` shows `failures = 0` and exits with status 0 only when all of them hold.
 use std::geometry::smooth::affine::Smooth;
 use std::geometry::smooth::affine::Tangent;
 use std::geometry::smooth::affine::Cotangent;

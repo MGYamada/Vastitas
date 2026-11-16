@@ -5,7 +5,7 @@ mod profile;
 // frames, changes of frame and contraction in frames. At p = (1, 2) the
 // vector v = (3, 2) has the array (2, 1) in b and (1, 1) in c, and the
 // covector df = (2, 1) has the array (2, 4) in b. Each observation has its own
-// failure code, so `main` prints 42 only when all of them hold.
+// failure code, so `main` shows `failures = 0` and exits with status 0 only when all of them hold.
 use profile::Smooth;
 use profile::Cotangent;
 use profile::Tangent;

@@ -2,8 +2,8 @@
 // g(x, y) = x^2 + y, so g(f(t)) = 2t^2. At x = 3 the seed is dt at
 // g(f(3)) = 18, and its pullback along g, then f, is 12 dt. The differential
 // of g at (1, 2) is (2, 1), and its gradient under the metric Skew is (1, 0).
-// Each observation has its own failure code, so `main` prints 42 only when
-// all of them hold.
+// Each observation has its own failure code, so `main` shows `failures = 0`
+// and exits with status 0 only when all of them hold.
 // ANCHOR: imports
 use std::geometry::smooth::affine::SmoothR;
 use std::geometry::smooth::affine::Smooth;

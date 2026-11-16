@@ -244,7 +244,7 @@ fn library_bindings_are_the_documented_operations() {
 
 /// The library's other operations work from an application: `tangent_over`,
 /// `composite`, `same_smooth` and the `Tape` family. Each check has its own
-/// code, so the program prints 42 only when all of them hold.
+/// code, so the program exits with status 42 only when all of them hold.
 #[test]
 fn library_fiber_and_map_operations_work_from_an_application() {
     let main = common::checked_replace(

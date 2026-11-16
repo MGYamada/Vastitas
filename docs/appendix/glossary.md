@@ -564,7 +564,8 @@ A field declared `symmetric` has a checked H = Hᵀ. See
 
 The function `main` of a program, with the signature `fn main() -> Int`, or a
 `resource fn main() -> Int` in manifest mode. `vastitas build` requires one,
-and the executable prints the integer that it returns. See
+and the executable exits with the [exit status](#exit-status) of the integer
+that it returns. See
 [The entry point](../language/programs.md#the-entry-point).
 
 ## Erased evaluator
@@ -610,6 +611,12 @@ source code. See
 the [guide](../guide/indexed-geometry.md#existential-packages) and
 [Existential packages](../indexed-source.md#existential-packages) of indexed
 declarations.
+
+## Exit status
+
+The status with which an executable exits: the `Int` result of its entry
+point modulo 256, from 0 to 255, as in C. A program returns 0 on success. See
+[The entry point](../language/programs.md#the-entry-point).
 
 ## Expected type
 
@@ -954,6 +961,12 @@ and [Starting the kernel](../internals/driver.md#starting-the-kernel).
 ## Key
 
 See [dispatch key](#dispatch-key).
+
+## Label
+
+The text that [`show!`](../language/programs.md#showing-values-with-show)
+writes before ` = value`: the source text of its expression, with each run
+of whitespace replaced by one space. A label is presentation only.
 
 ## Lambda
 

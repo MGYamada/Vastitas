@@ -67,14 +67,16 @@ private def scalarOnly : ResourceSource.Program := changeMain fun f => {f with
   let .ok generated := ResourceSource.Codegen.generate fixture
     | throw (IO.userError "mixed code generation rejected")
   require "runtime condition rendered from actual slot" ((generated.source.splitOn "if resourceValue_").length > 1)
-  require "terminal checked Core call displayed once"
-    ((generated.source.splitOn "    IO.println (VastitasGenerated.").length == 2 &&
-     !(generated.source.splitOn "    IO.println resourceValue_").length > 1)
+  -- The terminal call is the exit status of the program, which writes nothing (#836).
+  require "terminal checked Core call is the exit status once"
+    ((generated.source.splitOn "    status := (UInt32.ofNat (Int.toNat (Int.emod (VastitasGenerated.").length == 2 &&
+     !(generated.source.splitOn "Int.emod (resourceValue_").length > 1 &&
+     (generated.source.splitOn "IO.println").length == 1)
   let .ok staticGenerated := ResourceSource.Codegen.generate ResourceSource.Regression.fixture
     | throw (IO.userError "legacy static resource code generation rejected")
   require "legacy static resource envelope has no scalar lets"
     ((staticGenerated.source.splitOn "let resourceValue_").length == 1 &&
-     (staticGenerated.source.splitOn "    IO.println (VastitasGenerated.").length == 2)
+     (staticGenerated.source.splitOn "    status := (UInt32.ofNat (Int.toNat (Int.emod (VastitasGenerated.").length == 2)
   -- The storage runtime follows from the checked operations on an arena (#681).
   require "entries with storage operations select the storage runtime and one arena"
     (generated.storageRuntime && staticGenerated.storageRuntime &&
@@ -90,7 +92,7 @@ private def scalarOnly : ResourceSource.Program := changeMain fun f => {f with
   require "scalar-only entry keeps its value flow, runtime condition and terminal call"
     ((scalarGenerated.source.splitOn "\n  let resourceValue_").length == 3 &&
      (scalarGenerated.source.splitOn "\n  if resourceValue_").length == 2 &&
-     (scalarGenerated.source.splitOn "\n  IO.println (VastitasGenerated.").length == 2)
+     (scalarGenerated.source.splitOn "\n  pure (UInt32.ofNat (Int.toNat (Int.emod (VastitasGenerated.").length == 2)
   -- The classification behind it: the markers of a branch name no arena, and
   -- an operation needs the arena even when it stands under a branch.
   let .ok markers := Native.compile [.branch true [] [.branch false [] []]]

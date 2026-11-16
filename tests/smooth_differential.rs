@@ -1207,8 +1207,13 @@ fn metric_programs_lower_to_the_shared_smooth_runtime() {
         assert!(source.contains(expected), "{expected}\n{source}");
     }
     // The five flat calls and the five sharp calls name four matrices, and
-    // the calls of g name one map: no call repeats a literal.
-    let count = |text: &str| source.matches(text).count();
+    // the calls of g name one map: no call repeats a literal. The library is
+    // counted: the entry point of the example's `show!` binds the top-level
+    // statements of `main` again (#836).
+    let library = &source[..source
+        .find("\nend VastitasGenerated\n")
+        .expect("generated namespace")];
+    let count = |text: &str| library.matches(text).count();
     assert_eq!(count("(VastitasKernel.SmoothRuntime.flat matrix_"), 5);
     assert_eq!(count("(VastitasKernel.SmoothRuntime.sharp matrix_"), 5);
     assert_eq!(count(": VastitasKernel.SmoothRuntime.Matrix)"), 4);

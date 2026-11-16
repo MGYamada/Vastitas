@@ -312,3 +312,31 @@ fn the_kernel_refuses_tampered_observations() {
         }
     }
 }
+
+#[test]
+fn observations_name_the_position_of_their_statement_among_all_statements() {
+    let module = vastitas::frontend::parse(
+        "fn main() -> Int {
+    let a = 1;
+    unpack a as { scheme: X, point: p };
+    let b = show!(a   +
+        1);
+    let c = b;
+    let d: Int = show!(c);
+    0
+}",
+        FILE,
+    )
+    .unwrap();
+    let observations: Vec<(usize, &str)> = module.functions[0]
+        .observations
+        .iter()
+        .map(|observation| (observation.statement, observation.label.as_str()))
+        .collect();
+    assert_eq!(observations, [(2, "a + 1"), (4, "c")]);
+    // The request sends the statements without `show!`.
+    let request = serde_json::to_value(&module).unwrap();
+    let statements = &request["functions"][0]["body"]["statements"];
+    assert_eq!(statements[2]["value"]["kind"], "binary");
+    assert_eq!(statements[4]["value"]["kind"], "variable");
+}

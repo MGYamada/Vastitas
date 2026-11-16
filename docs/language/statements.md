@@ -3,7 +3,10 @@
 A **statement** binds names for the rest of a block. Statements occur only at
 the beginning of a [block expression](expressions.md#block-expressions), before
 its result. A block has two kinds of statements, `let` and `unpack`, and no
-expression statements. The body of a resource function consists of other
+expression statements. A `let` at the top level of the body of `fn main` may
+observe its value with
+[`show!`](programs.md#showing-values-with-show) (`ShowStatement`), and no
+other statement may. The body of a resource function consists of other
 statements, the
 [resource statements](../storage/resource-programs.md#resource-statements),
 which this chapter does not cover.
@@ -11,7 +14,7 @@ which this chapter does not cover.
 > **Syntax**
 >
 > ```text
-> Statement -> LetStatement | UnpackStatement
+> Statement -> LetStatement | UnpackStatement | ShowStatement
 > ```
 
 ## Scopes of bindings

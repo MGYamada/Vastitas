@@ -16,6 +16,49 @@ import VastitasKernel.SpectralRegression
 
 open VastitasKernel.Indexed.Core
 
+/-- The largest local symbol of a term. -/
+partial def maxSymbol : Term → Nat
+  | .variable symbol _ => symbol
+  | .letE symbol value body => max symbol (max (maxSymbol value) (maxSymbol body))
+  | .unpack witness fields package body =>
+    max witness (max (fields.foldl max 0) (max (maxSymbol package) (maxSymbol body)))
+  | .unary _ value _ | .project _ _ value | .natToInt value | .scope value | .ascribe _ value =>
+    maxSymbol value
+  | .binary _ left right _ | .pair _ left right => max (maxSymbol left) (maxSymbol right)
+  | .branch condition yes no _ => max (maxSymbol condition) (max (maxSymbol yes) (maxSymbol no))
+  | .primitive _ arguments _ | .call _ arguments _ _ => arguments.foldl (fun m t => max m (maxSymbol t)) 0
+  | .pack _ witness fields => fields.foldl (fun m t => max m (maxSymbol t)) (maxSymbol witness)
+  | _ => 0
+
+/-- The module with the body `b` of `main` written as `{ let shown = show!(b); 0 }`
+(#836): its first top-level statement binds the old result under a fresh
+symbol, and the observation of that statement writes it as `main = value`. -/
+def observed (module : Module) : Option Module := do
+  let id ← module.main
+  let fresh := 1 + module.functions.foldl (fun m function =>
+    max m (function.parameters.foldl (fun m p => max m p.symbol) (maxSymbol function.body))) 0
+  return { module with functions := module.functions.map fun function =>
+    if function.id == id then { function with body := .scope (.letE fresh function.body (.integer 0)) }
+    else function }
+
+def shown : List Observation := [{ statement := 0, label := "main" }]
+
+/-- Writes `{name}.lean`, the program of `module`, and `{name}_shown.lean`, the
+program that observes the result of its `main` and exits with 0. `compile`
+runs between the check and generation. -/
+def emit (directory name : String) (module : Module)
+    (compile : Typing.CheckedModule true → Except String (Typing.CheckedModule true) := pure) :
+    IO Unit := do
+  for (file, variant, observations) in [(name, some module, []), (name ++ "_shown", observed module, shown)] do
+    let some variant := variant | throw (IO.userError s!"fixture {name} has no entry point")
+    let .ok checked := Typing.checkModule variant true
+      | throw (IO.userError s!"fixture {file} rejected")
+    let .ok compiled := compile checked
+      | throw (IO.userError s!"fixture {file} failed its reverse compilation")
+    let .ok source := Codegen.generate compiled observations
+      | throw (IO.userError s!"fixture {file} failed code generation")
+    IO.FS.writeFile (System.FilePath.mk directory / s!"{file}.lean") source
+
 def main (arguments : List String) : IO Unit := do
   let [directory] := arguments | throw (IO.userError "expected output directory")
   let .ok sourceFixture := VastitasKernel.Indexed.Source.Regression.sourceFixture
@@ -66,21 +109,12 @@ def main (arguments : List String) : IO Unit := do
       ("smooth_metric_programs", VastitasKernel.Indexed.MetricFormRegression.metricFixture),
       ("frame_programs", VastitasKernel.Indexed.FrameRegression.frameFixture),
       ("spectral_programs", VastitasKernel.Indexed.SpectralRegression.spectralFixture)] ++ bodies do
-    let .ok checked := Typing.checkModule module true
-      | throw (IO.userError s!"fixture {name} rejected")
-    let .ok source := Codegen.generate checked
-      | throw (IO.userError s!"fixture {name} failed code generation")
-    IO.FS.writeFile (System.FilePath.mk directory / s!"{name}.lean") source
+    emit directory name module
   -- Compiled reverse Core (#623): the reverse sites compiled into Core, checked
   -- again and validated, then lowered.
   for (name, module) in [
       ("smooth_reverse_programs", VastitasKernel.Indexed.CotangentRegression.cotangentFixture),
       ("smooth_reverse_extended", VastitasKernel.Indexed.Core.ReverseCoreRegression.extendedFixture),
       ("spectral_reverse_programs", VastitasKernel.Indexed.SpectralRegression.spectralFixture)] do
-    let .ok checked := Typing.checkModule module true
-      | throw (IO.userError s!"fixture {name} rejected")
-    let .ok compiled := Reverse.compile checked
-      | throw (IO.userError s!"fixture {name} failed its reverse compilation")
-    let .ok source := Codegen.generate compiled.core
-      | throw (IO.userError s!"fixture {name} failed code generation")
-    IO.FS.writeFile (System.FilePath.mk directory / s!"{name}.lean") source
+    emit directory name module fun checked =>
+      (Reverse.compile checked).map (·.core) |>.mapError (·.message)

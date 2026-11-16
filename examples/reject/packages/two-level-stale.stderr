@@ -1,0 +1,1 @@
+examples/reject/packages/two-level-stale/main.vast:54:1: E_STALE: the comparison `two_level_stale::C` records the fingerprint `fnv1a64:fd1f7edd812db49f` of the calibration `two_level_stale::K`, but its current fingerprint is `fnv1a64:6a8dabdbcc7f9b54`: the calibration changed after the comparison was recorded; review the comparison and record the current fingerprint

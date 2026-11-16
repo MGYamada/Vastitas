@@ -1,0 +1,1 @@
+examples/reject/packages/two-level-wrong-average/main.vast:22:1: E_SPECTRAL: the closed form ratio(N, D) of the transition average `two_level_wrong_average::A` is not the average of its branch: N·g^(2e) − D·T is not zero for the trace form T; it has 3 terms, among them `frac(1, 2) * delta^4 * omega^2`

@@ -126,6 +126,29 @@ Rules:
   an error (`E_PARSE`).
 - The regime must be `assume` applied to a recorded text. Another regime is
   an error (`E_PARSE`).
+- The reading must be a reading of the object of the model, and the
+  prepared and the observed vector must be basis vectors of the free module
+  of the hamiltonian. Otherwise it is an error (`E_MODEL`).
+
+A prepared vector of another free module of the same object is an error:
+
+```vast
+{{#include ../../examples/reject/packages/two-level-other-basis/main.vast:declarations}}
+```
+
+```text
+{{#include ../../examples/reject/packages/two-level-other-basis.stderr}}
+```
+
+So is a reading of another object, even one with the same coordinates:
+
+```vast
+{{#include ../../examples/reject/packages/two-level-other-reading/main.vast:declarations}}
+```
+
+```text
+{{#include ../../examples/reject/packages/two-level-other-reading.stderr}}
+```
 
 ## Calibrations
 
@@ -192,6 +215,19 @@ Rules:
   ([limits](../appendix/limits.md#physical-models-and-data)). Otherwise it
   is an error (`E_LIMIT`) at the list of points, before the kernel reads a
   point.
+- With the calibrated values, every point must lie on the chart D(g) of the
+  branch of the average that the model predicts, whatever the closed form of
+  the average. Otherwise it is an error (`E_ERRORBAR`).
+
+A point where the eigenvalues of the field meet lies off every chart:
+
+```vast
+{{#include ../../examples/reject/packages/two-level-off-chart/main.vast:declarations}}
+```
+
+```text
+{{#include ../../examples/reject/packages/two-level-off-chart.stderr}}
+```
 
 ## Comparisons
 
@@ -219,3 +255,30 @@ Rules:
 - The fingerprint must be a recorded text.
 - A verdict other than `consistent` and `inconsistent` is an error
   (`E_TYPE`).
+- The recorded fingerprint must be the current fingerprint of the
+  calibration. Otherwise it is an error (`E_STALE`), whose message names the
+  current fingerprint.
+- The recorded verdict must be the verdict that the kernel computes from
+  the dataset. Otherwise it is an error (`E_ERRORBAR`).
+
+A calibration evaluated again after the comparison was recorded makes the
+comparison stale:
+
+```vast
+{{#include ../../examples/reject/packages/two-level-stale/main.vast:declarations}}
+```
+
+```text
+{{#include ../../examples/reject/packages/two-level-stale.stderr}}
+```
+
+A verdict that the data do not support is an error, with the first
+inconsistent point or the statement that every point is consistent:
+
+```vast
+{{#include ../../examples/reject/packages/two-level-wrong-verdict/main.vast:declarations}}
+```
+
+```text
+{{#include ../../examples/reject/packages/two-level-wrong-verdict.stderr}}
+```

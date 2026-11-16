@@ -762,6 +762,17 @@ Rules:
   [exact affine algebra](../appendix/limits.md#exact-affine-algebra).
   Otherwise it is an error (`E_LIMIT`).
 
+A closed form that misses the factor 1/2 of the dephased average of a
+two-level field is not its trace form:
+
+```vast
+{{#include ../../examples/reject/packages/two-level-wrong-average/main.vast:declarations}}
+```
+
+```text
+{{#include ../../examples/reject/packages/two-level-wrong-average.stderr}}
+```
+
 ## Average observations
 
 > **Syntax**

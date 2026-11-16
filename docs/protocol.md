@@ -171,6 +171,12 @@ flat program of protocols 2–6, `vastitas:compat:flat`, `legacy_flat` and
 profile. The driver shows the kernel's names of its functions without the
 package prefix.
 
+A package source that begins with `vastitas:compat:` is reserved. A request of
+protocol 8 or 9 may use one only as this package: the one package of the
+request and its root, with the identity above, no dependencies, no
+`geometry_compat` export and one public root module. Any other package,
+dependency target or root with such a source is an error (`E_PROTOCOL`).
+
 <a id="protocol-9-algebraic-affine-forms"></a>
 
 **Protocol-9 algebraic affine forms (Stage 2).** Presented affine declarations

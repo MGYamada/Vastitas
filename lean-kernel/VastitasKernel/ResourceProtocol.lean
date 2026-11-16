@@ -485,12 +485,38 @@ def package (j : Json) (version : Nat) : Except String Package := do
     (admits .algebraic)
   return ⟨pkg.id, pkg.dependencies, modules, pkg.geometryCompat⟩
 
+/-- Whether `packages`, with `root`, is the request that `packages::flat_request`
+writes for a flat unit: one package with the identity `flatPackageId`, which is
+the root, without dependencies or a `geometry_compat` export, whose one module
+is the public root module. -/
+def flatRequest (root : String) (packages : List Package) : Bool :=
+  match packages with
+  | [pkg] => root == flatPackageId.source && pkg.id == flatPackageId && pkg.dependencies.isEmpty &&
+      pkg.geometryCompat.isNone &&
+      match pkg.modules with
+      | [m] => m.pureModule.module.path.isEmpty && m.pureModule.module.isPublic
+      | _ => false
+  | _ => false
+
+/-- A request carries a reserved package source (`reservedSource`) as a package,
+a dependency target or its root only as the request of a flat unit
+(`flatRequest`). Any other use of one is an error (#762). -/
+def reservedIdentities (root : String) (packages : List Package) : Except String Unit := do
+  let reserved := reservedSource root || packages.any fun pkg =>
+    reservedSource pkg.id.source || pkg.dependencies.any (reservedSource ·.target)
+  if reserved && !flatRequest root packages then
+    throw "a package source that begins with 'vastitas:compat:' is reserved for the package of a flat unit"
+
 def program (j : Json) : Except String Program := do
   fields j ["version", "input", "file", "root", "packages"]
   let version ← j.getObjValAs? Nat "version"
   if version != 8 && version != 9 then throw "expected protocol 8 or 9"
   if (← str j "input") != "package" then throw "protocol 8/9 requires package input"
-  return ⟨← str j "file", ← str j "root", ← (← array j "packages").mapM (package · version)⟩
+  let file ← str j "file"
+  let root ← str j "root"
+  let packages ← (← array j "packages").mapM (package · version)
+  reservedIdentities root packages
+  return ⟨file, root, packages⟩
 
 /-- The namespace work of the body passes that ran: those of the pure program
 and, when the program has resource fragments, the passes with them. Without

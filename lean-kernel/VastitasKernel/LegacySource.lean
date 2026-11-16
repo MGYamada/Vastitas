@@ -107,7 +107,7 @@ private def module (flat : Bool) (m : Namespace.Module) : Except Diagnostic Disp
 /-- Adapter-owned identities are independent of display filenames. The original
 namespace must validate before these private implementation packages are added. -/
 def profileId : Namespace.PackageId := ⟨"vastitas:compat:2-6", "legacy_geometry", "1.0.0"⟩
-def flatId : Namespace.PackageId := ⟨"vastitas:compat:flat", "legacy_flat", "1.0.0"⟩
+def flatId : Namespace.PackageId := flatPackageId
 
 private def rootModule : Namespace.Module := {
   path := [], isPublic := true, imports := [], functions := [], generics := [], methods := [], span := {} }

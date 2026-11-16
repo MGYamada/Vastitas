@@ -424,11 +424,14 @@ The kernel bounds the datasets of `nature::errorbar`, which historical
 Stage 6 admits
 ([#841](https://github.com/MGYamada/Vastitas/issues/841)), and the frontend
 and the kernel bound the [recorded texts](../language/physical-models.md#recorded-texts)
-of `nature::model` and `nature::errorbar`. The values,
-uncertainties and coverage factors of calibrations and datasets, and the
-closed forms of the transition averages of `std::linalg::spectral`, are
-polynomial literals: their digits have the bound `algebraCoefficientDigits`
-of [Exact affine algebra](#exact-affine-algebra). The module of the field of
+of `nature::model` and `nature::errorbar`. The values, uncertainties and
+coverage factors of calibrations and datasets and the coordinates of their
+points are rational literals, an integer literal or a fraction with an
+optional `-`, and on the wire any other expression is a protocol error
+(`E_PROTOCOL`), so that every value is bounded by its literal. Their
+literals, and those of the closed forms of the transition averages of
+`std::linalg::spectral`, have the digit bound `algebraCoefficientDigits` of
+[Exact affine algebra](#exact-affine-algebra). The module of the field of
 a model has at most `spectralRank` basis vectors, as in
 [Spectral observations](#spectral-observations). A dataset beyond the bound
 is rejected before any of its points is read. A recorded text beyond the

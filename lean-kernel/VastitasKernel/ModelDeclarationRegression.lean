@@ -311,6 +311,42 @@ certificate field is an unknown field. Every other field is required. -/
       (toJson [calibrated "omega" (Json.mkObj [("op", toJson "natural"),
         ("value", toJson (String.ofList (List.replicate 64 '1')))]) (natural 1)])) true)
 
+/-- The calibration `K` whose one calibrated value is `value`. -/
+private def calibrationWith (value : Json) : Json :=
+  withField (withoutField (calibrationJson "K") "parameters") "parameters"
+    (toJson [calibrated "omega" value (natural 1)])
+
+private def negJson (operand : Json) : Json := Json.mkObj [("op", toJson "neg"), ("operand", operand)]
+
+/-- The tower `pow(…pow(frac(10^63 + 1, 10^63 − 3), 16)…, 16)` of `levels` levels. Four levels are a field of a few
+hundred bytes whose value has tens of millions of bits; the decoder rejects it without computing it. -/
+private def tower : Nat → Json
+  | 0 => Json.mkObj [("op", toJson "fraction"), ("numerator", toJson (toString (10 ^ 63 + 1))),
+      ("denominator", toJson (toString (10 ^ 63 - 3)))]
+  | levels + 1 => powJson (tower levels) 16
+
+#eval check "a measured value, a coverage factor and a point coordinate are rational literals, under at most one neg"
+  (decodes (calibrationWith (negJson (fraction 5 2))) true && decodes (calibrationWith (fraction (-5) 2)) true &&
+    !decodes (calibrationWith (tower 1)) true && !decodes (calibrationWith (tower 4)) true &&
+    !decodes (calibrationWith (sumJson [natural 1, natural 2])) true &&
+    !decodes (calibrationWith (productJson [fraction 5 4, natural 2])) true &&
+    !decodes (calibrationWith (coordinate "delta")) true &&
+    !decodes (calibrationWith (negJson (negJson (natural 1)))) true &&
+    !decodes (withField (withoutField (datasetJson "D" "M" twoPoints) "coverage") "coverage" (tower 4)) true &&
+    !decodes (withField (withoutField (datasetJson "D" "M" twoPoints) "coverage") "coverage" (coordinate "delta"))
+      true &&
+    !decodes (datasetJson "D" "M" [point (tower 4) (natural 1) (natural 1)]) true &&
+    !decodes (datasetJson "D" "M" [point (natural 0) (tower 4) (natural 1)]) true &&
+    !decodes (datasetJson "D" "M" [point (natural 0) (natural 1) (tower 4)]) true)
+
+#eval check "a pow tower as a measured value is E_PROTOCOL, before any value is computed"
+  (rejectsWith 9 (smoothBase ++ stage6Families ++ [calibrationWith (tower 4)]) "E_PROTOCOL" "is a literal")
+
+#eval check "a literal beyond algebraCoefficientDigits digits is E_PROTOCOL on the wire, as every polynomial literal"
+  (rejectsWith 9 (smoothBase ++ stage6Families ++ [calibrationWith (Json.mkObj [("op", toJson "natural"),
+      ("value", toJson (String.ofList (List.replicate (Limits.algebraCoefficientDigits + 1) '1')))])]) "E_PROTOCOL"
+    "too many digits")
+
 /-- `j` with its text field `name` set to `text`. -/
 private def withText (j : Json) (name text : String) : Json := withField (withoutField j name) name (toJson text)
 

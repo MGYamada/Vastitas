@@ -465,9 +465,10 @@ The transition average of `std::linalg::spectral` and the declarations of
 `nature::model` and `nature::errorbar`. The wire carries no certificate of an
 average and no fingerprint that the kernel computes: a certificate field is an
 unknown field, and the fingerprint of a comparison is the recorded one.
-Values, uncertainties and the coverage factor are constant polynomial
-expressions, so their digits have the bound of every polynomial literal. The
-recorded texts (`recordText`) have the bound `recordTextBytes` and the
+Values, uncertainties, coverage factors and the coordinates of points are
+rational literals (`rationalLiteral`), the forms that the frontend reads, with
+the digit bound of every polynomial literal, so each value is bounded by its
+literal. The recorded texts (`recordText`) have the bound `recordTextBytes` and the
 characters of the string literals that the frontend reads. -/
 
 /-- A recorded text of a Stage 6 declaration, the field `key` of `j`: the
@@ -504,21 +505,37 @@ def verdict (j : Json) : Except String Verdict := do
   | "inconsistent" => return .inconsistent
   | _ => throw "the verdict of a comparison is consistent or inconsistent"
 
+/-- A rational literal of a Stage 6 record: a `natural`, a `fraction`, or one
+`neg` of either, exactly the forms that the frontend reads (`Parser::rational`:
+an integer literal or `frac(i, n)`, with an optional `-`). Each literal has at
+most `algebraCoefficientDigits` digits. Any other expression, a power, a sum,
+a product, a coordinate or a second `neg`, is a protocol error, so that the
+value is bounded by the digits of its literal and is never computed. -/
+def rationalLiteral (j : Json) : Except String Source.PolyExpr := do
+  let literal (j : Json) : Except String Source.PolyExpr := do
+    match ← str j "op" with
+    | "natural" | "fraction" => polyExpr 1 j
+    | _ => throw "a rational number of a measured value, a coverage factor or a point is a literal: natural or fraction, under at most one neg"
+  match ← str j "op" with
+  | "neg" =>
+    fields j ["op", "operand"]
+    return .neg (← literal (← field j "operand"))
+  | _ => literal j
+
 /-- A measured value `measured(value, u = uncertainty)`, from the fields
-`value` and `uncertainty` of `j`. -/
+`value` and `uncertainty` of `j`, two rational literals. -/
 def sourceMeasured (j : Json) : Except String Source.SourceMeasured := do
-  return ⟨← polyExpr Limits.algebraNesting (← field j "value"),
-    ← polyExpr Limits.algebraNesting (← field j "uncertainty")⟩
+  return ⟨← rationalLiteral (← field j "value"), ← rationalLiteral (← field j "uncertainty")⟩
 
 /-- One calibrated coordinate of a calibration. -/
 def calibrated (j : Json) : Except String Source.Calibrated := do
   fields j ["coordinate", "value", "uncertainty"]
   return ⟨← str j "coordinate", ← sourceMeasured j⟩
 
-/-- The value of one coordinate at a point of a dataset. -/
+/-- The value of one coordinate at a point of a dataset, a rational literal. -/
 def pointCoordinate (j : Json) : Except String (String × Source.PolyExpr) := do
   fields j ["coordinate", "value"]
-  return (← str j "coordinate", ← polyExpr Limits.algebraNesting (← field j "value"))
+  return (← str j "coordinate", ← rationalLiteral (← field j "value"))
 
 /-- One point of a dataset. The kernel bounds the number of points by
 `datasetPoints` after decoding. -/
@@ -671,7 +688,7 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     fields j (common ++ ["family", "indices", "model", "calibration", "coverage", "points"])
     return .dataset (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← path (← field j "model")) (← path (← field j "calibration"))
-      (← polyExpr Limits.algebraNesting (← field j "coverage")) (← (← array j "points").mapM sourcePoint)
+      (← rationalLiteral (← field j "coverage")) (← (← array j "points").mapM sourcePoint)
   | "comparison" =>
     unless physicalModels do throw "errorbar declarations require protocol 9"
     fields j (common ++ ["family", "indices", "dataset", "calibration", "fingerprint", "verdict"])

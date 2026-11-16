@@ -290,7 +290,7 @@ private def withData (cal : Source.Declaration) (data : Source.Declaration) : So
   (rejectsWith (withData (calibration "K" [omegaAt (frac 5 2) (uncertainty := n 0)]) (dataset "D" twoPoints))
       "E_ERRORBAR" "the uncertainty of the coordinate `omega` of the calibration `model::K` is 0" &&
     rejectsWith (withData (calibration "K" [omegaAt (frac 5 2)]) (dataset "D" [point [("delta", n 0)] (frac 1 2)
-      (uncertainty := neg (frac 1 50))])) "E_ERRORBAR" "the uncertainty of the value of the point 1 of the dataset")
+      (uncertainty := neg (frac 1 50))])) "E_ERRORBAR" "the uncertainty of the point 1 of the dataset")
 #eval check "a nonpositive coverage factor is E_ERRORBAR"
   (rejectsWith (withData (calibration "K" [omegaAt (frac 5 2)]) (dataset "D" twoPoints (coverage := n 0)))
     "E_ERRORBAR" "the coverage factor of the dataset `model::D` is 0; a coverage factor is positive")

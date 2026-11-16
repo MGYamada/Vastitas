@@ -51,11 +51,22 @@ private def errorbarSpan (sources : List (DeclId × Span × Body)) (id : DeclId)
 private def errorbarBody (sources : List (DeclId × Span × Body)) (id : DeclId) : Option Body :=
   (sources.find? (·.1 == id)).map (·.2.2)
 
-/-- A rational as the source writes it. -/
+/-- The decimal digits of a natural number in a message: in full up to 40
+digits, and otherwise the first and the last 12 digits around the number of
+digits, so that no message grows with the size of a value. -/
+private def digitsText (n : Nat) : String :=
+  let digits := toString n
+  if digits.length ≤ 40 then digits
+  else s!"{(digits.take 12).toString}…({digits.length} digits)…{(digits.drop (digits.length - 12)).toString}"
+
+/-- A rational as the source writes it, with `digitsText` for its numerator
+and denominator. -/
 private def rationalText (value : Rat) : String :=
-  if value.den == 1 then toString value.num
-  else if value.num < 0 then s!"-frac({-value.num}, {value.den})"
-  else s!"frac({value.num}, {value.den})"
+  let num := digitsText value.num.natAbs
+  let den := digitsText value.den
+  if value.den == 1 then (if value.num < 0 then s!"-{num}" else num)
+  else if value.num < 0 then s!"-frac({num}, {den})"
+  else s!"frac({num}, {den})"
 
 /-- The coordinates of the object of the declaration `what` of the
 representation `form`, after its family and object are checked. -/
@@ -157,7 +168,7 @@ private def elaborateDataset (span : Span) (env : Environment) (name family obje
     let missing := (List.range m).filter fun i => !given.contains i && !(values.map (·.1)).contains i
     if let some i := missing.head? then
       invalid span s!"{what} does not give the coordinate `{coordinates.getD i ""}`, which the calibration does not give"
-    let dataPoint : DataPoint := ⟨values, ← measured span s!"the value of {what}" point.measured⟩
+    let dataPoint : DataPoint := ⟨values, ← measured span what point.measured⟩
     let some p := NatureErrorbar.fullPoint m calibrated dataPoint
       | invalid span s!"{what} does not give each coordinate of `{qualified object}` once with the calibration"
     if SmoothRuntime.evalAt localize p == 0 then

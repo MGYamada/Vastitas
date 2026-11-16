@@ -690,6 +690,10 @@ flags, and whether `rdiv` selected `mul_zero` or raw `div`. The sticky mask
 unions each occurrence's flags in order. It never performs FMA contraction,
 an unlisted fallback, a complex-specific special-value branch or mixed-format
 promotion. `reciprocal(z)` invokes this same division with numerator `(1,+0)`.
+An independent `verify_trace` checks the ordered SSA inputs, operation names,
+intermediate bits, local flags, selected `rdiv` branch and final result; forged
+fallback/shortcut/FMA-profile witnesses are rejected. This is a reference
+trace checker, not acceptance of compiler-generated IR.
 
 The pure regression enumerates both signs of both zero divisor components,
 both numerator signs and the numerator's zero/nonzero class (64 cases per

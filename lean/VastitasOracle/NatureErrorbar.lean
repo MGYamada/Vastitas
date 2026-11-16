@@ -36,7 +36,9 @@ guarantee. Mathlib-free; arithmetic is exact over `ℚ`.
   the recorded verdict is determined by the data.
 * **In a valid environment** (`comparison_sound`): the prediction of the
   dataset's model is the closed form of the model's transition average, and
-  at every point `A(p) = T(p)/g(p)^{2e}` with the checked trace form.
+  at every point `A(p) = T(p)/g(p)^{2e}` with the trace form of the
+  certificate that the average's declaration records and the exponent of its
+  branch.
 
 That a changed calibration changes the fingerprint is the property of the
 FNV-1a digest, not a theorem (digests collide); first-order propagation and
@@ -493,7 +495,8 @@ theorem modelData_lookup {env : Environment} {id family object hamiltonian readi
 /-- **Comparisons of a valid environment** (C8, C9, with C2 and C4). A
 declared comparison on `X` records the fingerprint of its calibration; its
 dataset's model predicts the transition average `N / D` of its own field on
-`X`, with the checked trace form `T` and the branch's chart `D(g)`; every
+`X`, whose declaration records the certificate with the checked trace form
+`T`, of a branch with the chart `D(g)` and the exponent `e`; every
 point of the dataset is a full point `p` of `X` on `D(g)`, where
 `D(p) ≠ 0` and `A(p) = N(p)/D(p) = T(p)/g(p)^{2e}`; and the recorded verdict is
 `consistent` exactly when every point satisfies
@@ -508,6 +511,13 @@ theorem comparison_sound {env : Environment} (envValid : env.Valid) {id family o
       calibrationData? env calibration = some (calibrationFamily, object, calibrated, method, reference, revision) ∧
       fingerprint = calibrationFingerprint coordinates calibrated method reference revision ∧
       prediction? env model = some (numerator, denominator, localize) ∧
+      (∃ modelFamily modelObject hamiltonian reading convention prepare observe predicts regime averageFamily
+          averageObject branch source target branchFamily branchObject spectrum witness quotient,
+        modelData? env model =
+          some (modelFamily, modelObject, hamiltonian, reading, convention, prepare, observe, predicts, regime) ∧
+        transitionAverageData? env predicts =
+          some (averageFamily, averageObject, branch, source, target, numerator, denominator, certificate) ∧
+        branchData? env branch = some (branchFamily, branchObject, spectrum, localize, witness, exponent, quotient)) ∧
       (∀ point ∈ points, ∃ p, fullPoint coordinates.length calibrated point = some p ∧
         p.length = coordinates.length ∧ evalAt localize p ≠ 0 ∧ evalAt denominator p ≠ 0 ∧
         predictionAt numerator denominator p = evalAt certificate.trace p / evalAt localize p ^ (2 * exponent)) ∧
@@ -530,7 +540,9 @@ theorem comparison_sound {env : Environment} (envValid : env.Valid) {id family o
   obtain ⟨hchart, hcons⟩ := verdict?_sound hverdict
   refine ⟨coordinates, datasetFamily, model, coverage, points, calibrationFamily, calibrated, method, reference,
     revision, numerator, denominator, localize, exponent, certificate, hc, hd, hcal, hfingerprint, hpred,
-    fun point hpoint => ?_, hcons⟩
+    ⟨modelFamily, modelObject, hamiltonian, reading, convention, prepare, observe, predicts, regime, averageFamily,
+      averageObject, branch, source, target, branchFamily, branchObject, spectrum, witness, quotient, hmodel, haverage,
+      hbranch⟩, fun point hpoint => ?_, hcons⟩
   obtain ⟨p, hp, hgp, hdp⟩ := hchart point hpoint
   exact ⟨p, hp, fullPoint_length hp, hgp, hdp, (ha.value_at hg hgp).2⟩
 

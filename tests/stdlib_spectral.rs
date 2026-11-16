@@ -174,7 +174,7 @@ fn mutated_spectral_observations_change_the_native_result() {
 /// of Stage 5 and the family `TransitionAverage` of the Stage 6 skeleton
 /// (#841), and nothing else (C17). It depends on the geometry package alone.
 #[test]
-fn linalg_exports_exactly_the_spectral_module_and_its_four_families() {
+fn linalg_exports_exactly_the_spectral_module_and_its_five_families() {
     let wire = request(&fixture(MAIN));
     let package = wire["packages"]
         .as_array()

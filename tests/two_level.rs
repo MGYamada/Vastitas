@@ -45,7 +45,12 @@ fn shown() -> Run {
 
 /// The Lean that the kernel generates for the application.
 fn generated(main: &str) -> String {
-    let wire = app(main).captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+    generated_in(&app(main))
+}
+
+/// The Lean that the kernel generates for the application of `s`.
+fn generated_in(s: &Scratch) -> String {
+    let wire = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
     let emitted = kernel(wire, "emit");
     assert_eq!(emitted["ok"], true, "{emitted}");
     emitted["lean_source"].as_str().unwrap().to_owned()
@@ -129,6 +134,13 @@ fn a_changed_calibration_is_stale_and_changes_no_std_code() {
     let example = generated(&main);
     assert_eq!(generated(&without_comparison), example);
     assert_eq!(generated(&std_only), example);
+    // Without the dependency on `nature` too.
+    let alone = app(&std_only);
+    alone.write(
+        "app/Vastitas.toml",
+        &common::checked_replace(MANIFEST, "nature = { path = \"../nature\" }\n", ""),
+    );
+    assert_eq!(generated_in(&alone), example);
     assert_eq!(
         app(&std_only).check_build_and_run("app/Vastitas.toml"),
         shown()
@@ -145,8 +157,7 @@ fn a_changed_calibration_is_stale_and_changes_no_std_code() {
 }
 
 /// Each mutation is caught. A wrong expected value makes `main` exit with
-/// status 1 after it shows the same lines, and a changed expected line no
-/// longer matches what the program shows. The recorded verdict
+/// status 1 after it shows the same lines. The recorded verdict
 /// `inconsistent` is `E_ERRORBAR`. A measured value moved outside its
 /// coverage interval makes the verdict `consistent` wrong (`E_ERRORBAR`) and
 /// `inconsistent` right, under the same fingerprint, since the dataset is
@@ -157,7 +168,7 @@ fn each_mutation_of_an_expected_value_or_the_verdict_is_caught() {
     let program = app(&main);
     let run = program.check_build_and_run("app/Vastitas.toml");
     assert_eq!(run, shown());
-    for (index, (check_text, line)) in EXPECTED.iter().enumerate() {
+    for (check_text, _) in EXPECTED {
         let wrong = check_text.replacen(", ", ", 1 + ", 1);
         program.write(
             "app/main.vast",
@@ -166,10 +177,6 @@ fn each_mutation_of_an_expected_value_or_the_verdict_is_caught() {
         let mutated = program.check_build_and_run("app/Vastitas.toml");
         assert_eq!(mutated.status, 1, "{wrong}");
         assert_eq!(mutated.stdout, run.stdout, "{wrong}");
-        let mut lines = EXPECTED.map(|(_, line)| line.to_owned());
-        lines[index] = format!("{line}0");
-        let flipped: Vec<&str> = lines.iter().map(String::as_str).collect();
-        assert_ne!(run, common::shows(&flipped), "{line}");
     }
     let verdict = common::checked_replace(&main, "verdict = consistent", "verdict = inconsistent");
     let stderr = expect_code(&check(&app(&verdict)), "E_ERRORBAR");

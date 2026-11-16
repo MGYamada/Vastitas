@@ -98,9 +98,11 @@ def spectralPower : Nat := compiler_limit% "spectralPower"
 
 /-! A first physical model (Stage 6, #841): the points of one dataset of
 `nature::errorbar`. The values, uncertainties and coverage factors of
-calibrations and datasets, and the closed forms of transition averages, are
-polynomial literals with the bound `algebraCoefficientDigits` on their digits;
-the rank of the module of a model's field is bounded by `spectralRank`. -/
+calibrations and datasets, and the coordinates of their points, are rational
+literals, a natural or a fraction under at most one negation, and every
+literal of them and of the closed forms of transition averages has the bound
+`algebraCoefficientDigits` on its digits; the rank of the module of a model's
+field is bounded by `spectralRank`. -/
 /-- The points of one dataset. -/
 def datasetPoints : Nat := compiler_limit% "datasetPoints"
 

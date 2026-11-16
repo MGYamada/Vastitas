@@ -4,8 +4,11 @@ set_option autoImplicit false
 
 /-! **Nature weakening (C17; ADR 0002 "Independence of `std`" and
 "Evidence").** Adding `nature` declarations changes the validity of no
-non-nature declaration (one that `NatureDimension` does not check), no
-binding's validity and no evaluation. Nature declarations can change each
+non-nature declaration (one that `NatureCheck` leaves out: neither a
+declaration that `NatureDimension` checks nor a convention, model,
+calibration, dataset or comparison of `nature::model` and `nature::errorbar`,
+whose checks read readings, fields and averages), no binding's validity and
+no evaluation. Nature declarations can change each
 other's validity, which these theorems do not cover: `checkBaseDimension`
 counts every base dimension, so a 17th base dimension makes every base
 dimension invalid.
@@ -18,9 +21,10 @@ every list `extra` of nature declarations:
 
 - **declarations:** if the ids of `pre ++ extra ++ post` are unique, as in
   every valid environment, then for every class ranking `ranks` and every
-  entry that `NatureDimension` does not check (`NatureCheck`): markers,
-  implementations, classifications, globals, families, presented and smooth
-  objects, std metrics, metric evidence and frames,
+  entry that `NatureCheck` leaves out: markers, implementations,
+  classifications, globals, families, presented and smooth objects, std
+  metrics, metric evidence, frames and the spectral declarations, transition
+  averages included,
   `entry.Valid (pre ++ extra ++ post) ranks ↔ entry.Valid (pre ++ post) ranks`
   (`entryValid_nature_insertion`, `validEntry_nature_insertion`, `…_of_valid`);
 - **bindings:** for every binding, `flat` and `sharp` included,

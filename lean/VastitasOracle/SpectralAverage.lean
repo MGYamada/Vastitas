@@ -774,11 +774,15 @@ theorem declaredAverage_of_averageDeclared {env : Environment} {average : Averag
 data of a declared transition average satisfies every hypothesis of the
 theorems above: a valid spectral certificate of symmetric rows, a valid gap
 certificate, and `AverageValid` with the embedded localization, witness,
-exponent and closed form. -/
+exponent and closed form, for the basis pair and the certificate of the
+declaration of the average. -/
 theorem DeclaredAverage.checked {env : Environment} (envValid : env.Valid) {average : AverageRef}
     (h : DeclaredAverage env average) :
-    ∃ m idempotence quotient source target certificate,
+    ∃ m idempotence quotient family source target certificate,
       smoothDimension? env average.object = some m ∧
+      transitionAverageData? env average.average =
+        some (family, average.object, average.branch.branch, source, target, average.numerator, average.denominator,
+          certificate) ∧
       average.branch.spectrum.endomorphism.symmetric = true ∧
       SpectralValid m average.branch.spectrum.endomorphism.rows
         ⟨average.branch.spectrum.characteristic, average.branch.spectrum.adjugate, idempotence⟩ ∧
@@ -808,7 +812,8 @@ theorem DeclaredAverage.checked {env : Environment} (envValid : env.Valid) {aver
   rw [hm2] at hm'
   cases hm'
   rw [hchar, hadj] at ha
-  exact ⟨coordinates.length, idempotence, quotient, source, target, certificate, hm2, hsym.symm, hv, hw, ha⟩
+  exact ⟨coordinates.length, idempotence, quotient, family, source, target, certificate, hm2, found, hsym.symm, hv,
+    hw, ha⟩
 
 /-! ## Accepted Core -/
 
@@ -870,9 +875,12 @@ theorem core_spectral_average_at {point : Core.Term} {smooth line : DeclId} {ave
     SmoothFibers.coordinates_length welltyped, evaluated⟩
 
 /-- **The value of an accepted `average_at` (C3).** In a valid environment an
-accepted `average_at(p, average = A)` evaluates to the exact rational
+accepted `average_at(p, average = A)` names a declared transition average:
+its declaration records the basis pair `source`, `target` and the
+certificate, its field is declared `symmetric`, and its spectral and gap
+certificates are valid. The call evaluates to the exact rational
 `N(p)/D(p)` where `g(p) ≠ 0`, which is `T(p)/g(p)^{2e}` for the checked trace
-form `T`, and to the failure pair `(0, 0)` where `g(p) = 0`. -/
+form `T` of that pair, and to the failure pair `(0, 0)` where `g(p) = 0`. -/
 theorem accepted_average_at {point : Core.Term} {smooth line : DeclId} {average : AverageRef}
     {pointValue : Value} (envValid : module.declarations.indexed.Valid)
     (found : module.declarations.primitive? id = some (.averageAt smooth line average))
@@ -881,8 +889,17 @@ theorem accepted_average_at {point : Core.Term} {smooth line : DeclId} {average 
     (accepted : Core.Typing.HasType module.declarations functions ctx (.primitive id [point] result))
     (pointEval : eval module fuel values point = some pointValue)
     (typed : PrimitiveValuesHaveTypes module.declarations.indexed world [pointValue] operands) :
-    ∃ m x source target certificate,
+    DeclaredAverage module.declarations.indexed average ∧
+    ∃ m x family source target certificate idempotence quotient,
       smoothDimension? module.declarations.indexed average.object = some m ∧
+      transitionAverageData? module.declarations.indexed average.average =
+        some (family, average.object, average.branch.branch, source, target, average.numerator, average.denominator,
+          certificate) ∧
+      average.branch.spectrum.endomorphism.symmetric = true ∧
+      SpectralValid m average.branch.spectrum.endomorphism.rows
+        ⟨average.branch.spectrum.characteristic, average.branch.spectrum.adjugate, idempotence⟩ ∧
+      WitnessValid m average.branch.spectrum.endomorphism.rows.length average.branch.spectrum.characteristic
+        average.branch.localize average.branch.witness average.branch.exponent quotient ∧
       pointValue = .indexed (.smooth x) ∧ (coordinates x).length = m ∧
       AverageValid m average.branch.spectrum.endomorphism.rows average.branch.spectrum.characteristic
         average.branch.spectrum.adjugate average.branch.localize average.branch.witness average.branch.exponent
@@ -901,11 +918,13 @@ theorem accepted_average_at {point : Core.Term} {smooth line : DeclId} {average 
         SpectralRuntime.averageAt average.branch.localize average.numerator average.denominator x = (0, 0)) := by
   obtain ⟨declared, -, m, x, hm, rfl, hx, evaluated⟩ :=
     core_spectral_average_at found input outputType accepted pointEval typed
-  obtain ⟨m', idempotence, quotient, source, target, certificate, hm', -, -, hw, ha⟩ := declared.checked envValid
+  obtain ⟨m', idempotence, quotient, family, source, target, certificate, hm', hfound, hsym, hv, hw, ha⟩ :=
+    declared.checked envValid
   rw [hm] at hm'
   cases hm'
   have hg := arity_of_canonical hw.localizeCanonical
-  exact ⟨m, x, source, target, certificate, hm, rfl, hx, ha, evaluated,
+  exact ⟨declared, m, x, family, source, target, certificate, idempotence, quotient, hm, hfound, hsym, hv, hw, rfl,
+    hx, ha, evaluated,
     fun hgp => ⟨(ha.averageAt_on_chart hg hgp).1, (ha.averageAt_on_chart hg hgp).2.1⟩,
     fun hgp => averageAt_off_chart hgp⟩
 

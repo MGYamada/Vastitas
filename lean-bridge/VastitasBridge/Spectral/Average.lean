@@ -5,7 +5,8 @@ import VastitasBridge.Spectral.AveragePrerequisites
 /-!
 # The transition average is the sum of the squared eigenprojector entries
 
-The bridge statement of Stage 6 (#841, C15; ADR 0001 §13, Laws): for a real symmetric matrix
+The bridge statement of Stage 6 (#841, C15; the first law of ADR 0001 §13, Laws, whose bounds
+`0 ≤ A ≤ 1` and `Σ_j A = 1` this module does not prove): for a real symmetric matrix
 field with simple spectrum, the trace form of an accepted transition average is
 `Σ_k (P_k)²_{ji}`, with Mathlib's eigenvalues `hA.eigenvalues` and eigenprojectors
 `v_k v_kᵀ` of the orthonormal basis `hA.eigenvectorBasis` (`eigenprojector`).

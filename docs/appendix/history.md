@@ -37,9 +37,10 @@ is Planned.
     over the rational numbers.
   - [Stage 6 physical model acceptance](../stage6-acceptance.md) is the
     record of one physical model over the rational numbers, from its
-    assumptions to a comparison with calibrated data. Its conditions have
-    tested evidence and oracle and bridge theorems; continuous integration
-    and the whole-stage review are Planned.
+    assumptions to a comparison with calibrated data. Its conditions C1–C16
+    have tested evidence and oracle and bridge theorems, C18 and C19 record
+    the continuous integration and the whole-stage review, and C17, the
+    named solver with its numerical error bound, is Planned.
 
 A delivery record states what held at its revisions. For the behaviour of the
 compiler today, read the guide and the Vastitas Reference. For the theorems

@@ -164,6 +164,22 @@ fn the_stage6_forms_select_protocol_nine_and_serialize_to_their_records() {
     assert_eq!(wire["version"], 9);
     assert_eq!(declaration(&wire, "c")["kind"], "convention");
     assert_eq!(declaration(&wire, "c")["value"], "hbar_one");
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    // The convention alone isolates the gate of the Stage 6 records: under
+    // protocols 7 and 8 the kernel rejects it as a model declaration.
+    for version in [7, 8] {
+        let mut older = wire.clone();
+        older["version"] = json!(version);
+        let response = kernel(older, "check");
+        assert_wire_rejected(&response, "E_PROTOCOL");
+        assert!(
+            response["diagnostics"][0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("model declarations require protocol 9"),
+            "{response}"
+        );
+    }
     let source = accepted();
     let fingerprint = fingerprint(NATURE);
     let wire = package(&source).captured("Vastitas.toml", 9);
@@ -213,11 +229,6 @@ fn the_stage6_forms_select_protocol_nine_and_serialize_to_their_records() {
             "calibration": p("K"), "fingerprint": fingerprint, "verdict": "consistent" })
     );
     assert_eq!(kernel(&wire, "check")["ok"], true);
-    for version in [7, 8] {
-        let mut older = wire.clone();
-        older["version"] = json!(version);
-        assert_wire_rejected(&kernel(older, "emit"), "E_PROTOCOL");
-    }
 }
 
 /// The two-level model is accepted, and its program shows the exact average
@@ -333,8 +344,18 @@ fn the_points_of_a_dataset_are_bounded() {
             ),
         "{stderr}"
     );
-    // At the limit the frontend writes the request, and the kernel judges the
-    // comparison; a forged request with one more point is the kernel's limit.
+    // At the limit the program is accepted with the current fingerprint of its
+    // calibration.
+    let at_limit = common::checked_replace(
+        NATURE,
+        "points = [(delta = 0, value = measured(frac(1, 2), u = frac(1, 50))),\n              (delta = 1, value = measured(frac(9, 20), u = frac(1, 50)))]",
+        &format!("points = [{}]", points(64)),
+    );
+    common::success(&check(&package(&program(
+        &at_limit,
+        &fingerprint(&at_limit),
+    ))));
+    // A forged request with one more point is the kernel's limit.
     let wire = package(&dataset(64)).captured("Vastitas.toml", 9);
     let mut forged = wire.clone();
     let index = wire["packages"][0]["modules"][0]["indexed_declarations"]
@@ -399,6 +420,33 @@ fn forged_stage6_records_are_rejected_by_the_kernel() {
         assert_wire_rejected(&forged(name, field, json!([])), "E_PROTOCOL");
     }
     assert_wire_rejected(&forged("C", "verdict", json!("stale")), "E_PROTOCOL");
+    // A measured value is a rational literal: a tower of powers of a 64-digit
+    // fraction, a few hundred bytes whose value has tens of millions of bits,
+    // is rejected before any value is computed, and so is a literal beyond
+    // the digit bound.
+    let mut tower = frac(
+        &format!("1{}1", "0".repeat(62)),
+        &format!("{}7", "9".repeat(62)),
+    );
+    for _ in 0..4 {
+        tower = json!({ "op": "pow", "base": tower, "exponent": "16" });
+    }
+    let started = std::time::Instant::now();
+    assert_wire_rejected(
+        &forged(
+            "K",
+            "parameters",
+            json!([{ "coordinate": "omega", "value": tower, "uncertainty": frac("1", "20") }]),
+        ),
+        "E_PROTOCOL",
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(2),
+        "{:?}",
+        started.elapsed()
+    );
+    let long = json!([{ "coordinate": "omega", "value": n(&"1".repeat(65)), "uncertainty": frac("1", "20") }]);
+    assert_wire_rejected(&forged("K", "parameters", long), "E_PROTOCOL");
     assert_wire_rejected(&forged("c", "value", json!("hbar_two")), "E_PROTOCOL");
     let bytes = 256;
     for (name, field, text) in [

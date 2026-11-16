@@ -208,7 +208,7 @@ status = "tested"
 evidence = [
   "tests/spectral_observations.rs::the_example_checks_builds_and_shows_no_failures_in_place",
   "tests/spectral_observations.rs::mutated_observations_change_the_native_result",
-  "tests/spectral_primitives.rs::spectral_program_checks_builds_and_exits_with_42",
+  "tests/spectral_primitives.rs::spectral_program_checks_builds_and_shows_no_failure",
   "tests/stdlib_spectral.rs::spectral_families_from_the_library_check_build_and_run_from_a_path_package",
   "VastitasKernel.SpectralRegression",
 ]
@@ -611,9 +611,11 @@ title = "Spectral declarations change nothing else"
 subject = "std::linalg::spectral"
 statement = """
 A free module, a field, a spectrum, a branch or a transition average changes
-neither the validity of a declaration of another kind nor the validity or
-the value of a primitive that names none of these declarations, the
-primitives of smooth geometry, metrics and frames included. No spectral primitive reads a metric, a frame or a physical
+neither the validity of a declaration that names no spectral declaration,
+every declaration but fields, spectra, branches, transition averages,
+models, datasets and comparisons, nor the validity or the value of a
+primitive that names none of these declarations, the primitives of smooth
+geometry, metrics and frames included. No spectral primitive reads a metric, a frame or a physical
 dimension, and each evaluates the same in every environment.
 """
 specified_in = "[ADR 0001 §12, Contract and jurisdiction](adr/0001-mathematics-first-stdlib.md#contract-and-jurisdiction-2)"
@@ -649,8 +651,10 @@ The declaration statements hold for every table of class ranks. That the
 kernel computes the same table of class ranks with and without the added
 declarations is not proved, so the statements are not stated for the
 validity of a whole program. The families of the module are not among
-the added declarations (#813). Transition averages are spectral
-declarations: the cited theorems cover them with their statements
+the added declarations (#813). The covered declarations are those that
+`NamesNoSpectral` holds for: models, datasets and comparisons read fields,
+branches and averages, so they are left out. Transition averages are
+spectral declarations: the cited theorems cover them with their statements
 unchanged, and `average_weakening` states that averages inserted at any
 position of an environment with unique ids change neither the validity nor
 the value of a binding that names none of them, only `average_at` naming
@@ -740,8 +744,11 @@ with g(p) ≠ 0, D(p) ≠ 0 and N(p)/D(p) = T(p)/g(p)²ᵉ, and
 and never the failure pair; `averageAt_off_chart` states that it is (0, 0)
 where g(p) = 0, whatever the closed form. `transitionAverage_sound` states
 these facts for every average of a valid environment, of a branch of a
-spectrum of a symmetric endomorphism on its object, and `accepted_average_at`
-for every accepted call. `Examples.example_value` decides the average of the
+spectrum of a symmetric endomorphism on its object. `accepted_average_at`
+states that an accepted call names a declared average: its declaration
+records the basis pair and the certificate, its field is declared
+`symmetric`, its spectral and gap certificates are valid, and the call
+evaluates to N(p)/D(p) = T(p)/g(p)²ᵉ for that pair on the chart. `Examples.example_value` decides the average of the
 Stage 5 field at (3, 4): N/D = T/g² = 8/25.
 """
 
@@ -766,8 +773,19 @@ vₖvₖᵀ of Mathlib's orthonormal `eigenvectorBasis`, and
 `accepted_average_eq_sum_eigenprojector` states it for every average of a
 valid environment, at every real point with g(x) ≠ 0. The bridge reads the
 closed form at real points. No theorem composes `accepted_average_at`, whose
-value is a rational, with the real sum: the step from the rational value of
-the observation to its real cast is not proved.
+value is a rational, with the real sum. `accepted_average_at` gives the
+declared pair and the spectral, gap and closed-form certificates that the
+bridge takes; the step from the rational point and value of the observation
+to their real casts, with the Hermitian reading of the declared symmetric
+rows at that point, is not proved (#856).
+"""
+
+[property."spectral.transition-average".claim.bounds]
+status = "not-claimed"
+reason = """
+That the average lies between 0 and 1, and that its sum over the target
+basis vectors is 1, are contract laws of ADR 0001 §13. They follow from the
+orthonormality of the eigenvectors, but no theorem and no test states them.
 """
 
 [property."spectral.transition-average".claim.dynamics]

@@ -462,7 +462,7 @@ an accepted interpretation guarantees.
 
 **Protocol-9 spectral forms.** The spectral families, the declarations of
 free modules, endomorphism fields, spectra and branches, the definitions
-`trace_power` and `char_coefficient` of a morphism declaration and the five
+`trace_power` and `char_coefficient` of a morphism declaration and the six
 spectral primitives are validated optional fields of protocol 9. Any module
 that uses one selects protocol 9. Protocols 7 and 8 reject each form with
 `E_PROTOCOL`. For a declaration, and for a family with the representation
@@ -496,7 +496,7 @@ unknown indexed primitive contract.
   `{"kind": "trace_power", "endomorphism": TypePath, "power": String}` or
   `{"kind": "char_coefficient", "spectrum": TypePath, "index": String}`, with
   the power and the index as natural fields.
-- **Primitives.** The binding `op` may be one of the five spectral
+- **Primitives.** The binding `op` may be one of the six spectral
   operations below. A field of kind `coordinate` holds a basis name, and a
   field of kind `polynomial` a polynomial expression in the coordinates of
   the object and the fiber coordinate.
@@ -508,6 +508,7 @@ unknown indexed primitive contract.
 | `on_branch` | `map_family`, `line`, `branch` |
 | `branch_differential` | `map_family`, `cotangent`, `line`, `branch` |
 | `branch_projector` | `map_family`, `line`, `branch`, `row` and `column` (coordinate) |
+| `average_at` | `map_family`, `line`, `average` |
 
 | Form | Decoder |
 | --- | --- |
@@ -537,6 +538,95 @@ diagnostics reference links its sections, and its
 mismatches of a call. The
 [specification of `std::linalg::spectral`](spec/std-linalg-spectral.md)
 states the laws of the forms.
+
+<a id="protocol-9-physical-model-forms"></a>
+
+**Protocol-9 transition-average and physical-model forms.** The
+declarations of transition averages, conventions, models, calibrations,
+datasets and comparisons, the family representations
+`"transition_average"`, `"model"`, `"calibration"`, `"dataset"` and
+`"comparison"`, and the spectral primitive `average_at` are validated
+optional fields of protocol 9. `Indexed.Wire.admits` gives their version
+gates: a transition average, its family representation and `average_at` are
+the feature `algebraic`, with the other spectral forms, and the declarations
+of conventions, models, calibrations, datasets and comparisons and their
+four family representations are the feature `physicalModels`. Only protocol
+9 admits either. Protocols 7 and 8 reject each form with `E_PROTOCOL`: the
+decoder's message says that spectral declarations require protocol 9 for a
+transition average and its family, that model declarations require it for a
+convention, a model and the family `"model"`, and that errorbar declarations
+require it for a calibration, a dataset, a comparison and their families. A
+valid family has the constraint `canonical(0)`, which the decoder reads
+before the representation, so its message says that smooth declarations
+require protocol 9. `average_at` in protocol 7 or 8 is an unknown indexed
+primitive contract.
+
+Each record carries the common `name`, `public` and `span` and the fields
+below. `family` is a path and `indices` a list of paths, as for the other
+indexed declarations.
+
+- **Transition average.** `kind: "transition_average"` carries `family`,
+  `indices`, `branch` (path), `from` and `to`, two basis names as strings,
+  and `numerator` and `denominator`, two polynomial expressions.
+- **Convention.** `kind: "convention"` carries `value`, which is
+  `"hbar_one"`.
+- **Model.** `kind: "model"` carries `family`, `indices`, `hamiltonian`,
+  `reading` and `convention` (paths), `prepare` and `observe`, two basis
+  names as strings, `predicts` (path) and `regime`, a recorded text.
+- **Calibration.** `kind: "calibration"` carries `family`, `indices`,
+  `parameters`, a list of records `{"coordinate": String, "value": …,
+  "uncertainty": …}`, `method`, which is `"type_a"` or `"type_b"`, and
+  `reference` and `revision`, two recorded texts.
+- **Dataset.** `kind: "dataset"` carries `family`, `indices`, `model` and
+  `calibration` (paths), `coverage` and `points`, a list of records
+  `{"coordinates": [{"coordinate": String, "value": …}], "value": …,
+  "uncertainty": …}`.
+- **Comparison.** `kind: "comparison"` carries `family`, `indices`,
+  `dataset` and `calibration` (paths), `fingerprint`, a recorded text, and
+  `verdict`, which is `"consistent"` or `"inconsistent"`.
+- **Rational literals.** A value, an uncertainty, a coverage factor and the
+  value of a coordinate of a point are rational literals: a polynomial
+  expression `natural` or `fraction`, under at most one `neg`, the forms that
+  the frontend reads. Each literal has at most `algebraCoefficientDigits`
+  digits. Any other expression, such as a power, a sum or a coordinate, is an
+  error (`E_PROTOCOL`), so that no value is larger than its literal.
+- **Recorded texts.** A regime, a reference, a revision and a fingerprint
+  hold at most `recordTextBytes` = 256 bytes of printable ASCII, from the
+  space to `~`, other than `\` and `"`, the string literals that the
+  frontend accepts there. Any other text is an error (`E_PROTOCOL`).
+- **Observation.** `average_at` carries the fields of the table of
+  [spectral forms](#protocol-9-spectral-forms).
+
+| Form | Decoder |
+| --- | --- |
+| The six declarations | `declarationBody`, with `rationalLiteral`, `sourceMeasured`, `calibrated`, `sourcePoint`, `pointCoordinate`, `recordText`, `convention`, `calibrationMethod` and `verdict` |
+| The five family representations | `familyRepresentation` |
+| `average_at` | the family `average_at` of `IndexedPrimitiveFamilies.lean`, through `primitive` |
+
+The wire never carries a certificate of a transition average, its trace
+form, its unit quotient or its exponent, the fingerprint that the kernel
+computes for a calibration, the verdict that it computes for a comparison,
+or the data of the average that `average_at` names. The kernel computes the
+trace form and the unit certificate of every average and checks them, within
+the limits of [spectral observations](appendix/limits.md#spectral-observations)
+and of [exact affine algebra](appendix/limits.md#exact-affine-algebra). It
+computes the fingerprint of each calibration and compares it with the one
+that a comparison records (`E_STALE`), and it computes each verdict again
+and compares it with the recorded one (`E_ERRORBAR`). `average_at` carries
+the path of its average, and the kernel copies the average, its branch and
+its closed form into the binding; the declaration audit checks the copy. A
+record with any other field, such as `certificate` or `trace` on an average
+or `numerator` on `average_at`, is an error (`E_PROTOCOL`).
+[Physical models](language/physical-models.md) and
+[Transition averages](language/spectral-observations.md#transition-averages)
+give the errors of the declarations, and the
+[`E_MODEL`](appendix/diagnostics.md#e-model),
+[`E_ERRORBAR`](appendix/diagnostics.md#e-errorbar) and
+[`E_STALE`](appendix/diagnostics.md#e-stale) rows of the diagnostics reference
+link their sections. The specifications of
+[`nature::model` and `nature::errorbar`](spec/nature-physical-model.md) and
+[`spectral.transition-average`](spec/std-linalg-spectral.md#spectral.transition-average)
+state the laws of the forms.
 
 ### Resource statements and numerical forms
 
@@ -1327,7 +1417,13 @@ receipts, doctest execution, or official package admission.
   `VastitasKernel.FrameRegression` and `VastitasKernel.NatureRegression`
   decode every frame and physical-dimension form in protocol 9 and reject it
   in protocols 7 and 8. `VastitasKernel.SpectralDeclarationRegression` and
-  `VastitasKernel.SpectralRegression` do the same for the spectral forms. `VastitasKernel.NamespaceRegression` tests the
+  `VastitasKernel.SpectralRegression` do the same for the spectral forms.
+  `VastitasKernel.ModelDeclarationRegression` decodes every transition-average
+  and physical-model form in protocol 9 and rejects it in protocols 7 and 8,
+  with the feature that gates it, the exact fields, the rational literals and
+  the recorded texts; `VastitasKernel.AverageRegression` and
+  `VastitasKernel.NatureModelRegression` check the averages, the models and
+  the data that the kernel accepts and rejects. `VastitasKernel.NamespaceRegression` tests the
   retained `checkNamespaceProgram` on Lean values and decodes no request.
   `bash scripts/check_kernel_regressions.sh` builds them.
 

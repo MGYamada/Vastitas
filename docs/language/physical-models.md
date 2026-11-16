@@ -153,12 +153,6 @@ vector of the module of H, the transition average that it predicts and its
 regime. The regime, such as the rotating-wave approximation, is a recorded
 assumption: no check reads or proves it.
 
-Example, from `main.vast`:
-
-```vast
-{{#include ../../examples/packages/two-level/src/main.vast:model}}
-```
-
 Rules:
 
 - The fields must be `hamiltonian =`, `reading =`, `convention =`,
@@ -177,6 +171,12 @@ Rules:
 - The path after `predicts =` must name a transition average of the object
   of the model, of a branch of a spectrum of the hamiltonian, from the
   prepared to the observed vector. Otherwise it is an error (`E_MODEL`).
+
+Example, from `main.vast`:
+
+```vast
+{{#include ../../examples/packages/two-level/src/main.vast:model}}
+```
 
 A prepared vector of another free module of the same object is an error:
 
@@ -239,26 +239,29 @@ canonical content, and so the fingerprint, unless the 64-bit digest
 collides. The fingerprint does not depend on the order in which the source
 lists the coordinates.
 
-Example, from `main.vast`:
-
-```vast
-{{#include ../../examples/packages/two-level/src/main.vast:calibration}}
-```
-
 Rules:
 
 - The fields after the coordinates must be `method =`, `reference =` and
   `revision =`, in this order. A missing or a misplaced field is an error
   (`E_PARSE`).
 - A method other than `type_a` and `type_b` is an error (`E_TYPE`).
-- The reference and the revision must be recorded texts.
-- The rules of the literals of
-  [polynomial expressions](smooth-declarations.md#polynomial-expressions)
-  apply to each rational number.
+- The reference and the revision must be recorded texts. Another token is
+  an error (`E_PARSE`).
+- A literal of a rational number must have at most
+  `algebraCoefficientDigits` = 64 decimal digits
+  ([limits](../appendix/limits.md#exact-affine-algebra)). Otherwise it is an
+  error (`E_LIMIT`). A fraction with a zero denominator is an error
+  (`E_ERRORBAR`).
 - A calibration must calibrate at least one coordinate, each a coordinate of
   its object and at most once. Otherwise it is an error (`E_ERRORBAR`).
 - Every standard uncertainty must be positive. Otherwise it is an error
   (`E_ERRORBAR`).
+
+Example, from `main.vast`:
+
+```vast
+{{#include ../../examples/packages/two-level/src/main.vast:calibration}}
+```
 
 > **Implementation note.** The canonical content is the text
 > `vastitas-calibration 1`, one line `coordinate` per calibrated coordinate,
@@ -289,12 +292,6 @@ so a coordinate may be named `value`. The **coverage factor** k of the
 dataset scales every uncertainty when the kernel decides whether a point
 agrees with the prediction, as [Comparisons](#comparisons) says.
 
-Example, from `main.vast`:
-
-```vast
-{{#include ../../examples/packages/two-level/src/main.vast:dataset}}
-```
-
 Rules:
 
 - The fields must be `model =`, `calibration =`, `coverage =` and
@@ -307,6 +304,10 @@ Rules:
   ([limits](../appendix/limits.md#physical-models-and-data)). Otherwise it
   is an error (`E_LIMIT`) at the list of points, before the kernel reads a
   point.
+- A literal of a rational number must have at most
+  `algebraCoefficientDigits` = 64 decimal digits. Otherwise it is an error
+  (`E_LIMIT`). A fraction with a zero denominator is an error
+  (`E_ERRORBAR`).
 - The path after `model =` must name a model, and the path after
   `calibration =` a calibration, both of the object of the dataset.
   Otherwise it is an error (`E_ERRORBAR`).
@@ -320,6 +321,12 @@ Rules:
   branch of the average that the model predicts, whatever the closed form of
   the average. Otherwise it is an error (`E_ERRORBAR`), whose message names
   the point.
+
+Example, from `main.vast`:
+
+```vast
+{{#include ../../examples/packages/two-level/src/main.vast:dataset}}
+```
 
 A point where the eigenvalues of the field meet lies off every chart:
 
@@ -371,22 +378,13 @@ library and the model are checked and accepted as before, and so are the
 calibration and the dataset when they satisfy their own rules. The program
 without the comparison is then accepted.
 
-Example, from `main.vast`:
-
-```vast
-{{#include ../../examples/packages/two-level/src/main.vast:comparison}}
-```
-
-At Ω = 5/2 the prediction at δ is 25/(8δ² + 50). Each of the five values of
-the dataset lies within 2 × 1/50 of the prediction at its point, so the
-kernel computes the verdict `consistent`.
-
 Rules:
 
 - The first argument of `compare` is the dataset. The fields must be
   `calibration =`, `fingerprint =` and `verdict =`, in this order. A missing
   or a misplaced field is an error (`E_PARSE`).
-- The fingerprint must be a recorded text.
+- The fingerprint must be a recorded text. Another token is an error
+  (`E_PARSE`).
 - A verdict other than `consistent` and `inconsistent` is an error
   (`E_TYPE`).
 - The first argument must name a dataset of the object of the comparison,
@@ -399,6 +397,16 @@ Rules:
   Otherwise it is an error (`E_ERRORBAR`), whose message names the first
   inconsistent point with both sides of its inequality, or says that every
   point is consistent.
+
+Example, from `main.vast`:
+
+```vast
+{{#include ../../examples/packages/two-level/src/main.vast:comparison}}
+```
+
+At Ω = 5/2 the prediction at δ is 25/(8δ² + 50). Each of the five values of
+the dataset lies within 2 × 1/50 of the prediction at its point, so the
+kernel computes the verdict `consistent`.
 
 A calibration evaluated again after the comparison was recorded makes the
 comparison stale:

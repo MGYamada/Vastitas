@@ -1083,7 +1083,10 @@ History section at the end of this chapter links the tracker.
 #### Laws
 
 - For a real symmetric `H(p)` with simple spectrum, the average at `p` is
-  `Σ_k P_k(p)[j, i]²`, between 0 and 1, and `Σ_j` of it over the basis is 1.
+  `Σ_k P_k(p)[j, i]²` (proved by the mathlib bridge for accepted averages).
+- The average is between 0 and 1, and `Σ_j` of it over the basis is 1. These
+  are contract laws, which follow from the orthonormality of the
+  eigenvectors; no theorem and no test establishes them.
 - For the two-level field `(Δ/2)σ_z + (Ω/2)σ_x`, the average from the first
   to the second basis vector is `Ω²/(2(Δ² + Ω²))` on `D(Δ² + Ω²)`.
 

@@ -276,10 +276,11 @@ fn spectral_operands_are_checked_at_their_declaration_and_call() {
     }
 }
 
-/// The program checks, builds and exits with 42: each group of observations
-/// of `main` adds its own power of two when it fails.
+/// The program checks, builds and shows `failures = 0`: each group of
+/// observations of `main` adds its own power of two to `failures` when it
+/// fails, and `main` exits with status 1 when `failures` is not 0.
 #[test]
-fn spectral_program_checks_builds_and_exits_with_42() {
+fn spectral_program_checks_builds_and_shows_no_failure() {
     let s = package(MAIN);
     success(
         &cli()
@@ -288,5 +289,8 @@ fn spectral_program_checks_builds_and_exits_with_42() {
             .output()
             .unwrap(),
     );
-    assert_eq!(s.build_and_run("Vastitas.toml"), common::exits(42));
+    assert_eq!(
+        s.build_and_run("Vastitas.toml"),
+        common::shows(&["failures = 0"])
+    );
 }

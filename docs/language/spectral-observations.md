@@ -748,6 +748,30 @@ at a point.
 language has no division: `/` is an error here too
 ([Punctuation](lexical-structure.md#punctuation)).
 
+Rules:
+
+- The family must have the `transition_average` representation, the
+  declaration must name exactly one smooth affine object, and the family
+  must accept it. Otherwise it is an error (`E_SPECTRAL`).
+- The first argument of `transition_average` must name a branch on the
+  object of the declaration. Otherwise it is an error (`E_SPECTRAL`).
+- The field of the spectrum of the branch must be declared `symmetric`, and
+  `from` and `to` must name basis vectors of its module. Otherwise it is an
+  error (`E_SPECTRAL`).
+- The fields must be `from =` and `to =`, in this order, and the closed form
+  must be `ratio(N, D)`. A missing or a misplaced field and another closed
+  form are errors (`E_PARSE`). A basis vector that is not an identifier is an
+  error (`E_PARSE`).
+- The rules of [polynomial expressions](smooth-declarations.md#polynomial-expressions)
+  apply to N and to D, with the coordinates of the object. Any other name is
+  an error (`E_AFFINE_COORDINATE`). D must not be zero. Otherwise it is an
+  error (`E_SPECTRAL`).
+- The closed form must satisfy both identities. Otherwise it is an error
+  (`E_SPECTRAL`), whose message shows a term of the residual. The
+  computation must stay within the budgets of
+  [exact affine algebra](../appendix/limits.md#exact-affine-algebra).
+  Otherwise it is an error (`E_LIMIT`).
+
 Example, from the package
 [`examples/packages/two-level/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/two-level),
 whose executable shows the average at five points and exits with status 0:
@@ -768,29 +792,6 @@ For H = (δ/2)σ_z + (Ω/2)σ_x, χ = t² − (δ² + Ω²)/4 and adj(tI − H) 
 With W = 2t and e = 1 the trace form is T = Ω²(δ² + Ω²)/2, and with
 N = Ω²/2 and D = δ² + Ω², N·g² = D·T. The unit certificate is D·1 = g¹.
 Exchanging `from` and `to` gives the same average, since H is symmetric.
-
-Rules:
-
-- The family must have the `transition_average` representation, the
-  declaration must name exactly one smooth affine object, and the family
-  must accept it. Otherwise it is an error (`E_SPECTRAL`).
-- The first argument of `transition_average` must name a branch on the
-  object of the declaration. Otherwise it is an error (`E_SPECTRAL`).
-- The field of the spectrum of the branch must be declared `symmetric`, and
-  `from` and `to` must name basis vectors of its module. Otherwise it is an
-  error (`E_SPECTRAL`).
-- The fields must be `from =` and `to =`, in this order, and the closed form
-  must be `ratio(N, D)`. A missing or a misplaced field and another closed
-  form are errors (`E_PARSE`). A basis vector that is not an identifier is an
-  error (`E_PARSE`).
-- The rules of [polynomial expressions](smooth-declarations.md#polynomial-expressions)
-  apply to N and to D, with the coordinates of the object. Any other name is
-  an error (`E_AFFINE_COORDINATE`). D must not be zero.
-- The closed form must satisfy both identities. Otherwise it is an error
-  (`E_SPECTRAL`), whose message shows a term of the residual. The
-  computation must stay within the budgets of
-  [exact affine algebra](../appendix/limits.md#exact-affine-algebra).
-  Otherwise it is an error (`E_LIMIT`).
 
 A closed form that misses the factor 1/2 of the dephased average of a
 two-level field is not its trace form:
@@ -830,6 +831,14 @@ eigenprojector is defined, so the observation gives the failure value even
 where N/D has a value. The binding names the line `L` as the branch
 observations do, and the call takes no eigenvalue.
 
+Rules:
+
+- `S` must have the `smooth` representation, and `L` must be a smooth affine
+  object of dimension 1. Otherwise it is an error (`E_TYPE`).
+- The path after `average =` must name a transition average. Otherwise it is
+  an error (`E_SPECTRAL`). A missing `average =` is an error (`E_PARSE`).
+- The rules of [operand checks](#operand-checks) apply.
+
 Example, from `main.vast` of the two-level package:
 
 ```vast
@@ -840,14 +849,6 @@ Example, from `main.vast` of the two-level package:
 coordinates and the map that halves both coordinates. At Ω = 5/2 the
 average is 25/(8δ² + 50), so `avg(at(0, 5))` is `(1, 2)` and `avg(at(2, 5))`
 is `(25, 58)`. At the origin, off the chart, `average_at` gives `(0, 0)`.
-
-Rules:
-
-- `S` must have the `smooth` representation, and `L` must be a smooth affine
-  object of dimension 1. Otherwise it is an error (`E_TYPE`).
-- The path after `average =` must name a transition average. Otherwise it is
-  an error (`E_SPECTRAL`). A missing `average =` is an error (`E_PARSE`).
-- The rules of [operand checks](#operand-checks) apply.
 
 > **Implementation note.** The binding embeds the localization of the branch
 > and the closed form of the average, and the generated code calls

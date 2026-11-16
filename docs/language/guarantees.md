@@ -204,7 +204,8 @@ Rules:
   [The frame profile](frames.md#the-frame-profile) and
   [The Gram matrix in a frame](frames.md#the-gram-matrix-in-a-frame) say.
 - A declaration of a physical dimension changes no declaration of another
-  kind, apart from the limits of a whole program and name clashes. A
+  kind, apart from the limits of a whole program, name clashes and the
+  models that read a reading. A
   metric is valid, and `flat` and `sharp` compute the same values, with and
   without readings, scales and physical interpretations of it, and a program
   without them has the same generated code, as
@@ -248,10 +249,13 @@ physical dimensions: no frame primitive reads a metric declaration, a frame
 declaration changes neither the validity of another declaration nor the
 validity of a primitive that names none of its frames, and a declaration of
 a physical dimension changes neither the validity of a declaration of another
-kind nor the validity or the value of any primitive. Also Proved, for
+kind, apart from the declarations of physical models, whose checks read
+readings, nor the validity or the value of any primitive. Also Proved, for
 spectral observations: a free module, a field, a spectrum or a branch
-changes neither the validity of a declaration of another kind nor the
-validity or the value of a primitive that names none of these declarations,
+changes neither the validity of a declaration that names no spectral
+declaration, which leaves out fields, spectra, branches, transition averages,
+models, datasets and comparisons, nor the validity or the value of a
+primitive that names none of these declarations,
 and no spectral primitive reads a metric, a frame or a physical dimension.
 The families of spectral observations are not among these declarations.
 Also Proved, for physical models: a convention, a model, a calibration, a

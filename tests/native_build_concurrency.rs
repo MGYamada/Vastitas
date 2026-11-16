@@ -120,11 +120,12 @@ fn mocked(s: &Scratch, kernel: &Path, name: &str) -> Command {
     if !backend.exists() {
         executable(
             &backend,
-            r#"#!/bin/sh
+            &r#"#!/bin/sh
 cat >/dev/null
 if [ -n "$BUILD_TEST_READY" ]; then : > "$BUILD_TEST_READY"; fi
-printf '%s\n' "{\"version\":8,\"ok\":true,\"kernel\":$BUILD_TEST_IDENTITY,\"lean_source\":\"def main : IO Unit := pure ()\",\"storage_runtime\":true,\"numerical_runtime\":${BUILD_TEST_NUMERICAL:-false}}"
-"#,
+printf '%s\n' "{\"version\":PROTOCOL,\"ok\":true,\"kernel\":$BUILD_TEST_IDENTITY,\"lean_source\":\"def main : IO Unit := pure ()\",\"storage_runtime\":true,\"numerical_runtime\":${BUILD_TEST_NUMERICAL:-false}}"
+"#
+            .replace("PROTOCOL", &common::CURRENT_PROTOCOL.to_string()),
         );
         let lake = s.write("bin/lake", "");
         // The wait for the release file is bounded (#678). A test run that is

@@ -127,6 +127,7 @@ fn actual_rust_wire_is_seven_and_older_envelopes_reject_declarations() {
     let original = request(&fixture(&unobserved_main()));
     assert_eq!(original["version"], 7);
     assert_eq!(kernel(&original, "check")["ok"], true);
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [2, 3, 4, 5, 6] {
         let mut raw = original.clone();
         raw["version"] = json!(version);

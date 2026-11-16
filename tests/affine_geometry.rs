@@ -38,7 +38,7 @@ fn request(s: &Scratch) -> Value {
     command
         .current_dir(&s.0)
         .args(["check", "--manifest-path", "Vastitas.toml"]);
-    common::captured_wire(command, 9)
+    common::captured_wire(command, common::CURRENT_PROTOCOL)
 }
 
 /// JSON pointer to a named declaration in the root module.
@@ -143,9 +143,10 @@ fn affine_example_checks_builds_and_executes() {
 #[test]
 fn affine_forms_select_protocol_nine_and_older_envelopes_reject_them() {
     let raw = request(&fixture(MAIN));
-    assert_eq!(raw["version"], 9);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [7, 8] {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
@@ -792,6 +793,7 @@ fn principal_opens_and_restrictions_reject_non_preimages_and_non_isomorphisms() 
     let mut extra = raw.clone();
     extra.pointer_mut(&open).unwrap()["basis"] = json!([]);
     rejected_with(extra, "E_PROTOCOL");
+    // old-route(#533): the retiring envelopes reject this program.
     let mut changed = raw.clone();
     changed["version"] = json!(8);
     rejected_with(changed, "E_PROTOCOL");

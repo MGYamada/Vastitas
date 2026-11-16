@@ -221,7 +221,7 @@ fn wire_numbers_duplicate_keys_nesting_and_encoding_fail_closed() {
 fn gram_entries_and_literals_require_plain_decimal_digits() {
     // #562.3: `_` separators are rejected; the unmodified request is accepted.
     let manifest = root().join("examples/packages/diagonal-metrics/Vastitas.toml");
-    let raw = captured(&manifest, 8);
+    let raw = captured(&manifest, common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     for entry in ["2_0", "-4_0", "+2", "", "-"] {
         let mut forged = raw.clone();
@@ -324,7 +324,7 @@ fn path_lists(value: &Value, pointer: String, out: &mut Vec<String>) {
 fn edit_paths_resolve_component_wise() {
     // #562.4: a component containing `:` is never re-split into a path.
     let s = authority(BASE, ADDON, EVENTS);
-    let raw = captured(&s.0.join("app/Vastitas.toml"), 9);
+    let raw = captured(&s.0.join("app/Vastitas.toml"), common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     let mut pointers = Vec::new();
     path_lists(&raw, String::new(), &mut pointers);
@@ -583,7 +583,7 @@ fn assembly_event_limit_is_reported_at_the_assembly() {
         serde_json::from_str(include_str!("../lean-kernel/compiler-limits.json")).unwrap();
     let limit = limits["assemblyEvents"].as_u64().unwrap() as usize;
     // The edit protocol and the protocol with named recipients share the bound.
-    for (grant, version) in [(false, 5), (true, 9)] {
+    for (grant, version) in [(false, 5), (true, common::CURRENT_PROTOCOL)] {
         let largest = package(&repeated_applications(limit, grant));
         success(&check(&largest));
         for events in [limit + 1, 2 * limit] {
@@ -624,7 +624,7 @@ fn forged_method_results_fail_wire_decoding() {
     let scratch = package(
         "generic g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\nresource fn main() -> Int { value { g(42) } }\n",
     );
-    let raw = captured(&manifest(&scratch), 8);
+    let raw = captured(&manifest(&scratch), common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     let family =
         json!({"path": ["Nat", "Family"], "span": raw["packages"][0]["modules"][0]["span"]});

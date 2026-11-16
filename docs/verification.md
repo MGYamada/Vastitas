@@ -2232,7 +2232,7 @@ The ordinary `.vast` modules behind `std::geometry::scheme` and
 shipped library selects protocol 9, because its module `scheme::affine`
 declares presented affine forms, so its entry point is
 `ResourceSource.Wire.check`. A package with indexed declarations and none of
-the declarations that select protocol 8 or 9 selects protocol 7 and
+the declarations that select protocol 9 selects protocol 7 and
 `Indexed.Wire.check`;
 [Protocol selection](protocol.md#protocol-selection) states the rule. The
 single `stdlib` entrypoint re-exports their canonical declarations and

@@ -19,7 +19,7 @@ fn package() -> Scratch {
 
 /// The wire that the frontend sends for the program; it must use protocol 9.
 fn request(s: &Scratch) -> Value {
-    s.captured("Vastitas.toml", 9)
+    s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
 /// JSON pointer to the binding of the named primitive declaration.
@@ -63,6 +63,7 @@ fn frame_primitives_select_protocol_nine_and_decode_only_there() {
     }
     let response = kernel(&raw, "check");
     assert_eq!(response["ok"], true, "{response}");
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [7, 8] {
         let mut older = raw.clone();
         older["version"] = json!(version);

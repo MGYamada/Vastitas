@@ -61,7 +61,7 @@ fn failed(failures: u64) -> Run {
 }
 
 fn request(s: &Scratch) -> Value {
-    s.captured("Vastitas.toml", 9)
+    s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
 /// JSON pointer to a named declaration in the first package.
@@ -332,9 +332,10 @@ fn smooth_and_presented_objects_stay_disjoint() {
 #[test]
 fn object_forms_select_protocol_nine_and_older_envelopes_reject_them() {
     let raw = request(&fixture(MAIN));
-    assert_eq!(raw["version"], 9);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [7, 8] {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
@@ -1023,9 +1024,10 @@ fn cotangent_declarations_reject_malformed_contracts_with_specific_codes() {
 #[test]
 fn cotangent_forms_select_protocol_nine_and_older_envelopes_reject_them() {
     let raw = request(&cotangent_fixture(COTANGENT_MAIN));
-    assert_eq!(raw["version"], 9);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [7, 8] {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
@@ -1832,8 +1834,9 @@ fn smooth_endpoint_errors_name_the_failing_role() {
 #[test]
 fn metric_forms_select_protocol_nine_and_older_envelopes_reject_them() {
     let raw = request(&metric_fixture(METRIC_MAIN));
-    assert_eq!(raw["version"], 9);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "emit")["ok"], true);
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [7, 8] {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
@@ -2306,9 +2309,10 @@ fn mutated_observations_change_the_native_result() {
 #[test]
 fn smooth_forms_select_protocol_nine_and_older_envelopes_reject_them() {
     let raw = request(&acceptance_fixture(ACCEPTANCE_MAIN));
-    assert_eq!(raw["version"], 9);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [7, 8] {
         let mut changed = raw.clone();
         changed["version"] = json!(version);

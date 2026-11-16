@@ -754,7 +754,7 @@ pub indexed primitive size = dim((Scheme, QQ));
     let nine = common::captured_wire(
         s.cli()
             .args(["check", "--manifest-path", "app/Vastitas.toml"]),
-        9,
+        common::CURRENT_PROTOCOL,
     );
     for (raw, call) in [(seven, r#""callee":"size""#), (nine, r#""callee":"dim""#)] {
         let version = raw["version"].clone();

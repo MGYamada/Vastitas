@@ -186,7 +186,7 @@ fn command(scratch: &Scratch, mode: &str) -> Command {
 }
 
 fn request(scratch: &Scratch) -> Value {
-    common::captured_wire(command(scratch, "check"), 8)
+    common::captured_wire(command(scratch, "check"), common::CURRENT_PROTOCOL)
 }
 
 fn functions(raw: &Value) -> &Value {
@@ -357,7 +357,7 @@ fn parser_preserves_runtime_slots_whole_layouts_access_and_both_arms() {
     );
     let raw = request(&fixture(&source));
     let parsed = functions(&raw);
-    assert_eq!(raw["version"], 8);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     assert_eq!(parsed[0]["parameters"][3]["kind"], "runtime_space");
     assert_eq!(
         parsed[0]["parameters"][3]["dimension"],
@@ -539,6 +539,7 @@ fn kernel_rejects_forged_runtime_metadata_and_old_protocol_envelopes() {
     functions_mut(&mut forged)[0]["body"][0]["operation"]["alpha"] =
         json!({"kind":"loan","loan":"left"});
     common::assert_wire_rejected(&kernel(&forged, "check"), "E_RUNTIME_COEFFICIENT");
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut legacy = raw.clone();
         legacy["version"] = json!(version);

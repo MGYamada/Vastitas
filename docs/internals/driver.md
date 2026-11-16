@@ -28,8 +28,9 @@ with the status of `process::exit_code`.
 1. It installs the signal handlers
    ([Subprocesses and signals](#subprocesses-and-signals)).
 2. It answers `--help`, `-h` and `--version` and returns. The version line
-   lists `ir::PUBLIC_PROTOCOLS`, the wire protocols that the driver
-   writes.
+   lists `ir::PUBLIC_PROTOCOLS`: the wire protocols 2 to 9 that the kernel
+   accepts, including 8, which the driver does not write
+   ([History](#history)).
 3. It passes `audit-lean` to `src/internal_lean_audit.rs`
    ([The proof-audit command](#the-proof-audit-command)).
 4. `options` reads the remaining arguments into a mode and its paths. The
@@ -239,8 +240,8 @@ gives the list.
   an abstract method.
 - In manifest mode `packages::request_protocol`, at the end of
   `packages::load`, takes the first condition that holds, from version 9
-  down to version 3. It writes
-  `input: "package"` for every version other than 3.
+  down to version 3. No condition selects version 8: its programs use
+  version 9. It writes `input: "package"` for every version other than 3.
 
 `serde_json` serializes the request in `kernel_request`. A first pass
 counts the bytes and stops at `MAX_REQUEST_BYTES`, the limit `requestBytes`
@@ -597,6 +598,11 @@ states what it establishes. `tests/internal_lean_audit.rs` tests it.
 
 ## History
 
+- Round 1 of [#533](https://github.com/MGYamada/Vastitas/issues/533) made
+  the driver write protocol 9 for the programs of protocol 8. The version
+  line keeps listing 8 until
+  [#521](https://github.com/MGYamada/Vastitas/issues/521) decides what it
+  reports.
 - The build identity of the kernel and the check of the Lean version before
   Lake come from [#550](https://github.com/MGYamada/Vastitas/issues/550).
   [#724](https://github.com/MGYamada/Vastitas/issues/724) added

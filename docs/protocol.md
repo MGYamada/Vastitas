@@ -69,23 +69,26 @@ protocol-9 package request instead
 ([Observations of `show!`](#protocol-9-observations-of-show)). In manifest
 mode it takes the first match of this list:
 
-1. any grant, delegation or transfer, an observation of `show!`, a presented
-   affine declaration of
+1. any grant, delegation or transfer, an observation of `show!`, resource
+   functions, an indexed implementation other than an affine descriptor, a
+   presented affine declaration of
    [Presented affine geometry](affine-geometry.md), a smooth or metric
    declaration of [Smooth affine declarations](language/smooth-declarations.md),
    a [frame](#protocol-9-frame-forms) or
    [physical-dimension](#protocol-9-physical-dimension-forms) declaration, or
    a [spectral](#protocol-9-spectral-forms) declaration, invariant or
    primitive: protocol 9;
-2. resource functions, or an indexed implementation other than an affine
-   descriptor: protocol 8;
-3. other indexed declarations, an indexed type annotation, a typed `pack`,
+2. other indexed declarations, an indexed type annotation, a typed `pack`,
    an `unpack` with ordered fields, or a `geometry_compat` export of a loaded
    package: protocol 7;
-4. `reborrow` or `transfer` events in an assembly: protocol 6;
-5. contributions or an assembly: protocol 5;
-6. abstract declarations: protocol 4;
-7. none of these: protocol 3.
+3. `reborrow` or `transfer` events in an assembly: protocol 6;
+4. contributions or an assembly: protocol 5;
+5. abstract declarations: protocol 4;
+6. none of these: protocol 3.
+
+The driver does not write protocol 8 ([History](#history)). The kernel
+accepts it, and [Protocols 8 and 9](#protocols-8-and-9) describes its
+envelope.
 
 A root package without an assembly selects an empty edit trace; the kernel
 still validates every grant and checks every unapplied contribution.
@@ -1134,7 +1137,7 @@ The package-only envelope is `{version:7,input:"package",file,root,packages}`.
 Package/module identity, dependencies, imports, abstract selectors/contracts and
 all protocol-6 authority metadata retain their existing schemas and checks.
 Each module may add `indexed_declarations`, defaulting to an empty array.
-Rust selects 7 when no condition of protocol 8 or 9 holds
+Rust selects 7 when no condition of protocol 9 holds
 ([Protocol selection](#protocol-selection)) and any loaded module uses an
 indexed declaration, annotation, typed pack or ordered-field unpack, or any
 package exports `geometry_compat`. Every body in that package closure then uses
@@ -1331,6 +1334,10 @@ receipts, doctest execution, or official package admission.
   alone, and the other versions with their decoders are retired in one
   verified change. The change is not made: this chapter describes the
   versions 2 to 9 that the kernel accepts.
+- The driver wrote protocol 8 for resource functions and indexed
+  implementations. Round 1 of
+  [#533](https://github.com/MGYamada/Vastitas/issues/533) sends them as
+  protocol 9, whose envelope keeps protocol 8's.
 - The doctest result contract of
   [Expected-rejection doctest consumer](#expected-rejection-doctest-consumer-reference-only)
   belongs to [#236](https://github.com/MGYamada/Vastitas/issues/236).

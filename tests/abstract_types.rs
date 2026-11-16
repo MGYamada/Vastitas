@@ -266,6 +266,7 @@ fn selectors_do_not_create_value_types_or_change_body_audits() {
     );
 }
 
+// old-route(#533): the flat envelopes of protocols 2 and 4.
 #[test]
 fn protocol_four_is_explicit_and_legacy_requests_stay_unchanged() {
     let raw = request(

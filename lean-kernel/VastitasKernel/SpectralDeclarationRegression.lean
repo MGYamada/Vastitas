@@ -1,6 +1,7 @@
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.IndexedAcceptance
 import VastitasKernel.RegressionSupport
+import VastitasKernel.RegressionRequest
 
 set_option autoImplicit false
 
@@ -29,6 +30,7 @@ entries are the spectral registry's (`SpectralRegression`). -/
 namespace VastitasKernel.Indexed.SpectralDeclarationRegression
 
 open Lean
+open VastitasKernel.RegressionRequest (currentProtocol)
 
 private def check := RegressionSupport.check "spectral declaration regression failed"
 
@@ -138,12 +140,8 @@ private def mod (declarations : List Json) : Json := Json.mkObj [
   ("methods", toJson ([] : List Json)), ("functions", toJson ([] : List Json)),
   ("indexed_declarations", toJson declarations)]
 
-private def request (version : Nat) (declarations : List Json) : Json := Json.mkObj [
-  ("version", toJson version), ("input", toJson "package"), ("file", toJson "spectral.vast"),
-  ("root", toJson "/spectral/Vastitas.toml"),
-  ("packages", toJson [Json.mkObj [
-    ("source", toJson "/spectral/Vastitas.toml"), ("name", toJson "spectral"), ("version", toJson "0.1.0"),
-    ("dependencies", toJson ([] : List Json)), ("modules", toJson [mod declarations])]])]
+private def request (version : Nat) (declarations : List Json) : Json :=
+  RegressionRequest.package "spectral" [mod declarations] version
 
 /-- The code and message of a public request, or `accepted`: protocols 8 and 9
 through `ResourceSource.Wire`, protocol 7 through `Indexed.Wire`. -/
@@ -165,6 +163,7 @@ message that contains `text`. -/
 private def rejectsWith (version : Nat) (declarations : List Json) (code text : String) : Bool :=
   (outcome version declarations).1 == code && mentions (outcome version declarations).2 text
 
+-- old-route(#533): protocols 7 and 8 retire at the cutover.
 /-- Protocols 7 and 8 reject a request whose one declaration is `j`, with
 `E_PROTOCOL` and a message that contains `text`. -/
 private def rejectedBefore9 (j : Json) (text : String) : Bool :=
@@ -181,13 +180,13 @@ private def withoutField (j : Json) (name : String) : Json :=
 /-! ## The spectral families are data-model rules -/
 
 #eval check "protocol 9 accepts the spectral families"
-  ((outcome 9 (smoothBase ++ spectralFamilies)).1 == "accepted")
+  ((outcome currentProtocol (smoothBase ++ spectralFamilies)).1 == "accepted")
 #eval check "protocols 7 and 8 reject each spectral family representation with E_PROTOCOL"
   (representations.all fun (_, representation) =>
     rejectedBefore9 (family "F" [] [] representation) "spectral declarations require protocol 9")
 
 private def rejectsFamily (families : List Json) (text : String) : Bool :=
-  rejectsWith 9 (smoothBase ++ families) "E_TYPE" text
+  rejectsWith currentProtocol (smoothBase ++ families) "E_TYPE" text
 
 #eval check "a spectral family has one object parameter and the constraint canonical(0)"
   (representations.all fun (name, representation) =>
@@ -214,24 +213,24 @@ private def declarations : List (String × String × Json × List Json) := [
 /- A declaration comes before the declarations it names, so acceptance does not
 depend on the order of the declarations. -/
 #eval check "protocol 9 accepts each declaration of the Stage 5 example before the declarations it names"
-  (declarations.all fun (_, _, j, named) => (outcome 9 (smoothBase ++ spectralFamilies ++ [j] ++ named)).1 == "accepted")
+  (declarations.all fun (_, _, j, named) => (outcome currentProtocol (smoothBase ++ spectralFamilies ++ [j] ++ named)).1 == "accepted")
 #eval check "protocol 9 accepts the four declarations of the Stage 5 example"
-  ((outcome 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrumS, branchB])).1 == "accepted")
+  ((outcome currentProtocol (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrumS, branchB])).1 == "accepted")
 #eval check "an endomorphism without rows, a free module without a basis and a long exponent decode"
   (decodes (endomorphism "H" "V" [] false) true && decodes (freeModule "V" []) true &&
     decodes (branch "B" "S" (natural 1) (natural 1) "123456789") true)
 #eval check "the source checker names the first spectral declaration that fails"
-  (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1", "e1"], endoH]) "E_SPECTRAL"
+  (rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1", "e1"], endoH]) "E_SPECTRAL"
     "the free module `spectral::V` names the basis vector `e1` twice")
 #eval check "a long exponent is a limit, before any product"
-  (rejectsWith 9 (smoothBase ++ spectralFamilies ++
+  (rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++
       [branch "B" "S" (natural 1) (natural 1) "123456789", spectrumS, endoH, moduleV])
     "E_LIMIT" "the branch `spectral::B` has the exponent 123456789, beyond the limit of 8")
 
 #eval check "a spectral declaration names one object"
-  (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1"] ["Plane", "Pt"]])
+  (rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1"] ["Plane", "Pt"]])
       "E_SPECTRAL" "a free module names one object, as in `FreeModule<X>`, but 2 are given" &&
-    rejectsWith 9 (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1"] []])
+    rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1"] []])
       "E_SPECTRAL" "a free module names one object, as in `FreeModule<X>`, but 0 are given")
 
 /- The fiber coordinate of a spectrum is a new identifier: the wire carries any
@@ -240,20 +239,20 @@ strict keyword among them (#831), or that names a basis vector of the free
 module. -/
 #eval check "the fiber coordinate of a spectrum is a new identifier"
   ((["", "t t", "0", "1t", "t-1", "λ"].all fun fiber =>
-      rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
+      rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
         s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is not an identifier") &&
     (strictKeywords.all fun fiber =>
-      rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
+      rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
         (s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is a strict keyword, not an " ++
           "identifier; `eigen(H, t)` names the fiber coordinate with a new identifier")) &&
     (["e1", "e2"].all fun fiber =>
-      rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
+      rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber]) "E_SPECTRAL"
         (s!"the fiber coordinate `{fiber}` of the spectrum `spectral::S` is a basis vector of the free module " ++
           "`spectral::V`")) &&
-    rejectsWith 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" "y"]) "E_SPECTRAL"
+    rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" "y"]) "E_SPECTRAL"
       "the fiber coordinate `y` of the spectrum `spectral::S` is a coordinate of `spectral::Plane`" &&
     (["t", "_t", "lambda2", "H", "V", "indexed", "witness", "eigen", "If", "iff", "type_"].all fun fiber =>
-      (outcome 9 (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber])).1 == "accepted"))
+      (outcome currentProtocol (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrum "S" "H" fiber])).1 == "accepted"))
 
 /- The identifier rule of the fiber audit is the source grammar's: the ASCII
 pattern without the strict keywords (#831). -/
@@ -263,9 +262,9 @@ pattern without the strict keywords (#831). -/
     ["t", "_", "x1", "witness", "indexed", "Fn", "If"].all SpectralDeclarations.isIdentifier)
 
 #eval check "the names of a spectral declaration resolve"
-  (rejectsWith 9 (smoothBase ++ spectralFamilies ++ [endoH]) "E_NAME" "undefined name 'V'" &&
-    rejectsWith 9 (smoothBase ++ spectralFamilies ++ [spectrumS]) "E_NAME" "undefined name 'H'" &&
-    rejectsWith 9 (smoothBase ++ spectralFamilies ++ [branchB]) "E_NAME" "undefined name 'S'")
+  (rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [endoH]) "E_NAME" "undefined name 'V'" &&
+    rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [spectrumS]) "E_NAME" "undefined name 'H'" &&
+    rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [branchB]) "E_NAME" "undefined name 'S'")
 
 /- A certificate is never on the wire: the kernel computes it, so a certificate
 field is an unknown field. -/
@@ -298,15 +297,15 @@ private def invariants : List (String × String × Json) := [
 #eval check "protocols 7 and 8 reject each spectral invariant with E_PROTOCOL"
   (invariants.all fun (_, _, j) => rejectedBefore9 j "require protocol 9")
 #eval check "a spectral invariant names an endomorphism or a spectrum"
-  (rejectsWith 9 (smoothBase ++ [invariant "tr2" (tracePower "Plane" "2")]) "E_SPECTRAL"
+  (rejectsWith currentProtocol (smoothBase ++ [invariant "tr2" (tracePower "Plane" "2")]) "E_SPECTRAL"
       ("the `trace_power` declaration `spectral::tr2` takes the trace of a power of `spectral::Plane`, which " ++
         "is not an endomorphism declaration") &&
-    rejectsWith 9 (smoothBase ++ [invariant "c0" (charCoefficient "Plane" "0")]) "E_SPECTRAL"
+    rejectsWith currentProtocol (smoothBase ++ [invariant "c0" (charCoefficient "Plane" "0")]) "E_SPECTRAL"
       ("the `char_coefficient` declaration `spectral::c0` takes a coefficient of the characteristic " ++
         "polynomial of `spectral::Plane`, which is not a spectrum declaration"))
 #eval check "the endomorphism or spectrum of an invariant resolves"
-  (rejectsWith 9 (smoothBase ++ [invariant "tr2" (tracePower "Missing" "2")]) "E_NAME" "undefined name 'Missing'" &&
-    rejectsWith 9 (smoothBase ++ [invariant "c0" (charCoefficient "Missing" "0")]) "E_NAME"
+  (rejectsWith currentProtocol (smoothBase ++ [invariant "tr2" (tracePower "Missing" "2")]) "E_NAME" "undefined name 'Missing'" &&
+    rejectsWith currentProtocol (smoothBase ++ [invariant "c0" (charCoefficient "Missing" "0")]) "E_NAME"
       "undefined name 'Missing'")
 #eval check "a spectral invariant takes exactly its fields"
   (!decodes (invariant "tr2" (withField (tracePower "H" "2") "map" (toJson ([] : List Json)))) true &&
@@ -323,7 +322,7 @@ private def invariants : List (String × String × Json) := [
   ((observations "S" "B").all fun (_, _, j) => rejectedBefore9 j "unknown indexed primitive contract")
 #eval check "a spectral observation names a spectrum or a branch"
   ((observations "Plane" "Plane").all fun (_, op, j) =>
-    rejectsWith 9 (smoothBase ++ [j]) "E_SPECTRAL"
+    rejectsWith currentProtocol (smoothBase ++ [j]) "E_SPECTRAL"
       (if op == "annihilates" || op == "action_entry" then
         s!"the spectrum of `{op}` must be a spectrum, but `spectral::Plane` is not a spectrum declaration"
       else s!"the branch of `{op}` must be a branch, but `spectral::Plane` is not a branch declaration"))

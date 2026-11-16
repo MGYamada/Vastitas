@@ -773,7 +773,7 @@ fn original_arithmetic_entrypoint_still_accepts_legacy_geometry() {
 fn captured_wire(s: &Scratch) -> Value {
     // The library declares Stage 2 presented affine geometry, so its
     // closure uses the current schema epoch (#533).
-    s.captured("app/Vastitas.toml", 9)
+    s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
 #[test]
@@ -934,6 +934,7 @@ fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
             common::assert_wire_rejected(&kernel(&raw, mode), code);
         }
     }
+    // old-route(#533): the legacy envelopes of protocols 3 to 6.
     for version in 3..=6 {
         let mut raw = original.clone();
         raw["version"] = json!(version);

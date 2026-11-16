@@ -20,7 +20,7 @@ fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")
 }
 fn captured(s: &Scratch) -> Value {
-    s.captured("Vastitas.toml", 8)
+    s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 fn rejection(source: &str, code: &str) {
     let output = command(&fixture(source, COMPLEX), "check")
@@ -334,6 +334,7 @@ fn diagonal_entry_limit_is_reported_at_the_metric() {
 #[test]
 fn diagonal_wire_never_accepts_raw_gram_certificates() {
     let raw = captured(&fixture(REAL, COMPLEX));
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..=7 {
         let mut invalid = raw.clone();
         invalid["version"] = json!(version);

@@ -715,29 +715,59 @@ difference is H(p).
 >     `=` `ratio` `(` Polynomial `,` Polynomial `)` `;`
 > ```
 
-A transition average of a branch is the sum Σₖ Pₖ[j, i]² over the
-eigenprojectors Pₖ of a symmetric field, from the basis vector eᵢ to the
-basis vector eⱼ of its module. `indexed average A: F<X> =
-transition_average(B, from = eᵢ, to = eⱼ) = ratio(N, D);` declares the
-average of the branch B with the closed form N/D, where N and D are elements
-of A. On
-the chart D(g) of B, the identity 1/χ′ = W/gᵉ modulo χ of its gap witness
-makes the average the trace form T/g²ᵉ, where T is the trace on A[t]/χ of
-adj(tI − H)[j, i]·adj(tI − H)[i, j]·W². The kernel accepts the closed form
-only when
+A **transition average** of a branch is the sum Σₖ Pₖ[j, i]² over the
+eigenprojectors Pₖ of a symmetric field H at a point of the chart of the
+branch, from the basis vector eᵢ to the basis vector eⱼ of its module.
+`indexed average A: F<X> = transition_average(B, from = eᵢ, to = eⱼ) =
+ratio(N, D);` declares the average of the branch B with the closed form
+N/D, where N and D are elements of A. [Physical models](physical-models.md)
+reads it as the dephased probability to find eⱼ after preparing eᵢ; that
+reading is an assumption of a model, not a fact that the kernel checks.
+
+The kernel checks the closed form without computing an eigenvalue. At a
+branch point (p, t), the eigenprojector is adj(tI − H(p))/χ′(p, t), and the
+gap witness W of B gives 1/χ′ = W/gᵉ modulo χ. Since H is symmetric, so is
+its adjugate, and the sum over the roots of χ(p, ·) of
+adj[j, i]·adj[i, j]·W²/g²ᵉ is the trace form T/g²ᵉ: T is the trace of the
+multiplication by adj(tI − H)[j, i]·adj(tI − H)[i, j]·W² on A[t]/χ, a
+polynomial of A. The kernel accepts the closed form only when
 
 $$
 N \cdot g^{2e} = D \cdot T \quad\text{and}\quad D \cdot Q = g^{m}
 $$
 
 for a polynomial Q and an exponent m at most the total degree of D. The
-second identity makes D a unit on D(g). No eigenvalue is computed. The
-average is a declaration, and the [average observation](#average-observations)
-reads it at a point.
+first identity makes N/D the trace form on D(g). The second, the **unit
+certificate**, makes D a unit on D(g): D divides a power of g, so D(p) ≠ 0
+wherever g(p) ≠ 0, and N/D has a value at every point of the chart. Both
+identities are exact identities of polynomials. The average is a
+declaration, and the [average observation](#average-observations) reads it
+at a point.
 
 `ratio(N, D)` writes the quotient in the style of `frac(n, d)`, since the
 language has no division: `/` is an error here too
 ([Punctuation](lexical-structure.md#punctuation)).
+
+Example, from the package
+[`examples/packages/two-level/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/two-level),
+whose executable shows the average at five points and exits with status 0:
+
+```vast
+{{#include ../../examples/packages/two-level/src/main.vast:field}}
+```
+
+```vast
+{{#include ../../examples/packages/two-level/src/main.vast:branch}}
+```
+
+```vast
+{{#include ../../examples/packages/two-level/src/main.vast:average}}
+```
+
+For H = (δ/2)σ_z + (Ω/2)σ_x, χ = t² − (δ² + Ω²)/4 and adj(tI − H) = tI + H.
+With W = 2t and e = 1 the trace form is T = Ω²(δ² + Ω²)/2, and with
+N = Ω²/2 and D = δ² + Ω², N·g² = D·T. The unit certificate is D·1 = g¹.
+Exchanging `from` and `to` gives the same average, since H is symmetric.
 
 Rules:
 
@@ -773,6 +803,17 @@ two-level field is not its trace form:
 {{#include ../../examples/reject/packages/two-level-wrong-average.stderr}}
 ```
 
+> **Implementation note.** The kernel computes T itself
+> (`SpectralDeclarations.averageTrace`): it multiplies the integrand, divides
+> it by the monic χ, checks the quotient and the remainder by multiplication,
+> and takes the trace of the remainder from the trace powers tr(Hᵈ). The
+> producer of the certificate finds the least m that makes D divide gᵐ by a
+> division by D alone; the check multiplies the quotient back. If D divides
+> some power of g, it divides gᵐ for m the largest multiplicity of a prime
+> factor of D, which is at most the total degree of D, so the bound loses no
+> unit. No certificate is on the wire or in the source. The declaration
+> audit checks every average again (`SpectralDeclarations.checkTransitionAverage`).
+
 ## Average observations
 
 > **Syntax**
@@ -784,8 +825,21 @@ two-level field is not its trace form:
 `average_at(S, L, average = A)` takes a point p, of type `S<Z, X>`, and
 gives a `Pair<Int>`: N(p)/D(p) as a reduced fraction when p lies on the
 chart D(g) of the branch of A, and `(0, 0)` otherwise, whatever the closed
-form. The binding names the line `L` as the branch observations do, and the
-call takes no eigenvalue.
+form. Off the chart the eigenvalues of the field may meet, and no
+eigenprojector is defined, so the observation gives the failure value even
+where N/D has a value. The binding names the line `L` as the branch
+observations do, and the call takes no eigenvalue.
+
+Example, from `main.vast` of the two-level package:
+
+```vast
+{{#include ../../examples/packages/two-level/src/main.vast:observation}}
+```
+
+`at(n, m)` is the point (n/2, m/2), the composite of a point with integer
+coordinates and the map that halves both coordinates. At Ω = 5/2 the
+average is 25/(8δ² + 50), so `avg(at(0, 5))` is `(1, 2)` and `avg(at(2, 5))`
+is `(25, 58)`. At the origin, off the chart, `average_at` gives `(0, 0)`.
 
 Rules:
 
@@ -794,6 +848,11 @@ Rules:
 - The path after `average =` must name a transition average. Otherwise it is
   an error (`E_SPECTRAL`). A missing `average =` is an error (`E_PARSE`).
 - The rules of [operand checks](#operand-checks) apply.
+
+> **Implementation note.** The binding embeds the localization of the branch
+> and the closed form of the average, and the generated code calls
+> `SpectralRuntime.averageAt`, which evaluates g, N and D at the point. The
+> observation has the derivative rule `none`.
 
 ## Operand checks
 

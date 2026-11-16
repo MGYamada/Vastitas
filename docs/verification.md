@@ -3290,6 +3290,109 @@ of constants, which fails if one reaches a chain-rule theorem of
 Exact rationals inside the observations are not bounded; their growth is
 not measured.
 
+## Physical models
+
+**Components of the current routes.** The checks of this section are about
+the transition averages of `std::linalg::spectral`, the declarations of
+`nature::model` and `nature::errorbar`, and the observation `average_at`.
+
+`SpectralDeclarations.lean` holds the check of a transition average
+(`checkAverage`, `checkTransitionAverage`): the trace form, the closed form
+and the unit certificate. `NatureModel.lean` holds the checks of conventions
+and models (`checkConvention`, `checkModel`, `predictsAverage`), and
+`NatureErrorbar.lean` those of calibrations, datasets and comparisons
+(`checkCalibration`, `checkDataset`, `checkComparison`), the canonical
+content and the fingerprint (`canonicalContent`, `calibrationFingerprint`)
+and the exact verdict (`verdict?`). `IndexedSpectralSource.lean`,
+`IndexedModelSource.lean` and `IndexedErrorbarSource.lean` elaborate the
+declarations and give the diagnostics, and `SpectralRuntime.averageAt` is the
+runtime of the observation. `Entry.Valid` of `IndexedValidity.lean` calls the
+checks. The [acceptance map](stage6-acceptance.md) links each acceptance
+condition to the evidence below, and
+[Physical models](language/physical-models.md) and
+[Transition averages](language/spectral-observations.md#transition-averages)
+state the rules. The status words are those of
+[How to read this chapter](#how-to-read-this-chapter).
+
+The evidence keeps four kinds of claim apart:
+
+- The **oracle** is to state what an accepted average, model and comparison
+  satisfy, about the kernel's definitions. These theorems are Planned.
+- The **bridge** is to state what an accepted average means in Mathlib.
+  This theorem is Planned.
+- **Tests** are evidence for the checks, the diagnostics, the wire, the
+  generated code, staleness and native execution. They prove nothing for
+  all inputs.
+- **Assumed** are the physical readings of a model, which no theorem and no
+  test can establish.
+
+### Oracle theorems of physical models
+
+These theorems are Planned. The table states what each is to state; the
+names follow when the proofs are merged.
+
+<!-- O+B: theorem names. Replace "Planned" with "Proved (oracle)" and the
+     names, and update the claims of docs/spec/nature-physical-model.toml and
+     docs/spec/std-linalg-spectral.toml. -->
+
+| Subject | Theorems | Statement |
+| --- | --- | --- |
+| Transition averages | Planned | An accepted transition average satisfies N·g²ᵉ = D·T, with T the trace form of the kernel's definition, and D·Q = gᵐ for its certificate. At every rational point with g(p) ≠ 0 the value of `average_at` is N(p)/D(p), which equals T(p)/g(p)²ᵉ; off the chart it is the failure value |
+| Models | Planned | An accepted model's reading is on the object of its field, its prepared and observed vectors are basis vectors of the module of its field, and the average that it predicts is an average of a branch of its field from the prepared to the observed vector |
+| Comparisons | Planned | An accepted comparison records the fingerprint `calibrationFingerprint` of its calibration, and its verdict is `consistent` exactly when every point satisfies the inequality of [Comparisons](language/physical-models.md#comparisons), computed from the average and its exact derivative |
+| Weakening | Planned | Conventions, models, calibrations, datasets and comparisons change no validity, no value and no generated code of a `std` declaration; transition averages weaken as the other spectral declarations do |
+
+### Bridge theorem of the transition average
+
+This theorem is Planned.
+
+<!-- O+B: bridge theorem name. Replace "Planned" with "Proved (bridge)" and the
+     name required by lean-bridge/Audit.lean. -->
+
+| Subject | Theorem | Statement |
+| --- | --- | --- |
+| Transition averages | Planned | For a real symmetric field with a simple spectrum at a real point of D(g), the trace-form value of an accepted transition average equals Σₖ Pₖ[j, i]², with Mathlib's eigenvalues and eigenprojectors Pₖ |
+
+### Assumed in physical models
+
+These readings are Assumed. A program records them, and no check, theorem
+or test establishes them:
+
+- that the declared field, preparation, observable and regime describe the
+  experiment, the rotating-wave approximation of the example included;
+- that the transition average is the long-time average of the transition
+  probability under the dynamics of the field;
+- that the uncertainty of a calibration propagates to first order, through
+  the exact derivative of the prediction;
+- that the uncertainties of the points and of the calibration are
+  uncorrelated.
+
+The fingerprint detects a changed calibration. It is a 64-bit FNV-1a
+digest, not a cryptographic commitment, and it authenticates nothing.
+
+### Physical models: tested, not proved
+
+- The checks of averages, models, calibrations, datasets and comparisons,
+  with their diagnostics: the kernel regressions `AverageRegression`,
+  `NatureModelRegression` and `ModelDeclarationRegression`,
+  `tests/physical_models.rs`, `tests/two_level.rs` and the six rejected
+  packages `examples/reject/packages/two-level-*`.
+- The wire: protocols 7 and 8 reject every record, no certificate or trace
+  is on the wire, and a forged closed form, verdict, fingerprint, reading,
+  coverage factor or recorded text is rejected: the same tests.
+- Staleness end to end: a changed calibration is `E_STALE` naming the
+  current fingerprint, the program without its comparison and without every
+  `nature` declaration generates byte-identical code, and the comparison
+  recorded again is accepted (`tests/two_level.rs`).
+- That the producer of a certificate finds the trace form and the unit
+  certificate for every accepted average. Soundness does not depend on it:
+  the kernel checks every certificate.
+- The generated code of `average_at` (`tests/emit_golden.rs`), the native
+  fixture `spectral_average_programs` of `scripts/check_indexed_native.sh`,
+  and native execution of the acceptance program and its mutations.
+- The limits `datasetPoints` and `recordTextBytes`, in the frontend and in
+  the kernel.
+
 ## History
 
 This section holds the issue references of the chapter, by the section that

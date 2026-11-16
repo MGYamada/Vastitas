@@ -6,10 +6,10 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 36 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 43 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 0 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
-| [mathlib](#assumption.mathlib) | 15 |
+| [mathlib](#assumption.mathlib) | 16 |
 | [Promotion fixture reflection](#assumption.promotion-reflection) | 7 |
 
 <a id="assumption.rust-frontend"></a>
@@ -31,6 +31,12 @@ Cited by:
 - [`dimension.euclid-rejected`](nature-dimension.md#dimension.euclid-rejected) (`oracle`)
 - [`dimension.kinds`](nature-dimension.md#dimension.kinds) (`oracle`)
 - [`dimension.std-independent`](nature-dimension.md#dimension.std-independent) (`oracle`)
+- [`physical-model.references`](nature-physical-model.md#physical-model.references) (`oracle`)
+- [`physical-model.chart`](nature-physical-model.md#physical-model.chart) (`oracle`)
+- [`physical-model.verdict`](nature-physical-model.md#physical-model.verdict) (`oracle`)
+- [`physical-model.staleness`](nature-physical-model.md#physical-model.staleness) (`oracle`)
+- [`physical-model.weakening`](nature-physical-model.md#physical-model.weakening) (`oracle`)
+- [`physical-model.regime`](nature-physical-model.md#physical-model.regime) (`check`)
 - [`arithmetic.promote.total`](std-arithmetic-generic.md#arithmetic.promote.total) (`oracle`)
 - [`arithmetic.promote.values`](std-arithmetic-generic.md#arithmetic.promote.values) (`oracle`)
 - [`arithmetic.promote.same-type`](std-arithmetic-generic.md#arithmetic.promote.same-type) (`oracle`)
@@ -58,6 +64,7 @@ Cited by:
 - [`spectral.branch-observations`](std-linalg-spectral.md#spectral.branch-observations) (`bridge`)
 - [`spectral.limits`](std-linalg-spectral.md#spectral.limits) (`oracle`)
 - [`spectral.weakening`](std-linalg-spectral.md#spectral.weakening) (`oracle`)
+- [`spectral.transition-average`](std-linalg-spectral.md#spectral.transition-average) (`oracle`)
 
 <a id="assumption.lean-to-c"></a>
 
@@ -104,6 +111,7 @@ Cited by:
 - [`spectral.pair`](std-linalg-spectral.md#spectral.pair) (`bridge`)
 - [`spectral.invariants`](std-linalg-spectral.md#spectral.invariants) (`bridge`)
 - [`spectral.branch-observations`](std-linalg-spectral.md#spectral.branch-observations) (`bridge`)
+- [`spectral.transition-average`](std-linalg-spectral.md#spectral.transition-average) (`bridge`)
 
 <a id="assumption.promotion-reflection"></a>
 

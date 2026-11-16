@@ -16,7 +16,7 @@ The properties of the exact spectral profile of polynomial matrix fields, from A
 | [Branch points, differentials and eigenprojectors](#spectral.branch-observations) | Tested, Proved (oracle), Proved (bridge), Not claimed |
 | [The finite profile](#spectral.limits) | Proved (oracle), Tested |
 | [Spectral declarations change nothing else](#spectral.weakening) | Proved (oracle), Tested |
-| [A transition average is the trace form of its branch](#spectral.transition-average) | Tested, Planned, Planned, Not claimed |
+| [A transition average is the trace form of its branch](#spectral.transition-average) | Tested, Proved (oracle), Proved (bridge), Not claimed |
 
 <a id="spectral.static-identity"></a>
 
@@ -295,7 +295,7 @@ Claims:
 - Subject: `std::linalg::spectral`
 - Rule: [ADR 0001 §12, Contract and jurisdiction](../adr/0001-mathematics-first-stdlib.md#contract-and-jurisdiction-2)
 
-A free module, a field, a spectrum or a branch changes neither the validity of a declaration of another kind nor the validity or the value of a primitive that names none of these declarations, the primitives of smooth geometry, metrics and frames included. No spectral primitive reads a metric, a frame or a physical dimension, and each evaluates the same in every environment.
+A free module, a field, a spectrum, a branch or a transition average changes neither the validity of a declaration of another kind nor the validity or the value of a primitive that names none of these declarations, the primitives of smooth geometry, metrics and frames included. No spectral primitive reads a metric, a frame or a physical dimension, and each evaluates the same in every environment.
 
 - Example: The metric `Euclid`, its evidence and `sharp` of the acceptance program have the same validity and values with and without the free modules, fields, spectra and branches of the program, and a program without observations or invariants is accepted on its own.
 - Run by: [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
@@ -304,7 +304,7 @@ Claims:
 
 - `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.SpectralWeakening`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralWeakening.lean): `VastitasOracle.SpectralWeakening.spectral_weakening_binding`, `VastitasOracle.SpectralWeakening.spectral_weakening_entry`, `VastitasOracle.SpectralWeakening.stage4_bindings_spectral_free`, `VastitasOracle.SpectralWeakening.spectral_bindings_metric_free`, `VastitasOracle.SpectralWeakening.spectral_bindings_frame_free`, `VastitasOracle.SpectralWeakening.spectral_bindings_nature_free`
+    - [`VastitasOracle.SpectralWeakening`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralWeakening.lean): `VastitasOracle.SpectralWeakening.spectral_weakening_binding`, `VastitasOracle.SpectralWeakening.spectral_weakening_entry`, `VastitasOracle.SpectralWeakening.stage4_bindings_spectral_free`, `VastitasOracle.SpectralWeakening.spectral_bindings_metric_free`, `VastitasOracle.SpectralWeakening.spectral_bindings_frame_free`, `VastitasOracle.SpectralWeakening.spectral_bindings_nature_free`, `VastitasOracle.SpectralWeakening.average_weakening`
     - [`VastitasOracle.SpectralCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralCore.lean): `VastitasOracle.SpectralCore.spectral_bindings_environment_free`
     - [`VastitasOracle.SpectralAcceptance`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralAcceptance.lean): `VastitasOracle.SpectralAcceptance.c13_weakening`
   - Premises:
@@ -312,7 +312,7 @@ Claims:
     - for `spectral_weakening_binding`: the binding names none of the added declarations
     - for `spectral_bindings_frame_free`: the binding names no frame
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: The declaration statements hold for every table of class ranks. That the kernel computes the same table of class ranks with and without the added declarations is not proved, so the statements are not stated for the validity of a whole program. The four families of the module are not among the added declarations (#813).
+  - Note: The declaration statements hold for every table of class ranks. That the kernel computes the same table of class ranks with and without the added declarations is not proved, so the statements are not stated for the validity of a whole program. The families of the module are not among the added declarations (#813). Transition averages are spectral declarations: the cited theorems cover them with their statements unchanged, and `average_weakening` states that averages inserted at any position of an environment with unique ids change neither the validity nor the value of a binding that names none of them, only `average_at` naming one, and the validity of no entry that names no spectral declaration.
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - [`VastitasKernel.SpectralRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SpectralRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
@@ -343,11 +343,23 @@ Claims:
     - `forged_stage6_records_are_rejected_by_the_kernel` in [`tests/physical_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/physical_models.rs)
     - [`VastitasKernel.AverageRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/AverageRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The rejected package `two-level-wrong-average` gives the `E_SPECTRAL` of the example. The forged wire changes the numerator of the closed form, which the kernel rejects with `E_SPECTRAL`. `AverageRegression` checks the identities and the observation on and off the chart.
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#841](https://github.com/MGYamada/Vastitas/issues/841)
-  - Note: The oracle theorem of the Stage 6 proof step: an accepted transition average satisfies N·g^{2e} = D·T with T the kernel's trace form and D·Q = g^m for its certificate, and at every rational point with g(p) ≠ 0 the observation is N(p)/D(p), which equals T(p)/g(p)^{2e}; off the chart it is the failure value.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#841](https://github.com/MGYamada/Vastitas/issues/841)
-  - Note: The bridge theorem of the Stage 6 proof step: for a real symmetric field with a simple spectrum at a real point of D(g), the trace-form value of an accepted transition average equals Σ_k P_k[j, i]², with Mathlib's eigenprojectors P_k.
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SpectralAverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SpectralAverage.lean): `VastitasOracle.SpectralAverage.checkAverage_sound`, `VastitasOracle.SpectralAverage.AverageValid.value_at`, `VastitasOracle.SpectralAverage.AverageValid.averageAt_on_chart`, `VastitasOracle.SpectralAverage.averageAt_off_chart`, `VastitasOracle.SpectralAverage.transitionAverage_sound`, `VastitasOracle.SpectralAverage.accepted_average_at`, `VastitasOracle.SpectralAverage.Examples.example_value`
+  - Premises:
+    - for `value_at` and `averageAt_on_chart`: the closed form satisfies `AverageValid`, which `checkAverage_sound` proves from the kernel's check and `transitionAverage_sound` for every average of a valid environment, the localization has the arity of the object, and g(p) ≠ 0 at the point
+    - for `averageAt_off_chart`: g(p) = 0 at the point
+    - for `transitionAverage_sound`: the declaration environment is valid
+    - for `accepted_average_at`: the declaration environment is valid, the call is typed in accepted Core, and its point evaluates to a value of its operand type
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `checkAverage_sound` states that an accepted average has a symmetric field and satisfies `AverageValid`, the structure of its checked identities: the rank and exponent limits, basis indices below the rank, canonical polynomials, a nonzero denominator, the reduction of the integrand by χ, N·g²ᵉ = D·T for the checked trace form T and D·Q = gᵐ with m at most the total degree of D. `AverageValid.value_at` states that at a rational point with g(p) ≠ 0, D(p) ≠ 0 and N(p)/D(p) = T(p)/g(p)²ᵉ, and `AverageValid.averageAt_on_chart` that `average_at` is that rational there and never the failure pair; `averageAt_off_chart` states that it is (0, 0) where g(p) = 0, whatever the closed form. `transitionAverage_sound` states these facts for every average of a valid environment, of a branch of a spectrum of a symmetric endomorphism on its object, and `accepted_average_at` for every accepted call. `Examples.example_value` decides the average of the Stage 5 field at (3, 4): N/D = T/g² = 8/25.
+- `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
+  - Evidence:
+    - [`VastitasBridge.Spectral.Average`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Spectral/Average.lean): `VastitasBridge.Spectral.simple_spectrum_of_chart`, `VastitasBridge.Spectral.average_eq_sum_eigenprojector`, `VastitasBridge.Spectral.accepted_average_eq_sum_eigenprojector`
+  - Premises:
+    - for `simple_spectrum_of_chart` and `average_eq_sum_eigenprojector`: the spectral certificate and the gap certificate are valid (`SpectralValid`, `WitnessValid`), the closed form satisfies `AverageValid`, which `VastitasOracle.SpectralAverage.checkAverage_sound` proves from the kernel's check, and the real point x has g(x) ≠ 0 and a real symmetric H(x)
+    - for `accepted_average_eq_sum_eigenprojector`: the declaration environment is valid
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+  - Note: `simple_spectrum_of_chart` states that at a real point of the chart the gap certificate makes Mathlib's eigenvalues of the real symmetric H(x) distinct. `average_eq_sum_eigenprojector` states that there D(x) ≠ 0 and N(x)/D(x) = T(x)/g(x)²ᵉ = Σₖ Pₖ[j, i]², where `eigenprojector` is the real vₖvₖᵀ of Mathlib's orthonormal `eigenvectorBasis`, and `accepted_average_eq_sum_eigenprojector` states it for every average of a valid environment, at every real point with g(x) ≠ 0. The bridge reads the closed form at real points. No theorem composes `accepted_average_at`, whose value is a rational, with the real sum: the step from the rational value of the observation to its real cast is not proved.
 - `dynamics`: [Not claimed](../specifications.md#not-claimed)
   - Reason: That Σ_k P_k[j, i]² is the long-time average of the transition probability under the dynamics of H is physics outside the finite profile: the language evolves no state in time.

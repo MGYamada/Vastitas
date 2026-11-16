@@ -8,13 +8,13 @@ The properties of the physical models of historical Stage 6, from ADR 0002 §4 a
 
 | Property | Claims |
 | --- | --- |
-| [A model names a field, a reading and an average that fit](#physical-model.references) | Tested, Planned |
-| [Every data point lies on the chart of the prediction](#physical-model.chart) | Tested |
-| [The verdict is recomputed exactly](#physical-model.verdict) | Tested, Planned, Not claimed |
-| [A changed calibration makes its comparisons stale](#physical-model.staleness) | Tested, Planned |
+| [A model names a field, a reading and an average that fit](#physical-model.references) | Tested, Proved (oracle) |
+| [Every data point lies on the chart of the prediction](#physical-model.chart) | Tested, Proved (oracle) |
+| [The verdict is recomputed exactly](#physical-model.verdict) | Tested, Proved (oracle), Not claimed |
+| [A changed calibration makes its comparisons stale](#physical-model.staleness) | Tested, Proved (oracle) |
 | [Datasets and recorded texts are bounded](#physical-model.limits) | Tested |
-| [Models and data change no std code](#physical-model.weakening) | Tested, Planned |
-| [The regime is recorded, not proved](#physical-model.regime) | Not claimed |
+| [Models and data change no std code](#physical-model.weakening) | Tested, Proved (oracle) |
+| [The regime is recorded, not proved](#physical-model.regime) | Not claimed, Proved (oracle) |
 
 <a id="physical-model.references"></a>
 
@@ -38,9 +38,13 @@ Claims:
     - [`VastitasKernel.NatureModelRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/NatureModelRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - [`VastitasKernel.ModelDeclarationRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ModelDeclarationRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The rejected packages `two-level-other-basis` and `two-level-other-reading` give the two `E_MODEL` diagnostics of the example. The forged wire prepares the observed vector, which the kernel rejects with `E_MODEL`.
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#841](https://github.com/MGYamada/Vastitas/issues/841)
-  - Note: The oracle theorem of the Stage 6 proof step: an accepted model has valid references, as the statement reads them, for the kernel's `checkModel` and `predictsAverage`.
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.NatureModel`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NatureModel.lean): `VastitasOracle.NatureModel.checkModel_sound`, `VastitasOracle.NatureModel.predictsAverage_sound`, `VastitasOracle.NatureModel.model_sound`
+  - Premises:
+    - for `model_sound`: the declaration environment is valid
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `checkModel_sound` states what a model that the kernel's check accepts names: a `model` family applied to a declared smooth object X, an endomorphism on X whose free module has the prepared and the observed vector among its basis indices, a reading of X, a convention declaration and a transition average on X from the prepared to the observed vector of a branch of a spectrum of the endomorphism. `predictsAverage_sound` characterizes the predicted average, and `model_sound` states the same for every model of a valid environment, with the symmetric rows of the field and an average whose closed form satisfies the identities of its check.
 
 <a id="physical-model.chart"></a>
 
@@ -62,6 +66,12 @@ Claims:
     - `book_rejected_packages_print_their_diagnostics` in [`tests/examples.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/examples.rs)
     - [`VastitasKernel.NatureModelRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/NatureModelRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The rejected package `two-level-off-chart` gives the diagnostic of the example.
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.NatureErrorbar`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NatureErrorbar.lean): `VastitasOracle.NatureErrorbar.checkDataset_sound`, `VastitasOracle.NatureErrorbar.checkCalibration_sound`
+  - Premises: none
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `checkDataset_sound` states that a dataset that the kernel's check accepts has a positive coverage factor, between 1 and `datasetPoints` points, a model and a calibration of its object, and every point with a positive uncertainty and, with the calibrated values, a full point on the chart D(g) of the prediction of its model, g(p) ≠ 0. `checkCalibration_sound` states that an accepted calibration calibrates at least one coordinate, at distinct coordinates of its object, with positive uncertainties.
 
 <a id="physical-model.verdict"></a>
 
@@ -84,9 +94,14 @@ Claims:
     - `a_wrong_verdict_is_rejected` in [`tests/physical_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/physical_models.rs)
     - `book_rejected_packages_print_their_diagnostics` in [`tests/examples.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/examples.rs)
     - [`VastitasKernel.NatureModelRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/NatureModelRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#841](https://github.com/MGYamada/Vastitas/issues/841)
-  - Note: The oracle theorem of the Stage 6 proof step: an accepted comparison's verdict is `consistent` exactly when every point satisfies the inequality of the statement, computed from the average and its exact derivative.
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.NatureErrorbar`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NatureErrorbar.lean): `VastitasOracle.NatureErrorbar.verdict?_sound`, `VastitasOracle.NatureErrorbar.gradient_exact`, `VastitasOracle.NatureErrorbar.checkComparison_sound`, `VastitasOracle.NatureErrorbar.checkComparison_verdict_unique`, `VastitasOracle.NatureErrorbar.comparison_sound`
+  - Premises:
+    - for `gradient_exact`: D(p) ≠ 0
+    - for `comparison_sound`: the declaration environment is valid
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `verdict?_sound` states that when the kernel computes a verdict, every point is a full point of the chart where the denominator does not vanish, and the verdict is `consistent` exactly when every point satisfies the inequality of the statement. `gradient_exact` states that the derivative that the kernel computes is the derivative of N/D in the coordinate, as a quotient of dual numbers. `checkComparison_sound` states what an accepted comparison names, with the recorded verdict the recomputed one, and `checkComparison_verdict_unique` that two accepted comparisons of one dataset under one calibration record one verdict, so a wrong verdict is rejected. `comparison_sound` composes these for every comparison of a valid environment, with A(p) = N(p)/D(p) = T(p)/g(p)²ᵉ for the checked trace form.
 - `propagation`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The inequality propagates the uncertainty of the calibration to first order and treats the uncertainties as uncorrelated. Both are assumptions of a comparison, which it states; no claim states that they hold for physical data, and an uncertainty never bounds the error of a numerical method.
 
@@ -113,9 +128,12 @@ Claims:
     - `book_rejected_packages_print_their_diagnostics` in [`tests/examples.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/examples.rs)
     - [`VastitasKernel.NatureModelRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/NatureModelRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The rejected package `two-level-stale` gives the diagnostic of the example. The forged wire records another fingerprint, which the kernel rejects with `E_STALE`.
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#841](https://github.com/MGYamada/Vastitas/issues/841)
-  - Note: The oracle theorem of the Stage 6 proof step: an accepted comparison's recorded fingerprint equals `calibrationFingerprint` of its calibration.
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.NatureErrorbar`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NatureErrorbar.lean): `VastitasOracle.NatureErrorbar.comparison_fingerprint`, `VastitasOracle.NatureErrorbar.checkComparison_stale`, `VastitasOracle.NatureErrorbar.checkComparison_sound`
+  - Premises: none
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `comparison_fingerprint` states that the recorded fingerprint of an accepted comparison is the fingerprint of the canonical content of its calibration, and `checkComparison_stale` that a comparison that records another fingerprint is rejected, whatever its verdict. FNV-1a can collide, so no theorem states that a changed calibration always changes its fingerprint: what is proved is that an accepted comparison has the current fingerprint and that one recording a different fingerprint is rejected. That the rejection has the code `E_STALE`, with the message that names the current fingerprint, is tested.
 
 <a id="physical-model.limits"></a>
 
@@ -159,9 +177,14 @@ Claims:
   - Evidence:
     - `a_changed_calibration_is_stale_and_changes_no_std_code` in [`tests/two_level.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/two_level.rs)
     - `a_changed_calibration_makes_the_comparison_stale` in [`tests/physical_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/physical_models.rs)
-- `oracle`: [Planned](../specifications.md#planned)
-  - Issue: [#841](https://github.com/MGYamada/Vastitas/issues/841)
-  - Note: The weakening theorems of the Stage 6 proof step, which extend those of `nature::dimension` to the declarations of `nature::model` and `nature::errorbar`: they change no std validity, value or generated code.
+- `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.NatureWeakening`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NatureWeakening.lean): `VastitasOracle.NatureWeakening.model_errorbar_free`, `VastitasOracle.NatureWeakening.model_errorbar_free_of_valid`, `VastitasOracle.NatureWeakening.model_errorbar_weakening`, `VastitasOracle.NatureWeakening.average_model_free`
+  - Premises:
+    - for `model_errorbar_free` and `average_model_free`: the environment with the added declarations has unique ids
+    - for `model_errorbar_free_of_valid`: the environment with the added declarations is valid
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `model_errorbar_free` states that conventions, models, calibrations, datasets, comparisons and their families, at any position of an environment with unique ids, change the validity of no entry that the nature checks do not check, transition averages included, for every class ranking, the validity of no binding, `average_at` included, and the value of no binding. `model_errorbar_weakening` states it for declarations appended at the end with no hypothesis on ids, and `average_model_free` that a transition average and `average_at` are as valid, with the same values, with and without them: a changed calibration, a stale comparison or a removed model leaves the derivation as it was. That the generated code is byte identical is tested, not proved.
 
 <a id="physical-model.regime"></a>
 
@@ -180,3 +203,9 @@ Claims:
 
 - `meaning`: [Not claimed](../specifications.md#not-claimed)
   - Reason: Whether a physical system is in the regime of its model, such as the rotating-wave approximation, is outside what an exact check of declarations can establish.
+- `check`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.NatureModel`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NatureModel.lean): `VastitasOracle.NatureModel.checkModel_regime_free`
+  - Premises: none
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `checkModel_regime_free` states that the check of a model does not read its regime: models that differ only in their regime are accepted together or rejected together.

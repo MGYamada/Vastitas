@@ -55,12 +55,26 @@ the observed vector, which the kernel rejects with `E_MODEL`.
 """
 
 [property."physical-model.references".claim.oracle]
-status = "planned"
-issue = 841
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureModel.checkModel_sound",
+  "VastitasOracle.NatureModel.predictsAverage_sound",
+  "VastitasOracle.NatureModel.model_sound",
+]
+premises = [
+  "for `model_sound`: the declaration environment is valid",
+]
+assumes = ["rust-frontend"]
 note = """
-The oracle theorem of the Stage 6 proof step: an accepted model has valid
-references, as the statement reads them, for the kernel's `checkModel` and
-`predictsAverage`.
+`checkModel_sound` states what a model that the kernel's check accepts
+names: a `model` family applied to a declared smooth object X, an
+endomorphism on X whose free module has the prepared and the observed vector
+among its basis indices, a reading of X, a convention declaration and a
+transition average on X from the prepared to the observed vector of a branch
+of a spectrum of the endomorphism. `predictsAverage_sound` characterizes the
+predicted average, and `model_sound` states the same for every model of a
+valid environment, with the symmetric rows of the field and an average whose
+closed form satisfies the identities of its check.
 """
 
 [property."physical-model.chart"]
@@ -90,6 +104,24 @@ evidence = [
 note = """
 The rejected package `two-level-off-chart` gives the diagnostic of the
 example.
+"""
+
+[property."physical-model.chart".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureErrorbar.checkDataset_sound",
+  "VastitasOracle.NatureErrorbar.checkCalibration_sound",
+]
+premises = []
+assumes = ["rust-frontend"]
+note = """
+`checkDataset_sound` states that a dataset that the kernel's check accepts
+has a positive coverage factor, between 1 and `datasetPoints` points, a model
+and a calibration of its object, and every point with a positive
+uncertainty and, with the calibrated values, a full point on the chart D(g)
+of the prediction of its model, g(p) ≠ 0. `checkCalibration_sound` states
+that an accepted calibration calibrates at least one coordinate, at distinct
+coordinates of its object, with positive uncertainties.
 """
 
 [property."physical-model.verdict"]
@@ -127,12 +159,31 @@ evidence = [
 ]
 
 [property."physical-model.verdict".claim.oracle]
-status = "planned"
-issue = 841
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureErrorbar.verdict?_sound",
+  "VastitasOracle.NatureErrorbar.gradient_exact",
+  "VastitasOracle.NatureErrorbar.checkComparison_sound",
+  "VastitasOracle.NatureErrorbar.checkComparison_verdict_unique",
+  "VastitasOracle.NatureErrorbar.comparison_sound",
+]
+premises = [
+  "for `gradient_exact`: D(p) ≠ 0",
+  "for `comparison_sound`: the declaration environment is valid",
+]
+assumes = ["rust-frontend"]
 note = """
-The oracle theorem of the Stage 6 proof step: an accepted comparison's
+`verdict?_sound` states that when the kernel computes a verdict, every point
+is a full point of the chart where the denominator does not vanish, and the
 verdict is `consistent` exactly when every point satisfies the inequality of
-the statement, computed from the average and its exact derivative.
+the statement. `gradient_exact` states that the derivative that the kernel
+computes is the derivative of N/D in the coordinate, as a quotient of dual
+numbers. `checkComparison_sound` states what an accepted comparison names,
+with the recorded verdict the recomputed one, and
+`checkComparison_verdict_unique` that two accepted comparisons of one
+dataset under one calibration record one verdict, so a wrong verdict is
+rejected. `comparison_sound` composes these for every comparison of a valid
+environment, with A(p) = N(p)/D(p) = T(p)/g(p)²ᵉ for the checked trace form.
 """
 
 [property."physical-model.verdict".claim.propagation]
@@ -181,11 +232,24 @@ The forged wire records another fingerprint, which the kernel rejects with
 """
 
 [property."physical-model.staleness".claim.oracle]
-status = "planned"
-issue = 841
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureErrorbar.comparison_fingerprint",
+  "VastitasOracle.NatureErrorbar.checkComparison_stale",
+  "VastitasOracle.NatureErrorbar.checkComparison_sound",
+]
+premises = []
+assumes = ["rust-frontend"]
 note = """
-The oracle theorem of the Stage 6 proof step: an accepted comparison's
-recorded fingerprint equals `calibrationFingerprint` of its calibration.
+`comparison_fingerprint` states that the recorded fingerprint of an accepted
+comparison is the fingerprint of the canonical content of its calibration,
+and `checkComparison_stale` that a comparison that records another
+fingerprint is rejected, whatever its verdict. FNV-1a can collide, so no
+theorem states that a changed calibration always changes its fingerprint:
+what is proved is that an accepted comparison has the current fingerprint
+and that one recording a different fingerprint is rejected. That the
+rejection has the code `E_STALE`, with the message that names the current
+fingerprint, is tested.
 """
 
 [property."physical-model.limits"]
@@ -243,12 +307,30 @@ evidence = [
 ]
 
 [property."physical-model.weakening".claim.oracle]
-status = "planned"
-issue = 841
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureWeakening.model_errorbar_free",
+  "VastitasOracle.NatureWeakening.model_errorbar_free_of_valid",
+  "VastitasOracle.NatureWeakening.model_errorbar_weakening",
+  "VastitasOracle.NatureWeakening.average_model_free",
+]
+premises = [
+  "for `model_errorbar_free` and `average_model_free`: the environment with the added declarations has unique ids",
+  "for `model_errorbar_free_of_valid`: the environment with the added declarations is valid",
+]
+assumes = ["rust-frontend"]
 note = """
-The weakening theorems of the Stage 6 proof step, which extend those of
-`nature::dimension` to the declarations of `nature::model` and
-`nature::errorbar`: they change no std validity, value or generated code.
+`model_errorbar_free` states that conventions, models, calibrations,
+datasets, comparisons and their families, at any position of an environment
+with unique ids, change the validity of no entry that the nature checks do
+not check, transition averages included, for every class ranking, the
+validity of no binding, `average_at` included, and the value of no binding.
+`model_errorbar_weakening` states it for declarations appended at the end
+with no hypothesis on ids, and `average_model_free` that a transition
+average and `average_at` are as valid, with the same values, with and
+without them: a changed calibration, a stale comparison or a removed model
+leaves the derivation as it was. That the generated code is byte identical
+is tested, not proved.
 """
 
 [property."physical-model.regime"]
@@ -274,3 +356,16 @@ Whether a physical system is in the regime of its model, such as the
 rotating-wave approximation, is outside what an exact check of declarations
 can establish.
 """
+[property."physical-model.regime".claim.check]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NatureModel.checkModel_regime_free",
+]
+premises = []
+assumes = ["rust-frontend"]
+note = """
+`checkModel_regime_free` states that the check of a model does not read its
+regime: models that differ only in their regime are accepted together or
+rejected together.
+"""
+

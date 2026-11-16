@@ -11,6 +11,7 @@
     "VastitasBridge.Differential.ReverseCore",
     "VastitasBridge.Spectral.Accepted",
     "VastitasBridge.Spectral.Algebra",
+    "VastitasBridge.Spectral.Average",
     "VastitasBridge.Spectral.Prerequisites"
   ],
   "entries": [
@@ -51,6 +52,8 @@
     {"name": "VastitasBridge.Differential.site_recomputed_rewrite_frechet", "module": "VastitasBridge.Differential.ReverseCore", "kind": "theorem", "statement": "sha256:2b7d9dab219398208fbfdb938ae3d2782a4e10c6fb9501eed120877351d47a37"},
     {"name": "VastitasBridge.Differential.site_saved_rewrite_frechet", "module": "VastitasBridge.Differential.ReverseCore", "kind": "theorem", "statement": "sha256:04bc92dddf8b2eaa73b87d12f4ccbf2b051a98c57ae21c8501c2d4321aabd634"},
     {"name": "VastitasBridge.Differential.site_tape_rewrite_frechet", "module": "VastitasBridge.Differential.ReverseCore", "kind": "theorem", "statement": "sha256:5a0367887693dfee2037ee3ac92d79e3e63db66508700c728d14700d69ac71c3"},
+    {"name": "VastitasBridge.Spectral.accepted_average_eq_sum_eigenprojector", "module": "VastitasBridge.Spectral.Average", "kind": "theorem", "statement": "sha256:15cae5c174e8a9a2b32c13ff14b99bd1f348fbc42189ba9e5544953990db69a6"},
+    {"name": "VastitasBridge.Spectral.average_eq_sum_eigenprojector", "module": "VastitasBridge.Spectral.Average", "kind": "theorem", "statement": "sha256:7278e757952734848f5516cf93a8df1fe32aa786139f7bf4ec1790c2fa5ee0e2"},
     {"name": "VastitasBridge.Spectral.branch_mem_spectrum", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:d025e851fbaeafb8d9399658005715942adfdec372693c8dc2d6b9763ea46e82"},
     {"name": "VastitasBridge.Spectral.charPoly_eval_real", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:3c9430e6b24acf693402a00c35d6c9d22143f63585134859d2d43a65b118d015"},
     {"name": "VastitasBridge.Spectral.checked_branch_differential_implicit", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:5d260b4151ce932bd6ffbb392b859636d098c0fc746079d14bb94eb57cadb372"},
@@ -61,6 +64,7 @@
     {"name": "VastitasBridge.Spectral.public_resource_entries_trace_power_dk", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:99aabd3d802987242495f2bd24a0cb10aed64ff13786302787c6f3d661eda579"},
     {"name": "VastitasBridge.Spectral.realProgram_tracePower", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:bfe31c37419e1311de0353976d5c951ba1cfc5b0a1e220001189bbf52ef68335"},
     {"name": "VastitasBridge.Spectral.ringDet_ofFn", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:44a839bc5548f31cfc0299cd427b6c7089f77d04b2b100b6b8c2d29da7851b8c"},
+    {"name": "VastitasBridge.Spectral.simple_spectrum_of_chart", "module": "VastitasBridge.Spectral.Average", "kind": "theorem", "statement": "sha256:0104c611790fae7a246a63697b46f49e7bcc2ed7a0db9f516ad2abd562fdaaaa"},
     {"name": "VastitasBridge.Spectral.stage5_dk_gradient", "module": "VastitasBridge.Spectral.Accepted", "kind": "theorem", "statement": "sha256:7d3615841841c802587422a9950d6b3ee6a8805c274ee06b4ace691fc0f7ed32"},
     {"name": "VastitasBridge.Spectral.toMv_charPoly", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:dd1abc4610bebf68b498db82ac631abc6ab1b5cc95cb94e54a30ba5b0f6b7abb"},
     {"name": "VastitasBridge.Spectral.toMv_tCoefficient", "module": "VastitasBridge.Spectral.Algebra", "kind": "theorem", "statement": "sha256:81c3fc39a29cb51c188da9117d3e9e1156bf4c1cb13bd7c068162e764fc22a6d"},

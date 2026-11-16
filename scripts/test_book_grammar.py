@@ -166,7 +166,12 @@ class RecognizerTests(unittest.TestCase):
 class BookGrammarTests(unittest.TestCase):
     def test_the_grammar_summary_forms_a_grammar(self):
         loaded = book_grammar.load()
-        self.assertEqual(loaded.token_classes, ["FLOAT_LITERAL", "IDENTIFIER", "INTEGER_LITERAL"])
+        self.assertEqual(loaded.token_classes, ["FLOAT_LITERAL", "IDENTIFIER", "INTEGER_LITERAL", "STRING_LITERAL"])
+        # STRING_LITERAL derives the recorded texts: printable ASCII other than \ and ", closed.
+        self.assertTrue(loaded.matches("STRING_LITERAL", '"JCGM 100:2008 ~!#[]"'))
+        self.assertTrue(loaded.matches("STRING_LITERAL", '""'))
+        for text in ('"a\\b"', '"a\tb"', '"\u03a9"', '"open'):
+            self.assertFalse(loaded.matches("STRING_LITERAL", text), text)
         valid = ("fn main() -> Int { let p: Pair<Int>= pair(1, 2); if a < b { 1 } else { 2 } }\n"
                  "fn g(x: Point<X, Base(QQ)>) -> Int { 0 }\n")
         self.assertIsNone(loaded.parse(valid))

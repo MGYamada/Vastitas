@@ -423,8 +423,8 @@ rules.
 The kernel bounds the datasets of `nature::errorbar`, which historical
 Stage 6 admits
 ([#841](https://github.com/MGYamada/Vastitas/issues/841)), and the frontend
-and the kernel bound the recorded texts (regimes, references, revisions and
-fingerprints) of `nature::model` and `nature::errorbar`. The values,
+and the kernel bound the [recorded texts](../language/physical-models.md#recorded-texts)
+of `nature::model` and `nature::errorbar`. The values,
 uncertainties and coverage factors of calibrations and datasets, and the
 closed forms of the transition averages of `std::linalg::spectral`, are
 polynomial literals: their digits have the bound `algebraCoefficientDigits`

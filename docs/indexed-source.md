@@ -37,6 +37,7 @@ profiles:
 >     | ScalarBaseImplementation | LinearImplementation
 >     | SmoothDeclaration | AffineDeclaration
 >     | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
+>     | PhysicalModelDeclaration
 > ```
 
 The word after `indexed` is the kind of the declaration:
@@ -47,7 +48,7 @@ The word after `indexed` is the kind of the declaration:
 | `implementation` | An [implementation](#implementations) | `DescriptorImplementation` here, `ScalarBaseImplementation` and `LinearImplementation` in [Linear implementations](linalg/maps-and-gemm.md#linear-implementations), `SmoothImplementation` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), and a form of `AffineDeclaration` |
 | `classification` | A [classification](#classifications) | `ClassificationDeclaration` |
 | `global` | A [global object](#global-objects) | `GlobalDeclaration` |
-| `family` | A [family](#families) of types | `FamilyDeclaration` here, `SmoothFamily` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), `FrameFamily` in [The frame profile](language/frames.md#the-frame-profile), `DimensionFamily` in [Families of readings and interpretations](language/physical-dimensions.md#families-of-readings-and-interpretations), `SpectralFamily` in [The spectral profile](language/spectral-observations.md#the-spectral-profile), and a form of `AffineDeclaration` |
+| `family` | A [family](#families) of types | `FamilyDeclaration` here, `SmoothFamily` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), `FrameFamily` in [The frame profile](language/frames.md#the-frame-profile), `DimensionFamily` in [Families of readings and interpretations](language/physical-dimensions.md#families-of-readings-and-interpretations), `SpectralFamily` in [The spectral profile](language/spectral-observations.md#the-spectral-profile), `ModelFamily` in [The model profile](language/physical-models.md#the-model-profile), and a form of `AffineDeclaration` |
 | `package` | The types of [existential packages](#existential-packages) | `PackageDeclaration` |
 | `primitive` | A [primitive](#primitives) | `PrimitiveDeclaration` |
 | `affine` | A smooth affine object or a presented affine object | `AffineSpaceDeclaration` in [Smooth affine objects](language/smooth-declarations.md#smooth-affine-objects), and a form of `AffineDeclaration` |
@@ -59,6 +60,9 @@ The word after `indexed` is the kind of the declaration:
 | `reading`, `scale`, `physical` | A reading, a scale and a physical interpretation | `ReadingDeclaration`, `ScaleDeclaration` and `PhysicalDeclaration` in [Physical dimensions](language/physical-dimensions.md) |
 | `free_module`, `endomorphism` | A free module and an endomorphism field of a smooth affine object | `FreeModuleDeclaration` in [Free modules](language/spectral-observations.md#free-modules) and `EndomorphismDeclaration` in [Endomorphism fields](language/spectral-observations.md#endomorphism-fields) |
 | `spectrum`, `branch` | The spectral pair of an endomorphism field and a finite chart of it | `SpectrumDeclaration` in [Spectral pairs](language/spectral-observations.md#spectral-pairs) and `BranchDeclaration` in [Branches](language/spectral-observations.md#branches) |
+| `average` | A transition average of a branch | `TransitionAverageDeclaration` in [Transition averages](language/spectral-observations.md#transition-averages) |
+| `convention`, `model` | A convention and a physical model | `ConventionDeclaration` in [Conventions](language/physical-models.md#conventions) and `ModelDeclaration` in [Models](language/physical-models.md#models) |
+| `calibration`, `dataset`, `comparison` | A calibration, a dataset and a comparison | `CalibrationDeclaration`, `DatasetDeclaration` and `ComparisonDeclaration` in [Physical models](language/physical-models.md) |
 
 `SmoothDeclaration` stands for the declarations of
 [Smooth affine declarations](language/smooth-declarations.md),
@@ -68,7 +72,9 @@ The word after `indexed` is the kind of the declaration:
 [Frames](language/frames.md), `DimensionDeclaration` for the
 declarations of [Physical dimensions](language/physical-dimensions.md), and
 `SpectralDeclaration` for the declarations of
-[Spectral observations](language/spectral-observations.md).
+[Spectral observations](language/spectral-observations.md), and
+`PhysicalModelDeclaration` for the declarations of
+[Physical models](language/physical-models.md).
 
 Rules:
 

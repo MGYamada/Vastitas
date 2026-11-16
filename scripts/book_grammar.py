@@ -39,7 +39,7 @@ PROSE_FORMS = {
                   "other than a line separator of the table",
     "line comment": "Lexical structure, Comments: from // to the end of the line",
     "string literal": "Lexical structure, Other literals: text between double quotes, to the end of the "
-                      "file without a closing quote; no construct accepts it",
+                      "file without a closing quote; STRING_LITERAL derives the ones that a construct accepts",
     "malformed number": "Lexical structure, Integer literals and Other literals: a number followed by a "
                         "letter or _ is one token that matches no production",
 }
@@ -464,7 +464,7 @@ class Grammar:
         keys = set()
         if token.kind in ("KEYWORD", "IDENTIFIER", "PUNCTUATION"):
             keys.add(("T", token.text))
-        if token.kind in ("KEYWORD", "IDENTIFIER", "INTEGER_LITERAL", "FLOAT_LITERAL"):
+        if token.kind in ("KEYWORD", "IDENTIFIER", "INTEGER_LITERAL", "FLOAT_LITERAL", "STRING_LITERAL"):
             keys |= {("C", name) for name in self.token_classes if self.matches(name, token.text)}
         return frozenset(keys)
 

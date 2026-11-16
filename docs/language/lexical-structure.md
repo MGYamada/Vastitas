@@ -217,6 +217,8 @@ Rules:
 > HEX_FLOAT -> ( `0x` | `0X` ) ( HEX_DIGIT+ ( `.` HEX_DIGIT* )? | `.` HEX_DIGIT+ )
 >     ( `p` | `P` ) ( `+` | `-` )? ASCII_DIGIT+
 > HEX_DIGIT -> ASCII_DIGIT | [`a`-`f`] | [`A`-`F`]
+> STRING_LITERAL -> `"` STRING_CHARACTER* `"`
+> STRING_CHARACTER -> [` `-`!`] | [`#`-`[`] | [`]`-`~`]
 > ```
 
 A **floating-point literal** is a decimal number with a decimal point or an

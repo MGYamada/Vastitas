@@ -489,9 +489,14 @@ def program (j : Json) : Except String Program := do
   if (← str j "input") != "package" then throw "protocol 8/9 requires package input"
   return ⟨← str j "file", ← str j "root", ← (← array j "packages").mapM (package · (version == 9))⟩
 
+/-- The namespace work of the body passes that ran: those of the pure program
+and, when the program has resource fragments, the passes with them. Without
+fragments `ResourceSource.check` reuses the pure program's passes
+(`ResourcePure.reuse`), which are charged once (#533). -/
 def namespaceUnits {p : Program} {requireMain : Bool} (checked : Checked p requireMain) : Nat :=
-  checked.pureProgram.namespaceUnits + checked.values.audit.lowered.namespaceWork.val +
-    checked.values.executable.lowered.namespaceWork.val
+  checked.pureProgram.namespaceUnits +
+    if p.pureFragments.isEmpty then 0 else
+      checked.values.audit.lowered.namespaceWork.val + checked.values.executable.lowered.namespaceWork.val
 
 structure CheckedInput (json : Json) (requireMain : Bool) where
   input : Program

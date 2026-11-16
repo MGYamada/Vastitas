@@ -1087,7 +1087,12 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
     | .error diagnostic => .error diagnostic
     | .ok pureProgram => do
       let ⟨observations, observed⟩ ← withAcceptance (checkObservations program pureProgram)
-      let values ← ResourcePure.check program.pureProgram pureProgram program.pureFragments
+      -- Without resource fragments the pure passes are those of `pureProgram`;
+      -- they run once and `Wire.namespaceUnits` charges them once (#533).
+      let values : ResourcePure.Checked program.pureProgram pureProgram program.pureFragments ←
+        if empty : program.pureFragments.isEmpty then
+          .ok (by rw [List.isEmpty_iff.mp empty]; exact ResourcePure.reuse pureProgram)
+        else ResourcePure.check program.pureProgram pureProgram program.pureFragments
       let targets ← ResourcePure.checkTargets values
       match reconstructed : lower program with
       | .error diagnostic => .error diagnostic

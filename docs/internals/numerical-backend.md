@@ -26,8 +26,9 @@ pure floating arithmetic or recursive `Fn` scalar type is introduced here.
 
 ### Wire and checker boundary
 
-Rust selects protocol 8 when any package contains a numerical representation,
-even without resource functions. Existing `"affine_descriptor"` JSON is unchanged.
+A package with a numerical representation selects protocol 9, even without
+resource functions ([Protocol selection](../protocol.md#protocol-selection)).
+Protocol 8 decodes the same representations. Existing `"affine_descriptor"` JSON is unchanged.
 The two representations are single-key objects:
 
 ```json

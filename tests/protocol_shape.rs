@@ -74,6 +74,7 @@ fn record_paths(value: &Value, path: &str, records: &mut BTreeMap<String, String
     }
 }
 
+// old-route(#533): sweeps the legacy decoders of protocols 2 to 6.
 #[test]
 fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
     let geometric = format!(
@@ -133,13 +134,15 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
     );
 }
 
+// old-route(#533): keeps a protocol-7 (`Indexed.Wire`) request in the sweep.
 /// The promotion example against a copy of the stdlib without its Stage 2
 /// `scheme::affine` module, its Stage 3 `smooth::affine` and `metric`
 /// modules and `differential` package, its Stage 4 `frame` module and its
-/// Stage 5 `linalg` package. That
-/// closure still uses protocol 7, so the Indexed.Wire sweep keeps the
-/// geometry-compatibility, dependency and function-body records that only the
-/// stdlib supplies.
+/// Stage 5 `linalg` package, as protocol 7. The frontend wrote that closure
+/// as protocol 7 before #533 round 1 and writes it as the current protocol
+/// now; with its version set to 7, the Indexed.Wire sweep keeps the
+/// geometry-compatibility, dependency and function-body records that only
+/// the stdlib supplies.
 fn promotion_without_affine() -> Value {
     let root = common::root();
     let stdlib = root.join("stdlib");
@@ -189,10 +192,12 @@ fn promotion_without_affine() -> Value {
             "(",
         ),
     );
-    common::captured_wire(
+    let mut wire = common::captured_wire(
         common::manifest_command("check", s.0.join("app/Vastitas.toml")),
-        7,
-    )
+        common::CURRENT_PROTOCOL,
+    );
+    wire["version"] = json!(7);
+    wire
 }
 
 // #557: the same sweep over the public Indexed.Wire (7) and ResourceSource.Wire
@@ -203,9 +208,8 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
     // The promotion example depends on the generated stdlib package.
     common::prepare_stdlib_package();
     let examples = common::root().join("examples/packages");
-    // The indexed example observes its result with `show!`, which only
-    // protocol 9 carries (#836); without the observation it is the protocol-7
-    // fixture.
+    // The indexed example without its observation (#836), as the frontend
+    // wrote it as protocol 7 before #533 round 1.
     let indexed = common::Scratch::empty("protocol seven indexed");
     indexed.copy_sources(&examples.join("indexed"), "", &[]);
     indexed.write(
@@ -216,24 +220,28 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
             "(",
         ),
     );
-    let mut cases = Vec::new();
-    for (package, version) in [
-        ("indexed", 7),
+    let mut cases: Vec<(String, Value)> = Vec::new();
+    // Each package with the protocol that the frontend writes for it and, for
+    // a program that the frontend wrote as protocol 7 or 8 before #533 round
+    // 1, a copy at that protocol.
+    // old-route(#533): the copies at protocols 7 and 8 retire at the cutover.
+    for (package, version, old) in [
+        ("indexed", common::CURRENT_PROTOCOL, Some(7)),
         // Its stdlib dependency declares Stage 2 presented affine geometry.
-        ("promotion", 9),
-        ("resource-values", 8),
-        ("numerical", 8),
-        ("runtime-shapes", 8),
-        ("tensor-packing", 8),
-        ("contraction-tree", 8),
-        ("finite_network", 8),
-        ("storage/app", 8),
-        ("edit-borrow/app", 9),
-        ("edit-authority/app", 9),
-        ("smooth-objects", 9),
-        ("smooth-cotangent", 9),
-        ("smooth-metric", 9),
-        ("smooth-differential", 9),
+        ("promotion", common::CURRENT_PROTOCOL, None),
+        ("resource-values", common::CURRENT_PROTOCOL, Some(8)),
+        ("numerical", common::CURRENT_PROTOCOL, Some(8)),
+        ("runtime-shapes", common::CURRENT_PROTOCOL, Some(8)),
+        ("tensor-packing", common::CURRENT_PROTOCOL, Some(8)),
+        ("contraction-tree", common::CURRENT_PROTOCOL, Some(8)),
+        ("finite_network", common::CURRENT_PROTOCOL, Some(8)),
+        ("storage/app", common::CURRENT_PROTOCOL, Some(8)),
+        ("edit-borrow/app", common::CURRENT_PROTOCOL, None),
+        ("edit-authority/app", common::CURRENT_PROTOCOL, None),
+        ("smooth-objects", common::CURRENT_PROTOCOL, None),
+        ("smooth-cotangent", common::CURRENT_PROTOCOL, None),
+        ("smooth-metric", common::CURRENT_PROTOCOL, None),
+        ("smooth-differential", common::CURRENT_PROTOCOL, None),
     ] {
         let manifest = if package == "indexed" {
             indexed.0.join("Vastitas.toml")
@@ -242,13 +250,19 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
         };
         let mut command = common::cli();
         command.args(["check", "--manifest-path"]).arg(manifest);
-        cases.push((package, common::captured_wire(command, version)));
+        let wire = common::captured_wire(command, version);
+        if let Some(old) = old {
+            let mut copy = wire.clone();
+            copy["version"] = json!(old);
+            cases.push((format!("{package} on protocol {old}"), copy));
+        }
+        cases.push((package.to_string(), wire));
     }
-    cases.push(("promotion on protocol 7", promotion_without_affine()));
+    cases.push(("promotion on protocol 7".into(), promotion_without_affine()));
     let recipients: Value =
         serde_json::from_str(include_str!("fixtures/edit-recipients.json")).unwrap();
-    assert_eq!(recipients["version"], 9);
-    cases.push(("edit-recipients fixture", recipients));
+    assert_eq!(recipients["version"], common::CURRENT_PROTOCOL);
+    cases.push(("edit-recipients fixture".into(), recipients));
     let mut forgeries = Vec::new();
     for (name, raw) in &cases {
         let baseline = kernel(raw, "check");
@@ -258,7 +272,7 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
         for path in records.into_values() {
             let mut changed = raw.clone();
             changed.pointer_mut(&path).unwrap()["forged_authority"] = json!("untrusted");
-            forgeries.push((*name, raw["version"].clone(), path, changed));
+            forgeries.push((name.as_str(), raw["version"].clone(), path, changed));
         }
     }
     assert!(
@@ -302,7 +316,7 @@ fn frame_and_nature_records_reject_unknown_fields() {
     command
         .args(["check", "--manifest-path"])
         .arg(common::root().join("tests/fixtures/frame-dimension-declarations/Vastitas.toml"));
-    let raw = common::captured_wire(command, 9);
+    let raw = common::captured_wire(command, common::CURRENT_PROTOCOL);
     let baseline = kernel(&raw, "check");
     assert!(baseline["ok"] == true, "{baseline}");
     let mut records = BTreeMap::new();
@@ -381,7 +395,11 @@ fn frame_and_nature_records_reject_unknown_fields() {
         let mut changed = raw.clone();
         changed.pointer_mut(path).unwrap()["forged_authority"] = json!("untrusted");
         let response = kernel(changed, "emit");
-        assert_eq!(response["version"], 9, "{path}: {response}");
+        assert_eq!(
+            response["version"],
+            common::CURRENT_PROTOCOL,
+            "{path}: {response}"
+        );
         common::assert_wire_rejected(&response, "E_PROTOCOL");
         let message = response["diagnostics"][0]["message"].as_str().unwrap();
         let tagged = path.ends_with("/representation")
@@ -402,6 +420,7 @@ fn legacy_hint_tolerance_is_limited_to_the_v2_envelope() {
     common::assert_wire_rejected(&kernel(raw, "check"), "E_PROTOCOL");
 }
 
+// old-route(#533): legacy package envelopes of protocols 4 to 6.
 #[test]
 fn invalid_membership_scalar_is_rejected_before_authority_analysis() {
     let flat = request(

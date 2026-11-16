@@ -70,7 +70,7 @@ fn check(scratch: &Scratch) -> std::process::Output {
 fn request(scratch: &Scratch) -> Value {
     common::captured_wire(
         common::manifest_command("check", scratch.0.join("Vastitas.toml")),
-        8,
+        common::CURRENT_PROTOCOL,
     )
 }
 
@@ -95,7 +95,7 @@ fn parser_preserves_scalar_names_types_both_branches_and_old_literal_form() {
         "if true {} else {}\nlet answer: Int = call finish",
     );
     let raw = request(&fixture(&source));
-    assert_eq!(raw["version"], 8);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let functions = functions(&raw);
     for (index, ty) in ["Bool", "Nat", "Int", "Unit"].iter().enumerate() {
         assert_eq!(functions[0]["parameters"][index]["kind"], "value");
@@ -477,6 +477,7 @@ fn forged_value_wire_cannot_bypass_scalar_audits_or_legacy_envelopes() {
         assert_eq!(response["ok"], false, "accepted {path}/{key}: {response}");
         common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut old = raw.clone();
         old["version"] = json!(version);
@@ -540,7 +541,7 @@ fn public_resource_function_recursion_is_rejected_directly_mutually_and_unused()
         );
     }
     let raw = request(&fixture(RECURSION));
-    assert_eq!(raw["version"], 8);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     for (caller, callee) in [("ping", "ping"), ("pong", "ping")] {
         let mut forged = raw.clone();

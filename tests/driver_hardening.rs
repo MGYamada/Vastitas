@@ -355,8 +355,8 @@ fn generated_manifests_escape_paths_for_their_own_syntax() {
         toml::from_str(&fs::read_to_string(capture.join("lakefile.toml")).unwrap()).unwrap();
     assert_eq!(manifest["require"][0]["path"].as_str(), Some(root_text));
 
-    // Numerical builds use lakefile.lean: a mocked protocol-8 backend asks for
-    // both optional runtimes.
+    // Numerical builds use lakefile.lean: a mocked backend asks for both
+    // optional runtimes.
     s.write(
         "pkg/Vastitas.toml",
         "[package]\nname = 'numeric'\nversion = '0.1.0'\nroot = 'main.vast'\n",
@@ -366,7 +366,8 @@ fn generated_manifests_escape_paths_for_their_own_syntax() {
     executable(
         &backend,
         &format!(
-            "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":8,\"ok\":true,\"kernel\":{},\"lean_source\":\"def main : IO Unit := pure ()\",\"storage_runtime\":true,\"numerical_runtime\":true}}'\n",
+            "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":{},\"ok\":true,\"kernel\":{},\"lean_source\":\"def main : IO Unit := pure ()\",\"storage_runtime\":true,\"numerical_runtime\":true}}'\n",
+            common::CURRENT_PROTOCOL,
             kernel_identity()
         ),
     );
@@ -795,6 +796,8 @@ fn native_options_require_a_numerical_program() {
 
 // #557: only protocols 8 and 9 may ask for the optional native runtimes; an
 // older success response that carries either flag is a protocol error.
+// old-route(#533): responses of protocols 2 and 3. The driver no longer writes
+// protocol 7 (#533), so no request of it reaches a backend.
 #[test]
 fn optional_runtime_flags_are_refused_for_protocols_before_eight() {
     let s = fixture();
@@ -804,23 +807,6 @@ fn optional_runtime_flags_are_refused_for_protocols_before_eight() {
         "[package]\nname = 'plain'\nversion = '0.1.0'\nroot = 'main.vast'\n",
     );
     s.write("pkg/main.vast", "fn main() -> Int { 42 }");
-    // The indexed example observes its result with `show!`, which only
-    // protocol 9 carries (#836); without the observation it is a protocol-7
-    // request.
-    s.copy_sources(
-        &common::root().join("examples/packages/indexed"),
-        "indexed",
-        &[],
-    );
-    s.write(
-        "indexed/main.vast",
-        &common::checked_replace(
-            &fs::read_to_string(s.0.join("indexed/main.vast")).unwrap(),
-            "show!(",
-            "(",
-        ),
-    );
-    let indexed = s.0.join("indexed/Vastitas.toml");
     let backend = s.0.join("old-backend");
     // Echo the request's own protocol version, so only the flags are wrong.
     executable(
@@ -835,10 +821,6 @@ fn optional_runtime_flags_are_refused_for_protocols_before_eight() {
         (
             vec!["--manifest-path".into(), "pkg/Vastitas.toml".into()],
             3,
-        ),
-        (
-            vec!["--manifest-path".into(), indexed.display().to_string()],
-            7,
         ),
     ] {
         let wire = common::captured_wire(cli(&s).arg("check").args(&inputs), version);

@@ -9,6 +9,18 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
+/// The current wire schema epoch (#533): the protocol of the newest envelope,
+/// which the frontend selects for named recipients, Stage 2 and later forms
+/// and `show!`. Tests pin it through this constant, so the single cutover to
+/// epoch 10 changes this line and not every test.
+///
+/// A test, loop or request that exists only to exercise a route that retires
+/// at that cutover (protocols 2 to 8: `Indexed.LegacySource`, `Indexed.Wire`
+/// and protocol 8 of `ResourceSource.Wire`) carries the comment tag
+/// `old-route(#533)`, in Rust and in the Lean regressions, so the cutover can
+/// find it with `grep -rn 'old-route(#533)' tests lean-kernel`.
+pub const CURRENT_PROTOCOL: u64 = 9;
+
 pub fn kernel_path() -> PathBuf {
     root().join("lean-kernel/.lake/build/bin/vastitas-kernel")
 }

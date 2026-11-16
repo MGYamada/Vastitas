@@ -33,7 +33,7 @@ fn check(s: &Scratch) -> std::process::Output {
 fn request(s: &Scratch) -> Value {
     common::captured_wire(
         common::manifest_command("check", s.0.join("app/Vastitas.toml")),
-        8,
+        common::CURRENT_PROTOCOL,
     )
 }
 fn module(raw: &Value, name: &str, path: Value) -> String {
@@ -107,7 +107,7 @@ fn exact_payload_spellings_emit_identical_bits_and_execute_without_blas() {
     let s = fixture(source, OPERATIONS);
     success(&check(&s));
     let mut raw = request(&s);
-    assert_eq!(raw["version"], 8);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let emitted = kernel(&raw, "emit");
     assert_eq!(emitted["ok"], true, "{emitted}");
     assert_eq!(emitted["numerical_runtime"], false);
@@ -595,7 +595,7 @@ fn package_resource_entry_builds_owned_returns_and_pure_fn_dispatch_together() {
 #[test]
 fn resource_wire_preserves_unresolved_names_and_rejects_older_versions() {
     let raw = request(&fixture(MAIN, OPERATIONS));
-    assert_eq!(raw["version"], 8);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let root = module(&raw, "storage_example", json!([]));
     assert_eq!(
         raw.pointer(&format!("{root}/resource_functions/0/body/0/callee"))
@@ -605,6 +605,7 @@ fn resource_wire_preserves_unresolved_names_and_rejects_older_versions() {
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
     assert_eq!(accepted["storage_runtime"], true);
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut old = raw.clone();
         old["version"] = json!(version);
@@ -968,7 +969,7 @@ fn resource_source_keeps_nonwinning_pure_bodies_and_library_entry_rules() {
             .contains("VastitasStorageNative")
     );
     // Only the checked pure runtime is present in this isolated build root.
-    // The protocol-8 request still contains all unused resource definitions.
+    // The request still contains all unused resource definitions.
     let runtime = s.0.join("pure-kernel");
     s.write(
         "pure-kernel/lean-toolchain",

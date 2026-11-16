@@ -7,6 +7,27 @@ No owner, resolved target, capability proof or checked Core is accepted here. -/
 namespace VastitasKernel.Indexed.Wire
 open Lean JsonDecode
 
+/-- The optional records of the package protocols 7 to 9. -/
+inductive Feature where
+  /-- Numerical representations and their declarations. -/
+  | numerical
+  /-- Recipients named by package (`grantee_package`). -/
+  | namedRecipients
+  /-- The presented affine, smooth, metric, frame, physical-dimension and
+  spectral forms. -/
+  | algebraic
+  /-- The observations of `show!`. -/
+  | observations
+  deriving DecidableEq, Repr
+
+/-- Whether protocol `version` admits the records of `feature`. Every version
+gate of the decoders of protocols 7 to 9 derives from this predicate (#533):
+protocol 8 adds the numerical records to protocol 7, and protocol 9, the
+current schema epoch, admits every feature. -/
+def admits (version : Nat) : Feature → Bool
+  | .numerical => version == 8 || version == 9
+  | .namedRecipients | .algebraic | .observations => version == 9
+
 def path (j : Json) : Except String Source.Path := do
   fields j ["path", "span"]
   let parts ← segments j "path"

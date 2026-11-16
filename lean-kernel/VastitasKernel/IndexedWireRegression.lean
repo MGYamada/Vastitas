@@ -1,5 +1,7 @@
 import VastitasKernel.IndexedAcceptance
+import VastitasKernel.RegressionRequest
 
+-- old-route(#533): the protocol-7 decoder `Indexed.Wire` retires at the cutover.
 namespace VastitasKernel.Indexed.Wire.Regression
 open Lean
 
@@ -23,12 +25,7 @@ private def mod : Json := Json.mkObj [
   ("imports", toJson ([] : List Json)), ("generics", toJson ([] : List Json)),
   ("methods", toJson ([] : List Json)), ("functions", toJson [fn]),
   ("indexed_declarations", toJson [marker])]
-private def input (m := mod) : Json := Json.mkObj [
-  ("version", toJson (7 : Nat)), ("input", toJson "package"), ("file", toJson "wire.vast"),
-  ("root", toJson "/wire/Vastitas.toml"),
-  ("packages", toJson [Json.mkObj [
-    ("source", toJson "/wire/Vastitas.toml"), ("name", toJson "wire"), ("version", toJson "1.0.0"),
-    ("dependencies", toJson ([] : List Json)), ("modules", toJson [m])]])]
+private def input (m := mod) : Json := RegressionRequest.package "wire" [m] 7 "1.0.0"
 
 #eval show IO Unit from do
   let tests : List (String × Json × Bool × Bool) := [

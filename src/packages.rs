@@ -2,8 +2,8 @@
 //! wire request: only Lean can accept them and assign function identities.
 use crate::frontend;
 use crate::ir::{
-    ABSTRACT_PROTOCOL_VERSION, AUTHORITY_PROTOCOL, EDIT_PROTOCOL, INDEXED_PROTOCOL,
-    NAMED_RECIPIENT_PROTOCOL, PACKAGE_PROTOCOL, RESOURCE_PROTOCOL, Span,
+    ABSTRACT_PROTOCOL_VERSION, AUTHORITY_PROTOCOL, EDIT_PROTOCOL, NAMED_RECIPIENT_PROTOCOL,
+    PACKAGE_PROTOCOL, Span,
 };
 use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
 use crate::namespace::{EditEvent, Module};
@@ -28,7 +28,7 @@ struct Package {
     dependencies: Vec<Dependency>,
     modules: Vec<Module>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    geometry_compat: Option<crate::indexed::GeometryProfile>,
+    geometry_compat: Option<crate::indexed::WireGeometryProfile>,
 }
 
 #[derive(Debug, Serialize)]
@@ -340,7 +340,7 @@ impl Loader {
             version: parsed.package.version,
             dependencies,
             modules,
-            geometry_compat: parsed.geometry_compat,
+            geometry_compat: parsed.geometry_compat.map(Into::into),
         });
         self.active.remove(&manifest);
         Ok(source)
@@ -709,7 +709,8 @@ fn modules(packages: &[Package]) -> impl Iterator<Item = &Module> {
 
 /// The wire protocol of a package request and its `input` field: the first
 /// version, from 9 down to 3, that the declarations of the program or the
-/// `geometry_compat` export of a manifest select.
+/// `geometry_compat` export of a manifest select. The driver no longer writes
+/// protocols 7 and 8: their programs use protocol 9 (#533).
 fn request_protocol(packages: &[Package]) -> (u32, Option<String>) {
     // Preserve recipient names verbatim. The kernel alone resolves them in the
     // selected closure; a grant must neither resolve a path nor load a package.
@@ -745,29 +746,29 @@ fn request_protocol(packages: &[Package]) -> (u32, Option<String>) {
     let observed = modules(packages)
         .flat_map(|m| &m.functions)
         .any(|function| !function.declaration.observations.is_empty());
-    let version = if named_recipients || algebraic || observed {
-        NAMED_RECIPIENT_PROTOCOL
-    } else if resources
-        || modules(packages).any(|m| {
-            m.indexed_declarations.iter().any(|d| {
-                matches!(&d.declaration.body, crate::indexed::DeclarationBody::Implementation {
-                    representation, ..
-                } if !matches!(representation, crate::indexed::Representation::AffineDescriptor))
-            })
+    // Indexed programs and `geometry_compat` exports selected protocol 7, and
+    // resource functions and indexed implementations other than an affine
+    // descriptor protocol 8. Protocol 9 keeps both envelopes whole; round 1 of
+    // #533 sends these programs as the current schema epoch.
+    let implemented = modules(packages).any(|m| {
+        m.indexed_declarations.iter().any(|d| {
+            matches!(&d.declaration.body, crate::indexed::DeclarationBody::Implementation {
+                representation, ..
+            } if !matches!(representation, crate::indexed::Representation::AffineDescriptor))
         })
-    {
-        RESOURCE_PROTOCOL
-    } else if indexed {
-        INDEXED_PROTOCOL
-    } else if authority {
-        AUTHORITY_PROTOCOL
-    } else if editable {
-        EDIT_PROTOCOL
-    } else if extended {
-        ABSTRACT_PROTOCOL_VERSION
-    } else {
-        PACKAGE_PROTOCOL
-    };
+    });
+    let version =
+        if named_recipients || algebraic || observed || resources || implemented || indexed {
+            NAMED_RECIPIENT_PROTOCOL
+        } else if authority {
+            AUTHORITY_PROTOCOL
+        } else if editable {
+            EDIT_PROTOCOL
+        } else if extended {
+            ABSTRACT_PROTOCOL_VERSION
+        } else {
+            PACKAGE_PROTOCOL
+        };
     let input =
         (indexed || extended || editable || resources || observed).then(|| "package".into());
     (version, input)

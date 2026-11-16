@@ -82,7 +82,7 @@ fn rejects(main: &str, code: &str) -> String {
 }
 
 fn request(s: &Scratch) -> Value {
-    s.captured("app/Vastitas.toml", 9)
+    s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
 /// JSON pointer to the module `path` of the program's package.
@@ -477,9 +477,10 @@ fn mutated_observations_change_the_native_result() {
 #[test]
 fn the_example_selects_protocol_nine_and_older_envelopes_reject_it() {
     let raw = request(&Program::shipped().fixture());
-    assert_eq!(raw["version"], 9);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [7, 8] {
         let mut changed = raw.clone();
         changed["version"] = json!(version);

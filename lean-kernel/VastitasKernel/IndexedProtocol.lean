@@ -1,10 +1,16 @@
 import VastitasKernel.IndexedBodyProtocol
-import VastitasKernel.NamespaceProtocol
+import VastitasKernel.EnvelopeProtocol
 
 /-! Untrusted package-only protocol-7 input, before the actual combined
 declaration/authority/dispatch/Fn/Core check. No checked IDs are deserialized. -/
 namespace VastitasKernel.Indexed.Wire
 open Lean JsonDecode
+
+/-- The decoder of the bodies that the envelope of an indexed module never
+holds: `module` replaces its functions, methods and contributions with empty
+lists and decodes them on the rich path. -/
+private def noLegacyBody {α : Type} (_ : Json) : Except String α :=
+  throw "indexed module bodies are decoded on the rich path"
 
 /-- `algebraic` admits the Stage 2 affine and Stage 3 smooth forms. Only protocol 9 sets it. -/
 def module (j : Json) (numerical : Bool := false) (namedRecipients : Bool := false)
@@ -18,7 +24,7 @@ def module (j : Json) (numerical : Bool := false) (namedRecipients : Bool := fal
     ("functions", toJson ([] : List Json)), ("methods", toJson ([] : List Json)),
     ("contributions", toJson ([] : List Json))])
   return {
-    module := ← decodeNamespaceModule true true true metadata namedRecipients,
+    module := ← decodeModuleEnvelope noLegacyBody noLegacyBody true true true metadata namedRecipients,
     declarations := ← (← optionalArray j "indexed_declarations").mapM (declaration · numerical algebraic),
     functions := ← (← array j "functions").mapM function,
     methods := ← (← array j "methods").mapM method,
@@ -52,11 +58,13 @@ def package (j : Json) (numerical : Bool := false) (namedRecipients : Bool := fa
 
 def program (j : Json) : Except String DispatchSource.Program := do
   fields j ["version", "input", "file", "root", "packages"]
-  if (← j.getObjValAs? Nat "version") != 7 then throw "expected protocol 7"
+  let version ← j.getObjValAs? Nat "version"
+  if version != 7 then throw "expected protocol 7"
   if (← str j "input") != "package" then throw "protocol 7 requires package input"
   return {
     file := ← str j "file", root := ← str j "root",
-    packages := ← (← array j "packages").mapM package,
+    packages := ← (← array j "packages").mapM fun p =>
+      package p (admits version .numerical) (admits version .namedRecipients) (admits version .algebraic),
     extended := true, editable := true, authority := true }
 
 end VastitasKernel.Indexed.Wire

@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 // abstract declarations (`frontend::parse_sources`). A package request writes
 // the first of 9 down to 3 that the declarations of the program, or the
 // `geometry_compat` export of a manifest, select (`packages::request_protocol`);
-// 9 also carries the algebraic forms and the observations of `show!` (#836).
+// 9 also carries the algebraic forms and the observations of `show!` (#836),
+// and the indexed and resource programs that protocols 7 and 8 carried
+// (#533), so the driver no longer writes 7 or 8.
 // A flat unit with an observation is sent as a protocol-9 package request
 // (`packages::flat_request`).
 pub const PROTOCOL_VERSION: u32 = 2;
@@ -17,7 +19,8 @@ pub(crate) const AUTHORITY_PROTOCOL: u32 = 6;
 pub(crate) const INDEXED_PROTOCOL: u32 = 7;
 pub(crate) const RESOURCE_PROTOCOL: u32 = 8;
 pub(crate) const NAMED_RECIPIENT_PROTOCOL: u32 = 9;
-/// The protocols that the driver writes, in the order of `--version`.
+/// The protocols of `--version`, in its order: those that the driver wrote
+/// before round 1 of #533. The list changes with `--version` under #521.
 pub(crate) const PUBLIC_PROTOCOLS: [u32; 8] = [
     PROTOCOL_VERSION,
     PACKAGE_PROTOCOL,

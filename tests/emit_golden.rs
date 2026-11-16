@@ -4,7 +4,7 @@
 //! emit_golden` and its diff is reviewed. `scripts/capture_emit.py` does the
 //! same for every example without storing the output in the repository.
 mod common;
-use common::{captured_wire, kernel, regenerate_fixture, root};
+use common::{CURRENT_PROTOCOL, captured_wire, kernel, regenerate_fixture, root};
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::fs;
@@ -26,66 +26,70 @@ use std::fs;
 const CASES: &[(&str, &str, u64)] = &[
     // The Stage 1 example observes its result with `show!`, so it is a
     // protocol-9 request (#836).
-    ("indexed", "examples/packages/indexed/Vastitas.toml", 9),
+    (
+        "indexed",
+        "examples/packages/indexed/Vastitas.toml",
+        CURRENT_PROTOCOL,
+    ),
     (
         "indexed-calls",
         "tests/emit_corpus/indexed-calls/Vastitas.toml",
-        7,
+        CURRENT_PROTOCOL,
     ),
     (
         "affine-geometry",
         "examples/packages/affine-geometry/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "relative-view",
         "tests/emit_corpus/relative-view/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "smooth-objects",
         "examples/packages/smooth-objects/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "smooth-cotangent",
         "examples/packages/smooth-cotangent/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "smooth-metric",
         "examples/packages/smooth-metric/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "stdlib-differential",
         "examples/packages/stdlib-differential/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "smooth-differential",
         "examples/packages/smooth-differential/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "reverse-branch",
         "tests/emit_corpus/reverse-branch/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "reverse-tape",
         "tests/emit_corpus/reverse-tape/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "reverse-domain",
         "tests/emit_corpus/reverse-domain/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
     (
         "spectral-primitives",
         "tests/emit_corpus/spectral-primitives/Vastitas.toml",
-        9,
+        CURRENT_PROTOCOL,
     ),
 ];
 
@@ -97,7 +101,7 @@ const CASES: &[(&str, &str, u64)] = &[
 const FRAME_CASES: &[(&str, &str, u64)] = &[(
     "frame-primitives",
     "tests/emit_corpus/frame-primitives/Vastitas.toml",
-    9,
+    CURRENT_PROTOCOL,
 )];
 
 /// Every wire operation of an indexed primitive declaration (docs/protocol.md)

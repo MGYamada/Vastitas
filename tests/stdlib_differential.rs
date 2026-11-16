@@ -83,7 +83,7 @@ fn rejects(main: &str, code: &str) -> String {
 }
 
 fn request(s: &Scratch) -> Value {
-    s.captured("app/Vastitas.toml", 9)
+    s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
 fn package<'a>(wire: &'a Value, name: &str) -> &'a Value {

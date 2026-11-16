@@ -2,6 +2,7 @@ import VastitasKernel.LegacySource
 import VastitasKernel.IndexedCodegen
 import VastitasKernel.IndexedSemantics
 
+-- old-route(#533): protocols 2 to 6 (`Indexed.LegacySource`) retire at the cutover.
 /-! Public compatibility regressions. Every source case starts at the same JSON
 entry as Main, and Core mutations start from its exact returned executable module.
 The older Function/Pair/Contract/TypeAudit regression modules remain separately

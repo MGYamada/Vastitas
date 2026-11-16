@@ -74,10 +74,17 @@ const LONE_FORMS: &[&str] = &[
 /// there do the records decode: protocols 7 and 8 reject them.
 #[test]
 fn frame_and_nature_declarations_select_protocol_nine_only() {
-    // Without a Stage 4 declaration, an indexed package uses protocol 7.
-    request(&package("indexed marker M;\nfn main() -> Int { 0 }\n"), 7);
+    // An indexed package without a Stage 4 declaration uses the current
+    // protocol as well (#533).
+    request(
+        &package("indexed marker M;\nfn main() -> Int { 0 }\n"),
+        common::CURRENT_PROTOCOL,
+    );
     for form in LONE_FORMS {
-        let raw = request(&package(&format!("{form}\nfn main() -> Int {{ 0 }}\n")), 9);
+        let raw = request(
+            &package(&format!("{form}\nfn main() -> Int {{ 0 }}\n")),
+            common::CURRENT_PROTOCOL,
+        );
         // The record decodes in protocol 9; its unresolved paths are the
         // kernel's next rejection.
         let response = kernel(&raw, "check");
@@ -85,6 +92,7 @@ fn frame_and_nature_declarations_select_protocol_nine_only() {
             response["diagnostics"][0]["code"], "E_PROTOCOL",
             "{form}: {response}"
         );
+        // old-route(#533): the retiring envelopes reject this program.
         for version in [7, 8] {
             let mut older = raw.clone();
             older["version"] = json!(version);
@@ -97,7 +105,7 @@ fn frame_and_nature_declarations_select_protocol_nine_only() {
 /// wire records, with the common fields of every indexed declaration.
 #[test]
 fn the_fixture_wire_carries_the_frame_and_nature_records() {
-    let raw = request(&package(MAIN), 9);
+    let raw = request(&package(MAIN), common::CURRENT_PROTOCOL);
     let n = |value: &str| json!({ "op": "natural", "value": value });
     let record = |name: &str| {
         let mut value = declaration(&raw, name).clone();
@@ -178,7 +186,7 @@ fn the_fixture_wire_carries_the_frame_and_nature_records() {
 /// without its frames.
 #[test]
 fn the_kernel_decodes_the_frame_and_nature_records() {
-    let raw = request(&package(MAIN), 9);
+    let raw = request(&package(MAIN), common::CURRENT_PROTOCOL);
     decoded(&kernel(&raw, "check"));
     let frameless: String = MAIN
         .lines()
@@ -186,7 +194,10 @@ fn the_kernel_decodes_the_frame_and_nature_records() {
         .map(|line| format!("{line}\n"))
         .collect();
     assert_eq!(MAIN.lines().count() - frameless.lines().count(), 4);
-    decoded(&kernel(request(&package(&frameless), 9), "check"));
+    decoded(&kernel(
+        request(&package(&frameless), common::CURRENT_PROTOCOL),
+        "check",
+    ));
 }
 
 /// The kernel checks frame and nature declarations, and the fixture is a valid

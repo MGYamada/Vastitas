@@ -207,6 +207,7 @@ fn raw_contract_ir_cannot_bypass_result_domain_or_protocol_checks() {
             "body" => bad["abstract_methods"][0]["body"] = raw["methods"][0]["body"].clone(),
             "winner" => bad["abstract_methods"][0]["selected"] = json!(0),
             "domain" => bad["abstract_methods"][0]["domain"][0][0]["path"] = json!(["Bool"]),
+            // old-route(#533): a downgrade to a retiring flat envelope.
             "downgrade" => {
                 bad["version"] = json!(2);
                 bad.as_object_mut().unwrap().remove("input");
@@ -316,6 +317,7 @@ fn raw_package_contracts_cannot_forge_edit_rights_or_erase_contracts() {
     contract["name"] = json!("dep::f");
     bad["packages"][0]["modules"][0]["abstract_methods"] = json!([contract]);
     common::assert_rejected(bad, "E_OWNER");
+    // old-route(#533): a downgrade to a retiring package envelope.
     let mut bad = raw.clone();
     bad["version"] = json!(3);
     bad.as_object_mut().unwrap().remove("input");

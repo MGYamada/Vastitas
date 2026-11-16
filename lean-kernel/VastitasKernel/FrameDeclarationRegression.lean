@@ -1,6 +1,7 @@
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.IndexedAcceptance
 import VastitasKernel.RegressionSupport
+import VastitasKernel.RegressionRequest
 
 set_option autoImplicit false
 
@@ -19,6 +20,7 @@ tampered entries. -/
 namespace VastitasKernel.Indexed.FrameDeclarationRegression
 
 open Lean AlgebraRuntime
+open VastitasKernel.RegressionRequest (currentProtocol)
 
 private def check := RegressionSupport.check "frame declaration regression failed"
 
@@ -82,12 +84,8 @@ private def mod (declarations : List Json) : Json := Json.mkObj [
   ("methods", toJson ([] : List Json)), ("functions", toJson ([] : List Json)),
   ("indexed_declarations", toJson declarations)]
 
-private def request (version : Nat) (declarations : List Json) : Json := Json.mkObj [
-  ("version", toJson version), ("input", toJson "package"), ("file", toJson "frames.vast"),
-  ("root", toJson "/frames/Vastitas.toml"),
-  ("packages", toJson [Json.mkObj [
-    ("source", toJson "/frames/Vastitas.toml"), ("name", toJson "frames"), ("version", toJson "0.1.0"),
-    ("dependencies", toJson ([] : List Json)), ("modules", toJson [mod declarations])]])]
+private def request (version : Nat) (declarations : List Json) : Json :=
+  RegressionRequest.package "frames" [mod declarations] version
 
 /-- The code of a public request, or `accepted`: protocols 8 and 9 through
 `ResourceSource.Wire`, protocol 7 through `Indexed.Wire`. -/
@@ -109,6 +107,7 @@ message that contains `text`. -/
 private def rejectsWith (version : Nat) (declarations : List Json) (code text : String) : Bool :=
   (outcome version declarations).1 == code && mentions (outcome version declarations).2 text
 
+-- old-route(#533): protocols 7 and 8 retire at the cutover.
 /-- Protocols 7 and 8 reject a request whose one declaration is `j`, with
 `E_PROTOCOL` and the protocol-9 message of its decoder. -/
 private def rejectedBefore9 (j : Json) : Bool :=
@@ -117,9 +116,9 @@ private def rejectedBefore9 (j : Json) : Bool :=
 /-! ## The frame families are data-model rules -/
 
 #eval check "protocol 9 accepts the frame families"
-  ((outcome 9 (smoothBase ++ frameFamilies)).1 == "accepted")
+  ((outcome currentProtocol (smoothBase ++ frameFamilies)).1 == "accepted")
 #eval check "protocol 9 accepts a token family with a frame parameter"
-  ((outcome 9 (smoothBase ++ frameFamilies ++ [family "Tagged" [frameParameter "Frame"] [] "token"])).1 ==
+  ((outcome currentProtocol (smoothBase ++ frameFamilies ++ [family "Tagged" [frameParameter "Frame"] [] "token"])).1 ==
     "accepted")
 #eval check "protocols 7 and 8 reject each frame family representation with E_PROTOCOL"
   (["frame", "frame_vector", "frame_covector", "frame_map"].all fun representation =>
@@ -128,7 +127,7 @@ private def rejectedBefore9 (j : Json) : Bool :=
   (rejectedBefore9 (family "Tagged" [frameParameter "Frame"] [] "token"))
 
 private def rejectsFamily (families : List Json) (text : String) : Bool :=
-  rejectsWith 9 (smoothBase ++ families) "E_TYPE" text
+  rejectsWith currentProtocol (smoothBase ++ families) "E_TYPE" text
 
 #eval check "a frame family has one object parameter and the constraint canonical(0)"
   (rejectsFamily [family "Frame" [objectParameter, objectParameter] [canonical 0] "frame"]
@@ -162,10 +161,10 @@ private def frames : List (String × Json) :=
 #eval check "protocols 7 and 8 reject each frame declaration with E_PROTOCOL"
   (frames.all fun (_, j) => rejectedBefore9 j)
 #eval check "the public checker accepts each frame declaration shape, alone and together"
-  (frames.all (fun (_, j) => (outcome 9 (smoothBase ++ frameFamilies ++ [j])).1 == "accepted") &&
-    (outcome 9 (smoothBase ++ frameFamilies ++ frames.map (·.2))).1 == "accepted")
+  (frames.all (fun (_, j) => (outcome currentProtocol (smoothBase ++ frameFamilies ++ [j])).1 == "accepted") &&
+    (outcome currentProtocol (smoothBase ++ frameFamilies ++ frames.map (·.2))).1 == "accepted")
 #eval check "a frame names one object"
-  (rejectsWith 9 (smoothBase ++ frameFamilies ++
+  (rejectsWith currentProtocol (smoothBase ++ frameFamilies ++
       [decl "frame" "b" [("family", pathJson "Frame"), ("indices", toJson [pathJson "Plane", pathJson "Pt"]),
         ("columns", coordinates), ("inverse", .null)]])
     "E_FRAME" "a frame names one object, as in `Frame<X>`, but 2 are given")
@@ -187,17 +186,17 @@ has no field for a computed inverse, and the one `inverse` field, which a
 frame polynomial in the point fills, is rejected on a constant frame. The
 inverse here is the correct one, `P⁻¹` of `b`. -/
 #eval check "a wire inverse on a constant frame is E_FRAME, even when it is the correct inverse"
-  (rejectsWith 9 (smoothBase ++ frameFamilies ++ [frame "b" (columns [[natural 1, natural 0], [natural 1, natural 2]])
+  (rejectsWith currentProtocol (smoothBase ++ frameFamilies ++ [frame "b" (columns [[natural 1, natural 0], [natural 1, natural 2]])
       (columns [[natural 1, natural 0], [fraction (-1) 2, fraction 1 2]])]) "E_FRAME"
       "the frame `frames::b` on `frames::Plane` is constant, so the kernel computes its inverse" &&
-    rejectsWith 9 (smoothBase ++ frameFamilies ++ [frame "e" coordinates
+    rejectsWith currentProtocol (smoothBase ++ frameFamilies ++ [frame "e" coordinates
       (columns [[natural 1, natural 0], [natural 0, natural 1]])]) "E_FRAME"
       "the frame `frames::e` on `frames::Plane` is constant, so the kernel computes its inverse")
 #eval check "a wrong declared inverse on the wire is E_FRAME"
-  (rejectsWith 9 (smoothBase ++ frameFamilies ++ [frame "bx" (columns [[natural 1, natural 0], [coordinate "x", natural 1]])
+  (rejectsWith currentProtocol (smoothBase ++ frameFamilies ++ [frame "bx" (columns [[natural 1, natural 0], [coordinate "x", natural 1]])
       (columns [[natural 1, natural 0], [coordinate "x", natural 1]])]) "E_FRAME" "P·Q ≠ I")
 #eval check "the wire frame polynomial in the point takes a product in its inverse"
-  ((outcome 9 (smoothBase ++ frameFamilies ++ [frame "r" (columns [[natural 1, natural 0], [coordinate "x", natural 2]])
+  ((outcome currentProtocol (smoothBase ++ frameFamilies ++ [frame "r" (columns [[natural 1, natural 0], [coordinate "x", natural 2]])
       (columns [[natural 1, natural 0], [productJson [fraction (-1) 2, coordinate "x"], fraction 1 2]])])).1 ==
     "accepted")
 

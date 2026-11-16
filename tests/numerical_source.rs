@@ -20,7 +20,7 @@ fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")
 }
 fn captured(s: &Scratch) -> Value {
-    s.captured("Vastitas.toml", 8)
+    s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 fn rejection(s: &Scratch, code: &str) {
     let output = command(s, "check").output().unwrap();
@@ -894,6 +894,7 @@ fn raw_numerical_profiles_resolve_against_the_actual_declarations() {
 #[test]
 fn raw_numerical_wire_rejects_forged_ids_flags_and_old_envelopes() {
     let raw = captured(&fixture(REAL));
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut old = raw.clone();
         old["version"] = json!(version);
@@ -977,7 +978,7 @@ fn numerical_build_flags_are_explicit_and_failure_preserves_existing_output() {
     let stub = s.write("backend", "#!/bin/sh\ncat >/dev/null\ncat \"$RESPONSE\"\n");
     std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
     for (storage, numerical) in [(json!(false), json!(true)), (json!(true), json!("yes"))] {
-        let response = s.write("response.json", &json!({"version":8,"ok":true,"kernel":serde_json::from_str::<serde_json::Value>(&common::kernel_identity()).unwrap(),"lean_source":"", "storage_runtime":storage, "numerical_runtime":numerical}).to_string());
+        let response = s.write("response.json", &json!({"version":common::CURRENT_PROTOCOL,"ok":true,"kernel":serde_json::from_str::<serde_json::Value>(&common::kernel_identity()).unwrap(),"lean_source":"", "storage_runtime":storage, "numerical_runtime":numerical}).to_string());
         let output = command(&s, "build")
             .env("VASTITAS_KERNEL", &stub)
             .env("RESPONSE", response)
@@ -1215,6 +1216,7 @@ fn typed_linear_transforms_check_preserve_views_and_reject_bad_authority() {
 #[test]
 fn typed_linear_transform_wire_rejects_forged_evidence_and_old_protocols() {
     let raw = captured(&transform_fixture(TRANSFORMS));
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
@@ -1669,6 +1671,7 @@ fn finite_network_wire_is_independently_checked_and_fails_closed() {
     let mut changed = raw.clone();
     local_operation(numerical_body(&mut changed, "real"), "right")["target"] = json!("bw");
     assert_rejected(changed, "E_NUMERICAL_TYPE");
+    // old-route(#533): the retiring envelopes reject this program.
     for version in [2, 3, 4, 5, 6, 7] {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
@@ -1939,6 +1942,7 @@ fn vector_evaluation_checks_nominal_roles_loans_and_all_shapes() {
 #[test]
 fn vector_evaluation_wire_rejects_injected_authority_and_downgrades() {
     let raw = captured(&evaluation_fixture(EVALUATION));
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
@@ -2362,6 +2366,7 @@ fn vector_cell_statements_keep_the_rules_of_loans_vectors_and_promises() {
 fn vector_cell_wire_rejects_vectors_that_the_checker_refuses() {
     let raw = captured(&cells_fixture(CELLS));
     assert_eq!(kernel(&raw, "emit")["ok"], true);
+    // old-route(#533): the retiring envelopes reject this program.
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);

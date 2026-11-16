@@ -3,6 +3,7 @@ import VastitasKernel.IndexedProtocol
 import VastitasKernel.IndexedSemantics
 import VastitasKernel.IndexedCodegen
 import VastitasKernel.ResourceProtocol
+import VastitasKernel.RegressionRequest
 
 /-! Actual public authority composition, starting from frontend JSON captured by
 `tests/edit_authority.rs`. These executable regressions supplement the retained
@@ -105,7 +106,7 @@ private def cases : List (String × Json × String) := [
 /-- Test migration of the historical raw inputs, including their forgeries.
 The independently captured current source fixture above is also checked. -/
 private def namedRecipients (input : Json) : Json :=
-  (input.setObjVal! "version" (toJson (9 : Nat))).setObjVal! "packages"
+  (input.setObjVal! "version" (toJson RegressionRequest.currentProtocol)).setObjVal! "packages"
     (toJson ((values input "packages").map fun pkg => pkg.setObjVal! "modules"
       (toJson ((values pkg "modules").map fun m =>
         ["grants", "delegations", "transfers"].foldl (fun current field =>
@@ -120,6 +121,7 @@ private def namedRecipients (input : Json) : Json :=
   checkGood "protocol 9 historical fixture migration" (namedRecipients fixture) 44
   for (name, input, code) in cases do
     checkBad s!"protocol 9: {name}" (namedRecipients input) code
+  -- old-route(#533): protocols 2 to 8 retire at the cutover, here to the end.
   for version in [6, 7, 8] do
     checkGood s!"protocol {version} nested loans and transfer" (fixture.setObjVal! "version" (toJson version)) 44
     checkGood s!"protocol {version} alias preserves identity"

@@ -70,6 +70,7 @@ fn forged_owner_dependency_visibility_and_reference_are_rejected() {
     raw["packages"][0]["modules"][0]["functions"][0]["body"]["result"]["callee"] =
         json!("lib::missing");
     rejects(&raw, "E_NAME");
+    // old-route(#533): a downgrade to the retiring flat envelope.
     let mut raw = base;
     raw["version"] = json!(2);
     rejects(&raw, "E_PROTOCOL");

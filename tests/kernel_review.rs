@@ -221,7 +221,7 @@ fn wire_numbers_duplicate_keys_nesting_and_encoding_fail_closed() {
 fn gram_entries_and_literals_require_plain_decimal_digits() {
     // #562.3: `_` separators are rejected; the unmodified request is accepted.
     let manifest = root().join("examples/packages/diagonal-metrics/Vastitas.toml");
-    let raw = captured(&manifest, 8);
+    let raw = captured(&manifest, common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     for entry in ["2_0", "-4_0", "+2", "", "-"] {
         let mut forged = raw.clone();
@@ -624,7 +624,7 @@ fn forged_method_results_fail_wire_decoding() {
     let scratch = package(
         "generic g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\nresource fn main() -> Int { value { g(42) } }\n",
     );
-    let raw = captured(&manifest(&scratch), 8);
+    let raw = captured(&manifest(&scratch), common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     let family =
         json!({"path": ["Nat", "Family"], "span": raw["packages"][0]["modules"][0]["span"]});

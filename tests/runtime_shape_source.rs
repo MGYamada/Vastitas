@@ -186,7 +186,7 @@ fn command(scratch: &Scratch, mode: &str) -> Command {
 }
 
 fn request(scratch: &Scratch) -> Value {
-    common::captured_wire(command(scratch, "check"), 8)
+    common::captured_wire(command(scratch, "check"), common::CURRENT_PROTOCOL)
 }
 
 fn functions(raw: &Value) -> &Value {
@@ -357,7 +357,7 @@ fn parser_preserves_runtime_slots_whole_layouts_access_and_both_arms() {
     );
     let raw = request(&fixture(&source));
     let parsed = functions(&raw);
-    assert_eq!(raw["version"], 8);
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     assert_eq!(parsed[0]["parameters"][3]["kind"], "runtime_space");
     assert_eq!(
         parsed[0]["parameters"][3]["dimension"],

@@ -218,24 +218,28 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
             "(",
         ),
     );
-    let mut cases = Vec::new();
-    for (package, version) in [
-        ("indexed", 7),
+    let mut cases: Vec<(String, Value)> = Vec::new();
+    // Each package with the protocol that the frontend writes for it and, for
+    // a program that the frontend wrote as protocol 8 before #533 round 1, a
+    // copy at that protocol.
+    // old-route(#533): the copies at protocol 8 retire at the cutover.
+    for (package, version, old) in [
+        ("indexed", 7, None),
         // Its stdlib dependency declares Stage 2 presented affine geometry.
-        ("promotion", common::CURRENT_PROTOCOL),
-        ("resource-values", 8),
-        ("numerical", 8),
-        ("runtime-shapes", 8),
-        ("tensor-packing", 8),
-        ("contraction-tree", 8),
-        ("finite_network", 8),
-        ("storage/app", 8),
-        ("edit-borrow/app", common::CURRENT_PROTOCOL),
-        ("edit-authority/app", common::CURRENT_PROTOCOL),
-        ("smooth-objects", common::CURRENT_PROTOCOL),
-        ("smooth-cotangent", common::CURRENT_PROTOCOL),
-        ("smooth-metric", common::CURRENT_PROTOCOL),
-        ("smooth-differential", common::CURRENT_PROTOCOL),
+        ("promotion", common::CURRENT_PROTOCOL, None),
+        ("resource-values", common::CURRENT_PROTOCOL, Some(8)),
+        ("numerical", common::CURRENT_PROTOCOL, Some(8)),
+        ("runtime-shapes", common::CURRENT_PROTOCOL, Some(8)),
+        ("tensor-packing", common::CURRENT_PROTOCOL, Some(8)),
+        ("contraction-tree", common::CURRENT_PROTOCOL, Some(8)),
+        ("finite_network", common::CURRENT_PROTOCOL, Some(8)),
+        ("storage/app", common::CURRENT_PROTOCOL, Some(8)),
+        ("edit-borrow/app", common::CURRENT_PROTOCOL, None),
+        ("edit-authority/app", common::CURRENT_PROTOCOL, None),
+        ("smooth-objects", common::CURRENT_PROTOCOL, None),
+        ("smooth-cotangent", common::CURRENT_PROTOCOL, None),
+        ("smooth-metric", common::CURRENT_PROTOCOL, None),
+        ("smooth-differential", common::CURRENT_PROTOCOL, None),
     ] {
         let manifest = if package == "indexed" {
             indexed.0.join("Vastitas.toml")
@@ -244,13 +248,19 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
         };
         let mut command = common::cli();
         command.args(["check", "--manifest-path"]).arg(manifest);
-        cases.push((package, common::captured_wire(command, version)));
+        let wire = common::captured_wire(command, version);
+        if let Some(old) = old {
+            let mut copy = wire.clone();
+            copy["version"] = json!(old);
+            cases.push((format!("{package} on protocol {old}"), copy));
+        }
+        cases.push((package.to_string(), wire));
     }
-    cases.push(("promotion on protocol 7", promotion_without_affine()));
+    cases.push(("promotion on protocol 7".into(), promotion_without_affine()));
     let recipients: Value =
         serde_json::from_str(include_str!("fixtures/edit-recipients.json")).unwrap();
     assert_eq!(recipients["version"], common::CURRENT_PROTOCOL);
-    cases.push(("edit-recipients fixture", recipients));
+    cases.push(("edit-recipients fixture".into(), recipients));
     let mut forgeries = Vec::new();
     for (name, raw) in &cases {
         let baseline = kernel(raw, "check");
@@ -260,7 +270,7 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
         for path in records.into_values() {
             let mut changed = raw.clone();
             changed.pointer_mut(&path).unwrap()["forged_authority"] = json!("untrusted");
-            forgeries.push((*name, raw["version"].clone(), path, changed));
+            forgeries.push((name.as_str(), raw["version"].clone(), path, changed));
         }
     }
     assert!(

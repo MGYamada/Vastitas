@@ -20,7 +20,7 @@ fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")
 }
 fn captured(s: &Scratch) -> Value {
-    s.captured("Vastitas.toml", 8)
+    s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
 #[track_caller]

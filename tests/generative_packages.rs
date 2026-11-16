@@ -21,7 +21,7 @@ fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")
 }
 fn capture(s: &Scratch) -> Value {
-    s.captured("Vastitas.toml", 8)
+    s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 fn functions(raw: &mut Value) -> &mut Vec<Value> {
     raw["packages"][0]["modules"]

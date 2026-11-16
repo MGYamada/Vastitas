@@ -21,7 +21,7 @@ fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")
 }
 fn captured(s: &Scratch) -> Value {
-    s.captured("Vastitas.toml", 8)
+    s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 fn rejection(source: &str, code: &str) {
     let output = command(&fixture(source, COMPLEX), "check")

@@ -22,6 +22,11 @@ HERE = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("copy_experiment", ROOT / "experiments/storage_copy/run.py")
 copy_experiment = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(copy_experiment)
+# The wire schema epoch (#533), read from the kernel's `currentProtocol`.
+_protocol_spec = importlib.util.spec_from_file_location("kernel_protocol", ROOT / "scripts/kernel_protocol.py")
+_kernel_protocol = importlib.util.module_from_spec(_protocol_spec)
+_protocol_spec.loader.exec_module(_kernel_protocol)
+PROTOCOL = _kernel_protocol.CURRENT_PROTOCOL
 
 # Other diagnostic experiments import only these runners' logging/build
 # utilities. Load the optional timing dependency only when it is actually used.
@@ -137,7 +142,7 @@ def capture_wire(runner, frontend, package):
     capture.write_text(f'''#!{sys.executable}
 import json, pathlib, sys
 pathlib.Path({str(wire)!r}).write_text(sys.stdin.read())
-print(json.dumps({{"version":8,"ok":False,"diagnostics":[{{"code":"E_CAPTURED","message":"capture only"}}]}}))
+print(json.dumps({{"version":{PROTOCOL},"ok":False,"diagnostics":[{{"code":"E_CAPTURED","message":"capture only"}}]}}))
 sys.exit(1)
 ''')
     capture.chmod(0o755)
@@ -145,10 +150,10 @@ sys.exit(1)
     result = runner.run([frontend,"check","--manifest-path",package / "Vastitas.toml"],
                         env=env, required=False, phase="frontend_capture")
     if "E_CAPTURED" not in result["stderr"] or result["returncode"] == 0:
-        raise ValueError(f"frontend did not reach the protocol-8 boundary: {result}")
+        raise ValueError(f"frontend did not reach the protocol-{PROTOCOL} boundary: {result}")
     raw = json.loads(wire.read_text())
-    if raw["version"] != 8:
-        raise ValueError("not public protocol 8")
+    if raw["version"] != PROTOCOL:
+        raise ValueError(f"not public protocol {PROTOCOL}")
     return wire.read_text()
 
 
@@ -189,7 +194,7 @@ def build_case(runner, c, work, wire, prefix, cc, kernel, lean_root, frontend):
     result = runner.run([kernel,"emit"],input=wire,phase="independent_lean_emit")
     response = json.loads(result["stdout"])
     dump(work / "response.json",response)
-    if response.get("version") != 8 or not response.get("ok") or not response.get("numerical_runtime"):
+    if response.get("version") != PROTOCOL or not response.get("ok") or not response.get("numerical_runtime"):
         raise ValueError("not a checked public numerical response")
     generated = response["lean_source"]
     (work / "Generated.lean").write_text(generated)
@@ -268,7 +273,7 @@ def main():
         performance="unmeasured",leak_sanitizer="disabled explicitly" if args.no_leak_sanitizer else "enabled",
         memory_scope="arena data counters in generated/arena-C; plain-C logical costs only in separate diagnostic replay; ru_maxrss may include launcher pre-exec footprint and is not isolated executable heap; BLAS private packing/allocations not instrumented")
     environment["expected_lean_toolchain"] = (ROOT / "lean-kernel/lean-toolchain").read_text().strip()
-    for rel in ["experiments/contraction_trees", "experiments/native_cleanup.py", "experiments/plain_c", "scripts/native_sanitizers.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical",
+    for rel in ["experiments/contraction_trees", "experiments/native_cleanup.py", "experiments/plain_c", "scripts/native_sanitizers.py", "scripts/kernel_protocol.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical",
                 "lean-kernel/VastitasKernel/TensorNumerical.lean",
                 "lean-kernel/VastitasKernel/TensorContraction.lean",
                 "lean-kernel/VastitasKernel/TensorTree.lean",

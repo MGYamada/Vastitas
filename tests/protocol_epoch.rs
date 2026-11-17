@@ -101,7 +101,7 @@ fn retired_shapes(version: u64, flat: &Value, package: &Value) -> Vec<Value> {
         }
         shapes.push(old);
     }
-    if version >= 3 {
+    if (3..=9).contains(&version) {
         let mut old = package.clone();
         old["version"] = json!(version);
         old.as_object_mut().unwrap().remove("legacy_geometry");
@@ -113,42 +113,41 @@ fn retired_shapes(version: u64, flat: &Value, package: &Value) -> Vec<Value> {
     shapes
 }
 
-/// One test per retired protocol (2 to 9) and per never-public or next
-/// number (0, 1 and the next epoch): every shape of the request at that
-/// version, in `check` and in `emit`, fails closed by its version alone.
-macro_rules! fails_closed {
-    ($($name:ident: $version:expr,)*) => {$(
-        #[test]
-        fn $name() {
-            let version: u64 = $version;
-            let flat = request(PROGRAM, "epoch.vast");
-            let package = geometry_request();
-            let mut shapes = vec![flat.clone(), package.clone()];
-            for shape in &mut shapes {
-                shape["version"] = json!(version);
-            }
-            shapes.extend(retired_shapes(version, &flat, &package));
-            for shape in &shapes {
-                for mode in ["check", "emit"] {
-                    assert_fails_by_version(shape, version, mode);
-                }
-            }
+/// Every shape of the request at `version`, in `check` and in `emit`, fails
+/// closed by its version alone: the request of the epoch relabelled, and for 2
+/// to 9 the shape that the version had.
+fn fails_closed(version: u64) {
+    let flat = request(PROGRAM, "epoch.vast");
+    let package = geometry_request();
+    let mut shapes = vec![flat.clone(), package.clone()];
+    for shape in &mut shapes {
+        shape["version"] = json!(version);
+    }
+    shapes.extend(retired_shapes(version, &flat, &package));
+    for shape in &shapes {
+        for mode in ["check", "emit"] {
+            assert_fails_by_version(shape, version, mode);
         }
-    )*};
+    }
 }
 
-fails_closed! {
-    protocol_0_fails_closed: 0,
-    protocol_1_fails_closed: 1,
-    protocol_2_fails_closed: 2,
-    protocol_3_fails_closed: 3,
-    protocol_4_fails_closed: 4,
-    protocol_5_fails_closed: 5,
-    protocol_6_fails_closed: 6,
-    protocol_7_fails_closed: 7,
-    protocol_8_fails_closed: 8,
-    protocol_9_fails_closed: 9,
-    the_next_protocol_fails_closed: CURRENT_PROTOCOL + 1,
+/// The retired protocols and the numbers that were never public: every
+/// version below the epoch, so that a later epoch tests this one as retired.
+#[test]
+fn every_version_below_the_epoch_fails_closed() {
+    let versions: Vec<u64> = (0..CURRENT_PROTOCOL).collect();
+    assert!(
+        versions.len() >= 10 && versions.contains(&9),
+        "{versions:?}"
+    );
+    for version in versions {
+        fails_closed(version);
+    }
+}
+
+#[test]
+fn the_next_protocol_fails_closed() {
+    fails_closed(CURRENT_PROTOCOL + 1);
 }
 
 /// A kernel of another epoch answers a request of this one with the

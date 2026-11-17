@@ -334,6 +334,10 @@ jobs:
         run: bash scripts/check_ci_python.sh
       - name: Check proof dependency boundary before Lake resolution
         run: python3 scripts/check_boundaries.py
+      # The axiom audit below requires an `.olean` of every kernel and oracle
+      # source module and cannot tell a stale one from a current one (#533).
+      - name: Check that a build root of this job reaches every kernel and oracle module
+        run: python3 scripts/check_lean_roots.py
       - name: Install checksum-pinned elan
         run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
       - name: Build and audit the proof-only oracle
@@ -353,7 +357,8 @@ jobs:
           lake env ../.ci-tools/axiom-audit/.lake/build/bin/axiom-audit --root VastitasOracle --allow propext,Classical.choice,Quot.sound
       # The audit enumerates every kernel and oracle source module and needs
       # each one built: library roots (nothing imports `VastitasKernel`),
-      # executable roots and regression modules.
+      # executable roots, regression modules and the kernel modules that only
+      # the oracle imports. `check_lean_roots.py` checks that these reach all.
       - name: Build every kernel library and executable root for the audit
         run: |
           lake -d lean-kernel build VastitasKernel VastitasPromotion VastitasPublicTest VastitasStorageTest VastitasAlgebraTest vastitas-kernel storage-native-fixture numerical-native-fixture

@@ -13,15 +13,16 @@ import json
 from pathlib import Path
 import re
 
+from kernel_protocol import CURRENT_PROTOCOL
+
 
 EXPECTATION_SCHEMA = "vastitas.doctest-expectation-reference/1"
 RESULT_SCHEMA = "vastitas.doctest-result-reference/1"
 REPORT_SCHEMA = "vastitas.doctest-report-reference/1"
 POLICY = "expected-rejection/1"
-# The one wire protocol of the driver and the kernel (#533): the kernel's
-# `currentProtocol` in lean-kernel/VastitasKernel/Protocol.lean, which
-# test_doctest_result_reference.py compares with this value.
-PROTOCOL = 10
+# The one wire protocol of the driver and the kernel (#533), read from the
+# kernel's `currentProtocol` in lean-kernel/VastitasKernel/Protocol.lean.
+PROTOCOL = CURRENT_PROTOCOL
 _CODE = re.compile(r"E_[A-Z0-9_]+\Z")
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 _OUTCOMES = {"frontend_rejected", "kernel_rejected", "accepted",

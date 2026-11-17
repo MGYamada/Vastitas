@@ -11,13 +11,14 @@ import hashlib
 import json
 import re
 
+from kernel_protocol import CURRENT_PROTOCOL
+
 
 SCHEMA = "vastitas.diagnostic-reference/1"
 PROFILE = "finite-scalar-join-reference/1"
-# The one wire protocol of the driver and the kernel (#533): the kernel's
-# `currentProtocol` in lean-kernel/VastitasKernel/Protocol.lean, which
-# test_diagnostic_reference.py compares with this value.
-PROTOCOL = 10
+# The one wire protocol of the driver and the kernel (#533), read from the
+# kernel's `currentProtocol` in lean-kernel/VastitasKernel/Protocol.lean.
+PROTOCOL = CURRENT_PROTOCOL
 SCALARS = ("Nat", "Int", "Bool", "Unit")
 _ATOM = re.compile(r"[A-Za-z0-9_:.+@-]+\Z")
 

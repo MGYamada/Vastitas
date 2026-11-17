@@ -641,7 +641,7 @@ fn main() -> Int {{
 }
 
 #[test]
-fn relative_forms_reject_downgrade_and_forged_wire() {
+fn relative_forms_reject_forged_wire() {
     let raw = request(&fixture(MAIN));
     let p = declaration_pointer(&raw, "p");
     let to_x = declaration_pointer(&raw, "toX");

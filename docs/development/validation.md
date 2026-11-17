@@ -74,9 +74,12 @@ against the built compiler.
 The oracle in `lean/` is a separate, proof-only package. The audit reads every
 kernel and oracle module, so build every kernel library root, executable and
 regression module first. The audit checks that each `.olean` exists, not that
-it is current.
+it is current. `check_lean_roots.py` runs before any build and fails on a
+kernel or oracle module that no build root of the CI job reaches, since such a
+module keeps a stale `.olean` locally and has none in a clean checkout.
 
 ```sh
+python3 scripts/check_lean_roots.py
 lake -d lean-kernel build VastitasKernel VastitasPromotion VastitasPublicTest VastitasStorageTest VastitasAlgebraTest \
   vastitas-kernel storage-native-fixture numerical-native-fixture
 bash scripts/check_kernel_regressions.sh
@@ -94,6 +97,7 @@ lake -d lean env python3 scripts/check_spec_lean.py
 
 | Command | What it checks |
 | --- | --- |
+| `check_lean_roots.py` | Every Lean source module of `lean-kernel/` and `lean/` that the audit enumerates is in the import closure of a build root of the job "Lean proofs and axiom audit": a root of a library or executable that the job builds, a module of `check_kernel_regressions.sh`, or a kernel module that the oracle imports. `test_check_lean_roots.py` checks it on fixture trees, an orphaned module among them |
 | `audit_axioms.lean` | The axioms and the opaque code of every kernel and oracle module |
 | `check_chain_rule_free.lean` | The compiled reverse Core theorems that the specification states without the chain rule reach no chain-rule theorem |
 | `spec_resolve.lean` | Each pinned oracle theorem and kernel definition of the specifications: its module, kind, axioms and statement hash |

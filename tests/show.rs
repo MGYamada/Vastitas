@@ -522,7 +522,7 @@ fn compatibility_package_identities_are_reserved_for_the_flat_unit() {
             common::assert_wire_rejected(&response, "E_PROTOCOL");
             let message = response["diagnostics"][0]["message"].as_str().unwrap();
             assert!(
-                message.contains("is reserved for the package of a flat unit"),
+                message.contains("is reserved for the compatibility packages of the kernel"),
                 "{name} ({mode}): {message}"
             );
         }

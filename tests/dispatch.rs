@@ -29,10 +29,11 @@ fn kernel(request: Value) -> Value {
     common::kernel(request, "emit")
 }
 
-fn assert_rejected(request: Value, code: &str) {
+fn assert_rejected(request: Value, code: &str) -> Value {
     let expected_version = request["version"].clone();
     let response = common::assert_rejected(request, code);
     assert_eq!(response["version"], expected_version, "{response}");
+    response
 }
 
 #[test]
@@ -437,8 +438,19 @@ fn main() -> Int { pick(42) }",
     let mut invalid_domain = valid.clone();
     flat_module(&mut invalid_domain)["generics"][0]["domain"][0][0]["name"] = json!("Number");
     assert_rejected(invalid_domain, "E_TYPE");
-    let mut invalid_selector = valid;
+    let mut invalid_selector = valid.clone();
     // `Scheme` is no scalar selector, and the module declares no such name.
     flat_module(&mut invalid_selector)["methods"][0]["params"][0]["ty"]["name"] = json!("Scheme");
     assert_rejected(invalid_selector, "E_NAME");
+    // A selector that names a declared function or generic resolves, but it
+    // is no abstract type.
+    for name in ["main", "pick"] {
+        let mut declared_selector = valid.clone();
+        flat_module(&mut declared_selector)["methods"][0]["params"][0]["ty"]["name"] = json!(name);
+        let response = assert_rejected(declared_selector, "E_TYPE");
+        assert_eq!(
+            response["diagnostics"][0]["message"], "expected an abstract type declaration",
+            "{name}: {response}"
+        );
+    }
 }

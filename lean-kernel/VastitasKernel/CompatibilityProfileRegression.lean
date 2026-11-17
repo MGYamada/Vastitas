@@ -166,14 +166,20 @@ private def answer (json : Json) : Option (String × String × Span) :=
   check s!"an invalid Fn signature of a flat unit: {repr (answer flagged)}"
     ((answer flagged).any fun (code, message, span) => code == "E_TYPE" &&
       message == "Fn signatures contain only scalars and recursive Fn types" && span.start == 5)
-  let unknownImport := Json.mkObj [("path", toJson ["missing"]), ("alias", toJson "missing"),
+  let importOf (path alias : String) : Json := Json.mkObj [("path", toJson [path]), ("alias", toJson alias),
     ("public", toJson false), ("span", span)]
-  let importing (flag : Option Json) : Json :=
+  let importingWith (anImport : Json) (flag : Option Json) : Json :=
     request source [(sourcePackage source "legacy" false).setObjVal! "modules"
       (toJson [(rootModule ((functions ++ [badSignature]).map (publish false))).setObjVal! "imports"
-        (toJson [unknownImport])])] flag
-  check s!"an unknown import before the signature: {repr (answer (importing (some (toJson true))))}"
+        (toJson [anImport])])] flag
+  -- `missing` as `missing` names its own alias, so the import is cyclic.
+  let importing := importingWith (importOf "missing" "missing")
+  check s!"a cyclic import before the signature: {repr (answer (importing (some (toJson true))))}"
     ((answer (importing (some (toJson true)))).any fun (code, _, _) => code == "E_CYCLE")
+  let unknown := importingWith (importOf "nowhere" "elsewhere") (some (toJson true))
+  check s!"an unknown import before the signature: {repr (answer unknown)}"
+    ((answer unknown).any fun (code, message, _) =>
+      code == "E_NAME" && message == "undefined name 'nowhere' in this module")
   -- The price of a request is the same in the namespace with and without the
   -- profile, which has no imports and is no dependency.
   for json in [flatPackage (some (toJson true)), packageRequest (some (toJson true)), importing (some (toJson true))] do

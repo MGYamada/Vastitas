@@ -13,7 +13,7 @@ resource IR that these checks produce.
 The public wire protocol must carry enough untrusted layout, region, transition and
 dependency information for Lean to reconstruct the resource schedule independently.
 Rust annotations, serialized proof flags, claimed alias facts and alleged
-initialization are not evidence. Older protocols must reject unsupported fields.
+initialization are not evidence. The kernel must reject a field that the schema epoch does not define.
 
 The actual returned IR must be checked at acceptance and again before native generation.
 If optimization changes allocation, fusion, packing, alias scope or retention,

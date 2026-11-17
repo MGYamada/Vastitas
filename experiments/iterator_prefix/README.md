@@ -137,10 +137,10 @@ Python の frame 別 drop counter は Lean の重複を許す release event 列�
 | --- | --- | --- |
 | O1 | ピン留めした Lean でモデルを elaboration し、有限 prefix 補題と依存 axiom を監査する。Python の Plan / cursor / 各台帳更新が Lean の Step を模倣することを示す | 前半は Lean 4.35.0・382宣言の監査を通過。Python simulation/refinement は未証明 |
 | O2 | 実際の `Core.Term`・typing・effects に有限の loop / step machine を追加し、その独立操作意味論を定義する。`take(n)` の実行時 n と有限 IR 構造を分離する | Core に追加していない。閉じた演算タグは実際の canonical callable identity の代用ではない |
-| O3 | 実際の public checker の成功等式から **その返却値 C** の型・所有権・partiality policy と source-plan 対応を導く。既存 `Surface.StaticCallsValid` と実際の lowering を拡張し、生存 environment、全 body、静的 target を照合する | `safe=true`、Rust 成功、再構築した別 Core、annotation-only `CertifiedModule` では代替できない |
+| O3 | 実際の public checker の成功等式から **その返却値 C** の型・所有権・partiality policy と source-plan 対応を導く。`Surface.StaticCallsValid`（#533 round 2 で削除）が担っていた対応と実際の lowering を拡張し、生存 environment、全 body、静的 target を照合する | `safe=true`、Rust 成功、再構築した別 Core、annotation-only `CertifiedModule` では代替できない |
 | O4 | #180/#183 の独立 store を定義し、allocation ID / provenance、region、owner、loan、初期化、bounds、live aliases の不変条件を実 checker から導く | frame ID と drop 回数は実 allocation・borrow・メモリ解放ではない |
 | O5 | 全ての実際の store 小ステップについて不変条件保存と fault 不在を示し、有限 prefix に持ち上げる。map / predicate / cleanup 内部の小ステップも含め、OOM・部分初期化・安全な失敗を規定する | 参照モデルの pulse は抽象的に atomic。pulse 境界の保存だけでは内部の unsafe access を排除できない |
-| O6 | #184 の同一 `P,E,Q,C` と同一 snapshot / assembly に、適用される Core Safety と domain obligation ledger を合成する。変換後も同じ契約を保持し stale evidence を拒否する | 既存 `checkEditProgram_finite_acceptance` の `certified.val` との同一性規律を継承する必要がある。現在の `total` は非循環な既存 fragment の結果 |
+| O6 | #184 の同一 `P,E,Q,C` と同一 snapshot / assembly に、適用される Core Safety と domain obligation ledger を合成する。変換後も同じ契約を保持し stale evidence を拒否する | `checkEditProgram_finite_acceptance`（#533 round 2 で削除）が示していた `certified.val` との同一性規律を継承する必要がある。現在の `total` は非循環な既存 fragment の結果 |
 | O7 | one-shot state、resource-bearing 要素、borrowed environment、early return / branch join / destruction、動的 nominal identity の導入・escape を型と store の両側で扱う | この実験は Nat のみ。未対応資源をこのモデルから安全と認定しない |
 | O8 | source → plan → **実返却 Core** → 最適化 → backend の refinement を示す。静的 target、environment、所有権台帳を保存し、raw IR / forged Core / native の拒否・実行試験を行う | Python 実行は Vastitas native 実行ではなく、Lean/C/FFI/allocator/OS の正しさも確立しない |
 

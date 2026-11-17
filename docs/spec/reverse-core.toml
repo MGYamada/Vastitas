@@ -489,9 +489,12 @@ share their objects is not proved, and no theorem needs it. A pin covers the
 statement of a theorem, and a claim pins theorems and kernel definitions only.
 The pins of the public-path theorems therefore do not cover the oracle
 definitions `EntryComputes` and `EntryWellFormed`. Reviewers read those
-definitions with the theorems. That `Main.process` generates code from the
-compiled modules of the accepted certificate is read from `Main` and the
-kernel's code generation, which the oracle does not import.
+definitions with the theorems. That `Main.process` answers an emit request
+with `ResourceSource.Wire.emit` is read from `Main`, which the oracle does not
+import. The rest is proved: `ResourceCodegen.public_generated_checked` shows
+that `Wire.emit` generates code from the accepted certificate, and
+`IndexedReverseCore.public_pure_entry_compiled` shows that, for a program
+without a resource entry, the emitted module is its compiled module.
 """
 
 [property."reverse-core.validation".claim.test]

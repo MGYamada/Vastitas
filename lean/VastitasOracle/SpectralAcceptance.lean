@@ -740,7 +740,7 @@ theorem c11_eigenprojector {point valueTerm : Core.Term} {smooth line : DeclId} 
   · have hP := VastitasOracle.SpectralRuntime.projectorMatrix_of_onBranch (adjugate := branch.spectrum.adjugate) hon
     have certificate : SpectralValid m branch.spectrum.endomorphism.rows
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩ := hvalid
-    refine ⟨_, hP, by simp [projectorEntry, hP], ?_, ?_, ?_, ?_⟩
+    refine ⟨_, hP, by simp [VastitasOracle.SpectralRuntime.projectorEntry_eq, hP], ?_, ?_, ?_, ?_⟩
     · exact VastitasOracle.SpectralRuntime.projector_idempotent (certificate :=
         ⟨branch.spectrum.characteristic, branch.spectrum.adjugate, idempotence⟩) certificate hw hx hP
     · exact VastitasOracle.SpectralRuntime.projector_trace_one (certificate :=

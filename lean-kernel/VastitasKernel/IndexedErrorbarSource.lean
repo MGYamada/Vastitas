@@ -30,7 +30,10 @@ each on the declarations of the round before:
    inconsistent point or stating that every point is consistent.
 
 Each declaration ends with its check in `NatureErrorbar`, which the
-declaration audit repeats. Its rejections are `E_ERRORBAR`, `E_STALE` and
+declaration audit repeats. After the fingerprint, that check
+(`checkComparison`) decides a comparison and computes its verdict once; only
+a rejected comparison has its point results computed again, to name the
+reason (#865). The rejections of the pass are `E_ERRORBAR`, `E_STALE` and
 `E_LIMIT` (`NatureErrorbar.Problem.code`). A program without these
 declarations is unchanged. -/
 namespace VastitasKernel.Indexed.Source
@@ -207,6 +210,9 @@ private def elaborateComparison (span : Span) (env : Environment) (name family o
     errorbarProblem span (.stale (s!"{subject} records the fingerprint `{fingerprint}` of the calibration " ++
       s!"`{qualified calibration}`, but its current fingerprint is `{current}`: the calibration changed after the " ++
       "comparison was recorded; review the comparison and record the current fingerprint") current)
+  -- The check of the declaration audit decides an accepted comparison; it computes the verdict once (#865).
+  if NatureErrorbar.checkComparison env family object dataset calibration fingerprint verdict then return
+  -- A rejected comparison: compute the point results again only to name the reason.
   let some (numerator, denominator, localize) := NatureErrorbar.prediction? env model
     | invalid span s!"the model `{qualified model}` of {subject} predicts no transition average of a branch"
   let m := coordinates.length
@@ -226,8 +232,7 @@ private def elaborateComparison (span : Span) (env : Environment) (name family o
     | none =>
       invalid span <| s!"{subject} records the verdict `{verdictText verdict}`, but every point of the dataset " ++
         s!"`{qualified dataset}` is consistent"
-  unless NatureErrorbar.checkComparison env family object dataset calibration fingerprint verdict do
-    invalid span s!"{subject} fails the declaration audit"
+  invalid span s!"{subject} fails the declaration audit"
 
 /-! ## The pass -/
 

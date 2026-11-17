@@ -2,15 +2,16 @@
 
 use serde::{Deserialize, Serialize};
 
-// The wire protocols of a request. Flat input writes 2, or 4 when it holds
-// abstract declarations (`frontend::parse_sources`). A package request writes
-// the first of 9 down to 3 that the declarations of the program, or the
-// `geometry_compat` export of a manifest, select (`packages::request_protocol`);
-// 9 also carries the algebraic forms and the observations of `show!` (#836),
-// and the indexed and resource programs that protocols 7 and 8 carried
-// (#533), so the driver no longer writes 7 or 8.
-// A flat unit with an observation is sent as a protocol-9 package request
-// (`packages::flat_request`).
+// The wire protocols. The driver writes only protocol 9, the current schema
+// epoch (#533): a package request (`packages::load`) and the request of a flat
+// unit as one package (`packages::flat_request`). The programs that it wrote
+// at protocols 2 to 6 before carry the optional field `legacy_geometry`, with
+// which the kernel adds the compatibility profile of those protocols.
+// The kernel still accepts 2 to 8 until the cutover to epoch 10. The flat
+// `Module` below keeps the version of its own encoding, 2, or 4 when it holds
+// abstract declarations (`frontend::parse_sources`): a hand-written request of
+// that protocol, which the driver wraps instead of sending. The other
+// constants name the protocols of `--version` (`PUBLIC_PROTOCOLS`).
 pub const PROTOCOL_VERSION: u32 = 2;
 pub(crate) const PACKAGE_PROTOCOL: u32 = 3;
 pub const ABSTRACT_PROTOCOL_VERSION: u32 = 4;
@@ -20,7 +21,9 @@ pub(crate) const INDEXED_PROTOCOL: u32 = 7;
 pub(crate) const RESOURCE_PROTOCOL: u32 = 8;
 pub(crate) const NAMED_RECIPIENT_PROTOCOL: u32 = 9;
 /// The protocols of `--version`, in its order: those that the driver wrote
-/// before round 1 of #533. The list changes with `--version` under #521.
+/// before round 1 of #533. The driver now writes only protocol 9, but the list
+/// stays until the cutover to epoch 10, because the kernel of this release
+/// still accepts every one of them; it changes with `--version` under #521.
 pub(crate) const PUBLIC_PROTOCOLS: [u32; 8] = [
     PROTOCOL_VERSION,
     PACKAGE_PROTOCOL,
@@ -135,7 +138,7 @@ pub struct Function {
     pub body: Block,
     pub span: Span,
     /// The `show!` of the top-level `let` statements of `fn main` (#836).
-    /// Only protocol 9 carries them (`packages::request_protocol`).
+    /// Only protocol 9 carries them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observations: Vec<Observation>,
 }

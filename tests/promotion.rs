@@ -130,10 +130,14 @@ fn promotion_values_types_reversal_and_idempotence_execute_in_both_modes() {
 #[test]
 fn stdlib_rules_are_independently_checked_and_result_expectations_do_not_select() {
     let scratch = Scratch::new(VALUES);
+    // The flat unit is the root module of the one package of its request.
     let raw = scratch.raw(false);
-    let indices: Vec<_> = raw["methods"]
-        .as_array()
-        .unwrap()
+    fn methods(raw: &mut Value) -> &mut Vec<Value> {
+        raw.pointer_mut("/packages/0/modules/0/methods")
+            .and_then(Value::as_array_mut)
+            .unwrap()
+    }
+    let indices: Vec<_> = methods(&mut raw.clone())
         .iter()
         .enumerate()
         .filter(|(_, m)| m["name"] == "promote")
@@ -142,21 +146,18 @@ fn stdlib_rules_are_independently_checked_and_result_expectations_do_not_select(
     assert_eq!(indices.len(), 4);
     for (index, element) in indices.iter().zip(["Nat", "Int", "Int", "Int"]) {
         assert_eq!(
-            raw["methods"][index]["return_type"],
+            methods(&mut raw.clone())[*index]["return_type"],
             json!({"kind":"pair","element":element})
         );
     }
     let mut reordered = raw.clone();
-    reordered["methods"].as_array_mut().unwrap().reverse();
+    methods(&mut reordered).reverse();
     assert_eq!(check_raw(&reordered)["ok"], true);
     let mut missing = raw.clone();
-    missing["methods"]
-        .as_array_mut()
-        .unwrap()
-        .remove(indices[1]);
+    methods(&mut missing).remove(indices[1]);
     rejects(&missing, "E_DISPATCH_COVERAGE");
     let mut wrong = raw;
-    wrong["methods"][indices[1]]["return_type"]["element"] = json!("Nat");
+    methods(&mut wrong)[indices[1]]["return_type"]["element"] = json!("Nat");
     rejects(&wrong, "E_TYPE");
     for (source, code) in [
         ("fn bad(n: Nat) -> Pair<Nat> { promote(n, -1) }", "E_TYPE"),

@@ -169,10 +169,44 @@ fn show_stands_only_in_the_top_level_lets_of_main() {
         "E_TYPE",
     );
     let message = reject(
-        "fn main() -> Int { let X = Affine(QQ, 2); let d = show!(dim(X)); 0 }",
-        "E_UNSUPPORTED",
+        "fn main() -> Int { let X = Affine(QQ, 2); let p = show!(origin(X)); 0 }",
+        "E_TYPE",
     );
-    assert!(message.contains("no legacy geometry"), "{message}");
+    assert!(
+        message.contains("`show!` cannot display a value of type"),
+        "{message}"
+    );
+}
+
+/// A flat unit has the legacy geometry with `show!` as without it, also from
+/// a `--lib` input (#533): every flat request carries `legacy_geometry`, which
+/// lifts the restriction of #836.
+#[test]
+fn show_stands_beside_legacy_geometry_in_flat_input() {
+    let geometry = "fn carry(X: Scheme, p: Point<X, Base(QQ)>) -> Point<X, Base(QQ)> {
+    apply(compose(id(X), id(X)), p)
+}";
+    let main = "fn main() -> Int {
+    let X = Affine(QQ, 3);
+    let q: Point<X, Base(QQ)> = carry(X, origin(X));
+    let d = show!(dim(X));
+    let n = show!(int(d) - 3);
+    n
+}";
+    run(
+        &format!("{geometry}\n{main}"),
+        shows(&["dim(X) = 3", "int(d) - 3 = 0"]),
+    );
+    let library = Scratch::empty("show geometry library");
+    let path = library.write("geometry.vast", geometry);
+    native(
+        main,
+        &[path],
+        shows(&["dim(X) = 3", "int(d) - 3 = 0"]),
+        FILE,
+    );
+    let wire = flat_wire(&format!("{geometry}\n{main}"), common::CURRENT_PROTOCOL);
+    assert_eq!(wire["legacy_geometry"], true, "{wire}");
 }
 
 #[test]
@@ -203,8 +237,9 @@ fn show_is_refused_outside_the_entry_point_of_packages() {
         );
     }
     // A package with the legacy geometry and no `[geometry_compat]` export
-    // cannot use `show!`: the kernel rejects the legacy form, and the driver
-    // adds a note that names `show!` as the cause.
+    // cannot use `show!`: its request carries no `legacy_geometry`, the
+    // kernel rejects the legacy form, and the driver adds a note that names
+    // `show!` as the cause.
     let scratch = Scratch::empty("show legacy package");
     scratch.write_package(
         "app",
@@ -214,7 +249,7 @@ fn show_is_refused_outside_the_entry_point_of_packages() {
     let message = expect_code(&scratch.check_manifest("app/Vastitas.toml"), "E_TYPE");
     assert!(
         message.contains("main.vast:2:")
-            && message.contains("note: help: a program that uses `show!` has the legacy geometry only with a `[geometry_compat]` export"),
+            && message.contains("note: help: a package that uses `show!` has the legacy geometry only with a `[geometry_compat]` export"),
         "{message}"
     );
     // Without `show!` the same package checks.
@@ -247,8 +282,15 @@ fn show_is_refused_outside_the_entry_point_of_packages() {
 }
 
 #[test]
-fn show_selects_protocol_nine_and_check_is_unchanged() {
-    let plain = flat_wire("fn main() -> Int { let x = 1 + 1; x }", 2);
+fn show_adds_observations_to_the_flat_request_and_check_is_unchanged() {
+    // Every flat unit is a protocol-9 package with the legacy geometry
+    // (#533); only `show!` adds observations.
+    let plain = flat_wire(
+        "fn main() -> Int { let x = 1 + 1; x }",
+        common::CURRENT_PROTOCOL,
+    );
+    assert_eq!(plain["input"], "package");
+    assert_eq!(plain["legacy_geometry"], true);
     assert!(plain.to_string().find("observations").is_none());
     let mut observed = flat_wire(
         "fn helper() -> Int { 1 }\nfn main() -> Int { let x = helper(); let y = show!(x + 1); y }",

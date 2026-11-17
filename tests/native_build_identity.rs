@@ -587,7 +587,8 @@ fn generated_imports_outside_the_verified_runtime_are_refused() {
         executable(
             &backend,
             &format!(
-                "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":2,\"ok\":true,\"kernel\":{},\"lean_source\":\"{imports}def main : IO Unit := pure ()\"}}'\n",
+                "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":{},\"ok\":true,\"kernel\":{},\"lean_source\":\"{imports}def main : IO Unit := pure ()\"}}'\n",
+                common::CURRENT_PROTOCOL,
                 kernel_identity()
             ),
         );

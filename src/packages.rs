@@ -746,17 +746,18 @@ fn legacy_geometry(packages: &[Package]) -> bool {
 
 /// The package of a flat compilation unit in a protocol-9 request: the
 /// identity that the kernel gives a flat unit of protocols 2 to 6
-/// (`LegacySource.flatId`), so the kernel's diagnostics name its functions
+/// (`flatPackageId`), so the kernel's diagnostics name its functions
 /// `legacy_flat::name`, and the driver shows them as the flat unit's names.
 pub(crate) const FLAT_PACKAGE: &str = "legacy_flat";
 const FLAT_SOURCE: &str = "vastitas:compat:flat";
 
-/// The request of a flat compilation unit that uses `show!` (#836). Only
-/// protocol 9 carries observations, and it takes only package input, so the
-/// unit becomes the root module of one package, with every declaration
-/// public, as the kernel adapts a flat unit of protocols 2 to 6. That
-/// adaptation also supplies the legacy geometry (`Scheme`, `Point`, …);
-/// protocol 9 does not, so a flat unit that uses it cannot use `show!`.
+/// The request of a flat compilation unit, with or without `--lib` inputs and
+/// `show!` (#533, #836). Protocol 9 takes only package input, so the unit
+/// becomes the root module of one package, with every declaration public, as
+/// the kernel adapts a flat unit of protocols 2 and 4. The request carries
+/// `legacy_geometry`, so the kernel also appends the compatibility profile of
+/// the legacy geometry (`Scheme`, `Point`, …) that it appends to a flat unit of
+/// those protocols, and the unit keeps its checked Core.
 pub(crate) fn flat_request(module: crate::ir::Module) -> Program {
     use crate::namespace::Public;
     fn public<T>(declarations: Vec<T>) -> Vec<Public<T>> {
@@ -805,7 +806,7 @@ pub(crate) fn flat_request(module: crate::ir::Module) -> Program {
             }],
             geometry_compat: None,
         }],
-        legacy_geometry: false,
+        legacy_geometry: true,
     }
 }
 

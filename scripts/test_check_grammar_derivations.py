@@ -149,10 +149,10 @@ class RuleTests(unittest.TestCase):
         inner = Node("Statement", [show(Node("Expression", [Node("BlockExpression", [
             "{", show(expression("a")), expression("b"), "}"])]))])
         self.assertEqual(self.names(inner), ["show! outside the top level of main"])
-        # The legacy geometry of flat mode with show! may be refused, in flat mode only.
+        # A flat program has the legacy geometry with show! too (#533).
         legacy = Node("Statement", [show(expression("dim"))])
         self.assertEqual(self.names(legacy), [])
-        self.assertEqual(self.names(legacy, "flat"), ["show! with the legacy geometry in flat mode"])
+        self.assertEqual(self.names(legacy, "flat"), [])
 
 
 class VerdictTests(unittest.TestCase):
@@ -183,7 +183,9 @@ class VerdictTests(unittest.TestCase):
                          "the compiler gives E_UNSUPPORTED")
 
     def test_an_optional_rule_allows_its_code_without_requiring_it(self):
-        optional = next(rule for rule in derivations.RULES if rule.optional)
+        # No rule of the Reference is optional since #533 round 2; one made here.
+        optional = derivations.Rule("optional", "a place", "E_UNSUPPORTED", lambda tree, mode, grammar: (),
+                                    optional=True)
         broken = [(optional, (2, 9))]
         self.assertIsNone(derivations.verdict(self.case(broken), []))
         self.assertIsNone(derivations.verdict(self.case(broken), [((2, 9), "E_UNSUPPORTED")]))

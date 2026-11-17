@@ -549,3 +549,38 @@ fn package_requests_carry_legacy_geometry_exactly_for_the_former_legacy_protocol
         assert_eq!(response["ok"], true, "{name}: {response}");
     }
 }
+
+/// #533 round 2 (W7): the driver writes every flat unit, also with a `--lib`
+/// input and with `show!`, as one package of protocol 9 with
+/// `legacy_geometry: true`, and the kernel accepts it.
+#[test]
+fn flat_requests_carry_legacy_geometry() {
+    let s = common::Scratch::empty("legacy geometry flat");
+    s.write("lib.vast", "fn one() -> Int { 1 }");
+    for (file, source, libraries) in [
+        ("flat.vast", "fn main() -> Int { 0 }", &[][..]),
+        (
+            "with_lib.vast",
+            "fn main() -> Int { one() - 1 }",
+            &["lib.vast"][..],
+        ),
+        (
+            "shown.vast",
+            "fn main() -> Int { let X = Affine(QQ, 2); let d = show!(dim(X)); int(d) - 2 }",
+            &[][..],
+        ),
+    ] {
+        s.write(file, source);
+        let mut command = s.cli();
+        command.args(["check", file]);
+        for library in libraries {
+            command.args(["--lib", library]);
+        }
+        let wire = common::captured_wire(command, common::CURRENT_PROTOCOL);
+        assert_eq!(wire["input"], "package", "{file}: {wire}");
+        assert_eq!(wire["root"], "vastitas:compat:flat", "{file}: {wire}");
+        assert_eq!(wire["legacy_geometry"], true, "{file}: {wire}");
+        let response = kernel(&wire, "check");
+        assert_eq!(response["ok"], true, "{file}: {response}");
+    }
+}

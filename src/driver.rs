@@ -163,42 +163,23 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             sources.protect_output(output)?;
         }
         let module = sources.parse()?;
-        // Only protocol 9 carries the observations of `show!` (#836).
-        if module
+        let observed = module
             .functions
             .iter()
-            .any(|function| !function.observations.is_empty())
-        {
-            if let Some(span) = crate::frontend::legacy_geometry(&module) {
-                return Err(sources.diagnostic(
-                    "E_UNSUPPORTED",
-                    "a flat program that uses `show!` is checked as a package, which has no legacy geometry; use a package with `std::geometry`, or leave out `show!`",
-                    span,
-                ));
-            }
-            let program = crate::packages::flat_request(module);
-            let request = kernel_request(&program, &sources, "module")?;
-            (
-                sources,
-                request,
-                program.version,
-                Request {
-                    flat_package: true,
-                    observed: true,
-                },
-            )
-        } else {
-            let request = kernel_request(&module, &sources, "module")?;
-            (
-                sources,
-                request,
-                module.version,
-                Request {
-                    flat_package: false,
-                    observed: false,
-                },
-            )
-        }
+            .any(|function| !function.observations.is_empty());
+        // Every flat unit is sent as a protocol-9 package with the legacy
+        // geometry, with or without `--lib` and `show!` (#533).
+        let program = crate::packages::flat_request(module);
+        let request = kernel_request(&program, &sources, "module")?;
+        (
+            sources,
+            request,
+            program.version,
+            Request {
+                flat_package: true,
+                observed,
+            },
+        )
     };
     let configured_executable = std::env::var_os("VASTITAS_KERNEL").map(PathBuf::from);
     let default_executable = configured_executable.is_none();
@@ -239,30 +220,18 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .get("lean_source")
             .and_then(Value::as_str)
             .ok_or_else(|| "E_PROTOCOL: backend omitted generated Lean source".to_string())?;
+        // Every request is protocol 9 (#533), whose success responses may ask
+        // for the optional native runtimes (#557).
         let storage_runtime = match response.get("storage_runtime") {
             None => false,
-            Some(Value::Bool(required))
-                if matches!(
-                    version,
-                    crate::ir::RESOURCE_PROTOCOL | crate::ir::NAMED_RECIPIENT_PROTOCOL
-                ) =>
-            {
-                *required
-            }
+            Some(Value::Bool(required)) => *required,
             Some(_) => {
                 return Err("E_PROTOCOL: invalid optional storage runtime requirement".into());
             }
         };
         let numerical_runtime = match response.get("numerical_runtime") {
             None => false,
-            Some(Value::Bool(required))
-                if matches!(
-                    version,
-                    crate::ir::RESOURCE_PROTOCOL | crate::ir::NAMED_RECIPIENT_PROTOCOL
-                ) =>
-            {
-                *required
-            }
+            Some(Value::Bool(required)) => *required,
             Some(_) => {
                 return Err("E_PROTOCOL: invalid optional numerical runtime requirement".into());
             }
@@ -452,7 +421,7 @@ fn bounded_json(
 /// diagnostics for (#836).
 #[derive(Clone, Copy)]
 struct Request {
-    /// A flat unit sent as a protocol-9 package.
+    /// A flat unit, which is sent as a protocol-9 package (#533).
     flat_package: bool,
     /// A function of the request has `show!` observations.
     observed: bool,
@@ -462,9 +431,9 @@ struct Request {
 const LEGACY_GEOMETRY: &str =
     "legacy geometry syntax requires exactly one explicit library compatibility export";
 
-/// The note that the driver adds to [`LEGACY_GEOMETRY`] in a program that
-/// uses `show!` (#836).
-const LEGACY_GEOMETRY_WITH_SHOW: &str = "help: a program that uses `show!` has the legacy geometry only with a `[geometry_compat]` export; use `std::geometry`, declare the export, or leave out `show!`";
+/// The note that the driver adds to [`LEGACY_GEOMETRY`] in a package that
+/// uses `show!` (#836). A flat unit always has the legacy geometry (#533).
+const LEGACY_GEOMETRY_WITH_SHOW: &str = "help: a package that uses `show!` has the legacy geometry only with a `[geometry_compat]` export; use `std::geometry`, declare the export, or leave out `show!`";
 
 fn invoke_kernel(
     executable: &Path,
@@ -516,10 +485,11 @@ fn invoke_kernel(
                     .unwrap_or("backend rejected input");
                 let mut rendered =
                     sources.diagnostic(code, &shown_message(message), response_span(item));
-                // `show!` makes a request use the current protocol, whose
-                // legacy geometry needs a `[geometry_compat]` export. The
-                // kernel's message does not name `show!`, which is the cause
-                // when the same program without it checks (#836).
+                // In a package, `show!` keeps the request from carrying
+                // `legacy_geometry`, so its legacy geometry needs a
+                // `[geometry_compat]` export. The kernel's message does not
+                // name `show!`, which is the cause when the same package
+                // without it checks (#836).
                 if shape.observed && code == "E_TYPE" && message == LEGACY_GEOMETRY {
                     rendered.push('\n');
                     rendered.push_str(&sources.diagnostic(

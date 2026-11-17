@@ -65,6 +65,9 @@ Rules:
 - The argument of an option must not begin with `-`. Write a path with such a
   name as `./-name`. The arguments of `--openblas-prefix` and `--native-cc`
   must not be empty. Otherwise it is an error (`E_USAGE`).
+- A `--native-cc` path that contains `/` is relative to the directory where
+  `vastitas` runs, like the other paths. A bare name such as `cc` is looked
+  up on `PATH`.
 - `-o`, `--openblas-prefix` and `--native-cc` with `check` are errors
   (`E_USAGE`), and so are `build` without `-o`, an unknown command and an
   unknown option.

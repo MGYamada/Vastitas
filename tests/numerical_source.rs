@@ -1020,6 +1020,38 @@ fn numerical_coefficients_build_execute_computed_real_complex_scalars() {
     }
 }
 
+// #863: Lake runs `LEAN_CC` from the generated project, so the driver
+// resolves a relative `--native-cc` against the directory where it runs. The
+// wrapper records its use and runs the compiler of the CI job (or `cc`).
+#[test]
+#[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
+fn relative_native_compiler_resolves_from_the_invocation_directory() {
+    let compiler = std::env::var("VASTITAS_TEST_NATIVE_CC").unwrap_or_else(|_| "cc".to_owned());
+    let s = fixture(REAL);
+    std::fs::create_dir(s.0.join("tools")).unwrap();
+    let wrapper = s.0.join("tools/localcc");
+    std::fs::write(
+        &wrapper,
+        format!("#!/bin/sh\ntouch \"$(dirname \"$0\")/used\"\nexec {compiler} \"$@\"\n"),
+    )
+    .unwrap();
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut build = command(&s, "build");
+    build.args([
+        "-o",
+        "program",
+        "--openblas-prefix",
+        &common::openblas_prefix(),
+        "--native-cc",
+        "./tools/localcc",
+    ]);
+    success(&build.output().unwrap());
+    assert!(s.0.join("tools/used").exists(), "the wrapper was not run");
+    let output = Command::new(s.0.join("program")).output().unwrap();
+    // The example's entry point returns 0 (#836).
+    assert_eq!(common::ran(&output), common::exits(0));
+}
+
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn numerical_inputs_build_execute_nested_real_complex_products() {

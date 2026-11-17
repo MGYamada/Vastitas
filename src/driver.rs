@@ -965,6 +965,26 @@ fn verify_runtime_inputs(
     Err(message)
 }
 
+/// Lake runs `LEAN_CC` from the generated project directory, not from the
+/// directory where `vastitas` was invoked (#863). A compiler named by a path
+/// with a separator is therefore resolved against the invocation directory,
+/// as the shell would resolve it; an absolute path stays as it is, and a bare
+/// name stays a `PATH` lookup.
+fn invocation_compiler(compiler: &OsStr) -> Result<OsString, String> {
+    let path = Path::new(compiler);
+    let is_bare = !compiler.as_bytes().contains(&b'/');
+    if path.is_absolute() || is_bare {
+        return Ok(compiler.to_owned());
+    }
+    let directory = std::env::current_dir().map_err(|error| {
+        format!(
+            "E_BUILD: cannot resolve --native-cc {} against the invocation directory: {error}",
+            shown(path)
+        )
+    })?;
+    Ok(directory.join(path).into_os_string())
+}
+
 fn build_native(
     kernel_root: &Path,
     source: &str,
@@ -1088,7 +1108,7 @@ fn build_native(
     let mut command = Command::new("lake");
     command.current_dir(path).args(["build", "program"]);
     if let Some(compiler) = native_cc {
-        command.env("LEAN_CC", compiler);
+        command.env("LEAN_CC", invocation_compiler(compiler)?);
     }
     // Lake's output only explains failures; keep a bounded tail of it.
     let retention = crate::process::Retention::Tail(crate::process::DIAGNOSTIC_TAIL);
@@ -1304,6 +1324,26 @@ fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(),
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // #863: Lake runs the compiler from the generated project, so a relative
+    // path is resolved where `vastitas` runs; bare names keep the PATH lookup.
+    #[test]
+    fn native_compiler_paths_are_resolved_where_the_cli_runs() {
+        let here = std::env::current_dir().unwrap();
+        for bare in ["cc", "clang-19"] {
+            assert_eq!(invocation_compiler(OsStr::new(bare)).unwrap(), bare);
+        }
+        assert_eq!(
+            invocation_compiler(OsStr::new("/usr/bin/cc")).unwrap(),
+            "/usr/bin/cc"
+        );
+        for relative in ["./localcc", "tools/cc", "../cc"] {
+            assert_eq!(
+                invocation_compiler(OsStr::new(relative)).unwrap(),
+                here.join(relative).into_os_string()
+            );
+        }
+    }
 
     // #740: the frontend bounds the request that it writes. A source program
     // within the limits on its inputs needs about a gigabyte of request to

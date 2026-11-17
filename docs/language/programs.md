@@ -100,7 +100,7 @@ executable evaluates `main` and exits with the **exit status** of its result:
 the `Int` result modulo 256, which is never negative, as in C and POSIX. The
 executable writes nothing for the result. A program returns 0 on success. The
 only other output of a program is the lines of
-[`show!`](#showing-values-with-show). The compiler checks every function of a
+[`show!`](#showing-values-with-show), on standard error. The compiler checks every function of a
 program, whether or not `main` calls it, before it generates any code.
 
 Rules:
@@ -142,7 +142,7 @@ The executable writes `n - 5 = 0` and exits with status 0.
 `let x = show!(e);` at the top level of the body of `main` is a
 [`let` statement](statements.md#let-statements) that binds `x` to the value of
 `e`, and the executable writes the **label** of `e`, ` = `, the value and a line
-feed on standard output when it binds `x`. The label is the source text of `e`,
+feed on standard error when it binds `x`. The label is the source text of `e`,
 with each run of whitespace replaced by one space and without leading or
 trailing whitespace. `show!` is built into the compiler: it has no
 declaration and no other form.
@@ -166,6 +166,8 @@ Rules:
 - The executable writes the lines in the order of the `let` statements, and
   evaluates each shown expression once. The binding has the value and the type
   of the expression, as without `show!`.
+- The lines go to standard error, and the executable writes nothing to
+  standard output. Standard output stays free for the output of the program.
 - The label is presentation only. It never decides whether a program is
   accepted.
 - `vastitas check` checks `show!` like the rest of the program and writes no

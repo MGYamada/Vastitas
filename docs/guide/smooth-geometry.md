@@ -49,6 +49,39 @@ Three names compute the result:
   program writes `pair_first(dt(differential(square(), line_at(3)))) = 6` and
   exits with status 0.
 
+## A derivative of two composed maps
+
+The next program composes two maps of the line, t ↦ t + 1 and t ↦ t², and
+differentiates the composite at the point 2:
+
+```vast
+{{#include ../../examples/packages/composed-derivative/main.vast:all}}
+```
+
+Build and run it in the same way:
+
+```sh
+target/debug/vastitas build --manifest-path examples/packages/composed-derivative/Vastitas.toml -o target/composed-derivative
+./target/composed-derivative
+```
+
+`compose_smooth(square(), shift())` applies `shift` first and `square`
+second, so the composite sends t to (t + 1)². Its derivative at 2 is
+2 · 3 = 6. The program writes
+`dt(differential(composition, point)) = (6, 1)` and exits with status 0.
+
+`show!` writes a component as the pair of its numerator and its denominator.
+The fraction is reduced, and its denominator is positive. So (6, 1) reads
+6/1, the derivative 6, and (33, 2) reads 33/2. The pair (0, 0) is no
+fraction: it is the component of the failure value, which
+[A seed must lie over the image point](#a-seed-must-lie-over-the-image-point)
+describes.
+
+`==` does not compare two pairs. To compare a component with a fraction,
+compare its numerator and its denominator, as the last line of `main` does.
+`slope == pair(6, 1)` is an error (`E_OPERATOR`), and its message shows this
+comparison.
+
 The sections after this one build the longer program, which composes maps,
 pulls covectors back and uses a metric.
 
@@ -211,6 +244,33 @@ the declarations of this chapter, the following function passes a seed on
 ```text
 {{#include ../../examples/reject/packages/smooth-seed-object.stderr}}
 ```
+
+A program can check the point itself before it calls `pullback`. The image
+of the point `x` under a map `F` is `compose_smooth(F, x)`, and
+`lies_over(seed, image)` says whether the seed lies over it. This program
+applies t ↦ t² at 3, so the image is the point 9. It checks one seed over 9
+and one over 8, and `guarded_slope` pulls a seed back only when it lies over
+the image:
+
+```vast
+{{#include ../../examples/packages/seed-point/main.vast:all}}
+```
+
+```sh
+target/debug/vastitas build --manifest-path examples/packages/seed-point/Vastitas.toml -o target/seed-point
+./target/seed-point
+```
+
+```text
+lies_over(good, image) = true
+lies_over(wrong, image) = false
+dt(pullback(square(), point, good)) = (6, 1)
+dt(pullback(square(), point, wrong)) = (0, 0)
+```
+
+The pullback of the seed over 8 is the failure value. Its component reads
+(0, 0), which no fraction has, so a component read shows the failure. The
+guard returns −1 for that seed instead, and the program exits with status 0.
 
 ## The forward pass and the reverse pass
 

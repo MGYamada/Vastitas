@@ -43,7 +43,7 @@ target/debug/vastitas build examples/pointed.vast -o target/pointed
 ```
 
 The program writes no line and exits with status 0: an executable exits with
-the result of `main` and writes only the lines of `show!`. [Getting started](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/getting-started.md) ·
+the result of `main` and writes only the lines of `show!`, on standard error. [Getting started](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/getting-started.md) ·
 [CLI reference](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/cli.md) · [Creating a package](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/creating-a-package.md)
 
 ## Install the alpha

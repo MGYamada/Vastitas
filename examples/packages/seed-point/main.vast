@@ -1,0 +1,41 @@
+// A seed must lie over the image point. square(t) = t^2 sends 3 to 9, so the
+// pullback along square at 3 needs a covector at 9. The program builds the
+// image point, checks two seeds against it and pulls back only the seed that
+// lies over it. A seed over 8 gives the failure value, whose component reads
+// (0, 0). The program exits with status 0 when every observation holds.
+// ANCHOR: all
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::smooth::affine::Line;
+use std::geometry::smooth::affine::line_at;
+use std::geometry::smooth::affine::compose_smooth;
+use std::geometry::smooth::affine::lies_over;
+use std::differential::pullback;
+
+indexed morphism square: Smooth<Line, Line> = pullback(t -> t^2);
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+
+// The numerator of the pullback of `seed` along square at `point`, or -1
+// when the seed does not lie over the image of the point.
+fn guarded_slope(point: Smooth<Pt, Line>, seed: Cotangent<Line>) -> Int {
+    let image = compose_smooth(square(), point);
+    if lies_over(seed, image) { pair_first(dt(pullback(square(), point, seed))) } else { 0 - 1 }
+}
+
+fn main() -> Int {
+    let point = line_at(3);
+    let image = compose_smooth(square(), point);
+    let good = dline(line_at(9), 1);
+    let wrong = dline(line_at(8), 1);
+    let good_over = show!(lies_over(good, image));
+    let wrong_over = show!(lies_over(wrong, image));
+    let good_slope = show!(dt(pullback(square(), point, good)));
+    let wrong_slope = show!(dt(pullback(square(), point, wrong)));
+    let reads = pair_first(good_slope) == 6 && pair_second(good_slope) == 1
+        && pair_first(wrong_slope) == 0 && pair_second(wrong_slope) == 0;
+    let guarded = guarded_slope(point, good) == 6 && guarded_slope(point, wrong) == 0 - 1;
+    if good_over && !wrong_over && reads && guarded { 0 } else { 1 }
+}
+// ANCHOR_END: all

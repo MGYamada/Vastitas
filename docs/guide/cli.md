@@ -65,6 +65,9 @@ Rules:
 - The argument of an option must not begin with `-`. Write a path with such a
   name as `./-name`. The arguments of `--openblas-prefix` and `--native-cc`
   must not be empty. Otherwise it is an error (`E_USAGE`).
+- A `--native-cc` path that contains `/` is relative to the directory where
+  `vastitas` runs, like the other paths. A bare name such as `cc` is looked
+  up on `PATH`.
 - `-o`, `--openblas-prefix` and `--native-cc` with `check` are errors
   (`E_USAGE`), and so are `build` without `-o`, an unknown command and an
   unknown option.
@@ -99,9 +102,10 @@ Rules:
 
 `build` writes one file, the executable `OUTPUT`. An executable exits with
 the exit status of its
-[entry point](../language/programs.md#the-entry-point) and writes only the
-lines of [`show!`](../language/programs.md#showing-values-with-show), as
-those sections say.
+[entry point](../language/programs.md#the-entry-point). It writes nothing to
+standard output, and only the lines of
+[`show!`](../language/programs.md#showing-values-with-show) to standard
+error, as those sections say.
 
 Rules:
 

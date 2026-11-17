@@ -64,8 +64,11 @@ built target/hello
 
 The first line comes from the compiler, the second from the program and the
 third from the shell. `show!` writes the text of its expression, ` = ` and
-the value. The executable then exits with the integer that `main` returns,
-and `echo $?` prints that exit status. A status lies between 0 and 255;
+the value to standard error, and the executable writes nothing to standard
+output. The terminal shows both streams, so the line appears between the
+other two, and `./target/hello 2> /dev/null` hides it. The executable then
+exits with the integer that `main` returns, and `echo $?` prints that exit
+status. A status lies between 0 and 255;
 [The entry point](../language/programs.md#the-entry-point) says how another
 result becomes one, and
 [Showing values with `show!`](../language/programs.md#showing-values-with-show)

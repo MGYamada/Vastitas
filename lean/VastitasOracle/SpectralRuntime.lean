@@ -17,6 +17,9 @@ the runtime is exact over `ℚ`.
   rational (not the failure pair `(0, 0)`) exactly there and in range, and the
   differential then lies over `p` with one component per coordinate. Off the
   chart every fiber is `none`, every entry and component `(0, 0)`.
+* **One entry** (`projectorEntry_eq`, #864): `projectorEntry` evaluates only
+  the requested entry of the adjugate and divides it by `χ′(p, t)`, and it is
+  the entry of `projectorMatrix`, `(0, 0)` off the branch and out of range.
 * **The eigenprojector** `P = adj(tI − H(p)) / χ′(p, t)` on the branch:
   `projector_idempotent` (`P·P = P`, from identity 5 at `χ = 0`),
   `projector_trace_one` (`tr P = 1`, identity 3), `projector_eigen`
@@ -378,6 +381,28 @@ theorem matrixEntry_ne_failure_iff (matrix : Matrix) (row column : Nat) :
 theorem length_projectorAt : (projectorAt characteristic adjugate point value).length = adjugate.length := by
   simp [projectorAt, VastitasKernel.FrameRuntime.matrixAt]
 
+/-- **One entry without the matrix** (#864). `projectorEntry` evaluates only
+the requested entry of the adjugate at `(p, t)` and divides it by
+`χ′(p, t)`; the result is the entry of `projectorMatrix`, the same reduced
+fraction on the branch and in range, and `(0, 0)` off the branch and out of
+range. -/
+theorem projectorEntry_eq (row column : Nat) :
+    projectorEntry localize characteristic adjugate point value row column =
+      match projectorMatrix localize characteristic adjugate point value with
+      | some matrix => matrixEntry matrix row column
+      | none => (0, 0) := by
+  unfold projectorEntry
+  cases hon : onBranch localize characteristic point value with
+  | false => simp [projectorMatrix, hon]
+  | true =>
+    rw [projectorMatrix_of_onBranch hon]
+    simp only [projectorAt, VastitasKernel.FrameRuntime.matrixAt, matrixEntry, List.getElem?_map, ↓reduceIte]
+    cases adjugate[row]? with
+    | none => rfl
+    | some entries =>
+      simp only [Option.map_some, List.getElem?_map]
+      cases entries[column]? <;> rfl
+
 /-- **A projector entry is a rational exactly on the branch and in range.**
 For an adjugate with `n` rows of `n` entries, `branch_projector` returns the
 failure pair `(0, 0)` exactly off the branch or out of range. -/
@@ -386,8 +411,7 @@ theorem projectorEntry_ne_failure_iff {n : Nat} (hrows : adjugate.length = n)
     projectorEntry localize characteristic adjugate point value row column ≠ (0, 0) ↔
       evalAt localize (coordinates point) ≠ 0 ∧ evalAt characteristic (branchPoint point value) = 0 ∧
         row < n ∧ column < n := by
-  rw [← and_assoc, ← onBranch_iff]
-  unfold projectorEntry
+  rw [← and_assoc, ← onBranch_iff, projectorEntry_eq]
   cases hon : onBranch localize characteristic point value with
   | false => simp [projectorMatrix, hon]
   | true =>
@@ -426,7 +450,7 @@ theorem off_chart_bottom (h : onBranch localize characteristic point value = fal
   have hp : projectorMatrix localize characteristic adjugate point value = none := by
     simp [projectorMatrix, h]
   refine ⟨hd, hp, fun row column => ?_, fun index => ?_⟩
-  · simp [projectorEntry, hp]
+  · simp [projectorEntry_eq, hp]
   · rw [hd]
     rfl
 

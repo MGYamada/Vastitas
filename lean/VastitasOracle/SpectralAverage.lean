@@ -37,7 +37,9 @@ ring holds in every `Lean.Grind.CommRing` that receives `ℚ`
   `averageAt_on_chart`, `averageAt_off_chart`): where `g(p) ≠ 0`,
   `D(p) ≠ 0` and `N(p)/D(p) = T(p)/g(p)^{2e}`, and the observation is that
   rational, never the failure pair `(0, 0)`; where `g(p) = 0` it is `(0, 0)`,
-  whatever the closed form.
+  whatever the closed form. `averageAt_eq` (#866): the runtime tests
+  `g(p) ≠ 0` before it evaluates `D(p)`, and gives `N(p)/D(p)` exactly where
+  both are nonzero and `(0, 0)` elsewhere.
 * **The declarations** (`checkTransitionAverage_sound`,
   `transitionAverage_sound`, `DeclaredAverage.checked`): an accepted
   transition average names a branch whose spectrum and gap certificate are
@@ -620,6 +622,17 @@ theorem averageAt_on_chart (hg : Arity m localize) {point : Program}
   exact ⟨hat, hvalue, by rw [hat]; exact SpectralRuntime.ratPair_ne_failure _⟩
 
 end AverageValid
+
+/-- **The chart first** (#866). `average_at` tests `g(p) ≠ 0` before it
+evaluates `D(p)`, and it is `N(p)/D(p)` exactly where both are nonzero and
+`(0, 0)` elsewhere, a zero denominator on the chart included. -/
+theorem averageAt_eq (localize numerator denominator : Poly) (point : Program) :
+    SpectralRuntime.averageAt localize numerator denominator point =
+      if evalAt localize (coordinates point) != 0 && evalAt denominator (coordinates point) != 0 then
+        ratPair (evalAt numerator (coordinates point) / evalAt denominator (coordinates point))
+      else (0, 0) := by
+  dsimp only [SpectralRuntime.averageAt]
+  cases evalAt localize (coordinates point) != 0 <;> rfl
 
 /-- **The observation off the chart** is the failure pair `(0, 0)`, whatever
 the closed form. -/

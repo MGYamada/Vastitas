@@ -97,7 +97,7 @@ mutual
             pure (left, right)
           let output := if arithmetic then left.result.type else .pure .bool
           unless Core.Typing.BinaryTyping operator left.result.type right.result.type output do
-            error span "E_OPERATOR" "operator requires compatible scalar operands"
+            error span "E_OPERATOR" (Core.Typing.operandMessage operator left.result.type right.result.type)
           pure ⟨.binary operator left right ⟨output, none⟩, none⟩
       | .branch condition yes no _ => do
           let condition ← data (← expression fuel input scope ctx condition (some (.pure .bool))) span

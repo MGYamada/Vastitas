@@ -110,6 +110,40 @@ fn pair_construction_infers_operands_without_conversion_or_expected_type_selecti
     }
 }
 
+// #868: `==` and `!=` between two pairs of one type are `E_OPERATOR`, and the
+// message names the pair type and the comparison of the components that takes
+// their place, in flat and in manifest mode.
+#[test]
+fn pair_equality_names_the_pair_type_and_the_component_comparison() {
+    for (operator, element, join) in [("==", "Int", "&&"), ("!=", "Nat", "||")] {
+        let source = format!(
+            "fn same(a: Pair<{element}>, b: Pair<{element}>) -> Bool {{ a {operator} b }}\nfn main() -> Int {{ 0 }}"
+        );
+        let expected = format!(
+            "`{operator}` does not compare two values of type Pair<{element}>; compare their components, as in `pair_first(a) {operator} pair_first(b) {join} pair_second(a) {operator} pair_second(b)`"
+        );
+        let scratch = Scratch::new(&source);
+        for package in [false, true] {
+            let output = scratch.compiler("check", package).output().unwrap();
+            let message = common::expect_code(&output, "E_OPERATOR");
+            assert!(
+                message.contains("main.vast:1:") && message.contains(&expected),
+                "{message}"
+            );
+        }
+    }
+    // The program of the issue: a shown pair compared with the expected one.
+    let scratch = Scratch::new(
+        "fn main() -> Int {\n    let actual: Pair<Int> = show!(pair(33, 2));\n    let expected: Pair<Int> = pair(33, 2);\n    if actual == expected { 0 } else { 1 }\n}",
+    );
+    let output = scratch.compiler("check", false).output().unwrap();
+    let message = common::expect_code(&output, "E_OPERATOR");
+    assert!(
+        message.contains("main.vast:4:8:") && message.contains("type Pair<Int>"),
+        "{message}"
+    );
+}
+
 #[test]
 fn malformed_pair_types_and_dispatch_uses_are_rejected_independently() {
     for element in [

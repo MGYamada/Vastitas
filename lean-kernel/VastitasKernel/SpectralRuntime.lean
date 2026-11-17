@@ -25,10 +25,11 @@ eigenvalue candidate `t`):
   derivatives (`SmoothRuntime.partialDerivative`) of `χ`, never through `cot`
   or a pullback; `χ′` is the partial derivative in `t`.
 - `projectorMatrix` and `projectorEntry`: the eigenprojector
-  `adj(tI − H(p)) / χ′(p, t)` and one of its entries.
+  `adj(tI − H(p)) / χ′(p, t)` and one of its entries, which evaluates only
+  that entry of the adjugate.
 - `averageAt` (Stage 6): the value `N(p)/D(p)` of the closed form of a
   transition average on the chart `D(g)` of its branch, and the failure value
-  `(0, 0)` off the chart.
+  `(0, 0)` off the chart, which it tests before it evaluates `D`.
 
 No operation computes or orders eigenvalues: the eigenvalue is an operand.
 None checks an identity either: the kernel checks the spectral certificate,
@@ -158,23 +159,35 @@ def projectorMatrix (localize characteristic : Poly) (adjugate : List (List Poly
   else none
 
 /-- The entry in row `row` and column `column` of the eigenprojector, as a
-reduced fraction; `(0, 0)` off the branch and out of range. -/
+reduced fraction; `(0, 0)` off the branch and out of range. On the branch it
+evaluates the one requested entry of `adj(tI − H)` at `(p, t)` and divides it
+by `χ′(p, t)`, without the rest of `projectorMatrix` (#864); it is the entry
+of `projectorMatrix` (`VastitasOracle.SpectralRuntime.projectorEntry_eq`). -/
 def projectorEntry (localize characteristic : Poly) (adjugate : List (List Poly)) (point value : Program)
     (row column : Nat) : Int × Int :=
-  match projectorMatrix localize characteristic adjugate point value with
-  | some matrix => matrixEntry matrix row column
-  | none => (0, 0)
+  if onBranch localize characteristic point value then
+    match adjugate[row]? with
+    | some entries =>
+      match entries[column]? with
+      | some entry => ratPair (evalAt entry (branchPoint point value) / slopeAt characteristic point value)
+      | none => (0, 0)
+    | none => (0, 0)
+  else (0, 0)
 
 /-! ## Transition averages (Stage 6, #841) -/
 
 /-- The value at `p` of a transition average with the closed form `N / D` of
 a branch with localization `g`: `N(p)/D(p)` as a reduced fraction on the
-chart, `g(p) ≠ 0`, and `(0, 0)` off it, whatever the closed form. The kernel
-checks that `D` is a unit on `D(g)`, so `D(p) ≠ 0` on the chart; a zero
-`D(p)` also gives `(0, 0)`, which no rational has. -/
+chart, `g(p) ≠ 0`, and `(0, 0)` off it, whatever the closed form. It tests
+`g(p)` first and evaluates `D(p)` and `N(p)` only on the chart (#866). The
+kernel checks that `D` is a unit on `D(g)`, so `D(p) ≠ 0` on the chart; a
+zero `D(p)` also gives `(0, 0)`, which no rational has
+(`VastitasOracle.SpectralAverage.averageAt_eq`). -/
 def averageAt (localize numerator denominator : Poly) (point : Program) : Int × Int :=
   let p := coordinates point
-  let d := evalAt denominator p
-  if evalAt localize p != 0 && d != 0 then ratPair (evalAt numerator p / d) else (0, 0)
+  if evalAt localize p != 0 then
+    let d := evalAt denominator p
+    if d != 0 then ratPair (evalAt numerator p / d) else (0, 0)
+  else (0, 0)
 
 end VastitasKernel.SpectralRuntime

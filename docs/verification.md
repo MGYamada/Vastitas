@@ -283,6 +283,16 @@ generates code. `lean-kernel/Main.lean` calls these entry points:
 | Protocol 7 | `Indexed.Wire.check` and the same full indexed authority/function/dispatch composition | The same indexed Core generator, on `compiled` |
 | Protocols 8/9 | `ResourceSource.Wire.check`, composing indexed pure bodies with resource/numerical checks | `ResourceSource.Wire.emit`: `ResourceSource.Wire.check` with a required entry point, then `ResourceSource.Codegen.generateChecked` on the result of that check |
 
+The driver writes only protocol 9, so the rows of protocols 2 to 7 hold for
+hand-written requests. A request with the field
+`legacy_geometry`, which the driver writes for the programs that it sent as
+protocols 2 to 6 before, takes the third row. Its checked program
+(`ResourceSource.Program.pureProgram`) ends with the compatibility profile
+that `LegacySource.adapt` appends, so the theorems about
+`ResourceSource.Wire.CheckedInput` hold for it, with the profile as one more
+package of the checked program. The profile is no package of the request
+JSON that the namespace receipt prices.
+
 `generateChecked` does not check the source again. For a program without a
 resource entry it passes the compiled pure Core to the indexed Core generator.
 For a resource entry it generates the value library with
@@ -1103,7 +1113,7 @@ are tracked in the README and the Stage 1 acceptance/completion ledgers.
 
 This section states no theorem of its own. Its first paragraph cites the
 promotion theorems of `IndexedPromotion`. They are about a reflected module:
-that this module equals the result of `Indexed.LegacySource.check` is a
+that this module equals the result of `ResourceSource.Wire.check` is a
 build-time comparison, not a theorem, so they are about neither a route nor
 a component. The rest of the section lists the regressions and the commands,
 and says which regressions exercise the current routes and which the
@@ -1111,7 +1121,7 @@ retained compositions.
 
 The [promotion proofs and fixture](internals/checking-pipeline.md#promotion-proofs-and-fixture) document the arbitrary-input
 numerical proofs in `VastitasOracle.IndexedPromotion`, reflection of the stdlib's
-actual public `Indexed.LegacySource.check` executable Core, frontend-fixture
+actual public `ResourceSource.Wire.check` executable Core, frontend-fixture
 agreement, and the distinction between proof
 statements and executable fixture/namespace/native checks. The reflection is a
 trusted build step: an elaborator runs the checker, prints the returned module

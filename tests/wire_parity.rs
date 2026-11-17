@@ -68,6 +68,7 @@ const WIRE_FIXTURES: &[&str] = &[
     "tests/fixtures/edit-authority.json",
     "tests/fixtures/edit-recipients.json",
     "tests/fixtures/promotion.json",
+    "tests/fixtures/promotion.current.json",
     "tests/fixtures/reverse-example.wire.json",
 ];
 

@@ -226,19 +226,26 @@ code-generation audit tests.
 
 The specification [std::arithmetic::generic](../spec/std-arithmetic-generic.md)
 states the contract of promotion, and [Promotion](../stage1a.md#promotion)
-describes it. `tests/promotion.rs::stdlib_ir_matches_proof_fixture` runs the real Rust
-`parse_sources` frontend on the three canonical stdlib files using stable
-virtual diagnostic filenames/offsets. It compares the complete JSON against
-`tests/fixtures/promotion.json`; it does not substitute a handwritten AST.
-Both no-mathlib CI jobs run this test.
+describes it. `tests/promotion.rs::stdlib_ir_matches_proof_fixture` runs
+`vastitas check` on an empty input file with the three canonical stdlib files
+as `--lib` inputs and captures the protocol-9 request that the driver writes.
+It compares the complete JSON against `tests/fixtures/promotion.current.json`;
+it does not substitute a handwritten AST. It also compares the protocol-2 flat
+module of `parse_sources` for the same files, with the same filenames and
+offsets, against the frozen fixture `tests/fixtures/promotion.json`, which
+the driver wrote before it sent flat programs as protocol 9. Both no-mathlib
+CI jobs run this test.
 
-`VastitasPromotion.IndexedFixture` runs `Indexed.LegacySource.check json false`,
-the public protocol-2 library path used by Main, while elaborating the fixture.
-It reflects the exact returned `executable.core.module` as ordinary transparent
-Lean data. Build-time checks compare that module with a fresh public-checker
-result and independently check its indexed Core typing/dependency audits. Lake tracks the
-JSON as an input dependency of this separate test/proof library; it is not a
-dependency of ordinary compiler builds. Concrete fixture acceptance and this
+`VastitasPromotion.IndexedFixture` runs `ResourceSource.Wire.check json false`,
+the public protocol-9 path used by Main, on `promotion.current.json` while
+elaborating the fixture. It reflects the returned
+`pureProgram.executable.core.module` as ordinary transparent Lean data.
+Build-time checks compare that module with a fresh public-checker result and
+with the module that the retiring protocol-2 route `Indexed.LegacySource.check`
+returns for the frozen fixture, and independently check its indexed Core
+typing/dependency audits. Lake tracks both JSON files as input dependencies
+of this separate test/proof library; they are no dependency of ordinary
+compiler builds. Concrete fixture acceptance and this
 reflection agreement are executable checks, not a general decoder proof.
 The reflection runs the checker and `reprStr` at elaboration time, so the
 agreement rests on compiled evaluation that the axiom audit cannot see.

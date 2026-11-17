@@ -409,21 +409,47 @@ fn missing_homogeneous_delegation_is_an_error() {
     rejects(&raw, "E_NAME");
 }
 
+/// The request that `vastitas check` sends for the stdlib fixture: an empty
+/// input file with the three arithmetic libraries, as in [`flat_request`].
+fn current_request() -> Value {
+    let scratch = Scratch::empty("promotion fixture");
+    scratch.write("promotion-contract.vast", "");
+    let mut command = scratch.cli();
+    command.args(["check", "promotion-contract.vast"]);
+    for name in ["int", "nat", "generic"] {
+        command
+            .arg("--lib")
+            .arg(root().join(format!("stdlib/src/arithmetic/{name}.vast")));
+    }
+    common::captured_wire(command, common::CURRENT_PROTOCOL)
+}
+
+/// The frontend's request for the stdlib arithmetic sources is the proof
+/// fixture `promotion.current.json`, from which `VastitasPromotion.IndexedFixture`
+/// reflects the Core of the oracle's promotion theorems. old-route(#533): the
+/// frozen fixture `promotion.json` is the protocol-2 flat module of the same
+/// sources, which the frontend wrote before #533 round 2 and whose Core the
+/// fixture compares with the current one. `VASTITAS_UPDATE_PROMOTION_FIXTURE=1`
+/// rewrites both.
 #[test]
 fn stdlib_ir_matches_proof_fixture() {
-    let actual = flat_request("");
-    let path = root().join("tests/fixtures/promotion.json");
-    if common::regenerate_fixture("VASTITAS_UPDATE_PROMOTION_FIXTURE") {
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(&path, serde_json::to_string(&actual).unwrap() + "\n").unwrap();
+    for (actual, file) in [
+        (current_request(), "promotion.current.json"),
+        (flat_request(""), "promotion.json"),
+    ] {
+        let path = root().join("tests/fixtures").join(file);
+        if common::regenerate_fixture("VASTITAS_UPDATE_PROMOTION_FIXTURE") {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, serde_json::to_string(&actual).unwrap() + "\n").unwrap();
+        }
+        let expected: Value = serde_json::from_slice(
+            &fs::read(path).expect("regenerate the promotion fixture as documented"),
+        )
+        .unwrap();
+        assert_eq!(
+            actual, expected,
+            "stdlib frontend request differs from the numerical proof fixture {file}"
+        );
+        assert_eq!(check_raw(&expected)["ok"], true, "{file}");
     }
-    let expected: Value = serde_json::from_slice(
-        &fs::read(path).expect("regenerate the promotion fixture as documented"),
-    )
-    .unwrap();
-    assert_eq!(
-        actual, expected,
-        "stdlib frontend IR differs from the numerical proof fixture"
-    );
-    assert_eq!(check_raw(&expected)["ok"], true);
 }

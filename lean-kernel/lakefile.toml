@@ -25,6 +25,12 @@ name = "promotionFixture"
 path = "../tests/fixtures/promotion.json"
 text = true
 
+# The protocol-9 request that the frontend writes for the same stdlib sources (#533).
+[[input_file]]
+name = "promotionCurrentFixture"
+path = "../tests/fixtures/promotion.current.json"
+text = true
+
 # Test/proof fixtures are separate from the ordinary compiler library.
 # Targets with `autoImplicit = false` reject an undeclared name instead of
 # silently binding it; VastitasKernel itself still relies on auto-bound
@@ -33,7 +39,7 @@ text = true
 name = "VastitasPromotion"
 leanOptions = { autoImplicit = false }
 roots = ["VastitasPromotion.Fixture", "VastitasPromotion.Regression", "VastitasPromotion.IndexedFixture", "VastitasPromotion.IndexedRegression"]
-needs = ["promotionFixture"]
+needs = ["promotionFixture", "promotionCurrentFixture"]
 
 [[input_file]]
 name = "authorityFixture"

@@ -22,9 +22,8 @@ pub(crate) use resource_parser::{MAX_RESOURCE_VALUE_BLOCKS, value_blocks};
 
 pub use crate::ir::Diagnostic;
 use crate::ir::{
-    ABSTRACT_PROTOCOL_VERSION, AbstractMethod, AbstractType, Block, Expr, ExprKind, Function,
-    Generic, GenericParam, Index, Method, Module, PROTOCOL_VERSION, Param, Span, Statement,
-    StatementKind, Subtype, Type, TypePath,
+    AbstractMethod, AbstractType, Block, Expr, ExprKind, Function, Generic, GenericParam, Index,
+    Method, Module, Param, Span, Statement, StatementKind, Subtype, Type, TypePath,
 };
 
 const BUILTINS: &[&str] = &[
@@ -818,8 +817,6 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
         )]);
     };
     let mut module = Module {
-        version: PROTOCOL_VERSION,
-        input: None,
         file: first.file.into(),
         functions: Vec::new(),
         generics: Vec::new(),
@@ -833,13 +830,6 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
             .and_then(|mut parser| parser.flat_declarations(&mut module))
             .map_err(|error| vec![error])?;
     }
-    if !module.abstract_types.is_empty()
-        || !module.subtypes.is_empty()
-        || !module.abstract_methods.is_empty()
-    {
-        module.version = ABSTRACT_PROTOCOL_VERSION;
-        module.input = Some("flat".into());
-    }
     let errors = Resolver::module(&module);
     if errors.is_empty() {
         Ok(module)
@@ -849,7 +839,7 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
 }
 
 /// Parse package syntax without flattening or resolving its namespace. Lean
-/// independently accepts names and owners from the preserved protocol-3 graph.
+/// independently accepts names and owners from the preserved package graph.
 pub(crate) fn parse_module_source(
     input: SourceInput<'_>,
     path: Vec<String>,

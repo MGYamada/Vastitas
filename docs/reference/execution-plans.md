@@ -32,7 +32,7 @@ package-registration requirements are added.
 
 The implementation baseline is main
 `2d6a86ce4c8a44bd883d879035aa9c924ed8fc71`. That revision has the initial static
-[protocol-8 resource composition](../storage/resource-programs.md) and the internal
+[resource composition](../storage/resource-programs.md) and the internal
 [Graph crossing checker](../verification/core-models.md#graph-crossings). This Python model is connected to
 neither. Its names are fixture identifiers, not accepted Core identifiers.
 
@@ -392,7 +392,7 @@ Checked against main `2d6a86ce4c8a44bd883d879035aa9c924ed8fc71`:
 - [`Graph`](../verification/core-models.md#graph-crossings) checks the internal crossing-word fragment.
   Public tensor/source lowering and its bridge to `Indexed.Core.Term` remain
   pending; this reference adds no sparse operation to either Core.
-- At that revision, [protocol 8](../storage/resource-programs.md) connects the initial static package
+- At that revision, [the resource source](../storage/resource-programs.md) connects the initial static package
   resource profile to the existing [Storage checker](../storage/checked-storage.md#storage-ir). That
   connection does not establish CSR support, initialized index/value buffers,
   sparse destination/scratch alias rights or this plan's physical validity.

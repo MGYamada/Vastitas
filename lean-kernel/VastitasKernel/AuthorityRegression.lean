@@ -1,10 +1,9 @@
 import VastitasKernel.Authority
 import VastitasKernel.RegressionSupport
 
-/-! The protocol-6 assembler `Authority.assemble`, which the public 2–6 route
-runs through `Indexed.LegacySource` and `AuthoritySource`, on a Lean value:
-its acceptance and the independent audits of its trace state. Public JSON
-acceptance is covered by LegacySourceRegression and
+/-! The assembler `Authority.assemble`, which the public route runs through
+`AuthoritySource`, on a Lean value: its acceptance and the independent audits
+of its trace state. Public JSON acceptance is covered by
 VastitasPublicTest.AuthorityRegression. -/
 namespace VastitasKernel.Authority.Regression
 open Namespace

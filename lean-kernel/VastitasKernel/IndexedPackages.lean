@@ -1,9 +1,9 @@
 import VastitasKernel.IndexedValidity
 
 /-! Generic, single-witness existential package contracts. The indexed Core and
-oracle payload semantics use these exact records. Public protocol 7 resolves and
-audits their source declarations through `Indexed.Wire.check`; declaration
-acceptance alone does not check bodies. Every field retains its bound witness
+oracle payload semantics use these exact records. The public checker
+`ResourceSource.Wire.check` resolves and audits their source declarations;
+declaration acceptance alone does not check bodies. Every field retains its bound witness
 and family. -/
 namespace VastitasKernel.Indexed
 

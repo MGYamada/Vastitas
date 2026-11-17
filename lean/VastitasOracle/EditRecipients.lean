@@ -100,9 +100,9 @@ theorem lower_transfer_resolves (p : Indexed) (scope : Scope) (raw : Namespace.T
     exact ⟨rfl, rfl⟩
 
 /-- `scope` is the module that a declared recipient denotes: the declared module
-path inside the resolved package. A manifest name (protocol 9) resolves only to
-the unique root-reachable package with that name; a source location (protocols
-6–8) resolves by location lookup. -/
+path inside the resolved package. A manifest name, which the wire carries,
+resolves only to the unique root-reachable package with that name; a source
+location, which no wire field carries, resolves by location lookup. -/
 def Recipient (p : Indexed) (declared : RecipientPackage) (span : Span) (path : List String)
     (scope : Scope) : Prop :=
   ∃ pkg, recipientPackage p declared span = .ok pkg ∧ scope = ⟨pkg.id, path⟩ ∧
@@ -240,12 +240,12 @@ theorem reconstruct_grants_declared (p : Indexed) {grants : List Edit.GrantEntry
     cases lowered
     exact ⟨pkg, pkgMember, m, mMember, raw, rawMember, result.2, run⟩
 
-/-- The protocol 8/9 recipient guarantee of the actual public JSON checker.
+/-- The recipient guarantee of the actual public JSON checker.
 Every grant, delegation and transfer in an accepted certificate is the real
 lowering of a raw entry that a module of the decoded input declares; that
 module issues it, and its recipient is the declared module path inside the
-package that the declared recipient resolves to. With a manifest name
-(protocol 9) that package is the unique root-reachable package with that name,
+package that the declared recipient resolves to. With a manifest name that
+package is the unique root-reachable package with that name,
 and the original package record is retained. This is a decoded-input
 guarantee, not authentication of manifests, files or authors. -/
 theorem public_named_recipients (input : ResourceSource.Wire.CheckedInput json requireMain) :

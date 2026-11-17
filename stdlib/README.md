@@ -126,7 +126,7 @@ an automatic prelude or a registry package manager; see
 [Packages](https://github.com/MGYamada/Vastitas/blob/main/docs/packages.md).
 
 > **Implementation note.** The driver sends a package graph that depends on
-> the geometry package through wire protocol 9, as
-> [Protocol selection](https://github.com/MGYamada/Vastitas/blob/main/docs/protocol.md#protocol-selection)
+> the geometry package without `legacy_geometry`, as
+> [Flat programs and the legacy geometry](https://github.com/MGYamada/Vastitas/blob/main/docs/protocol.md#flat-programs-and-the-legacy-geometry)
 > says, because the geometry package declares presented and smooth affine
 > forms.

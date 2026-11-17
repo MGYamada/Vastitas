@@ -125,12 +125,11 @@ Rules:
   (`E_TYPE`).
 
 > **Implementation note.** The driver sends a package graph that holds a
-> declaration of this chapter through wire protocol 9, as
-> [protocol selection](protocol.md#protocol-selection) says. This includes
-> every program that depends on the geometry package of the standard library.
-> An earlier protocol rejects each form of this chapter (`E_PROTOCOL`), as
-> [the wire forms](protocol.md#protocol-9-algebraic-affine-forms) say. No
-> source program reaches that error.
+> declaration of this chapter without `legacy_geometry`, as
+> [Flat programs and the legacy geometry](protocol.md#flat-programs-and-the-legacy-geometry)
+> says. This includes every program that depends on the geometry package of
+> the standard library. [The wire forms](protocol.md#algebraic-affine-forms)
+> give the records of the chapter.
 
 Example, from
 [`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/affine-geometry/src/profile.vast):

@@ -2,38 +2,17 @@
 
 use serde::{Deserialize, Serialize};
 
-// The wire protocols. The driver writes only protocol 9, the current schema
-// epoch (#533): a package request (`packages::load`) and the request of a flat
-// unit as one package (`packages::flat_request`). The programs that it wrote
-// at protocols 2 to 6 before carry the optional field `legacy_geometry`, with
-// which the kernel adds the compatibility profile of those protocols.
-// The kernel still accepts 2 to 8 until the cutover to epoch 10. The flat
-// `Module` below keeps the version of its own encoding, 2, or 4 when it holds
-// abstract declarations (`frontend::parse_sources`): a hand-written request of
-// that protocol, which the driver wraps instead of sending. The other
-// constants name the protocols of `--version` (`PUBLIC_PROTOCOLS`).
-pub const PROTOCOL_VERSION: u32 = 2;
-pub(crate) const PACKAGE_PROTOCOL: u32 = 3;
-pub const ABSTRACT_PROTOCOL_VERSION: u32 = 4;
-pub(crate) const EDIT_PROTOCOL: u32 = 5;
-pub(crate) const AUTHORITY_PROTOCOL: u32 = 6;
-pub(crate) const INDEXED_PROTOCOL: u32 = 7;
-pub(crate) const RESOURCE_PROTOCOL: u32 = 8;
-pub(crate) const NAMED_RECIPIENT_PROTOCOL: u32 = 9;
-/// The protocols of `--version`, in its order: those that the driver wrote
-/// before round 1 of #533. The driver now writes only protocol 9, but the list
-/// stays until the cutover to epoch 10, because the kernel of this release
-/// still accepts every one of them; it changes with `--version` under #521.
-pub(crate) const PUBLIC_PROTOCOLS: [u32; 8] = [
-    PROTOCOL_VERSION,
-    PACKAGE_PROTOCOL,
-    ABSTRACT_PROTOCOL_VERSION,
-    EDIT_PROTOCOL,
-    AUTHORITY_PROTOCOL,
-    INDEXED_PROTOCOL,
-    RESOURCE_PROTOCOL,
-    NAMED_RECIPIENT_PROTOCOL,
-];
+/// The wire schema epoch (#533): the one protocol that the driver writes and
+/// the kernel accepts, and the one that `--version` reports. The kernel holds
+/// the same number in `currentProtocol` (`lean-kernel/VastitasKernel/
+/// Protocol.lean`); `build.rs` reads it there, and the build fails when the two
+/// differ.
+pub const PROTOCOL: u32 = 10;
+
+const _: () = assert!(
+    PROTOCOL == crate::driver::KERNEL_PROTOCOL,
+    "src/ir.rs PROTOCOL differs from currentProtocol of lean-kernel/VastitasKernel/Protocol.lean"
+);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Span {
@@ -59,11 +38,11 @@ pub struct Diagnostic {
     pub span: Span,
 }
 
+/// A flat compilation unit: one file, with its `--lib` inputs. The driver
+/// sends it as the one package of `packages::flat_request`; the wire has no
+/// flat envelope.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Module {
-    pub version: u32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub input: Option<String>,
     pub file: String,
     pub functions: Vec<Function>,
     pub generics: Vec<Generic>,
@@ -138,7 +117,6 @@ pub struct Function {
     pub body: Block,
     pub span: Span,
     /// The `show!` of the top-level `let` statements of `fn main` (#836).
-    /// Only protocol 9 carries them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observations: Vec<Observation>,
 }

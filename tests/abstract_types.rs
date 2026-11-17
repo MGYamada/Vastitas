@@ -1,6 +1,6 @@
-//! Selector-only abstract declarations cross protocol 4 and independent Lean checks.
+//! Selector-only abstract declarations cross the wire and independent Lean checks.
 mod common;
-use common::{Scratch, cli, exits, kernel, native, ran, request, success};
+use common::{Scratch, cli, exits, flat_module, kernel, native, ran, request, success};
 use serde_json::json;
 use std::process::Command;
 
@@ -87,7 +87,7 @@ fn raw_indirect_membership_authority_is_recomputed_after_input_changes() {
     let mut app = raw_module("abstract type Child; subtype Int <: Child;");
     app["abstract_types"][0]["parents"] =
         json!([{"path":["lib","Parent"],"span":{"start":0,"end":0,"line":1,"column":1}}]);
-    let mut raw = json!({"version":4,"input":"package","file":"raw.vast","root":"/app/Vastitas.toml","packages":[
+    let mut raw = json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","packages":[
         {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
         {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","dependencies":[],"modules":[raw_module("abstract type Parent; subtype Int <: Parent;")]}
     ]});
@@ -247,8 +247,9 @@ fn selectors_do_not_create_value_types_or_change_body_audits() {
         &format!("{NUMERIC} fn f(x: Int) -> Int {{ 0 }}"),
         "abstract.vast",
     );
-    forged["functions"][0]["params"][0]["ty"]["name"] = json!("Numeric");
-    common::assert_wire_rejected(&kernel(forged, "check"), "E_TYPE");
+    // The decoder admits only a concrete scalar type for a parameter.
+    flat_module(&mut forged)["functions"][0]["params"][0]["ty"]["name"] = json!("Numeric");
+    common::assert_wire_rejected(&kernel(forged, "check"), "E_PROTOCOL");
     for source in [
         format!("{NUMERIC} generic f(x) {{ domain (Numeric); }}"),
         format!("{NUMERIC} generic f(x) {{ domain; }} method f(x: Numeric) -> Nat {{ x }}"),
@@ -266,38 +267,25 @@ fn selectors_do_not_create_value_types_or_change_body_audits() {
     );
 }
 
-// old-route(#533): the flat envelopes of protocols 2 and 4.
 #[test]
-fn protocol_four_is_explicit_and_legacy_requests_stay_unchanged() {
+fn abstract_declarations_reject_claimed_owners_and_malformed_records() {
     let raw = request(
         &format!("{NUMERIC} fn main() -> Int {{ 42 }}"),
         "abstract.vast",
     );
-    assert_eq!(raw["version"], 4);
-    assert_eq!(raw["input"], "flat");
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
+    assert!(raw.get("input").is_none());
     assert_eq!(kernel(&raw, "check")["ok"], true);
-    for mutation in ["downgrade", "mode", "missing_mode", "owner", "path", "span"] {
+    for mutation in ["input", "owner", "path", "span"] {
         let mut bad = raw.clone();
         match mutation {
-            "downgrade" => {
-                bad["version"] = json!(2);
-                bad.as_object_mut().unwrap().remove("input");
-            }
-            "mode" => bad["input"] = json!("package"),
-            "missing_mode" => {
-                bad.as_object_mut().unwrap().remove("input");
-            }
-            "owner" => bad["abstract_types"][0]["owner"] = json!("trusted"),
-            "path" => bad["subtypes"][0]["target"]["path"] = json!([]),
-            _ => bad["abstract_types"][0]["span"]["line"] = json!(0),
+            "input" => bad["input"] = json!("flat"),
+            "owner" => flat_module(&mut bad)["abstract_types"][0]["owner"] = json!("trusted"),
+            "path" => flat_module(&mut bad)["subtypes"][0]["target"]["path"] = json!([]),
+            _ => flat_module(&mut bad)["abstract_types"][0]["span"]["line"] = json!(0),
         }
         common::assert_wire_rejected(&kernel(bad, "check"), "E_PROTOCOL");
     }
-    let legacy = request("fn main() -> Int { 42 }", "legacy.vast");
-    assert_eq!(legacy["version"], 2);
-    assert!(legacy.get("input").is_none());
-    assert!(legacy.get("abstract_types").is_none());
-    assert_eq!(kernel(legacy, "check")["ok"], true);
 }
 
 fn package_check(s: &Scratch) -> std::process::Output {
@@ -343,22 +331,10 @@ fn package_aliases_preserve_nominal_identity_and_exact_module_membership_authori
     common::expect_code(&output, "E_VISIBILITY");
 }
 
+/// The root module of the request of the flat unit `source`, in which every
+/// function, generic and abstract type is public.
 fn raw_module(source: &str) -> serde_json::Value {
-    let mut flat = request(source, "abstract-package.vast");
-    for field in ["functions", "generics", "abstract_types"] {
-        if let Some(declarations) = flat
-            .get_mut(field)
-            .and_then(serde_json::Value::as_array_mut)
-        {
-            for declaration in declarations {
-                declaration["public"] = json!(true);
-            }
-        }
-    }
-    json!({"path":[], "public":true, "span":{"start":0,"end":0,"line":1,"column":1},
-        "imports":[], "functions":flat["functions"], "generics":flat["generics"], "methods":flat["methods"],
-        "abstract_types":flat.get("abstract_types").cloned().unwrap_or(json!([])),
-        "subtypes":flat.get("subtypes").cloned().unwrap_or(json!([]))})
+    flat_module(&mut request(source, "abstract-package.vast")).take()
 }
 
 #[test]
@@ -367,7 +343,7 @@ fn raw_package_ir_cannot_forge_membership_authority_visibility_or_winners() {
         "generic f(x) { domain (Int); } method f(x: Numeric) -> Int { 42 } fn main() -> Int { f(1) }",
     );
     app["methods"][0]["params"][0]["ty"]["name"] = json!("lib::Numeric");
-    let raw = json!({"version":4,"input":"package","file":"raw.vast","root":"/app/Vastitas.toml","packages":[
+    let raw = json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","packages":[
         {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
         {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","dependencies":[],"modules":[raw_module("abstract type Numeric; subtype Int <: Numeric;")]}
     ]});

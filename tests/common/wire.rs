@@ -9,17 +9,33 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
-/// The current wire schema epoch (#533): the protocol of the newest envelope,
-/// which the frontend selects for named recipients, Stage 2 and later forms
-/// and `show!`. Tests pin it through this constant, so the single cutover to
-/// epoch 10 changes this line and not every test.
-///
-/// A test, loop or request that exists only to exercise a route that retires
-/// at that cutover (protocols 2 to 8: `Indexed.LegacySource`, `Indexed.Wire`
-/// and protocol 8 of `ResourceSource.Wire`) carries the comment tag
-/// `old-route(#533)`, in Rust and in the Lean regressions, so the cutover can
-/// find it with `grep -rn 'old-route(#533)' tests lean-kernel`.
-pub const CURRENT_PROTOCOL: u64 = 9;
+/// The wire schema epoch (#533): the one protocol that the frontend writes and
+/// the kernel accepts, `ir::PROTOCOL`, which equals the kernel's
+/// `currentProtocol`.
+pub const CURRENT_PROTOCOL: u64 = vastitas::ir::PROTOCOL as u64;
+
+/// The kernel's one definition of the epoch, read from its source:
+/// `def currentProtocol : Nat := N` in `VastitasKernel/Protocol.lean`.
+pub fn kernel_protocol() -> u64 {
+    let source =
+        fs::read_to_string(root().join("lean-kernel/VastitasKernel/Protocol.lean")).unwrap();
+    let values: Vec<u64> = source
+        .lines()
+        .filter_map(|line| line.strip_prefix("def currentProtocol : Nat := "))
+        .map(|value| value.trim().parse().unwrap())
+        .collect();
+    assert_eq!(values.len(), 1, "one definition of currentProtocol");
+    values[0]
+}
+
+/// The kernel's message for a request at `version`, which is not
+/// [`CURRENT_PROTOCOL`] (`unsupportedProtocolVersion`).
+pub fn other_protocol_message(version: u64) -> String {
+    format!(
+        "IR protocol version {version} is not protocol {CURRENT_PROTOCOL} of this kernel; \
+         the compiler and the kernel must come from the same Vastitas build: rebuild them together"
+    )
+}
 
 pub fn kernel_path() -> PathBuf {
     root().join("lean-kernel/.lake/build/bin/vastitas-kernel")
@@ -98,15 +114,22 @@ pub fn captured_wire(mut command: impl std::borrow::BorrowMut<Command>, version:
     assert_eq!(wire["version"], version, "captured protocol version");
     wire
 }
-/// The flat request of protocol 2, or 4 with abstract declarations, of the
-/// single file `source`: the `Module` of `frontend::parse`. old-route(#533):
-/// the driver sends no flat request since #533 round 2 (W7); it sends this
-/// unit as a protocol-9 package with `legacy_geometry`
-/// (`packages::flat_request`). The requests of this helper are hand-written
-/// requests of the retiring flat envelopes, which the kernel accepts until
-/// the cutover to epoch 10.
+/// The request that `vastitas check` writes for the single file `source`,
+/// named `filename`: a flat unit as the one package of
+/// `packages::flat_request`, with `legacy_geometry`. Its declarations are in
+/// [`flat_module`].
+#[track_caller]
 pub fn request(source: &str, filename: &str) -> Value {
-    serde_json::to_value(vastitas::frontend::parse(source, filename).unwrap()).unwrap()
+    let scratch = Scratch::empty("flat request");
+    scratch.write(filename, source);
+    let mut command = scratch.cli();
+    command.args(["check", filename]);
+    captured_wire(command, CURRENT_PROTOCOL)
+}
+/// The root module of the request of a flat unit ([`request`]): its
+/// functions, generics, methods and abstract declarations.
+pub fn flat_module(request: &mut Value) -> &mut Value {
+    &mut request["packages"][0]["modules"][0]
 }
 pub fn remove_spans(value: &mut Value) {
     match value {

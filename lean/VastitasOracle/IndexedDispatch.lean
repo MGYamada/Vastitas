@@ -5,7 +5,7 @@ import VastitasOracle.Contracts
 
 /-! The actual internal indexed dispatch route uses the existing finite engine.
 These structural acceptance/coverage theorems concern its exact audit and
-executable Core outputs. Authority composition, public protocol 7, source
+executable Core outputs. Authority composition, public acceptance, source
 evaluation preservation and native refinement remain separate obligations. -/
 namespace VastitasOracle.IndexedDispatch
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.DispatchSource

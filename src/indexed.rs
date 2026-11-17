@@ -39,8 +39,8 @@ pub struct GeometryProfile {
 }
 
 /// A geometry setting in the wire request. Its spelling is separate from the
-/// manifest's (#533): the slot of `dim(…)` is `dimension` on the wire until
-/// the cutover to the single schema epoch, which changes this record alone.
+/// manifest's (#533): the slot of `dim(…)` is `dimension` in the manifest and
+/// `dim` on the wire.
 #[derive(Debug, Serialize)]
 pub struct WireGeometrySetting {
     pub domain: String,
@@ -50,7 +50,7 @@ pub struct WireGeometrySetting {
     pub base: String,
     pub origin: String,
     pub identity: String,
-    pub dimension: String,
+    pub dim: String,
 }
 
 /// The `geometry_compat` export of a package in the wire request.
@@ -85,7 +85,7 @@ impl From<GeometrySetting> for WireGeometrySetting {
             base,
             origin,
             identity,
-            dimension,
+            dim: dimension,
         }
     }
 }
@@ -148,8 +148,8 @@ pub enum DeclarationBody {
     Primitive {
         binding: Primitive,
     },
-    /// A presented affine object `spec[generators] relations(...) over base by(...)`
-    /// (protocol 9). The kernel expands, bounds and checks every polynomial.
+    /// A presented affine object `spec[generators] relations(...) over base by(...)`.
+    /// The kernel expands, bounds and checks every polynomial.
     Affine {
         implementation: TypePath,
         generators: Vec<String>,
@@ -157,20 +157,20 @@ pub enum DeclarationBody {
         base: Option<TypePath>,
         bindings: Vec<Binding>,
     },
-    /// A declared morphism `family<X, Y, S>` over a base (protocol 9).
+    /// A declared morphism `family<X, Y, S>` over a base.
     Morphism {
         family: TypePath,
         indices: Vec<TypePath>,
         definition: MorphismDefinition,
     },
-    /// The fiber product `left ×_B right` over `left`'s base (protocol 9).
+    /// The fiber product `left ×_B right` over `left`'s base.
     AffineFiber {
         implementation: TypePath,
         left: TypePath,
         right: TypePath,
         via: Option<FiberVia>,
     },
-    /// The principal open `D(element)` of `object` (protocol 9).
+    /// The principal open `D(element)` of `object`.
     AffineLocalization {
         implementation: TypePath,
         object: TypePath,
@@ -189,27 +189,27 @@ pub enum DeclarationBody {
         fiber: TypePath,
         inverse: TypePath,
     },
-    /// A smooth object `Affine(dimension)[coordinates]` (protocol 9). The
+    /// A smooth object `Affine(dimension)[coordinates]`. The
     /// kernel checks the dimension against the coordinates.
     SmoothAffine {
         implementation: TypePath,
         dimension: String,
         coordinates: Vec<String>,
     },
-    /// A metric `family<object>` with a constant Gram matrix (protocol 9).
+    /// A metric `family<object>` with a constant Gram matrix.
     /// The kernel evaluates and checks every entry.
     Metric {
         family: TypePath,
         indices: Vec<TypePath>,
         gram: MetricGram,
     },
-    /// Evidence for a metric (protocol 9). The kernel computes the
+    /// Evidence for a metric. The kernel computes the
     /// certificate; the wire never carries one.
     Evidence {
         metric: TypePath,
         evidence: EvidenceKind,
     },
-    /// A frame `family<object>` of a smooth object (protocol 9, Stage 4): its
+    /// A frame `family<object>` of a smooth object (Stage 4): its
     /// columns in the coordinate frame, and the inverse that a frame
     /// polynomial in the point declares. The kernel computes the inverse of a
     /// constant frame.
@@ -219,26 +219,26 @@ pub enum DeclarationBody {
         columns: FrameColumns,
         inverse: Option<FrameColumns>,
     },
-    /// A nominal base dimension (protocol 9, Stage 4).
+    /// A nominal base dimension (Stage 4).
     BaseDimension,
-    /// A nominal quantity kind of a dimension (protocol 9, Stage 4).
+    /// A nominal quantity kind of a dimension (Stage 4).
     Quantity {
         dimension: Vec<DimensionFactor>,
     },
     /// A physical reading `family<object>` of a chart: one quantity per
-    /// coordinate (protocol 9, Stage 4).
+    /// coordinate (Stage 4).
     Reading {
         family: TypePath,
         indices: Vec<TypePath>,
         quantities: Vec<ReadingEntry>,
     },
-    /// A scale of a quantity: a constant magnitude (protocol 9, Stage 4).
+    /// A scale of a quantity: a constant magnitude (Stage 4).
     Scale {
         quantity: TypePath,
         magnitude: PolyExpr,
     },
     /// A physical interpretation `family<object>` of a metric under a
-    /// reading (protocol 9, Stage 4). The kernel checks its dimensions.
+    /// reading (Stage 4). The kernel checks its dimensions.
     PhysicalMetric {
         family: TypePath,
         indices: Vec<TypePath>,
@@ -248,7 +248,7 @@ pub enum DeclarationBody {
         entries: PhysicalGram,
     },
     /// A free module `family<object>` over the coordinate ring of a smooth
-    /// object, with its named ordered basis (protocol 9, Stage 5).
+    /// object, with its named ordered basis (Stage 5).
     FreeModule {
         family: TypePath,
         indices: Vec<TypePath>,
@@ -256,7 +256,7 @@ pub enum DeclarationBody {
     },
     /// An endomorphism `family<object>` of a free module: rows of
     /// polynomials in the object's coordinates, and whether `symmetric` is
-    /// declared (protocol 9, Stage 5). The kernel checks the claim.
+    /// declared (Stage 5). The kernel checks the claim.
     Endomorphism {
         family: TypePath,
         indices: Vec<TypePath>,
@@ -265,7 +265,7 @@ pub enum DeclarationBody {
         symmetric: bool,
     },
     /// The spectrum `family<object>` of an endomorphism, with the name of its
-    /// fiber coordinate (protocol 9, Stage 5). The kernel computes the
+    /// fiber coordinate (Stage 5). The kernel computes the
     /// certificate; the wire never carries one.
     Spectrum {
         family: TypePath,
@@ -275,7 +275,7 @@ pub enum DeclarationBody {
     },
     /// A simple branch `family<object>` of a spectrum on the principal open
     /// of `localize`, with its gap witness and its exponent, an unsigned
-    /// decimal string (protocol 9, Stage 5). The kernel computes the
+    /// decimal string (Stage 5). The kernel computes the
     /// quotient; the wire never carries one.
     Branch {
         family: TypePath,
@@ -287,8 +287,8 @@ pub enum DeclarationBody {
     },
     /// A dephased transition average `family<object>` of a simple branch,
     /// from the basis vector `from` to the basis vector `to` of the module of
-    /// its field, with its closed form `numerator / denominator` (protocol 9,
-    /// Stage 6). The kernel computes the certificate; the wire never carries
+    /// its field, with its closed form `numerator / denominator` (Stage 6).
+    /// The kernel computes the certificate; the wire never carries
     /// one.
     TransitionAverage {
         family: TypePath,
@@ -299,13 +299,13 @@ pub enum DeclarationBody {
         numerator: PolyExpr,
         denominator: PolyExpr,
     },
-    /// A convention of `nature::model` (protocol 9, Stage 6).
+    /// A convention of `nature::model` (Stage 6).
     Convention {
         value: ConventionKind,
     },
     /// A model `family<object>` of `nature::model`: its field, reading,
     /// convention, prepared and observed basis vectors, predicted average and
-    /// regime, a recorded assumption (protocol 9, Stage 6).
+    /// regime, a recorded assumption (Stage 6).
     Model {
         family: TypePath,
         indices: Vec<TypePath>,
@@ -319,7 +319,7 @@ pub enum DeclarationBody {
     },
     /// A calibration `family<object>` of `nature::errorbar`: measured values
     /// of some coordinates, the method of evaluation, a reference and a
-    /// revision (protocol 9, Stage 6).
+    /// revision (Stage 6).
     Calibration {
         family: TypePath,
         indices: Vec<TypePath>,
@@ -329,8 +329,7 @@ pub enum DeclarationBody {
         revision: String,
     },
     /// A dataset `family<object>` of `nature::errorbar` of a model under a
-    /// calibration: a constant coverage factor and its points (protocol 9,
-    /// Stage 6).
+    /// calibration: a constant coverage factor and its points (Stage 6).
     Dataset {
         family: TypePath,
         indices: Vec<TypePath>,
@@ -341,7 +340,7 @@ pub enum DeclarationBody {
     },
     /// A comparison `family<object>` of `nature::errorbar`: a dataset, the
     /// recorded fingerprint of its calibration and the recorded verdict,
-    /// which the kernel recomputes (protocol 9, Stage 6).
+    /// which the kernel recomputes (Stage 6).
     Comparison {
         family: TypePath,
         indices: Vec<TypePath>,
@@ -530,10 +529,10 @@ pub enum MorphismDefinition {
 impl DeclarationBody {
     /// Stage 2 algebraic, Stage 3 smooth and metric, Stage 4 frame and
     /// physical dimension, and Stage 5 and 6 spectral forms (the transition
-    /// average and `average_at` included): the kernel's feature `algebraic`,
-    /// which only protocol 9 admits. The model and data forms of Stage 6 are
-    /// the kernel's feature `physicalModels`; they select no protocol here,
-    /// since every package request is protocol 9 (#533).
+    /// average and `average_at` included), whose families have `algebraic` set
+    /// in the kernel's `families`. The model and data forms of Stage 6 are
+    /// not. A program with one of these forms has no `legacy_geometry`
+    /// (`packages::legacy_geometry`).
     pub fn is_algebraic(&self) -> bool {
         match self {
             DeclarationBody::Affine { .. }
@@ -652,7 +651,7 @@ pub enum Representation {
     PresentedAffine {
         field: ExactField,
     },
-    /// The smooth real affine spaces `Affine(n)` (protocol 9).
+    /// The smooth real affine spaces `Affine(n)`.
     SmoothAffine,
 }
 
@@ -681,8 +680,9 @@ pub enum GeometricSetting {
 #[serde(rename_all = "snake_case")]
 pub enum Capability {
     Origin,
-    /// The source spells it `dim`, as the operation (#778); the wire token
-    /// stays `dimension`.
+    /// The capability of the operation `dim` (#778), spelled `dim` in the
+    /// source and on the wire.
+    #[serde(rename = "dim")]
     Dimension,
 }
 
@@ -694,61 +694,60 @@ pub enum FamilyRepresentation {
     Morphism,
     Relative,
     Smooth,
-    /// `Cotangent(X)`: covectors at points of a smooth object (protocol 9).
+    /// `Cotangent(X)`: covectors at points of a smooth object.
     Cotangent,
-    /// `Tangent(X)`: vectors at points of a smooth object (protocol 9).
+    /// `Tangent(X)`: vectors at points of a smooth object.
     Tangent,
-    /// `Tape(X, Y)`: the saved forward values of a smooth map at a point
-    /// (protocol 9). Only `linearize` constructs a tape.
+    /// `Tape(X, Y)`: the saved forward values of a smooth map at a point.
+    /// Only `linearize` constructs a tape.
     Tape,
-    /// `MetricForm(X)`: indexes the metrics of a smooth object (protocol 9).
+    /// `MetricForm(X)`: indexes the metrics of a smooth object.
     /// No value has this type.
     MetricForm,
-    /// `Frame(X)`: indexes the frames of a smooth object (protocol 9, Stage
-    /// 4). No value has this type.
+    /// `Frame(X)`: indexes the frames of a smooth object (Stage 4). No value
+    /// has this type.
     Frame,
-    /// `Coords(b)`: the coordinates of vectors in the frame `b` (protocol 9,
-    /// Stage 4).
+    /// `Coords(b)`: the coordinates of vectors in the frame `b` (Stage 4).
     FrameVector,
     /// `CoCoords(b)`: the coordinates of covectors in the frame `b`
-    /// (protocol 9, Stage 4).
+    /// (Stage 4).
     FrameCovector,
     /// `FrameMap(b, c)`: matrices of linear maps in the frames `b` and `c`
-    /// (protocol 9, Stage 4).
+    /// (Stage 4).
     FrameMap,
-    /// `Reading(X)`: indexes the physical readings of a chart (protocol 9,
-    /// Stage 4). No value has this type.
+    /// `Reading(X)`: indexes the physical readings of a chart (Stage 4). No
+    /// value has this type.
     Reading,
     /// `PhysicalMetric(X)`: indexes the physical interpretations of the
-    /// metrics of a chart (protocol 9, Stage 4). No value has this type.
+    /// metrics of a chart (Stage 4). No value has this type.
     PhysicalMetric,
     /// `FreeModule(X)`: indexes the free modules over a smooth object
-    /// (protocol 9, Stage 5). No value has this type.
+    /// (Stage 5). No value has this type.
     FreeModule,
     /// `Endomorphism(X)`: indexes the endomorphisms of free modules over a
-    /// smooth object (protocol 9, Stage 5). No value has this type.
+    /// smooth object (Stage 5). No value has this type.
     Endomorphism,
     /// `Spectrum(X)`: indexes the spectra of endomorphisms over a smooth
-    /// object (protocol 9, Stage 5). No value has this type.
+    /// object (Stage 5). No value has this type.
     Spectrum,
     /// `Branch(X)`: indexes the simple branches of spectra over a smooth
-    /// object (protocol 9, Stage 5). No value has this type.
+    /// object (Stage 5). No value has this type.
     Branch,
     /// `TransitionAverage(X)`: indexes the transition averages of simple
-    /// branches over a smooth object (protocol 9, Stage 6). No value has this
+    /// branches over a smooth object (Stage 6). No value has this
     /// type.
     TransitionAverage,
     /// `Model(X)`: indexes the models of `nature::model` over a smooth object
-    /// (protocol 9, Stage 6). No value has this type.
+    /// (Stage 6). No value has this type.
     Model,
     /// `Calibration(X)`: indexes the calibrations of `nature::errorbar` over a
-    /// smooth object (protocol 9, Stage 6). No value has this type.
+    /// smooth object (Stage 6). No value has this type.
     Calibration,
     /// `Dataset(X)`: indexes the datasets of `nature::errorbar` over a smooth
-    /// object (protocol 9, Stage 6). No value has this type.
+    /// object (Stage 6). No value has this type.
     Dataset,
     /// `Comparison(X)`: indexes the comparisons of `nature::errorbar` over a
-    /// smooth object (protocol 9, Stage 6). No value has this type.
+    /// smooth object (Stage 6). No value has this type.
     Comparison,
 }
 
@@ -769,7 +768,7 @@ pub enum Parameter {
     Object {
         domain: TypePath,
     },
-    /// A frame of the family `family` (protocol 9, Stage 4).
+    /// A frame of the family `family` (Stage 4).
     Frame {
         family: TypePath,
     },
@@ -840,8 +839,8 @@ pub enum WireKind {
     Natural,
 }
 
-/// The wire form of one indexed primitive: the `op`, whether only protocol 9
-/// has it, and the exact fields in wire order. `src/primitive_table.rs`
+/// The wire form of one indexed primitive: the `op`, whether it is one of the
+/// Stage 2 and later forms, and the exact fields in wire order. `src/primitive_table.rs`
 /// holds one family per op, generated from the kernel's `families`
 /// (`lean-kernel/VastitasKernel/IndexedPrimitiveFamilies.lean`) by
 /// `scripts/check_primitive_table.py`; no other Rust table lists the ops.
@@ -1180,8 +1179,7 @@ mod tests {
     }
 
     /// The frame and physical dimension forms of Stage 4 serialize to the
-    /// wire shapes that the kernel decodes, read back, and exist only in
-    /// protocol 9.
+    /// wire shapes that the kernel decodes, read back, and are algebraic.
     #[test]
     fn every_frame_and_dimension_form_serializes_to_its_wire_shape_and_is_algebraic() {
         let p = |name: &str| serde_json::to_value(path(name)).unwrap();
@@ -1396,8 +1394,8 @@ mod tests {
     }
 
     /// The spectral forms of Stage 5 serialize to the wire shapes that the
-    /// kernel decodes, read back, and exist only in protocol 9. No form has a
-    /// field for a certificate.
+    /// kernel decodes, read back, and are algebraic. No form has a field for a
+    /// certificate.
     #[test]
     fn every_spectral_form_serializes_to_its_wire_shape_and_is_algebraic() {
         let p = |name: &str| serde_json::to_value(path(name)).unwrap();
@@ -1606,8 +1604,7 @@ mod tests {
     /// `nature::errorbar`, their family representations and `average_at`
     /// serialize to the wire shapes that the kernel decodes and read back. The
     /// transition average, its family and `average_at` are algebraic; the
-    /// model and data forms are not, and select protocol 9 only as package
-    /// input (#533). No form has a field for a certificate. The nested
+    /// model and data forms are not. No form has a field for a certificate. The nested
     /// records of a calibrated coordinate and of a data point reject an unknown
     /// field, as the kernel does; the frontend never decodes a request.
     #[test]
@@ -1811,7 +1808,7 @@ mod tests {
         }
     }
 
-    /// The protocol-9 allow-list before the table (#622): `is_algebraic` now
+    /// The allow-list of the algebraic ops before the table (#622): `is_algebraic` now
     /// reads the generated table, which must keep these ops, and only these,
     /// algebraic, and keep the seven Stage 1 ops.
     #[test]
@@ -1821,7 +1818,7 @@ mod tests {
             "global",
             "origin",
             "identity",
-            "dimension",
+            "dim",
             "compose",
             "apply",
         ];

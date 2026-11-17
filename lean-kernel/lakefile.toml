@@ -25,12 +25,6 @@ name = "promotionFixture"
 path = "../tests/fixtures/promotion.json"
 text = true
 
-# The protocol-9 request that the frontend writes for the same stdlib sources (#533).
-[[input_file]]
-name = "promotionCurrentFixture"
-path = "../tests/fixtures/promotion.current.json"
-text = true
-
 # Test/proof fixtures are separate from the ordinary compiler library.
 # Targets with `autoImplicit = false` reject an undeclared name instead of
 # silently binding it; VastitasKernel itself still relies on auto-bound
@@ -39,12 +33,7 @@ text = true
 name = "VastitasPromotion"
 leanOptions = { autoImplicit = false }
 roots = ["VastitasPromotion.IndexedFixture", "VastitasPromotion.IndexedRegression"]
-needs = ["promotionFixture", "promotionCurrentFixture"]
-
-[[input_file]]
-name = "authorityFixture"
-path = "../tests/fixtures/edit-authority.json"
-text = true
+needs = ["promotionFixture"]
 
 [[input_file]]
 name = "recipientFixture"
@@ -55,7 +44,7 @@ text = true
 name = "VastitasPublicTest"
 leanOptions = { autoImplicit = false }
 roots = ["VastitasPublicTest.AuthorityRegression"]
-needs = ["authorityFixture", "recipientFixture"]
+needs = ["recipientFixture"]
 
 # `Main` embeds a digest of its own source, of the kernel modules it imports
 # and of the compiler limits (`VastitasKernel/BuildIdentity.lean`). Lake

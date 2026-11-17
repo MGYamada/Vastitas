@@ -500,8 +500,8 @@ that this section refers to.
   - Both passes must give the same covector.
 - **Scalars.** Exact rationals stay inside the runtime. They surface as `Int`
   inputs and `Pair<Int>` observations.
-- **Wire.** The profile uses protocol 9 only. Protocols 7 and 8 are an error
-  (`E_PROTOCOL`).
+- **Wire.** The profile's forms are optional records of the wire protocol.
+  A request of another version is an error (`E_PROTOCOL`).
 - **Independent reference.**
   - The executable kernel must match a fixture generated from
     `scripts/metric_free_reference.py` and `scripts/metric_reference.py`.
@@ -565,8 +565,8 @@ proposed.
   - an indefinite metric claimed Riemannian;
   - `sharp` without evidence, with wrong-kind evidence, or with evidence for
     another metric.
-- **Inputs and transport:** floating-point inputs, protocols 7 and 8, a wire
-  payload that carries a certificate, and tampered Core.
+- **Inputs and transport:** floating-point inputs, a wire payload that
+  carries a certificate, and tampered Core.
 
 The profile must also show failure semantics: a seed over another point
 gives ⊥, and ⊥ propagates through a wrong intermediate basepoint.
@@ -582,8 +582,8 @@ gives ⊥, and ⊥ propagates through a wrong intermediate basepoint.
   - These names must not shadow existing names. Smooth-map `compose` and the identity must not be ambiguous
     with `std::geometry::compose` and `std::geometry::smooth::id`.
 - **`MetricForm`.**
-  - `MetricForm` is nominally distinct from the protocol-8 diagonal Hermitian
-    `Metric`. Neither converts to the other.
+  - `MetricForm` is nominally distinct from the diagonal Hermitian `Metric`
+    of resource programs. Neither converts to the other.
   - `MetricForm` is also distinct from `MetricSpace`.
 - **`Affine` forms.**
   - The declaration forms `Affine(n)[c₁, …, cₙ]` and `Affine(K, n)[…]` appear
@@ -603,7 +603,8 @@ gives ⊥, and ⊥ propagates through a wrong intermediate basepoint.
 - **Versions and migration.**
   - The profile adds no wire protocol version.
   - Existing programs keep their meaning.
-  - The protocol-8 `Metric` keeps its name. A rename is a separate decision.
+  - The `Metric` of resource programs keeps its name. A rename is a separate
+    decision.
 
 #### Deviation: no `gradient` export
 
@@ -812,8 +813,9 @@ chapter links the tracker and the issues that this section refers to.
   §10, one run per row.
 - **Scalars.** Exact rationals stay inside the runtime and surface as
   `Pair<Int>` observations.
-- **Wire.** The profile uses protocol 9 only. Protocols 7 and 8 are an error
-  (`E_PROTOCOL`). The inverse of a constant frame never comes from the wire.
+- **Wire.** The profile's forms are optional records of the wire protocol.
+  A request of another version is an error (`E_PROTOCOL`). The inverse of a
+  constant frame never comes from the wire.
 - **Independent reference.** The executable kernel must match a fixture
   generated from a reference model of frames, arrays, transitions, map arrays
   and Gram matrices in the real plane, with constant and polynomial frames.
@@ -847,8 +849,8 @@ without a test there remains proposed.
   another object of the same dimension; a frame array where a fiber is
   required; a coframe array where a frame array is required; a transition
   between frames of different objects (`E_ENDPOINT`).
-- **Inputs and transport:** protocols 7 and 8, a wire payload that carries the
-  inverse of a constant frame or a transition, and tampered Core.
+- **Inputs and transport:** a wire payload that carries the inverse of a
+  constant frame or a transition, and tampered Core.
 
 The profile must also show failure semantics: arrays over different points
 give ⊥.
@@ -861,7 +863,7 @@ give ⊥.
   The diagnostic code is `E_FRAME`.
 - **Other meanings of frame and basis.** A frame here is a linear frame, not
   a frame of open sets in topology. It is nominally distinct from the
-  protocol-8 numerical `Basis`; neither converts to the other.
+  numerical `Basis` of resource programs; neither converts to the other.
 - **`std::linalg`.** The family of §4 stays Planned and keeps finite linear
   maps, tensor ports and contractions in general. This module is the case of
   tangent fibers of smooth affine objects.
@@ -1016,8 +1018,8 @@ chapter links the tracker and the issues that this section refers to.
   localizer that contains `t` (`E_SPECTRAL`).
 - **Fields:** a nonsymmetric field declared symmetric; a field of another
   object; a rank above the limit.
-- **Inputs and transport:** protocols 7 and 8, a wire payload that carries a
-  characteristic polynomial, an adjugate or a quotient, and tampered Core.
+- **Inputs and transport:** a wire payload that carries a characteristic
+  polynomial, an adjugate or a quotient, and tampered Core.
 
 #### Compatibility and public-name audit
 
@@ -1030,7 +1032,8 @@ chapter links the tracker and the issues that this section refers to.
   `E_SPECTRAL`. The names are provisional until the module is delivered.
 - **Other meanings.** A spectrum here is the characteristic scheme of a
   finite endomorphism, not a spectral measure. A free module here is
-  nominally distinct from the protocol-8 numerical `Space` and `Basis` and
+  nominally distinct from the numerical `Space` and `Basis` of resource
+  programs and
   from source modules declared with `mod`; none converts to another.
 - **Packages.** The module belongs to a `std::linalg` package of its own,
   which depends on the geometry package. The geometry package does not depend
@@ -1151,8 +1154,8 @@ History section at the end of this chapter links the tracker.
 - **Ownership.** It supersedes the ownership lines for metric-free
   differentiation (§1) and `gradient` (§2) in
   [#264](https://github.com/MGYamada/Vastitas/issues/264). That issue also keeps
-  position-dependent metrics, signature algebra (§3) and the protocol-8
-  `Metric` rename.
+  position-dependent metrics, signature algebra (§3) and the rename of the
+  `Metric` of resource programs.
 - **Constructors and gluing.** Reconciling `CInfAffine` with `CInfScheme`, and
   the `CInfReal`-free constructor, remain in
   [#103](https://github.com/MGYamada/Vastitas/issues/103). Gluing and

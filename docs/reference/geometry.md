@@ -631,10 +631,11 @@ The fixed **8 Domain Checkers + independent Ownership/Borrow** division remains:
 | Independent Ownership/Borrow | Storage, aliasing, lifetimes and resource safety; polynomial symplectic acceptance proves none of these |
 
 The future bridge under [#184](https://github.com/MGYamada/Vastitas/issues/184)
-must extract its data from **one actual public acceptance result**. The current
-[`Indexed.Wire.check`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedAcceptance.lean)
-records the exact decoded input and `AuthoritySource.checkProgram` result; it has
-no symplectic consumer today. The finite edit theorem's exact-input/returned-Core
+must extract its data from **one actual public acceptance result**. The public
+checker
+[`ResourceSource.Wire.check`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ResourceProtocol.lean)
+records the exact decoded input and the `AuthoritySource.checkProgram` result
+of its pure program; it has no symplectic consumer today. The finite edit theorem's exact-input/returned-Core
 discipline is relevant, but its existing conclusion does not contain this
 geometric contract. The following obligations remain:
 
@@ -1107,12 +1108,13 @@ Failure of this bounded reference is not a universal nonexistence theorem.
 
 For the accepted-Core bridge, resolve the actual space/topology, cover, sheaf,
 coefficients, selected operations and dependencies from the validated environment
-and the exact protocol-7 executable Core. Bind the resulting subject to
-`accepted.checked.executable.core.module`, prove the denotation of each extracted
+and the exact executable Core of the public route. Bind the resulting subject to
+`input.checked.pureProgram.executable.core.module`, prove the denotation of each extracted
 section/restriction/differential agrees with that Core, and retain the exact
-returned module in the evidence attachment consumed by codegen. The existing
-[`IndexedWire.codegen_input`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/IndexedWire.lean) equates
-that module with the lowered module; it supplies no Čech theorem. Changes to
+returned module in the evidence attachment consumed by codegen. The field
+`coreInput` of that checked pass equates that module with the lowered module,
+and [`IndexedReverseCore.public_resource_compiled`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/IndexedReverseCore.lean)
+states its compilation; neither supplies a Čech theorem. Changes to
 source, environment, coefficients, site, cover, ordering or selected method
 must invalidate evidence or use proved transport for the actual transformed
 Core. Compose these obligations through #184/#192 and existing checker
@@ -1600,8 +1602,8 @@ arbitrary bundle is locally free. The nominal fiber token does not provide
 transport to another point. Same-sized arrays do not identify fibers or bases.
 
 `Metric` is a selected, named symmetric real bilinear form with a rational Gram
-matrix and revision. It is distinct from the native protocol-8 diagonal Hermitian
-metric. Hodge operations require all three separately supplied evidence records:
+matrix and revision. It is distinct from the native diagonal Hermitian
+metric of resource programs. Hodge operations require all three separately supplied evidence records:
 
 | Evidence | Exact check against the independently selected metric |
 | --- | --- |

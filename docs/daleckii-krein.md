@@ -124,8 +124,8 @@ Daleckii–Krein cotangent of `trPairing 1` at H(y) composed with DH(y), and
 that covector. `compiled_trace_power_dk`,
 `public_resource_entries_trace_power_dk` and
 `public_pure_entry_trace_power_dk` state that every compiled reverse site of
-one declared step along it, in every compiled module and on the public paths
-of protocols 8 and 9, computes the seed's component times that covector.
+one declared step along it, in every compiled module and on the public paths,
+computes the seed's component times that covector.
 These three keep the premises of the compiled reverse entries, the residual
 relation of a saved site among them. `stage5_dk_gradient` states that for
 the field of the example, as a Mathlib matrix, the covector is (4y₀, 4y₁)

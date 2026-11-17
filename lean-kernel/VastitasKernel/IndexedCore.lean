@@ -3,7 +3,7 @@ import VastitasKernel.IndexedContractAudit
 
 /-! The declaration-driven Core data model. IndexedTypeAudit independently
 checks complete modules and IndexedCodegen lowers them to the minimal runtime.
-All public source protocols reach this audit through the combined indexed checker;
+The public wire reaches this audit through the combined indexed checker;
 LegacyIndexed remains an internal adapter for old checked Core.
 `IndexedProgramSafety` proves typed total evaluation of the exact accepted Core
 under its bounded semantic model. Full source operational correspondence and

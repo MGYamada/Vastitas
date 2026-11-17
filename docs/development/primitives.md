@@ -96,23 +96,21 @@ promises about its logical evaluator, and
 Every table that reads a wire form reads it through the family of its `op`.
 `families` in `IndexedPrimitiveFamilies.lean` lists one family per `op`, and
 `primitiveFamily?` finds it. No other table of the kernel or of the frontend
-lists the operations. The frontend maps the source spelling `dim` of the op
-`dimension` to it (`surface_op` in `src/frontend/indexed_parser.rs`); every
-other op is its own source spelling. One kernel module writes wire forms by hand:
+lists the operations. Every op is its own source spelling, the op `dim`
+included. One kernel module writes wire forms by hand:
 `CompatibilityProfile.lean` builds the `descriptor`, `global`, `origin`,
-`identity`, `dimension`, `compose` and `apply` forms of the compatibility
+`identity`, `dim`, `compose` and `apply` forms of the compatibility
 profile with literal `op` and field names. Lean does not check those names
-against the table. Every program of protocols 2 to 6, and every protocol-9
-request with `legacy_geometry`, resolves the profile, so a renamed `op` or
-field fails `LegacySourceRegression` and `CompatibilityProfileRegression`
-with `E_PROTOCOL`. The parser arms of
+against the table. Every request with `legacy_geometry` resolves the profile,
+so a renamed `op` or field fails `CompatibilityProfileRegression` and the
+flat programs of the Rust tests. The parser arms of
 [step 4](#4-surface-syntax-and-elaboration) and the test lists of
 [step 6](#6-tests) name every `op`, and a test of step 6 fails when one of
 them misses an `op` of the table.
 
 | Derived table | File | Reads from the family |
 | --- | --- | --- |
-| `primitive`, `familyPrimitive` and `algebraicPrimitive` | `lean-kernel/VastitasKernel/IndexedDeclarationProtocol.lean` | `op`, `fields`, `algebraic`: the decoder admits only the family's fields, decodes each by its kind, and admits an algebraic `op` only in protocol 9 |
+| `primitive` and `familyPrimitive` | `lean-kernel/VastitasKernel/IndexedDeclarationProtocol.lean` | `op`, `fields`: the decoder admits only the family's fields and decodes each by its kind |
 | `resolvePrimitive` | `lean-kernel/VastitasKernel/IndexedSourceChecker.lean` | `fields`, `resolveFirst`, `build`: the resolver checks the field names and kinds, resolves the fields in resolution order and builds the binding |
 | `FAMILIES` | `src/primitive_table.rs` | `op`, `algebraic`, `fields`, generated from `families` |
 | `primitive_family`, `Primitive::new` and `DeclarationBody::is_algebraic` | `src/indexed.rs` | `FAMILIES`: the frontend record admits only the family's fields, in wire order, and serializes them in that order |
@@ -300,7 +298,7 @@ A `PrimitiveFamily` has these fields:
 | Field | Content |
 | --- | --- |
 | `op` | The name of the operation, on the wire and in source |
-| `algebraic` | `true` when only protocol 9 admits the operation |
+| `algebraic` | `true` for the Stage 2 and later forms; the frontend reads it to decide `legacy_geometry` |
 | `fields` | The fields in wire order, each a `WireField` with a name and a kind: `path`, `objectType`, `coordinate`, `polynomial`, `pullbackMode` or `natural` |
 | `resolveFirst` | The fields that the resolver resolves before the others, in this order; `[]` when omitted |
 | `build` | The binding from the resolved arguments, in wire order |
@@ -487,8 +485,7 @@ premise excludes `descriptor`, the one allocating binding.
   `MetricFormRegression.lean`, `FrameRegression.lean` and
   `SpectralRegression.lean` run a binding
   through the source checker, the protocol decoder, the Core semantics and
-  lowering. They also check that
-  protocol 9 decodes its wire form and that protocols 7 and 8 reject it. List
+  lowering. They also check that the decoder decodes its wire form. List
   the module in `scripts/check_kernel_regressions.sh`.
 - The pinned generated code. `tests/emit_golden.rs` lists every wire
   operation in `WIRE_OPERATIONS` with the text that its lowering writes. It
@@ -506,8 +503,8 @@ premise excludes `descriptor`, the one allocating binding.
   in `src/frontend/indexed_parser.rs` parses one snippet of `SNIPPETS` per
   family, in table order, and checks its fields and its serialization. Add
   the snippet. `the_table_keeps_the_former_allow_list` in `src/indexed.rs`
-  names every operation that only protocol 9 admits and every other one. Add
-  the `op` to its list.
+  names every algebraic operation and every other one. Add the `op` to its
+  list.
 - The diagnostics of rejected calls. `tests/rejected_diagnostics.rs` runs
   `check` on each package under `tests/emit_corpus/rejected/` and compares
   the exit code and the output with the package's file under
@@ -524,7 +521,7 @@ premise excludes `descriptor`, the one allocating binding.
   `check_indexed_codegen.lean`, the fixture list of the script with its
   expected result, and the `lake build` list of the script.
 - The other Rust tests. The unit test `every_smooth_form_is_algebraic` in
-  `src/indexed.rs` covers the protocol-9 gate of the smooth forms,
+  `src/indexed.rs` covers the `algebraic` flag of the smooth forms,
   `tests/smooth_differential.rs` the source diagnostics and
   `tests/stdlib_differential.rs` the wire records. For the frame primitives,
   `every_frame_primitive_parses_to_its_wire_record` and
@@ -536,7 +533,7 @@ premise excludes `descriptor`, the one allocating binding.
   `malformed_spectral_primitives_are_rejected_at_their_place` cover the
   parser, and `tests/spectral_primitives.rs` the protocol, forged wire
   records and native execution.
-  `public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape`
+  `public_decoder_rejects_unknown_fields_in_every_captured_record_shape`
   in `tests/protocol_shape.rs` adds an unknown field to one record of each
   record shape in the example packages that it lists. A primitive that one of
   those packages declares has its wire form checked there.
@@ -560,14 +557,14 @@ A primitive is documented in four places:
   of [Primitives](../indexed-source.md#primitives) and in the inventory of
   [The indexed checker](../internals/indexed-checker.md#closed-primitive-binding-inventory)
   instead;
-- its wire operation and fields in [Wire protocols](../protocol.md): the
-  [protocol 7 table](../protocol.md#protocol-7-indexed-declarations-and-rich-package-bodies)
-  for an operation that is not algebraic, and the protocol 9
-  [algebraic affine](../protocol.md#protocol-9-algebraic-affine-forms),
-  [smooth](../protocol.md#protocol-9-smooth-forms),
-  [metric](../protocol.md#protocol-9-metric-forms),
-  [frame](../protocol.md#protocol-9-frame-forms) or
-  [spectral](../protocol.md#protocol-9-spectral-forms) forms for an algebraic
+- its wire operation and fields in [The wire protocol](../protocol.md): the
+  [table of indexed declarations](../protocol.md#indexed-declarations-and-rich-package-bodies)
+  for an operation that is not algebraic, and the
+  [algebraic affine](../protocol.md#algebraic-affine-forms),
+  [smooth](../protocol.md#smooth-forms),
+  [metric](../protocol.md#metric-forms),
+  [frame](../protocol.md#frame-forms) or
+  [spectral](../protocol.md#spectral-forms) forms for an algebraic
   one;
 - its diagnostics as rules with their codes in that Reference section. The
   row of its construct in [Appendix B](../appendix/diagnostics.md#kernel),

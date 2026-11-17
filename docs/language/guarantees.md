@@ -96,7 +96,7 @@ Rules:
 The evidence: Implemented, and Tested by the tests of the driver and of the
 kernel. Proved: a code generator of the kernel returns code only when the
 check that it repeats on its input succeeds.
-[Current public checker routes](../verification.md#current-public-checker-routes)
+[The public checker route](../verification.md#the-public-checker-route)
 names the entry points, and
 [What is outside these claims](../verification.md#what-is-outside-these-claims)
 the theorems on generation. [Appendix A](../guide/cli.md) describes the
@@ -106,11 +106,8 @@ commands.
 > of the request that the frontend sends. Before it returns code, the
 > generator of pure code checks the types of the
 > [Core](../appendix/glossary.md#core) module again, and the generator of
-> storage code audits the schedule again. For wire protocols 8 and 9 an
-> oracle theorem states that the generator receives the result of the check
-> of the same request. For protocols 2 to 7 the entry point of the kernel passes the
-> result of the check to the generator, and the oracle does not import that
-> entry point.
+> storage code audits the schedule again. An oracle theorem states that the
+> generator receives the result of the check of the same request.
 
 ## Termination
 

@@ -20,6 +20,10 @@ fn native(source: &str, expected: Run) {
 fn request(source: &str) -> Value {
     common::request(source, "forged.vast")
 }
+/// The functions of the flat unit's request.
+fn functions(request: &mut Value) -> &mut Value {
+    &mut common::flat_module(request)["functions"]
+}
 
 #[test]
 fn native_pointed_object_survives_return_unpack_and_dependent_call() {
@@ -152,23 +156,23 @@ fn malformed_ir_version_type_binding_and_literal_are_rejected() {
     value["version"] = json!(1);
     assert_rejected(value, "E_PROTOCOL");
     let mut value = original.clone();
-    value["functions"][0]["return_type"] = json!({"kind":"named", "name":"Bool"});
+    functions(&mut value)[0]["return_type"] = json!({"kind":"named", "name":"Bool"});
     assert_rejected(value, "E_MAIN");
     let mut value = original.clone();
-    value["functions"][0]["body"]["result"]["kind"] = json!("boolean");
-    value["functions"][0]["body"]["result"]["value"] = json!(true);
+    functions(&mut value)[0]["body"]["result"]["kind"] = json!("boolean");
+    functions(&mut value)[0]["body"]["result"]["value"] = json!(true);
     assert_rejected(value, "E_TYPE");
     let mut value = original.clone();
-    let result = &mut value["functions"][0]["body"]["result"];
+    let result = &mut functions(&mut value)[0]["body"]["result"];
     // Replace the record so unknown leftover integer fields do not mask the
     // intended semantic name/recursion diagnostics in these wire regressions.
     *result = json!({"kind":"variable", "name":"forged", "span":result["span"]});
     assert_rejected(value, "E_NAME");
     let mut value = original.clone();
-    value["functions"][0]["body"]["result"]["value"] = json!("1); IO.println 99");
+    functions(&mut value)[0]["body"]["result"]["value"] = json!("1); IO.println 99");
     assert_rejected(value, "E_LITERAL");
     let mut value = original;
-    value["functions"][0]["body"]["result"]["kind"] = json!("unsupported_operation");
+    functions(&mut value)[0]["body"]["result"]["kind"] = json!("unsupported_operation");
     assert_rejected(value, "E_PROTOCOL");
 }
 
@@ -177,10 +181,10 @@ fn backend_checks_forged_endpoint_annotations_and_recursion() {
     let mut value = request(
         "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p: Point<X, Base(QQ)> = origin(X); 0 }",
     );
-    value["functions"][0]["body"]["statements"][2]["annotation"]["target"]["name"] = json!("Y");
+    functions(&mut value)[0]["body"]["statements"][2]["annotation"]["target"]["name"] = json!("Y");
     assert_rejected(value, "E_TYPE");
     let mut value = request("fn main() -> Int { 1 }");
-    value["functions"][0]["body"]["result"] = json!({"kind":"call", "callee":"main", "args":[], "span":{"start":0,"end":1,"line":1,"column":1}});
+    functions(&mut value)[0]["body"]["result"] = json!({"kind":"call", "callee":"main", "args":[], "span":{"start":0,"end":1,"line":1,"column":1}});
     assert_rejected(value, "E_RECURSION");
 }
 
@@ -294,14 +298,19 @@ fn recursion_diagnostics_identify_the_cycle_not_its_caller() {
 
     let mut forged =
         request("fn main() -> Int { a() }\nfn a() -> Int { b() }\nfn b() -> Int { 0 }");
-    let result = &mut forged["functions"][2]["body"]["result"];
+    let result = &mut functions(&mut forged)[2]["body"]["result"];
     *result = json!({"kind":"call", "callee":"a", "args":[], "span":result["span"]});
     let response = assert_rejected(forged, "E_RECURSION");
     let diagnostic = &response["diagnostics"][0];
     assert_eq!(diagnostic["span"]["line"], 2);
     assert_eq!(diagnostic["span"]["column"], 1);
+    // The kernel names the functions of a flat unit by their path in its
+    // package, which the driver shows without the package.
     let message = diagnostic["message"].as_str().unwrap();
-    assert!(message.contains("`a` → `b` → `a`"), "{message}");
+    assert!(
+        message.contains("`legacy_flat::a` → `legacy_flat::b` → `legacy_flat::a`"),
+        "{message}"
+    );
     assert!(!message.contains("main"), "{message}");
 }
 
@@ -314,7 +323,7 @@ fn shared_and_repeated_dependencies_have_a_valid_native_order() {
     let mut forged = request(
         "fn main() -> Int { 0 }\nfn unused_a() -> Int { unused_b() }\nfn unused_b() -> Int { 1 }",
     );
-    let result = &mut forged["functions"][2]["body"]["result"];
+    let result = &mut functions(&mut forged)[2]["body"]["result"];
     *result = json!({"kind":"call", "callee":"unused_a", "args":[], "span":result["span"]});
     assert_rejected(forged, "E_RECURSION");
 }

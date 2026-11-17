@@ -5,7 +5,8 @@ import Std.Data.HashSet.Lemmas
 /-! Structural acceptance for the actual internal Fn adapter. These theorems
 refer to its distinct signature-audit and executable passes and the exact Core
 returned by each. They do not prove source operational correspondence, typed
-termination, native refinement, finite dispatch/edit composition or protocol 7. -/
+termination, native refinement, finite dispatch/edit composition or public
+acceptance. -/
 namespace VastitasOracle.IndexedFunctions
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.FunctionSource
 open FunctionSource.Compiler

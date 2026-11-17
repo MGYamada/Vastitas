@@ -183,7 +183,7 @@ describes how the checker counts instances and units of work.
 [Generic declarations](../stage1a.md#generic-declarations),
 [Selection](../stage1a.md#selection) and
 [Abstract types](../stage1a.md#abstract-types) state the rules.
-[Protocol 2](../protocol.md#protocol-2-flat-requests) says how the kernel
+[Declarations, types and expressions](../protocol.md#declarations-types-and-expressions) says how the kernel
 counts the units of `dispatchWork`.
 
 ## Names
@@ -197,7 +197,7 @@ counts the units of `dispatchWork`.
 [Diagnostics without a place of their own](../language/diagnostics.md#diagnostics-without-a-place-of-their-own)
 gives the place of the diagnostic for `namespaceProgramWork`.
 [Resolution](../language/names-and-paths.md#resolution) states the rule, and
-[Protocol 3](../protocol.md#protocol-3-package-namespaces) says how the
+[Package namespaces](../protocol.md#package-namespaces) says how the
 kernel counts the units of the three limits.
 
 ## Edit authority
@@ -217,7 +217,7 @@ applies at 1024 keys, the program is beyond it.
 [Assemblies](../language/edit-authority.md#assemblies) and
 [Contributions](../language/edit-authority.md#contributions) state the
 rules, and
-[Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) says how
+[Scoped edits and assembly](../protocol.md#scoped-edits-and-assembly) says how
 the kernel counts the events, the methods and the units of the audit.
 
 ## Indexed declarations

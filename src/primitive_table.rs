@@ -5,8 +5,8 @@
 
 use crate::indexed::{PrimitiveFamily, WireKind};
 
-/// One family per wire `op`, in the kernel's order: whether only protocol 9
-/// has it, and its fields in wire order.
+/// One family per wire `op`, in the kernel's order: whether it is one of the
+/// Stage 2 and later forms, and its fields in wire order.
 pub(crate) const FAMILIES: &[PrimitiveFamily] = &[
     PrimitiveFamily {
         op: "descriptor",
@@ -36,7 +36,7 @@ pub(crate) const FAMILIES: &[PrimitiveFamily] = &[
         ],
     },
     PrimitiveFamily {
-        op: "dimension",
+        op: "dim",
         algebraic: false,
         fields: &[("domain", WireKind::ObjectType)],
     },

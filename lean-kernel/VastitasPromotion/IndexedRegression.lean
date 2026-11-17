@@ -1,5 +1,4 @@
 import VastitasPromotion.IndexedFixture
-import VastitasKernel.IndexedProtocol
 import VastitasKernel.IndexedCodegen
 
 /-! Public JSON acceptance and numerical policy regressions for the real
@@ -32,7 +31,13 @@ def numericalContract (module : Indexed.Core.Module) : Bool :=
 
 private def values (object : Json) (name : String) : Array Json :=
   (object.getObjValAs? (Array Json) name).toOption.getD #[]
-private def span : Json := (values json "methods")[0]!.getObjVal? "span" |>.toOption.getD .null
+/-- The root module of the fixture's one package: the flat unit. -/
+private def unit : Json := (values (values json "packages")[0]! "modules")[0]!
+/-- The fixture with its root module changed by `edit`. -/
+private def changeUnit (edit : Json → Json) : Json :=
+  json.setObjVal! "packages" (toJson ((values json "packages").modify 0 fun pkg =>
+    pkg.setObjVal! "modules" (toJson ((values pkg "modules").modify 0 edit))))
+private def span : Json := (values unit "methods")[0]!.getObjVal? "span" |>.toOption.getD .null
 private def named (name : String) : Json := Json.mkObj [("kind", toJson "named"), ("name", toJson name)]
 private def integer (value : String) : Json := Json.mkObj [
   ("kind", toJson "integer"), ("value", toJson value), ("span", span)]
@@ -43,21 +48,18 @@ private def call (name : String) (args : List Json) : Json := Json.mkObj [
 private def block (result : Json) : Json := Json.mkObj [
   ("statements", toJson ([] : List Json)), ("result", result), ("span", span)]
 private def changeMethod (index : Nat) (edit : Json → Json) : Json :=
-  json.setObjVal! "methods" (toJson ((values json "methods").modify index edit))
+  changeUnit fun m => m.setObjVal! "methods" (toJson ((values m "methods").modify index edit))
 
-private def package (version : Nat) : Json :=
-  let publish (item : Json) := item.setObjVal! "public" (toJson true)
-  Json.mkObj ([
-    ("version", toJson version), ("file", toJson "promotion-fixture"),
-    ("root", toJson "/stdlib/Vastitas.toml"), ("packages", toJson [Json.mkObj [
-      ("source", toJson "/stdlib/Vastitas.toml"), ("name", toJson "vastitas_std"),
-      ("version", toJson "0.1.0"), ("dependencies", toJson ([] : List Json)),
-      ("modules", toJson [Json.mkObj [
-        ("path", toJson ([] : List String)), ("public", toJson true), ("span", span),
-        ("imports", toJson ([] : List Json)), ("functions", toJson ((values json "functions").map publish)),
-        ("generics", toJson ((values json "generics").map publish)),
-        ("methods", toJson (values json "methods"))]])]])] ++
-    if version == 3 then [] else [("input", toJson "package")])
+/-- The executable Core module of `input` through the public checker. -/
+private def executableModule (input : Json) : Except Diagnostic Indexed.Core.Module := do
+  return (← ResourceSource.Wire.check input false).checked.pureProgram.executable.core.module
+
+/-- The executable Core of `input`, with `main`, through the public checker. -/
+private def entryCore (input : Json) : Except Diagnostic (Typing.CheckedModule true) := do
+  let accepted ← ResourceSource.Wire.check input true
+  if entry : accepted.input.entry = none then
+    return (by simpa [entry] using accepted.checked.pureProgram.executable.core)
+  else throw { code := "E_TEST", message := "the stdlib fixture unexpectedly has a resource entry" }
 
 #eval show IO Unit from do
   let .ok actual := acceptance | throw (IO.userError "public stdlib fixture rejected")
@@ -68,21 +70,14 @@ private def package (version : Nat) : Json :=
     for (key, winner) in [[0, 0], [0, 1], [1, 0], [1, 1]].zip winners do
       checkCase "public checked family selects the actual method" (family.checked.winner key == some winner)
   checkCase "all public families accounted for" (actual.checked.pureProgram.authority.headers.assembled.families.length == 3)
-  -- old-route(#533): the routes of protocols 2 to 7 retire at the cutover.
-  for input in [json, (json.setObjVal! "version" (toJson (4 : Nat))).setObjVal! "input" (toJson "flat"),
-      package 3, package 4, package 5, package 6] do
-    let .ok accepted := Indexed.LegacySource.check input false
-      | throw (IO.userError "public compatibility route rejected the stdlib")
-    checkCase "public library route numerical contract" (numericalContract accepted.checked.executable.core.module)
-  let .ok accepted := Indexed.Wire.check (package 7) false
-    | throw (IO.userError "public indexed wire rejected the stdlib")
-  checkCase "protocol 7 numerical contract" (numericalContract accepted.checked.executable.core.module)
   let entry := Json.mkObj [("name", toJson "main"), ("params", toJson ([] : List Json)),
-    ("return_type", named "Int"), ("body", block (call "add" [integer "20", integer "22"])), ("span", span)]
-  let executable := json.setObjVal! "functions" (toJson ((values json "functions").push entry))
-  let .ok emitted := Indexed.LegacySource.check executable true
+    ("return_type", named "Int"), ("body", block (call "add" [integer "20", integer "22"])),
+    ("public", toJson true), ("span", span)]
+  let executable := changeUnit fun m => m.setObjVal! "functions" (toJson ((values m "functions").push entry))
+  let .ok core := entryCore executable
     | throw (IO.userError "public stdlib entry rejected")
-  let generated := Indexed.Core.Codegen.generate emitted.checked.executable.core
+  checkCase "public entry numerical contract" (numericalContract core.module)
+  let generated := Indexed.Core.Codegen.generate core
   checkCase "actual returned executable Core reaches codegen" generated.isOk
 
 private def forgedCall : Indexed.Core.Module := { checked with functions := checked.functions.map fun f =>
@@ -100,18 +95,18 @@ private def badPolicy := changeMethod 0 fun m =>
 
 #eval show IO Unit from do
   for (label, input) in [("value-changing", badValues), ("wrong same-type policy", badPolicy)] do
-    let .ok accepted := Indexed.LegacySource.check input false
+    let .ok module := executableModule input
       | throw (IO.userError s!"{label} must remain legal ordinary code")
-    checkCase s!"{label} violates stdlib numerical policy" (!numericalContract accepted.checked.executable.core.module)
+    checkCase s!"{label} violates stdlib numerical policy" (!numericalContract module)
   for (input, code) in [
       (changeMethod 1 (fun m => m.setObjVal! "owner" (toJson "forged")), "E_PROTOCOL"),
       (changeMethod 1 (fun m => m.setObjVal! "body" (block (call "absent" [integer "0"]))), "E_NAME"),
       (changeMethod 1 (fun m => m.setObjVal! "return_type" (named "Bool")), "E_TYPE"),
       (changeMethod 1 (fun m => m.setObjVal! "body" (block ((integer "0").setObjVal! "checked" (toJson true)))), "E_PROTOCOL")] do
-    match Indexed.LegacySource.check input false with
+    match ResourceSource.Wire.check input false with
     | .ok _ => throw (IO.userError "public raw method metadata/body forgery accepted")
     | .error diagnostic =>
         checkCase s!"public forgery rejected with {code}: {diagnostic.message}" (diagnostic.code == code)
-  IO.println "public promotion: exact Core, all legacy protocols and protocol 7, checked winners, native emission, two accepted policy mutations and five rejected forgeries passed"
+  IO.println "public promotion: exact Core, checked winners, native emission, two accepted policy mutations and five rejected forgeries passed"
 
 end VastitasKernel.IndexedPromotionRegression

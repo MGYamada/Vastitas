@@ -65,11 +65,10 @@ def dataType (j : Json) : Except String Source.DataType := do
     return .application (← path (← field j "family")) (← (← array j "arguments").mapM typeArgument)
   | _ => throw "expected an indexed object/application or pure data type"
 
-/-- A Fn signature. Its data components are decoded with the kinds that
-protocols 2 to 6 decode there, scalars or not; a signature with a component
-other than a scalar is an error of the checked program (`E_TYPE`, see
-`ResourceSource.invalidSignature?`), as in protocols 2 to 6 (#533). Indexed
-types are no Fn components on any protocol. -/
+/-- A Fn signature. Its data components are decoded with every data kind,
+scalars or not; a signature with a component other than a scalar is an error
+of the checked program (`E_TYPE`, see `ResourceSource.invalidSignature?`,
+#533). Indexed types are no Fn components. -/
 def callableType : Nat → Json → Except String Surface.TypeExpr
   | 0, _ => throw "IR type nesting exceeds the supported limit"
   | fuel + 1, j => do

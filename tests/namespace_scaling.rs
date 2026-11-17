@@ -143,32 +143,25 @@ fn alias_heavy_indexed(count: usize) -> String {
     program
 }
 
-// #533: protocol 9 runs the pure passes of a program without resource
-// functions once, as protocol 7 does, and charges them once. Near the
-// program-wide namespace budget both accept the same indexed program and
-// reject the next larger one: 12 of these functions fit and 13 do not. Before
-// the passes ran once on protocol 9, it accepted only 7 of them.
-// old-route(#533): the frontend wrote these programs as protocol 7 before
-// #533 round 1; the request at protocol 7 retires at the cutover.
+// #533: the kernel runs the pure passes of a program without resource
+// functions once and charges them once. Near the program-wide namespace
+// budget it accepts this indexed program with 12 of these functions and
+// rejects it with 13.
 #[test]
-fn indexed_programs_have_the_same_namespace_budget_on_protocols_seven_and_nine() {
+fn indexed_programs_charge_their_pure_passes_once_in_the_namespace_budget() {
     for (count, accepted) in [(12, true), (13, false)] {
-        let raw = fixture(&alias_heavy_indexed(count))
+        let request = fixture(&alias_heavy_indexed(count))
             .captured("Vastitas.toml", common::CURRENT_PROTOCOL);
-        for version in [7, common::CURRENT_PROTOCOL] {
-            let mut request = raw.clone();
-            request["version"] = serde_json::json!(version);
-            let response = common::kernel(&request, "check");
-            if accepted {
-                assert_eq!(response["ok"], true, "{count} on {version}: {response}");
-            } else {
-                common::assert_wire_rejected(&response, "E_LIMIT");
-                let message = response["diagnostics"][0]["message"].as_str().unwrap();
-                assert!(
-                    message.contains("program-wide namespace resolution"),
-                    "{count} on {version}: {message}"
-                );
-            }
+        let response = common::kernel(&request, "check");
+        if accepted {
+            assert_eq!(response["ok"], true, "{count}: {response}");
+        } else {
+            common::assert_wire_rejected(&response, "E_LIMIT");
+            let message = response["diagnostics"][0]["message"].as_str().unwrap();
+            assert!(
+                message.contains("program-wide namespace resolution"),
+                "{count}: {message}"
+            );
         }
     }
 }

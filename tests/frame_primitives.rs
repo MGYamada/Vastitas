@@ -1,8 +1,8 @@
-//! The frame primitives of Stage 4 (#759) through the public protocol-9
-//! source path, with the emit corpus program `tests/emit_corpus/frame-primitives`.
-//! The frontend parses each form into the binding that the kernel decodes;
-//! these tests capture the wire, check the protocol it selects and submit it
-//! to the kernel, which checks the frame bindings and runs the program.
+//! The frame primitives of Stage 4 (#759) through the public source path,
+//! with the emit corpus program `tests/emit_corpus/frame-primitives`. The
+//! frontend parses each form into the binding that the kernel decodes; these
+//! tests capture the wire and submit it to the kernel, which checks the frame
+//! bindings and runs the program.
 mod common;
 use common::{Scratch, assert_wire_rejected, cli, kernel, success};
 use serde_json::{Value, json};
@@ -17,7 +17,7 @@ fn package() -> Scratch {
     s
 }
 
-/// The wire that the frontend sends for the program; it must use protocol 9.
+/// The wire that the frontend sends for the program.
 fn request(s: &Scratch) -> Value {
     s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
@@ -40,11 +40,9 @@ fn binding_pointer(raw: &Value, name: &str) -> String {
     format!("/packages/0/modules/0/indexed_declarations/{index}/binding")
 }
 
-/// The frame primitives select protocol 9, and only there do they decode:
-/// the kernel accepts the program under protocol 9, and protocols 7 and 8
-/// reject it with `E_PROTOCOL`.
+/// The program declares every frame primitive, and the kernel accepts it.
 #[test]
-fn frame_primitives_select_protocol_nine_and_decode_only_there() {
+fn frame_primitives_decode_and_the_kernel_accepts_them() {
     let raw = request(&package());
     let frame_ops: Vec<&str> = vastitas::indexed::primitive_families()
         .iter()
@@ -63,12 +61,6 @@ fn frame_primitives_select_protocol_nine_and_decode_only_there() {
     }
     let response = kernel(&raw, "check");
     assert_eq!(response["ok"], true, "{response}");
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut older = raw.clone();
-        older["version"] = json!(version);
-        assert_wire_rejected(&kernel(older, "emit"), "E_PROTOCOL");
-    }
 }
 
 /// A natural field is an unsigned decimal string of at most 64 digits on the

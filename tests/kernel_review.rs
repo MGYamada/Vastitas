@@ -184,9 +184,9 @@ fn wire_numbers_duplicate_keys_nesting_and_encoding_fail_closed() {
         "significant digits",
     );
     for input in [
-        r#"{"version":2,"version":9}"#,
-        r#"{"version":9,"version":2}"#,
-        r#"{"version":9,"version":2}"#,
+        r#"{"version":9,"version":10}"#,
+        r#"{"version":10,"version":9}"#,
+        r#"{"version":10,"version":10}"#,
     ] {
         assert_protocol(
             &raw_kernel(input.into()),
@@ -430,8 +430,8 @@ fn generated_code_at_the_source_check_bounds_builds() {
     assert_eq!(ran(&output), exits(3907 % 256));
 }
 
-/// Protocol-2 IR beyond the frontend's parser nesting: `depth` nested
-/// branches around a chain of `lets` dependent lets.
+/// The request of a flat unit beyond the frontend's parser nesting: `depth`
+/// nested branches around a chain of `lets` dependent lets in `main`.
 fn nested_ir(depth: usize, lets: usize) -> Value {
     let span = json!({"start": 0, "end": 1, "line": 1, "column": 1});
     let integer =
@@ -456,10 +456,12 @@ fn nested_ir(depth: usize, lets: usize) -> Value {
             "then_branch": then, "else_branch": {"statements": [], "result": integer(1), "span": span},
             "span": span});
     }
-    json!({"version": 2, "file": "bounds.vast", "generics": [], "methods": [],
-        "functions": [{"name": "main", "params": [], "return_type": {"kind": "named", "name": "Int"},
-            "body": {"statements": inner.unwrap_or_default(), "result": result, "span": span},
-            "span": span}]})
+    let mut request = common::request("fn main() -> Int { 0 }", "bounds.vast");
+    common::flat_module(&mut request)["functions"] = json!([{"name": "main", "params": [],
+        "return_type": {"kind": "named", "name": "Int"},
+        "body": {"statements": inner.unwrap_or_default(), "result": result, "span": span},
+        "span": span, "public": true}]);
+    request
 }
 
 #[test]
@@ -560,8 +562,8 @@ fn authority_trace_audit_is_budgeted() {
 
 /// An assembly of `events` events: owner applications of one contribution,
 /// then the seal. Applying a contribution again is valid, so the programs
-/// differ only in the number of events. An unused grant to a submodule
-/// selects the protocol with named recipients.
+/// differ only in the number of events. An unused grant to a submodule makes
+/// a request without `legacy_geometry`.
 fn repeated_applications(events: usize, grant: bool) -> String {
     let grant = if grant {
         "pub grant spare : g to review::a { domain (Int); }\npub mod a {}\n"
@@ -582,8 +584,8 @@ fn assembly_event_limit_is_reported_at_the_assembly() {
     let limits: Value =
         serde_json::from_str(include_str!("../lean-kernel/compiler-limits.json")).unwrap();
     let limit = limits["assemblyEvents"].as_u64().unwrap() as usize;
-    // The program without a grant, which the frontend wrote as the edit
-    // protocol 5 before #533 round 2, and the one with a grant share the bound.
+    // The program without a grant, whose request has `legacy_geometry`, and
+    // the one with a grant share the bound.
     for grant in [false, true] {
         let largest = package(&repeated_applications(limit, grant));
         success(&check(&largest));
@@ -602,29 +604,19 @@ fn assembly_event_limit_is_reported_at_the_assembly() {
         // The kernel keeps its bound for a request that no frontend sends.
         let raw = captured(&manifest(&largest), common::CURRENT_PROTOCOL);
         assert_eq!(raw.get("legacy_geometry").is_some(), !grant, "{raw}");
-        let mut requests = vec![raw.clone()];
-        if !grant {
-            // old-route(#533): the same request at the edit protocol 5.
-            let mut five = raw.clone();
-            five["version"] = json!(5);
-            five.as_object_mut().unwrap().remove("legacy_geometry");
-            requests.push(five);
-        }
-        for raw in requests {
-            assert_eq!(kernel(&raw, "check")["ok"], true);
-            let mut forged = raw.clone();
-            let events = forged["packages"][0]["modules"]
-                .as_array_mut()
-                .unwrap()
-                .iter_mut()
-                .find_map(|module| module.get_mut("assembly"))
-                .unwrap()["events"]
-                .as_array_mut()
-                .unwrap();
-            assert_eq!(events.len(), limit);
-            events.insert(0, events[0].clone());
-            assert_protocol(&kernel(&forged, "check"), "assembly event limit exceeded");
-        }
+        assert_eq!(kernel(&raw, "check")["ok"], true);
+        let mut forged = raw.clone();
+        let events = forged["packages"][0]["modules"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find_map(|module| module.get_mut("assembly"))
+            .unwrap()["events"]
+            .as_array_mut()
+            .unwrap();
+        assert_eq!(events.len(), limit);
+        events.insert(0, events[0].clone());
+        assert_protocol(&kernel(&forged, "check"), "assembly event limit exceeded");
     }
 }
 

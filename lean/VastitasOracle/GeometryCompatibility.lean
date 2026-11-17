@@ -1,9 +1,11 @@
-import VastitasOracle.IndexedWire
+import VastitasKernel.ResourceProtocol
+import VastitasOracle.IndexedAuthority
 import VastitasOracle.IndexedSource
 
 /-! Structural guarantees for the explicit legacy syntax export, on the same
-declarations accepted by the public checker. These are not whole-source
-evaluation, general geometric mathematics or native-toolchain refinement. -/
+declarations accepted by the public checker `ResourceSource.Wire.check`. These
+are not whole-source evaluation, general geometric mathematics or
+native-toolchain refinement. -/
 namespace VastitasOracle.GeometryCompatibility
 open VastitasKernel VastitasKernel.Indexed
 
@@ -67,25 +69,30 @@ theorem lowered_profile {program : Source.Program} {resolved : Source.Resolved}
   cases lowered
   exact ⟨_, by assumption⟩
 
-theorem compiler_uses_checked_profile {json : Lean.Json} (accepted : Wire.CheckedInput json requireMain) :
-    accepted.checked.compiler.input.body.geometry =
-      accepted.checked.authority.headers.declarations.resolved.geometry := by
-  obtain ⟨leftRefs, left⟩ := prepared_profile accepted.checked.prepareFrom
-  obtain ⟨rightRefs, right⟩ := lowered_profile accepted.checked.authority.headers.declarations.lowered
+/-- The compiler of the accepted request's pure program uses the profile that
+its declarations selected. -/
+theorem compiler_uses_checked_profile {json : Lean.Json}
+    (input : ResourceSource.Wire.CheckedInput json requireMain) :
+    input.checked.pureProgram.compiler.input.body.geometry =
+      input.checked.pureProgram.authority.headers.declarations.resolved.geometry := by
+  obtain ⟨leftRefs, left⟩ := prepared_profile input.checked.pureProgram.prepareFrom
+  obtain ⟨rightRefs, right⟩ := lowered_profile input.checked.pureProgram.authority.headers.declarations.lowered
   rw [left] at right
   exact (Prod.mk.inj (Except.ok.inj right)).1
 
-/-- This declaration certificate belongs to the exact decoded protocol-7 input
-and the actual authority/Fn/dispatch checker result, not a parallel model. -/
-theorem wire_profile {json : Lean.Json} (accepted : Wire.CheckedInput json requireMain)
+/-- This declaration certificate belongs to the exact decoded request and the
+actual authority/Fn/dispatch checker result of its pure program, not a
+parallel model. -/
+theorem wire_profile {json : Lean.Json} (input : ResourceSource.Wire.CheckedInput json requireMain)
     (profile : GeometryProfile DeclId)
-    (selected : accepted.checked.authority.headers.declarations.resolved.geometry = some profile) :
-    Wire.program json = .ok accepted.source ∧
-    AuthoritySource.checkProgram accepted.source requireMain = .ok accepted.checked ∧
-    profile.valid accepted.checked.authority.headers.declarations.resolved.declarations = true ∧
-    Core.Typing.ModuleTyped accepted.checked.executable.lowered.module := by
-  exact ⟨accepted.decoded, accepted.accepted,
-    (checked_profile accepted.checked.authority.headers.declarations profile selected).2,
-    (IndexedWire.checked_cores accepted).2.1⟩
+    (selected : input.checked.pureProgram.authority.headers.declarations.resolved.geometry = some profile) :
+    ResourceSource.Wire.program json = .ok input.input ∧
+    AuthoritySource.checkProgram input.input.pureProgram (requireMain && input.input.entry.isNone) =
+      .ok input.checked.pureProgram ∧
+    profile.valid input.checked.pureProgram.authority.headers.declarations.resolved.declarations = true ∧
+    Core.Typing.ModuleTyped input.checked.pureProgram.executable.lowered.module := by
+  exact ⟨input.decoded, input.checked.pureAccepted,
+    (checked_profile input.checked.pureProgram.authority.headers.declarations profile selected).2,
+    (IndexedAuthority.both_passes input.checked.pureProgram).2.1⟩
 
 end VastitasOracle.GeometryCompatibility

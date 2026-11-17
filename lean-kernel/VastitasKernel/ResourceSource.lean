@@ -5,8 +5,8 @@ import VastitasKernel.CompatibilityProfile
 
 /-! Unresolved resource functions in the same package namespace as pure indexed
 functions, dispatch and edit authority. No owner, local symbol or callee ID is
-accepted from source. Public protocol 8 supplies the strict decoder and native
-entry boundary. Static dimensions remain separate from runtime scalar value
+accepted from source. The public wire (`ResourceProtocol`) supplies the strict
+decoder and native entry boundary. Static dimensions remain separate from runtime scalar value
 flow; every pure fragment is reconstructed with its actual owner and position. -/
 namespace VastitasKernel.ResourceSource
 open Storage
@@ -153,8 +153,8 @@ structure Module where
   pureModule : Indexed.DispatchSource.Module
   functions : List Function
   /-- The `show!` observations of pure functions of the module, by function
-  name (#836). Only protocol 9 carries them, and only the entry point `main`
-  may have them (`checkObservations`). -/
+  name (#836). Only the entry point `main` may have them
+  (`checkObservations`). -/
   observations : List (String × List Indexed.Core.Observation) := []
   deriving Repr, Inhabited
 
@@ -169,11 +169,10 @@ structure Program where
   file : String
   root : String
   packages : List Package
-  /-- The optional field `legacy_geometry` of a protocol-9 request (#533): the
-  checked program ends with the kernel's compatibility profile of the legacy
-  geometry (`CompatibilityProfile.profilePackage`), as every program of
-  protocols 2 to 6 does (`LegacySource.adapt`). The profile is no package of
-  the request: `packages` are the request's packages alone. -/
+  /-- The optional field `legacy_geometry` of a request (#533): the checked
+  program ends with the kernel's compatibility profile of the legacy geometry
+  (`CompatibilityProfile.profilePackage`). The profile is no package of the
+  request: `packages` are the request's packages alone. -/
   legacyGeometry : Bool := false
   deriving Repr, Inhabited
 
@@ -197,8 +196,7 @@ def Program.pureProgram (program : Program) : Indexed.DispatchSource.Program := 
     program.profile }
 
 /-- The namespace of the request alone: that of the pure program without the
-compatibility profile, which is not in the request. Protocols 2 to 6 validate
-this namespace before they add the profile (`LegacySource.adapt`). The price of
+compatibility profile, which is not in the request. The price of
 a request (`Namespace.priceInput`) reads its namespace only for the imports of
 its modules, and the profile has none and is no dependency, so the price is
 the same in this namespace and in that of the pure program. -/
@@ -830,10 +828,9 @@ private def invalidResource : Nat → List Statement → Option Span
     | _ => none
 
 /-- The place of the first Fn signature of the program with a data component
-other than a scalar, in the order in which `LegacySource.adapt` converts a
-program of protocols 2 to 6: by package and module, the functions (their
-parameters, result and body), the methods and the contributions, and then the
-pure blocks of the resource functions. -/
+other than a scalar, in source order: by package and module, the functions
+(their parameters, result and body), the methods and the contributions, and
+then the pure blocks of the resource functions. -/
 def Program.invalidSignature? (program : Program) : Option Span :=
   program.packages.findSome? fun pkg => pkg.modules.findSome? fun m =>
     m.pureModule.functions.findSome? invalidFunction <|>
@@ -855,8 +852,8 @@ def envelope (program : Program) : Namespace.Result Unit := do
   if let some entry := program.entry then
     let some (_, function) := program.owned[entry]? | Namespace.problem {} "E_MAIN" "missing resource main"
     unless function.valueType == .int do Namespace.problem function.span "E_MAIN" "resource main must return Int"
-  -- Protocols 2 to 6 reject such a signature, at its place, after they
-  -- validate the namespace of the request (#533).
+  -- Such a signature is rejected at its place, after the namespace of the
+  -- request validates (#533).
   if let some span := program.invalidSignature? then
     Namespace.validate program.requestNamespace
     Namespace.problem span "E_TYPE" "Fn signatures contain only scalars and recursive Fn types"

@@ -2,8 +2,8 @@ import VastitasKernel.Identity
 import VastitasKernel.AlgebraDeclarations
 import VastitasKernel.SmoothDeclarations
 
-/-! Finite declaration and index foundations used by public protocol 7 through
-`Indexed.Wire.check`, and by the protocol-8 resource composition.
+/-! Finite declaration and index foundations of the public checker
+`ResourceSource.Wire.check` and its resource composition.
 Names select declarations; they never select a representation or capability.
 This module holds the data model and its views; the validity of each entry
 and of the whole environment is in `IndexedValidity`. -/

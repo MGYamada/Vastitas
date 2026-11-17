@@ -1,6 +1,6 @@
 //! Stage 1a source declarations must be independently resolved by the Lean kernel.
 mod common;
-use common::{Run, Scratch, cli, exits, root, shows, success};
+use common::{Run, Scratch, cli, exits, flat_module, root, shows, success};
 use serde_json::{Value, json};
 use std::fs;
 use std::path::PathBuf;
@@ -30,7 +30,7 @@ fn kernel(request: Value) -> Value {
 }
 
 fn assert_rejected(request: Value, code: &str) {
-    let expected_version = request["version"].as_u64().unwrap_or(2);
+    let expected_version = request["version"].clone();
     let response = common::assert_rejected(request, code);
     assert_eq!(response["version"], expected_version, "{response}");
 }
@@ -380,18 +380,20 @@ method pick(x: Bool) -> Int requires (HasEq) { 42 }
 fn main() -> Int { pick(true) }",
     );
     assert_eq!(kernel(valid.clone())["ok"], true);
-    let mut old_protocol = valid.clone();
-    old_protocol["version"] = json!(1);
-    assert_rejected(old_protocol, "E_PROTOCOL");
+    let mut other_protocol = valid.clone();
+    other_protocol["version"] = json!(1);
+    assert_rejected(other_protocol, "E_PROTOCOL");
 
     let mut forged_facts = valid;
-    forged_facts["methods"][0]["requires"] = json!(["HasOrder"]);
-    forged_facts["capabilities"] = json!({"Bool": ["HasEq", "HasOrder"]});
-    // The v2 envelope may retain an untrusted hint, but it cannot establish
-    // facts. Unknown nested evidence is rejected by the stricter wire schema.
+    flat_module(&mut forged_facts)["methods"][0]["requires"] = json!(["HasOrder"]);
     assert_rejected(forged_facts.clone(), "E_CAPABILITY");
-    forged_facts["generics"][0]["available_capabilities"] = json!(["HasOrder"]);
-    forged_facts["methods"][0]["capability_evidence"] = json!({"HasOrder": true});
+    // No field can claim a capability: a claimed fact, at the top of the
+    // request or as nested evidence, is an unknown field.
+    let mut claimed = forged_facts.clone();
+    claimed["capabilities"] = json!({"Bool": ["HasEq", "HasOrder"]});
+    assert_rejected(claimed, "E_PROTOCOL");
+    flat_module(&mut forged_facts)["generics"][0]["available_capabilities"] = json!(["HasOrder"]);
+    flat_module(&mut forged_facts)["methods"][0]["capability_evidence"] = json!({"HasOrder": true});
     assert_rejected(forged_facts, "E_PROTOCOL");
 
     let mut ambiguous = request(
@@ -400,10 +402,13 @@ method cross(x: Number) -> Int { 1 }
 method cross(x: Any) -> Int requires (HasOrder) { 2 }
 fn main() -> Int { cross(0) }",
     );
-    ambiguous["dispatch_certificate"] = json!({"coherent": true, "covered": true});
     assert_rejected(ambiguous.clone(), "E_DISPATCH_AMBIGUOUS");
-    ambiguous["generics"][0]["selected_method"] = json!(0);
-    ambiguous["functions"][0]["body"]["result"]["candidate"] = json!(0);
+    // A claimed certificate or selection is an unknown field.
+    let mut certified = ambiguous.clone();
+    certified["dispatch_certificate"] = json!({"coherent": true, "covered": true});
+    assert_rejected(certified, "E_PROTOCOL");
+    flat_module(&mut ambiguous)["generics"][0]["selected_method"] = json!(0);
+    flat_module(&mut ambiguous)["functions"][0]["body"]["result"]["candidate"] = json!(0);
     assert_rejected(ambiguous, "E_PROTOCOL");
 }
 
@@ -414,20 +419,26 @@ fn forged_private_names_and_dispatch_types_are_independently_rejected() {
 method pick(x: Int) -> Int { x }
 fn main() -> Int { pick(42) }",
     );
+    // No source declaration has a reserved name, so a call or a variable of
+    // one does not resolve; a binder of one is reserved.
     let mut private_call = valid.clone();
-    private_call["functions"][0]["body"]["result"]["callee"] = json!("__vastitas_method_0_0");
-    assert_rejected(private_call, "E_RESERVED");
+    flat_module(&mut private_call)["functions"][0]["body"]["result"]["callee"] =
+        json!("__vastitas_method_0_0");
+    assert_rejected(private_call, "E_NAME");
     let mut private_binding = valid.clone();
-    private_binding["methods"][0]["params"][0]["name"] = json!("__vastitas_parameter");
+    flat_module(&mut private_binding)["methods"][0]["params"][0]["name"] =
+        json!("__vastitas_parameter");
     assert_rejected(private_binding, "E_RESERVED");
     let mut private_variable = valid.clone();
-    private_variable["methods"][0]["body"]["result"]["name"] = json!("__vastitas_parameter");
-    assert_rejected(private_variable, "E_RESERVED");
+    flat_module(&mut private_variable)["methods"][0]["body"]["result"]["name"] =
+        json!("__vastitas_parameter");
+    assert_rejected(private_variable, "E_NAME");
 
     let mut invalid_domain = valid.clone();
-    invalid_domain["generics"][0]["domain"][0][0]["name"] = json!("Number");
+    flat_module(&mut invalid_domain)["generics"][0]["domain"][0][0]["name"] = json!("Number");
     assert_rejected(invalid_domain, "E_TYPE");
     let mut invalid_selector = valid;
-    invalid_selector["methods"][0]["params"][0]["ty"]["name"] = json!("Scheme");
-    assert_rejected(invalid_selector, "E_TYPE");
+    // `Scheme` is no scalar selector, and the module declares no such name.
+    flat_module(&mut invalid_selector)["methods"][0]["params"][0]["ty"]["name"] = json!("Scheme");
+    assert_rejected(invalid_selector, "E_NAME");
 }

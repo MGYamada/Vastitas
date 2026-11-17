@@ -225,10 +225,13 @@ can track a newer revision. Inspecting these definitions is not a Lean build.
 
 At the inspected main commit `f56edd4be0010312c24a13bd66a6e43521638a19`,
 `VastitasKernel.Indexed.Core.Term` has no infinite-sequence/Hilbert constructor.
-For protocol 7, an actual `Wire.CheckedInput json requireMain` retains
-`accepted.checked.executable.core.module`. The existing
-`VastitasOracle.IndexedWire.codegen_input` theorem connects that exact module
-to `accepted.checked.executable.lowered.module`. It proves no tail theorem.
+On the public route, an actual `ResourceSource.Wire.CheckedInput json requireMain`
+retains `input.checked.pureProgram.executable.core.module`, and the field
+`coreInput` of that checked pass connects that exact module to
+`input.checked.pureProgram.executable.lowered.module`. The inspected commit
+stated the same for protocol 7 (`VastitasOracle.IndexedWire.codegen_input`),
+which the cutover to the single wire epoch of #533 retired. Neither proves a
+tail theorem.
 This reference changes neither that Core nor the public wire protocol.
 
 The future attachment checker must discharge all of the following, using
@@ -1207,11 +1210,15 @@ the revision that this section names.
 
 ### 7. Actual accepted-Core obligations (#163 / #192)
 
-The current [IndexedAcceptance.lean](https://github.com/MGYamada/Vastitas/blob/e026b89cbdbe6ea2f766cde7d18bdd959f48a007/lean-kernel/VastitasKernel/IndexedAcceptance.lean)
-defines `Wire.CheckedInput`, retaining exact decoder and combined-checker
-equations. The [IndexedWire oracle](https://github.com/MGYamada/Vastitas/blob/e026b89cbdbe6ea2f766cde7d18bdd959f48a007/lean/VastitasOracle/IndexedWire.lean)
-connects actual checked audit/executable Core to typing and finite evaluation;
-it explicitly does not prove numerical semantics or native refinement. These
+At the revision that this section names,
+[IndexedAcceptance.lean](https://github.com/MGYamada/Vastitas/blob/e026b89cbdbe6ea2f766cde7d18bdd959f48a007/lean-kernel/VastitasKernel/IndexedAcceptance.lean)
+defined `Wire.CheckedInput`, retaining exact decoder and combined-checker
+equations, and the [IndexedWire oracle](https://github.com/MGYamada/Vastitas/blob/e026b89cbdbe6ea2f766cde7d18bdd959f48a007/lean/VastitasOracle/IndexedWire.lean)
+connected actual checked audit/executable Core to typing and finite
+evaluation. The cutover to the single wire epoch of #533 retired both; the
+public checker `ResourceSource.Wire.check` and the oracle modules
+`ResourceSource` and `IndexedReverseCore` hold the same kind of guarantees.
+None proves numerical semantics or native refinement. These
 existing guarantees are not derivative-rule acceptance.
 
 A future implementation must establish, for each actual derivative occurrence:

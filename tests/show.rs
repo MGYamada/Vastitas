@@ -32,7 +32,7 @@ fn flat_wire(source: &str, version: u64) -> Value {
     captured_wire(command, version)
 }
 
-/// The functions of the root module of a protocol-9 request.
+/// The functions of the root module of a request.
 fn functions(wire: &mut Value) -> &mut Vec<Value> {
     wire["packages"][0]["modules"][0]["functions"]
         .as_array_mut()
@@ -283,20 +283,20 @@ fn show_is_refused_outside_the_entry_point_of_packages() {
 
 #[test]
 fn show_adds_observations_to_the_flat_request_and_check_is_unchanged() {
-    // Every flat unit is a protocol-9 package with the legacy geometry
-    // (#533); only `show!` adds observations.
+    // Every flat unit is one package with the legacy geometry (#533); only
+    // `show!` adds observations.
     let plain = flat_wire(
         "fn main() -> Int { let x = 1 + 1; x }",
         common::CURRENT_PROTOCOL,
     );
-    assert_eq!(plain["input"], "package");
+    assert!(plain.get("input").is_none(), "{plain}");
     assert_eq!(plain["legacy_geometry"], true);
     assert!(plain.to_string().find("observations").is_none());
     let mut observed = flat_wire(
         "fn helper() -> Int { 1 }\nfn main() -> Int { let x = helper(); let y = show!(x + 1); y }",
         common::CURRENT_PROTOCOL,
     );
-    assert_eq!(observed["input"], "package");
+    assert!(observed.get("input").is_none(), "{observed}");
     assert_eq!(
         function(&mut observed, "main")["observations"],
         json!([{ "statement": 1, "label": "x + 1" }])
@@ -324,7 +324,7 @@ fn the_kernel_refuses_tampered_observations() {
         change(&mut wire);
         wire
     };
-    let cases: [(&str, Value, &str); 6] = [
+    let cases: [(&str, Value, &str); 5] = [
         (
             "an observation outside main",
             tampered(&|wire| {
@@ -356,12 +356,6 @@ fn the_kernel_refuses_tampered_observations() {
         (
             "a foreign field",
             tampered(&|wire| function(wire, "main")["observations"][0]["type"] = json!("Int")),
-            "E_PROTOCOL",
-        ),
-        // old-route(#533): the retiring envelopes reject this program.
-        (
-            "protocol 8",
-            tampered(&|wire| wire["version"] = json!(8)),
             "E_PROTOCOL",
         ),
     ];
@@ -407,7 +401,7 @@ fn observations_name_the_position_of_their_statement_among_all_statements() {
 }
 
 /// #533 (#762): a package source that begins with `vastitas:compat:` is
-/// reserved. Protocol 9 accepts one only in the request of a flat unit that
+/// reserved. The kernel accepts one only in the request of a flat unit that
 /// `packages::flat_request` writes: its one package `legacy_flat`, which is the
 /// root, without dependencies or `geometry_compat`, with one public root
 /// module. Every other use, in that request or in a package request, is

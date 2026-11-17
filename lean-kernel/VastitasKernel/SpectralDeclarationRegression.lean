@@ -1,5 +1,4 @@
 import VastitasKernel.ResourceProtocol
-import VastitasKernel.IndexedAcceptance
 import VastitasKernel.RegressionSupport
 import VastitasKernel.RegressionRequest
 
@@ -10,10 +9,10 @@ set_option autoImplicit false
 checker and the declaration audit. These are executable regressions, not
 proofs.
 
-Protocol 9 decodes each wire shape of a free module, an endomorphism, a
-spectrum and a branch, of the four family representations, of the morphism
-definitions `trace_power` and `char_coefficient`, and of the five observation
-primitives; protocols 7 and 8 reject each with `E_PROTOCOL`. No shape has a
+The wire decodes each shape of a free module, an endomorphism, a spectrum and
+a branch, of the four family representations, of the morphism definitions
+`trace_power` and `char_coefficient`, and of the five observation primitives.
+No shape has a
 field for a certificate. The spectral families are data-model rules and are
 checked in full.
 
@@ -143,31 +142,23 @@ private def mod (declarations : List Json) : Json := Json.mkObj [
 private def request (version : Nat) (declarations : List Json) : Json :=
   RegressionRequest.package "spectral" [mod declarations] version
 
-/-- The code and message of a public request, or `accepted`: protocols 8 and 9
-through `ResourceSource.Wire`, protocol 7 through `Indexed.Wire`. -/
+/-- The code and message of a public request through `ResourceSource.Wire`,
+or `accepted`. -/
 private def outcome (version : Nat) (declarations : List Json) : String × String :=
   let json := request version declarations
-  let result := if version == 7 then (Indexed.Wire.check json false).map fun _ => ()
-    else (ResourceSource.Wire.check json false).map fun _ => ()
+  let result := (ResourceSource.Wire.check json false).map fun _ => ()
   match result with
   | .ok () => ("accepted", "")
   | .error diagnostic => (diagnostic.code, diagnostic.message)
 
 private def mentions (text part : String) : Bool := (text.splitOn part).length > 1
 
-private def decodes (j : Json) (algebraic : Bool) : Bool :=
-  (Wire.declarationBody j (numerical := true) (algebraic := algebraic)).isOk
+private def decodes (j : Json) : Bool := (Wire.declarationBody j).isOk
 
 /-- The request of `version` with `declarations` is rejected with `code` and a
 message that contains `text`. -/
 private def rejectsWith (version : Nat) (declarations : List Json) (code text : String) : Bool :=
   (outcome version declarations).1 == code && mentions (outcome version declarations).2 text
-
--- old-route(#533): protocols 7 and 8 retire at the cutover.
-/-- Protocols 7 and 8 reject a request whose one declaration is `j`, with
-`E_PROTOCOL` and a message that contains `text`. -/
-private def rejectedBefore9 (j : Json) (text : String) : Bool :=
-  [7, 8].all fun version => rejectsWith version [j] "E_PROTOCOL" text
 
 /-- The object `j` with the field `name` added. -/
 private def withField (j : Json) (name : String) (value : Json) : Json :=
@@ -179,11 +170,8 @@ private def withoutField (j : Json) (name : String) : Json :=
 
 /-! ## The spectral families are data-model rules -/
 
-#eval check "protocol 9 accepts the spectral families"
+#eval check "the checker accepts the spectral families"
   ((outcome currentProtocol (smoothBase ++ spectralFamilies)).1 == "accepted")
-#eval check "protocols 7 and 8 reject each spectral family representation with E_PROTOCOL"
-  (representations.all fun (_, representation) =>
-    rejectedBefore9 (family "F" [] [] representation) "spectral declarations require protocol 9")
 
 private def rejectsFamily (families : List Json) (text : String) : Bool :=
   rejectsWith currentProtocol (smoothBase ++ families) "E_TYPE" text
@@ -194,7 +182,7 @@ private def rejectsFamily (families : List Json) (text : String) : Bool :=
         "exactly one parameter, of the form `object(…)`" &&
       rejectsFamily [family name [objectParameter] [] representation] "exactly the constraint `canonical(0)`")
 
-/-! ## Spectral declarations: protocol 9 only -/
+/-! ## Spectral declarations -/
 
 /-- Each spectral declaration shape, with what the source checker calls it and
 the declarations it names, which follow it in a request. -/
@@ -204,21 +192,17 @@ private def declarations : List (String × String × Json × List Json) := [
   ("spectrum", "S", spectrumS, [endoH, moduleV]),
   ("branch", "B", branchB, [spectrumS, endoH, moduleV])]
 
-#eval check "protocol 9 decodes each spectral declaration shape"
-  (declarations.all fun (_, _, j, _) => decodes j true)
-#eval check "protocols 7 and 8 do not decode a spectral declaration"
-  (declarations.all fun (_, _, j, _) => !decodes j false)
-#eval check "protocols 7 and 8 reject each spectral declaration with E_PROTOCOL"
-  (declarations.all fun (_, _, j, _) => rejectedBefore9 j "spectral declarations require protocol 9")
+#eval check "the decoder decodes each spectral declaration shape"
+  (declarations.all fun (_, _, j, _) => decodes j)
 /- A declaration comes before the declarations it names, so acceptance does not
 depend on the order of the declarations. -/
-#eval check "protocol 9 accepts each declaration of the Stage 5 example before the declarations it names"
+#eval check "the checker accepts each declaration of the Stage 5 example before the declarations it names"
   (declarations.all fun (_, _, j, named) => (outcome currentProtocol (smoothBase ++ spectralFamilies ++ [j] ++ named)).1 == "accepted")
-#eval check "protocol 9 accepts the four declarations of the Stage 5 example"
+#eval check "the checker accepts the four declarations of the Stage 5 example"
   ((outcome currentProtocol (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrumS, branchB])).1 == "accepted")
 #eval check "an endomorphism without rows, a free module without a basis and a long exponent decode"
-  (decodes (endomorphism "H" "V" [] false) true && decodes (freeModule "V" []) true &&
-    decodes (branch "B" "S" (natural 1) (natural 1) "123456789") true)
+  (decodes (endomorphism "H" "V" [] false) && decodes (freeModule "V" []) &&
+    decodes (branch "B" "S" (natural 1) (natural 1) "123456789"))
 #eval check "the source checker names the first spectral declaration that fails"
   (rejectsWith currentProtocol (smoothBase ++ spectralFamilies ++ [freeModule "V" ["e1", "e1"], endoH]) "E_SPECTRAL"
     "the free module `spectral::V` names the basis vector `e1` twice")
@@ -269,22 +253,22 @@ pattern without the strict keywords (#831). -/
 /- A certificate is never on the wire: the kernel computes it, so a certificate
 field is an unknown field. -/
 #eval check "a spectral declaration takes exactly its fields, and no certificate"
-  (!decodes (withField moduleV "rank" (toJson "2")) true &&
-    !decodes (withField endoH "transpose" (toJson ([] : List Json))) true &&
-    !decodes (withField spectrumS "characteristic" (toJson ([] : List Json))) true &&
-    !decodes (withField spectrumS "adjugate" (toJson ([] : List Json))) true &&
-    !decodes (withField spectrumS "certificate" (toJson ([] : List Json))) true &&
-    !decodes (withField branchB "quotient" (natural 0)) true &&
-    !decodes (withoutField moduleV "basis") true &&
-    !decodes (withoutField endoH "symmetric") true &&
-    !decodes (withoutField spectrumS "fiber") true &&
-    !decodes (withoutField branchB "witness") true &&
-    !decodes (withField endoH "symmetric" (toJson "true")) true &&
-    !decodes (branch "B" "S" (natural 1) (natural 1) "-1") true &&
-    !decodes (branch "B" "S" (natural 1) (natural 1) "") true)
+  (!decodes (withField moduleV "rank" (toJson "2")) &&
+    !decodes (withField endoH "transpose" (toJson ([] : List Json))) &&
+    !decodes (withField spectrumS "characteristic" (toJson ([] : List Json))) &&
+    !decodes (withField spectrumS "adjugate" (toJson ([] : List Json))) &&
+    !decodes (withField spectrumS "certificate" (toJson ([] : List Json))) &&
+    !decodes (withField branchB "quotient" (natural 0)) &&
+    !decodes (withoutField moduleV "basis") &&
+    !decodes (withoutField endoH "symmetric") &&
+    !decodes (withoutField spectrumS "fiber") &&
+    !decodes (withoutField branchB "witness") &&
+    !decodes (withField endoH "symmetric" (toJson "true")) &&
+    !decodes (branch "B" "S" (natural 1) (natural 1) "-1") &&
+    !decodes (branch "B" "S" (natural 1) (natural 1) ""))
 #eval check "the exponent of a branch has a bounded number of digits"
-  (!decodes (branch "B" "S" (natural 1) (natural 1) (String.ofList (List.replicate 65 '1'))) true &&
-    decodes (branch "B" "S" (natural 1) (natural 1) (String.ofList (List.replicate 64 '1'))) true)
+  (!decodes (branch "B" "S" (natural 1) (natural 1) (String.ofList (List.replicate 65 '1'))) &&
+    decodes (branch "B" "S" (natural 1) (natural 1) (String.ofList (List.replicate 64 '1'))))
 
 /-! ## Spectral invariants on the wire -/
 
@@ -292,10 +276,8 @@ private def invariants : List (String × String × Json) := [
   ("tr2", "trace_power", invariant "tr2" (tracePower "H" "2")),
   ("c0", "char_coefficient", invariant "c0" (charCoefficient "S" "0"))]
 
-#eval check "protocol 9 decodes each spectral invariant"
-  (invariants.all fun (_, _, j) => decodes j true)
-#eval check "protocols 7 and 8 reject each spectral invariant with E_PROTOCOL"
-  (invariants.all fun (_, _, j) => rejectedBefore9 j "require protocol 9")
+#eval check "the decoder decodes each spectral invariant"
+  (invariants.all fun (_, _, j) => decodes j)
 #eval check "a spectral invariant names an endomorphism or a spectrum"
   (rejectsWith currentProtocol (smoothBase ++ [invariant "tr2" (tracePower "Plane" "2")]) "E_SPECTRAL"
       ("the `trace_power` declaration `spectral::tr2` takes the trace of a power of `spectral::Plane`, which " ++
@@ -308,18 +290,16 @@ private def invariants : List (String × String × Json) := [
     rejectsWith currentProtocol (smoothBase ++ [invariant "c0" (charCoefficient "Missing" "0")]) "E_NAME"
       "undefined name 'Missing'")
 #eval check "a spectral invariant takes exactly its fields"
-  (!decodes (invariant "tr2" (withField (tracePower "H" "2") "map" (toJson ([] : List Json)))) true &&
-    !decodes (invariant "tr2" (withoutField (tracePower "H" "2") "power")) true &&
-    !decodes (invariant "c0" (withoutField (charCoefficient "S" "0") "index")) true &&
-    !decodes (invariant "tr2" (tracePower "H" "-2")) true &&
-    !decodes (invariant "c0" (charCoefficient "S" (String.ofList (List.replicate 65 '1')))) true)
+  (!decodes (invariant "tr2" (withField (tracePower "H" "2") "map" (toJson ([] : List Json)))) &&
+    !decodes (invariant "tr2" (withoutField (tracePower "H" "2") "power")) &&
+    !decodes (invariant "c0" (withoutField (charCoefficient "S" "0") "index")) &&
+    !decodes (invariant "tr2" (tracePower "H" "-2")) &&
+    !decodes (invariant "c0" (charCoefficient "S" (String.ofList (List.replicate 65 '1')))))
 
 /-! ## Spectral observations on the wire -/
 
-#eval check "protocol 9 decodes each spectral observation"
-  ((observations "S" "B").all fun (_, _, j) => decodes j true)
-#eval check "protocols 7 and 8 reject each spectral observation with E_PROTOCOL"
-  ((observations "S" "B").all fun (_, _, j) => rejectedBefore9 j "unknown indexed primitive contract")
+#eval check "the decoder decodes each spectral observation"
+  ((observations "S" "B").all fun (_, _, j) => decodes j)
 #eval check "a spectral observation names a spectrum or a branch"
   ((observations "Plane" "Plane").all fun (_, op, j) =>
     rejectsWith currentProtocol (smoothBase ++ [j]) "E_SPECTRAL"
@@ -329,8 +309,8 @@ private def invariants : List (String × String × Json) := [
 #eval check "a spectral observation takes exactly its fields"
   ((observations "S" "B").all fun (_, _, j) =>
     let binding := (j.getObjValD "binding")
-    !decodes (withField j "binding" (withField binding "certificate" (toJson ([] : List Json)))) true &&
-      !decodes (withField j "binding" (withoutField binding "map_family")) true)
+    !decodes (withField j "binding" (withField binding "certificate" (toJson ([] : List Json)))) &&
+      !decodes (withField j "binding" (withoutField binding "map_family")))
 
 /-! ## Through the source checker
 

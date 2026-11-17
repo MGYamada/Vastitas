@@ -3,8 +3,9 @@ import VastitasKernel.Surface
 
 /-! Source syntax before Fn erasure. Data types reuse the indexed
 annotation AST. Fn signatures retain the existing scalar/recursive-Fn boundary;
-the public protocol-7 decoder constructs this AST, then `Indexed.Wire.check`
-composes its compiler with dispatch and authority validation. This AST is not an
+the public decoder (`IndexedBodyProtocol`) constructs this AST, then
+`ResourceSource.Wire.check` composes its compiler with dispatch and authority
+validation. This AST is not an
 independent wire acceptance entry point. -/
 namespace VastitasKernel.Indexed.FunctionSource
 

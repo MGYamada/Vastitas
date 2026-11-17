@@ -1,9 +1,9 @@
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.RegressionRequest
 
-/-! The observations of `show!` on the protocol-9 wire and the entry point
-that native generation writes (#836). The public decoder and checker accept
-observations only in protocol 9, only on the entry point `main`, only on its
+/-! The observations of `show!` on the wire and the entry point that native
+generation writes (#836). The public decoder and checker accept observations
+only on the entry point `main`, only on its
 top-level `let` statements in order, and only of values that `show!` writes.
 The entry point returns the exit status of `main` and writes each observed
 value once, in the order of the statements. -/
@@ -71,8 +71,6 @@ private def inOrder (text : String) (parts : List String) : Bool :=
 
 #eval show IO Unit from do
   let rejected : List (String × Json × String) := [
-    -- old-route(#533): protocol 8 retires at the cutover.
-    ("protocol 8 has no observations", input [mod [observed]] 8, "E_PROTOCOL"),
     ("an observation outside main", input [mod [observed none,
       fn "helper" [letE "x" (integer "1") (named "Int")] (var "x") (some [observation 0 "1"])]], "E_UNSUPPORTED"),
     ("main of another module", input [mod [observed none], mod [observed] ["inner"]], "E_UNSUPPORTED"),

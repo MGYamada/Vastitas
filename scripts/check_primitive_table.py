@@ -2,8 +2,8 @@
 """Generate the Rust table of indexed primitives from the kernel and fail on drift.
 
 The kernel's `families` (lean-kernel/VastitasKernel/IndexedPrimitiveFamilies.lean)
-list every indexed primitive's wire form: the `op`, whether only protocol 9 has
-it, and the exact fields in wire order with their kinds. The frontend reads the
+list every indexed primitive's wire form: the `op`, whether it is one of the
+Stage 2 and later forms, and the exact fields in wire order with their kinds. The frontend reads the
 same list from `src/primitive_table.rs`, which this script renders from the
 output of `scripts/primitive_table.lean`. By default the script compares the
 rendering with the checked-in file and fails on any difference; `--write`
@@ -49,8 +49,8 @@ HEADER = """\
 
 use crate::indexed::{PrimitiveFamily, WireKind};
 
-/// One family per wire `op`, in the kernel's order: whether only protocol 9
-/// has it, and its fields in wire order.
+/// One family per wire `op`, in the kernel's order: whether it is one of the
+/// Stage 2 and later forms, and its fields in wire order.
 pub(crate) const FAMILIES: &[PrimitiveFamily] = &[
 """
 

@@ -106,11 +106,14 @@ fn internal_resource_components_cannot_bypass_public_protocol_acceptance() {
     request["resources"] = fixture();
     let response = common::kernel(&request, "check");
     common::assert_wire_rejected(&response, "E_PROTOCOL");
-    // old-route(#533): the retiring envelopes reject this program.
-    request["version"] = json!(8);
-    let response = common::kernel(&request, "check");
-    common::assert_wire_rejected(&response, "E_PROTOCOL");
-    assert_eq!(response["version"], 8);
+    assert_eq!(
+        response["diagnostics"][0]["message"],
+        "unknown protocol field 'resources'"
+    );
+    // Nor in a module.
+    let mut request = common::request("fn main() -> Int { 0 }", "resource-envelope.vast");
+    common::flat_module(&mut request)["resources"] = fixture();
+    common::assert_wire_rejected(&common::kernel(&request, "check"), "E_PROTOCOL");
 }
 
 #[test]

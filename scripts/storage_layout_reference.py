@@ -147,7 +147,7 @@ class LayoutIR:
     """Reference IR: all listed whole-view accesses have overlapping lifetimes.
 
     Its only access expression is offset + i*stride[0] + j*stride[1].
-    This is not Vastitas Indexed.Core or public protocol 8.
+    This is not Vastitas Indexed.Core or the public wire.
     """
 
     operation: str

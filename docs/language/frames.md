@@ -216,7 +216,7 @@ Rules:
 
 > **Implementation note.** The kernel computes the inverse of a constant
 > frame with the procedure that inverts a Gram matrix, and it checks both
-> products again before it accepts the frame. A request of protocol 9 holds
+> products again before it accepts the frame. A request holds
 > the columns of a frame and the declared inverse of a frame that is not
 > constant, and never the inverse of a constant frame: a request with one is
 > an error (`E_FRAME`), even when the inverse is correct. The declaration

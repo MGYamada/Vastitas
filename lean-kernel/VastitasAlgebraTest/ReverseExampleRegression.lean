@@ -8,8 +8,8 @@ set_option autoImplicit false
 
 `tests/fixtures/reverse-example.wire.json` is the wire of
 `examples/packages/smooth-differential`, with the checkout root written as
-`/vastitas`; `tests/reverse_core.rs` keeps it current. The public protocol-9
-checker accepts it. The Core evaluator then runs `main` on the executable
+`/vastitas`; `tests/reverse_core.rs` keeps it current. The public checker
+accepts it. The Core evaluator then runs `main` on the executable
 Core, whose reverse passes call the runtime reverse pass, and on the compiled
 Core, which `emit` lowers. Both evaluate to 0, the exit status for no
 failure (#836), so each of the 25 observations agrees. This is an executable

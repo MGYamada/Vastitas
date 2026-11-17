@@ -14,6 +14,18 @@ does not include performance: the Fast like C verdict stays with #222.
 [Verification boundaries](verification.md#compiled-reverse-core) describes
 the compilation.
 
+This map records the wire as it was at delivery. The cutover of
+[#533](https://github.com/MGYamada/Vastitas/issues/533) to the single schema
+epoch 10 made every form of this map an optional record of that epoch,
+removed the version gates of protocols 7 to 9 and renamed the tests that
+pinned them; a request of another version fails closed by its version alone
+([Other versions](protocol.md#other-versions)). The Rust tests named here
+have their current names; the regression cases of protocols 7 and 8 that the
+map names were retired with those protocols. The theorems that this map cites for the routes of
+protocols 2 to 7, such as `public_wire_entries` and
+`legacy_wire_entries_frechet`, were retired with those routes;
+[Verification boundaries](verification.md#history) lists them.
+
 ## Terms
 
 - The [**runtime reverse pass**](appendix/glossary.md#runtime-reverse-pass)

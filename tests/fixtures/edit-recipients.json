@@ -1,6 +1,5 @@
 {
   "file": "/authority-fixture/app/Vastitas.toml",
-  "input": "package",
   "packages": [
     {
       "dependencies": [],
@@ -755,5 +754,5 @@
     }
   ],
   "root": "/authority-fixture/app/Vastitas.toml",
-  "version": 9
+  "version": 10
 }

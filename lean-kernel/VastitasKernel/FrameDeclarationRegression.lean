@@ -1,5 +1,4 @@
 import VastitasKernel.ResourceProtocol
-import VastitasKernel.IndexedAcceptance
 import VastitasKernel.RegressionSupport
 import VastitasKernel.RegressionRequest
 
@@ -9,9 +8,8 @@ set_option autoImplicit false
 through the public wire decoders, the source checker and the declaration
 audit. These are executable regressions, not proofs.
 
-Protocol 9 decodes each wire shape of a frame declaration, of a frame family
-representation and of a frame parameter; protocols 7 and 8 reject each with
-`E_PROTOCOL`. The frame families are data-model rules. The source checker
+The wire decodes each shape of a frame declaration, of a frame family
+representation and of a frame parameter. The frame families are data-model rules. The source checker
 elaborates every frame: a constant frame gets its inverse from the kernel, a
 frame polynomial in the point declares its inverse, and every rule of
 `IndexedFrameSource` has its diagnostic. The declaration audit
@@ -87,44 +85,31 @@ private def mod (declarations : List Json) : Json := Json.mkObj [
 private def request (version : Nat) (declarations : List Json) : Json :=
   RegressionRequest.package "frames" [mod declarations] version
 
-/-- The code of a public request, or `accepted`: protocols 8 and 9 through
-`ResourceSource.Wire`, protocol 7 through `Indexed.Wire`. -/
+/-- The code of a public request through `ResourceSource.Wire`, or
+`accepted`. -/
 private def outcome (version : Nat) (declarations : List Json) : String × String :=
   let json := request version declarations
-  let result := if version == 7 then (Indexed.Wire.check json false).map fun _ => ()
-    else (ResourceSource.Wire.check json false).map fun _ => ()
+  let result := (ResourceSource.Wire.check json false).map fun _ => ()
   match result with
   | .ok () => ("accepted", "")
   | .error diagnostic => (diagnostic.code, diagnostic.message)
 
 private def mentions (text part : String) : Bool := (text.splitOn part).length > 1
 
-private def decodes (j : Json) (algebraic : Bool) : Bool :=
-  (Wire.declarationBody j (numerical := true) (algebraic := algebraic)).isOk
+private def decodes (j : Json) : Bool := (Wire.declarationBody j).isOk
 
 /-- The request of `version` with `declarations` is rejected with `code` and a
 message that contains `text`. -/
 private def rejectsWith (version : Nat) (declarations : List Json) (code text : String) : Bool :=
   (outcome version declarations).1 == code && mentions (outcome version declarations).2 text
 
--- old-route(#533): protocols 7 and 8 retire at the cutover.
-/-- Protocols 7 and 8 reject a request whose one declaration is `j`, with
-`E_PROTOCOL` and the protocol-9 message of its decoder. -/
-private def rejectedBefore9 (j : Json) : Bool :=
-  [7, 8].all fun version => rejectsWith version [j] "E_PROTOCOL" "frame declarations require protocol 9"
-
 /-! ## The frame families are data-model rules -/
 
-#eval check "protocol 9 accepts the frame families"
+#eval check "the checker accepts the frame families"
   ((outcome currentProtocol (smoothBase ++ frameFamilies)).1 == "accepted")
-#eval check "protocol 9 accepts a token family with a frame parameter"
+#eval check "the checker accepts a token family with a frame parameter"
   ((outcome currentProtocol (smoothBase ++ frameFamilies ++ [family "Tagged" [frameParameter "Frame"] [] "token"])).1 ==
     "accepted")
-#eval check "protocols 7 and 8 reject each frame family representation with E_PROTOCOL"
-  (["frame", "frame_vector", "frame_covector", "frame_map"].all fun representation =>
-    rejectedBefore9 (family "F" [] [] representation))
-#eval check "protocols 7 and 8 reject a frame parameter with E_PROTOCOL"
-  (rejectedBefore9 (family "Tagged" [frameParameter "Frame"] [] "token"))
 
 private def rejectsFamily (families : List Json) (text : String) : Bool :=
   rejectsWith currentProtocol (smoothBase ++ families) "E_TYPE" text
@@ -148,18 +133,14 @@ private def rejectsFamily (families : List Json) (text : String) : Bool :=
       family "Coords" [frameParameter "Other"] [] "frame_vector"]
       "must name a family with the representation `frame`")
 
-/-! ## Frame declarations on the wire: protocol 9 only -/
+/-! ## Frame declarations on the wire -/
 
 /-- Each frame declaration shape, with the name it declares. -/
 private def frames : List (String × Json) :=
   [("b", constantFrame), ("bx", pointFrame), ("e", coordinateFrame)]
 
-#eval check "protocol 9 decodes each frame declaration shape"
-  (frames.all fun (_, j) => decodes j true)
-#eval check "protocols 7 and 8 do not decode a frame declaration"
-  (frames.all fun (_, j) => !decodes j false)
-#eval check "protocols 7 and 8 reject each frame declaration with E_PROTOCOL"
-  (frames.all fun (_, j) => rejectedBefore9 j)
+#eval check "the decoder decodes each frame declaration shape"
+  (frames.all fun (_, j) => decodes j)
 #eval check "the public checker accepts each frame declaration shape, alone and together"
   (frames.all (fun (_, j) => (outcome currentProtocol (smoothBase ++ frameFamilies ++ [j])).1 == "accepted") &&
     (outcome currentProtocol (smoothBase ++ frameFamilies ++ frames.map (·.2))).1 == "accepted")
@@ -170,16 +151,14 @@ private def frames : List (String × Json) :=
     "E_FRAME" "a frame names one object, as in `Frame<X>`, but 2 are given")
 
 #eval check "a frame declaration takes exactly its fields"
-  (!decodes (Json.mkObj ((constantFrame.getObj?.toOption.getD {}).toArray.toList ++ [("matrix", toJson ([] : List Json))]))
-      true &&
+  (!decodes (Json.mkObj ((constantFrame.getObj?.toOption.getD {}).toArray.toList ++ [("matrix", toJson ([] : List Json))])) &&
     !decodes (decl "frame" "b" [("family", pathJson "Frame"), ("indices", toJson [pathJson "Plane"]),
-      ("columns", coordinates)]) true &&
-    !decodes (frame "b" (Json.mkObj [("kind", toJson "coordinates"), ("columns", toJson ([] : List Json))]) .null)
-      true &&
-    !decodes (frame "b" (Json.mkObj [("kind", toJson "rows"), ("columns", toJson ([] : List Json))]) .null) true &&
-    !decodes (frame "b" coordinates coordinates) true &&
+      ("columns", coordinates)]) &&
+    !decodes (frame "b" (Json.mkObj [("kind", toJson "coordinates"), ("columns", toJson ([] : List Json))]) .null) &&
+    !decodes (frame "b" (Json.mkObj [("kind", toJson "rows"), ("columns", toJson ([] : List Json))]) .null) &&
+    !decodes (frame "b" coordinates coordinates) &&
     !decodes (frame "b" coordinates (Json.mkObj [("kind", toJson "columns"), ("columns", toJson ([] : List Json)),
-      ("certificate", toJson true)])) true)
+      ("certificate", toJson true)])))
 
 /-! The inverse of a constant frame never comes from the wire: the decoder
 has no field for a computed inverse, and the one `inverse` field, which a

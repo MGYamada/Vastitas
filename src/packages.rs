@@ -1,7 +1,7 @@
 //! Explicit path-package loading. Namespace references remain unresolved in the
 //! wire request: only Lean can accept them and assign function identities.
 use crate::frontend;
-use crate::ir::{NAMED_RECIPIENT_PROTOCOL, Span};
+use crate::ir::{PROTOCOL, Span};
 use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
 use crate::namespace::Module;
 use crate::sources::{OutputIdentity, Sources, shown, shown_text};
@@ -28,18 +28,17 @@ struct Package {
     geometry_compat: Option<crate::indexed::WireGeometryProfile>,
 }
 
-/// A package request: always protocol 9 with package input (#533).
+/// A request of the wire schema epoch `ir::PROTOCOL` (#533): every request
+/// is a package request.
 #[derive(Debug, Serialize)]
 pub(crate) struct Program {
-    pub version: u32,
-    input: &'static str,
+    version: u32,
     file: String,
     root: String,
     packages: Vec<Package>,
     /// The optional field `legacy_geometry`: the kernel appends its
     /// compatibility profile of the legacy geometry (`Scheme`, `Point`, …) to
-    /// the program, as it does for every program of protocols 2 to 6
-    /// ([`legacy_geometry`]). Written only when it is `true`.
+    /// the program ([`legacy_geometry`]). Written only when it is `true`.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     legacy_geometry: bool,
 }
@@ -687,8 +686,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
     }
     let legacy_geometry = legacy_geometry(&loader.packages);
     let program = Program {
-        version: NAMED_RECIPIENT_PROTOCOL,
-        input: "package",
+        version: PROTOCOL,
         file: root.clone(),
         root,
         packages: loader.packages,
@@ -711,14 +709,13 @@ fn modules(packages: &[Package]) -> impl Iterator<Item = &Module> {
     packages.iter().flat_map(|package| &package.modules)
 }
 
-/// Whether a package request carries `legacy_geometry`: exactly the programs
-/// that the driver sent at protocols 3 to 6 before #533 (round 2, W6), so that
-/// the kernel appends the compatibility profile that those protocols append
-/// and they keep their checked Core. A program with any record that only the
-/// indexed envelopes carry has none: named recipients, algebraic forms, the
-/// observations of `show!`, resource functions, indexed declarations and
-/// implementations, or a `geometry_compat` export of a manifest. Such a program
-/// has the legacy geometry only from a `geometry_compat` export.
+/// Whether a package request carries `legacy_geometry`, with which the kernel
+/// appends the compatibility profile of the legacy geometry (#533): a program
+/// with none of the records of the indexed envelope. A program with named
+/// recipients, algebraic forms, the observations of `show!`, resource
+/// functions, indexed declarations and implementations, or a
+/// `geometry_compat` export of a manifest has none, and has the legacy
+/// geometry only from a `geometry_compat` export.
 fn legacy_geometry(packages: &[Package]) -> bool {
     // Preserve recipient names verbatim. The kernel alone resolves them in the
     // selected closure; a grant must neither resolve a path nor load a package.
@@ -726,7 +723,7 @@ fn legacy_geometry(packages: &[Package]) -> bool {
         .any(|m| !m.grants.is_empty() || !m.delegations.is_empty() || !m.transfers.is_empty());
     let indexed = modules(packages).any(|m| m.uses_indexed)
         || packages.iter().any(|p| p.geometry_compat.is_some());
-    // Stage 2 algebraic forms exist only in the current schema epoch (#533).
+    // The Stage 2 and later forms (`PrimitiveFamily::algebraic`).
     let algebraic = modules(packages)
         .flat_map(|m| &m.indexed_declarations)
         .any(|d| d.declaration.body.is_algebraic());
@@ -744,20 +741,18 @@ fn legacy_geometry(packages: &[Package]) -> bool {
     !(named_recipients || algebraic || observed || resources || implemented || indexed)
 }
 
-/// The package of a flat compilation unit in a protocol-9 request: the
-/// identity that the kernel gives a flat unit of protocols 2 to 6
-/// (`flatPackageId`), so the kernel's diagnostics name its functions
-/// `legacy_flat::name`, and the driver shows them as the flat unit's names.
+/// The package of a flat compilation unit in its request: the identity that
+/// the kernel reserves for it (`flatPackageId`). The kernel's diagnostics name
+/// its functions `legacy_flat::name`, and the driver shows them as the flat
+/// unit's names.
 pub(crate) const FLAT_PACKAGE: &str = "legacy_flat";
 const FLAT_SOURCE: &str = "vastitas:compat:flat";
 
 /// The request of a flat compilation unit, with or without `--lib` inputs and
-/// `show!` (#533, #836). Protocol 9 takes only package input, so the unit
-/// becomes the root module of one package, with every declaration public, as
-/// the kernel adapts a flat unit of protocols 2 and 4. The request carries
-/// `legacy_geometry`, so the kernel also appends the compatibility profile of
-/// the legacy geometry (`Scheme`, `Point`, …) that it appends to a flat unit of
-/// those protocols, and the unit keeps its checked Core.
+/// `show!` (#533, #836). Every request is a package request, so the unit
+/// becomes the root module of one package, with every declaration public. The
+/// request carries `legacy_geometry`, so the kernel also appends the
+/// compatibility profile of the legacy geometry (`Scheme`, `Point`, …).
 pub(crate) fn flat_request(module: crate::ir::Module) -> Program {
     use crate::namespace::Public;
     fn public<T>(declarations: Vec<T>) -> Vec<Public<T>> {
@@ -770,8 +765,7 @@ pub(crate) fn flat_request(module: crate::ir::Module) -> Program {
             .collect()
     }
     Program {
-        version: NAMED_RECIPIENT_PROTOCOL,
-        input: "package",
+        version: PROTOCOL,
         file: module.file,
         root: FLAT_SOURCE.into(),
         packages: vec![Package {

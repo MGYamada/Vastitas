@@ -55,7 +55,8 @@ fn kernel_identity() -> String {
     }
     let sources = executable_digest(&files);
     let mut identity = format!(
-        "pub const SOURCES: &str = \"{sources}\";\npub const LEAN: &str = {lean:?};\npub const TOOLCHAIN: &str = {toolchain:?};\n"
+        "pub const SOURCES: &str = \"{sources}\";\npub const LEAN: &str = {lean:?};\npub const TOOLCHAIN: &str = {toolchain:?};\npub const PROTOCOL: u32 = {};\n",
+        kernel_protocol(root)
     );
     for (name, package) in [
         ("KERNEL_RUNTIME", &runtime_inputs::KERNEL),
@@ -65,6 +66,33 @@ fn kernel_identity() -> String {
         identity.push_str(&runtime_table(root, name, package));
     }
     identity
+}
+
+/// The wire schema epoch of the kernel: the value of the one definition
+/// `def currentProtocol : Nat := N` in `VastitasKernel/Protocol.lean` (#533).
+/// `ir::PROTOCOL` must equal it; a constant assertion in `src/ir.rs` fails the
+/// build otherwise.
+fn kernel_protocol(root: &Path) -> u32 {
+    let path = root.join("VastitasKernel/Protocol.lean");
+    println!("cargo:rerun-if-changed={}", path.display());
+    let source = fs::read_to_string(&path).expect("read the kernel protocol definition");
+    let values: Vec<u32> = source
+        .lines()
+        .filter_map(|line| line.strip_prefix("def currentProtocol : Nat := "))
+        .map(|value| {
+            value
+                .trim()
+                .parse()
+                .expect("currentProtocol is a decimal natural number")
+        })
+        .collect();
+    match values.as_slice() {
+        [value] => *value,
+        _ => panic!(
+            "{} must define `def currentProtocol : Nat := N` exactly once",
+            path.display()
+        ),
+    }
 }
 
 /// The runtime inputs of one package in the sources this driver is built with,

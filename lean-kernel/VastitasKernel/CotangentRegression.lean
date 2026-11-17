@@ -440,11 +440,10 @@ private def forgedFamily (name : String) (contract : Family) (env : Environment)
 #eval check "forged tape family with one parameter" (tamperIndexed (forgedFamily "Tape"
   ⟨[.object (id "CInfAffine")], [.canonical 0], .tape⟩))
 
-/-! ## Protocols 7 and 8 do not admit the fiber forms; protocol 9 does -/
+/-! ## The wire decodes the fiber forms -/
 
 open Lean in
-private def decodes (j : Json) (algebraic : Bool) : Bool :=
-  (Wire.declarationBody j (numerical := true) (algebraic := algebraic)).isOk
+private def decodes (j : Json) : Bool := (Wire.declarationBody j).isOk
 open Lean in
 private def spanJson : Json :=
   Json.mkObj [("start", (0 : Nat)), ("end", (0 : Nat)), ("line", (1 : Nat)), ("column", (1 : Nat))]
@@ -478,22 +477,19 @@ private def primitives : List Json := [
   primitiveJson [("op", "linearize"), ("map_family", pathJson "Smooth"), ("tape", pathJson "Tape")],
   primitiveJson [("op", "cotangent_backward"), ("tape", pathJson "Tape"), ("cotangent", pathJson "Cotangent")] ]
 
-#eval check "protocol 9 decodes each fiber and tape primitive" (primitives.all (decodes · true))
-#eval check "protocols 7 and 8 reject each fiber and tape primitive" (primitives.all (!decodes · false))
-#eval check "protocol 9 decodes the fiber and tape families"
-  (["cotangent", "tangent", "tape"].all fun r => decodes (familyJson r) true)
-#eval check "protocols 7 and 8 reject the fiber and tape families"
-  (["cotangent", "tangent", "tape"].all fun r => !decodes (familyJson r) false)
+#eval check "the decoder decodes each fiber and tape primitive" (primitives.all decodes)
+#eval check "the decoder decodes the fiber and tape families"
+  (["cotangent", "tangent", "tape"].all fun r => decodes (familyJson r))
 open Lean in
 #eval check "a pullback mode is saved or recomputed"
   (!decodes (primitiveJson [("op", "cotangent_pullback"), ("map_family", pathJson "Smooth"),
-    ("cotangent", pathJson "Cotangent"), ("mode", "cached")]) true)
+    ("cotangent", pathJson "Cotangent"), ("mode", "cached")]))
 open Lean in
 #eval check "the primitive allow-list rejects unlisted spellings and tape constructors"
   (["fiber_", "fiber_gradient", "cotangent_", "tape", "tape_literal", "backward", "gradient"].all fun op =>
-    !decodes (primitiveJson [("op", Json.str op), ("family", pathJson "Cotangent")]) true)
+    !decodes (primitiveJson [("op", Json.str op), ("family", pathJson "Cotangent")]))
 open Lean in
 #eval check "fiber primitives reject extra fields"
-  (!decodes (primitiveJson [("op", "fiber_equal"), ("family", pathJson "Cotangent"), ("tape", Json.arr #[])]) true)
+  (!decodes (primitiveJson [("op", "fiber_equal"), ("family", pathJson "Cotangent"), ("tape", Json.arr #[])]))
 
 end VastitasKernel.Indexed.CotangentRegression

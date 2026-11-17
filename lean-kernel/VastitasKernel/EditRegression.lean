@@ -2,10 +2,9 @@ import VastitasKernel.Authority
 import VastitasKernel.RegressionSupport
 
 /-! Edit assemblies (grants, contributions and loans) through the assembler
-that the public 2–6 route runs, `Authority.assemble`, which reads them with
-protocol-6 authority, and the independent declaration correspondence of
-`Edit.prepare`. Public JSON acceptance is covered by LegacySourceRegression and
-VastitasPublicTest.AuthorityRegression. -/
+that the public route runs, `Authority.assemble`, and the independent
+declaration correspondence of `Edit.prepare`. Public JSON acceptance is
+covered by VastitasPublicTest.AuthorityRegression. -/
 namespace VastitasKernel.Edit.Regression
 open Namespace
 
@@ -53,8 +52,7 @@ private def program (region : List (List String) := [["Int", "Int"]])
         methods := [addition], span := {}, isPublic := true }] }] }] }
 
 private def check := RegressionSupport.check "edit regression failed"
-/-- The assembly of `p` as the public 2–6 route reads it, with protocol-6
-authority. -/
+/-- The assembly of `p` as the public route reads it, with authority. -/
 private def assembled (p : Namespace.Program) : Except Diagnostic Unit :=
   (Authority.assemble { p with authority := true }.indexed).map fun _ => ()
 private def rejects (code : String) (p : Namespace.Program) : Bool :=

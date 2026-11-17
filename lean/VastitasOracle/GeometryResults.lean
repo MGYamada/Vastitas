@@ -110,16 +110,16 @@ theorem apply_result (accepted : profile.valid env = true) (map : Runtime.Morphi
   simp [declaredRuntime, accepted.2, evalRuntimePrimitive, PrimitiveBinding.contract, eraseMorphism, erasePoint,
     Runtime.applyMap, IndexedRuntime.apply]
 
-/-- The profile premise above comes from the actual public checker. Its runtime
-equations can therefore be used with the exact accepted declaration environment.
-Protocols 2–6 have the corresponding `LegacySource.checked_profile` theorem. -/
-theorem wire_dimension_result {json : Lean.Json} (accepted : Wire.CheckedInput json requireMain)
+/-- The profile premise above comes from the actual public checker
+`ResourceSource.Wire.check`. Its runtime equations can therefore be used with
+the exact accepted declaration environment of the request's pure program. -/
+theorem wire_dimension_result {json : Lean.Json} (input : ResourceSource.Wire.CheckedInput json requireMain)
     (profile : GeometryProfile DeclId)
-    (selected : accepted.checked.authority.headers.declarations.resolved.geometry = some profile)
+    (selected : input.checked.pureProgram.authority.headers.declarations.resolved.geometry = some profile)
     (base : BaseKind) (object : Runtime.Object) :
-    declaredRuntime accepted.checked.authority.headers.declarations.resolved.declarations
+    declaredRuntime input.checked.pureProgram.authority.headers.declarations.resolved.declarations
       (profile.setting base).dimension [.object (eraseObject object)] = some (.natural object.dimension) :=
   dimension_result (GeometryCompatibility.checked_profile
-    accepted.checked.authority.headers.declarations profile selected).2 base object
+    input.checked.pureProgram.authority.headers.declarations profile selected).2 base object
 
 end VastitasOracle.GeometryResults

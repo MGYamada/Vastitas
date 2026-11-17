@@ -34,7 +34,7 @@ def moduleName (name : String) (span : Span) : Result Unit :=
 declaration itself, and a `use` without `as` that imports one, whose alias is
 the last segment of its path. They do not select a declaration kind,
 representation, or operation. Scalar/Fn/Pair and language keywords remain
-reserved. Public protocols 2–6 cannot create this kind. -/
+reserved. -/
 def indexedSpelling (name : String) : Bool :=
   ["Scheme", "CInfScheme", "Point", "Morphism", "Pointed", "QQ", "CInfReal",
     "Affine", "Base", "origin", "id", "compose", "apply", "dim"].contains name

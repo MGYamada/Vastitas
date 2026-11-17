@@ -377,7 +377,7 @@ impl Parser {
         let tag = self.indexed_tag()?;
         self.expect("(")?;
         let unknown = || diagnostic("E_TYPE", "unknown indexed primitive contract", span);
-        let Some(family) = surface_op(&tag).and_then(indexed::primitive_family) else {
+        let Some(family) = indexed::primitive_family(&tag) else {
             return Err(unknown());
         };
         let fields = match family.op {
@@ -397,7 +397,7 @@ impl Parser {
                 fields.extend(self.indexed_paths(&["map_family"])?);
                 fields
             }
-            "dimension" => vec![("domain", WireValue::ObjectType(self.indexed_object_type()?))],
+            "dim" => vec![("domain", WireValue::ObjectType(self.indexed_object_type()?))],
             "compose" => self.indexed_paths(&["map_family"])?,
             "apply" => self.indexed_paths(&["map_family", "point_family"])?,
             "relative_compose" | "relative_equal" => self.indexed_paths(&["family"])?,
@@ -2031,17 +2031,6 @@ impl Parser {
 /// coordinate, sum, product, negation and power is a node. The recursion is
 /// bounded, because `poly_nesting` admits at most four nodes for each level of
 /// parentheses and one for each prefix `-`.
-/// The wire op of the primitive contract that the source spells `tag`, or
-/// `None` for no op. The source spells the op `dimension` as `dim`, as the
-/// operation (#778); `dimension` is no tag. Every other tag is its op.
-fn surface_op(tag: &str) -> Option<&str> {
-    match tag {
-        "dim" => Some("dimension"),
-        "dimension" => None,
-        _ => Some(tag),
-    }
-}
-
 fn poly_levels(expression: &indexed::PolyExpr) -> usize {
     use indexed::PolyExpr::{Coordinate, Fraction, Natural, Neg, Pow, Product, Sum};
     1 + match expression {
@@ -2064,7 +2053,7 @@ mod tests {
         ("global", "global(SpecQQ)"),
         ("origin", "origin((Scheme, QQ), Point, Base)"),
         ("identity", "identity((Scheme, QQ), Morphism)"),
-        ("dimension", "dim((Scheme, QQ))"),
+        ("dim", "dim((Scheme, QQ))"),
         ("compose", "compose(Morphism)"),
         ("apply", "apply(Morphism, Point)"),
         ("relative_compose", "relative_compose(Over)"),
@@ -2975,13 +2964,13 @@ mod tests {
         assert_eq!(error.message, "unknown indexed primitive contract");
     }
 
-    /// The source spells the op and the capability `dimension` as `dim`
-    /// (#778); the wire keeps `dimension`, and the source `dimension` is
-    /// neither a contract nor a capability.
+    /// The source and the wire spell the op and the capability of `dim(…)` as
+    /// `dim` (#778), and the source `dimension` is neither a contract nor a
+    /// capability.
     #[test]
     fn the_dimension_contract_and_capability_are_spelled_dim() {
         let binding = parse_binding("indexed primitive size = dim((Scheme, QQ));").unwrap();
-        assert_eq!(binding.op(), "dimension");
+        assert_eq!(binding.op(), "dim");
         let error = parse_binding("indexed primitive size = dimension((Scheme, QQ));")
             .expect_err("`dimension` is no contract");
         assert_eq!(
@@ -2993,7 +2982,7 @@ mod tests {
         )
         .unwrap();
         let wire = serde_json::to_value(&declaration).unwrap();
-        assert_eq!(wire["capabilities"], json!(["origin", "dimension"]));
+        assert_eq!(wire["capabilities"], json!(["origin", "dim"]));
         let source =
             "indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);";
         let error = parse_declaration(source).expect_err("`dimension` is no capability");

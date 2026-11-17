@@ -327,7 +327,7 @@ states, and not the text of its message. See [Codes](../language/diagnostics.md#
 
 A function of the [kernel](#kernel) that writes the Lean source of a checked
 program. It checks its input again before it returns source. See
-[The three checker routes](../development/architecture.md#the-three-checker-routes).
+[The checker route](../development/architecture.md#the-checker-route).
 
 ## Comparison
 
@@ -397,7 +397,7 @@ The typed intermediate representation of pure functions that the Lean kernel
 builds while it checks a program. Code generation for pure functions starts
 from the checked Core and checks it again. Storage operations are not part of
 Core. See
-[Verification boundaries](../verification.md#current-public-checker-routes).
+[Verification boundaries](../verification.md#the-public-checker-route).
 
 ## Core syntax
 
@@ -420,7 +420,7 @@ map `F` with Jacobian `J` at a point `x`, it sends a covector `η` at `F(x)` to
 the covector `Jᵀη` at `x`. A covector at any other point gives the
 [failure value](#failure-value). See
 [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
-[smooth forms](../protocol.md#protocol-9-smooth-forms).
+[smooth forms](../protocol.md#smooth-forms).
 
 ## Coverage factor
 
@@ -692,7 +692,7 @@ a failure value too, which a contraction in frames returns for operands at
 different points. `branch_differential` returns it off the
 [branch points](#branch-point) of its branch. See [Fiber primitives](../language/smooth-declarations.md#fiber-primitives),
 [Contraction in frames](../language/frames.md#contraction-in-frames) and the wire
-[smooth forms](../protocol.md#protocol-9-smooth-forms).
+[smooth forms](../protocol.md#smooth-forms).
 
 ## Family
 
@@ -1181,7 +1181,7 @@ name their metric explicitly, and no metric is ever selected by default. A
 metric form is distinct from the diagonal Hermitian `Metric` of
 [transforms and metrics](../linalg/transforms-and-metrics.md). See
 [Metrics](../language/smooth-declarations.md#metrics) and the wire
-[metric forms](../protocol.md#protocol-9-metric-forms).
+[metric forms](../protocol.md#metric-forms).
 
 ## Model
 
@@ -1268,7 +1268,7 @@ matrix `G`. The kernel computes an inverse `B` of `G`, and it checks again that
 `G B` and `B G` are the identity. A singular Gram matrix has no nondegenerate
 evidence. `sharp` requires nondegenerate evidence for its metric. See
 [Metric evidence](../language/smooth-declarations.md#metric-evidence) and the wire
-[metric forms](../protocol.md#protocol-9-metric-forms).
+[metric forms](../protocol.md#metric-forms).
 
 ## Normal form
 
@@ -1535,7 +1535,7 @@ are not part of it. See
 
 The entry of one wire `op` in the family table of
 `IndexedPrimitiveFamilies.lean`: the operation's fields with their kinds in
-wire order, whether only protocol 9 admits it, and how the resolved fields
+wire order, whether it is one of the Stage 2 and later forms, and how the resolved fields
 build a [primitive](#primitive) binding. The wire decoder, the resolver and
 the frontend's generated table read it. A primitive family is not a
 [family](#family) declaration. See
@@ -1614,12 +1614,11 @@ module. See [Visibility](../language/names-and-paths.md#visibility).
 ## Public checker route
 
 One of the entry points that the kernel executable calls for a request of the
-[wire protocol](#wire-protocol): `Indexed.LegacySource.check` for protocols 2
-to 6, `Indexed.Wire.check` for protocol 7, and `ResourceSource.Wire.check`
-and `ResourceSource.Wire.emit` for protocols 8 and 9. `Wire.emit` runs that
-check and then generates code. A theorem about a route holds for the
+[wire protocol](#wire-protocol): `ResourceSource.Wire.check` and
+`ResourceSource.Wire.emit`. `Wire.emit` runs that check and then generates
+code. A theorem about a route holds for the
 requests that the kernel accepts through it. See
-[Current public checker routes](../verification.md#current-public-checker-routes).
+[The public checker route](../verification.md#the-public-checker-route).
 
 ## Pullback
 
@@ -1827,7 +1826,7 @@ positive-definite Gram matrix has Riemannian evidence. It is the wrong kind of
 evidence for `sharp`, which requires
 [nondegenerate evidence](#nondegenerate-evidence). See
 [Metric evidence](../language/smooth-declarations.md#metric-evidence) and the wire
-[metric forms](../protocol.md#protocol-9-metric-forms).
+[metric forms](../protocol.md#metric-forms).
 
 ## Role table
 
@@ -1908,6 +1907,14 @@ A declaration `indexed scale` of a positive rational magnitude of a
 of scales. See [Scales](../language/physical-dimensions.md#scales) and the
 [guide](../guide/frames-and-dimensions.md#scales-and-a-scaled-metric).
 
+## Schema epoch
+
+The one version of the [wire protocol](#wire-protocol) that the frontend
+writes and the kernel accepts: protocol 10. A request of another version is
+an error (`E_PROTOCOL`). The epoch names a schema, not a feature level: an
+optional record of the request never selects a version. See
+[Other versions](../protocol.md#other-versions).
+
 ## Scheme
 
 `Scheme` classifies ordinary affine descriptor objects, and `CInfScheme`
@@ -1984,7 +1991,7 @@ declarations with the same dimension and coordinates are two objects. A
 smooth affine object is distinct from a descriptor object, such as a
 `CInfScheme` object, and from a presented affine object. See
 [Smooth affine objects](../language/smooth-declarations.md#smooth-affine-objects) and the wire
-[smooth forms](../protocol.md#protocol-9-smooth-forms).
+[smooth forms](../protocol.md#smooth-forms).
 
 ## Smooth map
 
@@ -1994,7 +2001,7 @@ is a polynomial map with exact rational coefficients. A declared smooth map
 gives each target coordinate as a polynomial in the source coordinates.
 `compose` builds a program from smooth maps and does not expand it. See
 [Smooth maps](../language/smooth-declarations.md#smooth-maps) and the wire
-[smooth forms](../protocol.md#protocol-9-smooth-forms).
+[smooth forms](../protocol.md#smooth-forms).
 
 ## Smooth metric
 
@@ -2216,7 +2223,7 @@ given in the coordinate frame or coframe. It may also be the
 [failure value](#failure-value). It is unrelated to a
 [fiber product](#fiber-product). See
 [Fiber primitives](../language/smooth-declarations.md#fiber-primitives) and the wire
-[smooth forms](../protocol.md#protocol-9-smooth-forms).
+[smooth forms](../protocol.md#smooth-forms).
 
 ## Tape
 
@@ -2226,7 +2233,7 @@ point. Only `linearize` builds a tape; a tape has no source or wire form.
 `cotangent_backward` runs the reverse pass over a tape. It returns the
 [failure value](#failure-value) for a covector that does not lie over the
 image that the tape holds. See [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
-[smooth forms](../protocol.md#protocol-9-smooth-forms).
+[smooth forms](../protocol.md#smooth-forms).
 
 ## Target
 
@@ -2348,8 +2355,9 @@ in wire order. See
 ## Wire protocol
 
 The versioned JSON request that the frontend sends to the kernel, and the
-kernel's response. Each request carries a protocol version. See
-[Wire protocols 2–9](../protocol.md).
+kernel's response. Each request carries the protocol version, the one
+[schema epoch](#schema-epoch) that the frontend and the kernel of one build
+share. See [The wire protocol](../protocol.md).
 
 ## Witness
 

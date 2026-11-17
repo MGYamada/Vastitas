@@ -56,8 +56,7 @@ Limits. `build` sends the kernel the same request as `check`, so `emit` on the
 captured request is the kernel step of `build`; the emitted Lean is not
 compiled or run here (the documented examples in `tests/examples.rs` do that).
 Library packages without an entry point reject `emit` with `E_MAIN`, so their
-primitives are lowered only through the packages that use them. No example
-selects protocol 5 or 6; their fixtures live in `tests/`.
+primitives are lowered only through the packages that use them.
 """
 import argparse
 import difflib

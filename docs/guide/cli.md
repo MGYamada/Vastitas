@@ -28,7 +28,7 @@ vastitas --version
 | `build` | Checks a program in the same way and then builds an executable from its entry point | The file `OUTPUT`, and the line `built OUTPUT` on standard output |
 | `audit-lean` | Rechecks an exported Lean proof with a second checker. It checks no program. [`audit-lean`](#audit-lean) describes it | A report of four lines on standard output |
 | `--help`, `-h` | Prints the usage. `vastitas` without arguments does the same, and so do `check`, `build` and `audit-lean` with `--help` or `-h` as their only argument | The usage on standard output |
-| `--version` | Prints the version of the compiler and the versions of the [wire protocol](../appendix/glossary.md#wire-protocol) that it speaks | One line, such as `vastitas 0.1.0-alpha (wire protocols 2/3/4/5/6/7/8/9)` |
+| `--version` | Prints the version of the compiler and the one version of the [wire protocol](../appendix/glossary.md#wire-protocol) that it speaks, its [schema epoch](../appendix/glossary.md#schema-epoch) | One line, such as `vastitas 0.1.0-alpha (wire protocol 10)` |
 
 `--help` and `--version` read no file and start no kernel.
 

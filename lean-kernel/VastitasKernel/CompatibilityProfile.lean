@@ -1,11 +1,11 @@
 import VastitasKernel.IndexedDispatchSource
 
 /-! The kernel-owned compatibility profile of the legacy geometry (`Scheme`,
-`CInfScheme`, `Point`, `Morphism`, `Pointed` and their primitives). The wire
-schemas of protocols 2 to 6 cannot carry library metadata, so
-`LegacySource.adapt` appends this package to every program of those
-protocols. A protocol-9 request asks for the same package with its optional
-field `legacy_geometry` (`ResourceSource.Program.legacyGeometry`, #533).
+`CInfScheme`, `Point`, `Morphism`, `Pointed` and their primitives). A request
+asks for it with its optional field `legacy_geometry`
+(`ResourceSource.Program.legacyGeometry`, #533), which the driver writes for
+every flat unit and for a package request without the records of the indexed
+envelope.
 
 The package is ordinary unresolved source: closed declarations and one
 `geometry_compat` export, which pass the same declaration and role checks as a
@@ -50,7 +50,7 @@ private def settingDeclarations (base : BaseKind) : List Source.Declaration :=
      ("point_family", .path geometryProfile.point), ("base_object", .path s.baseObject)]⟩),
    declaration s.identity.name (.primitive ⟨"identity", [("domain", .objectType type),
      ("map_family", .path geometryProfile.morphism)]⟩),
-   declaration s.dimension.name (.primitive ⟨"dimension", [("domain", .objectType type)]⟩)]
+   declaration s.dimension.name (.primitive ⟨"dim", [("domain", .objectType type)]⟩)]
 
 /-- Explicit closed declarations of the legacy geometry. Every declaration and
 role is checked by the common checker. -/

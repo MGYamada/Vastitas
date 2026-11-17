@@ -17,7 +17,7 @@ public checker composes this IR with the package checker, and
 
 This is an internal foundation that implements part of the
 [Storage and ownership](../storage-ownership.md) contract ([History](#history)). Its raw component envelope is not
-a public protocol. [Protocols 8 and 9](resource-programs.md#resource-functions) compose it with independently
+a public protocol. [Resource functions](resource-programs.md#resource-functions) compose it with independently
 checked package resource source. The exact checked component can
 produce standalone native buffer executables through the optional runtime below.
 The [delivery record](../stage1-completion.md) distinguishes the implemented bounded runtime and numerical consumers from broader interfaces and the Stage 2 performance requirements.
@@ -41,10 +41,10 @@ an actual-source lowering fixture.
 even for a literal condition, and requires every owner and loan to be closed at
 exit. Its certificate records the exact input, `run` result, final audit and
 closed-resource equations. `Wire.CheckedInput` additionally records the decoder
-and checker equations. Neither certificate is a public wire input. Protocols
-2–7 do not execute this component; protocol 2 explicitly rejects the reserved
-top-level `resources` field while retaining unrelated legacy hint compatibility.
-Protocols 8 and 9 reconstruct named resource source through the combined package checker.
+and checker equations. Neither certificate is a public wire input. A request
+with a top-level `resources` field is an error (`E_PROTOCOL`), as an unknown
+field of the envelope. The public route reconstructs named resource source
+through the combined package checker.
 
 There is a 4096-node global plan budget as well as a 4096 traversal-depth bound.
 Both arms consume the node budget. Every allocation's initialization metadata
@@ -440,7 +440,7 @@ proved neutral physical extent and creates no nominal third axis.
 
 This is the function component of [storage ownership](#storage-ir)
 ([History](#history)). Its raw component schema is not `.vast` syntax or a replacement for package/Fn/dispatch/edit
-checks. [The resource source of protocols 8 and 9](resource-programs.md#resource-functions) composes this component
+checks. [The resource source](resource-programs.md#resource-functions) composes this component
 with the complete package checker, including bounded Nat/Int/Bool/Unit value
 flow and a separate [guarded runtime-shape frame](resource-programs.md#runtime-extents). Broader numerical interfaces remain open beyond the delivered finite profile. [Stage 1 scope](../stage1-completion.md)
 
@@ -453,7 +453,7 @@ visibility or edit authority. Unknown fields, unsupported parameter kinds and
 integer narrowing are independently rejected. The shared component schema
 carries owned and borrowed parameters. The rows of the table on scalar
 values and on numerical spaces, bases and maps apply to the kernel component
-as the resource source of protocols 8 and 9 reaches it.
+as the resource source of the public route reaches it.
 
 | Contract | Actual-call behavior |
 | --- | --- |
@@ -603,8 +603,8 @@ initialization, escape, capture, recursion and expansion limits.
 
 Calls expand synchronously at static call sites. Ordinary resource forms retain
 static shapes; explicit runtime forms have universally guarded symbolic frames. Public
-dependent numerical inputs compose through [protocols 8 and 9](../linalg/maps-and-gemm.md#map-parameters);
-the older resource-only internal wire schema remains unchanged. Numerical
+dependent numerical inputs compose through [the resource source](../linalg/maps-and-gemm.md#map-parameters);
+the resource-only internal wire schema is separate. Numerical
 input receipts supplement the existing exact call replay and loan-return checks.
 Initialized owned-map inputs/results additionally preserve input-dependent bases,
 allocation identity and the actual coordinate layout. Their transfer emits only
@@ -987,7 +987,7 @@ a native performance benchmark.
 Implemented in the kernel, and proved as
 [Proofs and regression evidence](#proofs-and-regression-evidence) lists: the
 dense layout check, loan compatibility, initialized reads and resource
-transitions. Their composition with the resource source of protocols 8 and 9
+transitions. Their composition with the resource source of the public route
 is implemented as well. Two theorems of the oracle module
 `VastitasOracle.ResourceSource` are about it. `entry_uses_checked_library`
 states that the certificate of an accepted entry holds the result of

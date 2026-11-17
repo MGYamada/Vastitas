@@ -207,9 +207,9 @@ Claims:
 - Subject: `std::arithmetic::generic`
 - Rule: [Nat/Int promotion](../stage1a.md#promotion)
 
-The promotion theorems concern `VastitasKernel.IndexedPromotionFixture.checked`. That module is the Core module that the public checker `ResourceSource.Wire.check` returns for `tests/fixtures/promotion.current.json`. The Rust frontend produces that fixture, a protocol-9 request, from the stdlib arithmetic sources.
+The promotion theorems concern `VastitasKernel.IndexedPromotionFixture.checked`. That module is the Core module that the public checker `ResourceSource.Wire.check` returns for `tests/fixtures/promotion.json`. The Rust frontend produces that fixture, a request of the wire schema epoch, from the stdlib arithmetic sources.
 
-- Example: The frontend's output for the three stdlib arithmetic files equals `tests/fixtures/promotion.current.json`.
+- Example: The frontend's output for the three stdlib arithmetic files equals `tests/fixtures/promotion.json`.
 - Run by: `stdlib_ir_matches_proof_fixture` in [`tests/promotion.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/promotion.rs)
 
 Claims:
@@ -220,4 +220,4 @@ Claims:
   - Evidence:
     - `stdlib_ir_matches_proof_fixture` in [`tests/promotion.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/promotion.rs)
     - [`VastitasPromotion.IndexedRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPromotion/IndexedRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
-  - Note: `stdlib_ir_matches_proof_fixture` compares the frontend's output with the fixture, and the protocol-2 flat module of the same sources with the frozen fixture `tests/fixtures/promotion.json`. Building `VastitasPromotion.IndexedFixture`, which `VastitasPromotion.IndexedRegression` imports, compares the reflected module with a fresh run of the public checker and with the module that `Indexed.LegacySource.check` returns for the frozen fixture.
+  - Note: `stdlib_ir_matches_proof_fixture` compares the frontend's output with the fixture. Building `VastitasPromotion.IndexedFixture`, which `VastitasPromotion.IndexedRegression` imports, compares the reflected module with a fresh run of the public checker.

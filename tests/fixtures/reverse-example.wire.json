@@ -1,6 +1,5 @@
 {
   "file": "/vastitas/examples/packages/smooth-differential/Vastitas.toml",
-  "input": "package",
   "packages": [
     {
       "dependencies": [],
@@ -8389,5 +8388,5 @@
     }
   ],
   "root": "/vastitas/examples/packages/smooth-differential/Vastitas.toml",
-  "version": 9
+  "version": 10
 }

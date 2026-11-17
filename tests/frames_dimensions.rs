@@ -3,8 +3,8 @@
 //! std and on `nature`, declares its frames, maps, metrics and physical
 //! reading in `src/profile.vast`, and observes them in `src/main.vast`, one
 //! failure code per observation. These tests run it in place and mutated,
-//! check the protocol it selects, submit forged and tampered wire to the
-//! kernel, and run the rejected packages of Stage 4 under
+//! check the envelope that the frontend writes, submit forged and tampered
+//! wire to the kernel, and run the rejected packages of Stage 4 under
 //! `examples/reject/packages/`. The byte identity of C17 is tested in
 //! `tests/nature_dimension.rs`.
 mod common;
@@ -472,26 +472,14 @@ fn mutated_observations_change_the_native_result() {
     assert_eq!(shown, (1..=CODES).collect());
 }
 
-/// The program selects protocol 9; protocols 7 and 8 reject its envelope,
-/// and so do the older protocols (C14).
+/// The frontend writes the example in the current envelope, and the kernel
+/// accepts it (C14).
 #[test]
-fn the_example_selects_protocol_nine_and_older_envelopes_reject_it() {
+fn the_example_is_accepted_in_the_current_envelope() {
     let raw = request(&Program::shipped().fixture());
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
-    }
-    for version in 2..7 {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        let rejected = kernel(changed, "emit");
-        assert_eq!(rejected["ok"], false, "version {version}: {rejected}");
-    }
 }
 
 /// The kernel's response rejects the wire with `code`, and its first

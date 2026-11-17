@@ -3,9 +3,9 @@ import VastitasOracle.IndexedCore
 import VastitasOracle.IndexedSignatures
 import VastitasOracle.CheckerSoundness
 
-/-! Retained old-Core-to-indexed adapter/input association. Main's public
-compatibility boundary is Indexed.LegacySource.check, which does not run this
-adapter or the old geometry elaborator.
+/-! Retained old-Core-to-indexed adapter/input association. No public route
+runs this adapter or the old geometry elaborator; only the retained entry
+point `VastitasKernel.Codegen.generate` and its regressions do.
 Evaluation preservation and source-to-indexed semantic correspondence remain
 separate obligations; this result does not replace them with native tests. -/
 namespace VastitasOracle.LegacyIndexed

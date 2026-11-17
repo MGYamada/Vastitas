@@ -611,11 +611,10 @@ private def sixEncodings : Option String :=
 #eval check "a lowering with the wrong operand count is the arity error"
   ((binding "mat_bc").all fun b => !(b.contract.render (.share []) ["f"]).toBool)
 
-/-! ## Protocols 7 and 8 do not admit the frame primitives; protocol 9 does -/
+/-! ## The wire decodes the frame primitives -/
 
 open Lean in
-private def decodes (j : Json) (algebraic : Bool) : Bool :=
-  (Wire.declarationBody j (numerical := true) (algebraic := algebraic)).isOk
+private def decodes (j : Json) : Bool := (Wire.declarationBody j).isOk
 open Lean in
 private def spanJson : Json :=
   Json.mkObj [("start", (0 : Nat)), ("end", (0 : Nat)), ("line", (1 : Nat)), ("column", (1 : Nat))]
@@ -645,26 +644,23 @@ private def forms : List Json := [
   form "frame_equal" [("family", "Coords")],
   form "frame_at" [("family", "Coords"), ("map_family", "Smooth")]]
 
-#eval check "protocol 9 decodes each frame primitive" (forms.all (decodes · true))
-#eval check "protocols 7 and 8 reject each frame primitive" (forms.all (!decodes · false))
+#eval check "the decoder decodes each frame primitive" (forms.all decodes)
 #eval check "the forms are exactly the frame families of the table"
   (forms.length == 13 && (families.filter (·.op.startsWith "frame_")).length == 13)
 open Lean in
 #eval check "a natural field is an unsigned decimal string of at most 64 digits"
-  (decodes (form "frame_component" [("family", "Coords")] [("index", Json.str (String.ofList (List.replicate 64 '9')))])
-      true &&
+  (decodes (form "frame_component" [("family", "Coords")] [("index", Json.str (String.ofList (List.replicate 64 '9')))]) &&
     ["", "-1", "+1", "1.5", "0x1", "1_0", " 1", String.ofList (List.replicate 65 '1')].all (fun text =>
-      !decodes (form "frame_component" [("family", "Coords")] [("index", Json.str text)]) true) &&
-    !decodes (form "frame_component" [("family", "Coords")] [("index", (1 : Nat))]) true &&
-    !decodes (form "frame_component" [("family", "Coords")]) true &&
-    !decodes (form "frame_entry" [("frame_map", "FrameMap")] [("row", Json.str "0")]) true)
+      !decodes (form "frame_component" [("family", "Coords")] [("index", Json.str text)])) &&
+    !decodes (form "frame_component" [("family", "Coords")] [("index", (1 : Nat))]) &&
+    !decodes (form "frame_component" [("family", "Coords")]) &&
+    !decodes (form "frame_entry" [("frame_map", "FrameMap")] [("row", Json.str "0")]))
 open Lean in
 #eval check "the wire carries no frame data: a matrix, an inverse or an object is an unknown field"
-  (!decodes (form "frame_encode" [("fiber", "Tangent"), ("coords", "Coords"), ("frame", "b"), ("object", "Plane")])
-      true &&
+  (!decodes (form "frame_encode" [("fiber", "Tangent"), ("coords", "Coords"), ("frame", "b"), ("object", "Plane")]) &&
     !decodes (primitiveJson [("op", Json.str "frame_transition"), ("map_family", pathJson "Smooth"),
       ("frame_map", pathJson "FrameMap"), ("source", pathJson "b"), ("target", pathJson "c"),
-      ("inverse", Json.arr #[])]) true &&
-    !decodes (form "frame_matrix" [("map_family", "Smooth"), ("frame_map", "FrameMap"), ("source", "b")]) true)
+      ("inverse", Json.arr #[])]) &&
+    !decodes (form "frame_matrix" [("map_family", "Smooth"), ("frame_map", "FrameMap"), ("source", "b")]))
 
 end VastitasKernel.Indexed.FrameRegression

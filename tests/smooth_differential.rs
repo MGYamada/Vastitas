@@ -1,8 +1,8 @@
-//! Smooth objects and smooth maps through the public protocol-9 source path.
+//! Smooth objects and smooth maps through the public source path.
 //! `Affine(n)[...]` declares a smooth real affine space; `Smooth<X, Y>` maps
 //! are exact QQ polynomial maps. The kernel elaborates and checks every map;
-//! these tests exercise acceptance, native execution, rejections, protocol
-//! selection and forged wire. The last section runs the Stage 3 acceptance
+//! these tests exercise acceptance, native execution, rejections and forged
+//! wire. The last section runs the Stage 3 acceptance
 //! program, `examples/packages/smooth-differential`.
 mod common;
 use common::{
@@ -330,23 +330,11 @@ fn smooth_and_presented_objects_stay_disjoint() {
 }
 
 #[test]
-fn object_forms_select_protocol_nine_and_older_envelopes_reject_them() {
+fn object_forms_emit_from_the_frontend_request() {
     let raw = request(&fixture(MAIN));
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
-    }
-    for version in 2..7 {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        let rejected = kernel(changed, "emit");
-        assert_eq!(rejected["ok"], false, "version {version}: {rejected}");
-    }
 }
 
 #[test]
@@ -506,7 +494,7 @@ fn main() -> Int {
     assert_eq!(common::ran(&result), exits(42));
 }
 
-// Covectors, vectors, tapes and the reverse pass (protocol 9). The example
+// Covectors, vectors, tapes and the reverse pass. The example
 // checks the roadmap identity and its failure cases natively.
 
 const COTANGENT_PROFILE: &str =
@@ -1022,17 +1010,11 @@ fn cotangent_declarations_reject_malformed_contracts_with_specific_codes() {
 }
 
 #[test]
-fn cotangent_forms_select_protocol_nine_and_older_envelopes_reject_them() {
+fn cotangent_forms_emit_from_the_frontend_request() {
     let raw = request(&cotangent_fixture(COTANGENT_MAIN));
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
-    }
 }
 
 #[test]
@@ -1120,7 +1102,7 @@ fn raw_wire_rejects_forged_fiber_and_tape_records() {
     assert_eq!(kernel(recomputed, "emit")["ok"], true);
 }
 
-// Metrics, evidence, flat and sharp (protocol 9). The differential needs no
+// Metrics, evidence, flat and sharp. The differential needs no
 // metric; a gradient is an ordinary function that applies sharp to it.
 
 const METRIC_PROFILE: &str = include_str!("../examples/packages/smooth-metric/src/profile.vast");
@@ -1832,16 +1814,10 @@ fn smooth_endpoint_errors_name_the_failing_role() {
 }
 
 #[test]
-fn metric_forms_select_protocol_nine_and_older_envelopes_reject_them() {
+fn metric_forms_emit_from_the_frontend_request() {
     let raw = request(&metric_fixture(METRIC_MAIN));
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "emit")["ok"], true);
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
-    }
 }
 
 #[test]
@@ -2021,7 +1997,7 @@ fn differential_is_unchanged_by_metric_declarations() {
     assert_eq!(run(&metric), exits(42));
 }
 
-// The Stage 3 acceptance program (protocol 9). Each observation has its own
+// The Stage 3 acceptance program. Each observation has its own
 // failure code. Natively, it checks the roadmap identity and these #604 rows:
 // C3, C4, C5, the runtime part of C6, C7, C9, C12 and the positive bullets of
 // C13. Other tests and proofs cover the remaining rows:
@@ -2307,23 +2283,11 @@ fn mutated_observations_change_the_native_result() {
 }
 
 #[test]
-fn smooth_forms_select_protocol_nine_and_older_envelopes_reject_them() {
+fn smooth_forms_emit_from_the_frontend_request() {
     let raw = request(&acceptance_fixture(ACCEPTANCE_MAIN));
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
-    }
-    for version in 2..7 {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        let rejected = kernel(changed, "emit");
-        assert_eq!(rejected["ok"], false, "version {version}: {rejected}");
-    }
 }
 
 #[test]

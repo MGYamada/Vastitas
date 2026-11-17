@@ -6,10 +6,10 @@
 //! locations. The last test pins the locations as well: a note about a method
 //! must point at that method (#727).
 //!
-//! A program with a grant uses the latest wire protocol. A package program
-//! without edit declarations uses an earlier one, whose rejections also pass
-//! through `LegacySource.describeDiagnostic`. The tests say where they use the
-//! earlier protocol.
+//! A package program without edit declarations has the field
+//! `legacy_geometry`, with which the kernel appends its compatibility profile;
+//! a program with a grant has none. The tests say where they use a program
+//! with the field.
 mod common;
 use common::{Scratch, checked_replace, expect_code, message_text, symbol_encoding};
 
@@ -121,7 +121,7 @@ fn a_repeated_generic_parameter_is_named_as_it_is_written() {
         ),
         expected
     );
-    // A package program without edit declarations uses an earlier protocol.
+    // A package program without edit declarations has `legacy_geometry`.
     let plain = packages(
         &format!("pub fn one() -> Int {{ 1 }} {repeated}"),
         "pub fn two() -> Int { 2 }",
@@ -155,7 +155,8 @@ fn a_call_outside_the_domain_of_a_dependency_generic_names_it_by_its_path() {
         "lib={path='../base'}\naddon={path='../addon'}",
     );
     assert_eq!(rejected(&s, "E_DISPATCH_DOMAIN"), expected);
-    // No package declares a grant or a contribution: an earlier protocol.
+    // No package declares a grant or a contribution: the request has
+    // `legacy_geometry`.
     let base = BASE.lines().take(2).collect::<Vec<_>>().join("\n");
     assert_eq!(
         rejected(

@@ -4,9 +4,8 @@
 //! endomorphism fields, spectra, branch, invariants and dimensionless chart in
 //! `src/profile.vast`, and observes them in `src/main.vast`, where observation
 //! `k` adds `2^(k - 1)` when it fails. These tests run it in place and
-//! mutated, check the protocol it selects, submit forged and tampered wire to
-//! the kernel, and run the rejected packages of Stage 5 under
-//! `examples/reject/packages/`.
+//! mutated, submit forged and tampered wire to the kernel, and run the
+//! rejected packages of Stage 5 under `examples/reject/packages/`.
 mod common;
 use common::{Run, Scratch, assert_wire_rejected, cli, expect_code, kernel, root, success};
 use serde_json::{Value, json};
@@ -501,26 +500,14 @@ fn mutated_observations_change_the_native_result() {
     assert_eq!(shown, (1..=CODES).collect());
 }
 
-/// The program selects protocol 9; protocols 7 and 8 reject its envelope
-/// with `E_PROTOCOL`, and the older protocols reject it too (C14).
+/// The frontend's request for the program is of the current protocol, and the
+/// kernel emits it (C14).
 #[test]
-fn the_example_selects_protocol_nine_and_older_envelopes_reject_it() {
+fn the_example_emits_from_the_frontend_request() {
     let raw = request(&Program::shipped().fixture());
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
-    }
-    for version in 2..7 {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        let rejected = kernel(changed, "emit");
-        assert_eq!(rejected["ok"], false, "version {version}: {rejected}");
-    }
 }
 
 /// No spectral record carries a characteristic polynomial, an adjugate, a

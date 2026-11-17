@@ -518,7 +518,7 @@ fn emitted_calls_use_runtime_extents_and_reuse_each_callers_destination() {
 }
 
 #[test]
-fn kernel_rejects_forged_runtime_metadata_and_old_protocol_envelopes() {
+fn kernel_rejects_forged_runtime_metadata() {
     let raw = request(&fixture(&source(false, 2, 3, 2, 1)));
     assert_eq!(kernel(&raw, "check")["ok"], true);
     let mut forged = raw.clone();
@@ -539,12 +539,6 @@ fn kernel_rejects_forged_runtime_metadata_and_old_protocol_envelopes() {
     functions_mut(&mut forged)[0]["body"][0]["operation"]["alpha"] =
         json!({"kind":"loan","loan":"left"});
     common::assert_wire_rejected(&kernel(&forged, "check"), "E_RUNTIME_COEFFICIENT");
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in 2..8 {
-        let mut legacy = raw.clone();
-        legacy["version"] = json!(version);
-        common::assert_wire_rejected(&kernel(&legacy, "check"), "E_PROTOCOL");
-    }
 }
 
 #[test]

@@ -64,18 +64,20 @@ class ResultTests(unittest.TestCase):
     def test_frontend_rejection_requires_no_kernel_version_or_process(self):
         _, self.expected, self.result = next(cases())
         self.assert_judgment("passed", "expected_rejection")
-        self.result["backend"]["request_version"] = 2
+        self.result["backend"]["request_version"] = ref.PROTOCOL
         self.assert_judgment("failed", "frontend_backend_inconsistent")
 
-    def test_matching_supported_kernel_protocols(self):
-        for version in range(2, 10):
+    def test_the_one_kernel_protocol(self):
+        source = (ROOT / "lean-kernel/VastitasKernel/Protocol.lean").read_text(encoding="utf-8")
+        self.assertIn(f"def currentProtocol : Nat := {ref.PROTOCOL}\n", source)
+        self.result["backend"]["request_version"] = ref.PROTOCOL
+        self.result["backend"]["response"]["version"] = ref.PROTOCOL
+        self.assert_judgment("passed", "expected_rejection")
+        for version in (*range(0, ref.PROTOCOL), ref.PROTOCOL + 1, 99):
             with self.subTest(version=version):
                 self.result["backend"]["request_version"] = version
                 self.result["backend"]["response"]["version"] = version
-                self.assert_judgment("passed", "expected_rejection")
-        self.result["backend"]["request_version"] = 99
-        self.result["backend"]["response"]["version"] = 99
-        self.assert_judgment("failed", "unsupported_protocol")
+                self.assert_judgment("failed", "unsupported_protocol")
 
     def test_kernel_build_identity_is_checked_but_not_judged(self):
         identity = {"sources": "0123456789abcdef", "lean": "4.35.0"}

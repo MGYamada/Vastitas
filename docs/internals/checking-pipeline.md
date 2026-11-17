@@ -9,11 +9,11 @@ proved.
 
 ## The public path
 
-Protocol 2 carries surface types, lambda expressions and expression invocation.
-Protocols 2–6 decode that unresolved syntax through `Indexed.LegacySource.check`
-into the common `Indexed.AuthoritySource` composition used by protocol 7's
-`Indexed.Wire.check`. Its `Indexed.FunctionSource` compiler lowers functions into
-independently audited indexed Core, including programs without Fn constructs.
+The wire protocol carries surface types, lambda expressions and expression
+invocation. `ResourceSource.Wire.check` decodes that unresolved syntax and
+passes the pure program to the common `Indexed.AuthoritySource` composition.
+Its `Indexed.FunctionSource` compiler lowers functions into independently
+audited indexed Core, including programs without Fn constructs.
 The old Raw/Checked Core and its checker `checkModule` remain retained internal
 APIs; Main does not call them. Their older source-correspondence results do not
 imply correspondence for the current source lowering.
@@ -37,10 +37,10 @@ the resulting dependency graph has no cycle.
 
 ## Abstract types and contracts
 
-Inputs with abstract types, `subtype` declarations or abstract methods use
-[protocol 4](../protocol.md#protocol-selection) or a later protocol, explicitly
-marked `flat` or `package`. Sources without them may use protocols 2 and 3. Rust retains
-unresolved paths and spans; Lean independently resolves names, audits edit
+Abstract types, `subtype` declarations and abstract methods are records of a
+module of the request
+([Finite abstract declarations](../protocol.md#finite-abstract-declarations)).
+Rust retains unresolved paths and spans; Lean independently resolves names, audits edit
 authority, constructs the hierarchy, and selects executable methods. The
 backend creates the indexes and hierarchy; the wire cannot supply trusted
 owners, capabilities, resolved targets or selected winners.
@@ -132,13 +132,13 @@ counters and target states.
 Exceeding any budget rejects the entire input with `E_LIMIT`; it never licenses
 omitting an unused body or accepting a partial dispatch audit. The exact returned
 pass carries its accumulated work and independently checks the upper bound.
-Protocols 2–9 use this common pure-function path, including pure resource
+Every request uses this common pure-function path, including pure resource
 fragments. This does not bound resource-plan expansion/replay, all namespace
 resolution, quadratic local-context operations, or total compiler wall time.
 Separate budgets bound two of these:
 [Resource checking work](../storage/checked-storage.md#storage-functions--resource-checking-work)
 bounds resource checking, and the limits of
-[Protocol 3](../protocol.md#protocol-3-package-namespaces) bound namespace
+[Package namespaces](../protocol.md#package-namespaces) bound namespace
 work. The [History](#history) section names the issues that reported these
 limits. Existing per-body, dispatch-key and higher-order-instance limits remain
 in force.
@@ -193,8 +193,8 @@ empty domains, overlapping/conflicting results, authority and tampered IR.
 Fn contracts and lambdas, zero/Unit/multiple arguments, dispatch, multiple
 explicit libraries, captures, invalid unused bodies, mismatched types/arity,
 runtime target choices, recursion, the 4096-instance boundary and forged IR.
-`VastitasKernel.LegacySourceRegression` checks current JSON acceptance and
-rejection directly; `IndexedFunctionRegression` covers the common function
+`VastitasKernel.IndexedWireRegression` checks JSON acceptance and rejection
+through the public checker directly; `IndexedFunctionRegression` covers the common function
 compiler and forged static ledgers. The current function compiler additionally
 reconstructs caller/target occurrence counts from the returned Core and checks
 them against its emitted-call ledger. Generic-call records retain the emitted
@@ -211,9 +211,8 @@ order, while the existing 60-second watchdog covers 20,000 functions with and
 without a lambda, reversed declarations, and a shared callee.
 
 `tests/pairs.rs` checks Pair source/raw-IR typing and native execution in both
-input modes. `LegacySourceRegression` checks current public Pair calls and
-mutations of their returned Core; `IndexedCoreRegression` audits indexed Pair
-terms. `PairRegression` retains old-Core construction, projection, call and
+input modes, with mutations of the request; `IndexedCoreRegression` audits
+indexed Pair terms. `PairRegression` retains old-Core construction, projection, call and
 code-generation audit tests.
 
 ## Promotion proofs and fixture
@@ -222,23 +221,17 @@ The specification [std::arithmetic::generic](../spec/std-arithmetic-generic.md)
 states the contract of promotion, and [Promotion](../stage1a.md#promotion)
 describes it. `tests/promotion.rs::stdlib_ir_matches_proof_fixture` runs
 `vastitas check` on an empty input file with the three canonical stdlib files
-as `--lib` inputs and captures the protocol-9 request that the driver writes.
-It compares the complete JSON against `tests/fixtures/promotion.current.json`;
-it does not substitute a handwritten AST. It also compares the protocol-2 flat
-module of `parse_sources` for the same files, with the same filenames and
-offsets, against the frozen fixture `tests/fixtures/promotion.json`, which
-the driver wrote before it sent flat programs as protocol 9. Both no-mathlib
-CI jobs run this test.
+as `--lib` inputs and captures the request that the driver writes. It
+compares the complete JSON against `tests/fixtures/promotion.json`; it does
+not substitute a handwritten AST. Both no-mathlib CI jobs run this test.
 
 `VastitasPromotion.IndexedFixture` runs `ResourceSource.Wire.check json false`,
-the public protocol-9 path used by Main, on `promotion.current.json` while
-elaborating the fixture. It reflects the returned
-`pureProgram.executable.core.module` as ordinary transparent Lean data.
-Build-time checks compare that module with a fresh public-checker result and
-with the module that the retiring protocol-2 route `Indexed.LegacySource.check`
-returns for the frozen fixture, and independently check its indexed Core
-typing/dependency audits. Lake tracks both JSON files as input dependencies
-of this separate test/proof library; they are no dependency of ordinary
+the public path used by Main, on `promotion.json` while elaborating the
+fixture. It reflects the returned `pureProgram.executable.core.module` as
+ordinary transparent Lean data. Build-time checks compare that module with a
+fresh public-checker result and independently check its indexed Core
+typing/dependency audits. Lake tracks the JSON file as an input dependency
+of this separate test/proof library; it is no dependency of ordinary
 compiler builds. Concrete fixture acceptance and this
 reflection agreement are executable checks, not a general decoder proof.
 The reflection runs the checker and `reprStr` at elaboration time, so the
@@ -263,7 +256,7 @@ the actual argument/temporary lets, scope/ascription wrappers and helper calls:
 
 The individual `promote_nn/ni/in/ii`, `add_nn/ni/in/ii` and
 `maximum_nn/ni/in/ii` lemmas expose the actual evaluation derivations. The
-general current `IndexedProgramSafety` and `LegacySource` acceptance theorems
+general current `IndexedProgramSafety` and `ResourceSource` acceptance theorems
 provide the separate indexed typing/order/termination chain.
 Idempotence does not replace the dependency-order proof.
 
@@ -274,9 +267,9 @@ are covered by regression checks; the numerical fixture uses flat input.
 
 ### Regression and maintenance
 
-`VastitasPromotion.IndexedRegression` enters the real JSON checkers for flat
-protocols 2/4, package protocols 3–6 and protocol 7. It checks all three returned
-finite families, the 16 binary keys and selected method identities, exact Core
+`VastitasPromotion.IndexedRegression` enters the public JSON checker with the
+fixture and with mutations of it. It checks all three returned finite
+families, the 16 binary keys and selected method identities, exact Core
 numerical results, executable entry/code generation and rejected forged
 Core/source metadata. It uses the existing bounded indexed evaluator as test
 infrastructure; the oracle proofs above establish arbitrary-input contracts.

@@ -109,7 +109,7 @@ fn strings(value: &Value, out: &mut Vec<String>) {
 fn library_profile_checks_builds_and_runs_from_a_path_package() {
     let s = fixture(MAIN, &[]);
     assert_eq!(run(&s), failed(0));
-    // The library and the application share one protocol-9 closure.
+    // The library and the application share one request.
     let wire = request(&s);
     for name in ["vastitas_geometry", "vastitas_differential", "vastitas_std"] {
         package(&wire, name);
@@ -474,7 +474,7 @@ fn library_objects_keep_their_identity_and_classification() {
     ] {
         rejects(&with(body), "E_TYPE");
     }
-    // MetricForm is distinct from the protocol-8 Metric and from MetricSpace.
+    // MetricForm is distinct from the numerical Metric and from MetricSpace.
     for name in ["Metric", "MetricSpace"] {
         rejects(
             &with(&format!("use std::geometry::metric::{name};")),

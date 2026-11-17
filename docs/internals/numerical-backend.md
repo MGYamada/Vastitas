@@ -26,9 +26,9 @@ pure floating arithmetic or recursive `Fn` scalar type is introduced here.
 
 ### Wire and checker boundary
 
-A package with a numerical representation selects protocol 9, even without
-resource functions ([Protocol selection](../protocol.md#protocol-selection)).
-Protocol 8 decodes the same representations. Existing `"affine_descriptor"` JSON is unchanged.
+A package with a numerical representation has no `legacy_geometry`, even without
+resource functions ([Flat programs and the legacy geometry](../protocol.md#flat-programs-and-the-legacy-geometry)).
+The `"affine_descriptor"` JSON is unchanged.
 The two representations are single-key objects:
 
 ```json
@@ -37,7 +37,7 @@ The two representations are single-key objects:
 ```
 
 Unknown fields, multiple representation keys, machine scalar names in the ideal
-coefficient field, and old wire versions are rejected. Lean resolves base paths
+coefficient field, and other wire versions are rejected. Lean resolves base paths
 through the same namespace resolver and records their provenance. The actual
 `Indexed.Source.checkDeclarations` certificate checks all of these contracts;
 `ResourceSource` still checks every ordinary and resource body. The exact returned
@@ -51,8 +51,8 @@ evidence of numerical execution or C-level performance.
 
 ### Validation and remaining connection
 
-`tests/numerical_declarations.rs` exercises source check/build/execution, version
-downgrades, unused invalid bodies/profiles, wrong coefficient/base relationships,
+`tests/numerical_declarations.rs` exercises source check/build/execution,
+unused invalid bodies/profiles, wrong coefficient/base relationships,
 namespace visibility, old primitive rejection and forged wire metadata.
 `IndexedNumericalRegression` additionally checks nominal base preservation,
 declaration permutations, cycles and tampered returned-Core rejection.
@@ -61,7 +61,7 @@ The actual-checker theorems in `VastitasOracle.IndexedSource` establish the
 implementation contract, required linear base profile, real base/distinct
 coefficient for smooth complex profiles, coefficient-kind coherence and the old
 constructor boundary. `ResourceSource.public_numerical_declaration` connects
-that contract to the actual protocol-8 decoded and accepted input. These prove
+that contract to the actual decoded and accepted input. These prove
 structural declaration facts, not mathematical field/module laws, native
 refinement or floating-point accuracy.
 
@@ -76,7 +76,7 @@ Dependent map interfaces, explicit dual/conjugate/metric evidence and finite net
 ## Numerical values and typed GEMM
 
 `StorageNumerical` connects the common indexed declaration environment to the
-actual resource-function compiler and its GEMM schedule. Public protocol 8
+actual resource-function compiler and its GEMM schedule. The wire protocol
 exposes local space/basis/map constructors and bilinear GEMM inside resource
 functions. Rust sends unresolved profile paths and local names; Lean independently
 resolves them in the same namespace as the complete authority/Fn/dispatch checker.
@@ -107,7 +107,7 @@ derived-space, basis, involution and metric contracts.
 coordinate vectors, explicit conjugation, dual evaluation and declared-form
 pairing with actual scalar output loans.
 
-| Source form | Protocol-8 `operation` fields (besides `op`) |
+| Source form | Wire `operation` fields (besides `op`) |
 | --- | --- |
 | `space x = linear(path, n);` | `name`, `implementation: {path, span}`, `dimension` |
 | `basis b = basis(x);` | `name`, `space` |
@@ -124,15 +124,16 @@ The kernel rechecks profile visibility, kind and base against those declarations
 even if the frontend previously accepted the input. Checked IDs, proof tags,
 native conjugation flags and product receipts are not input authority.
 
-This is an additive extension within protocol 8, with no change to the existing
-protocol-2–7 schemas. Versions 2–7 reject numerical/resource payloads; a kernel
-predating the numerical extension of version 8 rejects the unknown statement
-tag. A matching version number alone is therefore not feature negotiation.
-Use the matching frontend/kernel revision for these forms. No downgrade to raw
-resource GEMM or fallback after rejection is permitted. Unknown semantic fields
-remain errors, including fields nested in the profile path. Future incompatible
-changes must use another protocol version rather than reinterpret these forms;
-additional optional operations must continue to fail closed on older kernels.
+These forms are records of the wire protocol. A kernel of another revision
+that does not know one rejects its unknown statement tag, and a request of
+another version fails closed by its version alone
+([Other versions](../protocol.md#other-versions)): a version number is no
+feature negotiation. Use the frontend and the kernel of one build for these
+forms. No downgrade to raw resource GEMM or fallback after rejection is
+permitted. Unknown semantic fields remain errors, including fields nested in
+the profile path. A later incompatible change takes another schema epoch
+rather than reinterpret these forms, and an additional optional operation
+fails closed on a kernel that does not know it.
 
 ### Coefficients
 
@@ -149,8 +150,7 @@ exact-field theorem.
 Optional wire fields `alpha` and `beta` contain either
 `{kind: "literal", value: <resource literal>}` or
 `{kind: "loan", loan: <local name>}`. Omitted fields retain previous behavior;
-explicit null and unknown fields are rejected by the kernel. Older kernels
-reject these additional fields. Scope resolution and actual read/init/alias
+explicit null and unknown fields are rejected by the kernel. Scope resolution and actual read/init/alias
 checks remain mandatory; no frontend certificate can substitute for them.
 
 `CheckedCoefficient` records the actual scalar/read/init/separation check;
@@ -174,8 +174,8 @@ The wire parameter tags are `space` (`name`, unresolved `implementation`,
 `source`, `target`, `access`, `initializes`, `span`). Rust and Lean reject
 unknown fields. Header profile references undergo the same lexical resolution
 and provenance audit as body constructors, including unused definitions.
-Older protocol-8 kernels reject these parameter tags; there is no fallback.
-The older internal resource-only component wire format remains unchanged.
+A kernel that does not know these parameter tags rejects them; there is no
+fallback. The internal resource-only component wire format is separate.
 
 Separate probes check every body with its declared static contracts. Every
 actual call is independently rechecked with its caller's identities, layout,
@@ -285,8 +285,8 @@ and forged metadata. `scripts/check_gemm_checked.py` also executes generated
 rectangular real and complex fixtures with exact expected bit patterns and
 allocation/copy counters, using pinned OpenBLAS 0.3.34.
 `tests/numerical_source.rs` tests the actual public source and wire boundaries,
-visibility and aliases, wrong bases/objects, scope/capture, old versions and
-forged fields. Direct wire mutations exercise both real and complex bodies,
+visibility and aliases, wrong bases/objects, scope/capture and forged
+fields. Direct wire mutations exercise both real and complex bodies,
 including unused definitions, equal-dimension distinct spaces, distinct bases,
 released/suspended loans and a square transpose whose dimensions do not change.
 The raw resource-GEMM rejection in `tests/resource_source.rs` preserves a valid
@@ -378,7 +378,7 @@ the same declaration environment accepted by the full authority checker.
 `VastitasOracle.StorageOwnedPackages` proves actual acceptance and emission,
 source/allocation/layout preservation, initialization, opening freshness and
 witness bindings, closed target restrictions and actual dependent result
-contracts. Public origin theorems refer to the exact protocol-8 returned checker
+contracts. Public origin theorems refer to the exact returned checker
 result. These are structural/resource guarantees, not float field laws, full
 source operational equivalence or native heap refinement.
 
@@ -402,7 +402,7 @@ sanitizer checks remain applicable.
 
 ## Native GEMM adapter
 
-Public protocol 8 can execute real and complex GEMM from `.vast` package
+The public route can execute real and complex GEMM from `.vast` package
 `resource fn` bodies. The [public numerical path](#numerical-values-and-typed-gemm) connects
 unresolved source names to independently checked nominal spaces, bases and live
 map views, then to the checked resource/native schedule and OpenBLAS execution.
@@ -413,7 +413,7 @@ the internal API is distinct from the already implemented public source entry.
 
 | Layer | Responsibility | Boundary |
 | --- | --- | --- |
-| Public syntax and protocol 8 | The Rust frontend parses numerical statements; `ResourceProtocol` independently decodes unresolved paths, local names, modes and coefficients in Lean. | Frontend acceptance is not semantic acceptance. Public input cannot supply checked IDs, product receipts or raw resource GEMM actions. |
+| Public syntax and the wire protocol | The Rust frontend parses numerical statements; `ResourceProtocol` independently decodes unresolved paths, local names, modes and coefficients in Lean. | Frontend acceptance is not semantic acceptance. Public input cannot supply checked IDs, product receipts or raw resource GEMM actions. |
 | Actual Lean checking | `ResourceSource` supplies the same declaration environment accepted by the full authority/Fn/dispatch checker. `StorageNumerical` checks nominal endpoints, bases and live map views; `StorageFunctions` checks every body and each actual call. `Storage.checkGemm` checks access, initialization, scalar/shape compatibility, coefficients and output separation. | Raw resource access or matching dimensions alone cannot authorize a mathematical map or metric. All-body probes remain separate from executable call checks. |
 | Checked native lowering | `ResourceCodegen` and `StorageCodegen` recheck the source components, exact resource schedule and native instructions, retaining actual allocation/layout, mode, coefficients and explicit transform flags. | Only a checked entry whose schedule contains GEMM requests the optional numerical runtime. |
 | Native execution | The C adapter reconstructs physical views from the live storage arena, checks layout/alias/ABI conditions before writes, and calls pinned OpenBLAS `dgemm` or `zgemm` for nondegenerate products. | It relies on the checked caller for logical initialization, permissions and nominal authority. Empty and zero-inner operations use the explicit conventions below. |
@@ -727,16 +727,15 @@ equivalent-C timings remain part of the [Fast like C gate](../storage-ownership.
 
 ### Wire and proof boundary of transforms
 
-Protocol 8 adds `dual_space`, `conjugate_space`, `derived_basis`, `involution`,
-`metric` and `transform` numerical operations. The last has an unresolved parent
+The wire protocol has the numerical operations `dual_space`,
+`conjugate_space`, `derived_basis`, `involution`, `metric` and `transform`. The last has an unresolved parent
 name and a strict nested operation (`dual`, `conjugate`, or `adjoint`), naming
 bases, an involution or metrics. Gram entries are exact decimal strings in a
 strict `identity`, `scaled_identity`, or `diagonal` object. The dependent
 parameter forms use the corresponding tags; metric headers explicitly record
 the orthonormal requirement. These are source names and declared data, never
 trusted IDs, raw native flags, prechecked tags or tolerance certificates. Unknown
-nested fields and old protocol envelopes are rejected. Older protocol-8 kernels
-reject these operations; use a matching frontend/kernel revision.
+nested fields are rejected; use the frontend and the kernel of one build.
 
 `StorageNumerical.checkTransform` checks the original live map, exact metric
 contract, actual resource borrow, full value provenance and returned live view.
@@ -770,8 +769,8 @@ It checks every one-dimensional output, writes no line and exits with status 0.
 origin and metric mutations, actual allocation retention, parent suspension,
 nested loan returns and forged native flags. Public source/wire tests cover
 wrong nominal objects and bases, missing/degenerate forms, non-orthonormal bases,
-incompatible involutions, weak or forged contracts, unused invalid helpers,
-old envelopes and output-file preservation. Optional numerical CI executes
+incompatible involutions, weak or forged contracts, unused invalid helpers
+and output-file preservation. Optional numerical CI executes
 real/complex rectangular examples through actual source check/build and native
 GEMM. A metadata-only entry with unused valid numerical helpers builds and runs
 without OpenBLAS.
@@ -799,12 +798,11 @@ The example reuses one output allocation. Its scalar results use the adapter's
 [fused scalar loop](#numerical-adapter--scalar-outputs) rather
 than BLAS. Full runtime remains part of the [Fast like C gate](../storage-ownership.md#performance-evidence-and-acceptance).
 
-Rust and Lean share strict unresolved protocol-8 forms: `vector`,
+Rust and Lean share strict unresolved forms: `vector`,
 `conjugate_vector`, and `evaluate` with a nested `dual` or `hermitian` operation.
 Headers use `kind: "vector"`, a basis name, access and initialization requirement.
 Native flags, allocation IDs, checked tags and origin certificates are not
-source authority. Old versions reject these payloads; older protocol-8 kernels
-reject these operations. Use a matching frontend/kernel revision.
+source authority. Use the frontend and the kernel of one build.
 
 `StorageEvaluation.checkVectorConjugate` validates actual origins, basis,
 involution and borrow. `checkEvaluation` connects the exact dual or explicit
@@ -825,7 +823,7 @@ general ideal-module laws or native numerical refinement.
 `EvaluationRegression` covers real/complex dimensions 0/1/3, ordinary and
 physically transposed columns, provenance/flag mutations, initialization,
 aliases, suspended parents, both branch states and native-plan audits. Public
-tests cover nested repeated read inputs, malformed wire, old versions, invalid
+tests cover nested repeated read inputs, malformed wire, invalid
 unused helpers, artifact preservation and metadata-only execution without
 OpenBLAS. Numerical CI executes all shape/orientation cases, mixed complex
 components and explicit accumulation.
@@ -973,9 +971,9 @@ lifecycle costs and does not close the [Fast like C gate](../storage-ownership.m
 ### Checking, proofs and examples of diagonal metrics
 
 Rust and Lean strictly decode `adjoint_into` and `hermitian_diagonal` numerical
-operations in protocol 8. Operands are unresolved names and explicit scratch
-layout, never supplied Gram bytes, allocation identities or acceptance receipts.
-Protocols 2–7 and unknown fields reject these payloads. `StorageMetric` obtains
+operations. Operands are unresolved names and explicit scratch layout, never
+supplied Gram bytes, allocation identities or acceptance receipts. Unknown
+fields are rejected. `StorageMetric` obtains
 metrics from the actual accepted value environment, retains exact realization,
 resource transition and replay evidence; `StorageFunctions` retains the precise
 emitted action, and `ResourceSource` audits every executable receipt's original
@@ -1031,8 +1029,8 @@ Rust serializes an unresolved resource statement with `kind: "network"`, `graph`
 Each port is `{occurrence, role}`, where `role` is `input` or `output`. Types,
 allocations, inferred conversions, certificates and schedules are not accepted
 from the frontend. The decoder bounds these lists before traversing them and
-rejects unknown fields at every level. Older protocols reject network statements;
-older protocol-8 kernels fail closed on the unknown tag.
+rejects unknown fields at every level. A kernel that does not know network
+statements fails closed on the unknown tag.
 
 `ResourceSource.lowerStatements` independently resolves map names in the actual
 function scope. `Storage.Functions.networkOperation` resolves the current call's
@@ -1085,7 +1083,7 @@ allocations and two GEMMs. These are structural costs, not C-parity measurements
 
 ### Tensor packing: independent checking and native execution
 
-The strict protocol-8 `tensor` statement carries an unresolved operation:
+The `tensor` statement carries an unresolved operation:
 
 - `view`: `name`, `loan`, ordered `axes`, and `grouping` with `order` and `split`.
 - `pack`: `source` and `target` tensor names.
@@ -1093,7 +1091,7 @@ The strict protocol-8 `tensor` statement carries an unresolved operation:
 
 The decoder bounds axes and permutations before traversing them and rejects
 unknown fields. It accepts no allocation IDs, resolved bases, flags, proof
-objects or fabricated schedules. Older envelopes reject these statements.
+objects or fabricated schedules.
 `TensorNumerical` reconstructs the actual values in the same declaration
 environment used by the full authority checker. `StorageFunctions` retains
 constructor, packing and contraction receipts with exact accepted states and
@@ -1162,8 +1160,7 @@ to source/scratch versions and rejects stale use in `contract3_cached`. Ordinary
 
 Rust serializes unresolved graph names, ports, ordered boundaries and the
 explicit plan. Lean independently resolves local bindings, actual bases and
-loans against the public declaration environment. The strict additive protocol-8
-`tree` statement has `graph`, `output`, `policy`, `plan` and `span` fields.
+loans against the public declaration environment. The `tree` statement has `graph`, `output`, `policy`, `plan` and `span` fields.
 The graph has `occurrences` (`name`,`value`), `edges` (`name`,`dual`,`primal`)
 and `boundary`; a port has `occurrence` and `axis`.
 Plan `kind` values are `action`, `view`, `regroup`, `rebind` and `join`.
@@ -1419,7 +1416,7 @@ of finite coordinate operations, not general tensor evaluation or a proof of
 floating-point algebraic laws. [#67](https://github.com/MGYamada/Vastitas/issues/67)
 and [#91](https://github.com/MGYamada/Vastitas/issues/91) remain open.
 
-Package-only protocol 8 checks coordinate vectors, explicit vector conjugation,
+The public route checks coordinate vectors, explicit vector conjugation,
 algebraic dual evaluation and an orthonormal Hermitian pairing. The actual
 source checker connects nominal bases and derived-space origins to live storage
 loans, the exact GEMM schedule and native execution. This advances
@@ -1429,7 +1426,7 @@ issue is completed by this increment.
 
 The diagonal-metric increment left #67, #91, #183 and historical Stage 1 open.
 
-Protocol 8 supports a finite profile of [#69](https://github.com/MGYamada/Vastitas/issues/69):
+The public route supports a finite profile of [#69](https://github.com/MGYamada/Vastitas/issues/69):
 two rank-two map occurrences, one bilinear evaluation edge, one input boundary,
 one output boundary and one caller-provided overwrite destination. It is connected
 to the independent Lean checker and the existing typed GEMM/storage/native path.

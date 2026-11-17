@@ -111,7 +111,7 @@ acceptance. [Storage and performance contract](https://github.com/MGYamada/Vasti
 The Rust frontend supplies versioned input to the mathlib-independent Lean
 kernel. Optional native storage and numerical runtimes link when the checked
 entry needs them. [Compiler architecture](https://github.com/MGYamada/Vastitas/blob/main/docs/development/architecture.md) ·
-[Wire protocols 2–9](https://github.com/MGYamada/Vastitas/blob/main/docs/protocol.md) · [Contributor guidance](https://github.com/MGYamada/Vastitas/blob/main/AGENTS.md)
+[Wire protocol](https://github.com/MGYamada/Vastitas/blob/main/docs/protocol.md) · [Contributor guidance](https://github.com/MGYamada/Vastitas/blob/main/AGENTS.md)
 
 ## Validation
 

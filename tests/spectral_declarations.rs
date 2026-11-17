@@ -1,13 +1,13 @@
 //! The Stage 5 (#806) source forms of `std::linalg::spectral` through the
-//! public protocol-9 source path: the spectral families, the free module,
+//! public source path: the spectral families, the free module,
 //! endomorphism, spectrum and branch declarations, the invariants
 //! `trace_power` and `char_coefficient`, and the five observations. The
 //! frontend parses each form into the wire record that the kernel decodes and
-//! checks no spectral rule of its own; these tests capture the wire, check the
-//! protocol it selects, its records and its round trip, and submit it to the
-//! kernel, which decodes it only in protocol 9 and judges it.
+//! checks no spectral rule of its own; these tests capture the wire, check its
+//! records and its round trip, and submit it to the kernel, which decodes and
+//! judges it.
 mod common;
-use common::{Scratch, assert_wire_rejected, expect_code, kernel, remove_spans, success};
+use common::{Scratch, expect_code, kernel, remove_spans, success};
 use serde_json::{Value, json};
 
 const MANIFEST: &str =
@@ -134,120 +134,47 @@ fn decoded(response: &Value) {
 }
 
 /// Each Stage 5 form alone in a package, with the frontend's only other item
-/// `fn main`, and the exact message with which protocols 7 and 8 reject it. Paths
-/// are unresolved on the wire; the kernel resolves them. A spectral family of
-/// the library's shape is rejected at its constraint `canonical(0)`, a smooth
-/// form, before its representation is read, so each representation also
-/// appears without parameters and constraints, where the representation
-/// decides. A morphism declaration is an algebraic affine form.
-const LONE_FORMS: &[(&str, &str)] = &[
-    (
-        "indexed family FreeModule(object(CInfAffine)) = free_module constraints(canonical(0));",
-        "smooth declarations require protocol 9",
-    ),
-    (
-        "indexed family FreeModule() = free_module constraints();",
-        "spectral declarations require protocol 9",
-    ),
-    (
-        "indexed family Endomorphism(object(CInfAffine)) = endomorphism constraints(canonical(0));",
-        "smooth declarations require protocol 9",
-    ),
-    (
-        "indexed family Endomorphism() = endomorphism constraints();",
-        "spectral declarations require protocol 9",
-    ),
-    (
-        "indexed family Spectrum(object(CInfAffine)) = spectrum constraints(canonical(0));",
-        "smooth declarations require protocol 9",
-    ),
-    (
-        "indexed family Spectrum() = spectrum constraints();",
-        "spectral declarations require protocol 9",
-    ),
-    (
-        "indexed family Branch(object(CInfAffine)) = branch constraints(canonical(0));",
-        "smooth declarations require protocol 9",
-    ),
-    (
-        "indexed family Branch() = branch constraints();",
-        "spectral declarations require protocol 9",
-    ),
-    (
-        "indexed free_module V: FreeModule<Plane> = basis(e1, e2);",
-        "spectral declarations require protocol 9",
-    ),
-    (
-        "indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric;",
-        "spectral declarations require protocol 9",
-    ),
-    (
-        "indexed spectrum S: Spectrum<Plane> = eigen(H, t);",
-        "spectral declarations require protocol 9",
-    ),
-    (
-        "indexed branch B: Branch<Plane> = simple(S, localize = x^2 + y^2, witness = frac(1, 2) * t, exponent = 1);",
-        "spectral declarations require protocol 9",
-    ),
-    (
-        "indexed morphism tr2: Smooth<Plane, Line> = trace_power(H, 2);",
-        "algebraic affine declarations require protocol 9",
-    ),
-    (
-        "indexed morphism c0: Smooth<Plane, Line> = char_coefficient(S, 0);",
-        "algebraic affine declarations require protocol 9",
-    ),
-    (
-        "indexed primitive ann = annihilates(Smooth, spectrum = S, element = t - 2);",
-        "unknown indexed primitive contract",
-    ),
-    (
-        "indexed primitive act = action_entry(Smooth, spectrum = S, element = t - 2, e1, e2);",
-        "unknown indexed primitive contract",
-    ),
-    (
-        "indexed primitive on = on_branch(Smooth, Line, branch = B);",
-        "unknown indexed primitive contract",
-    ),
-    (
-        "indexed primitive dl = branch_differential(Smooth, Cotangent, Line, branch = B);",
-        "unknown indexed primitive contract",
-    ),
-    (
-        "indexed primitive pr = branch_projector(Smooth, Line, branch = B, e1, e2);",
-        "unknown indexed primitive contract",
-    ),
+/// `fn main`. Paths are unresolved on the wire; the kernel resolves them. A
+/// spectral family appears with the library's shape and without parameters
+/// and constraints, and a morphism declaration is an algebraic affine form.
+const LONE_FORMS: &[&str] = &[
+    "indexed family FreeModule(object(CInfAffine)) = free_module constraints(canonical(0));",
+    "indexed family FreeModule() = free_module constraints();",
+    "indexed family Endomorphism(object(CInfAffine)) = endomorphism constraints(canonical(0));",
+    "indexed family Endomorphism() = endomorphism constraints();",
+    "indexed family Spectrum(object(CInfAffine)) = spectrum constraints(canonical(0));",
+    "indexed family Spectrum() = spectrum constraints();",
+    "indexed family Branch(object(CInfAffine)) = branch constraints(canonical(0));",
+    "indexed family Branch() = branch constraints();",
+    "indexed free_module V: FreeModule<Plane> = basis(e1, e2);",
+    "indexed endomorphism H: Endomorphism<Plane> = rows((x, y), (y, -x)) of V symmetric;",
+    "indexed spectrum S: Spectrum<Plane> = eigen(H, t);",
+    "indexed branch B: Branch<Plane> = simple(S, localize = x^2 + y^2, witness = frac(1, 2) * t, exponent = 1);",
+    "indexed morphism tr2: Smooth<Plane, Line> = trace_power(H, 2);",
+    "indexed morphism c0: Smooth<Plane, Line> = char_coefficient(S, 0);",
+    "indexed primitive ann = annihilates(Smooth, spectrum = S, element = t - 2);",
+    "indexed primitive act = action_entry(Smooth, spectrum = S, element = t - 2, e1, e2);",
+    "indexed primitive on = on_branch(Smooth, Line, branch = B);",
+    "indexed primitive dl = branch_differential(Smooth, Cotangent, Line, branch = B);",
+    "indexed primitive pr = branch_projector(Smooth, Line, branch = B, e1, e2);",
 ];
 
-/// A package with a Stage 5 form uses protocol 9, and only there do the
-/// records decode: protocols 7 and 8 reject each with `E_PROTOCOL`.
+/// A package with a Stage 5 form alone, and an indexed package without one,
+/// decode: their requests are of the current protocol (#533).
 #[test]
-fn spectral_forms_select_protocol_nine_only() {
-    // An indexed package without a Stage 5 form uses the current protocol as
-    // well (#533).
+fn spectral_forms_decode_alone() {
     request(
         "indexed marker M;\nfn main() -> Int { 0 }\n",
         common::CURRENT_PROTOCOL,
     );
-    for (form, older_message) in LONE_FORMS {
+    for form in LONE_FORMS {
         let raw = request(
             &format!("{form}\nfn main() -> Int {{ 0 }}\n"),
             common::CURRENT_PROTOCOL,
         );
-        // The record decodes in protocol 9; its unresolved paths are the
-        // kernel's next rejection.
+        // The record decodes; its unresolved paths are the kernel's next
+        // rejection.
         decoded(&kernel(&raw, "check"));
-        // old-route(#533): the retiring envelopes reject this program.
-        for version in [7, 8] {
-            let mut older = raw.clone();
-            older["version"] = json!(version);
-            let response = kernel(older, "emit");
-            assert_wire_rejected(&response, "E_PROTOCOL");
-            assert_eq!(
-                response["diagnostics"][0]["message"], *older_message,
-                "{form} in protocol {version}: {response}"
-            );
-        }
     }
 }
 
@@ -376,21 +303,14 @@ fn the_wire_carries_the_spectral_records() {
     );
 }
 
-/// The kernel decodes the whole program in protocol 9 and in no older
-/// protocol.
+/// The kernel decodes the whole program.
 #[test]
-fn the_kernel_decodes_the_spectral_program_only_in_protocol_nine() {
+fn the_kernel_decodes_the_spectral_program() {
     let raw = request(MAIN, common::CURRENT_PROTOCOL);
     decoded(&kernel(&raw, "check"));
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut older = raw.clone();
-        older["version"] = json!(version);
-        assert_wire_rejected(&kernel(older, "emit"), "E_PROTOCOL");
-    }
 }
 
-/// The kernel accepts every form of the program in protocol 9: the
+/// The kernel accepts every form of the program: the
 /// declarations, the invariants and the observations. The program checks,
 /// builds and runs.
 #[test]
@@ -829,7 +749,7 @@ fn stage5_words_remain_names_through_the_kernel() {
 }
 
 /// The fiber coordinate of a spectrum is an identifier of the source grammar,
-/// which excludes the strict keywords (#831). A protocol-9 request that names
+/// which excludes the strict keywords (#831). A request that names
 /// a strict keyword as the fiber coordinate, which the frontend never sends,
 /// is the kernel's `E_SPECTRAL`; the source is the frontend's `E_PARSE`. An
 /// ordinary identifier, and a word that is a keyword only where a construct

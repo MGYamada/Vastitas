@@ -1,7 +1,8 @@
 import VastitasKernel.Program
 import VastitasKernel.Names
 
-/-! Protocol-2 surface syntax. Function values never enter the preserved core. -/
+/-! The surface syntax of the old Core. Function values never enter the
+preserved core. -/
 namespace VastitasKernel.Surface
 
 mutual

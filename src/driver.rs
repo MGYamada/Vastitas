@@ -119,11 +119,10 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         return Ok(());
     }
     if args == ["--version"] {
-        let protocols = crate::ir::PUBLIC_PROTOCOLS.map(|version| version.to_string());
         println!(
-            "vastitas {} (wire protocols {})",
+            "vastitas {} (wire protocol {})",
             env!("CARGO_PKG_VERSION"),
-            protocols.join("/")
+            crate::ir::PROTOCOL
         );
         return Ok(());
     }
@@ -144,14 +143,13 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         probe_output_directory(output)?;
     }
     let display_input = manifest.as_ref().or(input.as_ref()).unwrap().clone();
-    let (sources, request, version, shape) = if let Some(manifest) = manifest {
+    let (sources, request, shape) = if let Some(manifest) = manifest {
         let (sources, module) = crate::packages::load(&manifest, output.as_deref())?;
         let request = kernel_request(&module, &sources, "packages")?;
         let observed = module.observes();
         (
             sources,
             request,
-            module.version,
             Request {
                 flat_package: false,
                 observed,
@@ -167,14 +165,13 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .functions
             .iter()
             .any(|function| !function.observations.is_empty());
-        // Every flat unit is sent as a protocol-9 package with the legacy
-        // geometry, with or without `--lib` and `show!` (#533).
+        // Every flat unit is sent as one package with the legacy geometry,
+        // with or without `--lib` and `show!` (#533).
         let program = crate::packages::flat_request(module);
         let request = kernel_request(&program, &sources, "module")?;
         (
             sources,
             request,
-            program.version,
             Request {
                 flat_package: true,
                 observed,
@@ -211,7 +208,6 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         mode,
         &request,
         &sources,
-        version,
         root.as_deref(),
         shape,
     )?;
@@ -220,8 +216,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .get("lean_source")
             .and_then(Value::as_str)
             .ok_or_else(|| "E_PROTOCOL: backend omitted generated Lean source".to_string())?;
-        // Every request is protocol 9 (#533), whose success responses may ask
-        // for the optional native runtimes (#557).
+        // A success response may ask for the optional native runtimes (#557).
         let storage_runtime = match response.get("storage_runtime") {
             None => false,
             Some(Value::Bool(required)) => *required,
@@ -279,6 +274,10 @@ fn kernel_root() -> Result<PathBuf, String> {
 mod expected_kernel {
     include!(concat!(env!("OUT_DIR"), "/kernel_identity.rs"));
 }
+
+/// The kernel's `currentProtocol`, which `build.rs` reads from
+/// `lean-kernel/VastitasKernel/Protocol.lean`; `ir::PROTOCOL` must equal it.
+pub(crate) const KERNEL_PROTOCOL: u32 = expected_kernel::PROTOCOL;
 
 // Responses may carry generated Lean for the whole program; bound them anyway.
 const MAX_BACKEND_RESPONSE: usize = 256 * 1024 * 1024;
@@ -421,7 +420,7 @@ fn bounded_json(
 /// diagnostics for (#836).
 #[derive(Clone, Copy)]
 struct Request {
-    /// A flat unit, which is sent as a protocol-9 package (#533).
+    /// A flat unit, which is sent as one package (#533).
     flat_package: bool,
     /// A function of the request has `show!` observations.
     observed: bool,
@@ -440,7 +439,6 @@ fn invoke_kernel(
     mode: &str,
     request: &[u8],
     sources: &Sources,
-    version: u32,
     root: Option<&Path>,
     shape: Request,
 ) -> Result<Value, String> {
@@ -465,7 +463,7 @@ fn invoke_kernel(
         )
     })?;
     let identity_problem = kernel_identity_problem(&response);
-    let version_mismatch = response.get("version") != Some(&json!(version));
+    let version_mismatch = response.get("version") != Some(&json!(crate::ir::PROTOCOL));
     if response.get("ok") == Some(&Value::Bool(false)) {
         let diagnostics = response
             .get("diagnostics")
@@ -1322,7 +1320,7 @@ mod tests {
     // `tests/input_safety.rs` checks the program of the issue.
     #[test]
     fn bounded_json_stops_at_its_bound() {
-        let value = json!({"version": 2, "names": ["a", "b", "c"]});
+        let value = json!({"version": crate::ir::PROTOCOL, "names": ["a", "b", "c"]});
         let text = serde_json::to_vec(&value).unwrap();
         // A text of exactly the bound is within it, and the second pass
         // writes the same text as an unbounded encoding.
@@ -1357,7 +1355,7 @@ mod tests {
         fs::write(&manifest, "[package]\n").unwrap();
         let mut sources = Sources::empty();
         sources.add(&manifest, None).unwrap();
-        let value = json!({"version": 9, "names": ["a", "b", "c"]});
+        let value = json!({"version": crate::ir::PROTOCOL, "names": ["a", "b", "c"]});
         let text = serde_json::to_vec(&value).unwrap();
         assert_eq!(
             kernel_request_within(&value, &sources, "packages", text.len()),

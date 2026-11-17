@@ -593,7 +593,7 @@ fn package_resource_entry_builds_owned_returns_and_pure_fn_dispatch_together() {
 }
 
 #[test]
-fn resource_wire_preserves_unresolved_names_and_rejects_older_versions() {
+fn resource_wire_preserves_unresolved_names_and_rejects_misplaced_resource_functions() {
     let raw = request(&fixture(MAIN, OPERATIONS));
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let root = module(&raw, "storage_example", json!([]));
@@ -605,15 +605,8 @@ fn resource_wire_preserves_unresolved_names_and_rejects_older_versions() {
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
     assert_eq!(accepted["storage_runtime"], true);
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in 2..8 {
-        let mut old = raw.clone();
-        old["version"] = json!(version);
-        let response = kernel(old, "check");
-        common::assert_wire_rejected(&response, "E_PROTOCOL");
-        assert_eq!(response["version"], version);
-    }
-    let mut flat = common::request("fn main() -> Int { 42 }", "legacy.vast");
+    // Resource functions belong to a module, not to the envelope.
+    let mut flat = common::request("fn main() -> Int { 42 }", "flat.vast");
     flat["resource_functions"] = json!([]);
     common::assert_wire_rejected(&kernel(flat, "check"), "E_PROTOCOL");
 }

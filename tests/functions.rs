@@ -24,6 +24,10 @@ fn native(source: &str, libraries: &[PathBuf], expected: Run) {
 fn request(source: &str) -> Value {
     common::request(source, "forged-dispatch.vast")
 }
+/// The functions of the flat unit's request.
+fn functions(request: &mut Value) -> &mut Value {
+    &mut common::flat_module(request)["functions"]
+}
 
 fn kernel(request: Value) -> Value {
     common::kernel(request, "emit")
@@ -31,7 +35,7 @@ fn kernel(request: Value) -> Value {
 
 fn assert_rejected(request: Value, code: &str) {
     let response = common::assert_rejected(request, code);
-    assert_eq!(response["version"], 2, "{response}");
+    assert_eq!(response["version"], common::CURRENT_PROTOCOL, "{response}");
 }
 
 #[test]
@@ -250,7 +254,7 @@ fn relay(a: Fn<Int, Int>, b: Fn<Int, Int>) -> Fn<Int, Int> {
     let mut forged = request(&format!(
         "{definitions}\nfn main() -> Int {{ pick(true, add1, add1)(41) }}"
     ));
-    let main = forged["functions"]
+    let main = functions(&mut forged)
         .as_array_mut()
         .unwrap()
         .last_mut()
@@ -270,8 +274,8 @@ fn lambdas_cannot_shadow_enclosing_parameters_lets_or_unpacked_objects() {
     }
     let mut forged =
         request("fn main() -> Int { let x = 41; let f = fn(y: Int) -> Int { y + 1 }; f(x) }");
-    forged["functions"][0]["body"]["statements"][1]["value"]["params"][0]["name"] = json!("x");
-    forged["functions"][0]["body"]["statements"][1]["value"]["body"]["result"]["left"]["name"] =
+    functions(&mut forged)[0]["body"]["statements"][1]["value"]["params"][0]["name"] = json!("x");
+    functions(&mut forged)[0]["body"]["statements"][1]["value"]["body"]["result"]["left"]["name"] =
         json!("x");
     assert_rejected(forged, "E_SHADOW");
     native(
@@ -556,43 +560,45 @@ fn main() -> Int { 0 }",
 fn forged_function_ir_cannot_capture_or_trust_span_identity() {
     let mut raw =
         request("fn main() -> Int { let secret = 42; let f = fn(x: Int) -> Int { x }; f(0) }");
-    raw["functions"][0]["body"]["statements"][1]["value"]["body"]["result"]["name"] =
+    functions(&mut raw)[0]["body"]["statements"][1]["value"]["body"]["result"]["name"] =
         json!("secret");
     assert_rejected(raw, "E_CAPTURE");
 
     let mut raw = request(
         "fn main() -> Int { let X = Affine(QQ, 1); let f = fn() -> Int { let Y = Affine(QQ, 1); let p: Point<Y, Base(QQ)> = origin(Y); 0 }; 0 }",
     );
-    raw["functions"][0]["body"]["statements"][1]["value"]["body"]["statements"][1]["annotation"]
+    functions(&mut raw)[0]["body"]["statements"][1]["value"]["body"]["statements"][1]["annotation"]
         ["target"]["name"] = json!("X");
     assert_rejected(raw, "E_CAPTURE");
 
     let mut raw = request("fn main() -> Int { let f = fn(x: Int) -> Int { x }; 0 }");
-    raw["functions"][0]["body"]["statements"][0]["value"]["body"]["result"]["name"] =
+    functions(&mut raw)[0]["body"]["statements"][0]["value"]["body"]["result"]["name"] =
         json!("missing");
     assert_rejected(raw, "E_NAME");
 
     let mut raw =
         request("fn use_it(callback: Fn<Int, Int>) -> Int { callback(1) } fn main() -> Int { 0 }");
-    raw["functions"][0]["params"][0]["ty"]["params"][0] = json!({"kind":"named", "name":"Bool"});
+    functions(&mut raw)[0]["params"][0]["ty"]["params"][0] = json!({"kind":"named", "name":"Bool"});
     assert_rejected(raw, "E_TYPE");
 
     let mut raw = request("fn main() -> Int { let f = fn(x: Int) -> Int { x }; 0 }");
-    raw["functions"][0]["body"]["statements"][0]["value"]["params"][0]["name"] = json!("Fn");
-    raw["functions"][0]["body"]["statements"][0]["value"]["body"]["result"]["name"] = json!("Fn");
+    functions(&mut raw)[0]["body"]["statements"][0]["value"]["params"][0]["name"] = json!("Fn");
+    functions(&mut raw)[0]["body"]["statements"][0]["value"]["body"]["result"]["name"] =
+        json!("Fn");
     assert_rejected(raw, "E_RESERVED");
 
     let mut raw = request(
         "fn main() -> Int { let f = if true { fn(x: Int) -> Int { x } } else { fn(y: Int) -> Int { y + 1 } }; f(0) }",
     );
     let first =
-        raw["functions"][0]["body"]["statements"][0]["value"]["then_branch"]["result"]["span"]
+        functions(&mut raw)[0]["body"]["statements"][0]["value"]["then_branch"]["result"]["span"]
             .clone();
-    raw["functions"][0]["body"]["statements"][0]["value"]["else_branch"]["result"]["span"] = first;
+    functions(&mut raw)[0]["body"]["statements"][0]["value"]["else_branch"]["result"]["span"] =
+        first;
     assert_rejected(raw, "E_STATIC_CALL");
 
     let mut raw = request("fn main() -> Int { 0 }");
-    raw["functions"][0]["body"]["result"]["kind"] = json!("reference");
+    functions(&mut raw)[0]["body"]["result"]["kind"] = json!("reference");
     assert_rejected(raw, "E_PROTOCOL");
 }
 
@@ -640,7 +646,7 @@ fn function_type_depth_is_bounded_on_both_sides() {
     for _ in 0..70 {
         ty = json!({"kind": "function", "params": [], "return_type": ty});
     }
-    raw["functions"][0]["body"]["statements"][0]["value"]["return_type"] = ty;
+    functions(&mut raw)[0]["body"]["statements"][0]["value"]["return_type"] = ty;
     assert_rejected(raw, "E_PROTOCOL");
 }
 

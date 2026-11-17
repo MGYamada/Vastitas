@@ -170,20 +170,20 @@ fn recursion_names_are_quoted_after_package_resolution_and_specialization() {
 }
 
 #[test]
-fn unknown_wire_version_is_echoed_with_the_complete_supported_set() {
+fn unknown_wire_version_is_echoed_with_the_matching_binaries_message() {
     let response = kernel(json!({"version": 999, "file": "unknown"}), "check");
     assert_eq!(response["version"], 999);
     common::assert_wire_rejected(&response, "E_PROTOCOL");
     assert_eq!(
         response["diagnostics"][0]["message"],
-        "unsupported IR protocol version 999; expected 2, 3, 4, 5, 6, 7, 8, 9"
+        common::other_protocol_message(999)
     );
     let raw = request("fn main() -> Int { 42 }", "normal.vast");
-    assert_eq!(kernel(&raw, "check")["version"], 2);
+    assert_eq!(kernel(&raw, "check")["version"], common::CURRENT_PROTOCOL);
 
     let output = common::kernel_bytes("check", b"{\"version\":5,".to_vec());
     assert!(!output.status.success());
     let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(response["version"], 2);
+    assert_eq!(response["version"], common::CURRENT_PROTOCOL);
     common::assert_wire_rejected(&response, "E_PROTOCOL");
 }

@@ -66,7 +66,8 @@ def recipientCandidates (p : Indexed) (name : String) : Result (List Package) :=
 
 /-- Resolve the complete name before inspecting module paths. A matching module
 or version cannot disambiguate packages; return the full selected identity.
-The original source-location rule remains confined to protocols 5–8. -/
+A manifest location (`RecipientPackage.source`) names the selected package
+with that source; no wire field carries one. -/
 def recipientPackage (p : Indexed) (reference : RecipientPackage) (span : Span) : Result Package := do
   match reference with
   | .source source => match packageAt p source with

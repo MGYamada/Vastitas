@@ -10,7 +10,7 @@ resource IR that these checks produce.
 
 ## Independent checking and proof boundary
 
-Public protocol 8 must carry enough untrusted layout, region, transition and
+The public wire protocol must carry enough untrusted layout, region, transition and
 dependency information for Lean to reconstruct the resource schedule independently.
 Rust annotations, serialized proof flags, claimed alias facts and alleged
 initialization are not evidence. Older protocols must reject unsupported fields.
@@ -38,9 +38,9 @@ completed Lean soundness, native check elimination or performance evidence.
 The [internal resource IR](../storage/checked-storage.md#storage-ir) supplies independently checked
 logical transitions, canonical layouts, initialization and branch joins, with
 actual-checker byte-region and active-loan theorems. Its component schema is not
-public protocol 8. Its optional native runtime and
+the public wire protocol. Its optional native runtime and
 [internal resource functions](../storage/checked-storage.md#storage-functions) exercise allocation, calls,
-destination reuse and failure cleanup. [Protocol 8](#composition-with-the-package-checker) connects the static resource profile
+destination reuse and failure cleanup. [The package checker](#composition-with-the-package-checker) connects the static resource profile
 to package source and pure return blocks, including local nominal real/complex
 GEMM. Bounded partial-write coverage removes redundant input fills in the worked
 numerical examples; its actual-byte theorems and native operation counters are
@@ -53,8 +53,8 @@ remain pending.
 
 ## Composition with the package checker
 
-Protocol 8 connects explicit resource functions to the ordinary `.vast` package
-compiler. Names, imports, visibility, canonical module owners, indexed declarations,
+The public route connects explicit resource functions to the ordinary `.vast`
+package compiler. Names, imports, visibility, canonical module owners, indexed declarations,
 finite dispatch and edit assemblies share the same namespace. The existing
 `Indexed.AuthoritySource` checks every ordinary, applicable, nonwinning and
 unapplied pure body. Resource bodies then pass independent ownership, layout,
@@ -140,7 +140,7 @@ It is built only after the bit comparison fails. Handle, scalar, layout and boun
 errors keep their precedence and fixed messages, and cleanup is unchanged.
 
 The optional `lean-kernel/native` package is linked only for a resource entry
-with an operation that uses an arena. A protocol-8 program with only an
+with an operation that uses an arena. A program with only an
 ordinary pure entry still builds without that runtime, and so does one whose
 resource entry computes scalars alone. No route needs mathlib.
 A checked GEMM schedule additionally links
@@ -223,7 +223,7 @@ whole-map GEMM. Broader dynamic interfaces, floating scalar expression interface
 metric realization, general owned-result joins and retained-evidence interfaces
 remain open. Equivalent-C measurements exist for bounded paths; controlled-host
 performance and total allocation acceptance remain unfinished. Escaping borrowed lifetimes and
-broader lifetime interfaces retain their separate scope. Protocol 8's static
+broader lifetime interfaces retain their separate scope. The static resource
 profile and native compilation alone do not establish **Fast like C**.
 
 [Typed transforms](../linalg/transforms-and-metrics.md#dual-and-conjugate-spaces) add explicit dual/conjugate spaces,
@@ -428,7 +428,7 @@ dirty source snapshots and binaries; it is not attributed to a later commit.
 ## Delivery and regression obligations
 
 1. Finalize allocation/layout/region IR and explicit cost contracts before public
-   storage APIs. Implement protocol-8 Rust and Lean changes in the same increment.
+   storage APIs. Implement the Rust and Lean changes of the wire in the same increment.
 2. Reject move-after-use, loan escape, stale generations, overlapping views,
    noninjective writes, uninitialized reads and incompatible branch resources.
 3. Check native bounds/alignment/narrowing, failure-before-write, partial-write

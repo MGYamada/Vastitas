@@ -61,24 +61,21 @@ fn check_raw(raw: &Value) -> Value {
     common::kernel(raw, "check")
 }
 
+/// The request that `vastitas check` sends for `source` as the flat input
+/// `promotion-contract.vast`, with the three stdlib arithmetic files as `--lib`
+/// inputs: the one package of a flat unit. Its declarations are in
+/// `common::flat_module`.
 fn flat_request(source: &str) -> Value {
-    let libraries = ["int", "nat", "generic"].map(|name| {
-        fs::read_to_string(root().join(format!("stdlib/src/arithmetic/{name}.vast"))).unwrap()
-    });
-    let mut offset = 0;
-    let sources: Vec<_> = std::iter::once(source)
-        .chain(libraries.iter().map(String::as_str))
-        .map(|source| {
-            let input = vastitas::frontend::SourceInput {
-                source,
-                file: "promotion-contract.vast",
-                offset,
-            };
-            offset += source.len() + 1;
-            input
-        })
-        .collect();
-    serde_json::to_value(vastitas::frontend::parse_sources(&sources).unwrap()).unwrap()
+    let scratch = Scratch::empty("promotion request");
+    scratch.write("promotion-contract.vast", source);
+    let mut command = scratch.cli();
+    command.args(["check", "promotion-contract.vast"]);
+    for name in ["int", "nat", "generic"] {
+        command
+            .arg("--lib")
+            .arg(root().join(format!("stdlib/src/arithmetic/{name}.vast")));
+    }
+    common::captured_wire(command, common::CURRENT_PROTOCOL)
 }
 fn rejects(raw: &Value, code: &str) {
     let result = check_raw(raw);
@@ -383,14 +380,17 @@ fn promotion_does_not_hide_specialized_cycles_or_bad_applicable_bodies() {
 fn missing_homogeneous_delegation_is_an_error() {
     let base = flat_request("fn main() -> Int { 0 }");
     let mut raw = base.clone();
-    raw["methods"].as_array_mut().unwrap().retain(|m| {
-        !(m["name"] == "add"
-            && m["params"][0]["ty"]["name"] == "Int"
-            && m["params"][1]["ty"]["name"] == "Int")
-    });
+    common::flat_module(&mut raw)["methods"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|m| {
+            !(m["name"] == "add"
+                && m["params"][0]["ty"]["name"] == "Int"
+                && m["params"][1]["ty"]["name"] == "Int")
+        });
     rejects(&raw, "E_DISPATCH_COVERAGE");
     let mut raw = base.clone();
-    let add = raw["generics"]
+    let add = common::flat_module(&mut raw)["generics"]
         .as_array_mut()
         .unwrap()
         .iter_mut()
@@ -402,54 +402,33 @@ fn missing_homogeneous_delegation_is_an_error() {
         .retain(|key| key != &json!([{"kind":"named","name":"Int"},{"kind":"named","name":"Int"}]));
     rejects(&raw, "E_DISPATCH_DOMAIN");
     let mut raw = base;
-    raw["functions"]
+    common::flat_module(&mut raw)["functions"]
         .as_array_mut()
         .unwrap()
         .retain(|f| f["name"] != "int_add");
     rejects(&raw, "E_NAME");
 }
 
-/// The request that `vastitas check` sends for the stdlib fixture: an empty
-/// input file with the three arithmetic libraries, as in [`flat_request`].
-fn current_request() -> Value {
-    let scratch = Scratch::empty("promotion fixture");
-    scratch.write("promotion-contract.vast", "");
-    let mut command = scratch.cli();
-    command.args(["check", "promotion-contract.vast"]);
-    for name in ["int", "nat", "generic"] {
-        command
-            .arg("--lib")
-            .arg(root().join(format!("stdlib/src/arithmetic/{name}.vast")));
-    }
-    common::captured_wire(command, common::CURRENT_PROTOCOL)
-}
-
-/// The frontend's request for the stdlib arithmetic sources is the proof
-/// fixture `promotion.current.json`, from which `VastitasPromotion.IndexedFixture`
-/// reflects the Core of the oracle's promotion theorems. old-route(#533): the
-/// frozen fixture `promotion.json` is the protocol-2 flat module of the same
-/// sources, which the frontend wrote before #533 round 2 and whose Core the
-/// fixture compares with the current one. `VASTITAS_UPDATE_PROMOTION_FIXTURE=1`
-/// rewrites both.
+/// The frontend's request for the stdlib arithmetic sources, an empty input
+/// file with the three arithmetic libraries, is the proof fixture
+/// `promotion.json`, from which `VastitasPromotion.IndexedFixture` reflects
+/// the Core of the oracle's promotion theorems.
+/// `VASTITAS_UPDATE_PROMOTION_FIXTURE=1` rewrites it.
 #[test]
 fn stdlib_ir_matches_proof_fixture() {
-    for (actual, file) in [
-        (current_request(), "promotion.current.json"),
-        (flat_request(""), "promotion.json"),
-    ] {
-        let path = root().join("tests/fixtures").join(file);
-        if common::regenerate_fixture("VASTITAS_UPDATE_PROMOTION_FIXTURE") {
-            fs::create_dir_all(path.parent().unwrap()).unwrap();
-            fs::write(&path, serde_json::to_string(&actual).unwrap() + "\n").unwrap();
-        }
-        let expected: Value = serde_json::from_slice(
-            &fs::read(path).expect("regenerate the promotion fixture as documented"),
-        )
-        .unwrap();
-        assert_eq!(
-            actual, expected,
-            "stdlib frontend request differs from the numerical proof fixture {file}"
-        );
-        assert_eq!(check_raw(&expected)["ok"], true, "{file}");
+    let actual = flat_request("");
+    let path = root().join("tests/fixtures/promotion.json");
+    if common::regenerate_fixture("VASTITAS_UPDATE_PROMOTION_FIXTURE") {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, serde_json::to_string(&actual).unwrap() + "\n").unwrap();
     }
+    let expected: Value = serde_json::from_slice(
+        &fs::read(path).expect("regenerate the promotion fixture as documented"),
+    )
+    .unwrap();
+    assert_eq!(
+        actual, expected,
+        "stdlib frontend request differs from the numerical proof fixture promotion.json"
+    );
+    assert_eq!(check_raw(&expected)["ok"], true);
 }

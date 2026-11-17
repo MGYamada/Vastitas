@@ -2,9 +2,10 @@ mod common;
 
 use serde_json::{Value, json};
 
+/// The frontend's request for the flat unit `source`; its declarations are in
+/// `common::flat_module`.
 fn request(source: &str) -> Value {
-    serde_json::to_value(vastitas::frontend::parse(source, "kernel-usability.vast").unwrap())
-        .unwrap()
+    common::request(source, "kernel-usability.vast")
 }
 
 fn check(raw: &Value) -> Value {
@@ -72,33 +73,35 @@ fn frontend_and_kernel_use_the_same_name_violation_codes() {
         );
         let mut raw = request(base);
         if field == "binder" {
-            raw["functions"][0]["body"]["statements"][0]["name"] = json!(name);
+            common::flat_module(&mut raw)["functions"][0]["body"]["statements"][0]["name"] =
+                json!(name);
         } else {
-            raw["functions"][0]["body"]["statements"][0]["value"]["name"] = json!(name);
+            common::flat_module(&mut raw)["functions"][0]["body"]["statements"][0]["value"]["name"] =
+                json!(name);
         }
         diagnostic(&check(&raw), code);
     }
     let mut raw = request("generic present(x) { domain; } method present(x: Int) -> Int { x }");
-    raw["methods"][0]["name"] = json!("missing");
+    common::flat_module(&mut raw)["methods"][0]["name"] = json!("missing");
     diagnostic(&check(&raw), "E_NAME");
 }
 
 #[test]
 fn forged_ir_cannot_bypass_the_natural_to_integer_contract() {
     let mut raw = request("fn convert(n: Nat) -> Int { 0 }");
-    let span = raw["functions"][0]["body"]["result"]["span"].clone();
-    raw["functions"][0]["body"]["result"] = json!({
+    let span = common::flat_module(&mut raw)["functions"][0]["body"]["result"]["span"].clone();
+    common::flat_module(&mut raw)["functions"][0]["body"]["result"] = json!({
         "kind": "call", "callee": "int", "span": span,
         "args": [{"kind": "variable", "name": "n", "span": span}],
     });
     assert_eq!(check(&raw)["ok"], true);
 
-    raw["functions"][0]["params"][0]["ty"]["name"] = json!("Int");
+    common::flat_module(&mut raw)["functions"][0]["params"][0]["ty"]["name"] = json!("Int");
     let d = diagnostic(&check(&raw), "E_TYPE");
     assert_eq!(d["message"], "expected Nat, found Int");
     assert_eq!(d["notes"], json!([]));
 
-    raw["functions"][0]["body"]["result"]["args"] = json!([]);
+    common::flat_module(&mut raw)["functions"][0]["body"]["result"]["args"] = json!([]);
     let d = diagnostic(&check(&raw), "E_ARITY");
     assert_eq!(d["message"], "int expects 1 argument, found 0");
     assert_eq!(d["span"], span);
@@ -108,7 +111,7 @@ fn forged_ir_cannot_bypass_the_natural_to_integer_contract() {
 fn source_reserved_keywords_are_also_rejected_in_forged_ir() {
     for name in ["return", "while", "for", "loop", "mut", "int"] {
         let mut raw = request("fn harmless() -> Int { 0 }");
-        raw["functions"][0]["name"] = json!(name);
+        common::flat_module(&mut raw)["functions"][0]["name"] = json!(name);
         let d = diagnostic(&check(&raw), "E_RESERVED");
         assert!(d["message"].as_str().unwrap().contains("reserved"));
     }
@@ -305,7 +308,7 @@ fn tampered_primitive_calls_remain_rejected_with_the_same_explanation() {
         "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = apply(id(X), origin(X)); 0 }",
     );
     assert_eq!(check(&raw)["ok"], true);
-    let call = "/functions/0/body/statements/2/value";
+    let call = "/packages/0/modules/0/functions/0/body/statements/2/value";
     let point = raw.pointer_mut(&format!("{call}/args/1/args/0")).unwrap();
     assert_eq!(point["name"], "X");
     point["name"] = json!("Y");

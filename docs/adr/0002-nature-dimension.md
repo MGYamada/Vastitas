@@ -162,7 +162,8 @@ in place of A–D:
 - **Executable profile.** Integer exponents; positive rational magnitudes;
   smooth affine objects of dimension at most 16; the bounds that the limits
   appendix lists for the declarations.
-- **Wire.** Protocol 9 only. Protocols 7 and 8 are an error (`E_PROTOCOL`).
+- **Wire.** Optional records of the wire protocol. A request of another
+  version is an error (`E_PROTOCOL`).
 - **Evidence.** The executable kernel checks every interpretation again in its
   audit. The oracle must prove that an accepted interpretation is consistent
   and that `nature` declarations change no `std` validity and no binding.
@@ -195,7 +196,7 @@ without a test there remains proposed.
   `normalized` with a scale of the right dimension and the wrong kind; an
   interpretation of a metric of another object (`E_DIMENSION`).
 - **Boundary:** a `std` manifest that depends on a package outside `stdlib/`.
-- **Inputs and transport:** protocols 7 and 8, and tampered Core.
+- **Inputs and transport:** tampered Core.
 
 #### Compatibility and public-name audit
 
@@ -264,7 +265,7 @@ contract is implemented or proved.
 
 #### Execution and evidence profile
 
-- The profile of historical Stage 6, protocol 9 only. The acceptance map
+- The profile of historical Stage 6. The acceptance map
   records the regime with the status Assumed.
 
 #### Outside this admission
@@ -277,7 +278,7 @@ contract is implemented or proved.
 #### Negative tests
 
 - A reading of another object; a basis vector of another module; a predicted
-  average of another field or between other vectors; protocols 7 and 8.
+  average of another field or between other vectors.
 
 #### Compatibility and public-name audit
 
@@ -352,7 +353,7 @@ contract is implemented or proved.
 
 #### Execution and evidence profile
 
-- The profile of historical Stage 6, protocol 9 only, with at most 64 points
+- The profile of historical Stage 6, with at most 64 points
   and the digit limits of exact algebraic literals.
 
 #### Outside this admission
@@ -369,8 +370,7 @@ contract is implemented or proved.
   a point off the chart of the predicted average (ADR 0001 §13), even where
   the denominator of its closed form does not vanish; a nonpositive uncertainty or
   coverage factor; a calibration of a parameter that the model does not
-  have (`E_ERRORBAR`); more points than the limit (`E_LIMIT`); protocols 7
-  and 8.
+  have (`E_ERRORBAR`); more points than the limit (`E_LIMIT`).
 
 #### Compatibility and public-name audit
 

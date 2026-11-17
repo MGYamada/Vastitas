@@ -123,24 +123,12 @@ fn indexed_calls_explain_missing_conversion_and_literal_pair_inference() {
 }
 
 #[test]
-fn actual_rust_wire_is_current_and_older_envelopes_reject_declarations() {
+fn actual_rust_wire_is_current_and_indexed_declarations_belong_to_modules() {
     let original = request(&fixture(&unobserved_main()));
     assert_eq!(original["version"], common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&original, "check")["ok"], true);
-    // old-route(#533): the frontend wrote this program as protocol 7 before
-    // #533 round 1, which still accepts it until the cutover.
-    let mut seven = original.clone();
-    seven["version"] = json!(7);
-    assert_eq!(kernel(&seven, "check")["ok"], true);
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [2, 3, 4, 5, 6] {
-        let mut raw = original.clone();
-        raw["version"] = json!(version);
-        let result = kernel(raw, "check");
-        common::assert_wire_rejected(&result, "E_PROTOCOL");
-        assert_eq!(result["version"], version);
-    }
-    let mut flat = common::request("fn main() -> Int { 42 }", "old.vast");
+    // At the top of a request, indexed declarations are an unknown field.
+    let mut flat = common::request("fn main() -> Int { 42 }", "flat.vast");
     flat["indexed_declarations"] = json!([]);
     common::assert_wire_rejected(&kernel(flat, "check"), "E_PROTOCOL");
 }

@@ -1,5 +1,4 @@
 import VastitasKernel.ResourceProtocol
-import VastitasKernel.IndexedAcceptance
 import VastitasKernel.RegressionSupport
 import VastitasKernel.RegressionRequest
 
@@ -9,10 +8,9 @@ set_option autoImplicit false
 through the public wire decoders, the source checker and the declaration
 audit. These are executable regressions, not proofs.
 
-Protocol 9 decodes each wire shape of a base dimension, a quantity, a
-reading, a scale and a physical metric, and the `reading` and
-`physical_metric` family representations; protocols 7 and 8 reject each with
-`E_PROTOCOL`. The source checker accepts the declarations that ADR 0002 §3
+The wire decodes each shape of a base dimension, a quantity, a reading, a
+scale and a physical metric, and the `reading` and `physical_metric` family
+representations. The source checker accepts the declarations that ADR 0002 §3
 admits and rejects every other one at its place, with `E_DIMENSION` or, for a
 bound, `E_LIMIT`. The declaration audit checks every stored declaration
 again: a tampered entry is rejected, and a nature declaration, valid or not,
@@ -101,35 +99,26 @@ private def requestOf (version : Nat) (modules : List Json) : Json :=
 
 private def request (version : Nat) (declarations : List Json) : Json := requestOf version [mod declarations]
 
-/-- The code and the message of a public request, or `accepted`: protocols 8
-and 9 through `ResourceSource.Wire`, protocol 7 through `Indexed.Wire`. -/
-private def outcomeOf (version : Nat) (json : Json) : String × String :=
-  let result := if version == 7 then (Indexed.Wire.check json false).map fun _ => ()
-    else (ResourceSource.Wire.check json false).map fun _ => ()
+/-- The code and the message of a public request through
+`ResourceSource.Wire`, or `accepted`. -/
+private def outcomeOf (json : Json) : String × String :=
+  let result := (ResourceSource.Wire.check json false).map fun _ => ()
   match result with
   | .ok () => ("accepted", "")
   | .error diagnostic => (diagnostic.code, diagnostic.message)
 
 private def outcome (version : Nat) (declarations : List Json) : String × String :=
-  outcomeOf version (request version declarations)
+  outcomeOf (request version declarations)
 
 private def mentions (text part : String) : Bool := (text.splitOn part).length > 1
 
-private def decodes (j : Json) (algebraic : Bool) : Bool :=
-  (Wire.declarationBody j (numerical := true) (algebraic := algebraic)).isOk
+private def decodes (j : Json) : Bool := (Wire.declarationBody j).isOk
 
 /-- The request of `version` with `declarations` is rejected with `code` and a
 message that contains `text`. -/
 private def rejectsWith (version : Nat) (declarations : List Json) (code text : String) : Bool :=
   let (actual, message) := outcome version declarations
   actual == code && mentions message text
-
--- old-route(#533): protocols 7 and 8 retire at the cutover.
-/-- Protocols 7 and 8 reject a request whose one declaration is `j`, with
-`E_PROTOCOL` and the protocol-9 message of its decoder. -/
-private def rejectedBefore9 (j : Json) : Bool :=
-  [7, 8].all fun version =>
-    rejectsWith version [j] "E_PROTOCOL" "physical dimension declarations require protocol 9"
 
 /-! ## The program
 
@@ -181,7 +170,7 @@ private def dimensionError (extra : List Json) (text : String) : Bool :=
 private def limitError (extra : List Json) (text : String) : Bool :=
   rejectsWith currentProtocol (program extra) "E_LIMIT" text
 
-/-! ## Wire shapes: protocol 9 only -/
+/-! ## Wire shapes -/
 
 /-- One declaration of each kind and each shape. -/
 private def natureForms : List Json := [
@@ -192,52 +181,42 @@ private def natureForms : List Json := [
   interpret "Q" "Chart" "G" "phys" (some [("L", "0")]) (scaled "l0" "t0"),
   interpret "Q" "Chart" "G" "phys" none (normalized [("x", "l0"), ("t", "t0")])]
 
-#eval check "protocol 9 accepts the std part, the reading and physical-metric families and the nature part"
+#eval check "the checker accepts the std part, the reading and physical-metric families and the nature part"
   ((outcome currentProtocol std).1 == "accepted" && accepts [])
-#eval check "protocols 7 and 8 reject each nature family representation with E_PROTOCOL"
-  (["reading", "physical_metric"].all fun representation =>
-    rejectedBefore9 (decl "family" "F" [("parameters", toJson ([] : List Json)),
-      ("constraints", toJson ([] : List Json)), ("representation", toJson representation)]))
 #eval check "a reading family has one object parameter and the constraint canonical(0)"
   (rejectsWith currentProtocol (std ++ [decl "family" "Reading" [("parameters", toJson [objectParameter]),
       ("constraints", toJson ([] : List Json)), ("representation", toJson "reading")]])
     "E_TYPE" "exactly the constraint `canonical(0)`")
-#eval check "protocol 9 decodes each nature declaration shape" (natureForms.all (decodes · true))
-#eval check "protocols 7 and 8 do not decode a nature declaration" (natureForms.all (!decodes · false))
-#eval check "protocols 7 and 8 reject each nature declaration with E_PROTOCOL" (natureForms.all rejectedBefore9)
+#eval check "the decoder decodes each nature declaration shape" (natureForms.all decodes)
 
 #eval check "exponents are bounded decimal strings with an optional sign"
-  (decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" "-12"])]) true &&
-    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" "1/2"])]) true &&
-    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" "+1"])]) true &&
-    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" "-"])]) true &&
-    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" ""])]) true &&
-    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" (String.ofList (List.replicate 65 '9'))])])
-      true &&
-    decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" ("-" ++ String.ofList (List.replicate 64 '9'))])])
-      true &&
-    !decodes (decl "quantity" "Q" [("dimension", toJson [Json.mkObj [("base", pathJson "L"), ("exponent", toJson (2 : Nat))]])])
-      true)
+  (decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" "-12"])]) &&
+    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" "1/2"])]) &&
+    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" "+1"])]) &&
+    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" "-"])]) &&
+    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" ""])]) &&
+    !decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" (String.ofList (List.replicate 65 '9'))])]) &&
+    decodes (decl "quantity" "Q" [("dimension", toJson [factor "base" "L" ("-" ++ String.ofList (List.replicate 64 '9'))])]) &&
+    !decodes (decl "quantity" "Q" [("dimension", toJson [Json.mkObj [("base", pathJson "L"), ("exponent", toJson (2 : Nat))]])]))
 
 #eval check "nature declarations take exactly their fields"
-  (!decodes (decl "base_dimension" "L" [("dimension", toJson ([] : List Json))]) true &&
+  (!decodes (decl "base_dimension" "L" [("dimension", toJson ([] : List Json))]) &&
     !decodes (decl "quantity" "Q" [("dimension", toJson [Json.mkObj [("base", pathJson "L"), ("exponent", toJson "1"),
-      ("unit", toJson "m")]])]) true &&
+      ("unit", toJson "m")]])]) &&
     !decodes (decl "reading" "r" [("family", pathJson "Reading"), ("indices", toJson [pathJson "Chart"]),
       ("quantities", toJson [Json.mkObj [("coordinate", toJson "x"), ("quantity", pathJson "Length"),
-        ("scale", pathJson "l0")]])]) true &&
-    !decodes (decl "scale" "s" [("quantity", pathJson "Length")]) true &&
+        ("scale", pathJson "l0")]])]) &&
+    !decodes (decl "scale" "s" [("quantity", pathJson "Length")]) &&
     !decodes (interpret "P" "Chart" "G" "phys" none (Json.mkObj [("kind", toJson "euclidean"),
-      ("rows", toJson ([] : List Json))])) true &&
-    !decodes (interpret "P" "Chart" "G" "phys" none (Json.mkObj [("kind", toJson "identity")])) true &&
+      ("rows", toJson ([] : List Json))])) &&
+    !decodes (interpret "P" "Chart" "G" "phys" none (Json.mkObj [("kind", toJson "identity")])) &&
     !decodes (interpret "P" "Chart" "G" "phys" none (Json.mkObj [("kind", toJson "gram"),
       ("rows", toJson [toJson [Json.mkObj [("coefficient", natural 1), ("factors", toJson ([] : List Json)),
-        ("value", toJson 1)]]])])) true &&
+        ("value", toJson 1)]]])])) &&
     !decodes (interpret "P" "Chart" "G" "phys" none (Json.mkObj [("kind", toJson "normalized"),
-      ("scales", toJson [Json.mkObj [("coordinate", toJson "x"), ("scale", pathJson "l0"), ("exponent", toJson "1")]])]))
-      true &&
+      ("scales", toJson [Json.mkObj [("coordinate", toJson "x"), ("scale", pathJson "l0"), ("exponent", toJson "1")]])])) &&
     !decodes (Json.mkObj (((interpret "P" "Chart" "G" "phys" none euclidean).getObj?.toOption.getD
-      {}).toArray.toList ++ [("gram", toJson ([] : List Json))])) true)
+      {}).toArray.toList ++ [("gram", toJson ([] : List Json))])))
 
 /-! ## Base dimensions and quantities -/
 
@@ -485,7 +464,7 @@ private def diagonalOf (value : Option (List (String × String))) (entry : Json)
 private def mine : Json := modAt ["mine"] [base "L", quantity "Len" [("L", "1")]]
 
 /-- `program extra` with the module `mine`. -/
-private def withMine (extra : List Json) : String × String := outcomeOf currentProtocol (requestOf currentProtocol [mod (program extra), mine])
+private def withMine (extra : List Json) : String × String := outcomeOf (requestOf currentProtocol [mod (program extra), mine])
 
 private def minePath (name : String) : Json := Json.mkObj [("path", toJson ["mine", name]), ("span", span)]
 

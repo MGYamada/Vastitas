@@ -20,7 +20,7 @@ private def removeStatement (input : Json) (index : Nat) : Json :=
   unless checked.input.length == 30 do throw (IO.userError "shared fixture statement coverage changed")
   let tests : List (String × Json × String) := [
     ("checked state injection", fixture.setObjVal! "checked_state" (.mkObj []), "E_PROTOCOL"),
-    ("version injection is not public acceptance", fixture.setObjVal! "version" (toJson (8 : Nat)), "E_PROTOCOL"),
+    ("version injection is not public acceptance", fixture.setObjVal! "version" (toJson (10 : Nat)), "E_PROTOCOL"),
     ("unknown action metadata", mutateAction fixture 0 (·.setObjVal! "initialized" (toJson true)), "E_PROTOCOL"),
     ("allocation identity injection", mutateAction fixture 0 (·.setObjVal! "allocation" (toJson (5 : Nat))), "E_PROTOCOL"),
     ("symbol overflow", mutateAction fixture 0 (·.setObjVal! "owner" (toJson (2^32 : Nat))), "E_PROTOCOL"),

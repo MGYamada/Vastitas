@@ -5,8 +5,8 @@ This chapter describes how the compiler checks
 It covers the declaration environment and the stages that elaborate types,
 function bodies, finite dispatch and edit authority over one input. It covers
 the existential package and primitive contracts, the audited Core and its code
-generation, the geometry compatibility export and the adapter for the earlier
-wire protocols. It records the proofs and the regressions of each part. The
+generation, the geometry compatibility export and the compatibility profile of
+the legacy geometry. It records the proofs and the regressions of each part. The
 rules of the language are in the Reference chapter
 [Indexed declarations](../indexed-source.md).
 [Checking pipeline](checking-pipeline.md) describes the checks of generics and
@@ -15,8 +15,8 @@ function values that this checker composes, and
 
 ## The public path
 
-Protocol 7 adds package-only indexed declarations and typed existential payloads.
-Rust serializes unresolved references; Lean composes declaration validation,
+The wire protocol carries indexed declarations and typed existential payloads
+in the modules of a package request. Rust serializes unresolved references; Lean composes declaration validation,
 actual edit-authority assembly, finite dispatch, independent Fn specialization
 and both Core audits on that same input. See [the foundation](#indexed-declaration-foundation)
 for the internal contracts and [protocol](../protocol.md) for the wire format.
@@ -26,11 +26,12 @@ and `std::geometry::smooth` through `stdlib`, declaring the finite ordinary/smoo
 affine profile through this path. An explicit checked `geometry_compat` library
 export maps legacy syntax to those same declarations. The
 [migration acceptance map](#finite-geometry-migration-acceptance) separates
-finite compatibility from broader source/native proof limits. Protocols 2–6
-and explicit `--lib` retain their existing geometry syntax and wire formats.
-`Indexed.LegacySource` adapts their decoded source into this same common checker
-with a separately validated closed compatibility declaration package.
-[Protocol 8 resource functions](../storage/resource-programs.md#resource-functions) and
+finite compatibility from broader source/native proof limits. A flat program,
+with or without explicit `--lib`, keeps its geometry syntax: its request
+carries `legacy_geometry`, and the kernel checks it with this same common
+checker and a separately validated closed compatibility declaration package
+([The compatibility profile](#the-compatibility-profile)).
+[Resource functions](../storage/resource-programs.md#resource-functions) and
 [numerical declaration profiles](../linalg/maps-and-gemm.md#linear-implementations) compose with this same
 checker. Public numerical maps are available inside resource functions
 ([numerical values](../linalg/maps-and-gemm.md#maps)); general public
@@ -39,7 +40,7 @@ numerical arrays and Fast like C performance acceptance remain pending.
 ## Legacy geometry syntax in packages
 
 The geometry library manifest exports unresolved role paths under `geometry_compat`
-(see [wire schema](../protocol.md#protocol-7-indexed-declarations-and-rich-package-bodies)).
+(see [wire schema](../protocol.md#indexed-declarations-and-rich-package-bodies)).
 Lean resolves them in the provider’s root scope, checks the complete declaration
 environment and validates each role. This is an explicit syntax facade, including
 intentional access to the provider’s own declarations; it grants no edit authority.
@@ -64,14 +65,14 @@ This supports independent copies without collapsing nominal package identities.
 Profile resolution has no generated runtime operation. The returned Core has
 typed total evaluation and finite primitive result compatibility; full source
 operational correspondence, native equivalence and C performance measurements
-are separate unproved or unmeasured claims. Protocols 2–6 use the source adapter described in
-[indexed declarations](#compatibility-adapter-for-protocols-26).
+are separate unproved or unmeasured claims. A request with `legacy_geometry`
+uses the profile of [The compatibility profile](#the-compatibility-profile).
 
 ## Composition and limits
 
 The ordinary import/visibility/shadowing rules apply. A declaration does not grant
-edit authority over another module's methods, memberships or contracts. Protocol 7
-uses the full protocol-6 assembly checks, including omitted empty root assemblies,
+edit authority over another module's methods, memberships or contracts. The
+checker uses the full assembly checks, including omitted empty root assemblies,
 unapplied contribution body checking, nested loans and permanent transfer.
 
 Indexed values can occur in ordinary data signatures and method bodies. Finite
@@ -90,16 +91,19 @@ and nominal identity checks remain in force.
 
 ## Acceptance and proof scope
 
-`Indexed.Wire.CheckedInput` retains the exact decoded JSON and exact result of
-`Indexed.AuthoritySource.checkProgram`. `VastitasOracle.IndexedWire` connects it
-to both typed Core passes, dependency order, main validity, returned loans and
-final winning footprints. Native code generation receives the actual executable
-Core certificate and independently rechecks that Core at its boundary.
+`ResourceSource.Wire.CheckedInput` retains the exact decoded JSON and the
+result of `Indexed.AuthoritySource.checkProgram` on its pure program.
+`IndexedAuthority.both_passes` gives both typed Core passes, dependency order
+and main validity of that result, and `IndexedAuthority.authority_trace` and
+`final_footprints` its returned loans and final winning footprints. Native
+code generation receives the actual executable Core certificate and
+independently rechecks that Core at its boundary.
 
 `IndexedProgramSafety` proves typed total evaluation, including dependent
-calls and unpack bodies, for an actual checked Core module. `IndexedWire` and
-`LegacySource` expose that theorem for the exact audit/executable modules returned
-from protocols 2–7, and prove finite Int-valued main evaluation. This does not
+calls and unpack bodies, for an actual checked Core module.
+`ResourceSource.pure_entry_functions_total` and `pure_entry_main_total` expose
+that theorem for the executable module of an accepted request, and prove
+finite Int-valued main evaluation. This does not
 prove whole-source rewriting correspondence, equality with the retained legacy
 evaluator or native code-generation correctness. None of these proofs establishes the [Fast like C](../storage-ownership.md)
 performance goal.
@@ -107,17 +111,16 @@ performance goal.
 ## Indexed declaration foundation
 
 `VastitasKernel.Indexed` supplies the finite declaration environment and
-independent indexed audits used by every public protocol. Protocols 2–6 adapt
-decoded source into the common checker, not an already accepted legacy Core.
-Package-only protocol 7
-exposes unresolved declarations and rich source bodies through the full authority
+independent indexed audits used by the public route, which checks decoded
+source, never an already accepted legacy Core. The wire protocol exposes
+unresolved declarations and rich source bodies through the full authority
 composition; see [source syntax](../indexed-source.md). The [geometry stdlib package](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/README.md)
 supplies the finite affine declarations and an explicit checked compatibility
-export for legacy syntax in protocol 7. Typed total evaluation covers the exact
+export for legacy syntax. Typed total evaluation covers the exact
 returned Core. [Migration acceptance](#finite-geometry-migration-acceptance) maps the migration issues to
 implementation, proofs and regressions, including finite primitive compatibility
 and the limits of the source/native guarantees.
-The compatibility adapter is described below.
+The compatibility profile is described below.
 
 ### Identity and declarations
 
@@ -188,7 +191,7 @@ cross-category duplicate names or import/dependency collisions are rejected.
 Compatibility spellings such as `Scheme`, `Point` or `origin` are permitted only
 for real indexed declarations and their aliases; the spelling does not select
 their role or representation. Scalar types, `Fn`, `Pair` and language keywords
-remain reserved. Protocols 2–6 cannot create this namespace kind.
+remain reserved.
 
 All declarations, including unused dependency declarations, resolve to the
 actual `Indexed.Core.Declarations` tables. Complete finite domain, index sort,
@@ -246,9 +249,10 @@ standalone native fixture takes the resolved declaration environment through
 actual Core checking/code generation and returns `7`.
 
 This certificate accepts declarations only. It does not check function bodies,
-finite dispatch or edit assemblies, and it is not a public protocol-7 entry
-point. Rust parsing, the wire decoder and the full scalar/function/authority
-composition are connected by `Indexed.Wire.check`; the separate internal data-body adapter is described below. The internal regression
+finite dispatch or edit assemblies, and it is not a public entry point. Rust
+parsing, the wire decoder and the full scalar/function/authority composition
+are connected by `ResourceSource.Wire.check`; the separate internal data-body
+adapter is described below. The internal regression
 constructs Core terms directly; it is not a `.vast` source migration test.
 
 #### Dependent type annotations
@@ -277,9 +281,9 @@ Thirty-five regression cases cover wrong sorts/arity/endpoints, alias identity,
 nominally different openings, malformed contexts and dependent Core calls. The
 seventh native fixture uses an elaborated dependent parameter/result type in a
 checked function and call and returns `13`. It still assembles Core terms
-directly. Those individual annotation tests do not replace the public protocol-7
+directly. Those individual annotation tests do not replace the public
 composition of scalar dispatch, Fn and authority checks described in
-[the public path](#the-public-path). Protocols 2–6 retain their existing audits.
+[the public path](#the-public-path).
 
 #### Data-function bodies
 
@@ -312,8 +316,7 @@ The adapter explicitly rejects old function bodies, generic/method/abstract
 metadata and edit/authority envelopes whose checks it cannot yet compose.
 It has no Fn expressions or specialization; the separate adapter below extends
 the internal syntax. The later adapters below compose finite dispatch and
-authority and are used by every public protocol, with source adaptation for
-versions 2–6. The later program theorem establishes Core evaluation; native refinement remains unproved.
+authority and are used by the public route. The later program theorem establishes Core evaluation; native refinement remains unproved.
 
 #### Internal independent functions and static specialization
 
@@ -364,7 +367,7 @@ metadata, the 4,096/4,097 boundary and a 4,200-function dependency chain. Four m
 standalone native fixtures exercise higher-order/lambda execution, indexed local
 operations, a returned private function and ordered package fields. All fourteen
 fixtures link only the minimal runtime. The subsequent adapters below add finite
-dispatch/all-applicable-body and edit-authority composition. Public protocol 7
+dispatch/all-applicable-body and edit-authority composition. The public route
 exposes that composition and the geometry stdlib below uses it. Whole-term
 Core evaluation is covered by the later program theorem.
 This plain Fn entry rejects old dispatch/edit envelopes explicitly.
@@ -415,7 +418,7 @@ ownership, capture/shadowing, recursion and forged expansion/target records.
 Four additional native fixtures execute indexed/higher-order method bodies,
 contract-domain calls, nominal selectors and Pair results (eighteen in total).
 The adapter rejects edit/authority envelopes and old unconnected method bodies.
-The authority composition below adds the entry used by public protocol 7.
+The authority composition below adds the entry used by the public route.
 The later stdlib and checked-Core evaluation increments below compose this
 foundation; the plain dispatch adapter itself is not the public entry.
 
@@ -471,11 +474,10 @@ Four additional native fixtures execute nested contribution helpers, transfer,
 obligation repair and the empty-assembly path (twenty-two at that increment).
 The bare opened-object fixture brings the current standalone native suite to
 twenty-three, retaining its opening identity through a block and local aliases.
-Public protocol 7 decodes the indexed package requests into this combined
-checker, and protocol 9 runs the same checker on their pure bodies. The
-driver writes these requests, and those of the geometry stdlib below, as
-protocol 9 ([Protocol selection](../protocol.md#protocol-selection)). The
-explicit library export also supports legacy syntax in the same closure.
+The public route decodes the indexed package requests and runs this combined
+checker on their pure bodies, for these requests and those of the geometry
+stdlib below. The explicit library export also supports legacy syntax in the
+same closure.
 
 ### Indexed applications and scopes
 
@@ -525,8 +527,8 @@ wrong kinds/arity, base mismatch, cyclic/incompatible inheritance, complete
 finite domains, distinct global/local identities, hidden token escapes and
 invalid substitutions. It runs in the common no-mathlib regression script.
 
-The public protocol-7 integration updates Rust and Lean together and retains
-unresolved namespace provenance. All public protocols use the common checker and
+The public integration updates Rust and Lean together and retains
+unresolved namespace provenance. The public route uses the common checker and
 native generator. Their exact returned Core is covered by `IndexedProgramSafety`;
 the migration acceptance map separates this from full source/native equivalence.
 
@@ -594,8 +596,9 @@ allocating binding.
 
 The wire form of a primitive comes from one table. `IndexedPrimitiveFamilies.lean`
 lists one [primitive family](../appendix/glossary.md#primitive-family) per wire
-`op`: its fields with their kinds, in wire order, whether only protocol 9
-admits it, and how the resolved fields build the binding. The decoder of
+`op`: its fields with their kinds, in wire order, whether it is one of the
+Stage 2 and later forms (`algebraic`), and how the resolved fields build the
+binding. The decoder of
 `IndexedDeclarationProtocol.lean` admits only those fields. The resolver
 `resolvePrimitive` of `IndexedSourceChecker.lean` resolves them and builds the
 binding through the family. The frontend reads `src/primitive_table.rs`, which
@@ -728,7 +731,7 @@ three standalone fixtures (package exit status 2, all primitives exit status
 42, and arbitrary-precision scalar/Pair arithmetic). Both OS no-mathlib CI
 jobs run them.
 
-Public protocol 7 parses and independently resolves declarations. The structural
+The public route parses and independently resolves declarations. The structural
 theorem alone does not establish evaluation; `IndexedProgramSafety` supplies
 typed evaluation and activation/world correspondence. Full source operational
 correspondence and native refinement remain outside the migration's claims.
@@ -737,7 +740,8 @@ correspondence and native refinement remain outside the migration's claims.
 
 `stdlib/src/geometry` is an explicit path package using the public source
 checker; since its `scheme::affine` module declares
-[presented affine geometry](../affine-geometry.md), its closure uses protocol 9. It declares separate `QQ`/`CInfReal` markers and `Scheme`/`CInfScheme`
+[presented affine geometry](../affine-geometry.md), its closure has no
+`legacy_geometry`. It declares separate `QQ`/`CInfReal` markers and `Scheme`/`CInfScheme`
 finite classifications in sibling `scheme`/`smooth` modules, actual global base
 objects, shared indexed Point/Morphism families with same-base constraints, and
 the two finite Pointed package cases. `stdlib` re-exports these canonical
@@ -750,7 +754,7 @@ is an ordinary `.vast` function that constructs and packages data.
 Twenty-four integration tests exercise both settings, alias identity, coherent renaming,
 separately generated/opened/copied nominal objects, coefficient versus test-object
 distinction, missing capabilities, dependent morphism calls with retained test
-objects/repacking, composition with arithmetic in the same protocol-7 closure,
+objects/repacking, composition with arithmetic in the same package closure,
 private support visibility, external method authority, legacy client compatibility
 and rejection of mutated actual wire contracts by both checking and emission.
 The combined example shows 42 and the pointed example shows the dimension 3;
@@ -771,7 +775,7 @@ one export is required only for legacy syntax; qualified calls to multiple
 independent libraries remain supported. Existing declared/local names take
 precedence, and visibility errors cannot fall back to builtin spelling.
 Unchanged `examples/pointed.vast` and `examples/smooth.vast` run through the
-same protocol-7 closure. Mixed syntax retains dependent endpoints and package
+same checker. Mixed syntax retains dependent endpoints and package
 witnesses; capture, scope escape and unused-body checks are unchanged.
 
 `GeometryCompatibilityRegression` checks twelve positive/negative profile cases.
@@ -779,44 +783,43 @@ witnesses; capture, scope escape and unused-body checks are unchanged.
 the independently validated profile in the function compiler, with distinct
 markers and matching origin/package roles. The program theorem supplies whole-term
 Core evaluation; `GeometryResults` connects declared primitive results to the
-retained finite runtime. Protocols 2–6 use the source adapter below. See the
+retained finite runtime. A request with `legacy_geometry` uses the profile
+below. See the
 [acceptance map](#finite-geometry-migration-acceptance) for the full migration boundary.
 
-### Compatibility adapter for protocols 2–6
+### The compatibility profile
 
-`Indexed.LegacySource` retains the original wire decoders and converts decoded
-source directly to `Indexed.AuthoritySource.checkProgram`, the same declaration,
-function, finite-dispatch and edit-authority checker used by protocol 7. It does
-not use the old geometry elaborator's acceptance or translate an old checked Core
-on the public path. Both `check` and `build` require the common audit; code
-emission uses the returned executable Core with its reverse passes compiled
-into Core, and audits that module again.
+A request with the field `legacy_geometry` (every flat program, and the
+package programs without the records of the indexed envelope) asks the
+kernel for its compatibility profile
+([Compatibility profile](../protocol.md#compatibility-profile)). The kernel
+checks such a request with `Indexed.AuthoritySource.checkProgram`, the same
+declaration, function, finite-dispatch and edit-authority checker as every
+request. It does not use the old geometry elaborator's acceptance or
+translate an old checked Core on the public path. Both `check` and `build`
+require the common audit; code emission uses the returned executable Core
+with its reverse passes compiled into Core, and audits that module again.
 
-Flat functions, methods, abstract declarations and contracts retain their actual
-bodies and spans in a synthetic module whose identity is independent of display
-filenames. Flat input gains no qualified module paths. Package inputs retain
-original package IDs, module owners, imports, visibility, grants, contributions,
-delegations, transfers and assemblies. Scalar header validation preserves the
-old diagnostic ordering; it supplies no accepted bodies or checked Core.
+A flat program's functions, methods, abstract declarations and contracts keep
+their bodies and spans in the one module of a package whose identity is
+independent of display filenames (`packages::flat_request`). Package requests
+keep their package IDs, module owners, imports, visibility, grants,
+contributions, delegations, transfers and assemblies.
 
-Old wire formats cannot declare indexed types. The adapter therefore appends a
-closed package of unresolved ordinary/smooth affine declarations and an explicit
-compatibility export. The common declaration/profile checker validates its two
-coefficient markers, finite implementations, canonical base objects, point and
-morphism families, existential cases and primitive contracts. The adapter first
-validates the original namespace and rejects a source package colliding with the
-reserved profile identity. Injecting that package cannot repair an unknown source
-dependency or grant imports, edits, memberships or contracts. Protocol 7 continues
-to use explicit library exports and canonical stdlib declaration IDs.
-
-The package is `CompatibilityProfile.profilePackage`. A protocol-9 request asks
-for it with the field `legacy_geometry`, which the driver sets for every flat
-program and for the package programs that it sent as protocols 3 to 6 before
-([Protocol-9 compatibility profile](../protocol.md#protocol-9-compatibility-profile)).
-`ResourceSource.Program.pureProgram` then ends with the same package, so the
-common checker sees the program that `LegacySource.adapt` gives it.
-`CompatibilityProfileRegression` compares the Core and the generated Lean of
-both routes for a flat and a package program.
+The profile is `CompatibilityProfile.profilePackage`: a closed package of
+unresolved ordinary/smooth affine declarations and an explicit compatibility
+export, which `ResourceSource.Program.pureProgram` appends as the last package
+of the checked program. The common declaration/profile checker validates its
+two coefficient markers, finite implementations, canonical base objects,
+point and morphism families, existential cases and primitive contracts. The
+kernel first validates the request's namespace and rejects a request package
+that claims a reserved identity. Adding the profile cannot repair an unknown
+source dependency or grant imports, edits, memberships or contracts. A
+program without the field uses explicit library exports and canonical stdlib
+declaration IDs. `CompatibilityProfileRegression` checks that the kernel
+accepts and generates a flat and a package program with the field, rejects
+them without it, and rejects a field with another value, beside a
+`geometry_compat` export, and a request that claims the profile's identity.
 
 The common source compiler retains object introduction sites for parameters,
 constructors, object-returning calls, branch merges and unpacking. These names and
@@ -824,20 +827,12 @@ locations affect diagnostics only. Nominal references, scope, independent Core
 typing and actual dependency ordering continue to determine acceptance. Aliases
 retain the original introduction; equal descriptors never identify objects.
 
-`LegacySourceRegression` exercises all six flat/package envelope combinations
-across versions 2–6, library/entrypoint behavior, unused invalid bodies, flat path
-rejection, reserved profile collisions, forged dependencies and a corrupted
-injected profile. Existing source/native regressions cover both geometric
-settings, dependent substitution, Fn specialization, full scalar dispatch and
-edit authority, including all applied and unapplied bodies.
-
-`VastitasOracle.LegacySource` connects the exact decoder and source-adapter results
-to the actual common checker, both typed Core passes, real dependency order,
-entrypoint validation, returned loans, final winning footprints, checked body
-coverage and the same validated geometry profile used by the function compiler.
-The same module's totality corollaries connect both returned Core passes to the
-program theorem, which derives activation/world freshness. Full source
-operational correspondence and native refinement remain separate unproved claims.
+The theorems on `ResourceSource.Wire.CheckedInput` hold for a request with the
+field, with the profile as one more package of the checked program:
+`GeometryCompatibility.wire_profile` and `compiler_uses_checked_profile`
+connect the validated geometry profile to the one used by the function
+compiler. Full source operational correspondence and native refinement remain
+separate unproved claims.
 
 `LegacyIndexed` and `Codegen.generate` remain internal compatibility APIs for the
 retained old Core and its regression/proof boundary. Their structural translation
@@ -948,10 +943,10 @@ native-toolchain refinement remain pending.
 This is the acceptance map for #49 and #58–63. It covers the existing ordinary
 and smooth affine descriptor language. The [Stage 1 ledger](../stage1-completion.md) records the later finite storage, linear algebra and network integration and the Stage 2 performance handoff.
 
-The implementation is declaration driven in all public protocols. Protocol 7
-loads `stdlib/src/geometry/{scheme,smooth}/mod.vast` through the single `stdlib`
-entrypoint. Protocols 2–6 and explicit `--lib` retain their syntax and wire
-formats; `Indexed.LegacySource` adapts their decoded source to the same
+The implementation is declaration driven. The public route loads
+`stdlib/src/geometry/{scheme,smooth}/mod.vast` through the single `stdlib`
+entrypoint. Flat programs and explicit `--lib` keep their syntax; their
+requests carry `legacy_geometry`, and the kernel checks them with the same
 `Indexed.AuthoritySource.checkProgram`. The old checked-Core translator is not
 a public acceptance path. The temporary `stdlib/indexed` facade is removed.
 
@@ -984,8 +979,8 @@ not an alternative semantic acceptance rule.
 | Concern / location | Current disposition and independent boundary |
 | --- | --- |
 | Legacy keywords, reserved names, ring positions and type syntax: `src/frontend.rs`, `src/frontend/types.rs`, `src/frontend/resolver.rs`, `src/ir.rs`, kernel `Surface.lean` | Adapter: retains Scheme/CInfScheme/Point/Morphism/Pointed syntax and QQ/CInfReal marker syntax. A marker is not a runtime object. Qualified indexed syntax is parsed separately. Rust diagnostics cannot certify types. |
-| Indexed parsing and strict wire schema: `src/indexed.rs`, `src/namespace.rs`, `src/packages.rs`, kernel `IndexedProtocol.lean`, `IndexedBodyProtocol.lean`, `IndexedAcceptance.lean` | General mechanism: unresolved paths, enclosing owners, family kinds/arity, explicit bindings and complete source bodies; no frontend-supplied authority or checked flag. Older versions reject these declarations/exports instead of discarding them. |
-| Old wire conversion: kernel `LegacySource.lean`, `CompatibilityProfile.lean` | Adapter: preserves original bodies, namespaces and edit metadata. Validates the original namespace before adding an ordinary closed unresolved profile (`CompatibilityProfile.profilePackage`); rejects collision with its reserved package identity. That profile passes the same declaration and role checks as a source library. A protocol-9 request adds the same profile with the field `legacy_geometry` (`ResourceSource.Program.legacyGeometry`). |
+| Indexed parsing and strict wire schema: `src/indexed.rs`, `src/namespace.rs`, `src/packages.rs`, kernel `IndexedProtocol.lean`, `IndexedBodyProtocol.lean`, `ResourceProtocol.lean` | General mechanism: unresolved paths, enclosing owners, family kinds/arity, explicit bindings and complete source bodies; no frontend-supplied authority or checked flag. A request of another version is rejected by its version alone. |
+| Compatibility profile: kernel `CompatibilityProfile.lean`, `ResourceProtocol.lean`, `ResourceSource.lean` | Adapter: a request with the field `legacy_geometry` (`ResourceSource.Program.legacyGeometry`) keeps its bodies, namespaces and edit metadata. The kernel validates the request's namespace before adding an ordinary closed unresolved profile (`CompatibilityProfile.profilePackage`) and rejects a request package that claims a reserved identity. That profile passes the same declaration and role checks as a source library. |
 | Namespace reservations and lookup: kernel `NamespaceResolve.lean`, `NamespaceValidate.lean`, `NamespaceLower.lean`, `IndexedSourceChecker.lean` | General mechanism with compatibility reservations: canonical package/module/declaration IDs, actual visibility/re-exports and shared-name collision checks. Indexed declarations may use geometry spellings; an ordinary function alias cannot acquire those reserved declaration roles. Modules may take the seven geometric operation names; a bare call of an operation falls back to it when the name is unbound or names a child module (`legacyFallback_uncallable`). |
 | Classification and representation: kernel `Indexed.lean`, `IndexedAudit.lean`; stdlib `geometry/{scheme,smooth}/mod.vast` | Library plus general mechanism: distinct finite classifications, coefficient markers and implementations. Classification membership does not identify individual objects or add origin/dimension capability. |
 | Point/Morphism/Pointed definitions: stdlib `geometry/mod.vast`; kernel `IndexedPackages.lean`, `IndexedContractAudit.lean` | Library plus general mechanism: declared indexed families, same-base constraints, sealed representations, finite single-witness package cases and ordered field templates. General test objects are permitted; Pointed specifically uses the declared base object. |
@@ -997,16 +992,16 @@ not an alternative semantic acceptance rule.
 | Primitive behavior: kernel `IndexedPrimitiveBinding.lean`, `IndexedPrimitiveShapes.lean`, `IndexedPrimitiveValues.lean`, `IndexedPrimitiveDescriptors.lean`, `IndexedPrimitiveRegistry.lean`, `IndexedPrimitiveFamilies.lean`, `IndexedPrimitives.lean`, `IndexedContractAudit.lean`, `IndexedSemantics.lean`, `IndexedRuntime.lean`; generated `src/primitive_table.rs` | Closed explicit registry; see the table below. The wire form comes from the family table of `IndexedPrimitiveFamilies.lean`: the decoder, the resolver and the generated Rust table read it, and a family grants no authority. No arbitrary native registration, certificate string or mathematical axiom is admitted. |
 | Diagnostic names/locations: kernel `IndexedSourceDiagnostics.lean`, `IndexedSourceBodies.lean` | Presentation only. “Affine” introduction notes do not choose implementation, merge identities or authorize an operation. |
 | Native lowering: kernel `IndexedCodegen.lean` | General Core lowering selected by validated binding/representation tags, not source spelling. Rechecks all declarations, types, scopes, freshness and actual dependencies before emitting reachable functions. Generated modules import only `IndexedRuntime`. Mutable storage is not yet represented. |
-| Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Old decoders and scalar/namespace header validation remain reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |
+| Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Scalar/namespace header validation remains reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |
 
-The adapter remains intentionally supported. Removal requires an explicit decision
-to retire the corresponding old syntax/wire contract, not merely deleting reserved
-names. No temporary second public geometry checker remains to remove.
+The compatibility profile remains intentionally supported. Removal requires an
+explicit decision to retire the corresponding old syntax, not merely deleting
+reserved names. No temporary second public geometry checker remains to remove.
 
 #### Primitive and proof inventory
 
 Every binding is independently checked against the actual declaration environment.
-Family constructors are sealed. `origin` and `dim` (the op `dimension`) require capabilities for
+Family constructors are sealed. `origin` and `dim` require capabilities for
 the complete input implementation domain; arbitrary future Scheme implementations
 need not provide either operation.
 
@@ -1023,9 +1018,9 @@ need not provide either operation.
 The first names come from `IndexedPrimitives`/`IndexedSemantics` in the oracle.
 `GeometryResults` uses the profile's actual declaration lookup and the existing
 registry evaluator. `declared_primitive_erasure` connects logical evaluation to
-these runtime equations. `GeometryCompatibility.checked_profile` and
-`LegacySource.checked_profile` supply the validated profile for public inputs;
-`wire_dimension_result` gives a direct public-checker instance.
+these runtime equations. `GeometryCompatibility.checked_profile` supplies the
+validated profile for public inputs; `wire_dimension_result` gives a direct
+public-checker instance.
 
 The equations erase implementation/marker tags just as the runtime does. They
 do not authorize mixing bases or identify two static objects; those obligations
@@ -1042,9 +1037,9 @@ arbitrary schemes, all points/maps, or smooth geometry.
 | #59 nominal identities, substitutions and package association | `IndexedCore`, `IndexedSubstitution`, `IndexedPackageSemantics`, `IndexedWorld`, `IndexedCallTransport`, `IndexedArgumentSafety`; `IndexedCoreRegression` rejects reused brands, forged call substitutions, global rewriting and erased index obligations; package regressions test wrong witnesses and repeated openings. |
 | #60 explicit primitives and trust | Registry table above, `IndexedPrimitiveRegression` and actual wire mutations in `tests/stdlib_geometry.rs`; unknown bindings, false roles/capabilities, purported owner/trusted fields and invalid constructors are rejected. No arbitrary evidence registration. |
 | #61 existing stdlib workflows and representation freedom | Canonical scheme/smooth module directories, ordinary `pointed` functions, independent abstract annotations, dependent calls/repacking and native 42/2 examples. [Library documentation](https://github.com/MGYamada/Vastitas/blob/main/stdlib/docs/geometry.md#representation-and-future-design) describes future matrix/equation/subspace/opaque Stiefel/Grassmannian representations without mandatory stored charts. |
-| #62 exact accepted Core, typing, all-body coverage and terminating evaluation | `IndexedWire`/`LegacySource` expose exact audit/executable Core; `IndexedFunctions`, `IndexedDispatch`, `IndexedAuthority` cover unused/lifted/nonwinning/out-of-domain/applied/unapplied bodies; `IndexedProgramSafety.checked_functions_total_and_typed` and `checked_main_total` discharge call contracts using the actual dependency order. |
+| #62 exact accepted Core, typing, all-body coverage and terminating evaluation | `ResourceSource` and `IndexedReverseCore` expose exact executable Core, and `IndexedAuthority.both_passes` the typing of both passes; `IndexedFunctions`, `IndexedDispatch`, `IndexedAuthority` cover unused/lifted/nonwinning/out-of-domain/applied/unapplied bodies; `IndexedProgramSafety.checked_functions_total_and_typed` and `checked_main_total` discharge call contracts using the actual dependency order. |
 | #62 final independent codegen audit | `IndexedCodegen.generate` requires a strong typed/ordered certificate and repeats the audit. `IndexedCoreRegression` rejects forged declarations/endpoints/substitutions/packages/brand reuse before that certificate can be constructed; `TypeAuditRegression` tests rejection of weaker legacy annotation-only certificates at codegen. `scripts/check_indexed_codegen.lean` and both OS native/no-mathlib CI exercise accepted native generation. |
-| #63 compatibility and documentation | Public source matrix below; unchanged v2–6/`--lib`, strict old-version rejection, actual protocol-7 wire mutations, direct namespace/profile/Core regressions, full oracle/axiom audit, this inventory and linked current specifications. |
+| #63 compatibility and documentation | Public source matrix below; unchanged flat and `--lib` programs, the rejection of other wire versions, actual wire mutations, direct namespace/profile/Core regressions, full oracle/axiom audit, this inventory and linked current specifications. |
 
 ##### Public source regression matrix
 
@@ -1063,7 +1058,7 @@ unchanged. Tests for flat old inputs remain in `tests/compiler.rs`,
 | Wrong package witness/base; escaping point/morphism/opened field; two opens; ordinary object-return generativity; distinct-object branch merge | `legacy_endpoint_base_and_scope_failures_preserve_existing_output` |
 | Bare opened object survives a block, aliases and repackaging; dependent fields still cannot escape or cross openings/call activations | `opened_objects_survive_blocks_in_both_geometry_modules`, `opened_objects_do_not_export_dependent_fields_or_merge_identities`, `legacy_opened_objects_remain_first_class`; Core `escapedObjectFixture` is checked, evaluated and compiled by the standalone native regression |
 | Independent lambdas and unused invalid Fn bodies | `legacy_geometry_inside_independent_lambdas_is_checked` |
-| Missing capabilities, module visibility, wrong owner/base and false compatibility roles | `classification_does_not_manufacture_missing_implementation_capabilities`, `kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire`, `raw_compatibility_roles_and_old_wire_downgrades_are_rejected` |
+| Missing capabilities, module visibility, wrong owner/base and false compatibility roles | `classification_does_not_manufacture_missing_implementation_capabilities`, `kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire`, `raw_compatibility_roles_and_misplaced_exports_are_rejected` |
 
 #### Verification and remaining boundaries
 

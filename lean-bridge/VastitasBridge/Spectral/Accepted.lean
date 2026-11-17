@@ -23,7 +23,7 @@ terms (`Spectral/Algebra.lean`) and the typed Daleckii–Krein theorems
   `checked_differential_frechet`). A compiled reverse site of one declared step along a
   trace-power invariant computes the seed's component times the cotangent in both modes
   (`TracePowerSiteDK`, `EntryFrechet.trace_power_dk`); every compiled module
-  (`compiled_trace_power_dk`) and the public protocol 8/9 paths
+  (`compiled_trace_power_dk`) and the public paths
   (`public_resource_entries_trace_power_dk`, `public_pure_entry_trace_power_dk`) do so for all
   their entries (`TracePowerDK`), the step's map being the invariant's own
   (`SpectralCore.compiled_invariant_step`).
@@ -351,7 +351,7 @@ theorem compiled_trace_power_dk {requireMain : Bool}
     ∀ entry ∈ compiled.entries, TracePowerDK compiled.core.module entry :=
   trace_power_dk_of_frechet compiled (VastitasBridge.Differential.compiled_entries_frechet compiled)
 
-/-- **Protocols 8/9.** For every JSON that `ResourceSource.Wire.check` accepts, every entry of the
+/-- **The public checker.** For every JSON that `ResourceSource.Wire.check` accepts, every entry of the
 compiled pure program and of the compiled value fragments computes the DK cotangent along its
 trace-power steps. -/
 theorem public_resource_entries_trace_power_dk {json : Lean.Json} {requireMain : Bool}
@@ -363,7 +363,7 @@ theorem public_resource_entries_trace_power_dk {json : Lean.Json} {requireMain :
   ⟨trace_power_dk_of_frechet _ (VastitasBridge.Differential.public_resource_entries_frechet input).1,
     trace_power_dk_of_frechet _ (VastitasBridge.Differential.public_resource_entries_frechet input).2⟩
 
-/-- **Protocols 8/9 emit without a resource entry.** The module that the public emit path
+/-- **Emit without a resource entry.** The module that the public emit path
 generates code from computes the DK cotangent along its trace-power steps. -/
 theorem public_pure_entry_trace_power_dk {json : Lean.Json}
     {program : VastitasKernel.ResourceSource.Program}

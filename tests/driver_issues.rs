@@ -570,7 +570,7 @@ fn mismatched_failure_version_preserves_diagnostics_but_success_is_rejected() {
     let backend = scratch.0.join("kernel");
     executable(
         &backend,
-        "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"version\":3,\"ok\":false,\"diagnostics\":[{\"code\":\"E_SENTINEL\",\"message\":\"original diagnostic\"}]}'\nexit 1\n",
+        "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"version\":9,\"ok\":false,\"diagnostics\":[{\"code\":\"E_SENTINEL\",\"message\":\"original diagnostic\"}]}'\nexit 1\n",
     );
     let output = scratch
         .kernel_cli()
@@ -590,7 +590,7 @@ fn mismatched_failure_version_preserves_diagnostics_but_success_is_rejected() {
     );
     executable(
         &backend,
-        "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"version\":3,\"ok\":true}'\n",
+        "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"version\":9,\"ok\":true}'\n",
     );
     let output = scratch
         .kernel_cli()
@@ -602,15 +602,18 @@ fn mismatched_failure_version_preserves_diagnostics_but_success_is_rejected() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("E_PROTOCOL: incompatible"));
 }
 
+/// `--version` reports the package and the one wire protocol (#521, #533):
+/// exactly the kernel's `currentProtocol`.
 #[test]
-fn version_reports_package_and_every_public_wire_protocol() {
+fn version_reports_package_and_the_wire_protocol() {
     let result = common::cli().arg("--version").output().unwrap();
     assert!(result.status.success());
     assert_eq!(
         String::from_utf8(result.stdout).unwrap().trim(),
         format!(
-            "vastitas {} (wire protocols 2/3/4/5/6/7/8/9)",
-            env!("CARGO_PKG_VERSION")
+            "vastitas {} (wire protocol {})",
+            env!("CARGO_PKG_VERSION"),
+            common::kernel_protocol()
         )
     );
 }

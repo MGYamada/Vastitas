@@ -35,11 +35,10 @@ discharges the premises for every entry of a compiled module
 - `compileSite_term`: the term that `compileSite` returns and the entry that it
   appends. `compiled_site_evaluates`: that term and the source call evaluate to
   the same value, for a pullback, a differential and a tape.
-- `public_wire_entries`, `legacy_wire_entries`, `public_resource_entries` and
-  `public_pure_entry_computes`: on every public path (protocols 2-6, 7 and
-  8/9), every entry of the compiled modules of the accepted certificate, and of
-  the module that the pure emit path generates code from, satisfies these
-  (`EntryComputes`).
+- `public_resource_entries` and `public_pure_entry_computes`: on the public
+  path (`ResourceSource.Wire.check`), every entry of the compiled modules of
+  the accepted certificate, and of the module that the pure emit path
+  generates code from, satisfies these (`EntryComputes`).
 
 The premises that stay are facts about the arguments and the activation: one
 value per opaque step (`count`), composable programs (`Composable`), for a
@@ -1428,23 +1427,7 @@ theorem compiled_site_evaluates {module : Module} {env : Declarations} {defs : D
 
 /-! ## Public paths -/
 
-/-- **Protocol 7.** For every JSON that `Indexed.Wire.check` accepts, every
-entry of the compiled module of the accepted certificate satisfies
-`EntryComputes`. `Main.process` generates code from this module; that is read
-from `Main`, which the oracle does not import. -/
-theorem public_wire_entries {json : Lean.Json} {requireMain : Bool}
-    (accepted : VastitasKernel.Indexed.Wire.CheckedInput json requireMain) :
-    ∀ entry ∈ accepted.checked.compiled.entries, EntryComputes accepted.checked.compiled.core.module entry :=
-  compiled_entries_compute accepted.checked.compiled
-
-/-- **Protocols 2-6.** The same for every JSON that the legacy checker
-accepts. -/
-theorem legacy_wire_entries {json : Lean.Json} {requireMain : Bool}
-    (accepted : VastitasKernel.Indexed.LegacySource.CheckedInput json requireMain) :
-    ∀ entry ∈ accepted.checked.compiled.entries, EntryComputes accepted.checked.compiled.core.module entry :=
-  compiled_entries_compute accepted.checked.compiled
-
-/-- **Protocols 8/9.** For every JSON that `ResourceSource.Wire.check`
+/-- **The public checker.** For every JSON that `ResourceSource.Wire.check`
 accepts, every entry of both compiled modules of the certificate satisfies
 `EntryComputes`: the pure program and the pure values of a resource entry.
 `public_pure_entry_computes` links the first to the emitted code; the mixed
@@ -1459,7 +1442,7 @@ theorem public_resource_entries {json : Lean.Json} {requireMain : Bool}
   ⟨compiled_entries_compute input.checked.pureProgram.compiled,
     compiled_entries_compute input.checked.values.compiled⟩
 
-/-- **Protocols 8/9 emit without a resource entry.** The module that the
+/-- **Emit without a resource entry.** The module that the
 public emit path generates code from is the compiled pure program of the
 checked certificate. Every entry of its ledger satisfies `EntryComputes`
 there. -/

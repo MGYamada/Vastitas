@@ -11,7 +11,7 @@ import VastitasKernel.StorageFunctionChecks
 bounded child loans for borrowed arguments, return those loans, and transfer
 owned results. Every actual call is expanded and rechecked against its caller's
 real resources. Synthetic all-body probes never become executable schedules.
-This component is not public protocol 8 or a replacement for namespace/Fn/edit
+This component is not the public wire or a replacement for namespace/Fn/edit
 acceptance. Dimensions in this first function component are static metadata.
 
 The parts follow the stages of checking: syntax and headers, receipts, the

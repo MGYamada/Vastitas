@@ -20,7 +20,7 @@ KERNEL = ROOT / "lean-kernel/.lake/build/bin/vastitas-kernel"
 
 
 def failure():
-    return {"version": 5, "ok": False, "diagnostics": [{
+    return {"version": dr.PROTOCOL, "ok": False, "diagnostics": [{
         "code": "E_DISPATCH_AMBIGUOUS", "message": "ambiguous dispatch for choose",
         "span": {"start": 1, "end": 10, "line": 2, "column": 3},
         "notes": [{"message": "first crossing method",
@@ -210,7 +210,7 @@ class DiagnosticReferenceTests(unittest.TestCase):
         second["code"] = "E_OWNER"
         response["diagnostics"].append(second)
         original = copy.deepcopy(response)
-        records = dr.from_kernel_response(response, 5)
+        records = dr.from_kernel_response(response, dr.PROTOCOL)
         self.assertEqual(len(records), 2)
         for diagnostic, record in zip(response["diagnostics"], records):
             self.assertEqual(record["presentation"]["diagnostic"], diagnostic)
@@ -224,29 +224,38 @@ class DiagnosticReferenceTests(unittest.TestCase):
             self.assertIn(diagnostic["notes"][0]["message"], dr.render(record))
         self.assertEqual(response, original)
 
+    def test_the_one_kernel_protocol(self):
+        source = (ROOT / "lean-kernel/VastitasKernel/Protocol.lean").read_text(encoding="utf-8")
+        self.assertIn(f"def currentProtocol : Nat := {dr.PROTOCOL}\n", source)
+        for version in (*range(0, dr.PROTOCOL), dr.PROTOCOL + 1):
+            response = failure()
+            response["version"] = version
+            with self.subTest(version=version), self.assertRaises(dr.Invalid):
+                dr.from_kernel_response(response, version)
+
     def test_kernel_adapter_never_certifies_claimed_ledger_or_wrong_version(self):
-        for key, value in (("ok", True), ("ok", 0), ("version", True), ("version", 6),
+        for key, value in (("ok", True), ("ok", 0), ("version", True), ("version", 9),
                            ("diagnostics", []), ("ledger", {"owner": "asserted"})):
             response = failure()
             response[key] = value
             with self.assertRaises(dr.Invalid):
-                dr.from_kernel_response(response, 5)
+                dr.from_kernel_response(response, dr.PROTOCOL)
         identity = {"sources": "0123456789abcdef", "lean": "4.35.0"}
         response = failure()
         response["kernel"] = identity
-        records = dr.from_kernel_response(response, 5)
-        self.assertEqual(records, dr.from_kernel_response(failure(), 5))
+        records = dr.from_kernel_response(response, dr.PROTOCOL)
+        self.assertEqual(records, dr.from_kernel_response(failure(), dr.PROTOCOL))
         for kernel in ({**identity, "verified": True}, {"sources": "x"},
                        {"sources": 1, "lean": "4.35.0"}, "identity"):
             response = failure()
             response["kernel"] = kernel
             with self.assertRaises(dr.Invalid):
-                dr.from_kernel_response(response, 5)
+                dr.from_kernel_response(response, dr.PROTOCOL)
         response = failure()
         response["diagnostics"][0]["holder"] = {"status": "verified"}
         with self.assertRaises(dr.Invalid):
-            dr.from_kernel_response(response, 5)
-        partial = dr.from_kernel_response(failure(), 5)[0]
+            dr.from_kernel_response(response, dr.PROTOCOL)
+        partial = dr.from_kernel_response(failure(), dr.PROTOCOL)[0]
         partial["semantic"]["holder"]["subject"] = fixture()["semantic"]["assembly"]
         with self.assertRaises(dr.Invalid):
             dr.machine_report(partial)
@@ -271,12 +280,12 @@ class DiagnosticReferenceTests(unittest.TestCase):
                     response["diagnostics"].append(other)
                 path.write_text(json.dumps(response))
                 result = subprocess.run([sys.executable, str(ROOT / "scripts/demo_diagnostic_reference.py"),
-                                         "--kernel-response", str(path), "--expected-version", "5", "--json"],
+                                         "--kernel-response", str(path), "--expected-version", str(dr.PROTOCOL), "--json"],
                                         capture_output=True, text=True)
                 self.assertEqual(result.returncode, 1)
                 reports = json.loads(result.stdout)
                 self.assertEqual(reports, [dr.machine_report(record)
-                                          for record in dr.from_kernel_response(response, 5)])
+                                          for record in dr.from_kernel_response(response, dr.PROTOCOL)])
                 self.assertTrue(all(report["record"]["semantic"]["outcome"] == "rejected"
                                     for report in reports))
 

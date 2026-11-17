@@ -1,7 +1,7 @@
 import VastitasKernel.Authority
 
 /-! Trace and footprint facts of the actual `Authority.assemble`, which the
-public 2–6 route runs through `Indexed.LegacySource` and `AuthoritySource`.
+public route runs through `AuthoritySource`.
 These theorems start at decoded namespace input; they do not authenticate
 files or certify the Rust parser, native code generator or runtime. -/
 namespace VastitasOracle.Authority

@@ -425,7 +425,7 @@ instance (p : Namespace.Indexed) (resolved : Resolved) : Decidable (ReferencesVa
 
 /-- This certificate is only declaration acceptance. Function bodies, finite
 dispatch, edit assemblies and source-to-Core term translation are not certified
-here; they are composed by the public protocol-7 entry point. -/
+here; they are composed by the public entry point `ResourceSource.Wire.check`. -/
 structure CheckedDeclarations (p : Program) where
   resolved : Resolved
   namespaceAccepted : Namespace.validate p.indexed = .ok ()
@@ -521,8 +521,7 @@ def implementationRule (env : Environment) (entry : Entry) : Option String := do
 
 /-- How the source spells the binding of a primitive declaration. -/
 private def bindingSpelling : Option Body → String
-  -- The source spells the op `dimension` as `dim` (#778).
-  | some (.primitive primitive) => if primitive.op == "dimension" then "dim" else primitive.op
+  | some (.primitive primitive) => primitive.op
   | some (.morphism ..) => "morphism"
   | some (.iso ..) => "iso"
   | some (.cartesian ..) => "cartesian"

@@ -36,10 +36,9 @@ for every entry of every compiled module:
   for the term that `compileSite` returns at a pullback or a differential site, from the
   Oracle's `compiled_site_evaluates`.
 * `EntryFrechet` collects the Fréchet statement of one entry in both modes;
-  `compiled_entries_frechet`, `public_wire_entries_frechet` (protocol 7),
-  `legacy_wire_entries_frechet` (protocols 2-6), `public_resource_entries_frechet` and
-  `public_pure_entry_frechet` (protocols 8/9) state it for every ledger entry of every module
-  that a public path accepts or emits.
+  `compiled_entries_frechet`, `public_resource_entries_frechet` and
+  `public_pure_entry_frechet` (the public checker `ResourceSource.Wire.check`) state it for
+  every ledger entry of every module that the public path accepts or emits.
 
 The Fréchet theorems compose the Oracle's `compiled_saved_entry` and
 `compiled_recomputed_entry`, which use the stepwise pullback, with
@@ -821,24 +820,7 @@ theorem compiled_entries_frechet {requireMain : Bool}
   fun entry member => entry_computes_frechet
     (VastitasOracle.SmoothReverseCompiled.compiled_entries_compute compiled entry member)
 
-/-- **Protocol 7.** For every JSON that `Indexed.Wire.check` accepts, every entry of the
-compiled module of the accepted certificate, the module that `Main` emits, computes `η ∘ DF(x)`. -/
-theorem public_wire_entries_frechet {json : Lean.Json} {requireMain : Bool}
-    (accepted : VastitasKernel.Indexed.Wire.CheckedInput json requireMain) :
-    ∀ entry ∈ accepted.checked.compiled.entries,
-      EntryFrechet accepted.checked.compiled.core.module entry :=
-  fun entry member => entry_computes_frechet
-    (VastitasOracle.SmoothReverseCompiled.public_wire_entries accepted entry member)
-
-/-- **Protocols 2-6.** The same for every JSON that the legacy checker accepts. -/
-theorem legacy_wire_entries_frechet {json : Lean.Json} {requireMain : Bool}
-    (accepted : VastitasKernel.Indexed.LegacySource.CheckedInput json requireMain) :
-    ∀ entry ∈ accepted.checked.compiled.entries,
-      EntryFrechet accepted.checked.compiled.core.module entry :=
-  fun entry member => entry_computes_frechet
-    (VastitasOracle.SmoothReverseCompiled.legacy_wire_entries accepted entry member)
-
-/-- **Protocols 8/9.** For every JSON that `ResourceSource.Wire.check` accepts, every entry of
+/-- **The public checker.** For every JSON that `ResourceSource.Wire.check` accepts, every entry of
 both compiled modules of the certificate (the pure program and the pure values of a resource
 entry) computes `η ∘ DF(x)`. -/
 theorem public_resource_entries_frechet {json : Lean.Json} {requireMain : Bool}
@@ -852,7 +834,7 @@ theorem public_resource_entries_frechet {json : Lean.Json} {requireMain : Bool}
     fun entry member => entry_computes_frechet
       ((VastitasOracle.SmoothReverseCompiled.public_resource_entries input).2 entry member)⟩
 
-/-- **Protocols 8/9 emit without a resource entry.** The module that the public emit path
+/-- **Emit without a resource entry.** The module that the public emit path
 generates code from is the compiled pure program of the checked certificate, and every entry of
 its ledger computes `η ∘ DF(x)` there. -/
 theorem public_pure_entry_frechet {json : Lean.Json}

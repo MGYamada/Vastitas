@@ -140,10 +140,10 @@ private def extended (p : Source.Program) : Source.Program := withLibrary p fun 
   { m with declarations := m.declarations ++ [
     primitive "follow" ⟨"apply", [("map_family", .path (path "Morphism")), ("point_family", .path (path "Point"))]⟩,
     primitive "after" ⟨"compose", [("map_family", .path (path "Morphism"))]⟩,
-    primitive "smoothDimension" ⟨"dimension", [("domain", .objectType ⟨path "CInfScheme", path "CInfReal"⟩)]⟩,
+    primitive "smoothDimension" ⟨"dim", [("domain", .objectType ⟨path "CInfScheme", path "CInfReal"⟩)]⟩,
     ⟨"Grid2", .implementation (path "QQ") .affineDescriptor [.origin, .dimension], true, {}⟩,
     ⟨"Other", .classification [] [path "Grid2"], true, {}⟩,
-    primitive "otherDimension" ⟨"dimension", [("domain", .objectType ⟨path "Other", path "QQ"⟩)]⟩,
+    primitive "otherDimension" ⟨"dim", [("domain", .objectType ⟨path "Other", path "QQ"⟩)]⟩,
     ⟨"Wide", .classification [] [path "Grid", path "Grid2"], true, {}⟩,
     ⟨"WideMap", .family ⟨[.object (path "Wide"), .object (path "Wide")], [.sameBase 0 1], .morphism⟩, true, {}⟩,
     primitive "narrowApply" ⟨"apply", [("map_family", .path (path "WideMap")), ("point_family", .path (path "Point"))]⟩] }

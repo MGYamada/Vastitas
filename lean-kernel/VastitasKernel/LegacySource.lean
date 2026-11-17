@@ -1,6 +1,7 @@
 import VastitasKernel.NamespaceProtocol
 import VastitasKernel.IndexedAcceptance
 import VastitasKernel.NamespaceDiagnostics
+import VastitasKernel.CompatibilityProfile
 
 /-! Protocols 2–6 retain their original wire schemas. This syntax adapter converts
 those decoded inputs to the declaration-driven source checker; it does not run
@@ -104,58 +105,14 @@ private def module (flat : Bool) (m : Namespace.Module) : Except Diagnostic Disp
     functions := ← m.functions.mapM (function flat), methods := ← m.methods.mapM (method flat),
     contributions := ← m.contributions.mapM contribution }
 
-/-- Adapter-owned identities are independent of display filenames. The original
-namespace must validate before these private implementation packages are added. -/
-def profileId : Namespace.PackageId := ⟨"vastitas:compat:2-6", "legacy_geometry", "1.0.0"⟩
+/-- Adapter-owned identities are independent of display filenames: the
+package of a flat unit (`flatPackageId`) and the compatibility profile
+(`CompatibilityProfile.profilePackage`) that `adapt` appends to every program.
+The original namespace must validate before the profile is added. -/
 def flatId : Namespace.PackageId := flatPackageId
 
 private def rootModule : Namespace.Module := {
   path := [], isPublic := true, imports := [], functions := [], generics := [], methods := [], span := {} }
-
-private def reference (name : String) : Source.Path := ⟨[name], {}⟩
-private def declaration (name : String) (body : Source.Body) : Source.Declaration := ⟨name, body, true, {}⟩
-private def setting (base : BaseKind) : GeometrySetting Source.Path :=
-  let suffix := if base == .qq then "QQ" else "Smooth"
-  ⟨reference (if base == .qq then "Scheme" else "CInfScheme"),
-   reference (if base == .qq then "QQ" else "CInfReal"), reference ("Base" ++ suffix),
-   reference ("affine" ++ suffix), reference ("base" ++ suffix), reference ("origin" ++ suffix),
-   reference ("identity" ++ suffix), reference ("dimension" ++ suffix)⟩
-
-def geometryProfile : GeometryProfile Source.Path :=
-  ⟨setting .qq, setting .cinfReal, reference "Point", reference "Morphism", reference "Pointed",
-   reference "compose", reference "apply"⟩
-
-private def settingDeclarations (base : BaseKind) : List Source.Declaration :=
-  let s := setting base
-  let implementation := reference (if base == .qq then "GridQQ" else "GridSmooth")
-  let type : Source.ObjectType := ⟨s.domain, s.marker⟩
-  [declaration s.marker.name .marker,
-   declaration implementation.name (.implementation s.marker .affineDescriptor [.origin, .dimension]),
-   declaration s.domain.name (.classification [reference "Objects"] [implementation]),
-   declaration s.baseObject.name (.global implementation),
-   declaration s.affine.name (.primitive ⟨"descriptor", [("implementation", .path implementation)]⟩),
-   declaration s.base.name (.primitive ⟨"global", [("declaration", .path s.baseObject)]⟩),
-   declaration s.origin.name (.primitive ⟨"origin", [("domain", .objectType type),
-     ("point_family", .path geometryProfile.point), ("base_object", .path s.baseObject)]⟩),
-   declaration s.identity.name (.primitive ⟨"identity", [("domain", .objectType type),
-     ("map_family", .path geometryProfile.morphism)]⟩),
-   declaration s.dimension.name (.primitive ⟨"dimension", [("domain", .objectType type)]⟩)]
-
-/-- Explicit closed declarations for old wire schemas that cannot carry library
-metadata. Every declaration and role is checked by the common checker. -/
-def profilePackage : DispatchSource.Package := {
-  id := profileId, dependencies := [], geometryCompat := some geometryProfile,
-  modules := [{ module := rootModule, declarations :=
-    settingDeclarations .qq ++ settingDeclarations .cinfReal ++
-    [declaration "Objects" (.classification [] [reference "GridQQ", reference "GridSmooth"]),
-     declaration "Point" (.family ⟨[.object (reference "Objects"), .object (reference "Objects")], [.sameBase 0 1], .point⟩),
-     declaration "Morphism" (.family ⟨[.object (reference "Objects"), .object (reference "Objects")], [.sameBase 0 1], .morphism⟩),
-     declaration "Pointed" (.package ([.qq, .cinfReal].map fun base =>
-       let s := setting base
-       ⟨⟨s.domain, s.marker⟩, [⟨reference "Point", [.witness, .global s.baseObject]⟩]⟩)),
-     declaration "compose" (.primitive ⟨"compose", [("map_family", .path (reference "Morphism"))]⟩),
-     declaration "apply" (.primitive ⟨"apply", [("map_family", .path (reference "Morphism")),
-       ("point_family", .path (reference "Point"))]⟩)] }] }
 
 def Input.namespace : Input → Namespace.Program
   | .package p => p
@@ -179,7 +136,7 @@ def adapt (input : Input) : Except Diagnostic DispatchSource.Program := do
         let _ ← (Abstract.selector nominals parameter.ty.core parameter.span |>.run {}).map Prod.fst
   let source := input.namespace
   Namespace.validate source.indexed
-  if source.packages.any (·.id.source == profileId.source) then
+  if source.packages.any (·.id.source == CompatibilityProfile.profileId.source) then
     problem {} "E_PROTOCOL" "source package collides with the reserved compatibility profile"
   let flat := match input with | .flat _ => true | _ => false
   let packages ← source.packages.mapM fun pkg => do
@@ -187,7 +144,7 @@ def adapt (input : Input) : Except Diagnostic DispatchSource.Program := do
       id := pkg.id, dependencies := pkg.dependencies,
       modules := ← pkg.modules.mapM (module flat) : DispatchSource.Package }
   return {
-    file := source.file, root := source.root, packages := packages ++ [profilePackage],
+    file := source.file, root := source.root, packages := packages ++ [CompatibilityProfile.profilePackage],
     extended := true, editable := true, authority := true }
 
 structure CheckedInput (json : Lean.Json) (requireMain : Bool) where

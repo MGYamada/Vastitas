@@ -19,7 +19,7 @@ with the pure fragments of the resource functions (`values`). Protocols 2 to 7
 check it once, and that Core stands for both. The check compares the pure
 programs with each other and the passes with fragments with each other.
 
-Protocols 2 to 6 add an implicit compatibility package (`profilePackage`) to
+Protocols 2 to 6 add an implicit compatibility package (`CompatibilityProfile.profilePackage`) to
 every request, so its declarations are in their Core. When the Cores differ,
 the check compares them again without the declarations of that package; a pair
 that is then the same differs only by them.
@@ -36,8 +36,8 @@ structure Passes where
   compiled : Indexed.Core.Module
 
 /-- The package of the implicit compatibility declarations of protocols 2 to 6
-(`LegacySource.profilePackage`). -/
-def compatibility : Namespace.PackageId := Indexed.LegacySource.profileId
+(`CompatibilityProfile.profilePackage`). -/
+def compatibility : Namespace.PackageId := Indexed.CompatibilityProfile.profileId
 
 /-- `m` without the declarations of the implicit compatibility package. -/
 def withoutCompatibility (m : Indexed.Core.Module) : Indexed.Core.Module :=

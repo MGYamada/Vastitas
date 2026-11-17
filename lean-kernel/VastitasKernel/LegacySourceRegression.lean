@@ -10,6 +10,7 @@ labelled tests of retained checker APIs. -/
 
 namespace VastitasKernel.Indexed.LegacySource.Regression
 open Lean
+open CompatibilityProfile (profileId geometryProfile)
 
 private def span : Json := Json.mkObj [
   ("start", toJson (0 : Nat)), ("end", toJson (1 : Nat)),

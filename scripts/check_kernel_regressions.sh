@@ -53,6 +53,7 @@ lake -d lean-kernel build \
   VastitasKernel.GeometryCompatibilityRegression \
   VastitasKernel.ReviewRegression \
   VastitasKernel.LegacySourceRegression \
+  VastitasKernel.CompatibilityProfileRegression \
   VastitasPublicTest.AuthorityRegression \
   VastitasKernel.StorageRegression \
   VastitasStorageTest.Regression \

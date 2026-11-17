@@ -30,6 +30,11 @@ is Planned.
 
 ## Exact real ℓ² tail-certificate reference
 
+The rules in this section apply to a selected coefficient presentation of ℓ².
+The [general Hilbert space design](../hilbert-cauchy-completion.md) uses Cauchy
+completion of a pre-Hilbert space and allows effective names built from other
+dense fragments.
+
 This scoped reference implements two executable certificate rules for
 [#208](https://github.com/MGYamada/Vastitas/issues/208) and
 [#209](https://github.com/MGYamada/Vastitas/issues/209). It is a Python development

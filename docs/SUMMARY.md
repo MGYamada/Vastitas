@@ -94,6 +94,7 @@
   - [C: Reference models](appendix/reference-models.md)
     - [Diagnostics, doctests and identifiers](reference/compiler-tools.md)
     - [Analysis, certificates and random supplies](reference/analysis-and-effects.md)
+    - [Hilbert spaces from Cauchy completion](hilbert-cauchy-completion.md)
     - [Exact geometry reference models](reference/geometry.md)
     - [Algebra, order and symmetry reference models](reference/algebra-and-symmetry.md)
     - [Execution and planning reference models](reference/execution-plans.md)

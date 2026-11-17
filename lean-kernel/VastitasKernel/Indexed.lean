@@ -1,5 +1,6 @@
 import VastitasKernel.Identity
 import VastitasKernel.AlgebraDeclarations
+import VastitasKernel.GluingDeclarations
 import VastitasKernel.SmoothDeclarations
 
 /-! Finite declaration and index foundations of the public checker
@@ -349,6 +350,35 @@ inductive Declaration where
   calibration `calibration`, and the recorded verdict, which the kernel
   recomputes. -/
   | comparison (family object dataset calibration : DeclId) (fingerprint : String) (verdict : Verdict)
+  /-- A smooth open `{f ≠ 0}` of a smooth object (Stage 7, #878): `localize(X,
+  f) inverse u` under a `smooth_affine` implementation. `data` is its derived
+  presentation, with the coordinates of `X` and then `u`, the relation
+  `u·f − 1` and the construction `.localization X f u`. It is the domain of
+  a chart in a gluing or a cover, and nothing else. -/
+  | smoothOpen (implementation : DeclId) (data : AlgebraDeclarations.AffineData)
+  /-- An object glued from two charts along a transition (Stage 7): `first`
+  and `second` are principal opens `U₁ ⊂ X₁` and `U₂ ⊂ X₂` of the two charts,
+  `forward` gives the coordinates of `U₂` in the ring of `U₁`, and `backward`
+  the coordinates of `U₁` in the ring of `U₂`. The implementation chooses
+  the site: a presented implementation the Zariski site, a `smooth_affine`
+  one the smooth site. -/
+  | glued (implementation first second : DeclId) (forward backward : List AlgebraRuntime.Poly)
+  /-- A cover of `object` by principal or smooth opens (Stage 7), certified by
+  `Σ coefficientsᵢ · fᵢ = 1` in the ring of `object`. -/
+  | cover (object : DeclId) (opens : List DeclId) (coefficients : List AlgebraRuntime.Poly)
+  /-- A separation claim for a Zariski gluing (Stage 7): `witness`, in the
+  coordinates of the first chart and then the second, gives the inverse
+  coordinate of the first open on the overlap. -/
+  | separated (glued : DeclId) (witness : AlgebraRuntime.Poly)
+  /-- A manifold claim for a smooth gluing (Stage 7): both charts have
+  `dimension` coordinates, and `witness` closes the graph of the transition
+  as in `separated`. -/
+  | manifold (glued : DeclId) (dimension : Nat) (witness : AlgebraRuntime.Poly)
+  /-- A projective claim for a Zariski gluing (Stage 7): an isomorphism with
+  the projective line `Proj B[s, t]`, given by one chart entry for each chart
+  of the gluing, in the order of its opens. `homogeneous` names the two
+  homogeneous coordinates. -/
+  | projective (glued : DeclId) (homogeneous : List String) (charts : List GluingDeclarations.ProjectiveChart)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- The implementation of a canonical global object: a descriptor global, a
@@ -417,6 +447,12 @@ def smoothCoordinates? (env : Environment) (id : DeclId) : Option (List String) 
 /-- The dimension of a declared smooth object. -/
 def smoothDimension? (env : Environment) (id : DeclId) : Option Nat :=
   (smoothCoordinates? env id).map List.length
+
+/-- The presentation of a declared smooth open (Stage 7). -/
+def smoothOpenData? (env : Environment) (id : DeclId) : Option AlgebraDeclarations.AffineData :=
+  match lookup env id with
+  | some (.smoothOpen _ data) => some data
+  | _ => none
 
 /-- The declared base chain `[id, base id, …]`, or `none` when it leaves the
 presented objects, is cyclic or exceeds `fuel`. -/

@@ -1,0 +1,20 @@
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+use std::geometry::smooth::affine::SmoothR;
+
+indexed affine L1(AffineQQ) = spec[x] over SpecQQ;
+indexed affine L2(AffineQQ) = spec[y] over SpecQQ;
+
+indexed affine M1(SmoothR) = Affine(1)[x];
+indexed affine M2(SmoothR) = Affine(1)[y];
+indexed affine W1(SmoothR) = localize(M1, x) inverse p;
+indexed affine W2(SmoothR) = localize(M2, y) inverse q;
+indexed glued Doubled(SmoothR) = glue(W1, W2) by(y -> x, q -> p) inverse(x -> y, p -> q);
+
+// ANCHOR: declarations
+// The smooth doubled origin is no manifold: its real points are not Hausdorff.
+indexed manifold wrong = manifold(Doubled, 1) by(p -> M2::y);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

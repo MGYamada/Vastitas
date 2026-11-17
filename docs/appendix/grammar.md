@@ -369,7 +369,7 @@ IndexedDeclaration -> MarkerDeclaration | DescriptorImplementation
     | ScalarBaseImplementation | LinearImplementation
     | SmoothDeclaration | AffineDeclaration
     | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
-    | PhysicalModelDeclaration
+    | PhysicalModelDeclaration | GluingDeclaration
 ```
 
 [Markers](../indexed-source.md#markers):
@@ -617,6 +617,55 @@ EvidenceKind -> `nondegenerate` | `riemannian`
 MetricBinding -> `flat` `(` Path `,` Path `,` `using` `=` Path `)`
     | `sharp` `(` Path `,` Path `,` `using` `=` Path
       `,` `evidence` `=` Path `)`
+```
+
+## Gluing declarations
+
+Chapter: [Gluing declarations](../language/gluing.md).
+
+```text
+GluingDeclaration -> GluedDeclaration | CoverDeclaration
+    | SeparationDeclaration | ManifoldDeclaration | ProjectiveDeclaration
+```
+
+[Glued objects](../language/gluing.md#glued-objects):
+
+```text
+GluedDeclaration -> `indexed` `glued` IDENTIFIER `(` Path `)` `=` `glue`
+    `(` Paths? `)` `by` `(` ImageBindings? `)`
+    `inverse` `(` ImageBindings? `)` `;`
+```
+
+[Covers](../language/gluing.md#covers):
+
+```text
+CoverDeclaration -> `indexed` `cover` IDENTIFIER `=` `cover` `(` Paths `)`
+    `by` `(` Coefficients? `)` `;`
+Coefficients -> Polynomial ( `,` Polynomial )* `,`?
+```
+
+[Separation claims](../language/gluing.md#separation-claims):
+
+```text
+SeparationDeclaration -> `indexed` `separated` IDENTIFIER `=` `separated`
+    `(` Path `)` Witness `;`
+Witness -> `by` `(` ImageBinding `,`? `)`
+```
+
+[Manifold claims](../language/gluing.md#manifold-claims):
+
+```text
+ManifoldDeclaration -> `indexed` `manifold` IDENTIFIER `=` `manifold`
+    `(` Path `,` INTEGER_LITERAL `)` Witness `;`
+```
+
+[Projective claims](../language/gluing.md#projective-claims):
+
+```text
+ProjectiveDeclaration -> `indexed` `projective` IDENTIFIER `=` `proj`
+    `(` Path `)` `[` Coordinates? `]` ProjectiveChart* `;`
+ProjectiveChart -> `chart` `(` Path `,` IDENTIFIER `,` Polynomial `)`
+    `inverse` `(` ImageBindings? `)`
 ```
 
 ## Frames

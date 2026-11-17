@@ -9,9 +9,10 @@ is Planned.
 - [Historical Stages 2–7](../guide/historical-roadmap.md) follows one line of
   development, from the coordinate ring of an affine scheme to an observable
   that is compared with physical measurements. Each Stage has an example that
-  could establish its completion. Stages 2 to 5 are delivered as finite
-  profiles, and Stages 6 and 7 are Planned. The GitHub issues that the
-  chapter links govern the plan.
+  could establish its completion. Stages 2 to 6 are delivered as finite
+  profiles. Stage 7 is Implemented as a finite profile of gluing two charts,
+  and its continuous integration and review are Planned. The GitHub issues
+  that the chapter links govern the plan.
 - A **delivery record** maps the acceptance conditions of a delivery to their
   evidence at recorded revisions: the implementation, the tests, the theorems
   and the native measurements. The delivery records are archived. They keep
@@ -41,6 +42,15 @@ is Planned.
     have tested evidence and oracle and bridge theorems, C18 and C19 record
     the continuous integration and the whole-stage review, and C17, the
     named solver with its numerical error bound, is Planned.
+  - [Stage 7 gluing acceptance](../stage7-acceptance.md) is the record of
+    gluing two charts, over the rational numbers in the Zariski site and
+    over the real numbers in the smooth site, with covers and separation,
+    manifold and projective claims, delivered in this change. Its conditions
+    C1–C12, C14 and C17 have tested evidence and oracle theorems, C15 the
+    bridge theorems of covers and separation witnesses, C13 is tested in
+    part, C16 is the follow-up #882, C18 records the check time of the
+    acceptance package, and C19 and C20, the continuous integration and the
+    whole-stage review, are Planned.
 
 A delivery record states what held at its revisions. For the behaviour of the
 compiler today, read the guide and the Vastitas Reference. For the theorems

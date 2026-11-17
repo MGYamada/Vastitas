@@ -1,0 +1,85 @@
+// The projective line over QQ and the real projective line, each glued from
+// two charts (historical Stage 7, #878). The gluings, the cover and the
+// claims are checked evidence with no runtime value. `main` observes the
+// transition of the Zariski charts through the morphisms of Stage 2, and
+// shows `failures = 0` and exits with status 0 only when both observations
+// hold.
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::Over;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+use std::geometry::scheme::affine::compose;
+use std::geometry::scheme::affine::same;
+use std::geometry::smooth::affine::SmoothR;
+
+// ANCHOR: charts
+// Two affine lines, and the principal opens D(x) and D(y) where the
+// coordinates have inverses.
+indexed affine L1(AffineQQ) = spec[x] over SpecQQ;
+indexed affine L2(AffineQQ) = spec[y] over SpecQQ;
+indexed affine U1(AffineQQ) = localize(L1, x) inverse xi;
+indexed affine U2(AffineQQ) = localize(L2, y) inverse yi;
+// ANCHOR_END: charts
+
+// ANCHOR: glue
+// The transition y = 1/x and its inverse x = 1/y.
+indexed glued P(AffineQQ) = glue(U1, U2) by(y -> xi, yi -> x) inverse(x -> yi, xi -> y);
+// ANCHOR_END: glue
+
+// ANCHOR: separated
+// On the overlap, 1/x is the coordinate y of the second chart.
+indexed separated separatedP = separated(P) by(xi -> L2::y);
+// ANCHOR_END: separated
+
+// ANCHOR: projective
+// The first chart is D+(s) with t/s = x, the second D+(t) with s/t = y.
+indexed projective lineP = proj(P)[s, t]
+    chart(L1, s, x) inverse(x -> t)
+    chart(L2, t, y) inverse(y -> s);
+// ANCHOR_END: projective
+
+// ANCHOR: doubled
+// The same lines glued by y = x: the affine line with a doubled origin.
+indexed affine V1(AffineQQ) = localize(L1, x) inverse a;
+indexed affine V2(AffineQQ) = localize(L2, y) inverse b;
+indexed glued Doubled(AffineQQ) = glue(V1, V2) by(y -> x, b -> a) inverse(x -> y, a -> b);
+// ANCHOR_END: doubled
+
+// ANCHOR: cover
+// D(t) and D(1 - t) cover the line, because t + (1 - t) = 1.
+indexed affine Dt(AffineQQ) = localize(Line, t) inverse u;
+indexed affine Dmt(AffineQQ) = localize(Line, 1 - t) inverse w;
+indexed cover halves = cover(Line, Dt, Dmt) by(1, 1);
+// ANCHOR_END: cover
+
+// ANCHOR: smooth
+// Two real lines glued along the cozero opens {x != 0} and {y != 0}.
+// ANCHOR: smooth-opens
+indexed affine M1(SmoothR) = Affine(1)[x];
+indexed affine M2(SmoothR) = Affine(1)[y];
+indexed affine W1(SmoothR) = localize(M1, x) inverse u;
+indexed affine W2(SmoothR) = localize(M2, y) inverse v;
+// ANCHOR_END: smooth-opens
+indexed glued RP1(SmoothR) = glue(W1, W2) by(y -> u, v -> x) inverse(x -> v, u -> y);
+indexed manifold circle = manifold(RP1, 1) by(u -> M2::y);
+// ANCHOR_END: smooth
+
+// ANCHOR: observers
+// The transition of the gluing, as Stage 2 morphisms over SpecQQ.
+indexed morphism there: Over<U1, U2, SpecQQ> = pullback(y -> xi, yi -> x);
+indexed morphism back: Over<U2, U1, SpecQQ> = pullback(x -> yi, xi -> y);
+indexed morphism stayU1: Over<U1, U1, SpecQQ> = identity;
+indexed morphism stayU2: Over<U2, U2, SpecQQ> = identity;
+// ANCHOR_END: observers
+
+// ANCHOR: main
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+fn main() -> Int {
+    // The transition and its inverse compose to the identity both ways.
+    let failures = verdict(same(compose(back(), there()), stayU1()), 1)
+        + verdict(same(compose(there(), back()), stayU2()), 2);
+    let shown = show!(failures);
+    if failures == 0 { 0 } else { 1 }
+}
+// ANCHOR_END: main

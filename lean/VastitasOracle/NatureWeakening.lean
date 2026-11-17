@@ -383,6 +383,13 @@ theorem lookup_classification_iff (id : DeclId) (parents implementations : List 
       lookup small id = some (.classification parents implementations) :=
   lookup_eq_some_iff ext (by simp [NaturePackageDeclaration])
 
+omit ext in
+/-- Nature declarations are invisible to the gluing checks of Stage 7. -/
+theorem nature_invisible : ∀ declaration, NaturePackageDeclaration declaration →
+    GluingWeakening.GluingInvisible declaration := by
+  intro declaration kind
+  cases declaration <;> simp_all [NaturePackageDeclaration, GluingWeakening.GluingInvisible]
+
 /-- **Weakening of declaration validity.** A nature extension does not change
 the validity of any entry that `NatureDimension` does not check, for every
 class ranking. -/
@@ -416,6 +423,19 @@ theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   -- The transition averages of Stage 6 read no nature declaration (#841).
   | transitionAverage family object branch source target numerator denominator certificate =>
     simp only [Entry.Valid, checkTransitionAverage_append ext]
+  -- The gluing checks of Stage 7 read no declaration of the extension (#878).
+  | smoothOpen implementation data =>
+    simp only [Entry.Valid, GluingWeakening.checkSmoothOpen_append ext.lookup nature_invisible]
+  | glued implementation first second forward backward =>
+    simp only [Entry.Valid, GluingWeakening.checkGlued_append ext.lookup nature_invisible]
+  | cover object opens coefficients =>
+    simp only [Entry.Valid, GluingWeakening.checkCover_append ext.lookup nature_invisible]
+  | separated glued witness =>
+    simp only [Entry.Valid, GluingWeakening.checkSeparated_append ext.lookup nature_invisible]
+  | manifold glued dimension witness =>
+    simp only [Entry.Valid, GluingWeakening.checkManifold_append ext.lookup nature_invisible]
+  | projective glued homogeneous charts =>
+    simp only [Entry.Valid, GluingWeakening.checkProjective_append ext.lookup nature_invisible]
   | _ => exact absurd trivial other
 
 /-- The executable check is unchanged as well. -/

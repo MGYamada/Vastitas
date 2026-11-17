@@ -34,6 +34,7 @@ import VastitasOracle.SpectralAcceptance
 import VastitasOracle.SpectralAverage
 import VastitasOracle.NatureModel
 import VastitasOracle.NatureErrorbar
+import VastitasOracle.Gluing
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

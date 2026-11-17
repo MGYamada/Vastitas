@@ -50,10 +50,13 @@ reading, a scale, a physical metric, or a family with the `reading` or
 `physical_metric` representation), of `nature::model` and `nature::errorbar`
 (Stage 6: a convention, a model, a calibration, a dataset, a comparison, or a
 family with the `model`, `calibration`, `dataset` or `comparison`
-representation), or a frame. -/
+representation), a frame, or a gluing declaration of Stage 7 (a smooth open,
+a glued object, a cover, or a separation, manifold or projective claim). -/
 def ProfileDeclaration : Declaration → Prop
   | .metric .. | .metricEvidence .. | .frame .. | .baseDimension | .quantity .. | .reading .. | .scale ..
   | .physicalMetric .. | .convention .. | .model .. | .calibration .. | .dataset .. | .comparison .. => True
+  -- The gluing declarations of Stage 7 (#878): no view of this module reads them.
+  | .smoothOpen .. | .glued .. | .cover .. | .separated .. | .manifold .. | .projective .. => True
   | .family contract => contract.representation = .metricForm ∨ contract.representation = .reading ∨
       contract.representation = .physicalMetric ∨ contract.representation = .model ∨
       contract.representation = .calibration ∨ contract.representation = .dataset ∨

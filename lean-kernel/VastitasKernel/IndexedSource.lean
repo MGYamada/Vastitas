@@ -203,6 +203,18 @@ structure SourcePoint where
   measured : SourceMeasured
   deriving Repr, Inhabited
 
+/-- One chart entry of a projective claim (Stage 7): the chart, the
+homogeneous coordinate that is a unit on it, the other coordinate over it as
+a polynomial in the chart's coordinates, and the chart's coordinates as
+polynomials in the one coordinate of the standard chart, which takes the
+name of the other homogeneous coordinate. -/
+structure SourceChart where
+  chart : Path
+  dehomogenized : String
+  image : PolyExpr
+  inverse : List (String × PolyExpr)
+  deriving Repr, Inhabited
+
 inductive Body where
   | marker
   | implementation (marker : Path) (representation : Representation)
@@ -299,6 +311,23 @@ inductive Body where
   verdict. -/
   | comparison (family : Path) (indices : List Path) (dataset calibration : Path) (fingerprint : String)
       (verdict : Verdict)
+  /-- `glued name(Impl) = glue(U₁, U₂) by(c ↦ p, …) inverse(c ↦ q, …)` (Stage 7,
+  #878): the opens of the charts, the coordinates of `U₂` in those of `U₁`,
+  and the coordinates of `U₁` in those of `U₂`. The kernel accepts exactly
+  two opens. -/
+  | glued (implementation : Path) (opens : List Path) (forward backward : List (String × PolyExpr))
+  /-- `cover name = cover(X, U₁, …, Uₖ) by(a₁, …, aₖ)` (Stage 7): the
+  coefficients are polynomial expressions in the coordinates of `X`. -/
+  | cover (object : Path) (opens : List Path) (coefficients : List PolyExpr)
+  /-- `separated name = separated(P) by(u -> w)` (Stage 7): `u` names the
+  inverse coordinate of the first open, and `w` is a polynomial expression in
+  the qualified coordinates of the two charts. -/
+  | separated (glued : Path) (inverse : String) (witness : PolyExpr)
+  /-- `manifold name = manifold(P, n) by(u -> w)` (Stage 7). -/
+  | manifold (glued : Path) (dimension : Nat) (inverse : String) (witness : PolyExpr)
+  /-- `projective name = proj(P)[s, t] chart(…) inverse(…) chart(…) inverse(…)`
+  (Stage 7). -/
+  | projective (glued : Path) (homogeneous : List String) (charts : List SourceChart)
   deriving Repr, Inhabited
 
 structure Declaration where

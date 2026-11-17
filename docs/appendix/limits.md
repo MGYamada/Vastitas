@@ -300,6 +300,28 @@ memory and no native stack
 [Stack-safe runtime code](../verification.md#stack-safe-runtime-code) gives
 the evidence.
 
+### Gluing declarations
+
+[Gluing declarations](../language/gluing.md) have the limits of exact affine
+algebra, and no limit of their own. The kernel expands and reduces each
+image, coefficient and witness within one run, and it runs all checks of one
+glued object, cover or claim within one more run: the relations and the
+composites of a chart transition with its structure maps, the identity of a
+cover, the substitution of a witness, and the charts and the overlap of a
+projective claim. A declaration beyond a limit is an error (`E_LIMIT`).
+
+| Limit | Value | Counts | Holds for |
+| --- | --- | --- | --- |
+| `algebraRelations` | 32 | The opens of a cover | A cover |
+| `algebraGenerators` | 16 | The coordinates of a smooth open, the coordinates of its object and its inverse coordinate | A smooth open |
+| `algebraTerms` | 512 | The terms of each polynomial of a check, including each intermediate product | A polynomial |
+| `algebraWork` | 8,000,000 | The units of work of the elaboration of one image, coefficient or witness, or of the checks of one declaration | A run |
+
+A glued object has exactly two opens, and a projective claim one entry for
+each of its two charts. A function body never names a declaration of this
+chapter, and generated programs contain none of them, so these declarations
+have no limit at run time.
+
 ## Smooth metrics
 
 The kernel evaluates all Gram entries of one metric within one run of

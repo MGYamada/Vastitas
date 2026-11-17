@@ -173,8 +173,10 @@ Rules:
   Otherwise it is an error (`E_SMOOTH`).
 - `Affine(K, n)[…]` must list exactly `n` coordinates. Otherwise it is an
   error (`E_AFFINE_COORDINATE`).
-- `spec[…]`, `fiber(…)` and `localize(…)`, and therefore `Affine(K, n)[…]`,
-  under a `smooth_affine` implementation are an error (`E_SMOOTH`).
+- `spec[…]` and `fiber(…)`, and therefore `Affine(K, n)[…]`, under a
+  `smooth_affine` implementation are an error (`E_SMOOTH`). `localize(…)`
+  under a `smooth_affine` implementation declares a
+  [smooth open](gluing.md#smooth-opens), whose rules are in that section.
 - An `indexed global` under a `smooth_affine` implementation is an error
   (`E_SMOOTH`). Every smooth affine object is an `Affine(n)[…]` declaration.
 - In a function body, `Affine(QQ, n)` and `Affine(CInfReal, n)` keep their
@@ -857,7 +859,9 @@ are the affine spaces ℝⁿ of dimension at most 16, and its maps are polynomia
 maps with rational coefficients. A metric is constant: its Gram matrix is
 the same at every point. A function body composes maps, builds points,
 covectors and vectors from integers, and pulls covectors back. It creates no
-object, and it declares no map and no metric. The language has no
-declaration of a manifold or of a chart. Presented affine geometry is in
+object, and it declares no map and no metric.
+[Gluing declarations](gluing.md) declare smooth opens, glue two smooth
+affine objects along them and state manifold claims about the result.
+Presented affine geometry is in
 [Presented affine declarations](../affine-geometry.md), and the descriptor
 objects of the core are in [Geometric types](geometric-types.md).

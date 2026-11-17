@@ -264,6 +264,12 @@ def indexedNotValue (declarations : Core.Declarations) (id : DeclId) : String :=
     | some (.calibration ..) => "a calibration"
     | some (.dataset ..) => "a dataset"
     | some (.comparison ..) => "a comparison"
+    | some (.smoothOpen ..) => "a smooth open"
+    | some (.glued ..) => "a glued object"
+    | some (.cover ..) => "a cover"
+    | some (.separated ..) => "a separation claim"
+    | some (.manifold ..) => "a manifold claim"
+    | some (.projective ..) => "a projective claim"
     | none => "an indexed declaration"
   s!"names {kind}, which is not a value{advice}"
 

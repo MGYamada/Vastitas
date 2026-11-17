@@ -274,6 +274,24 @@ One element of an [allocation](#allocation): a binary64 number for `F64`, or
 two for `Complex<F64>`. See
 [Storage types](../storage/resource-programs.md#storage-types).
 
+## Chart
+
+One of the two objects from which a [glued object](#glued-object) is
+built: a presented affine object or a smooth affine object, with an open
+subset that the gluing identifies with an open subset of the other chart.
+Other chapters use the word informally for an open subset on which a
+construction is defined, such as the chart of a [branch](#branch). See
+[Glued objects](../language/gluing.md#glued-objects) and the
+[guide](../guide/gluing.md#two-charts).
+
+## Chart transition
+
+The isomorphism between the opens of the two [charts](#chart) of a
+[glued object](#glued-object) that `by(…)` gives, with its inverse in
+`inverse(…)`. It is distinct from the [transition](#transition) of frames.
+See [Glued objects](../language/gluing.md#glued-objects) and the
+[guide](../guide/gluing.md#gluing-along-a-transition).
+
 ## Checker
 
 The part of the compiler that decides whether a program breaks a rule of the
@@ -421,6 +439,14 @@ the covector `Jᵀη` at `x`. A covector at any other point gives the
 [failure value](#failure-value). See
 [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
 [smooth forms](../protocol.md#smooth-forms).
+
+## Cover
+
+An `indexed cover` declaration: the checked statement that opens of an
+object, with the polynomials $f_i$, cover it, certified by coefficients
+$a_i$ with $\sum_i a_i f_i = 1$. See
+[Covers](../language/gluing.md#covers) and the
+[guide](../guide/gluing.md#a-cover-of-the-line).
 
 ## Coverage factor
 
@@ -857,6 +883,14 @@ its path, and a primitive with the binding `global(G)` gives it as a value.
 Two global objects are different objects. See
 [Global objects](../indexed-source.md#global-objects).
 
+## Glued object
+
+An `indexed glued` declaration: two [charts](#chart) glued along a
+[chart transition](#chart-transition) between an open of each, in the
+[site](#site) of its implementation. It has no value. See
+[Glued objects](../language/gluing.md#glued-objects) and the
+[guide](../guide/gluing.md#gluing-along-a-transition).
+
 ## Gradient
 
 The vector that `sharp` gives for the [differential](#differential) of a
@@ -1107,6 +1141,15 @@ The compiler mode that takes one manifest with `--manifest-path`. Modules,
 imports, resource functions, indexed declarations and edit-authority
 declarations appear only in this mode. Compare [flat mode](#flat-mode). See
 [Manifest mode](../language/programs.md#manifest-mode).
+
+## Manifold claim
+
+An `indexed manifold` declaration: the checked statement that the real
+points of a [glued object](#glued-object) of the smooth site form a smooth
+manifold of the stated dimension, with a
+[separation witness](#separation-claim). See
+[Manifold claims](../language/gluing.md#manifold-claims) and the
+[guide](../guide/gluing.md#the-real-projective-line).
 
 ## Map array
 
@@ -1600,6 +1643,17 @@ its `--lib` libraries in [flat mode](#flat-mode), or the packages that a
 manifest reaches in [manifest mode](#manifest-mode). See
 [Programs](../language/programs.md).
 
+## Projective claim
+
+An `indexed projective` declaration: the checked statement that a
+[glued object](#glued-object) of the Zariski site is isomorphic to the
+projective line $\operatorname{Proj} \mathbb{Q}[s, t]$. Its
+**homogeneous coordinates** are `s` and `t`, and each of its entries
+identifies a [chart](#chart) with a **standard chart** $D_+(s)$ or
+$D_+(t)$, on which that coordinate is a unit. See
+[Projective claims](../language/gluing.md#projective-claims) and the
+[guide](../guide/gluing.md#the-projective-line).
+
 ## Property
 
 One mathematical fact about a language construct or a standard-library module,
@@ -1952,6 +2006,17 @@ The type that a method gives a parameter for dispatch: a concrete scalar type,
 [Method declarations](../stage1a.md#method-declarations) and the
 [guide](../guide/dispatch.md#selectors-and-capabilities).
 
+## Separation claim
+
+An `indexed separated` declaration: the checked statement that a
+[glued object](#glued-object) of the Zariski site is separated. Its
+**separation witness** `u -> w` gives the inverse coordinate `u` of the
+first open as a polynomial `w` in the coordinates of both
+[charts](#chart). A [manifold claim](#manifold-claim) has a witness of the
+same form. See
+[Separation claims](../language/gluing.md#separation-claims) and the
+[guide](../guide/gluing.md#is-the-gluing-separated).
+
 ## Setting
 
 The kind of a geometric object: the ordinary setting or the smooth setting.
@@ -1981,6 +2046,16 @@ the signature-probe pass. That pass checks every definition, including unused
 higher-order functions and lambdas. A separate pass specializes executable
 calls, and signature probes never enter it or the generated code. See
 [Function specialization](../internals/checking-pipeline.md#function-specialization).
+
+## Site
+
+The kind of open subset along which a [glued object](#glued-object) is
+glued and by which a [cover](#cover) covers. The implementation of a
+declaration chooses it. In the **Zariski site** the objects are presented
+affine objects and the opens their [principal opens](#principal-open). In
+the **smooth site** the objects are smooth affine objects and the opens
+their [smooth opens](#smooth-open). No declaration converts between them.
+See [Sites](../language/gluing.md#sites).
 
 ## Smooth affine object
 
@@ -2013,6 +2088,15 @@ metric. `flat` and `sharp` name their metric, and no operation selects one by
 default. It is distinct from the [metric](#metric) of a numerical space. See
 [Metrics](../language/smooth-declarations.md#metrics) and the
 [guide](../guide/smooth-geometry.md#metrics-and-gradients).
+
+## Smooth open
+
+The declaration `localize(X, f) inverse u` under a `smooth_affine`
+implementation: the open subset of the smooth affine object `X` on which the
+polynomial `f` is not zero, with `u = 1/f`. It is an open of a gluing or a
+cover, and nothing else. See
+[Smooth opens](../language/gluing.md#smooth-opens) and the
+[guide](../guide/gluing.md#the-real-projective-line).
 
 ## Source
 
@@ -2280,7 +2364,9 @@ that map transposed or conjugated and copies nothing. See
 
 The [map array](#map-array) that changes from one [frame](#frame) of an
 object to another at a point. It sends the array of a vector in the first
-frame to its array in the second. `frame_transition` gives it. See
+frame to its array in the second. `frame_transition` gives it. The map
+between the opens of a glued object is a
+[chart transition](#chart-transition). See
 [Map arrays and transitions](../language/frames.md#map-arrays-and-transitions) and the
 [guide](../guide/frames-and-dimensions.md#changing-frames).
 

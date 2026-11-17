@@ -3,6 +3,7 @@ import VastitasKernel.NatureDimension
 import VastitasKernel.SpectralDeclarations
 import VastitasKernel.NatureModel
 import VastitasKernel.NatureErrorbar
+import VastitasKernel.GluingValidity
 
 /-! The validity of indexed declaration entries (`Entry.Valid`, `validEntry`)
 and of the whole declaration environment (`Environment.Valid`,
@@ -113,6 +114,13 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
       NatureErrorbar.checkDataset env family object model calibration coverage points = true
   | .comparison family object dataset calibration fingerprint verdict =>
       NatureErrorbar.checkComparison env family object dataset calibration fingerprint verdict = true
+  | .smoothOpen implementation data => Gluing.checkSmoothOpen env implementation data = true
+  | .glued implementation first second forward backward =>
+      Gluing.checkGlued env implementation first second forward backward = true
+  | .cover object opens coefficients => Gluing.checkCover env object opens coefficients = true
+  | .separated glued witness => Gluing.checkSeparated env glued witness = true
+  | .manifold glued dimension witness => Gluing.checkManifold env glued dimension witness = true
+  | .projective glued homogeneous charts => Gluing.checkProjective env glued homogeneous charts = true
 
 /-- A separately structured executable parent check, avoiding unbounded search
 for a classification record in the finite validation procedure. -/
@@ -167,6 +175,13 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
       NatureErrorbar.checkDataset env family object model calibration coverage points
   | .comparison family object dataset calibration fingerprint verdict =>
       NatureErrorbar.checkComparison env family object dataset calibration fingerprint verdict
+  | .smoothOpen implementation data => Gluing.checkSmoothOpen env implementation data
+  | .glued implementation first second forward backward =>
+      Gluing.checkGlued env implementation first second forward backward
+  | .cover object opens coefficients => Gluing.checkCover env object opens coefficients
+  | .separated glued witness => Gluing.checkSeparated env glued witness
+  | .manifold glued dimension witness => Gluing.checkManifold env glued dimension witness
+  | .projective glued homogeneous charts => Gluing.checkProjective env glued homogeneous charts
 
 structure Environment.Valid (env : Environment) : Prop where
   bounded : env.length ≤ 4096

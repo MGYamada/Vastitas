@@ -156,6 +156,12 @@ theorem filterMap_nonSpectral {α : Type} {env : Environment} {f : Entry → Opt
 
 section Extension
 
+/-- Spectral declarations are invisible to the gluing checks of Stage 7. -/
+theorem spectral_invisible : ∀ declaration, SpectralDeclaration declaration →
+    GluingWeakening.GluingInvisible declaration := by
+  intro declaration kind
+  cases declaration <;> simp_all [SpectralDeclaration, GluingWeakening.GluingInvisible]
+
 variable {small big : Environment} (ext : SpectralExtension small big)
 include ext
 
@@ -759,6 +765,19 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
       isCalibrationFamily_append ext, validApplication_fun ext, smoothDimension_append ext]
   | dataset => rw [h] at other; exact other.elim
   | comparison => rw [h] at other; exact other.elim
+  -- The gluing checks of Stage 7 read no declaration of the extension (#878).
+  | smoothOpen implementation data =>
+    simp only [validEntry, h, GluingWeakening.checkSmoothOpen_append ext.lookups spectral_invisible]
+  | glued implementation first second forward backward =>
+    simp only [validEntry, h, GluingWeakening.checkGlued_append ext.lookups spectral_invisible]
+  | cover object opens coefficients =>
+    simp only [validEntry, h, GluingWeakening.checkCover_append ext.lookups spectral_invisible]
+  | separated glued witness =>
+    simp only [validEntry, h, GluingWeakening.checkSeparated_append ext.lookups spectral_invisible]
+  | manifold glued dimension witness =>
+    simp only [validEntry, h, GluingWeakening.checkManifold_append ext.lookups spectral_invisible]
+  | projective glued homogeneous charts =>
+    simp only [validEntry, h, GluingWeakening.checkProjective_append ext.lookups spectral_invisible]
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
     (other : NamesNoSpectral entry.declaration) :

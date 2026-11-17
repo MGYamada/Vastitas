@@ -671,6 +671,34 @@ impl Parser {
                 }
             }
             "affine" => self.indexed_affine()?,
+            "glued" => self.indexed_glued()?,
+            "cover" => self.indexed_cover()?,
+            "separated" => {
+                self.expect("=")?;
+                self.expect("separated")?;
+                self.expect("(")?;
+                let glued = self.type_path()?;
+                self.expect(")")?;
+                DeclarationBody::Separated {
+                    glued,
+                    witness: self.indexed_witness()?,
+                }
+            }
+            "manifold" => {
+                self.expect("=")?;
+                self.expect("manifold")?;
+                self.expect("(")?;
+                let glued = self.type_path()?;
+                self.expect(",")?;
+                let dimension = self.indexed_dimension_literal("`manifold`")?;
+                self.expect(")")?;
+                DeclarationBody::Manifold {
+                    glued,
+                    dimension,
+                    witness: self.indexed_witness()?,
+                }
+            }
+            "projective" => self.indexed_projective()?,
             "morphism" => self.indexed_morphism()?,
             "metric" => self.indexed_metric()?,
             "frame" => self.indexed_frame()?,
@@ -896,6 +924,119 @@ impl Parser {
             relations,
             base,
             bindings,
+        })
+    }
+
+    /// `(Impl) = glue(U₁, U₂) by(c -> p, …) inverse(c -> q, …)` (Stage 7). The
+    /// kernel requires exactly two opens.
+    fn indexed_glued(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        self.expect("(")?;
+        let implementation = self.type_path()?;
+        self.expect(")")?;
+        self.expect("=")?;
+        self.expect("glue")?;
+        let opens = self.delimited_list("(", ")", Self::type_path)?;
+        self.expect("by")?;
+        let forward = self.delimited_list("(", ")", Self::poly_binding)?;
+        self.expect("inverse")?;
+        let inverse = self.delimited_list("(", ")", Self::poly_binding)?;
+        Ok(DeclarationBody::Glued {
+            implementation,
+            opens,
+            forward,
+            inverse,
+        })
+    }
+
+    /// `= cover(X, U₁, …, Uₖ) by(a₁, …, aₖ)` (Stage 7).
+    fn indexed_cover(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        self.expect("=")?;
+        let start = self.expect("cover")?.span;
+        let mut paths = self.delimited_list("(", ")", Self::type_path)?;
+        if paths.is_empty() {
+            return Err(diagnostic(
+                "E_PARSE",
+                "a cover names its object and then its opens, as in `cover(X, U, V)`",
+                start,
+            ));
+        }
+        let object = paths.remove(0);
+        self.expect("by")?;
+        let coefficients = self.delimited_list("(", ")", Self::polynomial)?;
+        Ok(DeclarationBody::Cover {
+            object,
+            opens: paths,
+            coefficients,
+        })
+    }
+
+    /// `by(u -> w)`: the one binding of a separation or manifold witness.
+    fn indexed_witness(&mut self) -> Result<indexed::Binding, Diagnostic> {
+        let start = self.expect("by")?.span;
+        let mut bindings = self.delimited_list("(", ")", Self::poly_binding)?;
+        if bindings.len() != 1 {
+            return Err(diagnostic(
+                "E_PARSE",
+                "a witness is one binding `u -> w` of the inverse coordinate of the first open",
+                start,
+            ));
+        }
+        Ok(bindings.remove(0))
+    }
+
+    /// An unsigned decimal dimension, bounded as the dimension of `Affine(n)`.
+    fn indexed_dimension_literal(&mut self, form: &str) -> Result<String, Diagnostic> {
+        let token = self.advance();
+        let TokenKind::Number(value) = token.kind else {
+            return Err(diagnostic(
+                "E_PARSE",
+                format!("{form} needs a dimension, written as an unsigned integer"),
+                token.span,
+            ));
+        };
+        if value.len() > crate::limits::MAX_ALGEBRA_DIGITS {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "a {form} dimension has at most {} decimal digits",
+                    crate::limits::MAX_ALGEBRA_DIGITS
+                ),
+                token.span,
+            ));
+        }
+        Ok(value)
+    }
+
+    /// `= proj(P)[s, t] chart(X, c, p) inverse(x -> q, …) …` (Stage 7).
+    fn indexed_projective(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        self.expect("=")?;
+        self.expect("proj")?;
+        self.expect("(")?;
+        let glued = self.type_path()?;
+        self.expect(")")?;
+        let homogeneous = self.delimited_list("[", "]", |p| Ok(p.name()?.0))?;
+        let mut charts = Vec::new();
+        while self.consume("chart") {
+            self.expect("(")?;
+            let chart = self.type_path()?;
+            self.expect(",")?;
+            let dehomogenized = self.name()?.0;
+            self.expect(",")?;
+            let image = self.polynomial()?;
+            self.expect(")")?;
+            self.expect("inverse")?;
+            let inverse = self.delimited_list("(", ")", Self::poly_binding)?;
+            charts.push(indexed::ProjectiveChart {
+                chart,
+                dehomogenized,
+                image,
+                inverse,
+            });
+        }
+        Ok(DeclarationBody::Projective {
+            glued,
+            homogeneous,
+            charts,
         })
     }
 

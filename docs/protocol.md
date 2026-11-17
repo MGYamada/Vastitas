@@ -626,6 +626,54 @@ link their sections. The specifications of
 [`spectral.transition-average`](spec/std-linalg-spectral.md#spectral.transition-average)
 state the laws of the forms.
 
+<a id="gluing-forms"></a>
+
+**Gluing forms.** The declarations of glued objects, covers, and
+separation, manifold and projective claims are validated optional records of
+the envelope. A smooth open has no record of its own. It is a
+`kind: "affine_localization"` record of a
+[principal open](#algebraic-affine-forms) whose `implementation` names a
+`smooth_affine` implementation, and the kernel derives its presentation
+from the smooth object that `object` names.
+
+Each record carries the common `name`, `public` and `span` and the fields
+below. A binding `{name, image}` is the record of the
+[algebraic affine forms](#algebraic-affine-forms), with an image in their
+polynomial form.
+
+- **Glued object.** `kind: "glued"` carries `implementation` (path), `opens`
+  (paths), and `forward` and `inverse` (bindings), the images of `by(…)` and
+  of `inverse(…)`.
+- **Cover.** `kind: "cover"` carries `object` (path), `opens` (paths) and
+  `coefficients` (polynomials).
+- **Separation claim.** `kind: "separated"` carries `glued` (path) and
+  `witness`, one binding.
+- **Manifold claim.** `kind: "manifold"` carries `glued` (path),
+  `dimension`, an unsigned decimal string of at most
+  `algebraCoefficientDigits` digits, and `witness`, one binding.
+- **Projective claim.** `kind: "projective"` carries `glued` (path),
+  `homogeneous` (names) and `charts`, a list of records
+  `{"chart": path, "dehomogenized": String, "image": polynomial,
+  "inverse": [{name, image}]}`.
+
+| Form | Decoder |
+| --- | --- |
+| The five declarations | `declarationBody` of `IndexedDeclarationProtocol.lean`, with `binding`, `smoothDimension` and `polyExpr` |
+| A smooth open | The case `affine_localization` of `declarationBody`; `elaborateSmoothOpens` of `IndexedGluingSource.lean` derives its presentation |
+
+The wire never carries the presentation of a smooth open, a normal form of
+an image, the stored chart transition, the order of the chart entries of a
+projective claim or the index of their homogeneous coordinates: the kernel
+computes them and checks every declaration again in its audit
+(`GluingValidity.lean`). A record with any other field, such as
+`transition` on a glued object, `certificate` on a separation claim or
+`isomorphism` on a projective claim, is an error (`E_PROTOCOL`), and so is a
+dimension that is no unsigned decimal string. `opens` of a glued object may
+have any length on the wire, and the kernel rejects a length other than two
+(`E_GLUE`). [Gluing declarations](language/gluing.md) gives the errors of
+the declarations, and the [`E_GLUE` row](appendix/diagnostics.md#e-glue) of
+the diagnostics reference links its sections.
+
 ### Resource statements and numerical forms
 
 Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
@@ -1433,6 +1481,13 @@ receipts, doctest execution, or official package admission.
   `raw_wire_rejects_spectral_certificates_and_forged_maps` of the third
   reject a certificate, an image, an embedded declaration, a missing field
   and a field of the wrong kind.
+- `tests/gluing.rs::the_stage7_forms_serialize_to_their_records` pins the
+  record of each gluing form and the `affine_localization` record of a
+  smooth open. `forged_stage7_records_are_rejected_by_the_kernel` of the
+  same file rejects forged images, opens, implementations, witnesses,
+  dimensions, coefficients and homogeneous coordinates (`E_GLUE`), the
+  fields `transition`, `certificate` and `isomorphism`, and a dimension that
+  is no decimal string (`E_PROTOCOL`).
 - `tests/edit_authority.rs::named_recipient_wire_rejects_forged_locations_and_unselected_records`
   and `module_recipients_are_unsupported_and_authority_keeps_optional_runtime_boundaries`
   pin the recipient fields.
@@ -1467,7 +1522,10 @@ receipts, doctest execution, or official package admission.
   and physical-model form, with the exact fields, the rational literals and
   the recorded texts; `VastitasKernel.AverageRegression` and
   `VastitasKernel.NatureModelRegression` check the averages, the models and
-  the data that the kernel accepts and rejects. `VastitasKernel.NamespaceRegression` tests the
+  the data that the kernel accepts and rejects.
+  `VastitasKernel.GluingRegression` checks the glued objects, covers and
+  claims that the kernel accepts and rejects, in both sites, without the
+  driver. `VastitasKernel.NamespaceRegression` tests the
   shared namespace code and `Authority.assemble` on Lean values and decodes
   no request.
   `bash scripts/check_kernel_regressions.sh` builds them.

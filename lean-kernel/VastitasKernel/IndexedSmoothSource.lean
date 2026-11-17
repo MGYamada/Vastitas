@@ -34,9 +34,11 @@ def checkSmoothImplementations (sources : List (DeclId × Span × Body)) (env : 
   for entry in env.indexed do
     let span := spanIn sources entry.id
     match entry.declaration with
-    | .affine implementation _ =>
-      if smoothImplementation env.indexed implementation then
-        smoothProblem span (.smooth <| s!"`spec[…]`, `fiber(…)` and `localize(…)` declare presented objects, " ++
+    | .affine implementation data =>
+      -- `localize(…)` of a smooth object declares a smooth open (Stage 7), elaborated by
+      -- `elaborateSmoothOpens`.
+      if smoothImplementation env.indexed implementation && !(data.construction matches .localization ..) then
+        smoothProblem span (.smooth <| s!"`spec[…]` and `fiber(…)` declare presented objects, " ++
           s!"but `{implementation.name}` is a smooth implementation; declare a smooth object with `Affine(n)[…]`")
     | .smoothAffine implementation _ =>
       unless smoothImplementation env.indexed implementation do

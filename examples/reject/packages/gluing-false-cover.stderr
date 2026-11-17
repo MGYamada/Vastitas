@@ -1,0 +1,1 @@
+examples/reject/packages/gluing-false-cover/main.vast:13:1: E_GLUE: the cover of `vastitas_geometry::scheme::affine::Line`: the coefficients of the cover do not combine the opens to 1

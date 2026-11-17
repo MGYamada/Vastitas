@@ -95,6 +95,10 @@ sections that hold its route theorems and its component theorems.
   [Frames and physical dimensions](#frames-and-physical-dimensions).
 - **Free modules, endomorphism fields, spectral pairs and branches.**
   [Spectral observations](#spectral-observations).
+- **Transition averages, models and data.**
+  [Physical models](#physical-models).
+- **Smooth opens, glued objects, covers, and separation, manifold and
+  projective claims.** [Gluing two charts](#gluing-two-charts).
 - **Storage, resource programs, numerical maps, networks and code
   generation.** [What is outside these claims](#what-is-outside-these-claims),
   the [tensor packing profile](#tensor-packing-profile),
@@ -3123,6 +3127,111 @@ digest, not a cryptographic commitment, and it authenticates nothing.
   anything is computed (`ModelDeclarationRegression`,
   `tests/physical_models.rs`).
 
+## Gluing two charts
+
+**Components of the current route.** The theorems of this section are about
+the checks of the gluing declarations, which the routes use. No theorem of
+this section takes the `CheckedInput` of an entry point. The bridge theorems
+read the kernel's definitions of the checks.
+
+`GluingDeclarations.lean` holds the actions of the checks: the chart
+transition with its inverse (`checkTransition`) and its structure maps
+(`checkOverBase`), the identity of a cover (`checkCover`), the witness of a
+separation or a manifold claim (`checkSeparation`), and the charts and the
+overlap of a projective claim (`checkProjectiveChart`,
+`checkProjectiveOverlap`). `GluingValidity.lean` reads the opens of each site
+(`openData?`, `chartData?`, `open?`) and holds the checks of the
+declarations (`checkSmoothOpen`, `checkGlued`, `checkCover`,
+`checkSeparated`, `checkManifold`, `checkProjective`), which `Entry.Valid`
+of `IndexedValidity.lean` calls. `IndexedGluingSource.lean` elaborates the
+declarations and gives the diagnostics with the same actions. The
+[acceptance map](stage7-acceptance.md) links each acceptance condition to
+the evidence below, and [Gluing declarations](language/gluing.md) states
+the rules. The status words are those of
+[How to read this chapter](#how-to-read-this-chapter).
+
+The evidence keeps four kinds of claim apart:
+
+- The **oracle** states what an accepted glued object, cover and claim
+  satisfies, about the kernel's polynomials: the relations and both
+  composites of a chart transition, the identity of a cover, the identity of
+  a witness, the chart and overlap identities of a projective claim, and the
+  site of every open that a check reads. It also states that gluing
+  declarations change no value of a primitive, and that declarations of
+  other kinds change no check of a gluing declaration.
+- The **bridge** states what an accepted cover and an accepted separation
+  witness mean in Mathlib: an ideal that is the whole ring, and a ring map
+  that is onto.
+- **Tests** are evidence for the diagnostics, the codes, the wire, the byte
+  identity of the generated code without the gluing declarations, and native
+  execution. They prove nothing for all inputs.
+- **Planned** are the glued scheme in Mathlib, its separatedness, its
+  isomorphism with the projective line, and the real projective line as a
+  smooth manifold. No theorem states them.
+
+### Oracle theorems of gluing
+
+All of these are Proved (oracle). Names are relative to `VastitasOracle`.
+
+| Module | Theorems | Statement |
+| --- | --- | --- |
+| `Gluing` | `checkIdentity_ok`, `checkTransition_sound`, `checkCover_sound`, `checkSeparation_sound`, `checkProjectiveChart_sound`, `checkProjectiveOverlap_sound` | An accepted action establishes its identities between kernel polynomials. A chart transition and its inverse have one image for each coordinate of their targets, in normal form; each sends every element of the basis of the other open to an exact combination of the basis of its own; and both composites have the images of the identity (`TransitionValid`). A cover has one coefficient for each open, at least one open, and $\sum_i a_i f_i - 1$ is an exact combination of the basis of its object. A witness has the normal form of the inverse coordinate of the first open after the substitution of the inclusion and the transition, and it is a polynomial in the coordinates of the two charts. A projective chart and its inverse compose to the identity both ways, the inverse respects the relations of the chart, and the open of the chart has the normal form of its image (`ChartValid`). The two entries of a projective claim dehomogenize at different coordinates, and $s_1 \cdot \varphi^{\#}(t_2) - t_1 \cdot \varphi^{\#}(s_2)$ is an exact combination of the basis of the first open |
+| `Gluing` | `openData_zariski`, `openData_smooth`, `chartData_zariski`, `chartData_smooth`, `open_some`, `open_zariski`, `open_smooth`, `glued_site` | An open of the Zariski site is a declared principal open of a presented object, both of the implementation of the gluing, and an open of the smooth site is a declared smooth open of a smooth object of that implementation, whose presentation is the free presentation of its coordinates. The opens of an accepted gluing are opens of the site of its implementation. No check reads an open of the other site |
+| `Gluing` | `glued_sound`, `cover_sound`, `separated_sound`, `manifold_sound`, `projective_sound` | An accepted glued object has two opens of different charts in the site of its implementation and a chart transition that satisfies `TransitionValid`. An accepted cover has distinct opens of its object in the site of the object and the identity of `checkCover_sound`. An accepted separation claim names a glued object of the Zariski site, and an accepted manifold claim one of the smooth site whose charts have the stated dimension; both satisfy the identity of the witness. An accepted projective claim has two distinct homogeneous coordinates, names a glued object of the Zariski site, gives one entry for each chart in the order of the opens, each satisfying `ChartValid`, and dehomogenizes at different coordinates |
+| `GluingWeakening` | `evalPrimitive_gluing_free`, `views_gluing_free`, `checkSmoothOpen_append`, `checkGlued_append`, `checkCover_append`, `checkSeparated_append`, `checkManifold_append`, `checkProjective_append` | Gluing declarations added to an environment change the value of no primitive, and they leave the presented objects, the smooth objects and the markers of the implementations that every other check reads unchanged. Declarations that no gluing check reads, such as metrics, frames, physical dimensions, spectral and physical-model declarations, change no check of a gluing declaration; the weakening theorems of the frames, the physical models and the spectral observations cover the gluing declarations with them |
+
+### Bridge theorems of gluing
+
+These are Proved (bridge). `lean-bridge/Audit.lean` requires each name.
+
+| Module | Theorems | Statement |
+| --- | --- | --- |
+| `AlgebraicGeometry.Kernel.Gluing` | `cover_sum_eq_one`, `cover_span_eq_top` | For an accepted cover, $\sum_i a_i f_i = 1$ in the presented algebra `Presented x` of its object, and the classes of the polynomials of its opens span the unit ideal |
+| `AlgebraicGeometry.Kernel.Gluing` | `separation_surjective` | For an accepted separation witness, the algebra map `tensorHom`, from the polynomial ring in the coordinates of both charts to the presented algebra of the first open, which sends the coordinates of the first chart to themselves and those of the second to their images under the chart transition, is surjective |
+
+### Hypotheses and gaps of the gluing proofs
+
+- The premises of each theorem are an accepted check, or an accepted action
+  with its budget. The theorems state identities of kernel polynomials, and
+  the bridge reads them in Mathlib.
+- That gluing declarations change the validity of no declaration of another
+  kind is not proved; the proof is Planned. It is Tested: the program of
+  `tests/gluing.rs` without its gluing declarations is accepted and
+  generates the same code, byte for byte.
+- The weakening theorems state the checks of each entry for every fixed
+  table of class ranks, as for the earlier profiles, not the validity of a
+  whole program.
+- No theorem constructs the scheme glued from the charts in Mathlib, states
+  that an accepted separation claim makes it separated, that an accepted
+  projective claim makes it isomorphic to $\operatorname{Proj} \mathbb{Q}[s, t]$,
+  or that an accepted manifold claim makes the glued real points a smooth
+  manifold with a closed graph of the chart transition. These are Planned.
+  The bridge states nothing about the smooth site: the Hausdorff meaning of
+  a manifold claim is the argument of
+  [Manifold claims](language/gluing.md#manifold-claims), with no Mathlib
+  proof.
+- A manifold claim is sufficient, not necessary. That a Hausdorff gluing
+  without a polynomial witness is rejected is incompleteness, not a wrong
+  acceptance, and no theorem states which gluings have a witness.
+
+### Gluing: tested, not proved
+
+- The checks of smooth opens, glued objects, covers and claims, with their
+  diagnostics: the kernel regression `GluingRegression`, `tests/gluing.rs`
+  and the seven rejected packages `examples/reject/packages/gluing-*`.
+- The wire: each form serializes to its record, and a forged image, open,
+  implementation, witness, dimension, coefficient or homogeneous coordinate
+  is `E_GLUE`, and an unknown field `E_PROTOCOL`
+  (`forged_stage7_records_are_rejected_by_the_kernel`).
+- No runtime footprint: the kernel emits the same code, byte for byte, with
+  and without the gluing declarations
+  (`stage7_declarations_leave_the_generated_code_unchanged`), and a function
+  body that names a gluing declaration is `E_TYPE`
+  (`a_stage7_declaration_is_not_a_value`).
+- Native execution of the acceptance program
+  `examples/packages/projective-line/`, which observes the chart transition
+  of the projective line through morphisms over a base.
+
 ## History
 
 This section holds the issue references of the chapter, by the section that
@@ -3188,6 +3297,25 @@ each comes from.
   sum of the bridge, which
   [Hypotheses and gaps of the physical model proofs](#hypotheses-and-gaps-of-the-physical-model-proofs)
   names, is [#856](https://github.com/MGYamada/Vastitas/issues/856).
+- **Gluing two charts.** The tracker of Stage 7's finite profile of gluing
+  two charts is [#878](https://github.com/MGYamada/Vastitas/issues/878), and
+  the Fast like C rule that its acceptance map follows is
+  [#877](https://github.com/MGYamada/Vastitas/issues/877). The glued scheme
+  and its separatedness in Mathlib, the isomorphism with the projective line,
+  the closed graph and the Hausdorff property of a manifold claim and the
+  real projective line as a smooth manifold are
+  [#879](https://github.com/MGYamada/Vastitas/issues/879). The proof that
+  gluing declarations change the validity of no other declaration is
+  [#883](https://github.com/MGYamada/Vastitas/issues/883), and a standard
+  library module of the projective line and the real projective line is
+  [#882](https://github.com/MGYamada/Vastitas/issues/882). Three or more
+  charts with their cocycles are
+  [#151](https://github.com/MGYamada/Vastitas/issues/151), the gluing of
+  sections [#98](https://github.com/MGYamada/Vastitas/issues/98), smooth
+  covers without a unit-ideal witness
+  [#237](https://github.com/MGYamada/Vastitas/issues/237), and the transfer
+  theorems between the sites
+  [#606](https://github.com/MGYamada/Vastitas/issues/606).
 
 - **The public checker route.** The cutover to the single wire schema epoch
   of [#533](https://github.com/MGYamada/Vastitas/issues/533) retired the

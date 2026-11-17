@@ -8,8 +8,8 @@ as finite profiles over the rational numbers: each has a Status paragraph,
 Reference chapters and a [delivery record](../appendix/history.md). Stage 6
 is Implemented as a finite profile, with its tests, proofs, continuous
 integration and independent review. Stage 7 is Implemented as a
-finite profile of gluing two charts, with its tests and proofs, and its
-continuous integration and review are Planned.
+finite profile of gluing two charts, with its tests, proofs, continuous
+integration and independent review.
 
 The Stages answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
@@ -242,7 +242,7 @@ assumptions are unchanged can still be checked. The numerical error bound
 and physical measurement uncertainty each need their own evidence.
 [Uncertainty and provenance, #299](https://github.com/MGYamada/Vastitas/issues/299)
 
-**Status.** In progress: tracker #841, with the
+**Status.** Implemented: tracker #841, with the
 [acceptance map](../stage6-acceptance.md). A finite, exact profile over QQ
 implements the exact prediction and the comparison with data of this
 example. A
@@ -288,7 +288,7 @@ the sites or using a map without a certified inverse must fail. A further
 physics library would also have to specify the numerical realization and the
 physical meaning of any reported observation. [Algebraic projective line, #104](https://github.com/MGYamada/Vastitas/issues/104) · [Smooth gluing and the real projective line, #606](https://github.com/MGYamada/Vastitas/issues/606)
 
-**Status.** In progress: tracker #878, with the
+**Status.** Implemented: tracker #878, with the
 [acceptance map](../stage7-acceptance.md), under the Fast like C rule of
 #877. A finite, checked profile of gluing two charts implements the
 algebraic and the smooth part of this example
@@ -314,7 +314,8 @@ scheme, its isomorphism with Proj, and the closed graph, the Hausdorff
 property and the smooth manifold of a manifold claim stay Planned in
 Mathlib (#879), and so does the proof that the declarations change no other
 validity (#883). A standard library module of the two projective lines is
-#882. Continuous integration and the whole-stage review are Planned.
+#882. Its continuous integration and its independent whole-stage review are
+recorded in the [acceptance map](../stage7-acceptance.md).
 
 ## Release gates and performance
 
@@ -368,10 +369,14 @@ name every open issue that carried the label on 12 November 2026.
 the language.
 Stage 1 closed with its finite safety and execution evidence and its known
 performance differences. Stages 2 and 3 closed without a performance claim.
-The acceptance of the target is Planned (#222): the controlled Linux
-comparison with equivalent standalone C, the absolute tiny-call overhead
-budget set before acceptance, and the remaining Lean, allocator and OpenBLAS
-cost attribution.
+The acceptance of the target is Planned (#222): the comparison with
+equivalent standalone C, which runs in continuous integration, the absolute
+tiny-call overhead budget set before acceptance, and the remaining Lean,
+allocator and OpenBLAS cost attribution. From Stage 7 on, every Stage tracker
+states the runtime footprint, the cost contract, the comparison with C and
+the check time of its work, and
+[#877](https://github.com/MGYamada/Vastitas/issues/877) plans Stages 8 to 12
+toward the target.
 [Performance evidence and acceptance](../storage-ownership.md#performance-evidence-and-acceptance)
 states the conditions of that comparison. Preserve
 both full-lifecycle and prepared/reuse measurements with matching algorithms,

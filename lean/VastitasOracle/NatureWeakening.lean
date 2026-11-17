@@ -1,4 +1,5 @@
 import VastitasOracle.SmoothMetricWeakening
+import VastitasOracle.GluingWeakening
 
 set_option autoImplicit false
 

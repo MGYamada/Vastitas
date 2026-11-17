@@ -408,6 +408,7 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/two-level-wrong-verdict",
     "examples/reject/packages/two-level-stale",
     "examples/reject/packages/gluing-third-chart",
+    "examples/reject/packages/gluing-broken-relation",
     "examples/reject/packages/gluing-not-inverse",
     "examples/reject/packages/gluing-swapped-site",
     "examples/reject/packages/gluing-not-separated",

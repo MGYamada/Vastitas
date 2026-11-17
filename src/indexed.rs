@@ -577,8 +577,10 @@ pub enum MorphismDefinition {
 
 impl DeclarationBody {
     /// Stage 2 algebraic, Stage 3 smooth and metric, Stage 4 frame and
-    /// physical dimension, and Stage 5 and 6 spectral forms (the transition
-    /// average and `average_at` included), whose families have `algebraic` set
+    /// physical dimension, Stage 5 and 6 spectral forms (the transition
+    /// average and `average_at` included), and the Stage 7 gluing forms
+    /// (glued objects, covers, separation, manifold and projective claims),
+    /// whose families have `algebraic` set
     /// in the kernel's `families`. The model and data forms of Stage 6 are
     /// not. A program with one of these forms has no `legacy_geometry`
     /// (`packages::legacy_geometry`).

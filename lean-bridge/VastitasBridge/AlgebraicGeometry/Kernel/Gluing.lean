@@ -145,7 +145,10 @@ lemma tensorImages_length {u : AffineData} {arity₁ arity₂ : ℕ} {forward : 
     (hlength : forward.length = arity₂ + 1) : (tensorImages u arity₁ arity₂ forward).length = arity₁ + arity₂ := by
   simp [tensorImages, hlength]
 
-/-- **An accepted separation witness makes `O(X₁) ⊗ O(X₂) → O(U₁)` surjective.** -/
+/-- **An accepted separation witness makes `tensorHom` surjective**: the algebra map from the
+polynomial ring in the coordinates of both charts onto the presented algebra of the first open.
+For an accepted gluing this map kills the relations of both charts, so it factors through
+`O(X₁) ⊗ O(X₂)`; that factorization is not stated here. -/
 theorem separation_surjective {u : AffineData} (hu : Verified u.certificate) {arity₁ arity₂ : ℕ}
     {forward : List Poly} {witness : Poly} (hforward : ∀ g ∈ forward, Canonical u.arity g) {s s' : ℕ}
     (h : (checkSeparation u arity₁ arity₂ forward witness).run s = .ok ((), s')) :

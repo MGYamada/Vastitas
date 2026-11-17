@@ -1,9 +1,9 @@
 // The projective line over QQ and the real projective line, each glued from
 // two charts (historical Stage 7, #878). The gluings, the cover and the
-// claims are checked evidence with no runtime value. `main` observes the
-// transition of the Zariski charts through the morphisms of Stage 2, and
-// shows `failures = 0` and exits with status 0 only when both observations
-// hold.
+// claims are checked evidence with no runtime value. `main` composes Stage 2
+// morphisms with the same images as the transition of the Zariski charts,
+// which no check ties to the gluing, and shows `failures = 0` and exits with
+// status 0 only when both composites are identities.
 use std::geometry::scheme::affine::AffineQQ;
 use std::geometry::scheme::affine::Over;
 use std::geometry::scheme::affine::SpecQQ;

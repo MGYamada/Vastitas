@@ -1,6 +1,5 @@
 import VastitasKernel.IndexedSemantics
 import VastitasOracle.DeclarationExtension
-import VastitasOracle.GluingWeakening
 
 set_option autoImplicit false
 

@@ -11,7 +11,7 @@ is Planned.
   that is compared with physical measurements. Each Stage has an example that
   could establish its completion. Stages 2 to 6 are delivered as finite
   profiles. Stage 7 is Implemented as a finite profile of gluing two charts,
-  and its continuous integration and review are Planned. The GitHub issues
+  with its continuous integration and its independent review. The GitHub issues
   that the chapter links govern the plan.
 - A **delivery record** maps the acceptance conditions of a delivery to their
   evidence at recorded revisions: the implementation, the tests, the theorems
@@ -45,12 +45,13 @@ is Planned.
   - [Stage 7 gluing acceptance](../stage7-acceptance.md) is the record of
     gluing two charts, over the rational numbers in the Zariski site and
     over the real numbers in the smooth site, with covers and separation,
-    manifold and projective claims, delivered in this change. Its conditions
+    manifold and projective claims, delivered in #884 with its review fixes
+    in a second change. Its conditions
     C1–C12, C14 and C17 have tested evidence and oracle theorems, C15 the
     bridge theorems of covers and separation witnesses, C13 is tested in
     part, C16 is the follow-up #882, C18 records the check time of the
-    acceptance package, and C19 and C20, the continuous integration and the
-    whole-stage review, are Planned.
+    acceptance package, and C19 and C20 record the continuous integration
+    and the independent whole-stage review.
 
 A delivery record states what held at its revisions. For the behaviour of the
 compiler today, read the guide and the Vastitas Reference. For the theorems

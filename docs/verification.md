@@ -3218,7 +3218,7 @@ These are Proved (bridge). `lean-bridge/Audit.lean` requires each name.
 
 - The checks of smooth opens, glued objects, covers and claims, with their
   diagnostics: the kernel regression `GluingRegression`, `tests/gluing.rs`
-  and the seven rejected packages `examples/reject/packages/gluing-*`.
+  and the eight rejected packages `examples/reject/packages/gluing-*`.
 - The wire: each form serializes to its record, and a forged image, open,
   implementation, witness, dimension, coefficient or homogeneous coordinate
   is `E_GLUE`, and an unknown field `E_PROTOCOL`
@@ -3229,8 +3229,11 @@ These are Proved (bridge). `lean-bridge/Audit.lean` requires each name.
   body that names a gluing declaration is `E_TYPE`
   (`a_stage7_declaration_is_not_a_value`).
 - Native execution of the acceptance program
-  `examples/packages/projective-line/`, which observes the chart transition
-  of the projective line through morphisms over a base.
+  `examples/packages/projective-line/`. At run time it composes Stage 2
+  morphisms over a base that have the same images as the chart transition
+  of the projective line. No check ties those morphisms to the gluing, and a
+  gluing declaration has no runtime value, so the run is evidence for those
+  morphisms and for the absence of a runtime footprint, not for the gluing.
 
 ## History
 

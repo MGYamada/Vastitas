@@ -210,4 +210,35 @@ private def standard : List Source.SourceChart :=
 #eval check "a Zariski open in a smooth cover is rejected"
   (code (with' [cover "c" "M1" ["W1", "U1"] [n 1, n 1]]) == "E_GLUE")
 
+-- The rules that the acceptance package does not reach.
+#eval check "a transition that respects the relations but is not inverse to its inverse is rejected"
+  (code (with' [glued "Bad" "AffineQQ" ["U1", "U2"] [("y", c "xi"), ("yi", c "x")]
+    [("x", .neg (c "yi")), ("xi", .neg (c "y"))]]) == "E_GLUE")
+#eval check "the not-inverse message says so"
+  (mentions (with' [glued "Bad" "AffineQQ" ["U1", "U2"] [("y", c "xi"), ("yi", c "x")]
+    [("x", .neg (c "yi")), ("xi", .neg (c "y"))]]) "not mutually inverse")
+#eval check "charts over different bases are rejected"
+  (code (with' [affine "Other" [], affine "L3" ["z"] "Other", localize "U3" "L3" (c "z") "zi",
+    glued "Bad" "AffineQQ" ["U1", "U3"] [("z", c "xi"), ("zi", c "x")] [("x", c "zi"), ("xi", c "z")]])
+    == "E_GLUE")
+-- Over a base with a coordinate, the transition must commute with the structure maps.
+private def overBase : List Source.Declaration := [
+  decl "S" (.affine (path "AffineQQ") ["t"] [] none []),
+  decl "A1" (.affine (path "AffineQQ") ["t", "x"] [] (some (path "S")) [("t", c "t")]),
+  decl "A2" (.affine (path "AffineQQ") ["t", "y"] [] (some (path "S")) [("t", c "t")]),
+  localize "O1" "A1" (c "x") "xi",
+  localize "O2" "A2" (c "y") "yi" ]
+#eval check "a family of lines over a base glues fibrewise"
+  (code (with' (overBase ++ [glued "Family" "AffineQQ" ["O1", "O2"]
+    [("t", c "t"), ("y", c "xi"), ("yi", c "x")] [("t", c "t"), ("x", c "yi"), ("xi", c "y")]])) == "accepted")
+#eval check "a transition that moves the base is rejected"
+  (code (with' (overBase ++ [glued "Shifted" "AffineQQ" ["O1", "O2"]
+    [("t", .sum [c "t", n 1]), ("y", c "xi"), ("yi", c "x")]
+    [("t", .sum [c "t", .neg (n 1)]), ("x", c "yi"), ("xi", c "y")]])) == "E_GLUE")
+#eval check "a cover with more opens than the limit is E_LIMIT"
+  (code (with' ((List.range 33).map (fun k => localize s!"C{k}" "Line" (.sum [c "t", n (k + 1)]) "r") ++
+    [cover "big" "Line" ((List.range 33).map (s!"C{·}")) ((List.range 33).map fun _ => n 1)])) == "E_LIMIT")
+#eval check "the message of a single open is singular"
+  (mentions (with' [glued "One" "AffineQQ" ["U1"] [] []]) "1 open is given")
+
 end VastitasKernel.Indexed.GluingRegression

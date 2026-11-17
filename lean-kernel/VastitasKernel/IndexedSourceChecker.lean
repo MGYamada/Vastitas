@@ -290,8 +290,9 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       let opens ← opens.mapM (resolveId p scope)
       let [first, second] := opens
         | Namespace.problem span "E_GLUE" <| s!"a gluing of this profile has exactly two charts, but " ++
-            s!"{opens.length} opens are given; three or more charts need cocycle checks on triple " ++
-            "overlaps, which the profile does not implement (#151)"
+            (if opens.length == 1 then "1 open is given" else s!"{opens.length} opens are given") ++
+            "; three or more charts need cocycle checks on triple overlaps, which the profile does not " ++
+            "implement (#151)"
       return add (.glued implementation first second [] [])
   | .cover object opens _ => do
       return add (.cover (← resolveId p scope object) (← opens.mapM (resolveId p scope)) [])

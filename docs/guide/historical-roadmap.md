@@ -6,8 +6,10 @@ Stage states a mathematical target and an acceptance example, an example that
 could establish the completion of the Stage. Stages 2 to 5 are Implemented
 as finite profiles over the rational numbers: each has a Status paragraph,
 Reference chapters and a [delivery record](../appendix/history.md). Stage 6
-is Implemented as a finite profile, with its tests and proofs, and its
-continuous integration and review are Planned. Stage 7 is Planned.
+is Implemented as a finite profile, with its tests, proofs, continuous
+integration and independent review. Stage 7 is Implemented as a
+finite profile of gluing two charts, with its tests and proofs, and its
+continuous integration and review are Planned.
 
 The Stages answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
@@ -263,8 +265,9 @@ validity or value; the mathlib bridge proves that an accepted average is
 Σₖ (Pₖ)²ⱼᵢ, the sum of the squared entries of Mathlib's eigenprojectors, at
 every real point of its chart. The reading of that sum as a long-time
 average of the dynamics stays Assumed, and the code of a stale comparison
-and the byte identity of the generated code are tested. Continuous
-integration and the whole-stage review are Planned. The named solver and the
+and the byte identity of the generated code are tested. Its continuous
+integration and its independent whole-stage review are recorded in the
+[acceptance map](../stage6-acceptance.md). The named solver and the
 numerical error bound stay Planned with #318.
 
 ## Stage 7. Broader geometry and physics
@@ -284,6 +287,34 @@ projective line as a smooth manifold requires additional evidence. Swapping
 the sites or using a map without a certified inverse must fail. A further
 physics library would also have to specify the numerical realization and the
 physical meaning of any reported observation. [Algebraic projective line, #104](https://github.com/MGYamada/Vastitas/issues/104) · [Smooth gluing and the real projective line, #606](https://github.com/MGYamada/Vastitas/issues/606)
+
+**Status.** In progress: tracker #878, with the
+[acceptance map](../stage7-acceptance.md), under the Fast like C rule of
+#877. A finite, checked profile of gluing two charts implements the
+algebraic and the smooth part of this example
+([guide](gluing.md), [Reference](../language/gluing.md)). The implementation
+of the charts chooses the site: presented objects and their principal opens
+give the Zariski site over QQ, and `Affine(n)` objects with their smooth
+opens {f ≠ 0} give the smooth site. `indexed glued` glues two charts along
+a transition and its inverse, which the kernel checks as an isomorphism
+between the opens; a third chart is rejected, because it would need
+cocycles (#151). `indexed cover` certifies a cover by a unit-ideal identity.
+A gluing proves neither separation nor the manifold property. A separation
+claim and a manifold claim give an exact witness that makes the ring map
+from the two charts onto the overlap, and a projective claim exhibits the
+glued line as Proj QQ[s, t] by homogeneous coordinates on each chart. The
+projective line y = 1/x is accepted with its claims, the doubled origin is
+glued and fails them, and swapped sites and maps without an inverse are
+rejected. None of these declarations has a run-time value, and the
+generated code is the same, byte for byte, without them. The oracle proves
+the identities of every accepted check and the site of every open that it
+reads, and the mathlib bridge proves that an accepted cover spans the unit
+ideal and that an accepted witness gives a surjective ring map. The glued
+scheme, its isomorphism with Proj, and the closed graph, the Hausdorff
+property and the smooth manifold of a manifold claim stay Planned in
+Mathlib (#879), and so does the proof that the declarations change no other
+validity (#883). A standard library module of the two projective lines is
+#882. Continuous integration and the whole-stage review are Planned.
 
 ## Release gates and performance
 

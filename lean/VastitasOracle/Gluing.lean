@@ -282,23 +282,29 @@ theorem open_smooth {env : Environment} {implementation id : DeclId} {o : Open}
 /-! ### Accepted declarations -/
 
 /-- **An accepted glued object** (C1, C8, C10): its two opens are opens of
-distinct charts in the site of its implementation, and its transition is an
-isomorphism between them. -/
+distinct charts in the site of its implementation, its transition is an
+isomorphism between them, and over a common base with structure images it
+commutes with the structure maps of both opens. -/
 theorem glued_sound {env : Environment} {implementation first second : DeclId} {forward backward : List Poly}
     (h : checkGlued env implementation first second forward backward = true) :
-    ∃ site a b, gluingOpens? env implementation first second = some (site, a, b) ∧ a.chart ≠ b.chart ∧
-      TransitionValid a.data b.data forward backward := by
+    ∃ site a b bases, gluingOpens? env implementation first second = some (site, a, b) ∧ a.chart ≠ b.chart ∧
+      baseImages? env site first second a b = some bases ∧ TransitionValid a.data b.data forward backward ∧
+      ∀ sx sy, bases = some (sx, sy) →
+        sx = sy.map (fun image => normalForm a.data.basis (Poly.subst a.data.arity forward image)) := by
   unfold checkGlued at h
   split at h
   · rename_i site a b hopens
     simp only [Bool.and_eq_true, bne_iff_ne, ne_eq] at h
     obtain ⟨distinct, h⟩ := h
     split at h
-    · rename_i bases _
+    · rename_i bases hbases
       obtain ⟨_, ran⟩ := run_isOk h
       unfold checkGluing at ran
-      obtain ⟨_, _, htransition, _⟩ := bind_ok ran
-      exact ⟨site, a, b, hopens, distinct, checkTransition_sound htransition⟩
+      obtain ⟨_, _, htransition, rest⟩ := bind_ok ran
+      refine ⟨site, a, b, bases, hopens, distinct, hbases, checkTransition_sound htransition, ?_⟩
+      intro sx sy hsome
+      subst hsome
+      exact checkTriangle_ok rest
     · cases h
   · cases h
 
@@ -362,14 +368,24 @@ theorem manifold_sound {env : Environment} {glued : DeclId} {dimension : Nat} {w
 without coordinates, whose two charts map isomorphically onto the standard
 charts of different homogeneous coordinates, with their opens the preimages
 of the other standard charts and their homogeneous coordinates in agreement on
-the overlap. -/
+the overlap up to an exact combination of the basis of the first open. -/
 theorem projective_sound {env : Environment} {glued : DeclId} {homogeneous : List String}
     {charts : List ProjectiveChart} (h : checkProjective env glued homogeneous charts = true) :
     homogeneous.length = 2 ∧ homogeneous.Nodup ∧
     ∃ a b forward first second, glued? env glued = some (.zariski, a, b, forward) ∧
       charts = [first, second] ∧ first.chart = a.chart ∧ second.chart = b.chart ∧
+      baseFree env a.chartData = true ∧ baseFree env b.chartData = true ∧
       ChartValid a.chartData a.element first ∧ ChartValid b.chartData b.element second ∧
-      first.dehomogenized ≠ second.dehomogenized := by
+      first.dehomogenized ≠ second.dehomogenized ∧
+      ∃ quotients, combination quotients a.data.basis =
+        Poly.add
+          (Poly.mul (Poly.subst a.data.arity ((List.range a.chartData.arity).map (Poly.var a.data.arity))
+              (GluingDeclarations.homogeneous a.chartData.arity first).1)
+            (Poly.subst a.data.arity (forward.take b.chartData.arity) (GluingDeclarations.homogeneous b.chartData.arity second).2))
+          (Poly.neg (Poly.mul
+            (Poly.subst a.data.arity ((List.range a.chartData.arity).map (Poly.var a.data.arity))
+              (GluingDeclarations.homogeneous a.chartData.arity first).2)
+            (Poly.subst a.data.arity (forward.take b.chartData.arity) (GluingDeclarations.homogeneous b.chartData.arity second).1))) := by
   unfold checkProjective at h
   simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
   obtain ⟨⟨length, nodup⟩, h⟩ := h
@@ -377,13 +393,14 @@ theorem projective_sound {env : Environment} {glued : DeclId} {homogeneous : Lis
   split at h
   · rename_i a b forward first second hglued
     simp only [Bool.and_eq_true, beq_iff_eq] at h
-    obtain ⟨⟨⟨⟨hfirst, hsecond⟩, _⟩, _⟩, checked⟩ := h
+    obtain ⟨⟨⟨⟨hfirst, hsecond⟩, hfreeA⟩, hfreeB⟩, checked⟩ := h
     obtain ⟨_, ran⟩ := run_isOk checked
     unfold checkProjectiveCharts at ran
     obtain ⟨_, _, hc₁, ran⟩ := bind_ok ran
     obtain ⟨_, _, hc₂, hoverlap⟩ := bind_ok ran
-    exact ⟨a, b, forward, first, second, hglued, rfl, hfirst, hsecond, checkProjectiveChart_sound hc₁,
-      checkProjectiveChart_sound hc₂, (checkProjectiveOverlap_sound hoverlap).1⟩
+    obtain ⟨different, overlap⟩ := checkProjectiveOverlap_sound hoverlap
+    exact ⟨a, b, forward, first, second, hglued, rfl, hfirst, hsecond, hfreeA, hfreeB,
+      checkProjectiveChart_sound hc₁, checkProjectiveChart_sound hc₂, different, overlap⟩
   · cases h
 
 /-- **Sites never mix** (C10): the opens of an accepted gluing are declared

@@ -801,9 +801,10 @@ field of coefficients is the rational numbers. A function body composes,
 views and pairs declared morphisms, and it builds rational points from
 integers. It creates no object and no other morphism. An
 [isomorphism](#isomorphisms) between principal opens states a transition
-between two objects. The language has no declaration that glues objects along
-such transitions, as the projective line needs, and it checks no covers and
-no cocycle conditions. Smooth
+between two objects.
+[Gluing declarations](language/gluing.md) glue two objects along such a
+transition, as the projective line needs, and certify covers by principal
+opens. Smooth
 affine geometry is in
 [Smooth affine declarations](language/smooth-declarations.md), and the
 descriptor objects of the core are in

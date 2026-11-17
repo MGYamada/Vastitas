@@ -54,10 +54,12 @@ indexed cover halves = cover(Line, Dt, Dmt) by(1, 1);
 
 // ANCHOR: smooth
 // Two real lines glued along the cozero opens {x != 0} and {y != 0}.
+// ANCHOR: smooth-opens
 indexed affine M1(SmoothR) = Affine(1)[x];
 indexed affine M2(SmoothR) = Affine(1)[y];
 indexed affine W1(SmoothR) = localize(M1, x) inverse u;
 indexed affine W2(SmoothR) = localize(M2, y) inverse v;
+// ANCHOR_END: smooth-opens
 indexed glued RP1(SmoothR) = glue(W1, W2) by(y -> u, v -> x) inverse(x -> v, u -> y);
 indexed manifold circle = manifold(RP1, 1) by(u -> M2::y);
 // ANCHOR_END: smooth
@@ -70,6 +72,7 @@ indexed morphism stayU1: Over<U1, U1, SpecQQ> = identity;
 indexed morphism stayU2: Over<U2, U2, SpecQQ> = identity;
 // ANCHOR_END: observers
 
+// ANCHOR: main
 fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
 
 fn main() -> Int {
@@ -79,3 +82,4 @@ fn main() -> Int {
     let shown = show!(failures);
     if failures == 0 { 0 } else { 1 }
 }
+// ANCHOR_END: main

@@ -498,7 +498,7 @@ def reservedIdentities (root : String) (packages : List Package) : Except String
   let reserved := reservedSource root || packages.any fun pkg =>
     reservedSource pkg.id.source || pkg.dependencies.any (reservedSource ·.target)
   if reserved && !flatRequest root packages then
-    throw "a package source that begins with 'vastitas:compat:' is reserved for the package of a flat unit"
+    throw "a package source that begins with 'vastitas:compat:' is reserved for the compatibility packages of the kernel; a request names one only as the package of a flat unit"
 
 /-- The optional field `legacy_geometry` (#533): absent, or the JSON boolean
 `true`, which asks for the compatibility profile of the legacy geometry. -/

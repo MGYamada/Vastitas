@@ -115,6 +115,7 @@
     - [Maintain the documentation](development/documentation.md)
     - [Add an indexed primitive](development/primitives.md)
     - [Standard-library admission and trust](adr/0001-mathematics-first-stdlib.md)
+    - [Review standard-library issues and pull requests](std-issue-governance.md)
     - [Physical-dimension admission](adr/0002-nature-dimension.md)
   - [G: Glossary](appendix/glossary.md)
   - [H: Grammar summary](appendix/grammar.md)

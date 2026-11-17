@@ -102,22 +102,22 @@ fn public_decoder_rejects_unknown_fields_in_every_captured_record_shape() {
     let examples = common::root().join("examples/packages");
     let mut cases: Vec<(String, Value)> = Vec::new();
     for package in [
-        "indexed",
+        "geometry/indexed",
         // Its stdlib dependency declares Stage 2 presented affine geometry.
-        "promotion",
-        "resource-values",
-        "numerical",
-        "runtime-shapes",
-        "tensor-packing",
-        "contraction-tree",
-        "finite_network",
-        "storage/app",
-        "edit-borrow/app",
-        "edit-authority/app",
-        "smooth-objects",
-        "smooth-cotangent",
-        "smooth-metric",
-        "smooth-differential",
+        "stdlib/promotion",
+        "storage/resource-values",
+        "numerical/numerical",
+        "storage/runtime-shapes",
+        "numerical/tensor-packing",
+        "numerical/contraction-tree",
+        "numerical/finite_network",
+        "storage/storage/app",
+        "authority/edit-borrow/app",
+        "authority/edit-authority/app",
+        "geometry/smooth-objects",
+        "geometry/smooth-cotangent",
+        "geometry/smooth-metric",
+        "geometry/smooth-differential",
     ] {
         let mut command = common::cli();
         command

@@ -114,8 +114,8 @@ structure Context where
   resources : Storage.State := {}
   slots : Shapes.Slots := []
 
-/-- Projection of the actual protocol-8 execution certificate, not reconstructed
-source acceptance. Intermediate map transfers also retain their own receipts. -/
+/-- Projection of the execution certificate returned by the resource checker.
+Intermediate map transfers also retain their own receipts. -/
 def Context.ofExecution {functions : List Functions.Function} {entry : Nat}
     {environment : Indexed.Environment} {signatures : List ValueFlow.Signature}
     (execution : ResourceSource.Execution functions entry environment signatures) : Context :=

@@ -43,10 +43,10 @@ fn fixture(profile: &str, main: &str) -> Scratch {
     let manifest = common::checked_replace(
         &common::checked_replace(
             MANIFEST,
-            "\"../../../stdlib\"",
+            "\"../../../../stdlib\"",
             &format!("{:?}", root().join("stdlib")),
         ),
-        "\"../../../nature\"",
+        "\"../../../../nature\"",
         &format!("{:?}", root().join("nature")),
     );
     s.write("app/Vastitas.toml", &manifest);

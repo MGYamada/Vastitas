@@ -206,7 +206,7 @@ def _default_nan(kind):
     return DEFAULT_NAN32 if kind is F32 else DEFAULT_NAN
 
 
-def add(a: F64, b: F64) -> Local:
+def add(a: F32 | F64, b: F32 | F64) -> Local:
     nan = _nan_result(a, b)
     if nan is not None:
         return nan
@@ -224,7 +224,7 @@ def sub(a: F32 | F64, b: F32 | F64) -> Local:
     return nan if nan is not None else add(a, type(a)(b.bits ^ _format(type(a))[0]))
 
 
-def mul(a: F64, b: F64) -> Local:
+def mul(a: F32 | F64, b: F32 | F64) -> Local:
     nan = _nan_result(a, b)
     if nan is not None:
         return nan
@@ -236,7 +236,7 @@ def mul(a: F64, b: F64) -> Local:
     return from_fraction(a.as_fraction() * b.as_fraction(), negative_zero=negative, kind=type(a))
 
 
-def div(a: F64, b: F64) -> Local:
+def div(a: F32 | F64, b: F32 | F64) -> Local:
     """Raw IEEE-style division, distinct from mathematical and checked division."""
     nan = _nan_result(a, b)
     if nan is not None:

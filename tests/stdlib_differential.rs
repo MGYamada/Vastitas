@@ -51,7 +51,7 @@ fn main() -> Int {
 /// The application `main` in `app/`, with a copy of the stdlib in `stdlib/`
 /// as its `std` path dependency. `skip` lists stdlib directories to leave out.
 fn fixture(main: &str, skip: &[&str]) -> Scratch {
-    let manifest = common::checked_replace(MANIFEST, "../../../stdlib", "../stdlib");
+    let manifest = common::checked_replace(MANIFEST, "../../../../stdlib", "../stdlib");
     common::stdlib_app("stdlib calculus", &manifest, main, skip)
 }
 

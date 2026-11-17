@@ -1,0 +1,1 @@
+examples/reject/names/unresolved-function.vast:3:5: E_NAME: unknown function `missing_function`; calls require a declared function, generic, or supported builtin

@@ -418,12 +418,12 @@ fn compatibility_package_identities_are_reserved_for_the_flat_unit() {
     let manifest =
         |name: &str| common::root().join(format!("examples/packages/{name}/Vastitas.toml"));
     let package = captured_wire(
-        common::manifest_command("check", manifest("hello")),
+        common::manifest_command("check", manifest("core/hello")),
         common::CURRENT_PROTOCOL,
     );
     assert_eq!(kernel(&package, "check")["ok"], true, "{package}");
     let geometry = captured_wire(
-        common::manifest_command("check", manifest("geometry-compat")),
+        common::manifest_command("check", manifest("geometry/geometry-compat")),
         common::CURRENT_PROTOCOL,
     );
     let profile = geometry["packages"]

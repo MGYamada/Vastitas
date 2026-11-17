@@ -136,10 +136,10 @@ def load_cases(examples=EXAMPLES, repository=ROOT):
                 target = desc["path"]
                 if not isinstance(target, str) or not target or Path(target).is_absolute():
                     raise ValueError(f"{rel}: invalid path dependency {dependency}")
-                resolved = (manifest.parent / target).resolve()
-                if not resolved.is_relative_to(repository.resolve()) or not (resolved / "Vastitas.toml").is_file():
+                resolved = (manifest.parent / target / "Vastitas.toml").resolve()
+                if not resolved.is_relative_to(repository.resolve()) or not resolved.is_file():
                     raise ValueError(f"{rel}: broken path dependency {dependency} = {target}")
-                dependencies.add((resolved / "Vastitas.toml").resolve())
+                dependencies.add(resolved)
         graph[manifest.resolve()] = dependencies
 
     # A dependency fixture is not promised to pass `check` in isolation: edit

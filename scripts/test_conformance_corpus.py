@@ -67,6 +67,37 @@ class ConformanceCorpusTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "expected rejection"):
                 corpus.execute(case, Path("/fake/compiler"))
 
+    def test_native_witness_checks_both_output_streams(self):
+        case = {"id": "book.values.one", "path": "book/values/one.vast", "kind": "source",
+                "expect": "accept", "stdout": "", "stderr": "one = 1\n"}
+        ok = subprocess.CompletedProcess([], 0, b"", b"")
+        with mock.patch.object(corpus.subprocess, "run") as run:
+            run.side_effect = [ok, ok, subprocess.CompletedProcess([], 0, b"", b"one = 1\n")]
+            corpus.execute(case, Path("/fake/compiler"))
+            run.side_effect = [ok, ok, subprocess.CompletedProcess([], 0, b"one = 1\n", b"")]
+            with self.assertRaisesRegex(ValueError, "expected exit 0 and output"):
+                corpus.execute(case, Path("/fake/compiler"))
+
+    def test_rejects_a_dependency_manifest_link_outside_the_repository(self):
+        examples, root = self.fixture()
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        external = Path(temporary.name) / "Vastitas.toml"
+        external.write_text('[package]\nname = "base"\nroot = "main.vast"\n')
+        (root / "base").mkdir()
+        (root / "base/Vastitas.toml").symlink_to(external)
+        app = examples / "packages" / "core" / "app"
+        app.mkdir(parents=True)
+        (app / "Vastitas.toml").write_text(
+            '[package]\nname = "app"\nroot = "main.vast"\n'
+            '[dependencies]\nbase = { path = "../../../../base" }\n'
+        )
+        with (examples / "corpus.toml").open("a") as index:
+            index.write('\n[[case]]\nid = "package.core.app"\nkind = "package"\n'
+                        'path = "packages/core/app/Vastitas.toml"\nexpect = "accept"\n')
+        with self.assertRaisesRegex(ValueError, "broken path dependency base"):
+            corpus.load_cases(examples, root)
+
     def test_dependency_fixtures_must_be_in_a_checked_package_closure(self):
         examples, root = self.fixture()
         app = examples / "packages" / "core" / "app"

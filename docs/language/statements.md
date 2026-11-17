@@ -64,6 +64,16 @@ A block that binds a name of its enclosing block is an error:
 {{#include ../../examples/reject/statements/nested-rebinding.stderr}}
 ```
 
+The second binding of `value` repeats a name in the same block.
+
+```vast
+{{#include ../../examples/reject/declarations/duplicate-local.vast}}
+```
+
+```text
+{{#include ../../examples/reject/declarations/duplicate-local.stderr}}
+```
+
 ## `let` statements
 
 > **Syntax**

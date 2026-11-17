@@ -337,6 +337,8 @@ const BOOK_RUNTIME_FAILURES: &[&str] = &["examples/packages/storage/failed-expec
 /// fail and print exactly the lines of the program's sibling `.stderr` file.
 /// Every program under `examples/reject/` must be listed.
 const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
+    ("examples/reject/declarations/duplicate-local.vast", &[]),
+    ("examples/reject/names/unresolved-function.vast", &[]),
     ("examples/reject/types/bool-result.vast", &[]),
     ("examples/reject/functions/mutual-recursion.vast", &[]),
     ("examples/reject/statements/nested-rebinding.vast", &[]),

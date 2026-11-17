@@ -72,6 +72,16 @@ In this program `even` and `odd` call each other:
 {{#include ../../examples/reject/functions/mutual-recursion.stderr}}
 ```
 
+The call of `missing_function` has no declaration to resolve to.
+
+```vast
+{{#include ../../examples/reject/names/unresolved-function.vast}}
+```
+
+```text
+{{#include ../../examples/reject/names/unresolved-function.stderr}}
+```
+
 ## Function values
 
 The name of a function whose parameter and result types are scalar or function

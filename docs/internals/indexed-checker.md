@@ -281,37 +281,31 @@ directly. Those individual annotation tests do not replace the public protocol-7
 composition of scalar dispatch, Fn and authority checks described in
 [the public path](#the-public-path). Protocols 2–6 retain their existing audits.
 
-#### Internal data-function bodies
+#### Data-function bodies
 
-`IndexedSourceBodies` and `IndexedSourceProgram` elaborate unresolved
-internal data-function ASTs, including dependent parameters/calls, scalar and
-Pair operations, branches, declared primitives, explicit package construction,
-and unpacking of all ordered fields. Parameter, let and unpack contexts are
-derived from the actual bodies. Imports and primitive calls resolve through
-the real namespace index; primitive spelling and expected result types never
-select implementations. Fresh object identities, scoped openings and exact
-call substitutions pass through the common Core typing and freshness audit.
-Both branches and every function in every package are checked, including unused
-bodies. Integer literal hints remain symmetric, Pair operands infer independently,
-and Nat-to-Int conversion remains explicit.
+The body elaborator of the Fn compiler (`IndexedFunctionState.lean`,
+`IndexedFunctionBodies.lean`, with the elaboration state and primitive
+emission of `IndexedSourceBodies.lean`) elaborates unresolved data-function
+ASTs, including dependent parameters/calls, scalar and Pair operations,
+branches, declared primitives, explicit package construction, and unpacking of
+all ordered fields. Parameter, let and unpack contexts are derived from the
+actual bodies. Imports and primitive calls resolve through the real namespace
+index; primitive spelling and expected result types never select
+implementations. Fresh object identities, scoped openings and exact call
+substitutions pass through the common Core typing and freshness audit. Both
+branches and every function in every package are checked, including unused
+bodies. Integer literal hints remain symmetric, Pair operands infer
+independently, and Nat-to-Int conversion remains explicit.
 
-Calls retain their original source IDs through a stable dependency ordering.
-An independent audit checks output count and each ID's original source owner;
-Core ID uniqueness then excludes replacing an unused function with a duplicate.
-`VastitasOracle.IndexedSourceBodies.source_covered` proves every input ID occurs
-in the output, and `source_body_checked` establishes actual Core typing for all
-of them. The same-input certificate retains the reconstruction equation,
-independent declaration/call reference ledgers, exact accepted Core, dependency
-order and entrypoint validation. A ledger by itself is not a source-to-Core
-correspondence certificate.
-
-The 52 regression cases include private/re-exported functions, unused
-dependency bodies, constant branches with distinct identities, non-geometric
-token indices, object-return generativity, aliases, repeated unpacking, multiple
-heterogeneous fields, repacking and forged origins/call records. Three additional
-standalone native fixtures start with these unresolved source AST bodies
-and return `2`, a large arbitrary-precision integer, and `3`. These bring the native
-fixtures to ten before the Fn extension below; executables import only IndexedRuntime.
+`IndexedSourceBodyRegression` runs internal data-function ASTs through
+`FunctionSource.Compiler.checkProgram`. Its cases include private/re-exported
+functions, unused dependency bodies, constant branches with distinct
+identities, non-geometric token indices, object-return generativity, aliases,
+repeated unpacking, multiple heterogeneous fields, repacking, the explained
+endpoint rejections of primitive calls and duplicated Core functions. The standalone
+native fixtures `function_bodies`, `function_scalars` and `function_fields`
+start with these unresolved source AST bodies and return `2`, a large
+arbitrary-precision integer, and `3`; executables import only IndexedRuntime.
 These are internal AST tests, not Rust-parsed `.vast` fixtures.
 
 The adapter explicitly rejects old function bodies, generic/method/abstract
@@ -994,7 +988,7 @@ not an alternative semantic acceptance rule.
 | Primitive behavior: kernel `IndexedPrimitiveBinding.lean`, `IndexedPrimitiveShapes.lean`, `IndexedPrimitiveValues.lean`, `IndexedPrimitiveDescriptors.lean`, `IndexedPrimitiveRegistry.lean`, `IndexedPrimitiveFamilies.lean`, `IndexedPrimitives.lean`, `IndexedContractAudit.lean`, `IndexedSemantics.lean`, `IndexedRuntime.lean`; generated `src/primitive_table.rs` | Closed explicit registry; see the table below. The wire form comes from the family table of `IndexedPrimitiveFamilies.lean`: the decoder, the resolver and the generated Rust table read it, and a family grants no authority. No arbitrary native registration, certificate string or mathematical axiom is admitted. |
 | Diagnostic names/locations: kernel `IndexedSourceDiagnostics.lean`, `IndexedSourceBodies.lean` | Presentation only. “Affine” introduction notes do not choose implementation, merge identities or authorize an operation. |
 | Native lowering: kernel `IndexedCodegen.lean` | General Core lowering selected by validated binding/representation tags, not source spelling. Rechecks all declarations, types, scopes, freshness and actual dependencies before emitting reachable functions. Generated modules import only `IndexedRuntime`. Mutable storage is not yet represented. |
-| Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionChecker`, `SurfacePrograms`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Old decoders and scalar/namespace header validation remain reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |
+| Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Old decoders and scalar/namespace header validation remain reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |
 
 The adapter remains intentionally supported. Removal requires an explicit decision
 to retire the corresponding old syntax/wire contract, not merely deleting reserved

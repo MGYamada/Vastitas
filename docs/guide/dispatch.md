@@ -186,11 +186,11 @@ call outside the domain is an error even when a method applies at its key.
 The standard library has generics for arithmetic on `Nat` and `Int`, in
 [`stdlib/src/arithmetic/generic.vast`](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/arithmetic/generic.vast).
 `add` and `maximum` take two numbers, each a `Nat` or an `Int`.
-[`examples/dispatch-arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/dispatch-arithmetic.vast)
+[`examples/book/dispatch/dispatch-arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/dispatch/dispatch-arithmetic.vast)
 calls both:
 
 ```vast
-{{#include ../../examples/dispatch-arithmetic.vast}}
+{{#include ../../examples/book/dispatch/dispatch-arithmetic.vast}}
 ```
 
 `add(left, right)` has the key `(Nat, Nat)` and returns a `Nat`. `nat_to_int`
@@ -199,7 +199,7 @@ has the key `(Int, Int)`. Compile the program in flat mode with the three
 library files, because the compiler loads no library on its own:
 
 ```sh
-target/debug/vastitas build examples/dispatch-arithmetic.vast \
+target/debug/vastitas build examples/book/dispatch/dispatch-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   --lib stdlib/src/arithmetic/generic.vast -o target/dispatch-arithmetic
@@ -215,11 +215,11 @@ these mixed keys call the generic `promote`, which converts the `Nat` with
 `int` and returns both numbers as a `Pair<Int>`. They then call the `Int`
 method on the two components. The library converts nothing implicitly: `int`
 in `promote` is its only conversion.
-[`examples/promotion.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/promotion.vast)
+[`examples/book/stdlib/promotion.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/stdlib/promotion.vast)
 calls `promote` itself:
 
 ```vast
-{{#include ../../examples/promotion.vast}}
+{{#include ../../examples/book/stdlib/promotion.vast}}
 ```
 
 `promote(n, 22)` has the key `(Nat, Int)`, and its result holds 20 and 22 as

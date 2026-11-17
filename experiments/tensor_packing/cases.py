@@ -93,7 +93,7 @@ def write_package(c, out):
     (out / "src/profiles").mkdir()
     (out / "Vastitas.toml").write_text('[package]\nname = "tensor_bench"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
     (out / "src/main.vast").write_text('mod profiles;\nmod product;\nresource fn main() -> Int {\ncall product::product() -> ();\nvalue { 0 }\n}\n')
-    (out / "src/profiles/mod.vast").write_text((ROOT / "examples/packages/tensor-packing/src/profiles/mod.vast").read_text())
+    (out / "src/profiles/mod.vast").write_text((ROOT / "examples/packages/numerical/tensor-packing/src/profiles/mod.vast").read_text())
     (out / "src/product/mod.vast").write_text(source(c))
 
 

@@ -27,7 +27,7 @@ const CASES: &[(&str, &str, u64)] = &[
     // The Stage 1 example observes its result with `show!` (#836).
     (
         "indexed",
-        "examples/packages/indexed/Vastitas.toml",
+        "examples/packages/geometry/indexed/Vastitas.toml",
         CURRENT_PROTOCOL,
     ),
     (
@@ -37,7 +37,7 @@ const CASES: &[(&str, &str, u64)] = &[
     ),
     (
         "affine-geometry",
-        "examples/packages/affine-geometry/Vastitas.toml",
+        "examples/packages/geometry/affine-geometry/Vastitas.toml",
         CURRENT_PROTOCOL,
     ),
     (
@@ -47,27 +47,27 @@ const CASES: &[(&str, &str, u64)] = &[
     ),
     (
         "smooth-objects",
-        "examples/packages/smooth-objects/Vastitas.toml",
+        "examples/packages/geometry/smooth-objects/Vastitas.toml",
         CURRENT_PROTOCOL,
     ),
     (
         "smooth-cotangent",
-        "examples/packages/smooth-cotangent/Vastitas.toml",
+        "examples/packages/geometry/smooth-cotangent/Vastitas.toml",
         CURRENT_PROTOCOL,
     ),
     (
         "smooth-metric",
-        "examples/packages/smooth-metric/Vastitas.toml",
+        "examples/packages/geometry/smooth-metric/Vastitas.toml",
         CURRENT_PROTOCOL,
     ),
     (
         "stdlib-differential",
-        "examples/packages/stdlib-differential/Vastitas.toml",
+        "examples/packages/stdlib/stdlib-differential/Vastitas.toml",
         CURRENT_PROTOCOL,
     ),
     (
         "smooth-differential",
-        "examples/packages/smooth-differential/Vastitas.toml",
+        "examples/packages/geometry/smooth-differential/Vastitas.toml",
         CURRENT_PROTOCOL,
     ),
     (

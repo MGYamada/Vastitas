@@ -1,0 +1,6 @@
+// A second local declaration with the same name is rejected.
+fn main() -> Int {
+    let value = 1;
+    let value = 2;
+    value
+}

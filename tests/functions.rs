@@ -288,7 +288,7 @@ fn lambdas_cannot_shadow_enclosing_parameters_lets_or_unpacked_objects() {
 #[test]
 fn native_function_values_pass_return_and_invoke() {
     native(
-        include_str!("../examples/functions.vast"),
+        include_str!("../examples/book/functions/functions.vast"),
         &[],
         shows(&["invoke(keep(increment), 41) = 42"]),
     );
@@ -337,7 +337,7 @@ fn native_nested_independent_lambdas_and_geometry_inside_bodies() {
 
 #[test]
 fn function_lowering_preserves_existing_dependent_geometry() {
-    let source = include_str!("../examples/pointed.vast")
+    let source = include_str!("../examples/book/geometry/pointed.vast")
         .replace(
             "fn main() -> Int {",
             "fn main() -> Int { let scalar = fn(x: Int) -> Int { x };",

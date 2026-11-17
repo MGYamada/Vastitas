@@ -13,11 +13,11 @@ no closures and no function pointers.
 
 ## Function types and lambdas
 
-[`examples/functions.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/functions.vast)
+[`examples/book/functions/functions.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/functions/functions.vast)
 passes a function to a function:
 
 ```vast
-{{#include ../../examples/functions.vast}}
+{{#include ../../examples/book/functions/functions.vast}}
 ```
 
 `Fn<Int, Int>` is the type of a function from an `Int` to an `Int`. `invoke`
@@ -27,8 +27,8 @@ lambda. Like a named function, it declares the type of each parameter and its
 result type.
 
 ```sh
-target/debug/vastitas check examples/functions.vast
-target/debug/vastitas build examples/functions.vast -o target/functions
+target/debug/vastitas check examples/book/functions/functions.vast
+target/debug/vastitas build examples/book/functions/functions.vast -o target/functions
 ./target/functions
 ```
 

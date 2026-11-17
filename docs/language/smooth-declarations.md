@@ -13,7 +13,7 @@ markers and classifications, are in
 [glossary](../appendix/glossary.md) defines the terms.
 
 The examples quote the tested package
-[`examples/packages/smooth-geometry/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/smooth-geometry),
+[`examples/packages/geometry/smooth-geometry/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/smooth-geometry),
 whose executable writes `failures = 0` and exits with status 0. Each
 rejected program is a package on the profile of the standard library. It
 appears with the diagnostic that the compiler prints for it.
@@ -117,10 +117,10 @@ Rules:
   object `QLine`.
 
 Example, from
-[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/smooth-geometry/src/profile.vast):
+[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/smooth-geometry/src/profile.vast):
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/profile.vast:profile}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/profile.vast:profile}}
 ```
 
 In the following function on the profile of the standard library, `X` is an
@@ -186,7 +186,7 @@ Rules:
 Example, from `profile.vast`:
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/profile.vast:objects}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/profile.vast:objects}}
 ```
 
 `Pt` is the point ℝ⁰, `Line` is the line with the coordinate `t`, and `Plane`
@@ -248,10 +248,10 @@ Rules:
   (`E_AFFINE_COORDINATE`).
 
 Example, from
-[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/smooth-geometry/src/main.vast):
+[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/smooth-geometry/src/main.vast):
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/main.vast:polynomials}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/main.vast:polynomials}}
 ```
 
 `cubic` is the map t ↦ t³/2 − (t + 1)², which sends 2 to −5. `negSquare` is
@@ -319,7 +319,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/main.vast:maps}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/main.vast:maps}}
 ```
 
 `f` is the map t ↦ (t, t²), and `g` is the map (x, y) ↦ x² + y. `shear` and
@@ -385,7 +385,7 @@ Rules:
 Example, from `profile.vast`:
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/profile.vast:map-primitives}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/profile.vast:map-primitives}}
 ```
 
 `compose(g(), f())` is g after f, the map t ↦ 2t². `line_at(3)` is the point
@@ -451,8 +451,8 @@ Rules:
 Example, from `profile.vast` and `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/profile.vast:fiber-primitives}}
-{{#include ../../examples/packages/smooth-geometry/src/main.vast:fibers}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/profile.vast:fiber-primitives}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/main.vast:fibers}}
 ```
 
 `dline(line_at(18), 1)` is the covector dt at the point 18 of `Line`. It lies
@@ -563,8 +563,8 @@ Rules:
 Example, from `profile.vast` and `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/profile.vast:reverse-primitives}}
-{{#include ../../examples/packages/smooth-geometry/src/main.vast:stepwise}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/profile.vast:reverse-primitives}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/main.vast:stepwise}}
 ```
 
 With `x = line_at(3)` and the seed `dline(line_at(18), 1)`, `stepwise` gives
@@ -637,7 +637,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/main.vast:metrics}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/main.vast:metrics}}
 ```
 
 The following Gram matrix is not symmetric:
@@ -692,7 +692,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/main.vast:evidence}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/main.vast:evidence}}
 ```
 
 The metric diag(1, −1) has nondegenerate evidence and no Riemannian evidence:
@@ -769,7 +769,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/smooth-geometry/src/main.vast:musical}}
+{{#include ../../examples/packages/geometry/smooth-geometry/src/main.vast:musical}}
 ```
 
 For g(x, y) = x² + y at (1, 2), the differential is (2, 1), and

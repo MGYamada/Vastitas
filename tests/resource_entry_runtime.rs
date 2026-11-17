@@ -73,7 +73,8 @@ resource fn main() -> Int {
     basis bv = basis(v);
     value { 42 }
 }";
-const PROFILES: &str = include_str!("../examples/packages/numerical/src/profiles/mod.vast");
+const PROFILES: &str =
+    include_str!("../examples/packages/numerical/numerical/src/profiles/mod.vast");
 
 /// Operations on a statically sized allocation.
 const STATIC: &str = "    allocate data: F64[1];

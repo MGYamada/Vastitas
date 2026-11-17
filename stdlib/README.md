@@ -111,7 +111,7 @@ std = { path = "../Vastitas/stdlib" }
 
 ```sh
 python3 scripts/build_stdlib_package.py
-cargo run -- build --manifest-path examples/packages/promotion/Vastitas.toml -o target/promotion
+cargo run -- build --manifest-path examples/packages/stdlib/promotion/Vastitas.toml -o target/promotion
 ./target/promotion
 # maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42
 echo $?

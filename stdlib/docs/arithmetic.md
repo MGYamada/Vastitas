@@ -75,37 +75,37 @@ states them for all arguments, with their evidence.
 
 Packages, built and run by `tests/examples.rs`:
 
-- [`examples/packages/stdlib-arithmetic/`](../../examples/packages/stdlib-arithmetic)
+- [`examples/packages/stdlib/stdlib-arithmetic/`](../../examples/packages/stdlib/stdlib-arithmetic)
   imports two functions of `integers`, as in
   `use std::arithmetic::integers::int_abs;`. It writes
   `int_abs(int_sub(8, 50)) = 42` and exits with status 0.
-- [`examples/packages/promotion/`](../../examples/packages/promotion) imports
+- [`examples/packages/stdlib/promotion/`](../../examples/packages/stdlib/promotion) imports
   the three generics, as in `use std::arithmetic::generic::promote;`. It
   writes `maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42` and
   exits with status 0.
-- [`examples/packages/stdlib-geometry/`](../../examples/packages/stdlib-geometry)
+- [`examples/packages/stdlib/stdlib-geometry/`](../../examples/packages/stdlib/stdlib-geometry)
   calls `std::arithmetic::generic::add` by its full path.
 
 Flat programs, built and run by `tests/examples.rs` with the `--lib` files
 that their tests name:
 
-- [`examples/stdlib-arithmetic.vast`](../../examples/stdlib-arithmetic.vast)
+- [`examples/book/stdlib/stdlib-arithmetic.vast`](../../examples/book/stdlib/stdlib-arithmetic.vast)
   with `int.vast` and `nat.vast`.
 - [`examples/book/programs/flat-library.vast`](../../examples/book/programs/flat-library.vast)
   with `int.vast`.
-- [`examples/promotion.vast`](../../examples/promotion.vast) and
-  [`examples/dispatch-arithmetic.vast`](../../examples/dispatch-arithmetic.vast)
+- [`examples/book/stdlib/promotion.vast`](../../examples/book/stdlib/promotion.vast) and
+  [`examples/book/dispatch/dispatch-arithmetic.vast`](../../examples/book/dispatch/dispatch-arithmetic.vast)
   with all three files.
 
 ```sh
-cargo run -- build examples/stdlib-arithmetic.vast \
+cargo run -- build examples/book/stdlib/stdlib-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   -o target/stdlib-arithmetic
 ./target/stdlib-arithmetic
 # int_abs(int_neg(answer)) = 42
 # nat_sub(nat_add(2, 3), 8) = 0
-cargo run -- build examples/dispatch-arithmetic.vast \
+cargo run -- build examples/book/dispatch/dispatch-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   --lib stdlib/src/arithmetic/generic.vast \

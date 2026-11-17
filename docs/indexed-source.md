@@ -128,9 +128,9 @@ checks every declaration of a program, including an indexed declaration that
 nothing uses.
 
 The examples quote the module `geo` of
-[`examples/packages/indexed/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/indexed)
+[`examples/packages/geometry/indexed/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/indexed)
 and the package
-[`examples/packages/indexed-objects/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/indexed-objects).
+[`examples/packages/geometry/indexed-objects/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/indexed-objects).
 [A complete program](#a-complete-program) uses the module `geo`.
 
 > **Implementation note.** The Lean kernel resolves every path of a
@@ -159,7 +159,7 @@ Rules:
   (`E_TYPE`).
 
 ```vast
-{{#include ../examples/packages/indexed/geo.vast:marker}}
+{{#include ../examples/packages/geometry/indexed/geo.vast:marker}}
 ```
 
 ## Implementations
@@ -206,13 +206,13 @@ Rules:
 In the module `geo`, the objects of `Grid` support both operations:
 
 ```vast
-{{#include ../examples/packages/indexed/geo.vast:implementation}}
+{{#include ../examples/packages/geometry/indexed/geo.vast:implementation}}
 ```
 
 In `indexed-objects`, the objects of `Plain` support neither:
 
 ```vast
-{{#include ../examples/packages/indexed-objects/shapes.vast:implementations}}
+{{#include ../examples/packages/geometry/indexed-objects/shapes.vast:implementations}}
 ```
 
 ## Classifications
@@ -257,7 +257,7 @@ In `indexed-objects`, `Measured` has the parent `Shape`, whose domain contains
 `Grid`:
 
 ```vast
-{{#include ../examples/packages/indexed-objects/shapes.vast:classifications}}
+{{#include ../examples/packages/geometry/indexed-objects/shapes.vast:classifications}}
 ```
 
 ## Global objects
@@ -289,7 +289,7 @@ Rules:
   the object.
 
 ```vast
-{{#include ../examples/packages/indexed/geo.vast:global}}
+{{#include ../examples/packages/geometry/indexed/geo.vast:global}}
 ```
 
 ## Object types
@@ -338,7 +338,7 @@ In `indexed-objects`, `shapes::grid` gives an object of type
 of both `measure` and `hide`:
 
 ```vast
-{{#include ../examples/packages/indexed-objects/main.vast:object-types}}
+{{#include ../examples/packages/geometry/indexed-objects/main.vast:object-types}}
 ```
 
 The executable writes `int(measure(X)) = 42` and exits with status 0. The
@@ -445,7 +445,7 @@ The module `geo` declares one family of each of the two representations with
 values:
 
 ```vast
-{{#include ../examples/packages/indexed/geo.vast:families}}
+{{#include ../examples/packages/geometry/indexed/geo.vast:families}}
 ```
 
 ### Indexed types of a family
@@ -484,11 +484,11 @@ Rules:
 an object, a marker and a number:
 
 ```vast
-{{#include ../examples/packages/indexed-objects/shapes.vast:token}}
+{{#include ../examples/packages/geometry/indexed-objects/shapes.vast:token}}
 ```
 
 ```vast
-{{#include ../examples/packages/indexed-objects/main.vast:label}}
+{{#include ../examples/packages/geometry/indexed-objects/main.vast:label}}
 ```
 
 ## Existential packages
@@ -544,14 +544,14 @@ The module `geo` declares one case, whose field is a point of the witness
 with the test object `Base`:
 
 ```vast
-{{#include ../examples/packages/indexed/geo.vast:package}}
+{{#include ../examples/packages/geometry/indexed/geo.vast:package}}
 ```
 
 `indexed-objects` declares two cases without fields. Their witness types are
 different, although both have the implementation `Grid`:
 
 ```vast
-{{#include ../examples/packages/indexed-objects/shapes.vast:package}}
+{{#include ../examples/packages/geometry/indexed-objects/shapes.vast:package}}
 ```
 
 ### Packing
@@ -682,7 +682,7 @@ Rules:
 The module `geo` declares one primitive for each binding:
 
 ```vast
-{{#include ../examples/packages/indexed/geo.vast:primitives}}
+{{#include ../examples/packages/geometry/indexed/geo.vast:primitives}}
 ```
 
 In this package the domain of `Shape` has the implementation `Plain`, which
@@ -862,15 +862,15 @@ Rules:
   export, as [Opening](#opening) says.
 
 The package
-[`examples/packages/geometry-compat/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry-compat)
+[`examples/packages/geometry/geometry-compat/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/geometry-compat)
 depends on the standard library, whose geometry package holds an export:
 
 ```toml
-{{#include ../examples/packages/geometry-compat/Vastitas.toml}}
+{{#include ../examples/packages/geometry/geometry-compat/Vastitas.toml}}
 ```
 
 ```vast
-{{#include ../examples/packages/geometry-compat/main.vast}}
+{{#include ../examples/packages/geometry/geometry-compat/main.vast}}
 ```
 
 `p`, `q` and `r` are points of one type, written in both spellings. The
@@ -906,7 +906,7 @@ of the package holds the [export](#core-geometry-syntax) that maps the core
 syntax to these declarations.
 
 ```vast
-{{#include ../examples/packages/stdlib-geometry/main.vast}}
+{{#include ../examples/packages/stdlib/stdlib-geometry/main.vast}}
 ```
 
 The executable writes
@@ -915,16 +915,16 @@ and exits with status 0.
 
 ## A complete program
 
-The root module of `examples/packages/indexed/` uses the declarations of its
+The root module of `examples/packages/geometry/indexed/` uses the declarations of its
 module `geo` through paths:
 
 ```vast
-{{#include ../examples/packages/indexed/main.vast}}
+{{#include ../examples/packages/geometry/indexed/main.vast}}
 ```
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/indexed/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/indexed/Vastitas.toml -o target/indexed-demo
+target/debug/vastitas check --manifest-path examples/packages/geometry/indexed/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/geometry/indexed/Vastitas.toml -o target/indexed-demo
 ./target/indexed-demo
 ```
 

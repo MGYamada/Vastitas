@@ -97,6 +97,7 @@ import VastitasOracle.StorageCachedPacking
 import VastitasOracle.ScalarFuelRegression
 import VastitasOracle.CallCoverage
 import VastitasOracle.NumericalCoverage
+import VastitasOracle.UniverseAdmission
 
 /-!
 Root of the Vastitas proof oracle. The oracle imports the implementation's

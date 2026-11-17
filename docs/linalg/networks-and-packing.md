@@ -76,7 +76,7 @@ Rules:
   transposition and overlap hold for the destination and the two maps.
 
 ```vast
-{{#include ../../examples/packages/finite_network/src/real/mod.vast:network}}
+{{#include ../../examples/packages/numerical/finite_network/src/real/mod.vast:network}}
 ```
 
 ## Tensors
@@ -164,11 +164,11 @@ Rules:
   output.
 
 This fragment of
-[`examples/packages/tensor-packing`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/tensor-packing)
+[`examples/packages/numerical/tensor-packing`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/tensor-packing)
 packs a tensor and contracts it with a matrix:
 
 ```vast
-{{#include ../../examples/packages/tensor-packing/src/real/mod.vast:packing}}
+{{#include ../../examples/packages/numerical/tensor-packing/src/real/mod.vast:packing}}
 ```
 
 ## Contraction trees
@@ -272,11 +272,11 @@ Rules:
 - `contract_tree` initializes the view of its output.
 
 This tree of
-[`examples/packages/contraction-tree`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/contraction-tree)
+[`examples/packages/numerical/contraction-tree`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/contraction-tree)
 contracts a tensor with three axes with two matrices:
 
 ```vast
-{{#include ../../examples/packages/contraction-tree/src/real/mod.vast:tree}}
+{{#include ../../examples/packages/numerical/contraction-tree/src/real/mod.vast:tree}}
 ```
 
 ## Caches
@@ -314,7 +314,7 @@ Rules:
   source of the packing.
 
 ```vast
-{{#include ../../examples/packages/cached-tensor-packing/src/real/mod.vast:cache}}
+{{#include ../../examples/packages/numerical/cached-tensor-packing/src/real/mod.vast:cache}}
 ```
 
 [Numerical backend](../internals/numerical-backend.md#networks-packing-and-contraction-trees)

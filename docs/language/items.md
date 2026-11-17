@@ -52,7 +52,7 @@ This program of flat mode has eight items of six kinds: an abstract type,
 two subtypes, a generic, an abstract method, two methods and a function:
 
 ```vast
-{{#include ../../examples/abstract-contracts.vast}}
+{{#include ../../examples/book/abstract/abstract-contracts.vast}}
 ```
 
 The executable writes `widen(n) + widen(22) = 42` and exits with status 0.
@@ -74,7 +74,7 @@ function. `pub` makes `increment` public, so that the root module may import
 it:
 
 ```vast
-{{#include ../../examples/packages/inline-module/main.vast}}
+{{#include ../../examples/packages/core/inline-module/main.vast}}
 ```
 
 The executable writes `next(41) = 42` and exits with status 0.

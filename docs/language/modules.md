@@ -48,19 +48,19 @@ Rules:
   of a program. [Appendix D](../appendix/limits.md#inputs) gives both.
   Exceeding either is an error (`E_LIMIT`).
 
-[`examples/packages/arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/arithmetic)
+[`examples/packages/core/arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/core/arithmetic)
 keeps part of its library in the file module `scalar`. Its root module,
 `src/lib.vast`, declares the module and reexports its function `increment`
 and its generic `add`:
 
 ```vast
-{{#include ../../examples/packages/arithmetic/src/lib.vast}}
+{{#include ../../examples/packages/core/arithmetic/src/lib.vast}}
 ```
 
 `src/scalar.vast` holds the items of `scalar`:
 
 ```vast
-{{#include ../../examples/packages/arithmetic/src/scalar.vast}}
+{{#include ../../examples/packages/core/arithmetic/src/scalar.vast}}
 ```
 
 ## `use` declarations
@@ -103,7 +103,7 @@ Rules:
 An inline module and a `use` with an alias:
 
 ```vast
-{{#include ../../examples/packages/inline-module/main.vast}}
+{{#include ../../examples/packages/core/inline-module/main.vast}}
 ```
 
 The executable writes `next(41) = 42` and exits with status 0.

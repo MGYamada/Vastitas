@@ -7,25 +7,25 @@ declarations that defines one geometric setting: its objects, its types and
 its operations.
 
 The profile of this chapter is the module `geo` of
-[`examples/packages/indexed`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/indexed).
+[`examples/packages/geometry/indexed`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/indexed).
 It declares the ordinary setting of the previous chapter: descriptor objects
 over the rational numbers, with their points and morphisms. The sections
 follow the file
-[`geo.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/indexed/geo.vast)
+[`geo.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/indexed/geo.vast)
 from its first declaration to its last. Indexed declarations exist only in a
 package.
 
 ## A marker and an implementation
 
 ```vast
-{{#include ../../examples/packages/indexed/geo.vast:marker}}
+{{#include ../../examples/packages/geometry/indexed/geo.vast:marker}}
 ```
 
 An `indexed marker` declaration declares a marker: a name for the
 coefficients of objects. A marker is not a value, and it is not an object.
 
 ```vast
-{{#include ../../examples/packages/indexed/geo.vast:implementation}}
+{{#include ../../examples/packages/geometry/indexed/geo.vast:implementation}}
 ```
 
 An [*implementation*](../appendix/glossary.md#implementation) is one kind
@@ -43,7 +43,7 @@ word. It is unrelated to the capabilities `HasEq` and `HasOrder` that a
 ## A classification
 
 ```vast
-{{#include ../../examples/packages/indexed/geo.vast:classification}}
+{{#include ../../examples/packages/geometry/indexed/geo.vast:classification}}
 ```
 
 A [*classification*](../appendix/glossary.md#classification) is a finite
@@ -56,7 +56,7 @@ whose domains contain this one. `Scheme` has none.
 ## A global object
 
 ```vast
-{{#include ../../examples/packages/indexed/geo.vast:global}}
+{{#include ../../examples/packages/geometry/indexed/geo.vast:global}}
 ```
 
 A [*global object*](../appendix/glossary.md#global-object) is one object
@@ -67,7 +67,7 @@ object. The profile uses `Base` as the test object of its points.
 ## Families of types
 
 ```vast
-{{#include ../../examples/packages/indexed/geo.vast:families}}
+{{#include ../../examples/packages/geometry/indexed/geo.vast:families}}
 ```
 
 A [*family*](../appendix/glossary.md#family) forms types from arguments.
@@ -88,7 +88,7 @@ because its declaration says `point`.
 ## An existential package type
 
 ```vast
-{{#include ../../examples/packages/indexed/geo.vast:package}}
+{{#include ../../examples/packages/geometry/indexed/geo.vast:package}}
 ```
 
 An `indexed package` declaration declares types of existential packages,
@@ -102,7 +102,7 @@ point of the witness with the test object `Base`.
 ## Primitives
 
 ```vast
-{{#include ../../examples/packages/indexed/geo.vast:primitives}}
+{{#include ../../examples/packages/geometry/indexed/geo.vast:primitives}}
 ```
 
 A [*primitive*](../appendix/glossary.md#primitive) is an operation of the
@@ -130,7 +130,7 @@ The root module of the package declares `mod geo;` and names the
 declarations of the profile by paths:
 
 ```vast
-{{#include ../../examples/packages/indexed/main.vast}}
+{{#include ../../examples/packages/geometry/indexed/main.vast}}
 ```
 
 `geo::affine(n)` constructs an object. The `pack` expression states the type
@@ -141,8 +141,8 @@ bare names `Point`, `Morphism` and `Pointed` in front of `<` belong to the
 core syntax of the previous chapter.
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/indexed/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/indexed/Vastitas.toml -o target/indexed-demo
+target/debug/vastitas check --manifest-path examples/packages/geometry/indexed/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/geometry/indexed/Vastitas.toml -o target/indexed-demo
 ./target/indexed-demo
 ```
 
@@ -153,18 +153,18 @@ the dimension.
 ## Capabilities and object types
 
 A profile can have several implementations. The module `shapes` of
-[`examples/packages/indexed-objects`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/indexed-objects)
+[`examples/packages/geometry/indexed-objects`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/indexed-objects)
 declares two, with different capabilities:
 
 ```vast
-{{#include ../../examples/packages/indexed-objects/shapes.vast:implementations}}
+{{#include ../../examples/packages/geometry/indexed-objects/shapes.vast:implementations}}
 ```
 
 Two classifications group them. `Shape` holds both implementations.
 `Measured` holds `Grid` alone and names `Shape` as its parent:
 
 ```vast
-{{#include ../../examples/packages/indexed-objects/shapes.vast:classifications}}
+{{#include ../../examples/packages/geometry/indexed-objects/shapes.vast:classifications}}
 ```
 
 The module has three primitives. `grid` and `plain` construct objects of the
@@ -172,7 +172,7 @@ two implementations, and `size` gives the dimension of an object of
 `Measured`:
 
 ```vast
-{{#include ../../examples/packages/indexed-objects/shapes.vast:primitives}}
+{{#include ../../examples/packages/geometry/indexed-objects/shapes.vast:primitives}}
 ```
 
 A primitive must be valid for every implementation of the classification
@@ -192,7 +192,7 @@ The module also declares the package `Hidden`. It has one case for each
 classification, and no case has a field:
 
 ```vast
-{{#include ../../examples/packages/indexed-objects/shapes.vast:package}}
+{{#include ../../examples/packages/geometry/indexed-objects/shapes.vast:package}}
 ```
 
 The type of an object is an
@@ -201,7 +201,7 @@ The type of an object is an
 module of `indexed-objects` uses two object types:
 
 ```vast
-{{#include ../../examples/packages/indexed-objects/main.vast:object-types}}
+{{#include ../../examples/packages/geometry/indexed-objects/main.vast:object-types}}
 ```
 
 `shapes::grid(42)` gives an object of type

@@ -13,7 +13,7 @@ Three declarations take part, each in a package of its own:
    which applies the contribution under the grant.
 
 The first program is
-[`examples/packages/edit-borrow`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/edit-borrow).
+[`examples/packages/authority/edit-borrow`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/authority/edit-borrow).
 Its three packages are in the directories `lib`, `addon` and `app`, and their
 manifests name them `edit_base`, `edit_addon` and `edit_app`.
 
@@ -22,7 +22,7 @@ manifests name them `edit_base`, `edit_addon` and `edit_app`.
 The library defines the generic `choose` in `lib/main.vast`:
 
 ```vast
-{{#include ../../examples/packages/edit-borrow/lib/main.vast}}
+{{#include ../../examples/packages/authority/edit-borrow/lib/main.vast}}
 ```
 
 `choose` has one method, which returns 0 for any two numbers. The grant
@@ -43,7 +43,7 @@ The second package depends on the library under the alias `base`. Its root
 module, `addon/main.vast`, declares the methods that it wants to add:
 
 ```vast
-{{#include ../../examples/packages/edit-borrow/addon/main.vast}}
+{{#include ../../examples/packages/authority/edit-borrow/addon/main.vast}}
 ```
 
 A contribution is a named set of methods for one generic. The method of `sum` is more specific than the method
@@ -58,7 +58,7 @@ The third package depends on both others, under the aliases `base` and
 `addon`. Its root module, `app/main.vast`, puts the pieces together:
 
 ```vast
-{{#include ../../examples/packages/edit-borrow/app/main.vast}}
+{{#include ../../examples/packages/authority/edit-borrow/app/main.vast}}
 ```
 
 The assembly is a list of [*events*](../appendix/glossary.md#event). The compiler replays them in
@@ -72,8 +72,8 @@ order when it checks the program:
 | `seal base::choose;` | Closes `choose` and checks it with all its methods |
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/edit-borrow/app/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/edit-borrow/app/Vastitas.toml -o target/edit-borrow
+target/debug/vastitas check --manifest-path examples/packages/authority/edit-borrow/app/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/authority/edit-borrow/app/Vastitas.toml -o target/edit-borrow
 ./target/edit-borrow
 ```
 
@@ -134,12 +134,12 @@ must be sealed.
 ## Passing a loan on
 
 The second program,
-[`examples/packages/edit-authority`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/edit-authority),
+[`examples/packages/authority/edit-authority`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/authority/edit-authority),
 has the packages `base`, `addon` and `app`. Its library marks the grant
 `delegable`: the recipient may pass a part of the permission on.
 
 ```vast
-{{#include ../../examples/packages/edit-authority/base/main.vast}}
+{{#include ../../examples/packages/authority/edit-authority/base/main.vast}}
 ```
 
 The add-on passes its region on to its own module `ops`, with a
@@ -147,14 +147,14 @@ The add-on passes its region on to its own module `ops`, with a
 is in that module:
 
 ```vast
-{{#include ../../examples/packages/edit-authority/addon/main.vast}}
+{{#include ../../examples/packages/authority/edit-authority/addon/main.vast}}
 ```
 
 A delegation has the form of a grant. Its region must lie in the region of
 the grant that it passes on. The assembly uses it with `reborrow`:
 
 ```vast
-{{#include ../../examples/packages/edit-authority/app/main.vast}}
+{{#include ../../examples/packages/authority/edit-authority/app/main.vast}}
 ```
 
 `reborrow parent via addon::inner as child;` activates the delegation as the
@@ -178,7 +178,7 @@ transfer the same event is an error. `choose` keeps its owner, the package
 right to add methods moves.
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/edit-authority/app/Vastitas.toml -o target/edit-authority
+target/debug/vastitas build --manifest-path examples/packages/authority/edit-authority/app/Vastitas.toml -o target/edit-authority
 ./target/edit-authority
 ```
 

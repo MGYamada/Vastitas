@@ -774,7 +774,7 @@ legacy syntax can use the same IDs and primitive emitter as qualified syntax. Ex
 one export is required only for legacy syntax; qualified calls to multiple
 independent libraries remain supported. Existing declared/local names take
 precedence, and visibility errors cannot fall back to builtin spelling.
-Unchanged `examples/pointed.vast` and `examples/smooth.vast` run through the
+Unchanged `examples/book/geometry/pointed.vast` and `examples/book/geometry/smooth.vast` run through the
 same checker. Mixed syntax retains dependent endpoints and package
 witnesses; capture, scope escape and unused-body checks are unchanged.
 

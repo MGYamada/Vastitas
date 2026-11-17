@@ -18,7 +18,7 @@ which with [indexed declarations](indexed-profile.md). The examples of this
 chapter keep these declarations in a module `profiles`:
 
 ```vast
-{{#include ../../examples/packages/numerical/src/profiles/mod.vast}}
+{{#include ../../examples/packages/numerical/numerical/src/profiles/mod.vast}}
 ```
 
 The first group has these declarations:
@@ -41,12 +41,12 @@ numbers, which approximate real and complex numbers.
 ## Spaces, bases and maps
 
 The function `product` of
-[`examples/packages/numerical`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical)
+[`examples/packages/numerical/numerical`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/numerical)
 multiplies a matrix with 2 rows and 3 columns by a matrix with 3 rows and 2
 columns. It begins with three spaces and a basis of each:
 
 ```vast
-{{#include ../../examples/packages/numerical/src/real/mod.vast:spaces}}
+{{#include ../../examples/packages/numerical/numerical/src/real/mod.vast:spaces}}
 ```
 
 - `space u = linear(L, 2);` declares a
@@ -61,7 +61,7 @@ columns. It begins with three spaces and a basis of each:
 The function then allocates three buffers and writes the two matrices:
 
 ```vast
-{{#include ../../examples/packages/numerical/src/real/mod.vast:storage}}
+{{#include ../../examples/packages/numerical/numerical/src/real/mod.vast:storage}}
 ```
 
 The payloads are the bits of the numbers 1 to 12. The buffer `a` holds the
@@ -72,7 +72,7 @@ A [*map*](../appendix/glossary.md#numerical-map) presents a loan as the
 matrix of a linear map:
 
 ```vast
-{{#include ../../examples/packages/numerical/src/real/mod.vast:product}}
+{{#include ../../examples/packages/numerical/numerical/src/real/mod.vast:product}}
 ```
 
 `map left = view(input_a, bv, bw);` presents the loan `input_a` as the matrix
@@ -104,7 +104,7 @@ numbers.
 The function checks the product and then adds a second product to it:
 
 ```vast
-{{#include ../../examples/packages/numerical/src/real/mod.vast:accumulate}}
+{{#include ../../examples/packages/numerical/numerical/src/real/mod.vast:accumulate}}
 ```
 
 The product is the matrix with the rows (58, 64) and (139, 154), and the
@@ -146,7 +146,7 @@ place where the program introduced each of them.
 Check the example from the repository root:
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/numerical/Vastitas.toml
+target/debug/vastitas check --manifest-path examples/packages/numerical/numerical/Vastitas.toml
 ```
 
 A build needs more. A
@@ -158,7 +158,7 @@ runtime and the OpenBLAS library for a program whose entry point reaches a
 product statement, and the command must say where the library is:
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
+target/debug/vastitas build --manifest-path examples/packages/numerical/numerical/Vastitas.toml \
   --openblas-prefix "$PWD/target/openblas-0.3.34" -o target/numerical-example
 ./target/numerical-example
 ```
@@ -207,11 +207,11 @@ of both bases and of the parameter.
 A product never transposes or conjugates a matrix. A program that needs the
 transpose or the conjugate transpose declares the map that has this matrix.
 Such a map lies between other spaces, and the program declares them too.
-[`examples/packages/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/linear-transforms)
+[`examples/packages/numerical/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/linear-transforms)
 begins with these declarations:
 
 ```vast
-{{#include ../../examples/packages/linear-transforms/src/main.vast:declarations}}
+{{#include ../../examples/packages/numerical/linear-transforms/src/main.vast:declarations}}
 ```
 
 - `involution sigma = canonical(v);` declares the
@@ -246,11 +246,11 @@ two metrics whose Gram matrices are the identity.
 Two functions of the example multiply with the adjoint of a map:
 
 ```vast
-{{#include ../../examples/packages/linear-transforms/src/main.vast:adjoint-into}}
+{{#include ../../examples/packages/numerical/linear-transforms/src/main.vast:adjoint-into}}
 ```
 
 ```vast
-{{#include ../../examples/packages/linear-transforms/src/main.vast:multiply}}
+{{#include ../../examples/packages/numerical/linear-transforms/src/main.vast:multiply}}
 ```
 
 The parameter types state what the first function needs.
@@ -279,11 +279,11 @@ gives the entries.
 A [*vector*](../appendix/glossary.md#vector) presents a loan as the column of
 coordinates of a vector in a basis. `fill`, `store`, `expect` and `copy` may
 name a vector in place of its loan. These functions of
-[`examples/packages/vector-cells`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/vector-cells)
+[`examples/packages/numerical/vector-cells`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/vector-cells)
 write the cells of a vector and copy them to another vector:
 
 ```vast
-{{#include ../../examples/packages/vector-cells/src/main.vast:cells}}
+{{#include ../../examples/packages/numerical/vector-cells/src/main.vast:cells}}
 ```
 
 `WriteVector<bv> initializes` promises that the function writes every cell
@@ -311,11 +311,11 @@ program and gives the pairing for a diagonal metric.
 A `contract` block writes the composite of two maps as a
 [*network*](../appendix/glossary.md#network): a graph whose nodes are the
 maps and whose edge is the contraction.
-[`examples/packages/finite_network`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/finite_network)
+[`examples/packages/numerical/finite_network`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/finite_network)
 computes the product of this chapter in that form:
 
 ```vast
-{{#include ../../examples/packages/finite_network/src/real/mod.vast:network}}
+{{#include ../../examples/packages/numerical/finite_network/src/real/mod.vast:network}}
 ```
 
 - Each `occurrence` is a node that stands for one use of a map. It has two
@@ -356,11 +356,11 @@ tested program:
 The `runtime_` statements of
 [the storage chapter](storage.md#sizes-that-the-program-computes) have
 counterparts for maps.
-[`examples/packages/runtime-shapes`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/runtime-shapes)
+[`examples/packages/storage/runtime-shapes`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage/runtime-shapes)
 multiplies two maps whose dimensions are parameters:
 
 ```vast
-{{#include ../../examples/packages/runtime-shapes/src/main.vast:multiply}}
+{{#include ../../examples/packages/storage/runtime-shapes/src/main.vast:multiply}}
 ```
 
 `RuntimeSpace<L, m>` is the type of a space whose dimension is the extent
@@ -371,26 +371,26 @@ column. It begins with the numbers `leading` of its three layouts and with
 the capacities of its three buffers:
 
 ```vast
-{{#include ../../examples/packages/runtime-shapes/src/main.vast:run}}
+{{#include ../../examples/packages/storage/runtime-shapes/src/main.vast:run}}
 ```
 
 It declares the spaces and bases from its extents:
 
 ```vast
-{{#include ../../examples/packages/runtime-shapes/src/main.vast:spaces}}
+{{#include ../../examples/packages/storage/runtime-shapes/src/main.vast:spaces}}
 ```
 
 It then allocates the buffers, fills the two inputs, presents the loans as
 maps and calls `multiply`:
 
 ```vast
-{{#include ../../examples/packages/runtime-shapes/src/main.vast:maps}}
+{{#include ../../examples/packages/storage/runtime-shapes/src/main.vast:maps}}
 ```
 
 `main` calls `run` at two sizes in one executable:
 
 ```vast
-{{#include ../../examples/packages/runtime-shapes/src/main.vast:main}}
+{{#include ../../examples/packages/storage/runtime-shapes/src/main.vast:main}}
 ```
 
 The compiler checks the bases of `runtime_gemm` as it checks the bases of

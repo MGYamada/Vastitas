@@ -20,12 +20,12 @@ checks. Every number is a rational number. The program shows the prediction
 at each data point and exits with status 0.
 
 The program is the package
-[`examples/packages/two-level/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/two-level).
+[`examples/packages/nature/two-level/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/nature/two-level).
 Run it from the repository root:
 
 ```sh
 python3 scripts/build_stdlib_package.py
-target/debug/vastitas build --manifest-path examples/packages/two-level/Vastitas.toml -o target/two-level
+target/debug/vastitas build --manifest-path examples/packages/nature/two-level/Vastitas.toml -o target/two-level
 ./target/two-level
 ```
 
@@ -35,7 +35,7 @@ The package depends on the standard library and on `nature`, as the
 programs of the [previous chapters](spectral-observations.md) do:
 
 ```toml
-{{#include ../../examples/packages/two-level/Vastitas.toml}}
+{{#include ../../examples/packages/nature/two-level/Vastitas.toml}}
 ```
 
 It imports the smooth profile, the spectral families of the standard
@@ -44,7 +44,7 @@ for the units of the coordinates, `nature::model` for the meaning of the
 model and `nature::errorbar` for the data:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:imports}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:imports}}
 ```
 
 The standard library holds the mathematics: the matrix, its eigenvalues and
@@ -60,7 +60,7 @@ Hamiltonian of the system is the symmetric matrix
 H = (δ/2)σ_z + (Ω/2)σ_x on the basis `g`, `e`:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:field}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:field}}
 ```
 
 Its eigenvalues ±√(δ² + Ω²)/2 meet only where δ = Ω = 0. The program
@@ -70,7 +70,7 @@ which a gap witness certifies, as
 explains:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:branch}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:branch}}
 ```
 
 The long-time average of the probability to find e after preparing g is the
@@ -78,7 +78,7 @@ sum over the two eigenprojectors P₁ and P₂ of P_k[e, g]². The program state
 it as a closed form, `ratio(N, D)` with N = Ω²/2 and D = δ² + Ω²:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:average}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:average}}
 ```
 
 The compiler checks the closed form without computing an eigenvalue. From
@@ -107,7 +107,7 @@ matrix, the reading of the coordinates, the convention, the prepared state
 which it holds:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:model}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:model}}
 ```
 
 The compiler checks that the pieces fit: the reading reads the chart of the
@@ -127,7 +127,7 @@ standard uncertainty 1/20, evaluated by other means than statistics
 (`type_b`), with a reference and a revision:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:calibration}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:calibration}}
 ```
 
 The compiler computes a fingerprint of the calibration from its values,
@@ -141,7 +141,7 @@ detunings, each with the standard uncertainty 1/50, and the coverage factor
 2. A point gives the detuning; the calibration gives Ω:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:dataset}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:dataset}}
 ```
 
 The compiler checks that each point gives exactly the coordinates that the
@@ -155,7 +155,7 @@ The comparison records the fingerprint of the calibration that it was
 reviewed against and a verdict:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:comparison}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:comparison}}
 ```
 
 The compiler computes the verdict again. At each point it evaluates the
@@ -187,11 +187,11 @@ integer, so `at(n, m)` builds the point (n/2, m/2) from a point with integer
 coordinates and the map that halves both:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:observation}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:observation}}
 ```
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:main}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:main}}
 ```
 
 The program shows:

@@ -1,0 +1,1305 @@
+# Stable case IDs and expected results for the examples/ conformance corpus.
+# Rejection codes come from the pinned diagnostics beside the examples.
+schema_version = 1
+
+[[case]]
+id = "book.abstract.abstract-contracts"
+kind = "source"
+path = "book/abstract/abstract-contracts.vast"
+expect = "accept"
+stdout = ""
+stderr = "widen(n) + widen(22) = 42\n"
+
+[[case]]
+id = "book.abstract.abstract-selectors"
+kind = "source"
+path = "book/abstract/abstract-selectors.vast"
+expect = "accept"
+stdout = ""
+stderr = "classify(n) = 42\n"
+
+[[case]]
+id = "book.dispatch.arithmetic"
+kind = "source"
+path = "book/dispatch/dispatch-arithmetic.vast"
+expect = "accept"
+libraries = ["stdlib/src/arithmetic/int.vast", "stdlib/src/arithmetic/nat.vast", "stdlib/src/arithmetic/generic.vast"]
+stdout = ""
+stderr = "maximum(nat_to_int(total), 41) = 42\n"
+
+[[case]]
+id = "book.dispatch.capabilities"
+kind = "source"
+path = "book/dispatch/capabilities.vast"
+expect = "accept"
+
+[[case]]
+id = "book.dispatch.methods"
+kind = "source"
+path = "book/dispatch/methods.vast"
+expect = "accept"
+
+[[case]]
+id = "book.dispatch.selectors"
+kind = "source"
+path = "book/dispatch/selectors.vast"
+expect = "accept"
+
+[[case]]
+id = "book.expressions.natural-subtraction"
+kind = "source"
+path = "book/expressions/natural-subtraction.vast"
+expect = "accept"
+
+[[case]]
+id = "book.expressions.operators"
+kind = "source"
+path = "book/expressions/operators.vast"
+expect = "accept"
+
+[[case]]
+id = "book.expressions.saturating-subtraction"
+kind = "source"
+path = "book/expressions/saturating-subtraction.vast"
+expect = "accept"
+
+[[case]]
+id = "book.expressions.sign"
+kind = "source"
+path = "book/expressions/sign.vast"
+expect = "accept"
+
+[[case]]
+id = "book.expressions.unbounded-integers"
+kind = "source"
+path = "book/expressions/unbounded-integers.vast"
+expect = "accept"
+
+[[case]]
+id = "book.function-values.explicit-parameter"
+kind = "source"
+path = "book/function-values/explicit-parameter.vast"
+expect = "accept"
+
+[[case]]
+id = "book.function-values.signatures"
+kind = "source"
+path = "book/function-values/signatures.vast"
+expect = "accept"
+
+[[case]]
+id = "book.function-values.static-targets"
+kind = "source"
+path = "book/function-values/static-targets.vast"
+expect = "accept"
+
+[[case]]
+id = "book.function-values.wrapper"
+kind = "source"
+path = "book/function-values/wrapper.vast"
+expect = "accept"
+
+[[case]]
+id = "book.functions.calls"
+kind = "source"
+path = "book/functions/calls.vast"
+expect = "accept"
+
+[[case]]
+id = "book.functions.function-values"
+kind = "source"
+path = "book/functions/function-values.vast"
+expect = "accept"
+
+[[case]]
+id = "book.functions.functions"
+kind = "source"
+path = "book/functions/functions.vast"
+expect = "accept"
+stdout = ""
+stderr = "invoke(keep(increment), 41) = 42\n"
+
+[[case]]
+id = "book.geometric-types.objects"
+kind = "source"
+path = "book/geometric-types/objects.vast"
+expect = "accept"
+
+[[case]]
+id = "book.geometric-types.pointed-origin"
+kind = "source"
+path = "book/geometric-types/pointed-origin.vast"
+expect = "accept"
+
+[[case]]
+id = "book.geometry.pointed"
+kind = "source"
+path = "book/geometry/pointed.vast"
+expect = "accept"
+stdout = ""
+
+[[case]]
+id = "book.geometry.smooth"
+kind = "source"
+path = "book/geometry/smooth.vast"
+expect = "accept"
+
+[[case]]
+id = "book.lexical-structure.comment"
+kind = "source"
+path = "book/lexical-structure/comment.vast"
+expect = "accept"
+
+[[case]]
+id = "book.programs.flat-library"
+kind = "source"
+path = "book/programs/flat-library.vast"
+expect = "accept"
+libraries = ["stdlib/src/arithmetic/int.vast"]
+
+[[case]]
+id = "book.programs.hello"
+kind = "source"
+path = "book/programs/hello.vast"
+expect = "accept"
+
+[[case]]
+id = "book.statements.bindings"
+kind = "source"
+path = "book/statements/bindings.vast"
+expect = "accept"
+
+[[case]]
+id = "book.stdlib.arithmetic"
+kind = "source"
+path = "book/stdlib/stdlib-arithmetic.vast"
+expect = "accept"
+libraries = ["stdlib/src/arithmetic/int.vast", "stdlib/src/arithmetic/nat.vast"]
+stdout = ""
+stderr = "int_abs(int_neg(answer)) = 42\nnat_sub(nat_add(2, 3), 8) = 0\n"
+
+[[case]]
+id = "book.stdlib.promotion"
+kind = "source"
+path = "book/stdlib/promotion.vast"
+expect = "accept"
+libraries = ["stdlib/src/arithmetic/int.vast", "stdlib/src/arithmetic/nat.vast", "stdlib/src/arithmetic/generic.vast"]
+stdout = ""
+stderr = "maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42\n"
+
+[[case]]
+id = "book.types.pair-result"
+kind = "source"
+path = "book/types/pair-result.vast"
+expect = "accept"
+
+[[case]]
+id = "book.values.arithmetic"
+kind = "source"
+path = "book/values/arithmetic.vast"
+expect = "accept"
+stdout = ""
+stderr = "value * 10 = 1234567890123456789012345678900\n"
+
+[[case]]
+id = "book.values.pairs"
+kind = "source"
+path = "book/values/pairs.vast"
+expect = "accept"
+stdout = ""
+stderr = "reverse(pair(big, zero)) = (0, 123456789012345678901234567890)\nchoose(false, pair(0, 0), pair(-7, 42)) = (-7, 42)\noffset(40) = 42\n"
+
+[[case]]
+id = "package.authority.edit-authority.addon"
+kind = "package"
+path = "packages/authority/edit-authority/addon/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.authority.edit-authority.app"
+kind = "package"
+path = "packages/authority/edit-authority/app/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.authority.edit-authority.base"
+kind = "package"
+path = "packages/authority/edit-authority/base/Vastitas.toml"
+expect = "dependency"
+covered_by = "package.authority.edit-authority.app"
+
+[[case]]
+id = "package.authority.edit-borrow.addon"
+kind = "package"
+path = "packages/authority/edit-borrow/addon/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.authority.edit-borrow.app"
+kind = "package"
+path = "packages/authority/edit-borrow/app/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.authority.edit-borrow.lib"
+kind = "package"
+path = "packages/authority/edit-borrow/lib/Vastitas.toml"
+expect = "dependency"
+covered_by = "package.authority.edit-borrow.app"
+
+[[case]]
+id = "package.core.arithmetic"
+kind = "package"
+path = "packages/core/arithmetic/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.core.demo"
+kind = "package"
+path = "packages/core/demo/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.core.dependency.answers"
+kind = "package"
+path = "packages/core/dependency/answers/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.core.dependency.ask"
+kind = "package"
+path = "packages/core/dependency/ask/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.core.hello"
+kind = "package"
+path = "packages/core/hello/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.core.inline-module"
+kind = "package"
+path = "packages/core/inline-module/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.core.module-names"
+kind = "package"
+path = "packages/core/module-names/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.core.module-paths"
+kind = "package"
+path = "packages/core/module-paths/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.affine-geometry"
+kind = "package"
+path = "packages/geometry/affine-geometry/Vastitas.toml"
+expect = "accept"
+stdout = ""
+stderr = "failures = 0\n"
+
+[[case]]
+id = "package.geometry.composed-derivative"
+kind = "package"
+path = "packages/geometry/composed-derivative/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.first-derivative"
+kind = "package"
+path = "packages/geometry/first-derivative/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.frames"
+kind = "package"
+path = "packages/geometry/frames/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.geometry-compat"
+kind = "package"
+path = "packages/geometry/geometry-compat/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.indexed"
+kind = "package"
+path = "packages/geometry/indexed/Vastitas.toml"
+expect = "accept"
+stdout = ""
+stderr = "increment(int(geo::dim(Y))) = 42\n"
+
+[[case]]
+id = "package.geometry.indexed-objects"
+kind = "package"
+path = "packages/geometry/indexed-objects/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.projective-line"
+kind = "package"
+path = "packages/geometry/projective-line/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.seed-point"
+kind = "package"
+path = "packages/geometry/seed-point/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.smooth-cotangent"
+kind = "package"
+path = "packages/geometry/smooth-cotangent/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.smooth-differential"
+kind = "package"
+path = "packages/geometry/smooth-differential/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.smooth-geometry"
+kind = "package"
+path = "packages/geometry/smooth-geometry/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.smooth-metric"
+kind = "package"
+path = "packages/geometry/smooth-metric/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.smooth-objects"
+kind = "package"
+path = "packages/geometry/smooth-objects/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.spectral-observations"
+kind = "package"
+path = "packages/geometry/spectral-observations/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.nature.frames-and-dimensions"
+kind = "package"
+path = "packages/nature/frames-and-dimensions/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.nature.physical-dimensions"
+kind = "package"
+path = "packages/nature/physical-dimensions/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.nature.two-level"
+kind = "package"
+path = "packages/nature/two-level/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.diagonal-metrics"
+kind = "package"
+path = "packages/numerical/diagonal-metrics/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.gemm-coefficients"
+kind = "package"
+path = "packages/numerical/gemm-coefficients/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.generative-owned-map"
+kind = "package"
+path = "packages/numerical/generative-owned-map/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.linear-transforms"
+kind = "package"
+path = "packages/numerical/linear-transforms/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.numerical"
+kind = "package"
+path = "packages/numerical/numerical/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.numerical-declarations"
+kind = "package"
+path = "packages/numerical/numerical-declarations/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.vector-cells"
+kind = "package"
+path = "packages/numerical/vector-cells/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.vector-evaluation"
+kind = "package"
+path = "packages/numerical/vector-evaluation/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.promotion"
+kind = "package"
+path = "packages/stdlib/promotion/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.stdlib-affine"
+kind = "package"
+path = "packages/stdlib/stdlib-affine/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.stdlib-arithmetic"
+kind = "package"
+path = "packages/stdlib/stdlib-arithmetic/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.stdlib-differential"
+kind = "package"
+path = "packages/stdlib/stdlib-differential/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.stdlib-frames"
+kind = "package"
+path = "packages/stdlib/stdlib-frames/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.stdlib-geometry"
+kind = "package"
+path = "packages/stdlib/stdlib-geometry/Vastitas.toml"
+expect = "accept"
+stdout = ""
+stderr = "std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42\n"
+
+[[case]]
+id = "package.stdlib.stdlib-geometry.pointed"
+kind = "package"
+path = "packages/stdlib/stdlib-geometry/pointed/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.stdlib-geometry.smooth"
+kind = "package"
+path = "packages/stdlib/stdlib-geometry/smooth/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.failed-expect"
+kind = "package"
+path = "packages/storage/failed-expect/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.payloads"
+kind = "package"
+path = "packages/storage/payloads/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.resource-values"
+kind = "package"
+path = "packages/storage/resource-values/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.runtime-extents"
+kind = "package"
+path = "packages/storage/runtime-extents/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.runtime-shapes"
+kind = "package"
+path = "packages/storage/runtime-shapes/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.storage.app"
+kind = "package"
+path = "packages/storage/storage/app/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.storage.buffers"
+kind = "package"
+path = "packages/storage/storage/buffers/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.tensor.cached-tensor-packing"
+kind = "package"
+path = "packages/numerical/cached-tensor-packing/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.tensor.contraction-tree"
+kind = "package"
+path = "packages/numerical/contraction-tree/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.tensor.finite-network"
+kind = "package"
+path = "packages/numerical/finite_network/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.tensor.tensor-packing"
+kind = "package"
+path = "packages/numerical/tensor-packing/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "reject.abstract-types.contract-result"
+kind = "source"
+path = "reject/abstract-types/contract-result.vast"
+expect = "reject"
+diagnostic = "E_CONTRACT_RESULT"
+
+[[case]]
+id = "reject.abstract-types.same-members"
+kind = "source"
+path = "reject/abstract-types/same-members.vast"
+expect = "reject"
+diagnostic = "E_DISPATCH_AMBIGUOUS"
+
+[[case]]
+id = "reject.abstract-types.value-type"
+kind = "source"
+path = "reject/abstract-types/value-type.vast"
+expect = "reject"
+diagnostic = "E_UNSUPPORTED"
+
+[[case]]
+id = "reject.declarations.duplicate-local"
+kind = "source"
+path = "reject/declarations/duplicate-local.vast"
+expect = "reject"
+diagnostic = "E_DUPLICATE"
+
+[[case]]
+id = "reject.diagnostics.several-names"
+kind = "source"
+path = "reject/diagnostics/several-names.vast"
+expect = "reject"
+diagnostic = "E_DUPLICATE"
+
+[[case]]
+id = "reject.dispatch.crossed-selectors"
+kind = "source"
+path = "reject/dispatch/crossed-selectors.vast"
+expect = "reject"
+diagnostic = "E_DISPATCH_AMBIGUOUS"
+
+[[case]]
+id = "reject.dispatch.incomparable-methods"
+kind = "source"
+path = "reject/dispatch/incomparable-methods.vast"
+expect = "reject"
+diagnostic = "E_DISPATCH_AMBIGUOUS"
+
+[[case]]
+id = "reject.dispatch.literal-key"
+kind = "source"
+path = "reject/dispatch/literal-key.vast"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.dispatch.unused-key"
+kind = "source"
+path = "reject/dispatch/unused-key.vast"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.expressions.chained-comparison"
+kind = "source"
+path = "reject/expressions/chained-comparison.vast"
+expect = "reject"
+diagnostic = "E_PARSE"
+
+[[case]]
+id = "reject.expressions.if-without-else"
+kind = "source"
+path = "reject/expressions/if-without-else.vast"
+expect = "reject"
+diagnostic = "E_PARSE"
+
+[[case]]
+id = "reject.expressions.mixed-integers"
+kind = "source"
+path = "reject/expressions/mixed-integers.vast"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.function-values.capture"
+kind = "source"
+path = "reject/function-values/capture.vast"
+expect = "reject"
+diagnostic = "E_CAPTURE"
+
+[[case]]
+id = "reject.function-values.generic-value"
+kind = "source"
+path = "reject/function-values/generic-value.vast"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.function-values.two-targets"
+kind = "source"
+path = "reject/function-values/two-targets.vast"
+expect = "reject"
+diagnostic = "E_STATIC_CALL"
+
+[[case]]
+id = "reject.functions.mutual-recursion"
+kind = "source"
+path = "reject/functions/mutual-recursion.vast"
+expect = "reject"
+diagnostic = "E_RECURSION"
+
+[[case]]
+id = "reject.geometric-types.escaping-point"
+kind = "source"
+path = "reject/geometric-types/escaping-point.vast"
+expect = "reject"
+diagnostic = "E_ESCAPE"
+
+[[case]]
+id = "reject.geometric-types.wrong-endpoint"
+kind = "source"
+path = "reject/geometric-types/wrong-endpoint.vast"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.limits.nested-parentheses"
+kind = "source"
+path = "reject/limits/nested-parentheses.vast"
+expect = "reject"
+diagnostic = "E_LIMIT"
+
+[[case]]
+id = "reject.limits.seven-parameters"
+kind = "source"
+path = "reject/limits/seven-parameters.vast"
+expect = "reject"
+diagnostic = "E_LIMIT"
+
+[[case]]
+id = "reject.names.unresolved-function"
+kind = "source"
+path = "reject/names/unresolved-function.vast"
+expect = "reject"
+diagnostic = "E_NAME"
+
+[[case]]
+id = "reject.packages.affine-missing-image"
+kind = "package"
+path = "reject/packages/affine-missing-image/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_AFFINE_BASE"
+
+[[case]]
+id = "reject.packages.affine-not-inverse"
+kind = "package"
+path = "reject/packages/affine-not-inverse/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_AFFINE_RELATION"
+
+[[case]]
+id = "reject.packages.affine-not-preimage"
+kind = "package"
+path = "reject/packages/affine-not-preimage/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_AFFINE_BASE"
+
+[[case]]
+id = "reject.packages.affine-off-chain"
+kind = "package"
+path = "reject/packages/affine-off-chain/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.packages.affine-other-object"
+kind = "package"
+path = "reject/packages/affine-other-object/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.affine-relation"
+kind = "package"
+path = "reject/packages/affine-relation/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_AFFINE_RELATION"
+
+[[case]]
+id = "reject.packages.affine-selector"
+kind = "package"
+path = "reject/packages/affine-selector/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_AFFINE_COORDINATE"
+
+[[case]]
+id = "reject.packages.affine-separate-bases"
+kind = "package"
+path = "reject/packages/affine-separate-bases/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_AFFINE_BASE"
+
+[[case]]
+id = "reject.packages.affine-square"
+kind = "package"
+path = "reject/packages/affine-square/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_AFFINE_RELATION"
+
+[[case]]
+id = "reject.packages.callee-region"
+kind = "package"
+path = "reject/packages/callee-region/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_RESOURCE_REGION"
+
+[[case]]
+id = "reject.packages.copied-profile"
+kind = "package"
+path = "reject/packages/copied-profile/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.dimension-declared-value"
+kind = "package"
+path = "reject/packages/dimension-declared-value/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_DIMENSION"
+
+[[case]]
+id = "reject.packages.dimension-dx2-dt2"
+kind = "package"
+path = "reject/packages/dimension-dx2-dt2/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_DIMENSION"
+
+[[case]]
+id = "reject.packages.dimension-gram-magnitude"
+kind = "package"
+path = "reject/packages/dimension-gram-magnitude/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_DIMENSION"
+
+[[case]]
+id = "reject.packages.dimension-reading-coordinate"
+kind = "package"
+path = "reject/packages/dimension-reading-coordinate/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_DIMENSION"
+
+[[case]]
+id = "reject.packages.dimension-scale-magnitude"
+kind = "package"
+path = "reject/packages/dimension-scale-magnitude/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_DIMENSION"
+
+[[case]]
+id = "reject.packages.dimension-wrong-kind"
+kind = "package"
+path = "reject/packages/dimension-wrong-kind/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_DIMENSION"
+
+[[case]]
+id = "reject.packages.entry-signature"
+kind = "package"
+path = "reject/packages/entry-signature/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_MAIN"
+
+[[case]]
+id = "reject.packages.foreign-method"
+kind = "package"
+path = "reject/packages/foreign-method/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_OWNER"
+
+[[case]]
+id = "reject.packages.frame-apply-frame"
+kind = "package"
+path = "reject/packages/frame-apply-frame/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.frame-component-bound"
+kind = "package"
+path = "reject/packages/frame-component-bound/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.frame-constant-inverse"
+kind = "package"
+path = "reject/packages/frame-constant-inverse/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_FRAME"
+
+[[case]]
+id = "reject.packages.frame-encode-variance"
+kind = "package"
+path = "reject/packages/frame-encode-variance/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_FRAME"
+
+[[case]]
+id = "reject.packages.frame-missing-inverse"
+kind = "package"
+path = "reject/packages/frame-missing-inverse/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_FRAME"
+
+[[case]]
+id = "reject.packages.frame-other-frame"
+kind = "package"
+path = "reject/packages/frame-other-frame/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.frame-other-object"
+kind = "package"
+path = "reject/packages/frame-other-object/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.frame-singular"
+kind = "package"
+path = "reject/packages/frame-singular/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_FRAME"
+
+[[case]]
+id = "reject.packages.frame-wrong-inverse"
+kind = "package"
+path = "reject/packages/frame-wrong-inverse/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_FRAME"
+
+[[case]]
+id = "reject.packages.geometric-function"
+kind = "package"
+path = "reject/packages/geometric-function/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_RESERVED"
+
+[[case]]
+id = "reject.packages.geometric-use"
+kind = "package"
+path = "reject/packages/geometric-use/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_RESERVED"
+
+[[case]]
+id = "reject.packages.gluing-broken-relation"
+kind = "package"
+path = "reject/packages/gluing-broken-relation/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_GLUE"
+
+[[case]]
+id = "reject.packages.gluing-false-cover"
+kind = "package"
+path = "reject/packages/gluing-false-cover/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_GLUE"
+
+[[case]]
+id = "reject.packages.gluing-not-inverse"
+kind = "package"
+path = "reject/packages/gluing-not-inverse/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_GLUE"
+
+[[case]]
+id = "reject.packages.gluing-not-manifold"
+kind = "package"
+path = "reject/packages/gluing-not-manifold/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_GLUE"
+
+[[case]]
+id = "reject.packages.gluing-not-separated"
+kind = "package"
+path = "reject/packages/gluing-not-separated/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_GLUE"
+
+[[case]]
+id = "reject.packages.gluing-swapped-site"
+kind = "package"
+path = "reject/packages/gluing-swapped-site/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_GLUE"
+
+[[case]]
+id = "reject.packages.gluing-third-chart"
+kind = "package"
+path = "reject/packages/gluing-third-chart/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_GLUE"
+
+[[case]]
+id = "reject.packages.gluing-wrong-projective"
+kind = "package"
+path = "reject/packages/gluing-wrong-projective/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_GLUE"
+
+[[case]]
+id = "reject.packages.import-collision"
+kind = "package"
+path = "reject/packages/import-collision/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_DUPLICATE"
+
+[[case]]
+id = "reject.packages.inexact-payload"
+kind = "package"
+path = "reject/packages/inexact-payload/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_RESOURCE_LITERAL"
+
+[[case]]
+id = "reject.packages.lost-capability"
+kind = "package"
+path = "reject/packages/lost-capability/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.missing-capability"
+kind = "package"
+path = "reject/packages/missing-capability/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.packages.moved-owner"
+kind = "package"
+path = "reject/packages/moved-owner/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_RESOURCE_MOVE"
+
+[[case]]
+id = "reject.packages.other-basis"
+kind = "package"
+path = "reject/packages/other-basis/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_NUMERICAL_TYPE"
+
+[[case]]
+id = "reject.packages.other-space"
+kind = "package"
+path = "reject/packages/other-space/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_NUMERICAL_TYPE"
+
+[[case]]
+id = "reject.packages.other-witness"
+kind = "package"
+path = "reject/packages/other-witness/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.outside-region"
+kind = "package"
+path = "reject/packages/outside-region/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_IMPACT"
+
+[[case]]
+id = "reject.packages.outside-region.addon"
+kind = "package"
+path = "reject/packages/outside-region/addon/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "reject.packages.outside-region.base"
+kind = "package"
+path = "reject/packages/outside-region/base/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_OWNER"
+
+[[case]]
+id = "reject.packages.overlapping-writers"
+kind = "package"
+path = "reject/packages/overlapping-writers/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_RESOURCE_ALIAS"
+
+[[case]]
+id = "reject.packages.private-dependency"
+kind = "package"
+path = "reject/packages/private-dependency/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_VISIBILITY"
+
+[[case]]
+id = "reject.packages.private-dependency.answers"
+kind = "package"
+path = "reject/packages/private-dependency/answers/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "reject.packages.private-function"
+kind = "package"
+path = "reject/packages/private-function/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_VISIBILITY"
+
+[[case]]
+id = "reject.packages.second-opening"
+kind = "package"
+path = "reject/packages/second-opening/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.packages.smooth-asymmetric-metric"
+kind = "package"
+path = "reject/packages/smooth-asymmetric-metric/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_METRIC"
+
+[[case]]
+id = "reject.packages.smooth-coordinate-count"
+kind = "package"
+path = "reject/packages/smooth-coordinate-count/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_SMOOTH"
+
+[[case]]
+id = "reject.packages.smooth-default-metric"
+kind = "package"
+path = "reject/packages/smooth-default-metric/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_PARSE"
+
+[[case]]
+id = "reject.packages.smooth-degree"
+kind = "package"
+path = "reject/packages/smooth-degree/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_LIMIT"
+
+[[case]]
+id = "reject.packages.smooth-indefinite-metric"
+kind = "package"
+path = "reject/packages/smooth-indefinite-metric/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_METRIC"
+
+[[case]]
+id = "reject.packages.smooth-other-line"
+kind = "package"
+path = "reject/packages/smooth-other-line/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.smooth-pairing-order"
+kind = "package"
+path = "reject/packages/smooth-pairing-order/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_SMOOTH"
+
+[[case]]
+id = "reject.packages.smooth-parameter-object"
+kind = "package"
+path = "reject/packages/smooth-parameter-object/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.packages.smooth-point-object"
+kind = "package"
+path = "reject/packages/smooth-point-object/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_SMOOTH"
+
+[[case]]
+id = "reject.packages.smooth-pullback-mode"
+kind = "package"
+path = "reject/packages/smooth-pullback-mode/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.packages.smooth-seed-object"
+kind = "package"
+path = "reject/packages/smooth-seed-object/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ENDPOINT"
+
+[[case]]
+id = "reject.packages.smooth-singular-metric"
+kind = "package"
+path = "reject/packages/smooth-singular-metric/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_METRIC"
+
+[[case]]
+id = "reject.packages.smooth-target-coordinate"
+kind = "package"
+path = "reject/packages/smooth-target-coordinate/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_AFFINE_COORDINATE"
+
+[[case]]
+id = "reject.packages.spectral-gap-at-origin"
+kind = "package"
+path = "reject/packages/spectral-gap-at-origin/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_SPECTRAL"
+
+[[case]]
+id = "reject.packages.spectral-jordan-branch"
+kind = "package"
+path = "reject/packages/spectral-jordan-branch/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_SPECTRAL"
+
+[[case]]
+id = "reject.packages.spectral-not-symmetric"
+kind = "package"
+path = "reject/packages/spectral-not-symmetric/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_SPECTRAL"
+
+[[case]]
+id = "reject.packages.spectral-other-object"
+kind = "package"
+path = "reject/packages/spectral-other-object/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_SPECTRAL"
+
+[[case]]
+id = "reject.packages.spectral-rank-limit"
+kind = "package"
+path = "reject/packages/spectral-rank-limit/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_LIMIT"
+
+[[case]]
+id = "reject.packages.spectral-wrong-witness"
+kind = "package"
+path = "reject/packages/spectral-wrong-witness/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_SPECTRAL"
+
+[[case]]
+id = "reject.packages.two-level-off-chart"
+kind = "package"
+path = "reject/packages/two-level-off-chart/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ERRORBAR"
+
+[[case]]
+id = "reject.packages.two-level-other-basis"
+kind = "package"
+path = "reject/packages/two-level-other-basis/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_MODEL"
+
+[[case]]
+id = "reject.packages.two-level-other-reading"
+kind = "package"
+path = "reject/packages/two-level-other-reading/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_MODEL"
+
+[[case]]
+id = "reject.packages.two-level-stale"
+kind = "package"
+path = "reject/packages/two-level-stale/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_STALE"
+
+[[case]]
+id = "reject.packages.two-level-wrong-average"
+kind = "package"
+path = "reject/packages/two-level-wrong-average/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_SPECTRAL"
+
+[[case]]
+id = "reject.packages.two-level-wrong-verdict"
+kind = "package"
+path = "reject/packages/two-level-wrong-verdict/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_ERRORBAR"
+
+[[case]]
+id = "reject.packages.uninitialized-read"
+kind = "package"
+path = "reject/packages/uninitialized-read/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_RESOURCE_INIT"
+
+[[case]]
+id = "reject.packages.unknown-manifest-key"
+kind = "package"
+path = "reject/packages/unknown-manifest-key/Vastitas.toml"
+expect = "reject"
+diagnostic = "E_MANIFEST"
+
+[[case]]
+id = "reject.statements.nested-rebinding"
+kind = "source"
+path = "reject/statements/nested-rebinding.vast"
+expect = "reject"
+diagnostic = "E_DUPLICATE"
+
+[[case]]
+id = "reject.types.bool-result"
+kind = "source"
+path = "reject/types/bool-result.vast"
+expect = "reject"
+diagnostic = "E_TYPE"
+
+[[case]]
+id = "reject.types.pair-literals"
+kind = "source"
+path = "reject/types/pair-literals.vast"
+expect = "reject"
+diagnostic = "E_TYPE"

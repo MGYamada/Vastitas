@@ -32,7 +32,7 @@ before the models, and the models before the calibrations, datasets and
 comparisons, so a program reports the first error in that order.
 
 The examples quote the tested package
-[`examples/packages/two-level/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/two-level),
+[`examples/packages/nature/two-level/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/nature/two-level),
 a two-level system on the chart `P = Affine(2)[delta, omega]` of the
 detuning and the Rabi frequency, with the field
 H = (δ/2)σ_z + (Ω/2)σ_x on the basis `g`, `e` and the transition average
@@ -175,7 +175,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:model}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:model}}
 ```
 
 A prepared vector of another free module of the same object is an error:
@@ -260,7 +260,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:calibration}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:calibration}}
 ```
 
 > **Implementation note.** The canonical content is the text
@@ -325,7 +325,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:dataset}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:dataset}}
 ```
 
 A point where the eigenvalues of the field meet lies off every chart:
@@ -401,7 +401,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:comparison}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:comparison}}
 ```
 
 At Ω = 5/2 the prediction at δ is 25/(8δ² + 50). Each of the five values of

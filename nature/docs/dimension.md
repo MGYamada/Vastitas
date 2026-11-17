@@ -41,7 +41,7 @@ every reading, scale and physical interpretation, belongs to the application.
 
 ## Use
 
-[`examples/packages/physical-dimensions/main.vast`](../../examples/packages/physical-dimensions/main.vast),
+[`examples/packages/nature/physical-dimensions/main.vast`](../../examples/packages/nature/physical-dimensions/main.vast),
 which `tests/examples.rs` builds and runs, imports the declarations one by
 one, as in `use nature::dimension::Length;`, and declares on a chart with a
 length and a time coordinate:
@@ -54,9 +54,9 @@ length and a time coordinate:
 
 It computes gradients under its metrics, writes `failures = 0` and exits
 with status 0; the interpretations change no value.
-[`examples/packages/stdlib-frames/`](../../examples/packages/stdlib-frames)
+[`examples/packages/stdlib/stdlib-frames/`](../../examples/packages/stdlib/stdlib-frames)
 (`tests/examples.rs`) and
-[`examples/packages/frames-and-dimensions/`](../../examples/packages/frames-and-dimensions)
+[`examples/packages/nature/frames-and-dimensions/`](../../examples/packages/nature/frames-and-dimensions)
 (`tests/frames_dimensions.rs`) interpret a metric next to frames.
 `tests/nature_dimension.rs` runs such an application. It checks that the
 application and `nature` reach one `std` package, that the module exports

@@ -44,7 +44,7 @@ through the same namespace resolver and records their provenance. The actual
 Core independently audits its complete declaration environment again before
 generation. No frontend-selected checked IDs or profile certificates are accepted.
 
-The example under `examples/packages/numerical-declarations` checks these
+The example under `examples/packages/numerical/numerical-declarations` checks these
 declarations while compiling an ordinary program that returns 0. It requires
 neither OpenBLAS nor the storage native runtime. Declaration acceptance is not
 evidence of numerical execution or C-level performance.
@@ -754,8 +754,8 @@ laws or all mathematical adjoint identities.
 ### Example and regression evidence of transforms
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/linear-transforms/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/linear-transforms/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/numerical/linear-transforms/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/numerical/linear-transforms/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/linear-transforms
 /tmp/linear-transforms
 ```
@@ -829,8 +829,8 @@ OpenBLAS. Numerical CI executes all shape/orientation cases, mixed complex
 components and explicit accumulation.
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/vector-evaluation/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/vector-evaluation/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/numerical/vector-evaluation/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/numerical/vector-evaluation/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/vector-evaluation
 /tmp/vector-evaluation
 ```
@@ -891,7 +891,7 @@ vector parameter, both arms of a branch, read and conjugate vectors,
 suspended, transposed and released loans, the statements that reject a
 vector, and a forged schedule that writes through the suspended loan of the
 caller. `tests/numerical_source.rs` checks, builds and runs
-[`examples/packages/vector-cells`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/vector-cells)
+[`examples/packages/numerical/vector-cells`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/vector-cells)
 for real and complex cells and for padded and transposed layouts of the
 caller. A changed write or a changed `expect` stops the executable with
 `E_NATIVE_EXPECT`. The tests pin the codes of the Reference rules and reject
@@ -900,8 +900,8 @@ wire requests that name a vector where the checker refuses one.
 validity of a cache.
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/vector-cells/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/vector-cells/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/numerical/vector-cells/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/numerical/vector-cells/Vastitas.toml \
   -o /tmp/vector-cells
 /tmp/vector-cells
 ```
@@ -993,8 +993,8 @@ prove that an unrelated composite buffer holds a matrix product, source/native
 refinement, numerical error bounds, or floating-point field identities.
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/diagonal-metrics/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/diagonal-metrics/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/numerical/diagonal-metrics/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/numerical/diagonal-metrics/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/diagonal-metrics
 /tmp/diagonal-metrics
 ```
@@ -1405,7 +1405,7 @@ scratch or scalar-output writes. Coefficient tables are immutable borrowed Lean
 metadata for the complete synchronous call; their bytes and object overhead are
 separate from arena data counters. No dense Gram or inverse allocation is made.
 
-The complex worked example of `examples/packages/numerical` comes from
+The complex worked example of `examples/packages/numerical/numerical` comes from
 [#91](https://github.com/MGYamada/Vastitas/issues/91).
 
 Resource functions construct selected dual and conjugate spaces, corresponding

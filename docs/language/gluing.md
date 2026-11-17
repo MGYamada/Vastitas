@@ -26,7 +26,7 @@ declares after it. The compiler checks the glued objects and the covers
 before the claims, so a program reports the first error in that order.
 
 The examples quote the tested package
-[`examples/packages/projective-line/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/projective-line),
+[`examples/packages/geometry/projective-line/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/projective-line),
 which glues the projective line over the rational numbers and the real
 projective line, each from two lines. Its executable writes `failures = 0`
 and exits with status 0. Each rejected program is a package on the profile
@@ -146,10 +146,10 @@ Rules:
 > open.
 
 Example, from
-[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/projective-line/src/main.vast):
+[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/projective-line/src/main.vast):
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:smooth-opens}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:smooth-opens}}
 ```
 
 `M1` and `M2` are two real lines. `W1` is the open $\{x \neq 0\}$ of `M1`,
@@ -236,8 +236,8 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:charts}}
-{{#include ../../examples/packages/projective-line/src/main.vast:glue}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:charts}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:glue}}
 ```
 
 `L1` and `L2` are two lines over `SpecQQ`. `U1` is $D(x)$, on which `xi` is
@@ -251,7 +251,7 @@ The same lines glued by $y = x$ are the line with a doubled origin. It is a
 glued object too, and its [separation claim](#separation-claims) fails:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:doubled}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:doubled}}
 ```
 
 A third chart is an error:
@@ -341,7 +341,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:cover}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:cover}}
 ```
 
 `Line` is the line of the standard library. Its opens $D(t)$ and
@@ -416,7 +416,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:separated}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:separated}}
 ```
 
 The chart transition of `P` sends `y` to `xi`, so `L2::y` is $1/x$ on the
@@ -477,7 +477,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:smooth}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:smooth}}
 ```
 
 `RP1` glues the two real lines by $y = 1/x$. It is the real projective
@@ -576,7 +576,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:projective}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:projective}}
 ```
 
 The first chart is $D_+(s)$ with $t/s = x$, and the second is $D_+(t)$ with

@@ -69,6 +69,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from check_conformance_corpus import arguments, load_cases
+
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = ".capture_emit"
 # The rejected examples of the book. The frontend may reject one without a request.
@@ -90,24 +92,6 @@ KERNEL_FIXTURE_MODULES = [
     "VastitasKernel.MetricFormRegression", "VastitasKernel.ReverseCoreRegression",
     "VastitasKernel.FrameRegression", "VastitasKernel.SpectralRegression", "VastitasKernel.AverageRegression",
     "VastitasKernel.IndexedCodegen"]
-STDLIB_INT = "stdlib/src/arithmetic/int.vast"
-STDLIB_NAT = "stdlib/src/arithmetic/nat.vast"
-STDLIB_GENERIC = "stdlib/src/arithmetic/generic.vast"
-
-# Single-file examples with the arguments their documentation gives
-# (tests/examples.rs and docs/guide). Every other `examples/*.vast` is checked alone.
-SINGLE_FILE = {
-    "dispatch-arithmetic": ["--lib", STDLIB_INT, "--lib", STDLIB_NAT, "--lib", STDLIB_GENERIC],
-    "promotion": ["--lib", STDLIB_INT, "--lib", STDLIB_NAT, "--lib", STDLIB_GENERIC],
-    "stdlib-arithmetic": ["--lib", STDLIB_INT, "--lib", STDLIB_NAT],
-}
-
-# The book's programs that take libraries, with the arguments of BOOK_PROGRAMS
-# in tests/examples.rs. Every other program under `examples/book/` is checked alone.
-BOOK_LIBRARIES = {
-    "programs/flat-library": ["--lib", STDLIB_INT],
-}
-
 STUB = """#!/usr/bin/env python3
 import json, os, sys
 request = sys.stdin.buffer.read()
@@ -123,21 +107,19 @@ sys.exit(1)
 def corpus():
     """(name, arguments after `check`, whether it is a rejected example) for every input, in a stable order."""
     cases = []
-    for example in sorted((ROOT / "examples").glob("*.vast")):
-        arguments = [str(example.relative_to(ROOT))] + SINGLE_FILE.get(example.stem, [])
-        cases.append((f"example/{example.stem}", arguments, False))
-    for example in sorted((ROOT / "examples/book").glob("**/*.vast")):
-        relative = example.relative_to(ROOT / "examples/book").with_suffix("")
-        libraries = BOOK_LIBRARIES.get(relative.as_posix(), [])
-        name = f"book/{relative.as_posix().replace('/', '__')}"
-        cases.append((name, [str(example.relative_to(ROOT))] + libraries, False))
-    for example in sorted((ROOT / REJECTED_EXAMPLES).glob("**/*.vast")):
-        relative = example.relative_to(ROOT)
-        if REJECTED_PACKAGES in relative.parents:
-            continue  # A source file of a rejected package: its manifest is the case.
-        name = "reject/" + relative.relative_to(REJECTED_EXAMPLES).with_suffix("").as_posix().replace("/", "__")
-        cases.append((name, [str(relative)], True))
-    manifests = sorted(ROOT.glob("examples/**/Vastitas.toml")) + sorted(ROOT.glob("stdlib/**/Vastitas.toml"))
+    for case in load_cases():
+        path = Path(case["path"])
+        rejected = case["expect"] == "reject"
+        if case["kind"] == "package" and (Path("examples") / path.parent.parent) != REJECTED_PACKAGES:
+            rejected = False  # A nested dependency fixture must still reach the kernel.
+        if case["kind"] == "package":
+            directory = (Path("examples") / path.parent).as_posix().removeprefix("examples/packages/")
+            name = "package/" + directory.replace("/", "__")
+        else:
+            group, *parts = path.with_suffix("").parts
+            name = group + "/" + "__".join(parts)
+        cases.append((name, arguments(case), rejected))
+    manifests = sorted(ROOT.glob("stdlib/**/Vastitas.toml"))
     manifests += sorted(ROOT.glob("nature/**/Vastitas.toml"))
     manifests += sorted(ROOT.glob("tests/emit_corpus/**/Vastitas.toml"))
     for manifest in manifests:
@@ -146,7 +128,7 @@ def corpus():
             continue
         name = "package/" + str(relative.parent).replace("examples/packages/", "").replace("/", "__")
         cases.append((name, ["--manifest-path", str(relative)], relative.parent.parent == REJECTED_PACKAGES))
-    return cases
+    return sorted(cases)
 
 
 def normalize(text):

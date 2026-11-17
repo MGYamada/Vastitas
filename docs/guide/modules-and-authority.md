@@ -14,29 +14,29 @@ its manifest with `--manifest-path`.
 The root source file of a package is its *root module*. A `mod`
 declaration makes a child module. An *inline module* has its items between
 braces, as in
-[`examples/packages/inline-module/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/inline-module/main.vast):
+[`examples/packages/core/inline-module/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/core/inline-module/main.vast):
 
 ```vast
-{{#include ../../examples/packages/inline-module/main.vast}}
+{{#include ../../examples/packages/core/inline-module/main.vast}}
 ```
 
 `math` is a child of the root module. The `use` declaration binds the name
 `next` in the root module to the function `increment` of `math`.
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/inline-module/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/inline-module/Vastitas.toml -o target/inline-module
+target/debug/vastitas check --manifest-path examples/packages/core/inline-module/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/core/inline-module/Vastitas.toml -o target/inline-module
 ./target/inline-module
 ```
 
 The program writes `next(41) = 42` and exits with status 0.
 
 A *file module* has its items in a file of its own. The package
-[`examples/packages/module-paths`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/module-paths)
+[`examples/packages/core/module-paths`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/core/module-paths)
 has three source files:
 
 ```text
-examples/packages/module-paths/
+examples/packages/core/module-paths/
 ├── Vastitas.toml
 └── src/
     ├── main.vast
@@ -48,13 +48,13 @@ examples/packages/module-paths/
 The root module is `src/main.vast`:
 
 ```vast
-{{#include ../../examples/packages/module-paths/src/main.vast}}
+{{#include ../../examples/packages/core/module-paths/src/main.vast}}
 ```
 
 `mod shapes;` declares the module `shapes` and loads `src/shapes.vast`:
 
 ```vast
-{{#include ../../examples/packages/module-paths/src/shapes.vast}}
+{{#include ../../examples/packages/core/module-paths/src/shapes.vast}}
 ```
 
 `pub mod area;` declares a child of `shapes`. Its
@@ -64,7 +64,7 @@ the file of a module from its logical path, in the directory of the root
 source file. For `shapes::area` the file is `src/shapes/area.vast`:
 
 ```vast
-{{#include ../../examples/packages/module-paths/src/shapes/area.vast}}
+{{#include ../../examples/packages/core/module-paths/src/shapes/area.vast}}
 ```
 
 A module can also keep its file in a directory of its own name: the file of
@@ -74,7 +74,7 @@ must exist, and not both.
 rules.
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/module-paths/Vastitas.toml -o target/module-paths
+target/debug/vastitas build --manifest-path examples/packages/core/module-paths/Vastitas.toml -o target/module-paths
 ./target/module-paths
 ```
 
@@ -101,12 +101,12 @@ The names of a parent module are not in scope in a child. `shapes::area`
 therefore writes `super::scale()`. A bare `scale()` there is an unknown name.
 
 A path can also begin at another package. The manifest of
-[`examples/packages/demo`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/demo)
+[`examples/packages/core/demo`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/core/demo)
 declares the package `arithmetic` as a dependency under the alias
 `arithmetic`, and its root module begins two paths with that alias:
 
 ```vast
-{{#include ../../examples/packages/demo/src/main.vast}}
+{{#include ../../examples/packages/core/demo/src/main.vast}}
 ```
 
 `arithmetic::increment` begins at the root module of the dependency. The
@@ -151,17 +151,17 @@ A `pub use` declaration is a
 [*reexport*](../appendix/glossary.md#reexport): it makes a public
 declaration of another module visible through the current module. It cannot
 reexport a private declaration. The library package
-[`examples/packages/arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/arithmetic),
+[`examples/packages/core/arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/core/arithmetic),
 which `demo` depends on, keeps its declarations in the module `scalar`:
 
 ```vast
-{{#include ../../examples/packages/arithmetic/src/scalar.vast}}
+{{#include ../../examples/packages/core/arithmetic/src/scalar.vast}}
 ```
 
 Its root module reexports two of them:
 
 ```vast
-{{#include ../../examples/packages/arithmetic/src/lib.vast}}
+{{#include ../../examples/packages/core/arithmetic/src/lib.vast}}
 ```
 
 `scalar` is a private module. Another package names the function as

@@ -1,4 +1,4 @@
-//! The Stage 6 acceptance program (#841), `examples/packages/two-level/`, as
+//! The Stage 6 acceptance program (#841), `examples/packages/nature/two-level/`, as
 //! an application of copies of the standard library and of `nature`: it
 //! checks, builds and shows the exact prediction of its model at each data
 //! point; a changed calibration makes its comparison stale (C9), the std
@@ -8,7 +8,7 @@
 mod common;
 use common::{Run, Scratch, expect_code, kernel, root};
 
-const EXAMPLE: &str = "examples/packages/two-level/src/main.vast";
+const EXAMPLE: &str = "examples/packages/nature/two-level/src/main.vast";
 const MANIFEST: &str = "[package]\nname = \"two_level\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
 /// The fingerprint that the example records for its calibration.
 const FINGERPRINT: &str = "fnv1a64:fd1f7edd812db49f";

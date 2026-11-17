@@ -213,11 +213,11 @@ Rules:
   members. Two unrelated abstract types with the same members are
   incomparable selectors. A child is more specific than its parent.
 
-[`examples/abstract-selectors.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-selectors.vast)
+[`examples/book/abstract/abstract-selectors.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/abstract/abstract-selectors.vast)
 declares a small hierarchy and dispatches on it:
 
 ```vast
-{{#include ../examples/abstract-selectors.vast}}
+{{#include ../examples/book/abstract/abstract-selectors.vast}}
 ```
 
 The executable writes `classify(n) = 42` and exits with status 0. `Variety`
@@ -269,7 +269,7 @@ Rules:
   [Visibility](language/items.md#visibility) says.
 
 ```vast
-{{#include ../examples/abstract-contracts.vast}}
+{{#include ../examples/book/abstract/abstract-contracts.vast}}
 ```
 
 The executable writes `widen(n) + widen(22) = 42` and exits with status 0.
@@ -294,11 +294,11 @@ contract and its evidence.
 | `(Int, Int)` | `Pair<Int>` | `Int` |
 
 ```vast
-{{#include ../examples/promotion.vast}}
+{{#include ../examples/book/stdlib/promotion.vast}}
 ```
 
 ```sh
-target/debug/vastitas build examples/promotion.vast \
+target/debug/vastitas build examples/book/stdlib/promotion.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   --lib stdlib/src/arithmetic/generic.vast -o target/promotion

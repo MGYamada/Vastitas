@@ -31,7 +31,7 @@ run time.
 
 ## Use
 
-[`examples/packages/stdlib-frames/main.vast`](../../../examples/packages/stdlib-frames/main.vast),
+[`examples/packages/stdlib/stdlib-frames/main.vast`](../../../examples/packages/stdlib/stdlib-frames/main.vast),
 which `tests/examples.rs` builds and runs, declares frames of its plane and
 the primitives that name them, such as:
 
@@ -41,7 +41,7 @@ the primitives that name them, such as:
 
 It encodes, decodes and changes frames and reads the matrix of a map. It
 writes `failures = 0` and exits with status 0.
-[`examples/packages/frames-and-dimensions/`](../../../examples/packages/frames-and-dimensions),
+[`examples/packages/nature/frames-and-dimensions/`](../../../examples/packages/nature/frames-and-dimensions),
 which `tests/frames_dimensions.rs` builds, runs and mutates, uses `Coords`,
 `CoCoords` and `FrameMap` across several frames. It writes `failures = 0` and
 exits with status 0.

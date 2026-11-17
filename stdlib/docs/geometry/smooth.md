@@ -55,12 +55,12 @@ the identity declaration of smooth maps.
 Packages that depend on `std`, built and run by `tests/examples.rs` and
 `tests/stdlib_geometry.rs`:
 
-- [`examples/packages/stdlib-geometry/`](../../../examples/packages/stdlib-geometry)
+- [`examples/packages/stdlib/stdlib-geometry/`](../../../examples/packages/stdlib/stdlib-geometry)
   binds the module as in `use std::geometry::smooth as smooth;`, applies an
   identity morphism to the point of `smooth::pointed(22)`. It writes
   `std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42`
   and exits with status 0.
-- [`examples/packages/stdlib-geometry/smooth/`](../../../examples/packages/stdlib-geometry/smooth)
+- [`examples/packages/stdlib/stdlib-geometry/smooth/`](../../../examples/packages/stdlib/stdlib-geometry/smooth)
   keeps the annotation
   `let X: Object<smooth::CInfScheme, smooth::CInfReal> = smooth::Affine(n);`,
   and shows and checks the dimension after it opens the package. It writes

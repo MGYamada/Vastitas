@@ -43,8 +43,8 @@ From the repository root with Rust 1.99.1, Lean 4.35.0 and a host C toolchain:
 ```sh
 lake -d lean-kernel build vastitas-kernel
 cargo build --locked
-target/debug/vastitas check examples/pointed.vast
-target/debug/vastitas build examples/pointed.vast -o target/pointed
+target/debug/vastitas check examples/book/geometry/pointed.vast
+target/debug/vastitas build examples/book/geometry/pointed.vast -o target/pointed
 ./target/pointed
 ```
 
@@ -86,7 +86,7 @@ script. On Linux, add `--native-cc cc` to the build command.
 
 ```sh
 python3 scripts/build_openblas.py --prefix "$PWD/openblas-0.3.34" --jobs 4
-vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
+vastitas build --manifest-path examples/packages/numerical/numerical/Vastitas.toml \
   --openblas-prefix "$PWD/openblas-0.3.34" -o numerical
 ./numerical
 ```
@@ -115,6 +115,8 @@ The Rust frontend supplies versioned input to the mathlib-independent Lean
 kernel. Optional native storage and numerical runtimes link when the checked
 entry needs them. [Compiler architecture](https://github.com/MGYamada/Vastitas/blob/main/docs/development/architecture.md) ·
 [Wire protocol](https://github.com/MGYamada/Vastitas/blob/main/docs/protocol.md) · [Contributor guidance](https://github.com/MGYamada/Vastitas/blob/main/AGENTS.md)
+
+[Compiler IR v1](docs/spec/compiler-ir.md) specifies the planned LLVM path.
 
 ## Validation
 

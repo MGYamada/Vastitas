@@ -8,12 +8,12 @@ The program writes `failures = 0` and exits with status 0 only when every
 observation holds.
 
 The program is
-[`examples/packages/stdlib-affine/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-affine/main.vast).
+[`examples/packages/stdlib/stdlib-affine/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib/stdlib-affine/main.vast).
 Run it from the repository root:
 
 ```sh
 python3 scripts/build_stdlib_package.py
-target/debug/vastitas build --manifest-path examples/packages/stdlib-affine/Vastitas.toml -o target/stdlib-affine
+target/debug/vastitas build --manifest-path examples/packages/stdlib/stdlib-affine/Vastitas.toml -o target/stdlib-affine
 ./target/stdlib-affine
 ```
 
@@ -31,7 +31,7 @@ The standard library declares three such objects. The program imports them
 with the family `Over`, the implementation `AffineQQ` and two functions:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:imports}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:imports}}
 ```
 
 | Object | Declared as | Meaning |
@@ -53,7 +53,7 @@ coordinate of the target, it gives a polynomial in the coordinates of the
 source:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:points}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:points}}
 ```
 
 `p` sends the coordinate `t` of the line to `e`. As a map of points, `p`
@@ -84,7 +84,7 @@ No morphism from the line to the dual numbers sends `e` to `t`, because
 reads one coefficient of a morphism:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:coefficient}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:coefficient}}
 ```
 
 `eps(f)` is the coefficient of `e` in the image of `t`. It is a `Pair<Int>`
@@ -102,7 +102,7 @@ this.
 The order of the operands of `compose` matters:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:composition}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:composition}}
 ```
 
 `sq` squares a point of the line, and `shift` adds one. `compose(sq(), shift())`
@@ -117,7 +117,7 @@ A point of the line is a morphism from `SpecQQ` to the line. One primitive
 builds such a point from an integer, and another reads its coordinate:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:rational-points}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:rational-points}}
 ```
 
 `at(3)` is the point `t = 3`. The image of `t` under a point is a constant,
@@ -129,7 +129,7 @@ and `value` reads it as the coefficient of the monomial `1`.
 An object can lie over another object, its base. The declaration says how:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:family}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:family}}
 ```
 
 `Curve` is the curve `x^2 = t` in the plane with the coordinates `t` and `x`.
@@ -165,7 +165,7 @@ the pair. Every object over the line also lies over `SpecQQ`, the base of the
 line, and a view changes the base of a morphism accordingly:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:view}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:view}}
 ```
 
 `overPoint(curveToLine())` is the same morphism as `curveToLine()`, with the
@@ -180,7 +180,7 @@ The fiber of the curve over the origin is the part of the curve where
 `t = 0`:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:fiber}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:fiber}}
 ```
 
 `fiber(Curve, Origin)` is the fiber product of the two objects over their
@@ -204,7 +204,7 @@ and `toOrigin` is the fiber: `back` must be the inverse of
 inverse:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:opens}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:opens}}
 ```
 
 `Punctured` is the line without its origin. It has the coordinates `t` and
@@ -218,7 +218,7 @@ that coefficient.
 A morphism between open subsets can have an inverse:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:transition}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:transition}}
 ```
 
 `invert` exchanges `t` and `u`: it sends a point of the punctured line to
@@ -233,14 +233,14 @@ Two helper functions keep `main` short. `verdict` turns a failed observation
 into its code, and `reads` compares a coefficient with a fraction:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:helpers}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:helpers}}
 ```
 
 Each observation adds its code to `failures` when it fails. `main` shows
 `failures` and returns 1 when it is not 0:
 
 ```vast
-{{#include ../../examples/packages/stdlib-affine/main.vast:main}}
+{{#include ../../examples/packages/stdlib/stdlib-affine/main.vast:main}}
 ```
 
 ## Each declaration is its own object

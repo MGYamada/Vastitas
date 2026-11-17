@@ -184,7 +184,7 @@ general tuples or source-function rewriting correspondence.
 
 ## Regression coverage
 
-The [contract example](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-contracts.vast) checks, builds and
+The [contract example](https://github.com/MGYamada/Vastitas/blob/main/examples/book/abstract/abstract-contracts.vast) checks, builds and
 runs to 42. `tests/abstract_contracts.rs` exercises the
 actual checker, native flat/package/--lib paths, higher-order lowering, unions,
 empty domains, overlapping/conflicting results, authority and tampered IR.

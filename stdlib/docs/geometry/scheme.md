@@ -51,16 +51,16 @@ A `Point<X, S>` keeps its test object `S` through calls and repacking.
 Packages that depend on `std`, built and run by `tests/examples.rs` and
 `tests/stdlib_geometry.rs`:
 
-- [`examples/packages/stdlib-geometry/`](../../../examples/packages/stdlib-geometry)
+- [`examples/packages/stdlib/stdlib-geometry/`](../../../examples/packages/stdlib/stdlib-geometry)
   binds the module as in `use std::geometry::scheme as scheme;`, constructs
   points and identity morphisms, composes and applies them, opens
   `scheme::pointed(20)` and `smooth::pointed(22)`. It writes
   `std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42`
   and exits with status 0.
-- [`examples/packages/stdlib-geometry/pointed/`](../../../examples/packages/stdlib-geometry/pointed)
+- [`examples/packages/stdlib/stdlib-geometry/pointed/`](../../../examples/packages/stdlib/stdlib-geometry/pointed)
   packs, opens and repacks an origin with qualified syntax. It writes
   `scheme::dim(Y) = 3` and exits with status 0.
-- [`examples/packages/geometry-compat/`](../../../examples/packages/geometry-compat)
+- [`examples/packages/geometry/geometry-compat/`](../../../examples/packages/geometry/geometry-compat)
   writes the same declarations in the core syntax, as in
   `let X = Affine(QQ, n);`. It writes `int(scheme::dim(Y)) = 42` and exits
   with status 0.

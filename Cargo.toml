@@ -13,6 +13,7 @@ include = [
     "/lean-kernel/", "!**/.lake/", "/tests/", "/examples/",
     "/stdlib/src/", "/stdlib/Vastitas.toml", "/stdlib/README.md", "/stdlib/docs/",
     "/scripts/build_stdlib_package.py",
+    "/scripts/check_conformance_corpus.py",
     "/nature/",
     "/scripts/build_openblas.py",
     # The ignore rules of .gitignore for environment settings and Finder

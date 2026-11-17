@@ -93,7 +93,7 @@ In this program the root module imports `increment` from the dependency
 through the same dependency:
 
 ```vast
-{{#include ../../examples/packages/demo/src/main.vast}}
+{{#include ../../examples/packages/core/demo/src/main.vast}}
 ```
 
 The executable writes `pipeline::twice(callback, package) = 42` and exits

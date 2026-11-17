@@ -107,7 +107,7 @@ message names another implementation whose kind differs.
 The examples of this chapter use these declarations:
 
 ```vast
-{{#include ../../examples/packages/numerical-declarations/src/profiles/mod.vast}}
+{{#include ../../examples/packages/numerical/numerical-declarations/src/profiles/mod.vast}}
 ```
 
 ## Spaces and bases
@@ -149,7 +149,7 @@ Rules:
   (`E_NUMERICAL_TYPE`).
 
 ```vast
-{{#include ../../examples/packages/numerical/src/real/mod.vast:spaces}}
+{{#include ../../examples/packages/numerical/numerical/src/real/mod.vast:spaces}}
 ```
 
 ## Maps
@@ -268,20 +268,20 @@ Rules:
   arms write it.
 
 This fragment of
-[`examples/packages/numerical`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical)
+[`examples/packages/numerical/numerical`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/numerical)
 multiplies a 2×3 matrix by a 3×2 matrix into a 2×2 output:
 
 ```vast
-{{#include ../../examples/packages/numerical/src/real/mod.vast:product}}
+{{#include ../../examples/packages/numerical/numerical/src/real/mod.vast:product}}
 ```
 
 A coefficient scales the product, and `accumulate` adds to the output.
-[`examples/packages/gemm-coefficients`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/gemm-coefficients)
+[`examples/packages/numerical/gemm-coefficients`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/gemm-coefficients)
 multiplies the matrices (2) and (3). Its first product has a payload as
 `alpha` and writes 3:
 
 ```vast
-{{#include ../../examples/packages/gemm-coefficients/main.vast:overwrite}}
+{{#include ../../examples/packages/numerical/gemm-coefficients/main.vast:overwrite}}
 ```
 
 Its second product reads `alpha` from the cell of the loan `scale`, which
@@ -289,7 +289,7 @@ holds 4, and adds the product to twice the old output. The output then holds
 30:
 
 ```vast
-{{#include ../../examples/packages/gemm-coefficients/main.vast:accumulate}}
+{{#include ../../examples/packages/numerical/gemm-coefficients/main.vast:accumulate}}
 ```
 
 In this program `other` has the implementation and the dimension of `v`, but
@@ -369,12 +369,12 @@ Rules:
   passes one space for both.
 
 This function of
-[`examples/packages/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/linear-transforms)
+[`examples/packages/numerical/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/linear-transforms)
 receives two spaces, a basis of each and three maps, and multiplies two of
 the maps into the third:
 
 ```vast
-{{#include ../../examples/packages/linear-transforms/src/main.vast:multiply}}
+{{#include ../../examples/packages/numerical/linear-transforms/src/main.vast:multiply}}
 ```
 
 In this program `alternate_basis` is a basis of the space of `sensor_basis`,
@@ -451,11 +451,11 @@ Rules:
   always fits.
 
 This function of
-[`examples/packages/generative-owned-map`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/generative-owned-map)
+[`examples/packages/numerical/generative-owned-map`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/generative-owned-map)
 receives an owned map, writes its cells and hands it back:
 
 ```vast
-{{#include ../../examples/packages/generative-owned-map/src/real/mod.vast:update}}
+{{#include ../../examples/packages/numerical/generative-owned-map/src/real/mod.vast:update}}
 ```
 
 ## Owned-map packages
@@ -514,13 +514,13 @@ This function declares the target space itself and returns the map in an
 owned-map package:
 
 ```vast
-{{#include ../../examples/packages/generative-owned-map/src/real/mod.vast:create}}
+{{#include ../../examples/packages/numerical/generative-owned-map/src/real/mod.vast:create}}
 ```
 
 Its caller moves the package, opens it and borrows the owned map:
 
 ```vast
-{{#include ../../examples/packages/generative-owned-map/src/real/mod.vast:run}}
+{{#include ../../examples/packages/numerical/generative-owned-map/src/real/mod.vast:run}}
 ```
 
 ## Building a numerical program
@@ -532,8 +532,8 @@ numerical runtime and OpenBLAS for a program whose entry point reaches a
 `contract_tree`.
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/numerical/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
+target/debug/vastitas check --manifest-path examples/packages/numerical/numerical/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/numerical/numerical/Vastitas.toml \
   --openblas-prefix /path/to/openblas -o target/numerical-example
 ./target/numerical-example
 ```

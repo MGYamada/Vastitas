@@ -15,7 +15,7 @@ markers and classifications, are in
 [glossary](appendix/glossary.md) defines the terms.
 
 The examples quote the tested package
-[`examples/packages/affine-geometry/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/affine-geometry),
+[`examples/packages/geometry/affine-geometry/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/affine-geometry),
 whose executable writes `failures = 0` and exits with status 0. Each
 rejected program is a package on the profile of the standard library. It
 appears with the diagnostic that the compiler prints for it.
@@ -132,10 +132,10 @@ Rules:
 > give the records of the chapter.
 
 Example, from
-[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/affine-geometry/src/profile.vast):
+[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/affine-geometry/src/profile.vast):
 
 ```vast
-{{#include ../examples/packages/affine-geometry/src/profile.vast:profile}}
+{{#include ../examples/packages/geometry/affine-geometry/src/profile.vast:profile}}
 ```
 
 In the following program on the profile of the standard library, `Curve`
@@ -239,11 +239,11 @@ Rules:
 > error (`E_AFFINE_RELATION`); no source program reaches that error.
 
 Example, from `profile.vast` and
-[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/affine-geometry/src/main.vast):
+[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/affine-geometry/src/main.vast):
 
 ```vast
-{{#include ../examples/packages/affine-geometry/src/profile.vast:point}}
-{{#include ../examples/packages/affine-geometry/src/main.vast:objects}}
+{{#include ../examples/packages/geometry/affine-geometry/src/profile.vast:point}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:objects}}
 ```
 
 `D` is the dual numbers $\operatorname{Spec}\, \mathbb{Q}[e]/(e^2)$. `X` is the
@@ -331,7 +331,7 @@ Rules:
 Example:
 
 ```vast
-{{#include ../examples/packages/affine-geometry/src/main.vast:morphisms}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:morphisms}}
 ```
 
 `p` and `q` are two `D`-valued points of `Line`, and `closed` is the point of
@@ -421,8 +421,8 @@ Rules:
 Example, from `profile.vast` and `main.vast`:
 
 ```vast
-{{#include ../examples/packages/affine-geometry/src/profile.vast:primitives}}
-{{#include ../examples/packages/affine-geometry/src/main.vast:observers}}
+{{#include ../examples/packages/geometry/affine-geometry/src/profile.vast:primitives}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:observers}}
 ```
 
 `same(p(), q())` is `false`, and `eps(p())` is `(1, 1)`. After the point
@@ -437,13 +437,13 @@ from the first and `(0, 1)` from the second. `compose(toS(), toX())` equals
 A **view** of a morphism is the same morphism over an object further along
 the base chain of its base. A primitive with the binding `relative_view`
 gives it. In
-[`examples/packages/stdlib-affine/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-affine/main.vast),
+[`examples/packages/stdlib/stdlib-affine/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib/stdlib-affine/main.vast),
 `Curve` is the curve $x^2 = t$ over the library's `Line`. `curveToLine()` is
 its structure map, a morphism over `Line`, and `overPoint(curveToLine())` is
 the same morphism over `SpecQQ`:
 
 ```vast
-{{#include ../examples/packages/stdlib-affine/main.vast:view}}
+{{#include ../examples/packages/stdlib/stdlib-affine/main.vast:view}}
 ```
 
 The compiler rejects a selector with two terms:
@@ -486,7 +486,7 @@ Example: the principal opens `U1` and `U2` of two lines, where $x$ and $y$
 have inverses, are isomorphic by $y = 1/x$.
 
 ```vast
-{{#include ../examples/packages/affine-geometry/src/main.vast:transition}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:transition}}
 ```
 
 Doubling is not its own inverse:
@@ -577,8 +577,8 @@ Rules:
 Example: the fiber of the curve `X` over the point `Origin` of `S`.
 
 ```vast
-{{#include ../examples/packages/affine-geometry/src/main.vast:fiber}}
-{{#include ../examples/packages/affine-geometry/src/main.vast:pair}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:fiber}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:pair}}
 ```
 
 `lift(toX(), toOrigin())` is the morphism from `DS` to `Fiber`, and
@@ -588,7 +588,7 @@ Example: the fiber of the curve `X` over the point `Origin` of `S`.
 the two bases names the base isomorphism:
 
 ```vast
-{{#include ../examples/packages/affine-geometry/src/main.vast:via}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:via}}
 ```
 
 Without the base isomorphism, the compiler rejects such a fiber product:
@@ -638,7 +638,7 @@ Rules:
 Example: the fiber of the curve $x^2 = t$ over $t = 0$ is the dual numbers.
 
 ```vast
-{{#include ../examples/packages/affine-geometry/src/main.vast:cartesian}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:cartesian}}
 ```
 
 The following morphism from the fiber forgets `x`, so it is no inverse:
@@ -713,8 +713,8 @@ Rules:
 Example:
 
 ```vast
-{{#include ../examples/packages/affine-geometry/src/main.vast:opens}}
-{{#include ../examples/packages/affine-geometry/src/main.vast:zero}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:opens}}
+{{#include ../examples/packages/geometry/affine-geometry/src/main.vast:zero}}
 ```
 
 `Dt` is the line without its origin. `sq` pulls `t` back to `t^2`, so the

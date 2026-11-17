@@ -51,15 +51,15 @@ fn record_paths(value: &Value, path: &str, records: &mut BTreeMap<String, String
 fn flat_requests_reject_unknown_fields_in_every_nested_record_shape() {
     let geometric = format!(
         "{}\nfn preserve_map(X: Scheme, f: Morphism<X, X>) -> Morphism<X, X> {{ f }}",
-        include_str!("../examples/pointed.vast")
+        include_str!("../examples/book/geometry/pointed.vast")
     );
     let mut cases = Vec::new();
     for source in [
-        include_str!("../examples/functions.vast").to_string(),
-        include_str!("../examples/pairs.vast").to_string(),
+        include_str!("../examples/book/functions/functions.vast").to_string(),
+        include_str!("../examples/book/values/pairs.vast").to_string(),
         geometric,
         "fn empty() -> Unit { { () } } generic f(x) { domain (Int); } method f(x: Int) -> Int { x } fn main() -> Int { f(0) }".to_string(),
-        include_str!("../examples/abstract-contracts.vast").to_string(),
+        include_str!("../examples/book/abstract/abstract-contracts.vast").to_string(),
     ] {
         cases.push(request(&source, "shape.vast"));
     }
@@ -102,22 +102,22 @@ fn public_decoder_rejects_unknown_fields_in_every_captured_record_shape() {
     let examples = common::root().join("examples/packages");
     let mut cases: Vec<(String, Value)> = Vec::new();
     for package in [
-        "indexed",
+        "geometry/indexed",
         // Its stdlib dependency declares Stage 2 presented affine geometry.
-        "promotion",
-        "resource-values",
-        "numerical",
-        "runtime-shapes",
-        "tensor-packing",
-        "contraction-tree",
-        "finite_network",
-        "storage/app",
-        "edit-borrow/app",
-        "edit-authority/app",
-        "smooth-objects",
-        "smooth-cotangent",
-        "smooth-metric",
-        "smooth-differential",
+        "stdlib/promotion",
+        "storage/resource-values",
+        "numerical/numerical",
+        "storage/runtime-shapes",
+        "numerical/tensor-packing",
+        "numerical/contraction-tree",
+        "numerical/finite_network",
+        "storage/storage/app",
+        "authority/edit-borrow/app",
+        "authority/edit-authority/app",
+        "geometry/smooth-objects",
+        "geometry/smooth-cotangent",
+        "geometry/smooth-metric",
+        "geometry/smooth-differential",
     ] {
         let mut command = common::cli();
         command

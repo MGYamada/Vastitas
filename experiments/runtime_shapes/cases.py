@@ -66,7 +66,7 @@ def write_package(path, scalar, transpose, twice=False):
     (path / "src/profiles").mkdir(parents=True)
     (path / "Vastitas.toml").write_text('[package]\nname = "runtime_shape_bench"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
     (path / "src/main.vast").write_text(source(scalar, transpose, twice))
-    (path / "src/profiles/mod.vast").write_text((ROOT / "examples/packages/numerical/src/profiles/mod.vast").read_text())
+    (path / "src/profiles/mod.vast").write_text((ROOT / "examples/packages/numerical/numerical/src/profiles/mod.vast").read_text())
 
 
 def shapes():

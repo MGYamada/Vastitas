@@ -113,15 +113,15 @@ reports the same diagnostic and writes no executable.
 ## A program with geometry
 
 Integers alone do not show what Vastitas is for.
-[`examples/pointed.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/pointed.vast)
+[`examples/book/geometry/pointed.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/geometry/pointed.vast)
 is a preview of the geometry that later chapters teach:
 
 ```vast
-{{#include ../../examples/pointed.vast}}
+{{#include ../../examples/book/geometry/pointed.vast}}
 ```
 
 ```sh
-target/debug/vastitas build examples/pointed.vast -o target/pointed
+target/debug/vastitas build examples/book/geometry/pointed.vast -o target/pointed
 ./target/pointed
 ```
 

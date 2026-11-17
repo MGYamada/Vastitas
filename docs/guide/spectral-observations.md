@@ -14,12 +14,12 @@ rational number. The program writes `failures = 0` and exits with status 0
 only when every observation holds.
 
 The program is the package
-[`examples/packages/spectral-observations/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/spectral-observations).
+[`examples/packages/geometry/spectral-observations/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/spectral-observations).
 Run it from the repository root:
 
 ```sh
 python3 scripts/build_stdlib_package.py
-target/debug/vastitas build --manifest-path examples/packages/spectral-observations/Vastitas.toml -o target/spectral-observations
+target/debug/vastitas build --manifest-path examples/packages/geometry/spectral-observations/Vastitas.toml -o target/spectral-observations
 ./target/spectral-observations
 ```
 
@@ -29,7 +29,7 @@ The package depends on the standard library and on `nature`, as the program
 of the [previous chapter](frames-and-dimensions.md) does:
 
 ```toml
-{{#include ../../examples/packages/spectral-observations/Vastitas.toml}}
+{{#include ../../examples/packages/geometry/spectral-observations/Vastitas.toml}}
 ```
 
 It has two modules. `profile.vast` declares the objects, the matrices and
@@ -48,7 +48,7 @@ families of `std::linalg::spectral`:
 declarations of `profile.vast`:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/main.vast:imports}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/main.vast:imports}}
 ```
 
 ## A matrix field on the plane
@@ -60,7 +60,7 @@ named vectors. It then declares the matrix as an
 module:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:field}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:field}}
 ```
 
 `basis(e1, e2)` names the basis vectors, which name the rows and the columns
@@ -86,7 +86,7 @@ The eigenvalues of H at a point are the roots of its characteristic
 polynomial det(tI − H). A spectrum declaration asks for it:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:spectrum}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:spectrum}}
 ```
 
 `eigen(H, t)` names the variable `t` of the polynomial, the
@@ -106,7 +106,7 @@ polynomial are polynomials in the point, so they are
 [smooth maps](smooth-geometry.md#objects-maps-and-points) to the line:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:invariants}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:invariants}}
 ```
 
 `tr1` is the trace of H, the map 0. `tr2` is the trace of H², the map
@@ -123,14 +123,14 @@ dimensionless chart and interprets the Euclidean metric on it, with the
 `nature` declarations of the [previous chapter](frames-and-dimensions.md):
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:chart}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:chart}}
 ```
 
 The interpretation is a checked statement: dx² + dy² adds two dimensionless
 squares. The gradient is `sharp` of the differential:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/main.vast:gradient}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/main.vast:gradient}}
 ```
 
 The differential of 2x² + 2y² is (4x, 4y), and the Euclidean metric turns it
@@ -144,7 +144,7 @@ The characteristic polynomial does not determine a matrix. On the point,
 where every field is a constant matrix, the program declares four fields:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:point}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:point}}
 ```
 
 `TwoI` is twice the identity, and `J` is the Jordan block with the rows
@@ -152,7 +152,7 @@ where every field is a constant matrix, the program declares four fields:
 their invariants agree:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:point-invariants}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:point-invariants}}
 ```
 
 The two traces are 4, the traces of the squares are 8, and the
@@ -160,7 +160,7 @@ coefficients are 4 and −4, for both fields. The difference shows in what a
 polynomial of t does to the vectors, the action of t as the matrix:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/main.vast:action}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/main.vast:action}}
 ```
 
 `annihilates(…, element = f)` asks whether f, with the matrix for t, is the
@@ -202,7 +202,7 @@ The branch observations take a point and a number, and they observe the
 eigenvalue at that point that the number names:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/main.vast:branch}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/main.vast:branch}}
 ```
 
 At p = (3, 4) the eigenvalues are 5 and −5. `on(p, line_at(5))` is `true`:
@@ -233,7 +233,7 @@ observation to `failures` and shows it. It returns 1 when `failures` is
 nonzero:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/main.vast:main}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/main.vast:main}}
 ```
 
 Each observation adds its own power of two when it fails, so the shown

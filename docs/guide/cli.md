@@ -451,7 +451,7 @@ prefix. Its options:
 Pass the prefix to `build`:
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
+target/debug/vastitas build --manifest-path examples/packages/numerical/numerical/Vastitas.toml \
   --openblas-prefix "$PWD/target/openblas-0.3.34" -o target/numerical-example
 ```
 

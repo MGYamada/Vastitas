@@ -37,7 +37,7 @@ and rules.
 
 ## Use
 
-[`examples/packages/two-level/`](../../examples/packages/two-level), which
+[`examples/packages/nature/two-level/`](../../examples/packages/nature/two-level), which
 `tests/two_level.rs` and `tests/examples.rs` check, build, run and mutate,
 models a two-level system on the chart `P = Affine(2)[delta, omega]` of the
 detuning and the Rabi frequency. Its field is

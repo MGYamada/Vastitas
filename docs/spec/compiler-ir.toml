@@ -1,0 +1,215 @@
+[spec]
+id = "compiler-ir"
+title = "Compiler IR v1"
+subject = "The v0.1.0 Core-to-LLVM compiler path"
+description = """
+This specification records the planned compiler path from the exact accepted
+Lean Core through the optimization and execution phases of one Vastitas MidIR
+to the exact bytes of an LLVM module. The current compiler emits Lean and has
+its own checked path. All claims on this page are Planned.
+
+First measure official-kernel and Fast replay on a representative MidIR
+artifact of about 1,000 operations, and qualify the LLVM toolchain, linked Lean
+runtime and numerical adapter on Linux and macOS. Then deliver the constructor
+coverage and opcode registry, the modeled LLVM subset and exact emitter, the
+validators and composition proofs, and the native handoff and evidence.
+"""
+
+[property."compiler-ir.source.acceptance"]
+title = "Both modes start with the same accepted Core"
+subject = "Finite source admission"
+statement = """
+The edition-2026 manifest and finite grammar use schema epoch 10 for packages
+and normalized single-file inputs. The Lean checker independently accepts the
+actual input, including the selected finite function or method, package and
+assembly revisions, and retains the exact Core and its checks. Both modes use
+that same result. The Rust frontend and any serialized IR supply candidates.
+The source, module and evidence stay tied to the same dependency and Charter
+environment. The finite source, category, tensor and exact RR/CC cases enter
+the release matrix with their actual acceptance and rejection evidence.
+"""
+specified_in = "[Planned LLVM compiler path](development/architecture.md#planned-llvm-compiler-path)"
+example = "A flat file and a package each use the sole current wire schema. A forged method winner cannot grant acceptance."
+example_not_executed = "The finite edition-2026 source profile and its complete source-to-Core evidence are pending."
+
+[property."compiler-ir.source.acceptance".claim.source]
+status = "planned"
+issue = 762
+
+[property."compiler-ir.midir.phases"]
+title = "A single typed IR has two phases"
+subject = "Phase-indexed MidIR modules"
+statement = """
+A v1 module records its phase, admission profile, source and dependency
+revisions, target triple, data layout, ABI and numerical policy. The Lean
+representation has functions, typed SSA block parameters, operations and
+terminators. It retains selected body, method and assembly identities, nominal
+types and endpoints, and explicit control and effect ordering. Verify CFG
+targets, argument types, dominance and symbol resolution on actual artifacts.
+Optimization retains the source-selected algorithm and the mathematical facts
+needed for rewrites. Execution makes guards, layouts, cleanup and ABI choices
+explicit. Typed dumps round-trip as bounded untrusted candidates.
+
+The ownership authority is the kernel storage checker over the accepted plan.
+MidIR validators preserve initialization, aliases, permissions and ownership by
+refinement. Witnesses for allocation, alias or release changes relate both
+plans. Proof-only data may be erased after the checks that use it.
+"""
+specified_in = "[Planned LLVM compiler path](development/architecture.md#planned-llvm-compiler-path)"
+example = "A join checks its block arguments and preserves the move and initialization obligations of both branches."
+example_not_executed = "The phase-indexed constructors and their validator are pending."
+
+[property."compiler-ir.midir.phases".claim.representation]
+status = "planned"
+issue = 750
+
+[property."compiler-ir.midir.registry"]
+title = "The operator registry is closed"
+subject = "Admitted MidIR operations"
+statement = """
+The registry assigns each admitted Core and storage operation a phase, typing
+rule, denotation, lowering obligation and explicit result or effect contract.
+Publish constructor coverage against a named accepted-Core revision and
+regenerate it when the admitted constructors change. Unsupported operators
+fail admission. Tensor operations retain mathematical axes, bases, tensor
+versus map identity, dual and conjugation roles, and the separate storage
+layout. Rewrites of an admitted reverse-AD operation preserve both its primal
+and selected pullback. Equal dimensions do not select an identity or a method.
+"""
+specified_in = "[Planned LLVM compiler path](development/architecture.md#planned-llvm-compiler-path)"
+example = "A contraction with equal-sized axes still rejects a mismatched nominal endpoint."
+example_not_executed = "The closed MidIR registry and its source coverage ledger are pending."
+
+[property."compiler-ir.midir.registry".claim.registry]
+status = "planned"
+issue = 751
+
+[property."compiler-ir.native.contract"]
+title = "Numerical execution uses declared foreign calls"
+subject = "The NativeFast and Lean runtime premises"
+statement = """
+Indexed primitives and arbitrary-precision Nat and Int call one Lean-compiled
+runtime library under a labeled foreign premise. A C shim exposes operations
+that the runtime offers only inline. Each admitted Nat or Int operation is a
+call in this profile.
+
+Represented floating values stay in the resource layer and cross LLVM as
+bits and arguments to adapter calls. All four F32/RR, F64/RR, F32/CC and
+F64/CC representations are required. GEMM uses the pinned sequential LP64
+OpenBLAS 0.3.34 adapter for sgemm, dgemm, cgemm and zgemm under a labeled
+host/build-specific premise, with the corresponding real or interleaved complex
+layout. A program that needs no numerical runtime requires no OpenBLAS.
+Fixed-order adapter results follow the reference result bits, with a NaN class
+where the reference does not specify the sign or payload. OpenBLAS results
+have the stated determinism premise on one pinned build and host. Error
+bounds and numerical correctness claims need their own evidence. The
+NativeFast flags observation is unavailable. Its storage expectation uses
+IEEE equality and a NaN expectation tests for NaN. Preserve foreign-call
+identity, argument bits and order even where an observation abstracts the
+result. The modeled LLVM subset emits no floating-point instructions and
+rejects strict, LLVM-default and unadmitted sign-observing profiles.
+
+Admitted division is totalized. The ordered same-precision scaled complex
+quotient uses totalized real divisions and fixes the order and effects of the
+graph, with inverse through the same graph. Emit no fallback, FMA or raw CUDA
+division substitution. Float values gain no public pure-Core float carrier.
+SafeFloat and the Result forms of safe division wait for the Result language
+support.
+"""
+specified_in = "[Planned LLVM compiler path](development/architecture.md#planned-llvm-compiler-path)"
+example = "A complex GEMM lowers to the selected adapter symbol with the original layouts and arguments, while the receipt records flags as unavailable."
+example_not_executed = "The required four native realization rows for the verified LLVM path are pending."
+
+[property."compiler-ir.native.contract".claim.operations]
+status = "planned"
+issue = 751
+
+[property."compiler-ir.native.contract".claim.realization]
+status = "planned"
+issue = 753
+
+[property."compiler-ir.validation.refinement"]
+title = "Each validated stage preserves the selected observations"
+subject = "Independent Lean validation"
+statement = """
+Define observation semantics and refinement in a dedicated namespace of the
+mathlib-free VastitasOracle. Its denotation uses kernel artifact types and is
+independent of the implementation of the validators. A stage checks a bounded,
+untrusted witness against the actual input and output. Prove soundness for
+every witness. Compose per-function checks with an independent module,
+symbol, call, ABI, effect and ownership check. Validate selected numerical
+graphs, ordering, relevant bit identity, runtime and resource premises, and
+the actual exact emission. A local witness that changes a caller's ABI or
+a wrong order of contravariant composition fails the composed check.
+
+Stage validation joins the applicable finite CS, MS and CF obligations for
+the same accepted source, environment, Core and evidence. It grants no other
+checker or proof-export path source acceptance authority.
+"""
+specified_in = "[Planned LLVM compiler path](development/architecture.md#planned-llvm-compiler-path)"
+example = "Two locally valid functions with mismatched calling conventions fail the whole-module check."
+example_not_executed = "Actual-artifact validation and the finite constitutional proofs are pending."
+
+[property."compiler-ir.validation.refinement".claim.validation]
+status = "planned"
+issue = 752
+
+[property."compiler-ir.validation.refinement".claim.constitution]
+status = "planned"
+issue = 763
+
+[property."compiler-ir.validation.modes"]
+title = "Proof evidence binds the current build"
+subject = "Fast and Official verification"
+statement = """
+Fast is the default and audits a Lean proof export using the matching
+toolchain's pinned out-of-process nanoda_bin. Official uses current-run
+pinned official Lean kernel replay and reduction. Both authenticate the exact
+source, dependency and Charter environment, Core, mid-level artifacts,
+complete LLVM bytes and allowed axiom closure. Unsupported export forms,
+stale evidence, native-evaluation shortcuts and failed internal obligations
+must fail closed. Constitutional CI uses only the official kernel for the
+language-wide claims. A successful standalone proof-export diagnostic alone
+does not grant a build result. Artifact caching may not waive evidence.
+
+Record mode, verifier and whether the official kernel checked the current
+build. Diagnostic reports and inspection commands project actual pass events,
+rather than supplying accepted witness data. Format errors in those reports
+remain diagnostic. Keep source acceptance, exact emission, external premises,
+native evidence and performance results visible independently.
+"""
+specified_in = "[Planned LLVM compiler path](development/architecture.md#planned-llvm-compiler-path)"
+example = "A proof for the same function name and different LLVM bytes fails in both modes."
+example_not_executed = "Current-artifact mode integration is pending."
+
+[property."compiler-ir.validation.modes".claim.verification]
+status = "planned"
+issue = 752
+
+[property."compiler-ir.llvm.bytes"]
+title = "Validation covers the bytes supplied to LLVM"
+subject = "Modeled LLVM emission and native handoff"
+statement = """
+Use an independently modeled finite LLVM subset and check the actual
+deterministic text by bounded parsing and exact artifact correspondence.
+Compare the final file with the validated complete bytes before passing those
+bytes to the untrusted parser. Disable unproved overflow, alias and inbounds
+promises and unsupported instruction forms. Fail a changed byte, ABI, target,
+layout or missing proof before invoking LLVM.
+
+The isolated Cargo-linked adapter uses llvm-sys 231.0.1 and qualifies LLVM
+23.1.4 as the first exact native candidate on Linux and macOS. Pin the native
+library and link mode, runtime and adapter, pass and target-machine options,
+linker, triple and layout. Prefer static libLLVM linkage for supported
+prebuilt releases. LLVM's parser, optimizer, object emission and linker
+remain external premises. A Lean/C build is a separate compiler path.
+Record native coverage and equivalent-C timings, allocation, copies and peak
+memory independently of the exact-emission proof.
+"""
+specified_in = "[Planned LLVM compiler path](development/architecture.md#planned-llvm-compiler-path)"
+example = "Changing one byte of the verified .ll file causes the final handoff to reject it."
+example_not_executed = "The modeled emission, byte check and native handoff remain pending."
+
+[property."compiler-ir.llvm.bytes".claim.emission]
+status = "planned"
+issue = 753

@@ -1,0 +1,4 @@
+// Calls must resolve to an actual declared function.
+fn main() -> Int {
+    missing_function()
+}

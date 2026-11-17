@@ -24,7 +24,7 @@ fn geometry_request() -> Value {
     captured_wire(
         manifest_command(
             "check",
-            root().join("examples/packages/geometry-compat/Vastitas.toml"),
+            root().join("examples/packages/geometry/geometry-compat/Vastitas.toml"),
         ),
         CURRENT_PROTOCOL,
     )

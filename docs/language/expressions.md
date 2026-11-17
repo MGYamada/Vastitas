@@ -363,7 +363,7 @@ Rules:
 packs the object that it opened with another point of it:
 
 ```vast
-{{#include ../../examples/pointed.vast}}
+{{#include ../../examples/book/geometry/pointed.vast}}
 ```
 
 The executable writes no line and exits with status 0.

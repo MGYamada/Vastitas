@@ -40,15 +40,15 @@ a function tests whether `b` lies between `a` and `c`:
 ## Conditionals
 
 `if` chooses one of two blocks by a condition.
-[`examples/arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/arithmetic.vast)
+[`examples/book/values/arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/values/arithmetic.vast)
 has one:
 
 ```vast
-{{#include ../../examples/arithmetic.vast}}
+{{#include ../../examples/book/values/arithmetic.vast}}
 ```
 
 ```sh
-target/debug/vastitas build examples/arithmetic.vast -o target/arithmetic
+target/debug/vastitas build examples/book/values/arithmetic.vast -o target/arithmetic
 ./target/arithmetic
 ```
 

@@ -27,18 +27,24 @@ fn functions(request: &mut Value) -> &mut Value {
 
 #[test]
 fn native_pointed_object_survives_return_unpack_and_dependent_call() {
-    native(include_str!("../examples/pointed.vast"), exits(0));
+    native(
+        include_str!("../examples/book/geometry/pointed.vast"),
+        exits(0),
+    );
 }
 
 #[test]
 fn native_smooth_objects_preserve_their_setting() {
-    native(include_str!("../examples/smooth.vast"), exits(0));
+    native(
+        include_str!("../examples/book/geometry/smooth.vast"),
+        exits(0),
+    );
 }
 
 #[test]
 fn native_arbitrary_precision_and_forward_calls() {
     native(
-        include_str!("../examples/arithmetic.vast"),
+        include_str!("../examples/book/values/arithmetic.vast"),
         shows(&["value * 10 = 1234567890123456789012345678900"]),
     );
 }

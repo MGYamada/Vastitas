@@ -61,18 +61,18 @@ says.
 Packages that depend on `std`, built and run by the tests that the list
 names:
 
-- [`examples/packages/stdlib-differential/`](../../../../examples/packages/stdlib-differential)
+- [`examples/packages/stdlib/stdlib-differential/`](../../../../examples/packages/stdlib/stdlib-differential)
   (`tests/examples.rs`, `tests/stdlib_differential.rs`) declares
   `indexed affine Plane(SmoothR) = Affine(2)[x, y];` and the maps
   `indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);` and
   `f`, pulls covectors back, compares them and pairs them. It writes
   `failures = 0` and exits with status 0.
-- [`examples/packages/stdlib-frames/`](../../../../examples/packages/stdlib-frames)
+- [`examples/packages/stdlib/stdlib-frames/`](../../../../examples/packages/stdlib/stdlib-frames)
   (`tests/examples.rs`) and
-  [`examples/packages/physical-dimensions/`](../../../../examples/packages/physical-dimensions)
+  [`examples/packages/nature/physical-dimensions/`](../../../../examples/packages/nature/physical-dimensions)
   (`tests/examples.rs`) declare their objects, points and fibers on the
   profile. Each writes `failures = 0` and exits with status 0.
-- [`examples/packages/frames-and-dimensions/`](../../../../examples/packages/frames-and-dimensions)
+- [`examples/packages/nature/frames-and-dimensions/`](../../../../examples/packages/nature/frames-and-dimensions)
   (`tests/frames_dimensions.rs`) uses `compose_smooth`, `line_at`,
   `lies_over`, `tangent_over`, `same_covector`, `same_vector` and `pairing`.
   It writes `failures = 0` and exits with status 0.

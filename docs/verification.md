@@ -968,6 +968,10 @@ profile/port/return audits and conditional structural rewrite theorems in
 to tensor syntax. Its categorical law provider, selected-method realization,
 and bridge from `Graph.Core` to actual returned indexed terms remain pending.
 
+The [Hilbert space design](hilbert-cauchy-completion.md) specifies Cauchy
+completion, proof-carrying effective names and their quotient. Compilation and
+Lean correspondence are Planned.
+
 The [exact real ℓ² tail reference](reference/analysis-and-effects.md#l2-tail-reference) checks closed geometric
 and reciprocal certificate rules with rational arithmetic in Python. Its
 generator/environment/returned-record audits are reference tests only. The
@@ -3229,7 +3233,7 @@ These are Proved (bridge). `lean-bridge/Audit.lean` requires each name.
   body that names a gluing declaration is `E_TYPE`
   (`a_stage7_declaration_is_not_a_value`).
 - Native execution of the acceptance program
-  `examples/packages/projective-line/`. At run time it composes Stage 2
+  `examples/packages/geometry/projective-line/`. At run time it composes Stage 2
   morphisms over a base that have the same images as the chart transition
   of the projective line. No check ties those morphisms to the gluing, and a
   gluing declaration has no runtime value, so the run is evidence for those

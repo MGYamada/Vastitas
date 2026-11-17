@@ -130,7 +130,7 @@ from `scripts/check_kernel_regressions.sh`. Oracle files are in
 bridge theorems are in `VastitasBridge.Spectral` unless a row names
 `VastitasBridge.Analysis.DaleckiiKrein`.
 The examples of the Reference and guide chapters are tested evidence too:
-`tests/examples.rs` builds and runs `examples/packages/spectral-observations/`
+`tests/examples.rs` builds and runs `examples/packages/geometry/spectral-observations/`
 (`book_programs_print_their_output`, it writes `failures = 0` and exits with
 status 0), and checks the six
 rejected packages `examples/reject/packages/spectral-*` against their
@@ -146,7 +146,7 @@ below cite them as "book reject".
 | **X — reference model** | `scripts/spectral_fixture.py`, `tests/fixtures/spectral.json`, from `scripts/etale_reference.py` and `scripts/finite_spectral_reference.py`; the writer computes the branch observations from the étale model's χ and adjugate (see [C15](#c15)) | `VastitasAlgebraTest.SpectralReferenceRegression`; `scripts/test_spectral_fixture.py`; `python3 scripts/spectral_fixture.py --check` | Tested only |
 | **V — wire** | `IndexedDeclarationProtocol.lean` (`declarationBody`, `polyRows`, `certificateExponent`, `morphismDefinition`, `familyRepresentation`, `naturalField`), the families of `IndexedPrimitiveFamilies.lean`, `src/indexed.rs`, `src/frontend/indexed_parser.rs` | `tests/spectral_declarations.rs`, `tests/spectral_primitives.rs`, `tests/spectral_observations.rs` (protocol and raw-wire tests); `SpectralDeclarationRegression`, `SpectralRegression` | Tested only |
 | **L — library** | `stdlib/src/linalg/Vastitas.toml`, `stdlib/src/linalg/mod.vast`, `stdlib/src/linalg/spectral/mod.vast` (`std::linalg::spectral`), `stdlib/Vastitas.toml`, `scripts/build_stdlib_package.py`, `scripts/check_boundaries.py` (`std::linalg` depends on the geometry package alone) | `tests/stdlib_spectral.rs`; `scripts/test_check_boundaries.py` (`RepositoryBoundaryTests`) | — |
-| **E — acceptance program** | `examples/packages/spectral-observations/` (`src/profile.vast` declares the plane, its field, spectrum and branch, the invariants, the dimensionless Euclidean chart and the four fields of the point; `src/main.vast` observes them with the failure codes 1–32); the six rejected packages | `tests/spectral_observations.rs`; `tests/examples.rs` | Oracle `SpectralAcceptance` |
+| **E — acceptance program** | `examples/packages/geometry/spectral-observations/` (`src/profile.vast` declares the plane, its field, spectrum and branch, the invariants, the dimensionless Euclidean chart and the four fields of the point; `src/main.vast` observes them with the failure codes 1–32); the six rejected packages | `tests/spectral_observations.rs`; `tests/examples.rs` | Oracle `SpectralAcceptance` |
 | **B — bridge of accepted Core** | `Analysis/DaleckiiKreinTyped.lean`, `Spectral/Prerequisites.lean`, `Spectral/Algebra.lean`, `lean-bridge/VastitasBridge/Spectral/Accepted.lean` | `lean-bridge/Audit.lean`, with its independence walk | Bridge, see [C5](#c5), [C7](#c7) and [C10](#c10) |
 
 <a id="acceptance-conditions"></a>

@@ -70,11 +70,11 @@ Rules:
   generic. Each is an error (`E_TYPE`). A method may return a pair, as
   [promotion](../stage1a.md#promotion) does.
 
-[`examples/pairs.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/pairs.vast)
+[`examples/book/values/pairs.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/values/pairs.vast)
 passes pairs to functions and returns them:
 
 ```vast
-{{#include ../../examples/pairs.vast}}
+{{#include ../../examples/book/values/pairs.vast}}
 ```
 
 The executable writes these lines and exits with status 0:

@@ -2174,8 +2174,9 @@ mod tests {
     /// Every family of the table has a surface form, and each form parses
     /// to a binding with exactly the family's fields, which serializes as
     /// `{"op": …}` followed by those fields in table order. A declaration of
-    /// the binding needs protocol 9 exactly when the table says the family is
-    /// algebraic.
+    /// the binding is algebraic, which keeps the legacy geometry
+    /// (`legacy_geometry`) out of its request, exactly when the table says the
+    /// family is algebraic.
     #[test]
     fn every_table_entry_parses_to_its_wire_fields() {
         let table: Vec<&str> = indexed::primitive_families()
@@ -2212,9 +2213,9 @@ mod tests {
     }
 
     /// The frame primitives of Stage 4 (#759), each with the binding that
-    /// the kernel's protocol-9 decoder reads: the positional fields in wire
-    /// order, the frames under their keywords, and natural fields as bare
-    /// decimal strings. Every one is algebraic, so it selects protocol 9.
+    /// the kernel's decoder reads: the positional fields in wire order, the
+    /// frames under their keywords, and natural fields as bare decimal
+    /// strings. Every one is algebraic, so its request has no legacy geometry.
     #[test]
     fn every_frame_primitive_parses_to_its_wire_record() {
         let widest = "9".repeat(crate::limits::MAX_ALGEBRA_DIGITS);
@@ -2600,12 +2601,12 @@ mod tests {
     }
 
     /// The observations of Stage 5 (#806), each with the binding that the
-    /// kernel's protocol-9 decoder reads: the positional fields, the
-    /// spectrum or branch and the element under their keywords, and the row
-    /// and the column as basis names. The positional families come in wire
-    /// order, so `branch_differential` lists the cotangent family before the
-    /// line, as `differential` does. Every one is algebraic, so it selects
-    /// protocol 9.
+    /// kernel's decoder reads: the positional fields, the spectrum or branch
+    /// and the element under their keywords, and the row and the column as
+    /// basis names. The positional families come in wire order, so
+    /// `branch_differential` lists the cotangent family before the line, as
+    /// `differential` does. Every one is algebraic, so its request has no
+    /// legacy geometry.
     #[test]
     fn every_spectral_primitive_parses_to_its_wire_record() {
         let shifted = || sum(vec![coordinate("t"), neg(n("2"))]);
@@ -3041,7 +3042,7 @@ mod tests {
     }
 
     /// Every Stage 4 declaration form (#759) with the record that the kernel's
-    /// protocol-9 decoder reads, spans omitted. The shapes are S1's
+    /// decoder reads, spans omitted. The shapes are S1's
     /// (`indexed::tests::every_frame_and_dimension_form_serializes_to_its_wire_shape_and_is_algebraic`).
     fn stage4_declarations() -> Vec<(&'static str, Value)> {
         let family = |parameters: Value, constraints: Value, representation: &str| {
@@ -3213,7 +3214,7 @@ mod tests {
     }
 
     /// Each Stage 4 declaration form parses to the record of its S1 wire
-    /// shape, which exists only in protocol 9.
+    /// shape, and the form is algebraic.
     #[test]
     fn every_stage4_declaration_parses_to_its_wire_record() {
         for (source, expected) in stage4_declarations() {
@@ -3486,7 +3487,7 @@ fn scale(physical: Int) -> Int { let interpret = physical; interpret }
     }
 
     /// Every Stage 5 declaration form (#806) with the record that the kernel's
-    /// protocol-9 decoder reads, spans omitted. The shapes are S1's
+    /// decoder reads, spans omitted. The shapes are S1's
     /// (`indexed::tests::every_spectral_form_serializes_to_its_wire_shape_and_is_algebraic`).
     /// The frontend checks no spectral rule: an empty basis or empty rows,
     /// and naturals of any size up to the decoder's digit bound, are sent as
@@ -3623,7 +3624,7 @@ fn scale(physical: Int) -> Int { let interpret = physical; interpret }
     }
 
     /// Each Stage 5 declaration form parses to the record of its S1 wire
-    /// shape, which exists only in protocol 9, and reads back as itself.
+    /// shape, is algebraic, and reads back as itself.
     #[test]
     fn every_stage5_declaration_parses_to_its_wire_record() {
         for (source, expected) in stage5_declarations() {
@@ -3988,7 +3989,7 @@ fn exponent(witness: Int) -> Int { let localize = witness; localize }
     }
 
     /// The Stage 6 declarations (#841), each with the record of its wire
-    /// shape, which the kernel decodes in protocol 9.
+    /// shape, which the kernel decodes.
     fn stage6_declarations() -> Vec<(&'static str, Value)> {
         let pow = |name: &str| json!({ "op": "pow", "base": coordinate(name), "exponent": "2" });
         let neg = |value: Value| json!({ "op": "neg", "operand": value });
@@ -4064,14 +4065,15 @@ fn exponent(witness: Int) -> Int { let localize = witness; localize }
     }
 
     /// Each Stage 6 declaration form parses to the record of its S1 wire
-    /// shape, which exists only in protocol 9, and reads back as itself.
+    /// shape and reads back as itself.
     #[test]
     fn every_stage6_declaration_parses_to_its_wire_record() {
         for (source, expected) in stage6_declarations() {
             let declaration = parse_declaration(source)
                 .unwrap_or_else(|error| panic!("`{source}` does not parse: {error:?}"));
             // Only the transition average is algebraic; the model and data
-            // forms select protocol 9 as package input (#533).
+            // forms are indexed declarations, which also keep the legacy
+            // geometry out of the request (#533).
             assert_eq!(
                 declaration.body.is_algebraic(),
                 matches!(declaration.body, DeclarationBody::TransitionAverage { .. }),

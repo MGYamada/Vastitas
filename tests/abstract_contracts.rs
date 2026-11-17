@@ -198,9 +198,9 @@ fn raw_contract_ir_cannot_bypass_result_domain_or_protocol_checks() {
         ("winner", "E_PROTOCOL"),
         ("domain", "E_CONTRACT_DOMAIN"),
         ("span", "E_PROTOCOL"),
-        // A repeated parameter changes the contract's arity, which the
-        // kernel compares with its generic's first.
-        ("duplicate", "E_ARITY"),
+        // An extra parameter changes the contract's arity, which the kernel
+        // compares with its generic's first.
+        ("extra parameter", "E_ARITY"),
         ("function", "E_PROTOCOL"),
     ] {
         let mut bad = raw.clone();
@@ -211,7 +211,7 @@ fn raw_contract_ir_cannot_bypass_result_domain_or_protocol_checks() {
             "winner" => contract["selected"] = json!(0),
             "domain" => contract["domain"][0][0]["path"] = json!(["Bool"]),
             "span" => contract["domain"][0][0]["span"]["line"] = json!(0),
-            "duplicate" => {
+            "extra parameter" => {
                 let param = contract["params"][0].clone();
                 contract["params"].as_array_mut().unwrap().push(param);
             }
@@ -220,6 +220,32 @@ fn raw_contract_ir_cannot_bypass_result_domain_or_protocol_checks() {
             }
         }
         common::assert_rejected(bad, code);
+    }
+}
+
+/// A forged 2-ary contract that repeats a parameter name, with the arity of
+/// its generic, reaches the kernel's duplicate-parameter check in `check` and
+/// in `emit`.
+#[test]
+fn raw_contract_ir_cannot_repeat_a_parameter_name() {
+    let raw = request(
+        &format!(
+            "{TYPES} generic join(x, y) {{ domain; }} abstract method join(x: Numeric, y: Numeric) -> Int {{ domain (Numeric, Numeric); }} method join(x: Numeric, y: Numeric) -> Int {{ 1 }}"
+        ),
+        "contracts.vast",
+    );
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    let mut bad = raw.clone();
+    let params = &mut flat_module(&mut bad)["abstract_methods"][0]["params"];
+    assert_eq!(params.as_array().map(Vec::len), Some(2), "{params}");
+    params[1]["name"] = params[0]["name"].clone();
+    for mode in ["check", "emit"] {
+        let response = kernel(&bad, mode);
+        common::assert_wire_rejected(&response, "E_DUPLICATE");
+        assert_eq!(
+            response["diagnostics"][0]["message"], "duplicate abstract method parameter",
+            "{response}"
+        );
     }
 }
 

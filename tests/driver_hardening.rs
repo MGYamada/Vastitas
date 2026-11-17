@@ -510,6 +510,44 @@ fn kernel_build_identity_fails_closed() {
     assert!(result.status.success(), "{}", stderr(&result));
 }
 
+// #557: the optional runtime flags of a success response are absent or JSON
+// booleans. Any other value fails closed before a native build starts.
+#[test]
+fn non_boolean_runtime_requirements_are_refused() {
+    let s = fixture();
+    let identity = kernel_identity();
+    let backend = s.0.join("kernel");
+    for (field, message) in [
+        (
+            "storage_runtime",
+            "E_PROTOCOL: invalid optional storage runtime requirement",
+        ),
+        (
+            "numerical_runtime",
+            "E_PROTOCOL: invalid optional numerical runtime requirement",
+        ),
+    ] {
+        for value in [r#""true""#, "1", "null", "[true]"] {
+            let response = format!(
+                r#"{{"version":{CURRENT_PROTOCOL},"ok":true,"kernel":{identity},"lean_source":"","{field}":{value}}}"#
+            );
+            executable(
+                &backend,
+                &format!("#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{response}'\n"),
+            );
+            let result = cli(&s)
+                .args(["build", "main.vast", "-o", "program"])
+                .env("VASTITAS_KERNEL", &backend)
+                .output()
+                .unwrap();
+            let error = stderr(&result);
+            assert!(!result.status.success(), "accepted {response}");
+            assert_eq!(error.trim_end(), message, "{field} = {value}");
+            assert!(!s.0.join("program").exists(), "{field} = {value}");
+        }
+    }
+}
+
 /// `limits` with the value of `key` raised by one and nothing else changed.
 fn raised_limit(limits: &[u8], key: &str) -> Vec<u8> {
     let limits = std::str::from_utf8(limits).unwrap();

@@ -1367,12 +1367,13 @@ receipts, doctest execution, or official package admission.
   `the_frontend_the_kernel_and_version_share_one_epoch` checks that the
   driver, the kernel's `currentProtocol` and `--version` name the same number,
   that the kernel answers the driver's requests at that version and that it
-  rejects them at version 9. `protocol_0_fails_closed`, `protocol_1_fails_closed`,
-  `protocol_2_fails_closed` to `protocol_9_fails_closed` and
-  `the_next_protocol_fails_closed` send a flat and a package request at each
-  version, in the shape of the epoch and, for 2 to 9, in the shape that the
-  version had, to `check` and `emit`; each answer is `E_PROTOCOL` with the
-  message of [Other versions](#other-versions) and the request's version.
+  rejects them at version 9. `every_version_below_the_epoch_fails_closed`
+  takes the versions from 0 to `currentProtocol` − 1, and
+  `the_next_protocol_fails_closed` takes `currentProtocol` + 1. Each sends a
+  flat and a package request at each version, in the shape of the epoch and,
+  for 2 to 9, in the shape that the version had, to `check` and `emit`; each
+  answer is `E_PROTOCOL` with the message of [Other versions](#other-versions)
+  and the request's version.
   `a_protocol_nine_envelope_relabelled_as_the_epoch_keeps_input_unknown`,
   `a_flat_module_labelled_as_the_epoch_is_rejected` and
   `the_dimension_spelling_of_dim_is_rejected` reject the field `input`, a flat

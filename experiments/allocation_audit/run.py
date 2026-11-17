@@ -183,12 +183,12 @@ def build(runner, case, work, prefix, frontend, kernel, cc, variant, *, link_pre
     execution = runner.run([canonical], phase='public_execute')
     assert execution['stdout'].strip() == '0'
     response = json.loads(runner.run([kernel, 'emit'], input=wire, phase='kernel_emit')['stdout'])
-    assert response['ok'] and response['version'] == 8 and response['numerical_runtime']
+    assert response['ok'] and response['version'] == tree.PROTOCOL and response['numerical_runtime']
     tree.dump(work / 'response.json', response)
     invalid = failure_wire(wire)
     tree.dump(work / 'failure-wire.json', invalid)
     failure = json.loads(runner.run([kernel, 'emit'], input=json.dumps(invalid), phase='kernel_failure_emit')['stdout'])
-    assert failure['ok'] and failure['version'] == 8
+    assert failure['ok'] and failure['version'] == tree.PROTOCOL
     tree.dump(work / 'failure-response.json', failure)
     (work / 'Generated.lean').write_text(response['lean_source'])
     (work / 'GeneratedFailure.lean').write_text(failure['lean_source'])

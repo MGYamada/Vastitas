@@ -1,6 +1,6 @@
 # Explicit tensor packing experiment
 
-This optional experiment executes the actual public protocol-8 source for
+This optional experiment executes the actual public source for
 `T[i,k,j] B[k,l] -> C[i,j,l]`: four explicit allocations, one `pack3` into
 caller-owned scratch, then one overwrite `contract3` GEMM. It compares the
 emitted program with a matched C algorithm using contiguous `x`-block copies

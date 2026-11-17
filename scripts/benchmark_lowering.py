@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Compare real kernel acceptance by size, declaration order and call graph (#141).
 
-Times include process startup, JSON decoding, both lowering passes and final
-core/static audits, but exclude payload construction and Rust parsing. Every
-sample must be accepted. A rejection or timeout is never a fast timing result.
+The payload is the request that the frontend writes for a flat unit at the wire
+schema epoch (#533): one package `vastitas:compat:flat` with the legacy
+geometry, as `packages::flat_request` builds it. Times include process
+startup, JSON decoding, both lowering passes and final core/static audits, but
+exclude payload construction and Rust parsing. Every sample must be accepted.
+A rejection or timeout is never a fast timing result.
 """
 import argparse
 import csv
+import importlib.util
 import json
 import pathlib
 import statistics
@@ -15,6 +19,14 @@ import sys
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+# The wire schema epoch, read from the kernel's `currentProtocol`. The reader
+# is loaded by its path, so that the script also runs under `python3 -I`.
+_protocol = importlib.util.spec_from_file_location("kernel_protocol", ROOT / "scripts/kernel_protocol.py")
+kernel_protocol = importlib.util.module_from_spec(_protocol)
+_protocol.loader.exec_module(kernel_protocol)
+CURRENT_PROTOCOL = kernel_protocol.CURRENT_PROTOCOL
+# The package identity of a flat unit (`flatPackageId` of the kernel).
+FLAT = dict(source="vastitas:compat:flat", name="legacy_flat", version="1.0.0")
 SPAN = dict(start=0, end=0, line=1, column=1)
 INT = dict(kind="named", name="Int")
 
@@ -25,7 +37,8 @@ def expression(kind, **fields):
 
 def function(name, result, params=(), statements=()):
     return dict(name=name, params=list(params), return_type=INT,
-                body=dict(statements=list(statements), result=result, span=SPAN), span=SPAN)
+                body=dict(statements=list(statements), result=result, span=SPAN), span=SPAN,
+                public=True)
 
 
 def program(count, with_lambda, shape="chain", order="forward"):
@@ -45,9 +58,11 @@ def program(count, with_lambda, shape="chain", order="forward"):
         value = expression("lambda", params=[parameter], return_type=INT,
                            body=dict(statements=[], result=expression("variable", name="x"), span=SPAN))
         statements.append(dict(kind="let", name="g", annotation=None, value=value, span=SPAN))
-        result = expression("invoke", callee=expression("variable", name="g"), args=[result])
+        result = expression("call", callee="g", args=[result])
     functions.append(function("main", result, statements=statements))
-    return dict(version=2, file="benchmark.vast", functions=functions, generics=[], methods=[])
+    module = dict(path=[], public=True, imports=[], generics=[], methods=[], functions=functions, span=SPAN)
+    return dict(version=CURRENT_PROTOCOL, file="benchmark.vast", root=FLAT["source"],
+                packages=[dict(FLAT, dependencies=[], modules=[module])], legacy_geometry=True)
 
 
 def positive(value):

@@ -333,7 +333,7 @@ Codes of a check that the kernel repeats on its own result:
 
 | Code | Reports |
 | --- | --- |
-| `E_INTERNAL_ASSEMBLY`, `E_INTERNAL_AUTHORITY` | An assembly whose states or steps fail the audit of edit authority |
+| `E_INTERNAL_AUTHORITY` | An assembly whose states or steps fail the audit of edit authority |
 | `E_INTERNAL_DISPATCH` | A dispatch table or a selection that differs from the methods of the program |
 | `E_INTERNAL_FUNCTION` | A specialized instance, a lifted lambda or a static target that fails its audit |
 | `E_INTERNAL_GRAPH` | An order of the functions that is no order of their calls |

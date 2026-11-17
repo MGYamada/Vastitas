@@ -1,6 +1,6 @@
 # Public two-edge contraction tree versus matched C
 
-This experiment compiles a real protocol-8 package with `contract_tree`, executes
+This experiment compiles a real public package with `contract_tree`, executes
 its canonical executable, and benchmarks the independently emitted public program
 against arena-C and standalone plain C. It uses the same sequential LP64 OpenBLAS 0.3.34 archive for
 all three implementations. A passing smoke run establishes execution, coordinate,
@@ -98,7 +98,7 @@ Standalone C-adapter selftest timings are validation rows, not public timings.
 
 Each process executes one complete untimed lifecycle of its implementation
 before the measured batch. The runner separately executes canonical check/build/run, sends the
-captured protocol-8 input to the actual kernel check/emit path, and keeps exact
+captured wire request to the actual kernel check/emit path, and keeps exact
 emitted instructions in the wrapper. Unexpected codegen envelopes fail closed.
 Private instrumented runtime copies leave production files unchanged.
 

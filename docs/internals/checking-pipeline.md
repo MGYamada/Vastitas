@@ -163,7 +163,7 @@ specialization keys: its targets (`Compiler.TargetName`) distinguish executable
 definitions from signature probes, and a specialization `Key` stores a
 definition and its ordered function-argument targets. The audit and executable
 passes keep separate state; see [indexed acceptance](../verification.md).
-Public JSON names and protocol versions are unchanged.
+These targets and keys change no public JSON name.
 
 Resource values are defined in
 [`lean-kernel/compiler-limits.json`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/compiler-limits.json).

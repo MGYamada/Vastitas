@@ -105,6 +105,6 @@ private def cases : List (String × Json × String) := [
   checkGood "a direct exclusive edit" direct 42
   checkBad "a direct edit's unapplied body" (contributionMethod direct "base" []
     (·.setObjVal! "return_type" (named "Bool"))) "E_TYPE"
-  IO.println s!"public authority: three accepted/executable cases, {cases.length * 2 + 2} rejected inputs under both check/emit policies passed"
+  IO.println s!"public authority: three accepted/executable cases, {cases.length + 1} rejected inputs under both check/emit policies passed"
 
 end VastitasPublicTest.AuthorityRegression

@@ -16,10 +16,11 @@ import subprocess
 import sys
 import tempfile
 
+# The wire schema epoch (#533), read from the kernel's `currentProtocol`: the
+# one protocol that the frontend writes and the kernel accepts.
+from kernel_protocol import CURRENT_PROTOCOL
+
 ROOT = Path(__file__).resolve().parents[1]
-# The wire schema epoch (#533), as `CURRENT_PROTOCOL` in tests/common/wire.rs:
-# the one protocol that the frontend writes and the kernel accepts.
-CURRENT_PROTOCOL = 10
 
 
 class Runner:

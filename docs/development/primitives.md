@@ -623,11 +623,12 @@ proves their facts.
 
 The parts that look an `op` up in `families` reject the demonstration's
 `op`, as they reject every `op` that the registry does not hold. These are
-`primitiveFamily?`, the decoder's `primitive` and `algebraicPrimitive`, and
-`resolvePrimitive`. `directionalDerivative_unregistered` and
-`directionalDerivative_rejected` prove it for `primitiveFamily?` and
-`Wire.primitive`, and the regression tests `algebraicPrimitive` and
-`resolvePrimitive`. `PrimitiveFamily.build` returns a `PrimitiveBinding`,
+`primitiveFamily?`, the decoder's `Wire.primitive` and `resolvePrimitive`.
+`directionalDerivative_unregistered` and `directionalDerivative_rejected`
+prove it for `primitiveFamily?` and `Wire.primitive`. The cases "the trusted
+decoder rejects the demo's op" and "the trusted resolver rejects the demo's
+op before resolving a name" of `IndexedDescriptorRegression` test it for
+`Wire.primitive` and `resolvePrimitive`. `PrimitiveFamily.build` returns a `PrimitiveBinding`,
 which has no constructor for the demonstration, so the demonstration's
 `build` reports the missing constructor. The generated Rust table and the
 parser hold no row for it. A primitive that follows the procedure gets these

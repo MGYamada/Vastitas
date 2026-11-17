@@ -19,6 +19,7 @@ on:
       - 'experiments/plain_c/**'
       - 'experiments/native_cleanup.py'
       - 'scripts/native_sanitizers.py'
+      - 'scripts/kernel_protocol.py'
       - 'scripts/check_plain_c_baselines.py'
       - 'scripts/test_plain_c_measurements.py'
       - 'scripts/install_ci_elan.py'

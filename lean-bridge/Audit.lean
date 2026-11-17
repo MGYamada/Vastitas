@@ -246,6 +246,10 @@ run_cmd do
       `VastitasBridge.AlgebraicGeometry.Kernel.PrincipalOpen.checkConstruction_localization_element,
       `VastitasBridge.AlgebraicGeometry.Kernel.PrincipalOpen.accepted,
       `VastitasBridge.AlgebraicGeometry.Kernel.Fiber.accepted,
+      -- Gluing two charts (Stage 7, #878): covers and separation witnesses.
+      `VastitasBridge.AlgebraicGeometry.Kernel.Gluing.cover_sum_eq_one,
+      `VastitasBridge.AlgebraicGeometry.Kernel.Gluing.cover_span_eq_top,
+      `VastitasBridge.AlgebraicGeometry.Kernel.Gluing.separation_surjective,
       `VastitasBridge.Differential.pderiv_aeval,
       `VastitasBridge.Differential.hasFDerivAt_eval,
       `VastitasBridge.Differential.hasFDerivAt_eval_pi,

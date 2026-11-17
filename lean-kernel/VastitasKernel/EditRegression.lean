@@ -1,11 +1,11 @@
-import VastitasKernel.Edit
-import VastitasKernel.SurfacePrograms
+import VastitasKernel.Authority
 import VastitasKernel.RegressionSupport
 
-/-! Retained legacy top-level checker/Core regressions. Current public JSON
-acceptance is covered by LegacySourceRegression and
-VastitasPublicTest.AuthorityRegression; shared namespace/dispatch/trace helpers
-remain live in the indexed composition. -/
+/-! Edit assemblies (grants, contributions and loans) through the assembler
+that the public 2–6 route runs, `Authority.assemble`, which reads them with
+protocol-6 authority, and the independent declaration correspondence of
+`Edit.prepare`. Public JSON acceptance is covered by LegacySourceRegression and
+VastitasPublicTest.AuthorityRegression. -/
 namespace VastitasKernel.Edit.Regression
 open Namespace
 
@@ -53,8 +53,12 @@ private def program (region : List (List String) := [["Int", "Int"]])
         methods := [addition], span := {}, isPublic := true }] }] }] }
 
 private def check := RegressionSupport.check "edit regression failed"
+/-- The assembly of `p` as the public 2–6 route reads it, with protocol-6
+authority. -/
+private def assembled (p : Namespace.Program) : Except Diagnostic Unit :=
+  (Authority.assemble { p with authority := true }.indexed).map fun _ => ()
 private def rejects (code : String) (p : Namespace.Program) : Bool :=
-  match checkEditProgram p with
+  match assembled p with
   | .ok _ => false
   | .error diagnostic => diagnostic.code == code
 
@@ -64,28 +68,18 @@ private def withoutAssembly : Namespace.Program :=
       if pkg.id == app then { pkg with modules := pkg.modules.map fun m => { m with assembly := none } }
       else pkg }
 
-#eval check "omitted assembly uses the same empty-trace audits" ((checkEditProgram withoutAssembly true).isOk)
+#eval check "omitted assembly uses the same empty-trace audits" ((assembled withoutAssembly).isOk)
 #eval check "omitted assembly still rejects invalid unused grant" (rejects "E_OWNER"
   { withoutAssembly with packages := withoutAssembly.packages.map fun pkg =>
       { pkg with modules := pkg.modules.map fun m =>
           { m with grants := m.grants.map fun g => { g with granteePath := ["absent"] } } } })
-#eval check "omitted assembly still checks unapplied bodies" (rejects "E_TYPE"
-  { withoutAssembly with packages := withoutAssembly.packages.map fun pkg =>
-      { pkg with modules := pkg.modules.map fun m =>
-          { m with contributions := m.contributions.map fun c =>
-              { c with methods := c.methods.map fun method =>
-                  { method with result := .data (.named "Bool") } } } } })
-
-#eval check "external edit accepted by actual checker" ((checkEditProgram (program) true).isOk)
-#eval check "legacy checker cannot skip assembly" (match checkNamespaceProgram (program) with
-  | .error diagnostic => diagnostic.code == "E_PROTOCOL"
-  | .ok _ => false)
+#eval check "external edit accepted by the assembler" ((assembled program).isOk)
 #eval check "all-key footprint is independently authorized" (rejects "E_IMPACT" (program [["Nat", "Nat"]]))
 #eval check "loan overlap" (rejects "E_BORROW" (program [["Int", "Int"]]
   [.borrow ["base", "integers"] "a" {}, .borrow ["base", "integers"] "b" {}]))
 #eval check "double return" (rejects "E_BORROW" (program [["Int", "Int"]]
   [.borrow ["base", "integers"] "a" {}, .release "a" {}, .release "a" {}]))
-#eval check "diamond replay is idempotent" ((checkEditProgram (program [["Int", "Int"]]
+#eval check "diamond replay is idempotent" ((assembled (program [["Int", "Int"]]
   [.borrow ["base", "integers"] "edit" {}, .apply ["addon", "sum"] (some "edit") {},
    .apply ["diamond", "sum"] (some "edit") {}, .release "edit" {}, .seal ["base", "choose"] {}])).isOk)
 
@@ -103,30 +97,6 @@ private def withoutAssembly : Namespace.Program :=
     let grant := prepared.grants.head!
     let forged := { grant with id := { grant.id with scope := ⟨app, []⟩ } }
     !decide (GrantsCorrespond (program).indexed { prepared with grants := [forged] }))
-
-#eval check "same ID and grant cannot replay a changed body" (match prepare (program).indexed with
-  | .error _ => false
-  | .ok prepared =>
-    let grant := prepared.grants.head!
-    let contribution := prepared.contributions.head!
-    let forged := { contribution with methods := [{ contribution.methods.head! with
-      body := .mk [] (.integer "99" {}) {} }] }
-    let state : State := {
-      loans := [{ name := "edit", grant }]
-      usedLoans := ({} : Std.HashSet String).insert "edit"
-      applied := [{ contribution := forged, grant := some grant.id, region := some grant.region }] }
-    match runTrace (program).indexed prepared [.apply ["addon", "sum"] (some "edit") {}] state with
-    | .error diagnostic => diagnostic.code == "E_INTERNAL_ASSEMBLY"
-    | .ok _ => false)
-
-#eval check "forged active grant region fails state provenance" (match prepare (program).indexed with
-  | .error _ => false
-  | .ok prepared =>
-    let grant := { prepared.grants.head! with region := [] }
-    let state : State := {
-      loans := [{ name := "edit", grant }]
-      usedLoans := ({} : Std.HashSet String).insert "edit" }
-    !decide (StateValid prepared state))
 
 end VastitasKernel.Edit.Regression
 

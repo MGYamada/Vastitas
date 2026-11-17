@@ -995,8 +995,7 @@ acceptance, so a call of one in a request is an unbound name (`E_NAME`).
 
 `decodeSurfaceModule` in `SurfaceProtocol.lean` decodes the extended request and
 `Indexed.LegacySource` converts its unresolved syntax into the common
-`Indexed.AuthoritySource.checkProgram` input. The old `checkSurfaceProgram`
-remains an internal API with separate retained proofs. Function syntax remains separate from core
+`Indexed.AuthoritySource.checkProgram` input. Function syntax remains separate from core
 syntax. Every lambda and function body is checked, including unused functions;
 signature probes for abstract function parameters are confined to a separate
 audit pass. Executable specialization memoizes definition/function-argument
@@ -1097,8 +1096,7 @@ request `describeDiagnostic` lowers the original namespace once more, with
 its bodies, only to restore source names in the diagnostic; the result of
 that lowering decides nothing about acceptance. Only an ordinary
 root-package root-module `main` becomes the core entrypoint. Protocol 2 keeps
-its flat namespace. `checkNamespaceProgram` and `checkSurfaceProgram` remain
-internal APIs that `Main` does not call.
+its flat namespace.
 
 A request admits at most 1,000,000 member visits across all import
 declarations. The kernel also limits the sum of the wire price of the request
@@ -1260,7 +1258,6 @@ compatibility.
 reconstructs histories and complete delegation chains and audits each
 transition against an independent relation. `checkProgram` performs the same
 namespace, membership, final dispatch, footprint, all-body and Core audits.
-`checkAuthorityProgram` remains an internal API that `Main` does not call.
 The original function identity never changes. A returned loan or transfer
 preserves contributions and unresolved completion obligations. The final
 winning region is contained in every ancestor's grant, and transfer requires
@@ -1479,7 +1476,8 @@ receipts, doctest execution, or official package admission.
   the recorded texts; `VastitasKernel.AverageRegression` and
   `VastitasKernel.NatureModelRegression` check the averages, the models and
   the data that the kernel accepts and rejects. `VastitasKernel.NamespaceRegression` tests the
-  retained `checkNamespaceProgram` on Lean values and decodes no request.
+  shared namespace code and `Authority.assemble` on Lean values and decodes
+  no request.
   `bash scripts/check_kernel_regressions.sh` builds them.
 
 ## History

@@ -68,18 +68,15 @@ def main (arguments : List String) : IO Unit := do
     | throw (IO.userError "source type fixture rejected")
   let mut bodies := []
   for (name, program) in [
-      ("source_bodies", VastitasKernel.Indexed.Source.BodyRegression.packageFixture),
-      ("source_scalars", VastitasKernel.Indexed.Source.BodyRegression.scalarFixture),
-      ("source_fields", VastitasKernel.Indexed.Source.BodyRegression.multipleFixture)] do
-    let .ok checked := VastitasKernel.Indexed.Source.Bodies.checkProgram program true
-      | throw (IO.userError s!"fixture {name} failed source body checking")
-    bodies := bodies ++ [(name, checked.core.module)]
-  for (name, program) in [
       ("functions", VastitasKernel.Indexed.FunctionSource.Regression.higherFixture),
       ("function_objects", VastitasKernel.Indexed.FunctionSource.Regression.indexedLambdaFixture),
       ("function_private", VastitasKernel.Indexed.FunctionSource.Regression.privateTargetFixture),
+      ("function_bodies", VastitasKernel.Indexed.FunctionSource.Regression.dataProgram
+        VastitasKernel.Indexed.Source.BodyFixture.packageFixture),
+      ("function_scalars", VastitasKernel.Indexed.FunctionSource.Regression.dataProgram
+        VastitasKernel.Indexed.Source.BodyFixture.scalarFixture),
       ("function_fields", VastitasKernel.Indexed.FunctionSource.Regression.dataProgram
-        VastitasKernel.Indexed.Source.BodyRegression.multipleFixture)] do
+        VastitasKernel.Indexed.Source.BodyFixture.multipleFixture)] do
     let .ok checked := VastitasKernel.Indexed.FunctionSource.Compiler.checkProgram program true
       | throw (IO.userError s!"fixture {name} failed source Fn checking")
     bodies := bodies ++ [(name, checked.executable.core.module)]

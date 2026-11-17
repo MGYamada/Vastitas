@@ -1,13 +1,10 @@
 import VastitasKernel.NamespaceChecker
 
 /-! The parts of protocol 5 that `Authority` builds on: the prepared immutable
-declarations, grants and contributions (`prepare`), the edit state and the
-independent audits of its transitions and validity (`TransitionAllowed`,
-`StateValid`), and the completion of one whole selected package environment
+declarations, grants and contributions (`prepare`), the applied contributions
+(`State`), and the completion of one whole selected package environment
 before the common lowering path (`finalSurface`, `completeFamilies`,
-`FootprintsAuthorized`, `unappliedAudit`). The retained protocol-5 trace and
-assembly (`Edit.step`, `Edit.Trace`, `Edit.runTrace`, `Edit.assemble`) and
-`checkEditProgram` are in `SurfacePrograms.lean`. -/
+`FootprintsAuthorized`, `unappliedAudit`). -/
 namespace VastitasKernel.Edit
 open Namespace
 open Checker.Internal
@@ -107,13 +104,6 @@ def GrantsCorrespond (p : Indexed) (prepared : Prepared p) : Prop :=
 
 instance : Decidable (GrantsCorrespond p prepared) := inferInstanceAs (Decidable (_ = _))
 
-def GrantsAuthorized (p : Indexed) (prepared : Prepared p) : Prop :=
-  ∀ grant ∈ prepared.grants,
-    grant.target.kind = .generic ∧ grant.target.owner.scope = grant.id.scope ∧
-      grant.grantee ≠ grant.id.scope ∧ (moduleAt p grant.grantee).isSome = true
-
-instance : Decidable (GrantsAuthorized p prepared) := by unfold GrantsAuthorized; infer_instance
-
 def prepare (p : Indexed) : Result (Prepared p) := do
   unless p.editable do problem {} "E_PROTOCOL" "edit assemblies require protocol 5"
   match baseFrom : Namespace.lower p with
@@ -172,93 +162,10 @@ structure State where
   edited : Std.HashSet Owner := {}
   deriving Inhabited
 
-def Exclusive (state : State) : Prop :=
-  (state.loans.map (·.grant.target.owner)).Nodup ∧ (state.loans.map (·.name)).Nodup
-instance : Decidable (Exclusive state) := by unfold Exclusive; infer_instance
-
-/-- Full contribution bodies/provenance, loan regions and all state components
-are compared; a matching name alone never establishes contribution identity. -/
-def State.snapshot (state : State) :=
-  (state.loans, state.applied, state.usedLoans.toList, state.sealed.toList, state.edited.toList)
-
-def SameState (actual expected : State) : Prop := actual.snapshot = expected.snapshot
-instance : Decidable (SameState actual expected) := inferInstanceAs (Decidable (_ = _))
-
 def ResolvesAs (p : Indexed) (scope : Scope) (path : List String) (span : Span)
     (kind : Kind) (owner : Owner) : Prop :=
   (resolve p scope path span).toOption.map (fun target => (target.kind, target.owner)) = some (kind, owner)
 instance : Decidable (ResolvesAs p scope path span kind owner) := inferInstanceAs (Decidable (_ = _))
-
-def ApplicationPreserved (before after : State) (contribution : ContributionEntry)
-    (grant : Option Owner) (region : Option (List Dispatch.Key)) : Prop :=
-  match before.applied.find? (·.contribution.id == contribution.id) with
-  | some previous => previous = { contribution, grant, region } ∧ SameState after before
-  | none => SameState after { before with
-      applied := before.applied ++ [{ contribution, grant, region }]
-      edited := before.edited.insert contribution.target.owner }
-
-instance : Decidable (ApplicationPreserved before after contribution grant region) := by
-  unfold ApplicationPreserved
-  split <;> infer_instance
-
-/-- Independent declarative transition audit. In particular, return preserves
-the whole installed contribution list, and replay compares complete records. -/
-def TransitionAllowed (p : Indexed) (prepared : Prepared p)
-    (before : State) (event : EditEvent) (after : State) : Prop :=
-  match event with
-  | .reborrow .. | .transfer .. => False
-  | .borrow path name span =>
-    ∃ grant ∈ prepared.grants,
-      ResolvesAs p prepared.rootScope path span .grant grant.id ∧
-      before.usedLoans.contains name = false ∧ before.sealed.contains grant.target.owner = false ∧
-      (∀ loan ∈ before.loans, loan.grant.target.owner ≠ grant.target.owner) ∧
-      SameState after { before with
-        loans := { name, grant } :: before.loans
-        usedLoans := before.usedLoans.insert name }
-  | .apply path requested span =>
-    ∃ contribution ∈ prepared.contributions,
-      ResolvesAs p prepared.rootScope path span .contribution contribution.id ∧
-      before.sealed.contains contribution.target.owner = false ∧
-      ((requested = none ∧ contribution.id.scope = contribution.target.owner.scope ∧
-          (∀ loan ∈ before.loans, loan.grant.target.owner ≠ contribution.target.owner) ∧
-          ApplicationPreserved before after contribution none none) ∨
-        ∃ loan ∈ before.loans, requested = some loan.name ∧
-          loan.grant.target.owner = contribution.target.owner ∧
-          loan.grant.grantee = contribution.id.scope ∧
-          ApplicationPreserved before after contribution (some loan.grant.id) (some loan.grant.region))
-  | .release name _ =>
-    (∃ loan ∈ before.loans, loan.name = name) ∧
-      SameState after { before with loans := before.loans.filter (·.name != name) }
-  | .seal path span =>
-    ∃ target ∈ p.declarations,
-      target.kind = .generic ∧ ResolvesAs p prepared.rootScope path span .generic target.owner ∧
-      (∀ loan ∈ before.loans, loan.grant.target.owner ≠ target.owner) ∧
-      before.sealed.contains target.owner = false ∧
-      SameState after { before with sealed := before.sealed.insert target.owner }
-
-instance : Decidable (TransitionAllowed p prepared before event after) := by
-  unfold TransitionAllowed
-  cases event <;> infer_instance
-
-def AppliedAuthorized (prepared : Prepared p) (applied : Applied) : Prop :=
-  applied.contribution ∈ prepared.contributions ∧
-  match applied.grant with
-  | none => applied.region = none ∧ applied.contribution.id.scope = applied.contribution.target.owner.scope
-  | some id => ∃ grant ∈ prepared.grants, grant.id = id ∧
-      grant.target.owner = applied.contribution.target.owner ∧
-      grant.grantee = applied.contribution.id.scope ∧ applied.region = some grant.region
-
-instance : Decidable (AppliedAuthorized prepared applied) := by
-  unfold AppliedAuthorized
-  cases applied.grant <;> infer_instance
-
-def StateValid (prepared : Prepared p) (state : State) : Prop :=
-  Exclusive state ∧
-    (∀ loan ∈ state.loans, loan.grant ∈ prepared.grants ∧ state.usedLoans.contains loan.name = true) ∧
-    (state.applied.map (·.contribution.id)).Nodup ∧
-    ∀ applied ∈ state.applied, AppliedAuthorized prepared applied
-
-instance : Decidable (StateValid prepared state) := by unfold StateValid; infer_instance
 
 def finalSurface (prepared : Prepared p) (state : State) : Surface.Program :=
   { prepared.base.surface with methods := prepared.base.surface.methods ++

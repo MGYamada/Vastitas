@@ -1,18 +1,16 @@
 import VastitasKernel.NamespaceChecker
-import VastitasKernel.SurfacePrograms
 import VastitasKernel.IndexedSource
 import Std.Data.HashMap.Lemmas
 import Std.Data.TreeSet.Lemmas
-import VastitasOracle.Functions
 
-/-! Shared namespace facts and the retained legacy protocol-3 composition:
-Main now enters Indexed.LegacySource.check; old-Core conclusions below are
-not corollaries of that current public entry point. The retained route has unique declaration owners, independently
-resolved references and exact-module method authority, composed with the existing
-surface/core theorems. Filesystem authenticity and source-to-IR preservation are
-outside this theorem boundary. No edit-borrow or abstract-method claims are made. -/
+/-! Facts about the actual first-match table builders, the resolver and the
+reference audit (`ReferencesValid`) that the public routes share, through
+`Authority.assemble` and the indexed source checker: list precedence of the
+lookups, independently resolved references, exact-module method and
+membership authority and import aliasing. Filesystem authenticity and
+source-to-IR preservation are outside this theorem boundary. -/
 namespace VastitasOracle.Namespaces
-open VastitasKernel VastitasKernel.Namespace VastitasKernel.Semantics
+open VastitasKernel VastitasKernel.Namespace
 
 attribute [local instance] lexOrd
 
@@ -126,80 +124,6 @@ theorem indexed_scope_lookup (program : Namespace.Program) (scope : Scope) :
     program.indexed.byScope[scope]?.getD [] = program.declarations.filter (·.owner.scope == scope) :=
   scope_index_matches_list _ _
 
-@[simp] private theorem rendered_success (result : Except Diagnostic α)
-    (render : Diagnostic → Diagnostic) (value : α) :
-    result.mapError render = .ok value ↔ result = .ok value := by
-  cases result <;> simp [Except.mapError]
-
-/-- The retained namespace entry accepts a renderer for its successful lowering.
-It changes diagnostics only, and has exactly the retained namespace checker's acceptance. -/
-theorem diagnostic_rendering_preserves_acceptance (program : Namespace.Program)
-    (requireMain : Bool) (render : Namespace.Lowered → Diagnostic → Diagnostic)
-    (certified : CertifiedModule) :
-    checkNamespaceProgram program requireMain render = .ok certified ↔
-      checkNamespaceProgram program requireMain = .ok certified := by
-  cases editable : program.editable <;> cases lowered : lower program.indexed <;>
-    simp [checkNamespaceProgram, editable, lowered, bind, Except.bind, throw]
-
-theorem checkNamespaceProgram_full_audit (program : Namespace.Program) (requireMain : Bool)
-    (certified : CertifiedModule)
-    (accepted : checkNamespaceProgram program requireMain = .ok certified) :
-    ∃ lowered graph, lower program.indexed = .ok lowered ∧
-      membershipGraph program.indexed = .ok graph ∧ MembershipsAuthorized graph ∧
-      UniqueOwners program.indexed ∧ ReferencesValid program.indexed lowered ∧
-      checkSurfaceProgram lowered.surface requireMain = .ok certified := by
-  have legacy : program.editable = false := by
-    cases editable : program.editable with
-    | false => rfl
-    | true => simp [checkNamespaceProgram, editable, throw, bind, Except.bind] at accepted
-  cases lowered : lower program.indexed with
-  | error diagnostic => simp [checkNamespaceProgram, legacy, lowered, bind, Except.bind] at accepted
-  | ok result =>
-    cases graph : membershipGraph program.indexed with
-    | error diagnostic => simp [checkNamespaceProgram, legacy, lowered, graph, bind, Except.bind, Except.mapError] at accepted
-    | ok authority =>
-      by_cases authorized : MembershipsAuthorized authority
-      · by_cases owners : UniqueOwners program.indexed
-        · by_cases references : ReferencesValid program.indexed result
-          · refine ⟨result, authority, rfl, rfl, authorized, owners, references, ?_⟩
-            simpa [checkNamespaceProgram, legacy, lowered, graph, authorized, owners, references, bind, Except.bind] using accepted
-          · simp [checkNamespaceProgram, legacy, lowered, graph, authorized, references, bind, Except.bind, throw] at accepted
-        · simp [checkNamespaceProgram, legacy, lowered, graph, authorized, owners, bind, Except.bind, throw] at accepted
-      · simp [checkNamespaceProgram, legacy, lowered, graph, authorized, bind, Except.bind, throw] at accepted
-
-theorem checkNamespaceProgram_audited (program : Namespace.Program) (requireMain : Bool)
-    (certified : CertifiedModule)
-    (accepted : checkNamespaceProgram program requireMain = .ok certified) :
-    ∃ lowered, lower program.indexed = .ok lowered ∧ UniqueOwners program.indexed ∧
-      ReferencesValid program.indexed lowered ∧ checkSurfaceProgram lowered.surface requireMain = .ok certified := by
-  obtain ⟨lowered, _, equation, _, _, owners, references, checked⟩ :=
-    checkNamespaceProgram_full_audit program requireMain certified accepted
-  exact ⟨lowered, equation, owners, references, checked⟩
-
-/-- Every transitive scalar membership in the independently reconstructed graph
-has a support declaration in that ancestor's exact module. Foreign inheritance
-alone never supplies this support. -/
-theorem accepted_memberships_authorized (program : Namespace.Program) (requireMain : Bool)
-    (certified : CertifiedModule)
-    (accepted : checkNamespaceProgram program requireMain = .ok certified) :
-    ∃ graph, membershipGraph program.indexed = .ok graph ∧
-      ∀ ancestor ∈ graph.declarations, ∀ scalar ∈ [0, 1, 2, 3],
-        graph.hierarchy.subtype scalar (graph.names.idxOf ancestor.declaration.name) = true →
-        ∃ support ∈ graph.memberships, support.scope = ancestor.scope ∧
-          Dispatch.parseScalar support.membership.scalar = some scalar ∧
-          graph.inheritance.subtype (graph.names.idxOf support.membership.target.name)
-            (graph.names.idxOf ancestor.declaration.name) = true := by
-  obtain ⟨_, graph, _, equation, authorized, _⟩ :=
-    checkNamespaceProgram_full_audit program requireMain certified accepted
-  exact ⟨graph, equation, authorized⟩
-
-theorem accepted_owners_unique (program : Namespace.Program) (requireMain : Bool)
-    (certified : CertifiedModule)
-    (accepted : checkNamespaceProgram program requireMain = .ok certified) :
-    (program.declarations.map (·.owner)).Nodup := by
-  obtain ⟨_, _, owners, _, _⟩ := checkNamespaceProgram_audited program requireMain certified accepted
-  exact owners
-
 /-- The recorded path is re-resolved through the real visibility/import checker;
 there is no assumed frontend owner or selected-target premise. -/
 theorem reference_resolves (program : Namespace.Program) (lowered : Namespace.Lowered)
@@ -260,21 +184,5 @@ theorem same_logical_owner_same_symbol (package : PackageId) (path : List String
     (first second : Owner) (h₁ : first = ⟨⟨package, path⟩, name⟩)
     (h₂ : second = ⟨⟨package, path⟩, name⟩) : first.symbol = second.symbol := by
   rw [h₁, h₂]
-
-theorem checkNamespaceProgram_typed_and_ordered (program : Namespace.Program) (requireMain : Bool)
-    (certified : CertifiedModule)
-    (accepted : checkNamespaceProgram program requireMain = .ok certified) :
-    Typing.ModuleWellTyped certified.val ∧ Dependency.ModuleOrdered certified.val := by
-  obtain ⟨lowered, _, _, _, checked⟩ := checkNamespaceProgram_audited program requireMain certified accepted
-  exact Functions.checkSurfaceProgram_typed_and_ordered lowered.surface requireMain certified checked
-
-theorem checkNamespaceProgram_total_for_arguments (program : Namespace.Program) (requireMain : Bool)
-    (certified : CertifiedModule) (accepted : checkNamespaceProgram program requireMain = .ok certified)
-    (function : CheckedFunction) (member : function ∈ certified.val.functions)
-    (world : World) (env : Environment) (context : ContextHasType world env function.params) :
-    ∃ value, Eval certified.val.functions env function.body value ∧
-      ValueHasType world value function.returnType := by
-  obtain ⟨typed, ordered⟩ := checkNamespaceProgram_typed_and_ordered program requireMain certified accepted
-  exact ActivationSafety.module_total_for_arguments certified.val typed ordered function member world env context
 
 end VastitasOracle.Namespaces

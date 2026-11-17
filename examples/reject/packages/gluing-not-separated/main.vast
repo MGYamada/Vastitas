@@ -1,0 +1,18 @@
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+use std::geometry::smooth::affine::SmoothR;
+
+indexed affine L1(AffineQQ) = spec[x] over SpecQQ;
+indexed affine L2(AffineQQ) = spec[y] over SpecQQ;
+
+indexed affine V1(AffineQQ) = localize(L1, x) inverse a;
+indexed affine V2(AffineQQ) = localize(L2, y) inverse b;
+indexed glued Doubled(AffineQQ) = glue(V1, V2) by(y -> x, b -> a) inverse(x -> y, a -> b);
+
+// ANCHOR: declarations
+// The doubled origin: no polynomial in x and y gives 1/x on the overlap.
+indexed separated wrong = separated(Doubled) by(a -> L2::y);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

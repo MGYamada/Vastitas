@@ -1,0 +1,1 @@
+examples/reject/packages/gluing-not-inverse/main.vast:14:1: E_GLUE: the transition from `gluing_not_inverse::U1` to `gluing_not_inverse::U2`: the map does not respect the target's relations

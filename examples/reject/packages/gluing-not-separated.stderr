@@ -1,0 +1,1 @@
+examples/reject/packages/gluing-not-separated/main.vast:15:1: E_GLUE: the witness for `gluing_not_separated::Doubled`: on the overlap, the witness is not the inverse coordinate of the first open

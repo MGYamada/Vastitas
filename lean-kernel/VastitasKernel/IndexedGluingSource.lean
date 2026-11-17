@@ -32,15 +32,17 @@ def glueProblem {α : Type} (span : Span) (message : String) : Namespace.Result 
 
 /-- A failed gluing action: a budget failure stays `E_LIMIT` and a coordinate
 failure `E_AFFINE_COORDINATE`; every other failure is `E_GLUE`. -/
-def glueFailure {α : Type} (span : Span) (error : AlgebraBasis.Error) : Namespace.Result α :=
+def glueFailure {α : Type} (span : Span) (context : String) (error : AlgebraBasis.Error) :
+    Namespace.Result α :=
   match error with
   | .limit _ | .coordinate _ => algebraProblem span error
-  | _ => glueProblem span error.message
+  | _ => glueProblem span s!"{context}: {error.message}"
 
-def runGlue {α : Type} (span : Span) (action : Work α) : Namespace.Result α :=
+/-- Run a gluing action; `context` names the declaration that a failure is about. -/
+def runGlue {α : Type} (span : Span) (context : String) (action : Work α) : Namespace.Result α :=
   match run action with
   | .ok value => pure value
-  | .error error => glueFailure span error
+  | .error error => glueFailure span context error
 
 /-- Derive the presentation of every smooth open from its smooth object. -/
 def elaborateSmoothOpens (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
@@ -166,7 +168,8 @@ def elaborateGlued (env : Environment) (span : Span) (implementation first secon
   let some bases := baseImages? env site first second a b
     | glueProblem span <| s!"the charts `{Namespace.Owner.qualified a.chart}` and `{Namespace.Owner.qualified b.chart}` of a gluing must have " ++
         "one base"
-  runGlue span (checkGluing a b bases forward backward)
+  runGlue span s!"the transition from `{Namespace.Owner.qualified first}` to `{Namespace.Owner.qualified second}`"
+    (checkGluing a b bases forward backward)
   pure (.glued implementation first second forward backward)
 
 /-- Elaborate one cover. -/
@@ -186,7 +189,8 @@ def elaborateCover (env : Environment) (span : Span) (object : DeclId) (opens : 
     match run (e.evaluate x.generators) with
     | .ok p => pure p
     | .error error => algebraProblem span error
-  runGlue span (GluingDeclarations.checkCover x (found.map (·.element)) coefficients)
+  runGlue span s!"the cover of `{Namespace.Owner.qualified object}`"
+    (GluingDeclarations.checkCover x (found.map (·.element)) coefficients)
   pure (.cover object opens coefficients)
 
 /-- Elaborate one projective chart entry against the open `o` of the gluing. -/
@@ -235,7 +239,8 @@ def elaborateGluing (sources : List (DeclId × Span × Body)) (env : Core.Declar
     | .separated glued _, some (.separated _ inverse witness) =>
       let (a, b, forward) ← requireGlued indexed span "separated(…)" .zariski glued
       let witness ← witnessOf span a b inverse witness
-      runGlue span (checkSeparation a.data a.chartData.arity b.chartData.arity forward witness)
+      runGlue span s!"the witness for `{Namespace.Owner.qualified glued}`"
+        (checkSeparation a.data a.chartData.arity b.chartData.arity forward witness)
       second := second ++ [⟨entry.id, .separated glued witness⟩]
     | .manifold glued dimension _, some (.manifold _ _ inverse witness) =>
       let (a, b, forward) ← requireGlued indexed span "manifold(…)" .smooth glued
@@ -244,7 +249,8 @@ def elaborateGluing (sources : List (DeclId × Span × Body)) (env : Core.Declar
           s!"but `{Namespace.Owner.qualified a.chart}` has dimension {a.chartData.arity} and `{Namespace.Owner.qualified b.chart}` has dimension " ++
           s!"{b.chartData.arity}"
       let witness ← witnessOf span a b inverse witness
-      runGlue span (checkSeparation a.data a.chartData.arity b.chartData.arity forward witness)
+      runGlue span s!"the witness for `{Namespace.Owner.qualified glued}`"
+        (checkSeparation a.data a.chartData.arity b.chartData.arity forward witness)
       second := second ++ [⟨entry.id, .manifold glued dimension witness⟩]
     | .projective glued homogeneous charts, some (.projective _ _ sourceCharts) =>
       let (a, b, forward) ← requireGlued indexed span "proj(…)" .zariski glued
@@ -261,7 +267,8 @@ def elaborateGluing (sources : List (DeclId × Span × Body)) (env : Core.Declar
         | glueProblem span s!"the projective claim gives no entry for the chart `{Namespace.Owner.qualified b.chart}` of `{Namespace.Owner.qualified glued}`"
       let c₁ ← elaborateProjectiveChart span homogeneous a s₁
       let c₂ ← elaborateProjectiveChart span homogeneous b s₂
-      runGlue span (checkProjectiveCharts a b forward c₁ c₂)
+      runGlue span s!"the projective claim for `{Namespace.Owner.qualified glued}`"
+        (checkProjectiveCharts a b forward c₁ c₂)
       second := second ++ [⟨entry.id, .projective glued homogeneous [c₁, c₂]⟩]
     | _, _ => second := second ++ [entry]
   pure { env with indexed := second }

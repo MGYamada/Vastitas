@@ -1,0 +1,1 @@
+examples/reject/packages/gluing-swapped-site/main.vast:14:1: E_GLUE: `gluing_swapped_site::U1` is a Zariski principal open, but the smooth site of the implementation `vastitas_geometry::smooth::affine::SmoothR` needs a smooth open `localize(X, f)` of a smooth object of that implementation

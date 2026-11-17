@@ -1,0 +1,1 @@
+examples/reject/packages/gluing-not-manifold/main.vast:17:1: E_GLUE: the witness for `gluing_not_manifold::Doubled`: on the overlap, the witness is not the inverse coordinate of the first open

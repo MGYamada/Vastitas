@@ -1,0 +1,16 @@
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+use std::geometry::smooth::affine::SmoothR;
+
+indexed affine L1(AffineQQ) = spec[x] over SpecQQ;
+indexed affine L2(AffineQQ) = spec[y] over SpecQQ;
+
+// ANCHOR: declarations
+// D(t^2 + 1) contains every real point of the line, but it is no Zariski
+// cover: no polynomial a gives a * (t^2 + 1) = 1.
+indexed affine Positive(AffineQQ) = localize(Line, t^2 + 1) inverse k;
+indexed cover wrong = cover(Line, Positive) by(1);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

@@ -111,7 +111,7 @@ def checkSeparation (u₁ : AffineData) (arity₁ arity₂ : Nat) (forward : Lis
   let image ← reduce u₁.basis (← substitute u₁.arity (tensorImages u₁ arity₁ arity₂ forward) witness)
   let inverse ← reduce u₁.basis (Poly.var u₁.arity arity₁)
   ensure (image == inverse)
-    (.relation "the witness does not give the inverse coordinate of the first open on the overlap")
+    (.relation "on the overlap, the witness is not the inverse coordinate of the first open")
 
 /-- The homogeneous coordinates `(s, t)` of a chart, in its own coordinates. -/
 def homogeneous (arity : Nat) (chart : ProjectiveChart) : Poly × Poly :=

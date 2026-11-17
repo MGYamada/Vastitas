@@ -280,6 +280,10 @@ const BOOK_PACKAGES: &[(&str, &[&str])] = &[
             "avg(at(5, 5)) = (1, 4)",
         ],
     ),
+    (
+        "examples/packages/projective-line/Vastitas.toml",
+        &["failures = 0"],
+    ),
 ];
 
 /// The package programs of the book whose build links OpenBLAS, by manifest.
@@ -403,6 +407,13 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/two-level-off-chart",
     "examples/reject/packages/two-level-wrong-verdict",
     "examples/reject/packages/two-level-stale",
+    "examples/reject/packages/gluing-third-chart",
+    "examples/reject/packages/gluing-not-inverse",
+    "examples/reject/packages/gluing-swapped-site",
+    "examples/reject/packages/gluing-not-separated",
+    "examples/reject/packages/gluing-not-manifold",
+    "examples/reject/packages/gluing-false-cover",
+    "examples/reject/packages/gluing-wrong-projective",
 ];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {

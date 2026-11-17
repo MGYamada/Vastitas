@@ -1,0 +1,1 @@
+examples/reject/packages/gluing-wrong-projective/main.vast:16:1: E_GLUE: the projective claim for `gluing_wrong_projective::Doubled`: the homogeneous coordinates of the two charts disagree on the overlap

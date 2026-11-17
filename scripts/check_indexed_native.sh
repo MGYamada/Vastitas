@@ -91,12 +91,11 @@ opened_object 41
 multiple_fields 0
 source_declarations 7
 source_types 13
-source_bodies 2
-source_scalars 999999999999999999999999999999999999999997
-source_fields 3
 functions 42
 function_objects 10
 function_private 9
+function_bodies 2
+function_scalars 999999999999999999999999999999999999999997
 function_fields 3
 dispatch 42
 dispatch_contract 42

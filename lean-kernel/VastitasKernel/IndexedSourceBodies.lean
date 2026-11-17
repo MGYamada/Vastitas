@@ -1,9 +1,11 @@
 import VastitasKernel.IndexedSourceDiagnostics
 import VastitasKernel.NamespaceQuery
 
-/-! Internal data-function elaboration. The public protocol-7 entry point must
-also compose Fn specialization, finite dispatch and edit authority. This adapter
-rejects those unsupported envelopes instead of silently dropping their bodies. -/
+/-! The elaboration monad, its input, the diagnostics and the primitive
+emission of the body elaborator of the Fn compiler (`IndexedFunctionState.lean`,
+`IndexedFunctionBodies.lean`). `dataOnly` is the envelope check of
+`FunctionSource.Compiler.checkProgram`: it rejects an envelope whose bodies
+that stage does not elaborate instead of silently dropping them. -/
 namespace VastitasKernel.Indexed.Source.Bodies
 
 structure Signature where
@@ -47,7 +49,6 @@ def lookupPath (index : Namespace.Indexed) (scope : Namespace.Scope) (path : Sou
 structure Input where
   index : Namespace.Indexed
   declarations : Core.Declarations
-  signatures : Std.HashMap DeclId Signature := {}
   geometry : Option (GeometryProfile DeclId) := none
 
 def fail (span : Span) (code message : String) (notes : List DiagnosticNote := []) : M α :=
@@ -143,15 +144,6 @@ def expect (input : Input) (expected : Option Core.DataType) (value : Core.Term)
           if expected == .pure .int && value.result.type == .pure .nat then
             [{ span, message := "help: convert explicitly with int(...); Nat values are never converted implicitly" }] else [])
   return value
-
-def literalLike : Source.Expr → Bool
-  | .integer .. => true
-  | .unary "-" value _ => literalLike value
-  | .binary op left right _ => ["+", "-", "*"].contains op && literalLike left && literalLike right
-  | _ => false
-
-def blockLiteralLike : Source.Block → Bool
-  | .mk _ result _ => literalLike result
 
 def integerType : Core.DataType → Bool
   | .pure .nat | .pure .int => true

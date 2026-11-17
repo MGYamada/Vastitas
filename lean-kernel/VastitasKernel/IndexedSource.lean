@@ -354,11 +354,6 @@ mutual
     deriving Repr, Inhabited
 end
 
-def Expr.span : Expr → Span
-  | .integer _ span | .boolean _ span | .unit span | .variable _ span
-  | .call _ _ span | .unary _ _ span | .binary _ _ _ span | .branch _ _ _ span
-  | .block _ span | .pack _ _ _ span => span
-
 structure Function where
   name : String
   params : List Param
@@ -403,10 +398,6 @@ def Program.toNamespace (p : Program) : Namespace.Program := {
     id := pkg.id, dependencies := pkg.dependencies,
     modules := pkg.modules.map fun m =>
       { m.module with functions := m.module.functions ++ m.functions.map Function.namespaceHeader } } }
-
-def Program.functions (p : Program) : List (Namespace.Owner × Function) :=
-  p.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
-    m.functions.map fun f => (⟨⟨pkg.id, m.module.path⟩, f.name⟩, f)
 
 /-- The input has no field for a declaration owner. Even an unused declaration
 in a dependency receives the enclosing package's full canonical identity. -/

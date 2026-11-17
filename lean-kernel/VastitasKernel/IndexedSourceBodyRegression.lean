@@ -1,19 +1,23 @@
-import VastitasKernel.IndexedSourceProgram
-import VastitasKernel.IndexedSourceBodyFixture
-import VastitasKernel.IndexedCodegen
+import VastitasKernel.IndexedFunctionRegression
 import VastitasKernel.RegressionSupport
 
+/-! Data-function source bodies through the Fn compiler
+(`FunctionSource.Compiler.checkProgram`), whose body elaborator and passes the
+public routes compose. Each source program here has data types only; the
+regression converts it with `FunctionSource.Regression.dataProgram`. -/
 namespace VastitasKernel.Indexed.Source.BodyRegression
 open Bodies BodyFixture
 
 private def check := RegressionSupport.check "indexed source body regression failed"
-private def accepts (p : Source.Program) (requireMain := true) : Bool := (Bodies.checkProgram p requireMain).isOk
+private def checked (p : Source.Program) (requireMain := true) :=
+  FunctionSource.Compiler.checkProgram (FunctionSource.Regression.dataProgram p) requireMain
+private def accepts (p : Source.Program) (requireMain := true) : Bool := (checked p requireMain).isOk
 private def rejects (code : String) (p : Source.Program) : Bool :=
-  match Bodies.checkProgram p true with | .error error => error.code == code | .ok _ => false
+  match checked p with | .error error => error.code == code | .ok _ => false
 
 #eval check "unresolved package bodies and forward calls" (accepts packageFixture)
-#eval check "actual source bodies reach native codegen" (match Bodies.checkProgram packageFixture true with
-  | .ok checked => (Core.Codegen.generate checked.core).isOk
+#eval check "actual source bodies reach native codegen" (match checked packageFixture with
+  | .ok checked => (Core.Codegen.generate checked.executable.core).isOk
   | .error _ => false)
 #eval check "source ordering does not select a different function" (accepts (program [make, unwrap, main (call "unwrap" [call "make" [num 2]])]))
 #eval check "empty library accepted but entrypoint required for build" (accepts (program []) false && !accepts (program []))
@@ -71,8 +75,8 @@ private def rejects (code : String) (p : Source.Program) : Bool :=
 #eval check "explicit conversion only" (rejects "E_TYPE" (program [main (var "n") [bind "n" (num 2) (some nat)]]))
 #eval check "malformed numeral" (rejects "E_LITERAL" (program [main (.integer "-1" {})]))
 
-#eval check "source scalar and Pair native generation" (match Bodies.checkProgram scalarFixture true with
-  | .ok checked => (Core.Codegen.generate checked.core).isOk
+#eval check "source scalar and Pair native generation" (match checked scalarFixture with
+  | .ok checked => (Core.Codegen.generate checked.executable.core).isOk
   | .error _ => false)
 
 private def secret (isPublic : Bool) : Source.Function := { fn "secret" [] int (block (num 17)) with isPublic }
@@ -123,7 +127,7 @@ private def token (witness : String) : Source.DataType := .application (path "ge
 /-! Rejected primitive calls name the failed requirement of their resolved
 binding (#602). The message is exact; the origin notes are unchanged. -/
 private def explains (message : String) (p : Source.Program) (notes : Nat) : Bool :=
-  match Bodies.checkProgram p true with
+  match checked p with
   | .error error => error.code == "E_ENDPOINT" && error.message == message && error.notes.length == notes
   | .ok _ => false
 private def objects : List Source.Stmt :=
@@ -219,28 +223,12 @@ private def withCopy (p : Source.Program) : Source.Program :=
       Diagnostics.explainPrimitive env.indexed (.compose point) [] 0 [] .natural == some .binding
     | _ => false)
 
-#eval check "source coverage rejects omissions and substituted owners" (match Bodies.checkProgram packageFixture true with
+#eval check "duplicate body substitution fails independent Core uniqueness" (match checked packageFixture with
   | .error _ => false
   | .ok checked =>
-      let module := checked.lowered.module
-      let first := module.functions[0]!
-      !validFunctionOrigins packageFixture { module with functions := module.functions.tail } &&
-      !validFunctionOrigins packageFixture { module with functions :=
-        { first with definition := { first.definition with name := "forged" } } :: module.functions.tail })
-#eval check "duplicate body substitution fails independent Core uniqueness" (match Bodies.checkProgram packageFixture true with
-  | .error _ => false
-  | .ok checked =>
-      let module := checked.lowered.module
+      let module := checked.executable.core.module
       let repeated := { module with functions := List.replicate module.functions.length module.functions[0]! }
-      validFunctionOrigins packageFixture repeated && !(Core.Typing.checkModule repeated false).isOk)
-#eval check "forged call provenance rejected" (match Bodies.checkProgram packageFixture true with
-  | .error _ => false
-  | .ok checked => match checked.lowered.calls.head? with
-    | none => false
-    | some reference =>
-        let forged := { reference with id := packageFixture.functions.length }
-        !validCalls packageFixture.indexed { checked.lowered with calls := [forged] } &&
-        !validCalls packageFixture.indexed { checked.lowered with calls := [{ reference with path := path "absent" }] })
+      !(Core.Typing.checkModule repeated false).isOk)
 #eval check "shared dependency is ordered once" (accepts (program [main (.binary "+" (call "leaf") (call "leaf") {}),
   fn "leaf" [] int (block (num 1))]))
 #eval check "nested unary and Bool operators" (accepts (program [main

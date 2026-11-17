@@ -64,7 +64,6 @@ import VastitasOracle.IndexedArgumentSafety
 import VastitasOracle.IndexedProgramSafety
 import VastitasOracle.IndexedSource
 import VastitasOracle.IndexedSourceTypes
-import VastitasOracle.IndexedSourceBodies
 import VastitasOracle.IndexedFunctions
 import VastitasOracle.IndexedDispatch
 import VastitasOracle.IndexedAuthority

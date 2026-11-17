@@ -35,7 +35,7 @@ driver writes and the kernel accepts. The kernel holds it in
 `PROTOCOL` in `src/ir.rs` holds the same number: `build.rs` reads the Lean
 definition, and a constant assertion fails the build of the driver when the
 two differ. `vastitas --version` prints that number, as in
-`vastitas 0.1.0-alpha (wire protocol 10)`. The version is a schema epoch, not
+`vastitas 0.1.0-beta (wire protocol 10)`. The version is a schema epoch, not
 a feature level: an optional record of the envelope never selects a version.
 
 `lean-kernel/Main.lean` reads the request up to its byte bound, decodes it

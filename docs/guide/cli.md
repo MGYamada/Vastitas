@@ -28,7 +28,7 @@ vastitas --version
 | `build` | Checks a program in the same way and then builds an executable from its entry point | The file `OUTPUT`, and the line `built OUTPUT` on standard output |
 | `audit-lean` | Rechecks an exported Lean proof with a second checker. It checks no program. [`audit-lean`](#audit-lean) describes it | A report of four lines on standard output |
 | `--help`, `-h` | Prints the usage. `vastitas` without arguments does the same, and so do `check`, `build` and `audit-lean` with `--help` or `-h` as their only argument | The usage on standard output |
-| `--version` | Prints the version of the compiler and the one version of the [wire protocol](../appendix/glossary.md#wire-protocol) that it speaks, its [schema epoch](../appendix/glossary.md#schema-epoch) | One line, such as `vastitas 0.1.0-alpha (wire protocol 10)` |
+| `--version` | Prints the version of the compiler and the one version of the [wire protocol](../appendix/glossary.md#wire-protocol) that it speaks, its [schema epoch](../appendix/glossary.md#schema-epoch) | One line, such as `vastitas 0.1.0-beta (wire protocol 10)` |
 
 `--help` and `--version` read no file and start no kernel.
 
@@ -196,7 +196,7 @@ Rules:
   the `lake` command that builds it.
 - A compiler that `cargo install` installed has no built kernel of its own.
   Set `VASTITAS_KERNEL_ROOT` to the kernel root of the unpacked crate, as
-  [Install the alpha crate](installation.md#install-the-alpha-crate) shows.
+  [Install the beta crate](installation.md#install-the-beta-crate) shows.
 
 The **build identity** of a kernel executable names what it was built from: a
 digest of its Lean sources and of the file of
@@ -470,10 +470,11 @@ Rules:
   (`E_NATIVE_ABI`).
 - `check` needs neither the library nor the numerical runtime.
 
-The script at the tag `v0.1.0-alpha` does not check the installed profile,
-and the crate of that release does not hold the script. The
-[README](https://github.com/MGYamada/Vastitas/blob/main/README.md#install-the-alpha)
-shows how to fetch it.
+The crate of the release `0.1.0-beta` holds the script, and the
+[README](https://github.com/MGYamada/Vastitas/blob/main/README.md#install-the-beta)
+shows how to run it from the unpacked crate. The crate of `0.1.0-alpha` does
+not hold the script, and the script at the tag `v0.1.0-alpha` does not check
+the installed profile.
 [Native GEMM adapter](../internals/numerical-backend.md#native-gemm-adapter)
 describes the build profile and the checks of the adapter.
 

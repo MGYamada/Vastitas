@@ -50,17 +50,17 @@ Build both parts again after you update the checkout. Each kernel reports
 which sources it was built from, and `vastitas` refuses a kernel that was
 built from other sources than its own.
 
-## Install the alpha crate
+## Install the beta crate
 
-The alpha release `0.1.0-alpha` is on crates.io. Cargo installs the command
+The beta release `0.1.0-beta` is on crates.io. Cargo installs the command
 `vastitas`, and the same crate holds the sources of the kernel. Unpack the
 crate in a directory that you keep, and build the kernel there:
 
 ```sh
-cargo install --locked --version '=0.1.0-alpha' vastitas
-curl -fLsS https://static.crates.io/crates/vastitas/vastitas-0.1.0-alpha.crate -o vastitas-0.1.0-alpha.crate
-tar -xzf vastitas-0.1.0-alpha.crate
-cd vastitas-0.1.0-alpha
+cargo install --locked --version '=0.1.0-beta' vastitas
+curl -fLsS https://static.crates.io/crates/vastitas/vastitas-0.1.0-beta.crate -o vastitas-0.1.0-beta.crate
+tar -xzf vastitas-0.1.0-beta.crate
+cd vastitas-0.1.0-beta
 export VASTITAS_KERNEL_ROOT="$PWD/lean-kernel"
 lake -d lean-kernel build vastitas-kernel
 vastitas check examples/pointed.vast
@@ -68,20 +68,19 @@ vastitas build examples/pointed.vast -o pointed
 ./pointed
 ```
 
-The example prints `42`: an executable of the alpha release prints the
-result of `main`, where the executables of this book exit with it and write
-only the lines of `show!`, on standard error. An installed `vastitas` has no built kernel of its
-own, so `VASTITAS_KERNEL_ROOT` names one. Set the variable to the same
+The example writes no line and exits with status 0, the result of its
+`main`, like the executables of this book. An installed `vastitas` has no
+built kernel of its own, so `VASTITAS_KERNEL_ROOT` names one. Set the variable to the same
 absolute path in each shell that you open.
 
 With this installation, write `vastitas` where the book writes
 `target/debug/vastitas`, and run the commands from the unpacked directory.
 The book writes its executables to the directory `target`, which the
-unpacked crate lacks, so make it first with `mkdir -p target`. The alpha
-release is older than this book. Of the programs of this chapter it has only
-`examples/pointed.vast`, and it has neither the other programs of the book
-nor the libraries of chapters 8 and 9. To follow the book, build from a
-checkout.
+unpacked crate lacks, so make it first with `mkdir -p target`. The crate
+holds the examples, the standard library and the `nature` library of its
+release, and the scripts that prepare the standard library and build
+OpenBLAS. The book on `main` can be newer than the release. To follow a newer
+book, build from a checkout.
 
 ## Selecting a kernel
 

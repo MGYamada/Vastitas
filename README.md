@@ -22,13 +22,19 @@ characteristic polynomials with the module action, trace powers and coefficients
 as smooth maps with their gradients, and simple eigenvalue branches on a chart
 certified by a gap witness; the bridge proves that the compiled reverse pass of a
 trace power computes the Daleckii–Krein cotangent. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/spectral-observations.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/spectral-observations.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage5-acceptance.md)
-Historical Stage 6, in progress, adds a checked finite profile of one physical
+Historical Stage 6 adds a checked finite profile of one physical
 model over QQ: a two-level field whose dephased transition average is a closed
 form that the kernel checks against the trace form of its branch, a model that
 records the meaning of the field and its regime, a calibration, a dataset and a
 recorded comparison whose verdict the kernel computes again exactly and which is
 stale once the calibration changes; the oracle proves what accepted averages, models and comparisons satisfy,
 and the bridge proves that an accepted average is the sum of the squared eigenprojector entries. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/physical-models.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/physical-models.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage6-acceptance.md)
+Historical Stage 7 adds a checked finite profile of gluing two charts, over QQ
+in the Zariski site and over ℝ in the smooth site: certified covers, and claims
+about the glued object that the kernel checks with exact witnesses. It accepts
+ℙ¹ as separated and rejects the line with a doubled origin, accepts ℝP¹ as a
+manifold, and checks that the glued line is the projective line Proj QQ[s, t].
+The declarations add nothing to the generated code. [Guide](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/gluing.md) · [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/gluing.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage7-acceptance.md)
 
 ## Build and use
 
@@ -46,17 +52,17 @@ The program writes no line and exits with status 0: an executable exits with
 the result of `main` and writes only the lines of `show!`, on standard error. [Getting started](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/getting-started.md) ·
 [CLI reference](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/cli.md) · [Creating a package](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/creating-a-package.md)
 
-## Install the alpha
+## Install the beta
 
-This alpha runs on macOS and Linux. Install Rust 1.99.1, Lean 4.35.0
+This beta runs on macOS and Linux. Install Rust 1.99.1, Lean 4.35.0
 (with Lake) and a host C toolchain. Cargo installs the driver. Build its
 matching kernel in a writable directory and keep it for subsequent runs.
 
 ```sh
-cargo install --locked --version '=0.1.0-alpha' vastitas
-curl -fLsS https://static.crates.io/crates/vastitas/vastitas-0.1.0-alpha.crate -o vastitas-0.1.0-alpha.crate
-tar -xzf vastitas-0.1.0-alpha.crate
-cd vastitas-0.1.0-alpha
+cargo install --locked --version '=0.1.0-beta' vastitas
+curl -fLsS https://static.crates.io/crates/vastitas/vastitas-0.1.0-beta.crate -o vastitas-0.1.0-beta.crate
+tar -xzf vastitas-0.1.0-beta.crate
+cd vastitas-0.1.0-beta
 export VASTITAS_KERNEL_ROOT="$PWD/lean-kernel"
 lake -d lean-kernel build vastitas-kernel
 vastitas check examples/pointed.vast
@@ -64,9 +70,8 @@ vastitas build examples/pointed.vast -o pointed
 ./pointed
 ```
 
-The example prints `42`: executables of the alpha print the result of
-`main`, where those built from this repository exit with it. Set
-`VASTITAS_KERNEL_ROOT` to this same absolute
+The example writes no line and exits with status 0, the result of its
+`main`. Set `VASTITAS_KERNEL_ROOT` to this same absolute
 path in each new shell. The first build that needs the storage or numerical
 runtime compiles it inside that directory, so keep it writable. For programs
 that import the combined standard library, run
@@ -76,13 +81,11 @@ and runs that toolchain's `nanoda_bin`.
 
 Programs whose entry point runs a matrix product, an evaluation, a pairing or
 a contraction also need sequential LP64 OpenBLAS 0.3.34, built with Python
-3.12 or later, Make and the host C toolchain. The 0.1.0-alpha crate does not
-ship the build script, so fetch it from the release tag. On Linux, add
-`--native-cc cc` to the build command.
+3.12 or later, Make and the host C toolchain. The crate holds the build
+script. On Linux, add `--native-cc cc` to the build command.
 
 ```sh
-curl -fLsS https://raw.githubusercontent.com/MGYamada/Vastitas/v0.1.0-alpha/scripts/build_openblas.py -o build_openblas.py
-python3 build_openblas.py --prefix "$PWD/openblas-0.3.34" --jobs 4
+python3 scripts/build_openblas.py --prefix "$PWD/openblas-0.3.34" --jobs 4
 vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
   --openblas-prefix "$PWD/openblas-0.3.34" -o numerical
 ./numerical

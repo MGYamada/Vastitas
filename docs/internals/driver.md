@@ -29,7 +29,7 @@ with the status of `process::exit_code`.
    ([Subprocesses and signals](#subprocesses-and-signals)).
 2. It answers `--help`, `-h` and `--version` and returns. The version line
    names the package version and `ir::PROTOCOL`, the one wire protocol, as
-   in `vastitas 0.1.0-alpha (wire protocol 10)`.
+   in `vastitas 0.1.0-beta (wire protocol 10)`.
 3. It passes `audit-lean` to `src/internal_lean_audit.rs`
    ([The proof-audit command](#the-proof-audit-command)).
 4. `options` reads the remaining arguments into a mode and its paths. The

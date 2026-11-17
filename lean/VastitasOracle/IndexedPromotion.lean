@@ -7,12 +7,15 @@ module of the actual Rust stdlib fixture. Evaluates refers to the actual
 indexed evaluator at every sufficiently large bound.
 
 Trusted step: `checked` is not proved equal to the Core that the public
-protocol-2 checker returns. The `stdlib_indexed_checked%` elaborator runs
-`Indexed.LegacySource.check` at elaboration time, prints the returned module
-with `reprStr`, and elaborates that text as `checked`; a build-time `#eval`
-compares the two `reprStr` renderings. That agreement rests on compiled
-evaluation (comparable to `native_decide`) and on `Repr` being faithful, which
-the axiom audit cannot see. These theorems therefore concern the reflected
+protocol-9 checker returns. The `stdlib_indexed_checked%` elaborator runs
+`ResourceSource.Wire.check` on the request that the frontend writes
+(`tests/fixtures/promotion.current.json`) at elaboration time, prints the
+returned module with `reprStr`, and elaborates that text as `checked`; a
+build-time `#eval` compares the two `reprStr` renderings, and the rendering of
+the module that the retiring protocol-2 checker `Indexed.LegacySource.check`
+returns for the frozen fixture of the same sources. That agreement rests on
+compiled evaluation (comparable to `native_decide`) and on `Repr` being
+faithful, which the axiom audit cannot see. These theorems therefore concern the reflected
 module; they do not prove Rust parsing, source specialization or
 native-toolchain refinement. -/
 namespace VastitasOracle.IndexedPromotion

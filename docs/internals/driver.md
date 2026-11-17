@@ -230,19 +230,27 @@ Tests:
 
 ## Choosing the wire protocol
 
-The driver writes one request. It chooses the version from the declarations
-that the program holds and, in manifest mode, from the `geometry_compat`
-export of a manifest. [Protocol selection](../protocol.md#protocol-selection)
-gives the list.
+The driver writes one request of protocol 9 with `input: "package"`.
+[Protocol selection](../protocol.md#protocol-selection) gives the requests
+that carry the field `legacy_geometry`.
 
-- In flat mode `frontend::parse_sources` writes version 2. It writes version
-  4 with `input: "flat"` when the module holds an abstract type, a subtype or
-  an abstract method.
-- In manifest mode `packages::request_protocol`, at the end of
-  `packages::load`, takes the first condition that holds, from version 9
-  down to version 3. No condition selects version 7 or 8: their programs
-  use version 9. It writes `input: "package"` for every version other
-  than 3.
+- In flat mode `frontend::parse_sources` parses the unit into a flat
+  `ir::Module`, with or without `--lib` inputs. `packages::flat_request`
+  makes it the root module of one package, `legacy_flat`, with every
+  function, generic and abstract type public, and sets `legacy_geometry`.
+  The `ir::Module` keeps the version of its own encoding, 2 or, with an
+  abstract type, a subtype or an abstract method, 4 with `input: "flat"`;
+  the driver sends it only inside that package request.
+- In manifest mode `packages::legacy_geometry`, at the end of
+  `packages::load`, sets `legacy_geometry` unless a module of the program
+  has a record that the list of protocol selection names, or a manifest has
+  a `geometry_compat` export.
+
+The driver shows the diagnostics of the kernel for a flat unit without the
+package prefix `legacy_flat::` (`invoke_kernel`), as the kernel shows the
+names of a flat unit of protocols 2 and 4. A package that uses `show!` has no
+`legacy_geometry`; when the kernel rejects its legacy geometry, the driver
+adds a note that names `show!`.
 
 `serde_json` serializes the request in `kernel_request`. A first pass
 counts the bytes and stops at `MAX_REQUEST_BYTES`, the limit `requestBytes`
@@ -262,7 +270,10 @@ Tests:
   ignored `tests/input_safety.rs::request_bound_is_a_limit_of_the_program`;
 - `tests/driver_issues.rs::mismatched_failure_version_preserves_diagnostics_but_success_is_rejected`;
 - `tests/edit_authority.rs` and `tests/protocol_shape.rs`, which read the
-  version and the fields of requests that the driver writes for packages.
+  version and the fields of requests that the driver writes for packages;
+  `tests/protocol_shape.rs::package_requests_carry_legacy_geometry_exactly_for_the_former_legacy_protocols`
+  and `flat_requests_carry_legacy_geometry` pin the requests with
+  `legacy_geometry`.
 
 ## Starting the kernel
 

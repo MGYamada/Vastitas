@@ -14,13 +14,14 @@ namespace VastitasKernel
 open Lean JsonDecode
 
 /-- Whether `source` is a package source that the kernel or the driver
-synthesizes: the compatibility profile of protocols 2 to 6 and the package of a
-flat unit (#762). No source package can have such a source. -/
+synthesizes: the compatibility profile that protocols 2 to 6 and the field
+`legacy_geometry` of protocol 9 add (`CompatibilityProfile`), and the package
+of a flat unit (#762). No source package can have such a source. -/
 def reservedSource (source : String) : Bool := source.startsWith "vastitas:compat:"
 
 /-- The identity of the package of a flat unit: the one that `LegacySource`
 gives a flat program of protocols 2 to 6 and that `packages::flat_request`
-writes for a flat program that uses `show!`. -/
+writes for every flat program (#533). -/
 def flatPackageId : Namespace.PackageId := ⟨"vastitas:compat:flat", "legacy_flat", "1.0.0"⟩
 
 private def decodeIndex (j : Json) : Except String RawIndex := do

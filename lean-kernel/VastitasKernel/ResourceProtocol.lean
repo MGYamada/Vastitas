@@ -507,16 +507,37 @@ def reservedIdentities (root : String) (packages : List Package) : Except String
   if reserved && !flatRequest root packages then
     throw "a package source that begins with 'vastitas:compat:' is reserved for the package of a flat unit"
 
+/-- The optional field `legacy_geometry` (#533): absent, or the JSON boolean
+`true`, which asks for the compatibility profile of the legacy geometry. -/
+private def legacyGeometry (j : Json) : Except String Bool :=
+  match j.getObjVal? "legacy_geometry" with
+  | .error _ => pure false
+  | .ok (.bool true) => pure true
+  | .ok _ => throw "the field 'legacy_geometry' must be the JSON boolean true"
+
+/-- The profile that `legacy_geometry` asks for is the program's one
+`geometry_compat` export, so no package of the request may have one. -/
+private def profileConflict (packages : List Package) : Except String Unit := do
+  if let some pkg := packages.find? (·.geometryCompat.isSome) then
+    throw s!"the field 'legacy_geometry' supplies the compatibility profile, so the package '{pkg.id.name}' cannot have a 'geometry_compat' export"
+
+/-- The request of protocol 8 or 9. Only a version that admits it
+(`Indexed.Wire.admits`) has the top-level field `legacy_geometry`; under
+another one it is an unknown field. The reserved identities are checked on
+the request's packages, before the kernel adds the profile (`Program.profile`). -/
 def program (j : Json) : Except String Program := do
-  fields j ["version", "input", "file", "root", "packages"]
+  let flagged := (j.getObjValAs? Nat "version").toOption.any (Indexed.Wire.admits · .legacyGeometry)
+  fields j (["version", "input", "file", "root", "packages"] ++ if flagged then ["legacy_geometry"] else [])
   let version ← j.getObjValAs? Nat "version"
   if version != 8 && version != 9 then throw "expected protocol 8 or 9"
   if (← str j "input") != "package" then throw "protocol 8/9 requires package input"
   let file ← str j "file"
   let root ← str j "root"
+  let geometry ← legacyGeometry j
   let packages ← (← array j "packages").mapM (package · version)
   reservedIdentities root packages
-  return ⟨file, root, packages⟩
+  if geometry then profileConflict packages
+  return ⟨file, root, packages, geometry⟩
 
 /-- The namespace work of the body passes that ran: those of the pure program
 and, when the program has resource fragments, the passes with them. Without
@@ -532,6 +553,8 @@ structure CheckedInput (json : Json) (requireMain : Bool) where
   decoded : program json = .ok input
   checked : Checked input requireMain
   accepted : ResourceSource.check input requireMain = .ok checked
+  /-- The price of the request's JSON, in which the compatibility profile of
+  `legacy_geometry` has no part, and the checked passes. -/
   namespaceReceipt : Namespace.RequestReceipt input.pureProgram.source.headers.indexed json (namespaceUnits checked)
 
 def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput json requireMain) :=

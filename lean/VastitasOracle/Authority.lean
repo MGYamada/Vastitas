@@ -1,14 +1,11 @@
 import VastitasKernel.Authority
-import VastitasKernel.SurfacePrograms
-import VastitasOracle.Functions
 
-/-! Shared Authority.assemble trace/footprint facts and the retained
-checkAuthorityProgram composition over the old Core. Main now enters
-Indexed.LegacySource/AuthoritySource; only the shared assembler is on that route. These theorems
-start at decoded namespace input; they do not authenticate files or certify the
-Rust parser, native code generator or runtime. -/
+/-! Trace and footprint facts of the actual `Authority.assemble`, which the
+public 2–6 route runs through `Indexed.LegacySource` and `AuthoritySource`.
+These theorems start at decoded namespace input; they do not authenticate
+files or certify the Rust parser, native code generator or runtime. -/
 namespace VastitasOracle.Authority
-open VastitasKernel VastitasKernel.Namespace VastitasKernel.Authority VastitasKernel.Semantics
+open VastitasKernel VastitasKernel.Namespace VastitasKernel.Authority
 
 /-- The work budget only adds rejections; every accepted trace is audited. -/
 theorem runTraceWith_sound (p : Indexed) (prepared : Prepared p) (events : List EditEvent)
@@ -154,34 +151,5 @@ theorem final_method_provenance (assembled : Assembled p) (method : Surface.Meth
     obtain ⟨applied, appliedMem, rfl⟩ := List.mem_map.mp installed
     exact .inr ⟨applied.contribution,
       (assembled_applications_authorized assembled applied appliedMem).1, body⟩
-
-theorem checkAuthorityProgram_audited (program : Namespace.Program) (requireMain : Bool)
-    (certified : CertifiedModule) (accepted : checkAuthorityProgram program requireMain = .ok certified) :
-    ∃ assembled : Assembled program.indexed,
-      assemble program.indexed = .ok assembled ∧
-      (∃ auditChecked, checkSurfaceProgram assembled.audit false = .ok auditChecked) ∧
-      checkSurfaceProgram (finalSurface assembled.prepared assembled.state) requireMain = .ok certified := by
-  cases result : assemble program.indexed with
-  | error diagnostic => simp [checkAuthorityProgram, result, bind, Except.bind] at accepted
-  | ok assembled =>
-    cases audit : checkSurfaceProgram assembled.audit false with
-    | error diagnostic => simp [checkAuthorityProgram, result, audit, bind, Except.bind] at accepted
-    | ok auditChecked =>
-      refine ⟨assembled, rfl, ⟨auditChecked, audit⟩, ?_⟩
-      simpa [checkAuthorityProgram, result, audit, bind, Except.bind] using accepted
-
-theorem checkAuthorityProgram_typed_and_ordered (program : Namespace.Program) (requireMain : Bool)
-    (certified : CertifiedModule) (accepted : checkAuthorityProgram program requireMain = .ok certified) :
-    Typing.ModuleWellTyped certified.val ∧ Dependency.ModuleOrdered certified.val := by
-  obtain ⟨assembled, _, _, checked⟩ := checkAuthorityProgram_audited program requireMain certified accepted
-  exact Functions.checkSurfaceProgram_typed_and_ordered _ _ _ checked
-
-theorem checkAuthorityProgram_total_for_arguments (program : Namespace.Program) (requireMain : Bool)
-    (certified : CertifiedModule) (accepted : checkAuthorityProgram program requireMain = .ok certified)
-    (function : CheckedFunction) (member : function ∈ certified.val.functions)
-    (world : World) (env : Environment) (context : ContextHasType world env function.params) :
-    ∃ value, Eval certified.val.functions env function.body value ∧ ValueHasType world value function.returnType := by
-  obtain ⟨assembled, _, _, checked⟩ := checkAuthorityProgram_audited program requireMain certified accepted
-  exact Functions.checkSurfaceProgram_total_for_arguments _ _ _ checked function member world env context
 
 end VastitasOracle.Authority

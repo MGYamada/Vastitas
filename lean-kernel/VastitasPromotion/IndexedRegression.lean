@@ -62,12 +62,12 @@ private def package (version : Nat) : Json :=
 #eval show IO Unit from do
   let .ok actual := acceptance | throw (IO.userError "public stdlib fixture rejected")
   checkCase "actual executable Core numerical contract" (numericalContract checked)
-  for (family, winners) in actual.checked.authority.headers.assembled.families.zip
+  for (family, winners) in actual.checked.pureProgram.authority.headers.assembled.families.zip
       [[0, 1, 2, 3], [5, 6, 7, 4], [9, 10, 11, 8]] do
     checkCase "public dispatcher retains all 16 keys" (family.checked.keys.length == 16)
     for (key, winner) in [[0, 0], [0, 1], [1, 0], [1, 1]].zip winners do
       checkCase "public checked family selects the actual method" (family.checked.winner key == some winner)
-  checkCase "all public families accounted for" (actual.checked.authority.headers.assembled.families.length == 3)
+  checkCase "all public families accounted for" (actual.checked.pureProgram.authority.headers.assembled.families.length == 3)
   -- old-route(#533): the routes of protocols 2 to 7 retire at the cutover.
   for input in [json, (json.setObjVal! "version" (toJson (4 : Nat))).setObjVal! "input" (toJson "flat"),
       package 3, package 4, package 5, package 6] do

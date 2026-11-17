@@ -1,5 +1,4 @@
 import VastitasKernel.Abstract
-import VastitasKernel.FunctionChecker
 import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Abstract.Regression

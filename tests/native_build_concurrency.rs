@@ -186,7 +186,8 @@ fn same_optional_package_serializes_but_independent_roots_do_not() {
     executable(
         &pure_backend,
         &format!(
-            "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":2,\"ok\":true,\"kernel\":{},\"lean_source\":\"def main : IO Unit := pure ()\"}}'\n",
+            "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":{},\"ok\":true,\"kernel\":{},\"lean_source\":\"def main : IO Unit := pure ()\"}}'\n",
+            common::CURRENT_PROTOCOL,
             kernel_identity()
         ),
     );

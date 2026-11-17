@@ -507,29 +507,6 @@ def misplaced_show(tree, mode, grammar):
             yield [child for child in node.children if isinstance(child, Node) and child.name == "Expression"][-1]
 
 
-# The forms of the legacy geometry of flat mode, as the frontend finds them
-# (`frontend::legacy_geometry`): the geometric types, pack, unpack and the
-# geometric operations.
-LEGACY_NODES = frozenset({"SettingType", "PointType", "MorphismType", "PointedType", "PackExpression",
-                          "UnpackStatement"})
-GEOMETRIC_OPERATIONS = frozenset({"Affine", "Base", "origin", "id", "compose", "apply", "dim"})
-
-
-def flat_show_legacy(tree, mode, grammar):
-    """In flat mode, a show! statement in a text that uses a form of the legacy geometry.
-
-    A derived name can spell a geometric operation, which the frontend counts
-    only where it calls or names that operation, so this rule may apply where
-    the compiler accepts the text: it is optional.
-    """
-    if mode == "flat":
-        shows = [node for node in tree.nodes() if node.name == "ShowStatement"]
-        legacy = any(node.name in LEGACY_NODES for node in tree.nodes()) or \
-            any(leaf in GEOMETRIC_OPERATIONS for leaf in tree.leaves())
-        if shows and legacy:
-            yield shows[0]
-
-
 @dataclass(frozen=True)
 class Rule:
     """A rule of the Reference: applies(tree, mode, grammar) yields each node that breaks it, or
@@ -576,9 +553,6 @@ RULES = (
          "integer literal of a dimension is 1", "E_PARSE", dimension_literal),
     Rule("show! outside the top level of main", "Programs, Showing values with show!: show! stands only as "
          "the whole initializer of a let statement at the top level of fn main", "E_UNSUPPORTED", misplaced_show),
-    Rule("show! with the legacy geometry in flat mode", "Programs, Showing values with show!: a flat program "
-         "that uses show! must not use the legacy geometry of flat mode", "E_UNSUPPORTED", flat_show_legacy,
-         optional=True),
 )
 
 

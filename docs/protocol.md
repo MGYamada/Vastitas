@@ -67,41 +67,46 @@ Package requests never fall back to protocol 2. Other versions are rejected.
 
 ## Protocol selection
 
-The driver selects the protocol of a request from the declarations that the
-source contains. In flat mode it uses protocol 2, or protocol 4 when the
-program declares abstract types, subtypes or abstract methods. A flat program
-that uses [`show!`](language/programs.md#showing-values-with-show) is sent as a
-protocol-9 package request instead
-([Observations of `show!`](#protocol-9-observations-of-show)). In manifest
-mode it takes the first match of this list:
+The driver writes protocol 9 with `input: "package"` for every program. In
+manifest mode the request holds the packages of the manifest. A flat program,
+with or without `--lib` inputs and with or without
+[`show!`](language/programs.md#showing-values-with-show), is one package with
+the identity that the kernel gives a flat program of protocols 2 to 6:
+`vastitas:compat:flat`, `legacy_flat` and `1.0.0`. Its one module is the
+public root module, and every function, generic and abstract type of the
+program is public in it. The driver shows the kernel's names of these
+declarations without the package prefix `legacy_flat::`.
 
-1. any grant, delegation or transfer, an observation of `show!`, resource
-   functions, an indexed declaration, an indexed type annotation, a typed
-   `pack`, an `unpack` with ordered fields, or a `geometry_compat` export of a
-   loaded package: protocol 9. The presented affine declarations of
-   [Presented affine geometry](affine-geometry.md), the smooth and metric
-   declarations of
-   [Smooth affine declarations](language/smooth-declarations.md), the
-   [frame](#protocol-9-frame-forms),
-   [physical-dimension](#protocol-9-physical-dimension-forms) and
-   [spectral](#protocol-9-spectral-forms) forms are indexed declarations, and
-   only protocol 9 decodes them;
-2. `reborrow` or `transfer` events in an assembly: protocol 6;
-3. contributions or an assembly: protocol 5;
-4. abstract declarations: protocol 4;
-5. none of these: protocol 3.
+The request of every flat program has the field `legacy_geometry`
+([Protocol-9 compatibility profile](#protocol-9-compatibility-profile)). A
+package request has it unless the program has one of these records:
 
-The driver writes neither protocol 7 nor protocol 8 ([History](#history)).
-The kernel accepts both, and
-[Protocol 7](#protocol-7-indexed-declarations-and-rich-package-bodies) and
-[Protocols 8 and 9](#protocols-8-and-9) describe their envelopes.
+- a grant, delegation or transfer, an observation of `show!`, resource
+  functions, an indexed declaration, an indexed type annotation, a typed
+  `pack`, an `unpack` with ordered fields, or a `geometry_compat` export of a
+  loaded package. The presented affine declarations of
+  [Presented affine geometry](affine-geometry.md), the smooth and metric
+  declarations of
+  [Smooth affine declarations](language/smooth-declarations.md), the
+  [frame](#protocol-9-frame-forms),
+  [physical-dimension](#protocol-9-physical-dimension-forms) and
+  [spectral](#protocol-9-spectral-forms) forms are indexed declarations, and
+  only protocol 9 decodes them.
+
+These are the programs that the driver wrote as protocols 2 to 6 before
+([History](#history)). The field gives each of them the checked Core that
+those protocols gave it. A package with one of the records has the legacy
+geometry only from a `geometry_compat` export.
+
+The driver writes none of the protocols 2 to 8. The kernel accepts them, and
+the sections below describe their envelopes.
 
 A root package without an assembly selects an empty edit trace; the kernel
 still validates every grant and checks every unapplied contribution.
 The kernel accepts a `reborrow` event only with a delegation and a `transfer`
-event only with a transfer declaration, and each of these declarations
-selects protocol 9 by item 1. A request of protocol 6 that the driver writes
-therefore holds an event that the kernel rejects.
+event only with a transfer declaration, and each of these declarations is a
+record of the list above. A request with `legacy_geometry` that holds such an
+event therefore holds an event that the kernel rejects.
 
 ## Protocols 8 and 9
 
@@ -164,16 +169,44 @@ generation and in `check` mode too:
   (`E_TYPE`).
 
 The label is presentation only: the kernel never reads it for acceptance, and
-code generation writes it as a quoted Lean string literal. A flat program with
-observations is sent as one package with the identity that the kernel gives a
-flat program of protocols 2–6, `vastitas:compat:flat`, `legacy_flat` and
-`1.0.0`, with every declaration public. That request has no legacy geometry
-profile. The driver shows the kernel's names of its functions without the
-package prefix.
+code generation writes it as a quoted Lean string literal. The request of a
+flat program ([Protocol selection](#protocol-selection)) carries the
+observations in the functions of its one module.
+
+<a id="protocol-9-compatibility-profile"></a>
+
+**Protocol-9 compatibility profile.** A protocol-9 request may have the
+optional top-level field `legacy_geometry`. Its value must be the JSON boolean
+`true`; another value, including `false`, is an error (`E_PROTOCOL`).
+Protocol 8 rejects the field as an unknown field (`E_PROTOCOL`). With the
+field, the kernel appends its **compatibility profile** as the last package of
+the program that it checks, as it appends it to every request of protocols 2
+to 6. The profile is the package `vastitas:compat:2-6` (`legacy_geometry`,
+`1.0.0`) of `CompatibilityProfile.lean`. It declares `Scheme`, `CInfScheme`,
+`Point`, `Morphism`, `Pointed`, `compose`, `apply` and the primitives of the
+two settings, and its `geometry_compat` export supplies the legacy geometry.
+Its declarations pass the same declaration and role checks as those of a
+source library. The checked Core of a request with the field is therefore the
+Core of the same program at protocols 2 to 6.
+
+- No package of a request with the field may have a `geometry_compat` export.
+  Such a request is an error (`E_PROTOCOL`), and the message names the
+  package.
+- The profile is no package of the request. The reserved identities below
+  are checked on the packages of the request, so a request cannot supply the
+  profile, name it as a root or depend on it.
+- The profile has no part in the price of the request
+  ([`namespaceProgramWork`](appendix/limits.md)): the kernel prices the JSON
+  of the request, which does not hold the profile, and the profile has no
+  import and is no dependency, so it changes the price of no import.
+- The kernel validates the namespace of the request's packages before it
+  reports a Fn signature with a component other than a scalar, as protocols 2
+  to 6 do ([Protocol 7](#protocol-7-indexed-declarations-and-rich-package-bodies)).
 
 A package source that begins with `vastitas:compat:` is reserved. A request of
-protocol 8 or 9 may use one only as this package: the one package of the
-request and its root, with the identity above, no dependencies, no
+protocol 8 or 9 may use one only as the package of a flat program: the one
+package of the request and its root, with the identity of
+[Protocol selection](#protocol-selection), no dependencies, no
 `geometry_compat` export and one public root module. Any other package,
 dependency target or root with such a source is an error (`E_PROTOCOL`).
 
@@ -962,8 +995,7 @@ acceptance, so a call of one in a request is an unbound name (`E_NAME`).
 
 `decodeSurfaceModule` in `SurfaceProtocol.lean` decodes the extended request and
 `Indexed.LegacySource` converts its unresolved syntax into the common
-`Indexed.AuthoritySource.checkProgram` input. The old `checkSurfaceProgram`
-remains an internal API with separate retained proofs. Function syntax remains separate from core
+`Indexed.AuthoritySource.checkProgram` input. Function syntax remains separate from core
 syntax. Every lambda and function body is checked, including unused functions;
 signature probes for abstract function parameters are confined to a separate
 audit pass. Executable specialization memoizes definition/function-argument
@@ -1064,8 +1096,7 @@ request `describeDiagnostic` lowers the original namespace once more, with
 its bodies, only to restore source names in the diagnostic; the result of
 that lowering decides nothing about acceptance. Only an ordinary
 root-package root-module `main` becomes the core entrypoint. Protocol 2 keeps
-its flat namespace. `checkNamespaceProgram` and `checkSurfaceProgram` remain
-internal APIs that `Main` does not call.
+its flat namespace.
 
 A request admits at most 1,000,000 member visits across all import
 declarations. The kernel also limits the sum of the wire price of the request
@@ -1169,9 +1200,10 @@ Event = { op: "borrow", grant: [identifier...], loan: identifier, span }
 ```
 
 This grammar is the decoder contract of protocols 5–8. The driver writes
-`grantee_package` and selects protocol 9 for every grant, delegation and
-transfer ([Protocol selection](#protocol-selection)). It writes protocol 5
-for contributions and an assembly when no earlier item of that list applies.
+`grantee_package` in protocol 9 for every grant, delegation and transfer
+([Protocol selection](#protocol-selection)). A program with contributions or
+an assembly and no record of that list has `legacy_geometry`; the driver wrote
+it as protocol 5 before ([History](#history)).
 
 Grant paths refer only to the selected dependency closure. Grant/contribution
 IDs derive from package identity, module path and declaration name; method
@@ -1226,7 +1258,6 @@ compatibility.
 reconstructs histories and complete delegation chains and audits each
 transition against an independent relation. `checkProgram` performs the same
 namespace, membership, final dispatch, footprint, all-body and Core audits.
-`checkAuthorityProgram` remains an internal API that `Main` does not call.
 The original function identity never changes. A returned loan or transfer
 preserves contributions and unresolved completion obligations. The final
 winning region is contained in every ancestor's grant, and transfer requires
@@ -1305,6 +1336,14 @@ Arguments are `{kind:"name",reference:TypePath}` or
 `{kind:"natural",value:String}`; expected parameter kinds determine whether a
 name refers to a declaration or a preceding local object binding.
 Fn types keep the scalar/recursive-Fn-only contract and existing depth bound.
+A component of a Fn type is a Fn type or a data type of the kinds `named`,
+`pair`, `point`, `morphism` or `pointed`, which protocols 2 to 6 decode there
+too; another kind, such as an indexed type, is an error (`E_PROTOCOL`). A Fn
+type with a component other than `Nat`, `Int`, `Bool`, `Unit` or a Fn type is
+an error (`E_TYPE`) at the parameter, function, lambda or `let` statement that
+declares it, as in protocols 2 to 6. Protocols 8 and 9 report the first such
+type in the order of the program, after the namespace of the request
+validates; protocol 7 reports one where its checker meets it.
 
 Ordinary expression and statement forms retain their schemas. Explicit packages
 use `{kind:"indexed_pack",package:Type,witness:Expr,fields:[Expr],span}` and
@@ -1403,13 +1442,26 @@ receipts, doctest execution, or official package admission.
 - `tests/edit_authority.rs::named_recipient_wire_rejects_forged_locations_and_unselected_records`
   and `recipient_source_migration_keeps_legacy_wire_and_optional_runtime_boundaries`
   pin the recipient fields of protocols 6 to 9.
-- `tests/show.rs::show_selects_protocol_nine_and_check_is_unchanged` pins the
-  protocol of a program with observations of `show!` and their wire field,
-  and `the_kernel_refuses_tampered_observations` refuses an observation
+- `tests/show.rs::show_adds_observations_to_the_flat_request_and_check_is_unchanged`
+  pins the request of a flat program with and without observations of
+  `show!` and their wire field, `show_stands_beside_legacy_geometry_in_flat_input`
+  builds and runs a flat program that shows a value beside the legacy
+  geometry, also from a `--lib` input, and
+  `the_kernel_refuses_tampered_observations` refuses an observation
   outside `main`, of a function value, of a missing statement, an empty list,
   a foreign field and protocol 8. The kernel regression
   `VastitasKernel.ObservationRegression` decodes, checks and generates the
   observations without the driver.
+- `tests/protocol_shape.rs::package_requests_carry_legacy_geometry_exactly_for_the_former_legacy_protocols`
+  and `flat_requests_carry_legacy_geometry` pin the requests that carry
+  `legacy_geometry`: every flat program and the package programs without a
+  record of [Protocol selection](#protocol-selection), and no other. The kernel
+  regression `VastitasKernel.CompatibilityProfileRegression` checks that a
+  flat and a package program with the legacy geometry have the same Core and
+  generated Lean at protocol 9 with the field as at protocols 2 and 3, and
+  that the kernel rejects them without it. It rejects the field with a value
+  other than `true`, at protocol 8 and beside a `geometry_compat` export, and
+  the profile's identity in a request.
 - The kernel regressions `VastitasKernel.IndexedWireRegression`,
   `VastitasKernel.LegacySourceRegression` and
   `VastitasPublicTest.AuthorityRegression` decode and check requests without
@@ -1424,7 +1476,8 @@ receipts, doctest execution, or official package admission.
   the recorded texts; `VastitasKernel.AverageRegression` and
   `VastitasKernel.NatureModelRegression` check the averages, the models and
   the data that the kernel accepts and rejects. `VastitasKernel.NamespaceRegression` tests the
-  retained `checkNamespaceProgram` on Lean values and decodes no request.
+  shared namespace code and `Authority.assemble` on Lean values and decodes
+  no request.
   `bash scripts/check_kernel_regressions.sh` builds them.
 
 ## History
@@ -1448,6 +1501,17 @@ receipts, doctest execution, or official package admission.
   indexed implementations. Round 1 of
   [#533](https://github.com/MGYamada/Vastitas/issues/533) sends both as
   protocol 9, whose envelope keeps theirs.
+- The driver wrote protocol 2 for a flat program, or protocol 4 with
+  `input: "flat"` when it declared abstract types, subtypes or abstract
+  methods. For a package without a record of
+  [Protocol selection](#protocol-selection) it wrote protocol 6 with
+  `reborrow` or `transfer` events in an assembly, 5 with contributions or an
+  assembly, 4 with abstract declarations and 3 otherwise; 3 had no field
+  `input`. A flat program that used `show!` was a protocol-9 request without
+  the legacy geometry, so it could not use the legacy geometry
+  ([#836](https://github.com/MGYamada/Vastitas/issues/836)). Round 2 of #533
+  sends all of these programs as protocol 9 with `legacy_geometry`, whose
+  compatibility profile keeps their Core.
 - The doctest result contract of
   [Expected-rejection doctest consumer](#expected-rejection-doctest-consumer-reference-only)
   belongs to [#236](https://github.com/MGYamada/Vastitas/issues/236).

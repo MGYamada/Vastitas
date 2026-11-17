@@ -940,7 +940,10 @@ fn command_line_and_environment_paths_carry_no_terminal_controls() {
     let backend = s.0.join(format!("backend {HOSTILE}"));
     fs::write(
         &backend,
-        "#!/bin/sh\ncat >/dev/null\necho '{\"version\":2,\"ok\":true}'\n",
+        format!(
+            "#!/bin/sh\ncat >/dev/null\necho '{{\"version\":{},\"ok\":true}}'\n",
+            common::CURRENT_PROTOCOL
+        ),
     )
     .unwrap();
     fs::set_permissions(&backend, fs::Permissions::from_mode(0o755)).unwrap();
@@ -1051,7 +1054,7 @@ fn command_line_and_environment_paths_carry_no_terminal_controls() {
     // The driver refuses the import ahead of the runtime inputs.
     let identity: serde_json::Value = serde_json::from_str(&common::kernel_identity()).unwrap();
     let response = serde_json::json!({
-        "version": 2,
+        "version": common::CURRENT_PROTOCOL,
         "ok": true,
         "kernel": identity,
         "lean_source": format!("import {MODULE}\ndef main : IO Unit := pure ()\n"),
@@ -1162,7 +1165,7 @@ fn package_names_in_kernel_diagnostics_carry_no_terminal_controls() {
         cli()
             .current_dir(&s.0)
             .args(["check", "--manifest-path", "wire/Vastitas.toml"]),
-        3,
+        common::CURRENT_PROTOCOL,
     );
     let packages = wire["packages"].as_array().unwrap();
     let location = format!("{root}/wire/{HOSTILE}/Vastitas.toml");
@@ -1192,6 +1195,9 @@ fn status_lines_carry_no_terminal_controls() {
     cases.finish();
 
     // The request to the kernel names the file as it is.
-    let wire = common::captured_wire(cli().current_dir(&s.0).args(["check", &source]), 2);
+    let wire = common::captured_wire(
+        cli().current_dir(&s.0).args(["check", &source]),
+        common::CURRENT_PROTOCOL,
+    );
     assert_eq!(wire["file"], source);
 }

@@ -7,7 +7,6 @@
   "typeNesting": 64,
   "sourceNesting": 512,
   "namespaceNesting": 1024,
-  "captureDiagnostic": 8192,
   "bodyChecking": 4096,
   "elaborationWork": 1000000,
   "resourceWork": 32000000,

@@ -281,37 +281,31 @@ directly. Those individual annotation tests do not replace the public protocol-7
 composition of scalar dispatch, Fn and authority checks described in
 [the public path](#the-public-path). Protocols 2–6 retain their existing audits.
 
-#### Internal data-function bodies
+#### Data-function bodies
 
-`IndexedSourceBodies` and `IndexedSourceProgram` elaborate unresolved
-internal data-function ASTs, including dependent parameters/calls, scalar and
-Pair operations, branches, declared primitives, explicit package construction,
-and unpacking of all ordered fields. Parameter, let and unpack contexts are
-derived from the actual bodies. Imports and primitive calls resolve through
-the real namespace index; primitive spelling and expected result types never
-select implementations. Fresh object identities, scoped openings and exact
-call substitutions pass through the common Core typing and freshness audit.
-Both branches and every function in every package are checked, including unused
-bodies. Integer literal hints remain symmetric, Pair operands infer independently,
-and Nat-to-Int conversion remains explicit.
+The body elaborator of the Fn compiler (`IndexedFunctionState.lean`,
+`IndexedFunctionBodies.lean`, with the elaboration state and primitive
+emission of `IndexedSourceBodies.lean`) elaborates unresolved data-function
+ASTs, including dependent parameters/calls, scalar and Pair operations,
+branches, declared primitives, explicit package construction, and unpacking of
+all ordered fields. Parameter, let and unpack contexts are derived from the
+actual bodies. Imports and primitive calls resolve through the real namespace
+index; primitive spelling and expected result types never select
+implementations. Fresh object identities, scoped openings and exact call
+substitutions pass through the common Core typing and freshness audit. Both
+branches and every function in every package are checked, including unused
+bodies. Integer literal hints remain symmetric, Pair operands infer
+independently, and Nat-to-Int conversion remains explicit.
 
-Calls retain their original source IDs through a stable dependency ordering.
-An independent audit checks output count and each ID's original source owner;
-Core ID uniqueness then excludes replacing an unused function with a duplicate.
-`VastitasOracle.IndexedSourceBodies.source_covered` proves every input ID occurs
-in the output, and `source_body_checked` establishes actual Core typing for all
-of them. The same-input certificate retains the reconstruction equation,
-independent declaration/call reference ledgers, exact accepted Core, dependency
-order and entrypoint validation. A ledger by itself is not a source-to-Core
-correspondence certificate.
-
-The 52 regression cases include private/re-exported functions, unused
-dependency bodies, constant branches with distinct identities, non-geometric
-token indices, object-return generativity, aliases, repeated unpacking, multiple
-heterogeneous fields, repacking and forged origins/call records. Three additional
-standalone native fixtures start with these unresolved source AST bodies
-and return `2`, a large arbitrary-precision integer, and `3`. These bring the native
-fixtures to ten before the Fn extension below; executables import only IndexedRuntime.
+`IndexedSourceBodyRegression` runs internal data-function ASTs through
+`FunctionSource.Compiler.checkProgram`. Its cases include private/re-exported
+functions, unused dependency bodies, constant branches with distinct
+identities, non-geometric token indices, object-return generativity, aliases,
+repeated unpacking, multiple heterogeneous fields, repacking, the explained
+endpoint rejections of primitive calls and duplicated Core functions. The standalone
+native fixtures `function_bodies`, `function_scalars` and `function_fields`
+start with these unresolved source AST bodies and return `2`, a large
+arbitrary-precision integer, and `3`; executables import only IndexedRuntime.
 These are internal AST tests, not Rust-parsed `.vast` fixtures.
 
 The adapter explicitly rejects old function bodies, generic/method/abstract
@@ -815,6 +809,15 @@ reserved profile identity. Injecting that package cannot repair an unknown sourc
 dependency or grant imports, edits, memberships or contracts. Protocol 7 continues
 to use explicit library exports and canonical stdlib declaration IDs.
 
+The package is `CompatibilityProfile.profilePackage`. A protocol-9 request asks
+for it with the field `legacy_geometry`, which the driver sets for every flat
+program and for the package programs that it sent as protocols 3 to 6 before
+([Protocol-9 compatibility profile](../protocol.md#protocol-9-compatibility-profile)).
+`ResourceSource.Program.pureProgram` then ends with the same package, so the
+common checker sees the program that `LegacySource.adapt` gives it.
+`CompatibilityProfileRegression` compares the Core and the generated Lean of
+both routes for a flat and a package program.
+
 The common source compiler retains object introduction sites for parameters,
 constructors, object-returning calls, branch merges and unpacking. These names and
 locations affect diagnostics only. Nominal references, scope, independent Core
@@ -982,7 +985,7 @@ not an alternative semantic acceptance rule.
 | --- | --- |
 | Legacy keywords, reserved names, ring positions and type syntax: `src/frontend.rs`, `src/frontend/types.rs`, `src/frontend/resolver.rs`, `src/ir.rs`, kernel `Surface.lean` | Adapter: retains Scheme/CInfScheme/Point/Morphism/Pointed syntax and QQ/CInfReal marker syntax. A marker is not a runtime object. Qualified indexed syntax is parsed separately. Rust diagnostics cannot certify types. |
 | Indexed parsing and strict wire schema: `src/indexed.rs`, `src/namespace.rs`, `src/packages.rs`, kernel `IndexedProtocol.lean`, `IndexedBodyProtocol.lean`, `IndexedAcceptance.lean` | General mechanism: unresolved paths, enclosing owners, family kinds/arity, explicit bindings and complete source bodies; no frontend-supplied authority or checked flag. Older versions reject these declarations/exports instead of discarding them. |
-| Old wire conversion: kernel `LegacySource.lean` | Adapter: preserves original bodies, namespaces and edit metadata. Validates the original namespace before adding an ordinary closed unresolved profile; rejects collision with its reserved package identity. That profile passes the same declaration and role checks as a source library. |
+| Old wire conversion: kernel `LegacySource.lean`, `CompatibilityProfile.lean` | Adapter: preserves original bodies, namespaces and edit metadata. Validates the original namespace before adding an ordinary closed unresolved profile (`CompatibilityProfile.profilePackage`); rejects collision with its reserved package identity. That profile passes the same declaration and role checks as a source library. A protocol-9 request adds the same profile with the field `legacy_geometry` (`ResourceSource.Program.legacyGeometry`). |
 | Namespace reservations and lookup: kernel `NamespaceResolve.lean`, `NamespaceValidate.lean`, `NamespaceLower.lean`, `IndexedSourceChecker.lean` | General mechanism with compatibility reservations: canonical package/module/declaration IDs, actual visibility/re-exports and shared-name collision checks. Indexed declarations may use geometry spellings; an ordinary function alias cannot acquire those reserved declaration roles. Modules may take the seven geometric operation names; a bare call of an operation falls back to it when the name is unbound or names a child module (`legacyFallback_uncallable`). |
 | Classification and representation: kernel `Indexed.lean`, `IndexedAudit.lean`; stdlib `geometry/{scheme,smooth}/mod.vast` | Library plus general mechanism: distinct finite classifications, coefficient markers and implementations. Classification membership does not identify individual objects or add origin/dimension capability. |
 | Point/Morphism/Pointed definitions: stdlib `geometry/mod.vast`; kernel `IndexedPackages.lean`, `IndexedContractAudit.lean` | Library plus general mechanism: declared indexed families, same-base constraints, sealed representations, finite single-witness package cases and ordered field templates. General test objects are permitted; Pointed specifically uses the declared base object. |
@@ -994,7 +997,7 @@ not an alternative semantic acceptance rule.
 | Primitive behavior: kernel `IndexedPrimitiveBinding.lean`, `IndexedPrimitiveShapes.lean`, `IndexedPrimitiveValues.lean`, `IndexedPrimitiveDescriptors.lean`, `IndexedPrimitiveRegistry.lean`, `IndexedPrimitiveFamilies.lean`, `IndexedPrimitives.lean`, `IndexedContractAudit.lean`, `IndexedSemantics.lean`, `IndexedRuntime.lean`; generated `src/primitive_table.rs` | Closed explicit registry; see the table below. The wire form comes from the family table of `IndexedPrimitiveFamilies.lean`: the decoder, the resolver and the generated Rust table read it, and a family grants no authority. No arbitrary native registration, certificate string or mathematical axiom is admitted. |
 | Diagnostic names/locations: kernel `IndexedSourceDiagnostics.lean`, `IndexedSourceBodies.lean` | Presentation only. “Affine” introduction notes do not choose implementation, merge identities or authorize an operation. |
 | Native lowering: kernel `IndexedCodegen.lean` | General Core lowering selected by validated binding/representation tags, not source spelling. Rechecks all declarations, types, scopes, freshness and actual dependencies before emitting reachable functions. Generated modules import only `IndexedRuntime`. Mutable storage is not yet represented. |
-| Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionChecker`, `SurfacePrograms`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Old decoders and scalar/namespace header validation remain reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |
+| Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Old decoders and scalar/namespace header validation remain reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |
 
 The adapter remains intentionally supported. Removal requires an explicit decision
 to retire the corresponding old syntax/wire contract, not merely deleting reserved

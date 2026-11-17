@@ -270,7 +270,7 @@ fn a_use_cannot_bind_the_name_package() {
     let mut raw = common::captured_wire(
         s.cli()
             .args(["check", "--manifest-path", "app/Vastitas.toml"]),
-        3,
+        common::CURRENT_PROTOCOL,
     );
     let import = "/packages/0/modules/0/imports/0";
     assert_eq!(raw.pointer(import).unwrap()["alias"], "other");
@@ -593,7 +593,7 @@ fn the_kernel_checks_geometric_module_names_independently() {
     let raw = common::captured_wire(
         s.cli()
             .args(["check", "--manifest-path", "app/Vastitas.toml"]),
-        3,
+        common::CURRENT_PROTOCOL,
     );
     assert_eq!(common::kernel(&raw, "check")["ok"], true, "{raw}");
     let modules = raw["packages"][0]["modules"].as_array().unwrap();

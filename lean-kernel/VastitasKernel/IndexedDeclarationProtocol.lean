@@ -7,7 +7,7 @@ No owner, resolved target, capability proof or checked Core is accepted here. -/
 namespace VastitasKernel.Indexed.Wire
 open Lean JsonDecode
 
-/-- The optional records of the package protocols 7 to 9. -/
+/-- The optional records and fields of the package protocols 7 to 9. -/
 inductive Feature where
   /-- Numerical representations and their declarations. -/
   | numerical
@@ -23,6 +23,10 @@ inductive Feature where
   datasets and comparisons of `nature::errorbar`, with their family
   representations (Stage 6, #841). -/
   | physicalModels
+  /-- The top-level field `legacy_geometry`, with which the kernel appends the
+  compatibility profile of the legacy geometry (`CompatibilityProfile`) to the
+  program, as protocols 2 to 6 do (#533). -/
+  | legacyGeometry
   deriving DecidableEq, Repr
 
 /-- Whether protocol `version` admits the records of `feature`. Every version
@@ -31,7 +35,7 @@ protocol 8 adds the numerical records to protocol 7, and protocol 9, the
 current schema epoch, admits every feature. -/
 def admits (version : Nat) : Feature → Bool
   | .numerical => version == 8 || version == 9
-  | .namedRecipients | .algebraic | .observations | .physicalModels => version == 9
+  | .namedRecipients | .algebraic | .observations | .physicalModels | .legacyGeometry => version == 9
 
 def path (j : Json) : Except String Source.Path := do
   fields j ["path", "span"]

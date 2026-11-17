@@ -123,8 +123,6 @@ structure Family where
   accepted : Dispatch.checkWith nominals.hierarchy raw.params.length domain methods = .ok checked
   fulfilled : contracts.all (Contracts.satisfied sourceMethods checked) = true
 
-abbrev Families := Std.HashMap String Family
-
 private def requirementLabel (requirements : List Dispatch.Capability) : String :=
   if requirements.contains .hasOrder then "HasOrder"
   else if requirements.contains .hasEq then "HasEq" else ""

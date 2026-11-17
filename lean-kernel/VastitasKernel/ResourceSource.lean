@@ -1,6 +1,7 @@
 import VastitasKernel.NumericalCoverage
 import VastitasKernel.ResourcePure
 import VastitasKernel.IndexedObservation
+import VastitasKernel.CompatibilityProfile
 
 /-! Unresolved resource functions in the same package namespace as pure indexed
 functions, dispatch and edit authority. No owner, local symbol or callee ID is
@@ -168,19 +169,41 @@ structure Program where
   file : String
   root : String
   packages : List Package
+  /-- The optional field `legacy_geometry` of a protocol-9 request (#533): the
+  checked program ends with the kernel's compatibility profile of the legacy
+  geometry (`CompatibilityProfile.profilePackage`), as every program of
+  protocols 2 to 6 does (`LegacySource.adapt`). The profile is no package of
+  the request: `packages` are the request's packages alone. -/
+  legacyGeometry : Bool := false
   deriving Repr, Inhabited
 
 def Function.header (function : Function) : Namespace.ResourceHeader :=
   ⟨function.name, function.isPublic, function.span⟩
 
+/-- The packages that the kernel adds to the request's packages: the
+compatibility profile when the request asks for it (`legacyGeometry`). -/
+def Program.profile (program : Program) : List Indexed.DispatchSource.Package :=
+  if program.legacyGeometry then [Indexed.CompatibilityProfile.profilePackage] else []
+
 /-- Keep every original declaration, import, contribution, assembly and body.
-Only resource headers are reconstructed; no pure placeholder is inserted. -/
+Only resource headers are reconstructed; no pure placeholder is inserted. The
+compatibility profile, if any, is the last package (`Program.profile`). -/
 def Program.pureProgram (program : Program) : Indexed.DispatchSource.Program := {
   file := program.file, root := program.root, extended := true, editable := true, authority := true,
-  packages := program.packages.map fun pkg => {
+  packages := program.packages.map (fun pkg => {
     id := pkg.id, dependencies := pkg.dependencies, geometryCompat := pkg.geometryCompat,
     modules := pkg.modules.map fun m => { m.pureModule with
-      module := { m.pureModule.module with resourceFunctions := m.functions.map Function.header } } } }
+      module := { m.pureModule.module with resourceFunctions := m.functions.map Function.header } } }) ++
+    program.profile }
+
+/-- The namespace of the request alone: that of the pure program without the
+compatibility profile, which is not in the request. Protocols 2 to 6 validate
+this namespace before they add the profile (`LegacySource.adapt`). The price of
+a request (`Namespace.priceInput`) reads its namespace only for the imports of
+its modules, and the profile has none and is no dependency, so the price is
+the same in this namespace and in that of the pure program. -/
+def Program.requestNamespace (program : Program) : Namespace.Indexed :=
+  { program with legacyGeometry := false }.pureProgram.source.headers.indexed
 
 def Program.owned (program : Program) : List (Indexed.DeclId × Function) :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
@@ -756,6 +779,70 @@ private def sourceRemaining : Nat → Nat → List Statement → Option Nat
       | _ => some unused
     sourceRemaining depth after rest
 
+/-- A Fn type of a signature with a data component other than a scalar. -/
+private def invalidType (type : Indexed.FunctionSource.FnType) : Bool :=
+  match type with
+  | .function _ => !type.Valid
+  | .data _ => false
+
+private def invalidParameter (parameter : Indexed.FunctionSource.Param) : Option Span :=
+  if invalidType parameter.type then some parameter.span else none
+
+mutual
+  private def invalidExpression : Nat → Indexed.FunctionSource.Expr → Option Span
+    | 0, _ => none
+    | fuel + 1, term => match term with
+      | .call _ arguments _ => arguments.findSome? (invalidExpression fuel)
+      | .invoke callee arguments _ =>
+        invalidExpression fuel callee <|> arguments.findSome? (invalidExpression fuel)
+      | .lambda parameters result body span =>
+        parameters.findSome? invalidParameter <|> (if invalidType result then some span else none) <|>
+          invalidBlock fuel body
+      | .unary _ operand _ => invalidExpression fuel operand
+      | .binary _ left right _ => invalidExpression fuel left <|> invalidExpression fuel right
+      | .branch condition yes no _ =>
+        invalidExpression fuel condition <|> invalidBlock fuel yes <|> invalidBlock fuel no
+      | .block body _ => invalidBlock fuel body
+      | .pack _ witness components _ =>
+        invalidExpression fuel witness <|> components.findSome? (invalidExpression fuel)
+      | _ => none
+  private def invalidStatement : Nat → Indexed.FunctionSource.Stmt → Option Span
+    | 0, _ => none
+    | fuel + 1, .letE _ annotation value span =>
+      (if annotation.any invalidType then some span else none) <|> invalidExpression fuel value
+    | fuel + 1, .unpack value _ _ _ => invalidExpression fuel value
+  private def invalidBlock : Nat → Indexed.FunctionSource.Block → Option Span
+    | 0, _ => none
+    | fuel + 1, .mk statements result _ =>
+      statements.findSome? (invalidStatement fuel) <|> invalidExpression fuel result
+end
+
+private def invalidFunction (function : Indexed.FunctionSource.Function) : Option Span :=
+  function.params.findSome? invalidParameter <|>
+    (if invalidType function.result then some function.span else none) <|>
+    invalidBlock Limits.sourceNesting function.body
+
+private def invalidResource : Nat → List Statement → Option Span
+  | 0, _ => none
+  | fuel + 1, statements => statements.findSome? fun
+    | .value _ _ body _ => invalidBlock Limits.sourceNesting body
+    | .branchValue _ yes no _ | .branch _ yes no _ => invalidResource fuel yes <|> invalidResource fuel no
+    | _ => none
+
+/-- The place of the first Fn signature of the program with a data component
+other than a scalar, in the order in which `LegacySource.adapt` converts a
+program of protocols 2 to 6: by package and module, the functions (their
+parameters, result and body), the methods and the contributions, and then the
+pure blocks of the resource functions. -/
+def Program.invalidSignature? (program : Program) : Option Span :=
+  program.packages.findSome? fun pkg => pkg.modules.findSome? fun m =>
+    m.pureModule.functions.findSome? invalidFunction <|>
+    m.pureModule.methods.findSome? (fun method => invalidBlock Limits.sourceNesting method.body) <|>
+    m.pureModule.contributions.findSome? (fun contribution => contribution.methods.findSome? fun method =>
+      invalidBlock Limits.sourceNesting method.body) <|>
+    m.functions.findSome? fun function =>
+      invalidResource 4096 function.body <|> invalidBlock Limits.sourceNesting function.valueBody
+
 def envelope (program : Program) : Namespace.Result Unit := do
   if program.owned.length > 4096 then Namespace.problem {} "E_RESOURCE_LIMIT" "more than 4096 resource functions"
   let mut unused := 4096
@@ -768,6 +855,11 @@ def envelope (program : Program) : Namespace.Result Unit := do
   if let some entry := program.entry then
     let some (_, function) := program.owned[entry]? | Namespace.problem {} "E_MAIN" "missing resource main"
     unless function.valueType == .int do Namespace.problem function.span "E_MAIN" "resource main must return Int"
+  -- Protocols 2 to 6 reject such a signature, at its place, after they
+  -- validate the namespace of the request (#533).
+  if let some span := program.invalidSignature? then
+    Namespace.validate program.requestNamespace
+    Namespace.problem span "E_TYPE" "Fn signatures contain only scalars and recursive Fn types"
 
 /-- The numerical compiler receives the exact environment accepted by the
 complete source/authority checker, never a separately supplied declaration table. -/

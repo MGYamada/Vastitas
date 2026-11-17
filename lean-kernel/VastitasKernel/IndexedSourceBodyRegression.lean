@@ -1,47 +1,23 @@
-import VastitasKernel.IndexedSourceProgram
-import VastitasKernel.IndexedSourceRegression
-import VastitasKernel.IndexedCodegen
+import VastitasKernel.IndexedFunctionRegression
 import VastitasKernel.RegressionSupport
 
+/-! Data-function source bodies through the Fn compiler
+(`FunctionSource.Compiler.checkProgram`), whose body elaborator and passes the
+public routes compose. Each source program here has data types only; the
+regression converts it with `FunctionSource.Regression.dataProgram`. -/
 namespace VastitasKernel.Indexed.Source.BodyRegression
-open Bodies
-
-private def path (name : String) : Path := ⟨name.splitOn "::", {}⟩
-private def arg (name : String) : TypeArgument := .name (path name)
-private def int : Source.DataType := .pure .int
-private def nat : Source.DataType := .pure .nat
-private def object : Source.DataType := .object ⟨path "geo::Scheme", path "geo::QQ"⟩
-private def point (name : String) : Source.DataType := .application (path "Point") [arg name, arg "geo::Base"]
-private def packed : Source.DataType := .application (path "geo::Pointed") [arg "geo::Scheme", arg "geo::QQ"]
-private def var (name : String) : Source.Expr := .variable name {}
-private def num (value : Nat) : Source.Expr := .integer (toString value) {}
-private def call (name : String) (arguments : List Source.Expr := []) : Source.Expr := .call (path name) arguments {}
-private def block (result : Source.Expr) (statements : List Source.Stmt := []) : Source.Block := .mk statements result {}
-private def fn (name : String) (params : List Source.Param) (result : Source.DataType) (body : Source.Block) : Source.Function :=
-  ⟨name, params, result, body, true, {}⟩
-private def bind (name : String) (value : Source.Expr) (annotation : Option Source.DataType := none) : Source.Stmt :=
-  .letE name annotation value {}
-private def program (functions : List Source.Function) : Source.Program :=
-  let p := Regression.declarationFixture
-  { p with packages := [{ p.packages[0]! with modules := [{ p.packages[0]!.modules[0]! with functions }] }, p.packages[1]!] }
-private def main (body : Source.Expr) (statements : List Source.Stmt := []) : Source.Function := fn "main" [] int (block body statements)
-private def make : Source.Function := fn "make" [⟨"n", nat, {}⟩] packed
-  (block (.pack packed (var "X") [var "p"] {})
-    [bind "X" (call "geo::Affine" [var "n"]), bind "p" (call "geo::origin" [var "X"])])
-private def unwrap : Source.Function := fn "unwrap" [⟨"boxed", packed, {}⟩] int
-  (block (call "int" [call "geo::dimension" [var "X"]]) [.unpack (var "boxed") "X" ["p"] {}])
-
-/-- Actual unresolved source bodies, deliberately ordered before their callees. -/
-def packageFixture : Source.Program := program [main (call "unwrap" [call "make" [num 2]]), unwrap, make]
+open Bodies BodyFixture
 
 private def check := RegressionSupport.check "indexed source body regression failed"
-private def accepts (p : Source.Program) (requireMain := true) : Bool := (Bodies.checkProgram p requireMain).isOk
+private def checked (p : Source.Program) (requireMain := true) :=
+  FunctionSource.Compiler.checkProgram (FunctionSource.Regression.dataProgram p) requireMain
+private def accepts (p : Source.Program) (requireMain := true) : Bool := (checked p requireMain).isOk
 private def rejects (code : String) (p : Source.Program) : Bool :=
-  match Bodies.checkProgram p true with | .error error => error.code == code | .ok _ => false
+  match checked p with | .error error => error.code == code | .ok _ => false
 
 #eval check "unresolved package bodies and forward calls" (accepts packageFixture)
-#eval check "actual source bodies reach native codegen" (match Bodies.checkProgram packageFixture true with
-  | .ok checked => (Core.Codegen.generate checked.core).isOk
+#eval check "actual source bodies reach native codegen" (match checked packageFixture with
+  | .ok checked => (Core.Codegen.generate checked.executable.core).isOk
   | .error _ => false)
 #eval check "source ordering does not select a different function" (accepts (program [make, unwrap, main (call "unwrap" [call "make" [num 2]])]))
 #eval check "empty library accepted but entrypoint required for build" (accepts (program []) false && !accepts (program []))
@@ -99,19 +75,10 @@ private def rejects (code : String) (p : Source.Program) : Bool :=
 #eval check "explicit conversion only" (rejects "E_TYPE" (program [main (var "n") [bind "n" (num 2) (some nat)]]))
 #eval check "malformed numeral" (rejects "E_LITERAL" (program [main (.integer "-1" {})]))
 
-/-- Every scalar operation here originates in the unresolved source body. -/
-def scalarFixture : Source.Program := program [main
-  (.binary "+" (call "pair_first" [var "p"])
-    (call "int" [.binary "-" (var "n") (num 9) {}]) {})
-  [bind "n" (num 2) (some nat), bind "p" (call "pair"
-    [.integer "999999999999999999999999999999999999999997" {}, num 0])]]
-
-#eval check "source scalar and Pair native generation" (match Bodies.checkProgram scalarFixture true with
-  | .ok checked => (Core.Codegen.generate checked.core).isOk
+#eval check "source scalar and Pair native generation" (match checked scalarFixture with
+  | .ok checked => (Core.Codegen.generate checked.executable.core).isOk
   | .error _ => false)
 
-private def withLibrary (p : Source.Program) (change : Source.Module → Source.Module) : Source.Program :=
-  { p with packages := [p.packages[0]!, { p.packages[1]! with modules := [change p.packages[1]!.modules[0]!] }] }
 private def secret (isPublic : Bool) : Source.Function := { fn "secret" [] int (block (num 17)) with isPublic }
 #eval check "private function cannot be called across packages" (rejects "E_VISIBILITY"
   (withLibrary (program [main (call "geo::secret")]) fun m => { m with functions := [secret false] }))
@@ -152,20 +119,6 @@ private def token (witness : String) : Source.DataType := .application (path "ge
   fn "escape" [⟨"boxed", .application (path "geo::Sealed") [arg "geo::Scheme", arg "geo::QQ"], {}⟩] int
     (block (num 0) [bind "bad" (.block (block (var "value") [.unpack (var "boxed") "X" ["value"] {}]) {})])]))
 
-private def multiple (p : Source.Program) : Source.Program := withLibrary p fun m =>
-  { m with declarations := m.declarations.map fun d => if d.name == "Pointed" then
-    { d with body := .package [⟨⟨path "Scheme", path "QQ"⟩,
-      [⟨path "Point", [.witness, .global (path "Base")]⟩, ⟨path "Morphism", [.witness, .witness]⟩]⟩] } else d }
-private def makeMultiple : Source.Function := fn "make" [⟨"n", nat, {}⟩] packed
-  (block (.pack packed (var "X") [call "geo::origin" [var "X"], call "geo::id" [var "X"]] {})
-    [bind "X" (call "geo::Affine" [var "n"])])
-private def repackMultiple : Source.Function := fn "repack" [⟨"boxed", packed, {}⟩] packed
-  (block (.pack packed (var "X") [call "geo::apply" [var "m", var "p"], var "m"] {})
-    [.unpack (var "boxed") "X" ["p", "m"] {}])
-/-- Both differently represented fields originate in unresolved source bodies. -/
-def multipleFixture : Source.Program := multiple (program [makeMultiple, repackMultiple, main
-  (call "int" [call "geo::dimension" [var "X"]])
-  [.unpack (call "repack" [call "make" [num 3]]) "X" ["p", "m"] {}, bind "q" (call "geo::apply" [var "m", var "p"])]] )
 #eval check "multiple ordered fields and repacking" (accepts multipleFixture)
 #eval check "swapped heterogeneous fields rejected" (rejects "E_ENDPOINT" (multiple (program [main (num 0),
   fn "bad" [] packed (block (.pack packed (var "X") [call "geo::id" [var "X"], call "geo::origin" [var "X"]] {})
@@ -174,7 +127,7 @@ def multipleFixture : Source.Program := multiple (program [makeMultiple, repackM
 /-! Rejected primitive calls name the failed requirement of their resolved
 binding (#602). The message is exact; the origin notes are unchanged. -/
 private def explains (message : String) (p : Source.Program) (notes : Nat) : Bool :=
-  match Bodies.checkProgram p true with
+  match checked p with
   | .error error => error.code == "E_ENDPOINT" && error.message == message && error.notes.length == notes
   | .ok _ => false
 private def objects : List Source.Stmt :=
@@ -270,28 +223,12 @@ private def withCopy (p : Source.Program) : Source.Program :=
       Diagnostics.explainPrimitive env.indexed (.compose point) [] 0 [] .natural == some .binding
     | _ => false)
 
-#eval check "source coverage rejects omissions and substituted owners" (match Bodies.checkProgram packageFixture true with
+#eval check "duplicate body substitution fails independent Core uniqueness" (match checked packageFixture with
   | .error _ => false
   | .ok checked =>
-      let module := checked.lowered.module
-      let first := module.functions[0]!
-      !validFunctionOrigins packageFixture { module with functions := module.functions.tail } &&
-      !validFunctionOrigins packageFixture { module with functions :=
-        { first with definition := { first.definition with name := "forged" } } :: module.functions.tail })
-#eval check "duplicate body substitution fails independent Core uniqueness" (match Bodies.checkProgram packageFixture true with
-  | .error _ => false
-  | .ok checked =>
-      let module := checked.lowered.module
+      let module := checked.executable.core.module
       let repeated := { module with functions := List.replicate module.functions.length module.functions[0]! }
-      validFunctionOrigins packageFixture repeated && !(Core.Typing.checkModule repeated false).isOk)
-#eval check "forged call provenance rejected" (match Bodies.checkProgram packageFixture true with
-  | .error _ => false
-  | .ok checked => match checked.lowered.calls.head? with
-    | none => false
-    | some reference =>
-        let forged := { reference with id := packageFixture.functions.length }
-        !validCalls packageFixture.indexed { checked.lowered with calls := [forged] } &&
-        !validCalls packageFixture.indexed { checked.lowered with calls := [{ reference with path := path "absent" }] })
+      !(Core.Typing.checkModule repeated false).isOk)
 #eval check "shared dependency is ordered once" (accepts (program [main (.binary "+" (call "leaf") (call "leaf") {}),
   fn "leaf" [] int (block (num 1))]))
 #eval check "nested unary and Bool operators" (accepts (program [main

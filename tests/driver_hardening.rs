@@ -3,7 +3,7 @@
 //! Process-group signaling (#520) and package-lock fallback classification are
 //! unit-tested next to their implementations.
 mod common;
-use common::{Scratch, kernel_identity, kernel_path};
+use common::{CURRENT_PROTOCOL, Scratch, kernel_identity, kernel_path};
 use std::ffi::OsString;
 use std::fs;
 use std::os::unix::fs::{PermissionsExt, symlink};
@@ -455,16 +455,16 @@ fn kernel_build_identity_fails_closed() {
     let backend = s.0.join("kernel");
     for (response, problem) in [
         (
-            r#"{"version":2,"ok":true}"#.to_string(),
+            format!(r#"{{"version":{CURRENT_PROTOCOL},"ok":true}}"#),
             "did not report a Vastitas kernel build identity",
         ),
         (
-            format!(r#"{{"version":2,"ok":true,"kernel":{stale}}}"#),
+            format!(r#"{{"version":{CURRENT_PROTOCOL},"ok":true,"kernel":{stale}}}"#),
             "built from kernel sources 0123456789abcdef",
         ),
         (
             format!(
-                r#"{{"version":2,"ok":true,"kernel":{}}}"#,
+                r#"{{"version":{CURRENT_PROTOCOL},"ok":true,"kernel":{}}}"#,
                 identity.replace("\"lean\":\"", "\"lean\":\"0.")
             ),
             "with Lean 0.",
@@ -491,7 +491,7 @@ fn kernel_build_identity_fails_closed() {
     executable(
         &backend,
         &format!(
-            "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":2,\"ok\":false,\"kernel\":{stale},\"diagnostics\":[{{\"code\":\"E_SENTINEL\",\"message\":\"stale rejection\"}}]}}'\nexit 1\n"
+            "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":{CURRENT_PROTOCOL},\"ok\":false,\"kernel\":{stale},\"diagnostics\":[{{\"code\":\"E_SENTINEL\",\"message\":\"stale rejection\"}}]}}'\nexit 1\n"
         ),
     );
     let result = cli(&s)
@@ -578,7 +578,7 @@ fn kernel_build_identity_covers_the_compiler_limits() {
         executable(
             &backend,
             &format!(
-                "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":2,\"ok\":true,\"kernel\":{}}}'\n",
+                "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":{CURRENT_PROTOCOL},\"ok\":true,\"kernel\":{}}}'\n",
                 identity.replace(&reported, &other)
             ),
         );
@@ -791,69 +791,5 @@ fn native_options_require_a_numerical_program() {
         );
         assert!(!lake_ran.exists(), "{options:?} reached Lake");
         assert_eq!(fs::read(s.0.join("program")).unwrap(), b"previous output");
-    }
-}
-
-// #557: only protocols 8 and 9 may ask for the optional native runtimes; an
-// older success response that carries either flag is a protocol error.
-// old-route(#533): responses of protocols 2 and 3. The driver no longer writes
-// protocol 7 (#533), so no request of it reaches a backend.
-#[test]
-fn optional_runtime_flags_are_refused_for_protocols_before_eight() {
-    let s = fixture();
-    successful_lake(&s);
-    s.write(
-        "pkg/Vastitas.toml",
-        "[package]\nname = 'plain'\nversion = '0.1.0'\nroot = 'main.vast'\n",
-    );
-    s.write("pkg/main.vast", "fn main() -> Int { 42 }");
-    let backend = s.0.join("old-backend");
-    // Echo the request's own protocol version, so only the flags are wrong.
-    executable(
-        &backend,
-        &format!(
-            "#!/bin/sh\nrequest=$(cat)\nversion=$(printf '%s' \"$request\" | sed -n 's/^{{\"version\":\\([0-9]*\\),.*/\\1/p')\nprintf '{{\"version\":%s,\"ok\":true,\"kernel\":{},\"lean_source\":\"def main : IO Unit := pure ()\",%s}}\\n' \"$version\" \"$FLAGS\"\n",
-            kernel_identity()
-        ),
-    );
-    for (inputs, version) in [
-        (vec!["main.vast".to_string()], 2),
-        (
-            vec!["--manifest-path".into(), "pkg/Vastitas.toml".into()],
-            3,
-        ),
-    ] {
-        let wire = common::captured_wire(cli(&s).arg("check").args(&inputs), version);
-        assert_eq!(wire["version"], version);
-        for (flags, message) in [
-            (
-                "\"storage_runtime\":true",
-                "invalid optional storage runtime requirement",
-            ),
-            (
-                "\"storage_runtime\":false",
-                "invalid optional storage runtime requirement",
-            ),
-            (
-                "\"numerical_runtime\":true",
-                "invalid optional numerical runtime requirement",
-            ),
-        ] {
-            let result = cli(&s)
-                .arg("build")
-                .args(&inputs)
-                .args(["-o", "program"])
-                .env("VASTITAS_KERNEL", &backend)
-                .env("FLAGS", flags)
-                .env("NATIVE_TEXT", "never")
-                .output()
-                .unwrap();
-            let error = common::expect_code(&result, "E_PROTOCOL");
-            assert!(error.contains(message), "v{version} {flags}: {error}");
-            assert!(
-                !s.0.join("program").exists(),
-                "v{version} {flags} installed"
-            );
-        }
     }
 }

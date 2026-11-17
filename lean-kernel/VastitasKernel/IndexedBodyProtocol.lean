@@ -65,6 +65,11 @@ def dataType (j : Json) : Except String Source.DataType := do
     return .application (← path (← field j "family")) (← (← array j "arguments").mapM typeArgument)
   | _ => throw "expected an indexed object/application or pure data type"
 
+/-- A Fn signature. Its data components are decoded with the kinds that
+protocols 2 to 6 decode there, scalars or not; a signature with a component
+other than a scalar is an error of the checked program (`E_TYPE`, see
+`ResourceSource.invalidSignature?`), as in protocols 2 to 6 (#533). Indexed
+types are no Fn components on any protocol. -/
 def callableType : Nat → Json → Except String Surface.TypeExpr
   | 0, _ => throw "IR type nesting exceeds the supported limit"
   | fuel + 1, j => do
@@ -73,9 +78,17 @@ def callableType : Nat → Json → Except String Surface.TypeExpr
       fields j ["kind", "params", "return_type"]
       return .function (← (← array j "params").mapM (callableType fuel))
         (← callableType fuel (← field j "return_type"))
-    | "named" =>
-      let type ← pureType j
-      return .data (DispatchSource.pureType type)
+    | "named" => fields j ["kind", "name"]; return .data (.named (← str j "name"))
+    | "pair" => fields j ["kind", "element"]; return .data (.pair (← str j "element"))
+    | "point" =>
+      fields j ["kind", "target", "source"]
+      return .data (.point (← legacyIndex (← field j "target")) (← legacyIndex (← field j "source")))
+    | "morphism" =>
+      fields j ["kind", "source", "target"]
+      return .data (.morphism (← legacyIndex (← field j "source")) (← legacyIndex (← field j "target")))
+    | "pointed" =>
+      fields j ["kind", "setting", "base"]
+      return .data (.pointed (← str j "setting") (← str j "base"))
     | _ => throw "Fn signatures contain only scalars and recursive Fn types"
 
 def fnType (j : Json) : Except String FunctionSource.FnType := do

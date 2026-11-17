@@ -1,6 +1,6 @@
 import VastitasKernel.Core
 
-/-! Checker state, its monad and the name checks of the retained Surface checker
+/-! Checker state, its monad and the name checks of the old Core checker
 (`Checker.lean`). The live dispatch and namespace modules use them without
 importing that checker. -/
 namespace VastitasKernel

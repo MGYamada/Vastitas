@@ -98,6 +98,13 @@ pub fn captured_wire(mut command: impl std::borrow::BorrowMut<Command>, version:
     assert_eq!(wire["version"], version, "captured protocol version");
     wire
 }
+/// The flat request of protocol 2, or 4 with abstract declarations, of the
+/// single file `source`: the `Module` of `frontend::parse`. old-route(#533):
+/// the driver sends no flat request since #533 round 2 (W7); it sends this
+/// unit as a protocol-9 package with `legacy_geometry`
+/// (`packages::flat_request`). The requests of this helper are hand-written
+/// requests of the retiring flat envelopes, which the kernel accepts until
+/// the cutover to epoch 10.
 pub fn request(source: &str, filename: &str) -> Value {
     serde_json::to_value(vastitas::frontend::parse(source, filename).unwrap()).unwrap()
 }

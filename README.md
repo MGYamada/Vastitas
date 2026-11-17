@@ -116,6 +116,8 @@ kernel. Optional native storage and numerical runtimes link when the checked
 entry needs them. [Compiler architecture](https://github.com/MGYamada/Vastitas/blob/main/docs/development/architecture.md) ·
 [Wire protocol](https://github.com/MGYamada/Vastitas/blob/main/docs/protocol.md) · [Contributor guidance](https://github.com/MGYamada/Vastitas/blob/main/AGENTS.md)
 
+[Compiler IR v1](docs/spec/compiler-ir.md) specifies the planned LLVM path.
+
 ## Validation
 
 The [validation guide](https://github.com/MGYamada/Vastitas/blob/main/docs/development/validation.md) lists Rust, kernel,

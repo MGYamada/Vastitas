@@ -230,3 +230,13 @@ The temporary `stdlib/indexed` entry point of the geometry library has been
 removed, and `stdlib` exports geometry and arithmetic together. General
 mathematics of schemes and manifolds is Planned under
 [#211](https://github.com/MGYamada/Vastitas/issues/211).
+
+## Planned LLVM compiler path
+
+The [Compiler IR v1 specification](../spec/compiler-ir.md) defines the planned
+v0.1.0 pipeline. The actual accepted Lean Core is its input. One typed MidIR
+has optimization and execution phases, and independent Lean validators relate
+each phase to its input and the execution phase to the exact LLVM text. Both
+compiler verification modes use those same artifacts. LLVM, the linker and
+the foreign runtime have separate premises. The current compiler emits Lean
+and uses the Lean/C toolchain.

@@ -34,11 +34,11 @@ package `nature` in the directory `nature` of the repository holds
 ## Using the standard library
 
 The package
-[`examples/packages/stdlib-arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/stdlib-arithmetic)
+[`examples/packages/stdlib/stdlib-arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/stdlib/stdlib-arithmetic)
 depends on the library:
 
 ```toml
-{{#include ../../examples/packages/stdlib-arithmetic/Vastitas.toml}}
+{{#include ../../examples/packages/stdlib/stdlib-arithmetic/Vastitas.toml}}
 ```
 
 The path leads from the directory of this manifest to the directory
@@ -58,7 +58,7 @@ compiler reports that it cannot read a file of the library.
 The program calls two functions of the module `std::arithmetic::integers`:
 
 ```vast
-{{#include ../../examples/packages/stdlib-arithmetic/main.vast}}
+{{#include ../../examples/packages/stdlib/stdlib-arithmetic/main.vast}}
 ```
 
 Each `use` names one function by its path: the alias `std`, the modules
@@ -66,7 +66,7 @@ Each `use` names one function by its path: the alias `std`, the modules
 difference `-42`, and `int_abs` returns its absolute value.
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/stdlib-arithmetic/Vastitas.toml -o target/stdlib-arithmetic
+target/debug/vastitas build --manifest-path examples/packages/stdlib/stdlib-arithmetic/Vastitas.toml -o target/stdlib-arithmetic
 ./target/stdlib-arithmetic
 ```
 

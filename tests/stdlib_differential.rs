@@ -1,14 +1,15 @@
 //! The smooth affine profile from the standard library (#604, S9a; C17).
 //! A path package uses `std::geometry::smooth::affine`, `std::geometry::metric`
 //! and `std::differential`. The tests run copies of
-//! `examples/packages/stdlib-differential` against copies of the stdlib, and
+//! `examples/packages/stdlib/stdlib-differential` against copies of the stdlib, and
 //! check the name audit and the package boundaries of ADR 0001 §10.
 mod common;
 use common::{Run, Scratch, exits, expect_code, read, success};
 use serde_json::Value;
 
-const MAIN: &str = include_str!("../examples/packages/stdlib-differential/main.vast");
-const MANIFEST: &str = include_str!("../examples/packages/stdlib-differential/Vastitas.toml");
+const MAIN: &str = include_str!("../examples/packages/stdlib/stdlib-differential/main.vast");
+const MANIFEST: &str =
+    include_str!("../examples/packages/stdlib/stdlib-differential/Vastitas.toml");
 
 /// A metric-free program: the pullback, the differential and a tape.
 const METRIC_FREE: &str = r#"

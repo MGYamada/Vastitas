@@ -242,14 +242,14 @@ some checks need values that only the run has. The `expect` statement of
 program writes 3 to two cells and expects 4 in one of them:
 
 ```vast
-{{#include ../../examples/packages/failed-expect/main.vast}}
+{{#include ../../examples/packages/storage/failed-expect/main.vast}}
 ```
 
 The compiler accepts the program and builds it. The executable writes this
 line to standard error and exits with an unsuccessful status:
 
 ```text
-{{#include ../../examples/packages/failed-expect.stderr}}
+{{#include ../../examples/packages/storage/failed-expect.stderr}}
 ```
 
 This [*run-time diagnostic*](../appendix/glossary.md#run-time-diagnostic)

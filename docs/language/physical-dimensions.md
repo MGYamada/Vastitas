@@ -25,7 +25,7 @@ declaration of some kind, such as a quantity kind or a scale, concerns a
 path that names a declaration of another kind.
 
 The examples quote the tested package
-[`examples/packages/physical-dimensions/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/physical-dimensions),
+[`examples/packages/nature/physical-dimensions/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/nature/physical-dimensions),
 whose executable writes `failures = 0` and exits with status 0. It depends
 on the standard library and on the library
 [`nature::dimension`](#the-library-naturedimension). Each rejected program is
@@ -122,10 +122,10 @@ Rules:
   (`E_TYPE`).
 
 Example, from
-[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/physical-dimensions/main.vast):
+[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/nature/physical-dimensions/main.vast):
 
 ```vast
-{{#include ../../examples/packages/physical-dimensions/main.vast:dimensions}}
+{{#include ../../examples/packages/nature/physical-dimensions/main.vast:dimensions}}
 ```
 
 `Theta` is a base dimension of the program, next to the base dimensions `L`,
@@ -166,7 +166,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/physical-dimensions/main.vast:chart}}
+{{#include ../../examples/packages/nature/physical-dimensions/main.vast:chart}}
 ```
 
 The following reading leaves out the coordinate `t`:
@@ -215,7 +215,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/physical-dimensions/main.vast:scales}}
+{{#include ../../examples/packages/nature/physical-dimensions/main.vast:scales}}
 ```
 
 The following scale has a negative magnitude:
@@ -338,8 +338,8 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/physical-dimensions/main.vast:metrics}}
-{{#include ../../examples/packages/physical-dimensions/main.vast:physical}}
+{{#include ../../examples/packages/nature/physical-dimensions/main.vast:metrics}}
+{{#include ../../examples/packages/nature/physical-dimensions/main.vast:physical}}
 ```
 
 With l0 = 3 and t0 = 2, `gram((l0^-2, 0), (0, t0^-2))` is diag(1/9, 1/4),
@@ -419,7 +419,7 @@ such as `use nature::dimension::{Length, Time};` is an error (`E_PARSE`).
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/physical-dimensions/main.vast:imports}}
+{{#include ../../examples/packages/nature/physical-dimensions/main.vast:imports}}
 ```
 
 A physical dimension is not the dimension of a space. The

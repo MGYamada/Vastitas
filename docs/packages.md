@@ -45,7 +45,7 @@ This manifest declares the package `demo`, which depends on the package in
 `../arithmetic` under the alias `arithmetic`:
 
 ```toml
-{{#include ../examples/packages/demo/Vastitas.toml}}
+{{#include ../examples/packages/core/demo/Vastitas.toml}}
 ```
 
 ## The package graph
@@ -94,8 +94,8 @@ Rules:
   when a `use` of the root module imports it.
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/demo/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/demo/Vastitas.toml -o target/demo
+target/debug/vastitas check --manifest-path examples/packages/core/demo/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/core/demo/Vastitas.toml -o target/demo
 ./target/demo
 ```
 

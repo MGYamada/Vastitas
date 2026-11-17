@@ -22,7 +22,7 @@ requires a path to name a declaration of some kind, such as a frame
 declaration, concerns a path that names a declaration of another kind.
 
 The examples quote the tested package
-[`examples/packages/frames/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/frames),
+[`examples/packages/geometry/frames/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/frames),
 whose executable writes `failures = 0` and exits with status 0. Each
 rejected program is a package on the profile of the standard library. It
 appears with the diagnostic that the compiler prints for it.
@@ -133,10 +133,10 @@ A program declares its frames and the primitives that name them, as it
 declares its metrics and the `flat` and `sharp` primitives that name a metric.
 
 Example, from
-[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/frames/src/profile.vast):
+[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/frames/src/profile.vast):
 
 ```vast
-{{#include ../../examples/packages/frames/src/profile.vast:frame-families}}
+{{#include ../../examples/packages/geometry/frames/src/profile.vast:frame-families}}
 ```
 
 ## Frame declarations
@@ -227,10 +227,10 @@ Rules:
 > form a basis of ℝⁿ at every real point.
 
 Example, from
-[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/frames/src/main.vast):
+[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/frames/src/main.vast):
 
 ```vast
-{{#include ../../examples/packages/frames/src/main.vast:frames}}
+{{#include ../../examples/packages/geometry/frames/src/main.vast:frames}}
 ```
 
 $P_r$ at the point (x, y) has the columns (1, 0) and (x, 1), and its inverse
@@ -330,13 +330,13 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/frames/src/main.vast:encoding}}
+{{#include ../../examples/packages/geometry/frames/src/main.vast:encoding}}
 ```
 
 `main` builds these values:
 
 ```vast
-{{#include ../../examples/packages/frames/src/main.vast:values}}
+{{#include ../../examples/packages/geometry/frames/src/main.vast:values}}
 ```
 
 At p = (1, 2), the vector v = (3, 2) has the array (2, 1) in `b`, and
@@ -422,7 +422,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/frames/src/main.vast:maps}}
+{{#include ../../examples/packages/geometry/frames/src/main.vast:maps}}
 ```
 
 For f(x, y) = x² + y at p = (1, 2), J(p) = (2, 1) and f(p) = 3. With the
@@ -492,7 +492,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/frames/src/main.vast:contraction}}
+{{#include ../../examples/packages/geometry/frames/src/main.vast:contraction}}
 ```
 
 `apply_map(matrix_bl(f(), p), w)` is the array 4 at the point 3 of the line:
@@ -552,7 +552,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/frames/src/main.vast:observations}}
+{{#include ../../examples/packages/geometry/frames/src/main.vast:observations}}
 ```
 
 `first(w)` reads `(2, 1)`, and `entry_01(matrix_cl(f(), p))` reads `(3, 2)`.
@@ -628,7 +628,7 @@ way.
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/frames/src/main.vast:gram}}
+{{#include ../../examples/packages/geometry/frames/src/main.vast:gram}}
 ```
 
 The metric `Skew` has the Gram matrix ((2, 1), (1, 1)). Its Gram matrix in

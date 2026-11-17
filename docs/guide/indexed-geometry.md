@@ -103,11 +103,11 @@ object of its body. A function that constructs an object therefore cannot
 return a point of it as a `Point`. It returns an
 [*existential package*](../appendix/glossary.md#existential-package): a
 value that hides an object together with a point of it.
-[`examples/smooth.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/smooth.vast)
+[`examples/book/geometry/smooth.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/geometry/smooth.vast)
 does this in the smooth setting:
 
 ```vast
-{{#include ../../examples/smooth.vast}}
+{{#include ../../examples/book/geometry/smooth.vast}}
 ```
 
 `Pointed<CInfScheme, CInfReal>` is the type of an existential package of the
@@ -117,7 +117,7 @@ statement opens it: it binds `X` to the hidden object and `p` to its point,
 of type `Point<X, Base(CInfReal)>`.
 
 ```sh
-target/debug/vastitas build examples/smooth.vast -o target/smooth
+target/debug/vastitas build examples/book/geometry/smooth.vast -o target/smooth
 ./target/smooth
 ```
 
@@ -146,11 +146,11 @@ gives the rules.
 The compiler has the geometric core built in. The standard library declares
 the same objects, types and operations as ordinary declarations of a
 package, in the modules `std::geometry::scheme` and `std::geometry::smooth`.
-[`examples/packages/stdlib-geometry/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast)
+[`examples/packages/stdlib/stdlib-geometry/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib/stdlib-geometry/main.vast)
 uses both modules through paths:
 
 ```vast
-{{#include ../../examples/packages/stdlib-geometry/main.vast}}
+{{#include ../../examples/packages/stdlib/stdlib-geometry/main.vast}}
 ```
 
 The program reads like the programs above, with the names of the library:
@@ -175,7 +175,7 @@ the library's package root first, as
 
 ```sh
 python3 scripts/build_stdlib_package.py
-target/debug/vastitas build --manifest-path examples/packages/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
+target/debug/vastitas build --manifest-path examples/packages/stdlib/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
 ./target/stdlib-geometry
 ```
 
@@ -194,11 +194,11 @@ side. The library keeps its geometry in a package of its own, and the
 manifest of that package holds an
 [*export*](../appendix/glossary.md#export): a table that maps each form of
 the core syntax to a declaration of the library.
-[`examples/packages/geometry-compat/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry-compat/main.vast)
+[`examples/packages/geometry/geometry-compat/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/geometry-compat/main.vast)
 depends on the standard library and uses both spellings:
 
 ```vast
-{{#include ../../examples/packages/geometry-compat/main.vast}}
+{{#include ../../examples/packages/geometry/geometry-compat/main.vast}}
 ```
 
 `Point<Y, Base(QQ)>` and `scheme::Point<Y, scheme::BaseQQ>` are the same
@@ -206,7 +206,7 @@ type here, so `q` and `r` are points of one type. `Affine(QQ, n)` and
 `origin(X)` are calls of the library's operations.
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/geometry-compat/Vastitas.toml -o target/geometry-compat
+target/debug/vastitas build --manifest-path examples/packages/geometry/geometry-compat/Vastitas.toml -o target/geometry-compat
 ./target/geometry-compat
 ```
 

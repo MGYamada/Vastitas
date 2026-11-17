@@ -39,7 +39,7 @@ the `Line` of `std::geometry::smooth::affine`: each module declares its own.
 
 ## Use
 
-[`examples/packages/stdlib-affine/`](../../../../examples/packages/stdlib-affine),
+[`examples/packages/stdlib/stdlib-affine/`](../../../../examples/packages/stdlib/stdlib-affine),
 which `tests/examples.rs` builds and runs, imports every export apart from
 `AffineScheme`, as in
 `use std::geometry::scheme::affine::Over;`. It declares morphisms such as

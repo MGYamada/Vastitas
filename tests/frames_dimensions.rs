@@ -1,4 +1,4 @@
-//! The Stage 4 acceptance program, `examples/packages/frames-and-dimensions`
+//! The Stage 4 acceptance program, `examples/packages/nature/frames-and-dimensions`
 //! (#759; C22, and the native evidence of C1 to C19). The program depends on
 //! std and on `nature`, declares its frames, maps, metrics and physical
 //! reading in `src/profile.vast`, and observes them in `src/main.vast`, one
@@ -11,10 +11,12 @@ mod common;
 use common::{Run, Scratch, assert_wire_rejected, cli, expect_code, kernel, root, success};
 use serde_json::{Value, json};
 
-const EXAMPLE: &str = "examples/packages/frames-and-dimensions";
-const MANIFEST: &str = include_str!("../examples/packages/frames-and-dimensions/Vastitas.toml");
-const PROFILE: &str = include_str!("../examples/packages/frames-and-dimensions/src/profile.vast");
-const MAIN: &str = include_str!("../examples/packages/frames-and-dimensions/src/main.vast");
+const EXAMPLE: &str = "examples/packages/nature/frames-and-dimensions";
+const MANIFEST: &str =
+    include_str!("../examples/packages/nature/frames-and-dimensions/Vastitas.toml");
+const PROFILE: &str =
+    include_str!("../examples/packages/nature/frames-and-dimensions/src/profile.vast");
+const MAIN: &str = include_str!("../examples/packages/nature/frames-and-dimensions/src/main.vast");
 /// The program's failure codes are exactly `1..=CODES`.
 const CODES: u32 = 36;
 /// The name of the program's package.

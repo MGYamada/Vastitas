@@ -315,7 +315,7 @@ def main():
                 target.parent.mkdir(parents=True,exist_ok=True)
                 shutil.copyfile(path,target)
                 inputs[relative] = tree.sha(path)
-    for relative in ('examples/packages/contraction-tree/src/profiles/mod.vast',
+    for relative in ('examples/packages/numerical/contraction-tree/src/profiles/mod.vast',
                      'experiments/native_cleanup.py',
                      'lean-kernel/VastitasKernel/StorageCodegen.lean',
                      'lean-kernel/VastitasKernel/ResourceCodegen.lean',

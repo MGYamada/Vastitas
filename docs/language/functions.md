@@ -30,11 +30,11 @@ Rules:
 - A function body refers only to its parameters, the bindings of its body and
   items. There is no enclosing scope that a function could capture.
 
-[`examples/arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/arithmetic.vast)
+[`examples/book/values/arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/values/arithmetic.vast)
 calls a function that the file declares after the caller:
 
 ```vast
-{{#include ../../examples/arithmetic.vast}}
+{{#include ../../examples/book/values/arithmetic.vast}}
 ```
 
 The executable writes `value * 10 = 1234567890123456789012345678900` and

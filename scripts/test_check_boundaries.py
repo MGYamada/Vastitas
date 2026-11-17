@@ -707,7 +707,7 @@ name = "VastitasBridge"
 
     def test_nature_depends_on_nothing_outside_std_and_nature(self):
         self.library_packages()
-        for path in ["../monad", "../lean-kernel", "../examples/packages/demo", "/"]:
+        for path in ["../monad", "../lean-kernel", "../examples/packages/core/demo", "/"]:
             with self.subTest(path=path):
                 self.manifest("nature", f'std = {{ path = "../stdlib" }}\nother = {{ path = "{path}" }}\n')
                 self.assert_boundary_error(

@@ -1,4 +1,4 @@
-# Hilbert spaces from Cauchy completion — mathematical and constructive profiles
+# Hilbert spaces from Cauchy completion
 
 **Status:** design and future proof obligations only. This document does not claim an implemented `.vast` interface, a finished Lean theorem, automatic analytic decision procedures, or numerical algorithms.
 
@@ -57,7 +57,7 @@ A certified `approx(name,n)` query provides a **stated error upper bound** for a
 
 ## Lifting operations
 
-Addition and scalar multiplication are continuous in the Hilbert norm, so their exact operations descend to completion elements. Their executable names may require a new index schedule or scalar magnitude bound.
+Addition and scalar multiplication are continuous in the Hilbert norm, so their exact operations descend to completion elements. Their executable names may require a different index schedule or scalar magnitude bound.
 
 For approximate names `x_n, y_n` with `‖x-x_n‖ ≤ δ_x` and `‖y-y_n‖ ≤ δ_y`, continuity yields a certified inner-product error:
 

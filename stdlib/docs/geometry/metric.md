@@ -29,7 +29,7 @@ that can name the metric may declare them. The standard library declares
 none, because it cannot name an application's metric, and so no metric is a
 default. A program that uses no metric needs no metric module.
 
-[`examples/packages/stdlib-differential/main.vast`](../../../examples/packages/stdlib-differential/main.vast),
+[`examples/packages/stdlib/stdlib-differential/main.vast`](../../../examples/packages/stdlib/stdlib-differential/main.vast),
 which `tests/examples.rs` builds and runs, declares a metric on its plane and
 the declarations that name it:
 
@@ -48,16 +48,16 @@ with status 0.
 
 ## Use
 
-- [`examples/packages/stdlib-differential/`](../../../examples/packages/stdlib-differential)
+- [`examples/packages/stdlib/stdlib-differential/`](../../../examples/packages/stdlib/stdlib-differential)
   (`tests/examples.rs`, `tests/stdlib_differential.rs`): the metric `Skew`
   above.
-- [`examples/packages/stdlib-frames/`](../../../examples/packages/stdlib-frames)
+- [`examples/packages/stdlib/stdlib-frames/`](../../../examples/packages/stdlib/stdlib-frames)
   (`tests/examples.rs`): the metric `G` of a chart, with a physical
   interpretation and a gradient.
-- [`examples/packages/physical-dimensions/`](../../../examples/packages/physical-dimensions)
+- [`examples/packages/nature/physical-dimensions/`](../../../examples/packages/nature/physical-dimensions)
   (`tests/examples.rs`): two metrics of one chart, as in
   `indexed metric M: MetricForm<C> = gram((1, 0), (0, -9));`.
-- [`examples/packages/frames-and-dimensions/`](../../../examples/packages/frames-and-dimensions)
+- [`examples/packages/nature/frames-and-dimensions/`](../../../examples/packages/nature/frames-and-dimensions)
   (`tests/frames_dimensions.rs`): metrics in a profile module.
 
 The book chapter

@@ -262,14 +262,14 @@ fn show_is_refused_outside_the_entry_point_of_packages() {
     // An object is no displayable value; the kernel names its type.
     let scratch = Scratch::empty("show object");
     scratch.copy_sources(
-        &common::root().join("examples/packages/indexed"),
+        &common::root().join("examples/packages/geometry/indexed"),
         "app",
         &[],
     );
     scratch.write(
         "app/main.vast",
         &checked_replace(
-            &common::read(&common::root().join("examples/packages/indexed/main.vast")),
+            &common::read(&common::root().join("examples/packages/geometry/indexed/main.vast")),
             "let packed = make(41);",
             "let object = show!(geo::affine(3));\n    let packed = make(41);",
         ),

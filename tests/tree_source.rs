@@ -3,13 +3,15 @@ use common::{Scratch, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const REAL: &str = include_str!("../examples/packages/contraction-tree/src/real/mod.vast");
-const COMPLEX: &str = include_str!("../examples/packages/contraction-tree/src/complex/mod.vast");
+const REAL: &str =
+    include_str!("../examples/packages/numerical/contraction-tree/src/real/mod.vast");
+const COMPLEX: &str =
+    include_str!("../examples/packages/numerical/contraction-tree/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
     common::example_package(
         "contraction tree",
-        "examples/packages/contraction-tree",
+        "examples/packages/numerical/contraction-tree",
         &[
             ("src/real/mod.vast", real),
             ("src/complex/mod.vast", complex),

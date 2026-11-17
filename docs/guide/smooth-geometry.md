@@ -8,12 +8,12 @@ exact rational number. The program writes `failures = 0` and exits with
 status 0 only when every observation holds.
 
 The program is
-[`examples/packages/stdlib-differential/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-differential/main.vast).
+[`examples/packages/stdlib/stdlib-differential/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib/stdlib-differential/main.vast).
 Run it from the repository root:
 
 ```sh
 python3 scripts/build_stdlib_package.py
-target/debug/vastitas build --manifest-path examples/packages/stdlib-differential/Vastitas.toml -o target/stdlib-differential
+target/debug/vastitas build --manifest-path examples/packages/stdlib/stdlib-differential/Vastitas.toml -o target/stdlib-differential
 ./target/stdlib-differential
 ```
 
@@ -27,13 +27,13 @@ differentiates the map t ↦ t² of the line at the point 3, and it shows the
 derivative, 6:
 
 ```vast
-{{#include ../../examples/packages/first-derivative/main.vast:all}}
+{{#include ../../examples/packages/geometry/first-derivative/main.vast:all}}
 ```
 
 After the first command above, build and run it:
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/first-derivative/Vastitas.toml -o target/first-derivative
+target/debug/vastitas build --manifest-path examples/packages/geometry/first-derivative/Vastitas.toml -o target/first-derivative
 ./target/first-derivative
 ```
 
@@ -55,13 +55,13 @@ The next program composes two maps of the line, t ↦ t + 1 and t ↦ t², and
 differentiates the composite at the point 2:
 
 ```vast
-{{#include ../../examples/packages/composed-derivative/main.vast:all}}
+{{#include ../../examples/packages/geometry/composed-derivative/main.vast:all}}
 ```
 
 Build and run it in the same way:
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/composed-derivative/Vastitas.toml -o target/composed-derivative
+target/debug/vastitas build --manifest-path examples/packages/geometry/composed-derivative/Vastitas.toml -o target/composed-derivative
 ./target/composed-derivative
 ```
 
@@ -95,7 +95,7 @@ and have no coordinates. The standard library declares an implementation,
 the types of this geometry and two objects, and the program imports them:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:imports}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:imports}}
 ```
 
 | Name | Meaning |
@@ -117,7 +117,7 @@ The program declares the plane, a primitive that builds its points, and two
 maps:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:objects}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:objects}}
 ```
 
 `indexed affine Plane(SmoothR) = Affine(2)[x, y];` declares an object of the
@@ -163,7 +163,7 @@ The program declares primitives that build covectors and vectors and
 primitives that read their components:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:fibers}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:fibers}}
 ```
 
 The binding `fiber_vector(Cotangent, Smooth, Line)` builds a covector on
@@ -200,7 +200,7 @@ at `x`. The covector η that a pullback starts from is its
 steps:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:pullbacks}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:pullbacks}}
 ```
 
 `x` is the point 3 of the line. Its image under `f` is (3, 9), and the image
@@ -253,11 +253,11 @@ and one over 8, and `guarded_slope` pulls a seed back only when it lies over
 the image:
 
 ```vast
-{{#include ../../examples/packages/seed-point/main.vast:all}}
+{{#include ../../examples/packages/geometry/seed-point/main.vast:all}}
 ```
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/seed-point/Vastitas.toml -o target/seed-point
+target/debug/vastitas build --manifest-path examples/packages/geometry/seed-point/Vastitas.toml -o target/seed-point
 ./target/seed-point
 ```
 
@@ -291,7 +291,7 @@ computes each point again when it reads it. The library declares no pullback
 with the mode `recomputed`, and the program declares one itself:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:recomputed}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:recomputed}}
 ```
 
 A program can also hold the points of the forward pass as a value.
@@ -322,7 +322,7 @@ declares its metric, evidence for the metric, and the primitives and the
 function that use it:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:metric}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:metric}}
 ```
 
 `indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));` declares a
@@ -375,14 +375,14 @@ Two helper functions keep `main` short. `verdict` turns a failed observation
 into its code, and `reads` compares a component with a fraction:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:helpers}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:helpers}}
 ```
 
 Each observation adds its code to `failures` when it fails. `main` shows
 `failures` and returns 1 when it is not 0:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:main}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:main}}
 ```
 
 ## Each declaration is its own object

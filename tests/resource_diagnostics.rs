@@ -46,7 +46,7 @@ fn fixture(source: &str) -> Scratch {
     scratch.write("src/main.vast", source);
     scratch.write(
         "src/profiles/mod.vast",
-        include_str!("../examples/packages/numerical/src/profiles/mod.vast"),
+        include_str!("../examples/packages/numerical/numerical/src/profiles/mod.vast"),
     );
     scratch
 }

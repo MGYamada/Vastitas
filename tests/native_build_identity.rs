@@ -132,7 +132,7 @@ impl Mocked {
             // The mocked Lake needs no OpenBLAS; the driver only resolves the prefix.
             Program::Numerical => command
                 .arg("--manifest-path")
-                .arg(root().join("examples/packages/numerical/Vastitas.toml"))
+                .arg(root().join("examples/packages/numerical/numerical/Vastitas.toml"))
                 .arg("--openblas-prefix")
                 .arg(&self.s.0),
         };
@@ -200,7 +200,7 @@ fn changed_runtime_source_under_an_unchanged_checker_is_rejected_before_lake() {
     let build = |output: &str| {
         cli()
             .arg("build")
-            .arg(root().join("examples/pointed.vast"))
+            .arg(root().join("examples/book/geometry/pointed.vast"))
             .arg("-o")
             .arg(s.0.join(output))
             .env_remove("VASTITAS_KERNEL")

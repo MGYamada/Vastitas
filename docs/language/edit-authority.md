@@ -87,11 +87,11 @@ Rules:
   method contracts.
 
 The defining package of
-[`examples/packages/edit-borrow`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/edit-borrow)
+[`examples/packages/authority/edit-borrow`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/authority/edit-borrow)
 grants the package `edit_addon` the region `(Int, Int)` of `choose`:
 
 ```vast
-{{#include ../../examples/packages/edit-borrow/lib/main.vast}}
+{{#include ../../examples/packages/authority/edit-borrow/lib/main.vast}}
 ```
 
 ## Contributions
@@ -133,7 +133,7 @@ Rules:
 The package `edit_addon` contributes one method:
 
 ```vast
-{{#include ../../examples/packages/edit-borrow/addon/main.vast}}
+{{#include ../../examples/packages/authority/edit-borrow/addon/main.vast}}
 ```
 
 ## Assemblies
@@ -220,7 +220,7 @@ The root package of `edit-borrow` borrows the grant, applies the
 contribution, returns the loan and seals `choose`:
 
 ```vast
-{{#include ../../examples/packages/edit-borrow/app/main.vast}}
+{{#include ../../examples/packages/authority/edit-borrow/app/main.vast}}
 ```
 
 The executable writes `base::choose(40, 2) = 42` and exits with status 0.
@@ -277,25 +277,25 @@ Rules:
   membership, abstract method contracts, ordinary functions and single
   methods have no transfer.
 
-[`examples/packages/edit-authority`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/edit-authority)
+[`examples/packages/authority/edit-authority`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/authority/edit-authority)
 nests a loan through a delegation and then transfers the generic. The defining
 package declares a delegable grant and a transfer:
 
 ```vast
-{{#include ../../examples/packages/edit-authority/base/main.vast}}
+{{#include ../../examples/packages/authority/edit-authority/base/main.vast}}
 ```
 
 The recipient declares the delegation and its contributions:
 
 ```vast
-{{#include ../../examples/packages/edit-authority/addon/main.vast}}
+{{#include ../../examples/packages/authority/edit-authority/addon/main.vast}}
 ```
 
 The assembly returns the nested loan before its parent, transfers `choose` and
 applies the recipient's contribution without a loan:
 
 ```vast
-{{#include ../../examples/packages/edit-authority/app/main.vast}}
+{{#include ../../examples/packages/authority/edit-authority/app/main.vast}}
 ```
 
 The executable writes `base::choose(40, 2) + base::choose(true, true) = 44`

@@ -143,13 +143,13 @@ In this package the root module declares the file module `dim`, names
 its functions through paths and calls the geometric operation `dim`:
 
 ```vast
-{{#include ../../examples/packages/module-names/main.vast}}
+{{#include ../../examples/packages/core/module-names/main.vast}}
 ```
 
 `dim.vast` holds the items of the module:
 
 ```vast
-{{#include ../../examples/packages/module-names/dim.vast}}
+{{#include ../../examples/packages/core/module-names/dim.vast}}
 ```
 
 The executable writes no line and exits with status 0.

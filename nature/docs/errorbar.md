@@ -52,7 +52,7 @@ gives their syntax and rules.
 
 ## Use
 
-[`examples/packages/two-level/`](../../examples/packages/two-level) compares
+[`examples/packages/nature/two-level/`](../../examples/packages/nature/two-level) compares
 the model `M` of [`nature::model`](model.md) with five measured points. It
 declares:
 

@@ -3,17 +3,17 @@ use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
 
 const PROFILES: &str =
-    include_str!("../examples/packages/numerical-declarations/src/profiles/mod.vast");
+    include_str!("../examples/packages/numerical/numerical-declarations/src/profiles/mod.vast");
 
 fn fixture(profiles: &str) -> Scratch {
     let s = Scratch::empty("numerical declarations");
     s.write(
         "Vastitas.toml",
-        include_str!("../examples/packages/numerical-declarations/Vastitas.toml"),
+        include_str!("../examples/packages/numerical/numerical-declarations/Vastitas.toml"),
     );
     s.write(
         "src/main.vast",
-        include_str!("../examples/packages/numerical-declarations/src/main.vast"),
+        include_str!("../examples/packages/numerical/numerical-declarations/src/main.vast"),
     );
     s.write("src/profiles/mod.vast", profiles);
     s

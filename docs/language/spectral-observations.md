@@ -22,7 +22,7 @@ requires a path to name a declaration of some kind, such as a spectrum
 declaration, concerns a path that names a declaration of another kind.
 
 The examples quote the tested package
-[`examples/packages/spectral-observations/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/spectral-observations),
+[`examples/packages/geometry/spectral-observations/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/spectral-observations),
 whose executable writes `failures = 0` and exits with status 0. Each
 rejected program is a package on the profile of the standard library. It
 appears with the diagnostic that the compiler prints for it.
@@ -127,10 +127,10 @@ Rules:
 - A free module used as a value is an error (`E_TYPE`).
 
 Example, from
-[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/spectral-observations/src/profile.vast):
+[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/spectral-observations/src/profile.vast):
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:field}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:field}}
 ```
 
 `V` is A² with the basis `e1`, `e2`, where A is the ring of polynomials in x
@@ -209,7 +209,7 @@ The program also declares four constant fields on the point `Pt`, whose
 coordinate ring is the rational numbers:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:point}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:point}}
 ```
 
 The following field is declared `symmetric`, and its entry (e1, e2) is y
@@ -376,7 +376,7 @@ Rules:
 Example, from `profile.vast`:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:invariants}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:invariants}}
 ```
 
 `tr1` is the map 0, and `tr2` is the map 2x² + 2y², which equals `ref2`.
@@ -386,7 +386,7 @@ Example, from `profile.vast`:
 The invariants of the four constant fields on the point, from `profile.vast`:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:point-invariants}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:point-invariants}}
 ```
 
 `two_tr1` and `j_tr1` are the constant 4, `two_tr2` and `j_tr2` the
@@ -467,10 +467,10 @@ Rules:
 - The rules of [operand checks](#operand-checks) apply.
 
 Example, from
-[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/spectral-observations/src/main.vast):
+[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/spectral-observations/src/main.vast):
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/main.vast:action}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/main.vast:action}}
 ```
 
 On the point, t − 2 annihilates `TwoI` and not `J`: J − 2I has the rows
@@ -558,7 +558,7 @@ Rules:
 Example, from `profile.vast`:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/profile.vast:spectrum}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/profile.vast:spectrum}}
 ```
 
 For χ = t² − x² − y², χ′ = 2t, and (t/2)·2t = t², which is x² + y² modulo
@@ -671,7 +671,7 @@ Rules:
 Example, from `main.vast`:
 
 ```vast
-{{#include ../../examples/packages/spectral-observations/src/main.vast:branch}}
+{{#include ../../examples/packages/geometry/spectral-observations/src/main.vast:branch}}
 ```
 
 At p = (3, 4), χ(p, t) = t² − 25, and the branch points over p are (p, 5)
@@ -775,19 +775,19 @@ Rules:
   Otherwise it is an error (`E_LIMIT`).
 
 Example, from the package
-[`examples/packages/two-level/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/two-level),
+[`examples/packages/nature/two-level/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/nature/two-level),
 whose executable shows the average at five points and exits with status 0:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:field}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:field}}
 ```
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:branch}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:branch}}
 ```
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:average}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:average}}
 ```
 
 For H = (δ/2)σ_z + (Ω/2)σ_x, χ = t² − (δ² + Ω²)/4 and adj(tI − H) = tI + H.
@@ -844,7 +844,7 @@ Rules:
 Example, from `main.vast` of the two-level package:
 
 ```vast
-{{#include ../../examples/packages/two-level/src/main.vast:observation}}
+{{#include ../../examples/packages/nature/two-level/src/main.vast:observation}}
 ```
 
 `at(n, m)` is the point (n/2, m/2), the composite of a point with integer

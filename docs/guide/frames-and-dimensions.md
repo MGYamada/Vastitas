@@ -10,12 +10,12 @@ rational number. The program writes `failures = 0` and exits with status 0
 only when every observation holds.
 
 The program is
-[`examples/packages/stdlib-frames/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-frames/main.vast).
+[`examples/packages/stdlib/stdlib-frames/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib/stdlib-frames/main.vast).
 Run it from the repository root:
 
 ```sh
 python3 scripts/build_stdlib_package.py
-target/debug/vastitas build --manifest-path examples/packages/stdlib-frames/Vastitas.toml -o target/stdlib-frames
+target/debug/vastitas build --manifest-path examples/packages/stdlib/stdlib-frames/Vastitas.toml -o target/stdlib-frames
 ./target/stdlib-frames
 ```
 
@@ -26,7 +26,7 @@ physical meanings to the objects of the standard library. Its manifest
 depends on both by path:
 
 ```toml
-{{#include ../../examples/packages/stdlib-frames/Vastitas.toml}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/Vastitas.toml}}
 ```
 
 The program imports the smooth profile of the
@@ -34,7 +34,7 @@ The program imports the smooth profile of the
 library, and two families and two quantity kinds of `nature::dimension`:
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:imports}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:imports}}
 ```
 
 | Name | Meaning |
@@ -58,7 +58,7 @@ vectors that are not parallel form a basis as well. A
 of an object. The program declares four frames:
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:frames}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:frames}}
 ```
 
 `columns(…)` lists the frame vectors, each in the coordinates of the object.
@@ -88,11 +88,11 @@ The program builds the vector v = (3, 2) at the point p = (1, 2), and its
 components in the frame `b`:
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:arrays}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:arrays}}
 ```
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:encode}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:encode}}
 ```
 
 The vector v is 2 · (1, 0) + 1 · (1, 2), so its components in `b` are 2
@@ -114,7 +114,7 @@ The same vector has an array in each frame. A
 vector in one frame into its array in another frame:
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:changes}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:changes}}
 ```
 
 `b_to_e(p)` is the transition from `b` to the coordinate frame at p, and
@@ -148,7 +148,7 @@ fibers, and a pair of frames writes it as a matrix, a
 [*map array*](../appendix/glossary.md#map-array):
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:matrices}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:matrices}}
 ```
 
 `g` sends (x, y) to x² + y, so its derivative at p = (1, 2) sends a vector
@@ -172,7 +172,7 @@ length and whose coordinate `t` measures a time. A
 [*reading*](../appendix/glossary.md#reading) says so:
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:chart}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:chart}}
 ```
 
 `Length` and `Time` are [*quantity kinds*](../appendix/glossary.md#quantity-kind)
@@ -204,7 +204,7 @@ To add a length and a time, a metric divides each by a reference quantity of
 its own kind, a [*scale*](../appendix/glossary.md#scale):
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:scaled}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:scaled}}
 ```
 
 `l0` is a length of magnitude 3 and `t0` a time of magnitude 2. The metric
@@ -222,7 +222,7 @@ value. The program computes a gradient under `G` as the
 [previous chapter](smooth-geometry.md#metrics-and-gradients) does:
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:gradient}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:gradient}}
 ```
 
 `h` sends (x, t) to x + t, so its differential is (1, 1) at every point. The
@@ -235,14 +235,14 @@ fix the metric, and the metric fixes the gradient.
 Two helper functions keep `main` short, as in the previous chapter:
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:helpers}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:helpers}}
 ```
 
 Each observation adds its code to `failures` when it fails. `main` shows
 `failures` and returns 1 when it is not 0:
 
 ```vast
-{{#include ../../examples/packages/stdlib-frames/main.vast:main}}
+{{#include ../../examples/packages/stdlib/stdlib-frames/main.vast:main}}
 ```
 
 > **What is checked.** The checker rejects an array, a map array or a vector

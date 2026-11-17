@@ -13,15 +13,15 @@ goal, the C/C++-class target that
 [Fast like C](../storage-ownership.md#fast-like-c) states.
 
 The chapter reads one program of two packages,
-[`examples/packages/storage`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage).
+[`examples/packages/storage/storage`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage/storage).
 The package `buffers` is a library of resource functions, and the package
 `app` calls them. Resource functions exist only in
 [packages](creating-a-package.md), so the commands name a manifest. Run them from the
 repository root:
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/storage/app/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/storage/app/Vastitas.toml -o target/storage-example
+target/debug/vastitas check --manifest-path examples/packages/storage/storage/app/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/storage/storage/app/Vastitas.toml -o target/storage-example
 ./target/storage-example
 ```
 
@@ -36,7 +36,7 @@ block, which computes the result of the function with ordinary expressions.
 The library declares three resource functions:
 
 ```vast
-{{#include ../../examples/packages/storage/buffers/src/operations/mod.vast}}
+{{#include ../../examples/packages/storage/storage/buffers/src/operations/mod.vast}}
 ```
 
 `make` allocates a buffer, writes it and hands it to its caller. Read it
@@ -113,7 +113,7 @@ The package `app` imports the three functions. Its entry point is a resource
 function `main` without parameters:
 
 ```vast
-{{#include ../../examples/packages/storage/app/src/main.vast}}
+{{#include ../../examples/packages/storage/storage/app/src/main.vast}}
 ```
 
 - `call make() -> (data);` calls `make` and binds its owned result to the
@@ -250,11 +250,11 @@ floating-point numbers and no arithmetic on them.
 
 A resource function also computes scalars, passes them to other resource
 functions and chooses between two lists of statements.
-[`examples/packages/resource-values`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/resource-values)
+[`examples/packages/storage/resource-values`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage/resource-values)
 does all three:
 
 ```vast
-{{#include ../../examples/packages/resource-values/src/main.vast}}
+{{#include ../../examples/packages/storage/resource-values/src/main.vast}}
 ```
 
 - `let input: Nat = value { … };` computes a scalar with ordinary
@@ -273,7 +273,7 @@ The integers are the unbounded integers of the earlier chapters. The
 difference in the second line of `main` is a `Nat`, which is 0 where the
 result would be negative, so `flag` is `true`. The commands at the start of
 this chapter build and run the program with the manifest
-`examples/packages/resource-values/Vastitas.toml`. It writes no line and
+`examples/packages/storage/resource-values/Vastitas.toml`. It writes no line and
 exits with status 0, because `answer` is 42.
 
 ## Sizes that the program computes
@@ -282,11 +282,11 @@ The statements above fix every size in the source. The statements with the
 prefix `runtime_` take their sizes from scalars. Such a size is an
 [*extent*](../appendix/glossary.md#extent): a literal, or a `Nat` or `Int`
 binding. This function of
-[`examples/packages/runtime-extents`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/runtime-extents)
+[`examples/packages/storage/runtime-extents`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage/runtime-extents)
 allocates a table whose numbers of rows and columns are parameters:
 
 ```vast
-{{#include ../../examples/packages/runtime-extents/main.vast:table}}
+{{#include ../../examples/packages/storage/runtime-extents/main.vast:table}}
 ```
 
 - `runtime_allocate` allocates `capacity` cells and fixes the one layout of
@@ -307,7 +307,7 @@ literal.
 `main` calls the function with two sizes in one executable:
 
 ```vast
-{{#include ../../examples/packages/runtime-extents/main.vast:main}}
+{{#include ../../examples/packages/storage/runtime-extents/main.vast:main}}
 ```
 
 Built with its manifest, the program writes no line and exits with status 0.

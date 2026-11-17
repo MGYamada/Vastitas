@@ -1,6 +1,6 @@
-# Universe admission: first Lean model
+# Finite universe admission model
 
-This is partial implementation progress for [#350](https://github.com/MGYamada/Vastitas/issues/350).
+This model covers finite scalar and representation admission.
 The Universe Charter specifies the jurisdiction of constitutional guarantees;
 it is independent of the Constitution. This model does **not** complete the
 Charter, change CS/MS/CF, or expand the public compiler's certified scope.
@@ -21,7 +21,7 @@ is no additional foundational axiom, proof verifier or Domain Checker.
 “Finite scalar profile” means a closed set of implemented scalar types; Nat and
 Int remain arbitrary precision. Pair support is existing homogeneous Pair support,
 not general records or sums. Bit-pattern coordinates are not identified with
-ideal RR/CC values, and no new floating-point arithmetic laws are asserted.
+ideal RR/CC values, and no floating-point arithmetic laws are asserted.
 
 `El` gives mathematical meaning without synthesizing executable values. For
 example, a symbolic layout with an invalid leading dimension still has a
@@ -54,13 +54,13 @@ live-loan moves, missing initialization and equal-dimensional but different base
 
 ## Computational boundary
 
-`CoreHom` currently contains scalar identity, Nat-to-Int, Boolean negation and
+`CoreHom` contains scalar identity, Nat-to-Int, Boolean negation and
 the executable integral nonnegativity decision. Static scalar parameters are
 specialized to concrete `Indexed.Core` signatures and submitted to the existing
 `Typing.checkModule`. There is no constructor embedding all Lean functions
 `El a → El b`, nor an unrestricted identity operation that duplicates owners.
 
-`scalarCode?` and `literalCore?` are deliberately tiny, syntactic meta bridges.
+`scalarCode?` and `literalCore?` inspect supported type and literal syntax.
 They whitelist supported scalar type constants and literal data. They reject
 function spaces, arbitrary Lean types, `Sort` expressions, first-class
 `RuntimeTy`, proof terms, noncomputable constants and applications (including
@@ -73,7 +73,7 @@ depending on `Classical.choice` and a decision depending on
 `Classical.propDecidable`; both must produce the expected noncomputability error.
 This is distinct from permitting standard Lean axioms in mathematical proofs.
 No `sorry`, custom axiom, `unsafe` definition or `native_decide` is added to the
-model or its proofs. The existing transitive axiom audit covers the new oracle
+model or its proofs. The existing transitive axiom audit covers the oracle
 module, and permits only the project's existing standard Lean axioms.
 
 ## Established facts and remaining obligations
@@ -102,14 +102,13 @@ native heap refinement, numerical correctness, or Charter-amendment replay.
 General records/sums, finite categorical/scheme objects and admitted-scope
 manifests remain outside this increment.
 
-The public protocol-8 path in `Main.lean` remains unchanged:
-`ResourceSource.Wire.check` precedes `ResourceSource.Codegen.generate` on its
-actual returned certificate. `Context.ofExecution` can project the actual
+The public protocol 10 path in `Main.lean` passes the result of
+`ResourceSource.Wire.check` to `ResourceSource.Codegen.generateChecked`. `Context.ofExecution` can project the actual
 execution context, but it does not infer source acceptance from a standalone
 model certificate. This module is not imported by `Main`, and these adapters
 must never be used as a replacement public acceptance path.
 
-## Verification and #350 acceptance progress
+## Verification and acceptance progress
 
 Run from the repository root with the pinned Lean 4.35.0 toolchain:
 
@@ -128,7 +127,7 @@ failures, missing representations, unsupported Lean types, choice-dependent
 runtime definitions and disallowed universe reflection. Kernel proof checking
 and executable regression observations remain distinct forms of evidence.
 
-| #350 initial acceptance item | This increment |
+| Charter acceptance item | Model coverage |
 | --- | --- |
 | Minimal interface and representations | Partial: scalars/pairs, shape metadata, actual owned-map transfer; general record/sum support remains open |
 | Static generics/closure-free staging | Partial: finite scalar specialization and universal denotation facts; full source staging remains open |
@@ -138,4 +137,8 @@ and executable regression observations remain distinct forms of evidence.
 | Unsupported universes and missing layout evidence | Partial: negative tests at the explicit model boundary; public Charter integration remains open |
 | Charter amendment and evidence replay | Open |
 
-All broad #350 checkboxes remain open until their entire requirements are met.
+## History
+
+The finite model came from [PR #368](https://github.com/MGYamada/Vastitas/pull/368).
+The broader Charter obligations are tracked in
+[#350](https://github.com/MGYamada/Vastitas/issues/350).

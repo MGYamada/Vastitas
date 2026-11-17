@@ -21,7 +21,7 @@ use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use std::path::Path;
 
-const ACCEPTANCE: &str = "examples/packages/smooth-differential/Vastitas.toml";
+const ACCEPTANCE: &str = "examples/packages/geometry/smooth-differential/Vastitas.toml";
 const BRANCH_MANIFEST: &str = include_str!("emit_corpus/reverse-branch/Vastitas.toml");
 const BRANCH_MAIN: &str = include_str!("emit_corpus/reverse-branch/main.vast");
 const TAPE_MANIFEST: &str = include_str!("emit_corpus/reverse-tape/Vastitas.toml");

@@ -2,8 +2,8 @@ mod common;
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
 
-const GEO: &str = include_str!("../examples/packages/indexed/geo.vast");
-const MAIN: &str = include_str!("../examples/packages/indexed/main.vast");
+const GEO: &str = include_str!("../examples/packages/geometry/indexed/geo.vast");
+const MAIN: &str = include_str!("../examples/packages/geometry/indexed/main.vast");
 
 /// The example without its observation (#836), so that the requests of this
 /// file carry no observations.

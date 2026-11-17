@@ -10,7 +10,7 @@ package, builds it and gives it a dependency.
 ## A package of one file
 
 The package
-[`examples/packages/hello`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/hello)
+[`examples/packages/core/hello`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/core/hello)
 has two files:
 
 ```text
@@ -25,7 +25,7 @@ No command creates a package. Make the directory and write both files.
 file that describes the package:
 
 ```toml
-{{#include ../../examples/packages/hello/Vastitas.toml}}
+{{#include ../../examples/packages/core/hello/Vastitas.toml}}
 ```
 
 The table `[package]` has three keys, and a manifest needs all three:
@@ -39,7 +39,7 @@ The table `[package]` has three keys, and a manifest needs all three:
 The root source file holds the program of the previous section:
 
 ```vast
-{{#include ../../examples/packages/hello/src/main.vast}}
+{{#include ../../examples/packages/core/hello/src/main.vast}}
 ```
 
 ## Checking and building a package
@@ -47,13 +47,13 @@ The root source file holds the program of the previous section:
 The option `--manifest-path` names the manifest:
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/hello/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/hello/Vastitas.toml -o target/hello-package
+target/debug/vastitas check --manifest-path examples/packages/core/hello/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/core/hello/Vastitas.toml -o target/hello-package
 ./target/hello-package
 ```
 
 ```text
-checked examples/packages/hello/Vastitas.toml
+checked examples/packages/core/hello/Vastitas.toml
 built target/hello-package
 40 + 2 = 42
 ```
@@ -70,12 +70,12 @@ both.
 ## A library package
 
 A package without `main` is a library: it holds functions for other packages.
-[`examples/packages/dependency/answers`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/dependency/answers)
+[`examples/packages/core/dependency/answers`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/core/dependency/answers)
 is one. Its manifest names `src/lib.vast` as the root, and that file holds
 one function:
 
 ```vast
-{{#include ../../examples/packages/dependency/answers/src/lib.vast}}
+{{#include ../../examples/packages/core/dependency/answers/src/lib.vast}}
 ```
 
 `pub` makes the function [*public*](../appendix/glossary.md#public), so
@@ -84,16 +84,16 @@ that other packages can name it. A function without `pub` is
 and `build` does not, because a library has no entry point:
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/dependency/answers/Vastitas.toml
+target/debug/vastitas check --manifest-path examples/packages/core/dependency/answers/Vastitas.toml
 ```
 
 ## Depending on a package
 
-[`examples/packages/dependency/ask`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/dependency/ask)
+[`examples/packages/core/dependency/ask`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/core/dependency/ask)
 is a program that uses the library. Its manifest has a second table:
 
 ```toml
-{{#include ../../examples/packages/dependency/ask/Vastitas.toml}}
+{{#include ../../examples/packages/core/dependency/ask/Vastitas.toml}}
 ```
 
 Each line of `[dependencies]` declares one dependency. The name on the left,
@@ -106,7 +106,7 @@ directory of this manifest.
 The root source file imports the function and calls it:
 
 ```vast
-{{#include ../../examples/packages/dependency/ask/src/main.vast}}
+{{#include ../../examples/packages/core/dependency/ask/src/main.vast}}
 ```
 
 `answers::answer` is a [*path*](../appendix/glossary.md#path): the dependency
@@ -116,7 +116,7 @@ alone. `answer()` is a call: the name of a function and its arguments in
 parentheses, of which this function has none.
 
 ```sh
-target/debug/vastitas build --manifest-path examples/packages/dependency/ask/Vastitas.toml -o target/ask
+target/debug/vastitas build --manifest-path examples/packages/core/dependency/ask/Vastitas.toml -o target/ask
 ./target/ask
 ```
 

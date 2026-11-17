@@ -28,7 +28,7 @@ Rules:
   [Visibility](language/names-and-paths.md#visibility) says.
 
 ```vast
-{{#include ../examples/functions.vast}}
+{{#include ../examples/book/functions/functions.vast}}
 ```
 
 The executable writes `invoke(keep(increment), 41) = 42` and exits with

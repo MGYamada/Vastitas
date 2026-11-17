@@ -65,7 +65,7 @@ Rules:
   fits.
 
 ```vast
-{{#include ../../examples/packages/linear-transforms/src/main.vast:declarations}}
+{{#include ../../examples/packages/numerical/linear-transforms/src/main.vast:declarations}}
 ```
 
 ## Metrics
@@ -162,11 +162,11 @@ Rules:
   arm (`E_RESOURCE_JOIN`).
 
 This function of
-[`examples/packages/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/linear-transforms)
+[`examples/packages/numerical/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/linear-transforms)
 multiplies with the dual of a map:
 
 ```vast
-{{#include ../../examples/packages/linear-transforms/src/main.vast:dual-into}}
+{{#include ../../examples/packages/numerical/linear-transforms/src/main.vast:dual-into}}
 ```
 
 ## Adjoints for diagonal metrics
@@ -204,7 +204,7 @@ Rules:
 - `adjoint_into` initializes the view of `out`.
 
 ```vast
-{{#include ../../examples/packages/diagonal-metrics/src/real/mod.vast:adjoint-into}}
+{{#include ../../examples/packages/numerical/diagonal-metrics/src/real/mod.vast:adjoint-into}}
 ```
 
 ## Vectors
@@ -283,11 +283,11 @@ Rules:
   (`E_NUMERICAL_TYPE`).
 
 These functions of
-[`examples/packages/vector-cells`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/vector-cells)
+[`examples/packages/numerical/vector-cells`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/vector-cells)
 write the cells of a vector and copy them to another vector:
 
 ```vast
-{{#include ../../examples/packages/vector-cells/src/main.vast:cells}}
+{{#include ../../examples/packages/numerical/vector-cells/src/main.vast:cells}}
 ```
 
 `main` of the example lends uninitialized cells as the vectors that the two
@@ -373,11 +373,11 @@ caller of `hermitian_value` below does, or declares vectors on two `read`
 loans of the same cells.
 
 These functions of
-[`examples/packages/vector-evaluation`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/vector-evaluation)
+[`examples/packages/numerical/vector-evaluation`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/vector-evaluation)
 evaluate a covector on a vector and pair a vector with a conjugate vector:
 
 ```vast
-{{#include ../../examples/packages/vector-evaluation/src/main.vast:pairings}}
+{{#include ../../examples/packages/numerical/vector-evaluation/src/main.vast:pairings}}
 ```
 
 ## Parameter types

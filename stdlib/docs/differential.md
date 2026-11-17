@@ -31,7 +31,7 @@ package graph.
 
 The package exports no recomputing pullback. An application may bind one
 over the families of the library, as
-[`examples/packages/stdlib-differential/main.vast`](../../examples/packages/stdlib-differential/main.vast)
+[`examples/packages/stdlib/stdlib-differential/main.vast`](../../examples/packages/stdlib/stdlib-differential/main.vast)
 does:
 `indexed primitive pullback_recomputed = cotangent_pullback(Smooth, Cotangent, recomputed);`.
 
@@ -46,18 +46,18 @@ has the body `sharp_skew(differential(h, p))`.
 
 ## Use
 
-- [`examples/packages/stdlib-differential/`](../../examples/packages/stdlib-differential)
+- [`examples/packages/stdlib/stdlib-differential/`](../../examples/packages/stdlib/stdlib-differential)
   (`tests/examples.rs`, `tests/stdlib_differential.rs`, `tests/emit_golden.rs`)
   imports the four operations, as in `use std::differential::pullback;`. It
   pulls the seed `dt` at 18 back along g after f to 12 `dt` at 3, compares
   the saved, recomputed and tape pullbacks, gives the failure value for a
   seed at 17, and computes the differential `(2, 1)` and a gradient. It
   writes `failures = 0` and exits with status 0.
-- [`examples/packages/stdlib-frames/`](../../examples/packages/stdlib-frames)
-  and [`examples/packages/physical-dimensions/`](../../examples/packages/physical-dimensions)
+- [`examples/packages/stdlib/stdlib-frames/`](../../examples/packages/stdlib/stdlib-frames)
+  and [`examples/packages/nature/physical-dimensions/`](../../examples/packages/nature/physical-dimensions)
   (`tests/examples.rs`) compute gradients under their metrics from
   `differential`.
-- [`examples/packages/frames-and-dimensions/`](../../examples/packages/frames-and-dimensions)
+- [`examples/packages/nature/frames-and-dimensions/`](../../examples/packages/nature/frames-and-dimensions)
   (`tests/frames_dimensions.rs`) uses `pullback` and `differential` with
   frames.
 

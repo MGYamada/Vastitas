@@ -17,12 +17,12 @@ earlier chapters with the same images as the transition, writes
 `failures = 0` and exits with status 0.
 
 The program is the package
-[`examples/packages/projective-line/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/projective-line).
+[`examples/packages/geometry/projective-line/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/projective-line).
 Run it from the repository root:
 
 ```sh
 python3 scripts/build_stdlib_package.py
-target/debug/vastitas build --manifest-path examples/packages/projective-line/Vastitas.toml -o target/projective-line
+target/debug/vastitas build --manifest-path examples/packages/geometry/projective-line/Vastitas.toml -o target/projective-line
 ./target/projective-line
 ```
 
@@ -34,7 +34,7 @@ The first command generates the standard library's package root; see
 The two pieces are two lines and an open subset of each:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:charts}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:charts}}
 ```
 
 `L1` and `L2` are lines over the point `SpecQQ`, with the coordinates `x`
@@ -52,7 +52,7 @@ overlap.
 `indexed glued` glues the two lines along their open subsets:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:glue}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:glue}}
 ```
 
 `glue(U1, U2)` names the open subsets. `by(…)` says how a point of `U1` is
@@ -83,7 +83,7 @@ parts where all three overlap, and the compiler checks no such condition, as
 The same lines glued by y = x instead of y = 1/x give another object:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:doubled}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:doubled}}
 ```
 
 `Doubled` is the line with a doubled origin. Away from the origins, the two
@@ -94,7 +94,7 @@ A gluing on its own says nothing about whether the result is separated.
 A separation claim says it, with a witness:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:separated}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:separated}}
 ```
 
 `by(xi -> L2::y)` claims that the inverse `xi` of the first chart is the
@@ -120,7 +120,7 @@ in `x` and `y` is 1/x on the overlap:
 A projective claim states that the glued object is the projective line:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:projective}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:projective}}
 ```
 
 A point of the projective line is a pair (s : t), up to a common factor,
@@ -151,7 +151,7 @@ entries fail, because y = x on its overlap:
 A cover states that open subsets cover an object:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:cover}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:cover}}
 ```
 
 `Dt` is the line of the standard library without the point t = 0, and
@@ -178,7 +178,7 @@ the identity hold:
 The same construction works for real lines:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:smooth}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:smooth}}
 ```
 
 `SmoothR` is the smooth implementation of the standard library, and
@@ -225,7 +225,7 @@ morphisms over `SpecQQ` that have the same images as the transition of `P`.
 They are separate declarations with values, and nothing ties them to `P`:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:observers}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:observers}}
 ```
 
 `there` and `back` have the images of `by(…)` and `inverse(…)`. `main`
@@ -233,7 +233,7 @@ checks that both composites are identities, which the gluing checked when
 the program was compiled:
 
 ```vast
-{{#include ../../examples/packages/projective-line/src/main.vast:main}}
+{{#include ../../examples/packages/geometry/projective-line/src/main.vast:main}}
 ```
 
 > **What is checked.** The compiler checks each gluing, cover and claim by

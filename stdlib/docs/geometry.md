@@ -53,11 +53,11 @@ a type decide which setting it belongs to.
 The packages of [`std::geometry::scheme`](geometry/scheme.md#use) and
 [`std::geometry::smooth`](geometry/smooth.md#use) use these declarations
 through the two settings.
-[`examples/packages/geometry-compat/`](../../examples/packages/geometry-compat),
+[`examples/packages/geometry/geometry-compat/`](../../examples/packages/geometry/geometry-compat),
 which `tests/examples.rs` builds and runs, writes them in the core syntax,
 as in `let q: Point<Y, Base(QQ)> = p;`, next to the qualified syntax.
 `tests/stdlib_geometry.rs` runs copies of the library and of
-[`examples/packages/stdlib-geometry/`](../../examples/packages/stdlib-geometry):
+[`examples/packages/stdlib/stdlib-geometry/`](../../examples/packages/stdlib/stdlib-geometry):
 renamed declarations, copied packages, visibility and tampered wire input.
 
 ## Rules and proofs

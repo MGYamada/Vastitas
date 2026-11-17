@@ -40,7 +40,7 @@ takes the eigenvalue as an input.
 
 ## Use
 
-[`examples/packages/spectral-observations/`](../../../examples/packages/spectral-observations),
+[`examples/packages/geometry/spectral-observations/`](../../../examples/packages/geometry/spectral-observations),
 which `tests/spectral_observations.rs` and `tests/examples.rs` build and run,
 and which `tests/spectral_observations.rs` mutates, declares on its plane:
 
@@ -61,7 +61,7 @@ from a copy of the standard library. The rejected packages
 a gap, a Jordan block, a field that is not symmetric, a field of another
 object, a perturbed witness and a rank above the limit.
 
-[`examples/packages/two-level/`](../../../examples/packages/two-level), the
+[`examples/packages/nature/two-level/`](../../../examples/packages/nature/two-level), the
 acceptance program of historical Stage 6, which `tests/two_level.rs` and
 `tests/examples.rs` build, run and mutate, declares on the chart
 `P = Affine(2)[delta, omega]`:

@@ -43,9 +43,26 @@ fn documented(inputs: &[&str], lines: &[&str]) {
 /// The complete programs that the book includes, with their `--lib` inputs
 /// and the `show!` lines of the built executable, which exits with 0. Every
 /// program under `examples/book/` must be listed
-/// (docs/development/documentation.md, Examples). The programs with the
-/// legacy geometry of a flat unit cannot use `show!`; they write nothing.
+/// (docs/development/documentation.md, Examples).
 const BOOK_PROGRAMS: &[(&str, &[&str], &[&str])] = &[
+    (
+        "examples/book/stdlib/stdlib-arithmetic.vast",
+        &[INT, NAT],
+        &[
+            "int_abs(int_neg(answer)) = 42",
+            "nat_sub(nat_add(2, 3), 8) = 0",
+        ],
+    ),
+    (
+        "examples/book/stdlib/promotion.vast",
+        &[INT, NAT, GENERIC],
+        &["maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42"],
+    ),
+    (
+        "examples/book/abstract/abstract-selectors.vast",
+        &[],
+        &["classify(n) = 42"],
+    ),
     ("examples/book/programs/hello.vast", &[], &["40 + 2 = 42"]),
     (
         "examples/book/programs/flat-library.vast",
@@ -112,13 +129,13 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &[&str])] = &[
     ),
     ("examples/book/geometric-types/objects.vast", &[], &[]),
     (
-        "examples/arithmetic.vast",
+        "examples/book/values/arithmetic.vast",
         &[],
         &["value * 10 = 1234567890123456789012345678900"],
     ),
-    ("examples/pointed.vast", &[], &[]),
+    ("examples/book/geometry/pointed.vast", &[], &[]),
     (
-        "examples/pairs.vast",
+        "examples/book/values/pairs.vast",
         &[],
         &[
             "reverse(pair(big, zero)) = (0, 123456789012345678901234567890)",
@@ -127,12 +144,12 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "examples/dispatch-arithmetic.vast",
+        "examples/book/dispatch/dispatch-arithmetic.vast",
         &[INT, NAT, GENERIC],
         &["maximum(nat_to_int(total), 41) = 42"],
     ),
     (
-        "examples/abstract-contracts.vast",
+        "examples/book/abstract/abstract-contracts.vast",
         &[],
         &["widen(n) + widen(22) = 42"],
     ),
@@ -156,7 +173,7 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "examples/functions.vast",
+        "examples/book/functions/functions.vast",
         &[],
         &["invoke(keep(increment), 41) = 42"],
     ),
@@ -180,7 +197,7 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &[&str])] = &[
         &[],
         &["fold(add_ints, 40, 2) = 42"],
     ),
-    ("examples/smooth.vast", &[], &[]),
+    ("examples/book/geometry/smooth.vast", &[], &[]),
 ];
 
 /// The package programs that the book includes, by manifest, with the
@@ -190,62 +207,65 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &[&str])] = &[
 /// a program with the legacy geometry of a package without a compatibility
 /// export cannot use `show!`; they write nothing.
 const BOOK_PACKAGES: &[(&str, &[&str])] = &[
-    ("examples/packages/hello/Vastitas.toml", &["40 + 2 = 42"]),
     (
-        "examples/packages/dependency/ask/Vastitas.toml",
+        "examples/packages/core/hello/Vastitas.toml",
+        &["40 + 2 = 42"],
+    ),
+    (
+        "examples/packages/core/dependency/ask/Vastitas.toml",
         &["answer() = 42"],
     ),
     (
-        "examples/packages/stdlib-arithmetic/Vastitas.toml",
+        "examples/packages/stdlib/stdlib-arithmetic/Vastitas.toml",
         &["int_abs(int_sub(8, 50)) = 42"],
     ),
     (
-        "examples/packages/inline-module/Vastitas.toml",
+        "examples/packages/core/inline-module/Vastitas.toml",
         &["next(41) = 42"],
     ),
     (
-        "examples/packages/module-paths/Vastitas.toml",
+        "examples/packages/core/module-paths/Vastitas.toml",
         &["rectangle(4, 8) + shapes::square(3) + self::unit() = 42"],
     ),
-    ("examples/packages/module-names/Vastitas.toml", &[]),
+    ("examples/packages/core/module-names/Vastitas.toml", &[]),
     (
-        "examples/packages/indexed/Vastitas.toml",
+        "examples/packages/geometry/indexed/Vastitas.toml",
         &["increment(int(geo::dim(Y))) = 42"],
     ),
     (
-        "examples/packages/indexed-objects/Vastitas.toml",
+        "examples/packages/geometry/indexed-objects/Vastitas.toml",
         &["int(measure(X)) = 42"],
     ),
     (
-        "examples/packages/geometry-compat/Vastitas.toml",
+        "examples/packages/geometry/geometry-compat/Vastitas.toml",
         &["int(scheme::dim(Y)) = 42"],
     ),
     (
-        "examples/packages/stdlib-geometry/Vastitas.toml",
+        "examples/packages/stdlib/stdlib-geometry/Vastitas.toml",
         &["std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42"],
     ),
     (
-        "examples/packages/affine-geometry/Vastitas.toml",
+        "examples/packages/geometry/affine-geometry/Vastitas.toml",
         &["failures = 0"],
     ),
     (
-        "examples/packages/stdlib-affine/Vastitas.toml",
+        "examples/packages/stdlib/stdlib-affine/Vastitas.toml",
         &["failures = 0"],
     ),
     (
-        "examples/packages/smooth-geometry/Vastitas.toml",
+        "examples/packages/geometry/smooth-geometry/Vastitas.toml",
         &["failures = 0"],
     ),
     (
-        "examples/packages/first-derivative/Vastitas.toml",
+        "examples/packages/geometry/first-derivative/Vastitas.toml",
         &["pair_first(dt(differential(square(), line_at(3)))) = 6"],
     ),
     (
-        "examples/packages/composed-derivative/Vastitas.toml",
+        "examples/packages/geometry/composed-derivative/Vastitas.toml",
         &["dt(differential(composition, point)) = (6, 1)"],
     ),
     (
-        "examples/packages/seed-point/Vastitas.toml",
+        "examples/packages/geometry/seed-point/Vastitas.toml",
         &[
             "lies_over(good, image) = true",
             "lies_over(wrong, image) = false",
@@ -253,25 +273,34 @@ const BOOK_PACKAGES: &[(&str, &[&str])] = &[
             "dt(pullback(square(), point, wrong)) = (0, 0)",
         ],
     ),
-    ("examples/packages/frames/Vastitas.toml", &["failures = 0"]),
     (
-        "examples/packages/physical-dimensions/Vastitas.toml",
+        "examples/packages/geometry/frames/Vastitas.toml",
         &["failures = 0"],
     ),
     (
-        "examples/packages/stdlib-frames/Vastitas.toml",
-        &["failures = 0"],
-    ),
-    ("examples/packages/storage/app/Vastitas.toml", &[]),
-    ("examples/packages/vector-cells/Vastitas.toml", &[]),
-    ("examples/packages/runtime-extents/Vastitas.toml", &[]),
-    ("examples/packages/payloads/Vastitas.toml", &[]),
-    (
-        "examples/packages/spectral-observations/Vastitas.toml",
+        "examples/packages/nature/physical-dimensions/Vastitas.toml",
         &["failures = 0"],
     ),
     (
-        "examples/packages/two-level/Vastitas.toml",
+        "examples/packages/stdlib/stdlib-frames/Vastitas.toml",
+        &["failures = 0"],
+    ),
+    ("examples/packages/storage/storage/app/Vastitas.toml", &[]),
+    (
+        "examples/packages/numerical/vector-cells/Vastitas.toml",
+        &[],
+    ),
+    (
+        "examples/packages/storage/runtime-extents/Vastitas.toml",
+        &[],
+    ),
+    ("examples/packages/storage/payloads/Vastitas.toml", &[]),
+    (
+        "examples/packages/geometry/spectral-observations/Vastitas.toml",
+        &["failures = 0"],
+    ),
+    (
+        "examples/packages/nature/two-level/Vastitas.toml",
         &[
             "avg(at(0, 5)) = (1, 2)",
             "avg(at(2, 5)) = (25, 58)",
@@ -281,7 +310,7 @@ const BOOK_PACKAGES: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "examples/packages/projective-line/Vastitas.toml",
+        "examples/packages/geometry/projective-line/Vastitas.toml",
         &["failures = 0"],
     ),
 ];
@@ -291,17 +320,17 @@ const BOOK_PACKAGES: &[(&str, &[&str])] = &[
 /// `book_numerical_packages_print_their_output` builds and runs them where the
 /// pinned OpenBLAS is available.
 const BOOK_NUMERICAL_PACKAGES: &[&str] = &[
-    "examples/packages/numerical/Vastitas.toml",
-    "examples/packages/linear-transforms/Vastitas.toml",
-    "examples/packages/finite_network/Vastitas.toml",
-    "examples/packages/gemm-coefficients/Vastitas.toml",
+    "examples/packages/numerical/numerical/Vastitas.toml",
+    "examples/packages/numerical/linear-transforms/Vastitas.toml",
+    "examples/packages/numerical/finite_network/Vastitas.toml",
+    "examples/packages/numerical/gemm-coefficients/Vastitas.toml",
 ];
 
 /// The packages of the book whose executable stops with a run-time
 /// diagnostic, by directory. The package must build. Its executable must exit
 /// with status 1, write nothing to standard output and write exactly the
 /// lines of `<directory>.stderr` to standard error.
-const BOOK_RUNTIME_FAILURES: &[&str] = &["examples/packages/failed-expect"];
+const BOOK_RUNTIME_FAILURES: &[&str] = &["examples/packages/storage/failed-expect"];
 
 /// The rejected programs that the book includes from `examples/reject/`, with
 /// their `--lib` inputs. `vastitas check`, run from the repository root, must
@@ -583,47 +612,6 @@ fn book_examples_are_registered() {
     }
 }
 
-// docs/stage1a.md: abstract selectors.
-#[test]
-fn abstract_selectors() {
-    documented(&["examples/abstract-selectors.vast"], &["classify(n) = 42"]);
-}
-
-// stdlib/docs/arithmetic.md: the flat example with the three explicit libraries.
-#[test]
-fn flat_promotion() {
-    documented(
-        &[
-            "examples/promotion.vast",
-            "--lib",
-            INT,
-            "--lib",
-            NAT,
-            "--lib",
-            GENERIC,
-        ],
-        &["maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42"],
-    );
-}
-
-// docs/language/programs.md (Flat mode) and stdlib/docs/arithmetic.md.
-#[test]
-fn stdlib_arithmetic() {
-    documented(
-        &[
-            "examples/stdlib-arithmetic.vast",
-            "--lib",
-            INT,
-            "--lib",
-            NAT,
-        ],
-        &[
-            "int_abs(int_neg(answer)) = 42",
-            "nat_sub(nat_add(2, 3), 8) = 0",
-        ],
-    );
-}
-
 // docs/packages.md (Commands): `demo` builds against the `arithmetic` library package,
 // which has no entry point and is checked on its own.
 #[test]
@@ -634,13 +622,16 @@ fn arithmetic_and_demo_packages() {
             .args([
                 "check",
                 "--manifest-path",
-                "examples/packages/arithmetic/Vastitas.toml",
+                "examples/packages/core/arithmetic/Vastitas.toml",
             ])
             .output()
             .unwrap(),
     );
     documented(
-        &["--manifest-path", "examples/packages/demo/Vastitas.toml"],
+        &[
+            "--manifest-path",
+            "examples/packages/core/demo/Vastitas.toml",
+        ],
         &["pipeline::twice(callback, package) = 42"],
     );
 }
@@ -649,7 +640,7 @@ fn arithmetic_and_demo_packages() {
 // `check` accepts it and `build` reports the missing entry point.
 #[test]
 fn library_package_checks_and_does_not_build() {
-    let manifest = "examples/packages/dependency/answers/Vastitas.toml";
+    let manifest = "examples/packages/core/dependency/answers/Vastitas.toml";
     success(
         &cli()
             .current_dir(root())
@@ -673,7 +664,7 @@ fn edit_borrow_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/edit-borrow/app/Vastitas.toml",
+            "examples/packages/authority/edit-borrow/app/Vastitas.toml",
         ],
         &["base::choose(40, 2) = 42"],
     );
@@ -685,7 +676,7 @@ fn edit_authority_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/edit-authority/app/Vastitas.toml",
+            "examples/packages/authority/edit-authority/app/Vastitas.toml",
         ],
         &["base::choose(40, 2) + base::choose(true, true) = 44"],
     );
@@ -698,7 +689,7 @@ fn promotion_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/promotion/Vastitas.toml",
+            "examples/packages/stdlib/promotion/Vastitas.toml",
         ],
         &["maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42"],
     );
@@ -712,7 +703,7 @@ fn smooth_differential_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/smooth-differential/Vastitas.toml",
+            "examples/packages/geometry/smooth-differential/Vastitas.toml",
         ],
         &["failures = 0"],
     );
@@ -727,7 +718,7 @@ fn stdlib_differential_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/stdlib-differential/Vastitas.toml",
+            "examples/packages/stdlib/stdlib-differential/Vastitas.toml",
         ],
         &["failures = 0"],
     );
@@ -739,7 +730,7 @@ fn resource_values_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/resource-values/Vastitas.toml",
+            "examples/packages/storage/resource-values/Vastitas.toml",
         ],
         &[],
     );
@@ -754,7 +745,7 @@ fn runtime_shapes_package_checks_without_blas() {
             .args([
                 "check",
                 "--manifest-path",
-                "examples/packages/runtime-shapes/Vastitas.toml",
+                "examples/packages/storage/runtime-shapes/Vastitas.toml",
             ])
             .output()
             .unwrap(),
@@ -772,7 +763,7 @@ fn runtime_shapes_package_runs_with_openblas() {
     documented_build(
         &[
             "--manifest-path",
-            "examples/packages/runtime-shapes/Vastitas.toml",
+            "examples/packages/storage/runtime-shapes/Vastitas.toml",
         ],
         &options,
         common::exits(0),

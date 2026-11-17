@@ -189,7 +189,7 @@ is checked, not proved:
 ## Acceptance conditions
 
 The acceptance example is the Stage 3 example
-[`examples/packages/smooth-differential/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/smooth-differential),
+[`examples/packages/geometry/smooth-differential/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/smooth-differential),
 unchanged. Each observation has its own failure code from 1 to 25. "Code k"
 below is that observation.
 

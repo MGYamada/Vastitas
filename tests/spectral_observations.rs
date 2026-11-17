@@ -1,4 +1,4 @@
-//! The Stage 5 acceptance program, `examples/packages/spectral-observations`
+//! The Stage 5 acceptance program, `examples/packages/geometry/spectral-observations`
 //! (#806; the native evidence of C3 to C5, C9 to C11, C14 and C18). The
 //! program depends on std and on `nature`, declares its free modules,
 //! endomorphism fields, spectra, branch, invariants and dimensionless chart in
@@ -11,10 +11,13 @@ use common::{Run, Scratch, assert_wire_rejected, cli, expect_code, kernel, root,
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
-const EXAMPLE: &str = "examples/packages/spectral-observations";
-const MANIFEST: &str = include_str!("../examples/packages/spectral-observations/Vastitas.toml");
-const PROFILE: &str = include_str!("../examples/packages/spectral-observations/src/profile.vast");
-const MAIN: &str = include_str!("../examples/packages/spectral-observations/src/main.vast");
+const EXAMPLE: &str = "examples/packages/geometry/spectral-observations";
+const MANIFEST: &str =
+    include_str!("../examples/packages/geometry/spectral-observations/Vastitas.toml");
+const PROFILE: &str =
+    include_str!("../examples/packages/geometry/spectral-observations/src/profile.vast");
+const MAIN: &str =
+    include_str!("../examples/packages/geometry/spectral-observations/src/main.vast");
 /// The program has the observations `1..=CODES`.
 const CODES: u32 = 32;
 /// The name of the program's package.

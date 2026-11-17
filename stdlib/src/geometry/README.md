@@ -83,7 +83,7 @@ std = { path = "../Vastitas/stdlib" }
 python3 scripts/build_stdlib_package.py
 cargo run --locked -- check --manifest-path stdlib/src/geometry/Vastitas.toml
 cargo run --locked -- check --manifest-path stdlib/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
+cargo run --locked -- build --manifest-path examples/packages/stdlib/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
 ./target/stdlib-geometry
 # std::arithmetic::generic::add(int(scheme::dim(X)), int(smooth::dim(Y))) = 42
 ```

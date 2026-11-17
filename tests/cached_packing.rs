@@ -3,14 +3,15 @@ use common::{Scratch, assert_rejected, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const REAL: &str = include_str!("../examples/packages/cached-tensor-packing/src/real/mod.vast");
+const REAL: &str =
+    include_str!("../examples/packages/numerical/cached-tensor-packing/src/real/mod.vast");
 const COMPLEX: &str =
-    include_str!("../examples/packages/cached-tensor-packing/src/complex/mod.vast");
+    include_str!("../examples/packages/numerical/cached-tensor-packing/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
     common::example_package(
         "cached packing",
-        "examples/packages/cached-tensor-packing",
+        "examples/packages/numerical/cached-tensor-packing",
         &[
             ("src/real/mod.vast", real),
             ("src/complex/mod.vast", complex),

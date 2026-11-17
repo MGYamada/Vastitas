@@ -1,0 +1,7 @@
+[package]
+name = "projective_line"
+version = "0.1.0"
+root = "src/main.vast"
+
+[dependencies]
+std = { path = "../../../../stdlib" }

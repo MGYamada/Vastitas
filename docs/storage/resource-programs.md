@@ -76,11 +76,11 @@ Rules:
   must be `Int` (`E_MAIN`).
 
 The package `buffers` of
-[`examples/packages/storage`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage)
+[`examples/packages/storage/storage`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage/storage)
 declares three resource functions:
 
 ```vast
-{{#include ../../examples/packages/storage/buffers/src/operations/mod.vast}}
+{{#include ../../examples/packages/storage/storage/buffers/src/operations/mod.vast}}
 ```
 
 ## Storage types
@@ -270,7 +270,7 @@ Rules:
 it:
 
 ```vast
-{{#include ../../examples/packages/storage/app/src/main.vast}}
+{{#include ../../examples/packages/storage/storage/app/src/main.vast}}
 ```
 
 The executable writes no line and exits with status 0.
@@ -315,17 +315,17 @@ Rules:
 - A number or a string literal in place of a payload, as in `fill(v, 1.5);`,
   is an error (`E_TYPE`).
 
-[`examples/packages/payloads`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/payloads)
+[`examples/packages/storage/payloads`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage/payloads)
 writes three payloads as numbers:
 
 ```vast
-{{#include ../../examples/packages/payloads/main.vast:payloads}}
+{{#include ../../examples/packages/storage/payloads/main.vast:payloads}}
 ```
 
 It then reads the cells back and expects the bits of the same numbers:
 
 ```vast
-{{#include ../../examples/packages/payloads/main.vast:bits}}
+{{#include ../../examples/packages/storage/payloads/main.vast:bits}}
 ```
 
 The executable writes no line and exits with status 0.
@@ -396,11 +396,11 @@ Rules:
 > program passes exactly those values to it. A block that names no binding,
 > such as `value { 42 }`, takes no parameter.
 
-[`examples/packages/resource-values`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/resource-values)
+[`examples/packages/storage/resource-values`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage/resource-values)
 passes scalars through resource functions and branches on one:
 
 ```vast
-{{#include ../../examples/packages/resource-values/src/main.vast}}
+{{#include ../../examples/packages/storage/resource-values/src/main.vast}}
 ```
 
 The executable writes no line and exits with status 0.
@@ -588,12 +588,12 @@ Rules:
   program whose entry point reaches one.
 
 This function of
-[`examples/packages/runtime-shapes`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/runtime-shapes)
+[`examples/packages/storage/runtime-shapes`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage/runtime-shapes)
 multiplies two maps into a destination of its caller, at any three
 dimensions:
 
 ```vast
-{{#include ../../examples/packages/runtime-shapes/src/main.vast:multiply}}
+{{#include ../../examples/packages/storage/runtime-shapes/src/main.vast:multiply}}
 ```
 
 Its caller `run` receives the three dimensions and a padding of the leading
@@ -601,20 +601,20 @@ dimensions. It computes the leading dimensions and the capacities in `value`
 blocks:
 
 ```vast
-{{#include ../../examples/packages/runtime-shapes/src/main.vast:run}}
+{{#include ../../examples/packages/storage/runtime-shapes/src/main.vast:run}}
 ```
 
 It declares the spaces and bases from the dimensions:
 
 ```vast
-{{#include ../../examples/packages/runtime-shapes/src/main.vast:spaces}}
+{{#include ../../examples/packages/storage/runtime-shapes/src/main.vast:spaces}}
 ```
 
 It then allocates the storage, writes the two inputs, presents the loans as
 maps and calls `multiply`:
 
 ```vast
-{{#include ../../examples/packages/runtime-shapes/src/main.vast:maps}}
+{{#include ../../examples/packages/storage/runtime-shapes/src/main.vast:maps}}
 ```
 
 `main` of the example calls `run` at two sizes in one executable.

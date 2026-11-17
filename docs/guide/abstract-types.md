@@ -9,11 +9,11 @@ the generic returns there.
 
 ## Declaring a selector
 
-[`examples/abstract-selectors.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-selectors.vast)
+[`examples/book/abstract/abstract-selectors.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/abstract/abstract-selectors.vast)
 declares four abstract types and dispatches on two of them:
 
 ```vast
-{{#include ../../examples/abstract-selectors.vast}}
+{{#include ../../examples/book/abstract/abstract-selectors.vast}}
 ```
 
 `abstract type Numeric <: Number;` declares the selector `Numeric` under the
@@ -30,8 +30,8 @@ its parent, so the method for `NaturalNumeric` is more specific, and
 `classify(n)` is a call of it.
 
 ```sh
-target/debug/vastitas check examples/abstract-selectors.vast
-target/debug/vastitas build examples/abstract-selectors.vast -o target/abstract-selectors
+target/debug/vastitas check examples/book/abstract/abstract-selectors.vast
+target/debug/vastitas build examples/book/abstract/abstract-selectors.vast -o target/abstract-selectors
 ./target/abstract-selectors
 ```
 
@@ -84,11 +84,11 @@ declarations.
 ## Abstract methods
 
 A generic can promise a result type for every scalar type of a selector.
-[`examples/abstract-contracts.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-contracts.vast)
+[`examples/book/abstract/abstract-contracts.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/abstract/abstract-contracts.vast)
 makes such a promise for `Numeric`:
 
 ```vast
-{{#include ../../examples/abstract-contracts.vast}}
+{{#include ../../examples/book/abstract/abstract-contracts.vast}}
 ```
 
 `domain;` gives `widen` an empty domain of its own. The `abstract method`

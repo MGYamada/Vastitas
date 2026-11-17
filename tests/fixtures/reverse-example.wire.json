@@ -1,5 +1,5 @@
 {
-  "file": "/vastitas/examples/packages/smooth-differential/Vastitas.toml",
+  "file": "/vastitas/examples/packages/geometry/smooth-differential/Vastitas.toml",
   "packages": [
     {
       "dependencies": [],
@@ -8383,10 +8383,10 @@
         }
       ],
       "name": "smooth_differential",
-      "source": "/vastitas/examples/packages/smooth-differential/Vastitas.toml",
+      "source": "/vastitas/examples/packages/geometry/smooth-differential/Vastitas.toml",
       "version": "0.1.0"
     }
   ],
-  "root": "/vastitas/examples/packages/smooth-differential/Vastitas.toml",
+  "root": "/vastitas/examples/packages/geometry/smooth-differential/Vastitas.toml",
   "version": 10
 }

@@ -65,11 +65,11 @@ The standard library supplies flat libraries for exact arithmetic, such as
 lists. This program calls `int_add` from that library:
 
 ```vast
-{{#include ../../examples/stdlib-arithmetic.vast}}
+{{#include ../../examples/book/stdlib/stdlib-arithmetic.vast}}
 ```
 
 ```sh
-target/debug/vastitas build examples/stdlib-arithmetic.vast \
+target/debug/vastitas build examples/book/stdlib/stdlib-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast -o target/stdlib-arithmetic
 ```

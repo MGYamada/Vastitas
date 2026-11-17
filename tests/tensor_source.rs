@@ -338,7 +338,7 @@ fn grouping_axis_bound_is_reported_at_the_tensor() {
 }
 
 #[test]
-fn tensor_wire_rejects_forged_axes_groupings_authority_and_old_envelopes() {
+fn tensor_wire_rejects_forged_axes_groupings_and_authority() {
     let raw = captured(&fixture(REAL, COMPLEX));
     for (field, forged) in [
         ("checked", json!(true)),
@@ -376,12 +376,6 @@ fn tensor_wire_rejects_forged_axes_groupings_authority_and_old_envelopes() {
                 .contains("tensor grouping axis exceeds rank bound"),
             "{response}"
         );
-    }
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in 2..8 {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        common::assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
     }
 }
 

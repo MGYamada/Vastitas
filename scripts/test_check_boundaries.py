@@ -140,7 +140,7 @@ class RepositoryBoundaryTests(unittest.TestCase):
 
     def test_public_source_fixture_cannot_enter_the_compiler(self):
         self.write("lean-kernel/VastitasPublicTest/AuthorityRegression.lean",
-                   "import VastitasKernel.LegacySource\nimport Lean\n")
+                   "import VastitasKernel.ResourceProtocol\nimport Lean\n")
         self.assertEqual(check_boundaries(self.root), [])
         self.write("lean-kernel/VastitasKernel/Core.lean",
                    "import VastitasPublicTest.AuthorityRegression\n")

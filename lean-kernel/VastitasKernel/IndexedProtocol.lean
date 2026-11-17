@@ -12,11 +12,9 @@ lists and decodes them on the rich path. -/
 private def noLegacyBody {α : Type} (_ : Json) : Except String α :=
   throw "indexed module bodies are decoded on the rich path"
 
-/-- `algebraic` admits the Stage 2 affine and Stage 3 smooth forms, and
-`physicalModels` the model and errorbar forms of Stage 6. Only protocol 9
-sets them (`admits`). -/
-def module (j : Json) (numerical : Bool := false) (namedRecipients : Bool := false)
-    (algebraic : Bool := false) (physicalModels : Bool := false) : Except String DispatchSource.Module := do
+/-- A module of the package envelope, with its indexed declarations and its
+function, method and contribution bodies. -/
+def module (j : Json) : Except String DispatchSource.Module := do
   fields j ["path", "public", "span", "imports", "functions", "generics", "methods",
     "abstract_types", "subtypes", "abstract_methods", "grants", "contributions",
     "assembly", "delegations", "transfers", "indexed_declarations"]
@@ -26,17 +24,19 @@ def module (j : Json) (numerical : Bool := false) (namedRecipients : Bool := fal
     ("functions", toJson ([] : List Json)), ("methods", toJson ([] : List Json)),
     ("contributions", toJson ([] : List Json))])
   return {
-    module := ← decodeModuleEnvelope noLegacyBody noLegacyBody true true true metadata namedRecipients,
-    declarations := ← (← optionalArray j "indexed_declarations").mapM (declaration · numerical algebraic physicalModels),
+    module := ← decodeModuleEnvelope noLegacyBody noLegacyBody true true true metadata true,
+    declarations := ← (← optionalArray j "indexed_declarations").mapM declaration,
     functions := ← (← array j "functions").mapM function,
     methods := ← (← array j "methods").mapM method,
     contributions := ← (← optionalArray j "contributions").mapM contribution }
 
+/-- A setting of a `geometry_compat` export. The wire spells the slot of the
+operation `dim` as `dim` (#778); it is the setting's `dimension`. -/
 def geometrySetting (j : Json) : Except String (GeometrySetting Source.Path) := do
-  fields j ["domain", "marker", "base_object", "affine", "base", "origin", "identity", "dimension"]
+  fields j ["domain", "marker", "base_object", "affine", "base", "origin", "identity", "dim"]
   let get (key : String) := do namedPath (← str j key) {}
   return ⟨← get "domain", ← get "marker", ← get "base_object", ← get "affine",
-    ← get "base", ← get "origin", ← get "identity", ← get "dimension"⟩
+    ← get "base", ← get "origin", ← get "identity", ← get "dim"⟩
 
 def geometryProfile (j : Json) : Except String (GeometryProfile Source.Path) := do
   fields j ["scheme", "smooth", "point", "morphism", "pointed", "compose", "apply"]
@@ -44,8 +44,7 @@ def geometryProfile (j : Json) : Except String (GeometryProfile Source.Path) := 
   return ⟨← geometrySetting (← field j "scheme"), ← geometrySetting (← field j "smooth"),
     ← get "point", ← get "morphism", ← get "pointed", ← get "compose", ← get "apply"⟩
 
-def package (j : Json) (numerical : Bool := false) (namedRecipients : Bool := false)
-    (algebraic : Bool := false) (physicalModels : Bool := false) : Except String DispatchSource.Package := do
+def package (j : Json) : Except String DispatchSource.Package := do
   fields j ["source", "name", "version", "dependencies", "modules", "geometry_compat"]
   let dependencies ← (← array j "dependencies").mapM fun dep => do
     fields dep ["alias", "target"]
@@ -55,7 +54,7 @@ def package (j : Json) (numerical : Bool := false) (namedRecipients : Bool := fa
     | .ok value => some <$> geometryProfile value
   return {
     id := ⟨← str j "source", ← str j "name", ← str j "version"⟩,
-    dependencies, modules := ← (← array j "modules").mapM (module · numerical namedRecipients algebraic physicalModels),
+    dependencies, modules := ← (← array j "modules").mapM module,
     geometryCompat }
 
 def program (j : Json) : Except String DispatchSource.Program := do
@@ -65,9 +64,7 @@ def program (j : Json) : Except String DispatchSource.Program := do
   if (← str j "input") != "package" then throw "protocol 7 requires package input"
   return {
     file := ← str j "file", root := ← str j "root",
-    packages := ← (← array j "packages").mapM fun p =>
-      package p (admits version .numerical) (admits version .namedRecipients) (admits version .algebraic)
-        (admits version .physicalModels),
+    packages := ← (← array j "packages").mapM package,
     extended := true, editable := true, authority := true }
 
 end VastitasKernel.Indexed.Wire

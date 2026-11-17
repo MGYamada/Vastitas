@@ -521,8 +521,7 @@ def implementationRule (env : Environment) (entry : Entry) : Option String := do
 
 /-- How the source spells the binding of a primitive declaration. -/
 private def bindingSpelling : Option Body → String
-  -- The source spells the op `dimension` as `dim` (#778).
-  | some (.primitive primitive) => if primitive.op == "dimension" then "dim" else primitive.op
+  | some (.primitive primitive) => primitive.op
   | some (.morphism ..) => "morphism"
   | some (.iso ..) => "iso"
   | some (.cartesian ..) => "cartesian"

@@ -14,6 +14,10 @@ import re
 
 SCHEMA = "vastitas.diagnostic-reference/1"
 PROFILE = "finite-scalar-join-reference/1"
+# The one wire protocol of the driver and the kernel (#533): the kernel's
+# `currentProtocol` in lean-kernel/VastitasKernel/Protocol.lean, which
+# test_diagnostic_reference.py compares with this value.
+PROTOCOL = 10
 SCALARS = ("Nat", "Int", "Bool", "Unit")
 _ATOM = re.compile(r"[A-Za-z0-9_:.+@-]+\Z")
 
@@ -297,7 +301,7 @@ def from_kernel_response(response, expected_version):
         _require(all(type(response["kernel"][key]) is str for key in ("sources", "lean")),
                  "kernel build identity fields must be strings")
     _fields(response, envelope)
-    _require(type(expected_version) is int and expected_version in range(2, 10),
+    _require(type(expected_version) is int and expected_version == PROTOCOL,
              "unsupported expected wire version")
     _require(type(response["version"]) is int and response["version"] == expected_version,
              "wire version mismatch")

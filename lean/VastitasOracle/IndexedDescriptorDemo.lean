@@ -312,9 +312,9 @@ theorem directionalDerivative_wireForm {j : Lean.Json} {primitive : Source.Primi
 theorem directionalDerivative_unregistered : (primitiveFamily? directionalDerivativeFamily.op).isNone = true := by
   decide
 
-/-- The trusted decoder rejects every wire form of the demo, in every protocol. -/
-theorem directionalDerivative_rejected {j : Lean.Json} (op : JsonDecode.str j "op" = .ok "directional_derivative")
-    (algebraic : Bool) : Wire.primitive j algebraic = .error "unknown indexed primitive contract" := by
+/-- The trusted decoder rejects every wire form of the demo. -/
+theorem directionalDerivative_rejected {j : Lean.Json} (op : JsonDecode.str j "op" = .ok "directional_derivative") :
+    Wire.primitive j = .error "unknown indexed primitive contract" := by
   have unregistered : primitiveFamily? "directional_derivative" = none :=
     Option.isNone_iff_eq_none.mp directionalDerivative_unregistered
   have readOp : ∀ {α : Type} (next : String → Except String α),

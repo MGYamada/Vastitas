@@ -234,17 +234,8 @@ fn named_recipient_wire_rejects_forged_locations_and_unselected_records() {
     common::assert_wire_rejected(&kernel(&orphan, "check"), "E_OWNER");
 }
 
-// old-route(#533): the legacy recipient fixture under protocols 6 to 8.
 #[test]
-fn recipient_source_migration_keeps_legacy_wire_and_optional_runtime_boundaries() {
-    let legacy: Value = serde_json::from_str(include_str!("fixtures/edit-authority.json")).unwrap();
-    for version in [6, 7, 8] {
-        let mut raw = legacy.clone();
-        raw["version"] = json!(version);
-        for mode in ["check", "emit"] {
-            assert_eq!(kernel(&raw, mode)["ok"], true);
-        }
-    }
+fn module_recipients_are_unsupported_and_authority_keeps_optional_runtime_boundaries() {
     for source in [
         BASE.replace("to addon", "to module(\"../addon/Vastitas.toml\", \"\")"),
         BASE.replace(
@@ -419,7 +410,7 @@ fn transfer_revokes_old_authority_and_requires_returned_loans_and_completion() {
 }
 
 #[test]
-fn protocol_nine_reconstructs_authority_and_checks_all_bodies() {
+fn the_wire_reconstructs_authority_and_checks_all_bodies() {
     let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
     let s = fixture(BASE, ADDON, &events);
     let raw = request(&s);
@@ -428,12 +419,6 @@ fn protocol_nine_reconstructs_authority_and_checks_all_bodies() {
     let packages = raw["packages"].as_array().unwrap();
     let base = packages.iter().position(|p| p["name"] == "base").unwrap();
     let app = packages.iter().position(|p| p["name"] == "app").unwrap();
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in 2..=8 {
-        let mut bad = raw.clone();
-        bad["version"] = json!(version);
-        common::assert_wire_rejected(&kernel(bad, "check"), "E_PROTOCOL");
-    }
     for mutation in ["issuer", "permission", "event", "body"] {
         let mut bad = raw.clone();
         let code = match mutation {
@@ -524,6 +509,8 @@ fn transfer_does_not_grant_membership_or_abstract_contract_authority() {
             "E_OWNER",
         );
     }
+    // Authority records belong to a module: at the top of a request they are
+    // unknown fields.
     for field in [
         "grants",
         "contributions",
@@ -531,7 +518,7 @@ fn transfer_does_not_grant_membership_or_abstract_contract_authority() {
         "delegations",
         "transfers",
     ] {
-        let mut flat = common::request("fn main() -> Int { 42 }", "downgrade.vast");
+        let mut flat = common::request("fn main() -> Int { 42 }", "flat.vast");
         flat[field] = json!([]);
         common::assert_wire_rejected(&kernel(flat, "check"), "E_PROTOCOL");
     }

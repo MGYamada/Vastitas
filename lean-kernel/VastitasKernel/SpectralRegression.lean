@@ -585,11 +585,10 @@ private def jacobianMap? : PrimitiveBinding → Option Map
       maps.contains ⟨2, [], [Poly.scale 2 gap]⟩ && maps.contains ⟨2, [], [Poly.neg gap]⟩
     | none => false)
 
-/-! ## Protocols 7 and 8 do not admit the observations; protocol 9 does -/
+/-! ## The wire decodes the observations -/
 
 open Lean in
-private def decodes (j : Json) (algebraic : Bool) : Bool :=
-  (Wire.declarationBody j (numerical := true) (algebraic := algebraic)).isOk
+private def decodes (j : Json) : Bool := (Wire.declarationBody j).isOk
 open Lean in
 private def spanJson : Json :=
   Json.mkObj [("start", (0 : Nat)), ("end", (0 : Nat)), ("line", (1 : Nat)), ("column", (1 : Nat))]
@@ -613,13 +612,12 @@ private def forms : List Json := [
   form "branch_projector" [("map_family", pathJson "Smooth"), ("line", pathJson "Line"), ("branch", pathJson "B"),
     ("row", Json.str "e1"), ("column", Json.str "e2")]]
 
-#eval check "protocol 9 decodes each spectral observation" (forms.all (decodes · true))
-#eval check "protocols 7 and 8 reject each spectral observation" (forms.all (!decodes · false))
+#eval check "the decoder decodes each spectral observation" (forms.all decodes)
 open Lean in
 #eval check "the wire carries no embedded declaration: a certificate, rows or a quotient is an unknown field"
   (!decodes (form "on_branch" [("map_family", pathJson "Smooth"), ("line", pathJson "Line"),
-      ("branch", pathJson "B"), ("characteristic", Json.arr #[])]) true &&
+      ("branch", pathJson "B"), ("characteristic", Json.arr #[])]) &&
     !decodes (form "annihilates" [("map_family", pathJson "Smooth"), ("spectrum", pathJson "S"),
-      ("element", coordinateJson "t"), ("rows", Json.arr #[])]) true)
+      ("element", coordinateJson "t"), ("rows", Json.arr #[])]))
 
 end VastitasKernel.Indexed.SpectralRegression

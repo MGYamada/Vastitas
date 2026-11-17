@@ -396,7 +396,7 @@ evidence = [
 note = """
 `ReverseCoreRegression` evaluates every source site and its compiled Core.
 `ReverseExampleRegression` evaluates `main` of the acceptance example, which
-the public protocol-9 checker accepts, before and after the compilation. The
+the public checker accepts, before and after the compilation. The
 Rust tests run sites whose map a branch chooses and sites on a tape bound by a
 let.
 """
@@ -508,7 +508,7 @@ evidence = [
 note = """
 The Rust tests pin the shape of the compiled acceptance program, check that the
 wire cannot name the compiler's declarations, and run a site that keeps the
-runtime reverse pass. `ReverseExampleRegression` runs the public protocol-9
+runtime reverse pass. `ReverseExampleRegression` runs the public
 checker on the acceptance example and counts its compiled sites.
 `ReverseCoreRegression` shows that validation tells forged ledgers, missing,
 extra and misowned generated functions, and sites left uncompiled from the

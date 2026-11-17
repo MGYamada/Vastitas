@@ -767,11 +767,10 @@ private def generated (ds : List Source.Declaration) : Option String := do
       Core.Semantics.eval ⟨withMetrics, [differentialMain], some 0⟩ 64 (fun _ => none) dg
   | _, _ => false)
 
-/-! ## Protocols 7 and 8 do not admit the metric forms; protocol 9 does -/
+/-! ## The wire decodes the metric forms -/
 
 open Lean in
-private def decodes (j : Json) (algebraic : Bool) : Bool :=
-  (Wire.declarationBody j (numerical := true) (algebraic := algebraic)).isOk
+private def decodes (j : Json) : Bool := (Wire.declarationBody j).isOk
 open Lean in
 private def spanJson : Json :=
   Json.mkObj [("start", (0 : Nat)), ("end", (0 : Nat)), ("line", (1 : Nat)), ("column", (1 : Nat))]
@@ -809,43 +808,42 @@ private def forms : List Json := [
   Json.mkObj (common "family" ++ [("parameters", Json.arr #[]), ("constraints", Json.arr #[]),
     ("representation", Json.str "metric_form")])]
 
-#eval check "protocol 9 decodes each metric form" (forms.all (decodes · true))
-#eval check "protocols 7 and 8 reject each metric form" (forms.all (!decodes · false))
+#eval check "the decoder decodes each metric form" (forms.all decodes)
 open Lean in
 private def matrixJson : Json := Json.arr #[Json.arr #[Json.str "1", Json.str "0"], Json.arr #[Json.str "0", Json.str "1"]]
 open Lean in
 #eval check "the wire carries no certificate or matrix"
-  (!decodes (evidenceJson "nondegenerate" [("inverse", matrixJson)]) true &&
+  (!decodes (evidenceJson "nondegenerate" [("inverse", matrixJson)]) &&
     !decodes (evidenceJson "riemannian" [("lower", matrixJson), ("pivots", Json.arr #[]),
-      ("lower_inverse", matrixJson)]) true &&
-    !decodes (metricJson gramJson [("inverse", matrixJson)]) true &&
-    !decodes (metricJson (Json.mkObj [("kind", "euclidean"), ("rows", Json.arr #[])])) true &&
-    !decodes (flatJson [("gram", matrixJson)]) true &&
-    !decodes (sharpJson [("inverse", matrixJson)]) true &&
-    !decodes (sharpJson [("object", pathJson "Plane")]) true)
+      ("lower_inverse", matrixJson)]) &&
+    !decodes (metricJson gramJson [("inverse", matrixJson)]) &&
+    !decodes (metricJson (Json.mkObj [("kind", "euclidean"), ("rows", Json.arr #[])])) &&
+    !decodes (flatJson [("gram", matrixJson)]) &&
+    !decodes (sharpJson [("inverse", matrixJson)]) &&
+    !decodes (sharpJson [("object", pathJson "Plane")]))
 open Lean in
 #eval check "flat and sharp records name their metric and evidence"
   (!decodes (primitiveJson [("op", Json.str "flat"), ("tangent", pathJson "Tangent"),
-      ("cotangent", pathJson "Cotangent")]) true &&
+      ("cotangent", pathJson "Cotangent")]) &&
     !decodes (primitiveJson [("op", Json.str "sharp"), ("cotangent", pathJson "Cotangent"),
-      ("tangent", pathJson "Tangent"), ("evidence", pathJson "SkewInvertible")]) true &&
+      ("tangent", pathJson "Tangent"), ("evidence", pathJson "SkewInvertible")]) &&
     !decodes (primitiveJson [("op", Json.str "sharp"), ("cotangent", pathJson "Cotangent"),
-      ("tangent", pathJson "Tangent"), ("metric", pathJson "Skew")]) true)
+      ("tangent", pathJson "Tangent"), ("metric", pathJson "Skew")]))
 open Lean in
 #eval check "metric and evidence records carry their Gram matrix and metric"
   (!decodes (Json.mkObj (common "metric" ++ [("family", pathJson "MetricForm"),
-      ("indices", Json.arr #[pathJson "Plane"])])) true &&
-    !decodes (Json.mkObj (common "evidence" ++ [("evidence", Json.str "nondegenerate")])) true &&
-    !decodes (Json.mkObj (common "evidence" ++ [("metric", pathJson "Skew")])) true)
+      ("indices", Json.arr #[pathJson "Plane"])])) &&
+    !decodes (Json.mkObj (common "evidence" ++ [("evidence", Json.str "nondegenerate")])) &&
+    !decodes (Json.mkObj (common "evidence" ++ [("metric", pathJson "Skew")])))
 #eval check "evidence is nondegenerate or riemannian"
-  (["positive", "lorentzian", "nondegenerate_", ""].all fun kind => !decodes (evidenceJson kind) true)
+  (["positive", "lorentzian", "nondegenerate_", ""].all fun kind => !decodes (evidenceJson kind))
 open Lean in
 #eval check "a Gram matrix is euclidean or explicit rows"
-  (!decodes (metricJson (Json.mkObj [("kind", "identity")])) true &&
-    !decodes (metricJson (Json.mkObj [("kind", "gram"), ("rows", Json.arr #[Json.str "1"])])) true)
+  (!decodes (metricJson (Json.mkObj [("kind", "identity")])) &&
+    !decodes (metricJson (Json.mkObj [("kind", "gram"), ("rows", Json.arr #[Json.str "1"])])))
 open Lean in
 #eval check "the allow-list has no gradient or metric operation besides flat and sharp"
   (["gradient", "metric_gradient", "flat_", "sharp_", "metric", "musical", "metric_flat"].all fun op =>
-    !decodes (primitiveJson [("op", Json.str op), ("metric", pathJson "Skew")]) true)
+    !decodes (primitiveJson [("op", Json.str op), ("metric", pathJson "Skew")]))
 
 end VastitasKernel.Indexed.MetricFormRegression

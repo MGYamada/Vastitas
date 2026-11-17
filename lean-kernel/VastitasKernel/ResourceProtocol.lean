@@ -455,34 +455,27 @@ private def observedFunction (j : Json) :
         Indexed.Core.Observation)
     return (← without j "observations", some (← str j "name", observations))
 
-/-- A module without the observations of its functions, and the observations.
-Only a protocol that admits observations (`Indexed.Wire.admits`) removes them
-(#836); other protocols keep them, so that the strict decoder of functions
-rejects them. -/
-private def observedModule (j : Json) (observed : Bool) :
+/-- A module without the observations of its functions, and the observations
+(#836). The strict decoder of functions then reads the functions without
+them. -/
+private def observedModule (j : Json) :
     Except String (Json × List (String × List Indexed.Core.Observation)) := do
-  if !observed then return (j, [])
   let functions ← (← array j "functions").mapM observedFunction
   return (j.setObjVal! "functions" (toJson (functions.map (·.1))), functions.filterMap (·.2))
 
-/-- A module of protocol `version`, whose features `Indexed.Wire.admits` gives. -/
-def module (j : Json) (version : Nat) : Except String Module := do
-  let admits := Indexed.Wire.admits version
-  let (j, observations) ← observedModule j (admits .observations)
-  let pureModule ← Indexed.Wire.module (← without j "resource_functions") (admits .numerical)
-    (admits .namedRecipients) (admits .algebraic) (admits .physicalModels)
+def module (j : Json) : Except String Module := do
+  let (j, observations) ← observedModule j
+  let pureModule ← Indexed.Wire.module (← without j "resource_functions")
   return ⟨pureModule, ← (← optionalArray j "resource_functions").mapM function, observations⟩
 
-def package (j : Json) (version : Nat) : Except String Package := do
-  let admits := Indexed.Wire.admits version
-  let modules ← (← array j "modules").mapM (module · version)
+def package (j : Json) : Except String Package := do
+  let modules ← (← array j "modules").mapM module
   -- Reuse the exact package metadata decoder, with no resource body projected
   -- into a pure function. Unknown metadata fields remain rejected.
   let stripped ← (← array j "modules").mapM fun m => do
-    without (← observedModule m (admits .observations)).1 "resource_functions"
+    without (← observedModule m).1 "resource_functions"
   let metadata := (← without j "modules").setObjVal! "modules" (toJson stripped)
-  let pkg ← Indexed.Wire.package metadata (admits .numerical) (admits .namedRecipients)
-    (admits .algebraic) (admits .physicalModels)
+  let pkg ← Indexed.Wire.package metadata
   return ⟨pkg.id, pkg.dependencies, modules, pkg.geometryCompat⟩
 
 /-- Whether `packages`, with `root`, is the request that `packages::flat_request`
@@ -521,20 +514,19 @@ private def profileConflict (packages : List Package) : Except String Unit := do
   if let some pkg := packages.find? (·.geometryCompat.isSome) then
     throw s!"the field 'legacy_geometry' supplies the compatibility profile, so the package '{pkg.id.name}' cannot have a 'geometry_compat' export"
 
-/-- The request of protocol 8 or 9. Only a version that admits it
-(`Indexed.Wire.admits`) has the top-level field `legacy_geometry`; under
-another one it is an unknown field. The reserved identities are checked on
-the request's packages, before the kernel adds the profile (`Program.profile`). -/
+/-- The request of the schema epoch `currentProtocol` (#533): every request is
+a package request, with the optional field `legacy_geometry`. Main reads the
+version before this decoder, and the decoder reads no other version. The
+reserved identities are checked on the request's packages, before the kernel
+adds the profile (`Program.profile`). -/
 def program (j : Json) : Except String Program := do
-  let flagged := (j.getObjValAs? Nat "version").toOption.any (Indexed.Wire.admits · .legacyGeometry)
-  fields j (["version", "input", "file", "root", "packages"] ++ if flagged then ["legacy_geometry"] else [])
+  fields j ["version", "file", "root", "packages", "legacy_geometry"]
   let version ← j.getObjValAs? Nat "version"
-  if version != 8 && version != 9 then throw "expected protocol 8 or 9"
-  if (← str j "input") != "package" then throw "protocol 8/9 requires package input"
+  if version != currentProtocol then throw s!"expected protocol {currentProtocol}"
   let file ← str j "file"
   let root ← str j "root"
   let geometry ← legacyGeometry j
-  let packages ← (← array j "packages").mapM (package · version)
+  let packages ← (← array j "packages").mapM package
   reservedIdentities root packages
   if geometry then profileConflict packages
   return ⟨file, root, packages, geometry⟩

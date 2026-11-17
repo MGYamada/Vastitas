@@ -18,6 +18,10 @@ EXPECTATION_SCHEMA = "vastitas.doctest-expectation-reference/1"
 RESULT_SCHEMA = "vastitas.doctest-result-reference/1"
 REPORT_SCHEMA = "vastitas.doctest-report-reference/1"
 POLICY = "expected-rejection/1"
+# The one wire protocol of the driver and the kernel (#533): the kernel's
+# `currentProtocol` in lean-kernel/VastitasKernel/Protocol.lean, which
+# test_doctest_result_reference.py compares with this value.
+PROTOCOL = 10
 _CODE = re.compile(r"E_[A-Z0-9_]+\Z")
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 _OUTCOMES = {"frontend_rejected", "kernel_rejected", "accepted",
@@ -140,7 +144,7 @@ def _decision(expectation, result):
         if backend["state"] != "completed" or backend["exit_code"] != 1:
             return "failed", "backend_termination_mismatch"
         version = backend["request_version"]
-        if version not in range(2, 10):
+        if version != PROTOCOL:
             return "failed", "unsupported_protocol"
         response = backend["response"]
         envelope = "version ok diagnostics"

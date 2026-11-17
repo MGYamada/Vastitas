@@ -50,7 +50,7 @@ private def settingDeclarations (base : BaseKind) : List Source.Declaration :=
      ("point_family", .path geometryProfile.point), ("base_object", .path s.baseObject)]⟩),
    declaration s.identity.name (.primitive ⟨"identity", [("domain", .objectType type),
      ("map_family", .path geometryProfile.morphism)]⟩),
-   declaration s.dimension.name (.primitive ⟨"dimension", [("domain", .objectType type)]⟩)]
+   declaration s.dimension.name (.primitive ⟨"dim", [("domain", .objectType type)]⟩)]
 
 /-- Explicit closed declarations of the legacy geometry. Every declaration and
 role is checked by the common checker. -/

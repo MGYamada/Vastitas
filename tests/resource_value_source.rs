@@ -415,7 +415,7 @@ fn scalar_positions_report_other_types_at_the_type() {
 }
 
 #[test]
-fn forged_value_wire_cannot_bypass_scalar_audits_or_legacy_envelopes() {
+fn forged_value_wire_cannot_bypass_scalar_audits() {
     let raw = request(&fixture(&source(false)));
     let accepted = kernel(&raw, "check");
     assert_eq!(accepted["ok"], true, "{accepted}");
@@ -476,12 +476,6 @@ fn forged_value_wire_cannot_bypass_scalar_audits_or_legacy_envelopes() {
         let response = kernel(forged, "emit");
         assert_eq!(response["ok"], false, "accepted {path}/{key}: {response}");
         common::assert_wire_rejected(&response, "E_PROTOCOL");
-    }
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in 2..8 {
-        let mut old = raw.clone();
-        old["version"] = json!(version);
-        common::assert_wire_rejected(&kernel(old, "check"), "E_PROTOCOL");
     }
     let mut deep = raw.clone();
     let mut expression = functions(&raw)[3]["body"][0]["body"]["result"].clone();

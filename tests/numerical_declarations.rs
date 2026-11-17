@@ -60,18 +60,12 @@ fn declared_numerical_profiles_compose_with_pure_check_build_and_execution() {
 }
 
 #[test]
-fn numerical_declarations_require_version_eight_without_any_resource_function() {
+fn numerical_declarations_are_accepted_without_any_resource_function() {
     let raw = request(&fixture(PROFILES));
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let result = kernel(&raw, "emit");
     assert_eq!(result["ok"], true, "{result}");
     assert_ne!(result["storage_runtime"], true);
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in 2..8 {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        common::assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
-    }
 }
 
 #[test]

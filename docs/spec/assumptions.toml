@@ -36,15 +36,12 @@ The official Lean kernel checks every bridge proof.
 title = "Promotion fixture reflection"
 statement = """
 `VastitasKernel.IndexedPromotionFixture.checked` is the executable Core
-module of the pure program that the public protocol-9 checker
-`ResourceSource.Wire.check` returns for `tests/fixtures/promotion.current.json`.
+module of the pure program that the public checker
+`ResourceSource.Wire.check` returns for `tests/fixtures/promotion.json`.
 The `stdlib_indexed_checked%` elaborator runs that checker at elaboration time,
 prints the returned module with `reprStr` and elaborates the text as
 `checked`; before parsing, it writes the field name `end` as `«end»`. A
 build-time `#eval` compares the two renderings and checks the reflected module
-again with `Typing.checkModule`. It also compares them with the module that
-the retiring protocol-2 checker `Indexed.LegacySource.check` returns for the
-frozen fixture `tests/fixtures/promotion.json` of the same sources. That
-agreement rests on compiled evaluation and on a faithful `Repr`, which the
-axiom audit cannot see.
+again with `Typing.checkModule`. That agreement rests on compiled evaluation
+and on a faithful `Repr`, which the axiom audit cannot see.
 """

@@ -1,9 +1,9 @@
 //! Stage 4 (#759) frame and `nature::dimension` declarations through the
-//! public protocol-9 source path. The frontend parses each form into the wire
-//! record that the kernel decodes; these tests capture the wire, check the
-//! protocol it selects and submit it to the kernel, which checks them.
+//! public source path. The frontend parses each form into the wire record that
+//! the kernel decodes; these tests capture the wire and submit it to the
+//! kernel, which checks them.
 mod common;
-use common::{Scratch, assert_wire_rejected, kernel, remove_spans, success};
+use common::{Scratch, kernel, remove_spans, success};
 use serde_json::{Value, json};
 
 const MANIFEST: &str = include_str!("fixtures/frame-dimension-declarations/Vastitas.toml");
@@ -70,34 +70,21 @@ const LONE_FORMS: &[&str] = &[
     "indexed physical PE: PhysicalMetric<C> = interpret(E, reading = phys, euclidean);",
 ];
 
-/// A package with a frame or nature declaration uses protocol 9, and only
-/// there do the records decode: protocols 7 and 8 reject them.
+/// Every frame and nature declaration decodes in the current envelope.
 #[test]
-fn frame_and_nature_declarations_select_protocol_nine_only() {
-    // An indexed package without a Stage 4 declaration uses the current
-    // protocol as well (#533).
-    request(
-        &package("indexed marker M;\nfn main() -> Int { 0 }\n"),
-        common::CURRENT_PROTOCOL,
-    );
+fn frame_and_nature_declarations_decode_in_the_current_envelope() {
     for form in LONE_FORMS {
         let raw = request(
             &package(&format!("{form}\nfn main() -> Int {{ 0 }}\n")),
             common::CURRENT_PROTOCOL,
         );
-        // The record decodes in protocol 9; its unresolved paths are the
-        // kernel's next rejection.
+        // The record decodes; its unresolved paths are the kernel's next
+        // rejection.
         let response = kernel(&raw, "check");
         assert_ne!(
             response["diagnostics"][0]["code"], "E_PROTOCOL",
             "{form}: {response}"
         );
-        // old-route(#533): the retiring envelopes reject this program.
-        for version in [7, 8] {
-            let mut older = raw.clone();
-            older["version"] = json!(version);
-            assert_wire_rejected(&kernel(older, "emit"), "E_PROTOCOL");
-        }
     }
 }
 

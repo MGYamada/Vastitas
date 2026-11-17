@@ -64,10 +64,10 @@ fn pairs_preserve_values_arguments_results_branches_and_lambda_bodies() {
             ])
         );
     }
-    let first_order =
+    let mut first_order =
         request("fn reverse(p: Pair<Int>) -> Pair<Int> { pair(pair_second(p), pair_first(p)) }");
     assert_eq!(
-        first_order["functions"][0]["return_type"],
+        common::flat_module(&mut first_order)["functions"][0]["return_type"],
         json!({"kind":"pair","element":"Int"})
     );
     assert_eq!(backend(&first_order)["ok"], true);
@@ -154,22 +154,36 @@ fn malformed_pair_types_and_dispatch_uses_are_rejected_independently() {
         "Pair<Int>",
         "__vastitas_l0",
     ] {
+        // The decoder admits the elements `Nat` and `Int` alone.
         let mut raw = request("fn f() -> Pair<Int> { pair(1, 2) }");
-        raw["functions"][0]["return_type"]["element"] = json!(element);
-        rejects(raw, "E_TYPE");
+        common::flat_module(&mut raw)["functions"][0]["return_type"]["element"] = json!(element);
+        let result = backend(&raw);
+        common::assert_wire_rejected(&result, "E_PROTOCOL");
+        assert_eq!(
+            result["diagnostics"][0]["message"], "Pair elements must be Nat or Int",
+            "{element}: {result}"
+        );
     }
     let mut raw = request("fn f() -> Pair<Int> { pair(1, 2) }");
-    raw["functions"][0]["return_type"]["element"] = json!({"kind":"named","name":"Int"});
+    common::flat_module(&mut raw)["functions"][0]["return_type"]["element"] =
+        json!({"kind":"named","name":"Int"});
     rejects(raw, "E_PROTOCOL");
-    for field in ["domain", "selector", "result"] {
+    // A pair in a dispatch domain or as a method result is the checker's
+    // `E_TYPE`; a selector's type is a named scalar for the decoder.
+    for (field, code) in [
+        ("domain", "E_TYPE"),
+        ("selector", "E_PROTOCOL"),
+        ("result", "E_TYPE"),
+    ] {
         let mut raw = request("generic f(x) { domain (Int); } method f(x: Int) -> Int { 0 }");
         let pair = json!({"kind":"pair","element":"Int"});
+        let module = common::flat_module(&mut raw);
         match field {
-            "domain" => raw["generics"][0]["domain"][0][0] = pair,
-            "selector" => raw["methods"][0]["params"][0]["ty"] = pair,
-            _ => raw["methods"][0]["return_type"] = pair,
+            "domain" => module["generics"][0]["domain"][0][0] = pair,
+            "selector" => module["methods"][0]["params"][0]["ty"] = pair,
+            _ => module["methods"][0]["return_type"] = pair,
         }
-        rejects(raw, "E_TYPE");
+        rejects(raw, code);
     }
     for source in [
         "fn f(p: Pair<Bool>) -> Int { 0 }",

@@ -1,12 +1,11 @@
-//! The spectral primitives of Stage 5 (#806) through the public protocol-9
-//! source path, with the emit corpus program
-//! `tests/emit_corpus/spectral-primitives`: the invariants `trace_power` and
-//! `char_coefficient` as smooth maps, and the observations `annihilates`,
-//! `action_entry`, `on_branch`, `branch_differential` and `branch_projector`.
-//! The frontend parses each form into the binding that the kernel decodes;
-//! these tests capture the wire, check the protocol it selects, submit it to
-//! the kernel, which checks the spectral bindings, and build and run the
-//! program, whose `main` adds its own power of two for each group of
+//! The spectral primitives of Stage 5 (#806) through the public source path,
+//! with the emit corpus program `tests/emit_corpus/spectral-primitives`: the
+//! invariants `trace_power` and `char_coefficient` as smooth maps, and the
+//! observations `annihilates`, `action_entry`, `on_branch`,
+//! `branch_differential` and `branch_projector`. The frontend parses each form
+//! into the binding that the kernel decodes; these tests capture the wire,
+//! submit it to the kernel, which checks the spectral bindings, and build and
+//! run the program, whose `main` adds its own power of two for each group of
 //! observations that fails.
 mod common;
 use common::{Scratch, assert_wire_rejected, cli, expect_code, kernel, success};
@@ -31,7 +30,7 @@ fn package(main: &str) -> Scratch {
     s
 }
 
-/// The wire that the frontend sends for the program; it must use protocol 9.
+/// The wire that the frontend sends for the program, of the current protocol.
 fn request(s: &Scratch) -> Value {
     s.captured("Vastitas.toml", common::CURRENT_PROTOCOL)
 }
@@ -88,10 +87,9 @@ fn p(name: &str) -> Value {
     json!([name])
 }
 
-/// The program declares each observation, the kernel accepts it under
-/// protocol 9, and protocols 7 and 8 reject it with `E_PROTOCOL`.
+/// The program declares each observation, and the kernel accepts it.
 #[test]
-fn spectral_primitives_select_protocol_nine_and_decode_only_there() {
+fn spectral_primitives_decode_and_check() {
     let raw = request(&package(MAIN));
     let declared: Vec<&str> = raw["packages"][0]["modules"][0]["indexed_declarations"]
         .as_array()
@@ -109,12 +107,6 @@ fn spectral_primitives_select_protocol_nine_and_decode_only_there() {
     }
     let response = kernel(&raw, "check");
     assert_eq!(response["ok"], true, "{response}");
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut older = raw.clone();
-        older["version"] = json!(version);
-        assert_wire_rejected(&kernel(older, "emit"), "E_PROTOCOL");
-    }
 }
 
 /// The wire carries no embedded declaration: the kernel fills every

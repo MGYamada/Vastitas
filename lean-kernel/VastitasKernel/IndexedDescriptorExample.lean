@@ -76,7 +76,7 @@ def buildDescriptor : List ResolvedArgument → Except String PrimitiveDescripto
   | [.declaration smooth, .declaration tangent, .declaration line] => pure (directionalDerivative smooth tangent line)
   | _ => throw "the arguments of `directional_derivative` do not match its wire fields"
 
-/-- The wire form of the demo, outside `families`: protocol 9 only, three
+/-- The wire form of the demo, outside `families`: an algebraic op with three
 paths. `build` rejects every argument list, because `PrimitiveBinding` has no
 constructor for the demo; it reports a list that `buildDescriptor` rejects
 as a registry family does. -/

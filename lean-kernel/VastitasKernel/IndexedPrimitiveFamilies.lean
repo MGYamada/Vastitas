@@ -5,9 +5,9 @@ set_option autoImplicit false
 
 /-! The wire forms of the indexed primitives (#622): one family per wire `op`.
 
-A `PrimitiveFamily` says what the indexed declaration decoder (protocols 7
-to 9) admits for one op (its exact field names and kinds, in wire order),
-whether only protocol 9 admits the op, and how the resolved arguments make a
+A `PrimitiveFamily` says what the indexed declaration decoder admits for one
+op (its exact field names and kinds, in wire order), whether the op is one of
+the Stage 2 and later forms, and how the resolved arguments make a
 `PrimitiveBinding`. The decoder (`IndexedDeclarationProtocol.primitive`), the
 resolver (`IndexedSourceChecker.resolvePrimitive`) and the generated Rust table
 `src/primitive_table.rs` read `families`; no other table lists the ops. After
@@ -59,7 +59,9 @@ inductive ResolvedArgument where
 structure PrimitiveFamily where
   /-- The wire `op`. -/
   op : String
-  /-- Protocol 9 only. -/
+  /-- One of the Stage 2 and later forms (relative, smooth, frame, spectral and
+  average operations). The decoder admits every family; the frontend reads the
+  flag from the generated table to decide `legacy_geometry`. -/
   algebraic : Bool
   /-- The exact fields, in wire order. -/
   fields : List WireField
@@ -123,11 +125,11 @@ def row : String := "row"
 def column : String := "column"
 end WireName
 
-/-- The families, Stage 1 first and then the protocol-9 operations in the
+/-- The families, Stage 1 first and then the later operations in the
 order of the former allow-list. There is no `gradient` operation: a gradient
 is an ordinary function that applies `sharp` to a differential. -/
 def families : List PrimitiveFamily := [
-  /- Objects, points and morphisms (protocols 7 to 9). -/
+  /- Objects, points and morphisms. -/
   { op := "descriptor", algebraic := false, fields := [path "implementation"],
     build := fun
       | [.declaration implementation] => pure (.descriptor implementation)
@@ -145,10 +147,11 @@ def families : List PrimitiveFamily := [
     build := fun
       | [.objectType domain, .declaration family] => pure (.identity domain family)
       | _ => mismatch "identity" },
-  { op := "dimension", algebraic := false, fields := [objectType "domain"],
+  -- The wire spells the op of `dim(…)` as `dim` (#778); it binds `.dimension`.
+  { op := "dim", algebraic := false, fields := [objectType "domain"],
     build := fun
       | [.objectType domain] => pure (.dimension domain)
-      | _ => mismatch "dimension" },
+      | _ => mismatch "dim" },
   { op := "compose", algebraic := false, fields := [path "map_family"],
     build := fun
       | [.declaration family] => pure (.compose family)
@@ -157,7 +160,7 @@ def families : List PrimitiveFamily := [
     build := fun
       | [.declaration maps, .declaration points] => pure (.apply maps points)
       | _ => mismatch "apply" },
-  /- Relative morphisms over a base (Stage 2, protocol 9). -/
+  /- Relative morphisms over a base (Stage 2). -/
   { op := "relative_compose", algebraic := true, fields := [path "family"],
     build := fun
       | [.declaration family] => pure (.relativeCompose family)
@@ -188,7 +191,7 @@ def families : List PrimitiveFamily := [
     build := fun
       | [.declaration family, .declaration fiber] => pure (.relativePair family fiber)
       | _ => mismatch "relative_pair" },
-  /- Smooth maps, fibers, tapes and metrics (Stage 3, protocol 9). -/
+  /- Smooth maps, fibers, tapes and metrics (Stage 3). -/
   { op := "smooth_compose", algebraic := true, fields := [path "family"],
     build := fun
       | [.declaration family] => pure (.smoothCompose family)
@@ -265,7 +268,7 @@ def families : List PrimitiveFamily := [
       | [.declaration cotangent, .declaration tangent, .declaration metric, .declaration evidence] =>
           pure (.metricSharp metric evidence metric [] [] cotangent tangent)
       | _ => mismatch "sharp" },
-  /- Frames (Stage 4, protocol 9). Every frame that a binding names is
+  /- Frames (Stage 4). Every frame that a binding names is
   embedded as a placeholder (`FrameRef.placeholder`), and `frame_encode` and
   `frame_decode` start with the variance `tangent` and `frame_vector` with the
   frame's own ID as its object: `elaborateFrames` fills them from the
@@ -334,7 +337,7 @@ def families : List PrimitiveFamily := [
     build := fun
       | [.declaration family, .declaration smooth] => pure (.frameAt family smooth)
       | _ => mismatch "frame_at" },
-  /- Spectral observations (Stage 5, protocol 9). Every spectrum or branch
+  /- Spectral observations (Stage 5). Every spectrum or branch
   that a binding names is embedded as a placeholder (`SpectrumRef.placeholder`,
   `BranchRef.placeholder`), an element as the empty polynomial and a basis name
   as index `0`: `elaborateSpectral` fills them from the declarations once the
@@ -376,7 +379,7 @@ def families : List PrimitiveFamily := [
       | [.declaration smooth, .declaration line, .declaration branch, .coordinate _, .coordinate _] =>
           pure (.branchProjector smooth line (BranchRef.placeholder branch) 0 0)
       | _ => mismatch WireName.branchProjector },
-  /- Transition averages (Stage 6, #841, protocol 9). The average that the
+  /- Transition averages (Stage 6, #841). The average that the
   binding names is embedded as a placeholder (`AverageRef.placeholder`):
   `elaborateAverages` is to fill it from the declarations. -/
   { op := "average_at", algebraic := true, fields := [path "map_family", path "line", path "average"],

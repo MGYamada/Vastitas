@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, cli, kernel, request, success};
+use common::{Scratch, cli, flat_module, kernel, request, success};
 use serde_json::{Value, json};
 
 const BASE: &str = r#"
@@ -222,36 +222,23 @@ fn hierarchy_and_contract_changes_revalidate_the_entire_assembly() {
     rejects(&s, "E_CONTRACT_RESULT");
 }
 
+/// The root module of the request of the flat unit `source`, in which every
+/// function and generic is public.
 fn raw_module(source: &str) -> Value {
-    let flat = request(source, "edit-raw.vast");
-    let public = |key: &str| {
-        flat[key]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|item| {
-                let mut item = item.clone();
-                item["public"] = json!(true);
-                item
-            })
-            .collect::<Vec<_>>()
-    };
-    json!({"path":[],"public":true,"span":{"start":0,"end":0,"line":1,"column":1},"imports":[],
-        "functions":public("functions"),"generics":public("generics"),"methods":flat["methods"]})
+    flat_module(&mut request(source, "edit-raw.vast")).take()
 }
 fn raw_program() -> Value {
     let span = json!({"start":0,"end":0,"line":1,"column":1});
     let mut base = raw_module(
         "generic choose(x, y) { domain (Int, Int); } method choose(x: Number, y: Number) -> Int { 0 }",
     );
-    base["grants"] = json!([{"name":"integers","target":["choose"],"grantee_source":"/addon/Vastitas.toml","grantee_path":[],
+    base["grants"] = json!([{"name":"integers","target":["choose"],"grantee_package":"addon","grantee_path":[],
         "region":[["Int","Int"]],"span":span,"public":true}]);
     let mut addon = raw_module("");
-    let mut method = request(
+    let mut method = raw_module(
         "generic choose(x,y) { domain; } method choose(x: Int,y: Int) -> Int { x+y }",
-        "edit-raw.vast",
     )["methods"][0]
-        .clone();
+        .take();
     method["name"] = json!("base::choose");
     addon["contributions"] = json!([{"name":"sum","target":["base","choose"],"methods":[method],"span":span,"public":true}]);
     let mut app = raw_module("fn main() -> Int { 42 }");
@@ -260,7 +247,7 @@ fn raw_program() -> Value {
         {"op":"apply","contribution":["addon","sum"],"loan":"edit","span":span},
         {"op":"return","loan":"edit","span":span},
         {"op":"seal","target":["base","choose"],"span":span}]});
-    json!({"version":5,"input":"package","file":"edit-raw.vast","root":"/app/Vastitas.toml","packages":[
+    json!({"version":common::CURRENT_PROTOCOL,"file":"edit-raw.vast","root":"/app/Vastitas.toml","packages":[
         {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","modules":[app],"dependencies":[{"alias":"base","target":"/base/Vastitas.toml"},{"alias":"addon","target":"/addon/Vastitas.toml"}]},
         {"source":"/addon/Vastitas.toml","name":"addon","version":"0.1.0","modules":[addon],"dependencies":[{"alias":"base","target":"/base/Vastitas.toml"}]},
         {"source":"/base/Vastitas.toml","name":"base","version":"0.1.0","modules":[base],"dependencies":[]}
@@ -268,7 +255,7 @@ fn raw_program() -> Value {
 }
 
 #[test]
-fn protocol_five_rejects_forged_authority_targets_and_stale_inputs() {
+fn raw_edit_requests_reject_forged_authority_targets_and_stale_inputs() {
     let raw = raw_program();
     assert_eq!(kernel(&raw, "check")["ok"], true);
     for (mutation, code) in [
@@ -277,7 +264,6 @@ fn protocol_five_rejects_forged_authority_targets_and_stale_inputs() {
         ("callee", "E_NAME"),
         ("region", "E_IMPACT"),
         ("grantee", "E_OWNER"),
-        ("downgrade", "E_PROTOCOL"),
         ("input", "E_PROTOCOL"),
         ("body", "E_TYPE"),
         ("provenance", "E_PROTOCOL"),
@@ -296,11 +282,8 @@ fn protocol_five_rejects_forged_authority_targets_and_stale_inputs() {
                 bad["packages"][2]["modules"][0]["grants"][0]["region"] = json!([["Nat", "Nat"]])
             }
             "grantee" => {
-                bad["packages"][2]["modules"][0]["grants"][0]["grantee_source"] =
-                    json!("/app/Vastitas.toml")
+                bad["packages"][2]["modules"][0]["grants"][0]["grantee_package"] = json!("app")
             }
-            // old-route(#533): a downgrade to a retiring envelope.
-            "downgrade" => bad["version"] = json!(4),
             "input" => bad["input"] = json!("flat"),
             "body" => {
                 bad["packages"][1]["modules"][0]["contributions"][0]["methods"][0]["return_type"] =

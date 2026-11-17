@@ -610,7 +610,7 @@ fn a_reverse_pass_through_an_object_outside_the_cotangent_domain_keeps_the_runti
 
 /// The wire of the acceptance example, with the checkout root written as
 /// `/vastitas`. `VastitasAlgebraTest.ReverseExampleRegression` runs it through
-/// the protocol-9 checker and evaluates `main` before and after the compilation.
+/// the public checker and evaluates `main` before and after the compilation.
 const EXAMPLE_WIRE: &str = "tests/fixtures/reverse-example.wire.json";
 
 #[test]

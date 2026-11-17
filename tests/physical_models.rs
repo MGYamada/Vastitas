@@ -1,11 +1,11 @@
-//! The Stage 6 (#841) source forms through the public protocol-9 source path:
+//! The Stage 6 (#841) source forms through the public source path:
 //! the transition average of `std::linalg::spectral` and its observation
 //! `average_at`, the convention and the model of `nature::model`, and the
 //! calibration, the dataset and the comparison of `nature::errorbar`. The
 //! frontend parses each form into the wire record that the kernel decodes;
-//! these tests capture the wire, check the protocol it selects and its
-//! records, submit it to the kernel and forge it, and check, build and run
-//! the two-level model of the plan: H = (Δ/2)σz + (Ω/2)σx on
+//! these tests capture the wire, check its records, submit it to the kernel
+//! and forge it, and check, build and run the two-level model of the plan:
+//! H = (Δ/2)σz + (Ω/2)σx on
 //! Affine(2)[delta, omega], prepared in g and observed in e, with the
 //! average Ω²/(2(Δ² + Ω²)), calibrated at Ω = 5/2 ± 1/20 and compared with
 //! two points.
@@ -153,36 +153,20 @@ fn pow(name: &str) -> Value {
     json!({ "op": "pow", "base": { "op": "coordinate", "name": name }, "exponent": "2" })
 }
 
-/// A program with a Stage 6 form is sent as protocol 9, as every package
-/// request is (#533): a convention alone, which is no algebraic form, is.
-/// Every form serializes to the record that the kernel decodes, and
-/// protocols 7 and 8 reject the request.
+/// A program with a Stage 6 form is a request of the one wire protocol, as
+/// every request is (#533): a convention alone, which is no algebraic form,
+/// is accepted. Every form serializes to the record that the kernel decodes.
 #[test]
-fn the_stage6_forms_select_protocol_nine_and_serialize_to_their_records() {
+fn the_stage6_forms_serialize_to_their_records() {
     let alone = package("indexed convention c = hbar_one;\nfn main() -> Int { 0 }\n");
-    let wire = alone.captured("Vastitas.toml", 9);
-    assert_eq!(wire["version"], 9);
+    let wire = alone.captured("Vastitas.toml", common::CURRENT_PROTOCOL);
+    assert_eq!(wire["version"], common::CURRENT_PROTOCOL);
     assert_eq!(declaration(&wire, "c")["kind"], "convention");
     assert_eq!(declaration(&wire, "c")["value"], "hbar_one");
     assert_eq!(kernel(&wire, "check")["ok"], true);
-    // The convention alone isolates the gate of the Stage 6 records: under
-    // protocols 7 and 8 the kernel rejects it as a model declaration.
-    for version in [7, 8] {
-        let mut older = wire.clone();
-        older["version"] = json!(version);
-        let response = kernel(older, "check");
-        assert_wire_rejected(&response, "E_PROTOCOL");
-        assert!(
-            response["diagnostics"][0]["message"]
-                .as_str()
-                .unwrap()
-                .contains("model declarations require protocol 9"),
-            "{response}"
-        );
-    }
     let source = accepted();
     let fingerprint = fingerprint(NATURE);
-    let wire = package(&source).captured("Vastitas.toml", 9);
+    let wire = package(&source).captured("Vastitas.toml", common::CURRENT_PROTOCOL);
     let record = |name: &str| {
         let mut record = without_spans(declaration(&wire, name));
         let object = record.as_object_mut().unwrap();
@@ -272,7 +256,10 @@ fn a_changed_calibration_makes_the_comparison_stale() {
         .unwrap();
     let without = common::checked_replace(&changed, comparison, "");
     let emitted = |source: &str| {
-        let response = kernel(package(source).captured("Vastitas.toml", 9), "emit");
+        let response = kernel(
+            package(source).captured("Vastitas.toml", common::CURRENT_PROTOCOL),
+            "emit",
+        );
         assert_eq!(response["ok"], true, "{response}");
         response["lean_source"].as_str().unwrap().to_owned()
     };
@@ -356,7 +343,7 @@ fn the_points_of_a_dataset_are_bounded() {
         &fingerprint(&at_limit),
     ))));
     // A forged request with one more point is the kernel's limit.
-    let wire = package(&dataset(64)).captured("Vastitas.toml", 9);
+    let wire = package(&dataset(64)).captured("Vastitas.toml", common::CURRENT_PROTOCOL);
     let mut forged = wire.clone();
     let index = wire["packages"][0]["modules"][0]["indexed_declarations"]
         .as_array()
@@ -382,7 +369,7 @@ fn the_points_of_a_dataset_are_bounded() {
 /// a protocol error.
 #[test]
 fn forged_stage6_records_are_rejected_by_the_kernel() {
-    let wire = package(&accepted()).captured("Vastitas.toml", 9);
+    let wire = package(&accepted()).captured("Vastitas.toml", common::CURRENT_PROTOCOL);
     let index = |name: &str| {
         wire["packages"][0]["modules"][0]["indexed_declarations"]
             .as_array()

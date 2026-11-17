@@ -396,10 +396,9 @@ private def occurs (text fragment : String) : Bool := (text.splitOn fragment).le
   (lowered.any fun text => occurs text "import VastitasKernel.SmoothRuntime\n" &&
     occurs text "import VastitasKernel.AlgebraRuntime\n")
 
--- Protocols 7 and 8 do not admit the smooth forms; protocol 9 does.
+-- The wire decodes the smooth forms.
 open Lean in
-private def decodes (j : Json) (algebraic : Bool) : Bool :=
-  (Wire.declarationBody j (numerical := true) (algebraic := algebraic)).isOk
+private def decodes (j : Json) : Bool := (Wire.declarationBody j).isOk
 open Lean in
 private def spanJson : Json :=
   Json.mkObj [("start", (0 : Nat)), ("end", (0 : Nat)), ("line", (1 : Nat)), ("column", (1 : Nat))]
@@ -433,41 +432,33 @@ open Lean in
 private def sameObjectJson : Json :=
   Json.mkObj [("kind", Json.str "same_object"), ("left", (0 : Nat)), ("right", (1 : Nat))]
 
-#eval check "protocol 9 decodes a smooth object" (decodes smoothObject true)
-#eval check "protocols 7 and 8 reject a smooth object" (!decodes smoothObject false)
-#eval check "protocol 9 decodes a smooth implementation" (decodes smoothImplementation true)
-#eval check "protocols 7 and 8 reject a smooth implementation" (!decodes smoothImplementation false)
-#eval check "protocol 9 decodes a smooth family" (decodes (familyJson "smooth" canonicalJson) true)
-#eval check "protocols 7 and 8 reject a smooth family" (!decodes (familyJson "smooth" sameObjectJson) false)
-#eval check "protocols 7 and 8 reject a canonical constraint" (!decodes (familyJson "token" canonicalJson) false)
-#eval check "protocol 9 decodes each smooth primitive"
-  (["smooth_compose", "smooth_equal", "smooth_composite"].all fun op => decodes (primitiveJson op) true)
-#eval check "protocols 7 and 8 reject each smooth primitive"
-  (["smooth_compose", "smooth_equal", "smooth_composite"].all fun op => !decodes (primitiveJson op) false)
-#eval check "protocol 9 decodes smooth_int_point" (decodes intPointJson true)
-#eval check "protocols 7 and 8 reject smooth_int_point" (!decodes intPointJson false)
+#eval check "the decoder decodes a smooth object" (decodes smoothObject)
+#eval check "the decoder decodes a smooth implementation" (decodes smoothImplementation)
+#eval check "the decoder decodes a smooth family" (decodes (familyJson "smooth" canonicalJson))
+#eval check "the decoder decodes each smooth primitive"
+  (["smooth_compose", "smooth_equal", "smooth_composite"].all fun op => decodes (primitiveJson op))
+#eval check "the decoder decodes smooth_int_point" (decodes intPointJson)
 open Lean in
 #eval check "smooth_int_point rejects extra and missing fields"
   (!decodes (intPointJson.setObjVal! "binding" (Json.mkObj [("op", Json.str "smooth_int_point"),
-    ("family", pathJson "Smooth"), ("object", pathJson "Line")])) true)
+    ("family", pathJson "Smooth"), ("object", pathJson "Line")])))
 #eval check "the primitive allow-list rejects unlisted spellings"
-  (["smooth_gradient", "relative_gradient", "relative_", "smooth_"].all fun op => !decodes (primitiveJson op) true)
+  (["smooth_gradient", "relative_gradient", "relative_", "smooth_"].all fun op => !decodes (primitiveJson op))
 open Lean in
 #eval check "a smooth object rejects extra fields"
-  (!decodes (smoothObject.setObjVal! "map" (Json.arr #[])) true)
+  (!decodes (smoothObject.setObjVal! "map" (Json.arr #[])))
 open Lean in
 #eval check "a smooth dimension is a decimal string"
-  (!decodes (smoothObject.setObjVal! "dimension" (Json.str "-1")) true &&
-    !decodes (smoothObject.setObjVal! "dimension" (1 : Nat)) true &&
-    !decodes (smoothObject.setObjVal! "dimension" (Json.str "")) true)
+  (!decodes (smoothObject.setObjVal! "dimension" (Json.str "-1")) &&
+    !decodes (smoothObject.setObjVal! "dimension" (1 : Nat)) &&
+    !decodes (smoothObject.setObjVal! "dimension" (Json.str "")))
 open Lean in
 #eval check "a smooth dimension has a bounded number of digits"
-  (decodes (smoothObject.setObjVal! "dimension" (Json.str (String.ofList (List.replicate 64 '9')))) true &&
-    !decodes (smoothObject.setObjVal! "dimension" (Json.str (String.ofList (List.replicate 65 '9')))) true)
+  (decodes (smoothObject.setObjVal! "dimension" (Json.str (String.ofList (List.replicate 64 '9')))) &&
+    !decodes (smoothObject.setObjVal! "dimension" (Json.str (String.ofList (List.replicate 65 '9')))))
 open Lean in
 #eval check "the smooth dimension decoder has its own message"
-  (match Wire.declarationBody (smoothObject.setObjVal! "dimension" (Json.str "1e3")) (numerical := true)
-      (algebraic := true) with
+  (match Wire.declarationBody (smoothObject.setObjVal! "dimension" (Json.str "1e3")) with
    | .error message => (message.splitOn "smooth dimension").length > 1
    | .ok _ => false)
 

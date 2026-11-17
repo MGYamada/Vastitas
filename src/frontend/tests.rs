@@ -21,7 +21,6 @@ generic choose(x) { domain (Int), (Nat); }
 method choose(x: Any) requires (HasEq) -> Int { 2 }
 fn main() -> Int { choose(10) }";
     let module = parse(source, "dispatch.vast").unwrap();
-    assert_eq!(module.version, 2);
     assert_eq!(module.functions.len(), 1);
     assert_eq!(module.generics.len(), 1);
     assert_eq!(module.methods.len(), 2);
@@ -33,7 +32,6 @@ fn main() -> Int { choose(10) }";
         ExprKind::Call { callee, .. } if callee == "choose"
     ));
     let encoded = serde_json::to_value(&module).unwrap();
-    assert_eq!(encoded["version"], 2);
     assert_eq!(encoded["generics"][0]["domain"][0][0]["name"], "Int");
     assert_eq!(encoded["methods"][0]["params"][0]["ty"]["name"], "Number");
     assert_eq!(encoded["methods"][1]["return_type"]["name"], "Int");

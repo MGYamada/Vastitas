@@ -1,7 +1,10 @@
-import VastitasKernel.IndexedAcceptance
+import VastitasKernel.ResourceProtocol
 import VastitasKernel.RegressionRequest
 
--- old-route(#533): the protocol-7 decoder `Indexed.Wire` retires at the cutover.
+/-! The package envelope of the indexed decoders (`Indexed.Wire.module` and
+`Indexed.Wire.package`) through the public checker `ResourceSource.Wire.check`:
+a request is accepted only with its exact fields, at the schema epoch, and
+with every body checked. -/
 namespace VastitasKernel.Indexed.Wire.Regression
 open Lean
 
@@ -25,22 +28,24 @@ private def mod : Json := Json.mkObj [
   ("imports", toJson ([] : List Json)), ("generics", toJson ([] : List Json)),
   ("methods", toJson ([] : List Json)), ("functions", toJson [fn]),
   ("indexed_declarations", toJson [marker])]
-private def input (m := mod) : Json := RegressionRequest.package "wire" [m] 7 "1.0.0"
+private def input (m := mod) : Json := RegressionRequest.package "wire" [m] (packageVersion := "1.0.0")
 
 #eval show IO Unit from do
   let tests : List (String × Json × Bool × Bool) := [
     ("actual acceptance", input, true, true),
     ("library", input (withField mod "functions" (toJson ([] : List Json))), false, true),
     ("library needs main for emit", input (withField mod "functions" (toJson ([] : List Json))), true, false),
-    ("wrong envelope", withField input "version" (toJson (6 : Nat)), true, false),
-    ("flat input", withField input "input" (toJson "flat"), true, false),
+    ("a retired version", withField input "version" (toJson (9 : Nat)), true, false),
+    ("an input field", withField input "input" (toJson "package"), true, false),
+    ("a flat module", withField (withField input "functions" (toJson [fn])) "packages" (toJson ([] : List Json)),
+      true, false),
     ("checked core injection", withField input "checked_core" (toJson true), true, false),
     ("declaration owner injection", input (withField mod "indexed_declarations"
       (toJson [withField marker "owner" (toJson "trusted")])), true, false),
     ("reserved declaration", input (withField mod "indexed_declarations"
       (toJson [withField marker "name" (toJson "Int")])), true, false),
-    ("unsupported capability", input (withField mod "indexed_declarations"
-      (toJson [withField marker "capabilities" (toJson ["dimension"])])), true, false),
+    ("a capability of a marker", input (withField mod "indexed_declarations"
+      (toJson [withField marker "capabilities" (toJson ["dim"])])), true, false),
     ("backend lifted reference", input (withField mod "functions"
       (toJson [fn "main" (Json.mkObj [("kind", toJson "lifted"), ("id", toJson (0 : Nat)), ("span", span)])])), true, false),
     ("unused body", input (withField mod "functions" (toJson [fn, fn "unused"
@@ -48,7 +53,7 @@ private def input (m := mod) : Json := RegressionRequest.package "wire" [m] 7 "1
     ("foreign body field", input (withField mod "functions"
       (toJson [withField (fn) "body" (withField (body) "checked" (toJson true))])), true, false)]
   for (name, json, requireMain, expected) in tests do
-    let result := check json requireMain
+    let result := ResourceSource.Wire.check json requireMain
     unless result.isOk == expected do
       throw (IO.userError s!"indexed wire regression: {name}: {result.toOption.isSome}")
   IO.println s!"indexed wire: {tests.length} cases passed"

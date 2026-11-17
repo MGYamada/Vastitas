@@ -9,7 +9,7 @@ from pathlib import Path
 import doctest_result_reference as ref
 
 
-FIXTURE = Path(__file__).resolve().parents[1] / "tests/fixtures/doctest/mismatched-failure-v3.json"
+FIXTURE = Path(__file__).resolve().parents[1] / "tests/fixtures/doctest/mismatched-failure-v9.json"
 
 
 def example():
@@ -25,8 +25,8 @@ def example():
     result = {"schema": ref.RESULT_SCHEMA, "binding": copy.deepcopy(binding),
               "path": "ordinary_vast_check", "outcome": "kernel_rejected",
               "integrity": "complete", "driver_exit_code": 1,
-              "backend": {"state": "completed", "request_version": 2, "exit_code": 1,
-                          "response": {"version": 2, "ok": False, "diagnostics": [diagnostic]}},
+              "backend": {"state": "completed", "request_version": ref.PROTOCOL, "exit_code": 1,
+                          "response": {"version": ref.PROTOCOL, "ok": False, "diagnostics": [diagnostic]}},
               "diagnostics": [copy.deepcopy(diagnostic)]}
     return expectation, result
 
@@ -43,7 +43,7 @@ def cases():
     mismatch["diagnostics"] = copy.deepcopy(mismatch["backend"]["response"]["diagnostics"])
     sentinel = copy.deepcopy(expectation)
     sentinel["codes"] = ["E_SENTINEL"]
-    yield "version_2_request_version_3_failure", sentinel, mismatch
+    yield "version_10_request_version_9_failure", sentinel, mismatch
     unknown = copy.deepcopy(kernel)
     unknown["integrity"] = "unknown"
     yield "unknown_integrity", expectation, unknown
@@ -60,7 +60,7 @@ def cases():
         yield name, expectation, result
     accepted = copy.deepcopy(kernel)
     accepted.update(outcome="accepted", driver_exit_code=0, diagnostics=[])
-    accepted["backend"].update(exit_code=0, response={"version": 2, "ok": True})
+    accepted["backend"].update(exit_code=0, response={"version": ref.PROTOCOL, "ok": True})
     yield "accepted", expectation, accepted
     not_run = copy.deepcopy(frontend)
     not_run.update(outcome="not_run", integrity="unknown", driver_exit_code=None, diagnostics=[])

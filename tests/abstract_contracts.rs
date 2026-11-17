@@ -1,6 +1,6 @@
 //! Bodyless contracts extend callable domains, without entering dispatch selection.
 mod common;
-use common::{Scratch, check, cli, exits, kernel, native, ran, request, success};
+use common::{Scratch, check, cli, exits, flat_module, kernel, native, ran, request, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
@@ -188,40 +188,35 @@ fn raw_contract_ir_cannot_bypass_result_domain_or_protocol_checks() {
         &format!("{TYPES} generic widen(x) {{ domain; }} {CONTRACT} {METHODS}"),
         "contracts.vast",
     );
-    assert_eq!(raw["version"], 4);
-    assert!(raw["abstract_methods"][0].get("body").is_none());
+    assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
+    let mut module = raw["packages"][0]["modules"][0].clone();
+    assert!(module["abstract_methods"][0].get("body").is_none());
     assert_eq!(kernel(&raw, "check")["ok"], true);
     for (mutation, code) in [
         ("result", "E_CONTRACT_RESULT"),
         ("body", "E_PROTOCOL"),
         ("winner", "E_PROTOCOL"),
         ("domain", "E_CONTRACT_DOMAIN"),
-        ("downgrade", "E_PROTOCOL"),
         ("span", "E_PROTOCOL"),
-        ("duplicate", "E_DUPLICATE"),
+        // A repeated parameter changes the contract's arity, which the
+        // kernel compares with its generic's first.
+        ("duplicate", "E_ARITY"),
         ("function", "E_PROTOCOL"),
     ] {
         let mut bad = raw.clone();
+        let contract = &mut flat_module(&mut bad)["abstract_methods"][0];
         match mutation {
-            "result" => bad["abstract_methods"][0]["return_type"]["name"] = json!("Nat"),
-            "body" => bad["abstract_methods"][0]["body"] = raw["methods"][0]["body"].clone(),
-            "winner" => bad["abstract_methods"][0]["selected"] = json!(0),
-            "domain" => bad["abstract_methods"][0]["domain"][0][0]["path"] = json!(["Bool"]),
-            // old-route(#533): a downgrade to a retiring flat envelope.
-            "downgrade" => {
-                bad["version"] = json!(2);
-                bad.as_object_mut().unwrap().remove("input");
-            }
-            "span" => bad["abstract_methods"][0]["domain"][0][0]["span"]["line"] = json!(0),
+            "result" => contract["return_type"]["name"] = json!("Nat"),
+            "body" => contract["body"] = module["methods"][0]["body"].take(),
+            "winner" => contract["selected"] = json!(0),
+            "domain" => contract["domain"][0][0]["path"] = json!(["Bool"]),
+            "span" => contract["domain"][0][0]["span"]["line"] = json!(0),
             "duplicate" => {
-                let param = bad["abstract_methods"][0]["params"][0].clone();
-                bad["abstract_methods"][0]["params"]
-                    .as_array_mut()
-                    .unwrap()
-                    .push(param);
+                let param = contract["params"][0].clone();
+                contract["params"].as_array_mut().unwrap().push(param);
             }
             _ => {
-                bad["abstract_methods"][0]["return_type"] = json!({"kind":"function","params":[],"return_type":{"kind":"named","name":"Int"}})
+                contract["return_type"] = json!({"kind":"function","params":[],"return_type":{"kind":"named","name":"Int"}})
             }
         }
         common::assert_rejected(bad, code);
@@ -278,27 +273,10 @@ fn package_contracts_resolve_aliases_but_keep_exact_generic_owner_authority() {
     }
 }
 
+/// The root module of the request of the flat unit `source`, in which every
+/// function, generic and abstract type is public.
 fn raw_module(source: &str) -> Value {
-    let mut raw = request(source, "contracts.vast");
-    for key in ["functions", "generics", "abstract_types"] {
-        if let Some(declarations) = raw.get_mut(key).and_then(Value::as_array_mut) {
-            for declaration in declarations {
-                declaration["public"] = json!(true);
-            }
-        }
-    }
-    let object = raw.as_object_mut().unwrap();
-    for key in ["version", "input", "file"] {
-        object.remove(key);
-    }
-    object.insert("path".into(), json!([]));
-    object.insert("imports".into(), json!([]));
-    object.insert("public".into(), json!(true));
-    object.insert(
-        "span".into(),
-        json!({"start":0,"end":0,"line":1,"column":1}),
-    );
-    raw
+    flat_module(&mut request(source, "contracts.vast")).take()
 }
 #[test]
 fn raw_package_contracts_cannot_forge_edit_rights_or_erase_contracts() {
@@ -307,7 +285,7 @@ fn raw_package_contracts_cannot_forge_edit_rights_or_erase_contracts() {
     );
     let mut app = raw_module("fn main() -> Int { 42 }");
     app["functions"][0]["body"]["result"] = json!({"kind":"call","callee":"dep::f","args":[{"kind":"integer","value":"42","span":{"start":0,"end":0,"line":1,"column":1}}],"span":{"start":0,"end":0,"line":1,"column":1}});
-    let raw = json!({"version":4,"input":"package","file":"contracts.vast","root":"/app","packages":[
+    let raw = json!({"version":common::CURRENT_PROTOCOL,"file":"contracts.vast","root":"/app","packages":[
         {"source":"/app","name":"app","version":"0.1.0","dependencies":[{"alias":"dep","target":"/lib"}],"modules":[app]},
         {"source":"/lib","name":"lib","version":"0.1.0","dependencies":[],"modules":[lib]}
     ]});
@@ -317,11 +295,6 @@ fn raw_package_contracts_cannot_forge_edit_rights_or_erase_contracts() {
     contract["name"] = json!("dep::f");
     bad["packages"][0]["modules"][0]["abstract_methods"] = json!([contract]);
     common::assert_rejected(bad, "E_OWNER");
-    // old-route(#533): a downgrade to a retiring package envelope.
-    let mut bad = raw.clone();
-    bad["version"] = json!(3);
-    bad.as_object_mut().unwrap().remove("input");
-    common::assert_rejected(bad, "E_PROTOCOL");
     let mut bad = raw;
     bad["packages"][1]["modules"][0]["abstract_methods"][0]["domain"][0][0]["path"] =
         json!(["Nat"]);

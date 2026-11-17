@@ -30,7 +30,7 @@ private def geometry : List Declaration := [
   decl "origin" (.primitive ⟨"origin", [("domain", .objectType objectType),
     ("point_family", .path (path "Point")), ("base_object", .path (path "Base"))]⟩),
   decl "id" (.primitive ⟨"identity", [("domain", .objectType objectType), ("map_family", .path (path "Morphism"))]⟩),
-  decl "dimension" (.primitive ⟨"dimension", [("domain", .objectType objectType)]⟩),
+  decl "dimension" (.primitive ⟨"dim", [("domain", .objectType objectType)]⟩),
   decl "compose" (.primitive ⟨"compose", [("map_family", .path (path "Morphism"))]⟩),
   decl "apply" (.primitive ⟨"apply", [("map_family", .path (path "Morphism")), ("point_family", .path (path "Point"))]⟩),
   decl "Token" (.family ⟨[.domain, .marker, .natural, .object (path "Scheme")], [], .token⟩),

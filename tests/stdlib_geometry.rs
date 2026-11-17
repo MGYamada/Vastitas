@@ -602,7 +602,8 @@ fn main() -> Int {{
 }}
 "#
         );
-        // Both legacy flat protocol 2 and the explicit stdlib adapter.
+        // Both the flat unit with the legacy geometry and the explicit stdlib
+        // adapter.
         common::native(&source, &[], exits(42), "opened-object.vast");
         native(&fixture(&source, str::to_owned));
         let mismatched = source.replace("let A = open(make(1));", &format!(
@@ -834,7 +835,7 @@ fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
 /// The request has no span for a manifest, so a diagnostic about the export
 /// of a dependency stays at the root manifest. Its message names the package
 /// of the export, the manifest that declares it and the entry of the table
-/// (#704). `raw_compatibility_roles_and_old_wire_downgrades_are_rejected`
+/// (#704). `raw_compatibility_roles_and_misplaced_exports_are_rejected`
 /// sends the same invalid exports to the kernel alone.
 #[test]
 fn an_invalid_export_names_its_package_its_manifest_and_the_entry() {
@@ -891,7 +892,7 @@ fn an_invalid_export_names_its_package_its_manifest_and_the_entry() {
 }
 
 #[test]
-fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
+fn raw_compatibility_roles_and_misplaced_exports_are_rejected() {
     let s = fixture(include_str!("../examples/pointed.vast"), str::to_owned);
     let original = captured_wire(&s);
     assert_eq!(kernel(&original, "check")["ok"], true);
@@ -908,6 +909,7 @@ fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
         ("same marker", "E_TYPE"),
         ("wrong point", "E_TYPE"),
         ("unknown field", "E_PROTOCOL"),
+        ("dimension spelling", "E_PROTOCOL"),
         ("null profile", "E_PROTOCOL"),
     ] {
         let mut raw = original.clone();
@@ -928,37 +930,22 @@ fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
             }
             "wrong point" => package["geometry_compat"]["point"] = json!("self::Morphism"),
             "unknown field" => package["geometry_compat"]["trusted"] = json!(true),
+            // The wire spells the slot of `dim(…)` `dim`; the manifest's key
+            // `dimension` is no wire field.
+            "dimension spelling" => {
+                let setting = package["geometry_compat"]["scheme"]
+                    .as_object_mut()
+                    .unwrap();
+                let slot = setting.remove("dim").expect("the wire slot `dim`");
+                setting.insert("dimension".into(), slot);
+            }
             _ => package["geometry_compat"] = Value::Null,
         }
         for mode in ["check", "emit"] {
             common::assert_wire_rejected(&kernel(&raw, mode), code);
         }
     }
-    // old-route(#533): the legacy envelopes of protocols 3 to 6.
-    for version in 3..=6 {
-        let mut raw = original.clone();
-        raw["version"] = json!(version);
-        if version == 3 {
-            raw.as_object_mut().unwrap().remove("input");
-        }
-        for pkg in raw["packages"].as_array_mut().unwrap() {
-            for module in pkg["modules"].as_array_mut().unwrap() {
-                module
-                    .as_object_mut()
-                    .unwrap()
-                    .remove("indexed_declarations");
-            }
-        }
-        let output = kernel(&raw, "emit");
-        common::assert_wire_rejected(&output, "E_PROTOCOL");
-        assert!(
-            output["diagnostics"][0]["message"]
-                .as_str()
-                .unwrap()
-                .contains("geometry_compat"),
-            "{output}"
-        );
-    }
+    // An export belongs to a package, not to the envelope.
     let mut flat = common::request("fn main() -> Int { 42 }", "flat.vast");
     flat["geometry_compat"] = original["packages"][geo]["geometry_compat"].clone();
     common::assert_wire_rejected(&kernel(&flat, "emit"), "E_PROTOCOL");

@@ -714,10 +714,11 @@ fn the_kernel_checks_geometric_module_names_independently() {
 /// #778 on forged wire: the kernel resolves the operation by the spelling
 /// `dim` alone. A call of `dimension` that names nothing is `E_NAME` with the
 /// note; a function named `dimension` is accepted and its calls reach it; a
-/// function named `dim` is reserved. The wire tokens of the capability and
-/// the primitive op stay `dimension`. One program calls a declared
-/// primitive, also as protocol 7; the other, with the standard library,
-/// calls the operation through its `geometry_compat` export.
+/// function named `dim` is reserved. The wire spells the capability and the
+/// primitive op `dim`, and the spelling `dimension` of either is
+/// `E_PROTOCOL`. One program calls a declared primitive; the other, with the
+/// standard library, calls the operation through its `geometry_compat`
+/// export.
 #[test]
 fn the_kernel_resolves_dim_and_dimension_by_spelling() {
     let s = Scratch::empty("packages");
@@ -739,40 +740,51 @@ pub indexed primitive size = dim((Scheme, QQ));
             .args(["check", "--manifest-path", "app/Vastitas.toml"]),
         common::CURRENT_PROTOCOL,
     );
-    // old-route(#533): the frontend wrote this program as protocol 7 before
-    // #533 round 1.
-    let mut seven = declared.clone();
-    seven["version"] = serde_json::json!(7);
     let text = declared.to_string();
     assert!(
-        text.contains(r#""capabilities":["origin","dimension"]"#),
+        text.contains(r#""capabilities":["origin","dim"]"#),
         "{text}"
     );
-    assert!(text.contains(r#""op":"dimension""#), "{text}");
+    assert!(text.contains(r#""op":"dim""#), "{text}");
+    for (from, to, message) in [
+        (
+            r#""capabilities":["origin","dim"]"#,
+            r#""capabilities":["origin","dimension"]"#,
+            "unsupported implementation capability",
+        ),
+        (
+            r#""op":"dim""#,
+            r#""op":"dimension""#,
+            "unknown indexed primitive contract",
+        ),
+    ] {
+        let spelled: serde_json::Value = serde_json::from_str(&text.replace(from, to)).unwrap();
+        let response = common::kernel(&spelled, "check");
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
+        assert_eq!(response["diagnostics"][0]["message"], message, "{response}");
+    }
     s.copy_stdlib(&common::STDLIB_PACKAGES, &[]);
     s.package(
         "app",
         "fn helper(n: Int) -> Int { n }\nfn main() -> Int { let X = Affine(QQ, 2); helper(int(dim(X))) }",
         "std = { path = '../stdlib' }",
     );
-    let nine = common::captured_wire(
+    let exported = common::captured_wire(
         s.cli()
             .args(["check", "--manifest-path", "app/Vastitas.toml"]),
         common::CURRENT_PROTOCOL,
     );
-    for (raw, call) in [
-        (declared, r#""callee":"size""#),
-        (seven, r#""callee":"size""#),
-        (nine, r#""callee":"dim""#),
+    for (label, raw, call) in [
+        ("declared", declared, r#""callee":"size""#),
+        ("exported", exported, r#""callee":"dim""#),
     ] {
-        let version = raw["version"].clone();
         assert_eq!(common::kernel(&raw, "check")["ok"], true, "{raw}");
         assert!(raw.to_string().contains(call), "{raw}");
         // `helper` renamed `dimension`, with its call.
         let renamed: serde_json::Value =
             serde_json::from_str(&raw.to_string().replace("\"helper\"", "\"dimension\"")).unwrap();
         let response = common::kernel(&renamed, "check");
-        assert_eq!(response["ok"], true, "{version}: {response}");
+        assert_eq!(response["ok"], true, "{label}: {response}");
         // `helper` renamed `dim`.
         let reserved: serde_json::Value =
             serde_json::from_str(&raw.to_string().replace("\"helper\"", "\"dim\"")).unwrap();
@@ -789,7 +801,7 @@ pub indexed primitive size = dim((Scheme, QQ));
                 .unwrap()
                 .iter()
                 .any(|note| note["message"].as_str().unwrap().contains("`dim(…)`")),
-            "{version}: {response}"
+            "{label}: {response}"
         );
     }
 }

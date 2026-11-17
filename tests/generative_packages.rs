@@ -57,12 +57,6 @@ fn owned_packages_preserve_public_contracts_and_reject_forged_wire() {
     assert_eq!(source.matches("allocate arena").count(), 2);
     assert!(!source.contains("copy arena"));
     assert!(!source.contains("VastitasGemmNative"));
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in 2..=7 {
-        let mut forged = raw.clone();
-        forged["version"] = json!(version);
-        assert_rejected(forged, "E_PROTOCOL");
-    }
     let mut forged = raw.clone();
     function(&mut forged, "create")["results"][0]["type"]["dimension"] = json!(2);
     assert_rejected(forged, "E_NUMERICAL_TYPE");

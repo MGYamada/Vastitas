@@ -1,6 +1,6 @@
-//! Historical Stage 2: presented affine objects through the public protocol-9
-//! source path. The kernel expands, bounds and checks every polynomial; these
-//! tests exercise acceptance, base chains, rejections and forged wire.
+//! Stage 2: presented affine objects through the public source path. The
+//! kernel expands, bounds and checks every polynomial; these tests exercise
+//! acceptance, base chains, rejections and forged wire.
 mod common;
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
@@ -141,23 +141,11 @@ fn affine_example_checks_builds_and_executes() {
 }
 
 #[test]
-fn affine_forms_select_protocol_nine_and_older_envelopes_reject_them() {
+fn affine_forms_are_accepted_in_the_current_envelope() {
     let raw = request(&fixture(MAIN));
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
     let accepted = kernel(&raw, "emit");
     assert_eq!(accepted["ok"], true, "{accepted}");
-    // old-route(#533): the retiring envelopes reject this program.
-    for version in [7, 8] {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        rejected_with(changed, "E_PROTOCOL");
-    }
-    for version in 2..7 {
-        let mut changed = raw.clone();
-        changed["version"] = json!(version);
-        let rejected = kernel(changed, "emit");
-        assert_eq!(rejected["ok"], false, "version {version}: {rejected}");
-    }
 }
 
 #[test]
@@ -793,8 +781,4 @@ fn principal_opens_and_restrictions_reject_non_preimages_and_non_isomorphisms() 
     let mut extra = raw.clone();
     extra.pointer_mut(&open).unwrap()["basis"] = json!([]);
     rejected_with(extra, "E_PROTOCOL");
-    // old-route(#533): the retiring envelopes reject this program.
-    let mut changed = raw.clone();
-    changed["version"] = json!(8);
-    rejected_with(changed, "E_PROTOCOL");
 }

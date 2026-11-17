@@ -17,9 +17,9 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-# The current wire schema epoch (#533), as `CURRENT_PROTOCOL` in
-# tests/common/wire.rs: the protocol of the resource requests the frontend writes.
-CURRENT_PROTOCOL = 9
+# The wire schema epoch (#533), as `CURRENT_PROTOCOL` in tests/common/wire.rs:
+# the one protocol that the frontend writes and the kernel accepts.
+CURRENT_PROTOCOL = 10
 
 
 class Runner:

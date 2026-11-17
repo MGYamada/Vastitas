@@ -1,6 +1,6 @@
 import VastitasKernel.Edit
 
-/-! Protocol 6 extends declarative edit assembly. Function identity remains its
+/-! Delegations, transfers and nested loans extend declarative edit assembly. Function identity remains its
 definition owner; editor history and suspended nested loans are separate data.
 The executable transition and declarative prefix audit are independent. -/
 namespace VastitasKernel.Authority

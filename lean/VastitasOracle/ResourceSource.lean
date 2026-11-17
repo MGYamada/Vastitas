@@ -150,7 +150,7 @@ theorem public_input {json : Lean.Json} (input : VastitasKernel.ResourceSource.W
     lower input.input = .ok input.checked.lowered :=
   ⟨input.decoded, input.accepted, input.checked.reconstructed⟩
 
-/-- Public protocol 8 uses the same numerical declaration contract as the
+/-- The public wire uses the same numerical declaration contract as the
 actual complete authority checker. This is not a floating-point result theorem. -/
 theorem public_numerical_declaration {json : Lean.Json}
     (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain)

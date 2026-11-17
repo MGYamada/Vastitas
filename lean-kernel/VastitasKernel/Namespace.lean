@@ -1,7 +1,7 @@
 import VastitasKernel.Surface
 import VastitasKernel.Identity
 
-/-! Protocol 3 retains unresolved paths and declaration provenance. Files are
+/-! Packages retain unresolved paths and declaration provenance. Files are
 placement metadata; only package identity and logical modules determine owners. -/
 namespace VastitasKernel.Namespace
 
@@ -43,8 +43,9 @@ structure AbstractType extends RawAbstractType where
   isPublic : Bool
   deriving Repr, Inhabited
 
-/-- Legacy wire inputs identify a selected manifest; protocol 9 retains the
-unresolved manifest package name. Neither form loads a package or uses aliases. -/
+/-- The recipient package of an edit: the unresolved manifest package name that
+the wire carries (`grantee_package`), or a selected manifest location, which
+no wire field carries. Neither form loads a package or uses aliases. -/
 inductive RecipientPackage where
   | source (location : String)
   | name (name : String)

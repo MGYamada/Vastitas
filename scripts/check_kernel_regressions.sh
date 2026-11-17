@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Keep retained legacy API tests and current indexed/public JSON tests distinct.
-# LegacySourceRegression, VastitasPublicTest.AuthorityRegression and
-# VastitasPromotion.IndexedRegression exercise Main's current source routes.
+# VastitasPublicTest.AuthorityRegression, VastitasPromotion.IndexedRegression and
+# the wire regressions exercise Main's route, ResourceSource.Wire.
 cd "$(dirname "$0")/.."
 lake -d lean-kernel build \
   VastitasKernel.TypeAuditRegression \
@@ -50,7 +50,6 @@ lake -d lean-kernel build \
   VastitasKernel.ObservationRegression \
   VastitasKernel.GeometryCompatibilityRegression \
   VastitasKernel.ReviewRegression \
-  VastitasKernel.LegacySourceRegression \
   VastitasKernel.CompatibilityProfileRegression \
   VastitasPublicTest.AuthorityRegression \
   VastitasKernel.StorageRegression \

@@ -2,14 +2,12 @@ import VastitasKernel.NamespaceChecker
 import VastitasKernel.Authority
 import VastitasKernel.NamespaceQuery
 import VastitasKernel.EditRegression
-import VastitasKernel.NamespaceProtocol
 import VastitasKernel.RegressionSupport
 
 /-! Namespace programs on Lean values through the shared namespace code:
 the lookup tables, `validate`, the resolver and the reference audit, and the
-assembler that the public 2–6 route runs, `Authority.assemble`, which reads a
-program with protocol-6 authority. Public JSON acceptance is covered by
-LegacySourceRegression and VastitasPublicTest.AuthorityRegression. -/
+assembler that the public route runs, `Authority.assemble`. Public JSON
+acceptance is covered by VastitasPublicTest.AuthorityRegression. -/
 namespace VastitasKernel.Namespace.Regression
 
 private def root : PackageId := ⟨"/app/Vastitas.toml", "app", "0.1.0"⟩
@@ -46,8 +44,7 @@ private def program : Program := {
     { pkg root [mod [] [fn "main" (.call "other::value" [] {})]] with
       dependencies := [⟨"other", dependency.source⟩, ⟨"alias", dependency.source⟩] },
     pkg dependency [mod [] [fn "value" (.integer "42" {})]] ] }
-/-- The assembly of `p` as the public 2–6 route reads it, with protocol-6
-authority. -/
+/-- The assembly of `p` as the public route reads it, with authority. -/
 private def assembled (p : Program) : Except Diagnostic Unit :=
   (Authority.assemble { p with extended := true, editable := true, authority := true }.indexed).map fun _ => ()
 private def rejects (code : String) (p : Program) : Bool :=

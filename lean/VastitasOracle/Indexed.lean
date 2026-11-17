@@ -1,7 +1,7 @@
 import VastitasKernel.IndexedAudit
 
 /-! Declaration and indexed-application audits for the exact finite input.
-This foundation does not yet assert public protocol-7 acceptance or evaluation. -/
+This foundation does not assert public acceptance or evaluation. -/
 namespace VastitasOracle.Indexed
 open VastitasKernel.Indexed
 

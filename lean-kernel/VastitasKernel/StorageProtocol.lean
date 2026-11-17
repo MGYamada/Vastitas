@@ -2,8 +2,9 @@ import VastitasKernel.Storage
 import VastitasKernel.JsonDecode
 
 /-! Untrusted resource-plan component schema shared with Rust `storage.rs`.
-This decoder is not an alternative public wire version. Protocol 8 must compose
-it with actual package/function acceptance and checked native generation. -/
+This decoder is not an alternative public wire version. The public wire must
+compose it with actual package/function acceptance and checked native
+generation. -/
 namespace VastitasKernel.Storage.Wire
 open Lean JsonDecode
 

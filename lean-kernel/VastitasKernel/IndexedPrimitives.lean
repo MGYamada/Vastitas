@@ -5,9 +5,9 @@ set_option autoImplicit false
 /-! Closed primitive signature/binding contracts for the finite descriptor
 representation. These internal audits do not accept arbitrary native primitives
 or attest mathematical geometry. Core typing and primitive runtime semantics
-use these exact contracts. Public protocol 7 resolves their declaration syntax
-through `Indexed.Wire.check`, and protocols 8 and 9 through
-`ResourceSource.Wire`; both send the returned Core to `IndexedCodegen`. Native
+use these exact contracts. The public checker `ResourceSource.Wire.check`
+resolves their declaration syntax and sends the returned Core to
+`IndexedCodegen`. Native
 refinement remains unproved.
 
 Every table here reads a binding through its registry entry

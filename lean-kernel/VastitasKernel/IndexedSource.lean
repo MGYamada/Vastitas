@@ -2,11 +2,10 @@ import VastitasKernel.Namespace
 import VastitasKernel.IndexedCore
 import VastitasKernel.IndexedGeometryProfile
 
-/-! Unresolved declaration input used by the public protocol-7 path.
-Owners are reconstructed from enclosing packages/modules, never supplied on a
-declaration or reference. `Indexed.Wire.check` composes declaration, body,
-function, dispatch and authority checks; this AST alone is not an acceptance
-entry point. Protocol 8 also uses this declaration foundation. -/
+/-! Unresolved declaration input of the public path. Owners are reconstructed
+from enclosing packages/modules, never supplied on a declaration or reference.
+`ResourceSource.Wire.check` composes declaration, body, function, dispatch and
+authority checks; this AST alone is not an acceptance entry point. -/
 namespace VastitasKernel.Indexed.Source
 
 abbrev Path := TypePath
@@ -35,7 +34,7 @@ inductive PolyExpr where
 inductive Parameter where
   | domain | marker | natural
   | object (domain : Path)
-  /-- A frame of the family `family` (Stage 4, protocol 9). -/
+  /-- A frame of the family `family` (Stage 4). -/
   | frame (family : Path)
   deriving Repr, Inhabited
 
@@ -69,8 +68,7 @@ structure PackageShape where
   deriving Repr, Inhabited
 
 /-- One decoded field of a primitive's wire form. The kinds are exactly what
-the indexed declaration decoder (protocols 7 to 9) accepts for a primitive
-field. -/
+the indexed declaration decoder accepts for a primitive field. -/
 inductive WireArgument where
   | path (path : Path)
   | objectType (type : ObjectType)
@@ -323,7 +321,7 @@ inductive DataType where
   | inferredPackage -- only produced by the old pack syntax; never a signature
   deriving Repr, Inhabited
 
-/- The narrower internal body adapter handles data functions. Public protocol 7
+/- The narrower internal body adapter handles data functions. The public path
 adds Fn lifting and finite dispatch/edit composition through FunctionSource,
 DispatchSource and AuthoritySource before accepting the returned Core. -/
 structure Param where

@@ -1,7 +1,7 @@
 import VastitasKernel.IndexedTypeAudit
 import VastitasKernel.TypeAudit
 
-/-! Compatibility translation for the closed pre-protocol-7 geometric profile.
+/-! Compatibility translation for the closed geometric profile of the old Core.
 All geometric cases live at this adapter boundary; indexed acceptance and
 native lowering use declaration contracts. These reserved IDs are constructed
 here and cannot be selected by a source filename or an import spelling. -/

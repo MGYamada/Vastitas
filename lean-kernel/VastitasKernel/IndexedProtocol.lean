@@ -1,16 +1,11 @@
 import VastitasKernel.IndexedBodyProtocol
 import VastitasKernel.EnvelopeProtocol
 
-/-! Untrusted package-only protocol-7 input, before the actual combined
-declaration/authority/dispatch/Fn/Core check. No checked IDs are deserialized. -/
+/-! The untrusted module and package envelope of a request, before the actual
+combined declaration/authority/dispatch/Fn/Core check (`ResourceProtocol`
+decodes the request). No checked IDs are deserialized. -/
 namespace VastitasKernel.Indexed.Wire
 open Lean JsonDecode
-
-/-- The decoder of the bodies that the envelope of an indexed module never
-holds: `module` replaces its functions, methods and contributions with empty
-lists and decodes them on the rich path. -/
-private def noLegacyBody {α : Type} (_ : Json) : Except String α :=
-  throw "indexed module bodies are decoded on the rich path"
 
 /-- A module of the package envelope, with its indexed declarations and its
 function, method and contribution bodies. -/
@@ -24,7 +19,7 @@ def module (j : Json) : Except String DispatchSource.Module := do
     ("functions", toJson ([] : List Json)), ("methods", toJson ([] : List Json)),
     ("contributions", toJson ([] : List Json))])
   return {
-    module := ← decodeModuleEnvelope noLegacyBody noLegacyBody true true true metadata true,
+    module := ← decodeModuleEnvelope metadata,
     declarations := ← (← optionalArray j "indexed_declarations").mapM declaration,
     functions := ← (← array j "functions").mapM function,
     methods := ← (← array j "methods").mapM method,
@@ -56,15 +51,5 @@ def package (j : Json) : Except String DispatchSource.Package := do
     id := ⟨← str j "source", ← str j "name", ← str j "version"⟩,
     dependencies, modules := ← (← array j "modules").mapM module,
     geometryCompat }
-
-def program (j : Json) : Except String DispatchSource.Program := do
-  fields j ["version", "input", "file", "root", "packages"]
-  let version ← j.getObjValAs? Nat "version"
-  if version != 7 then throw "expected protocol 7"
-  if (← str j "input") != "package" then throw "protocol 7 requires package input"
-  return {
-    file := ← str j "file", root := ← str j "root",
-    packages := ← (← array j "packages").mapM package,
-    extended := true, editable := true, authority := true }
 
 end VastitasKernel.Indexed.Wire

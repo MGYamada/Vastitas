@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check growing actual protocol-8 programs with a bounded observation deadline.
+"""Check growing actual resource programs with a bounded observation deadline.
 
 These are compiler scaling observations, not controlled-host runtime performance
 acceptance. Build the kernel and Rust CLI first. Run the same generated sources

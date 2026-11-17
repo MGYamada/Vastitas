@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Execute checked internal storage IR through the optional native runtime.
 
-This is a regression harness, not public protocol 8 or a user-facing interpreter.
+This is a regression harness, not the public wire or a user-facing interpreter.
 """
 if not __debug__:
     raise RuntimeError("verification requires Python assertions; remove -O / PYTHONOPTIMIZE")

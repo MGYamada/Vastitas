@@ -6,7 +6,7 @@ import VastitasKernel.RegressionSupport
 
 /-!
 Retained old-Core adversarial regressions for its independent audit. Main uses
-indexed Core instead; see IndexedCoreRegression and LegacySourceRegression.
+indexed Core instead; see IndexedCoreRegression.
 These are executable
 regression checks, separate from the logical soundness theorems.
 They bypass raw elaboration so the audit itself must reject forged annotations.

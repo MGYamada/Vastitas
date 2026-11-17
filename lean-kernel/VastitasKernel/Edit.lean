@@ -1,6 +1,6 @@
 import VastitasKernel.NamespaceChecker
 
-/-! The parts of protocol 5 that `Authority` builds on: the prepared immutable
+/-! The parts of the edit assembly that `Authority` builds on: the prepared immutable
 declarations, grants and contributions (`prepare`), the applied contributions
 (`State`), and the completion of one whole selected package environment
 before the common lowering path (`finalSurface`, `completeFamilies`,

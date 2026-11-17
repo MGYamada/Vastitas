@@ -1,6 +1,6 @@
 [package]
 name = "vastitas"
-version = "0.1.0-alpha"
+version = "0.1.0-beta"
 edition = "2024"
 rust-version = "1.99.1"
 description = "The Vastitas compiler"

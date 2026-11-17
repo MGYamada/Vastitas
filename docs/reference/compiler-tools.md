@@ -317,16 +317,17 @@ status **before** matching diagnostics:
    and normal driver failure termination (1).
 3. A frontend rejection requires the exact not-reached backend record above.
 4. A kernel rejection requires completed capture, normal backend failure
-   termination (1), a request version supported by the inspected driver (2–7),
+   termination (1), the request version of the inspected driver (10),
    exactly matching response version, `ok: false`, and the same complete diagnostic
    payload in the response and result. Unknown versions/statuses, malformed
    responses, differing payloads, and protocol mismatches cannot pass.
 5. Require at least one diagnostic and exclude operational/unsupported/internal
    failures. Compare the full diagnostic code multisets exactly.
 
-The range of versions in step 4 is that of the inspected driver. Today the
-driver supports the versions 2–9, and `scripts/doctest_result_reference.py`
-accepts that range.
+The version in step 4 is that of the inspected driver. The driver writes and
+accepts only protocol 10, the [schema epoch](../protocol.md#requests-decoders-and-checkers),
+and `scripts/doctest_result_reference.py` accepts only that version. It reads
+the number from the kernel's `currentProtocol` definition.
 
 **Matching rule:** compare `Counter(actual_top_level_codes)` with
 `Counter(declared_codes)`. Order is irrelevant; **multiplicity matters**. Extra

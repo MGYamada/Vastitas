@@ -38,11 +38,12 @@ two differ. `vastitas --version` prints that number, as in
 `vastitas 0.1.0-alpha (wire protocol 10)`. The version is a schema epoch, not
 a feature level: an optional record of the envelope never selects a version.
 
-`lean-kernel/Main.lean` scans the bytes of the request (`WireScan`), parses
-the JSON and reads `version` before any other field. A version other than
-`currentProtocol` is an error (`E_PROTOCOL`) by its version alone, whatever
-the rest of the request holds; [Other versions](#other-versions) gives the
-diagnostic. A request of the epoch goes to one decoder and one checker:
+`lean-kernel/Main.lean` reads the request up to its byte bound, decodes it
+as UTF-8, scans it (`WireScan.scan`) and parses the JSON. Only then does it
+read `version`, before any other field. A version other than
+`currentProtocol` is an error (`E_PROTOCOL`), whatever the other fields hold;
+[Other versions](#other-versions) gives the diagnostic and the steps that
+come before it. A request of the epoch goes to one decoder and one checker:
 
 | Version | Decoder | Checker | Emit |
 | --- | --- | --- | --- |
@@ -1334,9 +1335,9 @@ See [source syntax and limitations](indexed-source.md).
 ## Other versions
 
 A request whose `version` is a natural number other than `currentProtocol` is
-an error (`E_PROTOCOL`), by its version alone. The kernel reads no other
-field, so the request fails closed even when the rest of it is a request of
-the epoch. The message names the version and asks for matching binaries:
+an error (`E_PROTOCOL`). The kernel reads no other field, so the request fails
+closed even when the rest of it is a request of the epoch. The message names
+the version and asks for matching binaries:
 
 ```text
 IR protocol version 9 is not protocol 10 of this kernel; the compiler and the kernel must come from the same Vastitas build: rebuild them together
@@ -1349,6 +1350,27 @@ No version falls back to another decoder, and the kernel converts no request
 of another version. The wire is a boundary between a driver and a kernel of
 the same build, not an interface for hand-written requests:
 [History](#history) lists the retired versions.
+
+The version check comes after the steps that read the request as a whole:
+the byte bound, UTF-8 decoding, `WireScan.scan` and the JSON parser. A
+request that fails one of them is an error (`E_PROTOCOL`) with the message of
+that step and the response version `currentProtocol`, whatever its version.
+For example, `{"version":9,"version":10}` gets the scanner's message
+"duplicate JSON object key 'version'", and a request of version 9 with the
+number `1e100` in another field gets "JSON number exponent exceeds 2
+digits".
+
+The kernel reads `version` with `getObjValAs? Nat`. Lean's JSON parser keeps
+a number as an integer and a count of decimal places, and only a
+non-negative integer without decimal places is a natural number:
+
+- `1e1`, `10e0` and `1.0e1` are read as 10, and the request is decoded
+  under the epoch.
+- `10.0`, `100e-1` and `9.0` keep a decimal place. The request is an error
+  (`E_PROTOCOL`) "IR version must be a natural number" with the response
+  version `currentProtocol`, not the message above. So is a negative
+  number, a string or a missing `version`.
+- `-0` is read as 0 and gets the message above with the response version 0.
 
 ## Expected-rejection doctest consumer (reference only)
 

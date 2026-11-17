@@ -433,9 +433,11 @@ A verdict that the data do not support is an error:
 > `NatureErrorbar.checkCalibration`, `checkDataset` and `checkComparison`
 > are the checks of the declaration audit; `IndexedModelSource.lean` and
 > `IndexedErrorbarSource.lean` elaborate the declarations and give the
-> messages. The verdict reads the closed form of the average that the
-> kernel has checked against the trace form of its branch
-> ([Transition averages](spectral-observations.md#transition-averages)), and
+> messages. The elaboration accepts a comparison when `checkComparison`
+> holds, so it computes the verdict once. It computes the point results again
+> only for the message of a rejected comparison. The verdict reads the closed
+> form of the average that the kernel has checked against the trace form of
+> its branch ([Transition averages](spectral-observations.md#transition-averages)), and
 > no value of a dataset reaches generated code.
 
 ## Scope of physical models

@@ -224,6 +224,33 @@ private def exactTest (value : Rat) : Option (Rat × Rat) :=
     exactTest (9 / 20) == some ((25 / 58 - 9 / 20) * (25 / 58 - 9 / 20),
       4 * (1 / 2500 + (40 / 841) * (40 / 841) * (1 / 400))))
 
+/-- `D` with both values moved away from the prediction: both points are
+inconsistent. -/
+private def bothFar : List Source.SourcePoint :=
+  [point [("delta", n 0)] (frac 3 5), point [("delta", n 1)] (frac 3 5)]
+
+-- The source checker decides a comparison by `checkComparison` alone and computes the point results again only
+-- for the diagnostic (#865): the first inconsistent point, with both sides of its test.
+#eval check "two inconsistent points recorded as consistent are E_ERRORBAR, naming the first and its test"
+  (rejectsWith (with' [decl "c" (.convention .hbarOne), model "M", calibration "K" [omegaAt (frac 5 2)],
+      dataset "D" bothFar, comparison "C" fingerprintK]) "E_ERRORBAR"
+    "the comparison `model::C` records the verdict `consistent`, but the point 1 of the dataset `model::D`, (delta = 0, omega = frac(5, 2)), is inconsistent: (prediction − value)² = frac(1, 100) exceeds k²·(u² + Σ (∂prediction)²·u_c²) = frac(1, 625)" &&
+    code (with' [decl "c" (.convention .hbarOne), model "M", calibration "K" [omegaAt (frac 5 2)],
+      dataset "D" bothFar, comparison "C" fingerprintK .inconsistent]) == "accepted")
+
+/-- The environment of the accepted inconsistent comparison. -/
+private def inconsistentEnv : Core.Declarations :=
+  (checked (base ++ std ++ dimensions ++ [decl "c" (.convention .hbarOne), model "M",
+    calibration "K" [omegaAt (frac 5 2)], dataset "D" (secondValue (frac 3 5)),
+    comparison "C" fingerprintK .inconsistent])).getD default
+
+#eval check "the declaration audit accepts the elaborated inconsistent comparison, and rejects it recorded consistent"
+  (validEnvironment inconsistentEnv.indexed && (lookup inconsistentEnv.indexed (id "C")).isSome &&
+    !validEnvironment (inconsistentEnv.indexed.map fun entry =>
+      match entry.declaration with
+      | .comparison f o d k fp _ => if entry.id == id "C" then ⟨entry.id, .comparison f o d k fp .consistent⟩ else entry
+      | _ => entry))
+
 /-! ## Staleness after a changed calibration (C9) -/
 
 private def changed : List Source.Declaration := [decl "c" (.convention .hbarOne), model "M",

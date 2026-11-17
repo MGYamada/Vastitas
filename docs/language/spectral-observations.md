@@ -854,8 +854,8 @@ is `(25, 58)`. At the origin, off the chart, `average_at` gives `(0, 0)`.
 
 > **Implementation note.** The binding embeds the localization of the branch
 > and the closed form of the average, and the generated code calls
-> `SpectralRuntime.averageAt`, which evaluates g, N and D at the point. The
-> observation has the derivative rule `none`.
+> `SpectralRuntime.averageAt`. It evaluates g at the point first, and D and N
+> only where g(p) ≠ 0. The observation has the derivative rule `none`.
 
 ## Operand checks
 

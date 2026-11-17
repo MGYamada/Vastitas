@@ -29,7 +29,10 @@ kernel computes and checks (`SpectralDeclarations.certify`,
   `projectorEntry` gives is the entry of `projectorMatrix`, on and off the
   branch and out of range, for the Stage 5 field and for the rank-4 field
   `diag(x, y, x + y, 1)`, and the compiled code of `projectorEntry`, which
-  every generated program links, reaches no evaluated matrix. -/
+  every generated program links, reaches no evaluated matrix;
+- the chart first (#866): the compiled code of `averageAt` evaluates the
+  localization before its first branch, and the denominator and the
+  numerator only in a branch. -/
 namespace VastitasKernel.SpectralRuntimeRegression
 
 open VastitasKernel VastitasKernel.AlgebraRuntime VastitasKernel.SmoothRuntime
@@ -272,5 +275,41 @@ private def buildsMatrix (reached : Lean.NameSet) : Bool :=
   check "the compiled projectorEntry evaluates no matrix" (!buildsMatrix reached)
   check "the compiled projectorEntry evaluates one polynomial at (p, t) and divides it by the slope"
     ([``SmoothRuntime.evalAtSafe, ``slopeAt, ``SmoothRuntime.ratPair].all reached.contains)
+
+/-! ## The chart before the denominator (#866) -/
+
+/-- The calls `f(args)` of the straight-line code that `body` runs before
+its first branch. A join point is code that a later branch may jump to, so
+its body is not part of that code. -/
+private def callsBeforeBranch : Lean.IR.FnBody → List (Lean.Name × Array Lean.IR.Arg)
+  | .vdecl _ _ (.fap f args) rest => (f, args) :: callsBeforeBranch rest
+  | .vdecl _ _ _ rest | .jdecl _ _ _ rest | .set _ _ _ rest | .setTag _ _ rest | .uset _ _ _ rest
+  | .sset _ _ _ _ _ rest | .inc _ _ _ _ rest | .dec _ _ _ _ rest | .del _ rest => callsBeforeBranch rest
+  | .case .. | .ret _ | .jmp .. | .unreachable => []
+
+/-- Every call `f(args)` of `body`, in a branch or not, down to the depth
+`fuel`. -/
+private def allCalls : Nat → Lean.IR.FnBody → List (Lean.Name × Array Lean.IR.Arg)
+  | 0, _ => []
+  | fuel + 1, .vdecl _ _ (.fap f args) rest => (f, args) :: allCalls fuel rest
+  | fuel + 1, .jdecl _ _ join rest => allCalls fuel join ++ allCalls fuel rest
+  | fuel + 1, .case _ _ _ alternatives =>
+    alternatives.toList.flatMap fun alternative => allCalls fuel alternative.body
+  | fuel + 1, body => if body.isTerminal then [] else allCalls fuel body.body
+
+#eval show Lean.CoreM Unit from do
+  let some (.fdecl _ params _ body _) := Lean.IR.findEnvDecl (← Lean.getEnv) ``averageAt
+    | check "averageAt has compiled code" false
+  -- The parameters are `localize`, `numerator`, `denominator` and `point`.
+  let evaluates (calls : List (Lean.Name × Array Lean.IR.Arg)) (parameter : Nat) : Bool :=
+    params[parameter]?.any fun param =>
+      calls.any fun (f, args) => f == ``SmoothRuntime.evalAtSafe && args[0]? == some (Lean.IR.Arg.var param.x)
+  let before := callsBeforeBranch body
+  check "the compiled averageAt evaluates the localization before its first branch"
+    (evaluates before 0)
+  check "the compiled averageAt evaluates neither the denominator nor the numerator before that branch"
+    (!evaluates before 2 && !evaluates before 1)
+  check "the compiled averageAt evaluates the denominator and the numerator in a branch"
+    (evaluates (allCalls 1000 body) 2 && evaluates (allCalls 1000 body) 1)
 
 end VastitasKernel.SpectralRuntimeRegression

@@ -273,6 +273,11 @@ private def A : AverageRef := averageRef "A"
     SpectralRuntime.averageAt gap (Poly.scale (1 / 2) (Poly.mul ω ω)) gap (SmoothRuntime.intPoint [0, 0]) == (0, 0) &&
     SpectralRuntime.averageAt x (Poly.const 1 (1 / 2)) (Poly.one 1) (SmoothRuntime.intPoint [3]) == (1, 2) &&
     SpectralRuntime.averageAt x (Poly.const 1 (1 / 2)) (Poly.one 1) (SmoothRuntime.intPoint [0]) == (0, 0))
+-- The kernel rejects a closed form whose D is no unit on D(g); the runtime still gives (0, 0) at a zero D(p) (#866).
+#eval check "the runtime gives (0, 0) where D(p) = 0 on the chart"
+  (SpectralRuntime.averageAt (Poly.one 1) (Poly.one 1) x (SmoothRuntime.intPoint [0]) == (0, 0) &&
+    SpectralRuntime.averageAt (Poly.one 1) (Poly.one 1) x (SmoothRuntime.intPoint [2]) == (1, 2) &&
+    SpectralRuntime.averageAt (Poly.one 1) (Poly.const 1 0) x (SmoothRuntime.intPoint [2]) == (0, 1))
 
 private def obj (name : String) : Index := .object (.global (id name))
 private def smoothType (a b : String) : Core.Result := ⟨.indexed ⟨id "Smooth", [obj a, obj b]⟩, none⟩

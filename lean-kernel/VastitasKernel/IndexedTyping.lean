@@ -152,6 +152,19 @@ def BinaryTyping (op : BinaryOp) (left right result : DataType) : Prop :=
 instance (op : BinaryOp) (left right result : DataType) : Decidable (BinaryTyping op left right result) := by
   cases op <;> unfold BinaryTyping <;> infer_instance
 
+/-- The message of a binary operator whose operands `BinaryTyping` rejects.
+`==` and `!=` between two pairs of one type name the pair type and the
+comparison of the components that takes their place (#868). -/
+def operandMessage (op : BinaryOp) (left right : DataType) : String :=
+  let pairs (element : PairElem) (symbol join : String) :=
+    s!"`{symbol}` does not compare two values of type Pair<{element.label}>; compare their components, " ++
+      s!"as in `pair_first(a) {symbol} pair_first(b) {join} pair_second(a) {symbol} pair_second(b)`"
+  let scalar := "operator requires compatible scalar operands"
+  match op, left, right with
+  | .eq, .pure (.pair a), .pure (.pair b) => if a == b then pairs a "==" "&&" else scalar
+  | .ne, .pure (.pair a), .pure (.pair b) => if a == b then pairs a "!=" "||" else scalar
+  | _, _, _ => scalar
+
 def BranchTyping (yes no result : Result) : Prop :=
   yes.type = no.type ∧ result.type = yes.type ∧ match yes.type with
   | .object type => if yes.reference = no.reference then result.reference = yes.reference else LocalResult type result

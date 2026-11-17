@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Optional public protocol-8 GEMM comparison. Linux, pinned sequential OpenBLAS."""
+"""Optional public GEMM comparison at the wire schema epoch. Linux, pinned sequential OpenBLAS."""
 import argparse
 import datetime as dt
 import hashlib
@@ -23,6 +23,11 @@ HERE = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("copy_experiment", ROOT / "experiments/storage_copy/run.py")
 copy_experiment = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(copy_experiment)
+# The wire schema epoch (#533), read from the kernel's `currentProtocol`.
+_protocol_spec = importlib.util.spec_from_file_location("kernel_protocol", ROOT / "scripts/kernel_protocol.py")
+_kernel_protocol = importlib.util.module_from_spec(_protocol_spec)
+_protocol_spec.loader.exec_module(_kernel_protocol)
+PROTOCOL = _kernel_protocol.CURRENT_PROTOCOL
 
 # Other diagnostic experiments import only these runners' logging/build
 # utilities. Load the optional timing dependency only when it is actually used.
@@ -128,7 +133,7 @@ def capture_wire(runner, frontend, package):
     capture.write_text(f'''#!{sys.executable}
 import json, pathlib, sys
 pathlib.Path({str(wire)!r}).write_text(sys.stdin.read())
-print(json.dumps({{"version":8,"ok":False,"diagnostics":[{{"code":"E_CAPTURED","message":"capture only"}}]}}))
+print(json.dumps({{"version":{PROTOCOL},"ok":False,"diagnostics":[{{"code":"E_CAPTURED","message":"capture only"}}]}}))
 sys.exit(1)
 ''')
     capture.chmod(0o755)
@@ -136,10 +141,10 @@ sys.exit(1)
     result = runner.run([frontend,"check","--manifest-path",package / "Vastitas.toml"],
                         env=env, required=False, phase="frontend_capture")
     if "E_CAPTURED" not in result["stderr"] or result["returncode"] == 0:
-        raise ValueError(f"frontend did not reach the protocol-8 boundary: {result}")
+        raise ValueError(f"frontend did not reach the protocol-{PROTOCOL} boundary: {result}")
     raw = json.loads(wire.read_text())
-    if raw["version"] != 8:
-        raise ValueError("not public protocol 8")
+    if raw["version"] != PROTOCOL:
+        raise ValueError(f"not public protocol {PROTOCOL}")
     return wire.read_text()
 
 
@@ -180,7 +185,7 @@ def build_case(runner, c, work, wire, prefix, cc, kernel, lean_root, frontend):
     result = runner.run([kernel,"emit"],input=wire,phase="independent_lean_emit")
     response = json.loads(result["stdout"])
     dump(work / "response.json",response)
-    if response.get("version") != 8 or not response.get("ok") or not response.get("numerical_runtime"):
+    if response.get("version") != PROTOCOL or not response.get("ok") or not response.get("numerical_runtime"):
         raise ValueError("not a checked public numerical response")
     generated = response["lean_source"]
     (work / "Generated.lean").write_text(generated)
@@ -254,7 +259,7 @@ def main():
         performance="unmeasured",leak_sanitizer="disabled explicitly" if args.no_leak_sanitizer else "enabled",
         memory_scope="arena data counters in generated/arena-C; plain-C logical costs only in separate diagnostic replay; ru_maxrss may include launcher pre-exec footprint and is not isolated executable heap; BLAS private packing/allocations not instrumented")
     environment["expected_lean_toolchain"] = (ROOT / "lean-kernel/lean-toolchain").read_text().strip()
-    for rel in ["experiments/public_gemm", "experiments/native_cleanup.py", "experiments/plain_c", "scripts/native_sanitizers.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical"]:
+    for rel in ["experiments/public_gemm", "experiments/native_cleanup.py", "experiments/plain_c", "scripts/native_sanitizers.py", "scripts/kernel_protocol.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical"]:
         path = ROOT / rel
         files = [path] if path.is_file() else path.rglob("*")
         for f in files:
@@ -306,7 +311,7 @@ def main():
             dump(out / "summary.json",dict(status="unmeasured",measurements=[]))
             (out / "RESULTS.md").write_text("# Public GEMM: performance unmeasured\n\nThe pinned Lean kernel could not build in this environment. "
                 "No generated/C performance comparison, median or dispersion is reported.\n\n"
-                "Public source reached the Rust protocol-8 boundary. Independent C/adapter output, input/padding, allocation/copy/peak-byte, "
+                f"Public source reached the Rust protocol-{PROTOCOL} boundary. Independent C/adapter output, input/padding, allocation/copy/peak-byte, "
                 "cleanup and corruption tests passed against the pinned OpenBLAS. ASan/UBSan passed; see environment.json for LSan status. "
                 "These are native correctness tests, not independent Lean acceptance or public generated execution.\n\n"
                 "commands.json retains toolchain failures and separate compile/check timings; native-validation.json contains untimed correctness-run diagnostics.\n")

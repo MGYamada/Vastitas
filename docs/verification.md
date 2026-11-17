@@ -1271,9 +1271,11 @@ Run the axiom audit of every kernel and oracle module with the build sequence in
 [Run compiler, proof and native checks](development/validation.md); it needs every
 kernel library root, executable and regression module built first.
 
-`python3 scripts/benchmark_lowering.py` measures parameterized call chains. On
-the local macOS host, three-run medians for 2,000 / 4,000 / 8,000 functions were
-0.080 / 0.190 / 0.531 seconds without a lambda and 0.080 / 0.190 / 0.519 with one.
+`python3 scripts/benchmark_lowering.py` measures parameterized call chains. It
+sends each program as the request of a flat unit at the schema epoch, as the
+frontend writes it. On the local macOS host, three-run medians for a forward
+chain of 2,000 / 4,000 / 8,000 functions were 0.161 / 0.458 / 1.645 seconds
+without a lambda and 0.165 / 0.446 / 1.775 with one.
 These are observations, not timing guarantees or a proof of total compiler
 complexity. The integration suite also checks 20,000 functions in both modes
 under its 60-second watchdog.

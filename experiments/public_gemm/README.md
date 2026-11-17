@@ -1,7 +1,8 @@
 # Optional public GEMM / equivalent C experiment
 
 This experiment extends the measurement conventions of
-[`storage_copy`](../storage_copy/README.md) to **public protocol 8** after #321.
+[`storage_copy`](../storage_copy/README.md) to **the public wire** after #321. The
+harness reads the wire's schema epoch from the kernel's `currentProtocol`.
 It adds no production API, performance threshold or package gate. A separate
 Linux smoke workflow validates changes to this experiment on pushes to `main`,
 and can also be dispatched manually. It does not close #222,
@@ -104,7 +105,7 @@ covered by the repository's existing source tests.
 For each case, the runner writes a real source package and obtains its wire
 request from the Rust frontend through a **deliberately rejecting** capture
 adapter, as in the repository's source regressions. Capture is never acceptance.
-The identical protocol-8 request must then pass the real independent Lean
+The identical request must then pass the real independent Lean
 `check` and `emit` entries. The normal `vastitas check`, `vastitas build` and
 unmodified executable are also executed as untimed validation.
 

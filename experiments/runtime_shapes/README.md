@@ -1,6 +1,6 @@
 # Runtime-shape output and cost audit
 
-This experiment checks actual public protocol-8 source, its emitted operations,
+This experiment checks actual public source, its emitted operations,
 and a matched direct-CBLAS implementation. It records **correctness and explicit
 costs only**. It does not measure speed or close the Fast like C gate.
 

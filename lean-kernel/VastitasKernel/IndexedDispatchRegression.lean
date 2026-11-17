@@ -87,6 +87,32 @@ def contractFixture : Program := rootModule { dispatchFixture with extended := t
 #eval rejects "old method body cannot be silently omitted" "E_STAGE" (rootModule dispatchFixture fun m =>
   { m with module := { m.module with methods := [broad.header] } })
 
+/-- The generic `join(a, b)` with an empty domain. -/
+private def joinGeneric : Namespace.Generic := {
+  name := "join", params := [{ name := "a", span := {} }, { name := "b", span := {} }], domain := [],
+  isPublic := true, span := {} }
+/-- The contract `join(x: Number, second: Number) -> Int` over `(Number, Number)`. -/
+private def joinContract (second : String) : RawAbstractMethod := {
+  name := "join", params := [⟨"x", .named "Number", {}⟩, ⟨second, .named "Number", {}⟩],
+  returnType := .named "Int", domain := [[path "Number", path "Number"]], requirements := [], span := {} }
+private def joinMethod : Method := {
+  target := path "join", params := [⟨"x", .data (.named "Number"), {}⟩, ⟨"y", .data (.named "Number"), {}⟩],
+  result := .int, requirements := [], body := block (num 1) }
+/-- The contract fixture with `join`, its contract and, when `covered`, its
+method. With the right arity, a repeated parameter name of the contract
+reaches the kernel's duplicate check. -/
+private def joined (second : String) (covered : Bool := true) : Program :=
+  rootModule contractFixture fun m =>
+    let header := { m.module with
+      generics := m.module.generics ++ [joinGeneric],
+      abstractMethods := m.module.abstractMethods ++ [joinContract second] }
+    { m with module := header, methods := m.methods ++ if covered then [joinMethod] else [] }
+#eval accepts "a 2-ary abstract contract" (joined "y")
+#eval check "a 2-ary contract with a repeated parameter name is E_DUPLICATE, covered or not"
+  ([true, false].all fun covered => match checkProgram (joined "x" covered) true with
+    | .error d => d.code == "E_DUPLICATE" && d.message == "duplicate abstract method parameter"
+    | .ok _ => false)
+
 private def libraryModule (p : Program) (change : Module → Module) : Program :=
   { p with packages := p.packages.map fun pkg => { pkg with modules := pkg.modules.map fun m =>
     if pkg.id.source != p.root && m.module.path.isEmpty then change m else m } }

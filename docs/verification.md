@@ -1097,7 +1097,11 @@ JSON acceptance is exercised directly through the public checker
 `ResourceSource.Wire.check`. `IndexedWireRegression` checks the package
 envelope: an accepted program, a library without `main`, a retired version,
 the field `input`, a flat module, injected checked Core and owners, reserved
-declarations, lifted references, unused bodies and foreign body fields.
+declarations, the capabilities of an implementation, lifted references, unused
+bodies and foreign body fields. It pins each rejection by its code and
+message. It also checks that the op, the capability and the `geometry_compat`
+slot `dim` decode to the internal `.dimension`, and that the spelling
+`dimension` of each is rejected.
 `VastitasPublicTest.AuthorityRegression` checks the frontend's recipient
 fixture `tests/fixtures/edit-recipients.json`, nested reborrowing and
 transfer, an alias of the same package and a direct exclusive edit without

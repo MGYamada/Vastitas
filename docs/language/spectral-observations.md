@@ -687,7 +687,9 @@ difference is H(p).
 
 > **Implementation note.** The runtime computes the branch differential from
 > the evaluated partial derivatives of χ, not from a reverse pass, and it
-> divides by χ′(p, t), which the gap witness makes nonzero on the chart. The
+> divides by χ′(p, t), which the gap witness makes nonzero on the chart. For
+> `branch_projector` it evaluates only the requested entry of
+> adj(tI − H) at (p, t) and divides it by χ′(p, t), without the rest of P. The
 > observations have the derivative rule `none`: the eigenvalue is an
 > operand, not a smooth map, so no reverse pass opens them. The oracle
 > theorems `VastitasOracle.SpectralRuntime.branch_some_iff`,

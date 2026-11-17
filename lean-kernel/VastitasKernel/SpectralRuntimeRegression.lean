@@ -1,5 +1,6 @@
 import VastitasKernel.SpectralDeclarations
 import VastitasKernel.RegressionSupport
+import Lean.Compiler.IR.EmitUtil
 
 set_option autoImplicit false
 
@@ -23,7 +24,12 @@ kernel computes and checks (`SpectralDeclarations.certify`,
   `action_entry(t − 2, e1, e2)` tell them apart;
 - an element of `A[t]` that involves the coordinates, `f = t − x`, whose
   action `f(H(p)) = H(p) − p₀ I` varies with the point;
-- the failure values: `none` and `(0, 0)` off the branch and out of range. -/
+- the failure values: `none` and `(0, 0)` off the branch and out of range;
+- one projector entry without the matrix (#864): every entry that
+  `projectorEntry` gives is the entry of `projectorMatrix`, on and off the
+  branch and out of range, for the Stage 5 field and for the rank-4 field
+  `diag(x, y, x + y, 1)`, and the compiled code of `projectorEntry`, which
+  every generated program links, reaches no evaluated matrix. -/
 namespace VastitasKernel.SpectralRuntimeRegression
 
 open VastitasKernel VastitasKernel.AlgebraRuntime VastitasKernel.SmoothRuntime
@@ -186,5 +192,85 @@ private def shifted : Poly := Poly.sub t1 (Poly.const 1 2)
     extend x == [⟨[1, 0, 0], 1⟩] && liftT 2 y == [⟨[0, 1, 2], 1⟩] && degT p == 2 && degT [] == 0 &&
       tCoefficient p 2 == [⟨[1, 0], 3⟩] && tCoefficient p 1 == [⟨[0, 1], -1⟩] &&
       tCoefficient p 0 == [⟨[0, 0], 5⟩] && tCoefficient p 3 == [])
+
+/-! ## One projector entry without the matrix (#864) -/
+
+/-- The entry of `projectorMatrix`, `(0, 0)` off the branch and out of range,
+which `projectorEntry` gives without building the matrix. -/
+private def matrixFormulation (localize characteristic : Poly) (adjugate : List (List Poly))
+    (point value : Program) (row column : Nat) : Int × Int :=
+  match projectorMatrix localize characteristic adjugate point value with
+  | some matrix => matrixEntry matrix row column
+  | none => (0, 0)
+
+/-- Every entry in rows and columns `0, …, size` (the last out of range) at
+each branch candidate `(p, t)` is the entry of `projectorMatrix`. -/
+private def agreesWithMatrix (localize characteristic : Poly) (adjugate : List (List Poly))
+    (candidates : List (List Rat × Rat)) (size : Nat) : Bool :=
+  candidates.all fun (p, t) => (List.range (size + 1)).all fun row => (List.range (size + 1)).all fun column =>
+    projectorEntry localize characteristic adjugate (point p) (value t) row column ==
+      matrixFormulation localize characteristic adjugate (point p) (value t) row column
+
+/-- `diag(x, y, x + y, 1)` on the plane, of rank 4, the rank limit. -/
+private def diagonal4 : List (List Poly) :=
+  [[x, [], [], []], [[], y, [], []], [[], [], Poly.add x y, []], [[], [], [], Poly.one 2]]
+
+#eval show IO Unit from do
+  let certificate ← certificateOf 2 stage5
+  check "each entry of the Stage 5 projector is the entry of its matrix, on and off the branch and out of range"
+    (agreesWithMatrix gap certificate.characteristic certificate.adjugate
+      [([3, 4], 5), ([3, 4], -5), ([1, 0], 1), ([1, 0], -1), ([3, 4], 4), ([0, 0], 0), ([-2, 7], 0)] 2)
+  let rank4 ← certificateOf 2 diagonal4
+  let entry4 (t : Rat) (row column : Nat) :=
+    projectorEntry (Poly.one 2) rank4.characteristic rank4.adjugate (point [1, 2]) (value t) row column
+  -- At p = (1, 2) the eigenvalues are 1, 2, 3 and 1; 3 is simple, with χ′ = 2·1·2 = 4 and P = E₃₃.
+  check "the rank-4 projector at ((1, 2), 3) reads 1 at (e3, e3) and 0 elsewhere"
+    ((List.range 4).all fun row => (List.range 4).all fun column =>
+      entry4 3 row column == if row == 2 && column == 2 then (1, 1) else (0, 1))
+  check "the rank-4 projector reads (0, 0) off the branch and out of range"
+    (entry4 4 2 2 == (0, 0) && entry4 3 4 2 == (0, 0) && entry4 3 2 4 == (0, 0))
+  check "each entry of the rank-4 projector is the entry of its matrix"
+    (agreesWithMatrix (Poly.one 2) rank4.characteristic rank4.adjugate [([1, 2], 3), ([1, 2], 2), ([1, 2], 4)] 4)
+
+/-- The declarations of the kernel that the compiled code (IR) of `name`
+calls or partially applies. Declarations outside the kernel are left out. -/
+private def callees (env : Lean.Environment) (name : Lean.Name) : List Lean.Name :=
+  match Lean.IR.findEnvDecl env name with
+  | some decl => (Lean.IR.collectUsedDecls env [decl]).toList.filter fun callee =>
+      (callee.toString.splitOn "VastitasKernel").length > 1
+  | none => []
+
+/-- The declarations of the kernel that the compiled code of `pending`
+reaches, themselves included and added to `seen`, or `none` if that takes
+more than `fuel` steps. -/
+private def reachableWithin (env : Lean.Environment) : Nat → List Lean.Name → Lean.NameSet → Option Lean.NameSet
+  | _, [], seen => some seen
+  | 0, _ :: _, _ => none
+  | fuel + 1, name :: rest, seen =>
+    if seen.contains name then reachableWithin env fuel rest seen
+    else reachableWithin env fuel (callees env name ++ rest) (seen.insert name)
+
+/-- The declarations of the kernel that the compiled code of `name` reaches,
+`name` included, within 10 000 steps. -/
+private def reachable (env : Lean.Environment) (name : Lean.Name) : Option Lean.NameSet :=
+  reachableWithin env 10000 [name] {}
+
+/-- Whether reached code evaluates a polynomial matrix: whether it contains
+`FrameRuntime.matrixAt`, `projectorMatrix` or a specialization of either. -/
+private def buildsMatrix (reached : Lean.NameSet) : Bool :=
+  reached.toList.any fun callee =>
+    ["FrameRuntime.matrixAt", "SpectralRuntime.projectorMatrix"].any fun part =>
+      (callee.toString.splitOn part).length > 1
+
+#eval show Lean.CoreM Unit from do
+  let env ← Lean.getEnv
+  let some matrix := reachable env ``projectorMatrix
+    | check "the compiled projectorMatrix reaches its declarations within the bound" false
+  let some reached := reachable env ``projectorEntry
+    | check "the compiled projectorEntry reaches its declarations within the bound" false
+  check "the compiled projectorMatrix evaluates the adjugate matrix" (buildsMatrix matrix)
+  check "the compiled projectorEntry evaluates no matrix" (!buildsMatrix reached)
+  check "the compiled projectorEntry evaluates one polynomial at (p, t) and divides it by the slope"
+    ([``SmoothRuntime.evalAtSafe, ``slopeAt, ``SmoothRuntime.ratPair].all reached.contains)
 
 end VastitasKernel.SpectralRuntimeRegression

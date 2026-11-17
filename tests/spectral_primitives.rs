@@ -294,3 +294,29 @@ fn spectral_program_checks_builds_and_shows_no_failure() {
         common::shows(&["failures = 0"])
     );
 }
+
+/// The exit status of a build of `main`; what `show!` writes is not read.
+fn status(main: &str) -> i32 {
+    package(main).build_and_run("Vastitas.toml").status
+}
+
+/// `branch_projector` natively (#864): the program exits with status 0, so
+/// each entry on the branch reads its reduced fraction and each entry off
+/// the branch reads `(0, 0)`, and a wrong expected entry on either side makes
+/// it exit with status 1.
+#[test]
+fn projector_entries_decide_the_exit_status() {
+    assert_eq!(status(MAIN), 0);
+    for (from, to) in [
+        (
+            "reads(p12(p, line_at(5)), 2, 5)",
+            "reads(p12(p, line_at(5)), 2, 1)",
+        ),
+        (
+            "reads(p12(p, line_at(4)), 0, 0)",
+            "reads(p12(p, line_at(4)), 0, 1)",
+        ),
+    ] {
+        assert_eq!(status(&common::checked_replace(MAIN, from, to)), 1, "{to}");
+    }
+}

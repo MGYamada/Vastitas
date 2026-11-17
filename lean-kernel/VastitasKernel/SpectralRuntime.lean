@@ -25,7 +25,8 @@ eigenvalue candidate `t`):
   derivatives (`SmoothRuntime.partialDerivative`) of `χ`, never through `cot`
   or a pullback; `χ′` is the partial derivative in `t`.
 - `projectorMatrix` and `projectorEntry`: the eigenprojector
-  `adj(tI − H(p)) / χ′(p, t)` and one of its entries.
+  `adj(tI − H(p)) / χ′(p, t)` and one of its entries, which evaluates only
+  that entry of the adjugate.
 - `averageAt` (Stage 6): the value `N(p)/D(p)` of the closed form of a
   transition average on the chart `D(g)` of its branch, and the failure value
   `(0, 0)` off the chart.
@@ -158,12 +159,20 @@ def projectorMatrix (localize characteristic : Poly) (adjugate : List (List Poly
   else none
 
 /-- The entry in row `row` and column `column` of the eigenprojector, as a
-reduced fraction; `(0, 0)` off the branch and out of range. -/
+reduced fraction; `(0, 0)` off the branch and out of range. On the branch it
+evaluates the one requested entry of `adj(tI − H)` at `(p, t)` and divides it
+by `χ′(p, t)`, without the rest of `projectorMatrix` (#864); it is the entry
+of `projectorMatrix` (`VastitasOracle.SpectralRuntime.projectorEntry_eq`). -/
 def projectorEntry (localize characteristic : Poly) (adjugate : List (List Poly)) (point value : Program)
     (row column : Nat) : Int × Int :=
-  match projectorMatrix localize characteristic adjugate point value with
-  | some matrix => matrixEntry matrix row column
-  | none => (0, 0)
+  if onBranch localize characteristic point value then
+    match adjugate[row]? with
+    | some entries =>
+      match entries[column]? with
+      | some entry => ratPair (evalAt entry (branchPoint point value) / slopeAt characteristic point value)
+      | none => (0, 0)
+    | none => (0, 0)
+  else (0, 0)
 
 /-! ## Transition averages (Stage 6, #841) -/
 

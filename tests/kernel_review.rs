@@ -582,8 +582,9 @@ fn assembly_event_limit_is_reported_at_the_assembly() {
     let limits: Value =
         serde_json::from_str(include_str!("../lean-kernel/compiler-limits.json")).unwrap();
     let limit = limits["assemblyEvents"].as_u64().unwrap() as usize;
-    // The edit protocol and the protocol with named recipients share the bound.
-    for (grant, version) in [(false, 5), (true, common::CURRENT_PROTOCOL)] {
+    // The program without a grant, which the frontend wrote as the edit
+    // protocol 5 before #533 round 2, and the one with a grant share the bound.
+    for grant in [false, true] {
         let largest = package(&repeated_applications(limit, grant));
         success(&check(&largest));
         for events in [limit + 1, 2 * limit] {
@@ -599,20 +600,31 @@ fn assembly_event_limit_is_reported_at_the_assembly() {
             assert!(!message.contains("E_PROTOCOL"), "{message}");
         }
         // The kernel keeps its bound for a request that no frontend sends.
-        let raw = captured(&manifest(&largest), version);
-        assert_eq!(kernel(&raw, "check")["ok"], true);
-        let mut forged = raw.clone();
-        let events = forged["packages"][0]["modules"]
-            .as_array_mut()
-            .unwrap()
-            .iter_mut()
-            .find_map(|module| module.get_mut("assembly"))
-            .unwrap()["events"]
-            .as_array_mut()
-            .unwrap();
-        assert_eq!(events.len(), limit);
-        events.insert(0, events[0].clone());
-        assert_protocol(&kernel(&forged, "check"), "assembly event limit exceeded");
+        let raw = captured(&manifest(&largest), common::CURRENT_PROTOCOL);
+        assert_eq!(raw.get("legacy_geometry").is_some(), !grant, "{raw}");
+        let mut requests = vec![raw.clone()];
+        if !grant {
+            // old-route(#533): the same request at the edit protocol 5.
+            let mut five = raw.clone();
+            five["version"] = json!(5);
+            five.as_object_mut().unwrap().remove("legacy_geometry");
+            requests.push(five);
+        }
+        for raw in requests {
+            assert_eq!(kernel(&raw, "check")["ok"], true);
+            let mut forged = raw.clone();
+            let events = forged["packages"][0]["modules"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find_map(|module| module.get_mut("assembly"))
+                .unwrap()["events"]
+                .as_array_mut()
+                .unwrap();
+            assert_eq!(events.len(), limit);
+            events.insert(0, events[0].clone());
+            assert_protocol(&kernel(&forged, "check"), "assembly event limit exceeded");
+        }
     }
 }
 

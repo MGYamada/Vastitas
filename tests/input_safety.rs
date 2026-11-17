@@ -1162,7 +1162,7 @@ fn package_names_in_kernel_diagnostics_carry_no_terminal_controls() {
         cli()
             .current_dir(&s.0)
             .args(["check", "--manifest-path", "wire/Vastitas.toml"]),
-        3,
+        common::CURRENT_PROTOCOL,
     );
     let packages = wire["packages"].as_array().unwrap();
     let location = format!("{root}/wire/{HOSTILE}/Vastitas.toml");

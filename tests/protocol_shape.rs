@@ -471,3 +471,81 @@ fn malformed_versions_and_non_utf8_input_return_protocol_json() {
         common::assert_wire_rejected(&response, "E_PROTOCOL");
     }
 }
+
+/// #533 round 2 (W6): the driver writes every package program as protocol 9
+/// with package input. Exactly the programs that it wrote at protocols 3 to
+/// 6 before carry `legacy_geometry: true`, with which the kernel appends the
+/// compatibility profile of those protocols: those without a record of the
+/// indexed envelopes. No other program carries the field, and the kernel
+/// accepts every request.
+#[test]
+fn package_requests_carry_legacy_geometry_exactly_for_the_former_legacy_protocols() {
+    common::prepare_stdlib_package();
+    let s = common::Scratch::empty("legacy geometry field");
+    let packages = [
+        // Formerly protocol 3, 4 and 5, and 3 with the legacy geometry.
+        ("plain", "fn main() -> Int { 0 }", "", true),
+        (
+            "abstract",
+            "pub abstract type Numeric;\nsubtype Int <: Numeric;\ngeneric f(x) { domain (Int); }\nmethod f(x: Numeric) -> Int { 0 }\nfn main() -> Int { f(1) }",
+            "",
+            true,
+        ),
+        (
+            "assembled",
+            "pub generic g(x) { domain (Int); }\ncontribution c : g { method g(x: Int) -> Int { x } }\nassembly {\n  apply c;\n  seal g;\n}\nfn main() -> Int { g(42) }",
+            "",
+            true,
+        ),
+        (
+            "legacy",
+            "fn main() -> Int {\n    let X = Affine(QQ, 2);\n    int(dim(X)) - 2\n}",
+            "",
+            true,
+        ),
+        // Programs with a record of the indexed envelopes.
+        (
+            "observed",
+            "fn main() -> Int { let x = show!(1); x - 1 }",
+            "",
+            false,
+        ),
+        (
+            "resource",
+            "resource fn main() -> Int { value { 0 } }",
+            "",
+            false,
+        ),
+        (
+            "app",
+            "pub generic g(x) { domain (Int); }\npub grant spare : g to app::a { domain (Int); }\npub mod a {}\ncontribution c : g { method g(x: Int) -> Int { x } }\nassembly {\n  apply c;\n  seal g;\n}\nfn main() -> Int { g(42) }",
+            "",
+            false,
+        ),
+        (
+            "indexed",
+            "pub indexed marker Tag;\nfn main() -> Int { 0 }",
+            "",
+            false,
+        ),
+        (
+            "library",
+            "fn main() -> Int {\n    let X = Affine(QQ, 2);\n    int(dim(X)) - 2\n}",
+            "std = { path = '../stdlib' }",
+            false,
+        ),
+    ];
+    s.copy_stdlib(&common::STDLIB_PACKAGES, &[]);
+    for (name, source, dependencies, flagged) in packages {
+        s.write_package(name, source, dependencies);
+        let wire = s.captured(&format!("{name}/Vastitas.toml"), common::CURRENT_PROTOCOL);
+        assert_eq!(wire["input"], "package", "{name}: {wire}");
+        if flagged {
+            assert_eq!(wire["legacy_geometry"], true, "{name}: {wire}");
+        } else {
+            assert!(wire.get("legacy_geometry").is_none(), "{name}: {wire}");
+        }
+        let response = kernel(&wire, "check");
+        assert_eq!(response["ok"], true, "{name}: {response}");
+    }
+}

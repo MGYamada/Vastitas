@@ -1,0 +1,23 @@
+// The derivative of the composite of two maps of the line. shift(t) = t + 1
+// and square(t) = t^2, so square after shift is (t + 1)^2, whose derivative
+// at t = 2 is 2 * 3 = 6. The program shows the component (6, 1), the
+// fraction 6/1, and exits with status 0 when it reads 6/1.
+// ANCHOR: all
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Line;
+use std::geometry::smooth::affine::line_at;
+use std::geometry::smooth::affine::compose_smooth;
+use std::differential::differential;
+
+indexed morphism shift: Smooth<Line, Line> = pullback(t -> t + 1);
+indexed morphism square: Smooth<Line, Line> = pullback(t -> t^2);
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+
+fn main() -> Int {
+    let point = line_at(2);
+    let composition = compose_smooth(square(), shift());
+    let slope = show!(dt(differential(composition, point)));
+    if pair_first(slope) == 6 && pair_second(slope) == 1 { 0 } else { 1 }
+}
+// ANCHOR_END: all

@@ -240,6 +240,19 @@ const BOOK_PACKAGES: &[(&str, &[&str])] = &[
         "examples/packages/first-derivative/Vastitas.toml",
         &["pair_first(dt(differential(square(), line_at(3)))) = 6"],
     ),
+    (
+        "examples/packages/composed-derivative/Vastitas.toml",
+        &["dt(differential(composition, point)) = (6, 1)"],
+    ),
+    (
+        "examples/packages/seed-point/Vastitas.toml",
+        &[
+            "lies_over(good, image) = true",
+            "lies_over(wrong, image) = false",
+            "dt(pullback(square(), point, good)) = (6, 1)",
+            "dt(pullback(square(), point, wrong)) = (0, 0)",
+        ],
+    ),
     ("examples/packages/frames/Vastitas.toml", &["failures = 0"]),
     (
         "examples/packages/physical-dimensions/Vastitas.toml",

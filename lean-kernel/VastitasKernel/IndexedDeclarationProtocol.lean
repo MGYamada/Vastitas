@@ -614,6 +614,30 @@ def declarationBody (j : Json) : Except String Source.Body := do
       (← (← array j "generators").mapM Json.getStr?)
       (← (← array j "relations").mapM (polyExpr Limits.algebraNesting))
       base (← (← array j "bindings").mapM binding)
+  | "glued" =>
+    fields j (common ++ ["implementation", "opens", "forward", "inverse"])
+    return .glued (← path (← field j "implementation")) (← (← array j "opens").mapM path)
+      (← (← array j "forward").mapM binding) (← (← array j "inverse").mapM binding)
+  | "cover" =>
+    fields j (common ++ ["object", "opens", "coefficients"])
+    return .cover (← path (← field j "object")) (← (← array j "opens").mapM path)
+      (← (← array j "coefficients").mapM (polyExpr Limits.algebraNesting))
+  | "separated" =>
+    fields j (common ++ ["glued", "witness"])
+    let (inverse, witness) ← binding (← field j "witness")
+    return .separated (← path (← field j "glued")) inverse witness
+  | "manifold" =>
+    fields j (common ++ ["glued", "dimension", "witness"])
+    let (inverse, witness) ← binding (← field j "witness")
+    return .manifold (← path (← field j "glued")) (← smoothDimension (← str j "dimension")) inverse witness
+  | "projective" =>
+    fields j (common ++ ["glued", "homogeneous", "charts"])
+    let chart (j : Json) : Except String Source.SourceChart := do
+      fields j ["chart", "dehomogenized", "image", "inverse"]
+      return ⟨← path (← field j "chart"), ← str j "dehomogenized",
+        ← polyExpr Limits.algebraNesting (← field j "image"), ← (← array j "inverse").mapM binding⟩
+    return .projective (← path (← field j "glued")) (← (← array j "homogeneous").mapM Json.getStr?)
+      (← (← array j "charts").mapM chart)
   | _ => throw "unknown indexed declaration kind"
 
 def declaration (j : Json) : Except String Source.Declaration := do

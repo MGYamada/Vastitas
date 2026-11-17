@@ -137,6 +137,14 @@ private def renameDeclaration : Declaration → Declaration
     .dataset (renameId family) (renameId object) (renameId model) (renameId calibration) coverage points
   | .comparison family object dataset calibration fingerprint verdict =>
     .comparison (renameId family) (renameId object) (renameId dataset) (renameId calibration) fingerprint verdict
+  | .smoothOpen implementation data => .smoothOpen (renameId implementation) { data with base := data.base.map renameId }
+  | .glued implementation first second forward backward =>
+    .glued (renameId implementation) (renameId first) (renameId second) forward backward
+  | .cover object opens coefficients => .cover (renameId object) (opens.map renameId) coefficients
+  | .separated glued witness => .separated (renameId glued) witness
+  | .manifold glued dimension witness => .manifold (renameId glued) dimension witness
+  | .projective glued homogeneous charts =>
+    .projective (renameId glued) homogeneous (charts.map fun chart => { chart with chart := renameId chart.chart })
 private def renamed : Environment := env.map fun e => ⟨renameId e.id, renameDeclaration e.declaration⟩
 #eval check "coherent library renaming preserves acceptance" (validEnvironment renamed &&
   validApplication renamed ⟨renameId (id "Position"), [

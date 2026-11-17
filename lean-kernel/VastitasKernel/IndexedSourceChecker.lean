@@ -11,6 +11,7 @@ import VastitasKernel.IndexedSpectralSource
 import VastitasKernel.IndexedModelSource
 import VastitasKernel.IndexedErrorbarSource
 import VastitasKernel.IndexedDeclarationRules
+import VastitasKernel.IndexedGluingSource
 
 namespace VastitasKernel.Indexed.Source
 
@@ -281,6 +282,28 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       let object ← stage6Object "E_ERRORBAR" span "a comparison" "Comparison" (← indices.mapM (resolveId p scope))
       let dataset ← resolveId p scope dataset
       return add (.comparison family object dataset (← resolveId p scope calibration) fingerprint verdict)
+  /- Gluing (Stage 7, #878). Every path is resolved here; the images, the
+  coefficients, the witnesses and the chart entries are elaborated once the
+  opens and their charts are known (`elaborateGluing`). -/
+  | .glued implementation opens _ _ => do
+      let implementation ← resolveId p scope implementation
+      let opens ← opens.mapM (resolveId p scope)
+      let [first, second] := opens
+        | Namespace.problem span "E_GLUE" <| s!"a gluing of this profile has exactly two charts, but " ++
+            s!"{opens.length} opens are given; three or more charts need cocycle checks on triple " ++
+            "overlaps, which the profile does not implement (#151)"
+      return add (.glued implementation first second [] [])
+  | .cover object opens _ => do
+      return add (.cover (← resolveId p scope object) (← opens.mapM (resolveId p scope)) [])
+  | .separated glued _ _ => return add (.separated (← resolveId p scope glued) [])
+  | .manifold glued dimension _ _ => return add (.manifold (← resolveId p scope glued) dimension [])
+  | .projective glued homogeneous charts => do
+      let glued ← resolveId p scope glued
+      let charts ← charts.mapM fun chart => do
+        let id ← resolveId p scope chart.chart
+        pure ({ chart := id, dehomogenized := 0, image := [], inverse := [] } :
+          GluingDeclarations.ProjectiveChart)
+      return add (.projective glued homogeneous charts)
 
 /-- How a diagnostic names the export of a package. The request has no span
 for a manifest, so the message names the package as its manifest does, and the
@@ -383,6 +406,7 @@ def lower (p : Program) : Namespace.Result Resolved := do
   let (declarations, references) ← action.run []
   let sources := p.owned.map fun (owner, d) => (owner, d.span, d.body)
   checkSmoothImplementations sources declarations
+  let declarations ← elaborateSmoothOpens sources declarations
   let declarations ← elaborateAffine sources declarations
   let declarations ← elaborateSmooth sources declarations
   let declarations ← elaborateMetrics sources declarations
@@ -404,6 +428,7 @@ def lower (p : Program) : Namespace.Result Resolved := do
       pure (some (owner, target.owner))
     | _ => pure none
   let declarations ← elaborateRelative sources declarations restrictTargets
+  let declarations ← elaborateGluing sources declarations
   let (geometry, geometryReferences) ← (resolveGeometry p declarations).run []
   return ⟨declarations, references.reverse ++ geometryReferences.reverse, geometry⟩
 

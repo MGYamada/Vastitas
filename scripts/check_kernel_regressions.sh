@@ -25,6 +25,7 @@ lake -d lean-kernel build \
   VastitasKernel.AffineMorphismRegression \
   VastitasKernel.AffineFiberRegression \
   VastitasKernel.AffineOpenRegression \
+  VastitasKernel.GluingRegression \
   VastitasKernel.SmoothRuntimeRegression \
   VastitasKernel.SmoothObjectRegression \
   VastitasKernel.CotangentRegression \

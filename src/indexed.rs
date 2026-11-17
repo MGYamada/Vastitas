@@ -189,6 +189,42 @@ pub enum DeclarationBody {
         fiber: TypePath,
         inverse: TypePath,
     },
+    /// An object glued from two charts along a transition (Stage 7, #878):
+    /// the opens of the charts, the coordinates of the second open in those
+    /// of the first, and the coordinates of the first open in those of the
+    /// second. The kernel checks the site, the charts and the transition.
+    Glued {
+        implementation: TypePath,
+        opens: Vec<TypePath>,
+        forward: Vec<Binding>,
+        inverse: Vec<Binding>,
+    },
+    /// A cover of an object by opens of it (Stage 7), with the coefficients
+    /// of the identity `Σ aᵢ fᵢ = 1`, which the kernel checks.
+    Cover {
+        object: TypePath,
+        opens: Vec<TypePath>,
+        coefficients: Vec<PolyExpr>,
+    },
+    /// A separation claim of a Zariski gluing (Stage 7): the witness gives
+    /// the inverse coordinate of the first open.
+    Separated {
+        glued: TypePath,
+        witness: Binding,
+    },
+    /// A manifold claim of a smooth gluing (Stage 7), with the dimension as
+    /// an unsigned decimal string and the witness of `Separated`.
+    Manifold {
+        glued: TypePath,
+        dimension: String,
+        witness: Binding,
+    },
+    /// A projective claim `proj(P)[s, t] chart(…) inverse(…) …` (Stage 7).
+    Projective {
+        glued: TypePath,
+        homogeneous: Vec<String>,
+        charts: Vec<ProjectiveChart>,
+    },
     /// A smooth object `Affine(dimension)[coordinates]`. The
     /// kernel checks the dimension against the coordinates.
     SmoothAffine {
@@ -495,6 +531,19 @@ pub struct FiberVia {
     pub inverse: Vec<Binding>,
 }
 
+/// One chart entry of a projective claim (Stage 7): the chart, the
+/// homogeneous coordinate that is a unit on it, the other coordinate over it
+/// in the chart's coordinates, and the chart's coordinates in the one
+/// coordinate of the standard chart.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectiveChart {
+    pub chart: TypePath,
+    pub dehomogenized: String,
+    pub image: PolyExpr,
+    pub inverse: Vec<Binding>,
+}
+
 /// How a declared morphism `X → Y` over `S` is given.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -541,6 +590,11 @@ impl DeclarationBody {
             | DeclarationBody::AffineLocalization { .. }
             | DeclarationBody::Iso { .. }
             | DeclarationBody::Cartesian { .. }
+            | DeclarationBody::Glued { .. }
+            | DeclarationBody::Cover { .. }
+            | DeclarationBody::Separated { .. }
+            | DeclarationBody::Manifold { .. }
+            | DeclarationBody::Projective { .. }
             | DeclarationBody::SmoothAffine { .. }
             | DeclarationBody::Metric { .. }
             | DeclarationBody::Evidence { .. }

@@ -40,19 +40,19 @@ indexed marker CInfReal;
 indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
 indexed affine M1(SmoothR) = Affine(1)[x];
 indexed affine M2(SmoothR) = Affine(1)[y];
-indexed affine W1(SmoothR) = localize(M1, x) inverse u;
-indexed affine W2(SmoothR) = localize(M2, y) inverse v;
 ";
 
 /// The Stage 7 declarations: ℙ¹ with its separation and its projective
-/// claim, the doubled origin, a cover of the line, and ℝP¹ with its manifold
-/// claim.
+/// claim, the doubled origin, a cover of the line, and the smooth opens and
+/// ℝP¹ with its manifold claim.
 const GLUING: &str = "
 indexed glued P(AffineQQ) = glue(U1, U2) by(y -> xi, yi -> x) inverse(x -> yi, xi -> y);
 indexed separated sep = separated(P) by(xi -> L2::y);
 indexed projective line = proj(P)[s, t] chart(L1, s, x) inverse(x -> t) chart(L2, t, y) inverse(y -> s);
 indexed glued Doubled(AffineQQ) = glue(V1, V2) by(y -> x, b -> a) inverse(x -> y, a -> b);
 indexed cover halves = cover(Line, Dt, Dmt) by(1, 1);
+indexed affine W1(SmoothR) = localize(M1, x) inverse u;
+indexed affine W2(SmoothR) = localize(M2, y) inverse v;
 indexed glued RP1(SmoothR) = glue(W1, W2) by(y -> u, v -> x) inverse(x -> v, u -> y);
 indexed manifold circle = manifold(RP1, 1) by(u -> M2::y);
 ";
@@ -226,6 +226,11 @@ fn stage7_rejections_have_their_codes() {
             "indexed glued Half(AffineQQ) = glue(U1, U2) by(y -> 2 * xi, yi -> x) inverse(x -> yi, xi -> y);\n",
             "E_GLUE",
             "does not respect the target's relations",
+        ),
+        (
+            "indexed glued Flip(AffineQQ) = glue(U1, U2) by(y -> -xi, yi -> -x) inverse(x -> yi, xi -> y);\n",
+            "E_GLUE",
+            "not mutually inverse",
         ),
         (
             "indexed glued Mixed(SmoothR) = glue(U1, U2) by(y -> xi, yi -> x) inverse(x -> yi, xi -> y);\n",

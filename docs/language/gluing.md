@@ -268,6 +268,17 @@ The map $y = 2/x$ sends the relation $y \cdot y_i - 1$ of `U2` to
 $2 \cdot x_i \cdot x - 1$, which is 1 in the coordinate ring of `U1`:
 
 ```vast
+{{#include ../../examples/reject/packages/gluing-broken-relation/main.vast:declarations}}
+```
+
+```text
+{{#include ../../examples/reject/packages/gluing-broken-relation.stderr}}
+```
+
+The maps $y = -1/x$ and $x = 1/y$ each respect the relations, but their
+composite sends $x$ to $-x$, so they are not inverse to each other:
+
+```vast
 {{#include ../../examples/reject/packages/gluing-not-inverse/main.vast:declarations}}
 ```
 
@@ -552,7 +563,8 @@ Rules:
   identities. Otherwise it is an error (`E_GLUE`).
 - The polynomial of the open of the chart and `p` must have one normal form
   in the coordinate ring of the chart, so that the open is the preimage of
-  the overlap. Otherwise it is an error (`E_GLUE`).
+  the overlap. Otherwise it is an error (`E_GLUE`), even when the two
+  polynomials differ by a nonzero constant and so define one open.
 - The homogeneous coordinates must agree on the overlap, as the identity
   above states. Otherwise it is an error (`E_GLUE`).
 - The [limits](#limits) apply to the checks of a claim.
@@ -593,7 +605,7 @@ with their values.
 
 Rules:
 
-- A glued object names exactly two opens, and a cover at most
+- A glued object names exactly two opens (`E_GLUE`), and a cover at most
   `algebraRelations` opens (`E_LIMIT`).
 - The compiler expands and reduces each image, coefficient and witness
   within one run of the arithmetic, and it runs the checks of one

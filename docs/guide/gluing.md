@@ -12,9 +12,9 @@ projective line over the rational numbers, checks that the result is
 separated and that it is the projective line, and certifies that two open
 subsets cover the line. It then glues the real projective line, a circle,
 from two real lines. Every check is exact. The glued objects and their
-claims have no value at run time. The executable observes the gluing
-through morphisms of the earlier chapters, writes `failures = 0` and exits
-with status 0.
+claims have no value at run time. The executable composes morphisms of the
+earlier chapters with the same images as the transition, writes
+`failures = 0` and exits with status 0.
 
 The program is the package
 [`examples/packages/projective-line/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/projective-line).
@@ -67,11 +67,11 @@ of both lines to `SpecQQ`. A map that sends y to 2/x breaks the relation of
 `U2`:
 
 ```vast
-{{#include ../../examples/reject/packages/gluing-not-inverse/main.vast:declarations}}
+{{#include ../../examples/reject/packages/gluing-broken-relation/main.vast:declarations}}
 ```
 
 ```text
-{{#include ../../examples/reject/packages/gluing-not-inverse.stderr}}
+{{#include ../../examples/reject/packages/gluing-broken-relation.stderr}}
 ```
 
 A gluing has exactly two charts. Three charts would need conditions on the
@@ -220,8 +220,9 @@ two origins have no disjoint neighborhoods, and its manifold claim fails:
 
 A glued object, a cover and a claim are checked when the program is
 compiled, and they have no value. A function cannot name them, and the
-program generates the same code without them. The executable observes the
-transition of `P` through morphisms over `SpecQQ`, which have values:
+program generates the same code without them. The executable composes
+morphisms over `SpecQQ` that have the same images as the transition of `P`.
+They are separate declarations with values, and nothing ties them to `P`:
 
 ```vast
 {{#include ../../examples/packages/projective-line/src/main.vast:observers}}

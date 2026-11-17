@@ -802,8 +802,8 @@ views and pairs declared morphisms, and it builds rational points from
 integers. It creates no object and no other morphism. An
 [isomorphism](#isomorphisms) between principal opens states a transition
 between two objects.
-[Gluing declarations](language/gluing.md) glue two objects along such a
-transition, as the projective line needs, and certify covers by principal
+[Gluing declarations](language/gluing.md) glue two objects along a chart
+transition that they state with its inverse, as the projective line needs, and certify covers by principal
 opens. Smooth
 affine geometry is in
 [Smooth affine declarations](language/smooth-declarations.md), and the

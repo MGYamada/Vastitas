@@ -185,6 +185,9 @@ def elaborateCover (env : Environment) (span : Span) (object : DeclId) (opens : 
     unless o.chart == object do
       glueProblem span s!"`{Namespace.Owner.qualified id}` is an open of `{Namespace.Owner.qualified o.chart}`, not of `{Namespace.Owner.qualified object}`"
   let some (.cover _ _ coefficients) := body | glueProblem span "missing cover source"
+  -- Counted before any coefficient is evaluated, as every other list of the profile.
+  unless coefficients.length == opens.length do
+    algebraProblem span (.coordinate "a cover gives one coefficient for each open")
   let coefficients ← coefficients.mapM fun e => do
     match run (e.evaluate x.generators) with
     | .ok p => pure p

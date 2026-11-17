@@ -31,9 +31,13 @@ gluing reads only principal opens of presented objects of its
 implementation, and an accepted smooth gluing only smooth opens of smooth
 objects of its implementation; no check converts between them.
 
+**Smooth opens** (`smoothOpen_sound`): an accepted smooth open localizes a
+smooth object of its implementation, and its stored presentation is the
+principal open derived from the free presentation of that object.
+
 These are statements about kernel `Poly` operations. What they mean in
-Mathlib, an ideal that is the unit ideal, a surjective ring map onto a
-localization, a closed graph of real points, is proved in the bridge; the
+Mathlib, a unit ideal and a surjective ring map onto the presented algebra of
+the first open, is proved in the bridge. The closed graph of real points, the
 glued scheme and its isomorphism with Proj stay Planned (#879). -/
 namespace VastitasOracle.Gluing
 
@@ -280,6 +284,37 @@ theorem open_smooth {env : Environment} {implementation id : DeclId} {o : Open}
   exact ⟨openData_smooth hdata, localization_some hlocal, chartData_smooth hchart⟩
 
 /-! ### Accepted declarations -/
+
+/-- **An accepted smooth open** (C6): its implementation is smooth, it
+localizes a smooth object of the same implementation, its presentation is
+valid over the free presentation of that object, and it is the principal open
+derived from it. -/
+theorem smoothOpen_sound {env : Environment} {implementation : DeclId} {data : AffineData}
+    (h : checkSmoothOpen env implementation data = true) :
+    smoothImplementation env implementation = true ∧
+    ∃ object element inverse relations coordinates,
+      data.construction = .localization object element inverse relations ∧
+      lookup env object = some (.smoothAffine implementation coordinates) ∧
+      AffineValid data (some (freeData coordinates)) ∧
+      validConstruction data (fun id => if id == object then some (freeData coordinates) else none) = true := by
+  unfold checkSmoothOpen at h
+  simp only [Bool.and_eq_true] at h
+  obtain ⟨smooth, h⟩ := h
+  refine ⟨smooth, ?_⟩
+  cases hc : data.construction with
+  | presented => simp [hc] at h
+  | fiber => simp [hc] at h
+  | localization object element inverse relations =>
+    simp only [hc] at h
+    cases hl : lookup env object with
+    | none => simp [hl] at h
+    | some declaration =>
+      cases declaration <;> simp only [hl, Bool.and_eq_true, Bool.false_eq_true] at h
+      rename_i objectImplementation coordinates
+      obtain ⟨⟨same, valid⟩, construction⟩ := h
+      have same := beq_iff_eq.mp same
+      subst same
+      exact ⟨object, element, inverse, relations, coordinates, rfl, hl, validAffineData_sound valid, construction⟩
 
 /-- **An accepted glued object** (C1, C8, C10): its two opens are opens of
 distinct charts in the site of its implementation, its transition is an

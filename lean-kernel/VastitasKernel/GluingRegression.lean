@@ -115,7 +115,7 @@ private def standard : List Source.SourceChart :=
 #eval check "two opens of one chart are rejected"
   (code (with' [glued "Same" "AffineQQ" ["U1", "V1"] [("x", c "xi"), ("a", c "x")] [("x", c "a"), ("xi", c "x")]])
     == "E_GLUE")
-#eval check "a transition that is not invertible is rejected"
+#eval check "doubling the transition breaks the relation of the other open"
   (code (with' [glued "Bad" "AffineQQ" ["U1", "U2"] [("y", .product [n 2, c "xi"]), ("yi", c "x")]
     [("x", c "yi"), ("xi", c "y")]]) == "E_GLUE")
 #eval check "a transition that breaks the relations is rejected"
@@ -240,5 +240,116 @@ private def overBase : List Source.Declaration := [
     [cover "big" "Line" ((List.range 33).map (s!"C{·}")) ((List.range 33).map fun _ => n 1)])) == "E_LIMIT")
 #eval check "the message of a single open is singular"
   (mentions (with' [glued "One" "AffineQQ" ["U1"] [] []]) "1 open is given")
+
+#eval check "a cover counts its coefficients before it evaluates them"
+  (code (with' [cover "c" "Line" ["Dt", "Dmt"] ((List.range 33).map fun _ => n 1)]) == "E_AFFINE_COORDINATE")
+#eval check "a gluing of one open names no cocycle"
+  (!mentions (with' [glued "One" "AffineQQ" ["U1"] [] []]) "cocycle")
+#eval check "a gluing of three opens names the cocycle checks"
+  (mentions (with' [glued "Three" "AffineQQ" ["U1", "U2", "V1"] [] []]) "cocycle")
+
+/-! ### The audit on stored data
+
+Elaboration runs the actions of the audit before the audit does, so the
+source cases above cannot show that the audit itself rejects. These cases
+take the elaborated environment of the program with every kind of Stage 7
+declaration, change one stored declaration, and run `validEnvironment`. -/
+
+private def full : Source.Program := with' [
+  separated "sep" "P" "xi" (c "L2::y"),
+  projective "line" "P" standard,
+  cover "halves" "Line" ["Dt", "Dmt"] [n 1, n 1],
+  manifold "circle" "RP1" 1 "u" (c "M2::y")]
+
+private def stored : Environment := ((resolved full).map (·.indexed)).getD []
+
+private def stored? (name : String) : Option Declaration := (stored.find? (·.id.name == name)).map (·.declaration)
+
+private def tamper (name : String) (change : Declaration → Declaration) : Environment :=
+  stored.map fun entry => if entry.id.name == name then ⟨entry.id, change entry.declaration⟩ else entry
+
+private def rejects (label : String) (env : Environment) : IO Unit :=
+  check s!"the audit rejects {label}" (!validEnvironment env)
+
+#eval check "the audit accepts the elaborated program" ((resolved full).isSome && validEnvironment stored)
+
+-- Glued objects.
+#eval rejects "a transition that breaks the relations"
+  (tamper "P" fun | .glued i a b _ backward => .glued i a b [Poly.var 2 0, Poly.var 2 0] backward | d => d)
+private def negated : Declaration → Declaration
+  | .glued i a b _ backward => .glued i a b [Poly.neg (Poly.var 2 1), Poly.neg (Poly.var 2 0)] backward
+  | d => d
+#eval rejects "a transition that is not inverse to its inverse" (tamper "P" negated)
+#eval rejects "a second open of the same chart"
+  (tamper "P" fun | .glued i a _ forward backward => .glued i a (id "V1") forward backward | d => d)
+#eval rejects "a Zariski gluing under a smooth implementation"
+  (tamper "P" fun | .glued _ a b forward backward => .glued (id "SmoothR") a b forward backward | d => d)
+#eval rejects "a smooth gluing under a presented implementation"
+  (tamper "RP1" fun | .glued _ a b forward backward => .glued (id "AffineQQ") a b forward backward | d => d)
+#eval rejects "smooth opens in a Zariski gluing"
+  (tamper "P" fun
+    | .glued i _ _ _ _ => match stored? "RP1" with
+      | some (.glued _ a b forward backward) => .glued i a b forward backward
+      | _ => .marker
+    | d => d)
+private def unreduced : Declaration → Declaration
+  | .glued i a b forward backward =>
+    .glued i a b (Poly.add (Poly.var 2 1) (Poly.sub (Poly.mul (Poly.var 2 0) (Poly.var 2 1)) (Poly.one 2)) ::
+      forward.drop 1) backward
+  | d => d
+#eval rejects "an image that is not a normal form" (tamper "P" unreduced)
+#eval rejects "an extra image"
+  (tamper "P" fun | .glued i a b forward backward => .glued i a b (forward ++ [Poly.var 2 0]) backward | d => d)
+-- Separation and manifold claims.
+#eval rejects "a separation witness of the first chart's coordinate"
+  (tamper "sep" fun | .separated glued _ => .separated glued (Poly.var 2 0) | d => d)
+#eval rejects "a separation claim on the doubled origin"
+  (tamper "sep" fun | .separated _ witness => .separated (id "Doubled") witness | d => d)
+#eval rejects "a separation claim on a smooth gluing"
+  (tamper "sep" fun | .separated _ witness => .separated (id "RP1") witness | d => d)
+#eval rejects "a separation witness in too many coordinates"
+  (tamper "sep" fun | .separated glued _ => .separated glued (Poly.var 3 2) | d => d)
+#eval rejects "a manifold claim of the wrong dimension"
+  (tamper "circle" fun | .manifold glued _ witness => .manifold glued 2 witness | d => d)
+#eval rejects "a manifold claim on a Zariski gluing"
+  (tamper "circle" fun | .manifold _ dimension witness => .manifold (id "P") dimension witness | d => d)
+#eval rejects "a manifold claim on the smooth doubled origin"
+  (tamper "circle" fun | .manifold _ dimension witness => .manifold (id "SmoothDoubled") dimension witness | d => d)
+-- Projective claims.
+#eval rejects "chart entries out of the order of the opens"
+  (tamper "line" fun | .projective g h [a, b] => .projective g h [b, a] | d => d)
+#eval rejects "two entries on one standard chart"
+  (tamper "line" fun | .projective g h [a, b] => .projective g h [a, { b with dehomogenized := 0 }] | d => d)
+#eval rejects "a homogeneous coordinate index out of range"
+  (tamper "line" fun | .projective g h [a, b] => .projective g h [a, { b with dehomogenized := 2 }] | d => d)
+#eval rejects "a chart image whose inverse no longer matches"
+  (tamper "line" fun | .projective g h [a, b] => .projective g h [{ a with image := Poly.scale 2 (Poly.var 1 0) }, b] | d => d)
+#eval rejects "a projective claim on the doubled origin"
+  (tamper "line" fun | .projective _ h charts => .projective (id "Doubled") h charts | d => d)
+#eval rejects "one homogeneous coordinate"
+  (tamper "line" fun | .projective g _ charts => .projective g ["s"] charts | d => d)
+#eval rejects "three chart entries"
+  (tamper "line" fun | .projective g h charts => .projective g h (charts ++ charts.take 1) | d => d)
+-- Covers.
+#eval rejects "cover coefficients that do not combine to 1"
+  (tamper "halves" fun | .cover o opens _ => .cover o opens [Poly.scale 2 (Poly.one 1), Poly.one 1] | d => d)
+#eval rejects "a cover that misses part of the line"
+  (tamper "halves" fun | .cover o _ _ => .cover o [id "Dt"] [Poly.one 1] | d => d)
+#eval rejects "an open listed twice"
+  (tamper "halves" fun | .cover o _ _ => .cover o [id "Dt", id "Dt"] [Poly.one 1, Poly.one 1] | d => d)
+#eval rejects "a cover of another object"
+  (tamper "halves" fun | .cover _ opens coefficients => .cover (id "M1") opens coefficients | d => d)
+#eval rejects "coefficients in too many coordinates"
+  (tamper "halves" fun | .cover o opens _ => .cover o opens [Poly.one 2, Poly.one 2] | d => d)
+-- Smooth opens.
+#eval rejects "a smooth open whose element differs from its relation"
+  (tamper "W1" fun | .smoothOpen i data => .smoothOpen i { data with construction := match data.construction with
+      | .localization o _ u r => .localization o (Poly.one 1) u r | k => k } | d => d)
+#eval rejects "a smooth open under a presented implementation"
+  (tamper "W1" fun | .smoothOpen _ data => .smoothOpen (id "AffineQQ") data | d => d)
+#eval rejects "a smooth open stored as a presented object"
+  (tamper "W1" fun | .smoothOpen i data => .affine i data | d => d)
+#eval rejects "a principal open stored as a smooth open"
+  (tamper "U1" fun | .affine i data => .smoothOpen i data | d => d)
 
 end VastitasKernel.Indexed.GluingRegression

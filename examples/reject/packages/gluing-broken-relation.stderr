@@ -1,0 +1,1 @@
+examples/reject/packages/gluing-broken-relation/main.vast:14:1: E_GLUE: the transition from `gluing_broken_relation::U1` to `gluing_broken_relation::U2`: the map does not respect the target's relations

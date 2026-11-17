@@ -1,1 +1,1 @@
-examples/reject/packages/gluing-third-chart/main.vast:16:1: E_GLUE: a gluing of this profile has exactly two charts, but 3 opens are given; three or more charts need cocycle checks on triple overlaps, which the profile does not implement (#151)
+examples/reject/packages/gluing-third-chart/main.vast:16:1: E_GLUE: a gluing of this profile has exactly two charts, but 3 opens are given; three or more charts need cocycle checks on triple overlaps, which the profile does not implement

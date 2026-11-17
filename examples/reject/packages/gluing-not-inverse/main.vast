@@ -10,8 +10,9 @@ indexed affine U1(AffineQQ) = localize(L1, x) inverse xi;
 indexed affine U2(AffineQQ) = localize(L2, y) inverse yi;
 
 // ANCHOR: declarations
-// y = 2/x does not send the relation y * yi = 1 to x * xi = 1.
-indexed glued Bad(AffineQQ) = glue(U1, U2) by(y -> 2 * xi, yi -> x) inverse(x -> yi, xi -> y);
+// y = -1/x and x = 1/y each respect the relations, but their composite sends
+// x to -x, so they are not inverse to each other.
+indexed glued Bad(AffineQQ) = glue(U1, U2) by(y -> -xi, yi -> -x) inverse(x -> yi, xi -> y);
 // ANCHOR_END: declarations
 
 fn main() -> Int { 0 }

@@ -574,6 +574,13 @@ theorem checkPhysicalMetric_append (family object metric reading : DeclId) (valu
     validApplication_object1 ext, canonicalDimension_fun ext, metricData_append ext, readingData_append ext,
     quantityDimension_fun ext, entryValues_append ext]
 
+omit ext in
+/-- Frame declarations are invisible to the gluing checks of Stage 7. -/
+theorem frame_invisible : ∀ declaration, FrameDeclaration declaration →
+    GluingWeakening.GluingInvisible declaration := by
+  intro declaration kind
+  cases declaration <;> simp_all [FrameDeclaration, GluingWeakening.GluingInvisible]
+
 /-- **Weakening of declaration validity.** A frame extension changes the
 validity of no entry, for every table of class ranks: frame declarations
 included, since `FrameDeclarations.checkFrame` reads no frame. -/
@@ -653,6 +660,19 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
       validApplication_object1 ext, smoothDimension_append ext.profile, smoothCoordinates_append ext.profile,
       datasetData_append ext, calibrationData_append ext, modelData_append ext,
       transitionAverageData_append ext.profile, branchData_append ext.profile]
+  -- The gluing checks of Stage 7 read no declaration of the extension (#878).
+  | smoothOpen implementation data =>
+    simp only [validEntry, h, GluingWeakening.checkSmoothOpen_append ext.lookups frame_invisible]
+  | glued implementation first second forward backward =>
+    simp only [validEntry, h, GluingWeakening.checkGlued_append ext.lookups frame_invisible]
+  | cover object opens coefficients =>
+    simp only [validEntry, h, GluingWeakening.checkCover_append ext.lookups frame_invisible]
+  | separated glued witness =>
+    simp only [validEntry, h, GluingWeakening.checkSeparated_append ext.lookups frame_invisible]
+  | manifold glued dimension witness =>
+    simp only [validEntry, h, GluingWeakening.checkManifold_append ext.lookups frame_invisible]
+  | projective glued homogeneous charts =>
+    simp only [validEntry, h, GluingWeakening.checkProjective_append ext.lookups frame_invisible]
 
 theorem entryValid_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
     entry.Valid big ranks ↔ entry.Valid small ranks := by

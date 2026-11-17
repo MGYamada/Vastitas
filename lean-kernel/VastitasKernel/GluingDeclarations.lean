@@ -145,12 +145,12 @@ def checkProjectiveOverlap (u₁ : AffineData) (arity₁ arity₂ : Nat) (forwar
     (first second : ProjectiveChart) : Work Unit := do
   ensure (first.dehomogenized != second.dehomogenized)
     (.base "the two charts must be the standard charts of different coordinates")
-  let (s₁, t₁) := homogeneous arity₁ first
-  let (s₂, t₂) := homogeneous arity₂ second
   let inclusion := (List.range arity₁).map (Poly.var u₁.arity)
   let transition := forward.take arity₂
-  let left ← mul (← substitute u₁.arity inclusion s₁) (← substitute u₁.arity transition t₂)
-  let right ← mul (← substitute u₁.arity inclusion t₁) (← substitute u₁.arity transition s₂)
+  let left ← mul (← substitute u₁.arity inclusion (homogeneous arity₁ first).1)
+    (← substitute u₁.arity transition (homogeneous arity₂ second).2)
+  let right ← mul (← substitute u₁.arity inclusion (homogeneous arity₁ first).2)
+    (← substitute u₁.arity transition (homogeneous arity₂ second).1)
   checkMember u₁.basis (← add left (Poly.neg right))
     (.relation "the homogeneous coordinates of the two charts disagree on the overlap")
 

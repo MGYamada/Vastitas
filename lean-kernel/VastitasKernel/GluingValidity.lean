@@ -49,25 +49,24 @@ structure Open where
   chartData : AffineData
   deriving Repr, Inhabited
 
-/-- The open `id` of the site of `implementation`: a principal open
-`localize(X, f)` of a presented object in the Zariski site, a smooth open in
-the smooth site, each of the same implementation as its chart. -/
-def open? (env : Environment) (site : Site) (implementation id : DeclId) : Option Open :=
-  let found : Option AffineData := match site, lookup env id with
-    | .zariski, some (.affine openImplementation data) =>
-      if openImplementation == implementation then some data else none
-    | .smooth, some (.smoothOpen openImplementation data) =>
-      if openImplementation == implementation then some data else none
-    | _, _ => none
-  match found with
-  | none => none
-  | some data =>
-    match localization? data with
-    | none => none
-    | some (chart, element) =>
-      match chartData? env site implementation chart with
-      | some chartData => some ⟨chart, element, data, chartData⟩
-      | none => none
+/-- The stored presentation of the declaration `id` when it is an open of
+the site of `implementation`: a principal open `localize(X, f)` of that
+implementation in the Zariski site, a smooth open of it in the smooth site. -/
+def openData? (env : Environment) (site : Site) (implementation id : DeclId) : Option AffineData :=
+  match site, lookup env id with
+  | .zariski, some (.affine openImplementation data) =>
+    if openImplementation == implementation then some data else none
+  | .smooth, some (.smoothOpen openImplementation data) =>
+    if openImplementation == implementation then some data else none
+  | _, _ => none
+
+/-- The open `id` of the site of `implementation`, with its chart: the object
+that it localizes, a chart of the same site and implementation. -/
+def open? (env : Environment) (site : Site) (implementation id : DeclId) : Option Open := do
+  let data ← openData? env site implementation id
+  let (chart, element) ← localization? data
+  let chartData ← chartData? env site implementation chart
+  pure ⟨chart, element, data, chartData⟩
 
 /-- A smooth open: its implementation is a smooth representation, its object
 a smooth object of the same implementation, and its stored presentation is

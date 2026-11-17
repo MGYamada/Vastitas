@@ -1,5 +1,5 @@
 import VastitasKernel.IndexedFunctionCheck
-import VastitasKernel.IndexedSourceBodyRegression
+import VastitasKernel.IndexedSourceBodyFixture
 import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.FunctionSource.Regression
@@ -153,9 +153,9 @@ def dataProgram (program : Source.Program) : Program := {
         name := f.name, params := f.params.map (fun p => ⟨p.name, .data p.type, p.span⟩), result := .data f.result,
         body := dataBlock f.body, isPublic := f.isPublic, span := f.span } } } }
 
-#eval accepts "data package bodies through Fn path" (dataProgram Source.BodyRegression.packageFixture)
-#eval accepts "data multiple fields through Fn path" (dataProgram Source.BodyRegression.multipleFixture)
-#eval accepts "data scalars through Fn path" (dataProgram Source.BodyRegression.scalarFixture)
+#eval accepts "data package bodies through Fn path" (dataProgram Source.BodyFixture.packageFixture)
+#eval accepts "data multiple fields through Fn path" (dataProgram Source.BodyFixture.multipleFixture)
+#eval accepts "data scalars through Fn path" (dataProgram Source.BodyFixture.scalarFixture)
 #eval check "accepted executable generates native code" (match Compiler.checkProgram higherFixture true with
   | .error _ => false
   | .ok checked => (Core.Codegen.generate checked.executable.core).isOk)

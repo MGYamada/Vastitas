@@ -7,11 +7,9 @@ cd "$(dirname "$0")/.."
 lake -d lean-kernel build \
   VastitasKernel.TypeAuditRegression \
   VastitasKernel.DispatchRegression \
-  VastitasKernel.FunctionRegression \
   VastitasKernel.NamespaceRegression \
   VastitasKernel.PairRegression \
   VastitasKernel.AbstractRegression \
-  VastitasKernel.ContractRegression \
   VastitasKernel.AuthorityRegression \
   VastitasKernel.IndexedRegression \
   VastitasKernel.IndexedPackageRegression \
@@ -77,5 +75,4 @@ lake -d lean-kernel build \
   VastitasAlgebraTest.ReverseExampleRegression \
   VastitasAlgebraTest.FrameReferenceRegression \
   VastitasAlgebraTest.SpectralReferenceRegression \
-  VastitasPromotion.Regression \
   VastitasPromotion.IndexedRegression

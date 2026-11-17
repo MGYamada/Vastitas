@@ -1,8 +1,7 @@
 import VastitasOracle.AbstractTypes
-import VastitasOracle.Functions
 
-/-! Evidence from actual contract expansion, union and selected-result checks.
-The final surface checker still validates the exact returned Stage 0 core. -/
+/-! Evidence from the actual contract expansion, union and selected-result
+checks of the dispatch checker. -/
 namespace VastitasOracle.Contracts
 open VastitasKernel VastitasKernel.Contracts
 

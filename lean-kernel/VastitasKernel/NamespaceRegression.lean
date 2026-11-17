@@ -1,15 +1,15 @@
 import VastitasKernel.NamespaceChecker
-import VastitasKernel.SurfacePrograms
+import VastitasKernel.Authority
 import VastitasKernel.NamespaceQuery
 import VastitasKernel.EditRegression
 import VastitasKernel.NamespaceProtocol
-import VastitasKernel.Codegen
 import VastitasKernel.RegressionSupport
 
-/-! Retained legacy top-level checker/Core regressions. Current public JSON
-acceptance is covered by LegacySourceRegression and
-VastitasPublicTest.AuthorityRegression; shared namespace/dispatch/trace helpers
-remain live in the indexed composition. -/
+/-! Namespace programs on Lean values through the shared namespace code:
+the lookup tables, `validate`, the resolver and the reference audit, and the
+assembler that the public 2–6 route runs, `Authority.assemble`, which reads a
+program with protocol-6 authority. Public JSON acceptance is covered by
+LegacySourceRegression and VastitasPublicTest.AuthorityRegression. -/
 namespace VastitasKernel.Namespace.Regression
 
 private def root : PackageId := ⟨"/app/Vastitas.toml", "app", "0.1.0"⟩
@@ -46,16 +46,18 @@ private def program : Program := {
     { pkg root [mod [] [fn "main" (.call "other::value" [] {})]] with
       dependencies := [⟨"other", dependency.source⟩, ⟨"alias", dependency.source⟩] },
     pkg dependency [mod [] [fn "value" (.integer "42" {})]] ] }
+/-- The assembly of `p` as the public 2–6 route reads it, with protocol-6
+authority. -/
+private def assembled (p : Program) : Except Diagnostic Unit :=
+  (Authority.assemble { p with extended := true, editable := true, authority := true }.indexed).map fun _ => ()
 private def rejects (code : String) (p : Program) : Bool :=
-  match checkNamespaceProgram p with
+  match assembled p with
   | .error error => error.code == code
   | .ok _ => false
 private def replaceRoot (m : Module) (extra : List Module := []) : Program :=
   { program with packages := [{ program.packages[0]! with modules := m :: extra }, program.packages[1]!] }
 
-#eval check "path dependency and native core" (match checkNamespaceProgram program true with
-  | .ok checked => (Codegen.generate checked).isOk
-  | .error _ => false)
+#eval check "path dependency" ((assembled program).isOk)
 #eval check "dependency alias preserves target" (
   (resolve program.indexed ⟨root, []⟩ ["other", "value"] {}).toOption ==
   (resolve program.indexed ⟨root, []⟩ ["alias", "value"] {}).toOption)
@@ -75,7 +77,7 @@ private def replaceRoot (m : Module) (extra : List Module := []) : Program :=
   { mod [] with imports := [⟨["b"], "a", true, {}⟩, ⟨["a"], "b", true, {}⟩] }))
 #eval check "no implicit parent names" (rejects "E_NAME" (replaceRoot
   (mod [] [fn "value" (.integer "0" {})]) [mod ["child"] [fn "test" (.call "value" [] {})]]))
-#eval check "descendant private access" ((checkNamespaceProgram (replaceRoot
+#eval check "descendant private access" ((assembled (replaceRoot
   (mod [] [fn "value" (.integer "0" {}) false]) [mod ["child"] [fn "test" (.call "super::value" [] {})]])).isOk)
 
 private def generic : Generic := {
@@ -83,13 +85,13 @@ private def generic : Generic := {
 private def method (name : String) : Surface.Method := {
   (fn name (.integer "1" {})).toFunction with requirements := [] }
 private def ownerModule : Module := { mod [] with generics := [generic], methods := [method "choose"] }
-#eval check "owner method" ((checkNamespaceProgram (replaceRoot ownerModule)).isOk)
+#eval check "owner method" ((assembled (replaceRoot ownerModule)).isOk)
 #eval check "child has no edit authority" (rejects "E_OWNER" (replaceRoot ownerModule
   [{ mod ["child"] with methods := [method "super::choose"] }]))
 #eval check "ordinary functions cannot receive methods" (rejects "E_OWNER" (replaceRoot
   { mod [] [fn "value" (.integer "0" {})] with methods := [method "value"] }))
 
-#eval check "contextual generic module path" ((checkNamespaceProgram (replaceRoot
+#eval check "contextual generic module path" ((assembled (replaceRoot
   (mod [] [fn "main" (.call "generic::value" [] {})])
   [mod ["generic"] [fn "value" (.integer "42" {})]])).isOk)
 #eval check "generic remains a reserved function name" (rejects "E_RESERVED" (replaceRoot
@@ -102,7 +104,7 @@ private def ownerModule : Module := { mod [] with generics := [generic], methods
 -- declaration and the name that a `use` binds may not.
 #eval check "geometric operation module paths" (
   ["Affine", "Base", "origin", "id", "compose", "apply", "dim"].all fun name =>
-    (checkNamespaceProgram (replaceRoot
+    (assembled (replaceRoot
       (mod [] [fn "main" (.call (name ++ "::value") [] {})])
       [mod [name] [fn "value" (.integer "42" {})]])).isOk)
 #eval check "dim remains a reserved function name" (rejects "E_RESERVED" (replaceRoot
@@ -117,13 +119,13 @@ private def ownerModule : Module := { mod [] with generics := [generic], methods
 
 -- #778: `dimension` is an ordinary name: a function, a module, and the name
 -- that a `use` binds, with or without `as`, to a module or a function.
-#eval check "dimension is an ordinary function name" ((checkNamespaceProgram (replaceRoot
+#eval check "dimension is an ordinary function name" ((assembled (replaceRoot
   (mod [] [fn "dimension" (.integer "0" {}), fn "main" (.call "dimension" [] {})]))).isOk)
-#eval check "dimension is an ordinary module name and use alias" ((checkNamespaceProgram (replaceRoot
+#eval check "dimension is an ordinary module name and use alias" ((assembled (replaceRoot
   { mod [] [fn "main" (.call "dimension::value" [] {})] with
     imports := [⟨["units", "dimension"], "dimension", false, {}⟩] }
   [mod ["units"], mod ["units", "dimension"] [fn "value" (.integer "42" {})]])).isOk &&
-  (checkNamespaceProgram (replaceRoot
+  (assembled (replaceRoot
   { mod [] [fn "main" (.call "dimension" [] {})] with
     imports := [⟨["units", "value"], "dimension", false, {}⟩] }
   [mod ["units"] [fn "value" (.integer "42" {})]])).isOk)
@@ -132,7 +134,7 @@ private def ownerModule : Module := { mod [] with generics := [generic], methods
     { program with packages := [{ program.packages[0]! with
         modules := [mod [] [fn "main" (.call (alias ++ "::value") [] {})]],
         dependencies := [⟨alias, dependency.source⟩] }, program.packages[1]!] }
-  (checkNamespaceProgram (aliased "dimension")).isOk && rejects "E_RESERVED" (aliased "dim"))
+  (assembled (aliased "dimension")).isOk && rejects "E_RESERVED" (aliased "dim"))
 
 -- #759: an indexed spelling is the name that a `use` binds only for a `use`
 -- without `as` of an indexed declaration, whose alias is the last segment of
@@ -205,7 +207,7 @@ private def callback : Program := replaceRoot { mod [] [
   fn "main" (.invoke (.ite (.boolean true {}) (.mk [] (.variable "value" {}) {})
     (.mk [] (.variable "aliasValue" {}) {}) {}) [] {})] with
   imports := [⟨["value"], "aliasValue", false, {}⟩] }
-#eval check "aliases share the same static target" ((checkNamespaceProgram callback true).isOk)
+#eval check "aliases share the same static target" ((assembled callback).isOk)
 
 #eval check "alias hits preserve scope, span independence and the original logical charge" (Id.run do
   let child := {mod ["child"] [fn "value" (.integer "7" {})] with
@@ -223,13 +225,6 @@ private def callback : Program := replaceRoot { mod [] [
     s.units.val > 2 && t.units.val == 2 * s.units.val &&
     (resolve p scope path later).toOption == some again &&
     (resolve p other path later).toOption == some distinct)
-#eval check "unused invalid dependency body" (rejects "E_TYPE" { program with packages :=
-  [program.packages[0]!, pkg dependency [mod [] [fn "value" (.integer "42" {}), fn "bad" (.boolean true {})]]] })
-#eval check "unused lambda capture" (rejects "E_CAPTURE" (replaceRoot (mod [] [{
-  fn "bad" (.integer "0" {}) with body := (.mk [
-    .letE "outside" none (.integer "1" {}) {},
-    .letE "callback" none (.lambda [] int (.mk [] (.variable "outside" {}) {}) {}) {}]
-    (.integer "0" {}) {}) }])))
 
 private def ref : Reference := {
   scope := ⟨root, []⟩, path := ["other", "value"], span := {},
@@ -252,7 +247,7 @@ private def sharedGraph : Program := {
     id := ⟨s!"/{i}/Vastitas.toml", "shared", "0.1.0"⟩, modules := [mod []]
     dependencies := if i == 39 then [] else
       [⟨"left", s!"/{i+1}/Vastitas.toml"⟩, ⟨"right", s!"/{i+1}/Vastitas.toml"⟩] } }
-#eval check "shared dependency DAG stays bounded" ((checkNamespaceProgram sharedGraph).isOk)
+#eval check "shared dependency DAG stays bounded" ((assembled sharedGraph).isOk)
 #eval check "shared graph still detects cycles" (rejects "E_CYCLE" {
   sharedGraph with packages := sharedGraph.packages.map fun pkg =>
     if pkg.id.source == "/39/Vastitas.toml" then
@@ -285,7 +280,7 @@ private def inherited (scalar : String) (authorized := true) : Program := {
     pkg dependency [{ mod [] [fn "value" (.integer "42" {})] with
       abstractTypes := [abstractDecl "Parent"],
       subtypes := if authorized then [subtype "Int" "Parent"] else [] }] ] }
-#eval check "foreign inheritance reuses owner membership" ((checkNamespaceProgram (inherited "Int")).isOk)
+#eval check "foreign inheritance reuses owner membership" ((assembled (inherited "Int")).isOk)
 #eval check "foreign inheritance cannot introduce membership" (rejects "E_OWNER" (inherited "Nat"))
 #eval check "removing owner support revalidates closure" (rejects "E_OWNER" (inherited "Int" false))
 #eval check "independent authority audit rejects indirect extension" (match membershipGraph (inherited "Nat").indexed with

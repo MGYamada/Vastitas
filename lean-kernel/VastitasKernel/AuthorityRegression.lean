@@ -1,11 +1,11 @@
 import VastitasKernel.Authority
-import VastitasKernel.SurfacePrograms
 import VastitasKernel.RegressionSupport
 
-/-! Retained legacy top-level checker/Core regressions. Current public JSON
+/-! The protocol-6 assembler `Authority.assemble`, which the public 2–6 route
+runs through `Indexed.LegacySource` and `AuthoritySource`, on a Lean value:
+its acceptance and the independent audits of its trace state. Public JSON
 acceptance is covered by LegacySourceRegression and
-VastitasPublicTest.AuthorityRegression; shared namespace/dispatch/trace helpers
-remain live in the indexed composition. -/
+VastitasPublicTest.AuthorityRegression. -/
 namespace VastitasKernel.Authority.Regression
 open Namespace
 private def app : PackageId := ⟨"/app/Vastitas.toml", "app", "0.1.0"⟩
@@ -55,11 +55,7 @@ private def rejects (result : Except Diagnostic α) (code : String) : Bool :=
   | .ok _ => false
   | .error diagnostic => diagnostic.code == code
 
-#eval check "retained authority checker acceptance" ((checkAuthorityProgram program true).isOk)
-#eval check "legacy direct API cannot skip authority" (rejects (checkEditProgram program) "E_PROTOCOL")
-#eval check "namespace API cannot skip authority" (rejects (checkNamespaceProgram program) "E_PROTOCOL")
-#eval check "forged old protocol cannot carry authority syntax" (rejects
-  (checkEditProgram { program with authority := false }) "E_PROTOCOL")
+#eval check "authority assembly acceptance" ((assemble program.indexed).isOk)
 
 private def auditActive (test : Prepared program.indexed → State → Bool) : Bool :=
   match prepare program.indexed with

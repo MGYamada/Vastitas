@@ -40,11 +40,8 @@ import VastitasOracle.Soundness
 import VastitasOracle.Contracts
 import VastitasOracle.AbstractTypes
 import VastitasOracle.DispatchLowering
-import VastitasOracle.Functions
 import VastitasOracle.Namespaces
-import VastitasOracle.EditBorrowing
 import VastitasOracle.EditRecipients
-import VastitasOracle.EditAcceptance
 import VastitasOracle.Authority
 import VastitasOracle.Indexed
 import VastitasOracle.IndexedPackages
@@ -71,7 +68,6 @@ import VastitasOracle.IndexedWire
 import VastitasOracle.GeometryCompatibility
 import VastitasOracle.GeometryResults
 import VastitasOracle.LegacySource
-import VastitasOracle.Promotion
 import VastitasOracle.IndexedPromotion
 import VastitasOracle.Graph
 import VastitasOracle.StorageLayout

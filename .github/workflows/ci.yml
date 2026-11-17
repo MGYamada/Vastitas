@@ -388,8 +388,6 @@ jobs:
         run: lake -d lean env python3 scripts/check_spec_lean.py
       - name: Core proof migration regressions
         run: cd lean && lake env lean -DwarningAsError=true ../scripts/check_oracle_core.lean
-      - name: Finite edit acceptance indices
-        run: cd lean && lake env lean -DwarningAsError=true ../scripts/check_edit_acceptance.lean
       - name: Dependency boundaries
         run: |
           lake -d lean update

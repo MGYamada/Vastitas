@@ -90,7 +90,6 @@ bash scripts/replay_lean.sh lean VastitasKernel
 lake -d lean env python3 scripts/check_axiom_audit.py
 lake -d lean env python3 scripts/check_spec_lean.py
 (cd lean && lake env lean -DwarningAsError=true ../scripts/check_oracle_core.lean)
-(cd lean && lake env lean -DwarningAsError=true ../scripts/check_edit_acceptance.lean)
 ```
 
 | Command | What it checks |
@@ -103,7 +102,6 @@ lake -d lean env python3 scripts/check_spec_lean.py
 | `check_axiom_audit.py` | The audit itself, on fixture packages that it must reject: its coverage, its provenance rules and substituted code |
 | `check_spec_lean.py` | The resolver itself, on fixture claims |
 | `check_oracle_core.lean` | The migrated Core proofs, on coordinate spaces, names and positional lists |
-| `check_edit_acceptance.lean` | The indices of the finite edit acceptance |
 
 The replay is not an independent verifier. It also reads stale `.olean` files
 that renamed modules leave in `.lake`, so run it on a clean build. CI sets

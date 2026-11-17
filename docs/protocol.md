@@ -1,9 +1,9 @@
-# Wire protocols 2–9
+# The wire protocol
 
-This chapter describes the wire protocols between the driver and the kernel:
-the JSON request, the response, and the forms that each of the versions 2 to
-9 admits. It names the decoder and the checker of each version and says what
-a decoder refuses. The rules of the language are in the Vastitas Reference.
+This chapter describes the wire protocol between the driver and the kernel:
+the JSON request, the response, and the forms that a request admits. It names
+the decoder and the checker and says what the decoder refuses. The rules of
+the language are in the Vastitas Reference.
 [Programs](language/programs.md) gives the two modes of a compilation.
 [Packages](packages.md) and [Modules](language/modules.md) give manifests and
 names. Each construct has its chapter:
@@ -19,7 +19,7 @@ names. Each construct has its chapter:
 [Numerical maps](linalg/maps-and-gemm.md).
 [The driver](internals/driver.md) describes how the Rust side writes a
 request and reads a response, and [Verification boundaries](verification.md)
-states what is proved about the result of each checker.
+states what is proved about the result of the checker.
 
 ## Requests, decoders and checkers
 
@@ -29,57 +29,73 @@ tool logs belong on stderr. Neither the frontend's annotations nor names are
 trusted. The backend allocates nominal identities while checking lexical
 bindings; the wire format cannot supply a trusted object identity.
 
-`lean-kernel/Main.lean` reads the `version` of a request and selects the
-decoder and the checker:
+The wire has one **schema epoch**, protocol 10: the one version that the
+driver writes and the kernel accepts. The kernel holds it in
+`currentProtocol` of `lean-kernel/VastitasKernel/Protocol.lean`. The driver's
+`PROTOCOL` in `src/ir.rs` holds the same number: `build.rs` reads the Lean
+definition, and a constant assertion fails the build of the driver when the
+two differ. `vastitas --version` prints that number, as in
+`vastitas 0.1.0-alpha (wire protocol 10)`. The version is a schema epoch, not
+a feature level: an optional record of the envelope never selects a version.
 
-| Version | Input | Decoder | Checker |
+`lean-kernel/Main.lean` scans the bytes of the request (`WireScan`), parses
+the JSON and reads `version` before any other field. A version other than
+`currentProtocol` is an error (`E_PROTOCOL`) by its version alone, whatever
+the rest of the request holds; [Other versions](#other-versions) gives the
+diagnostic. A request of the epoch goes to one decoder and one checker:
+
+| Version | Decoder | Checker | Emit |
 | --- | --- | --- | --- |
-| 2 | Flat | `decodeSurfaceModule` in `SurfaceProtocol.lean` | `Indexed.LegacySource.check` |
-| 3 | Package | `decodeNamespaceProgram` in `NamespaceProtocol.lean` | `Indexed.LegacySource.check` |
-| 4 | Flat or package, by the field `input` | `decodeSurfaceModule` or `decodeNamespaceProgram` | `Indexed.LegacySource.check` |
-| 5, 6 | Package | `decodeNamespaceProgram` | `Indexed.LegacySource.check` |
-| 7 | Package | `Indexed.Wire.program` in `IndexedProtocol.lean` | `Indexed.Wire.check` |
-| 8, 9 | Package | `ResourceSource.Wire.program` in `ResourceProtocol.lean` | `ResourceSource.Wire.check` |
+| 10 | `ResourceSource.Wire.program` in `ResourceProtocol.lean` | `ResourceSource.Wire.check` | `ResourceSource.Wire.emit` |
 
-The decoders that the package protocols share, those of the module envelope
-and of its types, generics, abstract declarations, imports, grants, transfers,
-contributions and assembly, are in `EnvelopeProtocol.lean`.
-`SurfaceProtocol.lean` and `NamespaceProtocol.lean` hold the requests of
-protocols 2 to 6 and their expression and body decoders.
+`ResourceSource.Wire.program` decodes each module with the decoders of
+`IndexedProtocol.lean` (`Indexed.Wire.module` and `Indexed.Wire.package`), its
+indexed declarations with those of `IndexedDeclarationProtocol.lean` and its
+bodies with those of `IndexedBodyProtocol.lean`. The decoders of the module
+envelope and of its types, generics, abstract declarations, imports, grants,
+transfers, contributions and assembly are in `EnvelopeProtocol.lean`. In the
+mode `emit`, `Main` calls `ResourceSource.Wire.emit`, which runs the check and
+passes its result to `ResourceSource.Codegen.generateChecked`.
+[The checker route](development/architecture.md#the-checker-route) describes
+the route.
 
-In the mode `emit`, `Main` passes the Core of the check result of protocols
-2 to 7 to `Indexed.Core.Codegen.generate`. For protocols 8 and 9 it calls
-`ResourceSource.Wire.emit`, which runs the check and passes its result to
-`ResourceSource.Codegen.generateChecked`.
-[The three checker routes](development/architecture.md#the-three-checker-routes)
-describes the routes.
+## The envelope
 
-Request: `{ "version": 2, "file": "input.vast", "functions": [...],
-"generics": [...], "methods": [...] }`. All three declaration arrays are
-present, including when empty. Protocol 3 uses the separate namespace request
-below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assemblies,
-protocol 6 adds nested loans and permanent authority transfer, and package-only
-protocol 7 adds indexed declarations and rich bodies as described below.
-Package-only protocols 8 and 9 add resource functions, named recipients and
-the algebraic, smooth, metric, frame, physical-dimension and spectral
-forms.
-Package requests never fall back to protocol 2. Other versions are rejected.
+A request is `{ "version": 10, "file": "entry", "root":
+"/canonical/app/Vastitas.toml", "packages": [Package...] }`, with the optional
+field `legacy_geometry`. These are its only fields: another top-level field is
+an error (`E_PROTOCOL`), with the message `unknown protocol field '<name>'`.
+So a request with the field `input` is an error, and so is a flat module with
+top-level `functions`, `generics` and `methods`. Every request is a package
+request: [Package namespaces](#package-namespaces) gives the packages and
+modules, and the sections below give the records of a module.
 
-## Protocol selection
+Every optional record and field of the envelope is admitted in every request
+and validated where it occurs. Optional does not mean unchecked: a record with
+a missing, unknown or ill-formed field is an error (`E_PROTOCOL`), and the
+checker checks every admitted record as the sections below describe. The
+optional records are the observations of `show!`, the field
+`legacy_geometry`, resource functions, numerical representations, named
+recipients of grants, delegations and transfers, abstract declarations,
+contributions and assemblies, indexed declarations, the `geometry_compat`
+export of a package, and the algebraic, smooth, metric, frame,
+physical-dimension, spectral, transition-average and physical-model forms.
 
-The driver writes protocol 9 with `input: "package"` for every program. In
-manifest mode the request holds the packages of the manifest. A flat program,
-with or without `--lib` inputs and with or without
+## Flat programs and the legacy geometry
+
+The driver writes protocol 10 for every program. In manifest mode the request
+holds the packages of the manifest. A flat program, with or without `--lib`
+inputs and with or without
 [`show!`](language/programs.md#showing-values-with-show), is one package with
-the identity that the kernel gives a flat program of protocols 2 to 6:
-`vastitas:compat:flat`, `legacy_flat` and `1.0.0`. Its one module is the
-public root module, and every function, generic and abstract type of the
-program is public in it. The driver shows the kernel's names of these
-declarations without the package prefix `legacy_flat::`.
+the reserved identity `vastitas:compat:flat`, `legacy_flat` and `1.0.0`
+(`packages::flat_request`). Its one module is the public root module, and
+every function, generic and abstract type of the program is public in it. The
+driver shows the kernel's names of these declarations without the package
+prefix `legacy_flat::`.
 
 The request of every flat program has the field `legacy_geometry`
-([Protocol-9 compatibility profile](#protocol-9-compatibility-profile)). A
-package request has it unless the program has one of these records:
+([Compatibility profile](#compatibility-profile)). A package request has it
+unless the program has one of these records:
 
 - a grant, delegation or transfer, an observation of `show!`, resource
   functions, an indexed declaration, an indexed type annotation, a typed
@@ -88,18 +104,11 @@ package request has it unless the program has one of these records:
   [Presented affine geometry](affine-geometry.md), the smooth and metric
   declarations of
   [Smooth affine declarations](language/smooth-declarations.md), the
-  [frame](#protocol-9-frame-forms),
-  [physical-dimension](#protocol-9-physical-dimension-forms) and
-  [spectral](#protocol-9-spectral-forms) forms are indexed declarations, and
-  only protocol 9 decodes them.
+  [frame](#frame-forms), [physical-dimension](#physical-dimension-forms) and
+  [spectral](#spectral-forms) forms are indexed declarations.
 
-These are the programs that the driver wrote as protocols 2 to 6 before
-([History](#history)). The field gives each of them the checked Core that
-those protocols gave it. A package with one of the records has the legacy
-geometry only from a `geometry_compat` export.
-
-The driver writes none of the protocols 2 to 8. The kernel accepts them, and
-the sections below describe their envelopes.
+A package with one of the records has the legacy geometry only from a
+`geometry_compat` export.
 
 A root package without an assembly selects an empty edit trace; the kernel
 still validates every grant and checks every unapplied contribution.
@@ -108,53 +117,53 @@ event only with a transfer declaration, and each of these declarations is a
 record of the list above. A request with `legacy_geometry` that holds such an
 event therefore holds an event that the kernel rejects.
 
-## Protocols 8 and 9
+## Optional records
 
-Package-only [protocol 8](storage/resource-programs.md#resource-functions) adds unresolved `resource_functions`
-to modules while preserving the full protocol-7 declaration/Fn/dispatch/authority
-checks. Each resource function carries `name`, `parameters`, ordered owned
-`results`, resource `body`, pure `value_type`/`value_body`, `public` and `span`.
-Calls carry unresolved paths and local names, not checked IDs. The strict schema
-is defined by `storage.rs::source` and `ResourceProtocol.lean`. Emit responses
-include `storage_runtime: Bool` and `numerical_runtime: Bool` to request optional
-native packages only when the actual entry needs them. `storage_runtime` is
+Package [resource functions](storage/resource-programs.md#resource-functions)
+are unresolved `resource_functions` of a module. The kernel checks them with
+the full declaration/Fn/dispatch/authority checks of the pure program. Each
+resource function carries `name`, `parameters`, ordered owned `results`,
+resource `body`, pure `value_type`/`value_body`, `public` and `span`. Calls
+carry unresolved paths and local names, not checked IDs. The schema is defined
+by `storage.rs::source` and `ResourceProtocol.lean`. Emit responses include
+`storage_runtime: Bool` and `numerical_runtime: Bool` to request optional
+native packages only when the entry needs them. `storage_runtime` is
 true when the checked entry has an operation on an arena or a runtime-shape
 event. A resource entry that computes scalars alone reports false, and its
 `lean_source` imports no `VastitasStorageNative` and creates no arena
 ([Resource checking](internals/resource-checking.md#all-body-checking-and-generation)).
 A numerical requirement
 also requires storage and explicit driver build configuration. The [internal storage component schema](storage/checked-storage.md#storage-ir)
-is not an alternative public envelope; top-level `resources` and downgraded
-`resource_functions` must not be silently discarded by legacy protocol 2.
+is not an alternative public envelope: a top-level `resources` or
+`resource_functions` field is an error (`E_PROTOCOL`), as an unknown field of
+the envelope.
 
-Package-only protocol 9 retains that complete protocol-8 envelope and composition,
-and replaces `grantee_source` with `grantee_package: String` in `grants`,
-`delegations` and `transfers`. `grantee_path` remains an ordered list of module
-components. The string is the original manifest package name, never a resolved
+<a id="named-recipients"></a>
+
+**Named recipients.** A record of `grants`, `delegations` and `transfers`
+names its recipient package with `grantee_package: String` and its module with
+`grantee_path`, an ordered list of module components. The string is the original manifest package name, never a resolved
 source location, dependency alias or claimed PackageId. Lean reconstructs the
 root-reachable selected packages, requires one exact name match before examining
 the module path, and retains that record's full source/name/version identity.
 No match or several matches is `E_OWNER`, even for unused declarations. A name
 collision cannot be resolved by version, module availability or list order.
 
-Source recipient declarations select protocol 9 even without resources;
-pure-only emits return both optional-runtime flags as false. Protocols 5–8 retain
-`grantee_source` and reject `grantee_package`; protocol 9 rejects `grantee_source`
-even alongside `grantee_package`. Earlier versions retain their strict schemas.
+A recipient record has no other location field: `grantee_source` is an unknown
+field (`E_PROTOCOL`), even beside `grantee_package`. A program without
+resource functions emits both optional-runtime flags as false.
 [Source migrations](appendix/history.md#source-migrations) describes the
 source migration, and
 [Geometry compatibility exports](packages.md#geometry-compatibility-exports)
 the explicit geometry compatibility requirement.
 
-<a id="protocol-9-observations-of-show"></a>
+<a id="observations-of-show"></a>
 
-**Protocol-9 observations of `show!`.** A pure function of a protocol-9 module
-may have the optional field `observations`: a nonempty array of objects with
+**Observations of `show!`.** A pure function of a module may have the
+optional field `observations`: a nonempty array of objects with
 exactly the fields `statement` (a natural number below 2^64) and `label` (a
 string). Each names the `statement`-th top-level statement of the function's
-body, whose `let` the request sends without `show!`. Protocols 7 and 8 reject
-the field with `E_PROTOCOL`, as an unknown field of a function. The kernel
-checks the observations after it checks the pure program, before code
+body, whose `let` the request sends without `show!`. The kernel checks the observations after it checks the pure program, before code
 generation and in `check` mode too:
 
 - only the entry point `main` of the root module of the root package may have
@@ -170,24 +179,22 @@ generation and in `check` mode too:
 
 The label is presentation only: the kernel never reads it for acceptance, and
 code generation writes it as a quoted Lean string literal. The request of a
-flat program ([Protocol selection](#protocol-selection)) carries the
-observations in the functions of its one module.
+flat program ([Flat programs and the legacy geometry](#flat-programs-and-the-legacy-geometry))
+carries the observations in the functions of its one module.
 
-<a id="protocol-9-compatibility-profile"></a>
+<a id="compatibility-profile"></a>
 
-**Protocol-9 compatibility profile.** A protocol-9 request may have the
-optional top-level field `legacy_geometry`. Its value must be the JSON boolean
-`true`; another value, including `false`, is an error (`E_PROTOCOL`).
-Protocol 8 rejects the field as an unknown field (`E_PROTOCOL`). With the
-field, the kernel appends its **compatibility profile** as the last package of
-the program that it checks, as it appends it to every request of protocols 2
-to 6. The profile is the package `vastitas:compat:2-6` (`legacy_geometry`,
+**Compatibility profile.** A request may have the optional top-level field
+`legacy_geometry`. Its value must be the JSON boolean `true`; another value,
+including `false`, is an error (`E_PROTOCOL`). With the field, the kernel
+appends its **compatibility profile** as the last package of the program that
+it checks. The profile is the package `vastitas:compat:2-6` (`legacy_geometry`,
 `1.0.0`) of `CompatibilityProfile.lean`. It declares `Scheme`, `CInfScheme`,
 `Point`, `Morphism`, `Pointed`, `compose`, `apply` and the primitives of the
 two settings, and its `geometry_compat` export supplies the legacy geometry.
 Its declarations pass the same declaration and role checks as those of a
-source library. The checked Core of a request with the field is therefore the
-Core of the same program at protocols 2 to 6.
+source library. The profile's `dim` primitives bind `PrimitiveBinding.dimension`,
+as a source library's do.
 
 - No package of a request with the field may have a `geometry_compat` export.
   Such a request is an error (`E_PROTOCOL`), and the message names the
@@ -200,22 +207,20 @@ Core of the same program at protocols 2 to 6.
   of the request, which does not hold the profile, and the profile has no
   import and is no dependency, so it changes the price of no import.
 - The kernel validates the namespace of the request's packages before it
-  reports a Fn signature with a component other than a scalar, as protocols 2
-  to 6 do ([Protocol 7](#protocol-7-indexed-declarations-and-rich-package-bodies)).
+  reports a Fn signature with a component other than a scalar
+  ([Indexed declarations](#indexed-declarations-and-rich-package-bodies)).
 
-A package source that begins with `vastitas:compat:` is reserved. A request of
-protocol 8 or 9 may use one only as the package of a flat program: the one
-package of the request and its root, with the identity of
-[Protocol selection](#protocol-selection), no dependencies, no
+A package source that begins with `vastitas:compat:` is reserved. A request
+may use one only as the package of a flat program: the one package of the
+request and its root, with the identity of
+[Flat programs and the legacy geometry](#flat-programs-and-the-legacy-geometry), no dependencies, no
 `geometry_compat` export and one public root module. Any other package,
 dependency target or root with such a source is an error (`E_PROTOCOL`).
 
-<a id="protocol-9-algebraic-affine-forms"></a>
+<a id="algebraic-affine-forms"></a>
 
-**Protocol-9 algebraic affine forms (Stage 2).** Presented affine declarations
-are validated optional fields of protocol 9; no feature-level version is added
-([History](#history)). Any module using one selects
-protocol 9, and protocols 7 and 8 reject each form with `E_PROTOCOL`.
+**Algebraic affine forms (Stage 2).** Presented affine declarations are
+validated optional records of the envelope.
 
 - **Representation.** An implementation may use
   `{"presented_affine": {"field": "rational"}}`, with exactly one key and no
@@ -259,12 +264,10 @@ most 64. Unknown fields and operations are rejected. The wire never carries a
 basis, a cofactor, a normal form or an elaborated structure image: Lean
 computes and verifies them. See [affine geometry](affine-geometry.md).
 
-<a id="protocol-9-smooth-forms"></a>
+<a id="smooth-forms"></a>
 
-**Protocol-9 smooth forms.** Smooth objects, smooth maps, tangent or cotangent
-fibers, and tapes are validated optional fields of protocol 9. Any module that
-uses one selects protocol 9. Protocols 7 and 8 reject each form with
-`E_PROTOCOL`.
+**Smooth forms.** Smooth objects, smooth maps, tangent or cotangent fibers,
+and tapes are validated optional records of the envelope.
 
 - **Representation.** An implementation may use the string `"smooth_affine"`.
 - **Family representation.** A family may use the string `"smooth"`,
@@ -299,7 +302,7 @@ its index. Generated programs compute every tangent or cotangent fiber and
 every tape at run time.
 
 The kernel admits the primitive operations of its family table, which
-[protocol 7](#protocol-7-indexed-declarations-and-rich-package-bodies)
+[Indexed declarations](#indexed-declarations-and-rich-package-bodies)
 describes. A spelling that
 only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
 wire carries names, a declared dimension and polynomial expressions. It never
@@ -317,11 +320,10 @@ reference link these sections. The frontend spelling
 `Affine(K, n)[…]` has no record of its own: it produces the `kind: "affine"`
 record of `spec[…] over K`.
 
-<a id="protocol-9-metric-forms"></a>
+<a id="metric-forms"></a>
 
-**Protocol-9 metric forms.** Metrics, metric evidence, `flat` and `sharp` are
-validated optional fields of protocol 9. Any module that uses one selects
-protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`.
+**Metric forms.** Metrics, metric evidence, `flat` and `sharp` are validated
+optional records of the envelope.
 
 - **Family representation.** A family may use the string `"metric_form"`.
 - **Metric.** `kind: "metric"` carries `family` (path), `indices` (paths) and
@@ -352,18 +354,11 @@ errors of the declarations, and the
 [`E_METRIC` row](appendix/diagnostics.md#e-metric) of the diagnostics
 reference links these sections.
 
-<a id="protocol-9-frame-forms"></a>
+<a id="frame-forms"></a>
 
-**Protocol-9 frame forms.** Frame declarations, the families of frames, frame
-arrays and frame matrices, the frame parameter and the frame primitives are
-validated optional fields of protocol 9. Any module that uses one selects
-protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`. For a
-frame declaration, a frame parameter and a family with the representation
-`"frame_vector"`, `"frame_covector"` or `"frame_map"`, the decoder's message
-says that frame declarations require protocol 9. A valid family with the
-representation `"frame"` has the constraint `canonical(0)`, which the
-decoder reads before the representation, so its message says that smooth
-declarations require protocol 9.
+**Frame forms.** Frame declarations, the families of frames, frame arrays and
+frame matrices, the frame parameter and the frame primitives are validated
+optional records of the envelope.
 
 - **Family representation.** A family may use the string `"frame"` (the
   frames of a smooth object, `Frame<X>`), `"frame_vector"` (the arrays of
@@ -371,7 +366,7 @@ declarations require protocol 9.
   covectors, `CoCoords<b>`) or `"frame_map"` (the matrices of linear maps
   between two frames, `FrameMap<b, c>`).
 - **Parameter.** `{"kind": "frame", "family": TypePath}` is a frame index of
-  the family `family`. A family with such a parameter is a protocol-9 form,
+  the family `family`. A family with such a parameter is a frame form,
   whatever its representation. An annotation passes a frame as an ordinary
   argument `{"kind": "name", "reference": TypePath}`; the parameter's kind
   makes the kernel resolve the name to a frame declaration.
@@ -442,17 +437,10 @@ object mismatches of a call. The
 [specification of `std::geometry::frame`](spec/std-geometry-frame.md) states
 the laws of the forms.
 
-<a id="protocol-9-physical-dimension-forms"></a>
+<a id="physical-dimension-forms"></a>
 
-**Protocol-9 physical-dimension forms.** The declarations of
-`nature::dimension` and their families are validated optional fields of
-protocol 9. Any module that uses one selects protocol 9. Protocols 7 and 8
-reject each form with `E_PROTOCOL`. For a declaration the decoder's message
-says that physical dimension declarations require protocol 9. A valid family
-with the representation `"reading"` or `"physical_metric"` has the
-constraint `canonical(0)`, which the decoder reads before the
-representation, so its message says that smooth declarations require
-protocol 9.
+**Physical-dimension forms.** The declarations of `nature::dimension` and
+their families are validated optional records of the envelope.
 
 - **Family representation.** A family may use the string `"reading"` or
   `"physical_metric"`.
@@ -491,22 +479,12 @@ reference links its sections. The
 [specification of `nature::dimension`](spec/nature-dimension.md) states what
 an accepted interpretation guarantees.
 
-<a id="protocol-9-spectral-forms"></a>
+<a id="spectral-forms"></a>
 
-**Protocol-9 spectral forms.** The spectral families, the declarations of
-free modules, endomorphism fields, spectra and branches, the definitions
-`trace_power` and `char_coefficient` of a morphism declaration and the six
-spectral primitives are validated optional fields of protocol 9. Any module
-that uses one selects protocol 9. Protocols 7 and 8 reject each form with
-`E_PROTOCOL`. For a declaration, and for a family with the representation
-`"free_module"`, `"endomorphism"`, `"spectrum"` or `"branch"` whose other
-fields protocol 7 admits, the decoder's message says that spectral
-declarations require protocol 9. A valid family has the constraint
-`canonical(0)`, which the decoder reads before the representation, so its
-message says that smooth declarations require protocol 9. A morphism declaration exists only in
-protocol 9, so the message for an invariant says that algebraic affine
-declarations require it. A spectral primitive in protocol 7 or 8 is an
-unknown indexed primitive contract.
+**Spectral forms.** The spectral families, the declarations of free modules,
+endomorphism fields, spectra and branches, the definitions `trace_power` and
+`char_coefficient` of a morphism declaration and the six spectral primitives
+are validated optional records of the envelope.
 
 - **Family representation.** A family may use the string `"free_module"`,
   `"endomorphism"`, `"spectrum"` or `"branch"`.
@@ -572,27 +550,13 @@ mismatches of a call. The
 [specification of `std::linalg::spectral`](spec/std-linalg-spectral.md)
 states the laws of the forms.
 
-<a id="protocol-9-physical-model-forms"></a>
+<a id="physical-model-forms"></a>
 
-**Protocol-9 transition-average and physical-model forms.** The
-declarations of transition averages, conventions, models, calibrations,
-datasets and comparisons, the family representations
-`"transition_average"`, `"model"`, `"calibration"`, `"dataset"` and
-`"comparison"`, and the spectral primitive `average_at` are validated
-optional fields of protocol 9. `Indexed.Wire.admits` gives their version
-gates: a transition average, its family representation and `average_at` are
-the feature `algebraic`, with the other spectral forms, and the declarations
-of conventions, models, calibrations, datasets and comparisons and their
-four family representations are the feature `physicalModels`. Only protocol
-9 admits either. Protocols 7 and 8 reject each form with `E_PROTOCOL`: the
-decoder's message says that spectral declarations require protocol 9 for a
-transition average and its family, that model declarations require it for a
-convention, a model and the family `"model"`, and that errorbar declarations
-require it for a calibration, a dataset, a comparison and their families. A
-valid family has the constraint `canonical(0)`, which the decoder reads
-before the representation, so its message says that smooth declarations
-require protocol 9. `average_at` in protocol 7 or 8 is an unknown indexed
-primitive contract.
+**Transition-average and physical-model forms.** The declarations of
+transition averages, conventions, models, calibrations, datasets and
+comparisons, the family representations `"transition_average"`, `"model"`,
+`"calibration"`, `"dataset"` and `"comparison"`, and the spectral primitive
+`average_at` are validated optional records of the envelope.
 
 Each record carries the common `name`, `public` and `span` and the fields
 below. `family` is a path and `indices` a list of paths, as for the other
@@ -628,7 +592,7 @@ indexed declarations.
   space to `~`, other than `\` and `"`, the string literals that the
   frontend accepts there. Any other text is an error (`E_PROTOCOL`).
 - **Observation.** `average_at` carries the fields of the table of
-  [spectral forms](#protocol-9-spectral-forms).
+  [spectral forms](#spectral-forms).
 
 | Form | Decoder |
 | --- | --- |
@@ -671,8 +635,7 @@ The existing Bool-valued `kind: "branch"` remains unchanged. These scalar bindin
 accept only Nat/Int/Bool/Unit; the kernel independently reconstructs the pure Core
 fragments and their exact source positions, owners, types and runtime slots.
 No checked target, slot ID, trusted condition or resource handle is accepted in a
-pure block. Protocols 2–7 and the internal resource component retain their strict
-old schemas.
+pure block. The internal resource component keeps its own schema.
 
 The [runtime-extent profile](storage/resource-programs.md#runtime-extents) adds parameter kinds
 `runtime_space` (`name`, `implementation`, `dimension`, `span`), `runtime_basis`
@@ -686,14 +649,12 @@ not admit GEMM. All authority, live slots, frame transitions, origins and guards
 are reconstructed; no checked IDs or prevalidated shape metadata is accepted.
 The checker rejects a coefficient loan in a runtime GEMM. It rejects runtime
 events under resource branches, including through calls (`E_RUNTIME_BRANCH`).
-Protocols 2–7 reject these forms.
 
-Protocol 8 also admits [numerical declaration profiles](linalg/maps-and-gemm.md#linear-implementations)
-in the existing `indexed_declarations` array: `scalar_base` and
-`linear_descriptor` representation objects preserve ideal coefficient kinds and
-unresolved nominal base paths. They require version 8 or 9 even without resource
-functions. Protocol 7 retains only `"affine_descriptor"`; it rejects these
-representations. Declaration acceptance alone does not enable GEMM.
+The `indexed_declarations` array also admits
+[numerical declaration profiles](linalg/maps-and-gemm.md#linear-implementations):
+`scalar_base` and `linear_descriptor` representation objects preserve ideal
+coefficient kinds and unresolved nominal base paths, with or without resource
+functions. Declaration acceptance alone does not enable GEMM.
 
 Resource bodies also support `kind: "numerical"` statements carrying `operation`
 and `span`. Operations are `space` (name, unresolved implementation path,
@@ -701,9 +662,9 @@ dimension), `basis` (name, space), `map` (name, loan, source/target bases), and
 `gemm` (left, right, output, mode, policy). Mode is `overwrite` or `accumulate`;
 policy is explicitly `native_fast`. See [the source contract](linalg/maps-and-gemm.md#maps).
 All names remain unresolved. Numeric IDs, trusted certificates, raw GEMM flags
-and extra fields are rejected. The old raw resource `action` schema does not
-acquire a public GEMM operation. Version 8 composes independent path resolution,
-nominal value checking and actual resource checks before native generation.
+and extra fields are rejected. The raw resource `action` schema has no public
+GEMM operation. The checker composes independent path resolution, nominal
+value checking and resource checks before native generation.
 
 Numerical GEMM optionally carries `alpha`/`beta` operands, each either
 `{kind:"literal",value:<resource literal>}` or `{kind:"loan",loan:<local name>}`.
@@ -726,8 +687,7 @@ Both refer only to preceding input basis contracts. Numerical operation
 initialized storage into the interpretation. `borrow_owned` supplies `name`,
 `owner` and `access`, using the actual stored layout; `owned_view` supplies `name`,
 `loan` and `owner`, retaining exact allocation/layout/bases. These forms are
-independently checked, contain no allocation IDs or trusted metadata, and are
-rejected by older decoders. See [owned results](linalg/maps-and-gemm.md#owned-maps).
+independently checked and contain no allocation IDs or trusted metadata. See [owned results](linalg/maps-and-gemm.md#owned-maps).
 The bounded generative form uses parameter `kind:"owned_map_to"` with `name`,
 `source`, `dimension`, `span`, and result `type:{kind:"owned_map_to",source,dimension}`.
 Numerical `pack_map` takes `name,owner`; `unpack_map` takes
@@ -741,8 +701,8 @@ Resource parameters additionally support `kind: "space"` with unresolved
 parameters plus `access` and `initializes`. Every parameter includes `name` and
 `span`. [Dependent input checking](linalg/maps-and-gemm.md#map-parameters)
 preserves actual caller identities and creates scoped child loans for maps.
-Unknown tags/fields fail closed on older kernels; these are additive protocol-8
-forms. They do not add a shape-polymorphic signature language.
+Unknown tags and fields fail closed. These forms do not add a
+shape-polymorphic signature language.
 
 [Typed transforms](internals/numerical-backend.md#wire-and-proof-boundary-of-transforms) add numerical
 operations `involution`, `dual_space`, `conjugate_space`, `derived_basis`, `metric`
@@ -751,8 +711,8 @@ contains a strict operation naming derived bases or explicit metrics, never raw
 native flags. Exact Gram entries are decimal strings. Corresponding dependent
 parameter tags retain earlier space/basis/involution relationships and an explicit
 orthonormal requirement for direct adjunction. Rust serializes these forms and
-Lean decodes them, each with a strict schema; old envelopes and unknown nested
-metadata fail closed.
+Lean decodes them, each with its own schema; unknown nested metadata fails
+closed.
 
 [Vector evaluation](linalg/transforms-and-metrics.md#pairings) adds `vector` (`name`, `loan`, `basis`),
 `conjugate_vector` (`name`, `parent`, `basis`, `involution`) and `evaluate`
@@ -774,24 +734,23 @@ for a vector: the checker resolves the vector to its loan, as
 latter. Metric operands remain unresolved names; no raw realization coefficients,
 prechecked Gram tags, inverse matrix or native flags are admitted at this public
 boundary. The independent checker reconstructs exact coefficients and the full
-scratch write/release/read transition. Protocols 2–7 reject these operations.
+scratch write/release/read transition.
 
-The additive protocol-8 `network` resource statement checks a strict finite
-graph. [Two-map networks](linalg/networks-and-packing.md#two-map-networks)
+The `network` resource statement checks a finite graph. [Two-map networks](linalg/networks-and-packing.md#two-map-networks)
 gives the source rules, and
 [Two-map networks: graph and independent acceptance](internals/numerical-backend.md#two-map-networks-graph-and-independent-acceptance)
 the wire schema. It is checked
 independently before lowering to the existing numerical/storage path.
 
-The additive protocol-8 `tensor` operations (`view`, `pack`, `contract3`) carry a
-bounded ordered-axis/grouping schema.
+The `tensor` operations (`view`, `pack`, `contract3`) carry a bounded
+ordered-axis/grouping schema.
 [Packing and contraction](linalg/networks-and-packing.md#packing-and-contraction)
 gives the source rules, and
 [Tensor packing: independent checking and native execution](internals/numerical-backend.md#tensor-packing-independent-checking-and-native-execution)
 the wire schema.
 Packing is explicit and checked independently from nominal contraction authority.
 
-The additive protocol-8 `tree` statement carries a bounded unresolved finite graph
+The `tree` statement carries a bounded unresolved finite graph
 and an explicit plan. A step of the plan has the `kind` `action`, `view`,
 `regroup`, `rebind` or `join`, and an `action` step admits `borrow` and
 `release`. Lean reconstructs producer
@@ -799,36 +758,39 @@ connectivity, nominal ports and actual resource transitions; see
 [contraction trees](linalg/networks-and-packing.md#contraction-trees). The raw internal `regroup3` action
 contains source/target loans, three physical dimensions and explicit input/output
 groupings; it is not a public nominal-authority certificate.
-Protocol-8 tensor operations also include strict `cached_pack`
+The tensor operations also include `cached_pack`
 (`name`, `source`, `target`) and `cached_contract3`
 (`cache`, `left`, `right`, `output`, `policy`) envelopes. They carry unresolved
 local names, never stamps or certificates. See [cached packing](linalg/networks-and-packing.md#caches).
 
-## Protocol 2: flat requests
+## Declarations, types and expressions
 
-Every function, generic, method, parameter, block, statement and expression has `span`:
+The functions, generics and methods of a module, and their types, blocks,
+statements and expressions, have these records. Every function, generic,
+method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
 one-based Unicode-scalar columns). Types and indices have their containing
-node's span. All arrays are ordered. With explicit `--lib` inputs, declarations
-are merged after separately parsing each file. Byte offsets occupy disjoint
+node's span. All arrays are ordered. With explicit `--lib` inputs of a flat
+program, the driver parses each file separately and merges the declarations
+into the one module of the program. Byte offsets occupy disjoint
 source ranges, while line and column remain local to the original file. The
 Rust driver retains the range-to-path map and formats backend diagnostics;
 `file` identifies the entry input. The backend does not read library files.
 
 Function: `{ "name": "f", "params": [...], "return_type": Type,
-"body": Block, "span": Span }`.
+"body": Block, "public": Bool, "span": Span }`.
 Parameter: `{ "name": "x", "ty": Type, "span": Span }`.
 Block: `{ "statements": [Statement...], "result": Expr, "span": Span }`.
 
 Generic: `{ "name": "add", "params": [{ "name": "left", "span": Span },
 { "name": "right", "span": Span }], "domain": [[Type, Type], ...],
-"span": Span }`. An empty domain is `[]`; a domain containing the zero-argument
-key is `[[]]`. Each tuple contains exactly the declared number of concrete
+"public": Bool, "span": Span }`. An empty domain is `[]`; a domain containing
+the zero-argument key is `[[]]`. Each tuple contains exactly the declared number of concrete
 scalar types.
 
 Method: `{ "name": "add", "params": [Parameter...], "return_type": Type,
-"requires": ["HasOrder"], "body": Block, "span": Span }`. Parameter `ty`
-fields may use the scalar selectors `Any` and `Number` as well as concrete
+"requires": ["HasOrder"], "body": Block, "span": Span }`. The `name` of a
+method is an unresolved reference path. Parameter `ty` fields may use the scalar selectors `Any` and `Number` as well as concrete
 scalars; the result must be concrete. An absent source `requires` clause is
 encoded as `[]`. Requirement names use their containing method's span.
 
@@ -873,8 +835,7 @@ Expressions use a `kind` tag and always include `span`:
 `pair`, `pair_first`, and `pair_second` use ordinary `call` nodes. Both constructor
 operands are inferred independently, with no expected-type conversion. Pair
 values can occur in ordinary function contracts and data expressions, but not
-in dispatch keys/selectors or recursive Fn contracts. These forms use the
-protocol-2 and protocol-3 envelopes.
+in dispatch keys/selectors or recursive Fn contracts.
 
 - `integer`: decimal unsigned `value` string (unary minus is separate).
 - `boolean`: boolean `value`.
@@ -895,7 +856,7 @@ A string `call` may refer to a local Fn binding. The `invoke` form supports
 arbitrary callee expressions. Lambda IDs and static targets are assigned by
 Lean; spans are diagnostic metadata and cannot establish target identity.
 There is no public internal-reference constructor. Unknown expression tags
-are rejected. All previously valid protocol-2 requests remain supported.
+are rejected.
 
 Statements use a `kind` tag and always include `span`:
 
@@ -905,18 +866,18 @@ Statements use a `kind` tag and always include `span`:
 Builtins are `Affine(K, n)`, `Base(K)`, `origin(X)`, `id(X)`,
 `compose(g, f)`, `apply(f, p)`, `dim(X)`, `int(n)` (Nat to Int),
 `pair(a, b)`, `pair_first(p)` and `pair_second(p)`. A `call` carries the
-source spelling of its callee, so the operation `dim` is the callee `"dim"`
-in every protocol, and the callee `"dimension"` is an ordinary name that the
-checker resolves like any other. An unresolved `dimension` is `E_NAME` with a
+source spelling of its callee, so the operation `dim` is the callee `"dim"`,
+and the callee `"dimension"` is an ordinary name that the checker resolves
+like any other. An unresolved `dimension` is `E_NAME` with a
 note.
 Only the ring argument of `Affine`/`Base` accepts the reserved variable
 `QQ` or `CInfReal`. Their use as ordinary values is invalid.
 
 ## Responses
 
-Success: `{ "version": 2, "ok": true, "lean_source": "..." }` (the source
+Success: `{ "version": 10, "ok": true, "lean_source": "..." }` (the source
 is present for emit and absent for check).
-Failure: `{ "version": 2, "ok": false, "diagnostics": [
+Failure: `{ "version": 10, "ok": false, "diagnostics": [
 { "code": "E_TYPE", "message": "...", "span": Span,
   "notes": [{ "message": "...", "span": Span }] }] }`.
 Every response also carries `"kernel": { "sources": String, "lean": String }`:
@@ -941,12 +902,14 @@ numerical runtime. These are the modules whose sources the driver compares.
 Notes carry related source locations, including object introduction sites. They
 are diagnostic metadata, not trusted identity evidence. Current backends emit
 an empty array when there are no notes; drivers also accept omitted notes.
-Failure responses preserve any readable natural-number request version, even
-when unsupported. Missing or non-natural versions are rejected before decoder
-selection. An unreadable version, invalid JSON or non-UTF-8 stdin produces an
-`E_PROTOCOL` JSON response using version 2 as the fallback; stdin decoding errors
-do not escape as uncaught IO exceptions. Before JSON parsing, the kernel also
-answers `E_PROTOCOL` (with the same version-2 fallback) for requests over 1 GiB
+A response to a request of the epoch has the version `currentProtocol`. The
+failure response to a request of [another version](#other-versions) keeps the
+request's natural-number version. A missing or non-natural version is an
+error (`E_PROTOCOL`, `IR version must be a natural number`) before the
+decoder runs. An unreadable version, invalid JSON or non-UTF-8 stdin produces an
+`E_PROTOCOL` JSON response at the version `currentProtocol`; stdin decoding
+errors do not escape as uncaught IO exceptions. Before JSON parsing, the kernel
+also answers `E_PROTOCOL` (at the same version) for requests over 1 GiB
 (`requestBytes` of the compiler limits, by which the frontend bounds the requests
 that it writes), nesting deeper than 16384
 arrays/objects, numbers with more than 64 integer and fraction digits or an
@@ -954,9 +917,10 @@ exponent of more than two digits, and duplicate object keys (compared after
 string decoding). Path lists are structured: each component is nonempty and
 contains no `:`. Integer literal and Gram strings are ASCII decimal digits
 (Gram entries may start with `-`); `_` separators are rejected.
-`supportedProtocolVersions` in the kernel defines the complete wire
-version list. Drivers display failure diagnostics before adding a version
-mismatch note; a mismatched success response is always rejected.
+Drivers display failure diagnostics before adding the note
+`incompatible backend protocol version in failure response` to a failure
+response of another version; a success response of another version is an
+error (`E_PROTOCOL: incompatible backend protocol version`).
 
 ## Codes, common checks and generated code
 
@@ -989,45 +953,40 @@ The `__vastitas_` prefix is reserved for hygienic specialization names and for
 the declarations (`__vastitas_rd…`) and generated functions (`__vastitas_rf…`)
 of compiled reverse Core. A source binder, or a declaration or function of a
 wire request, under that prefix is an error (`E_RESERVED`). So is a reference
-to such a name in a flat source and in a request of protocols 2–6. In
-protocols 7–9 the kernel declares the compiled reverse names only after
-acceptance, so a call of one in a request is an unbound name (`E_NAME`).
+to such a name in the source of a flat program, which the frontend rejects.
+The kernel declares the compiled reverse names only after acceptance, so a
+reference to one in a request is an unbound name (`E_NAME`).
 
-`decodeSurfaceModule` in `SurfaceProtocol.lean` decodes the extended request and
-`Indexed.LegacySource` converts its unresolved syntax into the common
-`Indexed.AuthoritySource.checkProgram` input. Function syntax remains separate from core
-syntax. Every lambda and function body is checked, including unused functions;
-signature probes for abstract function parameters are confined to a separate
+`ResourceSource.Wire.program` decodes the request, and its pure program is the
+input of `Indexed.AuthoritySource.checkProgram`. Function syntax remains
+separate from core syntax. Every lambda and function body is checked,
+including unused functions; signature probes for abstract function parameters are confined to a separate
 audit pass. Executable specialization memoizes definition/function-argument
 IDs, erases function values and produces only direct calls. The unchanged
 finite engine still checks all applicable method bodies. See
 [Function values](stage1b.md) and
 [Function specialization](internals/checking-pipeline.md#function-specialization).
 
-After the original wire decoder, protocols 2–6 adapt source functions, methods,
-contributions and namespace metadata before semantic elaboration. Flat input uses
-an adapter-owned package identity independent of the displayed filename. The
-adapter supplies a closed, unresolved compatibility declaration package because
-these wire versions cannot carry indexed declarations. The original namespace
-must validate before injection; a source dependency cannot resolve through the
-private profile. The same declaration/profile, authority, Fn/dispatch and Core
-checks used by protocol 7 remain mandatory. Old wire versions continue to reject
-the declaration fields of later versions. Internal Core formats are not
-alternative wire protocols.
+A flat program has a reserved package identity independent of the displayed
+filename ([Flat programs and the legacy geometry](#flat-programs-and-the-legacy-geometry)).
+The compatibility profile of `legacy_geometry` is a closed, unresolved
+declaration package; the request's namespace validates before the kernel adds
+it, and a source dependency cannot resolve through it. The declaration and
+profile, authority, Fn/dispatch and Core checks run on every program.
+Internal Core formats are not alternative wire protocols.
 
 Runtime representation: generated Lean code imports
 `VastitasKernel.IndexedRuntime`, and `VastitasKernel.AlgebraRuntime` or
-`VastitasKernel.SmoothRuntime` only when it uses them. A program of protocol
-8 or 9 that selects the storage or the numerical runtime also imports
-`VastitasStorageNative` or `VastitasGemmNative`. A program of protocols 2–6
-imports `VastitasKernel.IndexedRuntime` alone. Scalar types map to Lean `Nat`, `Int`, `Bool`,
+`VastitasKernel.SmoothRuntime` only when it uses them. A program that
+selects the storage or the numerical runtime also imports
+`VastitasStorageNative` or `VastitasGemmNative`. Scalar types map to Lean `Nat`, `Int`, `Bool`,
 `Unit`; geometric objects, indexed points/morphisms and existential payloads use
 the common runtime representations. Nominal typing is established before erasure.
 The old runtime remains for retained legacy evaluation proofs.
 The [finite migration acceptance map](internals/indexed-checker.md#finite-geometry-migration-acceptance) records checked
 primitive result compatibility, source regressions and the limits of the
-source/native proof claims. The compatibility adapter is not an additional wire
-version or a privileged semantic checker.
+source/native proof claims. The compatibility profile is not an additional
+wire version or a privileged semantic checker.
 User symbols are always renamed to generated identifiers; source text is never
 inserted as Lean syntax. Integers are validated decimal literals. The label of
 an observation of `show!` is written as a quoted Lean string literal.
@@ -1042,26 +1001,28 @@ line feed after each observed `let`, and returns the exit status of the rest
 of the body.
 
 
-## Protocol 3: package namespaces
+## Package namespaces
 
-The namespace request is `{ "version": 3, "file": "entry manifest",
-"root": "/canonical/app/Vastitas.toml", "packages": [Package...] }`.
-The response has the same shape as version 2 and echoes version 3.
+The `packages` of a request ([The envelope](#the-envelope)) hold the
+selected dependency closure, and `root` names the root package.
 
 - Package: `source` (canonical manifest location), `name`, `version` (SemVer),
   `dependencies: [{ "alias": "math", "target": "/canonical/math/Vastitas.toml" }]`,
-  `modules: [Module...]`. The three identity fields distinguish owners. A
-  manifest location occurs once, regardless of how many dependency aliases use it.
+  `modules: [Module...]`, and an optional `geometry_compat` export
+  ([Indexed declarations](#indexed-declarations-and-rich-package-bodies)).
+  The three identity fields distinguish owners. A manifest location occurs
+  once, regardless of how many dependency aliases use it.
 - Module: `path: ["logical", "components"]`, `public: Bool`, `span`,
-  `imports`, `functions`, `generics`, `methods`. The root has path `[]`.
+  `imports`, `functions`, `generics`, `methods`, and the optional records of
+  the later sections. The root has path `[]`.
   Each non-root path has a declared parent. Its visibility belongs to the
   module declaration in that parent. There is no source-file owner field.
 - Import: `path: ["package", "math", "add"]`, `alias`, `public`, `span`.
-- Functions and generics retain the v2 fields and add `public: Bool`.
-  Methods retain the v2 fields; `name` is an unresolved reference path.
-- Expressions retain the v2 shape. Global `variable.name` and `call.callee`
-  preserve unresolved `::` paths. Locals and dependent indices remain lexical
-  names. There are no frontend-supplied function IDs or edit-authority grants.
+- Functions, generics and methods have the records of
+  [Declarations, types and expressions](#declarations-types-and-expressions).
+- Global `variable.name` and `call.callee` preserve unresolved `::` paths.
+  Locals and dependent indices remain lexical names. There are no
+  frontend-supplied function IDs.
 
 Lean validates package/module/declaration uniqueness, acyclic dependencies,
 imports and reexports (including unused ones), visibility on every traversed
@@ -1070,14 +1031,12 @@ path, and exact-module generic method authority. Each resolution shares a
 nesting bound; exhaustion returns `E_LIMIT` at the referring source span or,
 inside a chain of aliases, at the import declaration where the bound ran out.
 Completed dependency nodes are memoized, so duplicate aliases do not cause
-repeated graph traversal. Unknown namespace metadata
-fields, including claimed owners, are rejected. Protocols 2–6 also reject unknown
-fields in nested type/index, parameter, expression, statement, block, declaration
-and span records. Only protocol 2's top-level envelope retains its legacy tolerance
-for unrelated untrusted hints; that exception does not apply to nested records or
-allow newer declarations to be silently downgraded. Flat declarations cannot carry
-the package-only `public` field. Invalid membership scalar names are rejected as
-`E_TYPE` before constructing their namespace authority graph.
+repeated graph traversal. Unknown namespace metadata fields, including
+claimed owners, are rejected (`unknown protocol field '<name>'`), and so are unknown fields in nested type/index, parameter,
+expression, statement, block, declaration and span records and in the
+envelope; no record tolerates an unrelated hint. Invalid membership scalar
+names are rejected as `E_TYPE` before constructing their namespace authority
+graph.
 
 A public reexport preserves
 its original target and requires a public declaration; private intermediates
@@ -1085,18 +1044,12 @@ must be accessible from the reexporting module. Private declarations are
 visible from their declaring module and descendants only. Parent names are
 not implicitly in scope. Dependency aliases are only initial path components.
 
-Protocols 3–6 are accepted through `Indexed.LegacySource.check`. It validates
-the original namespace, adapts functions, methods and contributions to the
-source checker of protocol 7 and runs `Indexed.AuthoritySource.checkProgram`.
-That checker checks every body in an audit pass and in an executable pass,
-and then the Core. `Namespace.lower` assigns symbols from package identity +
-logical module path + declaration name. On this path it lowers the headers
-that the authority assembler and the dispatch families read. For a rejected
-request `describeDiagnostic` lowers the original namespace once more, with
-its bodies, only to restore source names in the diagnostic; the result of
-that lowering decides nothing about acceptance. Only an ordinary
-root-package root-module `main` becomes the core entrypoint. Protocol 2 keeps
-its flat namespace.
+`Indexed.AuthoritySource.checkProgram` validates the namespace and checks
+every body in an audit pass and in an executable pass, and then the Core.
+`Namespace.lower` assigns symbols from package identity + logical module path
++ declaration name; it lowers the headers that the authority assembler and the
+dispatch families read. Only an ordinary root-package root-module `main`
+becomes the core entrypoint.
 
 A request admits at most 1,000,000 member visits across all import
 declarations. The kernel also limits the sum of the wire price of the request
@@ -1122,31 +1075,20 @@ These checks validate the supplied namespace graph, not the authenticity of
 filesystem contents. Changing a graph into a different *valid* program is not
 an authentication failure: the wire protocol is not a signed artifact format.
 Rust is responsible for canonical file loading and retaining all input files
-for output collision protection. [Protocol selection](#protocol-selection) says
-when manifest mode selects protocol 3. See [Packages](packages.md) and
+for output collision protection. See [Packages](packages.md) and
 [Modules](language/modules.md) for source syntax, commands and file loading.
 
 
-## Protocol 4: finite abstract declarations
+## Finite abstract declarations
 
-Sources without abstract declarations retain version 2 (flat, including
-explicit `--lib`) or version 3 (packages), and abstract declarations select
-version 4, when no earlier item of [Protocol selection](#protocol-selection)
-applies. A request of version 4 has a required `input` field whose value is
-exactly `flat` or `package`. Flat input keeps the version-2
-`file`, `functions`, `generics`, and `methods` fields. Package input keeps the
-version-3 `file`, `root`, and `packages` graph. Responses echo version 4.
-
-Flat roots and package modules may contain `abstract_types`, `subtypes` and `abstract_methods`
+A module may contain `abstract_types`, `subtypes` and `abstract_methods`
 arrays; absent arrays mean empty, and present arrays must be arrays. Each
-abstract type has `name`, `parents`, and `span`, with an additional required
-`public` boolean in package mode. A parent is an unresolved `{path: [String],
+abstract type has `name`, `parents`, `public` and `span`. A parent is an unresolved `{path: [String],
 span: Span}`; an empty parent list means the default Any parent. Each subtype
 has `scalar`, `target` (an unresolved path plus span), and declaration `span`.
-Path components must be nonempty; flat type paths have one component. Existing
-method selector `named` types retain their unresolved path spelling until Lean
-resolves them in the defining module. No selected IDs or hierarchy matrices are
-accepted from the frontend. Version 2/3 reject these extension fields.
+Path components must be nonempty. Method selector `named` types retain their
+unresolved path spelling until Lean resolves them in the defining module. No
+selected IDs or hierarchy matrices are accepted from the frontend.
 
 The kernel independently validates the maximum 64 nominal types, cycles,
 duplicates, scalar memberships and unchanged builtin relations/capability facts.
@@ -1171,15 +1113,12 @@ contract domains. Contracts never enter the candidate list. `E_CONTRACT_EMPTY`,
 inapplicable contract keys, and selected-result conflicts. Missing/ambiguous
 concrete winners retain the existing dispatch diagnostics.
 
-## Protocol 5: scoped edits and assembly
+## Scoped edits and assembly
 
-Protocol 5 extends the protocol-4 package envelope, requires `input: "package"`,
-and retains all package identities, declarations, hierarchy and unresolved paths.
-Inputs without edit declarations use versions 2/3/4, or the later version
-that [Protocol selection](#protocol-selection) gives them. There is no
-cached or pre-approved assembly input. See [Edit authority](language/edit-authority.md)
-for the source rules and
-[Edit authority acceptance](verification.md#edit-authority-acceptance-protocol-6)
+Edit declarations and the assembly keep every package identity, declaration,
+hierarchy and unresolved path. There is no cached or pre-approved assembly
+input. See [Edit authority](language/edit-authority.md) for the source rules
+and [Edit authority acceptance](verification.md#edit-authority-acceptance)
 for the proof boundary.
 
 Each module additionally permits `grants: [Grant...]`,
@@ -1189,8 +1128,9 @@ The decoded module determines each declaration's owner; the wire cannot assert
 an issuer, owner, accepted flag or stable identity independently of that module.
 
 ```text
-Grant = { name, target: [identifier...], grantee_source: manifest-location,
-          grantee_path: [identifier...], region: [[scalar...], ...], public, span }
+Grant = { name, target: [identifier...], grantee_package: package-name,
+          grantee_path: [identifier...], region: [[scalar...], ...],
+          delegable?: Bool, public, span }
 Contribution = { name, target: [identifier...], methods: [Method...], public, span }
 Assembly = { events: [Event...], span }
 Event = { op: "borrow", grant: [identifier...], loan: identifier, span }
@@ -1199,17 +1139,16 @@ Event = { op: "borrow", grant: [identifier...], loan: identifier, span }
       | { op: "seal", target: [identifier...], span }
 ```
 
-This grammar is the decoder contract of protocols 5–8. The driver writes
-`grantee_package` in protocol 9 for every grant, delegation and transfer
-([Protocol selection](#protocol-selection)). A program with contributions or
-an assembly and no record of that list has `legacy_geometry`; the driver wrote
-it as protocol 5 before ([History](#history)).
+[Named recipients](#named-recipients) gives the rules of `grantee_package`.
+A program with contributions or an assembly and no record of the list of
+[Flat programs and the legacy geometry](#flat-programs-and-the-legacy-geometry)
+has `legacy_geometry`.
 
 Grant paths refer only to the selected dependency closure. Grant/contribution
 IDs derive from package identity, module path and declaration name; method
 ordinals distinguish methods within a contribution. Unknown fields in these
-records and events are rejected. Ordinary expressions retain their existing
-protocol decoder contract. A maximum of one assembly is permitted, exactly at
+records and events are rejected. Ordinary expressions keep the records of
+[Declarations, types and expressions](#declarations-types-and-expressions). A maximum of one assembly is permitted, exactly at
 the root package's root module. An omitted root assembly is an empty trace;
 all declaration, unapplied-body and completion audits still run.
 
@@ -1222,7 +1161,7 @@ contract results, all-key ambiguity and each installed method's final winning
 footprint. All applied bodies and every applicable ground instance of unapplied
 contributions are checked; unapplied declarations never become dispatch candidates.
 The executable Core comes from the source bodies through the function compiler
-and the Core audits of every other protocol.
+and the Core audits of every program.
 
 The shared limits allow 4096 assembly events, 4096 contribution methods in the
 whole closure, and 4096 ground functions in the separate unapplied-body audit.
@@ -1233,16 +1172,14 @@ a 200,000,000-unit budget, charged before each audit, and exhaustion reports
 Existing per-family key, hierarchy, type-depth and specialization bounds remain.
 No digest in this same input proves filesystem or author authenticity.
 
-## Protocol 6: nested loans and current edit authority
+## Nested loans and current edit authority
 
-Protocol 6 is package-only and keeps the version-5 envelope and declarations.
-Grants may additionally carry `delegable: Bool` (default false); presence of
-this field is rejected in protocol 5 even when false. Modules may add:
+Grants may carry `delegable: Bool` (default false). Modules may add:
 
 - `delegations: [Grant...]`: the same record shape, with the issuer derived from
   its declaring module. It is usable only through an active explicitly delegable
   parent loan held by that module, with the same target and a contained region.
-- `transfers: [{name, target, grantee_source, grantee_path, public, span}]`:
+- `transfers: [{name, target, grantee_package, grantee_path, public, span}]`:
   a named permanent transfer operation, declared by its issuer module. The exact
   recipient must already exist in the selected closure.
 
@@ -1250,9 +1187,7 @@ The additional assembly events are
 `{op: "reborrow", parent: String, delegation: Path, loan: String, span}` and
 `{op: "transfer", declaration: Path, span}`. Unknown fields are rejected;
 claimed issuer/current-owner IDs, accepted flags and supplied histories are not
-wire fields. All old event schemas remain unchanged. Protocol 2 also rejects
-semantic package/authority fields while retaining its unrelated hint metadata
-compatibility.
+wire fields.
 
 `Authority.assemble`, which `Indexed.AuthoritySource.checkProgram` calls,
 reconstructs histories and complete delegation chains and audits each
@@ -1262,27 +1197,20 @@ The original function identity never changes. A returned loan or transfer
 preserves contributions and unresolved completion obligations. The final
 winning region is contained in every ancestor's grant, and transfer requires
 no outstanding loans. See [source semantics](language/edit-authority.md#transfers) and
-[the proof boundary](verification.md#edit-authority-acceptance-protocol-6).
+[the proof boundary](verification.md#edit-authority-acceptance).
 
-## Protocol 7: indexed declarations and rich package bodies
+## Indexed declarations and rich package bodies
 
-The package-only envelope is `{version:7,input:"package",file,root,packages}`.
-Package/module identity, dependencies, imports, abstract selectors/contracts and
-all protocol-6 authority metadata retain their existing schemas and checks.
 Each module may add `indexed_declarations`, defaulting to an empty array.
-The driver does not write protocol 7. A package closure in which a loaded
-module uses an indexed declaration, annotation, typed pack or ordered-field
-unpack, or in which a package exports `geometry_compat`, selects protocol 9
-([Protocol selection](#protocol-selection)), which keeps this envelope. Every
-body in that package closure uses the rich source path. Flat input and
-explicit `--lib` keep protocol 2/4.
+Every body of a request uses the rich source path, with the indexed
+annotations, typed packs and ordered-field unpacks below.
 
 A declaration has `{kind,name,public,span,...}` with these additional fields:
 
 | Kind | Fields |
 | --- | --- |
 | `marker` | None |
-| `implementation` | `marker:TypePath`, `representation:"affine_descriptor"`, `capabilities:["origin"\|"dimension"]` |
+| `implementation` | `marker:TypePath`, `representation:"affine_descriptor"`, `capabilities:["origin"\|"dim"]` |
 | `classification` | `parents:[TypePath]`, `domain:[TypePath]` |
 | `global` | `implementation:TypePath` |
 | `family` | `parameters:[Parameter]`, `constraints:[Constraint]`, `representation:"token"\|"point"\|"morphism"` |
@@ -1312,20 +1240,25 @@ Primitive bindings use `op`, with these payloads:
 | `global` | `declaration:TypePath` |
 | `origin` | `domain:ObjectType`, `point_family:TypePath`, `base_object:TypePath` |
 | `identity` | `domain:ObjectType`, `map_family:TypePath` |
-| `dimension` | `domain:ObjectType` |
+| `dim` | `domain:ObjectType` |
 | `compose` | `map_family:TypePath` |
 | `apply` | `map_family:TypePath`, `point_family:TypePath` |
 
-The source spells the op `dimension` and the capability `"dimension"` as
-`dim`, as in `dim((Scheme, QQ))` and `capabilities(origin, dim)`; the wire
-keeps `dimension` for both. The entry `dimension` of a `GeometrySetting`
-names the primitive of `dim`, as `identity` names the primitive of `id`.
+The source and the wire spell the op and the capability of the operation
+`dim` as `dim`, as in `dim((Scheme, QQ))` and `capabilities(origin, dim)`.
+The spelling `"dimension"` is an error (`E_PROTOCOL`) in both places: the op
+is an `unknown indexed primitive contract` and the capability an
+`unsupported implementation capability`. The kernel decodes both to the same
+values as before the spelling changed: the op binds `PrimitiveBinding.dimension`
+and the capability is `Capability.dimension`.
 
-The field set of every operation, here and in protocol 9, comes from one
-table: the families of `lean-kernel/VastitasKernel/IndexedPrimitiveFamilies.lean`.
+The field set of every operation, here and in the optional forms, comes from
+one table: the families of `lean-kernel/VastitasKernel/IndexedPrimitiveFamilies.lean`.
 Each family names an `op`, its fields with their kinds in wire order, and
-whether only protocol 9 admits it. The decoder admits a binding only with its
-family's fields. The frontend reads `src/primitive_table.rs`, which
+whether it is one of the Stage 2 and later forms (`algebraic`). The decoder
+admits every family, and admits a binding only with its family's fields. The
+frontend reads `algebraic` to decide `legacy_geometry`
+([Flat programs and the legacy geometry](#flat-programs-and-the-legacy-geometry)). The frontend reads `src/primitive_table.rs`, which
 `scripts/check_primitive_table.py` generates from the same families, and
 writes the fields in that order.
 
@@ -1335,24 +1268,24 @@ Data annotations retain concrete scalar `named` and homogeneous `pair` types and
 Arguments are `{kind:"name",reference:TypePath}` or
 `{kind:"natural",value:String}`; expected parameter kinds determine whether a
 name refers to a declaration or a preceding local object binding.
-Fn types keep the scalar/recursive-Fn-only contract and existing depth bound.
+Fn types keep the scalar/recursive-Fn-only contract and its depth bound.
 A component of a Fn type is a Fn type or a data type of the kinds `named`,
-`pair`, `point`, `morphism` or `pointed`, which protocols 2 to 6 decode there
-too; another kind, such as an indexed type, is an error (`E_PROTOCOL`). A Fn
-type with a component other than `Nat`, `Int`, `Bool`, `Unit` or a Fn type is
-an error (`E_TYPE`) at the parameter, function, lambda or `let` statement that
-declares it, as in protocols 2 to 6. Protocols 8 and 9 report the first such
-type in the order of the program, after the namespace of the request
-validates; protocol 7 reports one where its checker meets it.
+`pair`, `point`, `morphism` or `pointed`; another kind, such as an indexed
+type, is an error (`E_PROTOCOL`). A Fn type with a component other than `Nat`,
+`Int`, `Bool`, `Unit` or a Fn type is an error (`E_TYPE`) at the parameter,
+function, lambda or `let` statement that declares it. The kernel reports the
+first such type in the order of the program, after the namespace of the
+request validates.
 
 Ordinary expression and statement forms retain their schemas. Explicit packages
 use `{kind:"indexed_pack",package:Type,witness:Expr,fields:[Expr],span}` and
 `{kind:"unpack_fields",value:Expr,witness:String,fields:[String],span}`.
-The existing legacy `pack`/`unpack`, named Scheme/CInfScheme and
-`point`/`morphism`/`pointed` annotation schemas are also decoded strictly.
-Their meaning requires exactly one validated compatibility export. Inferred
-legacy pack types are an internal body-only form, never a signature escape hatch.
-The existing protocol-2–6 compatibility path is preserved.
+The legacy `pack`/`unpack`, named Scheme/CInfScheme and
+`point`/`morphism`/`pointed` annotation schemas are decoded with their exact
+fields. Their meaning requires exactly one validated compatibility export: a
+`geometry_compat` export of a package, or the compatibility profile of
+`legacy_geometry`. Inferred legacy pack types are an internal body-only form,
+never a signature escape hatch.
 
 A package may add `geometry_compat` (omission means no export; `null` is invalid):
 
@@ -1364,13 +1297,17 @@ A package may add `geometry_compat` (omission means no export; `null` is invalid
 }
 GeometrySetting = {
   domain: String, marker: String, base_object: String,
-  affine: String, base: String, origin: String, identity: String, dimension: String
+  affine: String, base: String, origin: String, identity: String, dim: String
 }
 ```
 
-These are unresolved `::`-separated paths, exactly as in the manifest’s
+These are unresolved `::`-separated paths, as in the manifest’s
 `[geometry_compat]`, `[geometry_compat.scheme]` and `[geometry_compat.smooth]`
-tables. Lean resolves them in the exporting package’s root scope, preserving
+tables. The slot that the manifest spells `dimension` is `dim` on the wire,
+and the spelling `dimension` there is an error (`E_PROTOCOL`, `unknown
+protocol field 'dimension'`). The kernel decodes it to the entry `dimension`
+of its `GeometrySetting`, which names the primitive of `dim`, as `identity`
+names the primitive of `id`. Lean resolves them in the exporting package’s root scope, preserving
 canonical owners, and audits all exports against the same accepted declaration
 environment. Contracts require distinct markers, compatible classification/base/
 affine roles, exact primitive bindings, Point/Morphism representations with
@@ -1382,97 +1319,129 @@ defines fallback precedence and nominal identity behavior.
 
 Declarations, rich types/bodies and the envelope reject unknown fields. No
 serialized owner, winner, lifted lambda ID, certificate or checked Core can enter
-acceptance. Older package versions reject `indexed_declarations` and
-`geometry_compat`; flat protocol 2 also rejects these semantic fields rather
-than ignoring them as unrelated metadata.
+acceptance.
 
-`Indexed.Wire.check` retains the exact decode and actual
-`Indexed.AuthoritySource.checkProgram` result. The actual authority assembler,
-all-key footprints, every applied/unapplied body, independent Fn audits and both
-Core checks therefore run before success. `emit` passes `compiled` to
-`Indexed.Core.Codegen.generate`: the executable Core with its reverse passes
-compiled into Core and checked again by the Core audit. The generator
-rechecks it independently.
+`ResourceSource.Wire.check` retains the decoded request and the result of
+`Indexed.AuthoritySource.checkProgram` on its pure program. The authority
+assembler, all-key footprints, every applied/unapplied body, independent Fn
+audits and both Core checks therefore run before success. For a program
+without a resource entry, `emit` passes the compiled module of the pure
+program to `Indexed.Core.Codegen.generate`: the executable Core with its
+reverse passes compiled into Core and checked again by the Core audit. The
+generator rechecks it independently.
 See [source syntax and limitations](indexed-source.md).
+
+## Other versions
+
+A request whose `version` is a natural number other than `currentProtocol` is
+an error (`E_PROTOCOL`), by its version alone. The kernel reads no other
+field, so the request fails closed even when the rest of it is a request of
+the epoch. The message names the version and asks for matching binaries:
+
+```text
+IR protocol version 9 is not protocol 10 of this kernel; the compiler and the kernel must come from the same Vastitas build: rebuild them together
+```
+
+The failure response keeps the request's version, so a driver of that
+version shows the diagnostic as it is. The rule covers the retired versions 2
+to 9, the versions 0 and 1, which were never public, and every later number.
+No version falls back to another decoder, and the kernel converts no request
+of another version. The wire is a boundary between a driver and a kernel of
+the same build, not an interface for hand-written requests:
+[History](#history) lists the retired versions.
 
 ## Expected-rejection doctest consumer (reference only)
 
 The [doctest result contract](reference/compiler-tools.md#doctest-result-reference) separates
 ordinary language rejection from protocol, transport, and execution failure.
 It reuses the diagnostic payload above without changing this wire protocol or
-the driver's preservation of diagnostics on incompatible failure responses.
+the driver's preservation of diagnostics on incompatible failure responses: its
+regressions judge a version-9 failure response to a version-10 request as a
+protocol mismatch.
 The Python reference and fixture regressions do not implement production driver
 receipts, doctest execution, or official package admission.
 
 ## Tests
 
-- `tests/protocol_shape.rs::legacy_decoders_reject_unknown_fields_in_every_nested_record_shape`
-  adds a field to every record shape of requests of protocols 2 to 6. It
-  requires `E_PROTOCOL` with the version of the request. The envelope of
-  protocol 2 is the one exception.
-  `public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape`
-  does the same for the requests of protocols 7 to 9 that the driver writes
-  for the example packages, and `frame_and_nature_records_reject_unknown_fields`
-  for every frame and physical-dimension record of the fixture package
+- `tests/protocol_epoch.rs` pins the one epoch.
+  `the_frontend_the_kernel_and_version_share_one_epoch` checks that the
+  driver, the kernel's `currentProtocol` and `--version` name the same number,
+  that the kernel answers the driver's requests at that version and that it
+  rejects them at version 9. `protocol_0_fails_closed`, `protocol_1_fails_closed`,
+  `protocol_2_fails_closed` to `protocol_9_fails_closed` and
+  `the_next_protocol_fails_closed` send a flat and a package request at each
+  version, in the shape of the epoch and, for 2 to 9, in the shape that the
+  version had, to `check` and `emit`; each answer is `E_PROTOCOL` with the
+  message of [Other versions](#other-versions) and the request's version.
+  `a_protocol_nine_envelope_relabelled_as_the_epoch_keeps_input_unknown`,
+  `a_flat_module_labelled_as_the_epoch_is_rejected` and
+  `the_dimension_spelling_of_dim_is_rejected` reject the field `input`, a flat
+  module and the spelling `dimension` of the `dim` op, capability and
+  `geometry_compat` slot. `a_kernel_of_another_epoch_is_reported_as_a_mismatched_build`
+  shows the diagnostic of a kernel of another epoch through the CLI.
+- `tests/driver_issues.rs::version_reports_package_and_the_wire_protocol`
+  pins the output of `--version`, and
+  `tests/stabilization.rs::unknown_wire_version_is_echoed_with_the_matching_binaries_message`
+  the response to a version that the kernel does not accept.
+- `tests/protocol_shape.rs::flat_requests_reject_unknown_fields_in_every_nested_record_shape`
+  adds a field to every record shape of the requests of flat programs, the
+  envelope included, and requires `E_PROTOCOL`.
+  `public_decoder_rejects_unknown_fields_in_every_captured_record_shape`
+  does the same for the requests that the driver writes for the example
+  packages, and `frame_and_nature_records_reject_unknown_fields` for every
+  frame and physical-dimension record of the fixture package
   `tests/fixtures/frame-dimension-declarations/`.
-- `tests/frame_dimension_declarations.rs::frame_and_nature_declarations_select_protocol_nine_only`
-  and `tests/frame_primitives.rs::frame_primitives_select_protocol_nine_and_decode_only_there`
-  pin the protocol of the frame and physical-dimension forms: protocol 9
-  decodes them, and protocols 7 and 8 reject each with `E_PROTOCOL`.
+  `the_envelope_admits_no_hint_and_checks_membership_scalars` and
+  `malformed_versions_and_non_utf8_input_return_protocol_json` of the same
+  file pin an unknown top-level field, the scalar names of memberships and the
+  responses to a request that the kernel cannot read.
+- `tests/frame_dimension_declarations.rs::frame_and_nature_declarations_decode_in_the_current_envelope`
+  and `tests/frame_primitives.rs::frame_primitives_decode_and_the_kernel_accepts_them`
+  decode the frame and physical-dimension forms.
   `raw_wire_rejects_forged_frame_bindings` of the second file rejects a
   natural field that is not an unsigned decimal string of at most 64 digits,
   and a frame binding without one of its fields.
-- `tests/spectral_declarations.rs::spectral_forms_select_protocol_nine_only`,
-  `tests/spectral_primitives.rs::spectral_primitives_select_protocol_nine_and_decode_only_there`
-  and
-  `tests/spectral_observations.rs::the_example_selects_protocol_nine_and_older_envelopes_reject_it`
-  pin the protocol of the spectral forms.
+- `tests/spectral_declarations.rs::spectral_forms_decode_alone`,
+  `tests/spectral_primitives.rs::spectral_primitives_decode_and_check` and
+  `tests/spectral_observations.rs::the_example_emits_from_the_frontend_request`
+  decode the spectral forms.
   `raw_wire_rejects_certificates_and_forged_spectral_fields` of the first
   file, `raw_wire_rejects_embedded_spectral_data` of the second and
   `raw_wire_rejects_spectral_certificates_and_forged_maps` of the third
   reject a certificate, an image, an embedded declaration, a missing field
   and a field of the wrong kind.
-- `legacy_hint_tolerance_is_limited_to_the_v2_envelope`,
-  `invalid_membership_scalar_is_rejected_before_authority_analysis` and
-  `malformed_versions_and_non_utf8_input_return_protocol_json` of the same
-  file pin the envelope of protocol 2, the scalar names of memberships and
-  the responses to a request that the kernel cannot read.
-- `tests/stabilization.rs::unknown_wire_version_is_echoed_with_the_complete_supported_set`
-  pins the response to a version that the kernel does not support.
 - `tests/edit_authority.rs::named_recipient_wire_rejects_forged_locations_and_unselected_records`
-  and `recipient_source_migration_keeps_legacy_wire_and_optional_runtime_boundaries`
-  pin the recipient fields of protocols 6 to 9.
+  and `module_recipients_are_unsupported_and_authority_keeps_optional_runtime_boundaries`
+  pin the recipient fields.
 - `tests/show.rs::show_adds_observations_to_the_flat_request_and_check_is_unchanged`
   pins the request of a flat program with and without observations of
   `show!` and their wire field, `show_stands_beside_legacy_geometry_in_flat_input`
   builds and runs a flat program that shows a value beside the legacy
   geometry, also from a `--lib` input, and
   `the_kernel_refuses_tampered_observations` refuses an observation
-  outside `main`, of a function value, of a missing statement, an empty list,
-  a foreign field and protocol 8. The kernel regression
+  outside `main`, of a function value, of a missing statement, an empty list
+  and a foreign field. The kernel regression
   `VastitasKernel.ObservationRegression` decodes, checks and generates the
   observations without the driver.
-- `tests/protocol_shape.rs::package_requests_carry_legacy_geometry_exactly_for_the_former_legacy_protocols`
+- `tests/protocol_shape.rs::package_requests_carry_legacy_geometry_exactly_without_indexed_records`
   and `flat_requests_carry_legacy_geometry` pin the requests that carry
   `legacy_geometry`: every flat program and the package programs without a
-  record of [Protocol selection](#protocol-selection), and no other. The kernel
-  regression `VastitasKernel.CompatibilityProfileRegression` checks that a
-  flat and a package program with the legacy geometry have the same Core and
-  generated Lean at protocol 9 with the field as at protocols 2 and 3, and
-  that the kernel rejects them without it. It rejects the field with a value
-  other than `true`, at protocol 8 and beside a `geometry_compat` export, and
-  the profile's identity in a request.
-- The kernel regressions `VastitasKernel.IndexedWireRegression`,
-  `VastitasKernel.LegacySourceRegression` and
+  record of [Flat programs and the legacy geometry](#flat-programs-and-the-legacy-geometry),
+  and no other. The kernel regression
+  `VastitasKernel.CompatibilityProfileRegression` checks that the kernel
+  accepts and generates a flat and a package program with the legacy geometry
+  with the field and rejects them without it. It rejects the field with a
+  value other than `true` and beside a `geometry_compat` export, and the
+  profile's identity in a request.
+- The kernel regressions `VastitasKernel.IndexedWireRegression` and
   `VastitasPublicTest.AuthorityRegression` decode and check requests without
   the driver. `VastitasKernel.FrameDeclarationRegression`,
   `VastitasKernel.FrameRegression` and `VastitasKernel.NatureRegression`
-  decode every frame and physical-dimension form in protocol 9 and reject it
-  in protocols 7 and 8. `VastitasKernel.SpectralDeclarationRegression` and
+  decode every frame and physical-dimension form.
+  `VastitasKernel.SpectralDeclarationRegression` and
   `VastitasKernel.SpectralRegression` do the same for the spectral forms.
   `VastitasKernel.ModelDeclarationRegression` decodes every transition-average
-  and physical-model form in protocol 9 and rejects it in protocols 7 and 8,
-  with the feature that gates it, the exact fields, the rational literals and
+  and physical-model form, with the exact fields, the rational literals and
   the recorded texts; `VastitasKernel.AverageRegression` and
   `VastitasKernel.NatureModelRegression` check the averages, the models and
   the data that the kernel accepts and rejects. `VastitasKernel.NamespaceRegression` tests the
@@ -1482,41 +1451,26 @@ receipts, doctest execution, or official package admission.
 
 ## History
 
-- Presented affine declarations, smooth forms, metric forms, frame forms,
-  physical-dimension forms and spectral forms are optional fields of
-  protocol 9 and have no
-  version of their own, by a decision that
-  [#533](https://github.com/MGYamada/Vastitas/issues/533) records. The frame
-  and physical-dimension forms belong to the Stage 4 tracker
-  [#759](https://github.com/MGYamada/Vastitas/issues/759), and the
-  spectral forms to the Stage 5 tracker
-  [#806](https://github.com/MGYamada/Vastitas/issues/806). Issue #533 is
-  open. It records the policy of one wire protocol for the release
-  v0.1.0: the driver writes one schema, the kernel accepts that schema
-  alone, and the other versions with their decoders are retired in one
-  verified change. The change is not made: this chapter describes the
-  versions 2 to 9 that the kernel accepts.
-- The driver wrote protocol 7 for packages with indexed declarations or a
-  `geometry_compat` export, and protocol 8 for resource functions and
-  indexed implementations. Round 1 of
-  [#533](https://github.com/MGYamada/Vastitas/issues/533) sends both as
-  protocol 9, whose envelope keeps theirs.
-- The driver wrote protocol 2 for a flat program, or protocol 4 with
-  `input: "flat"` when it declared abstract types, subtypes or abstract
-  methods. For a package without a record of
-  [Protocol selection](#protocol-selection) it wrote protocol 6 with
-  `reborrow` or `transfer` events in an assembly, 5 with contributions or an
-  assembly, 4 with abstract declarations and 3 otherwise; 3 had no field
-  `input`. A flat program that used `show!` was a protocol-9 request without
-  the legacy geometry, so it could not use the legacy geometry
-  ([#836](https://github.com/MGYamada/Vastitas/issues/836)). Round 2 of #533
-  sends all of these programs as protocol 9 with `legacy_geometry`, whose
-  compatibility profile keeps their Core.
+- The wire had the versions 2 to 9 before the cutover to the single schema
+  epoch 10 of [#533](https://github.com/MGYamada/Vastitas/issues/533), which
+  retired them together, with their decoders, their checkers and their
+  theorems. Protocol 2 was a flat module and protocol 4 a flat module or a
+  package by its field `input`; protocols 3 to 6 were packages, checked
+  through `Indexed.LegacySource`, which appended the compatibility profile to
+  every program. Protocol 7 added indexed declarations
+  (`Indexed.Wire.check`), protocol 8 resource functions and numerical
+  representations, and protocol 9 named recipients and the Stage 2 to Stage 6
+  forms as optional fields. Before the cutover the driver wrote every program
+  as protocol 9, flat programs and the former legacy packages with
+  `legacy_geometry`. A development-only harness compared those requests with
+  the requests of the retired versions before the cutover, and the cutover
+  removed it.
+- The `input` field, the spelling `dimension` of the `dim` op, capability and
+  `geometry_compat` slot, the version gates of the optional forms and the
+  recipient field `grantee_source` of protocols 5 to 8 belonged to the
+  retired versions.
 - The doctest result contract of
   [Expected-rejection doctest consumer](#expected-rejection-doctest-consumer-reference-only)
   belongs to [#236](https://github.com/MGYamada/Vastitas/issues/236).
-- The `pair` type tag and the `pair`, `pair_first` and `pair_second` calls
-  were added to the protocol-2 and protocol-3 envelopes without a version of
-  their own. A kernel that predates them rejects the tag.
 - [Source migrations](appendix/history.md#source-migrations) records the
-  change of the recipient syntax that protocol 9 carries.
+  change of the recipient syntax.

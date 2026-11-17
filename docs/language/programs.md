@@ -188,10 +188,10 @@ Rules:
 
 The executable writes `add_twice(2, 20) = 42` and exits with status 0.
 
-> **Implementation note.** A program that uses `show!` is sent to the kernel as
-> a protocol-9 request, with an `observations` field on `main`
-> ([Wire protocols](../protocol.md)); a flat program becomes the root module of
-> one package. The kernel checks the observations again: only the entry point
+> **Implementation note.** A program that uses `show!` is sent to the kernel
+> with an `observations` field on `main`
+> ([The wire protocol](../protocol.md#observations-of-show)); a flat program
+> becomes the root module of one package. The kernel checks the observations again: only the entry point
 > has them, each names a top-level `let` of its body in order, and each value
 > has a displayable type. Core stays pure: the observations are metadata of the
 > entry point, and only code generation sequences the writes.

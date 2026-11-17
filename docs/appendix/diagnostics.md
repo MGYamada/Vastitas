@@ -189,28 +189,24 @@ In a request, three strings of these declarations have the code
 other than `saved` and `recomputed`, a Gram form other than `euclidean` and
 `gram`, and evidence other than `nondegenerate` and `riemannian`. A record of
 a request that holds a Gram matrix in normal form, a certificate or the
-object of a binding is an error (`E_PROTOCOL`) too. So is a frame or
-physical-dimension record in a request of protocol 7 or 8, a column form other
+object of a binding is an error (`E_PROTOCOL`) too. So is a column form other
 than `coordinates` and `columns`, a physical Gram form other than
 `euclidean`, `gram` and `normalized`, a component, row or column index that
 is no unsigned decimal string of at most 64 digits, an exponent that is no
 such string with an optional leading `-`, and a frame binding that holds a
 matrix, an inverse or an object. An inverse declared for a
 constant frame decodes, and the kernel rejects it (`E_FRAME`). So is a
-spectral record in a request of protocol 7 or 8, and a spectral record that
-holds a characteristic polynomial, an adjugate, a quotient, the image of an
-invariant or the data of an embedded declaration. So is a record of a
-transition average, a convention, a model, a calibration, a dataset or a
-comparison, or of their families, in a request of protocol 7 or 8, a
+spectral record that holds a characteristic polynomial, an adjugate, a quotient, the image of an
+invariant or the data of an embedded declaration. So is a
 convention other than `hbar_one`, a method other than `type_a` and `type_b`,
 a verdict other than `consistent` and `inconsistent`, and a record of these
 declarations that holds a certificate.
-[Smooth forms](../protocol.md#protocol-9-smooth-forms),
-[Metric forms](../protocol.md#protocol-9-metric-forms),
-[Frame forms](../protocol.md#protocol-9-frame-forms),
-[Physical-dimension forms](../protocol.md#protocol-9-physical-dimension-forms),
-[Spectral forms](../protocol.md#protocol-9-spectral-forms) and
-[Transition-average and physical-model forms](../protocol.md#protocol-9-physical-model-forms)
+[Smooth forms](../protocol.md#smooth-forms),
+[Metric forms](../protocol.md#metric-forms),
+[Frame forms](../protocol.md#frame-forms),
+[Physical-dimension forms](../protocol.md#physical-dimension-forms),
+[Spectral forms](../protocol.md#spectral-forms) and
+[Transition-average and physical-model forms](../protocol.md#physical-model-forms)
 give the forms of a request.
 
 ### Resource functions
@@ -313,7 +309,7 @@ Codes of a request:
 
 | Code | Reports |
 | --- | --- |
-| `E_PROTOCOL` | A request that is no request of a version that the kernel speaks: text that is not JSON, a request beyond the bounds of [Wire protocols](../protocol.md), an unknown version, an unknown or a missing field, a form that the version of the request does not have, an identity, an owner or a certificate that only the kernel may compute, and a [recorded text](../language/physical-models.md#recorded-texts) that no string literal of the source gives: one beyond `recordTextBytes` bytes or with a character other than printable ASCII without `\` and `"` |
+| `E_PROTOCOL` | A request that is no request of the [schema epoch](glossary.md#schema-epoch) that the kernel speaks: text that is not JSON, a request beyond the bounds of [the wire protocol](../protocol.md), a request of [another version](../protocol.md#other-versions), whose message asks for a compiler and a kernel of the same build, an unknown or a missing field, an identity, an owner or a certificate that only the kernel may compute, and a [recorded text](../language/physical-models.md#recorded-texts) that no string literal of the source gives: one beyond `recordTextBytes` bytes or with a character other than printable ASCII without `\` and `"` |
 | `E_ARGUMENT` | A kernel executable that is started with other arguments than `check` or `emit`. The command `vastitas` starts it with one of the two |
 | `E_LITERAL` | An integer literal of a request that is no sequence of decimal digits |
 | `E_CONTEXT` | A type of a request whose bindings, names or modules are not those of its context |
@@ -352,7 +348,7 @@ Codes of a check that the kernel repeats on its own result:
 | `E_DISPATCH_HIERARCHY` | A hierarchy of nominal types that the dispatch engine does not accept. The kernel rejects such a hierarchy first (`E_HIERARCHY`) |
 
 [Verification boundaries](../verification.md) describes the checks that the
-kernel repeats, and [Wire protocols](../protocol.md) the rules of a request.
+kernel repeats, and [The wire protocol](../protocol.md) the rules of a request.
 
 > **Implementation note.** The dispatch engine of the kernel names its errors
 > with codes of its own, which no diagnostic shows. The kernel reports

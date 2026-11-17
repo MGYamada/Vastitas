@@ -153,7 +153,7 @@ holder/environment remain unresolved and both identity keys are null. The CLI
 adapter exits 1 when presenting a captured failure:
 
 ```sh
-python3 scripts/demo_diagnostic_reference.py --kernel-response response.json --expected-version 5 --json
+python3 scripts/demo_diagnostic_reference.py --kernel-response response.json --expected-version 10 --json
 ```
 
 Future #229 integration must export independently reconstructed **partial failure
@@ -164,8 +164,9 @@ facts**, tied to the same input/environment and actual returned diagnostic:
   `completeFamilies (finalSurface prepared state)` rejection branch is a concrete
   attachment point for the join failure; at the inspected base it throws a plain
   diagnostic and does not return the valid prefix state as a diagnostic ledger.
-- `Authority.assemble` extends that path for protocol 6; protocol 7 uses the
-  `Indexed.AuthoritySource` composition via `Indexed.Wire.check`. Each needs the
+- `Authority.assemble` extends that path with nested loans and transfers; the
+  public route uses the `Indexed.AuthoritySource` composition via
+  `ResourceSource.Wire.check`. Each needs the
   corresponding checked facts, never a successful-assembly certificate invented
   for a failed assembly.
 - The pinned package/input/environment identities, complete conflict set, current
@@ -216,14 +217,14 @@ passing reports. This executable must not be installed as an admission gate.
 ### Why an ordinary compiler failure is insufficient
 
 `tests/driver_issues.rs::mismatched_failure_version_preserves_diagnostics_but_success_is_rejected`
-sends a version-3 failure to a version-2 request:
+sends a version-9 failure to a request of the wire protocol, version 10:
 
 ```json
-{"version":3,"ok":false,"diagnostics":[{"code":"E_SENTINEL","message":"original diagnostic"}]}
+{"version":9,"ok":false,"diagnostics":[{"code":"E_SENTINEL","message":"original diagnostic"}]}
 ```
 
 The exact payload is retained in
-`tests/fixtures/doctest/mismatched-failure-v3.json`. A regression checks that it
+`tests/fixtures/doctest/mismatched-failure-v9.json`. A regression checks that it
 still occurs in the existing Rust test. `invoke_kernel` intentionally retains
 `E_SENTINEL: original diagnostic` and adds a protocol-mismatch note. The CLI fails;
 this is **not** erroneous compiler acceptance. A future doctest using only a
@@ -698,7 +699,7 @@ actual Vastitas source and checked IR, using the reference only as a test oracle
 
 - [ ] Decode through one path in every supported user-name position, including
   declarations, calls, imports, types, endpoint indices, and exposed macro names.
-  Preserve existing valid ASCII source and the supported wire protocols.
+  Preserve existing valid ASCII source and the wire protocol.
 - [ ] Under the same dependency snapshot and lexical contexts, raw Unicode and
   its canonical ASCII spelling resolve to the same nominal declarations and
   produce the same semantic checked-IR payload. Compare source-location metadata

@@ -192,7 +192,7 @@ rules.
 > order. It checks each event against the grants, delegations, transfers and
 > contributions that the modules declared, and it accepts no edit without
 > one. At each seal it checks the whole generic. The
-> [proofs](../verification.md#edit-authority-acceptance-protocol-6) cover
+> [proofs](../verification.md#edit-authority-acceptance) cover
 > the replay of an accepted assembly. One module edits a generic at a time,
 > and nested loans return from the inside out. A transfer changes the
 > current owner and not the owner. A contributed method wins only at keys

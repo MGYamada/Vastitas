@@ -8,6 +8,15 @@ It does not include performance: the Fast like C verdict stays with #183 and
 #222, for Stage 3 or later. The user guide is
 [presented affine geometry](affine-geometry.md).
 
+This map records the wire as it was at delivery. The cutover of
+[#533](https://github.com/MGYamada/Vastitas/issues/533) to the single schema
+epoch 10 made every form of this map an optional record of that epoch,
+removed the version gates of protocols 7 to 9 and renamed the tests that
+pinned them; a request of another version fails closed by its version alone
+([Other versions](protocol.md#other-versions)). The Rust tests named here
+have their current names; the regression cases of protocols 7 and 8 that the
+map names were retired with those protocols.
+
 ## Scope and revision ledger
 
 The conditions are the acceptance list of #571, which turns the Stage 2 examples
@@ -57,7 +66,7 @@ from `scripts/check_kernel_regressions.sh`. Rust tests are in
 | **M — morphisms over a base** | `IndexedPrimitiveBinding.lean` (`relativeConstant`, `relativeCompose`, `relativeView`, `relativeEqual`, `relativeCoefficient`, `relativeIntPoint`), `IndexedPrimitiveRegistry.lean` (their contracts and shapes), `IndexedSemantics.lean`, `IndexedCodegen.lean` | `AffineMorphismRegression`; `morphism_declarations_reject_relation_variance_base_and_type_errors`, `mutated_observations_change_the_native_result` | `AffineMorphisms.relativeConstant_sound` (`MorphismValid`), `checkRelations_ok`, `checkTriangle_ok`, `compose_images`, `view_requires_chain`, `same_iff`; `IndexedSemantics.relativeConstant_total` … `relativeIntPoint_total`, `primitive_total_and_typed`, `primitive_runtime_erasure` |
 | **F — fiber products and evidence** | `Construction.fiber`, `fiberPresentation`, `checkIso`; `relativePair`, `relativeIso`, `relativeCartesian` | `AffineFiberRegression`; `fiber_products_reject_unchosen_bases_non_isomorphisms_and_forged_squares`, `fiber_and_evidence_records_reject_forged_wire` | `AffineFibers.checkConstruction_fiber`, `checkIso_sound`, `cartesian_sound`, `composesTo_sound`; `IndexedSemantics.relativePair_total` |
 | **P — principal opens** | `Construction.localization`, `localizationPresentation`, `restrict` | `AffineOpenRegression`; `principal_opens_and_restrictions_reject_non_preimages_and_non_isomorphisms` | `AffineFibers.checkConstruction_localization` |
-| **W — wire and protocol** | `IndexedDeclarationProtocol.lean`, `ResourceProtocol.lean` (algebraic forms gated by protocol 9), `IndexedPrimitiveFamilies.lean` (the field names and kinds of every indexed primitive), `src/primitive_table.rs` (generated from those families), `scripts/check_primitive_table.py` (fails when the generated table drifts), `src/indexed.rs`, `src/frontend/indexed_parser.rs`, `src/packages.rs` | `affine_forms_select_protocol_nine_and_older_envelopes_reject_them`, `raw_wire_rejects_forged_affine_records`, `relative_forms_reject_downgrade_and_forged_wire`, `fiber_and_evidence_records_reject_forged_wire`; `tests/protocol_shape.rs`: `public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape`; `src/frontend/indexed_parser.rs`: `every_table_entry_parses_to_its_wire_fields`, `an_op_outside_the_table_is_unknown`; `src/indexed.rs`: `the_table_keeps_the_former_allow_list` (the operations that only protocol 9 admits); `IndexedDescriptorRegression` (the near-miss messages of `Wire.familyPrimitive`) | Tested only: raw-wire rejection is not a theorem |
+| **W — wire and protocol** | `IndexedDeclarationProtocol.lean`, `ResourceProtocol.lean` (algebraic forms gated by protocol 9), `IndexedPrimitiveFamilies.lean` (the field names and kinds of every indexed primitive), `src/primitive_table.rs` (generated from those families), `scripts/check_primitive_table.py` (fails when the generated table drifts), `src/indexed.rs`, `src/frontend/indexed_parser.rs`, `src/packages.rs` | `affine_forms_are_accepted_in_the_current_envelope`, `raw_wire_rejects_forged_affine_records`, `relative_forms_reject_downgrade_and_forged_wire`, `fiber_and_evidence_records_reject_forged_wire`; `tests/protocol_shape.rs`: `public_decoder_rejects_unknown_fields_in_every_captured_record_shape`; `src/frontend/indexed_parser.rs`: `every_table_entry_parses_to_its_wire_fields`, `an_op_outside_the_table_is_unknown`; `src/indexed.rs`: `the_table_keeps_the_former_allow_list` (the operations that only protocol 9 admits); `IndexedDescriptorRegression` (the near-miss messages of `Wire.familyPrimitive`) | Tested only: raw-wire rejection is not a theorem |
 | **L — standard library** | `stdlib/src/geometry/scheme/affine/mod.vast` | `tests/stdlib_geometry.rs`: `presented_affine_geometry_is_usable_from_the_library` and the protocol-9 captures | Uses the same checker as application code |
 
 The bridge proves what the kernel's identities mean in mathlib:

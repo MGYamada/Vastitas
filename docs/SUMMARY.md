@@ -67,7 +67,7 @@
 - [Resource checking](internals/resource-checking.md)
   - [Checked storage and resource calls](storage/checked-storage.md)
 - [Numerical backend](internals/numerical-backend.md)
-- [Wire protocols 2–9](protocol.md)
+- [The wire protocol](protocol.md)
 - [Verification boundaries](verification.md)
   - [Pure evaluation and graph proofs](verification/core-models.md)
   - [Daleckii–Krein mathematical bridge](daleckii-krein.md)

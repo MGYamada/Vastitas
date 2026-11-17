@@ -58,17 +58,18 @@ during a compilation or in a generated program.
    resolver then checks the names of the whole program. In manifest mode
    the parser leaves every path unresolved.
    [Parsing](../internals/driver.md#parsing).
-4. **Request.** The driver chooses the version of the wire protocol and
-   serializes one JSON request. The version follows from the declarations of
-   the program and, in manifest mode, from the `geometry_compat` export of a
-   manifest. [Protocol selection](../protocol.md#protocol-selection).
+4. **Request.** The driver serializes one JSON request of the one wire
+   protocol, the schema epoch 10. Whether the request carries
+   `legacy_geometry` follows from the declarations of the program and, in
+   manifest mode, from the `geometry_compat` export of a manifest.
+   [Flat programs and the legacy geometry](../protocol.md#flat-programs-and-the-legacy-geometry).
 5. **Checking.** The driver starts the kernel with the mode `check` or
    `emit` and writes the request to its standard input. The kernel scans the
-   text, decodes it by its version and checks the whole program.
-   [Wire protocols 2–9](../protocol.md) describes the decoders. The checks are
+   text, reads its version, decodes it and checks the whole program.
+   [The wire protocol](../protocol.md) describes the decoder. The checks are
    in these chapters:
    - names, modules and packages:
-     [Protocol 3](../protocol.md#protocol-3-package-namespaces);
+     [Package namespaces](../protocol.md#package-namespaces);
    - generics, dispatch and function values:
      [Checking pipeline](../internals/checking-pipeline.md);
    - indexed declarations, edit authority over them and the Core:
@@ -105,17 +106,18 @@ during a compilation or in a generated program.
 that `main` returns as its exit status and writes only the lines of `show!`,
 on standard error, as [The entry point](../language/programs.md#the-entry-point) says.
 
-## The three checker routes
+## The checker route
 
-`lean-kernel/Main.lean` selects the checker by the version of the request.
-[Current public checker routes](../verification.md#current-public-checker-routes)
-states the theorems on these entry points.
+`lean-kernel/Main.lean` reads the version of the request first. A request of
+another version than the schema epoch is an error (`E_PROTOCOL`)
+([Other versions](../protocol.md#other-versions)); every other request takes
+the one route below.
+[The public checker route](../verification.md#the-public-checker-route)
+states the theorems on its entry points.
 
 | Wire protocol | Check | Generation in the mode `emit` |
 | --- | --- | --- |
-| 2 to 6 | `Indexed.LegacySource.check` decodes the request, adapts it to the indexed source checker and runs `Indexed.AuthoritySource.checkProgram` | `Main` passes the Core `compiled` of the check result to `Indexed.Core.Codegen.generate` |
-| 7 | `Indexed.Wire.check` decodes the request and runs the same `Indexed.AuthoritySource.checkProgram` | The same call of `Indexed.Core.Codegen.generate` |
-| 8 and 9 | `ResourceSource.Wire.check` runs the same checks on the pure bodies and the resource checks on the resource functions | `ResourceSource.Wire.emit` runs that check and passes its result to `ResourceSource.Codegen.generateChecked` |
+| 10 | `ResourceSource.Wire.check` decodes the request, runs `Indexed.AuthoritySource.checkProgram` on its pure program and the resource checks on its resource functions | `ResourceSource.Wire.emit` runs that check and passes its result to `ResourceSource.Codegen.generateChecked` |
 
 `Indexed.Core.Codegen.generate` calls `generateLibrary` with `main` as the
 root. `generateLibrary` checks the types and the dependencies of the Core

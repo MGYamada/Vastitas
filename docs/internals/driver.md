@@ -3,7 +3,7 @@
 This chapter describes the [driver](../appendix/glossary.md#driver): what the
 Rust side of the compiler does between the command line and the kernel, and
 between the kernel's response and the output file. It covers reading and
-parsing the inputs, loading packages, choosing the wire protocol, starting
+parsing the inputs, loading packages, writing the request, starting
 the kernel, rendering diagnostics, the native build, output files, signals
 and locks. Each section names the source file that holds the code and the
 tests that pin it.
@@ -28,9 +28,8 @@ with the status of `process::exit_code`.
 1. It installs the signal handlers
    ([Subprocesses and signals](#subprocesses-and-signals)).
 2. It answers `--help`, `-h` and `--version` and returns. The version line
-   lists `ir::PUBLIC_PROTOCOLS`: the wire protocols 2 to 9 that the kernel
-   accepts, including 7 and 8, which the driver does not write
-   ([History](#history)).
+   names the package version and `ir::PROTOCOL`, the one wire protocol, as
+   in `vastitas 0.1.0-alpha (wire protocol 10)`.
 3. It passes `audit-lean` to `src/internal_lean_audit.rs`
    ([The proof-audit command](#the-proof-audit-command)).
 4. `options` reads the remaining arguments into a mode and its paths. The
@@ -49,7 +48,7 @@ output path and a syntax error without one.
 Tests:
 
 - `tests/driver_issues.rs::subcommand_help_succeeds_without_inputs_or_backend`
-  and `version_reports_package_and_every_public_wire_protocol`;
+  and `version_reports_package_and_the_wire_protocol`;
 - `tests/packages.rs::manifest_validation_and_cli_modes_are_explicit`, for
   the options that exclude one another;
 - `tests/driver_issues.rs::invalid_output_paths_fail_before_starting_the_backend`
@@ -145,7 +144,7 @@ Three files extend the parser for packages:
 
 - `src/frontend/indexed_parser.rs` parses indexed declarations, indexed type
   annotations and typed `pack` expressions. It marks a module that uses one,
-  which the choice of the wire protocol reads.
+  which decides the field `legacy_geometry` of the request.
 - `src/frontend/resource_parser.rs` parses resource functions and their
   statements. It checks that the kernel's decoder can read the statements of
   each function within its bound. `packages::load` adds up the `value`
@@ -228,27 +227,30 @@ Tests:
 - `tests/driver_hardening.rs::module_files_must_match_module_names_exactly`;
 - `tests/input_safety.rs::symlink_module_fanout_is_bounded_across_the_package_closure`.
 
-## Choosing the wire protocol
+## Writing the request
 
-The driver writes one request of protocol 9 with `input: "package"`.
-[Protocol selection](../protocol.md#protocol-selection) gives the requests
-that carry the field `legacy_geometry`.
+The driver writes one request of the wire protocol, the schema epoch
+`ir::PROTOCOL`. `src/ir.rs` holds the number once; `build.rs` reads the
+kernel's `currentProtocol` from `lean-kernel/VastitasKernel/Protocol.lean`,
+and a constant assertion in `src/ir.rs` fails the build of the driver when
+the two differ. Every request is a package request without the field
+`input`.
+[Flat programs and the legacy geometry](../protocol.md#flat-programs-and-the-legacy-geometry)
+gives the requests that carry the field `legacy_geometry`.
 
 - In flat mode `frontend::parse_sources` parses the unit into a flat
   `ir::Module`, with or without `--lib` inputs. `packages::flat_request`
   makes it the root module of one package, `legacy_flat`, with every
   function, generic and abstract type public, and sets `legacy_geometry`.
-  The `ir::Module` keeps the version of its own encoding, 2 or, with an
-  abstract type, a subtype or an abstract method, 4 with `input: "flat"`;
-  the driver sends it only inside that package request.
+  The `ir::Module` has no version of its own; the driver sends it only inside
+  that package request.
 - In manifest mode `packages::legacy_geometry`, at the end of
   `packages::load`, sets `legacy_geometry` unless a module of the program
-  has a record that the list of protocol selection names, or a manifest has
-  a `geometry_compat` export.
+  has a record of that list, or a manifest has a `geometry_compat` export.
 
 The driver shows the diagnostics of the kernel for a flat unit without the
-package prefix `legacy_flat::` (`invoke_kernel`), as the kernel shows the
-names of a flat unit of protocols 2 and 4. A package that uses `show!` has no
+package prefix `legacy_flat::` (`invoke_kernel`), so they name the flat
+unit's declarations as its source does. A package that uses `show!` has no
 `legacy_geometry`; when the kernel rejects its legacy geometry, the driver
 adds a note that names `show!`.
 
@@ -259,11 +261,15 @@ kernel reads. A request beyond it is `E_LIMIT` at `FILE:1:1`, and the driver
 never holds it. A second pass writes a request within the limit into a buffer
 of its size. The driver sends the same request for
 `check` and for `build`. It requires the version of a successful response to
-equal the version of the request (`E_PROTOCOL`). It shows the diagnostics of
-a failure response of another version and adds a note.
+be `ir::PROTOCOL` (`E_PROTOCOL`). It shows the diagnostics of a failure
+response of another version and adds a note. A kernel of another build
+answers a request of another version with the diagnostic of
+[Other versions](../protocol.md#other-versions).
 
 Tests:
 
+- `tests/protocol_epoch.rs`, for the one version of the driver, the kernel
+  and `--version`, and the requests of every other version;
 - `tests/packages.rs::package_requests_do_not_fall_back_to_a_protocol_two_backend`;
 - the unit tests `bounded_json_stops_at_its_bound` and
   `bounded_json_reports_an_encoding_error` of `src/driver.rs`, and the
@@ -271,7 +277,7 @@ Tests:
 - `tests/driver_issues.rs::mismatched_failure_version_preserves_diagnostics_but_success_is_rejected`;
 - `tests/edit_authority.rs` and `tests/protocol_shape.rs`, which read the
   version and the fields of requests that the driver writes for packages;
-  `tests/protocol_shape.rs::package_requests_carry_legacy_geometry_exactly_for_the_former_legacy_protocols`
+  `tests/protocol_shape.rs::package_requests_carry_legacy_geometry_exactly_without_indexed_records`
   and `flat_requests_carry_legacy_geometry` pin the requests with
   `legacy_geometry`.
 
@@ -294,8 +300,9 @@ most `MAX_BACKEND_RESPONSE` bytes of standard output and fails beyond them.
 
 ### The build identity
 
-The numbers of the wire protocols do not change between releases. A kernel
-of another revision can therefore answer a request of the same version. The
+The number of the wire protocol is a schema epoch and need not change
+between releases. A kernel of another revision can therefore answer a
+request of the same version. The
 [build identity](../appendix/glossary.md#build-identity) ties a kernel
 executable to a driver. This section says how each side computes it.
 
@@ -384,16 +391,15 @@ Tests:
 
 For `build` the driver reads three fields of the `emit` response:
 `lean_source`, `storage_runtime` and `numerical_runtime`.
-[Wire protocols 2–9](../protocol.md) describes them. The kernel generates
+[The wire protocol](../protocol.md) describes them. The kernel generates
 `lean_source` from the result of the check of the same request, as
-[The three checker routes](../development/architecture.md#the-three-checker-routes)
+[The checker route](../development/architecture.md#the-checker-route)
 describes. After the kernel answers, `run` checks the response and the
 options in this order:
 
 1. A response without `lean_source` is `E_PROTOCOL`.
-2. The driver accepts the two runtime fields only in a response of protocol
-   8 or 9, and a numerical requirement only with a storage requirement
-   (`E_PROTOCOL`).
+2. Each runtime field is absent or a JSON boolean, and the driver accepts a
+   numerical requirement only with a storage requirement (`E_PROTOCOL`).
 3. A numerical requirement without `--openblas-prefix` is `E_BUILD`.
 4. `--openblas-prefix` or `--native-cc` for a response without a numerical
    requirement is `E_USAGE`.
@@ -467,8 +473,7 @@ Tests:
   `build_directory_is_private_under_a_permissive_umask`,
   `generated_manifests_escape_paths_for_their_own_syntax`,
   `non_utf8_kernel_root_is_rejected_before_the_backend`,
-  `native_options_require_a_numerical_program` and
-  `optional_runtime_flags_are_refused_for_protocols_before_eight`;
+  and `native_options_require_a_numerical_program`;
 - `tests/driver_issues.rs::native_project_uses_the_selected_kernel_toolchain`
   and `missing_or_empty_kernel_toolchain_preserves_output`;
 - the unit tests of `src/driver.rs` for the embedded tables and for the two
@@ -610,11 +615,11 @@ states what it establishes. `tests/internal_lean_audit.rs` tests it.
 
 ## History
 
-- Round 1 of [#533](https://github.com/MGYamada/Vastitas/issues/533) made
-  the driver write protocol 9 for the programs of protocols 7 and 8. The
-  version line keeps listing 7 and 8 until
-  [#521](https://github.com/MGYamada/Vastitas/issues/521) decides what it
-  reports.
+- The driver wrote the wire protocols 2 to 9, then protocol 9 alone, until
+  the cutover of [#533](https://github.com/MGYamada/Vastitas/issues/533) to
+  the single schema epoch 10. The version line listed every protocol that the
+  kernel accepted; [#521](https://github.com/MGYamada/Vastitas/issues/521)
+  asked for one number, which the driver and the kernel share.
 - The build identity of the kernel and the check of the Lean version before
   Lake come from [#550](https://github.com/MGYamada/Vastitas/issues/550).
   [#724](https://github.com/MGYamada/Vastitas/issues/724) added

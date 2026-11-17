@@ -815,6 +815,15 @@ reserved profile identity. Injecting that package cannot repair an unknown sourc
 dependency or grant imports, edits, memberships or contracts. Protocol 7 continues
 to use explicit library exports and canonical stdlib declaration IDs.
 
+The package is `CompatibilityProfile.profilePackage`. A protocol-9 request asks
+for it with the field `legacy_geometry`, which the driver sets for every flat
+program and for the package programs that it sent as protocols 3 to 6 before
+([Protocol-9 compatibility profile](../protocol.md#protocol-9-compatibility-profile)).
+`ResourceSource.Program.pureProgram` then ends with the same package, so the
+common checker sees the program that `LegacySource.adapt` gives it.
+`CompatibilityProfileRegression` compares the Core and the generated Lean of
+both routes for a flat and a package program.
+
 The common source compiler retains object introduction sites for parameters,
 constructors, object-returning calls, branch merges and unpacking. These names and
 locations affect diagnostics only. Nominal references, scope, independent Core
@@ -982,7 +991,7 @@ not an alternative semantic acceptance rule.
 | --- | --- |
 | Legacy keywords, reserved names, ring positions and type syntax: `src/frontend.rs`, `src/frontend/types.rs`, `src/frontend/resolver.rs`, `src/ir.rs`, kernel `Surface.lean` | Adapter: retains Scheme/CInfScheme/Point/Morphism/Pointed syntax and QQ/CInfReal marker syntax. A marker is not a runtime object. Qualified indexed syntax is parsed separately. Rust diagnostics cannot certify types. |
 | Indexed parsing and strict wire schema: `src/indexed.rs`, `src/namespace.rs`, `src/packages.rs`, kernel `IndexedProtocol.lean`, `IndexedBodyProtocol.lean`, `IndexedAcceptance.lean` | General mechanism: unresolved paths, enclosing owners, family kinds/arity, explicit bindings and complete source bodies; no frontend-supplied authority or checked flag. Older versions reject these declarations/exports instead of discarding them. |
-| Old wire conversion: kernel `LegacySource.lean` | Adapter: preserves original bodies, namespaces and edit metadata. Validates the original namespace before adding an ordinary closed unresolved profile; rejects collision with its reserved package identity. That profile passes the same declaration and role checks as a source library. |
+| Old wire conversion: kernel `LegacySource.lean`, `CompatibilityProfile.lean` | Adapter: preserves original bodies, namespaces and edit metadata. Validates the original namespace before adding an ordinary closed unresolved profile (`CompatibilityProfile.profilePackage`); rejects collision with its reserved package identity. That profile passes the same declaration and role checks as a source library. A protocol-9 request adds the same profile with the field `legacy_geometry` (`ResourceSource.Program.legacyGeometry`). |
 | Namespace reservations and lookup: kernel `NamespaceResolve.lean`, `NamespaceValidate.lean`, `NamespaceLower.lean`, `IndexedSourceChecker.lean` | General mechanism with compatibility reservations: canonical package/module/declaration IDs, actual visibility/re-exports and shared-name collision checks. Indexed declarations may use geometry spellings; an ordinary function alias cannot acquire those reserved declaration roles. Modules may take the seven geometric operation names; a bare call of an operation falls back to it when the name is unbound or names a child module (`legacyFallback_uncallable`). |
 | Classification and representation: kernel `Indexed.lean`, `IndexedAudit.lean`; stdlib `geometry/{scheme,smooth}/mod.vast` | Library plus general mechanism: distinct finite classifications, coefficient markers and implementations. Classification membership does not identify individual objects or add origin/dimension capability. |
 | Point/Morphism/Pointed definitions: stdlib `geometry/mod.vast`; kernel `IndexedPackages.lean`, `IndexedContractAudit.lean` | Library plus general mechanism: declared indexed families, same-base constraints, sealed representations, finite single-witness package cases and ordered field templates. General test objects are permitted; Pointed specifically uses the declared base object. |

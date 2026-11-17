@@ -172,14 +172,15 @@ Rules:
   accepted.
 - `vastitas check` checks `show!` like the rest of the program and writes no
   line of it.
-- A flat program that uses `show!` must not use the legacy geometry of flat
-  mode, such as `Scheme`, `Point`, `pack` or `Affine`. Such a program is an
-  error (`E_UNSUPPORTED`). In manifest mode, geometry needs a
+- A flat program that uses `show!` may use the legacy geometry of flat mode,
+  such as `Scheme`, `Point`, `pack` or `Affine`, as a flat program without
+  it does. A value of such a type is not shown (`E_TYPE`). In manifest mode,
+  a package program that uses `show!` has geometry only from a
   `geometry_compat` export or an `indexed` profile, as in
-  [Indexed declarations](../indexed-source.md). A package program that uses
-  `show!` and a legacy form such as `Affine(QQ, 2)` without a
-  `geometry_compat` export is an error at the legacy form (`E_TYPE`), with a
-  note that names `show!` as the cause.
+  [Indexed declarations](../indexed-source.md). Such a program that uses a
+  legacy form such as `Affine(QQ, 2)` without a `geometry_compat` export is an
+  error at the legacy form (`E_TYPE`), with a note that names `show!` as the
+  cause.
 
 ```vast
 {{#include ../../examples/book/functions/calls.vast}}

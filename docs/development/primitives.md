@@ -99,12 +99,13 @@ Every table that reads a wire form reads it through the family of its `op`.
 lists the operations. The frontend maps the source spelling `dim` of the op
 `dimension` to it (`surface_op` in `src/frontend/indexed_parser.rs`); every
 other op is its own source spelling. One kernel module writes wire forms by hand:
-`LegacySource.lean` builds the `descriptor`, `global`, `origin`, `identity`,
-`dimension`, `compose` and `apply` forms of the compatibility profile of
-protocols 2 to 6 with literal `op` and field names. Lean does not check
-those names against the table. Every program of protocols 2 to 6 resolves
-the profile, so a renamed `op` or field fails `LegacySourceRegression` with
-`E_PROTOCOL`. The parser arms of
+`CompatibilityProfile.lean` builds the `descriptor`, `global`, `origin`,
+`identity`, `dimension`, `compose` and `apply` forms of the compatibility
+profile with literal `op` and field names. Lean does not check those names
+against the table. Every program of protocols 2 to 6, and every protocol-9
+request with `legacy_geometry`, resolves the profile, so a renamed `op` or
+field fails `LegacySourceRegression` and `CompatibilityProfileRegression`
+with `E_PROTOCOL`. The parser arms of
 [step 4](#4-surface-syntax-and-elaboration) and the test lists of
 [step 6](#6-tests) name every `op`, and a test of step 6 fails when one of
 them misses an `op` of the table.

@@ -317,8 +317,9 @@ Rules:
 - An executable that stops with a run-time diagnostic writes nothing to
   standard output and exits with an unsuccessful status.
 - An executable that ends without one exits with the exit status of the
-  result of its entry point, and writes only the lines of `show!` to
-  standard output, as [The entry point](programs.md#the-entry-point) says.
+  result of its entry point. It writes nothing to standard output, and only
+  the lines of `show!` to standard error, as
+  [The entry point](programs.md#the-entry-point) says.
 
 > **Implementation note.** The line begins with `uncaught exception: `, as in
 > `uncaught exception: E_RUNTIME_EXTENT: extent is negative`, and the exit

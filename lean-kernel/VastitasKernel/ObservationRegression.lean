@@ -98,23 +98,26 @@ private def inOrder (text : String) (parts : List String) : Bool :=
     | throw (IO.userError "observation regression: the observed program is not generated")
   let text := generated.source
   unless inOrder text ["def main : IO UInt32 := do\n",
-      "IO.println (\"20 + 22\" ++ \" = \" ++ (toString ", "IO.println (\"7\" ++ \" = \" ++ (toString ",
-      "IO.println (\"a < 50\" ++ \" = \" ++ (if ", "IO.println (\"()\" ++ \" = \" ++ \"()\")",
-      "IO.println (\"pair(a, -3)\" ++ \" = \" ++ (\"(\" ++ toString ",
+      "IO.eprintln (\"20 + 22\" ++ \" = \" ++ (toString ", "IO.eprintln (\"7\" ++ \" = \" ++ (toString ",
+      "IO.eprintln (\"a < 50\" ++ \" = \" ++ (if ", "IO.eprintln (\"()\" ++ \" = \" ++ \"()\")",
+      "IO.eprintln (\"pair(a, -3)\" ++ \" = \" ++ (\"(\" ++ toString ",
       "pure (UInt32.ofNat (Int.toNat (Int.emod ("] do
     throw (IO.userError s!"observation regression: the entry point differs:\n{text}")
-  unless (text.splitOn "IO.println").length == 6 do
+  unless (text.splitOn "IO.eprintln").length == 6 do
     throw (IO.userError "observation regression: a value is written more than once")
+  -- The lines go to standard error; standard output stays the program's (#840).
+  unless (text.splitOn "IO.println").length == 1 do
+    throw (IO.userError "observation regression: an observed value is written on standard output")
   -- A label is data: it reaches the program only as a quoted string literal.
   let .ok quoted := emit (input [mod [observed (some [observation 0 "\"); IO.Process.exit 9; (\"\\"])]])
     | throw (IO.userError "observation regression: a label changed acceptance")
-  unless inOrder quoted.source ["IO.println (\"\\\"); IO.Process.exit 9; (\\\"\\\\\" ++ \" = \""] do
+  unless inOrder quoted.source ["IO.eprintln (\"\\\"); IO.Process.exit 9; (\\\"\\\\\" ++ \" = \""] do
     throw (IO.userError s!"observation regression: a label is not quoted:\n{quoted.source}")
   -- Without observations the entry point returns the exit status and writes nothing.
   let .ok plain := emit (input [mod [observed none]])
     | throw (IO.userError "observation regression: the plain program is not generated")
   unless inOrder plain.source ["\ndef main : IO UInt32 :=\n  pure (UInt32.ofNat (Int.toNat (Int.emod VastitasGenerated.f_"]
-      && (plain.source.splitOn "IO.println").length == 1 do
+      && (plain.source.splitOn "IO.println").length == 1 && (plain.source.splitOn "IO.eprintln").length == 1 do
     throw (IO.userError s!"observation regression: the plain entry point differs:\n{plain.source}")
   IO.println s!"observations: {rejected.length * 2 + 4} wire and entry-point cases passed"
 

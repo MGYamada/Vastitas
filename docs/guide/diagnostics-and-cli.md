@@ -226,10 +226,10 @@ the sizes of the inputs, the handling of signals and concurrent builds.
 
 ## After the build
 
-An executable runs the program. It writes to standard output only the lines
-of `show!`: one line `label = value` for each `let` of `main` that shows its
-value, in the order of the statements, where the label is the text of the
-expression. It then exits with the result of `main` as its exit status. The
+An executable runs the program. It writes nothing to standard output, and
+to standard error only the lines of `show!`: one line `label = value` for
+each `let` of `main` that shows its value, in the order of the statements,
+where the label is the text of the expression. It then exits with the result of `main` as its exit status. The
 status is the result modulo 256, a number from 0 to 255, so 300 gives 44 and
 −1 gives 255. A program returns 0 when it succeeds.
 [The entry point](../language/programs.md#the-entry-point) and

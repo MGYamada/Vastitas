@@ -605,8 +605,8 @@ fn mutated_observations_change_the_native_result() {
         common::ran(&result),
         common::Run {
             status: 1,
-            stdout: "failures = 8\n".into(),
-            stderr: String::new(),
+            stdout: String::new(),
+            stderr: "failures = 8\n".into(),
         }
     );
 }

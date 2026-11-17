@@ -66,8 +66,8 @@ fn run(s: &Scratch) -> Run {
 fn failed(failures: u64) -> Run {
     Run {
         status: i32::from(failures != 0),
-        stdout: format!("failures = {failures}\n"),
-        stderr: String::new(),
+        stdout: String::new(),
+        stderr: format!("failures = {failures}\n"),
     }
 }
 

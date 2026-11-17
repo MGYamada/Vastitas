@@ -60,12 +60,13 @@ lake env xargs -n 2 -P 4 bash -euc '
     *) echo "$fixture: a descriptor fixture imports an exact runtime" >&2; exit 1 ;;
   esac
   # The program exits with the result of main modulo 256 and writes nothing
-  # (#836). A result outside 0..255 is also checked whole: the program that
-  # observes it with `show!` writes `main = <result>` and exits with 0.
+  # on either stream (#836). A result outside 0..255 is also checked whole:
+  # the program that observes it with `show!` writes `main = <result>` on
+  # standard error, nothing on standard output, and exits with 0 (#840).
   lean -R "$work" -c "$work/$fixture.c" "$work/$fixture.lean"
   leanc "$work/$fixture.c" "${objects[@]}" -o "$work/$fixture"
   status=0
-  actual=$("$work/$fixture") || status=$?
+  actual=$("$work/$fixture" 2>&1) || status=$?
   wanted=$(python3 -c "import sys; print(int(sys.argv[1]) % 256)" "$expected")
   if [[ -n "$actual" || "$status" != "$wanted" ]]; then
     echo "$fixture: expected exit status $wanted and no output, got $status and \"$actual\"" >&2
@@ -75,9 +76,9 @@ lake env xargs -n 2 -P 4 bash -euc '
     lean -R "$work" -c "$work/${fixture}_shown.c" "$work/${fixture}_shown.lean"
     leanc "$work/${fixture}_shown.c" "${objects[@]}" -o "$work/${fixture}_shown"
     status=0
-    actual=$("$work/${fixture}_shown") || status=$?
-    if [[ "$actual" != "main = $expected" || "$status" != 0 ]]; then
-      echo "$fixture: expected main = $expected and exit status 0, got \"$actual\" and $status" >&2
+    actual=$("$work/${fixture}_shown" 2>&1 >"$work/${fixture}_shown.out") || status=$?
+    if [[ "$actual" != "main = $expected" || -s "$work/${fixture}_shown.out" || "$status" != 0 ]]; then
+      echo "$fixture: expected main = $expected on standard error only and exit status 0, got \"$actual\" and $status" >&2
       exit 1
     fi
   fi

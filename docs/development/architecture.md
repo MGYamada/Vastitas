@@ -103,7 +103,7 @@ during a compilation or in a generated program.
 
 `check` ends after step 7. The executable of step 9 exits with the integer
 that `main` returns as its exit status and writes only the lines of `show!`,
-as [The entry point](../language/programs.md#the-entry-point) says.
+on standard error, as [The entry point](../language/programs.md#the-entry-point) says.
 
 ## The three checker routes
 

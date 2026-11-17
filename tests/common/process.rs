@@ -211,13 +211,14 @@ pub fn exits(status: i32) -> Run {
         stderr: String::new(),
     }
 }
-/// A program that exits with 0 and writes `lines` on standard output, each
-/// with a line feed: the `label = value` lines of its `show!`.
+/// A program that exits with 0, writes nothing on standard output and writes
+/// `lines` on standard error, each with a line feed: the `label = value` lines
+/// of its `show!` (#840).
 pub fn shows(lines: &[&str]) -> Run {
     Run {
         status: 0,
-        stdout: lines.iter().map(|line| format!("{line}\n")).collect(),
-        stderr: String::new(),
+        stdout: String::new(),
+        stderr: lines.iter().map(|line| format!("{line}\n")).collect(),
     }
 }
 /// What the program of `output` did. It must have exited, not stopped at a

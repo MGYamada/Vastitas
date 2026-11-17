@@ -2,7 +2,7 @@ import VastitasKernel.IndexedCore
 
 /-! The observations of the entry point (#836). `let name = show!(expr);` at
 the top level of the body of `fn main` binds the value of `expr`, and the
-native program writes `expr = value` and a line feed to standard output when
+native program writes `expr = value` and a line feed to standard error when
 it binds it. Core stays pure: an observation is metadata of the entry point,
 the position of a top-level `let` of `main` and the text written before the
 value. The text is the source text of `expr`; it is presentation only and

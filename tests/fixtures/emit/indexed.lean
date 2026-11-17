@@ -30,5 +30,5 @@ def main : IO UInt32 := do
   let v_9 := ((VastitasKernel.IndexedRuntime.apply (VastitasKernel.IndexedRuntime.identity v_7) v_8))
   let v_10 := (())
   let v_12 := ((let v_11 := (Int.ofNat (v_7).dimension); (f_1 v_11)))
-  IO.println ("increment(int(geo::dim(Y)))" ++ " = " ++ (toString v_12))
+  IO.eprintln ("increment(int(geo::dim(Y)))" ++ " = " ++ (toString v_12))
   pure (UInt32.ofNat (Int.toNat (Int.emod ((0 : Int)) 256)))

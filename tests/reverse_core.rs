@@ -462,8 +462,8 @@ fn a_branch_chooses_the_map_of_a_reverse_pass() {
     // The program shows its failures and exits with status 1 when one fails.
     let failed = |failures: i32| Run {
         status: 1,
-        stdout: format!("failures = {failures}\n"),
-        stderr: String::new(),
+        stdout: String::new(),
+        stderr: format!("failures = {failures}\n"),
     };
     // h(t) = 5t + 3 has h(3) = 18 and derivative 5: the observations of the
     // else branch fail (2 + 8 + 32 + 128).

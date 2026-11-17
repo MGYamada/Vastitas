@@ -221,7 +221,8 @@ def display : DataType → String → Option String
 nothing else (#836). With observations, it binds the top-level statements of
 the body of `main` in order, up to the last observed one, and writes each
 observed value once, after binding it, as `label = value` with a line feed on
-standard output; then it returns the exit status of the rest of the body. The
+standard error, so that standard output stays the program's own (#840); then it
+returns the exit status of the rest of the body. The
 values are those of the pure library's terms: the entry point renders them
 with the same context, inside the generated namespace. -/
 def entryPoint (module : Module) (main : Nat) : List Observation → Except String String
@@ -243,7 +244,7 @@ def entryPoint (module : Module) (main : Nat) : List Observation → Except Stri
         if let some observation := observed then
           let some text := display value.result.type (variableName symbol)
             | throw "an observed value cannot be displayed"
-          lines := lines ++ s!"  IO.println ({observation.label.quote} ++ \" = \" ++ {text})\n"
+          lines := lines ++ s!"  IO.eprintln ({observation.label.quote} ++ \" = \" ++ {text})\n"
       | .unpack witness fields package, none =>
         let name := s!"packed_{witness}"
         lines := lines ++ s!"  let {name} := ({← renderTerm env ctx package})\n" ++

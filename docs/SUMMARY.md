@@ -71,6 +71,7 @@
 - [Numerical backend](internals/numerical-backend.md)
 - [The wire protocol](protocol.md)
 - [Verification boundaries](verification.md)
+  - [Finite universe admission model](universe-admission.md)
   - [Pure evaluation and graph proofs](verification/core-models.md)
   - [Daleckii–Krein mathematical bridge](daleckii-krein.md)
 - [Specifications](specifications.md)

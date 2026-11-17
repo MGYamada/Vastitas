@@ -116,7 +116,7 @@ text = true
 [[lean_lib]]
 name = "VastitasStorageTest"
 leanOptions = { autoImplicit = false }
-roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression", "VastitasStorageTest.FunctionRegression", "VastitasStorageTest.SourceRegression", "VastitasStorageTest.ValueFlowRegression", "VastitasStorageTest.ShapeRegression", "VastitasStorageTest.GemmRegression", "VastitasStorageTest.NumericalRegression", "VastitasStorageTest.NumericalCoverageRegression", "VastitasStorageTest.TransformRegression", "VastitasStorageTest.NetworkRegression", "VastitasStorageTest.EvaluationRegression", "VastitasStorageTest.TensorRegression", "VastitasStorageTest.TreeRegression", "VastitasStorageTest.DependencyRegression", "VastitasStorageTest.MetricRegression", "VastitasStorageTest.OwnedPackageRegression", "VastitasStorageTest.NumericalFixture"]
+roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression", "VastitasStorageTest.FunctionRegression", "VastitasStorageTest.SourceRegression", "VastitasStorageTest.ValueFlowRegression", "VastitasStorageTest.ShapeRegression", "VastitasStorageTest.GemmRegression", "VastitasStorageTest.NumericalRegression", "VastitasStorageTest.NumericalCoverageRegression", "VastitasStorageTest.TransformRegression", "VastitasStorageTest.NetworkRegression", "VastitasStorageTest.EvaluationRegression", "VastitasStorageTest.TensorRegression", "VastitasStorageTest.TreeRegression", "VastitasStorageTest.DependencyRegression", "VastitasStorageTest.MetricRegression", "VastitasStorageTest.OwnedPackageRegression", "VastitasStorageTest.NumericalFixture", "VastitasStorageTest.UniverseRegression"]
 needs = ["storageFixture", "storageFunctionFixture", "storageGemmFixture"]
 
 [[input_file]]

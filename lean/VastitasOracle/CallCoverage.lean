@@ -1,9 +1,7 @@
 import VastitasOracle.IndexedDispatch
-import VastitasKernel.IndexedAcceptance
-import VastitasKernel.LegacySource
 import VastitasKernel.ResourceProtocol
 
-/-! Converse call coverage on the exact Core returned by each public protocol.
+/-! Converse call coverage on the exact Core returned by the public checker.
 The matching unit is a caller specialization and emitted target ID, counted
 with multiplicity. This is not a source-location bijection, operational
 correspondence, numerical receipt coverage or native refinement. -/
@@ -41,14 +39,6 @@ theorem returned {prepared : PreparedProgram} (checked : CheckedPass prepared au
       ⟨origin, found, selection, selected⟩
     exact ⟨IndexedDispatch.core_dispatch_call_count checked function present target called generic,
       IndexedDispatch.core_dispatch_call_selected checked function present target called generic⟩
-
-theorem legacy_wire (input : Indexed.LegacySource.CheckedInput json requireMain) :
-    Returned input.checked.audit ∧ Returned input.checked.executable :=
-  ⟨returned _, returned _⟩
-
-theorem indexed_wire (input : Wire.CheckedInput json requireMain) :
-    Returned input.checked.audit ∧ Returned input.checked.executable :=
-  ⟨returned _, returned _⟩
 
 theorem resource_wire (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain) :
     Returned input.checked.pureProgram.audit ∧ Returned input.checked.pureProgram.executable ∧

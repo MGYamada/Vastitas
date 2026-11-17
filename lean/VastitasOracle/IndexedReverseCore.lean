@@ -1,5 +1,3 @@
-import VastitasOracle.IndexedWire
-import VastitasOracle.LegacySource
 import VastitasOracle.ResourceCodegen
 
 /-! The structure of compiled reverse Core (#623).
@@ -14,9 +12,9 @@ With the unique function and declaration ids of a checked module, the generated
 function and every declaration of an entry are found by their ids.
 
 `Core.Reverse.Compiled` carries this validation. Every public path that
-generates code from a compiled module (protocols 2-7, and the pure program and
-pure values of protocols 8/9) therefore uses the compilation of its executable
-Core, and every function of it has typed, finite evaluation
+generates code from a compiled module (the pure program and the pure values of
+a request that `ResourceSource.Wire.check` accepts) therefore uses the
+compilation of its executable Core, and every function of it has typed, finite evaluation
 (`IndexedProgramSafety`). These theorems concern checked Core. That a
 generated function computes the reverse pass of its site is stated in
 `SmoothReverseCore` and, for every entry of a compiled module, in
@@ -483,58 +481,7 @@ theorem compiled_main_total {source : Typing.CheckedModule true} (compiled : Com
 /-! ## Public paths -/
 
 open VastitasKernel VastitasKernel.Indexed in
-/-- Protocol 7: `accepted.checked.compiled.core` is the compilation of the
-executable Core of the accepted program. `Main.process` generates code from
-this module; that is read from `Main`, which the oracle does not import. -/
-theorem compiled_codegen_input {json : Lean.Json} (accepted : Wire.CheckedInput json true) :
-    Core.Reverse.generate accepted.checked.executable.lowered.module =
-      (accepted.checked.compiled.core.module, accepted.checked.compiled.entries) ∧
-    Core.Reverse.validate accepted.checked.executable.core.module accepted.checked.compiled.entries
-      accepted.checked.compiled.core.module = true := by
-  refine ⟨?_, accepted.checked.compiled.validated⟩
-  rw [← accepted.checked.executable.coreInput]
-  exact compiled_generate accepted.checked.compiled
-
-open VastitasKernel VastitasKernel.Indexed in
-/-- Protocol 7: every entry of the accepted compiled module resolves, and every
-function of it has typed, finite evaluation. -/
-theorem public_compiled_entries {json : Lean.Json} {requireMain : Bool}
-    (accepted : Wire.CheckedInput json requireMain) :
-    (∀ entry ∈ accepted.checked.compiled.entries,
-      accepted.checked.compiled.core.module.functions.find? (fun function => function.id == entry.function) =
-        some entry.generated ∧
-      ∀ declaration ∈ entry.declarations,
-        accepted.checked.compiled.core.module.declarations.primitive? declaration.id = some declaration.binding) ∧
-    ∀ function ∈ accepted.checked.compiled.core.module.functions,
-      IndexedFunctionSafety.FunctionReturns accepted.checked.compiled.core.module function :=
-  ⟨fun _ member => compiled_entry_resolves accepted.checked.compiled member,
-    compiled_functions_total accepted.checked.compiled⟩
-
-open VastitasKernel VastitasKernel.Indexed in
-/-- Protocol 7: the `main` of the emitted compiled module evaluates to an `Int`. -/
-theorem public_compiled_main_total {json : Lean.Json} (accepted : Wire.CheckedInput json true) :
-    ∃ id function result,
-      accepted.checked.compiled.core.module.main = some id ∧
-      accepted.checked.compiled.core.module.functions.find? (fun function => function.id == id) = some function ∧
-      IndexedEvaluation.Evaluates accepted.checked.compiled.core.module (fun _ => none) function.body
-        (.integer result) :=
-  compiled_main_total accepted.checked.compiled
-
-open VastitasKernel VastitasKernel.Indexed in
-/-- Protocols 2-6: `accepted.checked.compiled.core` is the compilation of the
-executable Core. `Main.process` generates code from this module, as for
-protocol 7. -/
-theorem legacy_compiled_codegen_input {json : Lean.Json} (accepted : Indexed.LegacySource.CheckedInput json true) :
-    Core.Reverse.generate accepted.checked.executable.lowered.module =
-      (accepted.checked.compiled.core.module, accepted.checked.compiled.entries) ∧
-    Core.Reverse.validate accepted.checked.executable.core.module accepted.checked.compiled.entries
-      accepted.checked.compiled.core.module = true := by
-  refine ⟨?_, accepted.checked.compiled.validated⟩
-  rw [← accepted.checked.executable.coreInput]
-  exact compiled_generate accepted.checked.compiled
-
-open VastitasKernel VastitasKernel.Indexed in
-/-- Protocols 8/9 without a resource entry: the emitted module is the accepted
+/-- A request without a resource entry: the emitted module is the accepted
 certificate's `pureProgram.compiled` module, the compilation of the executable
 Core, and every entry of its ledger resolves there. -/
 theorem generated_pure_entry_compiled {program : VastitasKernel.ResourceSource.Program}
@@ -561,7 +508,7 @@ theorem generated_pure_entry_compiled {program : VastitasKernel.ResourceSource.P
     exact compiled_entry_resolves checked.pureProgram.compiled member
 
 open VastitasKernel VastitasKernel.Indexed in
-/-- Protocol 9 (and 8) emit without a resource entry: the public request's
+/-- Emit without a resource entry: the public request's
 decoded program is checked, and its emitted module is the compiled module of
 `generated_pure_entry_compiled`. -/
 theorem public_pure_entry_compiled {json : Lean.Json} {program : VastitasKernel.ResourceSource.Program}
@@ -587,7 +534,7 @@ theorem public_pure_entry_compiled {json : Lean.Json} {program : VastitasKernel.
   exact generated_pure_entry_compiled found generatedFrom
 
 open VastitasKernel VastitasKernel.Indexed in
-/-- Protocols 8/9 acceptance: both compiled passes of a checked resource
+/-- Acceptance: both compiled passes of a checked resource
 program (the pure program and the pure values of a resource entry) validate
 against their executable Core, every entry resolves, and every function of the
 compiled modules has typed, finite evaluation. -/

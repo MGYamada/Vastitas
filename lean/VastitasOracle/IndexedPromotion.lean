@@ -1,6 +1,5 @@
 import VastitasPromotion.IndexedFixture
 import VastitasOracle.IndexedEvaluation
-import VastitasOracle.LegacySource
 
 /-! Numerical contracts on `IndexedPromotionFixture.checked`, the indexed Core
 module of the actual Rust stdlib fixture. Evaluates refers to the actual

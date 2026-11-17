@@ -60,8 +60,6 @@ def independent : Array Name := #[
   `VastitasOracle.SmoothReverseCompiled.resolve_factors,
   `VastitasOracle.SmoothReverseCompiled.compileSite_term,
   `VastitasOracle.SmoothReverseCompiled.compiled_site_evaluates,
-  `VastitasOracle.SmoothReverseCompiled.public_wire_entries,
-  `VastitasOracle.SmoothReverseCompiled.legacy_wire_entries,
   `VastitasOracle.SmoothReverseCompiled.public_resource_entries,
   `VastitasOracle.SmoothReverseCompiled.public_pure_entry_computes]
 

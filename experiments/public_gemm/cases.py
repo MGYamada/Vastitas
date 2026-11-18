@@ -59,7 +59,7 @@ def layout(value):
 def source(c):
     s, scalar = spec(c), c["scalar"]
     profile = "ComplexSmooth" if scalar else "RealSmooth"
-    kind = "Complex<F64>" if scalar else "F64"
+    kind = "F64<CC>" if scalar else "F64<RR>"
     lines = ["pub resource fn product() -> Unit {",
              f"space u = linear(super::profiles::{profile}, {c['n']});",
              f"space v = linear(super::profiles::{profile}, {c['k']});",
@@ -93,7 +93,7 @@ def source(c):
 def write_package(c, out):
     (out / "src/product").mkdir(parents=True)
     (out / "src/profiles").mkdir()
-    (out / "Vastitas.toml").write_text('[package]\nname = "gemm_bench"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
+    (out / "Vastitas.toml").write_text('[package]\nedition = "2026"\nname = "gemm_bench"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
     (out / "src/main.vast").write_text('mod profiles;\nmod product;\nresource fn main() -> Int {\ncall product::product() -> ();\nvalue { 0 }\n}\n')
     (out / "src/profiles/mod.vast").write_text((ROOT / "examples/packages/numerical/numerical/src/profiles/mod.vast").read_text())
     (out / "src/product/mod.vast").write_text(source(c))
@@ -121,6 +121,7 @@ static const Patch patches[2][2] = {{{','.join(map(patch, s['patches']))}}};
 
 def split_generated(text):
     """Fail closed if codegen no longer has the audited straight-line shape."""
+    text = cleanup_envelope.normalize_main(text)
     marker = "def main : IO Unit := do\n"
     if text.count(marker) != 1:
         raise ValueError("unexpected generated main")
@@ -151,7 +152,7 @@ def driver(generated):
     preamble, arena, setup, gemm, cleanup = split_generated(generated)
     def block(lines, indent):
         return "\n".join(" " * indent + x.strip() for x in lines)
-    # The sole removed operation is terminal printing of the constant pure result.
+    # Only terminal printing or exit-status plumbing of the pure result is removed.
     # Every resource instruction, operand and cleanup style is preserved.
     wrapped = preamble + '''
 @[extern "bench_begin_lean"] opaque benchBegin (scope : UInt32) (reps : UInt64) (verify : Bool) : IO Unit

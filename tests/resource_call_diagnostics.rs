@@ -35,7 +35,7 @@ resource fn main() -> Int {
     space sensors = linear(RealSmooth, 1);
     basis sensor_basis = basis(sensors);
     basis alternate_basis = basis(sensors);
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     borrow writer = write(data, layout(0, 1, 1, 1, false));
     fill(writer, f64(1.0));
     release(writer);
@@ -62,7 +62,7 @@ resource fn main() -> Int {
     space sensors = linear(RealSmooth, 1);
     basis sensor_basis = basis(sensors);
     basis alternate_basis = basis(sensors);
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     borrow writer = write(data, layout(0, 1, 1, 1, false));
     fill(writer, f64(1.0));
     release(writer);
@@ -87,7 +87,7 @@ resource fn main() -> Int {
     space sensors = linear(RealSmooth, 1);
     basis sensor_basis = basis(sensors);
     basis alternate_basis = basis(sensors);
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     borrow writer = write(data, layout(0, 1, 1, 1, false));
     fill(writer, f64(1.0));
     release(writer);
@@ -112,7 +112,7 @@ resource fn main() -> Int {
     space sensors = linear(RealSmooth, 1);
     basis sensor_basis = basis(sensors);
     basis alternate_basis = basis(sensors);
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     borrow writer = write(data, layout(0, 1, 1, 1, false));
     fill(writer, f64(1.0));
     release(writer);
@@ -152,7 +152,7 @@ resource fn produce(
     sensor_space: Space<RealSmooth, 1>, basis_arg: Basis<sensor_space>,
     other_arg: Basis<sensor_space>
 ) returns (made: OwnedMap<basis_arg, basis_arg>) -> Unit {
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     borrow writer = write(data, layout(0, 1, 1, 1, false));
     fill(writer, f64(1.0));
     release(writer);
@@ -184,7 +184,7 @@ resource fn main() -> Int {
     runtime_space sensors = linear(RealSmooth, n);
     runtime_basis sensor_basis = basis(sensors);
     runtime_basis alternate_basis = basis(sensors);
-    runtime_allocate data: F64[capacity] runtime_layout(n, n, n, false);
+    runtime_allocate data: F64<RR>[capacity] runtime_layout(n, n, n, false);
     runtime_borrow writer = write(data);
     runtime_fill(writer, f64(1.0));
     runtime_release(writer);
@@ -216,7 +216,7 @@ fn fixture(source: &str) -> Scratch {
     let scratch = Scratch::empty("resource call diagnostics");
     scratch.write(
         "Vastitas.toml",
-        "[package]\nname = \"basis_diagnostic\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"basis_diagnostic\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     scratch.write("main.vast", source);
     scratch

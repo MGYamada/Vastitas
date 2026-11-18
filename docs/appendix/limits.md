@@ -485,7 +485,7 @@ resource functions. Most limits of this section have the code
 | Initialization records | 4096 | The nodes of the record that the checker keeps of the writes to one allocation: one for the end of the record, one for each write that the record keeps, and one for each join of two arms that keeps the records of both arms. The record keeps no write that the bounded query of the table below shows covered already, and no write that continues the last recorded write | An allocation | `E_RESOURCE_LIMIT` |
 | Initialization query | 65,536 | The visits of the record of one allocation by one query of the cells of a view. Over a record of `n` nodes, a query walks at most the smaller of 256 and 65,536 / `n` steps from write to write, and a view with padding shares them among its stored columns | A read of a view | `E_RESOURCE_INIT` |
 | Integers | 2⁶⁴ − 1 | An integer of a storage type, of a layout, of an allocation size, of a cell index or of `f64_bits` | An integer | `E_RESOURCE_LIMIT` |
-| Bytes of an allocation | 2⁶³ − 1 | The cells of an allocation times the size of a cell, 8 bytes for `F64` and 16 for `Complex<F64>` | An allocation | `E_RESOURCE_OVERFLOW` |
+| Bytes of an allocation | 2⁶³ − 1 | The cells of an allocation times the size of a cell, 8 bytes for `F64<RR>` and 16 for `F64<CC>` | An allocation | `E_RESOURCE_OVERFLOW` |
 | Rows, columns and leading of a layout | 2³¹ − 1 | The three numbers of a `layout` | A layout | `E_RESOURCE_LAYOUT` |
 
 An expansion of calls takes these units:

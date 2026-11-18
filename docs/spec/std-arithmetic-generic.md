@@ -182,7 +182,7 @@ Claims:
 
 `add` and `maximum` on any two of Nat and Int evaluate, for all arguments, to the sum and the maximum of their integer values. The result is Nat for two Nat inputs and Int otherwise.
 
-- Example: For `n: Nat = 20`, `add(n, -7)` is 13 and `maximum(-7, n)` is 20.
+- Example: For `n: Nat = 20`, the flat stdlib call `self::add(n, -7)` is 13 and `maximum(-7, n)` is 20.
 - Run by: `mixed_arithmetic_delegates_to_homogeneous_kernels_in_both_modes` in [`tests/promotion.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/promotion.rs)
 
 Claims:

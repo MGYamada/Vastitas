@@ -365,15 +365,15 @@ class IncludeTests(Fixture):
         def found(block):
             return check_book.program_errors("guide/a.md", f"```vast\n{block}\n```\n")
 
-        for block in ("method area(x: Int) -> Int requires (HasOrder) {\n    x\n}",
-                      "generic area(x) {\n    domain (Int);\n}\n\nmethod area(x: Int) -> Int { x }",
-                      "method geo::area(x: Int)\n    -> Int\n{\n    x\n}",
-                      "resource fn copy(\n    a: Read<F64, 1, 1>,\n) returns (b: Owned<F64, 1>) -> Unit {\n"
+        for block in ("fn area(x: Int) -> Int requires (HasOrder) {\n    x\n}",
+                      "fn area(x) domain((Int));\n\nfn area(x: Int) -> Int { x }",
+                      "fn geo::area(x: Int)\n    -> Int\n{\n    x\n}",
+                      "resource fn copy(\n    a: Read<F64<RR>, 1, 1>,\n) returns (b: Owned<F64<RR>, 1>) -> Unit {\n"
                       "    value { () }\n}"):
             self.assertEqual(len(found(block)), 1, block)
             self.assertIn("a complete function or method is included", found(block)[0])
-        for block in ("abstract method area(x: Int) -> Int {\n    domain (Int);\n}",
-                      "generic area(x) {\n    domain (Int);\n}",
+        for block in ("fn area(x: Int) -> Int domain((Int));",
+                      "fn area(x) domain((Int));",
                       "fn area(x: Int) -> Int\n\nlet y = { 1 };",
                       "fn area(x: Int) -> Int;\n{ }",
                       "fn area(x: Int) -> Int\nlet y = { 1 };",
@@ -494,7 +494,7 @@ class SyntaxTests(Fixture):
 
     def test_the_real_parser_vocabulary_is_found(self):
         symbols, names = check_book.parser_vocabulary(check_book.ROOT)
-        self.assertTrue({"->", "::", "(", ";", "^"} <= symbols)
+        self.assertTrue({"->", "=>", "::", "(", ";", "^"} <= symbols)
         self.assertTrue({"fn", "pub", "use", "indexed", "generic"} <= names)
 
 

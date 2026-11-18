@@ -33,8 +33,8 @@ static void expect(VStorageArena *arena, uint32_t id, VStorageLayout view,
     assert(vstorage_prepare_dense(arena,id,view,&actual) == VS_OK);
     uint64_t index = actual.transposed ? column + row * actual.leading : row + column * actual.leading;
     index *= actual.scalar ? 2 : 1;
-    assert(actual.data[index] == real);
-    if (actual.scalar) assert(actual.data[index+1] == imaginary);
+    assert(((const double *)actual.data)[index] == real);
+    if (actual.scalar) assert(((const double *)actual.data)[index+1] == imaginary);
 }
 static void cleanup(VStorageArena *arena) {
     vstorage_close(arena);
@@ -181,7 +181,7 @@ static void nonfinite_inputs(void) {
     put(arena,0,one,0,0,0,NAN,0);
     assert(vgemm_execute(arena,0,one,0,1,one,0,2,one,VGEMM_OVERWRITE,NULL)==VS_OK);
     VStorageDense result;
-    assert(vstorage_prepare_dense(arena,2,one,&result)==VS_OK && isnan(result.data[0]));
+    assert(vstorage_prepare_dense(arena,2,one,&result)==VS_OK && isnan(((const double *)result.data)[0]));
     cleanup(arena);
 }
 
@@ -380,7 +380,7 @@ static void diagonal_pairing(void) {
 static uint64_t component(VStorageArena *arena, uint32_t id, VStorageLayout view, unsigned part) {
     VStorageDense actual;
     assert(vstorage_prepare_dense(arena,id,view,&actual) == VS_OK);
-    return bits(actual.data[part]);
+    return bits(((const double *)actual.data)[part]);
 }
 
 /* 1x1 outputs use the fused dot path. With exactly representable sums it agrees
@@ -468,9 +468,38 @@ static void scalar_output_order(void) {
     }
 }
 
+/* 2^24 + 1 - 2^24 rounds to zero when every addition uses binary32.
+ * A binary64 accumulator followed by conversion to binary32 returns one. */
+static void binary32_dot_precision(void) {
+    const uint32_t left_bits[] = {0x4b800000, 0x3f800000, 0xcb800000};
+    const uint8_t representations[] = {VS_F32, VS_COMPLEX_F32};
+    const VStorageLayout a = layout(1, 3, 0, 0), b = layout(3, 1, 0, 0), c = layout(1, 1, 0, 0);
+    for (size_t i = 0; i < sizeof(representations) / sizeof(representations[0]); ++i) {
+        uint8_t scalar = representations[i];
+        VStorageArena *arena = vstorage_new(7 * vstorage_element_bytes(scalar));
+        assert(arena);
+        assert(vstorage_allocate(arena, 0, scalar, 3) == VS_OK);
+        assert(vstorage_allocate(arena, 1, scalar, 3) == VS_OK);
+        assert(vstorage_allocate(arena, 2, scalar, 1) == VS_OK);
+        for (size_t j = 0; j < 3; ++j)
+            assert(vstorage_store(arena, 0, a, 0, j, scalar, left_bits[j], 0) == VS_OK);
+        assert(vstorage_fill(arena, 1, b, scalar, 0x3f800000, 0) == VS_OK);
+        assert(vgemm_execute(arena, 0, a, 0, 1, b, 0, 2, c, VGEMM_OVERWRITE, NULL) == VS_OK);
+        assert(vstorage_expect(arena, 2, c, 0, 0, scalar, 0, 0) == VS_OK);
+        const VGemmCoefficient oversized = {VGEMM_LITERAL, scalar, UINT64_C(1) << 32, 0, 0, 0};
+        const VGemmCoefficient default_beta = {VGEMM_DEFAULT, 0, 0, 0, 0, 0};
+        uint64_t written = vstorage_stats(arena).written_bytes;
+        assert(vgemm_execute_scaled(arena, 0, a, 0, 1, b, 0, 2, c, VGEMM_OVERWRITE,
+                                    oversized, default_beta, NULL) == VS_SCALAR);
+        assert(vstorage_stats(arena).written_bytes == written);
+        assert(vstorage_expect(arena, 2, c, 0, 0, scalar, 0, 0) == VS_OK);
+        cleanup(arena);
+    }
+}
+
 int main(void) {
     assert(vgemm_backend_check()==VS_OK);
-    scalar_outputs(); scalar_output_order();
+    scalar_outputs(); scalar_output_order(); binary32_dot_precision();
     real_orientations(); complex_product(); conjugation_and_nonfinite();
     degenerate(); nonfinite_inputs(); failures_preserve_output(); complex_element_boundaries(); coefficients(); diagonal_pairing();
     puts(vgemm_configuration());

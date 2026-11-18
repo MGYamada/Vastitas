@@ -1,8 +1,9 @@
 # Edit authority
 
-A [generic](../stage1a.md#generic-declarations) is a family of methods that the
-compiler checks as a whole. **Edit authority** decides which module may add
-methods to a generic. The module that defines a generic holds that authority.
+A finite [function family](../stage1a.md#generic-declarations) consists of
+one or more `fn` declarations that the compiler checks as a whole. **Edit
+authority** decides which module may add methods to the family. Its defining
+module holds that authority.
 A **grant** lets another module contribute methods, through the **assembly** of
 the root package, which borrows the grant, applies the contributions and seals
 the generic. The assembly runs at compile time and fixes one environment. No
@@ -19,9 +20,9 @@ module.
 
 Rules:
 
-- A `method` declaration must be in the module that defines its generic.
-  Another module is an error (`E_OWNER`), and so is a method for an ordinary
-  function.
+- A `fn` method outside a contribution must be in the module that defines
+  its family. Naming a family from another module grants no authority to
+  append a method (`E_OWNER`).
 - A child module, `pub`, `use` and an alias grant no edit authority. The
   defining module may name its own declaration through an alias.
 - Abstract types and abstract methods have owner rules of their own, which
@@ -46,8 +47,8 @@ Rules:
 recipient's manifest, and the rest is the logical path of its module. `to p`
 names the root module of `p`. The **region** lists the
 [keys](../stage1a.md#generic-declarations) at which the recipient's methods
-may win. It has the form of the domain of a generic; `domain;` is an empty
-region. A grant is a permission, not an active edit: it takes effect only
+may win. It lists comma-separated tuples of scalar types followed by a
+semicolon; `domain;` is an empty region. A grant takes effect only
 when an assembly borrows it.
 
 A **delegation** has the same form. It lets the holder of a loan pass part of
@@ -62,7 +63,7 @@ Rules:
 - The issuer of a grant must hold edit authority over the generic at some
   point of the assembly, even when no event borrows the grant. Another issuer
   is an error (`E_OWNER`).
-- A delegation has no authority until a `reborrow` uses it, as
+- A delegation has no authority until a `delegate` block uses it, as
   [Assemblies](#assemblies) says. An unused delegation is not checked against
   its issuer.
 - The recipient package must be in the
@@ -127,8 +128,8 @@ Rules:
 - The methods of an applied contribution are methods of the generic. The rule
   of [Method declarations](../stage1a.md#method-declarations) against equal
   selectors and requirements covers them (`E_DUPLICATE`): within one
-  contribution, between applied contributions, and against the `method`
-  declarations. It does not cover an unapplied contribution.
+  contribution, between applied contributions, and against the defining
+  module's `fn` bodies. It does not cover an unapplied contribution.
 
 The package `edit_addon` contributes one method:
 
@@ -141,80 +142,57 @@ The package `edit_addon` contributes one method:
 > **Syntax**
 >
 > ```text
-> AssemblyDeclaration -> `assembly` `{` AssemblyEvent* `}`
-> AssemblyEvent -> `borrow` Path `as` IDENTIFIER `;`
->     | `reborrow` IDENTIFIER `via` Path `as` IDENTIFIER `;`
->     | `apply` Path ( `using` IDENTIFIER )? `;`
->     | `return` IDENTIFIER `;`
->     | `transfer` Path `;`
->     | `seal` Path `;`
+> AssemblyDeclaration -> `assemble` Path `{` AssemblyItem* `}`
+> AssemblyItem -> BorrowBlock | ApplyStatement | `transfer` Path `;`
+> BorrowBlock -> `borrow` Path ( `as` IDENTIFIER )? `{` LoanItem* `}`
+> LoanItem -> ApplyStatement | `delegate` Path ( `as` IDENTIFIER )? `{` LoanItem* `}`
+> ApplyStatement -> `apply` Path ( `,` Path )* `;`
 > ```
 
-An assembly is a list of **events** that the compiler replays in order. A
-**loan**, an [edit loan](../appendix/glossary.md#edit-loan), is the edit
-authority that a `borrow` or `reborrow` event activates; the event names it.
-The root package coordinates the events, but it gains no edit authority of its
-own: every event uses a permission that some module declared.
+Only the root module of the root package can assemble a family. Its path
+resolves to the defining package, module and name, including through imports.
+A second block for the same family is an error (`E_ASSEMBLY`), even through
+a different alias. A family without a block receives no edits.
 
-| Event | Meaning |
-| --- | --- |
-| `borrow g as l;` | Activate the grant `g` as the loan `l` |
-| `reborrow l via d as k;` | Activate the delegation `d` as the loan `k`, nested in the loan `l` |
-| `apply c using l;` | Add the methods of the contribution `c` under the loan `l` |
-| `apply c;` | Add the methods of the contribution `c` of the current owner |
-| `return l;` | End the loan `l` |
-| `transfer t;` | Make the recipient of the transfer `t` the current owner |
-| `seal f;` | Close the generic `f` and check it |
+`borrow g { … }` activates the grant `g`. A nested `delegate d { … }`
+suspends its parent loan until the closing brace. The declaration `d` must
+come from the parent grant's recipient; the parent must be delegable and
+cover the delegated region. Each grant, delegation, contribution and transfer
+must target the enclosing family.
 
-Rules:
+Inside a loan, `apply c, d;` applies the two contributions in order under
+the innermost loan. Its grantee must be their defining module (`E_OWNER`).
+At the top level of `assemble`, `apply` uses the current owner's authority.
+A top-level `transfer t;` changes the current owner as specified by `t`.
+Returning a loan keeps its edits; the current owner can still apply a repair
+after the loan's closing brace and before the family's closing brace.
 
-- A program has at most one assembly, in the root module of the root package.
-  An assembly in another module is an error (`E_ASSEMBLY`), and a second
-  assembly in one module is an error (`E_DUPLICATE`). A program without an
-  assembly behaves as if it had an empty one.
-- Each event must name a declaration of the kind that the table gives:
-  `borrow` a grant, `via` a delegation, `apply` a contribution, `transfer` a
-  transfer and `seal` a generic. Another kind is an error (`E_TYPE`).
-- A generic has at most one active loan that may edit it. A second `borrow` is
-  an error (`E_BORROW`). A loan name must not be used twice in an assembly
-  (`E_BORROW`).
-- In `apply c using l`, the loan `l` must be active (`E_BORROW`). It must be a
-  loan of the generic of `c`, and its recipient must be the module of `c`
-  (`E_OWNER`).
-- In `apply c` without a loan, the module of `c` must be the current owner
-  (`E_OWNER`), and no loan of the generic may be active (`E_BORROW`).
-- In `reborrow l via d as k`, the loan `l` must be active (`E_BORROW`). It
-  must come from a `delegable` grant or delegation, its recipient must have
-  declared `d` for the same generic, and the region of `d` must lie in the
-  region of `l` (`E_OWNER`).
-- While `k` is active, its parent `l` is suspended: it may neither edit nor be
-  reborrowed (`E_BORROW`). Loans end from the inside out: returning a parent
-  before its child is an error (`E_BORROW`), and so is returning a loan that is
-  not active.
-- Returning a loan keeps the methods that it installed. The generic stays open,
-  and the current owner may still apply contributions before the seal.
-- No loan of `f` may be active at `seal f` (`E_BORROW`). A later event must
-  not edit, borrow, transfer or seal a sealed generic (`E_ASSEMBLY`).
-- At the end of the assembly, every loan must be returned (`E_BORROW`).
-- Every generic to which the assembly applied a contribution must be sealed
-  (`E_ASSEMBLY`). So must every generic that it transferred, even when the
-  assembly installed no method. A generic that the assembly only borrowed
-  needs no seal.
-- Applying the same contribution twice under the same permission is the same as
-  applying it once. The same contribution with different provenance is an
-  error (`E_PROVENANCE`).
-- An assembly must have at most 4096 events, and the contributions of the
-  package graph must hold at most 4096 methods. Otherwise it is an error
-  (`E_LIMIT`). The checks of the methods of the contributions that the
-  assembly does not apply have a limit too (`E_LIMIT`).
-  [Appendix D](../appendix/limits.md#edit-authority) gives these three
-  limits and the two other limits of edit authority: on the keys that the
-  domain of a grant lists and on the work of the audit of the assembly.
-- `borrow`, `reborrow`, `via`, `using`, `seal`, `to`, `delegable`, `grant`,
-  `delegation`, `transfer`, `contribution` and `assembly` are keywords only in
-  these declarations, and a binding may use them as names. `apply` is a
-  [reserved name](lexical-structure.md#reserved-names), and `as` and `return`
-  are [strict keywords](lexical-structure.md#keywords).
+The frontend concatenates the blocks in source order into the protocol's
+[event list](../protocol.md#scoped-edits-and-assembly). Opening a loan emits
+a borrow or reborrow, its closing brace emits a return, and the closing brace
+of the family emits its seal. Each return and seal points to that single brace.
+The optional `as name` sets the loan's diagnostic label. An omitted label
+gets a deterministic fresh name derived from the grant or delegation. The
+compiler reserves explicit labels even in later blocks. An explicit label
+may not be reused (`E_BORROW`).
+
+Lean reads the edit blocks in the supplied entry file and checks that their
+commands, original paths, optional labels and closing braces match the
+structured records. It expands the commands and compares all events and
+source spans with the trace used for method selection.
+
+Lean checks event authority, family identity, the exclusive leaf loan,
+inside-out returns, owner transfers, final seals, coverage and footprints.
+It checks these even when it receives a trace that did not come from source.
+Applying the same contribution twice with the same permission is one edit;
+different provenance is an error (`E_PROVENANCE`). The complete expanded
+trace, including implicit returns and seals, has a shared limit of 4096
+events; [Appendix D](../appendix/limits.md#edit-authority) gives the other
+authority limits.
+
+The flat `assembly { … }` syntax is removed. `return`, `seal`,
+`reborrow … via` and `apply … using` are not source commands in an
+`assemble` block.
 
 The root package of `edit-borrow` borrows the grant, applies the
 contribution, returns the loan and seals `choose`:
@@ -226,6 +204,11 @@ contribution, returns the loan and seals `choose`:
 The executable writes `base::choose(40, 2) = 42` and exits with status 0.
 
 ## Sealing
+
+A block such as `assemble apply_twice {}` can seal a singleton function,
+including one whose parameters include a `Fn` value or an indexed object.
+The seal records its defining package, module and name. Sealing that
+function again through an import alias is an error (`E_ASSEMBLY`).
 
 When an assembly seals a generic, the compiler checks the generic as a whole,
 with every method that the assembly installed. The checks are those of
@@ -268,14 +251,14 @@ Rules:
 - After a transfer, the former current owner must not apply a contribution
   without a loan, and it must not transfer the generic (`E_OWNER`). The
   grants that it declared stay usable.
-- The recipient applies its contributions without a loan. The `method`
-  declarations of the generic stay in the defining module; the recipient adds
-  methods only through contributions.
+- The recipient applies its contributions without a loan. The original
+  `fn` bodies stay in the defining module. The recipient adds methods
+  through contributions.
 - Every method, grant, contribution and open obligation of the generic stays
   as it was. A grant of the recipient becomes usable only after the transfer.
-- A transfer changes the current owner of a generic only. Abstract-type
-  membership, abstract method contracts, ordinary functions and single
-  methods have no transfer.
+- A transfer names the whole finite dispatch family. A scalar singleton can
+  acquire methods under that authority. Abstract-type memberships and
+  contracts remain in their defining modules.
 
 [`examples/packages/authority/edit-authority`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/authority/edit-authority)
 nests a loan through a delegation and then transfers the generic. The defining

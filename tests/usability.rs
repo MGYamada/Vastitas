@@ -133,7 +133,7 @@ fn library_identity_notes_keep_library_source_locations() {
 #[test]
 fn unsupported_constructs_have_specific_diagnostics() {
     for source in [
-        "fn main() -> Int { 7 / 2 }",
+        "fn main() -> Int { let x = 7; x /= 2; x }",
         "fn main() -> Int { 7 % 2 }",
         "fn main() -> Int { 1.5 }",
         "fn main() -> Int { return 1; }",

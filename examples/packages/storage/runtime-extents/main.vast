@@ -3,7 +3,7 @@
 // read one cell back.
 resource fn table(rows: Nat, columns: Nat) -> Unit {
     let capacity: Nat = value { rows * columns };
-    runtime_allocate data: F64[capacity] runtime_layout(rows, columns, rows, false);
+    runtime_allocate data: F64<RR>[capacity] runtime_layout(rows, columns, rows, false);
     runtime_borrow output = write(data);
     runtime_fill(output, f64(3));
     runtime_release(output);

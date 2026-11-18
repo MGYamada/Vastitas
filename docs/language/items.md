@@ -1,19 +1,19 @@
 # Items
 
 An **item** is a declaration at the top level of a source file or of a module.
-Functions, generics and modules are items. Statements and expressions occur
+Function declarations and modules are items. Statements and expressions occur
 only inside the bodies of items.
 
 > **Syntax**
 >
 > ```text
 > Item -> `pub`? VisibleItem | HiddenItem
-> VisibleItem -> Function | GenericDeclaration | AbstractTypeDeclaration
+> VisibleItem -> Function | FamilyHeader | MethodDeclaration | FunctionContract
+>     | AbstractTypeDeclaration
 >     | ModuleDeclaration | UseDeclaration | IndexedDeclaration | ResourceFunction
 >     | GrantDeclaration | DelegationDeclaration | TransferDeclaration
 >     | ContributionDeclaration
-> HiddenItem -> MethodDeclaration | AbstractMethodDeclaration | SubtypeDeclaration
->     | AssemblyDeclaration
+> HiddenItem -> SubtypeDeclaration | AssemblyDeclaration
 > ```
 
 ## Kinds of items
@@ -21,11 +21,11 @@ only inside the bodies of items.
 | Item | Begins with | Flat mode | Rules |
 | --- | --- | --- | --- |
 | Function | `fn` | Yes | [Functions](functions.md) |
-| Generic | `generic` | Yes | [Generic declarations](../stage1a.md#generic-declarations) |
-| Method | `method` | Yes | [Method declarations](../stage1a.md#method-declarations) |
+| Explicit family domain | `fn` | Yes | [Generic declarations](../stage1a.md#generic-declarations) |
+| Method body | `fn` | Yes | [Method declarations](../stage1a.md#method-declarations) |
 | Abstract type | `abstract type` | Yes | [Abstract types](../stage1a.md#abstract-types) |
 | Subtype | `subtype` | Yes | [Abstract types](../stage1a.md#abstract-types) |
-| Abstract method | `abstract method` | Yes | [Abstract methods](../stage1a.md#abstract-methods) |
+| Bodyless contract | `fn` | Yes | [Abstract methods](../stage1a.md#abstract-methods) |
 | Module | `mod` | No | [Module declarations](modules.md#module-declarations) |
 | Import | `use` | No | [`use` declarations](modules.md#use-declarations) |
 | Indexed declaration | `indexed` | No | [Indexed declarations](../indexed-source.md) |
@@ -33,7 +33,7 @@ only inside the bodies of items.
 | Grant, delegation | `grant`, `delegation` | No | [Grants and delegations](edit-authority.md#grants-and-delegations) |
 | Transfer | `transfer` | No | [Transfers](edit-authority.md#transfers) |
 | Contribution | `contribution` | No | [Contributions](edit-authority.md#contributions) |
-| Assembly | `assembly` | No | [Assemblies](edit-authority.md#assemblies) |
+| Assembly | `assemble` | No | [Assemblies](edit-authority.md#assemblies) |
 
 `IndexedDeclaration` stands for every declaration that begins with `indexed`.
 [Indexed declarations](../indexed-source.md) gives its production and says
@@ -66,8 +66,9 @@ private items are visible.
 Rules:
 
 - `pub` before an item is an error in flat mode (`E_UNSUPPORTED`).
-- `pub` before a method, an abstract method, a subtype or an assembly is an
-  error (`E_PARSE`). These items have no visibility of their own.
+- `pub` before a subtype or an assembly is an error (`E_PARSE`). For `fn`
+  families with an explicit header, the header sets the visibility. For
+  inferred families, declarations must agree on visibility.
 
 The root module of this package has three items: a module, an import and a
 function. `pub` makes `increment` public, so that the root module may import
@@ -82,12 +83,11 @@ The executable writes `next(41) = 42` and exits with status 0.
 ## Names of items
 
 Every item that has a name shares one namespace with the other items of its
-module: functions, resource functions, generics, abstract types, `indexed`
+module: function families, resource functions, abstract types, `indexed`
 declarations, grants, delegations, transfers and contributions. In flat mode
 the namespace holds the items of the whole program. In manifest mode the
 namespace of a module also holds its child modules, the names that its `use`
-declarations bind, and the dependency aliases of its package. Methods, abstract
-methods, subtypes and assemblies have no name of their own.
+declarations bind, and the dependency aliases of its package. Methods and bodyless contracts share the family name. Subtypes and assemblies introduce no name.
 
 Rules:
 

@@ -9,6 +9,15 @@ open Lean Elab Command
 run_cmd do
   let env ← getEnv
   for name in #[
+      `VastitasBridge.ExactComplex.realEquiv,
+      `VastitasBridge.ExactComplex.complexEquiv,
+      `VastitasBridge.ExactComplex.real_ofRat,
+      `VastitasBridge.ExactComplex.coordinate_parts,
+      `VastitasBridge.ExactComplex.coordinate_add,
+      `VastitasBridge.ExactComplex.coordinate_neg,
+      `VastitasBridge.ExactComplex.coordinate_mul,
+      `VastitasBridge.ExactComplex.coordinate_conjugate,
+      `VastitasBridge.ExactComplex.coordinate_inv,
       `VastitasBridge.Analysis.DaleckiiKrein.fderivCandidate_eq_double_sum,
       `VastitasBridge.Analysis.DaleckiiKrein.hasFDerivWithinAt_cfc,
       `VastitasBridge.Analysis.DaleckiiKrein.hasFDerivAt_cfc,

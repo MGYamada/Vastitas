@@ -17,8 +17,8 @@ structure Space where
   dimension : Extent
   deriving Repr, BEq, DecidableEq, Inhabited
 
-def Space.scalar (space : Space) : Scalar :=
-  match space.coefficient with | .real => .f64 | .complex => .complexF64
+def Space.binary64Scalar (space : Space) : Scalar :=
+  Storage.Numerical.Precision.binary64.scalar space.coefficient
 
 def Space.eval (values : Valuation) (space : Space) : Storage.Numerical.Space :=
   ⟨space.type, space.brand, space.base, space.coefficient, space.setting,
@@ -49,11 +49,12 @@ structure Map where
   loan : Shapes.Loan
   layout : Shapes.Layout
   origin : Option Symbol := none
+  precision : Storage.Numerical.Precision
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Map.eval (values : Valuation) (view : Map) : Storage.Numerical.MapView :=
   ⟨view.source.eval values, view.target.eval values, view.loan.eval values,
-    false, match view.origin with | none => .direct | some parent => .reborrow parent⟩
+    false, (match view.origin with | none => .direct | some parent => .reborrow parent), view.precision⟩
 
 def Map.Compatible (view : Map) : Prop :=
   view.source.space.type = view.target.space.type ∧
@@ -67,7 +68,7 @@ instance (view : Map) : Decidable view.Compatible :=
 def Map.Live (frame : Frame) (view : Map) : Prop :=
   frame.loan? view.loan.name = some view.loan ∧
   frame.suspended view.loan.name = false ∧
-  (frame.allocation? view.loan.allocation).map Allocation.scalar = some view.source.space.scalar ∧
+  (frame.allocation? view.loan.allocation).map Allocation.scalar = some (view.precision.scalar view.source.space.coefficient) ∧
   (frame.allocation? view.loan.allocation).map Allocation.layout = some view.layout
 
 instance (frame : Frame) (view : Map) : Decidable (view.Live frame) :=
@@ -101,7 +102,7 @@ def originValid (values : Values) (name : Symbol) (view : Map) : Bool :=
   | none => true
   | some parent => parent < name && match value? values parent with
     | some (.map original) =>
-      view.source == original.source && view.target == original.target &&
+      view.precision == original.precision && view.source == original.source && view.target == original.target &&
       view.loan.allocation == original.loan.allocation && view.loan.parent == some original.loan.name &&
       view.layout == original.layout
     | _ => false
@@ -164,7 +165,7 @@ def construct (environment : Environment) (frame : Frame) (values : Values) :
     let some (.basis target) := value? values target | reject "runtime map target requires a runtime basis"
     let some loan := frame.loan? loan | reject "runtime map requires a runtime loan"
     let some allocation := frame.allocation? loan.allocation | reject "runtime map allocation is absent"
-    let view : Map := ⟨source, target, loan, allocation.layout, none⟩
+    let view : Map := ⟨source, target, loan, allocation.layout, none, .ofScalar allocation.scalar⟩
     unless view.Live frame do reject "runtime map scalar or loan snapshot differs"
     insert environment values name (.map view)
   | .gemm .. => reject "runtime GEMM requires the composed product checker"

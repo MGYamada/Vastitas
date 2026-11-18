@@ -18,7 +18,7 @@ functions are values.
 
 Rules:
 
-- A generic is not a function value, as
+- A family may be bound and passed at a checked argument key, as
   [Path expressions](language/expressions.md#path-expressions) says.
 - Function types are not dispatch keys or selectors. Dispatch uses the four
   scalar types only, as [Generics and dispatch](stage1a.md) describes.

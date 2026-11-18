@@ -9,6 +9,7 @@ if not __debug__:
     raise RuntimeError("verification requires Python assertions; remove -O / PYTHONOPTIMIZE")
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -25,6 +26,17 @@ import cases as fixtures
 _spec = importlib.util.spec_from_file_location('tree_allocation_fixture', TREE / 'run.py')
 tree = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(tree)
+
+
+class Runner(tree.Runner):
+    """Retain the exact stdin binding for current normal/failure emissions."""
+    def run(self, args, **kwargs):
+        entry = super().run(args, **kwargs)
+        if kwargs.get('input') is not None:
+            data = kwargs['input'].encode()
+            entry['stdin'] = {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+            tree.dump(self.out / 'commands.json', self.commands)
+        return entry
 
 SHARED_HELPER = '''static lean_once_cell_t success_once = LEAN_ONCE_CELL_INITIALIZER;
 static lean_object *unit_success;
@@ -181,14 +193,14 @@ def build(runner, case, work, prefix, frontend, kernel, cc, variant, *, link_pre
     runner.run([frontend, 'build', '--manifest-path', package / 'Vastitas.toml', '--openblas-prefix', prefix,
                 '--native-cc', cc, '-o', canonical], env=env, phase='public_build')
     execution = runner.run([canonical], phase='public_execute')
-    assert execution['stdout'].strip() == '0'
+    fixtures.cleanup_envelope.require_success(execution)
     response = json.loads(runner.run([kernel, 'emit'], input=wire, phase='kernel_emit')['stdout'])
-    assert response['ok'] and response['version'] == tree.PROTOCOL and response['numerical_runtime']
+    assert response['ok'] is True and type(response['version']) is int and response['version'] == tree.PROTOCOL and response['numerical_runtime'] is True
     tree.dump(work / 'response.json', response)
     invalid = failure_wire(wire)
     tree.dump(work / 'failure-wire.json', invalid)
     failure = json.loads(runner.run([kernel, 'emit'], input=json.dumps(invalid), phase='kernel_failure_emit')['stdout'])
-    assert failure['ok'] and failure['version'] == tree.PROTOCOL
+    assert failure['ok'] is True and type(failure['version']) is int and failure['version'] == tree.PROTOCOL
     tree.dump(work / 'failure-response.json', failure)
     (work / 'Generated.lean').write_text(response['lean_source'])
     (work / 'GeneratedFailure.lean').write_text(failure['lean_source'])
@@ -313,7 +325,7 @@ def main():
     out, prefix = args.output.resolve(), args.prefix.resolve()
     out.mkdir(parents=True, exist_ok=False)
     env = dict(os.environ, OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1')
-    runner = tree.Runner(out, env)
+    runner = Runner(out, env)
     selected = fixtures.cases(not args.full)
     if args.one_case: selected = selected[:1]
     rows = []
@@ -328,7 +340,8 @@ def main():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(path, target)
                 inputs[str(path)] = tree.sha(path)
-    for relative in ('experiments/native_cleanup.py', 'lean-kernel/VastitasKernel/StorageCodegen.lean',
+    for relative in ('experiments/native_cleanup.py', 'scripts/kernel_protocol.py', 'lean-kernel/VastitasKernel/Protocol.lean',
+                     'lean-kernel/VastitasKernel/StorageCodegen.lean',
                      'lean-kernel/VastitasKernel/ResourceCodegen.lean'):
         path = ROOT / relative
         target = out / 'source' / relative
@@ -343,7 +356,7 @@ def main():
     for path in (args.frontend.resolve(), args.kernel.resolve(), prefix / 'lib/libopenblas.a'):
         inputs[str(path)] = tree.sha(path)
     shutil.copyfile(prefix / 'vastitas-openblas.json', out / 'openblas-build.json')
-    environment = {'schema': 2, 'variants': ['production_shared','private_fresh'], 'checkout_root': str(ROOT),
+    environment = {'schema': 2, 'wire_epoch': tree.PROTOCOL, 'variants': ['production_shared','private_fresh'], 'checkout_root': str(ROOT),
         'selection': 'debug-one' if args.one_case else 'full' if args.full else 'smoke',
         'head': head, 'git_status': runner.run(['git', 'status', '--short'])['stdout'],
         'argv': sys.argv, 'platform': platform.platform(), 'timing': 'not performance evidence',

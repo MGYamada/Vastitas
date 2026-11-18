@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check compiler/oracle dependencies without loading the Lean toolchain.
 
-Also check the package dependencies of the `std` and `nature` libraries
+Also check the package dependencies of the `std`, `nature` and `monad` libraries
 (ADR 0002 §1): std never depends on nature, and each package of stdlib/src/
 depends only on the packages that STDLIB_PACKAGES lists for it."""
 import json
@@ -417,6 +417,7 @@ def check_executable_lake_dependencies(package, label, required, errors):
 LIBRARY_DEPENDENCIES = {
     "stdlib": ("stdlib",),
     "nature": ("stdlib", "nature"),
+    "monad": ("stdlib", "monad"),
 }
 
 # The library packages of stdlib/src/, and the packages of stdlib/src/ that the
@@ -426,6 +427,7 @@ LIBRARY_DEPENDENCIES = {
 # manifest under stdlib/src/ that is not the manifest of a listed package
 # fails the check, so a new package needs an entry here.
 STDLIB_PACKAGES = {
+    "category": (),
     "geometry": (),
     "differential": ("geometry",),
     "linalg": ("geometry",),

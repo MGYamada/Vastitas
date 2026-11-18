@@ -15,7 +15,7 @@ fn fixture(source: &str) -> Scratch {
     let s = Scratch::empty("indexed wire");
     s.write(
         "Vastitas.toml",
-        "[package]\nname='indexed_test'\nversion='0.1.0'\nroot='main.vast'\n",
+        "[package]\nedition = \"2026\"\nname='indexed_test'\nversion='0.1.0'\nroot='main.vast'\n",
     );
     s.write("main.vast", source);
     s.write("geo.vast", GEO);
@@ -192,7 +192,7 @@ fn indexed_annotations_and_lambdas_preserve_scope() {
         "E_PROTOCOL",
     );
     assert!(
-        message.contains("Fn signatures contain only scalars and recursive Fn types"),
+        message.contains("Fn signatures support scalars, finite Hom and recursive Fn types"),
         "{message}"
     );
 }
@@ -204,14 +204,14 @@ fn all_package_fields_and_unapplied_method_bodies_are_checked() {
         "E_ENDPOINT",
     );
     rejected(
-        "mod geo; generic choose(x) { domain (Int); } method choose(x: Int) -> Int { x } contribution bad: choose { method choose(x: Int) -> Int { true } } fn main() -> Int { choose(42) }",
+        "mod geo; fn choose(x) domain((Int)); fn choose(x: Int) -> Int { x } contribution bad: choose { fn choose(x: Int) -> Int { true } } fn main() -> Int { choose(42) }",
         "E_TYPE",
     );
 }
 
 #[test]
 fn rich_bodies_work_inside_scalar_methods_and_explicit_assemblies() {
-    let source = "mod geo; generic choose(x) { domain (Int); } contribution add: choose { method choose(x: Int) -> Int { let X = geo::affine(2); let f = fn(y: Int) -> Int { y + 1 }; f(x) + int(geo::dim(X)) } } assembly { apply add; seal choose; } fn main() -> Int { choose(39) }";
+    let source = "mod geo; fn choose(x) domain((Int)); contribution add: choose { fn choose(x: Int) -> Int { let X = geo::affine(2); let f = fn(y: Int) -> Int { y + 1 }; f(x) + int(geo::dim(X)) } } assemble choose { apply add; } fn main() -> Int { choose(39) }";
     success(&check(&fixture(source)));
 }
 

@@ -44,6 +44,12 @@ theorem arguments_cons {module : Module} {values : Values} {term : Term} {terms 
   have h₂ := hb fuel (Nat.le_trans (Nat.le_max_right _ _) enough)
   simp [List.mapM_cons, h₁, h₂]
 
+theorem finiteTag (module : Module) (values : Values) (carrier : FiniteSort) (tag : String) :
+    Evaluates module values (.finiteTag carrier tag) (.finiteTag carrier tag) := by
+  refine ⟨1, ?_⟩
+  intro fuel enough
+  cases fuel <;> simp_all [eval]
+
 theorem natural (module : Module) (values : Values) (value : Nat) :
     Evaluates module values (.natural value) (.natural value) := by
   refine ⟨1, ?_⟩

@@ -278,6 +278,8 @@ def verify_reader(reader):
     required|={'experiments/openblas_workspace/'+p for p in ('run.py','verify.py','patch.py','observer.c','observer.h','wrappers.c','probe.c')}
     required|={'scripts/build_openblas.py','lean-kernel/native/storage.c','lean-kernel/native/storage.h',
                'lean-kernel/native/diagonal.c','lean-kernel/native/diagonal.h','lean-kernel/numerical/gemm.c','lean-kernel/numerical/gemm.h'}
+    if b'#include "gemm_kernels.inc"' in reader.read('inputs/repository/lean-kernel/numerical/gemm.c'):
+        required.add('lean-kernel/numerical/gemm_kernels.inc')
     require(required<=record['repository']['inputs'].keys(),'required source snapshots')
     check_patch(reader)
     old,new=reader.json('stock-objects.json'),reader.json('diagnostic-objects.json')

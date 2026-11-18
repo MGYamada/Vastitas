@@ -16,9 +16,9 @@ fn inherited_memberships_require_every_ancestor_owners_support() {
     s.write_package(
         "lib",
         "pub abstract type Small <: Number; subtype Int <: Small;
-pub generic choose(x) { domain (Nat), (Int); }
-method choose(x: Number) -> Int { 2 }
-method choose(x: Small) -> Int { 1 }",
+pub fn choose(x) domain((Nat), (Int));
+fn choose(x: Number) -> Int { 2 }
+fn choose(x: Small) -> Int { 1 }",
         "",
     );
     s.write_package("app", "", "lib={path='../lib'}");
@@ -68,10 +68,10 @@ fn main() -> Int {{ 0 }}"
         "lib",
         "pub abstract type Small <: Number; subtype Int <: Small;
 pub abstract type Other; subtype Nat <: Other;
-pub generic choose(x) { domain (Int); }
-abstract method choose(x: Small) -> Int { domain (Small); }
-method choose(x: Small) -> Int { 1 }
-method choose(x: Other) -> Bool { true }",
+pub fn choose(x) domain((Int));
+fn choose(x: Small) -> Int domain((Small));
+fn choose(x: Small) -> Int { 1 }
+fn choose(x: Other) -> Bool { true }",
         "",
     );
     s.write(
@@ -84,12 +84,13 @@ method choose(x: Other) -> Bool { true }",
 
 #[test]
 fn raw_indirect_membership_authority_is_recomputed_after_input_changes() {
-    let mut app = raw_module("abstract type Child; subtype Int <: Child;");
+    let source = "abstract type Child; subtype Int <: Child;";
+    let mut app = raw_module(source);
     app["abstract_types"][0]["parents"] =
         json!([{"path":["lib","Parent"],"span":{"start":0,"end":0,"line":1,"column":1}}]);
-    let mut raw = json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","packages":[
-        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
-        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","dependencies":[],"modules":[raw_module("abstract type Parent; subtype Int <: Parent;")]}
+    let mut raw = json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","root_source":{"offset":0,"text":source},"packages":[
+        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","edition":"2026","dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
+        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","edition":"2026","dependencies":[],"modules":[raw_module("abstract type Parent; subtype Int <: Parent;")]}
     ]});
     assert_eq!(kernel(&raw, "check")["ok"], true);
     raw["packages"][0]["modules"][0]["subtypes"][0]["scalar"] = json!("Nat");
@@ -126,8 +127,8 @@ fn hierarchy_errors_point_to_source_declarations_and_flat_selectors_share_path_c
             .is_empty()
     );
     for source in [
-        "generic f(x) { domain; } method f(x: lib::A) -> Int { 0 }",
-        "generic f(x) { domain; } abstract method f(x: lib::A) -> Int { domain; }",
+        "fn f(x) domain(); fn f(x: lib::A) -> Int { 0 }",
+        "fn f(x) domain(); fn f(x: lib::A) -> Int domain();",
         "abstract type A <: lib::B;",
         "abstract type A; subtype Int <: lib::A;",
     ] {
@@ -157,9 +158,9 @@ fn nominal_inheritance_and_same_inhabitants_do_not_collapse_selectors() {
         }
         let source = format!(
             "{}
-generic choose(x) {{ domain (Int); }}
-method choose(x: General) -> Int {{ 0 }}
-method choose(x: Specific) -> Int {{ 42 }}
+fn choose(x) domain((Int));
+fn choose(x: General) -> Int {{ 0 }}
+fn choose(x: Specific) -> Int {{ 42 }}
 fn main() -> Int {{ let f = fn(x: Int) -> Int {{ choose(x) }}; f(1) }}",
             items.join("\n")
         );
@@ -167,9 +168,9 @@ fn main() -> Int {{ let f = fn(x: Int) -> Int {{ choose(x) }}; f(1) }}",
     }
     reject(
         "abstract type Left; abstract type Right; subtype Int <: Left; subtype Int <: Right;
-generic choose(x) { domain (Int); }
-method choose(x: Left) -> Int { 1 }
-method choose(x: Right) -> Int { 2 }",
+fn choose(x) domain((Int));
+fn choose(x: Left) -> Int { 1 }
+fn choose(x: Right) -> Int { 2 }",
         "E_DISPATCH_AMBIGUOUS",
     );
 }
@@ -178,23 +179,23 @@ method choose(x: Right) -> Int { 2 }",
 fn multiple_inheritance_preserves_nominal_capability_product_order() {
     let source = "abstract type Left; abstract type Right; abstract type Both <: (Left, Right);
 subtype Nat <: Both; subtype Int <: Left; subtype Bool <: Right;
-generic choose(x) { domain (Nat), (Int), (Bool); }
-method choose(x: Left) -> Int { 0 }
-method choose(x: Right) -> Int { 0 }
-method choose(x: Both) -> Int { 42 }
+fn choose(x) domain((Nat), (Int), (Bool));
+fn choose(x: Left) -> Int { 0 }
+fn choose(x: Right) -> Int { 0 }
+fn choose(x: Both) -> Int { 42 }
 fn main() -> Int { let n: Nat = 1; choose(n) }";
     native(source, &[], exits(42), "abstract.vast");
     let crossed = format!(
         "{NUMERIC}
-generic choose(x) {{ domain (Int); }}
-method choose(x: Numeric) -> Int {{ 1 }}
-method choose(x: Any) requires (HasOrder) -> Int {{ 2 }}"
+fn choose(x) domain((Int));
+fn choose(x: Numeric) -> Int {{ 1 }}
+fn choose(x: Any) requires (HasOrder) -> Int {{ 2 }}"
     );
     reject(&crossed, "E_DISPATCH_AMBIGUOUS");
     native(
         &format!(
             "{crossed}
-method choose(x: Numeric) requires (HasOrder) -> Int {{ 42 }}
+fn choose(x: Numeric) requires (HasOrder) -> Int {{ 42 }}
 fn main() -> Int {{ choose(1) }}"
         ),
         &[],
@@ -238,7 +239,7 @@ fn malformed_hierarchies_and_memberships_are_rejected_even_without_generics() {
 #[test]
 fn selectors_do_not_create_value_types_or_change_body_audits() {
     for source in [
-        format!("{NUMERIC} fn f(x: Numeric) -> Int {{ 0 }}"),
+        format!("{NUMERIC} fn f(x: Int) -> Int {{ let y: Numeric = x; 0 }}"),
         format!("{NUMERIC} fn f(x: Fn<Numeric, Int>) -> Int {{ 0 }}"),
     ] {
         reject(&source, "E_UNSUPPORTED");
@@ -251,17 +252,17 @@ fn selectors_do_not_create_value_types_or_change_body_audits() {
     flat_module(&mut forged)["functions"][0]["params"][0]["ty"]["name"] = json!("Numeric");
     common::assert_wire_rejected(&kernel(forged, "check"), "E_PROTOCOL");
     for source in [
-        format!("{NUMERIC} generic f(x) {{ domain (Numeric); }}"),
-        format!("{NUMERIC} generic f(x) {{ domain; }} method f(x: Numeric) -> Nat {{ x }}"),
+        format!("{NUMERIC} fn f(x) domain((Numeric));"),
+        format!("{NUMERIC} fn f(x) domain(); fn f(x: Numeric) -> Nat {{ x }}"),
         format!(
-            "{NUMERIC} generic f(x) {{ domain (Nat); }} method f(x: Numeric) -> Int {{ x }} method f(x: Nat) -> Int {{ int(x) }}"
+            "{NUMERIC} fn f(x) domain((Nat)); fn f(x: Numeric) -> Int {{ x }} fn f(x: Nat) -> Int {{ int(x) }}"
         ),
     ] {
         reject(&source, "E_TYPE");
     }
     reject(
         &format!(
-            "{NUMERIC} generic f(x) {{ domain (Nat); }} method f(x: Numeric) -> Int {{ 0 }} fn main() -> Int {{ f(0) }}"
+            "{NUMERIC} fn f(x) domain((Nat)); fn f(x: Numeric) -> Int {{ 0 }} fn main() -> Int {{ f(0) }}"
         ),
         "E_DISPATCH_DOMAIN",
     );
@@ -299,7 +300,7 @@ fn package_aliases_preserve_nominal_identity_and_exact_module_membership_authori
         "pub mod types { pub abstract type Numeric; subtype Int <: Numeric; } pub use types::Numeric as Exported;",
         "",
     );
-    let app = "use dep::Exported as N; generic f(x) { domain (Int); } method f(x: N) -> Int { 42 } fn main() -> Int { f(1) }";
+    let app = "use dep::Exported as N; fn f(x) domain((Int)); fn f(x: N) -> Int { 42 } fn main() -> Int { f(1) }";
     s.write_package("app", app, "dep={path='../lib'}");
     success(&package_check(&s));
     success(
@@ -326,7 +327,10 @@ fn package_aliases_preserve_nominal_identity_and_exact_module_membership_authori
         assert!(!output.status.success());
         common::expect_code(&output, "E_OWNER");
     }
-    s.write("app/main.vast", "mod a { abstract type Hidden; } generic f(x) { domain; } method f(x: a::Hidden) -> Int { 0 }");
+    s.write(
+        "app/main.vast",
+        "mod a { abstract type Hidden; } fn f(x) domain(); fn f(x: a::Hidden) -> Int { 0 }",
+    );
     let output = package_check(&s);
     common::expect_code(&output, "E_VISIBILITY");
 }
@@ -339,13 +343,12 @@ fn raw_module(source: &str) -> serde_json::Value {
 
 #[test]
 fn raw_package_ir_cannot_forge_membership_authority_visibility_or_winners() {
-    let mut app = raw_module(
-        "generic f(x) { domain (Int); } method f(x: Numeric) -> Int { 42 } fn main() -> Int { f(1) }",
-    );
+    let source = "fn f(x) domain((Int)); fn f(x: Numeric) -> Int { 42 } fn main() -> Int { f(1) }";
+    let mut app = raw_module(source);
     app["methods"][0]["params"][0]["ty"]["name"] = json!("lib::Numeric");
-    let raw = json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","packages":[
-        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
-        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","dependencies":[],"modules":[raw_module("abstract type Numeric; subtype Int <: Numeric;")]}
+    let raw = json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","root_source":{"offset":0,"text":source},"packages":[
+        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","edition":"2026","dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
+        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","edition":"2026","dependencies":[],"modules":[raw_module("abstract type Numeric; subtype Int <: Numeric;")]}
     ]});
     assert_eq!(kernel(&raw, "check")["ok"], true);
     let mut unauthorized = raw.clone();

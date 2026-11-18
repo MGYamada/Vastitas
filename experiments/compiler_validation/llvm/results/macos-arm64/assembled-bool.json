@@ -1,0 +1,203 @@
+{
+  "status": "passed",
+  "source": "llvm/fixtures/AssembledBool.vast",
+  "source_sha256": "93d2fd9e778094e8f1b7acb3aa214d362234d683370dac438abbb5525828e136",
+  "source_value": "42",
+  "replayed_revision_sha256": "a2cf4c85b8f5f65c4d09389b432657e2ae3a858f808d26bc544f78b4076ee8eb",
+  "checked_operator_sites": [],
+  "checked_dispatch": {
+    "package": "assembled_bool",
+    "edition": "2026",
+    "family": "choose",
+    "method": 1,
+    "key": [
+      2
+    ],
+    "contribution": "winner",
+    "selected_core": 0,
+    "caller_core": 1,
+    "symbols": [
+      {
+        "function": "choose",
+        "core": 0,
+        "specialization": {
+          "definition": 2,
+          "targets": []
+        }
+      },
+      {
+        "function": "main",
+        "core": 1,
+        "specialization": {
+          "definition": 0,
+          "targets": []
+        }
+      },
+      {
+        "function": "choose",
+        "core": 2,
+        "specialization": {
+          "definition": 1,
+          "targets": []
+        }
+      }
+    ]
+  },
+  "root_source_offset": 89,
+  "lean_reference_prelude": "@[noinline] def selected (b : Bool) : Bool := b",
+  "default_lean_c_exit_code": 42,
+  "lean_reference_expression": "if selected true then 42 else 7",
+  "modeled_mod_256": 42,
+  "native_exit_code": 42,
+  "lean_reference_exit_code": 42,
+  "target": {
+    "llvm": "23.1.4",
+    "triple": "arm64-apple-darwin27.2.0",
+    "layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+  },
+  "abi": "i32 main()",
+  "cpu": "generic",
+  "features": "",
+  "optimization": "none",
+  "relocation": "PIC",
+  "runtime_inputs": "system startup and C runtime",
+  "llvm_sys": "231.0.1",
+  "llvm_link": "static",
+  "llvm_config_sha256": "7d5af426e347095f2dcd0d61723f07898588216f8fed3c217f845f9314b8c209",
+  "llvm_prefix_static_archives": {
+    "count": 201,
+    "sorted_name_digest_pairs_sha256": "80b22909afaec86f8111d20d3c29bf534778788dc0dfaf70abdb6317b10210ff"
+  },
+  "installed_dynamic_libraries": [
+    "libSystem.B.dylib"
+  ],
+  "compiler_sha256": "dc309d635b3cc4697413b83049cf6b4868be7a6815fabcfb09a3caf55781ce3b",
+  "adapter_sha256": "495de74c37178dab2a930ef783bbf75215a1a261b11b6a190bcb956d9fba981e",
+  "adapter_source_sha256": "3ac276dc0ceed96acec0f13fc176409c04af657473729b8fab6382d273d7fd6f",
+  "cargo_lock_sha256": "9439c4ae7d74ef817ec1b5efee2d6cab925e9fb92f5969cca98ac535e0b9b6f1",
+  "kernel_sha256": "78bf0217752d3e2fe30746d594f2a84d2b2a4fba6c3091ed6dbea06f4f9a98e6",
+  "link_driver": {
+    "name": "cc",
+    "sha256": "ed6f5284033aa2aae6a58427c25ba3ab119947b40365627b24e5d51a4b70a1cd",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)"
+  },
+  "host_llvm_bytes": 688,
+  "host_llvm_sha256": "3a9292955747042e832418ba96612999dc191981e2f9fa293d0257f9c3a8ef73",
+  "corpus_target_equals_host": true,
+  "corpus_compared_byte_for_byte": "llvm/src/assembled-bool.ll",
+  "corpus_sha256": "3a9292955747042e832418ba96612999dc191981e2f9fa293d0257f9c3a8ef73",
+  "object_bytes": 912,
+  "executable_bytes": 16904,
+  "emitter_comparison": {
+    "source": "src/lean/Lean/Compiler/IR/EmitLLVM.lean",
+    "sha256": "635bb0e78a3703614b9f175b13f2a8e2adaa890fe7ed144bc33e6e67fab99414",
+    "observations": {
+      "abi_and_untested_notice": {
+        "matched_lines": [
+          25
+        ],
+        "needle": "our CI for LLVM is dysfunctional"
+      },
+      "fixed_size_t": {
+        "matched_lines": [
+          42
+        ],
+        "needle": "def size_tType"
+      },
+      "case_default": {
+        "matched_lines": [
+          1096
+        ],
+        "needle": "def ensureHasDefault'"
+      },
+      "case_tag_width": {
+        "matched_lines": [
+          1111
+        ],
+        "needle": "buildZext builder tag"
+      },
+      "case_switch": {
+        "matched_lines": [
+          1115
+        ],
+        "needle": "buildSwitch builder tag"
+      },
+      "join_point_lowering": {
+        "matched_lines": [
+          1139
+        ],
+        "needle": "by generating SSA phi nodes"
+      },
+      "executable_main": {
+        "matched_lines": [
+          1488
+        ],
+        "needle": "def emitMainFn ("
+      },
+      "main_status": {
+        "matched_lines": [
+          1583
+        ],
+        "needle": "let retv \u2190 callLeanUnboxUint32"
+      },
+      "inbounds_gep": {
+        "matched_lines": [
+          732,
+          788
+        ],
+        "needle": "buildInBoundsGEP"
+      },
+      "bitcode_output": {
+        "matched_lines": [
+          1675
+        ],
+        "needle": "writeBitcodeToFile"
+      },
+      "numeric_literal": {
+        "matched_lines": [
+          626
+        ],
+        "needle": "def emitNumLit ("
+      },
+      "static_application": {
+        "matched_lines": [
+          755
+        ],
+        "needle": "def emitFullApp ("
+      },
+      "conditional": {
+        "matched_lines": [
+          1104
+        ],
+        "needle": "def emitCase ("
+      },
+      "jump": {
+        "matched_lines": [
+          1050
+        ],
+        "needle": "def emitJmp ("
+      },
+      "join_argument": {
+        "matched_lines": [
+          1058
+        ],
+        "needle": "emitLhsSlotStore builder p.x xv"
+      }
+    },
+    "role": "comparison only; not a correctness oracle",
+    "executed": false,
+    "execution_gap": "pinned Lean binary reports no LLVM feature"
+  },
+  "wall_seconds_single_invocation": {
+    "capture_function_revision": 0.158094,
+    "check_host_complete_bytes": 0.089465,
+    "adapter_read_compare_parse_verify_emit": 0.030405,
+    "system_link_control": 0.483524,
+    "public_build_check_emit_link_install": 0.326866,
+    "installed_program": 0.189337,
+    "control_program": 0.18378,
+    "default_lean_c_build": 4.387214,
+    "default_lean_c_program": 0.052449,
+    "lean_reference_result": 1.421941
+  }
+}

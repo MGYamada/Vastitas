@@ -9,7 +9,7 @@ mod common;
 use common::{Run, Scratch, expect_code, kernel, root};
 
 const EXAMPLE: &str = "examples/packages/nature/two-level/src/main.vast";
-const MANIFEST: &str = "[package]\nname = \"two_level\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
+const MANIFEST: &str = "[package]\nedition = \"2026\"\nname = \"two_level\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
 /// The fingerprint that the example records for its calibration.
 const FINGERPRINT: &str = "fnv1a64:fd1f7edd812db49f";
 /// The values that `main` expects, as it writes them, and the line that it

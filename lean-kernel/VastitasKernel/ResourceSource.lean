@@ -2,6 +2,8 @@ import VastitasKernel.NumericalCoverage
 import VastitasKernel.ResourcePure
 import VastitasKernel.IndexedObservation
 import VastitasKernel.CompatibilityProfile
+import VastitasKernel.OperatorProfile
+import VastitasKernel.FloatProfile
 
 /-! Unresolved resource functions in the same package namespace as pure indexed
 functions, dispatch and edit authority. No owner, local symbol or callee ID is
@@ -121,7 +123,11 @@ inductive NumericalOperation where
       (alpha beta : Option Coefficient := none)
   deriving Repr, Inhabited
 
+abbrev FloatRepresentation := Storage.Realization.Representation
+
 inductive Statement where
+  | realization (callee : Indexed.Source.Path) (representation : Option FloatRepresentation)
+      (arguments : List Indexed.Source.Path) (result : String) (into : Bool) (span : Span)
   | value (name : String) (type : Indexed.Core.PureType) (body : Indexed.FunctionSource.Block) (span : Span)
   | runtime (operation : RuntimeAction) (span : Span)
   | runtimeNumerical (operation : RuntimeNumerical) (span : Span)
@@ -174,15 +180,33 @@ structure Program where
   (`CompatibilityProfile.profilePackage`). The profile is no package of the
   request: `packages` are the request's packages alone. -/
   legacyGeometry : Bool := false
+  /-- Closed operator families used as values, reconstructed after wire decoding. -/
+  operatorValues : List String := []
   deriving Repr, Inhabited
 
 def Function.header (function : Function) : Namespace.ResourceHeader :=
   ⟨function.name, function.isPublic, function.span⟩
 
+private def usesRealization : List Statement → Bool
+  | [] => false
+  | stmt :: rest => match stmt with
+    | .realization .. => true
+    | .branch _ yes no _ | .branchValue _ yes no _ =>
+      usesRealization yes || usesRealization no || usesRealization rest
+    | _ => usesRealization rest
+  termination_by statements => sizeOf statements
+
+private def Program.usesFloat (program : Program) : Bool :=
+  program.packages.any fun pkg => pkg.modules.any fun m =>
+    m.pureModule.module.imports.any (fun i => i.path.take 2 == ["monad", "float"]) ||
+      m.functions.any (fun f => usesRealization f.body)
+
 /-- The packages that the kernel adds to the request's packages: the
 compatibility profile when the request asks for it (`legacyGeometry`). -/
 def Program.profile (program : Program) : List Indexed.DispatchSource.Package :=
-  if program.legacyGeometry then [Indexed.CompatibilityProfile.profilePackage] else []
+  (if program.operatorValues.isEmpty then [] else [Indexed.OperatorProfile.package program.operatorValues]) ++
+  (if program.usesFloat then [Indexed.FloatProfile.package] else []) ++
+  (if program.legacyGeometry then [Indexed.CompatibilityProfile.profilePackage] else [])
 
 /-- Keep every original declaration, import, contribution, assembly and body.
 Only resource headers are reconstructed; no pure placeholder is inserted. The
@@ -201,7 +225,55 @@ a request (`Namespace.priceInput`) reads its namespace only for the imports of
 its modules, and the profile has none and is no dependency, so the price is
 the same in this namespace and in that of the pure program. -/
 def Program.requestNamespace (program : Program) : Namespace.Indexed :=
-  { program with legacyGeometry := false }.pureProgram.source.headers.indexed
+  { program with legacyGeometry := false, operatorValues := [] }.pureProgram.source.headers.indexed
+
+private def resourceValueUses (candidate : String → Bool) (bound : Indexed.OperatorProfile.Bound) :
+    List Statement → List Indexed.Source.Path × Indexed.OperatorProfile.Bound
+  | [] => ([], bound)
+  | stmt :: rest =>
+    let (uses, after) := match stmt with
+      | .value n _ b _ => (Indexed.OperatorProfile.blockValues candidate bound b, bound.insert n)
+      | .callValue _ _ _ n _ _ => ([], bound.insert n)
+      | .branch _ yes no _ | .branchValue _ yes no _ =>
+          ((resourceValueUses candidate bound yes).1 ++ (resourceValueUses candidate bound no).1, bound)
+      | _ => ([], bound)
+    let tail := resourceValueUses candidate after rest
+    (uses ++ tail.1, tail.2)
+  termination_by stmts => sizeOf stmts
+
+/-- Classify only value occurrences; named calls and glyphs need no wrapper.
+Resolve a distinct spelling once per module using bounded namespace queries.
+No match here can admit a source reference: the actual body, selection,
+static target, and complete method are checked in the augmented namespace. -/
+def Program.valueFamilies (p : Program) : Namespace.Result (List String) := do
+  let idx := p.requestNamespace
+  let mut names := []
+  let mut session : Namespace.QuerySession := {index := idx}
+  for pkg in p.packages do
+    for m in pkg.modules do
+      let me := m.pureModule
+      let scope : Namespace.Scope := ⟨pkg.id, me.module.path⟩
+      let modl := me.module.lookup
+      let candidate := fun (n : String) => Namespace.operatorName n || modl.imports.contains n
+      let scan := Indexed.OperatorProfile.blockValues candidate
+      let freeMethod := fun (f : Indexed.DispatchSource.Method) => scan (.ofList (f.params.map (·.name))) f.body
+      let paths := me.functions.flatMap (fun f => scan (.ofList (f.params.map (·.name))) f.body) ++
+        me.methods.flatMap freeMethod ++ me.contributions.flatMap (fun c => c.methods.flatMap freeMethod) ++
+        m.functions.flatMap (fun f =>
+          let (uses, bound) := resourceValueUses candidate (.ofList (f.parameters.map Parameter.name)) f.body
+          uses ++ scan bound f.valueBody)
+      let mut visited : Std.HashSet (List String) := {}
+      for path in paths do
+        if visited.contains path.path then continue
+        visited := visited.insert path.path
+        -- Preserve diagnostics for invalid paths until ordinary elaboration.
+        match session.query scope path.path path.span with
+        | .error diag => if diag.code == "E_LIMIT" then throw diag else pure ()
+        | .ok (t, next) =>
+          session := next
+          if t.owner.scope == Namespace.operatorScope && !names.contains t.owner.name then
+            names := t.owner.name :: names
+  return ["add","sub","mul","neg","div"].filter names.contains
 
 def Program.owned (program : Program) : List (Indexed.DeclId × Function) :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
@@ -217,6 +289,9 @@ def Program.entry (program : Program) : Option Nat :=
     owner.scope.package.source == program.root && owner.scope.path.isEmpty).map Prod.snd
 
 inductive BindingKind where
+  | realization (descriptor : Realization.Descriptor)
+  | interpreted (plan : Realization.Plan)
+  | represented (descriptor : Realization.Descriptor) (loan : Symbol)
   | owner | loan | numerical | scalar (type : Indexed.Core.PureType)
   | runtimeOwner | runtimeLoan | runtimeNumerical
   deriving Repr, BEq, Inhabited
@@ -241,7 +316,17 @@ structure FragmentSite where
   position : List Nat
   deriving Repr, BEq, DecidableEq, Inhabited
 
+structure RealizationSite where
+  owner : Indexed.DeclId
+  position : List Nat
+  functionId : Namespace.FunctionId
+  operation : Realization.Operation
+  callee : Indexed.Source.Path
+  span : Span
+  deriving Repr, Inhabited
+
 structure State where
+  realizationSites : List RealizationSite := []
   fragments : ResourcePure.Fragments := []
   sites : List FragmentSite := []
   next : Nat := 0
@@ -532,6 +617,71 @@ private def lowerTreePlan (index : Namespace.Indexed) (scope : Namespace.Scope)
     lowered := lowered ++ [event]
   return lowered
 
+private def realizationTarget (index : Namespace.Indexed) (scope : Namespace.Scope)
+    (caller : Nat) (path : Indexed.Source.Path) : M Namespace.Target := do
+  let target ← Namespace.resolve index scope path.path path.span
+  modify fun s => {s with numericalReferences := ⟨caller, ⟨scope,path,target⟩⟩ :: s.numericalReferences}
+  return target
+
+private def localArgument (frame : Frame) (p : Indexed.Source.Path) : M (Symbol × BindingKind) := do
+  let [name] := p.path | Namespace.problem p.span "E_REALIZATION_POINT" "expected a local represented value"
+  lookup frame name p.span
+
+private def lowerRealization (index : Namespace.Indexed) (scope : Namespace.Scope) (caller : Nat)
+    (frame : Frame) (owner : Indexed.DeclId) (position : List Nat) (callee : Indexed.Source.Path)
+    (rep : Option FloatRepresentation) (args : List Indexed.Source.Path) (out : String) (into : Bool)
+    (span : Span) : M (Frame × Functions.Statement) := do
+  if let [name] := callee.path then
+    if frame.any (·.1 == name) then Namespace.problem callee.span "E_REALIZATION" "local value is not a realization function"
+  let target ← Namespace.resolve index scope callee.path callee.span
+  unless target.kind == .resourceFunction && target.owner.scope == Namespace.floatScope do
+    Namespace.problem callee.span "E_REALIZATION" "expected a function of the selected monad::float profile"
+  let ownerOf (p : Indexed.Source.Path) := do
+    if let [name] := p.path then
+      if frame.any (·.1 == name) then Namespace.problem p.span "E_REALIZATION" "expected an indexed declaration"
+    let ref ← realizationTarget index scope caller p
+    unless ref.kind == .indexedDeclaration do Namespace.problem p.span "E_REALIZATION" "expected an indexed declaration"
+    return ref.owner
+  let descriptorOf (p : Indexed.Source.Path) := do
+    let (_, .realization d) ← localArgument frame p | Namespace.problem p.span "E_REALIZATION" "expected a realization descriptor"
+    return d
+  let bind (kind : BindingKind) := do return (← bindName index scope frame out kind span).1
+  let (next, op) ← (match target.owner.name, rep, args, into with
+    | "realize", some precision, [subject,chart], false => do
+      unless precision.isReal do Namespace.problem span "E_UNSUPPORTED" "a real smooth-affine chart requires F32<RR> or F64<RR>"
+      let id ← ownerOf subject
+      let "standard_chart" :: parent := chart.path.reverse
+        | Namespace.problem chart.span "E_REALIZATION_CHART" "expected an explicit subject::standard_chart"
+      if parent.isEmpty then Namespace.problem chart.span "E_REALIZATION_CHART" "expected an explicit chart owner"
+      let c ← ownerOf ⟨parent.reverse, chart.span⟩
+      unless c == id do Namespace.problem chart.span "E_REALIZATION_CHART" "chart belongs to another nominal object"
+      let d : Realization.Descriptor := ⟨id,c,precision⟩
+      pure (← bind (.realization d), .realize d)
+    | "interpret", none, [graph,r,policy], false => do
+      let shadowed := frame.any (·.1 == "NativeFast") || index.byOwner.contains ⟨scope,"NativeFast"⟩ ||
+        (Namespace.moduleLookupAt index scope).any (·.imports.contains "NativeFast") ||
+        index.byPackage[scope.package.source]?.any (·.dependencies.contains "NativeFast")
+      unless policy.path == ["NativeFast"] && !shadowed do
+        Namespace.problem policy.span "E_NUMERICAL_POLICY" "resource execution requires NativeFast"
+      let plan : Realization.Plan := ⟨← descriptorOf r, ← ownerOf graph, .nativeFast⟩
+      pure (← bind (.interpreted plan), .interpret plan)
+    | "point", none, [r,input], false => do
+      let d ← descriptorOf r
+      let (loan, .loan) ← localArgument frame input
+        | Namespace.problem input.span "E_REALIZATION_POINT" "expected an explicit storage loan"
+      pure (← bind (.represented d loan), .point d loan)
+    | "run", none, [e,input], true => do
+      let (_, .interpreted plan) ← localArgument frame e | Namespace.problem e.span "E_REALIZATION" "expected an interpreted computation"
+      let (_, .represented x i) ← localArgument frame input | Namespace.problem input.span "E_REALIZATION_POINT" "expected a represented input"
+      let (_, .represented y o) ← lookup frame out span | Namespace.problem span "E_REALIZATION_POINT" "expected a represented destination"
+      unless x == plan.descriptor && y == plan.descriptor do
+        Namespace.problem span "E_REALIZATION_POINT" "represented points must use the interpreted object's chart and representation"
+      pure (frame,.run plan i o)
+    | _, _, _, _ => Namespace.problem span "E_ARITY" "wrong finite signature or destination for this realization operation"
+    : M (Frame × Realization.Operation))
+  modify fun s => {s with realizationSites := ⟨owner,position,⟨target.owner⟩,op,callee,span⟩ :: s.realizationSites}
+  return (next, .numerical (.realization op))
+
 private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.DeclId)
     (caller : Nat) (scope : Namespace.Scope) (owner : Indexed.DeclId) (path : List Nat) :
     Nat → Nat → Frame → List Statement → M (Frame × List Functions.Statement)
@@ -542,6 +692,8 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
     if state.unused == 0 then throw {code := "E_LIMIT", message := "resource source exceeds the global statement budget"}
     set {state with unused := state.unused - 1}
     let (frame, statement) ← (match first with
+    | .realization callee rep args out into span =>
+      lowerRealization index scope caller frame owner (path ++ [position]) callee rep args out into span
     | .value name type body span => do
       let (fragment, arguments) ← fragment index owner (path ++ [position]) frame type body span
       let (frame, symbol) ← bindName index scope frame name (.scalar type) span
@@ -721,6 +873,7 @@ structure Lowered where
   owners : List Indexed.DeclId
   references : List Reference
   numericalReferences : List NumericalReference
+  realizationSites : List RealizationSite := []
   deriving Inhabited
 
 def lower (program : Program) : Namespace.Result Lowered := do
@@ -729,7 +882,7 @@ def lower (program : Program) : Namespace.Result Lowered := do
   let index := program.pureProgram.source.headers.indexed
   let (functions, state) ← (program.owned.zipIdx.mapM fun ((owner, function), id) =>
     lowerFunction index owners owner function id).run {}
-  return ⟨state.fragments, state.sites, functions, owners, state.references, state.numericalReferences⟩
+  return ⟨state.fragments, state.sites, functions, owners, state.references, state.numericalReferences, state.realizationSites.reverse⟩
 
 /-- All pure fragments, including terminal results, come from the exact source
 lowering that produces their resource call sites. Invalid source yields no table. -/
@@ -790,7 +943,8 @@ mutual
   private def invalidExpression : Nat → Indexed.FunctionSource.Expr → Option Span
     | 0, _ => none
     | fuel + 1, term => match term with
-      | .call _ arguments _ => arguments.findSome? (invalidExpression fuel)
+      | .call _ arguments _ | .finiteCall _ _ arguments _ | .finiteLookup _ arguments _ =>
+        arguments.findSome? (invalidExpression fuel)
       | .invoke callee arguments _ =>
         invalidExpression fuel callee <|> arguments.findSome? (invalidExpression fuel)
       | .lambda parameters result body span =>
@@ -856,13 +1010,89 @@ def envelope (program : Program) : Namespace.Result Unit := do
   -- request validates (#533).
   if let some span := program.invalidSignature? then
     Namespace.validate program.requestNamespace
-    Namespace.problem span "E_TYPE" "Fn signatures contain only scalars and recursive Fn types"
+    Namespace.problem span "E_TYPE" "Fn signatures support scalars, finite Hom and recursive Fn types"
 
 /-- The numerical compiler receives the exact environment accepted by the
 complete source/authority checker, never a separately supplied declaration table. -/
 def numericalEnvironment {source requireMain}
     (checked : Indexed.AuthoritySource.CheckedProgram source requireMain) : Indexed.Environment :=
   checked.authority.headers.declarations.resolved.declarations.indexed
+
+/-- Index original source declarations once. Exact polynomial normalization can
+erase operation order, so an extensional identity is insufficient. -/
+def declaredIdentities (source : Indexed.Source.Program) : Std.HashSet Indexed.DeclId :=
+  Std.HashSet.ofList (source.owned.filterMap fun (owner,decl) =>
+    match decl.body with | .morphism _ _ .identity => some owner | _ => none)
+
+def RealizationSite.valid (identities : Std.HashSet Indexed.DeclId) (env : Indexed.Core.Declarations)
+    (site : RealizationSite) : Bool := Id.run do
+  let d := site.operation.descriptor
+  let some profile := d.profile env.indexed | return false
+  unless site.functionId.owner == ⟨Namespace.floatScope,site.operation.family⟩ do return false
+  match site.operation with
+  | .realize _ | .point .. => return true
+  | .interpret plan | .run plan .. =>
+    let some (.smoothConstant app _) := env.primitive? plan.graph | return false
+    return identities.contains plan.graph && env.primitive? plan.graph ==
+      some (.smoothConstant ⟨app.family,[.object (.global d.subject),.object (.global d.subject)]⟩
+        (SmoothRuntime.identity profile.coordinates.length))
+
+def RealizationSite.resolves (index : Namespace.Indexed) (site : RealizationSite) : Bool :=
+  match Namespace.resolve index site.owner.scope site.callee.path site.callee.span with
+  | .ok target => target.kind == .resourceFunction && target.owner == site.functionId.owner
+  | .error _ => false
+
+/-- Realization metadata is also checked in uncalled resource functions. -/
+def validRealizations (program : Program) (env : Indexed.Core.Declarations) (sites : List RealizationSite) : Bool :=
+  if sites.isEmpty then true else
+    let headers := program.pureProgram.source.headers
+    let index := headers.indexed
+    let identities := declaredIdentities headers
+    sites.all fun s => s.resolves index && s.valid identities env
+
+/-- Physical loans are allocated per activation; the lexical run must retain
+the original function, statement position and selected nominal plan. -/
+def RealizationSite.matchesRun (owners : Array Indexed.DeclId) (r : Functions.RealizationRunReceipt)
+    (s : RealizationSite) : Bool :=
+  (r.location.source.function.bind (owners[·]?)) == some s.owner && s.position == r.location.source.path &&
+    match s.operation with | .run p .. => p == r.plan | _ => false
+
+def RunSources (lowered : Lowered) (rs : List Functions.RealizationRunReceipt) : Prop :=
+  ∀ r ∈ rs, ∃ s ∈ lowered.realizationSites, s.matchesRun lowered.owners.toArray r = true
+
+private def checkRunSources (lowered : Lowered) (rs : List Functions.RealizationRunReceipt) :
+    Namespace.Result (PLift (RunSources lowered rs)) := do
+  if empty : rs = [] then return ⟨by simp [RunSources,empty]⟩
+  let owners := lowered.owners.toArray
+  let table := lowered.realizationSites.attach.foldl (fun m s => m.insert (s.val.owner,s.val.position) s)
+    ({} : Std.HashMap (Indexed.DeclId × List Nat) {s // s ∈ lowered.realizationSites})
+  let findSource (r : Functions.RealizationRunReceipt) :
+      Option {s // s ∈ lowered.realizationSites ∧ s.matchesRun owners r = true} := do
+    let id ← r.location.source.function
+    let owner ← owners[id]?
+    let s ← table[(owner,r.location.source.path)]?
+    if same : s.val.matchesRun owners r = true then return ⟨s.val,s.property,same⟩
+    else none
+  if all : rs.all (fun r => (findSource r).isSome) = true then
+    return ⟨by
+      intro r member
+      let site := (findSource r).get ((List.all_eq_true.mp all) _ member)
+      exact ⟨site.val,site.property⟩⟩
+  else Namespace.problem {} "E_NUMERICAL_ORIGIN" "run receipt differs from its original source plan or location"
+
+private def runAt : List Nat → List Functions.Statement → Option Realization.Plan
+  | [i], block => do
+    let .numerical (.realization (.run plan ..)) ← block[i]? | none
+    return plan
+  | i :: arm :: path, block => do
+    let .branch _ yes no ← block[i]? | none
+    if arm == 0 then runAt path yes else if arm == 1 then runAt path no else none
+  | [], _ => none
+
+def sourceRun (functions : List Functions.Function) (site : Functions.NumericalSourceSite) : Option Realization.Plan := do
+  let id ← site.function
+  let f ← functions.find? (·.id == id)
+  runAt site.path f.body
 
 structure Execution (functions : List Functions.Function) (entry : Nat) (environment : Indexed.Environment)
     (signatures : List ValueFlow.Signature := []) where
@@ -892,6 +1122,8 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   treeOrigins : ∀ receipt ∈ checked.context.trees.toList, receipt.environment = environment
   runtimeProductOrigins : ∀ receipt ∈ checked.context.shapes.products.toList, receipt.environment = environment
   runtimeInputOrigins : ∀ receipt ∈ checked.context.shapeInputs.toList, receipt.environment = environment
+  realizationOrigins : ∀ receipt ∈ checked.context.realizationRuns.toList,
+    receipt.environment = environment ∧ sourceRun functions receipt.location.source = some receipt.plan
 
 /-- The diagnostic of a `show!` outside the top-level `let` statements of the
 entry point, as the frontend reports it. -/
@@ -942,9 +1174,9 @@ def checkObservations (program : Program) {requireMain : Bool}
     let some (.letE _ _ _ statementSpan) := statements[observation.statement]? | unbound function.span
     let some (.letE symbol value) := steps[observation.statement]? | unbound function.span
     -- Core erases a Fn value to `Unit`; elaboration remembers it.
-    if let some (_, signature) := checked.executable.lowered.functionLets.find? (·.1 == symbol) then
+    if let some (_, label) := checked.executable.lowered.functionLets.find? (·.1 == symbol) then
       Namespace.problem statementSpan "E_TYPE"
-        s!"`show!` cannot display a value of type {signature.label}; it displays Int, Nat, Bool, Unit and Pair values"
+        s!"`show!` cannot display a value of type {label}; it displays Int, Nat, Bool, Unit and Pair values"
     unless Indexed.Core.Observation.displayable value.result.type do
       let label := Indexed.Source.Diagnostics.typeLabel core.declarations checked.compiler.input.body.geometry {}
         value.result.type
@@ -970,13 +1202,16 @@ structure Checked (program : Program) (requireMain : Bool) where
   lowered : Lowered
   reconstructed : lower program = .ok lowered
   provenance : lowered.Valid program
+  realizations : validRealizations program pureProgram.authority.headers.declarations.resolved.declarations lowered.realizationSites = true
   library : Functions.CheckedLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures
   libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures = .ok library
   execution : (entry : Nat) → program.entry = some entry → Execution lowered.functions entry (numericalEnvironment pureProgram) targets.signatures
+  runSources : ∀ id (same : program.entry = some id),
+    RunSources lowered (execution id same).checked.context.realizationRuns.toList
 
 private def statementSpan : Statement → Span
   | .value _ _ _ span | .runtime _ span | .runtimeNumerical _ span | .action _ span
-  | .numerical _ span | .tensor _ span => span
+  | .numerical _ span | .tensor _ span | .realization _ _ _ _ _ span => span
   | .callValue _ _ _ _ _ span | .branchValue _ _ _ span | .call _ _ _ span
   | .branch _ _ _ span | .network _ _ _ span | .tree _ _ _ _ span => span
 
@@ -1186,12 +1421,19 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
       match reconstructed : lower program with
       | .error diagnostic => .error diagnostic
       | .ok lowered =>
-        if provenance : lowered.Valid program then
+        if provenance : lowered.Valid program then do
+          let identities := declaredIdentities program.pureProgram.source.headers
+          let env := pureProgram.authority.headers.declarations.resolved.declarations
+          let realizations ← if h : validRealizations program env lowered.realizationSites = true then pure (PLift.up h)
+            else
+              let span := (lowered.realizationSites.find? fun s => !s.valid identities env).map (·.span)
+              Namespace.problem (span.getD {}) "E_REALIZATION" "expected a checked smooth affine chart and an explicitly declared identity with those same endpoints"
           match libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures with
           | .error diagnostic => .error (resourceError program lowered diagnostic)
           | .ok library => match entry : program.entry with
-            | none => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, observations, observed, values, targets, lowered, reconstructed, provenance,
-                library, libraryAccepted, fun _ impossible => by simp [entry] at impossible⟩
+            | none => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, observations, observed, values, targets, lowered, reconstructed, provenance, realizations.down,
+                library, libraryAccepted, (fun _ impossible => by simp [entry] at impossible),
+                fun _ impossible => by simp [entry] at impossible⟩
             | some id => match reused : Functions.checkWithLibrary ⟨lowered.functions, id⟩ library with
               | .error diagnostic => .error (resourceError program lowered diagnostic)
               | .ok executable => do
@@ -1259,12 +1501,22 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                     (∀ receipt ∈ executable.context.shapeInputs.toList,
                       receipt.environment = numericalEnvironment pureProgram))
                   "runtime GEMM lost its accepted declaration environment"
-                .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, observations, observed, values, targets, lowered, reconstructed, provenance,
-                  library, libraryAccepted, fun actual same => by
+                let ⟨runOrigins⟩ ← requireOrigin (∀ receipt ∈ executable.context.realizationRuns.toList,
+                    receipt.environment = numericalEnvironment pureProgram ∧
+                    sourceRun lowered.functions receipt.location.source = some receipt.plan)
+                  "realization run lost its selected source graph or checked environment"
+                let links ← checkRunSources lowered executable.context.realizationRuns.toList
+                let execute : (actual : Nat) → program.entry = some actual →
+                    Execution lowered.functions actual (numericalEnvironment pureProgram) targets.signatures := fun actual same => by
                     have : actual = id := Option.some.inj (same.symm.trans entry)
                     subst actual
                     exact ⟨executable, accepted, coverage.down, valueReturnOrigins, origins, inputOrigins, outputOrigins, transformOrigins,
-                      networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins, runtimeOrigins.1, runtimeOrigins.2⟩⟩
+                      networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins, runtimeOrigins.1, runtimeOrigins.2, runOrigins⟩
+                .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, observations, observed, values, targets, lowered,
+                  reconstructed, provenance, realizations.down, library, libraryAccepted, execute, fun actual same => by
+                    have : actual = id := Option.some.inj (same.symm.trans entry)
+                    subst actual
+                    exact links.down⟩
         else Namespace.problem {} "E_OWNER" "resource source identity or call provenance audit failed"
 
 end VastitasKernel.ResourceSource

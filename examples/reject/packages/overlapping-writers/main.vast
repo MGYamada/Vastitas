@@ -1,5 +1,5 @@
 resource fn main() -> Int {
-    allocate data: F64[4];
+    allocate data: F64<RR>[4];
     borrow whole = write(data, layout(0, 2, 2, 2, false));
     // The first column lies in the view of `whole`, which is still live.
     borrow column = write(data, layout(0, 2, 1, 2, false));

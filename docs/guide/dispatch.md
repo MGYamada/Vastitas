@@ -1,7 +1,6 @@
 # Generics, methods and dispatch
 
-A function has one body. A [*generic*](../appendix/glossary.md#generic) is a
-function with several bodies, its
+The same `fn` name can have several bodies, its
 [*methods*](../appendix/glossary.md#method). For each call of a generic, the
 compiler chooses one method by the types of the arguments. This choice is
 [*dispatch*](../appendix/glossary.md#dispatch). It happens at compile time:
@@ -20,13 +19,13 @@ declares a generic with two methods:
 {{#include ../../examples/book/dispatch/methods.vast}}
 ```
 
-The `generic` declaration names the generic and its parameters. A
+The bodyless `fn` header names the family and its parameters. A
 [*key*](../appendix/glossary.md#dispatch-key) is a tuple of argument types,
 one for each parameter. The [*domain*](../appendix/glossary.md#domain) lists
 the keys at which callers may call the generic. `double` has one parameter,
 and its callers pass a `Nat` or an `Int`.
 
-A `method` declaration gives one body. It gives each parameter a
+A typed `fn` declaration with braces gives one body. It gives each parameter a
 [*selector*](../appendix/glossary.md#selector), which says which argument
 types the method accepts in that position, and it declares a result type. The
 two methods of `double` have different result types.
@@ -193,7 +192,8 @@ calls both:
 {{#include ../../examples/book/dispatch/dispatch-arithmetic.vast}}
 ```
 
-`add(left, right)` has the key `(Nat, Nat)` and returns a `Nat`. `nat_to_int`
+In flat mode the library and the program share a module. `self::add(left, right)`
+calls its declared `add` family at the key `(Nat, Nat)` and returns a `Nat`. `nat_to_int`
 is a function of the library that converts a `Nat` to an `Int`, so `maximum`
 has the key `(Int, Int)`. Compile the program in flat mode with the three
 library files, because the compiler loads no library on its own:
@@ -223,9 +223,9 @@ calls `promote` itself:
 ```
 
 `promote(n, 22)` has the key `(Nat, Int)`, and its result holds 20 and 22 as
-`Int` values. `add(n, -7)` has the same key and returns the `Int` 13. Build
+`Int` values. `self::add(n, -7)` has the same key and returns the `Int` 13. Build
 the program with the same three libraries. It writes
-`maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42` and exits with
+`maximum(self::add(pair_first(p), pair_second(p)), self::add(n, -7)) = 42` and exits with
 status 0.
 
 > **What is checked.** The compiler builds the table of winners of every

@@ -66,6 +66,8 @@ validation compares Core with these structural tests. -/
 mutual
 /-- Structural equality of Core terms: the same constructor and equal fields. -/
 def termEq : Term → Term → Bool
+  | .finiteLookup a xs, .finiteLookup b ys => decide (a = b) && decide (xs = ys)
+  | .finiteTag c a, .finiteTag d b => decide (c = d) && decide (a = b)
   | .natural a, .natural b => decide (a = b)
   | .integer a, .integer b => decide (a = b)
   | .boolean a, .boolean b => decide (a = b)
@@ -345,7 +347,7 @@ mutual
 evaluates the same there, and copying it duplicates no fresh object. These are
 variables, literals and calls of non-allocating primitives on such terms. -/
 def copyable (env : Declarations) : Term → Bool
-  | .variable _ _ | .natural _ | .integer _ | .boolean _ | .unit => true
+  | .variable _ _ | .finiteLookup .. | .finiteTag .. | .natural _ | .integer _ | .boolean _ | .unit => true
   | .ascribe _ value => copyable env value
   | .primitive id arguments _ =>
     match env.primitive? id with
@@ -673,6 +675,7 @@ end
 mutual
 /-- The largest symbol a term binds or reads. -/
 def maxSymbol : Term → Nat
+  | .finiteLookup _ symbols => symbols.foldl max 0
   | .variable symbol _ => symbol
   | .unary _ value _ | .project _ _ value | .natToInt value | .ascribe _ value | .scope value => maxSymbol value
   | .binary _ left right _ | .pair _ left right => max (maxSymbol left) (maxSymbol right)

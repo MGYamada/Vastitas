@@ -1,0 +1,192 @@
+{
+  "status": "passed",
+  "target": {
+    "llvm": "23.1.4",
+    "triple": "arm64-apple-darwin27.2.0",
+    "layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+  },
+  "source_sha256": "46c799854817acbe88269787ded8904bcf0560560b048afcb70236409f578fd5",
+  "source_function": "composeArrow",
+  "module_bytes": 2621,
+  "module_sha256": "72022ed1b1277834040bab3b2301d8fc37a0b4232711999a34a6c08c9f77f81c",
+  "object_bytes": 1320,
+  "reversed": {
+    "module_sha256": "935b0a58a528a6a750e1dac471b6546bea62bce24ca37fbc4385ab4a903a7ecf",
+    "object_bytes": 1320,
+    "matched_pairs": 81
+  },
+  "reference_sha256": "51195746432f79c0dbe60c2e3ece063a84f7fa012d02d708cd0eedae28f9080d",
+  "ordinals_per_axis": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    4294967295
+  ],
+  "in_domain_pairs": 36,
+  "foreign_pairs": 45,
+  "generated_lean_c_pairs": 36,
+  "results": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    4294967295,
+    4294967295,
+    4294967295,
+    1,
+    0,
+    4,
+    5,
+    2,
+    3,
+    4294967295,
+    4294967295,
+    4294967295,
+    2,
+    3,
+    0,
+    1,
+    5,
+    4,
+    4294967295,
+    4294967295,
+    4294967295,
+    3,
+    2,
+    5,
+    4,
+    0,
+    1,
+    4294967295,
+    4294967295,
+    4294967295,
+    4,
+    5,
+    1,
+    0,
+    3,
+    2,
+    4294967295,
+    4294967295,
+    4294967295,
+    5,
+    4,
+    3,
+    2,
+    1,
+    0,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295
+  ],
+  "rejected_by_parser_and_handoff": [
+    "row-bound",
+    "stride",
+    "incoming-guard",
+    "miss"
+  ],
+  "emitter_comparison": {
+    "source": "src/lean/Lean/Compiler/IR/EmitLLVM.lean",
+    "sha256": "635bb0e78a3703614b9f175b13f2a8e2adaa890fe7ed144bc33e6e67fab99414",
+    "observations": {
+      "abi_and_untested_notice": {
+        "matched_lines": [
+          25
+        ],
+        "needle": "our CI for LLVM is dysfunctional"
+      },
+      "fixed_size_t": {
+        "matched_lines": [
+          42
+        ],
+        "needle": "def size_tType"
+      },
+      "case_default": {
+        "matched_lines": [
+          1096
+        ],
+        "needle": "def ensureHasDefault'"
+      },
+      "case_tag_width": {
+        "matched_lines": [
+          1111
+        ],
+        "needle": "buildZext builder tag"
+      },
+      "case_switch": {
+        "matched_lines": [
+          1115
+        ],
+        "needle": "buildSwitch builder tag"
+      },
+      "join_point_lowering": {
+        "matched_lines": [
+          1139
+        ],
+        "needle": "by generating SSA phi nodes"
+      },
+      "executable_main": {
+        "matched_lines": [
+          1488
+        ],
+        "needle": "def emitMainFn ("
+      },
+      "main_status": {
+        "matched_lines": [
+          1583
+        ],
+        "needle": "let retv \u2190 callLeanUnboxUint32"
+      },
+      "inbounds_gep": {
+        "matched_lines": [
+          732,
+          788
+        ],
+        "needle": "buildInBoundsGEP"
+      },
+      "bitcode_output": {
+        "matched_lines": [
+          1675
+        ],
+        "needle": "writeBitcodeToFile"
+      }
+    },
+    "role": "comparison only; not a correctness oracle",
+    "executed": false,
+    "execution_gap": "pinned Lean binary reports no LLVM feature"
+  }
+}

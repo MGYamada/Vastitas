@@ -1,0 +1,7 @@
+use lib::Obj;
+use lib::Arr;
+use lib::unitAt;
+
+fn main() -> Int {
+    if unitAt(Obj::lo) == Arr::up && unitAt(Obj::hi) == Arr::rightId { 0 } else { 1 }
+}

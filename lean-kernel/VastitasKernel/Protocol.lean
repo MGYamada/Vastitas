@@ -10,6 +10,11 @@ take the number from this definition (`build.rs` reads it), so a compiler and a
 kernel of the same build agree on it. -/
 def currentProtocol : Nat := 10
 
+/-- The sole admitted source edition. Every wire package, including the
+protected synthetic package of a flat unit, must explicitly name it. Edition
+admission leaves the existing package identity (source/name/version) intact. -/
+def currentEdition : String := "2026"
+
 /-- The message of a request at any other version: the retired protocols 2 to
 9 and every other number. A request is never read under another schema. -/
 def unsupportedProtocolVersion (version : Nat) : String :=

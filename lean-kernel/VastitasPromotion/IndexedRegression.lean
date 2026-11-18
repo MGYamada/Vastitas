@@ -71,7 +71,7 @@ private def entryCore (input : Json) : Except Diagnostic (Typing.CheckedModule t
       checkCase "public checked family selects the actual method" (family.checked.winner key == some winner)
   checkCase "all public families accounted for" (actual.checked.pureProgram.authority.headers.assembled.families.length == 3)
   let entry := Json.mkObj [("name", toJson "main"), ("params", toJson ([] : List Json)),
-    ("return_type", named "Int"), ("body", block (call "add" [integer "20", integer "22"])),
+    ("return_type", named "Int"), ("body", block (call "self::add" [integer "20", integer "22"])),
     ("public", toJson true), ("span", span)]
   let executable := changeUnit fun m => m.setObjVal! "functions" (toJson ((values m "functions").push entry))
   let .ok core := entryCore executable

@@ -164,6 +164,39 @@ class RecognizerTests(unittest.TestCase):
 
 
 class BookGrammarTests(unittest.TestCase):
+    def test_finite_table_rows_and_carrier_members(self):
+        loaded = book_grammar.load()
+        for source in (
+            "indexed schema Category = finite_category;",
+            "fn lift<M: Monad, X: Obj<M::category>>(f: Hom<M::category, X, X>) -> Hom<M::category, X, M::T<X>> { f }",
+            "fn nested<M: Monad, X: Obj<M::category>>(x: Hom<M::category, X, M::T<M::T<X>>>) -> Int { 0 }",
+            "indexed schema Map = finite_functor;",
+            "indexed instance F : lib::Map = finite_functor(C, D, obj, arr);",
+            "indexed schema Transformation = finite_nat_trans;",
+            "indexed instance E : Transformation = finite_nat_trans(Id, T, eta);",
+            "indexed schema Monad = finite_monad;",
+            "indexed instance M : Monad = finite_monad(C, T, E, Mu);",
+            "indexed instance C : lib::Cat = finite_graph(O, A, s, t, i, c);",
+            "indexed table comp(A,A) -> A where composable(s,t) {}",
+            "indexed finite Empty {}",
+            "indexed finite Bit { off; on; }",
+            "indexed table choice() -> lib::Bit { () => on; }",
+            "indexed table pair(Bit, lib::Bit,) -> Bit { (off, off,) => off; }",
+        ):
+            self.assertIsNone(loaded.parse(source), source)
+        for source in (
+            "fn bad(x: Hom<C, X, M::unknown<X>>) -> Int { 0 }",
+            "indexed finite Bit { off on; }",
+            "indexed instance Bad : Map = finite_functor(C, D, obj);",
+            "indexed instance Bad : Map = finite_functor(C, D, obj, arr, extra);",
+            "indexed instance Bad : Transformation = finite_nat_trans(Id, T);",
+            "indexed instance Bad : Monad = finite_monad(C, T, E);",
+            "indexed table choice() -> Bit { () = > on; }",
+            "indexed table flip(Bit) -> Bit { off => on; }",
+            "indexed table flip(Bit) -> Bit { (off) => on }",
+        ):
+            self.assertIsNotNone(loaded.parse(source), source)
+
     def test_the_grammar_summary_forms_a_grammar(self):
         loaded = book_grammar.load()
         self.assertEqual(loaded.token_classes, ["FLOAT_LITERAL", "IDENTIFIER", "INTEGER_LITERAL", "STRING_LITERAL"])

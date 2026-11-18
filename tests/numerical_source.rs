@@ -17,6 +17,23 @@ fn fixture(real: &str) -> Scratch {
         &[("src/real/mod.vast", real)],
     )
 }
+fn four_products() -> Scratch {
+    // The two precisions call exactly the same forwarding and multiply functions.
+    fn both(module: &str, profile: &str) -> String {
+        let narrow = common::binary32_fixture(module).replace("fn product()", "fn product32()");
+        with_interfaces(&format!("{module}\n{narrow}"), profile)
+    }
+    let s = fixture(&both(REAL, "RealSmooth"));
+    s.write("src/complex/mod.vast", &both(COMPLEX, "ComplexSmooth"));
+    s.write(
+        "src/main.vast",
+        &MAIN.replace(
+            "value { 0 }",
+            "call real::product32() -> (); call complex::product32() -> (); value { 0 }",
+        ),
+    );
+    s
+}
 fn command(s: &Scratch, mode: &str) -> Command {
     s.command(mode, "Vastitas.toml")
 }
@@ -87,7 +104,7 @@ fn owned_result_source(complex: bool) -> String {
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let width = if complex { 16 } else { 8 };
     let literal = |real: f64, imaginary: f64| {
         if complex {
@@ -307,7 +324,7 @@ fn coefficient_source(complex: bool) -> String {
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let literal = |real: f64, imaginary: f64| {
         if complex {
             format!("complex_bits({}, {})", real.to_bits(), imaginary.to_bits())
@@ -376,14 +393,35 @@ fn exact_gemm_coefficients_keep_the_existing_real_and_complex_wire() {
     let s = fixture(&exact_coefficient_source(false));
     s.write("src/complex/mod.vast", &exact_coefficient_source(true));
     success(&command(&s, "check").output().unwrap());
-    let mut exact = captured(&s);
-    assert_eq!(kernel(&exact, "emit")["ok"], true);
+    let payload = || {
+        let mut wire = captured(&s);
+        assert_eq!(kernel(&wire, "emit")["ok"], true);
+        let source = &mut wire["root_source"];
+        let mut paths = Vec::new();
+        let mut offset = 0;
+        for row in source["files"].as_array().unwrap() {
+            let path = row["path"].as_str().unwrap();
+            let text = std::fs::read_to_string(path).unwrap();
+            assert_eq!(row["offset"], offset);
+            let expected = if row["offset"] == source["offset"] {
+                &source["text"]
+            } else {
+                &row["text"]
+            };
+            assert_eq!(expected.as_str(), Some(text.as_str()));
+            offset += text.len() + 1;
+            paths.push(path.to_owned());
+        }
+        // The two spellings have different physical texts and byte offsets.
+        // Keep every file name and the complete decoded numerical payload.
+        source["files"] = json!(paths);
+        common::remove_spans(&mut wire);
+        wire
+    };
+    let exact = payload();
     s.write("src/real/mod.vast", &coefficient_source(false));
     s.write("src/complex/mod.vast", &coefficient_source(true));
-    let mut explicit = captured(&s);
-    common::remove_spans(&mut exact);
-    common::remove_spans(&mut explicit);
-    assert_eq!(exact, explicit);
+    assert_eq!(exact, payload());
 }
 
 fn half_accumulated(source: &str, complex: bool) -> String {
@@ -736,7 +774,7 @@ fn public_products_reject_nominal_resource_and_scope_errors() {
     let alias = "pub resource fn product() -> Unit {
         space u = linear(super::profiles::RealSmooth, 2);
         basis b = basis(u);
-        allocate a: F64[4];
+        allocate a: F64<RR>[4];
         borrow init = write(a, layout(0, 2, 2, 2, false));
         fill(init, f64_bits(0));
         release(init);
@@ -1021,13 +1059,12 @@ fn numerical_coefficients_build_execute_computed_real_complex_scalars() {
 #[test]
 #[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
 fn relative_native_compiler_resolves_from_the_invocation_directory() {
-    let compiler = std::env::var("VASTITAS_TEST_NATIVE_CC").unwrap_or_else(|_| "cc".to_owned());
     let s = fixture(REAL);
     std::fs::create_dir(s.0.join("tools")).unwrap();
     let wrapper = s.0.join("tools/localcc");
     std::fs::write(
         &wrapper,
-        format!("#!/bin/sh\ntouch \"$(dirname \"$0\")/used\"\nexec {compiler} \"$@\"\n"),
+        "#!/bin/sh\ntouch \"$(dirname \"$0\")/used\"\nexec \"${VASTITAS_TEST_NATIVE_CC:-cc}\" \"$@\"\n",
     )
     .unwrap();
     std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -1045,6 +1082,65 @@ fn relative_native_compiler_resolves_from_the_invocation_directory() {
     let output = Command::new(s.0.join("program")).output().unwrap();
     // The example's entry point returns 0 (#836).
     assert_eq!(common::ran(&output), common::exits(0));
+}
+
+#[test]
+#[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
+fn four_representations_execute_through_forwarded_public_maps() {
+    let s = four_products();
+    let mut build = command(&s, "build");
+    build
+        .args(["-o", "program"])
+        .args(common::numerical_build_options(None));
+    success(&build.output().unwrap());
+    assert_eq!(
+        common::ran(&Command::new(s.0.join("program")).output().unwrap()),
+        common::exits(0)
+    );
+}
+
+#[test]
+fn public_maps_check_domain_and_precision_before_emitting_gemm() {
+    let s = four_products();
+    success(&command(&s, "check").output().unwrap());
+    let preview = command(&s, "check")
+        .args([
+            "--llvm-preview",
+            "--target-triple",
+            "aarch64-apple-darwin",
+            "--data-layout",
+            "e-m:o-i64:64-n32:64-S128",
+        ])
+        .output()
+        .unwrap();
+    common::expect_code(&preview, "E_UNSUPPORTED");
+    assert!(preview.stdout.is_empty(), "partial numerical LLVM module");
+    let wire = captured(&s);
+    for (module_name, wrong_scalar, code) in [
+        ("real", "f64", "E_RESOURCE_GEMM"),
+        ("complex", "f64", "E_NUMERICAL_TYPE"),
+    ] {
+        let mut forged = wire.clone();
+        let body = module(&mut forged, module_name)["resource_functions"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|f| f["name"] == "product32")
+            .unwrap()
+            .get_mut("body")
+            .unwrap()
+            .as_array_mut()
+            .unwrap();
+        let allocation = body
+            .iter_mut()
+            .filter_map(|stmt| stmt.get_mut("action"))
+            .find(|a| a["op"] == "allocate" && a["owner"] == "c")
+            .unwrap();
+        allocation["scalar"] = json!(wrong_scalar);
+        for mode in ["check", "emit"] {
+            common::assert_wire_rejected(&kernel(&forged, mode), code);
+        }
+    }
 }
 
 #[test]
@@ -1135,7 +1231,7 @@ fn transform_body(raw: &mut Value) -> &mut Vec<Value> {
 fn real_transforms() -> String {
     TRANSFORMS
         .replace("ComplexSmooth", "RealSmooth")
-        .replace("Complex<F64>", "F64")
+        .replace("F64<CC>", "F64<RR>")
         .replace(
             "complex_bits(0, 4607182418800017408)",
             "f64_bits(4611686018427387904)",
@@ -1333,7 +1429,7 @@ fn rectangular_transform_source(complex: bool, kind: &str) -> String {
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let width = if complex { 16 } else { 8 };
     let literal = |re: f64, im: f64| {
         if complex {
@@ -1439,7 +1535,7 @@ fn owned_transform_source() -> String {
     // then return its exact caller-selected dual bases and allocation.
     let mut source = rectangular_transform_source(true, "dual");
     for (old, new) in [
-        ("allocate c: Complex<F64>[11];", ""),
+        ("allocate c: F64<CC>[11];", ""),
         ("borrow wc_out = write(c, layout(16, 3, 2, 5, false));", ""),
         ("map destination = view(wc_out, bwd, bvd);", ""),
         (
@@ -1457,7 +1553,7 @@ fn owned_transform_source() -> String {
         ),
         (
             "gemm(left, right, output, overwrite, NativeFast);",
-            "allocate c: Complex<F64>[11]; borrow wc_out = write(c, layout(16, 3, 2, 5, false));
+            "allocate c: F64<CC>[11]; borrow wc_out = write(c, layout(16, 3, 2, 5, false));
           map output = view(wc_out, bu, bz); gemm(left, right, output, overwrite, NativeFast);
           release(wc_out); map made = owned(c, layout(16, 3, 2, 5, false), bu, bz);",
         ),
@@ -1512,7 +1608,7 @@ fn network_reuse(complex: bool) -> String {
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let input = if complex {
         format!("complex_bits({}, {})", 2.0_f64.to_bits(), 3.0_f64.to_bits())
     } else {
@@ -1786,8 +1882,8 @@ fn evaluation_source(complex: bool, dimension: usize, transposed: bool) -> Strin
         .replace("ComplexSmooth, 1)", &format!("ComplexSmooth, {dimension})"))
         .replace("ComplexSmooth, 1>", &format!("ComplexSmooth, {dimension}>"))
         .replace(
-            "input: Complex<F64>[4]",
-            &format!("input: Complex<F64>[{}]", 2 * dimension + 2),
+            "input: F64<CC>[4]",
+            &format!("input: F64<CC>[{}]", 2 * dimension + 2),
         )
         .replace(
             "write(input, layout(16, 1, 1, 3, false))",
@@ -1821,7 +1917,7 @@ fn evaluation_source(complex: bool, dimension: usize, transposed: bool) -> Strin
     if !complex {
         source = source
             .replace("ComplexSmooth", "RealSmooth")
-            .replace("Complex<F64>", "F64")
+            .replace("F64<CC>", "F64<RR>")
             .replace(
                 "complex_bits(0, 4607182418800017408)",
                 "f64_bits(4611686018427387904)",
@@ -2093,8 +2189,8 @@ resource fn main() -> Int {{
     involution sigma = canonical(v);
     space vc = conjugate(v, sigma);
     basis bvc = derived(bv, vc);
-    allocate data: F64[2];
-    allocate other: F64[2];
+    allocate data: F64<RR>[2];
+    allocate other: F64<RR>[2];
     borrow seed = write(data, layout(0, 2, 1, 2, false));
     fill(seed, f64(1));
     release(seed);
@@ -2136,7 +2232,7 @@ fn cells_run(source: &str) -> std::process::Output {
 fn vector_cell_statements_write_and_read_stored_cells_and_run_without_openblas() {
     let complex = CELLS
         .replace("RealSmooth", "ComplexSmooth")
-        .replace("F64", "Complex<F64>")
+        .replace("F64<RR>", "F64<CC>")
         .replace("f64(1)", "complex(0, 1)")
         .replace("f64(0)", "complex(0, 0)");
     assert!(complex.contains("store(out, 1, 0, complex(0, 1));"));
@@ -2318,7 +2414,7 @@ fn vector_cell_statements_keep_the_rules_of_loans_vectors_and_promises() {
         // Overlapping arguments.
         ("call g(v, bv, x, x) -> ();".into(), both.into(), "E_RESOURCE_ALIAS"),
         ("vector y = view(cells, bv); call g(v, bv, x, y) -> ();".into(), both.into(), "E_RESOURCE_ALIAS"),
-        ("call g(v, bv, x, cells) -> ();".into(), "resource fn g(v: Space<profiles::RealSmooth, 2>, bv: Basis<v>, out: WriteVector<bv>, raw: Read<F64, 2, 1>) -> Unit { fill(out, f64(1)); value { () } }".into(), "E_RESOURCE_ALIAS"),
+        ("call g(v, bv, x, cells) -> ();".into(), "resource fn g(v: Space<profiles::RealSmooth, 2>, bv: Basis<v>, out: WriteVector<bv>, raw: Read<F64<RR>, 2, 1>) -> Unit { fill(out, f64(1)); value { () } }".into(), "E_RESOURCE_ALIAS"),
         // A vector is not a loan for the other statements.
         ("transpose(x);".into(), String::new(), "E_RESOURCE_LOAN"),
         ("drop(x);".into(), String::new(), "E_RESOURCE_MOVE"),
@@ -2326,7 +2422,7 @@ fn vector_cell_statements_keep_the_rules_of_loans_vectors_and_promises() {
         ("borrow child = read(x, layout(0, 1, 1, 1, false)); release(child);".into(), String::new(), "E_RESOURCE_TYPE"),
         ("gemm(x, x, x, overwrite, NativeFast);".into(), String::new(), "E_NUMERICAL_TYPE"),
         ("vector y = view(x, bv);".into(), String::new(), "E_NUMERICAL_TYPE"),
-        ("call g(x) -> ();".into(), "resource fn g(out: ReadWrite<F64, 2, 1>) -> Unit { fill(out, f64(1)); value { () } }".into(), "E_RESOURCE_LOAN"),
+        ("call g(x) -> ();".into(), "resource fn g(out: ReadWrite<F64<RR>, 2, 1>) -> Unit { fill(out, f64(1)); value { () } }".into(), "E_RESOURCE_LOAN"),
         ("runtime_fill(x, f64(1));".into(), String::new(), "E_RUNTIME_TYPE"),
         (call.into(), cells_callee("WriteVector<bv>", "fill(out, f64(1)); release(out);"), "E_RESOURCE_LOAN"),
         // A map and a basis stay outside the cell statements.
@@ -2546,20 +2642,16 @@ fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
     let source = |complex: bool| {
         let (source, scalar, zero, one, result) = if complex {
             (
-                include_str!(
-                    "../examples/packages/numerical/generative-owned-map/src/complex/mod.vast"
-                ),
-                "Complex<F64>",
+                include_str!("../examples/packages/numerical/generative-owned-map/src/complex/mod.vast"),
+                "F64<CC>",
                 "complex_bits(0, 0)",
                 "complex_bits(4607182418800017408, 0)",
                 "complex_bits(4616189618054758400, 4617315517961601024)",
             )
         } else {
             (
-                include_str!(
-                    "../examples/packages/numerical/generative-owned-map/src/real/mod.vast"
-                ),
-                "F64",
+                include_str!("../examples/packages/numerical/generative-owned-map/src/real/mod.vast"),
+                "F64<RR>",
                 "f64_bits(0)",
                 "f64_bits(4607182418800017408)",
                 "f64_bits(4616189618054758400)",

@@ -44,7 +44,7 @@ def checkVectorConjugate (env : Environment) (resources : State) (values : Value
           match resultLoan : after.loan? child with
           | none => reject "conjugated vector lost its checked child loan"
           | some loan =>
-            let result : VectorView := ⟨target, loan, !original.conjugate, .conjugate parent selected⟩
+            let result : VectorView := ⟨target, loan, !original.conjugate, .conjugate parent selected, original.precision⟩
             match inserted : insert env values name (.vector result) with
             | .error diagnostic => .error diagnostic
             | .ok output =>
@@ -125,7 +125,7 @@ structure CheckedEvaluation (env : Environment) (resources : State) (values : Va
   replayed : run 4096 resources (evaluationCode left right leftChild rightChild output mode policy alpha beta) = .ok after
   leftRestored : left.Live after
   rightRestored : right.Live after
-  outputInitialized : scalarOutputReady after output right.basis.space.scalar = true
+  outputInitialized : scalarOutputReady after output right.scalar = true
 
 def checkEvaluation (env : Environment) (resources : State) (values : Values)
     (leftName rightName output leftChild rightChild : Symbol) (operation : Evaluation)
@@ -151,7 +151,7 @@ def checkEvaluation (env : Environment) (resources : State) (values : Values)
                   | .ok after =>
                     if leftRestored : left.Live after then
                       if rightRestored : right.Live after then
-                        if outputInitialized : scalarOutputReady after output right.basis.space.scalar = true then
+                        if outputInitialized : scalarOutputReady after output right.scalar = true then
                           return ⟨valuesValid, left, right, leftFrom, rightFrom, leftLive, rightLive, accepts,
                             leftState, rightState, leftBorrow, rightBorrow, storage, storageAccepted, after,
                             replayed, leftRestored, rightRestored, outputInitialized⟩

@@ -38,6 +38,35 @@ heap. Only the checked product's exact physical request enters the schedule. -/
 def numericalOperation (site : NumericalSourceSite) (frame : Frame) (operation : Numerical.Operation) : M Frame := do
   let context ← get
   match operation with
+  | .realization operation => do
+    let d := operation.descriptor
+    unless (d.profile context.environment).isSome do
+      throw {code := "E_REALIZATION", message := "requires the selected real chart of a smooth affine subject"}
+    match operation with
+    | .realize _ | .interpret _ => pure ()
+    | .point _ loan => do
+      let loan ← resolve frame loan
+      unless Realization.pointValid context.environment d context.resources loan do
+        throw {code := "E_REALIZATION_POINT", message := "represented point requires a live coordinate column of the selected chart and representation"}
+    | .run plan input output => do
+      let input ← resolve frame input
+      let output ← resolve frame output
+      if inputValid : Realization.pointValid context.environment plan.descriptor context.resources input = true then
+        if outputValid : Realization.pointValid context.environment plan.descriptor context.resources output = true then
+          let action := Action.copy input output
+          match transitioned : checkAction context.resources action with
+          | .error e => throw e
+          | .ok resources =>
+            let ⟨after,same,emitted⟩ ← emitChecked context.code.toList [action] resources
+              {code := "E_NUMERICAL_ORIGIN", message := "realization run changed its checked resource state"}
+              {code := "E_NUMERICAL_ORIGIN", message := "realization run changed its checked copy"}
+            let receipt : RealizationRunReceipt := ⟨context.environment,plan,input,output,context.resources,
+              inputValid,outputValid,after.resources,same.symm ▸ transitioned,context.code.toList,after.code.toList,
+              emitted,context.location site⟩
+            set {after with realizationRuns := after.realizationRuns.push receipt}
+        else throw {code := "E_REALIZATION_POINT", message := "represented destination is no longer a live point of this chart"}
+      else throw {code := "E_REALIZATION_POINT", message := "represented input is no longer a live point of this chart"}
+    return frame
   | .adjointInto input output source target policy =>
     let input ← resolve frame input
     let output ← resolve frame output
@@ -240,7 +269,7 @@ def numericalOperation (site : NumericalSourceSite) (frame : Frame) (operation :
         let owner ← resolve frame owner
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.ownedView name loan owner)
-      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. | .adjointInto .. | .hermitianDiagonal .. =>
+      | .realization .. | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. | .adjointInto .. | .hermitianDiagonal .. =>
         throw {code := "E_NUMERICAL_TYPE", message := "invalid numerical constructor"}
     let values ← Numerical.construct context.environment context.resources context.numerical operation
     modify fun after => {after with numerical := values}

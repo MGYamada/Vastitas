@@ -6,5 +6,7 @@ fn main() -> Int {
     let below = show!(int(n) - 5);
     // Unary minus binds more tightly than `*`, and `*` more tightly than `+`.
     let value = show!(2 + 3 * -below);
-    if floor == 0 && value == 8 { 0 } else { 1 }
+    // A mixed quotient uses Euclidean Int division.
+    let q = show!(-7 / n);
+    if floor == 0 && value == 8 && q == std::operator::div(-7, n) { 0 } else { 1 }
 }

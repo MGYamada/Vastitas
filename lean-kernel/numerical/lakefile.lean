@@ -8,7 +8,11 @@ package vastitas_gemm_native where
 
 require vastitas_storage_native from "../native"
 
+input_file scalarSource where path := "scalar.c"
+input_file scalarHeader where path := "scalar.h"
+input_file scalarKernels where path := "scalar_kernels.inc"
 input_file gemmHeader where path := "gemm.h"
+input_file gemmKernels where path := "gemm_kernels.inc"
 input_file gemmSource where path := "gemm.c"
 input_file ffiSource where path := "ffi.c"
 input_file ffiResultHeader where path := "../native/ffi_result.h"
@@ -22,12 +26,19 @@ target gemmObject pkg : FilePath := do
   if openblasPrefix.toString.isEmpty then
     error "explicit pinned OpenBLAS prefix required: lake -Kopenblas=/path/to/prefix build"
   let source ← gemmSource.fetch
-  let headers := #[← gemmHeader.fetch, ← storageHeader.fetch, ← diagonalHeader.fetch, ← cblasHeader.fetch,
+  let headers := #[← gemmHeader.fetch, ← gemmKernels.fetch, ← storageHeader.fetch, ← diagonalHeader.fetch, ← cblasHeader.fetch,
     ← configHeader.fetch, ← blasArchive.fetch]
   let source ← source.bindM fun path => (Job.collectArray headers).mapM fun _ => pure path
   buildO (pkg.buildDir / "gemm.o") source #[]
     #["-std=c11", "-O3", "-fPIC", "-Wall", "-Wextra", "-Werror",
       s!"-I{pkg.dir / "../native"}", s!"-I{openblasPrefix / "include"}"]
+
+target scalarObject pkg : FilePath := do
+  let source ← scalarSource.fetch
+  let headers := #[← scalarHeader.fetch, ← scalarKernels.fetch]
+  let source ← source.bindM fun path => (Job.collectArray headers).mapM fun _ => pure path
+  buildO (pkg.buildDir / "scalar.o") source #[]
+    #["-std=c11", "-O3", "-fPIC", "-Wall", "-Wextra", "-Werror", "-ffp-contract=off", "-fno-fast-math"]
 
 target ffiObject pkg : FilePath := do
   let source ← ffiSource.fetch
@@ -39,7 +50,7 @@ target ffiObject pkg : FilePath := do
 
 extern_lib gemmNative pkg := do
   buildStaticLib (pkg.staticLibDir / nameToStaticLib "vastitas_gemm_native")
-    #[← gemmObject.fetch, ← ffiObject.fetch]
+    #[← gemmObject.fetch, ← scalarObject.fetch, ← ffiObject.fetch]
 
 /-- Export the exact archive as a transitive native dependency. Package-local
 link flags alone do not reach a downstream generated executable. -/

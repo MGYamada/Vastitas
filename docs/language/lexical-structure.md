@@ -69,6 +69,10 @@ An identifier names a function, a binding, a type, a module or another
 declaration. Identifiers are case sensitive. They have no length limit other
 than the [input limits](../appendix/limits.md#inputs).
 
+[Public type names](types.md#public-type-names) gives the type-naming
+convention and the canonical bounded-integer vocabulary. A naming convention
+does not add a type to the admitted syntax.
+
 ## Keywords
 
 > **Syntax**
@@ -81,8 +85,8 @@ than the [input limits](../appendix/limits.md#inputs).
 
 A **strict keyword** has a fixed meaning, and it is never an identifier. Four
 of them, `while`, `for`, `loop` and `mut`, name constructs that the language
-does not have, and `return` occurs only as an event of an
-[assembly](edit-authority.md#assemblies). `generic` is also a segment of a
+does not have. `return` is reserved; a loan ends at the closing brace of its
+[block](edit-authority.md#assemblies). `generic` is also a segment of a
 [path](names-and-paths.md#resolution) in manifest mode. Other words act as
 keywords only at the places where a construct's syntax spells them, and they
 are identifiers elsewhere. Examples are `indexed`, `resource`, `scheme`,
@@ -125,10 +129,11 @@ Rules:
   geometric operations. A `use` without `as` that imports such a declaration
   binds that name too. This is how a package declares its own `Point` or
   `origin`, as [Indexed declarations](../indexed-source.md) describes.
+- A function with [finite binders](functions.md) may use the name
+  `compose`. A `use` that imports this function may keep its name.
 - A [module](modules.md) may take the name of one of the seven geometric
-  operations, as in `mod dim;`. The name stays reserved for every other
-  declaration and binding, including a name that `use` binds and a
-  [dependency alias](../packages.md#manifests). A `use` of such a module
+  operations, as in `mod dim;`. A [dependency alias](../packages.md#manifests)
+  must use a different name. A `use` of such a module
   therefore needs `as`, as in `use units::dim as measure;`. A path through
   the module names its items, and the bare name in a call stays the
   operation, as [Resolution](names-and-paths.md#resolution) says.
@@ -265,9 +270,9 @@ Rules:
 > **Syntax**
 >
 > ```text
-> PUNCTUATION -> `+` | `-` | `*` | `!` | `&&` | `||`
+> PUNCTUATION -> `+` | `-` | `*` | `/` | `!` | `&&` | `||`
 >     | `==` | `!=` | `<` | `<=` | `>` | `>=`
->     | `->` | `::` | `<:`
+>     | `->` | `=>` | `::` | `<:`
 >     | `(` | `)` | `{` | `}` | `[` | `]`
 >     | `,` | `:` | `;` | `=` | `.` | `^`
 > ```
@@ -277,9 +282,10 @@ matches, so `<=` is one token, not `<` followed by `=`.
 
 | Tokens | Use |
 | --- | --- |
-| `+` `-` `*` `!` `&&` `\|\|` | [Operators](expressions.md#operator-expressions) |
+| `+` `-` `*` `/` `!` `&&` `\|\|` | [Operators](expressions.md#operator-expressions) |
 | `==` `!=` `<` `<=` `>` `>=` | Comparisons, and `<` `>` around type arguments |
 | `->` | Result types, image bindings and resource calls |
+| `=>` | The output member of a [finite table row](../indexed-source.md#finite-carriers-and-tables) |
 | `::` | [Paths](names-and-paths.md) |
 | `<:` | [Abstract types and subtypes](../stage1a.md#abstract-types) |
 | `(` `)` `{` `}` `[` `]` | Delimiters |
@@ -289,8 +295,8 @@ matches, so `<=` is one token, not `<` followed by `=`.
 
 Rules:
 
-- `/` and `%` are errors (`E_UNSUPPORTED`). The language has no division and
-  no remainder.
+- `/` denotes division in a value expression. `%` and `/=` are errors
+  (`E_UNSUPPORTED`).
 - After the type arguments of a type, such as `Pair<Int>`, the parser reads the
   token `>=` as `>` followed by `=`. `let p: Pair<Int>= pair(1, 2);` is a valid
   binding.

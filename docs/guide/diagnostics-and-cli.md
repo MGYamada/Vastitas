@@ -26,14 +26,16 @@ vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX
 - Modules, imports, `pub`, `indexed` declarations, edit authority and
   resource functions exist only in packages. In flat mode the compiler
   rejects such a declaration, and the diagnostic says to use a manifest.
-- `--openblas-prefix` and `--native-cc` belong to the build of a program
-  that multiplies matrices, as
+- A program that multiplies matrices uses `--openblas-prefix` and can select
+  its compiler with `--native-cc`, as
   [the chapter on numerical maps](numerical.md#building-a-numerical-program)
   explains.
 
-A command that succeeds writes one line to standard output, `checked INPUT`
-or `built OUTPUT`, and exits with status 0. The compiler has no warnings: it
-accepts a program or it rejects it.
+The commands shown above write one line to standard output on success,
+`checked INPUT` or `built OUTPUT`, and exit with status 0. Other forms of
+`check` can print a function revision or the complete LLVM assembly of a
+supported program. The compiler reports errors and has no warnings.
+[CLI options](cli.md#options) · [LLVM preview](cli.md#llvm-preview)
 
 `vastitas --help` prints the usage, and `vastitas --version` prints the
 version of the compiler. A further command, `audit-lean`, rechecks exported

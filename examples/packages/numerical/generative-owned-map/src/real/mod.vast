@@ -20,7 +20,7 @@ pub resource fn run() -> Unit {
 resource fn create(u: Space<super::profiles::RealSmooth, 2>, bu: Basis<u>) returns (boxed: OwnedMapTo<bu, 3>) -> Unit {
     space w = linear(super::profiles::RealSmooth, 3);
     basis bw = basis(w);
-    allocate buffer: F64[10];
+    allocate buffer: F64<RR>[10];
     borrow initialize = write(buffer, layout(8, 3, 2, 4, false));
     fill(initialize, f64_bits(4611686018427387904));
     release(initialize);

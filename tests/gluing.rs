@@ -11,7 +11,8 @@ mod common;
 use common::{Scratch, assert_wire_rejected, expect_code, kernel, remove_spans};
 use serde_json::{Value, json};
 
-const MANIFEST: &str = "[package]\nname = \"gluing\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n";
+const MANIFEST: &str =
+    "[package]\nedition = \"2026\"\nname = \"gluing\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n";
 
 /// The charts of both sites, with the Stage 2 transition of #104 as declared
 /// morphisms, which the entry point uses.

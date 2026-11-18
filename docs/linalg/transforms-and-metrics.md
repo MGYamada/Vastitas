@@ -198,6 +198,8 @@ Rules:
   `adjoint_into` checks the same.
 - The loan of `a` must permit reading, and the loan of `out` writing
   (`E_RESOURCE_ACCESS`).
+- The two maps must use the same binary64 representation. The diagonal
+  coefficient table supports `F64<RR>` and `F64<CC>` (`E_RESOURCE_DIAGONAL`).
 - The view of `out` must not be transposed (`E_RESOURCE_DIAGONAL`). The view
   of `a` may be.
 - The views of `a` and `out` must not overlap (`E_RESOURCE_ALIAS`).
@@ -342,6 +344,8 @@ Rules:
   the metric must have an absolute value of at most 2⁵³
   (`E_NUMERICAL_METRIC`). A call that passes a metric to a function with a
   `hermitian_diagonal` checks the same.
+- The diagonal pairing uses binary64 storage. Its weighting step rejects a
+  binary32 second operand (`E_RESOURCE_DIAGONAL`).
 - `out` must be a live loan (`E_RESOURCE_LOAN`) that permits writing
   (`E_RESOURCE_ACCESS`).
 - The view of `out` must have one row and one column, the element type of

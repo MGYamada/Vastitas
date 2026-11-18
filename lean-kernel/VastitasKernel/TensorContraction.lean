@@ -132,7 +132,7 @@ def checkSingle (environment : Indexed.Environment) (numerical : Numerical.Value
                   else reject "contraction right input is stale or suspended"
                 else reject "contraction left input is stale or suspended"
               else reject "contract_axis requires explicit free/contracted axis grouping; regrouping is never implicit"
-            else reject "contraction destination must preserve ordered free-left then free-right axes and have rank two or three"
+            else reject "contraction destination must preserve ordered free-left then free-right axes"
           else reject "selected contraction legs require actual corresponding dual/primal bases"
         else reject "contraction output has invalid axes or grouping"
       else reject "contraction right input has invalid axes or grouping"

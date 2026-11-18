@@ -22,6 +22,7 @@ generates. It exports:
 | Name | Kind | Contract |
 | --- | --- | --- |
 | `arithmetic` | module | Exact arithmetic on `Int` and `Nat`, generated from the flat sources of [`stdlib/src/arithmetic/`](../src/arithmetic) ([page](arithmetic.md)) |
+| `category` | re-export | Finite categories and composition from the package `vastitas_category` ([page](category.md)) |
 | `geometry` | re-export | The root module of the package `vastitas_geometry` of [`stdlib/src/geometry/`](../src/geometry), the dependency `geometry_library` ([page](geometry.md)) |
 | `differential` | re-export | The root module of the package `vastitas_differential` of [`stdlib/src/differential/`](../src/differential), the dependency `differential_library` ([page](differential.md)) |
 | `linalg` | re-export | The root module of the package `vastitas_linalg` of [`stdlib/src/linalg/`](../src/linalg), the dependency `linalg_library` ([page](linalg.md)) |
@@ -35,6 +36,7 @@ name one declaration.
 | Module | Package | Content |
 | --- | --- | --- |
 | [`std::arithmetic`](arithmetic.md) | `vastitas_std` | Functions on `Int` and on `Nat`, and generics over both |
+| [`std::category`](category.md) | `vastitas_category` | Finite category, functor, natural transformation and Monad schemas, and category composition |
 | [`std::geometry`](geometry.md) | `vastitas_geometry` | Points, morphisms and existential packages of the two settings of descriptor objects |
 | [`std::geometry::scheme`](geometry/scheme.md) | `vastitas_geometry` | The ordinary setting `Scheme` over the marker `QQ` |
 | [`std::geometry::scheme::affine`](geometry/scheme/affine.md) | `vastitas_geometry` | Presented affine objects over the rational numbers and morphisms over a base |

@@ -31,6 +31,7 @@ structure Context where
   tensorPacks : Array TensorPackReceipt := #[]
   tensorContractions : Array TensorContractionReceipt := #[]
   trees : Array TreeReceipt := #[]
+  realizationRuns : Array RealizationRunReceipt := #[]
   products : Array NumericalReceipt := #[]
   networks : Array NetworkReceipt := #[]
   inputs : Array NumericalInputReceipt := #[]
@@ -64,6 +65,7 @@ def Context.clearArmReceipts (context : Context) : Context :=
   {context with
     valueReturns := #[]
     calls := #[]
+    realizationRuns := #[]
     products := #[]
     networks := #[]
     tensorViews := #[]
@@ -93,6 +95,7 @@ def Context.mergeArmReceipts (before left right : Context) : Context :=
     calls := before.calls ++ left.calls ++ right.calls
     cacheCaptures := before.cacheCaptures ++ left.cacheCaptures ++ right.cacheCaptures
     cachedContractions := before.cachedContractions ++ left.cachedContractions ++ right.cachedContractions
+    realizationRuns := before.realizationRuns ++ left.realizationRuns ++ right.realizationRuns
     products := before.products ++ left.products ++ right.products
     networks := before.networks ++ left.networks ++ right.networks
     tensorViews := before.tensorViews ++ left.tensorViews ++ right.tensorViews
@@ -139,6 +142,9 @@ private def actionSubjects : Action → List ErrorSubject
   | .requireDependency name | .forgetDependency name => [subject "dependency" name]
 
 private def numericalSubjects : Numerical.Operation → List ErrorSubject
+  | .realization (.run _ i o) => [subject "represented input loan" i, subject "represented destination loan" o]
+  | .realization (.point _ loan) => [subject "represented point loan" loan]
+  | .realization _ => []
   | .space .. => []
   | .basis _ space | .involution _ space => [subject "space" space]
   | .dualSpace _ parent | .conjugateSpace _ parent _ => [subject "parent space" parent]

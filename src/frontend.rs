@@ -13,17 +13,21 @@ mod authority;
 mod declarations;
 mod exact_float;
 mod expressions;
+mod families;
+pub(crate) use families::{editable_singleton, singleton_family};
 mod indexed_parser;
+mod numerical_representation;
 mod resolver;
 mod resource_parser;
 mod types;
+use crate::storage::source::NumericalRepresentation;
 use resolver::Resolver;
 pub(crate) use resource_parser::{MAX_RESOURCE_VALUE_BLOCKS, value_blocks};
 
 pub use crate::ir::Diagnostic;
 use crate::ir::{
     AbstractMethod, AbstractType, Block, Expr, ExprKind, Function, Generic, GenericParam, Index,
-    Method, Module, Param, Span, Statement, StatementKind, Subtype, Type, TypePath,
+    Method, Module, Param, Span, Statement, StatementKind, StaticBinder, Subtype, Type, TypePath,
 };
 
 const BUILTINS: &[&str] = &[
@@ -72,6 +76,12 @@ const KEYWORDS: &[&str] = &[
     "fn", "let", "unpack", "as", "pack", "if", "else", "true", "false", "return", "while", "for",
     "loop", "mut", "generic", "method", "domain", "requires", "abstract", "type", "subtype",
 ];
+const EXACT_OPERATORS: &[&str] = &["add", "sub", "neg", "mul", "div"];
+
+fn exact_operator_name(name: &str) -> bool {
+    EXACT_OPERATORS.contains(&name.strip_prefix("std::operator::").unwrap_or(name))
+}
+
 const TYPES: &[&str] = &[
     "Nat",
     "Int",
@@ -525,26 +535,30 @@ impl<'a> Lexer<'a> {
                 let tail = &self.source[self.offset..];
                 if ch == '.' && tail.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
                     self.float_token(span)
-                } else if ch == '/' || ch == '%' {
+                } else if ch == '%' || tail.starts_with("/=") {
                     self.advance();
+                    if ch == '/' {
+                        self.advance();
+                    }
                     span.end = self.offset;
                     return Err(diagnostic(
                         "E_UNSUPPORTED",
-                        if ch == '/' {
-                            "division is not supported"
-                        } else {
+                        if ch == '%' {
                             "remainder is not supported"
+                        } else {
+                            "division assignment is not supported"
                         },
                         span,
                     ));
-                } else if let Some(op) = ["->", "==", "!=", "<=", ">=", "&&", "||", "::", "<:"]
-                    .into_iter()
-                    .find(|op| tail.starts_with(op))
+                } else if let Some(op) =
+                    ["->", "=>", "==", "!=", "<=", ">=", "&&", "||", "::", "<:"]
+                        .into_iter()
+                        .find(|op| tail.starts_with(op))
                 {
                     self.advance();
                     self.advance();
                     TokenKind::Symbol(op.into())
-                } else if "(){}[]<>,:;=+-*!.^".contains(ch) {
+                } else if "(){}[]<>,:;=+-*/!.^".contains(ch) {
                     self.advance();
                     TokenKind::Symbol(ch.to_string())
                 } else {
@@ -825,11 +839,25 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
         subtypes: Vec::new(),
         abstract_methods: Vec::new(),
     };
+    let mut families = families::Declarations::default();
     for input in sources {
         Parser::from_source(input, false)
-            .and_then(|mut parser| parser.flat_declarations(&mut module))
+            .and_then(|mut parser| parser.flat_declarations(&mut module, &mut families))
             .map_err(|error| vec![error])?;
     }
+    let grouped = families.lower_flat().map_err(|error| vec![error])?;
+    module.functions = grouped
+        .functions
+        .into_iter()
+        .map(|item| item.declaration)
+        .collect();
+    module.generics = grouped
+        .generics
+        .into_iter()
+        .map(|item| item.declaration)
+        .collect();
+    module.methods = grouped.methods;
+    module.abstract_methods = grouped.contracts;
     let errors = Resolver::module(&module);
     if errors.is_empty() {
         Ok(module)

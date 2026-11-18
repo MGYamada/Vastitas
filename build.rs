@@ -7,6 +7,9 @@ mod runtime_inputs;
 use runtime_inputs::{Package, executable_digest, executable_inputs, required_inputs};
 
 fn main() {
+    if env::var_os("CARGO_FEATURE_LLVM_NATIVE").is_some() {
+        check_native_llvm();
+    }
     let path = "lean-kernel/compiler-limits.json";
     println!("cargo:rerun-if-changed={path}");
     let limits: serde_json::Value =
@@ -35,6 +38,26 @@ fn main() {
     let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo output directory"));
     fs::write(output.join("compiler_limits.rs"), source).expect("write compiler limits");
     fs::write(output.join("kernel_identity.rs"), kernel_identity()).expect("write kernel identity");
+}
+
+/// Select the qualified static LLVM toolchain explicitly in a source build.
+/// The native adapter independently checks the linked library at runtime.
+fn check_native_llvm() {
+    const PREFIX: &str = "LLVM_SYS_231_PREFIX";
+    println!("cargo:rerun-if-env-changed={PREFIX}");
+    let root =
+        env::var_os(PREFIX).expect("llvm-native requires LLVM_SYS_231_PREFIX for LLVM 23.1.4");
+    let config = Path::new(&root).join("bin/llvm-config");
+    let version = std::process::Command::new(&config)
+        .arg("--version")
+        .output()
+        .expect("cannot run LLVM_SYS_231_PREFIX/bin/llvm-config --version");
+    assert!(
+        version.status.success() && version.stdout.trim_ascii() == b"23.1.4",
+        "llvm-native requires LLVM 23.1.4, llvm-config reported {:?}",
+        String::from_utf8_lossy(&version.stdout).trim()
+    );
+    println!("cargo:rerun-if-changed={}", config.display());
 }
 
 /// The kernel executable reports the digest of `Main.lean`, of every module it

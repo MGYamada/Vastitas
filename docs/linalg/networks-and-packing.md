@@ -2,7 +2,7 @@
 
 This chapter gives the statements that contract [numerical maps](maps-and-gemm.md)
 and **tensors** along the edges of a graph: a network of two maps, tensors
-with two or three axes, their packing and contraction, contraction trees with
+with one to three axes, their packing and contraction, contraction trees with
 an explicit plan, and caches of a packing. Nothing is implicit. An edge joins
 a basis with the same basis or with its derived dual basis, and equal
 dimensions prove nothing. No statement of this chapter conjugates, uses a
@@ -85,7 +85,8 @@ Rules:
 >
 > ```text
 > TensorView -> `tensor` IDENTIFIER `=`
->     ( `view2` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER ( `,` AxisGrouping )? `)`
+>     ( `view1` `(` IDENTIFIER `,` IDENTIFIER `)`
+>     | `view2` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER ( `,` AxisGrouping )? `)`
 >     | `view3` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,`
 >       AxisGrouping `)` )
 > AxisGrouping -> `axes` `(` ( INTEGER_LITERAL ( `,` INTEGER_LITERAL )* `,`? )? `)`
@@ -101,7 +102,10 @@ within a group the first axis of the list runs fastest. With the dimensions
 `d0`, `d1`, `d2` and the grouping `axes(0, 2, 1), 2`, the cell `(i0, i1, i2)`
 is in row `i0 + d0·i2` and column `i1`. `view2` declares a tensor with two
 axes. Without a grouping it has `axes(0, 1), 1`: axis 0 along the rows and
-axis 1 along the columns. A tensor declares no loan and copies no cell.
+axis 1 along the columns. For one axis, `tensor t = view1(l, b);` uses a
+single column with one row per coordinate of the named basis `b`. Coordinate
+`i` uses cell `(i, 0)` of the loan, as in a vector view on the same basis.
+A tensor declares no loan and copies no cell.
 
 Rules:
 
@@ -215,7 +219,7 @@ The compiler searches for no order and inserts no copy.
 Rules:
 
 - The graph must have from 2 to 64 occurrences, one edge fewer than
-  occurrences, and 2 or 3 boundary ports. It has at most 128 declarations
+  occurrences, and one to three boundary ports. It has at most 128 declarations
   before `plan`, and a plan has at most 1024 steps (`E_TENSOR_TREE`).
 - Every plan step counts against the limit on the statements of a program,
   which [Appendix D](../appendix/limits.md#resource-functions) gives
@@ -235,6 +239,9 @@ Rules:
 - The basis at the first port of an edge must be the derived basis of the
   basis at its second port in the dual of its space. The two ports must
   belong to different occurrences (`E_TENSOR_TREE`).
+- For a matrix with bases `bu, bvd` and a column with basis `bv`, where
+  `bvd` is derived from `bv` in its dual space, the edge
+  `(a[1], x[0])` leaves `boundary(a[0])`. The output column must use `bu`.
 - A plan step must have one of the forms of `PlanStep`. Another statement
   there, and a `borrow` without a layout, are errors (`E_TENSOR_TREE`).
 - A loan or a tensor of the plan must have a name that is not in use

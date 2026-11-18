@@ -381,3 +381,26 @@ The two compiler scaling CSV files remain attached to their reported revision.
 | Network wiring, contraction trees and cached packing | [Networks, packing and contraction trees](../linalg/networks-and-packing.md) · [Numerical backend](../internals/numerical-backend.md#networks-packing-and-contraction-trees) |
 | Pure evaluator and categorical crossing-word checker | [Core and graph proofs](../verification/core-models.md) |
 | Standalone development and mathematical references | [Compiler tools](../reference/compiler-tools.md) · [Analysis and effects](../reference/analysis-and-effects.md) · [Geometry](../reference/geometry.md) |
+
+## Documentation retirement audit
+
+The v0.1.0 review enumerated Markdown in the working tree with
+`git ls-files --cached --others --exclude-standard -- '*.md'`. It checked
+the book against the contents, the package API pages against public exports,
+and relative file links outside the book against their destinations. The
+compiler-IR specification, its assumptions and statement pins remain the
+inputs of the generated claims chapter. [Compiler IR](../spec/compiler-ir.md) ·
+[Specification sources](../specifications.md)
+
+| Material reviewed outside the book | Reason for retention |
+| --- | --- |
+| Root README and contributor instructions | These are the repository entry point and the synchronized instructions checked by the documentation linter. |
+| Standard library and nature package pages | The pages describe public exports, package usage and source ownership. The geometry source README also maps compatibility aliases to their defining modules. |
+| Experiment instructions and run records | The instructions specify reproduction conditions. For storage copy, the summary records each case and its uncertainty, and the companion results file identifies the revision, interpretation and scope of the comparison. |
+| LLVM corpus, Unicode inputs and Lean export fixtures | The accompanying documents identify source files, proof statements, upstream data or fixture provenance required for replay. |
+
+The review found no independently obsolete file to retire. The repository's
+documentation workflow renders mdBook. Its package API inventory is checked by
+`scripts/library_docs.py`. The workflow has no doc-gen4 publication job.
+[Documentation workflow](https://github.com/MGYamada/Vastitas/blob/main/.github/workflows/documentation.yml) ·
+[Retirement criteria](https://github.com/MGYamada/Vastitas/issues/779)

@@ -234,6 +234,7 @@ theorem rewrite_formed (env : Declarations) (term : Term) :
       EntriesFormed env (rewrite env defs state term).2.entries := by
   induction term using Term.rec (motive_2 := fun terms => ∀ (defs : Defs) (state : State),
       EntriesFormed env state.entries → EntriesFormed env (rewriteAll env defs state terms).2.entries) with
+  | finiteLookup | finiteTag => intro _ _ formed; exact formed
   | natural => intro _ _ formed; exact formed
   | integer => intro _ _ formed; exact formed
   | boolean => intro _ _ formed; exact formed
@@ -699,7 +700,7 @@ theorem evaluates_strip {module : Module} {values : Values} : ∀ (term : Term) 
   | .ascribe _ inner, _ => by
     rw [strip]
     exact (evaluates_strip inner).trans evaluates_ascribe_iff.symm
-  | .natural _, _ | .integer _, _ | .boolean _, _ | .unit, _ | .variable _ _, _ | .unary _ _ _, _
+  | .finiteLookup .., _ | .finiteTag .., _ | .natural _, _ | .integer _, _ | .boolean _, _ | .unit, _ | .variable _ _, _ | .unary _ _ _, _
   | .binary _ _ _ _, _ | .pair _ _ _, _ | .project _ _ _, _ | .natToInt _, _ | .primitive _ _ _, _
   | .call _ _ _ _, _ | .branch _ _ _ _, _ | .pack _ _ _, _ | .unpack _ _ _ _, _ | .scope _, _
   | .letE _ _ _, _ => Iff.rfl

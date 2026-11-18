@@ -79,26 +79,26 @@ def package_sources(names, repair=False):
     does not validate their bodies, authority or borrow/return transitions.
     """
     region = ", ".join(f"({a}, {b})" for a, b in itertools.product(dr.SCALARS, repeat=2))
-    base = f'''pub generic choose(x, y) {{ domain (Int, Int); }}
-method choose(x: Any, y: Any) -> Int {{ 0 }}
+    base = f'''pub fn choose(x, y) domain((Int, Int));
+fn choose(x: Any, y: Any) -> Int {{ 0 }}
 pub grant integers : choose to addon {{ domain {region}; }}
-pub contribution repair : choose {{ method choose(x: Number, y: Number) -> Int {{ 42 }} }}
+pub contribution repair : choose {{ fn choose(x: Number, y: Number) -> Int {{ 42 }} }}
 '''
     addon = '''pub contribution A : base::choose {
-method base::choose(x: Number, y: Any) -> Int { 1 } }
+fn base::choose(x: Number, y: Any) -> Int { 1 } }
 pub contribution B : base::choose {
-method base::choose(x: Any, y: Number) -> Int { 2 } }
+fn base::choose(x: Any, y: Number) -> Int { 2 } }
 '''
-    events = "borrow base::integers as edit; "
-    events += " ".join(f"apply addon::{name} using edit;" for name in names)
-    events += " return edit; " + ("apply base::repair; " if repair else "") + "seal base::choose;"
-    app = "assembly { " + events + " } fn main() -> Int { base::choose(40, 2) }"
+    events = "borrow base::integers as edit { "
+    events += " ".join(f"apply addon::{name};" for name in names)
+    events += " } " + ("apply base::repair; " if repair else "")
+    app = "assemble base::choose { " + events + " } fn main() -> Int { base::choose(40, 2) }"
     files = {}
     for name, source, deps in (("base", base, ""), ("addon", addon, "base={path='../base'}"),
                                ("app", app, "base={path='../base'}\naddon={path='../addon'}")):
         files[f"{name}/main.vast"] = source
         files[f"{name}/Vastitas.toml"] = (
-            f"[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{deps}\n")
+            f"[package]\nedition = \'2026\'\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{deps}\n")
     return files
 
 

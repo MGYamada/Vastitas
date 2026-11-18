@@ -1,0 +1,8 @@
+name: Set up pinned elan
+description: Install the verified elan binary for this runner using the repository checksums.
+runs:
+  using: composite
+  steps:
+    - name: Install checksum-pinned elan
+      shell: bash
+      run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"

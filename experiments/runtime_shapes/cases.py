@@ -12,7 +12,7 @@ _cleanup_spec.loader.exec_module(cleanup_envelope)
 
 def source(scalar, transpose, twice=False):
     profile = "ComplexSmooth" if scalar else "RealSmooth"
-    kind = "Complex<F64>" if scalar else "F64"
+    kind = "F64<CC>" if scalar else "F64<RR>"
     a = "complex_bits(4607182418800017408, 4607182418800017408)" if scalar else "f64_bits(4607182418800017408)"
     b = "complex_bits(4611686018427387904, 13830554455654793216)" if scalar else "f64_bits(4611686018427387904)"
     rows, cols = ("k", "m") if transpose else ("m", "k")
@@ -64,7 +64,7 @@ resource fn main() -> Int {{
 
 def write_package(path, scalar, transpose, twice=False):
     (path / "src/profiles").mkdir(parents=True)
-    (path / "Vastitas.toml").write_text('[package]\nname = "runtime_shape_bench"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
+    (path / "Vastitas.toml").write_text('[package]\nedition = "2026"\nname = "runtime_shape_bench"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
     (path / "src/main.vast").write_text(source(scalar, transpose, twice))
     (path / "src/profiles/mod.vast").write_text((ROOT / "examples/packages/numerical/numerical/src/profiles/mod.vast").read_text())
 
@@ -76,6 +76,7 @@ def shapes():
 
 
 def split_generated(text):
+    text = cleanup_envelope.normalize_main(text)
     marker = "def main : IO Unit := do\n"
     if text.count(marker) != 1:
         raise ValueError("unexpected main")

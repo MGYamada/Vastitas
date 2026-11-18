@@ -3,9 +3,10 @@
 A **path** names a declaration of the current module, of another module or
 of another package. This
 chapter defines paths, how a name resolves to a declaration, and which
-declarations a module may name. Paths with `::` exist only in
-[manifest mode](programs.md#manifest-mode). In flat mode every name is one
-identifier in the single namespace of the program.
+declarations a module may name. [Manifest mode](programs.md#manifest-mode)
+has package and module paths. In flat mode user declarations share one
+namespace. A value expression can also name a standard arithmetic operator
+by its full path, such as `std::operator::div`.
 
 > **Syntax**
 >
@@ -73,7 +74,14 @@ Rules:
   names an item of the module.
 - The order of declarations and `use` declarations does not change how a name
   resolves.
-- In flat mode a path with `::` is an error. Its code depends on the place:
+- In a flat value expression, a path beginning with `std::` can name one of
+  the five [exact arithmetic operators](expressions.md#operator-expressions).
+  Another syntactically valid path beginning with `std::` names no value or
+  function (`E_NAME`).
+- In a flat value expression, `self::add`, `self::sub`, `self::mul`,
+  `self::neg` and `self::div` name user declarations in the flat compilation
+  unit. This applies to calls and function values.
+- Elsewhere in flat mode a path with `::` is an error. Its code depends on the place:
   `E_PARSE` in an expression and in the name of a method, `E_NAME` in a
   selector, a parent or a `subtype`, and `E_UNSUPPORTED` in a type. A path
   in a type whose first segment is a type name is `E_PARSE`, as

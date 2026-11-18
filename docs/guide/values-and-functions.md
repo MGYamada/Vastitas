@@ -112,17 +112,17 @@ The executable exits with status 0.
 
 No operation on integers overflows, wraps around or rounds.
 
-The arithmetic operators are `+`, `-` and `*`, and `-` in front of an
+The arithmetic operators are `+`, `-`, `*` and `/`, and `-` in front of an
 expression negates it. `*` binds more tightly than `+` and `-`, and negation
 more tightly than `*`, so `2 + 3 * -4` is `2 + (3 * (-4))`. Parentheses
-group as usual. The language has no division and no remainder, and the
-compiler rejects `/` and `%`.
+group as usual. Division has the same precedence as multiplication. The
+compiler rejects remainder (`%`).
 
 ## `Nat` and `Int` stay apart
 
 `Nat` is the type of the natural numbers 0, 1, 2 and so on, also without a
-bound. `Nat` and `Int` are two types, and the compiler never converts a
-value of one into a value of the other for you.
+bound. `Nat` and `Int` are two types, and conversion requires `int` except in
+[division](../language/expressions.md#operator-expressions) with one operand of each type.
 [`examples/book/expressions/natural-subtraction.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/expressions/natural-subtraction.vast)
 uses both:
 

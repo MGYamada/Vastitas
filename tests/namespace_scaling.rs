@@ -20,7 +20,7 @@ fn fixture(source: &str) -> Scratch {
     let s = Scratch::empty("namespace scaling");
     s.write(
         "Vastitas.toml",
-        "[package]\nname='scale'\nversion='0.1.0'\nroot='main.vast'\n",
+        "[package]\nedition = \"2026\"\nname='scale'\nversion='0.1.0'\nroot='main.vast'\n",
     );
     s.write("main.vast", source);
     s
@@ -174,7 +174,7 @@ fn wide_diamond_dependency_closures_load_shared_packages_once() {
     let s = Scratch::empty("diamond scaling");
     let manifest = |name: &str, dependencies: &str| {
         format!(
-            "[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}"
+            "[package]\nedition = \"2026\"\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}"
         )
     };
     s.write("shared/Vastitas.toml", &manifest("shared", ""));

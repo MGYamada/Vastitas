@@ -118,6 +118,9 @@ structure Module where
   assembly : Option Assembly := none
   resourceFunctions : List ResourceHeader := []
   span : Span
+  /-- Derived by the rich source projection. Only a static category function may
+  use the contextual function name `compose`. -/
+  hasFiniteCompose : Bool := false
   deriving Repr, Inhabited
 
 structure Dependency where

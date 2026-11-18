@@ -29,8 +29,9 @@ def El : RuntimeTy → Type
   | .scalar type => ScalarEl type
   | .tensorShape shape => {meaning : Shapes.Valuation → Storage.Layout // meaning = shape.eval}
   | .ownedMap source target =>
-      Fin target.space.dimension → Fin source.space.dimension →
-        { value : Literal // value.scalar = source.space.scalar }
+      (precision : Numerical.Precision) ×
+        (Fin target.space.dimension → Fin source.space.dimension →
+          { value : Literal // value.scalar = precision.scalar source.space.coefficient })
 
 def scalarValue : (type : PureType) → ScalarEl type → Semantics.Value
   | .nat, value => .natural value

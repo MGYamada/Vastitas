@@ -57,7 +57,7 @@ static uint64_t verify(VStorageArena *a, unsigned n, unsigned scalar,
                 if (id == 2) { want.r *= multiplier; want.i *= multiplier; }
             }
             for (unsigned part = 0; part <= scalar; ++part) {
-                double got = view.data[index*(scalar+1)+part];
+                double got = ((const double *)view.data)[index*(scalar+1)+part];
                 assert(got == (double)(part ? want.i : want.r));
                 /* Exact integer result comparison treats either zero sign as
                  * zero. Keep input/padding words unchanged in the hash. */

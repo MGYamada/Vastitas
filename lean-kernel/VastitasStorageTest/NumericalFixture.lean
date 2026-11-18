@@ -21,7 +21,9 @@ def source : Indexed.Source.Program := {
       decl "Affine" (.implementation (path "R") .affineDescriptor [])] }], none⟩] }
 
 def layout (rows columns : Nat) : Layout := ⟨0, rows, columns, max 1 rows, false⟩
-def payload : Scalar → Literal | .f64 => .f64 0x3ff0000000000000 | .complexF64 => .complexF64 0 0x3ff0000000000000
+def payload : Scalar → Literal
+  | .f64 => .f64 0x3ff0000000000000 | .complexF64 => .complexF64 0 0x3ff0000000000000
+  | .f32 => .f32 0x3f800000 | .complexF32 => .complexF32 0 0x3f800000
 
 /-- A: V(3) → W(2), B: U(2) → V(3), C: U → W, with distinct U/W. -/
 def setup (scalar : Scalar) (implementation : String) (middle := 3) : List Functions.Statement := [

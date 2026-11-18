@@ -49,6 +49,33 @@ def packageFixture : Module := program
 private def accepts (module : Module) (requireMain : Bool := true) : Bool := (checkModule module requireMain).isOk
 private def check := RegressionSupport.check "indexed Core regression failed"
 
+private def finiteProgram (term : Term) : Module :=
+  { (bodyProgram (.letE 70 term (.integer 0))) with
+    declarations := { env with indexed := [
+      ⟨id "Bit", .finiteCarrier ["off","on"]⟩,
+      ⟨id "convert", .finiteTable [id "Bit"] (id "Other") [(["on"], "off"), (["off"], "on")]⟩,
+      ⟨id "Other", .finiteCarrier ["off","on"]⟩] ++ env.indexed } }
+
+#eval check "finite tags are checked against their nominal carrier before equality" (
+  let a := Term.finiteTag (id "Bit") "off"
+  let b := Term.finiteTag (id "Bit") "on"
+  let other := Term.finiteTag (id "Other") "off"
+  accepts (finiteProgram (.binary .eq a b ⟨.pure .bool, none⟩)) &&
+    !accepts (finiteProgram (.finiteTag (id "Bit") "unknown")) &&
+    !accepts (finiteProgram (.binary .eq a other ⟨.pure .bool, none⟩)) &&
+    !accepts (finiteProgram (.ascribe (.finite (id "Other")) a)) &&
+    !accepts (finiteProgram (.ascribe (.finite (id "Bit")) (.natural 0))) &&
+    !accepts (finiteProgram (.binary .add a b ⟨.finite (id "Bit"), none⟩)))
+
+#eval check "table lookup binds its header and the precise lexical arguments" (
+  let good : FiniteLookup := ⟨id "convert", none, [id "Bit"], id "Other"⟩
+  let checkSite (site : FiniteLookup) (args : List Nat) :=
+    accepts (finiteProgram (.letE 71 (.finiteTag (id "Bit") "on") (.finiteLookup site args)))
+  checkSite good [71] && !checkSite good [70] && !checkSite good [] &&
+    !checkSite {good with output := id "Bit"} [71] &&
+    !checkSite {good with inputs := [id "Other"]} [71] &&
+    !checkSite {good with category := some (id "Bit")} [71])
+
 private def manyLets (body : Term) : Term :=
   (List.range 512).foldr (fun symbol rest => .letE symbol (.integer symbol) rest) body
 

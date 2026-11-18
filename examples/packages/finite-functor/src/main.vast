@@ -1,0 +1,23 @@
+// The closure lo ↦ hi, hi ↦ hi on the category lo < hi.
+use std::category::Functor as Mapping;
+indexed finite Obj { lo; hi; }
+indexed finite Arr { leftId; up; rightId; }
+indexed table s(Arr) -> Obj { (leftId) => lo; (up) => lo; (rightId) => hi; }
+indexed table t(Arr) -> Obj { (leftId) => lo; (up) => hi; (rightId) => hi; }
+indexed table ids(Obj) -> Arr { (lo) => leftId; (hi) => rightId; }
+indexed table comp(Arr, Arr) -> Arr where composable(s, t) {
+    (leftId, leftId) => leftId; (up, leftId) => up;
+    (rightId, up) => up; (rightId, rightId) => rightId;
+}
+indexed schema Small = finite_category;
+indexed instance C : Small = finite_graph(Obj, Arr, s, t, ids, comp);
+
+indexed instance Closure : Mapping = finite_functor(C, C, onObj, onArr);
+indexed table onObj(Obj) -> Obj { (lo) => hi; (hi) => hi; }
+indexed table onArr(Arr) -> Arr { (leftId) => rightId; (up) => rightId; (rightId) => rightId; }
+
+fn closeObject(x: Obj<>) -> Obj<> { finite::lookup::<Closure::objects>(x) }
+fn closeArrow(f: Arr<>) -> Arr<> { finite::lookup::<Closure::arrows>(f) }
+fn main() -> Int {
+    if closeObject(Obj::lo) == Obj::hi && closeArrow(Arr::up) == Arr::rightId { 0 } else { 1 }
+}

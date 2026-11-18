@@ -449,7 +449,7 @@ fn function_body_affine_spellings_still_use_the_geometry_compatibility_export() 
     }
     s.write(
         "app/Vastitas.toml",
-        "[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\ngeo={path='../geo'}\n",
+        "[package]\nedition = \"2026\"\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\ngeo={path='../geo'}\n",
     );
     s.write(
         "app/main.vast",

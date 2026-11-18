@@ -1,0 +1,32 @@
+// The unit of the selected closure monad on the chain lo < hi.
+indexed schema Category = finite_category;
+indexed schema Functor = finite_functor;
+indexed schema NatTrans = finite_nat_trans;
+indexed schema Monad = finite_monad;
+
+pub indexed finite Obj { lo; hi; }
+pub indexed finite Arr { leftId; up; rightId; }
+indexed table s(Arr) -> Obj { (leftId) => lo; (up) => lo; (rightId) => hi; }
+indexed table t(Arr) -> Obj { (leftId) => lo; (up) => hi; (rightId) => hi; }
+indexed table ids(Obj) -> Arr { (lo) => leftId; (hi) => rightId; }
+indexed table comp(Arr, Arr) -> Arr where composable(s, t) {
+    (leftId, leftId) => leftId; (up, leftId) => up;
+    (rightId, up) => up; (rightId, rightId) => rightId;
+}
+indexed instance C : Category = finite_graph(Obj, Arr, s, t, ids, comp);
+indexed table sameObj(Obj) -> Obj { (lo) => lo; (hi) => hi; }
+indexed table sameArr(Arr) -> Arr { (leftId) => leftId; (up) => up; (rightId) => rightId; }
+indexed instance Id : Functor = finite_functor(C, C, sameObj, sameArr);
+
+indexed table closeObj(Obj) -> Obj { (lo) => hi; (hi) => hi; }
+indexed table closeArr(Arr) -> Arr { (leftId) => rightId; (up) => rightId; (rightId) => rightId; }
+indexed instance Closure : Functor = finite_functor(C, C, closeObj, closeArr);
+indexed instance Twice : Functor = finite_functor(C, C, Closure::objects, Closure::arrows);
+
+indexed table etaAt(Obj) -> Arr { (lo) => up; (hi) => rightId; }
+indexed instance Eta : NatTrans = finite_nat_trans(Id, Closure, etaAt);
+indexed table muAt(Obj) -> Arr { (lo) => rightId; (hi) => rightId; }
+indexed instance Mu : NatTrans = finite_nat_trans(Twice, Closure, muAt);
+indexed instance M : Monad = finite_monad(C, Closure, Eta, Mu);
+
+pub fn unitAt(x: Obj<>) -> Arr<> { finite::lookup::<M::unit>(x) }

@@ -1,0 +1,12 @@
+indexed finite Obj { lo; hi; }
+indexed finite Arr { leftId; up; rightId; }
+indexed table s(Arr) -> Obj { (leftId) => lo; (up) => lo; (rightId) => hi; }
+indexed table t(Arr) -> Obj { (leftId) => lo; (up) => hi; (rightId) => hi; }
+indexed table ids(Obj) -> Arr { (lo) => leftId; (hi) => rightId; }
+indexed table comp(Arr, Arr) -> Arr where composable(s, t) {
+    (leftId, leftId) => leftId; (rightId, rightId) => rightId;
+    (up, leftId) => up; (rightId, up) => up;
+}
+indexed schema Small = finite_category;
+indexed instance C : Small = finite_graph(Obj, Arr, s, t, ids, comp);
+fn main() -> Int { 0 }

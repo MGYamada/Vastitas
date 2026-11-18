@@ -5,8 +5,9 @@ Each entry links to a chapter that explains the term.
 
 ## Abstract method
 
-An `abstract method` declaration has no executable body: its braces hold only a
-domain. It extends the callable domain of its generic and fixes the result type
+An abstract method is a typed `fn` contract ending in a semicolon. Its
+parameter selectors or explicit domain extend the callable domain of its
+family. The contract fixes the result type
 that each concrete winning method must have. See
 [Abstract methods](../stage1a.md#abstract-methods) and the
 [guide](../guide/abstract-types.md#abstract-methods).
@@ -76,9 +77,9 @@ One of the two lists of statements of a branch in a resource function. See
 
 ## Assembly
 
-The `assembly` block in the root module of the root package. Its
-[events](#event) borrow grants as edit loans, apply contributions, return the
-loans and seal the edited generics. See
+The ordered edit trace of the root package. Each `assemble` block in its
+root module contributes the [events](#event) for a single function family:
+borrow grants, apply contributions, return loans and seal the family. See
 [Assemblies](../language/edit-authority.md#assemblies) and the
 [guide](../guide/edit-authority.md#the-assembly).
 
@@ -270,8 +271,8 @@ whose [witness type](#witness-type) is `Object<D, K>`, and it lists their
 
 ## Cell
 
-One element of an [allocation](#allocation): a binary64 number for `F64`, or
-two for `Complex<F64>`. See
+One element of an [allocation](#allocation): a binary64 number for `F64<RR>`, or
+two for `F64<CC>`. See
 [Storage types](../storage/resource-programs.md#storage-types).
 
 ## Chart
@@ -471,7 +472,7 @@ A declaration of `nature::errorbar` that holds points of the object of a
 
 A `delegation` declaration by the recipient of a `delegable` grant or
 delegation. It names a recipient module and a region inside the parent loan's
-region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
+region. In an assembly, `delegate` uses it to lend a nested edit loan, and the
 parent loan stays suspended until the nested loan returns. See
 [Grants and delegations](../language/edit-authority.md#grants-and-delegations).
 
@@ -564,9 +565,10 @@ every key for ambiguity, including keys outside the
 
 The word has two meanings:
 
-1. The domain of a generic is the list of [keys](#dispatch-key) in its
-   `domain` clause. Callers may call the generic at these keys and at the keys
-   of its abstract methods; compare [callable domain](#callable-domain). See
+1. The domain of a generic consists of the [keys](#dispatch-key) in its
+   explicit `domain` header, or the keys its concrete methods accept when
+   the header is omitted. Its [callable domain](#callable-domain) includes
+   the keys of its abstract methods. See
    [Generic declarations](../stage1a.md#generic-declarations) and the
    [guide](../guide/dispatch.md#generics-and-methods).
 2. The domain of an `indexed classification` is the complete finite list of
@@ -596,7 +598,7 @@ abstract-method contracts. See
 ## Edit loan
 
 Temporary, exclusive edit authority over a region of a generic. An assembly
-takes it from a grant with `borrow` and gives it back with `return`. A loan from
+takes it from a grant with `borrow` and gives it back at the closing brace. A loan from
 a `delegable` grant or delegation can be lent on as a nested loan through a
 [delegation](#delegation). An edit loan grants no access to storage; compare
 [storage loan](#storage-loan).
@@ -769,6 +771,26 @@ calibrated coordinates with their values and uncertainties, its method, its
 reference and its revision. A [comparison](#comparison) records it. See
 [Calibrations](../language/physical-models.md#calibrations).
 
+## Finite carrier
+
+A set of named members declared by `indexed finite`. Its package, module
+and declaration name identify it. See
+[Finite carriers and tables](../indexed-source.md#finite-carriers-and-tables).
+
+## Finite functor
+
+A pair of [finite tables](#finite-table) that maps the objects and arrows
+of one named category into another. The maps preserve both endpoints of
+each arrow, identities and composition. See
+[Finite carriers and tables](../indexed-source.md#finite-carriers-and-tables).
+
+## Finite table
+
+A function declared by `indexed table` from a tuple of
+[finite carriers](#finite-carrier) to one finite carrier. Its rows give
+one output member for every possible input tuple. See
+[Finite carriers and tables](../indexed-source.md#finite-carriers-and-tables).
+
 ## Flat mode
 
 The compiler mode that takes one entry file and any number of `--lib`
@@ -842,9 +864,10 @@ kernel trusts none of its names or annotations. See
 
 ## Function
 
-An item that declares typed parameters, a result type and a body, with `fn`.
-A function has no effects: its result depends only on its arguments. Compare
-[generic](#generic), [lambda](#lambda) and
+One or more named `fn` declarations belonging to a single defining module.
+A singleton has one body. A [generic](#generic) selects a body by its
+arguments. A function's result depends only on its arguments. Compare
+[lambda](#lambda) and
 [resource function](#resource-function). See
 [Functions](../language/functions.md).
 
@@ -870,9 +893,10 @@ every eigenvalue is simple where g is not zero. It is not the
 
 ## Generic
 
-A function with several methods, declared with `generic` together with its
-arity and domain. Dispatch selects one method for each call. A generic is not a
-function value. See
+A named `fn` family whose methods dispatch on a finite tuple of scalar
+argument types. An explicit header can specify its arity and domain.
+Binding the family preserves its owner. A call through the binding or a
+parameter of a specific `Fn` type selects a method by argument types. See
 [Generic declarations](../stage1a.md#generic-declarations) and the
 [guide](../guide/dispatch.md#generics-and-methods).
 
@@ -1986,7 +2010,7 @@ value of the program after the operation. See
 
 ## Seal
 
-The `seal` [event](#event) of an assembly. Sealing a generic checks its final
+The `seal` [event](#event) at the closing brace of `assemble`. Sealing a generic checks its final
 set of methods: no ambiguity, a winner at every key of the callable domain,
 and wins of contributed methods only inside the region of each grant. See
 [Sealing](../language/edit-authority.md#sealing) and the
@@ -2327,7 +2351,7 @@ object `Y` of a morphism type `Morphism<X, Y>`, whose source is `X`. Compare
 
 ## Tensor
 
-A [view](#view) of storage presented as an array with two or three ordered
+A [view](#view) of storage presented as an array with one to three ordered
 axes, each indexed by a [basis](#basis). `tensor` declares one. See
 [Tensors](../linalg/networks-and-packing.md#tensors).
 

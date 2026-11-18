@@ -13,6 +13,9 @@ structure RawGeneric where
   params : List RawGenericParam
   domain : List (List RawType)
   span : Span
+  /-- An implicit family header gets its callable keys from its assembled methods.
+  The explicit domain, including the empty one, keeps its declared meaning. -/
+  inferDomain : Bool := false
   deriving Repr, Inhabited
 
 structure RawMethod where
@@ -27,7 +30,7 @@ structure RawMethod where
 structure TypePath where
   path : List String
   span : Span
-  deriving Repr, Inhabited
+  deriving Repr, Inhabited, DecidableEq
 
 def TypePath.name (path : TypePath) : String := String.intercalate "::" path.path
 

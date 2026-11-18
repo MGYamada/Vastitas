@@ -79,7 +79,7 @@ pub struct Subtype {
 pub struct Generic {
     pub name: String,
     pub params: Vec<GenericParam>,
-    pub domain: Vec<Vec<Type>>,
+    pub domain: Option<Vec<Vec<Type>>>,
     pub span: Span,
 }
 
@@ -112,6 +112,8 @@ pub struct AbstractMethod {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Function {
     pub name: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub finite_binders: Vec<StaticBinder>,
     pub params: Vec<Param>,
     pub return_type: Type,
     pub body: Block,
@@ -119,6 +121,26 @@ pub struct Function {
     /// The `show!` of the top-level `let` statements of `fn main` (#836).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observations: Vec<Observation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum StaticBinder {
+    Category {
+        name: String,
+        schema: TypePath,
+        span: Span,
+    },
+    Object {
+        name: String,
+        category: String,
+        span: Span,
+    },
+    MonadObject {
+        name: String,
+        monad: String,
+        span: Span,
+    },
 }
 
 /// One `show!(expr)` of the entry point (#836): the `statement`-th top-level
@@ -146,6 +168,11 @@ pub struct Param {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Type {
+    FiniteHom {
+        category: Box<TypePath>,
+        source: Box<TypePath>,
+        target: Box<TypePath>,
+    },
     IndexedObject {
         domain: Box<TypePath>,
         marker: Box<TypePath>,
@@ -202,6 +229,15 @@ pub struct Expr {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ExprKind {
+    FiniteCall {
+        callee: TypePath,
+        indices: Vec<TypePath>,
+        args: Vec<Expr>,
+    },
+    FiniteLookup {
+        table: TypePath,
+        args: Vec<Expr>,
+    },
     IndexedPack {
         package: Box<Type>,
         witness: Box<Expr>,

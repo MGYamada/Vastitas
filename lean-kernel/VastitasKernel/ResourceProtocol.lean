@@ -1,3 +1,5 @@
+import VastitasKernel.PhysicalSources
+import VastitasKernel.FunctionRevision
 import VastitasKernel.ResourceCodegen
 import VastitasKernel.StorageFunctionProtocol
 import VastitasKernel.IndexedProtocol
@@ -269,7 +271,7 @@ private def tensorOperation (j : Json) : Except String (Storage.Tensor.Operation
   | "view" =>
     fields j ["op", "name", "loan", "axes", "grouping"]
     let axes ← array j "axes"
-    unless axes.length == 2 || axes.length == 3 do throw "tensor requires two or three axes"
+    unless 1 ≤ axes.length && axes.length ≤ 3 do throw "tensor requires one to three axes"
     let grouping ← field j "grouping"
     fields grouping ["order", "split"]
     let order ← array grouping "order"
@@ -334,7 +336,7 @@ private def treeGraph (j : Json) : Except String (Storage.TensorTree.Graph Strin
   let edges ← array j "edges"
   let boundary ← array j "boundary"
   unless 2 ≤ occurrences.length && occurrences.length ≤ 64 && edges.length + 1 == occurrences.length &&
-      (boundary.length == 2 || boundary.length == 3) do throw "tree exceeds bounded occurrence/edge/boundary profile"
+      (1 ≤ boundary.length && boundary.length ≤ 3) do throw "tree exceeds bounded occurrence/edge/boundary profile"
   let occurrences ← occurrences.mapM fun node => do
     fields node ["name", "value"]
     return Storage.TensorTree.Occurrence.mk (← str node "name") (← str node "value")
@@ -359,12 +361,39 @@ private def treeStep (j : Json) : Except String (Storage.TensorTree.PlanStep Str
     return .join (← str j "name") (← str j "edge") (← str j "left") (← str j "right") (← str j "output")
   | _ => throw "unknown explicit tree plan step"
 
+private def realizationPaths (j : Json) (span : Span) :
+    Except String (Indexed.Source.Path × List Indexed.Source.Path) := do
+  let raw ← array j "arguments"
+  if raw.length > 3 then throw "a realization operation takes at most three arguments"
+  let callee ← Indexed.Wire.path (← field j "callee")
+  let args ← raw.mapM Indexed.Wire.path
+  let mut finish := span.start
+  let mut place := span
+  for p in callee :: args do
+    if p.span.start < finish || p.span.start ≥ p.span.end || p.span.end > span.end ||
+        p.span.line < place.line || (p.span.line == place.line && p.span.column < place.column) then
+      throw "realization paths must occur in source order within their statement"
+    finish := p.span.end
+    place := p.span
+  return (callee, args)
+
 private def statements : Nat → List Json → Except String (List Statement)
   | _, [] => pure []
   | 0, _ :: _ => throw "resource source exceeds decoding depth bound"
   | fuel + 1, first :: rest => do
     let span ← decodeSpan first
     let statement ← match ← str first "kind" with
+      | "realization" =>
+        fields first ["kind", "callee", "representation", "arguments", "result", "into", "span"]
+        let (callee, arguments) ← realizationPaths first span
+        let representation : Option FloatRepresentation ← match ← field first "representation" with
+          | .null => pure none
+          | .str "real32" => pure (some .real32)
+          | .str "real64" => pure (some .real64)
+          | .str "complex32" => pure (some .complex32)
+          | .str "complex64" => pure (some .complex64)
+          | _ => throw "unknown numerical representation"
+        pure (.realization callee representation arguments (← str first "result") (← first.getObjValAs? Bool "into") span)
       | "runtime" =>
         fields first ["kind", "action", "span"]
         pure (.runtime (← runtimeAction (← field first "action")) span)
@@ -520,7 +549,7 @@ version before this decoder, and the decoder reads no other version. The
 reserved identities are checked on the request's packages, before the kernel
 adds the profile (`Program.profile`). -/
 def program (j : Json) : Except String Program := do
-  fields j ["version", "file", "root", "packages", "legacy_geometry"]
+  fields j ["version", "file", "root", "root_source", "packages", "legacy_geometry", "expected_function_revision"]
   let version ← j.getObjValAs? Nat "version"
   if version != currentProtocol then throw s!"expected protocol {currentProtocol}"
   let file ← str j "file"
@@ -528,8 +557,11 @@ def program (j : Json) : Except String Program := do
   let geometry ← legacyGeometry j
   let packages ← (← array j "packages").mapM package
   reservedIdentities root packages
+  let _ ← PhysicalSources.layout j
   if geometry then profileConflict packages
-  return ⟨file, root, packages, geometry⟩
+  let raw : Program := {file, root, packages, legacyGeometry := geometry}
+  let names ← raw.valueFamilies.mapError (·.message)
+  return {raw with operatorValues := names}
 
 /-- The namespace work of the body passes that ran: those of the pure program
 and, when the program has resource fragments, the passes with them. Without
@@ -540,11 +572,31 @@ def namespaceUnits {p : Program} {requireMain : Bool} (checked : Checked p requi
     if p.pureFragments.isEmpty then 0 else
       checked.values.audit.lowered.namespaceWork.val + checked.values.executable.lowered.namespaceWork.val
 
+/-- Remove only the replay witness; a revision never contains its own witness. -/
+def revisionInput (json : Json) : Json :=
+  match json with
+  | .obj fields => .obj (fields.erase "expected_function_revision")
+  | other => other
+
+def RevisionMatches (json : Json) {p : Program} {requireMain : Bool}
+    (checked : Checked p requireMain) : Prop :=
+  match json.getObjVal? "expected_function_revision" with
+  | .error _ => True
+  | .ok expected =>
+    let actual := FunctionRevision.artifact (revisionInput json) checked
+    FunctionRevision.bounded expected = true ∧ FunctionRevision.bounded actual = true ∧
+      expected.compress = actual.compress
+
+instance {json : Json} {p : Program} {requireMain : Bool} {checked : Checked p requireMain} :
+    Decidable (RevisionMatches json checked) := by unfold RevisionMatches; split <;> infer_instance
+
 structure CheckedInput (json : Json) (requireMain : Bool) where
   input : Program
   decoded : program json = .ok input
   checked : Checked input requireMain
   accepted : ResourceSource.check input requireMain = .ok checked
+  assemblySource : AssemblySource.Corresponds json checked.pureProgram.authority.headers.assembled.prepared.core.assembly
+  revisionMatches : RevisionMatches json checked
   /-- The price of the request's JSON, in which the compatibility profile of
   `legacy_geometry` has no part, and the checked passes. -/
   namespaceReceipt : Namespace.RequestReceipt input.pureProgram.source.headers.indexed json (namespaceUnits checked)
@@ -555,7 +607,11 @@ def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput j
   | .ok input => match Namespace.checkRequest input.pureProgram.source.headers.indexed json
         (fun _ => ResourceSource.check input requireMain) namespaceUnits with
     | .error diagnostic => .error diagnostic
-    | .ok result => .ok ⟨input, decoded, result.value, result.accepted, result.receipt⟩
+    | .ok result => do
+      let assembly ← AssemblySource.check json result.value.pureProgram.authority.headers.assembled.prepared.core.assembly
+      if h : RevisionMatches json result.value then
+        .ok ⟨input, decoded, result.value, result.accepted, assembly, h, result.receipt⟩
+      else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
 
 /-- Public generation consumes the budgeted wire request's exact checked program. -/
 def emit (json : Json) : Except Diagnostic Codegen.Generated := do

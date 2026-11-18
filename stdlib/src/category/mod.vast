@@ -1,0 +1,10 @@
+pub indexed schema Category = finite_category;
+pub indexed schema Functor = finite_functor;
+pub indexed schema NatTrans = finite_nat_trans;
+pub indexed schema Monad = finite_monad;
+
+pub fn compose<C: Category, X: Obj<C>, Y: Obj<C>, Z: Obj<C>>(
+    g: Hom<C, Y, Z>, f: Hom<C, X, Y>
+) -> Hom<C, X, Z> {
+    finite::lookup::<C::composition>(g, f)
+}

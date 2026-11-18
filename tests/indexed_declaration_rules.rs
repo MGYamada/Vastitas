@@ -10,7 +10,7 @@ fn check(source: &str) -> std::process::Output {
     let s = Scratch::empty("indexed declaration rules");
     s.write(
         "Vastitas.toml",
-        "[package]\nname = \"rules\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"rules\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     s.write("main.vast", source);
     s.check_manifest("Vastitas.toml")

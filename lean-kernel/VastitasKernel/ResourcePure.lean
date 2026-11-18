@@ -83,7 +83,7 @@ def relaxModule {requireMain : Bool} (core : Core.Typing.CheckedModule requireMa
 /-- The checked pass `pass` without its entry-point requirement. -/
 def relaxPass {prepared : Compiler.PreparedProgram} {audit requireMain : Bool}
     (pass : Compiler.CheckedPass prepared audit requireMain) : Compiler.CheckedPass prepared audit false :=
-  ⟨pass.lowered, pass.reconstructed, pass.accepted, relaxModule pass.core, pass.coreInput⟩
+  ⟨pass.lowered, pass.reconstructed, pass.accepted, relaxModule pass.core, pass.coreInput, pass.familyUses, pass.forwardUses⟩
 
 /-- The compiled reverse Core of a checked module, for that module without its
 entry-point requirement. -/

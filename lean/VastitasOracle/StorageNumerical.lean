@@ -62,6 +62,37 @@ theorem nominal_endpoints {env resources values left right output mode policy al
     congrArg (fun basis => basis.space.object) checked.composable.2.2,
     congrArg Basis.brand checked.composable.1⟩
 
+private theorem scalar_eq {a b : Scalar} : (a == b) = true → a = b := by
+  cases a <;> cases b <;> decide
+
+private theorem map_allocation_scalar {resources : State} {view : MapView} {physical : Loan}
+    {allocation : Allocation} (live : view.Live resources)
+    (selected : resources.loan? view.loan.name = some physical)
+    (found : resources.allocation? physical.allocation = some allocation) : view.scalar = allocation.scalar := by
+  obtain rfl := Option.some.inj (selected.symm.trans live.1)
+  simpa only [found, Option.map_some, Option.some.injEq] using live.2.2.1.symm
+
+/-- Each live map has the exact scalar of the checked GEMM, including its component width. -/
+theorem product_representation {env resources values left right output mode policy alpha beta}
+    (checked : CheckedProduct env resources values left right output mode policy alpha beta) :
+    checked.product.left.scalar = checked.storage.operands.leftAllocation.scalar ∧
+    checked.product.right.scalar = checked.storage.operands.leftAllocation.scalar ∧
+    checked.product.output.scalar = checked.storage.operands.leftAllocation.scalar := by
+  have ok := checked.storage.valid
+  simp only [GemmOperands.valid, Product.request, Bool.and_eq_true, decide_eq_true_eq] at ok
+  repeat rcases ok with ⟨ok, rest⟩
+  have leftScalar := map_allocation_scalar checked.leftLive (physical := checked.storage.operands.left)
+    (by first | assumption | exact of_decide_eq_true (by assumption))
+    (allocation := checked.storage.operands.leftAllocation) (by assumption)
+  have rightScalar := map_allocation_scalar checked.rightLive (physical := checked.storage.operands.right)
+    (by first | assumption | exact of_decide_eq_true (by assumption))
+    (allocation := checked.storage.operands.rightAllocation) (by assumption)
+  have outputScalar := map_allocation_scalar checked.outputLive (physical := checked.storage.operands.output)
+    (by first | assumption | exact of_decide_eq_true (by assumption))
+    (allocation := checked.storage.operands.outputAllocation) (by assumption)
+  exact ⟨leftScalar, rightScalar.trans (scalar_eq (by assumption)).symm,
+    outputScalar.trans (scalar_eq (by assumption)).symm⟩
+
 theorem actual_loan_layout {env resources values left right output mode policy alpha beta}
     (checked : CheckedProduct env resources values left right output mode policy alpha beta) :
     resources.loan? checked.product.left.loan.name = some checked.product.left.loan ∧
@@ -335,7 +366,7 @@ theorem evaluation_preserves_interpretation (left right : VectorView) (leftChild
 theorem evaluation_returns_inputs_and_scalar {env resources values left right output leftChild rightChild operation mode policy alpha beta}
     (checked : CheckedEvaluation env resources values left right output leftChild rightChild operation mode policy alpha beta) :
     checked.left.Live checked.after ∧ checked.right.Live checked.after ∧
-    scalarOutputReady checked.after output checked.right.basis.space.scalar = true :=
+    scalarOutputReady checked.after output checked.right.scalar = true :=
   ⟨checked.leftRestored, checked.rightRestored, checked.outputInitialized⟩
 
 end VastitasOracle.StorageNumerical

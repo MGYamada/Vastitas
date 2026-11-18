@@ -16,7 +16,7 @@ private def var (name : String) : Expr := .variable name {}
 private def call (name : String) (args : List Expr := []) : Expr := .call (path name) args {}
 private def block (value : Expr) (statements : List Stmt := []) : Block := .mk statements value {}
 private def fn (name : String) (body : Block) (isPublic := false) : FunctionSource.Function :=
-  ⟨name, [], int, body, isPublic, {}⟩
+  ⟨name, [], int, body, isPublic, {}, []⟩
 private def method (target selector : String) (body : Block) : Method := {
   target := path target, params := [⟨"x", .data (.named selector), {}⟩], result := .int, requirements := [], body }
 private def mod : DispatchSource.Module := {
@@ -231,7 +231,7 @@ private def orderedFixture (reverse : Bool) : DispatchSource.Program :=
   | .error _ => false
   | .ok checked => checked.compiler.input.prepared.any fun entry => entry.definition.isLambda &&
       checked.compiler.input.excluded.contains entry.definition.origin &&
-      match entry.definition.function.callable with
+      match entry.callable with
       | none => false
       | some signature => !Compiler.validTargetName checked.compiler.input false (.concrete entry.definition.id) signature)
 #eval check "forged dispatch mapping rejected independently" (match AuthoritySource.checkProgram authorityFixture true with

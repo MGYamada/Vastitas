@@ -1,0 +1,61 @@
+{
+  "profile": "signed-endpoints",
+  "theorem": "endpoints",
+  "verifier": "nanoda",
+  "official_kernel_checked_by_audit": false,
+  "verification_terminus": "source-decoder-and-llvm-byte-endpoints",
+  "live": {
+    "attempt": "live-public-comparison",
+    "status": "passed",
+    "frontend_sha256": "a3a51a4c47b27412d59158ba3dd450f9d125ee37b6b5908c70f35c4c08906bb1",
+    "kernel_sha256": "9b825a77b096fdf49a1946e0f453ccb994da8ba955b55edfcb3b030dfe512eb3",
+    "schema": 1,
+    "protocol": 10,
+    "owner": "vastitas:compat:flat",
+    "file": "ExitStatus.vast",
+    "source_sha256": "d7b73937ae11b2c8caad422ca81a1947a34bb6a04e193e9fb527a8f5cbe1b27c",
+    "source_byte_length": 126,
+    "wire_sha256": "035aa688327c395f1ee390b60f7dc6566b139d9992a0602d1dc4819dbb45bb76",
+    "full_revision_sha256": "dd442bcda7add3e5678f4c7ec3dab53068907e940c364cba58ee85660cab0c38",
+    "lean_input_sha256": "070cab632c61ca6164f53bb2c688d7ad8707600ba81a8e37e54292c3163c51f1",
+    "emitted_sha256": "9b085d3daf09b1488c95c8f69cab588d1d821f4d6fc5bcaf3254e9662a268e03",
+    "byte_length": 374,
+    "target_triple": "arm64-apple-darwin27.2.0",
+    "data_layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+  },
+  "standard_environment": {
+    "bytes": 13039,
+    "records": 225,
+    "sha256": "3161cada6d59c35be1776a7eabb803f99522c465c37af56ec7972cc6d56821b0"
+  },
+  "export": {
+    "bytes": 79572654,
+    "sha256": "9d8aaf132ddb19455f268fe80e022629c427c203e4378188f9bb7229add7a781"
+  },
+  "closure": {
+    "records": 1544246,
+    "expressions": 1478498,
+    "declarations": 9251,
+    "standard_axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "closed_references": 8976
+  },
+  "main_stack_kib": 49152,
+  "timeout_seconds": 180.0,
+  "nanoda": {
+    "phase": "nanoda",
+    "exit_code": 0,
+    "timed_out": false,
+    "wall_seconds": 12.131024667003658,
+    "user_seconds": 11.594612,
+    "system_seconds": 0.25238099999999997,
+    "peak_rss_bytes": 514490368,
+    "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+    "status": "passed"
+  },
+  "checked_declarations": 9251,
+  "status": "passed"
+}

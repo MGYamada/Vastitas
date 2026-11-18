@@ -87,13 +87,7 @@ theorem lifted_definition_checked {program : Program} (checked : CheckedProgram 
         checked.audit.lowered.origins[function.id]? = some key ∧ key.definition = prepared.definition.id ∧
         Core.Typing.FunctionTyped checked.audit.lowered.module.declarations
           (Core.Typing.signatures checked.audit.lowered.module) function := by
-  have same := checked.preparation
-  simp only [validPrepared, beq_iff_eq] at same
-  have present : definitionIdentity definition ∈ checked.compiler.input.prepared.toList.map (definitionIdentity ∘ FunctionSource.Compiler.Prepared.definition) := by
-    rw [same]
-    exact List.mem_map.mpr ⟨definition, member, rfl⟩
-  obtain ⟨prepared, member, equal⟩ := List.mem_map.mp present
-  have member := Array.mem_toList_iff.mp member
+  obtain ⟨prepared, member, equal⟩ := prepared_contains_lifted checked.preparation member
   exact ⟨prepared, member, equal, definition_body_checked checked prepared member⟩
 
 theorem seed_body_checked {program : Program} (checked : CheckedProgram program requireMain)
@@ -144,6 +138,24 @@ theorem applicable_body_checked {program : Program} (checked : CheckedProgram pr
   obtain ⟨index, found⟩ := List.getElem?_of_mem member
   exact ⟨entry, member, methodSame, keySame, index, found, instance_body_checked checked entry index found⟩
 
+private theorem selection_sound {prepared : PreparedProgram}
+    (call : DispatchSelection) (entry : validDispatchSelection prepared.input call = true) :
+    call.scope ∈ prepared.input.body.index.scopes ∧ call.target.kind = .generic ∧
+    (Namespace.resolve prepared.input.body.index call.scope call.path.path call.path.span).toOption = some call.target ∧
+    ∃ family, prepared.input.dispatch.families[call.target.owner]? = some family ∧
+      call.key ∈ family.domain ∧
+      Dispatch.Selection family.nominals.hierarchy family.checked.methods call.key (some call.method) ∧
+      prepared.input.dispatch.definitions[(call.method, call.key)]? = some call.definition := by
+  simp only [validDispatchSelection, Bool.and_eq_true, decide_eq_true_eq, and_assoc] at entry
+  refine ⟨entry.1, entry.2.1, entry.2.2.1, ?_⟩
+  cases found : prepared.input.dispatch.families[call.target.owner]? with
+  | none => simp [found] at entry
+  | some family =>
+    have selected := entry.2.2.2
+    simp only [found, Bool.and_eq_true, List.contains_iff_mem, beq_iff_eq, and_assoc] at selected
+    let target : DispatchChecker.Target family call.key := ⟨call.method, selected.1, selected.2.1⟩
+    exact ⟨family, rfl, selected.1, (DispatchLowering.selected_target_sound family call.key target).2, selected.2.2⟩
+
 theorem dispatch_call_selected {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
     (call : DispatchCall) (member : call ∈ checked.lowered.dispatchCalls) :
     call.scope ∈ prepared.input.body.index.scopes ∧ call.target.kind = .generic ∧
@@ -156,16 +168,38 @@ theorem dispatch_call_selected {prepared : PreparedProgram} (checked : CheckedPa
   simp only [validPass, Bool.and_eq_true, and_assoc] at valid
   have dispatchValid := valid.2.2.2.2.2.1
   simp only [validDispatchCalls, Bool.and_eq_true, List.all_eq_true] at dispatchValid
-  have entry := (dispatchValid.1 call member).1.1
-  simp only [validDispatchSelection, Bool.and_eq_true, decide_eq_true_eq, and_assoc] at entry
-  refine ⟨entry.1, entry.2.1, entry.2.2.1, ?_⟩
-  cases found : prepared.input.dispatch.families[call.target.owner]? with
-  | none => simp [found] at entry
-  | some family =>
-    have selected := entry.2.2.2
-    simp only [found, Bool.and_eq_true, List.contains_iff_mem, beq_iff_eq, and_assoc] at selected
-    let target : DispatchChecker.Target family call.key := ⟨call.method, selected.1, selected.2.1⟩
-    exact ⟨family, rfl, selected.1, (DispatchLowering.selected_target_sound family call.key target).2, selected.2.2⟩
+  exact selection_sound call.toDispatchSelection (dispatchValid.1 call member).1.1
+
+/-- Merely binding a family value retains its exact authorized lookup, including
+when the value is never called. -/
+theorem family_reference_resolves {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
+    (ref : FamilyRef) (member : ref ∈ checked.lowered.familyRefs) :
+    ref.scope ∈ prepared.input.body.index.scopes ∧ ref.target.kind = .generic ∧
+    (Namespace.resolve prepared.input.body.index ref.scope ref.path.path ref.path.span).toOption = some ref.target := by
+  have valid := checked.familyUses
+  simp only [validFamilyUses, Bool.and_eq_true, List.all_eq_true] at valid
+  have entry := valid.1.1 ref member
+  simp only [validFamilyRef, Bool.and_eq_true, decide_eq_true_eq] at entry
+  exact ⟨entry.1.1.1, entry.1.1.2, entry.1.2⟩
+
+/-- A family passed or returned at a monomorphic Fn type selects the independently
+checked winner for the parameter types. The return type is not a dispatch key. -/
+theorem family_coercion_selected {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
+    (use : StaticUse) (member : use ∈ checked.lowered.staticUses) (s : DispatchSelection)
+    (typed : use.target.selected = some s) :
+    use.target.name = .concrete s.definition ∧ scalarSignatureKey use.expected = some s.key ∧
+    ∃ family, prepared.input.dispatch.families[s.target.owner]? = some family ∧ s.key ∈ family.domain ∧
+      Dispatch.Selection family.nominals.hierarchy family.checked.methods s.key (some s.method) ∧
+      prepared.input.dispatch.definitions[(s.method, s.key)]? = some s.definition := by
+  have valid := checked.familyUses
+  simp only [validFamilyUses, Bool.and_eq_true, List.all_eq_true] at valid
+  have entry := valid.1.2 use member
+  cases name : use.target.name with
+  | probe _ => simp [validStaticSelection, name, typed] at entry
+  | concrete id =>
+    simp only [validStaticSelection, name, typed, Bool.and_eq_true, beq_iff_eq] at entry
+    exact ⟨congrArg TargetName.concrete entry.1.2.symm, entry.2,
+      (selection_sound s entry.1.1).2.2.2⟩
 
 theorem dispatch_call_emitted {prepared : PreparedProgram}
     (checked : CheckedPass prepared audit requireMain) (call : DispatchCall)
@@ -181,7 +215,7 @@ theorem dispatch_caller_scope {prepared : PreparedProgram}
     (checked : CheckedPass prepared audit requireMain) (call : DispatchCall)
     (member : call ∈ checked.lowered.dispatchCalls) :
     ∃ caller, prepared.input.prepared[call.caller.definition]? = some caller ∧
-      caller.definition.bodyScope = call.scope := by
+      caller.definition.bodyScope = call.callerScope := by
   have valid := checked.accepted
   simp only [validPass, Bool.and_eq_true, and_assoc] at valid
   have dispatchValid := valid.2.2.2.2.2.1

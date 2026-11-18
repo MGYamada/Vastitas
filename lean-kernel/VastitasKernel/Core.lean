@@ -234,18 +234,18 @@ inductive UnaryOp where
   deriving Repr, DecidableEq, BEq, Inhabited
 
 inductive BinaryOp where
-  | add | sub | mul | eq | ne | lt | le | gt | ge | and | or
+  | add | sub | mul | div | eq | ne | lt | le | gt | ge | and | or
   deriving Repr, DecidableEq, BEq, Inhabited
 
 def BinaryOp.ofString? : String → Option BinaryOp
-  | "+" => some .add | "-" => some .sub | "*" => some .mul
+  | "+" => some .add | "-" => some .sub | "*" => some .mul | "/" => some .div
   | "==" => some .eq | "!=" => some .ne
   | "<" => some .lt | "<=" => some .le | ">" => some .gt | ">=" => some .ge
   | "&&" => some .and | "||" => some .or
   | _ => none
 
 def BinaryOp.symbol : BinaryOp → String
-  | .add => "+" | .sub => "-" | .mul => "*" | .eq => "==" | .ne => "!="
+  | .add => "+" | .sub => "-" | .mul => "*" | .div => "/" | .eq => "==" | .ne => "!="
   | .lt => "<" | .le => "<=" | .gt => ">" | .ge => ">=" | .and => "&&" | .or => "||"
 
 inductive BuiltinOp where

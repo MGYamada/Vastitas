@@ -36,10 +36,10 @@ theorem space_valid {environment : Indexed.Environment} (valuation : Shapes.Valu
     (valid : space.Valid environment) (bound : space.dimension.eval valuation ≤ dimensionLimit) :
     (space.eval valuation).Valid environment := by
   refine ⟨valid.1, valid.2.1, valid.2.2, ?_⟩
-  change space.dimension.eval valuation * space.scalar.width ≤ byteLimit
-  apply Nat.le_trans (Nat.mul_le_mul_right space.scalar.width bound)
+  change space.dimension.eval valuation * space.binary64Scalar.width ≤ byteLimit
+  apply Nat.le_trans (Nat.mul_le_mul_right space.binary64Scalar.width bound)
   cases coefficient : space.coefficient <;>
-    simp [Space.scalar, coefficient, Scalar.width, dimensionLimit, byteLimit]
+    simp [Space.binary64Scalar, Storage.Numerical.Precision.scalar, coefficient, Scalar.width, Scalar.componentBytes, Scalar.components, dimensionLimit, byteLimit]
 
 theorem compatible (valuation : Shapes.Valuation) (view : Map) (valid : view.Compatible) :
     (view.eval valuation).Compatible := by
@@ -140,12 +140,10 @@ theorem map_live (valuation : Shapes.Valuation) (frame : Shapes.Frame) (view : M
   · cases found : frame.allocation? view.loan.allocation with
     | none => simp [Map.Live, found] at live
     | some allocation =>
-      have scalar : allocation.scalar = view.source.space.scalar := by
+      have scalar : allocation.scalar = view.precision.scalar view.source.space.coefficient := by
         simpa [found] using live.2.2.1
-      simp [Map.eval, Shapes.Loan.eval, Basis.eval, Space.eval, Space.scalar,
-        Storage.Numerical.Space.scalar, VastitasOracle.StorageShapes.eval_allocation,
+      simp [Map.eval, Shapes.Loan.eval, Basis.eval, Space.eval, Storage.Numerical.MapView.scalar, VastitasOracle.StorageShapes.eval_allocation,
         Shapes.Allocation.eval, found, scalar]
-      cases view.source.space.coefficient <;> rfl
   · simpa [Map.eval, Shapes.Loan.eval, Basis.eval, Space.eval, snapshot,
       Shapes.Guard.eval] using rows
   · simpa [Map.eval, Shapes.Loan.eval, Basis.eval, Space.eval, snapshot,

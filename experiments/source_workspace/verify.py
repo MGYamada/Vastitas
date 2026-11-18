@@ -231,6 +231,7 @@ def verify(path):
 def verify_reader(r,*,allow_build_tree=False):
     if not __debug__: raise ValueError('Run without -O: the inherited object verifier uses assertions')
     record = r.json('record.json')
+    epoch = objects.wire_epoch.declared(record)
     require(type(record['schema']) is int and record['schema'] in (1,2,3,4) and
             record['kind']=='source-workspace-costs', 'record schema')
     with_lifetimes = record['schema']==4
@@ -406,7 +407,8 @@ def verify_reader(r,*,allow_build_tree=False):
             if phase in ('public_check','public_build'):
                 require(command['compiler_environment']['VASTITAS_KERNEL']==record['tools']['kernel'], 'actual independent checker')
             if phase=='public_execute':
-                require(match[0]['stdout'].strip()=='0', 'canonical source output')
+                objects.cleanup_runner().fixtures.cleanup_envelope.require_execution(
+                    r.read(prefix+'Generated.lean').decode(), command)
                 require(command['compiler_environment']['LEAN_NUM_THREADS']=='0', 'canonical worker profile')
             if phase=='linked_symbols':
                 require(('vobs_cursor' in match[0]['stdout'])==(b in diagnostic), 'linked observer symbol')
@@ -425,9 +427,11 @@ def verify_reader(r,*,allow_build_tree=False):
                 wire = r.read(prefix+'package/wire.json') if phase=='kernel_emit' else json.dumps(r.json(prefix+'failure-wire.json')).encode()
                 check_input(command,wire)
                 require(command['command']==[record['tools']['kernel'],'emit'], 'kernel emit invocation')
+        objects.wire_epoch.envelopes(epoch, r.json(prefix+'package/wire.json'), r.json(prefix+'failure-wire.json'))
         for response_name,source_name in (('response.json','Generated.lean'),('failure-response.json','GeneratedFailure.lean')):
             response = r.json(prefix+response_name)
-            require(response['ok'] is True and response['version']==8 and response['numerical_runtime'] is True and
+            objects.wire_epoch.envelopes(epoch, response)
+            require(response['ok'] is True and response['numerical_runtime'] is True and
                     response['lean_source'].encode()==r.read(prefix+source_name), 'exact checked generated source')
         ffi = r.read(prefix+'native/ffi.c')
         for token in (b'lean_obj_once(&unit_success, &success_once, initialize_success)',b'lean_mark_persistent(result)',
@@ -483,6 +487,7 @@ def verify_reader(r,*,allow_build_tree=False):
             'metadata':packing_calibration['metadata'],
             f'reuse_{repetitions[-1]}_generated':[{'case':name,**packing_summaries[(name,diagnostic[0],'generated',1,repetitions[-1])]}
                                   for name in sorted(cases)]}
+    objects.wire_epoch.historical_identity(record,r.read('record.json'),'source-workspace')
     return summary
 
 

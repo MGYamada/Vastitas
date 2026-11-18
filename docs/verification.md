@@ -205,6 +205,23 @@ native-refinement theorem. `check_oracle_core.lean` exercises nonempty/empty
 coordinate spaces, duplicate/Unicode names and positional lists.
 The separately built mathematical bridge is described below.
 
+## Closed finite LLVM executables
+
+`VastitasOracle.FiniteProgram.correspondence` applies to the public
+checker route when it returns a finite executable artifact and the complete
+input bytes parse to its modeled module. The theorem identifies those bytes
+with the canonical printer, the target header with the requested header, and
+the execution revision with that of the checked protocol 10 request.
+
+The original Core entry evaluates to the same mathematical integer at every
+fuel at or above its certified bound. Both MidIR phases evaluate to that
+integer at the bound. The modeled public LLVM entry executes its calls,
+switches and phi nodes and returns the integer's residue modulo 256. The
+package linkage records each original symbol and its disposition. Removing
+unused dependency functions preserves evaluation of the retained Core
+bodies at every fuel. Linking, machine execution and checking individual
+compilations in Fast or Official mode have separate evidence.
+
 ## Independent mathematical bridge
 
 The theorems of the bridge are Proved (bridge). No public checker route calls
@@ -1377,6 +1394,18 @@ exact-defining-module namespace audits.
 
 No claim is made that an Open intermediate family is executable.
 
+The accepted assembly also carries `Assembled.blockTargets`: the kernel
+resolves each grant, delegation, transfer and contribution against the family
+of the next seal in the same trace. On the public wire,
+`VastitasOracle.ResourceSource.structured_assembly_trace` connects the entry
+file and byte offset in the request to the events used by the authority
+checker. Lean scans the text and compares every edit command with the wire
+record. Expanding the commands gives the same implicit labels, grouped
+applications and closing-brace spans as the trace from the empty state to
+the assembled state. File acquisition, the assignment of offsets across
+files and parsing declarations outside the edit grammar remain frontend
+premises.
+
 `AuthorityRegression` is an additional target in the shared regression script.
 It exercises the acceptance of `Authority.assemble`, forged parent
 links/regions/recipient records and invented histories. `EditRegression`
@@ -1476,6 +1505,43 @@ against the template result and caller inputs; the actual lowering equation
 retains the fresh-name counter and repeated-request cache. These structural
 facts are not a source-specialization equivalence theorem.
 
+`static_target_data_abi` identifies an executable static use with its
+concrete definition. The data parameters and result agree with its Core ABI,
+including each finite Hom's category and endpoints. The separate body audit
+type-checks the body under a formal parameter for the callback result. This
+also works when its Hom fiber has no arrows. Executable calls retain only the
+declared data parameters.
+
+An accepted finite table retains the resolved declaration ID of each input
+and the output. `VastitasOracle.FiniteTables.checked_table` extracts its check
+from the returned declaration environment; `rows_total` and `lookup_total`
+show uniqueness on every admitted key and membership in the output carrier.
+A dependent composition table covers precisely the ordered pairs `(g, f)`
+with `src(g) = dst(f)`. A named category instance must select a declaration
+whose kind is the finite category schema. `checked_category` in
+`VastitasOracle.FiniteCategories` extracts the endpoint, unit and
+associativity checks for every composable pair and triple; `unit_equations`
+and `associative_equation` give the corresponding lookup equalities.
+For a concrete public `Hom` type, `core_literal_typed_iff` identifies Core
+literal typing with membership in the selected endpoint fiber.
+`plan_atKey_composition` connects the executable lookup plan to the same
+category's composition row. `VastitasOracle.FiniteLookup.dense_refines`
+identifies the generated dense lookup and its bounds checks with nominal
+lookup for every list of input ordinals.
+
+`VastitasOracle.FiniteFunctors.checked_functor` proves that both paths in
+each endpoint, identity and composition diagram return the same tag. The
+composition equation covers every composable ordered pair in the source
+category. `VastitasOracle.ResourceSource.public_finite_functor` obtains
+that result from the declaration environment of the accepted wire request
+and carries its revision check. For a named transformation, `public_finite_nat_trans` yields the component
+endpoint and naturality equations for every source arrow. For a named Monad,
+`public_finite_monad` yields the identity and squared functor actions, both
+unit equations and the associativity diagram of the selected transformation
+tables. These public theorems operate on the declaration environment and
+revision returned by the checker. The finite-model specification records the
+scope of each theorem. [Finite models](spec/compiler-ir.md#compiler-ir.finite-models)
+
 The public Fn composition also checks converse call coverage against the actual
 returned Core. `coreCallEdges` traverses every body, including both branches,
 and pairs each target ID with its caller's specialization key. A reconstructed
@@ -1541,8 +1607,13 @@ origin array and reconstructed method/key definition table, independently of
 receipt flags. `core_dispatch_call_count` and `core_dispatch_call_recorded`
 prove converse occurrence coverage for those actual Core calls.
 `core_dispatch_call_selected` connects each to the independently selected
-method and exact emitted origin; `dispatch_caller_scope` checks the original
-lexical body scope. These checks run in both the audit and executable passes,
+method and exact emitted origin; `dispatch_caller_scope` checks the calling
+body's scope. A family reference can cross scopes at a monomorphic `Fn`
+type. The checker keeps the scope and path at which that reference resolved
+separately from the scope of the caller. `family_reference_resolves` covers
+even unused family bindings. `family_coercion_selected` relates the parameter
+types of a monomorphic `Fn` to the admitted key and selected definition.
+These checks run in both the audit and executable passes,
 including the authority composition used by public protocols. Regressions
 delete, duplicate and alter records and cover repeated calls and both branches.
 `CallCoverage.resource_wire` applies the count, origin and winner facts
@@ -2816,6 +2887,31 @@ the proofs use, not the imports.
 Exact rationals inside `frameMatrix` are not bounded; their growth, and the
 cost of one interpreted reverse run per row, are a recorded gap of the
 [acceptance map](stage4-acceptance.md#gaps).
+
+## Official replay of a signed entry
+
+For the flat `ExitStatus.vast` fixture, `VastitasQualification.ExitAdmission.observesArtifact` proves
+that public `Emission.check` accepts its protocol 10 input and returns the
+specified executable artifact. The theorem relates the Core result, both
+MidIR phase results and the actual function revision to the 374 output bytes
+and exit status 255. The retained macOS arm64 run elaborated and officially
+replayed 32 named modules. The release gate also requires general per-input
+verification and authentication of the exported declaration environment.
+[Fixture proof](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/official_exit/PublicArtifact.lean) · [Replay measurements](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/official_exit/results/macos-arm64-artifact.json)
+
+## Exact real and complex coordinates
+
+The Oracle defines `RR` as the quotient of rational Cauchy sequences by
+eventual closeness at every positive rational tolerance. `CC` pairs two such
+real coordinates. Pointwise sequence addition and negation descend to the quotient
+and give additive commutative groups on `RR` and `CC`. The embedding of a pair
+of rationals into `CC` preserves zero, addition and negation and is injective.
+The Bridge identifies the same sequence quotient with the Mathlib real numbers
+and the pair with the complex numbers. It proves that addition, negation,
+multiplication, conjugation and totalized inversion on the rational coordinates
+agree with their complex operations. The selected exact ring and field evidence
+and its connection to public affine charts remain open.
+[Realization evidence](spec/compiler-ir.md#compiler-ir.realization)
 
 ## Spectral observations
 

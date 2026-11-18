@@ -27,21 +27,21 @@ def source(shape, size, profile="static", wrapper_depth=10):
     if profile == "runtime":
         body = runtime_body(shape, size)
     elif shape == "allocate_drop":
-        body = [f"allocate d{i}: F64[1]; drop(d{i});" for i in range(size)]
+        body = [f"allocate d{i}: F64<RR>[1]; drop(d{i});" for i in range(size)]
     elif shape in ("read_loans", "wrapped_reads"):
-        body = ["allocate d: F64[1];", "borrow w = write(d, layout(0,1,1,1,false));",
+        body = ["allocate d: F64<RR>[1];", "borrow w = write(d, layout(0,1,1,1,false));",
                 "fill(w, f64_bits(0)); release(w);"]
         body += [f"borrow r{i} = read(d, layout(0,1,1,1,false));" for i in range(size)]
         body += [f"release(r{i});" for i in reversed(range(size))]
         body += ["drop(d);"]
     elif shape == "write_children":
-        body = [f"allocate d: F64[{size}];",
+        body = [f"allocate d: F64<RR>[{size}];",
                 f"borrow parent = write(d, layout(0,{size},1,{size},false));"]
         body += [f"borrow r{i} = write(parent, layout({8*i},1,1,1,false));" for i in range(size)]
         body += [f"release(r{i});" for i in reversed(range(size))]
         body += ["release(parent); drop(d);"]
     elif shape == "reborrow_chain":
-        body = ["allocate d: F64[1];"]
+        body = ["allocate d: F64<RR>[1];"]
         body += [f"borrow r{i} = write({'d' if i == 0 else f'r{i-1}'}, layout(0,1,1,1,false));"
                  for i in range(size)]
         body += [f"release(r{i});" for i in reversed(range(size))]
@@ -63,7 +63,7 @@ def source(shape, size, profile="static", wrapper_depth=10):
 
 def runtime_body(shape, size):
     def allocate(name):
-        return f"runtime_allocate {name}: F64[1] runtime_layout(1,1,1,false);"
+        return f"runtime_allocate {name}: F64<RR>[1] runtime_layout(1,1,1,false);"
     if shape == "allocate_drop":
         return [f"{allocate(f'd{i}')} runtime_drop(d{i});" for i in range(size)]
     if shape in ("read_loans", "wrapped_reads"):
@@ -111,7 +111,7 @@ def write_package(directory, name, program):
     package = Path(directory) / name
     package.mkdir()
     manifest = package / "Vastitas.toml"
-    manifest.write_text("[package]\nname='storage_scaling'\nversion='0.1.0'\nroot='main.vast'\n",
+    manifest.write_text("[package]\nedition = \'2026\'\nname='storage_scaling'\nversion='0.1.0'\nroot='main.vast'\n",
                         encoding="utf-8")
     (package / "main.vast").write_text(program, encoding="utf-8")
     return manifest

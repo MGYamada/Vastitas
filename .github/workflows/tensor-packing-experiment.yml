@@ -5,6 +5,10 @@ on:
     # Heavy OpenBLAS observations run on main and on demand, not on every PR (#571).
     branches: [main]
     paths:
+      - '.github/actions/setup-python/**'
+      - '.github/actions/setup-rust/**'
+      - '.github/actions/setup-openblas/**'
+      - '.github/actions/run-numerical-experiment/**'
       - 'experiments/tensor_packing/**'
       - 'src/**'
       - 'build.rs'
@@ -21,6 +25,7 @@ on:
       - 'scripts/kernel_protocol.py'
       - 'scripts/check_plain_c_baselines.py'
       - 'scripts/test_plain_c_measurements.py'
+      - '.github/actions/setup-elan/**'
       - 'scripts/install_ci_elan.py'
       - 'scripts/check_ci_python.sh'
       - '.github/workflows/tensor-packing-experiment.yml'
@@ -66,37 +71,23 @@ jobs:
           sparse-checkout: |
             /*
             !/experiments/source_workspace/results/*/evidence.zip
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.15.2'
-      - name: Validate Python without a loader override
-        run: bash scripts/check_ci_python.sh
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
-        with:
-          toolchain: 1.99.1
-      - name: Install checksum-pinned elan
-        run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
+      - uses: ./.github/actions/setup-python
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/setup-elan
       - name: Build the independent kernel
         run: lake -d lean-kernel build vastitas-kernel
-      - name: Build pinned sequential LP64 OpenBLAS
-        run: python3 scripts/build_openblas.py --prefix "$RUNNER_TEMP/tensor-openblas" --jobs 4 --target HASWELL
+      - uses: ./.github/actions/setup-openblas
       - name: Build frontend and check the harness
         run: |
           cargo build --release --locked
           python3 -m unittest discover -s scripts -p 'test_plain_c_measurements.py'
           python3 experiments/tensor_packing/test_harness.py
       - name: Validate generated, arena-C and plain-C output/cost contracts
-        run: |
-          case "$TENSOR_PROFILE" in
-            smoke) profile_args=(--smoke --samples 6 --target-ms 0.1) ;;
-            full) profile_args=(--samples 12 --target-ms 5) ;;
-            *) echo "Unsupported GEMM profile: $TENSOR_PROFILE" >&2; exit 2 ;;
-          esac
-          python3 experiments/tensor_packing/run.py \
-            --prefix "$RUNNER_TEMP/tensor-openblas" \
-            --output "$RUNNER_TEMP/tensor-packing-results" \
-            "${profile_args[@]}"
-          cat "$RUNNER_TEMP/tensor-packing-results/status.json"
+        uses: ./.github/actions/run-numerical-experiment
+        with:
+          harness: experiments/tensor_packing/run.py
+          profile: ${{ env.TENSOR_PROFILE }}
+          results: tensor-packing-results
       - name: Retain compact source, validation and measurement records
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

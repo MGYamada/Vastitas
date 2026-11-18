@@ -31,7 +31,7 @@ impl Scratch {
         self.write(
             &format!("{name}/Vastitas.toml"),
             &format!(
-                "[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}\n"
+                "[package]\nedition = \"2026\"\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}\n"
             ),
         );
         self.write(&format!("{name}/main.vast"), source);
@@ -81,6 +81,43 @@ impl Drop for Scratch {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);
     }
+}
+
+/// Port a binary64 fixture whose component values also have exact binary32
+/// encodings. Layout offsets, when present, are byte counts chosen by the caller.
+pub fn binary32_fixture(source: &str) -> String {
+    let mut source = source.replace("F64<", "F32<");
+    for (wide, narrow) in [
+        ("f64_bits(", "f32_bits("),
+        ("complex_bits(", "complex32_bits("),
+    ] {
+        let mut rest = source.as_str();
+        let mut translated = String::new();
+        while let Some((prefix, payload)) = rest.split_once(wide) {
+            let (components, after) = payload.split_once(')').unwrap();
+            let words = components
+                .split(',')
+                .map(|component| {
+                    let bits: u64 = component.trim().parse().unwrap();
+                    let value = f64::from_bits(bits) as f32;
+                    assert_eq!(
+                        f64::from(value).to_bits(),
+                        bits,
+                        "inexact fixture component"
+                    );
+                    value.to_bits().to_string()
+                })
+                .collect::<Vec<_>>();
+            translated.push_str(prefix);
+            translated.push_str(narrow);
+            translated.push_str(&words.join(", "));
+            translated.push(')');
+            rest = after;
+        }
+        translated.push_str(rest);
+        source = translated;
+    }
+    source
 }
 
 pub fn root() -> &'static Path {
@@ -176,6 +213,7 @@ pub fn openblas_prefix() -> String {
 pub fn native_cc_options(default_cc: Option<&str>) -> Vec<String> {
     let cc = std::env::var("VASTITAS_TEST_NATIVE_CC")
         .ok()
+        .filter(|cc| !cc.is_empty())
         .or_else(|| default_cc.map(str::to_owned));
     cc.map(|cc| vec!["--native-cc".to_owned(), cc])
         .unwrap_or_default()

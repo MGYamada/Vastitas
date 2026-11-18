@@ -30,9 +30,9 @@ resource fn run(m: Nat, k: Nat, n: Nat, pad: Nat) -> Unit {
     runtime_basis bu = basis(u); runtime_basis bv = basis(v); runtime_basis bw = basis(w);
     // ANCHOR_END: spaces
     // ANCHOR: maps
-    runtime_allocate data_a: F64[cap_a] runtime_layout(m, k, lda, false);
-    runtime_allocate data_b: F64[cap_b] runtime_layout(k, n, ldb, false);
-    runtime_allocate data_c: F64[cap_c] runtime_layout(m, n, ldc, false);
+    runtime_allocate data_a: F64<RR>[cap_a] runtime_layout(m, k, lda, false);
+    runtime_allocate data_b: F64<RR>[cap_b] runtime_layout(k, n, ldb, false);
+    runtime_allocate data_c: F64<RR>[cap_c] runtime_layout(m, n, ldc, false);
     runtime_borrow ia = write(data_a); runtime_fill(ia, f64_bits(4607182418800017408)); runtime_release(ia);
     runtime_borrow ib = write(data_b); runtime_fill(ib, f64_bits(4611686018427387904)); runtime_release(ib);
     runtime_borrow a = read(data_a); runtime_borrow b = read(data_b); runtime_borrow c = write(data_c);

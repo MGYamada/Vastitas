@@ -1,0 +1,646 @@
+# Derived release evidence index. Claim authority remains with docs/spec/.
+schema = 1
+release = "0.1.0"
+wire = 10
+baseline = "c875a6c7fdb56abf6738be9ad4bd870c45d45f12"
+
+[[issue]]
+number = 749
+title = "Compiler specification and feasibility"
+state = "open"
+depends = []
+remaining = "Exploratory macOS reduction/native fixtures passed; Linux qualification, production coverage and compiler children remain."
+
+[[issue]]
+number = 839
+title = "Public type vocabulary"
+state = "complete"
+depends = []
+remaining = "Normative names only; executable widths have separate owners."
+
+[[issue]]
+number = 462
+title = "Static fn families"
+state = "open"
+depends = []
+remaining = "The revision records every loaded manifest and source file, the selected family, key, contribution and Core symbol. A library or dependency-manifest edit invalidates replay even if the complete LLVM module stays identical. Closed Nat/Int arithmetic reaches complete LLVM bytes with the ordered canonical operator keys and sole protected methods checked. Boxed functions retain the operator sites for runtime arguments. A linked integer executable checks its direct calls and every operator site in the same revision. Swapping the operands of named mixed division selects the other ABI and invalidates the previous revision. A selected Bool method can pass through a function returning Fn. Two specializations then call that method and a lambda in the same native module. More general method bodies, argument types and module shapes remain."
+
+[[issue]]
+number = 455
+title = "Structured assemble"
+state = "open"
+depends = [462]
+remaining = "Lean reads the edit commands from the submitted entry bytes, compares the complete structured trace and original brace spans, and checks the selected method against the saved revision. The sealed forwarding library and an assembled Bool family reach complete LLVM bytes. The assembled family preserves the selected and nonselected bodies. A three-axis lookup and a nullary table feed a selected negation and disjunction. Changing the row invalidates the revision. One source revision reproduces the macOS arm64 and x86-64 Linux modules. Editing either method invalidates that revision on both targets. Explicitly sealing a dependency family retains its emitted siblings, including applied implementations from another package, even with no calls. An assembled integer entry retains both arithmetic methods and returns 42 through the selected addition. Substituting the other definition and Core symbol in the same family fails revision replay. The [cross-package corpus example](https://github.com/MGYamada/Vastitas/blob/main/llvm/src/borrowed-operator.ll) binds six physical inputs and all 2,051 bytes in Official and Fast stage certificates. The macOS arm64 executable and Lean control return 42. Broader downstream methods and module shapes remain."
+
+[[issue]]
+number = 762
+title = "Finite edition 2026"
+state = "open"
+depends = [462, 455]
+remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Further finite schemas, complex chart realizations and Affine wrappers remain."
+
+[[issue]]
+number = 533
+title = "Single wire epoch"
+state = "open"
+depends = [762]
+remaining = "Remaining accepted-Core correspondence and migration evidence."
+
+[[issue]]
+number = 756
+title = "Finite carriers and named instances"
+state = "open"
+depends = [462, 762]
+remaining = "Public finite carriers, total tables, composable-pair tables and named category instances are checked. Concrete Hom, total lookup and dependent composition run on the checked Lean backend. Category functions specialize over their model and endpoints. A named functor selects its source, target and both nominal tables for ordinary functions. Natural transformations and selected Monads supply checked component projections. More finite-indexed operations and whole-module correspondence remain."
+
+[[issue]]
+number = 199
+title = "Category and mathematical Monad"
+state = "open"
+depends = [756]
+remaining = "Checked categories satisfy identity and associativity. Checked functors preserve both endpoints, identities and composition for all composable pairs. The named transformations and selected Monad laws hold on the checked tables. The accepted Monad yields both Kleisli identities and associativity. Its derived extension triple recovers the same unit, multiplication and action on the checked table rows. Iso and Opposite remain."
+
+[[issue]]
+number = 206
+title = "Operational Kleisli"
+state = "open"
+depends = [199]
+remaining = "The optional monad::kleisli package exports both derived views and five ordinary functions. Each view selects a named std::category::Monad. The five canonical template specializations evaluate to the selected mathematical operations. The S3 executable distinguishes opposite argument orders. The public LLVM preview compiles the whole closure example. Its macOS arm64 executable returns 0. Selecting extend through the triple in a second entry produces 5,326 LLVM bytes and exit 42. The noncommuting S3 example returns 42 through the same path. An ordinary function may take a capture-free Fn returning a nominal Hom and call it to supply bind with an arrow. The two-arrow callback fixture has 2,434 checked LLVM bytes and distinguishes both producer results on macOS arm64. The direct bind(p, k) fixture has 2,456 checked LLVM bytes. The executable-pass theorem identifies the ordered producer calls in the returned Core, and the S3 test exercises both callable positions of compose. Linux qualification and release verification modes remain."
+
+[[issue]]
+number = 757
+title = "Exact complex model"
+state = "open"
+depends = []
+remaining = "The Oracle constructs the rational Cauchy quotient RR, pairs it to form CC, and embeds QQ(i) injectively. The Bridge identifies these carriers with real and complex numbers and proves the rational-coordinate operations. The selected exact ring, independent field evidence and public affine chart correspondence remain."
+
+[[issue]]
+number = 758
+title = "Fixed-order numerical references"
+state = "open"
+depends = []
+remaining = "Lean models binary32/64 rounding, special values, flags and fixed-order kernels. The real zero-divisor and empty-dot laws are proved. The C quotient and inverse adapters agree on 828 input tuples. Full kernel differentials, reference laws and public arithmetic integration remain."
+
+[[issue]]
+number = 318
+title = "Numerical execution"
+state = "open"
+depends = [758]
+remaining = "The NativeFast identity at both RR precisions executes with explicit resource points and Unavailable flags. The Lean reference proves raw and checked sequencing, lift, trace projection and the signed-zero guard. Public arithmetic calls with exact argument and return bits remain."
+
+[[issue]]
+number = 686
+title = "Numerical realizations"
+state = "open"
+depends = [757, 318, 762]
+remaining = "The canonical protected realize, interpret, point and run operations execute a declared real affine identity on its own standard chart into checked `F32<RR>` or `F64<RR>` storage. The point proof identifies the allocation and its exact representation. Complex chart subjects, further numerical graphs, full profile selection and the four Affine wrappers remain."
+
+[[issue]]
+number = 689
+title = "Tensor aliases"
+state = "open"
+depends = []
+remaining = "Four public source-to-GEMM paths preserve the allocation precision through calls and execute via Lean/C. The storage adapter exercises 16 orientations per representation. Rank-one tensor columns share coordinates with vector views, and matrix-column contraction checks both the dual and surviving bases. The exact finite-free tensor aliases, LinearMap interpretation and checked LLVM lowering remain."
+
+[[issue]]
+number = 750
+title = "Phase-indexed MidIR"
+state = "open"
+depends = []
+remaining = "The inventory tracks 588 constructor entries, all awaiting a release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. Full accepted-module coverage and ordered resource effects remain."
+
+[[issue]]
+number = 751
+title = "Closed opcode registry"
+state = "open"
+depends = [750]
+remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Comparisons, resources and numerical opcodes still need their full profile."
+
+[[issue]]
+number = 752
+title = "Translation validation"
+state = "open"
+depends = [751]
+remaining = "Unary lookup, binary nominal lookup and S3 composition, a forwarding caller, literal and folded Int entries, and an assembled Boolean family have complete LLVM-byte correspondence. For a folded entry the proof ties the full integer, ordered canonical operator keys and current revision to both MidIR phases. The Opt-to-Exec theorem covers linked calls at every depth. For a single boxed integer library both phases and the parsed calls give the same return observation under the runtime contract. General module witnesses, effects and cleanup remain."
+
+[[issue]]
+number = 282
+title = "Fast and Official modes"
+state = "open"
+depends = [752]
+remaining = "Official replay of 32 named modules proves the concrete public emission of the signed literal fixture, including source identity, revision, returned Core, both MidIR observations, all 374 LLVM bytes and exit 255. An offline nanoda run checked the revision-bound signed-literal theorem with 29,374 declarations against an independently provisioned reference. The [qualification](https://github.com/MGYamada/Vastitas/tree/main/experiments/compiler_validation/official_exit) records its verifier and resource limits. A live boxed-program stage certificate binds the current revision, decoded physical files, graph, integer and every LLVM byte in Official and Fast. Public CLI modes, per-build source admission and coverage of additional artifacts remain."
+
+[[issue]]
+number = 763
+title = "Finite constitutional proofs"
+state = "open"
+depends = [752, 199]
+remaining = "Actual CS_fin, MS_fin, noncommuting CF_fin and module proof."
+
+[[issue]]
+number = 753
+title = "LLVM emission and native backend"
+state = "open"
+depends = [752]
+remaining = "The public LLVM preview emits complete bytes for unary lookup, its forwarding caller, signed literal and folded arithmetic entries, and a Bool caller with both predecessor edges of a phi. LLVM 23.1.4 on macOS arm64 also executed the closure Monad unit and binary lookup on S3, including reversed source operands. The compiler linked and installed three entry executables, which returned 255, 10 and 42. Closed finite packages emit direct calls, guarded row-major lookups with up to six axes, nullary lookups and phi nodes. The structured lookup retains both Boolean methods in 2,623 bytes for macOS arm64 and 2,647 bytes for x86-64 Linux. Both files have the same function model. On macOS, LLVM 23.1.4 emitted an ELF64 relocatable object from the Linux bytes. Straight-line boxed Nat/Int libraries call the versioned shim and release intermediate values. Broader CFGs, resource runtimes, Linux qualification and production verification modes remain."
+
+[[issue]]
+number = 779
+title = "Documentation retirement"
+state = "complete"
+depends = []
+remaining = "The [documentation retirement audit](development/documentation.md#documentation-retirement-audit) retained the compiler-IR source, proof pins and unique package, fixture and experiment provenance. It found no independently obsolete Markdown to delete."
+
+[[issue]]
+number = 755
+title = "Finite evidence matrix"
+state = "open"
+depends = [533, 206, 686, 689, 282, 763, 753, 779, 839]
+remaining = "Complete every mandatory row using actual bound artifacts and reviewed claims."
+
+[[issue]]
+number = 417
+title = "Compiler release gate"
+state = "open"
+depends = [749, 755]
+remaining = "Conjunction of the finite feature, proof, emission, native and distribution requirements."
+
+[[row]]
+id = "functions"
+title = "Static functions and edit authority"
+issues = [462, 455]
+requirement = "One static family identity covers operators, ordinary calls, selected and nonselected methods, owned contributions and structured assembly."
+
+[row.dimension.source]
+state = "partial"
+claims = ["compiler-ir.families@family", "compiler-ir.families@public-syntax"]
+note = "Public fn declarations, inferred domains and static family calls are exercised. Independent revision replay covers the selected contribution and Core symbol."
+document = ""
+
+[row.dimension.core]
+state = "partial"
+claims = ["compiler-ir.families@assembly", "compiler-ir.families@public-syntax", "compiler-ir.families@revision-replay"]
+note = "Structured borrow, apply, return and seal lower to the checked edit trace. The checked revision binds the trace and selected method."
+document = ""
+
+[row.dimension.midir]
+state = "partial"
+claims = ["compiler-ir.midir@representation", "compiler-ir.midir@pure-cfg", "compiler-ir.midir@direct-call"]
+note = "Typed pure modules check direct calls by owner, symbol, concrete target arguments and nominal ABI. A retained caller keeps the emitted siblings of its static references. Unit and Bool have different MidIR types. General method and resource lowering remain."
+document = ""
+
+[row.dimension.llvm]
+state = "partial"
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.llvm-bytes@static-call", "compiler-ir.llvm-bytes@assembled-bool"]
+note = "The forwarding library and the assembled Bool executable both have a checked direct call. The [static selection corpus](https://github.com/MGYamada/Vastitas/blob/main/llvm/docs/README.md) keeps the 1,448 bytes of an executable with two specializations of invoke. Its revision distinguishes their same-ABI targets. More general module shapes remain."
+document = ""
+
+[row.dimension.official]
+state = "partial"
+claims = ["compiler-ir.stage-validation@soundness", "compiler-ir.stage-validation@pure-cfg", "compiler-ir.llvm-bytes@static-call", "compiler-ir.llvm-bytes@assembled-bool", "compiler-ir.families@static-retention"]
+note = "Opt-to-Exec preserves linked invocation at every depth in the pure fragment. The returned Core agrees with both phases and the parsed LLVM module for direct forwarding and the assembled Bool call. Both Boolean inputs are covered for each retained method. A retained static use has its expected Fn signature and retains every emitted sibling of its target. General module witnesses, resource calls and cleanup remain."
+document = ""
+
+[row.dimension.fast]
+state = "planned"
+claims = ["compiler-ir.verification-modes@modes"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.native]
+state = "partial"
+claims = ["compiler-ir.backend@native"]
+note = "In the [macOS arm64 run](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/results/macos-arm64/assembled-bool.json), the assembled Bool module compiled from 688 checked bytes to a 912-byte object and exited with 42. For the [static selection fixture](https://github.com/MGYamada/Vastitas/blob/main/llvm/fixtures/StaticSelection.vast), the public LLVM preview build returned an executable that exited with 42. Changing the selected body to false gave exit 7. General functions and Linux qualification remain."
+document = ""
+
+[row.dimension.performance]
+state = "planned"
+claims = ["compiler-ir.performance@measurement"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.vocabulary]
+state = "not-claimed"
+claims = []
+note = "The naming-only requirement has a separate row."
+document = ""
+
+[[row]]
+id = "category"
+title = "Finite categories and Kleisli"
+issues = [756, 199, 206]
+requirement = "Finite carriers and tables provide Category, Functor, NatTrans, Iso, Opposite and a selected Monad. S3 and the closure Monad exercise the public compilation path."
+
+[row.dimension.source]
+state = "partial"
+claims = ["compiler-ir.finite-models@source-core", "compiler-ir.finite-models@category-check", "compiler-ir.finite-models@functor-source", "compiler-ir.finite-models@transformation-monad-source", "compiler-ir.finite-binders@category-functions", "compiler-ir.finite-binders@monad-functions"]
+note = "Public S3 and two-object category instances pass, and bad sparse composition and forged schemas fail. Concrete Hom calls and dependent composition execute. The same category-indexed fn handles noncommuting S3 and a two-object category. The public closure endofunctor on the chain executes both table projections. The nonidentity closure Monad executes its unit and multiplication. S3 tests the order of naturality, and two distinct Monads share an endofunctor in a second example. Ordinary functions take a Monad or one of its two derived views and static object arguments for unit, extend, bind, compose and lift."
+document = ""
+
+[row.dimension.core]
+state = "partial"
+claims = ["compiler-ir.finite-binders@admission", "compiler-ir.finite-binders@concrete-lookup", "compiler-ir.finite-binders@category-functions", "compiler-ir.finite-binders@monad-functions"]
+note = "Core substitutions retain the selected model and endpoints for category-indexed functions. The resolved functor declaration names both categories and both tables. The Monad declaration preserves the category, endofunctor and both transformation identities. Each specialized operation records the selected Monad and the category of its object arguments."
+document = ""
+
+[row.dimension.midir]
+state = "partial"
+claims = ["compiler-ir.midir@representation", "compiler-ir.midir@finite-lookup"]
+note = "The finite op carries the full ordered argument sorts and the category of a composition. The operation semantics agree with Core at any arity. Package linkage retains both MidIR phases with the same function revision, all concrete root bodies and their callees. The closure entry observations agree on the full mathematical integer. Broader category coverage remains."
+document = ""
+
+[row.dimension.llvm]
+state = "partial"
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.llvm-bytes@switch-regression", "compiler-ir.llvm-bytes@binary-function", "compiler-ir.llvm-bytes@binary-source", "compiler-ir.llvm-bytes@finite-entry", "compiler-ir.llvm-bytes@finite-package-source"]
+note = "Unary component lookup and binary category composition lower through both MidIR phases to complete canonical LLVM bytes. Both parameter orders and foreign bounds are proved. The S3 LLVM qualification checks 36 products and 45 misses per order. The closure application links its four selected specializations. Both views preserve its original 4,463 bytes. A second entry specializes extend on the triple. Its 5,326 bytes retain the arrow map followed by base composition with the selected multiplication. Libraries with multiple public exports and general backend coverage remain."
+document = ""
+
+[row.dimension.official]
+state = "partial"
+claims = ["compiler-ir.finite-models@laws", "compiler-ir.finite-models@category-equations", "compiler-ir.finite-models@functor-equations", "compiler-ir.finite-models@transformation-monad-equations", "compiler-ir.finite-models@kleisli-equations", "compiler-ir.finite-binders@typed-substitution", "compiler-ir.llvm-bytes@unary-function", "compiler-ir.llvm-bytes@finite-entry"]
+note = "On the accepted declaration environment the Oracle proves table lookup, category laws and the endpoint, identity and composition diagrams of the selected functor. The selected component endpoints, naturality and Monad diagrams also have checked equations. The selected finite Monad supplies both Kleisli identities and associativity, and its bind reads the exact selected rows. Each admitted view recovers the same revision, Monad structure, Kleisli laws and table rows. Canonical specializations of all five operational templates evaluate to the selected mathematical operations. The finite entry theorem relates the integer from the original Core to both MidIR evaluations and the exit from the parsed bytes. Per-compilation Official replay for the full package, Iso and Opposite remain."
+document = ""
+
+[row.dimension.fast]
+state = "planned"
+claims = ["compiler-ir.verification-modes@modes"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.native]
+state = "partial"
+claims = ["compiler-ir.finite-models@execution", "compiler-ir.finite-models@kleisli-run"]
+note = "The checked Lean/C path executes the four public operations on the closure Monad. Two structures on the same endofunctor exercise distinct unit, bind and extend results. The LLVM preview builds the closure executable on macOS arm64 and the noncommuting S3 executable returns 42. The triple extension variant returns 42 with Lean/C, the public LLVM build and the independent llvm-sys object/link path. The [host report](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/results/macos-arm64/finite-kleisli.json) records the selected indices, Core and MidIR observations, native status and adversarial byte checks. Release-mode and Linux conformance remain."
+document = ""
+
+[row.dimension.performance]
+state = "planned"
+claims = ["compiler-ir.performance@measurement"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.vocabulary]
+state = "not-claimed"
+claims = []
+note = "The naming-only requirement has a separate row."
+document = ""
+
+[[row]]
+id = "tensor"
+title = "Tensor values and maps"
+issues = [689]
+requirement = "Rank 1/2/3 tensor values retain nominal bases and dual roles. A Matrix tensor and a LinearMap require distinct interpretations; GEMM covers all four representations."
+
+[row.dimension.source]
+state = "partial"
+claims = ["compiler-ir.edition@admission", "compiler-ir.tensor@public-views"]
+note = "The public checker accepts rank-one columns and four matrix representations. Cross-domain views, mixed-precision products and wrong contraction endpoints fail. Exact tensor aliases remain pending."
+document = ""
+
+[row.dimension.core]
+state = "partial"
+claims = ["compiler-ir.tensor@semantics", "compiler-ir.tensor@public-views"]
+note = "The resource checker validates the ordered bases, grouping and physical scalar. The finite-free alias and LinearMap interpretation remain pending."
+document = ""
+
+[row.dimension.midir]
+state = "planned"
+claims = ["compiler-ir.midir@representation"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.llvm]
+state = "planned"
+claims = ["compiler-ir.llvm-bytes@bytes"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.official]
+state = "partial"
+claims = ["compiler-ir.stage-validation@soundness", "compiler-ir.tensor@coordinate-storage"]
+note = "The oracle proves rank-one vector-coordinate agreement and exact scalar agreement of the three maps in an accepted product. Whole-module translation validation remains pending."
+document = ""
+
+[row.dimension.fast]
+state = "planned"
+claims = ["compiler-ir.verification-modes@modes"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.native]
+state = "partial"
+claims = ["compiler-ir.tensor@native", "compiler-ir.tensor@storage-native"]
+note = "Four representations execute through public Lean/C map calls, runtime shapes and tensor products using pinned OpenBLAS. Numerical LLVM execution remains pending."
+document = ""
+
+[row.dimension.performance]
+state = "planned"
+claims = ["compiler-ir.performance@measurement"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.vocabulary]
+state = "not-claimed"
+claims = []
+note = "The naming-only requirement has a separate row."
+document = ""
+
+[[row]]
+id = "numerical"
+title = "Four numerical realizations"
+issues = [757, 758, 318, 686]
+requirement = "F32 and F64 representations of RR and CC use explicit chart and profile identities. NativeFast preserves exact adapter calls and reports flags as unavailable."
+
+[row.dimension.source]
+state = "partial"
+claims = ["compiler-ir.realization@source", "compiler-ir.realization@identity-source"]
+note = "The protected float module admits realize, interpret, point and run for an existing smooth affine identity at either real precision and its own standard chart. Broader graphs, representations and wrappers remain."
+document = ""
+
+[row.dimension.core]
+state = "partial"
+claims = ["compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@identity-source"]
+note = "The checked real identity records its subject, chart, graph and NativeFast profile. Its physical copy passes the storage checker. All four representations have physical storage. Complex chart-bound realization remains open."
+document = ""
+
+[row.dimension.midir]
+state = "planned"
+claims = ["compiler-ir.midir@representation"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.llvm]
+state = "planned"
+claims = ["compiler-ir.llvm-bytes@bytes"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.official]
+state = "partial"
+claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation"]
+note = "An accepted public run gives its lexical site, source identity declaration, exact Core morphism and checked storage copy. The binary reference proves the signed-zero divisor and unit-beta empty-dot cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. General operation and compiler refinement remain."
+document = ""
+
+[row.dimension.fast]
+state = "planned"
+claims = ["compiler-ir.verification-modes@modes"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.native]
+state = "partial"
+claims = ["compiler-ir.native-fast@profile", "compiler-ir.native-fast@identity-run"]
+note = "The public Lean-backed build runs the identity at both real precisions with Unavailable flags. Separately 828 direct C adapter cases cover real/complex division and complex inverse at both widths. Public arithmetic, four representation paths and LLVM native conformance remain."
+document = ""
+
+[row.dimension.performance]
+state = "planned"
+claims = ["compiler-ir.performance@measurement"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.vocabulary]
+state = "not-claimed"
+claims = []
+note = "The naming-only requirement has a separate row."
+document = ""
+
+[[row]]
+id = "scalar-indexed"
+title = "Exact scalars and indexed primitives"
+issues = [749, 750, 751]
+requirement = "Nat and Int retain arbitrary precision and totalized division. Bool, Unit, Pair and admitted indexed primitives keep the existing mathematical definitions and a qualified foreign runtime."
+
+[row.dimension.source]
+state = "partial"
+claims = ["compiler-ir.operators@binding", "compiler-ir.operators@exact-integers"]
+note = "Canonical Nat/Int calls and operators are exercised. Represented arithmetic remains pending."
+document = ""
+
+[row.dimension.core]
+state = "partial"
+claims = ["compiler-ir.coverage@ledger", "compiler-ir.coverage@inventory"]
+note = "The source-schema inventory checks 588 entries and their payloads. All dispositions are pending. Full scalar and indexed Core-to-MidIR coverage remains."
+document = ""
+
+[row.dimension.midir]
+state = "partial"
+claims = ["compiler-ir.registry@opcodes", "compiler-ir.registry@int-literal", "compiler-ir.registry@exact-arithmetic"]
+note = "Both phases preserve unbounded arithmetic and the two mixed division signatures. The Oracle checks the operations against Core for all correctly typed operands. General scalar comparisons and indexed primitives remain."
+document = ""
+
+[row.dimension.llvm]
+state = "partial"
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.llvm-bytes@entry-status", "compiler-ir.llvm-bytes@folded-entry", "compiler-ir.llvm-bytes@entry-regression", "compiler-ir.llvm-bytes@boxed-library", "compiler-ir.llvm-bytes@boxed-program", "compiler-ir.llvm-bytes@boxed-regression"]
+note = "Closed integer literals and exact expressions reach complete target-specific bytes. The fold checks canonical methods, saturating Nat subtraction and the operand order of mixed division. The boxed library also emits runtime calls with typed SSA arguments and a checked ownership schedule. Linked, straight-line integer programs preserve their direct calls, complete integer entry value and owned return through the hosted status projection. General branches over boxed integers and indexed primitives remain."
+document = ""
+
+[row.dimension.official]
+state = "partial"
+claims = ["compiler-ir.stage-validation@soundness", "compiler-ir.llvm-bytes@entry-status", "compiler-ir.llvm-bytes@folded-entry", "compiler-ir.verification-modes@boxed-stage"]
+note = "For a closed exact entry a general Oracle theorem connects the unbounded Core and MidIR value, canonical operator sites, current revision and parsed bytes. The signed literal fixture also has a concrete Official replay of its full public emission. The standalone verifier also checks the live boxed program’s concrete model and bytes on its current revision. General per-build admission remains."
+document = ""
+
+[row.dimension.fast]
+state = "partial"
+claims = ["compiler-ir.verification-modes@modes"]
+note = "The offline signed-integer fixture bound the public revision, both MidIR observations and all 374 emitted bytes. For a live boxed program nanoda checks a complete input-derived declaration environment and a proof of its specific obligation. General per-build source admission and public modes remain. [Qualified fixture](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/official_exit/results/macos-arm64-fast-artifact.json)"
+document = ""
+
+[row.dimension.native]
+state = "partial"
+claims = ["compiler-ir.runtime@linkage", "compiler-ir.backend@native"]
+note = "On macOS arm64 the feature-enabled LLVM preview linked the literal main and a closed mixed Nat/Int division and addition. They returned 255 and 10. Each experiment compared all 374 bytes, the separate object, the installed executable and the Lean/C result. On macOS arm64 the libLLVM adapter emitted 15 checked boxed libraries. Their 121 native calls matched the generated Lean/C controls and independent integer expectations. The public LLVM build linked calls across four boxed integer functions and returned 84, 0 and 254 for three divisors. Linux qualification and release packaging remain."
+document = ""
+
+[row.dimension.performance]
+state = "planned"
+claims = ["compiler-ir.performance@measurement"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.vocabulary]
+state = "not-claimed"
+claims = []
+note = "The naming-only requirement has a separate row."
+document = ""
+
+[[row]]
+id = "resources"
+title = "Storage and selected reverse observations"
+issues = [752, 763]
+requirement = "Accepted storage plans preserve initialization, aliases, loans, cleanup and failures. Transformations preserve the selected primal and pullback observations."
+
+[row.dimension.source]
+state = "planned"
+claims = ["compiler-ir.edition@admission"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.core]
+state = "planned"
+claims = ["compiler-ir.storage@refinement"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.midir]
+state = "planned"
+claims = ["compiler-ir.midir@representation"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.llvm]
+state = "planned"
+claims = ["compiler-ir.llvm-bytes@bytes"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.official]
+state = "planned"
+claims = ["compiler-ir.constitution@finite-proofs"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.fast]
+state = "planned"
+claims = ["compiler-ir.verification-modes@modes"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.native]
+state = "planned"
+claims = ["compiler-ir.backend@native"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.performance]
+state = "planned"
+claims = ["compiler-ir.performance@measurement"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.vocabulary]
+state = "not-claimed"
+claims = []
+note = "The naming-only requirement has a separate row."
+document = ""
+
+[[row]]
+id = "edition-verification"
+title = "Edition, wire and compiler verification"
+issues = [762, 533, 282, 753, 755, 417, 779]
+requirement = "Packages and normalized flat input use edition 2026 and wire epoch 10. Fast and Official check the full LLVM byte obligations; native execution remains a separate host boundary."
+
+[row.dimension.source]
+state = "partial"
+claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@identity-source"]
+note = "Manifest editions, finite category functions and chart-bound real identity calls at both precisions have public and tampered-wire tests. The remaining edition schemas, representations and realization wrappers remain."
+document = ""
+
+[row.dimension.core]
+state = "partial"
+claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@correspondence", "compiler-ir.edition@finite-tables"]
+note = "Lean independently checks package editions and finite tables. This does not establish source/Core correspondence for the entire edition."
+document = ""
+
+[row.dimension.midir]
+state = "planned"
+claims = ["compiler-ir.midir@representation"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.llvm]
+state = "partial"
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.check-build@preview"]
+note = "Public check --llvm-preview emits all bytes for three modeled module shapes and rejects unhandled Core and stale revisions. Its receipt identifies the compiled Lean checker. Per-artifact proof checking and complete finite-profile coverage remain."
+document = ""
+
+[row.dimension.official]
+state = "planned"
+claims = ["compiler-ir.composition@theorem"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.fast]
+state = "partial"
+claims = ["compiler-ir.proof-binding@authentication"]
+note = "The offline signed-literal qualification compared the full candidate with a separately produced reference and checked the standard axioms and complete declaration closure. The public compiler still requires mode selection and per-build authority binding. [Qualified fixture](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/official_exit/results/macos-arm64-fast-artifact.json)"
+document = ""
+
+[row.dimension.native]
+state = "planned"
+claims = ["compiler-ir.distribution@packaging"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.performance]
+state = "planned"
+claims = ["compiler-ir.performance@measurement"]
+note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+document = ""
+
+[row.dimension.vocabulary]
+state = "not-claimed"
+claims = []
+note = "The naming-only requirement has a separate row."
+document = ""
+
+[[row]]
+id = "type-names"
+title = "Names-only integer vocabulary"
+issues = [839]
+requirement = "Uppercase public type names and all twelve bounded integer spellings are frozen. Nat, Int, literal defaults and explicit conversion retain their meanings. This row admits no bounded-width executable type."
+
+[row.dimension.source]
+state = "not-claimed"
+claims = []
+note = "This names-only row grants no executable support."
+document = ""
+
+[row.dimension.core]
+state = "not-claimed"
+claims = []
+note = "This names-only row grants no executable support."
+document = ""
+
+[row.dimension.midir]
+state = "not-claimed"
+claims = []
+note = "This names-only row grants no executable support."
+document = ""
+
+[row.dimension.llvm]
+state = "not-claimed"
+claims = []
+note = "This names-only row grants no executable support."
+document = ""
+
+[row.dimension.official]
+state = "not-claimed"
+claims = []
+note = "This names-only row grants no executable support."
+document = ""
+
+[row.dimension.fast]
+state = "not-claimed"
+claims = []
+note = "This names-only row grants no executable support."
+document = ""
+
+[row.dimension.native]
+state = "not-claimed"
+claims = []
+note = "This names-only row grants no executable support."
+document = ""
+
+[row.dimension.performance]
+state = "not-claimed"
+claims = []
+note = "This names-only row grants no executable support."
+document = ""
+
+[row.dimension.vocabulary]
+state = "complete"
+claims = []
+note = "The normative names are documented; unsupported widths remain rejected."
+document = "docs/language/types.md#public-type-names"

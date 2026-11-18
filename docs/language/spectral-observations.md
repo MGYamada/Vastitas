@@ -746,8 +746,8 @@ identities are exact identities of polynomials. The average is a
 declaration, and the [average observation](#average-observations) reads it
 at a point.
 
-`ratio(N, D)` writes the quotient in the style of `frac(n, d)`, since the
-language has no division: `/` is an error here too
+`ratio(N, D)` writes the quotient in the style of `frac(n, d)`, since this
+declaration requires two polynomials: `/` is an error here
 ([Punctuation](lexical-structure.md#punctuation)).
 
 Rules:

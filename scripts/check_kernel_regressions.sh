@@ -5,6 +5,8 @@ set -euo pipefail
 # the wire regressions exercise Main's route, ResourceSource.Wire.
 cd "$(dirname "$0")/.."
 lake -d lean-kernel build \
+  VastitasKernel.MidIR.Regression \
+  VastitasKernel.LLVM.Regression \
   VastitasKernel.TypeAuditRegression \
   VastitasKernel.DispatchRegression \
   VastitasKernel.NamespaceRegression \

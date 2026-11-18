@@ -6,34 +6,57 @@ preserved core. -/
 namespace VastitasKernel.Surface
 
 mutual
-  inductive TypeExpr where
-    | data (ty : RawType)
-    | function (params : TypeList) (result : TypeExpr)
+  inductive TypeExpr (α : Type := RawType) where
+    | data (ty : α)
+    | function (params : TypeList α) (result : TypeExpr α)
     deriving Repr, DecidableEq, Inhabited
-  inductive TypeList where
+  inductive TypeList (α : Type := RawType) where
     | nil
-    | cons (head : TypeExpr) (tail : TypeList)
+    | cons (head : TypeExpr α) (tail : TypeList α)
     deriving Repr, DecidableEq, Inhabited
 end
 
-def TypeList.toList : TypeList → List TypeExpr
+def TypeList.toList {α : Type} : TypeList α → List (TypeExpr α)
   | .nil => []
   | .cons head tail => head :: tail.toList
 
-instance : Coe (List TypeExpr) TypeList := ⟨fun types => types.foldr TypeList.cons .nil⟩
+instance {α : Type} : Coe (List (TypeExpr α)) (TypeList α) := ⟨fun types => types.foldr TypeList.cons .nil⟩
 
-def TypeExpr.labelAt : Nat → TypeExpr → String
+mutual
+  def TypeExpr.allData {α : Type} (test : α → Bool) : TypeExpr α → Bool
+    | .data x => test x
+    | .function params result => params.allData test && result.allData test
+  def TypeList.allData {α : Type} (test : α → Bool) : TypeList α → Bool
+    | .nil => true
+    | .cons head tail => head.allData test && tail.allData test
+end
+
+mutual
+  def TypeExpr.mapDataM {α β : Type} {m : Type → Type} [Monad m] (f : α → m β) :
+      TypeExpr α → m (TypeExpr β)
+    | .data x => return .data (← f x)
+    | .function params result => return .function (← params.mapDataM f) (← result.mapDataM f)
+  def TypeList.mapDataM {α β : Type} {m : Type → Type} [Monad m] (f : α → m β) :
+      TypeList α → m (TypeList β)
+    | .nil => pure .nil
+    | .cons head tail => return .cons (← head.mapDataM f) (← tail.mapDataM f)
+end
+
+def TypeExpr.formatAt {α : Type} (leaf : α → String) : Nat → TypeExpr α → String
   | 0, _ => "…"
-  | _ + 1, .data (.named name) => name
-  | _ + 1, .data (.pair element) => s!"Pair<{element}>"
-  | _ + 1, .data (.point ..) => "Point"
-  | _ + 1, .data (.morphism ..) => "Morphism"
-  | _ + 1, .data (.pointed ..) => "Pointed"
+  | _ + 1, .data ty => leaf ty
   | fuel + 1, .function params result =>
     "Fn<" ++ (match params.toList with
-      | [param] => labelAt fuel param
-      | _ => "(" ++ String.intercalate ", " (params.toList.map (labelAt fuel)) ++ ")") ++
-      ", " ++ labelAt fuel result ++ ">"
+      | [param] => formatAt leaf fuel param
+      | _ => "(" ++ String.intercalate ", " (params.toList.map (formatAt leaf fuel)) ++ ")") ++
+      ", " ++ formatAt leaf fuel result ++ ">"
+
+def TypeExpr.labelAt := formatAt (α := RawType) fun
+  | .named name => name
+  | .pair element => s!"Pair<{element}>"
+  | .point .. => "Point"
+  | .morphism .. => "Morphism"
+  | .pointed .. => "Pointed"
 
 def TypeExpr.label (ty : TypeExpr) : String := ty.labelAt Limits.typeNesting
 
@@ -49,7 +72,7 @@ mutual
     | .cons head tail => head.callableData && tail.callableData
 end
 
-def TypeExpr.withinDepth : Nat → TypeExpr → Bool
+def TypeExpr.withinDepth {α : Type} : Nat → TypeExpr α → Bool
   | 0, _ => false
   | _ + 1, .data _ => true
   | fuel + 1, .function params result =>
@@ -59,7 +82,7 @@ def TypeExpr.core : TypeExpr → RawType
   | .data ty => ty
   | .function .. => .named "Unit"
 
-def TypeExpr.isFunction : TypeExpr → Bool
+def TypeExpr.isFunction {α : Type} : TypeExpr α → Bool
   | .function .. => true
   | _ => false
 

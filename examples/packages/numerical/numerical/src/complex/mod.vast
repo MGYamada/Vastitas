@@ -5,9 +5,9 @@ pub resource fn product() -> Unit {
     basis bu = basis(u);
     basis bv = basis(v);
     basis bw = basis(w);
-    allocate a: Complex<F64>[6];
-    allocate b: Complex<F64>[6];
-    allocate c: Complex<F64>[4];
+    allocate a: F64<CC>[6];
+    allocate b: F64<CC>[6];
+    allocate c: F64<CC>[4];
     borrow init_a = write(a, layout(0, 2, 3, 2, false));
     store(init_a, 0, 0, complex_bits(4607182418800017408, 0));
     store(init_a, 0, 1, complex_bits(0, 4607182418800017408));

@@ -46,7 +46,7 @@ suggests.
 
 An abstract type selects methods. It has no values, and it converts nothing:
 in the body of a method for `Numeric`, an argument is still a `Nat` or an
-`Int`. A function cannot take a parameter of an abstract type:
+`Int`. A local binding cannot use the selector as its value type:
 
 ```vast
 {{#include ../../examples/reject/abstract-types/value-type.vast}}
@@ -91,8 +91,8 @@ makes such a promise for `Numeric`:
 {{#include ../../examples/book/abstract/abstract-contracts.vast}}
 ```
 
-`domain;` gives `widen` an empty domain of its own. The `abstract method`
-declaration has no body: its braces hold a domain. A key of that domain may
+`domain();` gives `widen` an empty domain of its own. The typed `fn`
+contract ends in a semicolon and supplies its own domain. A key of that domain may
 name a selector, and it then stands for every key of scalar types that the
 selector accepts. `(Numeric)` stands for `(Nat)` and `(Int)`.
 

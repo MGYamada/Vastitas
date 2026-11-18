@@ -2,66 +2,60 @@
 // Include int.vast and nat.vast explicitly with --lib as well.
 
 // Closed four-key promotion. These bodies own the only conversion policy.
-generic promote(left, right) {
-    domain (Nat, Nat), (Nat, Int), (Int, Nat), (Int, Int);
-}
+fn promote(left, right) domain((Nat, Nat), (Nat, Int), (Int, Nat), (Int, Int));
 
-method promote(left: Nat, right: Nat) -> Pair<Nat> {
+fn promote(left: Nat, right: Nat) -> Pair<Nat> {
     pair(left, right)
 }
 
-method promote(left: Nat, right: Int) -> Pair<Int> {
+fn promote(left: Nat, right: Int) -> Pair<Int> {
     pair(int(left), right)
 }
 
-method promote(left: Int, right: Nat) -> Pair<Int> {
+fn promote(left: Int, right: Nat) -> Pair<Int> {
     pair(left, int(right))
 }
 
-method promote(left: Int, right: Int) -> Pair<Int> {
+fn promote(left: Int, right: Int) -> Pair<Int> {
     pair(left, right)
 }
 
-generic add(left, right) {
-    domain (Int, Int), (Nat, Nat), (Nat, Int), (Int, Nat);
-}
+fn add(left, right) domain((Int, Int), (Nat, Nat), (Nat, Int), (Int, Nat));
 
-method add(left: Int, right: Int) -> Int {
+fn add(left: Int, right: Int) -> Int {
     int_add(left, right)
 }
 
-method add(left: Nat, right: Nat) -> Nat {
+fn add(left: Nat, right: Nat) -> Nat {
     nat_add(left, right)
 }
 
-method add(left: Nat, right: Int) -> Int {
+fn add(left: Nat, right: Int) -> Int {
     let p = promote(left, right);
-    add(pair_first(p), pair_second(p))
+    self::add(pair_first(p), pair_second(p))
 }
 
-method add(left: Int, right: Nat) -> Int {
+fn add(left: Int, right: Nat) -> Int {
     let p = promote(left, right);
-    add(pair_first(p), pair_second(p))
+    self::add(pair_first(p), pair_second(p))
 }
 
-generic maximum(left, right) {
-    domain (Int, Int), (Nat, Nat), (Nat, Int), (Int, Nat);
-}
+fn maximum(left, right) domain((Int, Int), (Nat, Nat), (Nat, Int), (Int, Nat));
 
-method maximum(left: Int, right: Int) -> Int requires (HasOrder) {
+fn maximum(left: Int, right: Int) -> Int requires (HasOrder) {
     int_max(left, right)
 }
 
-method maximum(left: Nat, right: Nat) -> Nat requires (HasOrder) {
+fn maximum(left: Nat, right: Nat) -> Nat requires (HasOrder) {
     nat_max(left, right)
 }
 
-method maximum(left: Nat, right: Int) -> Int requires (HasOrder) {
+fn maximum(left: Nat, right: Int) -> Int requires (HasOrder) {
     let p = promote(left, right);
     maximum(pair_first(p), pair_second(p))
 }
 
-method maximum(left: Int, right: Nat) -> Int requires (HasOrder) {
+fn maximum(left: Int, right: Nat) -> Int requires (HasOrder) {
     let p = promote(left, right);
     maximum(pair_first(p), pair_second(p))
 }

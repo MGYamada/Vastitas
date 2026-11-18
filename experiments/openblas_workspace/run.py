@@ -86,7 +86,7 @@ def main():
                not {'results','__pycache__'}.intersection(p.relative_to(HERE).parts)]
     sources += [ROOT/p for p in ('scripts/build_openblas.py', 'lean-kernel/native/storage.c',
         'lean-kernel/native/storage.h', 'lean-kernel/native/diagonal.c', 'lean-kernel/native/diagonal.h',
-        'lean-kernel/numerical/gemm.c', 'lean-kernel/numerical/gemm.h')]
+        'lean-kernel/numerical/gemm.c', 'lean-kernel/numerical/gemm.h', 'lean-kernel/numerical/gemm_kernels.inc')]
     inputs = {}
     for path in sorted(sources):
         relative = path.relative_to(ROOT).as_posix()

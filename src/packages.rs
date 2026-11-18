@@ -4,12 +4,15 @@ use crate::frontend;
 use crate::ir::{PROTOCOL, Span};
 use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
 use crate::namespace::Module;
-use crate::sources::{OutputIdentity, Sources, shown, shown_text};
+use crate::sources::{OutputIdentity, RootSource, Sources, shown, shown_text};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::OsString;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+
+/// The sole admitted source edition, including synthesized flat packages.
+const EDITION: &str = "2026";
 
 #[derive(Debug, Serialize)]
 struct Dependency {
@@ -22,6 +25,7 @@ struct Package {
     source: String,
     name: String,
     version: String,
+    edition: String,
     dependencies: Vec<Dependency>,
     modules: Vec<Module>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -35,6 +39,7 @@ pub(crate) struct Program {
     version: u32,
     file: String,
     root: String,
+    root_source: RootSource,
     packages: Vec<Package>,
     /// The optional field `legacy_geometry`: the kernel appends its
     /// compatibility profile of the legacy geometry (`Scheme`, `Point`, …) to
@@ -58,6 +63,7 @@ struct Metadata {
     name: String,
     version: String,
     root: PathBuf,
+    edition: String,
 }
 
 #[derive(Deserialize)]
@@ -280,6 +286,12 @@ impl Loader {
                 manifest_error(input.source, &error)
             )
         })?;
+        if parsed.package.edition != EDITION {
+            return Err(format!(
+                "{}: E_MANIFEST: package edition must be \"{EDITION}\"",
+                shown(&manifest)
+            ));
+        }
         if parsed.package.name.is_empty() {
             return Err(format!(
                 "{}: E_MANIFEST: package name must not be empty",
@@ -340,6 +352,7 @@ impl Loader {
             source: source.clone(),
             name: parsed.package.name,
             version: parsed.package.version,
+            edition: parsed.package.edition,
             dependencies,
             modules,
             geometry_compat: parsed.geometry_compat.map(Into::into),
@@ -497,20 +510,18 @@ impl Loader {
 /// keeps its first `use`, as the kernel's index does.
 type ModuleImports<'a> = HashMap<&'a str, HashMap<&'a [String], HashMap<&'a str, &'a [String]>>>;
 
-/// A module, as its package and its path.
-type ModuleTarget<'a> = (&'a Package, Vec<String>);
+/// The package and path of a module or an editable scalar singleton.
+type SourceTarget<'a> = (&'a Package, Vec<String>);
+type ImportKey<'a> = (&'a str, &'a [String], &'a str);
 
-/// A name that `use` binds is reserved in a `use` of a module (#759),
-/// and so is every compatibility spelling, which only an `indexed` declaration
-/// and a `use` without `as` of one may take. The parser cannot tell what the
-/// path of such a `use` names. Once every package is loaded, a path that names
-/// a module through modules, dependency aliases and imports is rejected here,
-/// with the diagnostic at the name. A path that names anything else, or that
-/// runs into a cycle of imports, is left to the kernel, which checks every
-/// `use` itself (`NamespaceValidate.validateWithWork`).
-fn reserved_module_uses(packages: &[Package], sources: &Sources) -> Result<(), String> {
+/// Use the complete package graph to check reserved module aliases (#759)
+/// and identify scalar singletons referenced by edits, including re-exports.
+/// Export the original reference path and body for independent resolution,
+/// visibility and authority checks in Lean.
+fn prepare_function_families(packages: &mut [Package], sources: &Sources) -> Result<(), String> {
     let mut modules: ModuleImports = HashMap::new();
-    for package in packages {
+    let mut singletons = HashSet::new();
+    for package in packages.iter() {
         let paths = modules.entry(package.source.as_str()).or_default();
         for module in &package.modules {
             let imports = paths.entry(module.path.as_slice()).or_default();
@@ -519,65 +530,96 @@ fn reserved_module_uses(packages: &[Package], sources: &Sources) -> Result<(), S
                     .entry(import.alias.as_str())
                     .or_insert(import.path.as_slice());
             }
+            for item in &module.functions {
+                if frontend::editable_singleton(&item.declaration) {
+                    singletons.insert((
+                        package.source.as_str(),
+                        module.path.as_slice(),
+                        item.declaration.name.as_str(),
+                    ));
+                }
+            }
         }
     }
     let mut uses = UseTargets {
         packages: packages.iter().map(|p| (p.source.as_str(), p)).collect(),
         modules,
+        singletons,
         resolved: HashMap::new(),
-        depth: 0,
     };
-    for package in packages {
+    let mut edited = HashMap::<(String, Vec<String>), HashSet<String>>::new();
+    for package in packages.iter() {
         for module in &package.modules {
             for import in &module.imports {
                 let Some(place) = import.deferred_name else {
                     continue;
                 };
-                if uses.resolve(package, &module.path, &import.path).is_none() {
+                let Some((owner, path)) = uses.resolve(package, &module.path, &import.path) else {
+                    continue;
+                };
+                if !uses.modules[owner.source.as_str()].contains_key(path.as_slice()) {
                     continue;
                 }
                 frontend::check_binding_name(&import.alias, place)
                     .map_err(|error| sources.diagnostic(&error.code, &error.message, error.span))?;
+            }
+            for target in module.edit_targets() {
+                let Some((owner, mut path)) = uses.resolve(package, &module.path, &target) else {
+                    continue;
+                };
+                let Some(name) = path.pop() else { continue };
+                if uses.singletons.contains(&(
+                    owner.source.as_str(),
+                    path.as_slice(),
+                    name.as_str(),
+                )) {
+                    edited
+                        .entry((owner.source.clone(), path))
+                        .or_default()
+                        .insert(name);
+                }
+            }
+        }
+    }
+    for package in packages {
+        for module in &mut package.modules {
+            let Some(names) = edited.remove(&(package.source.clone(), module.path.clone())) else {
+                continue;
+            };
+            for function in std::mem::take(&mut module.functions) {
+                if names.contains(&function.declaration.name) {
+                    let (header, method) = frontend::singleton_family(function);
+                    module.generics.push(header);
+                    module.methods.push(method);
+                } else {
+                    module.functions.push(function);
+                }
             }
         }
     }
     Ok(())
 }
 
-/// How many `use` aliases one path may pass through before the frontend
-/// stops following it and leaves the `use` to the kernel, which checks every
-/// `use` itself within its own work bounds. It bounds the recursion of
-/// [`UseTargets::member`] and [`UseTargets::resolve`], so a long chain of
-/// imports cannot exhaust the stack (#759).
-const MAX_USE_CHAIN: usize = 256;
-
-/// The modules that `use` paths name, as the kernel's `resolveAt` resolves
-/// them, restricted to modules. Visibility is not checked: a `use` that binds
-/// a reserved name is an error whether or not its target is visible, as for
-/// `use … as`. Each `use` is followed once, so the check is linear in the
-/// imports of the program.
+/// Follow `use` paths for modules and finite scalar singleton candidates.
+/// Lean checks visibility and ownership for every reference independently.
 struct UseTargets<'a> {
     packages: HashMap<&'a str, &'a Package>,
     modules: ModuleImports<'a>,
-    /// The module that a `use` names, by package, module and alias, once it
-    /// is followed: `None` while it is followed, so a cycle of imports ends,
-    /// and `None` for a `use` past [`MAX_USE_CHAIN`], which the kernel checks.
-    resolved: HashMap<(&'a str, &'a [String], &'a str), Option<ModuleTarget<'a>>>,
-    /// The number of `use` aliases that the path being followed passes through.
-    depth: usize,
+    singletons: HashSet<(&'a str, &'a [String], &'a str)>,
+    /// A missing target marks an alias being visited or a failed lookup.
+    resolved: HashMap<ImportKey<'a>, Option<SourceTarget<'a>>>,
 }
 
 impl<'a> UseTargets<'a> {
-    /// The module that `path` names in the module `scope` of `package`, or
-    /// `None` when it names something else or runs into a cycle of imports.
-    fn resolve(
-        &mut self,
+    /// Consume a root prefix or dependency alias before looking up members.
+    fn path_base<'p>(
+        &self,
         package: &'a Package,
         scope: &[String],
-        path: &[String],
-    ) -> Option<ModuleTarget<'a>> {
+        path: &'p [String],
+    ) -> Option<(SourceTarget<'a>, &'p [String])> {
         let (first, rest) = path.split_first()?;
-        let (mut at, rest) = match first.as_str() {
+        Some(match first.as_str() {
             "package" if !rest.is_empty() => ((package, Vec::new()), rest),
             "self" => ((package, scope.to_vec()), rest),
             "super" => {
@@ -590,45 +632,54 @@ impl<'a> UseTargets<'a> {
                     let target = *self.packages.get(dependency.target.as_str())?;
                     ((target, Vec::new()), rest)
                 }
-                None => (self.member(package, scope, first)?, rest),
+                None => ((package, scope.to_vec()), path),
             },
-        };
-        for name in rest {
-            at = self.member(at.0, &at.1, name)?;
-        }
-        Some(at)
+        })
     }
 
-    /// The child module `name` of the module `scope` of `package`, or the
-    /// module that its `use` of alias `name` names. The kernel's `memberAt`
-    /// looks at the declarations of the scope first, and a module is one.
-    fn member(
+    /// Finish each import in its defining scope, then resume the caller's
+    /// remaining path. A heap stack handles long re-export chains and each
+    /// alias is visited at most once across all edit targets.
+    fn resolve(
         &mut self,
         package: &'a Package,
         scope: &[String],
-        name: &str,
-    ) -> Option<ModuleTarget<'a>> {
-        let modules = self.modules.get(package.source.as_str())?;
-        let mut child = scope.to_vec();
-        child.push(name.to_owned());
-        if modules.contains_key(child.as_slice()) {
-            return Some((package, child));
+        path: &[String],
+    ) -> Option<SourceTarget<'a>> {
+        let ((mut owner, mut at), mut remaining) = self.path_base(package, scope, path)?;
+        let mut pending = Vec::new();
+        loop {
+            let Some((name, rest)) = remaining.split_first() else {
+                let Some((key, suffix)) = pending.pop() else {
+                    return Some((owner, at));
+                };
+                self.resolved.insert(key, Some((owner, at.clone())));
+                remaining = suffix;
+                continue;
+            };
+            let source = owner.source.as_str();
+            let modules = self.modules.get(source)?;
+            let singleton = self
+                .singletons
+                .contains(&(source, at.as_slice(), name.as_str()));
+            at.push(name.clone());
+            if singleton || modules.contains_key(at.as_slice()) {
+                remaining = rest;
+                continue;
+            }
+            at.pop();
+            let (&scope, imports) = modules.get_key_value(at.as_slice())?;
+            let (&alias, &import) = imports.get_key_value(name.as_str())?;
+            let key = (source, scope, alias);
+            if let Some(cached) = self.resolved.get(&key) {
+                (owner, at) = cached.clone()?;
+                remaining = rest;
+            } else {
+                self.resolved.insert(key, None);
+                pending.push((key, rest));
+                ((owner, at), remaining) = self.path_base(owner, scope, import)?;
+            }
         }
-        let (&scope, imports) = modules.get_key_value(scope)?;
-        let (&alias, &path) = imports.get_key_value(name)?;
-        let key = (package.source.as_str(), scope, alias);
-        if let Some(target) = self.resolved.get(&key) {
-            return target.clone();
-        }
-        self.resolved.insert(key, None);
-        if self.depth >= MAX_USE_CHAIN {
-            return None;
-        }
-        self.depth += 1;
-        let target = self.resolve(package, scope, path);
-        self.depth -= 1;
-        self.resolved.insert(key, target.clone());
-        target
     }
 }
 
@@ -643,7 +694,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         listings: HashMap::new(),
     };
     let root = loader.package(manifest)?;
-    reserved_module_uses(&loader.packages, &loader.sources)?;
+    prepare_function_families(&mut loader.packages, &loader.sources)?;
     // Only the entry point observes values (#836): `fn main` of the root
     // module of the root package. The parser takes `show!` in the root module
     // of every package.
@@ -685,10 +736,20 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         }
     }
     let legacy_geometry = legacy_geometry(&loader.packages);
+    // The root module's declaration span starts at its first token (EOF for
+    // an empty file). It selects the physical entry among manifests, inline
+    // modules, dependency inputs and externally loaded module files.
+    let root_module = loader
+        .packages
+        .iter()
+        .find(|p| p.source == root)
+        .and_then(|p| p.modules.iter().find(|m| m.path.is_empty()))
+        .expect("a loaded root package has a root module");
     let program = Program {
         version: PROTOCOL,
         file: root.clone(),
         root,
+        root_source: loader.sources.root_source_at(root_module.span.start),
         packages: loader.packages,
         legacy_geometry,
     };
@@ -753,7 +814,7 @@ const FLAT_SOURCE: &str = "vastitas:compat:flat";
 /// becomes the root module of one package, with every declaration public. The
 /// request carries `legacy_geometry`, so the kernel also appends the
 /// compatibility profile of the legacy geometry (`Scheme`, `Point`, …).
-pub(crate) fn flat_request(module: crate::ir::Module) -> Program {
+pub(crate) fn flat_request(module: crate::ir::Module, root_source: RootSource) -> Program {
     use crate::namespace::Public;
     fn public<T>(declarations: Vec<T>) -> Vec<Public<T>> {
         declarations
@@ -768,10 +829,12 @@ pub(crate) fn flat_request(module: crate::ir::Module) -> Program {
         version: PROTOCOL,
         file: module.file,
         root: FLAT_SOURCE.into(),
+        root_source,
         packages: vec![Package {
             source: FLAT_SOURCE.into(),
             name: FLAT_PACKAGE.into(),
             version: "1.0.0".into(),
+            edition: EDITION.into(),
             dependencies: Vec::new(),
             modules: vec![Module {
                 path: Vec::new(),
@@ -891,7 +954,7 @@ mod tests {
         assert_eq!(marked(&shown), "\"a<U+0009>b\"");
         assert!(
             shown.ends_with(
-                "\nunknown field `a<U+0009>b`, expected one of `name`, `version`, `root`\n"
+                "\nunknown field `a<U+0009>b`, expected one of `name`, `version`, `root`, `edition`\n"
             ),
             "{shown:?}"
         );
@@ -918,7 +981,7 @@ mod tests {
         let source = format!("{HEAD}root = \"main.vast\"\n\"k\\nE_FORGED: x\" = 1\n");
         let shown = manifest_error(&source, &rejected(&source));
         assert!(
-            shown.ends_with("\nunknown field `k<U+000A>E_FORGED: x`, expected one of `name`, `version`, `root`\n"),
+            shown.ends_with("\nunknown field `k<U+000A>E_FORGED: x`, expected one of `name`, `version`, `root`, `edition`\n"),
             "{shown:?}"
         );
         assert_eq!(shown.split('\n').count(), 6, "{shown:?}");

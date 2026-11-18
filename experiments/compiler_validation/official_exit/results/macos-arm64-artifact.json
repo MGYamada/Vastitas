@@ -1,0 +1,932 @@
+{
+  "attempt": "public-artifact",
+  "status": "passed",
+  "local_olean_snapshot_sha256": "51de753931a17751f5ca72bdd0a54b55f70173894314a2544064ac81b43b00cf",
+  "source_sha256": "d7b73937ae11b2c8caad422ca81a1947a34bb6a04e193e9fb527a8f5cbe1b27c",
+  "source_byte_length": 126,
+  "bytes_sha256": "9b085d3daf09b1488c95c8f69cab588d1d821f4d6fc5bcaf3254e9662a268e03",
+  "wire_sha256": "035aa688327c395f1ee390b60f7dc6566b139d9992a0602d1dc4819dbb45bb76",
+  "lean_input_sha256": "070cab632c61ca6164f53bb2c688d7ad8707600ba81a8e37e54292c3163c51f1",
+  "byte_length": 374,
+  "target_triple": "arm64-apple-darwin27.2.0",
+  "data_layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
+  "max_seconds_per_phase": 100.0,
+  "lean_memory_limit_mib": 2048,
+  "lean": "Lean (version 4.35.0, arm64-apple-darwin24.6.0, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)",
+  "phases": [
+    {
+      "phase": "Current",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.955076917016413,
+      "user_seconds": 0.502447,
+      "system_seconds": 0.738748,
+      "peak_rss_bytes": 949862400,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "714bf3127cb1e833d4320179642814a714a6adb12da9483f695b6ede62cb613a"
+    },
+    {
+      "phase": "Inputs",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.0332323749898933,
+      "user_seconds": 0.927287,
+      "system_seconds": 0.695951,
+      "peak_rss_bytes": 963379200,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "070cab632c61ca6164f53bb2c688d7ad8707600ba81a8e37e54292c3163c51f1"
+    },
+    {
+      "phase": "Source",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 9.929291541979183,
+      "user_seconds": 7.041969,
+      "system_seconds": 1.185081,
+      "peak_rss_bytes": 1103413248,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "1b8da0650d9f764f93aa214be037a0aba44fa18c01211c0f9db6036cb66b8034",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.source_and_envelope"
+    },
+    {
+      "phase": "NamespaceGates",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 12.596079916984309,
+      "user_seconds": 9.3132,
+      "system_seconds": 1.571351,
+      "peak_rss_bytes": 1206255616,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "21b13ef96a63a01a73e982fd09ed7302d6dcc5edbb42e18ab56a7c02529d40d5",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.namespace_gates"
+    },
+    {
+      "phase": "NamespaceValidation",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 6.069762792030815,
+      "user_seconds": 3.103491,
+      "system_seconds": 0.8864719999999999,
+      "peak_rss_bytes": 899891200,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "37afd40055751eaa7a0c60d5be8ed5689af8e0e0d0456789b3c3fafa4ba620d0",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.declarationsFromLower"
+    },
+    {
+      "phase": "Admission",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 5.889787542051636,
+      "user_seconds": 2.669393,
+      "system_seconds": 0.903137,
+      "peak_rss_bytes": 1036877824,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "69ed09e306fb482817eeb9cee803e15440de3fc5872a5a147daa519b33b0dd31",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.wire_of_parts"
+    },
+    {
+      "phase": "Lexical",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 38.715906833007466,
+      "user_seconds": 13.380547,
+      "system_seconds": 2.8851269999999998,
+      "peak_rss_bytes": 850722816,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "0b8cefe1e8efafda0ca3006280e04cdedc7d57c4be6eef42c08227f1fcf3cdcc",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.wire_of_pass"
+    },
+    {
+      "phase": "CompatibilityLookup",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 12.178116999974009,
+      "user_seconds": 1.473557,
+      "system_seconds": 1.609487,
+      "peak_rss_bytes": 933478400,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "593801c655d869c3ed37d80ce09eb49bc5f9d0eaec4ae723124b9a5ac7bf3f48",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.shortcut"
+    },
+    {
+      "phase": "CompatibilityRows",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 36.226898209017236,
+      "user_seconds": 1.105614,
+      "system_seconds": 2.447187,
+      "peak_rss_bytes": 954548224,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "0d1c37923191aa96d554f3dd2dfab251dd830f9e9784fc55dae48c1b365be50c",
+      "axioms": [
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.rowNames"
+    },
+    {
+      "phase": "SchemeBodies",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 7.0227440830203705,
+      "user_seconds": 7.521917,
+      "system_seconds": 1.441081,
+      "peak_rss_bytes": 1056882688,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "6fda3ef60977cbbbf5e4ce56d3003c5882cdd19e602614f852dd8042de2b6728",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.schemeBodies"
+    },
+    {
+      "phase": "SmoothBodies",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 9.715503291983623,
+      "user_seconds": 7.505192,
+      "system_seconds": 1.538141,
+      "peak_rss_bytes": 1066172416,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "bb40d91746a7a22cbf276cbcf47aa0ba0fd3444ac2f43539be1358ef5ce1de7f",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.smoothBodies"
+    },
+    {
+      "phase": "SharedBodies",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 8.83522504096618,
+      "user_seconds": 2.97806,
+      "system_seconds": 1.063407,
+      "peak_rss_bytes": 1000865792,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "967a81d46d2a74490d9e21ac3feec58ecf75e184e43b4c9bb1ed4b2ee9f7ee5c",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.sharedBodies"
+    },
+    {
+      "phase": "DeclarationFold",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 4.312718458008021,
+      "user_seconds": 0.425639,
+      "system_seconds": 0.755428,
+      "peak_rss_bytes": 961249280,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "f86c8fded0ba4e06e4331f4fded8fea912df28a9ce53d39e4fe37c52c42b60d3",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.bodyFold"
+    },
+    {
+      "phase": "DeclarationPasses",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 13.991876999964006,
+      "user_seconds": 12.112787,
+      "system_seconds": 1.2215719999999999,
+      "peak_rss_bytes": 984514560,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "4f03270238c6f0ce2c8eccec37b7b97cf7b37e4c3f6e6b217fa1f74b1b5c4318",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.exportResolved"
+    },
+    {
+      "phase": "DeclarationLowering",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 5.245710292016156,
+      "user_seconds": 2.407553,
+      "system_seconds": 0.877977,
+      "peak_rss_bytes": 1105100800,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "126816bfd5afa6a6d2cb163a0db5f7677445ab1f3fa05e8454172dbeddb2dab9",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.loweredAndAudited"
+    },
+    {
+      "phase": "DeclarationAcceptance",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.173842374992091,
+      "user_seconds": 1.7432699999999999,
+      "system_seconds": 0.7362409999999999,
+      "peak_rss_bytes": 1033682944,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "437267de76a00166fe0860de3a34765a23d69e0ab2de5f0d055c3ab985cf0f7c",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.acceptedDeclarations"
+    },
+    {
+      "phase": "AuthorityAssembly",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.9334802090306766,
+      "user_seconds": 2.10339,
+      "system_seconds": 0.606047,
+      "peak_rss_bytes": 1002668032,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "ab41c08060f1b089fe9cf4e788d5261db07c065795e3ebab95a5cdd73aad333c",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.actualAssembly"
+    },
+    {
+      "phase": "AuthorityPreparation",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.1981912910123356,
+      "user_seconds": 1.283711,
+      "system_seconds": 0.6581239999999999,
+      "peak_rss_bytes": 996081664,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "63e26c398520fc2d57a5762a427564fd6a701e2585f6f3ea7e40e6025168c694",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.acceptedPurePreparation"
+    },
+    {
+      "phase": "CompilerInputs",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.472852291946765,
+      "user_seconds": 1.811864,
+      "system_seconds": 0.6030059999999999,
+      "peak_rss_bytes": 1067712512,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "40048a8b7521bb6633742072b9e0e6b8823e24f3de8612ffe7a4e510846e2895",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.prepared"
+    },
+    {
+      "phase": "FunctionLowering",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 12.122696625010576,
+      "user_seconds": 9.553188,
+      "system_seconds": 1.101938,
+      "peak_rss_bytes": 971325440,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "aac65f929dd1b13d8f48b14e6f7834506e3187b76c98f9c5406d92ec3a841804",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.checkedLower"
+    },
+    {
+      "phase": "PassValidation",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.331665707984939,
+      "user_seconds": 0.943558,
+      "system_seconds": 0.597587,
+      "peak_rss_bytes": 1037926400,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "8d131d58e6410405a8061deafc0bb6484f69892e8d5b34eda945e569d0e0f40d",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.passValid"
+    },
+    {
+      "phase": "ModuleTyping",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.036692249996122,
+      "user_seconds": 0.36160899999999996,
+      "system_seconds": 0.46677799999999997,
+      "peak_rss_bytes": 976748544,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "eace519ea6af7666da9399f9a048ed59504733310464aeeacf2f11cc27a212de",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.moduleTyped"
+    },
+    {
+      "phase": "ModuleAudit",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.1216233329614624,
+      "user_seconds": 0.385414,
+      "system_seconds": 0.465047,
+      "peak_rss_bytes": 989216768,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "b1c1dea71915a4703e2c032948a2d8a9dd164919c3272b3842bb6c28c1655009",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.coreChecked"
+    },
+    {
+      "phase": "PassAcceptance",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 0.8613415000145324,
+      "user_seconds": 0.32625299999999996,
+      "system_seconds": 0.400864,
+      "peak_rss_bytes": 990429184,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "cfd57cb958ad174bf392edf961f0c2a9feae04cdbded7ed6bff12af07711947b",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.passes"
+    },
+    {
+      "phase": "PureProgram",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.3491866670083255,
+      "user_seconds": 2.675207,
+      "system_seconds": 0.487513,
+      "peak_rss_bytes": 1078034432,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "3518c82dc9ece7c940a4a20e499eaecf987f9eadeceff52e0b8d596179d87592",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.actualPureProgram"
+    },
+    {
+      "phase": "PublicWire",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 0.8478282499709167,
+      "user_seconds": 0.22611099999999998,
+      "system_seconds": 0.3665,
+      "peak_rss_bytes": 985661440,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "62ae23af841deb9767a7fc281a3f39cb99a19ff0e8034da44f882a85b9c05a42",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.wireAccepted"
+    },
+    {
+      "phase": "ResourceRecord",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.6692362919566222,
+      "user_seconds": 0.956718,
+      "system_seconds": 0.443802,
+      "peak_rss_bytes": 1002143744,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "c42c44ef70fa786575f2b2e5d15dc0f5c62ab923d58c841af7e80671142d8e82",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.request_data"
+    },
+    {
+      "phase": "RevisionBound",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 34.550600291986484,
+      "user_seconds": 28.617531,
+      "system_seconds": 2.259227,
+      "peak_rss_bytes": 1329381376,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "fbd87405e755c1b846fdcfe31836b8e19cc6df1c47ef664c1c982011ba11d00b",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.boundedRevision"
+    },
+    {
+      "phase": "LinkedMid",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 7.957722167018801,
+      "user_seconds": 3.397948,
+      "system_seconds": 1.170785,
+      "peak_rss_bytes": 1061978112,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "3f314e7f4ed1e3239118601c110f15e25b8ae6fe78bb69315edd4b67a6cd7140",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.opt"
+    },
+    {
+      "phase": "SignedArtifact",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 5.199010292009916,
+      "user_seconds": 2.884459,
+      "system_seconds": 0.769625,
+      "peak_rss_bytes": 984252416,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "1f5604aebd0cc3a36dacc67d6b6f465ee1a6602f97b7c9ed40a17e16832a230b",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.actualExit"
+    },
+    {
+      "phase": "PrintedArtifact",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 16.607881125004496,
+      "user_seconds": 15.548281,
+      "system_seconds": 1.917166,
+      "peak_rss_bytes": 1793785856,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "5d2b524539aeef5010ddbe4e5db21f9436d4457e815af3dc3f78debb7546996a",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.completeText"
+    },
+    {
+      "phase": "PublicArtifact",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 26.536336791992653,
+      "user_seconds": 36.128905,
+      "system_seconds": 2.856265,
+      "peak_rss_bytes": 1726005248,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "module_source_sha256": "2c1b30043b02463ea92d3609e9d14aae4dab709ac21235b772281f2eb112cef7",
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ],
+      "theorem": "VastitasQualification.ExitAdmission.observesArtifact"
+    },
+    {
+      "phase": "official_Current",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 4.443597958015744,
+      "user_seconds": 0.40307299999999996,
+      "system_seconds": 1.749925,
+      "peak_rss_bytes": 834650112,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_Inputs",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.3825049169827253,
+      "user_seconds": 0.473371,
+      "system_seconds": 1.437867,
+      "peak_rss_bytes": 862568448,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_Source",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 4.312436999985948,
+      "user_seconds": 2.141975,
+      "system_seconds": 1.630996,
+      "peak_rss_bytes": 1130889216,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_NamespaceGates",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 7.437493167002685,
+      "user_seconds": 4.096497,
+      "system_seconds": 2.058861,
+      "peak_rss_bytes": 1552646144,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_NamespaceValidation",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.501607000012882,
+      "user_seconds": 1.268718,
+      "system_seconds": 1.678915,
+      "peak_rss_bytes": 1010728960,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_Admission",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.338636333006434,
+      "user_seconds": 1.025498,
+      "system_seconds": 1.684887,
+      "peak_rss_bytes": 956891136,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_Lexical",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 9.994998000038322,
+      "user_seconds": 4.487068,
+      "system_seconds": 2.2384749999999998,
+      "peak_rss_bytes": 1128366080,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_CompatibilityLookup",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.5436756249982864,
+      "user_seconds": 0.47533899999999996,
+      "system_seconds": 1.581382,
+      "peak_rss_bytes": 851034112,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_CompatibilityRows",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.806898500013631,
+      "user_seconds": 0.389009,
+      "system_seconds": 1.954391,
+      "peak_rss_bytes": 848494592,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_SchemeBodies",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 7.196501708007418,
+      "user_seconds": 1.6202239999999999,
+      "system_seconds": 1.9168239999999999,
+      "peak_rss_bytes": 887078912,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_SmoothBodies",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 4.799219749984331,
+      "user_seconds": 1.539942,
+      "system_seconds": 1.980648,
+      "peak_rss_bytes": 904790016,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_SharedBodies",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 6.2814855829929,
+      "user_seconds": 1.183472,
+      "system_seconds": 2.234636,
+      "peak_rss_bytes": 879853568,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_DeclarationFold",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 4.853901666996535,
+      "user_seconds": 0.489735,
+      "system_seconds": 2.09856,
+      "peak_rss_bytes": 849362944,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_DeclarationPasses",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 21.22909212502418,
+      "user_seconds": 11.123405,
+      "system_seconds": 2.877303,
+      "peak_rss_bytes": 847183872,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_DeclarationLowering",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 9.265503917005844,
+      "user_seconds": 1.504943,
+      "system_seconds": 2.33061,
+      "peak_rss_bytes": 969162752,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_DeclarationAcceptance",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 4.071093250007834,
+      "user_seconds": 1.061946,
+      "system_seconds": 1.827435,
+      "peak_rss_bytes": 920502272,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_AuthorityAssembly",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 4.221929917053785,
+      "user_seconds": 0.698614,
+      "system_seconds": 1.9759309999999999,
+      "peak_rss_bytes": 876527616,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_AuthorityPreparation",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.4770332080079243,
+      "user_seconds": 0.762826,
+      "system_seconds": 1.957153,
+      "peak_rss_bytes": 880164864,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_CompilerInputs",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.5633029590244405,
+      "user_seconds": 0.993907,
+      "system_seconds": 1.928874,
+      "peak_rss_bytes": 950337536,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_FunctionLowering",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.1790860000182875,
+      "user_seconds": 1.441445,
+      "system_seconds": 1.408416,
+      "peak_rss_bytes": 1061355520,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_PassValidation",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.785220791003667,
+      "user_seconds": 0.628965,
+      "system_seconds": 1.348898,
+      "peak_rss_bytes": 904773632,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_ModuleTyping",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.9319620840251446,
+      "user_seconds": 0.349983,
+      "system_seconds": 1.341957,
+      "peak_rss_bytes": 856064000,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_ModuleAudit",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.7602083340170793,
+      "user_seconds": 0.344731,
+      "system_seconds": 1.166415,
+      "peak_rss_bytes": 866385920,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_PassAcceptance",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.7301427079946734,
+      "user_seconds": 0.348812,
+      "system_seconds": 1.225166,
+      "peak_rss_bytes": 874102784,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_PureProgram",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.2483607920003124,
+      "user_seconds": 1.020347,
+      "system_seconds": 1.227029,
+      "peak_rss_bytes": 949796864,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_PublicWire",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.8887982500018552,
+      "user_seconds": 0.31918399999999997,
+      "system_seconds": 1.309964,
+      "peak_rss_bytes": 878739456,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_ResourceRecord",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.065035458013881,
+      "user_seconds": 0.565842,
+      "system_seconds": 1.8719729999999999,
+      "peak_rss_bytes": 905265152,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_RevisionBound",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 15.016605707991403,
+      "user_seconds": 8.6745,
+      "system_seconds": 2.625585,
+      "peak_rss_bytes": 1477902336,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_LinkedMid",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 5.904805333993863,
+      "user_seconds": 1.744057,
+      "system_seconds": 2.064215,
+      "peak_rss_bytes": 1051181056,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_SignedArtifact",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 5.951662000035867,
+      "user_seconds": 2.94606,
+      "system_seconds": 2.208244,
+      "peak_rss_bytes": 934346752,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_PrintedArtifact",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 13.26692666701274,
+      "user_seconds": 7.334154,
+      "system_seconds": 2.902009,
+      "peak_rss_bytes": 1757954048,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_PublicArtifact",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 15.196762375009712,
+      "user_seconds": 8.290622,
+      "system_seconds": 3.527673,
+      "peak_rss_bytes": 1919614976,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    }
+  ]
+}

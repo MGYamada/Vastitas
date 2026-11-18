@@ -212,7 +212,7 @@ mutual
           let b ← checkExpr fuel signatures ctx right (some .bool)
           pure { term := .binary op a.term b.term .bool }
         else
-          let arithmetic := [BinaryOp.add, .sub, .mul].contains op
+          let arithmetic := [BinaryOp.add, .sub, .mul, .div].contains op
           let hint := if arithmetic then expected.filter isInteger else none
           let (a, b) ← if literalLike left && !literalLike right && hint.isNone then do
             let b ← checkExpr fuel signatures ctx right none

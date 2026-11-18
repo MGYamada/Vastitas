@@ -42,10 +42,10 @@ The library declares three resource functions:
 `make` allocates a buffer, writes it and hands it to its caller. Read it
 statement by statement:
 
-1. `allocate data: F64[8];` allocates a buffer of eight
+1. `allocate data: F64<RR>[8];` allocates a buffer of eight
    [*cells*](../appendix/glossary.md#cell) and binds `data`, the
    [*owner*](../appendix/glossary.md#owner) of that
-   [*allocation*](../appendix/glossary.md#allocation). A cell of `F64` holds
+   [*allocation*](../appendix/glossary.md#allocation). A cell of `F64<RR>` holds
    one binary64 floating-point number. The cells hold no value yet.
 2. `borrow output = write(data, layout(8, 2, 2, 4, false));` lends a part of
    the buffer for writing. The part is a
@@ -61,8 +61,8 @@ statement by statement:
 
 The first line of `make` declares an
 [*owned result*](../appendix/glossary.md#owned-result) after `returns`: the
-function hands the owner `data` to its caller. `Owned<F64, 8>` is the type of
-an owner of eight `F64` cells. The words `initialized [layout(…)]` state
+function hands the owner `data` to its caller. `Owned<F64<RR>, 8>` is the type of
+an owner of eight `F64<RR>` cells. The words `initialized [layout(…)]` state
 which cells hold a value when the function ends. The compiler checks this
 statement against the body: it rejects `make` if the body leaves one of
 these cells unwritten.
@@ -72,7 +72,7 @@ these cells unwritten.
 `layout(offset, rows, columns, leading, transposed)` describes a view as a
 matrix that the buffer stores column by column. `offset` is the byte at which
 the view starts. `leading` is the number of cells from one stored column to
-the next. A cell of `F64` takes 8 bytes, so the cell in stored row `i` and
+the next. A cell of `F64<RR>` takes 8 bytes, so the cell in stored row `i` and
 stored column `j` starts at byte `offset + (i + j × leading) × 8`. Rows and
 columns count from 0.
 
@@ -93,8 +93,8 @@ columns. No cell moves.
 
 ## Parameters
 
-`inspect` takes a loan: `Read<F64, 2, 2>` is the type of a loan that permits
-reading a view of `F64` cells with two rows and two columns. `Write` and
+`inspect` takes a loan: `Read<F64<RR>, 2, 2>` is the type of a loan that permits
+reading a view of `F64<RR>` cells with two rows and two columns. `Write` and
 `ReadWrite` are the two other loan types. The statement
 `expect(input, 0, 0, p);` is a
 [*run-time check*](../appendix/glossary.md#run-time-check). When the program
@@ -221,7 +221,7 @@ states these rules.
 A [*payload*](../appendix/glossary.md#payload) is the value of one cell.
 `f64(x)` denotes the binary64 number `x`, and `complex(x, y)` the complex
 number with the real part `x` and the imaginary part `y`, for a cell of
-`Complex<F64>`. The number is a decimal or a hexadecimal literal:
+`F64<CC>`. The number is a decimal or a hexadecimal literal:
 `f64(3)`, `f64(-0.25)` and `f64(0x1.8p1)` are payloads, and the last one is
 1.5 times 2, which is 3.
 

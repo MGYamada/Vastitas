@@ -1,4 +1,6 @@
-import VastitasKernel.IndexedValidity
+import VastitasKernel.FiniteHom
+import VastitasKernel.IndexedTypeAudit
+import VastitasKernel.IndexedAudit
 import VastitasKernel.RegressionSupport
 
 namespace VastitasKernel.Indexed.Regression
@@ -97,6 +99,20 @@ private def renameParameter : Parameter → Parameter
   | other => other
 private def renameDeclaration : Declaration → Declaration
   | .marker => .marker
+  | .finiteCarrier tags => .finiteCarrier tags
+  | .finiteTable inputs output rows => .finiteTable (inputs.map renameId) (renameId output) rows
+  | .monadSchema => .monadSchema
+  | .kleisliSchema kind base => .kleisliSchema kind (renameId base)
+  | .finiteKleisli kind schema monad => .finiteKleisli kind (renameId schema) (renameId monad)
+  | .finiteMonad schema m => .finiteMonad (renameId schema) (Id.run (m.mapM (pure ∘ renameId)))
+  | .natTransSchema => .natTransSchema
+  | .finiteNatTrans schema n => .finiteNatTrans (renameId schema) (Id.run (n.mapM (pure ∘ renameId)))
+  | .functorSchema => .functorSchema
+  | .finiteFunctor schema maps => .finiteFunctor (renameId schema) (Id.run (maps.mapM (pure ∘ renameId)))
+  | .categorySchema => .categorySchema
+  | .composableTable inputs output src dst rows =>
+    .composableTable (inputs.map renameId) (renameId output) (renameId src) (renameId dst) rows
+  | .finiteCategory schema graph => .finiteCategory (renameId schema) (Id.run (graph.mapM (pure ∘ renameId)))
   | .implementation marker repr capabilities => .implementation (renameId marker) repr capabilities
   | .classification parents domain => .classification (parents.map renameId) (domain.map renameId)
   | .global implementation => .global (renameId implementation)
@@ -146,6 +162,181 @@ private def renameDeclaration : Declaration → Declaration
   | .projective glued homogeneous charts =>
     .projective (renameId glued) homogeneous (charts.map fun chart => { chart with chart := renameId chart.chart })
 private def renamed : Environment := env.map fun e => ⟨renameId e.id, renameDeclaration e.declaration⟩
+
+private def finiteEnv : Environment := [
+  entry "flip" (.finiteTable [id "Bit"] (id "Mirror") [(["one"], "zero"), (["zero"], "one")]),
+  entry "Bit" (.finiteCarrier ["zero", "one"]), entry "Mirror" (.finiteCarrier ["zero", "one"]),
+  entry "Void" (.finiteCarrier []), entry "constant" (.finiteTable [] (id "Bit") [([], "zero")]),
+  entry "never" (.finiteTable [id "Bit", id "Void"] (id "Void") [])]
+#eval check "table forward references; constant and empty products" (validEnvironment finiteEnv &&
+  FiniteTables.lookupTag finiteEnv (id "constant") [] == some (id "Bit", "zero"))
+#eval check "nominal lookup does not exchange equal carriers" (
+  FiniteTables.lookupTag finiteEnv (id "flip") [(id "Bit", "one")] == some (id "Mirror", "zero") &&
+  (FiniteTables.lookupTag finiteEnv (id "flip") [(id "Mirror", "one")]).isNone)
+#eval check "table coverage is exact, not just a matching row count" (
+  !FiniteTables.validTable finiteEnv [id "Bit"] (id "Bit") [(["one"], "zero"), (["one"], "one")] &&
+  !FiniteTables.validTable finiteEnv [id "Bit"] (id "Bit") [(["one"], "zero"), (["miss"], "one")] &&
+  !FiniteTables.validTable finiteEnv [id "Bit"] (id "Bit") [(["one"], "zero"), (["zero"], "miss")] &&
+  !FiniteTables.validTable finiteEnv [] (id "Bit") [] &&
+  !FiniteTables.validTable finiteEnv [id "Void"] (id "Void") [([], "bad")])
+#eval check "preflight does not enumerate a rejected or empty product" (
+  let wide := List.replicate 4096 "x"
+  (FiniteTables.keys [wide, wide, wide]).isNone &&
+    FiniteTables.keys [[], wide, wide, wide, wide, wide] == some [])
+
+private def permutations : List (String × List Nat) :=
+  [("p012", [0,1,2]), ("p021", [0,2,1]), ("p102", [1,0,2]), ("p120", [1,2,0]),
+   ("p201", [2,0,1]), ("p210", [2,1,0])]
+private def s3Rows : List (List String × String) :=
+  permutations.flatMap fun (g, gv) => permutations.map fun (f, fv) =>
+    let composition := fv.map fun i => gv[i]!
+    ([g, f], (permutations.find? (·.2 == composition)).get!.1)
+private def s3Fields : GraphFields DeclId := ⟨id "Obj", id "Arr", id "s", id "t", id "ids", id "mul"⟩
+private def s3 : Environment := [
+  entry "Instance" (.finiteCategory (id "Schema") s3Fields), entry "Schema" .categorySchema,
+  entry "Obj" (.finiteCarrier ["o"]), entry "Arr" (.finiteCarrier (permutations.map Prod.fst)),
+  entry "s" (.finiteTable [id "Arr"] (id "Obj") (permutations.map fun p => ([p.1], "o"))),
+  entry "t" (.finiteTable [id "Arr"] (id "Obj") (permutations.map fun p => ([p.1], "o"))),
+  entry "ids" (.finiteTable [id "Obj"] (id "Arr") [(["o"], "p012")]),
+  entry "mul" (.composableTable [id "Arr", id "Arr"] (id "Arr") (id "s") (id "t") s3Rows)]
+#eval check "the declared order of composition in the accepted noncommutative S3 graph" (
+  validEnvironment s3 &&
+  match FiniteCategories.graph (FiniteCategories.view s3) (id "Schema") s3Fields with
+  | none => false
+  | some g => g.composition[["p102", "p021"]]? == some "p120" &&
+    g.composition[["p021", "p102"]]? == some "p201")
+/-- Inversion fixes the identity and all endpoints but reverses the order of
+composition in S3. This distinguishes the functor test from either a bare
+graph map or a test of products in only one commutative example. -/
+private def s3Functor (arrows : List (List String × String)) : Environment :=
+  [entry "F" (.finiteFunctor (id "Functor") ⟨id "Instance", id "Instance", id "onObj", id "onArr"⟩),
+   entry "Functor" .functorSchema,
+   entry "onObj" (.finiteTable [id "Obj"] (id "Obj") [(["o"],"o")]),
+   entry "onArr" (.finiteTable [id "Arr"] (id "Arr") arrows)] ++ s3
+
+#eval check "covariant identity and contravariant inversion on S3" (
+  let identity := permutations.map fun (f, _) => ([f], f)
+  let inverse := permutations.map fun (f, p) =>
+    let back := [0,1,2].map fun i => p.idxOf i
+    ([f], (permutations.find? (·.2 == back)).get!.1)
+  validEnvironment (s3Functor identity) && !validEnvironment (s3Functor inverse))
+
+/-- Conjugation by a three-cycle has a noncentral natural transformation
+from the identity functor. Its inverse satisfies the opposite orientation
+instead, with both component endpoints still correct. -/
+private def s3Transformation (component : String) : Environment :=
+  let rows := Std.HashMap.ofList s3Rows
+  let product (a b : String) := rows[[a, b]]!
+  let conjugation := permutations.map fun (a, _) => ([a], product (product "p120" a) "p201")
+  [entry "Trans" .natTransSchema,
+   entry "E" (.finiteNatTrans (id "Trans") ⟨id "F", id "G", id "eta"⟩),
+   entry "G" (.finiteFunctor (id "Functor") ⟨id "Instance", id "Instance", id "onObj", id "conj"⟩),
+   entry "conj" (.finiteTable [id "Arr"] (id "Arr") conjugation),
+   entry "eta" (.finiteTable [id "Obj"] (id "Arr") [(["o"],component)])] ++
+    s3Functor (permutations.map fun (a, _) => ([a], a))
+
+#eval check "naturality follows the directed square for S3 conjugation" (
+  validEnvironment (s3Transformation "p120") && !validEnvironment (s3Transformation "p201"))
+
+/-- Exercise the dependent operation, not an untyped read of the table.
+Both directions use exactly the selected model. -/
+private def checkedS3 : Bool := Id.run do
+  if valid : validEnvironment s3 = true then
+    let some m := FiniteHom.select s3 ((Audit.validEnvironment_iff _).mp valid) (id "Instance") | return false
+    let some f := FiniteHom.fromTag? m "o" "o" "p102" | return false
+    let some g := FiniteHom.fromTag? m "o" "o" "p021" | return false
+    let some i := FiniteHom.identity? m "o" | return false
+    return ((FiniteHom.compose? f g).map (·.tag) == some "p120") &&
+      ((FiniteHom.compose? g f).map (·.tag) == some "p201") &&
+      ((FiniteHom.compose? f i).map (·.tag) == some "p102") &&
+      (FiniteHom.fromTag? m "x" "o" "p102").isNone && (FiniteHom.fromTag? m "o" "o" "fake").isNone
+  else return false
+
+#eval check "typed S3 composition, units, endpoints and unrecognized raw tags" checkedS3
+
+private def chain : Environment := [
+  entry "Instance" (.finiteCategory (id "Schema") s3Fields), entry "Schema" .categorySchema,
+  entry "Obj" (.finiteCarrier ["lo","hi"]), entry "Arr" (.finiteCarrier ["l","up","r"]),
+  entry "s" (.finiteTable [id "Arr"] (id "Obj") [(["l"],"lo"),(["up"],"lo"),(["r"],"hi")]),
+  entry "t" (.finiteTable [id "Arr"] (id "Obj") [(["l"],"lo"),(["up"],"hi"),(["r"],"hi")]),
+  entry "ids" (.finiteTable [id "Obj"] (id "Arr") [(["lo"],"l"),(["hi"],"r")]),
+  entry "mul" (.composableTable [id "Arr", id "Arr"] (id "Arr") (id "s") (id "t")
+    [(["l","l"],"l"),(["r","r"],"r"),(["r","up"],"up"),(["up","l"],"up")])]
+
+#eval check "the two-object graph keeps both Hom endpoints on execution" (Id.run do
+  if h : validEnvironment chain = true then
+    let some m := FiniteHom.select chain ((Audit.validEnvironment_iff _).mp h) (id "Instance") | return false
+    let some up := FiniteHom.fromTag? m "lo" "hi" "up" | return false
+    let some lo := FiniteHom.identity? m "lo" | return false
+    let some hi := FiniteHom.identity? m "hi" | return false
+    return ((FiniteHom.compose? up lo).map (·.tag) == some "up") &&
+      ((FiniteHom.compose? hi up).map (·.tag) == some "up") &&
+      (FiniteHom.fromTag? m "hi" "lo" "up").isNone && (FiniteHom.identity? m "missing").isNone
+  else return false)
+#eval check "Core independently checks finite Hom literals, sorts and empty fibers" (
+  let env : Core.Declarations := ⟨chain, [], []⟩
+  let hom := FiniteSort.hom (id "Instance")
+  let up := Core.Term.finiteTag (hom "lo" "hi") "up"
+  let typed (term : Core.Term) := decide (Core.Typing.HasType env {} [] term)
+  typed up && !typed (.finiteTag (hom "hi" "lo") "up") &&
+    !typed (.finiteTag (hom "lo" "hi") "l") &&
+    !typed (.ascribe (.finite (hom "lo" "hi")) (.finiteTag (id "Arr") "up")) &&
+    !typed (.ascribe (.finite (hom "lo" "hi")) (.natural 0)) &&
+    decide ((Core.DataType.finite (hom "hi" "lo")).Valid env) &&
+    !decide ((Core.DataType.finite (hom "bad" "lo")).Valid env))
+
+/-- Closure on lo < hi maps the nonidentity Hom(lo,hi) to Hom(hi,hi).
+The second category has literally the same graph, but a different owner. -/
+private def closureMonad : Environment :=
+  [entry "Copy" (.finiteCategory (id "Schema") s3Fields),
+   entry "Functor" .functorSchema, entry "NatTrans" .natTransSchema, entry "Monad" .monadSchema,
+   entry "I" (.finiteFunctor (id "Functor") ⟨id "Instance",id "Instance",id "iObj",id "iArr"⟩),
+   entry "T" (.finiteFunctor (id "Functor") ⟨id "Instance",id "Instance",id "tObj",id "tArr"⟩),
+   entry "E" (.finiteNatTrans (id "NatTrans") ⟨id "I",id "T",id "eta"⟩),
+   entry "U" (.finiteNatTrans (id "NatTrans") ⟨id "T",id "T",id "mu"⟩),
+   entry "M" (.finiteMonad (id "Monad") ⟨id "Instance",id "T",id "E",id "U"⟩),
+   entry "iObj" (.finiteTable [id "Obj"] (id "Obj") [(["lo"],"lo"),(["hi"],"hi")]),
+   entry "iArr" (.finiteTable [id "Arr"] (id "Arr") [(["l"],"l"),(["up"],"up"),(["r"],"r")]),
+   entry "tObj" (.finiteTable [id "Obj"] (id "Obj") [(["lo"],"hi"),(["hi"],"hi")]),
+   entry "tArr" (.finiteTable [id "Arr"] (id "Arr") [(["l"],"r"),(["up"],"r"),(["r"],"r")]),
+   entry "eta" (.finiteTable [id "Obj"] (id "Arr") [(["lo"],"up"),(["hi"],"r")]),
+   entry "mu" (.finiteTable [id "Obj"] (id "Arr") [(["lo"],"r"),(["hi"],"r")])] ++ chain
+
+#eval check "Kleisli views derive from the exact Monad schema and preserve their kind" (Id.run do
+  let schemas := [entry "K" (.kleisliSchema .category (id "Monad")),
+    entry "Triple" (.kleisliSchema .triple (id "Monad")), entry "OtherMonad" .monadSchema,
+    entry "OtherK" (.kleisliSchema .category (id "OtherMonad"))] ++ closureMonad
+  let category := entry "First" (.finiteKleisli .category (id "K") (id "M"))
+  let triple := entry "Second" (.finiteKleisli .triple (id "Triple") (id "M"))
+  let read := FiniteCategories.view (triple :: category :: schemas)
+  return validEnvironment (triple :: category :: schemas) &&
+    KleisliViews.selected read .category category.id == some (id "M") &&
+    KleisliViews.selected read .triple triple.id == some (id "M") &&
+    (KleisliViews.selected read .triple category.id).isNone &&
+    (KleisliViews.selected read .category (id "M")).isNone &&
+    !validEnvironment (entry "Bad" (.finiteKleisli .triple (id "K") (id "M")) :: schemas) &&
+    !validEnvironment (entry "Bad" (.finiteKleisli .category (id "OtherK") (id "M")) :: schemas) &&
+    !validEnvironment (entry "Bad" (.finiteKleisli .category (id "K") (id "T")) :: schemas) &&
+    !validEnvironment (entry "Bad" (.kleisliSchema .category (id "M")) :: schemas) &&
+    !validEnvironment (entry "Bad" (.finiteKleisli .category (id "K") triple.id) :: triple :: schemas))
+
+#eval check "typed Monad arrow lookup verifies its table, nominal category and both images" (Id.run do
+  let hom := FiniteSort.hom (id "Instance")
+  let start := hom "lo" "hi"
+  let to := hom "hi" "hi"
+  let site : FiniteLookup := ⟨id "tArr",some (id "M"),[start],to⟩
+  let typed (input : FiniteSort) (s : FiniteLookup) := decide <|
+    Core.Typing.HasType ⟨closureMonad,[],[]⟩ {} [⟨0,⟨.finite input,none⟩⟩] (.finiteLookup s [0])
+  let some plan := site.plan? closureMonad | return false
+  let other := FiniteSort.hom (id "Copy") "lo" "hi"
+  let empty := hom "hi" "lo"
+  let emptySite := {site with inputs := [empty]}
+  return validEnvironment closureMonad && typed start site && plan.atKey ["up"] == some "r" &&
+    typed empty emptySite && (emptySite.plan? closureMonad).any (·.rows.isEmpty) &&
+    !typed start {site with table := id "iArr"} && !typed start {site with category := some (id "T")} &&
+    !typed other {site with inputs := [other]} && !typed start {site with output := hom "lo" "hi"} &&
+    !typed (.carrier (id "Arr")) {site with inputs := [.carrier (id "Arr")]})
+
 #eval check "coherent library renaming preserves acceptance" (validEnvironment renamed &&
   validApplication renamed ⟨renameId (id "Position"), [
     .object (.local ⟨renameId (id "Container"), renameId (id "Coefficient")⟩ 0),

@@ -5,16 +5,16 @@ namespace VastitasKernel.Indexed.FunctionSource.Compiler
 private def initialContext (definition : Prepared) (targets : List Target) : M Context := do
   let mut targets := targets
   let mut context := []
-  for (parameter, binding) in definition.definition.function.params.zip definition.context do
-    let selected ← match parameter.type with
+  for (parameter, binding) in definition.paramTypes.zip definition.context do
+    let selected ← match parameter with
       | .data _ => pure none
-      | .function signature => do
-          let actual :: rest := targets | error parameter.span "E_INTERNAL_FUNCTION" "missing static Fn parameter"
-          sameSignature signature actual.signature parameter.span
-          recordTarget actual signature
+      | .function .. => do
+          let actual :: rest := targets | error binding.span "E_INTERNAL_FUNCTION" "missing static Fn parameter"
+          sameSignature parameter actual.signature binding.span
+          recordTarget actual parameter
           targets := rest
           pure (some actual)
-    context := context ++ [⟨binding, selected⟩]
+    context := context ++ [⟨binding, selected, none⟩]
   unless targets.isEmpty do error definition.definition.function.span "E_INTERNAL_FUNCTION" "extra static Fn parameter"
   return context
 
@@ -43,7 +43,7 @@ def compileInstance (input : Input) (id : Nat) (targets : List Target) (span : S
       { span := input.prepared[k.definition]!.definition.function.span, message := "lambda defined here" : DiagnosticNote }
     body (Source.Bodies.fail definition.definition.function.span "E_RECURSION"
       s!"recursive call cycle {String.intercalate " → " labels} is not supported" notes)
-  let specialized := definition.definition.isLambda || definition.definition.function.higher
+  let specialized := definition.definition.isLambda || definition.definition.function.higher || definition.finiteBody.isSome
   if specialized && (← get).specializations >= Limits.specializations then
     error span "E_LIMIT" s!"higher-order specialization exceeds the {Limits.specializations}-instance limit"
   let work ← result (WorkBudget.charge (← get).elaborationWork
@@ -53,17 +53,20 @@ def compileInstance (input : Input) (id : Nat) (targets : List Target) (span : S
     activeSet := state.activeSet.insert instanceKey,
     specializations := state.specializations + if specialized then 1 else 0,
     elaborationWork := work }
-  let context ← initialContext definition targets
-  let hint := match definition.definition.function.result with | .data _ => some definition.result | .function _ => none
-  let value ← block Limits.bodyChecking input definition.definition.bodyScope context definition.definition.function.body hint
-  checkAnnotation definition.definition.function.result value span
-  if let .function signature := definition.definition.function.result then
-    recordTarget (← target value span) signature
+  let value ← match definition.finiteBody with
+    | some term => pure (Value.mk term none none)
+    | none => do
+      let context ← initialContext definition targets
+      let hint := Signature.dataHint definition.resultType
+      let v ← block Limits.bodyChecking input definition.definition.bodyScope context definition.definition.function.body hint
+      let v ← coerceAnnotation input definition.resultType v span
+      if definition.resultType.isFunction then recordTarget (← target v span) definition.resultType
+      pure v
   if Source.Bodies.generatedLets value.term > Limits.generatedLets then
     error span "E_LIMIT" s!"function exceeds the {Limits.generatedLets}-unit generated-let budget"
   let functionId := (← get).functions.size
   let function : Core.Function := {
-    id := functionId, definition := definition.definition.owner, parameters := definition.parameters,
+    id := functionId, definition := definition.definition.owner, parameters := definition.parametersFor (← get).audit instanceKey,
     returnType := definition.result, body := value.term, span := definition.definition.function.span }
   let compiled := Instance.mk instanceKey functionId value.target
   modify fun state => { state with
@@ -129,7 +132,7 @@ def runWork (input : Input) : Nat → Work α → Namespace.Result (α × State)
 
 mutual
   def requests : Expr → Nat
-    | .call _ args _ => 1 + (args.map requests).sum
+    | .call _ args _ | .finiteCall _ _ args _ | .finiteLookup _ args _ => 1 + (args.map requests).sum
     | .invoke callee args _ => 1 + requests callee + (args.map requests).sum
     | .lambda _ _ body _ | .block body _ => blockRequests body
     | .unary _ value _ => requests value
@@ -146,8 +149,10 @@ end
 structure PreparedProgram where
   input : Input
   initial : Source.Bodies.State
+  discoveryNamespaceWork : Nat := 0
+  discoveryElaborationWork : Nat := 0
 
-def prepareProgram (program : Program) (declarations : Core.Declarations) (lifted : Lifted)
+private def prepareOrdinary (program : Program) (declarations : Core.Declarations) (lifted : Lifted)
     (dispatch : DispatchInput := {}) (excluded : Std.HashSet Nat := {}) : Namespace.Result PreparedProgram := do
   WorkBudget.check (lifted.definitions.toList.map (·.function))
   let (geometry, references) ← (Source.resolveGeometry program.headers declarations).run []
@@ -156,7 +161,7 @@ def prepareProgram (program : Program) (declarations : Core.Declarations) (lifte
   let sourceCount := program.functions.length
   let named := (prepared.toList.filter (fun entry => !entry.definition.isLambda && entry.definition.id < sourceCount)).foldl (fun table entry =>
     table.insert entry.definition.owner entry.definition.id) ({} : Std.HashMap DeclId Nat)
-  return ⟨⟨program, input, prepared, named, sourceCount, dispatch, excluded⟩, initial⟩
+  return {input := {source := program, body := input, prepared, named, sourceCount, dispatch, excluded}, initial}
 
 def entryDefinition (program : Program) : Option Nat :=
   ((program.functions.zipIdx).find? fun ((owner, _), _) => owner.name == "main" &&
@@ -188,27 +193,100 @@ structure Pass where
   namespaceWork : Fin (Limits.namespaceProgramWork + 1) := 0
   /-- The Core symbols of the `let` bindings of Fn values, with their
   signatures (`State.functionLets`). -/
-  functionLets : List (Nat × Surface.TypeExpr) := []
+  functionLets : List (Nat × String) := []
+  familyRefs : List FamilyRef := []
+  finiteCalls : Array FiniteInstanceKey := #[]
+  forwardUses : List ForwardUse := []
   deriving Inhabited
 
 def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pass := do
   let action : M Unit := do
     for entry in prepared.input.prepared do
-      unless audit || prepared.input.executable entry.definition do continue
-      if audit || !(entry.definition.function.params.any fun param => match param.type with | .function _ => true | _ => false) then
-        let mut targets := []
-        for param in entry.definition.function.params do
-          if let .function signature := param.type then targets := targets ++ [← probe signature]
+      unless audit || (prepared.input.executable entry.definition && entry.finiteBody.isNone) do continue
+      let signatures := fnParameters entry
+      if audit || signatures.isEmpty then
+        let targets ← signatures.mapM probe
         let _ ← request entry.definition.id targets entry.definition.function.span
         pure ()
   let structuralBudget := (prepared.input.prepared.size + Limits.specializations + 1) *
     (prepared.input.prepared.foldl (fun total definition => total + blockRequests definition.definition.function.body + 1) 1)
   let workBudget := min structuralBudget (2 * Limits.elaborationWork + 1)
-  let (_, state) ← runWork prepared.input workBudget (action { body := prepared.initial, audit })
+  let mut initial := prepared.initial
+  if audit && prepared.discoveryNamespaceWork > 0 then
+    let session := initial.queries.getD {index := prepared.input.body.index}
+    initial := {initial with queries := some (← session.debit prepared.discoveryNamespaceWork {})}
+  let (_, state) ← runWork prepared.input workBudget (action {
+    body := initial, audit, elaborationWork := if audit then prepared.discoveryElaborationWork else 0 })
   let main := (entryDefinition prepared.input.source).bind fun main =>
     (state.origins.toList.zipIdx.find? (fun (key, _) => key.definition == main)).map Prod.snd
   return ⟨⟨prepared.input.body.declarations, state.functions.toList, main⟩, state.origins,
     state.emittedCalls, state.calls, state.staticUses, state.body.references, state.dispatchCalls,
-    state.probeReuses, state.elaborationWork, (state.body.queries.map (·.units)).getD 0, state.functionLets⟩
+    state.probeReuses, state.elaborationWork, (state.body.queries.map (·.units)).getD 0, state.functionLets, state.familyRefs, state.finiteCalls, state.forwardUses⟩
+
+/-- Discover the finite substitutions demanded by both the executable and all-body
+passes. Only the subsequent runs over the sealed instance map become checked Core. -/
+def prepareProgram (program : Program) (declarations : Core.Declarations) (lifted : Lifted)
+    (dispatch : DispatchInput := {}) (excluded : Std.HashSet Nat := {}) : Namespace.Result PreparedProgram := do
+  let ordinary ← prepareOrdinary program declarations lifted dispatch excluded
+  let sources := program.finiteFunctions
+  if sources.isEmpty then return ordinary
+  WorkBudget.check (sources.map Prod.snd ++ lifted.definitions.toList.map (·.function))
+  let mut templates : Std.HashMap DeclId (Function × FiniteTemplate) := {}
+  let mut forwardMethods := {}
+  let mut initial := ordinary.initial
+  let mut work := 0
+  for (owner,fn) in sources.filter (fun (_,fn) => !fn.higher) do
+    if owner.name == "main" && owner.scope.path.isEmpty && owner.scope.package.source == program.root then
+      Namespace.problem fn.span "E_MAIN" "entry point cannot have finite binders"
+    work ← WorkBudget.charge work (WorkBudget.function fn) fn.span
+    let index := ordinary.input.body.index
+    let template ← FiniteTemplate.check index declarations owner fn
+    if templates.contains owner then Namespace.problem fn.span "E_DUPLICATE" "duplicate finite represented method"
+    for ref in template.references do
+      let (hit,next) ← (Source.Bodies.lookupPath index ref.scope ref.path).run initial
+      unless hit == ref.target do Namespace.problem ref.path.span "E_OWNER" "finite schema reference changed owner"
+      initial := {next with references := ref :: next.references}
+    templates := templates.insert owner (fn,template)
+  for (owner,fn) in sources.filter (fun (_,fn) => fn.higher) do
+    let some (primary,t) := templates[owner]?
+      | Namespace.problem fn.span "E_TYPE" "finite callable overload requires a represented method in the same module"
+    work ← WorkBudget.charge work (WorkBudget.function fn) fn.span
+    let index := ordinary.input.body.index
+    let (mask,method,refs) ← FiniteTemplate.checkForwarder index declarations owner primary t fn
+    if forwardMethods.contains (owner,mask) then
+      Namespace.problem fn.span "E_DUPLICATE" "duplicate finite callable method for the same input positions"
+    for ref in refs do
+      let (hit,next) ← (Source.Bodies.lookupPath index ref.scope ref.path).run initial
+      unless hit == ref.target do Namespace.problem ref.path.span "E_OWNER" "finite forwarding reference changed owner"
+      initial := {next with references := ref :: next.references}
+    let (callee,next) ← (Source.Bodies.lookupPath index owner.scope method.callee).run initial
+    unless callee.kind == .function && callee.owner == owner do
+      Namespace.problem method.callee.span "E_OWNER" "finite forwarding callee changed owner"
+    initial := next
+    forwardMethods := forwardMethods.insert (owner,mask) method
+  let discover := {ordinary with initial, input := {ordinary.input with templates, forwardMethods, discovering := true}}
+  let audit ← lowerPass discover true
+  let exec ← lowerPass discover false
+  work ← WorkBudget.charge work (audit.elaborationWork + exec.elaborationWork) {}
+  let mut instances : Std.HashMap FiniteInstanceKey Nat := {}
+  let mut prepared := ordinary.input.prepared
+  for (owner,key) in audit.finiteCalls ++ exec.finiteCalls do
+    if instances.contains (owner,key) then continue
+    let some (fn,template) := templates[owner]? | Namespace.problem {} "E_INTERNAL_FUNCTION" "unknown finite template"
+    if instances.size ≥ Limits.specializations then Namespace.problem fn.span "E_LIMIT" "finite fn specialization limit exceeded"
+    work ← WorkBudget.charge work (WorkBudget.function fn) fn.span
+    let (params,returnType,term) ← template.instantiate declarations key (List.range fn.params.length)
+    let i := prepared.size
+    let definition : Definition := {id := i, origin := i, owner, function := fn}
+    prepared := prepared.push {
+      definition, context := [], parameters := params, result := returnType,
+      paramTypes := params.map (fun p => .data p.result.type), resultType := .data returnType,
+      finiteKey := key, finiteBody := some term}
+    instances := instances.insert (owner,key) i
+  let initialUnits := (initial.queries.map (·.units.val)).getD 0
+  let discoveryNamespaceWork := (audit.namespaceWork.val - initialUnits) + (exec.namespaceWork.val - initialUnits)
+  return {
+    initial, discoveryNamespaceWork, discoveryElaborationWork := work,
+    input := {ordinary.input with prepared, templates, forwardMethods, finiteInstances := instances}}
 
 end VastitasKernel.Indexed.FunctionSource.Compiler

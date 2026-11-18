@@ -1,0 +1,9 @@
+// Row order deliberately differs from the input carrier's ordinal order.
+pub indexed finite Input { first; second; third; }
+pub indexed finite Output { low; high; }
+indexed table image(Input) -> Output {
+    (third) => high;
+    (first) => high;
+    (second) => low;
+}
+pub fn pick(x: Input<>) -> Output<> { finite::lookup::<image>(x) }

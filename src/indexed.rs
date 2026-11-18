@@ -122,9 +122,114 @@ pub struct Declaration {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FiniteTag {
+    pub name: String,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FiniteTableRow {
+    pub key: Vec<FiniteTag>,
+    pub value: FiniteTag,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Composable {
+    pub src: TypePath,
+    pub dst: TypePath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FiniteGraph {
+    pub objects: TypePath,
+    pub arrows: TypePath,
+    pub src: TypePath,
+    pub dst: TypePath,
+    pub ids: TypePath,
+    pub comp: TypePath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FiniteFunctor {
+    pub source: TypePath,
+    pub target: TypePath,
+    pub objects: TypePath,
+    pub arrows: TypePath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NaturalTransformation {
+    pub source: TypePath,
+    pub target: TypePath,
+    pub components: TypePath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FiniteMonad {
+    pub category: TypePath,
+    pub functor: TypePath,
+    pub unit: TypePath,
+    pub multiplication: TypePath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FiniteInstance {
+    Graph(Box<FiniteGraph>),
+    Functor(Box<FiniteFunctor>),
+    Transformation(Box<NaturalTransformation>),
+    Monad(Box<FiniteMonad>),
+    Kleisli { monad: Box<TypePath> },
+    KleisliTriple { monad: Box<TypePath> },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "schema_kind", rename_all = "snake_case")]
+pub enum SchemaKind {
+    FiniteCategory,
+    FiniteFunctor,
+    #[serde(rename = "finite_nat_trans")]
+    NaturalTransformation,
+    FiniteMonad,
+    FiniteKleisli {
+        monad_schema: TypePath,
+    },
+    FiniteKleisliTriple {
+        monad_schema: TypePath,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum DeclarationBody {
     Marker,
+    Finite {
+        tags: Vec<FiniteTag>,
+    },
+    Schema {
+        #[serde(flatten)]
+        schema_kind: SchemaKind,
+    },
+    Instance {
+        schema: TypePath,
+        #[serde(flatten)]
+        fields: FiniteInstance,
+    },
+    Table {
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        composable: Option<Composable>,
+        inputs: Vec<TypePath>,
+        output: TypePath,
+        rows: Vec<FiniteTableRow>,
+    },
     Implementation {
         marker: TypePath,
         representation: Representation,

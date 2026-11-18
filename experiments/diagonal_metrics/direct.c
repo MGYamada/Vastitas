@@ -35,21 +35,25 @@ VStorageStatus direct_preflight(VStorageArena *arena, unsigned pair,
 }
 void direct_adjoint(const VStorageDense *a, const VStorageDense *b,
                     const double *source, const double *target, unsigned uniform) {
+    const double *src = a->data;
+    double *dst = b->data;
     unsigned width=a->scalar?2:1;
     for(uint64_t j=0;j<b->columns;++j) for(uint64_t i=0;i<b->rows;++i) {
         uint64_t from=(i*a->leading+j)*width, to=(j*b->leading+i)*width;
         double s=source[uniform?0:i],t=target[uniform?0:j];
-        b->data[to]=(a->data[from]*t)/s;
-        if(a->scalar) b->data[to+1]=(-a->data[from+1]*t)/s;
+        dst[to]=(src[from]*t)/s;
+        if(a->scalar) dst[to+1]=(-src[from+1]*t)/s;
     }
 }
 void direct_pair(const VStorageDense *a, const VStorageDense *b,
                  const VStorageDense *scratch, const VStorageDense *out,
                  const double *weights, unsigned uniform) {
     unsigned width=a->scalar?2:1;
+    const double *src = b->data;
+    double *dst = scratch->data;
     for(uint64_t i=0;i<a->rows;++i) {
-        scratch->data[width*i]=b->data[width*i]*weights[uniform?0:i];
-        if(a->scalar) scratch->data[width*i+1]=b->data[width*i+1]*weights[uniform?0:i];
+        dst[width*i]=src[width*i]*weights[uniform?0:i];
+        if(a->scalar) dst[width*i+1]=src[width*i+1]*weights[uniform?0:i];
     }
     if(a->scalar) {
         const double one[2]={1,0},zero[2]={0,0};

@@ -8,6 +8,61 @@ const REAL: &str =
 const COMPLEX: &str =
     include_str!("../examples/packages/numerical/contraction-tree/src/complex/mod.vast");
 
+const COLUMN_PRODUCT: &str = "pub resource fn product() -> Unit {
+    space u = linear(super::profiles::ComplexSmooth, 2); basis bu = basis(u);
+    space v = linear(super::profiles::ComplexSmooth, 3); basis bv = basis(v);
+    space vd = dual(v); basis bvd = derived(bv, vd);
+    allocate a: F32<CC>[6]; allocate x: F32<CC>[3]; allocate y: F32<CC>[2];
+    borrow wa = write(a, layout(0,2,3,2,false)); fill(wa, complex32(1,2)); release(wa);
+    borrow wx = write(x, layout(0,3,1,3,false)); fill(wx, complex32(3,-4)); release(wx);
+    borrow ra = read(a, layout(0,2,3,2,false)); tensor matrix = view2(ra,bu,bvd);
+    borrow rx = read(x, layout(0,3,1,3,false)); tensor column = view1(rx,bv);
+    borrow wy = write(y, layout(0,2,1,2,false)); tensor result = view1(wy,bu);
+    contract_tree(result, NativeFast) {
+        occurrence a = matrix; occurrence x = column;
+        edge ev = (a[1], x[0]); boundary(a[0]);
+        plan { join done = (ev,a,x,result); }
+    }
+    release(wy); release(rx); release(ra);
+    borrow r = read(y, layout(0,2,1,2,false));
+    expect(r,0,0,complex32(33,6)); expect(r,1,0,complex32(33,6)); release(r);
+    drop(y); drop(x); drop(a); value { () }
+}";
+
+#[test]
+fn tensor_column_contraction_requires_the_selected_dual_and_surviving_basis() {
+    let s = fixture(
+        COLUMN_PRODUCT,
+        "pub resource fn product() -> Unit { value { () } }",
+    );
+    success(&command(&s, "check").output().unwrap());
+    for source in [
+        COLUMN_PRODUCT.replace("view2(ra,bu,bvd)", "view2(ra,bu,bv)"),
+        COLUMN_PRODUCT.replace("boundary(a[0])", "boundary(x[0])"),
+    ] {
+        s.write("src/real/mod.vast", &source);
+        common::expect_code(&command(&s, "check").output().unwrap(), "E_TENSOR_TREE");
+    }
+}
+
+#[test]
+#[ignore = "requires pinned sequential LP64 OpenBLAS"]
+fn tensor_column_contraction_executes_without_implicit_conjugation() {
+    let s = fixture(
+        COLUMN_PRODUCT,
+        "pub resource fn product() -> Unit { value { () } }",
+    );
+    let mut build = command(&s, "build");
+    build
+        .args(["-o", "program"])
+        .args(common::numerical_build_options(None));
+    success(&build.output().unwrap());
+    assert_eq!(
+        common::ran(&Command::new(s.0.join("program")).output().unwrap()),
+        common::exits(0)
+    );
+}
+
 fn fixture(real: &str, complex: &str) -> Scratch {
     common::example_package(
         "contraction tree",
@@ -66,7 +121,7 @@ fn branched(source: &str, condition: bool) -> String {
 // The diagonal D scales T's free coordinate by 2 and 3 respectively; all
 // following coordinate assertions are independently rescaled accordingly.
 fn four_occurrences(source: &str, complex: bool) -> String {
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let profile = if complex {
         "ComplexSmooth"
     } else {
@@ -132,7 +187,7 @@ fn repeated_chain(complex: bool, n: usize) -> String {
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let width = if complex { 16 } else { 8 };
     let count = 2 + (n + 1) * n;
     let literal = if complex {
@@ -220,7 +275,7 @@ fn unused_tree_bodies_are_audited_without_linking_the_numerical_runtime() {
 
 // Both intermediates are independently produced before their final join.
 fn balanced_chain(complex: bool) -> String {
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let width = if complex { 16 } else { 8 };
     let source=repeated_chain(complex,2)
         .replace(&format!("allocate result: {scalar}[8];"),&format!("allocate result: {scalar}[8]; allocate second: {scalar}[8];"))
@@ -257,7 +312,7 @@ fn oriented_pair(
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let width = if complex { 16 } else { 8 };
     let literal = |(re, im): (f64, f64)| {
         if complex {
@@ -452,7 +507,7 @@ fn explicit_regroup_supports_every_rank_two_three_selected_axis_orientation() {
 
 fn with_cache(source: &str, complex: bool, condition: bool, overwrite: bool) -> String {
     let width = if complex { 16 } else { 8 };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let source = source.replace(
         "    contract_tree(c, NativeFast) {",
         &format!(
@@ -547,7 +602,7 @@ fn long_chain(count: usize) -> String {
     let mut source=String::from("pub resource fn product() -> Unit {
         space v = linear(super::profiles::RealSmooth,1); basis bv = basis(v);
         space vd = dual(v); basis bvd = derived(bv,vd);
-        allocate input: F64[1]; allocate s0: F64[1]; allocate s1: F64[1]; allocate result: F64[1];
+        allocate input: F64<RR>[1]; allocate s0: F64<RR>[1]; allocate s1: F64<RR>[1]; allocate result: F64<RR>[1];
         borrow init = write(input,layout(0,1,1,1,false)); fill(init,f64_bits(4607182418800017408)); release(init);
         borrow input_read = read(input,layout(0,1,1,1,false)); tensor t = view2(input_read,bv,bvd);
         borrow output = write(result,layout(0,1,1,1,false)); tensor c = view2(output,bv,bvd);
@@ -699,14 +754,14 @@ fn trees_reject_wrong_ports_nominal_axes_and_forged_producers() {
         "E_TENSOR_TREE",
     );
     // Rebinding cannot relabel an unrelated initialized allocation of equal shape.
-    rejection(&REAL.replace("allocate scratch: F64[47];", "allocate scratch: F64[47]; allocate fake: F64[47]; borrow fake_write = write(fake, layout(8, 8, 3, 9, false)); fill(fake_write, f64_bits(0)); release(fake_write);")
+    rejection(&REAL.replace("allocate scratch: F64<RR>[47];", "allocate scratch: F64<RR>[47]; allocate fake: F64<RR>[47]; borrow fake_write = write(fake, layout(8, 8, 3, 9, false)); fill(fake_write, f64_bits(0)); release(fake_write);")
         .replace("read(scratch, layout(8, 8, 3, 9, false))", "read(fake, layout(8, 8, 3, 9, false))")
         .replace("drop(result);", "drop(fake); drop(result);"), "E_TENSOR_TREE");
     let opaque = REAL.replace("    contract_tree(c, NativeFast) {", "    call hide(v,bv) -> (opaque);\n    contract_tree(c, NativeFast) {")
         .replace("        plan {", "        plan { borrow illicit = read(opaque, layout(0,2,3,2,false)); release(illicit);");
     rejection(&format!("{opaque}\nresource fn hide(v: Space<super::profiles::RealSmooth,3>, bv: Basis<v>) returns (boxed: OwnedMapTo<bv,2>) -> Unit {{
         space hidden = linear(super::profiles::RealSmooth,2); basis hidden_basis = basis(hidden);
-        allocate buffer: F64[6]; borrow init = write(buffer,layout(0,2,3,2,false)); fill(init,f64_bits(0)); release(init);
+        allocate buffer: F64<RR>[6]; borrow init = write(buffer,layout(0,2,3,2,false)); fill(init,f64_bits(0)); release(init);
         map matrix = owned(buffer,layout(0,2,3,2,false),bv,hidden_basis); map boxed = pack(matrix); value {{ () }}
     }}"), "E_TENSOR_TREE");
     // Invalid dead arms and uncalled bodies are still audited.

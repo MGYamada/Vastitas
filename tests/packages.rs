@@ -7,7 +7,7 @@ use std::process::Output;
 
 impl Scratch {
     fn package(&self, path: &str, source: &str, deps: &str) {
-        self.write(&format!("{path}/Vastitas.toml"), &format!("[package]\nname = 'same-name'\nversion = '0.1.0'\nroot = 'src/main.vast'\n[dependencies]\n{deps}\n"));
+        self.write(&format!("{path}/Vastitas.toml"), &format!("[package]\nedition = \"2026\"\nname = 'same-name'\nversion = '0.1.0'\nroot = 'src/main.vast'\n[dependencies]\n{deps}\n"));
         self.write(&format!("{path}/src/main.vast"), source);
     }
     fn check(&self) -> Output {
@@ -24,9 +24,54 @@ impl Scratch {
 }
 
 #[test]
+fn edition_is_explicit_and_exact_in_root_and_dependency_manifests() {
+    let s = Scratch::empty("package edition");
+    s.package("lib", "pub fn value() -> Int { 42 }", "");
+    s.package(
+        "app",
+        "fn main() -> Int { dep::value() }",
+        "dep = { path = '../lib' }",
+    );
+    success(&s.check());
+    for package in ["app", "lib"] {
+        let path = format!("{package}/Vastitas.toml");
+        let original = fs::read_to_string(s.0.join(&path)).unwrap();
+        for (replacement, expected) in [
+            ("", "missing field `edition`"),
+            ("edition = '2025'\n", "package edition must be \"2026\""),
+            ("edition = '2027'\n", "package edition must be \"2026\""),
+            ("edition = '2026 '\n", "package edition must be \"2026\""),
+            ("edition = 2026\n", "expected a string"),
+            ("edition = true\n", "expected a string"),
+        ] {
+            s.write(
+                &path,
+                &original.replace("edition = \"2026\"\n", replacement),
+            );
+            for mode in ["check", "build"] {
+                let mut command = s.command(mode, "app/Vastitas.toml");
+                if mode == "build" {
+                    command.args(["-o", "program"]);
+                }
+                // Admission must fail before any kernel or native build runs.
+                let output = command
+                    .env("VASTITAS_KERNEL", s.0.join("absent kernel"))
+                    .output()
+                    .unwrap();
+                let message = common::expect_code(&output, "E_MANIFEST");
+                assert!(message.contains(&path), "{message}");
+                assert!(message.contains(expected), "{message}");
+                assert!(!s.0.join("program").exists());
+            }
+        }
+        s.write(&path, &original);
+    }
+}
+
+#[test]
 fn path_aliases_reexports_and_higher_order_dispatch_execute() {
     let s = Scratch::empty("packages");
-    s.package("lib", "mod inner { pub generic add(x, y) { domain (Int, Int); } method add(x: Int, y: Int) -> Int { x + y } pub fn next(x: Int) -> Int { add(x, 1) } } pub use inner::next; pub fn invoke(f: Fn<Int, Int>, x: Int) -> Int { f(x) }", "");
+    s.package("lib", "mod inner { pub fn add(x, y) domain((Int, Int)); fn add(x: Int, y: Int) -> Int { x + y } pub fn next(x: Int) -> Int { self::add(x, 1) } } pub use inner::next; pub fn invoke(f: Fn<Int, Int>, x: Int) -> Int { f(x) }", "");
     s.package("app", "use math::next as increment; fn main() -> Int { let package = 40; let f: Fn<Int, Int> = if true { increment } else { alias::next }; math::invoke(f, f(package)) }", "math = { path = '../lib' }\nalias = { path = '../lib/.' }");
     s.native(common::exits(42));
 }
@@ -552,12 +597,10 @@ fn main() -> Int { dimension::value() + twice(1) }",
     }
 }
 
-/// The frontend follows the path of a `use` of a reserved name through a
-/// bounded number of imports (#759). A longer chain of distinct aliases is
-/// left to the kernel, which checks every `use` itself within its own work
-/// bounds, so the frontend never exhausts its stack on such a program.
+/// A long chain must reach the same reserved module and report the original
+/// use site without consuming the process stack (#759).
 #[test]
-fn a_long_chain_of_imports_is_left_to_the_kernel() {
+fn a_long_chain_of_imports_preserves_the_reserved_module_diagnostic() {
     let s = Scratch::empty("packages");
     const CHAIN: usize = 20_000;
     let mut source = String::from("mod units { pub mod dim {} }\n");
@@ -567,13 +610,9 @@ fn a_long_chain_of_imports_is_left_to_the_kernel() {
     }
     source.push_str("use a0::dim;\nfn main() -> Int { 0 }\n");
     s.package("app", &source, "");
-    let output = s.check();
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!output.status.success(), "{stderr}");
-    assert!(
-        stderr.contains("E_RESERVED") || stderr.contains("E_LIMIT"),
-        "{stderr}"
-    );
+    let error = s.rejects("E_RESERVED");
+    let place = format!("main.vast:{}:9: E_RESERVED", CHAIN + 3);
+    assert!(error.contains(&place), "{error}");
 }
 
 /// The kernel decides module names independently of the frontend: it
@@ -809,21 +848,23 @@ pub indexed primitive size = dim((Scheme, QQ));
 #[test]
 fn only_exact_generic_owner_can_add_methods() {
     let s = Scratch::empty("packages");
-    s.package(
-        "lib",
-        "pub generic g() { domain (); } method g() -> Int { 42 }",
-        "",
-    );
-    for source in [
-        "method dep::g() -> Int { 1 }",
-        "use dep::g as borrowed; method borrowed() -> Int { 1 }",
-        "generic g() { domain (); } mod child { method super::g() -> Int { 1 } }",
-        "fn f() -> Int { 0 } method f() -> Int { 1 }",
+    s.package("lib", "pub fn g() domain(()); fn g() -> Int { 42 }", "");
+    for (source, code) in [
+        ("fn dep::g() -> Int { 1 }", "E_OWNER"),
+        (
+            "use dep::g as borrowed; fn borrowed() -> Int { 1 }",
+            "E_OWNER",
+        ),
+        (
+            "fn g() domain(()); mod child { fn super::g() -> Int { 1 } }",
+            "E_OWNER",
+        ),
+        ("fn f() -> Int { 0 } fn f() -> Int { 1 }", "E_DUPLICATE"),
     ] {
         s.package("app", source, "dep = { path = '../lib' }");
-        s.rejects("E_OWNER");
+        s.rejects(code);
     }
-    s.package("app", "pub generic g() { domain (); } use g as alias; method alias() -> Int { 21 } fn main() -> Int { g() + g() }", "");
+    s.package("app", "pub fn g() domain(()); use g as alias; fn alias() -> Int { 21 } fn main() -> Int { g() + g() }", "");
     s.native(common::exits(42));
 }
 
@@ -844,7 +885,7 @@ fn unused_inputs_captures_and_recursion_are_not_hidden() {
             "E_RECURSION",
         ),
         (
-            "generic g(x) { domain (Int); } method g(x: Any) -> Int { x + true } method g(x: Int) -> Int { x }",
+            "fn g(x) domain((Int)); fn g(x: Any) -> Int { x + true } fn g(x: Int) -> Int { x }",
             "E_TYPE",
         ),
         (
@@ -901,9 +942,9 @@ fn manifest_validation_and_cli_modes_are_explicit() {
         common::expect_code(&out, "E_USAGE");
     }
     for text in [
-        "[package]\nname='test'\nroot='src/main.vast'",
-        "[package]\nname='test'\nversion='1.2'\nroot='src/main.vast'",
-        "[package]\nname='test'\nversion='1.2.3'\nroot='src/main.vast'\n[dependencies]\na={git='https://example.invalid'}",
+        "[package]\nedition = \"2026\"\nname='test'\nroot='src/main.vast'",
+        "[package]\nedition = \"2026\"\nname='test'\nversion='1.2'\nroot='src/main.vast'",
+        "[package]\nedition = \"2026\"\nname='test'\nversion='1.2.3'\nroot='src/main.vast'\n[dependencies]\na={git='https://example.invalid'}",
     ] {
         s.write("app/Vastitas.toml", text);
         s.rejects("E_MANIFEST");
@@ -950,7 +991,7 @@ fn filesystem_escape_and_module_loading_cycles_are_rejected() {
     s.rejects("E_CYCLE");
     s.write(
         "app/Vastitas.toml",
-        "[package]\nname='test'\nversion='1.2.3'\nroot='../outside.vast'",
+        "[package]\nedition = \"2026\"\nname='test'\nversion='1.2.3'\nroot='../outside.vast'",
     );
     s.rejects("E_INPUT");
 }
@@ -1147,17 +1188,17 @@ fn name_errors_of_a_module_point_to_the_second_declaration() {
         (
             "fn main() -> Int { 42 }\nmod a;\n",
             Some(
-                "\n\npub fn q() -> Int { 1 }\nmod m { pub fn f() -> Int { 1 } }\nuse m::f as q;\n",
+                "\n\npub fn q() domain(()); fn q() -> Int { 1 }\nmod m { pub fn f() -> Int { 1 } }\nuse m::f as q;\n",
             ),
             "E_DUPLICATE",
             &[
-                "a.vast:5:1: E_DUPLICATE: 'q' is already the name of a function of this module",
+                "a.vast:5:1: E_DUPLICATE: 'q' is already the name of a generic of this module",
                 "a.vast:3:5: note: first declaration is here",
             ],
         ),
         // The same in an inline module.
         (
-            "fn main() -> Int { 42 }\n\n  mod a {\n    pub fn q() -> Int { 1 }\n    mod m { pub fn f() -> Int { 1 } }\n    use m::f as q;\n  }\n",
+            "fn main() -> Int { 42 }\n\n  mod a {\n    pub fn q() domain(()); fn q() -> Int { 1 }\n    mod m { pub fn f() -> Int { 1 } }\n    use m::f as q;\n  }\n",
             None,
             "E_DUPLICATE",
             &[
@@ -1168,7 +1209,9 @@ fn name_errors_of_a_module_point_to_the_second_declaration() {
         // A function after a `use` of its name.
         (
             "fn main() -> Int { 42 }\nmod a;\n",
-            Some("mod m { pub fn f() -> Int { 1 } }\nuse m::f as q;\n\npub fn q() -> Int { 1 }\n"),
+            Some(
+                "mod m { pub fn f() -> Int { 1 } }\nuse m::f as q;\n\npub fn q() domain(()); fn q() -> Int { 1 }\n",
+            ),
             "E_DUPLICATE",
             &[
                 "a.vast:4:5: E_DUPLICATE: 'q' is already the name of an import of this module",
@@ -1177,7 +1220,7 @@ fn name_errors_of_a_module_point_to_the_second_declaration() {
         ),
         // Two items of one name and of two kinds: at the second in the file.
         (
-            "fn main() -> Int { 42 }\n\ngeneric g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\nfn g() -> Int { 1 }\n",
+            "fn main() -> Int { 42 }\n\nabstract type g;\n\nfn g() -> Int { 1 }\n",
             None,
             "E_DUPLICATE",
             &[

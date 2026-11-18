@@ -29,8 +29,8 @@ The first group has these declarations:
   object of it.
 - `RealSmooth` and `ComplexSmooth` are
   [*linear implementations*](../appendix/glossary.md#linear-implementation)
-  over that base. A space of `RealSmooth` stores cells of `F64`, and a space
-  of `ComplexSmooth` stores cells of `Complex<F64>`.
+  over that base. A space of `RealSmooth` stores cells of `F64<RR>`, and a space
+  of `ComplexSmooth` stores cells of `F64<CC>`.
 
 The two other groups declare a real and a complex linear implementation over
 bases of the scheme setting. Such a set of declarations is a
@@ -119,7 +119,7 @@ coefficients, as
 [Matrix products](../linalg/maps-and-gemm.md#matrix-products) describes.
 
 The module `complex` of the package does the same with `ComplexSmooth` and
-cells of `Complex<F64>`. It multiplies the matrix with the rows (1, i, 2) and
+cells of `F64<CC>`. It multiplies the matrix with the rows (1, i, 2) and
 (0, 1, −i) by the matrix with the rows (1, 0), (2, 1) and (0, i). The
 product has the rows (1 + 2i, 3i) and (2, 2).
 
@@ -333,7 +333,7 @@ program writes no line and exits with status 0.
 
 Larger networks contract
 [*tensors*](../appendix/glossary.md#tensor). A tensor presents a loan as an
-array with two or three axes, each indexed by a basis. The program writes
+array with one to three axes, each indexed by a basis. The program writes
 every step itself. This chapter only names the statements for tensors. The
 linked sections of the Reference give their rules and show each of them in a
 tested program:

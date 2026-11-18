@@ -12,7 +12,7 @@ fn package_diagnostic(source: &str) -> String {
     let s = Scratch::empty("checker places");
     s.write(
         "Vastitas.toml",
-        "[package]\nname = \"places\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"places\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     s.write("main.vast", source);
     let output = s.check_manifest("Vastitas.toml");
@@ -63,7 +63,7 @@ fn a_repeated_name_is_reported_at_the_second_declaration_with_the_name() {
         ),
         (
             "fn f() -> Int { 1 }\nfn f() -> Int { 2 }\nfn main() -> Int { 0 }\n",
-            "main.vast:2:1: E_DUPLICATE: `f` is declared more than once in this module",
+            "main.vast:2:1: E_DUPLICATE: generic 'places::f': duplicate normalized method signature",
         ),
     ] {
         assert_eq!(package_diagnostic(source), expected, "{source}");

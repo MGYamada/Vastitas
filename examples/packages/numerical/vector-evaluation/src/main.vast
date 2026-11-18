@@ -11,8 +11,8 @@ resource fn main() -> Int {
     space vc = conjugate(v, sigma);
     basis bvc = derived(bv, vc);
     metric h = orthonormal(bv, sigma);
-    allocate input: Complex<F64>[4];
-    allocate output: Complex<F64>[4];
+    allocate input: F64<CC>[4];
+    allocate output: F64<CC>[4];
     borrow init = write(input, layout(16, 1, 1, 3, false));
     fill(init, complex_bits(0, 4607182418800017408));
     release(init);
@@ -36,14 +36,14 @@ resource fn main() -> Int {
 // ANCHOR: pairings
 resource fn algebraic(v: Space<profiles::ComplexSmooth, 1>, bv: Basis<v>,
     vd: DualSpace<v>, bvd: DerivedBasis<bv, vd>, phi: ReadVector<bvd>, x: ReadVector<bv>,
-    output: Write<Complex<F64>, 1, 1> initializes) -> Unit {
+    output: Write<F64<CC>, 1, 1> initializes) -> Unit {
     evaluate(phi, x, output, overwrite, NativeFast);
     value { () }
 }
 
 resource fn hermitian_value(v: Space<profiles::ComplexSmooth, 1>, bv: Basis<v>,
     sigma: Involution<v>, vc: ConjugateSpace<v, sigma>, bvc: DerivedBasis<bv, vc>, h: OrthonormalMetric<bv, sigma>,
-    x: ReadVector<bv>, y: ReadVector<bv>, output: Write<Complex<F64>, 1, 1> initializes) -> Unit {
+    x: ReadVector<bv>, y: ReadVector<bv>, output: Write<F64<CC>, 1, 1> initializes) -> Unit {
     vector conjugated = conjugate(x, bvc, sigma);
     call pairing_into(v, bv, sigma, vc, bvc, h, conjugated, y, output) -> ();
     release(conjugated);
@@ -52,7 +52,7 @@ resource fn hermitian_value(v: Space<profiles::ComplexSmooth, 1>, bv: Basis<v>,
 
 resource fn pairing_into(v: Space<profiles::ComplexSmooth, 1>, bv: Basis<v>,
     sigma: Involution<v>, vc: ConjugateSpace<v, sigma>, bvc: DerivedBasis<bv, vc>, h: OrthonormalMetric<bv, sigma>,
-    x: ReadVector<bvc>, y: ReadVector<bv>, output: Write<Complex<F64>, 1, 1> initializes) -> Unit {
+    x: ReadVector<bvc>, y: ReadVector<bv>, output: Write<F64<CC>, 1, 1> initializes) -> Unit {
     hermitian(x, y, output, h, overwrite, NativeFast);
     value { () }
 }

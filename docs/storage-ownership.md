@@ -202,7 +202,7 @@ Rules:
   column padding.
 - Narrowing to LP64 must be checked before entry into BLAS.
 - The adapter ABI fixes complex storage and alignment. Neither is inferred
-  from the source spelling `Complex<F64>` or from an unchecked cast of a host
+  from the source spelling `F64<CC>` or from an unchecked cast of a host
   struct.
 - Transposition and reborrowing do not authorize reinterpreting half of a
   complex element. An empty view forms no pointer.
@@ -219,7 +219,7 @@ of layouts and of the sizes of allocations with their codes.
 > tensor of rank three is a grouping of axes over such a rectangle, as
 > [Networks, packing and contraction trees](linalg/networks-and-packing.md)
 > describes. The offset of a view with a cell is a multiple of 8 bytes for
-> `F64` and of 16 bytes for `Complex<F64>`; pointer alignment is 8 bytes for
+> `F64<RR>` and of 16 bytes for `F64<CC>`; pointer alignment is 8 bytes for
 > binary64 components. The checker requires `ld >= max(1, m)` for an empty
 > view too. It rejects strides other than the leading dimension and broadcast
 > views with zero strides.
@@ -455,7 +455,7 @@ plan and of the reuse of a packing.
 
 ## The GEMM contract
 
-The GEMM profile uses `F64` and `Complex<F64>`, column-major LP64 storage, a
+The GEMM profile uses `F64<RR>` and `F64<CC>`, column-major LP64 storage, a
 synchronous CPU and the explicit policy `NativeFast`. Its backend is OpenBLAS
 behind a thin C adapter; [Numerical builds](guide/cli.md#numerical-builds)
 gives the pinned version. `overwrite` is logically `C := alpha * A * B`, and

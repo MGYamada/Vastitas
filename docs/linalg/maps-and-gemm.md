@@ -69,8 +69,9 @@ lead to one:
 - `indexed implementation L(K, linear_descriptor(B, kind)) capabilities();`
   declares a linear implementation over the base `B`.
 
-A space of a `real` linear implementation stores `F64` cells, and a space of a
-`complex` one stores `Complex<F64>` cells. These declarations create no space
+A `real` linear implementation admits `F32<RR>` and `F64<RR>` cells. A
+`complex` one admits `F32<CC>` and `F64<CC>` cells. The allocation supplies
+the precision of each view. These declarations create no space
 and no storage. A linear implementation states no algebraic law, and it
 converts no `Scheme` or `CInfScheme` value into a linear map.
 [Indexed declarations](../indexed-source.md) describes markers, global
@@ -181,7 +182,7 @@ Rules:
   another implementation.
 - The view of the loan must have as many rows as the space of `bt` has
   dimensions and as many columns as the space of `bs`. Its element type must
-  be `F64` for a real and `Complex<F64>` for a complex implementation
+  have real components for a real implementation and a real-imaginary pair for a complex one
   (`E_NUMERICAL_TYPE`).
 - A map may present a loan of any access, including a `write` loan of
   uninitialized cells, and several maps may present one loan.
@@ -217,9 +218,9 @@ three maps, `overwrite` computes `C := alpha·A·B` and ignores the old cells of
 cell of the loan `s` when the statement runs. The statement conjugates nothing
 and transposes nothing, for real and for complex maps.
 
-`NativeFast` is the one numerical policy. It says that the native routine
-computes the product in binary64 arithmetic, in the order of operations of
-that routine. The result is not an exact product of real numbers.
+The three maps must have the same element type, including component precision.
+Passing a map to another resource function preserves that type. Under
+`NativeFast` the routine computes at the selected precision in its own operation order.
 [The GEMM contract](../storage-ownership.md#the-gemm-contract) states the
 model behind the rules of this section: what a product reads and writes in
 each mode, and what the adapter must check before the first write.

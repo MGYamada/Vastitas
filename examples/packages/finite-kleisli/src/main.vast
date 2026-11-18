@@ -1,0 +1,45 @@
+// The closure monad on lo < hi. Its unit at lo is the nonidentity arrow up.
+use std::category::Category;
+use std::category::Functor;
+use std::category::NatTrans;
+use std::category::Monad;
+
+indexed finite Obj { lo; hi; }
+indexed finite Arr { leftId; up; rightId; }
+indexed table s(Arr) -> Obj { (leftId) => lo; (up) => lo; (rightId) => hi; }
+indexed table t(Arr) -> Obj { (leftId) => lo; (up) => hi; (rightId) => hi; }
+indexed table ids(Obj) -> Arr { (lo) => leftId; (hi) => rightId; }
+indexed table comp(Arr, Arr) -> Arr where composable(s, t) {
+    (leftId, leftId) => leftId; (up, leftId) => up;
+    (rightId, up) => up; (rightId, rightId) => rightId;
+}
+indexed instance C : Category = finite_graph(Obj, Arr, s, t, ids, comp);
+indexed table sameObj(Obj) -> Obj { (lo) => lo; (hi) => hi; }
+indexed table sameArr(Arr) -> Arr { (leftId) => leftId; (up) => up; (rightId) => rightId; }
+indexed instance Id : Functor = finite_functor(C, C, sameObj, sameArr);
+
+indexed table closeObj(Obj) -> Obj { (lo) => hi; (hi) => hi; }
+indexed table closeArr(Arr) -> Arr { (leftId) => rightId; (up) => rightId; (rightId) => rightId; }
+indexed instance Closure : Functor = finite_functor(C, C, closeObj, closeArr);
+indexed instance Twice : Functor = finite_functor(C, C, Closure::objects, Closure::arrows);
+
+indexed table etaAt(Obj) -> Arr { (lo) => up; (hi) => rightId; }
+indexed instance Eta : NatTrans = finite_nat_trans(Id, Closure, etaAt);
+indexed table muAt(Obj) -> Arr { (lo) => rightId; (hi) => rightId; }
+indexed instance Mu : NatTrans = finite_nat_trans(Twice, Closure, muAt);
+indexed instance M : Monad = finite_monad(C, Closure, Eta, Mu);
+indexed instance K : monad::kleisli::Kleisli = finite_kleisli(M);
+indexed instance Triple : monad::kleisli::KleisliTriple = finite_kleisli_triple(M);
+
+fn mappedUp(f: Hom<M::category, Obj::lo, Obj::hi>) -> Hom<M::category, M::T<Obj::lo>, M::T<Obj::hi>> {
+    finite::lookup::<M::arrows>(f)
+}
+
+fn main() -> Int {
+    let u: Hom<K, Obj::lo, Obj::lo> = monad::kleisli::unit::<Triple, Obj::lo>();
+    let bound = monad::kleisli::bind::<K, Obj::lo, Obj::lo, Obj::hi>(u, C::up);
+    let composite = monad::kleisli::compose::<K, Obj::lo, Obj::lo, Obj::hi>(C::up, u);
+    let lifted = monad::kleisli::lift::<Triple, Obj::hi, Obj::hi>(C::rightId);
+    if u == C::up && bound == C::up && composite == bound && lifted == C::rightId &&
+       mappedUp(C::up) == C::rightId { 0 } else { 1 }
+}

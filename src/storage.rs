@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 pub enum Scalar {
     F64,
     ComplexF64,
+    F32,
+    ComplexF32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,6 +43,8 @@ pub enum Source {
 pub enum Literal {
     F64 { bits: u64 },
     ComplexF64 { real: u64, imaginary: u64 },
+    F32 { bits: u32 },
+    ComplexF32 { real: u32, imaginary: u32 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -292,6 +296,16 @@ pub mod source {
     };
     use crate::ir::{Block, Span, Type, TypePath};
     use serde::{Deserialize, Serialize};
+
+    /// Component width and coefficient domain of an explicit realization.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "lowercase")]
+    pub enum NumericalRepresentation {
+        Real32,
+        Complex32,
+        Real64,
+        Complex64,
+    }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -850,6 +864,14 @@ pub mod source {
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Statement {
+        Realization {
+            callee: TypePath,
+            representation: Option<NumericalRepresentation>,
+            arguments: Vec<TypePath>,
+            result: String,
+            into: bool,
+            span: Span,
+        },
         Value {
             name: String,
             #[serde(rename = "type")]

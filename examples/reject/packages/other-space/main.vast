@@ -14,9 +14,9 @@ resource fn main() -> Int {
     basis bu = basis(u);
     basis bv = basis(v);
     basis bother = basis(other);
-    allocate a: F64[6];
-    allocate b: F64[6];
-    allocate c: F64[4];
+    allocate a: F64<RR>[6];
+    allocate b: F64<RR>[6];
+    allocate c: F64<RR>[4];
     borrow init_a = write(a, layout(0, 2, 3, 2, false));
     fill(init_a, f64(1));
     release(init_a);

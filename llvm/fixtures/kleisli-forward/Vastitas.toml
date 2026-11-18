@@ -1,0 +1,9 @@
+[package]
+edition = "2026"
+name = "kleisli_forward"
+version = "0.1.0"
+root = "main.vast"
+
+[dependencies]
+arrows = { path = "../kleisli-callback" }
+monad = { path = "../../../monad" }

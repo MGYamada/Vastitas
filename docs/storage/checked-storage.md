@@ -742,7 +742,7 @@ does not replace this calculation.
 
 These byte/ABI conditions alone do not preserve a typed allocation's element
 origin. The implemented dense resource profile additionally requires nonempty
-offsets to be multiples of the scalar width (8 for `F64`, 16 for `Complex<F64>`).
+offsets to be multiples of the scalar width (8 for `F64<RR>`, 16 for `F64<CC>`).
 Its strides are whole-element multiples by construction, and containment checks
 the relative element boundary as well. This rules out half-complex-element views
 even though their component addresses satisfy 8-byte ABI alignment. The broader

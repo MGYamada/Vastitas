@@ -1,5 +1,5 @@
-pub generic choose(x, y) { domain (Int, Int), (Bool, Bool); }
-method choose(x: Any, y: Any) -> Int { 0 }
+pub fn choose(x, y) domain((Int, Int), (Bool, Bool));
+fn choose(x: Any, y: Any) -> Int { 0 }
 
 pub grant outer : choose to addon delegable {
   domain (Int, Int);

@@ -183,7 +183,7 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
         let input = if manifest {
             fs::write(
                 scratch.0.join("Vastitas.toml"),
-                "[package]\nname='test'\nversion='0.1.0'\nroot='main.vast'\n",
+                "[package]\nedition = \"2026\"\nname='test'\nversion='0.1.0'\nroot='main.vast'\n",
             )
             .unwrap();
             vec!["--manifest-path", "Vastitas.toml"]

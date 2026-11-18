@@ -2,7 +2,7 @@ mod common;
 use common::{Scratch, success};
 
 const STORAGE: &str = "resource fn main() -> Int {
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     borrow init = write(data, layout(0, 1, 1, 1, false));
     fill(init, f64(1));
     release(init);
@@ -19,8 +19,8 @@ resource fn main() -> Int {
     basis bv = basis(v);
     basis bu = basis(u);
     basis bv2 = basis(v);
-    allocate data: F64[4];
-    allocate result: F64[4];
+    allocate data: F64<RR>[4];
+    allocate result: F64<RR>[4];
     borrow init = write(data, layout(0, 2, 2, 2, false));
     fill(init, f64(1));
     release(init);
@@ -41,7 +41,7 @@ fn fixture(source: &str) -> Scratch {
     let scratch = Scratch::empty("resource diagnostics");
     scratch.write(
         "Vastitas.toml",
-        "[package]\nname = \"diagnostics\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"diagnostics\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
     );
     scratch.write("src/main.vast", source);
     scratch.write(
@@ -151,7 +151,7 @@ fn storage_errors_locate_the_operation_and_name_the_actual_allocation_or_loan() 
 #[test]
 fn nested_unselected_arms_and_failed_joins_keep_their_own_locations() {
     let source = "resource fn main() -> Int {
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     if true {
         if true { } else {
             borrow missing = read(data, layout(0, 1, 1, 1, false));
@@ -178,7 +178,7 @@ fn nested_unselected_arms_and_failed_joins_keep_their_own_locations() {
     );
 
     let source = "resource fn main() -> Int {
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     if true { drop(data); } else { }
     value { 42 }
 }";
@@ -236,7 +236,7 @@ fn numerical_mismatches_name_distinct_objects_and_bases_of_equal_dimension() {
 #[test]
 fn imported_callee_body_failure_keeps_the_call_trace_and_unused_body_location() {
     let source = "mod helper;\nresource fn main() -> Int {\n    call helper::broken() -> ();\n    value { 42 }\n}";
-    let helper = "pub resource fn broken() -> Unit {\n    allocate hidden: F64[1];\n    borrow bad = read(hidden, layout(0, 1, 1, 1, false));\n    value { () }\n}";
+    let helper = "pub resource fn broken() -> Unit {\n    allocate hidden: F64<RR>[1];\n    borrow bad = read(hidden, layout(0, 1, 1, 1, false));\n    value { () }\n}";
     let scratch = fixture(source);
     scratch.write("src/helper/mod.vast", helper);
     let message = rejection(&scratch, "check");
@@ -281,7 +281,7 @@ fn imported_callee_body_failure_keeps_the_call_trace_and_unused_body_location() 
 #[test]
 fn callee_input_contract_errors_point_at_the_actual_call() {
     let source = "resource fn main() -> Int {
-    allocate data: F64[2];
+    allocate data: F64<RR>[2];
     borrow init = write(data, layout(0, 2, 1, 2, false));
     fill(init, f64(1)); release(init);
     borrow input = read(data, layout(0, 2, 1, 2, false));
@@ -289,7 +289,7 @@ fn callee_input_contract_errors_point_at_the_actual_call() {
     release(input); drop(data);
     value { 42 }
 }
-resource fn consume(input: Read<F64, 1, 1>) -> Unit { value { () } }";
+resource fn consume(input: Read<F64<RR>, 1, 1>) -> Unit { value { () } }";
     let message = rejection(&fixture(source), "check");
     assert_primary(
         &message,
@@ -317,7 +317,7 @@ resource fn consume(input: Read<F64, 1, 1>) -> Unit { value { () } }";
 #[test]
 fn unreturned_owner_points_to_the_function_result() {
     let source =
-        "resource fn main() -> Int {\n    allocate forgotten: F64[1];\n    value { 42 }\n}";
+        "resource fn main() -> Int {\n    allocate forgotten: F64<RR>[1];\n    value { 42 }\n}";
     let message = rejection(&fixture(source), "check");
     assert_primary(&message, "main.vast", source, "{ 42 }", "E_RESOURCE_ESCAPE");
 }
@@ -325,7 +325,7 @@ fn unreturned_owner_points_to_the_function_result() {
 #[test]
 fn real_caller_layout_failure_names_the_callee_borrow_and_caller() {
     let source = "resource fn main() -> Int {
-    allocate data: F64[8];
+    allocate data: F64<RR>[8];
     borrow init = write(data, layout(0, 8, 1, 8, false));
     fill(init, f64(1)); release(init);
     borrow input = read(data, layout(8, 2, 2, 4, false));
@@ -333,7 +333,7 @@ fn real_caller_layout_failure_names_the_callee_borrow_and_caller() {
     release(input); drop(data);
     value { 42 }
 }
-resource fn inspect(input: Read<F64, 2, 2>) -> Unit {
+resource fn inspect(input: Read<F64<RR>, 2, 2>) -> Unit {
     borrow child = read(input, layout(0, 2, 2, 2, false));
     release(child);
     value { () }
@@ -370,8 +370,8 @@ resource fn main() -> Int {
     basis bv = basis(v);
     space vd = dual(v);
     basis bvd = derived(bv, vd);
-    allocate input: F64[1];
-    allocate output: F64[1];
+    allocate input: F64<RR>[1];
+    allocate output: F64<RR>[1];
     borrow init = write(input, layout(0, 1, 1, 1, false));
     fill(init, f64(1)); release(init);
     borrow reader = read(input, layout(0, 1, 1, 1, false));
@@ -437,7 +437,7 @@ resource fn main() -> Int {
 fn runtime_ownership_errors_also_keep_source_names() {
     let source = "resource fn main() -> Int {
     let n: Nat = value { 2 };
-    runtime_allocate data: F64[n] runtime_layout(n, 1, n, false);
+    runtime_allocate data: F64<RR>[n] runtime_layout(n, 1, n, false);
     runtime_borrow uninitialized = read(data);
     runtime_release(uninitialized); runtime_drop(data);
     value { 42 }
@@ -474,7 +474,7 @@ fn wide_call_argument_notes_do_not_hide_the_callee_context() {
         .join(", ");
     let source = format!(
         "resource fn main() -> Int {{\n{values}
-    allocate data: F64[2];
+    allocate data: F64<RR>[2];
     borrow init = write(data, layout(0, 2, 1, 2, false));
     fill(init, f64(1)); release(init);
     borrow input = read(data, layout(0, 2, 1, 2, false));
@@ -482,7 +482,7 @@ fn wide_call_argument_notes_do_not_hide_the_callee_context() {
     release(input); drop(data);
     value {{ 42 }}
 }}
-resource fn consume_many({parameters}, input: Read<F64, 1, 1>) -> Unit {{ value {{ () }} }}"
+resource fn consume_many({parameters}, input: Read<F64<RR>, 1, 1>) -> Unit {{ value {{ () }} }}"
     );
     let message = rejection(&fixture(&source), "check");
     assert_primary(
@@ -517,7 +517,7 @@ fn deep_rejected_calls_keep_the_failing_statement_with_bounded_notes() {
             i + 1
         ));
     }
-    source.push_str("resource fn f40() -> Unit {\n    allocate data: F64[1];\n    borrow bad = read(data, layout(0, 1, 1, 1, false));\n    value { () }\n}");
+    source.push_str("resource fn f40() -> Unit {\n    allocate data: F64<RR>[1];\n    borrow bad = read(data, layout(0, 1, 1, 1, false));\n    value { () }\n}");
     let message = rejection(&fixture(&source), "check");
     assert_primary(
         &message,

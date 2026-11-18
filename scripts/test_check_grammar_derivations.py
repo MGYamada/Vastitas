@@ -117,6 +117,10 @@ class RuleTests(unittest.TestCase):
         self.assertEqual(self.names(indexed("Object", "<", "a", ",", "b", ",", ">")),
                          ["type name as the family of an indexed type"])
         self.assertEqual(self.names(indexed("Shape", "<", "X", ">")), [])
+        image = ("M", "::", "T", "<", "X", ">")
+        self.assertEqual(self.names(indexed("Hom", "<", "C", ",", *image, ",", "M", "::", "T", "<", *image, ">", ">")), [])
+        self.assertEqual(self.names(indexed("Hom", "<", *image, ",", "X", ",", "Y", ">")),
+                         ["type name as the family of an indexed type"])
 
     def test_a_path_that_begins_with_a_type_name_in_flat_mode(self):
         tree = Node("Type", [Node("IndexedType", ["Nat", "::", Node("PathSegment", ["F"]), "<", ">"])])

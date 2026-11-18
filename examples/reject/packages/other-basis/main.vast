@@ -16,7 +16,7 @@ resource fn main() -> Int {
     // `alternate_basis` is a basis of the space of `sensor_basis`, but it is
     // another basis.
     basis alternate_basis = basis(sensors);
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     borrow writer = write(data, layout(0, 1, 1, 1, false));
     fill(writer, f64(1.0));
     release(writer);

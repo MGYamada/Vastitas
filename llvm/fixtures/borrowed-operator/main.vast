@@ -1,0 +1,9 @@
+use base::choose as sum;
+
+assemble sum {
+    borrow base::integers {
+        apply addon::sum;
+    }
+}
+
+fn main() -> Int { sum(40, 2) }

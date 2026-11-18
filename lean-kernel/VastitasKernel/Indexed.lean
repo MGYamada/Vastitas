@@ -255,8 +255,69 @@ inductive Verdict where
 
 /-! ## Declarations, the environment and its views -/
 
+structure GraphFields (α : Type) where
+  objects : α
+  arrows : α
+  src : α
+  dst : α
+  ids : α
+  comp : α
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+def GraphFields.mapM [Monad m] (f : α → m β) (g : GraphFields α) : m (GraphFields β) := do
+  return ⟨← f g.objects, ← f g.arrows, ← f g.src, ← f g.dst, ← f g.ids, ← f g.comp⟩
+
+/-- Nominal data of a named covariant functor. The law evidence is checked separately. -/
+structure FunctorFields (α : Type) where
+  source : α
+  target : α
+  objects : α
+  arrows : α
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+def FunctorFields.mapM [Monad m] (f : α → m β) (v : FunctorFields α) : m (FunctorFields β) := do
+  return ⟨← f v.source, ← f v.target, ← f v.objects, ← f v.arrows⟩
+
+structure NatTransFields (α : Type) where
+  source : α
+  target : α
+  components : α
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+def NatTransFields.mapM [Monad m] (f : α → m β) (n : NatTransFields α) : m (NatTransFields β) := do
+  return ⟨← f n.source, ← f n.target, ← f n.components⟩
+
+/-- Nominal structural identity of a selected Monad. Its equations are checked separately. -/
+structure MonadFields (α : Type) where
+  category : α
+  functor : α
+  unit : α
+  multiplication : α
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+def MonadFields.mapM [Monad m] (f : α → m β) (v : MonadFields α) : m (MonadFields β) := do
+  return ⟨← f v.category, ← f v.functor, ← f v.unit, ← f v.multiplication⟩
+
+/-- The category of Kleisli arrows and the extension triple derived from one Monad. -/
+inductive KleisliKind where
+  | category | triple
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 inductive Declaration where
   | marker
+  | finiteCarrier (tags : List String)
+  | finiteTable (inputs : List DeclId) (output : DeclId) (rows : List (List String × String))
+  | categorySchema
+  | functorSchema
+  | natTransSchema
+  | monadSchema
+  | kleisliSchema (kind : KleisliKind) (monadSchema : DeclId)
+  | composableTable (inputs : List DeclId) (output src dst : DeclId) (rows : List (List String × String))
+  | finiteCategory (schema : DeclId) (graph : GraphFields DeclId)
+  | finiteFunctor (schema : DeclId) (maps : FunctorFields DeclId)
+  | finiteNatTrans (schema : DeclId) (fields : NatTransFields DeclId)
+  | finiteMonad (schema : DeclId) (fields : MonadFields DeclId)
+  | finiteKleisli (kind : KleisliKind) (schema monad : DeclId)
   | implementation (marker : DeclId) (representation : Representation)
       (capabilities : List Capability)
   | classification (parents domain : List DeclId)

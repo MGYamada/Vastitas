@@ -76,6 +76,186 @@ fn the_frontend_the_kernel_and_version_share_one_epoch() {
     }
 }
 
+#[test]
+fn root_source_is_the_physical_package_entry_at_its_global_byte_offset() {
+    let s = common::Scratch::empty("root source");
+    let entry = "// λ\r\nmod inner {} mod external; fn main() -> Int { dep::answer() }";
+    s.write_package("dep", "pub fn answer() -> Int { 42 }", "");
+    s.write_package("app", entry, "dep={path='../dep'}");
+    s.write("app/external.vast", "pub fn answer() -> Int { 13 }");
+    let raw = s.captured("app/Vastitas.toml", CURRENT_PROTOCOL);
+    let start: u64 = ["app/Vastitas.toml", "dep/Vastitas.toml", "dep/main.vast"]
+        .iter()
+        .map(|path| std::fs::metadata(s.0.join(path)).unwrap().len() + 1)
+        .sum();
+    let root = &raw["root_source"];
+    assert_eq!(root["offset"], start);
+    assert_eq!(root["text"], entry);
+    let paths = [
+        "app/Vastitas.toml",
+        "dep/Vastitas.toml",
+        "dep/main.vast",
+        "app/main.vast",
+        "app/external.vast",
+    ];
+    let mut next = 0;
+    let files = root["files"].as_array().unwrap();
+    assert_eq!(files.len(), paths.len());
+    for (file, path) in files.iter().zip(paths) {
+        let physical = s.0.join(path).canonicalize().unwrap();
+        let text = std::fs::read_to_string(&physical).unwrap();
+        assert_eq!(file["path"], physical.to_str().unwrap());
+        assert_eq!(file["offset"], next);
+        if path == "app/main.vast" {
+            assert!(file.get("text").is_none());
+        } else {
+            assert_eq!(file["text"], text);
+        }
+        next += text.len() + 1;
+    }
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+
+    for mode in ["check", "function-revision"] {
+        let mut missing = raw.clone();
+        missing["root_source"]
+            .as_object_mut()
+            .unwrap()
+            .remove("files");
+        assert_wire_rejected(&kernel(&missing, mode), "E_PROTOCOL");
+        let mut gap = raw.clone();
+        gap["root_source"]["files"][1]["offset"] = json!(1);
+        assert_wire_rejected(&kernel(&gap, mode), "E_PROTOCOL");
+        let mut duplicate = raw.clone();
+        duplicate["root_source"]["files"][3]["text"] = json!(entry);
+        assert_wire_rejected(&kernel(&duplicate, mode), "E_PROTOCOL");
+        let mut foreign = raw.clone();
+        foreign["root_source"]["files"][1]["path"] = json!("unrelated/Vastitas.toml");
+        assert_wire_rejected(&kernel(&foreign, mode), "E_PROTOCOL");
+        let mut renamed = raw.clone();
+        renamed["file"] = json!("unrelated.vast");
+        assert_wire_rejected(&kernel(&renamed, mode), "E_PROTOCOL");
+        for index in [2, 3] {
+            let mut repeated = raw.clone();
+            repeated["root_source"]["files"][index]["path"] = raw["root"].clone();
+            assert_wire_rejected(&kernel(&repeated, mode), "E_PROTOCOL");
+        }
+        let mut outside = raw.clone();
+        let app = outside["packages"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|p| p["source"] == raw["root"])
+            .unwrap();
+        let module = app["modules"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|m| m["path"] == json!([]))
+            .unwrap();
+        module["span"]["end"] = json!(start + entry.len() as u64 + 1);
+        assert_wire_rejected(&kernel(&outside, mode), "E_PROTOCOL");
+        // Keep every physical record and byte in place, but mark the
+        // dependency source as the entry instead of the root module.
+        let mut wrong_entry = raw.clone();
+        let closure = &mut wrong_entry["root_source"];
+        closure["files"][3]["text"] = json!(entry);
+        closure["offset"] = closure["files"][2]["offset"].clone();
+        closure["text"] = closure["files"][2]
+            .as_object_mut()
+            .unwrap()
+            .remove("text")
+            .unwrap();
+        assert_wire_rejected(&kernel(&wrong_entry, mode), "E_PROTOCOL");
+    }
+}
+
+#[test]
+fn every_package_carries_the_edition_including_flat_library_inputs() {
+    let s = common::Scratch::empty("flat edition");
+    let entry = "fn main() -> Int { answer() }";
+    s.write("main.vast", entry);
+    s.write("library.vast", "fn answer() -> Int { 42 }");
+    let with_library = captured_wire(
+        s.cli()
+            .args(["check", "main.vast", "--lib", "library.vast"]),
+        CURRENT_PROTOCOL,
+    );
+    assert_eq!(with_library["root"], "vastitas:compat:flat");
+    assert_eq!(
+        with_library["root_source"],
+        json!({"offset": 0, "text": entry, "files": [
+            {"offset": 0, "path": "main.vast"},
+            {"offset": entry.len() + 1, "path": "library.vast", "text": "fn answer() -> Int { 42 }"}
+        ]})
+    );
+    // APFS cannot create arbitrary Unix paths. Submit byte paths directly
+    // to the real kernel on both hosts and check the enclosing revision.
+    let mut byte_path = with_library.clone();
+    byte_path["root_source"]["files"][1]["path"] = json!([108, 255]);
+    let receipt = kernel(&byte_path, "function-revision");
+    assert_eq!(receipt["ok"], true, "{receipt}");
+    byte_path["expected_function_revision"] = receipt["function_revision"].clone();
+    assert_eq!(kernel(&byte_path, "check")["ok"], true);
+    byte_path["root_source"]["files"][1]["path"] = json!([108, 254]);
+    assert_wire_rejected(&kernel(&byte_path, "check"), "E_FUNCTION_REVISION");
+    for bad in [json!([]), json!([108]), json!([0, 255]), json!([256])] {
+        byte_path["root_source"]["files"][1]["path"] = bad;
+        assert_wire_rejected(&kernel(&byte_path, "check"), "E_PROTOCOL");
+    }
+    for raw in [
+        request(PROGRAM, "edition.vast"),
+        with_library,
+        geometry_request(),
+    ] {
+        let packages = raw["packages"].as_array().unwrap();
+        assert!(!packages.is_empty());
+        for package in packages {
+            assert_eq!(package["edition"], "2026");
+        }
+        for mode in ["check", "emit"] {
+            assert_eq!(kernel(&raw, mode)["ok"], true);
+        }
+        // Bypass Rust and tamper each package independently, including every
+        // dependency and the protected flat identity. Neither kernel mode may
+        // accept a missing edition or normalize another JSON spelling of it.
+        for i in 0..packages.len() {
+            for edition in [
+                None,
+                Some(json!("2025")),
+                Some(json!("2027")),
+                Some(json!("2026 ")),
+                Some(json!(2026)),
+                Some(json!(true)),
+                Some(Value::Null),
+                Some(json!(["2026"])),
+                Some(json!({"value":"2026"})),
+            ] {
+                let mut invalid = raw.clone();
+                let package = invalid["packages"][i].as_object_mut().unwrap();
+                match edition {
+                    Some(value) => {
+                        package.insert("edition".into(), value);
+                    }
+                    None => {
+                        package.remove("edition");
+                    }
+                }
+                for mode in ["check", "emit"] {
+                    let response = kernel(&invalid, mode);
+                    assert_wire_rejected(&response, "E_PROTOCOL");
+                    assert!(
+                        response["diagnostics"][0]["message"]
+                            .as_str()
+                            .unwrap()
+                            .contains("edition"),
+                        "{response}"
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// The request at `version` in the shape that protocol had, for the flat
 /// unit of `flat` and for the package request `package` of the same
 /// program: the flat module of 2 and 4, the package request without `input`

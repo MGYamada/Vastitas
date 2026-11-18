@@ -215,8 +215,32 @@ structure SourceChart where
   inverse : List (String × PolyExpr)
   deriving Repr, Inhabited
 
+structure FiniteTag where
+  name : String
+  span : Span
+  deriving Repr, Inhabited
+
+structure FiniteRow where
+  key : List FiniteTag
+  value : FiniteTag
+  span : Span
+  deriving Repr, Inhabited
+
 inductive Body where
   | marker
+  | finiteCarrier (tags : List FiniteTag)
+  | finiteTable (inputs : List Path) (output : Path) (rows : List FiniteRow)
+  | categorySchema
+  | functorSchema
+  | natTransSchema
+  | monadSchema
+  | kleisliSchema (kind : KleisliKind) (monadSchema : Path)
+  | composableTable (inputs : List Path) (output src dst : Path) (rows : List FiniteRow)
+  | finiteCategory (schema : Path) (graph : GraphFields Path)
+  | finiteFunctor (schema : Path) (maps : FunctorFields Path)
+  | finiteNatTrans (schema : Path) (fields : NatTransFields Path)
+  | finiteMonad (schema : Path) (fields : MonadFields Path)
+  | finiteKleisli (kind : KleisliKind) (schema monad : Path)
   | implementation (marker : Path) (representation : Representation)
       (capabilities : List Capability)
   | classification (parents domain : List Path)
@@ -345,6 +369,7 @@ inductive TypeArgument where
 inductive DataType where
   | pure (type : Core.PureType)
   | object (type : Source.ObjectType)
+  | finiteHom (category source target : Path)
   | application (family : Path) (arguments : List TypeArgument)
   | legacy (type : RawType)
   | inferredPackage -- only produced by the old pack syntax; never a signature

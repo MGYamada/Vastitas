@@ -1,8 +1,7 @@
-assembly {
-  borrow base::integers as edit;
-  apply addon::first using edit;
-  return edit;
-  seal base::choose;
+assemble base::choose {
+  borrow base::integers as edit {
+    apply addon::first;
+  }
 }
 
 fn main() -> Int { base::choose(40, 2) }

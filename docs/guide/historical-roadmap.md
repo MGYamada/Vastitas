@@ -329,7 +329,9 @@ name every open issue that carried the label on 12 November 2026.
   The default Fast mode audits evidence bound to those artifacts with the
   nanoda checker shipped with the pinned Lean toolchain.
   Official mode and release proof claims require the pinned official Lean
-  kernel. [Function families, #462](https://github.com/MGYamada/Vastitas/issues/462) · [LLVM gate, #417](https://github.com/MGYamada/Vastitas/issues/417) · [Verification modes, #282](https://github.com/MGYamada/Vastitas/issues/282)
+  kernel. The [Compiler IR v1 specification](../spec/compiler-ir.md) records
+  the adopted finite design and the evidence still required.
+  [Function families, #462](https://github.com/MGYamada/Vastitas/issues/462) · [LLVM gate, #417](https://github.com/MGYamada/Vastitas/issues/417) · [Verification modes, #282](https://github.com/MGYamada/Vastitas/issues/282)
   The label also carries these issues:
   - structured `assemble` blocks for each function family, in place of the
     flat `assembly` trace (#455);

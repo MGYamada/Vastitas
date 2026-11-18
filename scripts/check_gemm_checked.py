@@ -49,10 +49,17 @@ def scalar_fixture(conjugate, inner=1, empty=False):
     return {"statements": steps}
 
 
-def orientation_fixture():
+def orientation_fixture(precision, complex_scalar):
     """All N/T/R/C pairs, with rectangular padded views and scaled reuse."""
     left = [[1+2j, 3+5j, 7+11j], [13+17j, 19+23j, 29+31j]]
     right = [[37+41j, 43+47j], [53+59j, 61+67j], [71+73j, 79+83j]]
+    scalar = ("complex_" if complex_scalar else "") + f"f{precision}"
+    width = precision // 8 * (2 if complex_scalar else 1)
+    fp, word = ("<f", "<I") if precision == 32 else ("<d", "<Q")
+    alpha, beta = (2+3j, 1-1j) if complex_scalar else (2, 1)
+    if not complex_scalar:
+        left = [[x.real for x in row] for row in left]
+        right = [[x.real for x in row] for row in right]
     steps = []
 
     def action(op, **fields):
@@ -60,8 +67,10 @@ def orientation_fixture():
 
     def literal(value):
         def bits(x):
-            return struct.unpack("<Q", struct.pack("<d", x))[0]
-        return dict(kind="complex_f64", real=bits(value.real), imaginary=bits(value.imag))
+            return struct.unpack(word, struct.pack(fp, x))[0]
+        if complex_scalar:
+            return dict(kind=scalar, real=bits(value.real), imaginary=bits(value.imag))
+        return dict(kind=scalar, bits=bits(value))
 
     for case, (ta, tb, ca, cb) in enumerate(itertools.product([False, True], repeat=4)):
         base = 40 * case
@@ -69,9 +78,9 @@ def orientation_fixture():
         for owner, (rows, columns, transpose) in enumerate([(2, 3, ta), (3, 2, tb), (2, 2, False)]):
             if transpose:
                 rows, columns = columns, rows
-            layout = dict(offset=16, rows=rows, columns=columns, leading=rows+2, transposed=transpose)
+            layout = dict(offset=width, rows=rows, columns=columns, leading=rows+2, transposed=transpose)
             layouts.append(layout)
-            action("allocate", owner=base+owner, scalar="complex_f64", elements=1+(rows+2)*columns)
+            action("allocate", owner=base+owner, scalar=scalar, elements=1+(rows+2)*columns)
             action("borrow", name=base+10+owner, source=dict(kind="owner", name=base+owner),
                    layout=layout, access="write")
             if owner < 2:
@@ -94,12 +103,12 @@ def orientation_fixture():
                 action("expect", loan=base+22, row=i, column=j, value=literal(value))
         # Coefficients are not conjugated with the operands: (2+3i)P+(1-i)P.
         request.update(output=base+22, mode="accumulate",
-                       alpha=dict(kind="literal", value=literal(2+3j)),
-                       beta=dict(kind="literal", value=literal(1-1j)))
+                       alpha=dict(kind="literal", value=literal(alpha)),
+                       beta=dict(kind="literal", value=literal(beta)))
         action("gemm", **request)
         for i, row in enumerate(product):
             for j, value in enumerate(row):
-                action("expect", loan=base+22, row=i, column=j, value=literal((3+2j)*value))
+                action("expect", loan=base+22, row=i, column=j, value=literal((alpha+beta)*value))
         for name in [20, 21, 22]:
             action("release", loan=base+name)
         for owner in range(3):
@@ -259,18 +268,21 @@ def check(prefix, lean_cc=None):
             counters = [int(x) for x in match[1].split(",")]
             assert counters[0] == counters[1] and counters[2] == 0 and counters[5] == 0, counters
             print(f"checked GEMM {name}: bits and cleanup passed")
-        path.write_text(json.dumps(orientation_fixture()))
-        run([emitter, path, work / "Main.lean", 1024])
-        generated = (work / "Main.lean").read_text()
-        assert generated.count("VastitasGemmNative.gemm arena") == 16
-        assert generated.count("VastitasGemmNative.gemmScaled arena") == 16
-        run(["lake", "build", "fixture"], cwd=work, env=native_env)
-        result = run([work / ".lake/build/bin/fixture"], cwd=work)
-        match = re.search(r"#\[([\d, ]+)\]", result.stdout)
-        assert match, result
-        counters = [int(x) for x in match[1].split(",")]
-        assert counters[:3] == [48, 48, 0] and counters[4:6] == [5120, 0], counters
-        print("checked GEMM all 16 N/T/R/C pairs: rectangular bits, explicit coefficients, destination reuse and cleanup passed")
+        for precision, complex_scalar in itertools.product([32, 64], [False, True]):
+            kind = "complex" if complex_scalar else "real"
+            width = precision // 8 * (2 if complex_scalar else 1)
+            path.write_text(json.dumps(orientation_fixture(precision, complex_scalar)))
+            run([emitter, path, work / "Main.lean", 1024])
+            generated = (work / "Main.lean").read_text()
+            assert generated.count("VastitasGemmNative.gemm arena") == 16
+            assert generated.count("VastitasGemmNative.gemmScaled arena") == 16
+            run(["lake", "build", "fixture"], cwd=work, env=native_env)
+            result = run([work / ".lake/build/bin/fixture"], cwd=work)
+            match = re.search(r"#\[([\d, ]+)\]", result.stdout)
+            assert match, result
+            counters = [int(x) for x in match[1].split(",")]
+            assert counters[:3] == [48, 48, 0] and counters[4:6] == [320 * width, 0], counters
+            print(f"checked GEMM {precision}-bit {kind} all 16 N/T/R/C pairs: rectangular bits, explicit coefficients, destination reuse and cleanup passed")
         for kind, peak in [("real", 128), ("complex", 256)]:
             run([numerical_emitter, kind, work / "Main.lean"])
             generated = (work / "Main.lean").read_text()

@@ -91,20 +91,25 @@ declares three resource functions:
 > OwnedType -> `Owned` `<` ElementType `,` INTEGER_LITERAL `>` ( `initialized` `[` Layouts? `]` )?
 > BorrowedType -> ( `Read` | `Write` | `ReadWrite` )
 >     `<` ElementType `,` INTEGER_LITERAL `,` INTEGER_LITERAL `>` `initializes`?
-> ElementType -> `F64` | `Complex` `<` `F64` `>`
+> ElementType -> ( `F32` | `F64` ) `<` ( `RR` | `CC` ) `>`
 > Layouts -> Layout ( `,` Layout )* `,`?
 > Layout -> `layout` `(` INTEGER_LITERAL `,` INTEGER_LITERAL `,` INTEGER_LITERAL `,`
 >     INTEGER_LITERAL `,` ( `true` | `false` ) `)`
 > ```
 
 An **owner** is a binding that owns one **allocation**, a buffer of **cells**.
-`Owned<S, n>` is the type of an owner of `n` cells of the element type `S`:
-`F64`, a binary64 number, or `Complex<F64>`, a pair of them. A **view** is a
+`Owned<S, n>` is the type of an owner of `n` cells of the element type `S`.
+`F32<RR>` and `F64<RR>` store one binary32 or binary64 component.
+`F32<CC>` and `F64<CC>` store two components, real first. A **view** is a
 rectangle of cells of an allocation. A **loan**, a
 [storage loan](../appendix/glossary.md#storage-loan), is a binding that gives
 access to one view for a limited time. `Read<S, r, c>`, `Write<S, r, c>` and
 `ReadWrite<S, r, c>` are the types of loans of a view with `r` rows and `c`
-columns.
+columns. Resource calls and copies require the same representation even when
+two representations have the same byte width. Bare `F64` and
+the old `Complex<F64>` element spelling are rejected. Selecting a storage
+element type does not realize an exact mathematical object or execute a
+floating operation.
 
 `layout(offset, rows, columns, leading, transposed)` describes a view of an
 allocation in column-major order. `offset` is the first byte of the view in
@@ -120,7 +125,7 @@ Rules:
   and `leading` must not exceed 2³¹ − 1. Another layout is an error
   (`E_RESOURCE_LAYOUT`).
 - The `offset` of a view that has a cell must be a multiple of the size of a
-  cell, 8 bytes for `F64` and 16 for `Complex<F64>` (`E_RESOURCE_LAYOUT`).
+  cell, 4 bytes for `F32<RR>`, 8 for `F64<RR>` and `F32<CC>`, and 16 for `F64<CC>` (`E_RESOURCE_LAYOUT`).
 - An owned parameter or result with `initialized [layout(…), …]` states that
   the cells of those views are initialized. An argument or result that does
   not meet the element type, the size or this contract is an error
@@ -159,7 +164,11 @@ Rules:
 >
 > ```text
 > ResourceStatement -> StorageStatement `;` | BorrowStatement | ValueStatement
->     | ResourceCall | ResourceBranch | RuntimeStatement `;` | NumericalStatement
+>     | ResourceCall | ResourceBranch | RuntimeStatement `;` | NumericalStatement | RealizationStatement
+> RealizationStatement -> `let` IDENTIFIER `=` Path RealizationTypeArgument? `(` RealizationArguments? `)` `;`
+>     | Path `(` RealizationArguments? `)` `->` IDENTIFIER `;`
+> RealizationTypeArgument -> `::` `<` ( `F32` | `F64` ) `<` ( `RR` | `CC` ) `>` `>`
+> RealizationArguments -> Path ( `,` Path ( `,` Path )? )? `,`?
 > StorageStatement -> `allocate` IDENTIFIER `:` ElementType `[` INTEGER_LITERAL `]`
 >     | `move` IDENTIFIER `->` IDENTIFIER
 >     | `drop` `(` IDENTIFIER `)`
@@ -173,9 +182,14 @@ Rules:
 > AccessMode -> `read` | `write` | `read_write`
 > ```
 
+With `use monad::float;`, a resource function can realize the standard
+chart of a smooth affine object and run its identity map between
+borrowed coordinate columns. The destination after `->` names a point
+that the function has already bound. See [Identity maps on represented points](../internals/numerical-backend.md#identity-maps-on-represented-points).
+
 | Statement | Meaning |
 | --- | --- |
-| `allocate d: F64[8];` | Allocate 8 uninitialized cells and bind their owner `d` |
+| `allocate d: F64<RR>[8];` | Allocate 8 uninitialized cells and bind their owner `d` |
 | `move d -> e;` | Hand the allocation of `d` to the owner `e`; `d` ends |
 | `drop(d);` | Free the allocation of `d`; `d` ends |
 | `borrow v = read(d, layout(…));` | Lend a view of the owner or loan `d` as the loan `v`; also `write` and `read_write` |
@@ -280,9 +294,10 @@ The executable writes no line and exits with status 0.
 > **Syntax**
 >
 > ```text
-> Payload -> `f64` `(` Real `)` | `complex` `(` Real `,` Real `)`
->     | `f64_bits` `(` INTEGER_LITERAL `)`
->     | `complex_bits` `(` INTEGER_LITERAL `,` INTEGER_LITERAL `)`
+> Payload -> ( `f32` | `f64` ) `(` Real `)`
+>     | ( `complex32` | `complex` ) `(` Real `,` Real `)`
+>     | ( `f32_bits` | `f64_bits` ) `(` INTEGER_LITERAL `)`
+>     | ( `complex32_bits` | `complex_bits` ) `(` INTEGER_LITERAL `,` INTEGER_LITERAL `)`
 > Real -> ( `+` | `-` )? ( INTEGER_LITERAL | FLOAT_LITERAL )
 > ```
 
@@ -294,6 +309,10 @@ decimal number such as `1.5` or `125e-3`, or a hexadecimal number such as
 `0x1.8p1`. The value of a hexadecimal number is its hexadecimal significand
 times 2 to the decimal exponent after `p`. `0x1.8p1` is 3. `f64_bits(n)` and `complex_bits(m, n)`
 give the 64 bits of each component as an unsigned integer.
+For binary32 cells, use `f32` or `complex32` for exactly representable finite
+numbers, and `f32_bits` or `complex32_bits` for unsigned 32-bit component
+patterns, including negative zero, infinity and NaNs. For example,
+`f32(0x1p-149)` and `f32_bits(1)` denote the smallest positive binary32 value.
 
 Rules:
 
@@ -456,7 +475,7 @@ Rules:
 The statements above this section fix every size in the source. The
 `runtime_` statements take sizes from scalars that the program computes. An
 **extent** is a literal or an earlier `Nat` or `Int` binding.
-`runtime_allocate d: F64[n] runtime_layout(rows, columns, leading, false);`
+`runtime_allocate d: F64<RR>[n] runtime_layout(rows, columns, leading, false);`
 allocates `n` cells and fixes the one layout of the allocation, and
 `runtime_borrow v = write(d);` lends that whole view. The owner and the loans
 of such an allocation are **runtime** owners and loans; the others are
@@ -573,7 +592,8 @@ Rules:
   the whole view. A body that does not is an error (`E_RUNTIME_CALL`).
 - The mode of `runtime_gemm` must be `overwrite` or `accumulate`
   (`E_NUMERICAL_TYPE`), and its policy `NativeFast` (`E_PARSE`). Its element
-  type is `F64` or `Complex<F64>`.
+  type must agree across all three maps, including the component precision and
+  the real or complex coefficient domain.
 - `alpha` and `beta` must be payloads of the element type of the maps
   (`E_RUNTIME_SHAPE`). A `coefficient(…)` there is an error
   (`E_RUNTIME_COEFFICIENT`), and `overwrite` takes no `beta`
@@ -676,7 +696,7 @@ and column are the row and column of the cell in the view, which `store` and
 stored column of the cell. Rows and columns count from 0. The "allocation
 bytes" are the bytes of the cell, counted from the first byte of the
 allocation; the range includes its first number and excludes its second. In
-the view `layout(8, 3, 2, 4, true)` of cells of `F64`, logical row 0, column
+the view `layout(8, 3, 2, 4, true)` of cells of `F64<RR>`, logical row 0, column
 2 is physical row 2, column 0 and has the allocation bytes `[24, 32)`.
 
 In this program the view that `main` passes begins at byte 8 of its

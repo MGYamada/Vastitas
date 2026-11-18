@@ -77,7 +77,7 @@ fn check(dimension: usize, declarations: &str) -> Checked {
     s.write(
         "Vastitas.toml",
         &format!(
-            "[package]\nname = \"spectral_limits\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = {{ path = {:?} }}\n",
+            "[package]\nedition = \"2026\"\nname = \"spectral_limits\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = {{ path = {:?} }}\n",
             root().join("stdlib")
         ),
     );

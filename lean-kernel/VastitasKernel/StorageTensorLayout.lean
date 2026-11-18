@@ -9,7 +9,8 @@ structure Grouping where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Grouping.Valid (grouping : Grouping) (rank : Nat) : Prop :=
-  grouping.order.Perm (List.range rank) ∧ 0 < grouping.split ∧ grouping.split < rank
+  grouping.order.Perm (List.range rank) ∧ 0 < grouping.split ∧
+  (grouping.split < rank ∨ (rank = 1 ∧ grouping.split = 1))
 instance (grouping : Grouping) (rank : Nat) : Decidable (grouping.Valid rank) :=
   inferInstanceAs (Decidable (_ ∧ _ ∧ _))
 

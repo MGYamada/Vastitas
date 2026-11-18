@@ -1,0 +1,15 @@
+fn choose(b: Bool) -> Bool { false }
+
+contribution selected : choose {
+    fn choose(b: Bool) requires (HasEq) -> Bool { b }
+}
+assemble choose { apply selected; }
+
+fn keep(f: Fn<Bool, Bool>) -> Fn<Bool, Bool> { f }
+fn invoke(f: Fn<Bool, Bool>, b: Bool) -> Bool { f(b) }
+
+fn main() -> Int {
+    let f: Fn<Bool, Bool> = choose;
+    let other = fn(b: Bool) -> Bool { false };
+    if invoke(keep(f), true) && (invoke(other, true) == false) { 42 } else { 7 }
+}

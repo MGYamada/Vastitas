@@ -213,7 +213,13 @@ def dispatchDiagnostic (nominals : Abstract.Checked) (program : RawProgram) (gen
     else error.methods.filterMap fun id =>
       (program.methods[id]?).map fun method =>
         { message := s!"candidate method for generic '{name}' declared here", span := method.span : DiagnosticNote }
-  { code, span := generic.span
+  -- A duplicate belongs to the repeated body, even when the domain header
+  -- came from an earlier declaration. Keep both candidates as notes.
+  let span := if error.code == "E_DISPATCH_DUPLICATE" then
+      (notes.map (·.span)).foldl (fun a b => if a.start ≤ b.start then b else a)
+        (notes.head?.map (·.span) |>.getD generic.span)
+    else generic.span
+  { code, span
     message := s!"generic '{name}': {error.message}" ++
       (error.key.map (fun key => s!" at key {keyLabel key}")).getD ""
     notes }
@@ -245,6 +251,14 @@ def prepareFamilies (program : RawProgram) (names : SourceNames := {}) : CheckM 
     let contracts ← (program.abstractMethods.filter (·.name == generic.name)).mapM fun contract => do
       methodResult contract.returnType contract.span
       Contracts.prepare nominals generic.params.length contract
+    let base ← if generic.inferDomain then do
+      unless base.isEmpty do fail generic.span "E_DISPATCH_DOMAIN" "inferred family has an explicit domain"
+      if Dispatch.tableWork allKeys.length methods.length > Limits.dispatchWork then
+        throw (dispatchDiagnostic nominals program generic Dispatch.workLimitError names)
+      let normalized ← (methods.mapM (Dispatch.normalizeMethod nominals.hierarchy generic.params.length)).mapError
+        (fun e => dispatchDiagnostic nominals program generic e names)
+      pure (allKeys.filter fun key => normalized.any (Dispatch.applicable nominals.hierarchy key))
+    else pure base
     let domain := Contracts.effectiveDomain nominals.hierarchy generic.params.length base contracts
     if included : contracts.all (fun contract => contract.domain.all domain.contains) = true then
       match accepted : Dispatch.checkWith nominals.hierarchy generic.params.length domain methods with

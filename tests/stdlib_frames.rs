@@ -92,7 +92,7 @@ fn main() -> Int {
 fn fixture(main: &str) -> Scratch {
     common::stdlib_app(
         "stdlib frames",
-        "[package]\nname = \"stdlib_frames_demo\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\n",
+        "[package]\nedition = \"2026\"\nname = \"stdlib_frames_demo\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\n",
         main,
         &[],
     )

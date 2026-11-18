@@ -17,10 +17,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 KEPT = ("src/main.rs", "src/frontend/mod.rs", "tests/examples.rs", "examples/hello/main.vast",
-        "lean-kernel/VastitasKernel/Check.lean", "stdlib/src/lib.vast", "nature/lib.vast")
+        "lean-kernel/VastitasKernel/Check.lean", "stdlib/src/lib.vast", "nature/lib.vast",
+        "monad/Vastitas.toml", "monad/src/mod.vast", "monad/src/kleisli/mod.vast")
 DROPPED = ("src/.env", "src/.env.local", "src/frontend/.env.example", "src/.DS_Store",
            "tests/.DS_Store", "examples/hello/.env", "lean-kernel/.DS_Store",
-           "lean-kernel/.lake/build/Check.olean", "stdlib/src/.DS_Store", "nature/.env.local")
+           "lean-kernel/.lake/build/Check.olean", "stdlib/src/.DS_Store", "nature/.env.local",
+           "monad/.env.local", "monad/src/kleisli/.DS_Store")
 
 
 @unittest.skipUnless(shutil.which("cargo"), "requires cargo")

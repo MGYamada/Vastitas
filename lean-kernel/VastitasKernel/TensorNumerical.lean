@@ -16,6 +16,7 @@ structure View where
   axes : List Basis
   grouping : Grouping
   loan : Loan
+  precision : Precision
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def View.dimension (view : View) (axis : Nat) : Nat :=
@@ -46,7 +47,7 @@ instance (left right : Basis) : Decidable (sameProfile left right) :=
   inferInstanceAs (Decidable (_ ∧ _ ∧ _ ∧ _))
 
 def View.Valid (numerical : Numerical.Values) (view : View) : Prop :=
-  (view.axes.length = 2 ∨ view.axes.length = 3) ∧ view.grouping.Valid view.axes.length ∧
+  (view.axes.length = 1 ∨ view.axes.length = 2 ∨ view.axes.length = 3) ∧ view.grouping.Valid view.axes.length ∧
   (∀ basis ∈ view.axes, value? numerical basis.brand = some (.basis basis) ∧ basis.space.dimension ≤ dimensionLimit) ∧
   (∀ left ∈ view.axes, ∀ right ∈ view.axes, sameProfile left right)
 instance (numerical : Numerical.Values) (view : View) : Decidable (view.Valid numerical) :=
@@ -55,7 +56,7 @@ instance (numerical : Numerical.Values) (view : View) : Decidable (view.Valid nu
 def View.Live (resources : State) (view : View) : Prop :=
   resources.loan? view.loan.name = some view.loan ∧ resources.suspended view.loan.name = false ∧
   (resources.allocation? view.loan.allocation).map Allocation.scalar =
-    (view.axes.head?).map (·.space.scalar) ∧
+    (view.axes.head?).map (fun basis => view.precision.scalar basis.space.coefficient) ∧
   view.loan.layout.transposed = false ∧
   view.loan.layout.rows = view.rows ∧ view.loan.layout.columns = view.columns
 instance (resources : State) (view : View) : Decidable (view.Live resources) :=
@@ -98,14 +99,15 @@ structure CheckedView (environment : Indexed.Environment) (numerical : Numerical
 def checkView (environment : Indexed.Environment) (numerical : Numerical.Values)
     (resources : State) (axes : List Symbol) (grouping : Grouping) (loan : Symbol) :
     Except Error (CheckedView environment numerical resources axes grouping loan) := do
-  unless axes.length == 2 || axes.length == 3 do reject "tensor views require two or three ordered axes"
+  unless 1 ≤ axes.length && axes.length ≤ 3 do reject "tensor views require one to three ordered axes"
   if numericalValid : Numerical.Valid environment numerical then
     if resourcesValid : auditState resources then
       let bases ← axes.mapM fun name => match value? numerical name with
         | some (.basis basis) => pure basis
         | _ => reject "tensor axis requires an actual local basis"
       let some actual := resources.loan? loan | reject "tensor requires a live rectangular loan"
-      let view : View := ⟨bases, grouping, actual⟩
+      let some allocation := resources.allocation? actual.allocation | reject "tensor loan has no live allocation"
+      let view : View := ⟨bases, grouping, actual, .ofScalar allocation.scalar⟩
       if axesFrom : view.axes.map Basis.brand = axes then
         if loanFrom : view.loan.name = loan then
           if valid : view.Valid numerical then

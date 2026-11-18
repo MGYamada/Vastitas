@@ -1,5 +1,5 @@
 resource fn main() -> Int {
-    allocate data: F64[2];
+    allocate data: F64<RR>[2];
     borrow output = write(data, layout(0, 2, 1, 2, false));
     fill(output, f64(3));
     release(output);

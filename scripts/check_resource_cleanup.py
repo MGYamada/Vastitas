@@ -56,14 +56,14 @@ sys.exit(1)
     assert json.loads(wire.read_text())["version"] == CURRENT_PROTOCOL
     return wire.read_text()
 
-STATIC = """    allocate data: F64[1];
+STATIC = """    allocate data: F64<RR>[1];
     borrow output = write(data, layout(0, 1, 1, 1, false));
     fill(output, f64_bits(4607182418800017408));
     release(output);
     drop(data);
 """
 SHAPED = """    let n: Nat = value { 2 + 1 };
-    runtime_allocate dynamic: F64[n] runtime_layout(n, 1, n, false);
+    runtime_allocate dynamic: F64<RR>[n] runtime_layout(n, 1, n, false);
     runtime_borrow target = write(dynamic);
     runtime_fill(target, f64_bits(4607182418800017408));
     runtime_release(target);
@@ -158,7 +158,7 @@ def main():
             package = work / name
             (package / "src").mkdir(parents=True)
             (package / "Vastitas.toml").write_text(
-                '[package]\nname = "cleanup"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
+                '[package]\nedition = \'2026\'\nname = "cleanup"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
             (package / "src/main.vast").write_text("resource fn main() -> Int {\n" + body + "    value { 42 }\n}\n")
             wire = capture_wire(runner, frontend, package)
             runner.run([frontend, "check", "--manifest-path", package / "Vastitas.toml"])

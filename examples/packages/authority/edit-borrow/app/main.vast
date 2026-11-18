@@ -1,8 +1,7 @@
-assembly {
-  borrow base::integers as edit;
-  apply addon::sum using edit;
-  return edit;
-  seal base::choose;
+assemble base::choose {
+  borrow base::integers as edit {
+    apply addon::sum;
+  }
 }
 
 fn main() -> Int {

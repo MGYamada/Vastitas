@@ -1,10 +1,10 @@
 use std::arithmetic::generic::promote;
-use std::arithmetic::generic::add;
+use std::arithmetic::generic::add as promoted_add;
 use std::arithmetic::generic::maximum;
 
 fn main() -> Int {
     let n: Nat = 20;
     let p: Pair<Int> = promote(n, 22);
-    let largest = show!(maximum(add(pair_first(p), pair_second(p)), add(n, -7)));
+    let largest = show!(maximum(promoted_add(pair_first(p), pair_second(p)), promoted_add(n, -7)));
     0
 }

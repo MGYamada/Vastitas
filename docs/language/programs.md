@@ -89,8 +89,9 @@ graph.
 Rules:
 
 - A program contains only the packages that its manifests name.
-- Neither mode has an implicit prelude: the compiler adds no library and no
-  import to a program.
+- Both modes bind the five arithmetic names of the
+  [operator prelude](expressions.md#operator-expressions). Libraries and
+  imports are explicit.
 
 ## The entry point
 

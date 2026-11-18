@@ -9,6 +9,32 @@ The fixture library is not an ordinary compiler/runtime dependency. -/
 namespace VastitasPublicTest.AuthorityRegression
 open Lean VastitasKernel Indexed.Core Indexed.Core.Semantics
 
+open AssemblySource (Item) in
+#eval show IO Unit from do
+  let preamble := "// β } assemble hidden {}\r\n" ++
+    "pub mod assemble { fn assemble() -> Int { 0 } } use a::assemble;\n" ++
+    "indexed test = assume(\"escaped \\\" } assemble hidden {} ;\");\n"
+  let source := preamble ++ "　assemble a :: f {\n  borrow b as parent { delegate g { apply c,d::v; } }\n}\n"
+  let base := 111
+  let span (lo hi line col : Nat) : Span :=
+    ⟨base + preamble.utf8ByteSize + lo, base + preamble.utf8ByteSize + hi, line, col⟩
+  let wanted : List Item := [
+    .family ["a", "f"] (span 3 20 4 2),
+    .borrow ["b"] (some "parent") (span 23 43 5 3),
+    .delegate ["g"] none (span 44 56 5 24),
+    .apply [["c"], ["d", "v"]] (span 57 70 5 37),
+    .close (span 71 72 5 51), .close (span 73 74 5 53), .close (span 75 76 6 1)]
+  unless (AssemblyText.parse source base).toOption == some wanted do
+    throw (IO.userError "wrong source words, UTF-8 offsets, scalar columns or closing braces")
+  for input in ["{ assemble hidden {}", "} assemble f {}", "pub assemble f {}",
+      "assembly {}", "pub assembly {}", "pub mod a { mod b { assemble f {} } }",
+      "assemble f { apply x : : y; }", "assemble f { apply x,; }",
+      "assemble f { borrow b { transfer t; } }", "assemble f { delegate d {} }",
+      "assemble f { apply c;", "// source\u2028assemble f {}", "/* comment */ assemble f {}"] do
+    if (AssemblyText.parse input 0).isOk then
+      throw (IO.userError s!"incorrectly accepted source: {repr input}")
+  IO.println "assembly source: command operands, UTF-8 positions, contextual names and malformed scopes passed"
+
 private def fixture : Json :=
   (Json.parse (include_str "../../tests/fixtures/edit-recipients.json")).toOption.getD .null
 private def get (j : Json) (key : String) : Json := (j.getObjVal? key).toOption.getD .null
@@ -30,6 +56,25 @@ private def originalEvents : Array Json := values (get rootModule "assembly") "e
 private def events (xs : Array Json) : Json :=
   editModule fixture "app" [] fun m =>
     m.setObjVal! "assembly" ((get m "assembly").setObjVal! "events" (toJson xs))
+private def originalSource : Array Json := values (get rootModule "assembly") "source"
+private def withSource (j : Json) (items : Array Json) : Json :=
+  editModule j "app" [] fun m =>
+    m.setObjVal! "assembly" ((get m "assembly").setObjVal! "source" (toJson items))
+private def editText (j : Json) (edit : Nat → String → String) : Json :=
+  let file := get j "root_source"
+  let base := (get file "offset").getNat?.toOption.getD 0
+  let text := (get file "text").getStr?.toOption.getD ""
+  j.setObjVal! "root_source" (file.setObjVal! "text" (toJson (edit base text)))
+
+/-- Replace selected single-line ASCII commands with spaces, preserving every
+surviving coordinate and the later main function in the physical fixture. -/
+private def omitCommands (indices : List Nat) (base : Nat) (text : String) : String :=
+  indices.foldl (fun text i =>
+    let span := get originalSource[i]! "span"
+    let lo := (get span "start").getNat?.toOption.getD 0 - base
+    let hi := (get span "end").getNat?.toOption.getD 0 - base
+    String.Pos.Raw.extract text 0 ⟨lo⟩ ++ String.ofList (List.replicate (hi - lo) ' ') ++
+      String.Pos.Raw.extract text ⟨hi⟩ text.rawEndPos) text
 private def event (index : Nat) (edit : Json → Json) : Json := events (originalEvents.modify index edit)
 private def named (name : String) : Json := Json.mkObj [("kind", toJson "named"), ("name", toJson name)]
 private def contributionMethod (j : Json) (pkg : String) (path : List String) (edit : Json → Json) : Json :=
@@ -92,19 +137,27 @@ private def cases : List (String × Json × String) := [
 
 #eval show IO Unit from do
   checkGood "the frontend fixture" fixture 44
-  checkGood "an alias preserves identity" (event 2 (·.setObjVal! "contribution" (toJson ["alias", "ops", "sum"]))) 44
+  let alias := event 2 (·.setObjVal! "contribution" (toJson ["alias", "ops", "sum"]))
+  checkBad "the valid alias trace differs from its source operand" alias "E_ASSEMBLY"
+  let alias := withSource alias (originalSource.modify 3
+    (·.setObjVal! "contributions" (toJson [["alias", "ops", "sum"]])))
+  checkBad "matching items and events differ from the original bytes" alias "E_ASSEMBLY"
+  checkGood "an alias preserves identity" (editText alias (fun _ s => s.replace "addon::ops::sum" "alias::ops::sum")) 44
   for (name, input, code) in cases do
     checkBad name input code
   -- A direct exclusive edit, without delegations, transfers and their events,
   -- passes through the same authority/body composition.
   let direct := events #[originalEvents[0]!,
     originalEvents[2]!.setObjVal! "loan" (toJson "parent"), originalEvents[4]!, originalEvents[7]!]
+  let direct := withSource direct #[originalSource[0]!, originalSource[1]!, originalSource[3]!,
+    originalSource[5]!, originalSource[8]!]
+  let direct := editText direct (omitCommands [2,4,6,7])
   let direct := editModule direct "base" [] fun m => editAt (dropField m "transfers") "grants" 0 fun grant =>
     (dropField grant "delegable").setObjVal! "grantee_path" (toJson ["ops"])
   let direct := editModule direct "addon" [] (fun m => dropField m "delegations")
   checkGood "a direct exclusive edit" direct 42
   checkBad "a direct edit's unapplied body" (contributionMethod direct "base" []
     (·.setObjVal! "return_type" (named "Bool"))) "E_TYPE"
-  IO.println s!"public authority: three accepted/executable cases, {cases.length + 1} rejected inputs under both check/emit policies passed"
+  IO.println s!"public authority: three accepted/executable cases, {cases.length + 3} rejected inputs under both check/emit policies passed"
 
 end VastitasPublicTest.AuthorityRegression

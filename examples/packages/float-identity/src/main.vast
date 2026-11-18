@@ -1,0 +1,34 @@
+use monad::float;
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed morphism idP: Smooth<Plane, Plane> = identity;
+
+resource fn main() -> Int {
+    allocate inputBuffer: F64<RR>[2];
+    allocate outputBuffer: F64<RR>[2];
+    borrow init = write(inputBuffer, layout(0, 2, 1, 2, false));
+    // Negative zero and a signaling NaN with payload 66.
+    store(init, 0, 0, f64_bits(9223372036854775808));
+    store(init, 1, 0, f64_bits(9218868437227405378));
+    release(init);
+    borrow input = read(inputBuffer, layout(0, 2, 1, 2, false));
+    borrow output = write(outputBuffer, layout(0, 2, 1, 2, false));
+    // ANCHOR: realize
+    let r = float::realize::<F64<RR>>(Plane, Plane::standard_chart);
+    let e = float::interpret(idP, r, NativeFast);
+    let p = float::point(r, input);
+    let q = float::point(r, output);
+    float::run(e, p) -> q;
+    // ANCHOR_END: realize
+    release(output);
+    release(input);
+    borrow result = read(outputBuffer, layout(0, 2, 1, 2, false));
+    expect(result, 0, 0, f64_bits(9223372036854775808));
+    expect(result, 1, 0, f64_bits(9218868437227405378));
+    release(result);
+    drop(outputBuffer);
+    drop(inputBuffer);
+    value { 0 }
+}

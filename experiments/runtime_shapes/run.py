@@ -10,7 +10,7 @@ import platform
 import shutil
 import sys
 
-from cases import HERE, ROOT, driver, shapes, split_generated, write_package
+from cases import HERE, ROOT, cleanup_envelope, driver, shapes, split_generated, write_package
 
 # Reuse only bounded command logging/capture/hash utilities. No tensor fixture,
 # transformation, arithmetic or timing result is reused.
@@ -86,8 +86,7 @@ def build(runner, work, scalar, transpose, args, lean_root):
             command += ["--openblas-prefix", args.prefix, "--native-cc", args.cc, "-o", work / "canonical"]
         runner.run(command, phase="public_" + mode)
     result = runner.run([work / "canonical"], phase="public_execution")
-    if result["stdout"].strip() != "0":
-        raise ValueError("public result mismatch")
+    cleanup_envelope.require_success(result)
     public_wire = capture_wire(runner, args.frontend, canonical)
     response = json.loads(runner.run([args.kernel, "emit"], input=public_wire, phase="public_emit")["stdout"])
     if not response.get("ok") or response["lean_source"].count("    VastitasGemmNative.gemm ") != 4:
@@ -154,7 +153,7 @@ def main():
                 lsan="explicitly unavailable" if args.no_leak_sanitizer else "enabled", commands={})
     for name, command in {"git":["git","rev-parse","HEAD"],"dirty":["git","status","--short"],"lean":["lean","--version"],"cc":[args.cc,"--version"]}.items():
         info["commands"][name] = runner.run(command, phase="environment")
-    for rel in ("experiments/runtime_shapes", "experiments/native_cleanup.py", "experiments/contraction_trees/run.py", "experiments/contraction_trees/cases.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical", "src/storage.rs", "src/frontend/resource_parser.rs", "lean-kernel/VastitasKernel/ResourceSource.lean", "lean-kernel/VastitasKernel/ResourceCodegen.lean", "lean-kernel/VastitasKernel/StorageCodegen.lean", "lean-kernel/VastitasKernel/ResourceProtocol.lean", "lean-kernel/VastitasKernel/StorageFunctions.lean", "lean-kernel/VastitasKernel/StorageFunctionSyntax.lean", "lean-kernel/VastitasKernel/StorageFunctionReceipts.lean", "lean-kernel/VastitasKernel/StorageFunctionContext.lean", "lean-kernel/VastitasKernel/StorageFunctionOperations.lean", "lean-kernel/VastitasKernel/StorageFunctionNumerical.lean", "lean-kernel/VastitasKernel/StorageFunctionCalls.lean", "lean-kernel/VastitasKernel/StorageFunctionExpansion.lean", "lean-kernel/VastitasKernel/StorageFunctionChecks.lean"):
+    for rel in ("experiments/runtime_shapes", "experiments/native_cleanup.py", "experiments/contraction_trees/run.py", "experiments/contraction_trees/cases.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical", "src/storage.rs", "src/frontend/resource_parser.rs", "src/frontend/numerical_representation.rs", "lean-kernel/VastitasKernel/ResourceSource.lean", "lean-kernel/VastitasKernel/ResourceCodegen.lean", "lean-kernel/VastitasKernel/StorageCodegen.lean", "lean-kernel/VastitasKernel/ResourceProtocol.lean", "lean-kernel/VastitasKernel/StorageFunctions.lean", "lean-kernel/VastitasKernel/StorageFunctionSyntax.lean", "lean-kernel/VastitasKernel/StorageFunctionReceipts.lean", "lean-kernel/VastitasKernel/StorageFunctionContext.lean", "lean-kernel/VastitasKernel/StorageFunctionOperations.lean", "lean-kernel/VastitasKernel/StorageFunctionNumerical.lean", "lean-kernel/VastitasKernel/StorageFunctionCalls.lean", "lean-kernel/VastitasKernel/StorageFunctionExpansion.lean", "lean-kernel/VastitasKernel/StorageFunctionChecks.lean"):
         path = ROOT / rel
         files = [path] if path.is_file() else path.rglob("*")
         for f in files:

@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import unittest
+import zipfile
 
 from verify import backend, check_allocation, check_backend_pair, check_calls, check_cases, check_input, objects, verify, verify_reader
 from run import streaming_cases
@@ -194,6 +195,65 @@ class RetainedSourceRecords(unittest.TestCase):
                 self.assertEqual(verify(path/'evidence.zip'),manifest['summary'])
                 self.assertEqual(manifest['measured_head'],manifest['backend_head'])
                 self.assertEqual(manifest['measured_status'],'')
+
+    def test_all_retained_metadata_identities_are_offline_epoch_eight_only(self):
+        policy = objects.wire_epoch
+        archives = sorted(self.root.glob('*/evidence.zip'))
+        self.assertEqual(len(archives), 13)
+        for path in archives:
+            with self.subTest(record=path.parent.name), zipfile.ZipFile(path) as archive:
+                raw = archive.read('record.json'); metadata = json.loads(raw)
+                self.assertEqual(policy.declared(metadata), 8)
+                policy.historical_identity(metadata, raw, 'source-workspace')
+                documents = [json.loads(archive.read(name)) for name in archive.namelist()
+                             if name.startswith('programs/') and name.endswith(
+                                 ('/package/wire.json', '/failure-wire.json', '/response.json', '/failure-response.json'))]
+                self.assertTrue(documents)
+                policy.envelopes(8, *documents)
+                with self.assertRaisesRegex(ValueError, 'unknown metadata-absent'):
+                    policy.historical_identity(metadata, raw + b' ', 'source-workspace')
+                with self.assertRaisesRegex(ValueError, 'current compiler epoch'):
+                    policy.declared({**metadata, 'wire_epoch': 8})
+
+    def test_current_record_epoch_replay_is_not_locked_to_historical_eight(self):
+        # Synthetic offline envelope regression, not a newly executed native
+        # record: only protocol metadata and its retained bindings are changed.
+        reader = Overlay(self.reader)
+        epoch = objects.wire_epoch.CURRENT_PROTOCOL
+        program_paths = [name for name in reader.names if name.startswith('programs/') and
+                         name.endswith(('/package/wire.json', '/failure-wire.json',
+                                        '/response.json', '/failure-response.json'))]
+        for path in program_paths:
+            document = reader.json(path); document['version'] = epoch
+            reader.replace(path, document)
+        commands = reader.json('commands.json')
+        for command in commands:
+            if command['phase'] not in ('kernel_emit', 'kernel_failure_emit'):
+                continue
+            context = command['context']
+            prefix = 'programs/' + context['case'] + '/' + context['backend'] + '/'
+            failure = command['phase'] == 'kernel_failure_emit'
+            response = 'failure-response.json' if failure else 'response.json'
+            data = (json.dumps(reader.json(prefix + 'failure-wire.json')).encode() if failure else
+                    reader.read(prefix + 'package/wire.json'))
+            command['stdin'] = {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+            command['stdout'] = reader.read(prefix + response).decode()
+        reader.replace('commands.json', commands)
+        record = reader.json('record.json'); record['wire_epoch'] = epoch
+        reader.replace('record.json', record)
+        self.assertEqual(verify_reader(reader)['records'], 288)
+        # Explicit current metadata is mandatory even if every wire agrees.
+        record.pop('wire_epoch'); reader.replace('record.json', record)
+        with self.assertRaisesRegex(ValueError, 'epoch mismatch'):
+            verify_reader(reader)
+
+    def test_unknown_boolean_or_other_epoch_metadata_fails_closed(self):
+        for epoch in (8, 9, 11, True, 10.0, '10'):
+            reader = Overlay(self.reader)
+            record = reader.json('record.json'); record['wire_epoch'] = epoch
+            reader.replace('record.json', record)
+            with self.subTest(epoch=epoch), self.assertRaisesRegex(ValueError, 'current compiler epoch'):
+                verify_reader(reader)
 
     def test_rehashed_foreign_kernel_input_fails(self):
         reader=Overlay(self.reader)

@@ -75,8 +75,9 @@ fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
         let source = source.replace("\"../geometry\"", "\"../geo\"");
         s.write(&format!("linalg/{name}"), &rewrite(&source));
     }
-    s.write("standard/Vastitas.toml", "[package]\nname='vastitas_std'\nversion='0.1.0'\nroot='lib.vast'\n[dependencies]\ngeometry_library={path='../geo'}\ndifferential_library={path='../differential'}\nlinalg_library={path='../linalg'}\n");
-    s.write("app/Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={path='../standard'}\ngeo={path='../geo'}\nsame={path='../geo'}\n");
+    s.copy_sources(&common::root().join("stdlib/src/category"), "category", &[]);
+    s.write("standard/Vastitas.toml", "[package]\nedition = \"2026\"\nname='vastitas_std'\nversion='0.1.0'\nroot='lib.vast'\n[dependencies]\ngeometry_library={path='../geo'}\ndifferential_library={path='../differential'}\nlinalg_library={path='../linalg'}\ncategory_library={path='../category'}\n");
+    s.write("app/Vastitas.toml", "[package]\nedition = \"2026\"\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={path='../standard'}\ngeo={path='../geo'}\nsame={path='../geo'}\n");
     s.write("app/main.vast", source);
     s
 }
@@ -742,8 +743,8 @@ fn main() -> Int {
     let X = scheme::Affine(20);
     let p: geo::Point<X, scheme::BaseQQ> = scheme::origin(X);
     let q: smooth::Point<X, scheme::BaseQQ> = same::scheme::apply(scheme::id(X), p);
-    let add = if true { std::arithmetic::integers::int_add } else { arithmetic::arithmetic::integers::int_add };
-    add(int(scheme::dim(X)), 22)
+    let sum = if true { std::arithmetic::integers::int_add } else { arithmetic::arithmetic::integers::int_add };
+    sum(int(scheme::dim(X)), 22)
 }
 "#,
         str::to_owned,
@@ -767,7 +768,7 @@ fn private_support_and_future_geometry_namespaces_are_not_public() {
         );
     }
     reject(
-        "method std::arithmetic::generic::add(x: Int, y: Int) -> Int { 0 } fn main() -> Int { 0 }",
+        "fn std::arithmetic::generic::add(x: Int, y: Int) -> Int { 0 } fn main() -> Int { 0 }",
         "E_OWNER",
     );
 }
@@ -775,7 +776,7 @@ fn private_support_and_future_geometry_namespaces_are_not_public() {
 #[test]
 fn original_arithmetic_entrypoint_still_accepts_legacy_geometry() {
     let s = Scratch::empty("legacy std geometry");
-    s.write("app/Vastitas.toml", &format!("[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={{path='{}'}}\n", common::root().join("stdlib").display()));
+    s.write("app/Vastitas.toml", &format!("[package]\nedition = \"2026\"\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={{path='{}'}}\n", common::root().join("stdlib").display()));
     s.write("app/main.vast", "fn main() -> Int { let X = Affine(QQ, 20); std::arithmetic::generic::add(int(dim(X)), 22) }");
     native(&s);
 }

@@ -16,7 +16,7 @@ use std::process::{Command, Output};
 
 const PINNED: &str = include_str!("../lean-kernel/lean-toolchain");
 const RESOURCE_MAIN: &str = "resource fn main() -> Int {
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     borrow output = write(data, layout(0, 1, 1, 1, false));
     store(output, 0, 0, f64_bits(4631107791820423168));
     release(output);
@@ -108,7 +108,7 @@ impl Mocked {
         s.write("pure.vast", "fn main() -> Int { 42 }");
         s.write(
             "storage/Vastitas.toml",
-            "[package]\nname = \"stored\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
+            "[package]\nedition = \"2026\"\nname = \"stored\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
         );
         s.write("storage/main.vast", RESOURCE_MAIN);
         let mut paths = vec![s.0.join("bin")];
@@ -338,6 +338,7 @@ fn optional_runtime_packages_are_verified_when_selected() {
             &[Program::Numerical],
             &[
                 ("gemm.c", Change::Append),
+                ("scalar_kernels.inc", Change::Append),
                 ("VastitasGemmNative.lean", Change::Append),
                 ("lake-manifest.json", Change::Append),
                 ("lean-toolchain", Change::Replace(NEWER)),

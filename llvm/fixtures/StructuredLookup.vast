@@ -1,0 +1,29 @@
+indexed finite Row { lo; hi; }
+indexed finite Column { left; middle; right; }
+indexed finite Bit { off; on; }
+indexed finite Digit { d0; d1; d2; d3; d4; d5; d6; d7; d8; d9; d10; d11; }
+
+indexed table digits(Row, Column, Bit) -> Digit {
+    (hi, right, on) => d11; (lo, middle, on) => d3;
+    (hi, middle, off) => d8; (lo, left, off) => d0;
+    (hi, left, on) => d7; (lo, right, on) => d5;
+    (hi, right, off) => d10; (lo, middle, off) => d2;
+    (hi, middle, on) => d9; (lo, left, on) => d1;
+    (hi, left, off) => d6; (lo, right, off) => d4;
+}
+indexed table expected() -> Digit { () => d9; }
+
+fn choose(a: Bool, b: Bool) -> Bool { !a && !b }
+contribution selected : choose {
+    fn choose(a: Bool, b: Bool) requires (HasEq) -> Bool { !a || b }
+}
+assemble choose { apply selected; }
+
+fn digit(r: Row<>, c: Column<>, b: Bit<>) -> Digit<> {
+    finite::lookup::<digits>(r, c, b)
+}
+fn main() -> Int {
+    let actual = digit(Row::hi, Column::middle, Bit::on);
+    let hit = actual == finite::lookup::<expected>();
+    if choose(true, hit) && !choose(true, false) { 42 } else { 7 }
+}

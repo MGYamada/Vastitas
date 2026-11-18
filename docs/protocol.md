@@ -62,9 +62,10 @@ the route.
 
 ## The envelope
 
-A request is `{ "version": 10, "file": "entry", "root":
-"/canonical/app/Vastitas.toml", "packages": [Package...] }`, with the optional
-field `legacy_geometry`. These are its only fields: another top-level field is
+A single-file request is `{ "version": 10, "file": "entry.vast", "root":
+"vastitas:compat:flat", "root_source": {"offset": 0, "text": "…"},
+"packages": [Package...] }`, with the optional
+fields `legacy_geometry` and `expected_function_revision`. These are its only fields: another top-level field is
 an error (`E_PROTOCOL`), with the message `unknown protocol field '<name>'`.
 So a request with the field `input` is an error, and so is a flat module with
 top-level `functions`, `generics` and `methods`. Every request is a package
@@ -81,6 +82,89 @@ recipients of grants, delegations and transfers, abstract declarations,
 contributions and assemblies, indexed declarations, the `geometry_compat`
 export of a package, and the algebraic, smooth, metric, frame,
 physical-dimension, spectral, transition-average and physical-model forms.
+
+## Function revision replay
+
+The kernel mode `function-revision` checks the request and returns its
+`function_revision` object. Its `input` field is the complete protocol 10
+request with only `expected_function_revision` removed. Its `families` table
+names functions by defining package, module and declaration; each callable
+dispatch key records the winning ordinary or contributed method and its
+definition number. The `pure` and `resource_values` tables bind those numbers
+to the emitted Core symbols, static uses, calls and exact arithmetic sites of
+their respective executable passes. The latter table is null when there are
+no resource value fragments. Ordinals and Core symbols are local to this
+revision, whereas an import alias does not change the defining function.
+
+Each executable `static_uses` record identifies its caller by definition
+number and ordered static target arguments. Two specializations of one
+function can therefore select different targets at the same source site.
+When the executable pass resolves a family reference, `family_refs` records
+the caller, source path and span, and defining owner. The checker resolves
+the path in the caller's writing scope.
+A closed package retains the emitted siblings of a family referenced by a
+retained specialization, even if the callee ignores its function argument.
+
+For a function with finite index parameters, the family row's
+`finite_binders` gives the defining schema of each model and the model slot
+of each object. Each emitted specialization's `finite_indices` gives its
+ordered nominal model and object indices. Explicit indices and inferred
+indices that resolve to the same substitution share the Core symbol. Two
+models with identical tables retain separate identities.
+
+When a finite method forwards a callable operand, `pure.finite_forwards`
+records the caller specialization, family, selected indices, represented
+definition, forwarding declaration span and call-site span. The target list
+has one entry per argument. A data argument has a null entry. A producer
+entry carries its selected target and its full nullary Hom signature. The
+checker reads the returned Core at the caller's first argument binding and
+checks the input bindings, producer calls and final call in order.
+
+A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
+Its instance has `kind: "instance"`, a schema path, and a `functor` record
+with four paths named `source`, `target`, `objects` and `arrows`. Each
+path carries its source span. A category instance uses the `graph` record.
+The decoder requires exactly one record and checks its fields. Changing a
+category reference changes the revision even when both categories share
+their carriers and tables. [Finite carriers and tables](indexed-source.md#finite-carriers-and-tables)
+
+A `finite_nat_trans` schema admits a `transformation` record with paths
+`source`, `target` and `components`. Both functors must name the same domain
+and codomain categories. The component table supplies one arrow per source
+object. A `finite_monad` schema admits a `monad` record with paths `category`,
+`functor`, `unit` and `multiplication`. Both transformations must target the
+selected endofunctor. All four paths and their spans belong to the same
+revision. The kernel checks the identity and squared source actions and
+the Monad equations on the resolved tables before use.
+
+A schema of kind `finite_kleisli` or `finite_kleisli_triple` carries a
+`monad_schema` path to the defining Monad schema. Its instance record is
+`kleisli` or `kleisli_triple`, respectively, with one `monad` path to an
+instance of that exact schema. Both paths retain their source spans.
+An explicit function index through either view specializes on the underlying
+Monad ID. The complete function revision also retains the source view
+reference, so changing that reference requires a fresh receipt.
+
+Each `operator_sites` row names its Core function, the defining operator
+and its ordered operand types. In particular, `(Nat, Int)` and `(Int, Nat)`
+are distinct division keys. Glyphs and direct named calls need only these
+Core operations. When a program refers to an operator as a function value,
+the kernel supplies ordinary finite method bodies for that family. The
+bodies appear under the protected package source `vastitas:compat:operators`
+and pass the same audits as other methods. The request cannot provide this
+package, its bodies or its selected keys. A typed function value refers to
+the selected method in the same compilation revision.
+
+A request may carry a saved object in `expected_function_revision`. Both
+`check` and `emit` reconstruct the receipt from the independent checks and
+compare the complete compact JSON serializations; JSON member order and
+formatting do not select a method. A mismatch is `E_FUNCTION_REVISION`.
+Success with a supplied receipt adds `function_revision_matched: true` to
+the response. Changes to source locations, unapplied bodies or another
+package invalidate the compilation revision even when the winner is the
+same. Revisions have a 64 MiB compact JSON limit, and the ordinary request
+limits still apply during replay. The receipt is evidence about this input
+and its checked functions, and carries no native or LLVM proof.
 
 ## Flat programs and the legacy geometry
 
@@ -111,8 +195,39 @@ unless the program has one of these records:
 A package with one of the records has the legacy geometry only from a
 `geometry_compat` export.
 
-A root package without an assembly selects an empty edit trace; the kernel
-still validates every grant and checks every unapplied contribution.
+Every request includes `root_source` with the entry’s `offset` and exact UTF-8 `text`. The driver takes the
+original UTF-8 text of the physical entry file and its starting byte offset
+from the files it read for compilation. In a flat unit with `--lib`, the
+entry file has offset zero. In a package, earlier manifests and modules can
+give the entry file a positive offset. The namespace work budget charges
+the decoded names. The edit parser scans the source text under the entry
+file's 16 MiB limit.
+
+File-backed packages and flat compilations with libraries also include
+`root_source.files`. This array lists each physical input in load order,
+including manifests, unused dependencies and external module files. Each
+record has a path and byte offset. The entry uses the enclosing `text`
+field. Every other record contains its own complete text. In a request
+from a manifest, `file` and `root` both name its canonical path. A single flat
+file with a UTF-8 path uses the envelope’s `file` field. On Unix a
+non-UTF-8 path uses the original path bytes in a JSON array.
+
+The checker reconstructs every offset from the preceding UTF-8 byte
+lengths and the one-byte separator. For disk-backed packages it checks
+that the first input is the root manifest, every package manifest occurs,
+and the entry contains the root module’s source location. The function
+revision includes the ordered files. Even a comment-only change in a
+library or dependency manifest invalidates its replay. Filesystem discovery
+and the translation of source declarations into wire records use the Rust
+frontend.
+
+Lean reads the edit commands from this text, including original path
+spellings, optional loan labels, and the positions of opening and closing
+braces. A package with an edit block in the entry file must supply the
+matching structured commands and events. A package with no such block
+selects an empty edit trace. The kernel still validates every grant and
+checks every unapplied contribution. The protected flat unit accepts only
+an empty assembly.
 The kernel accepts a `reborrow` event only with a delegation and a `transfer`
 event only with a transfer declaration, and each of these declarations is a
 record of the list above. A request with `legacy_geometry` that holds such an
@@ -157,6 +272,15 @@ resource functions emits both optional-runtime flags as false.
 source migration, and
 [Geometry compatibility exports](packages.md#geometry-compatibility-exports)
 the explicit geometry compatibility requirement.
+
+Pure functions with static category or object parameters carry
+`finite_binders` in declaration order. A `category` entry carries
+`name`, a path in `schema` and `span`. An `object` entry carries `name`,
+the earlier category parameter name in `category`, and `span`. A
+`finite_call` expression carries a callee path, the ordered `indices`
+paths, the value expressions in `args` and the expression `span`. The
+callee and index paths retain their own spans. An inferred call uses
+`call`, and both forms keep the `finite_hom` parameter types.
 
 <a id="observations-of-show"></a>
 
@@ -208,7 +332,7 @@ as a source library's do.
   of the request, which does not hold the profile, and the profile has no
   import and is no dependency, so it changes the price of no import.
 - The kernel validates the namespace of the request's packages before it
-  reports a Fn signature with a component other than a scalar
+  reports a decoded Fn signature with an inadmissible data component
   ([Indexed declarations](#indexed-declarations-and-rich-package-bodies)).
 
 A package source that begins with `vastitas:compat:` is reserved. A request
@@ -686,6 +810,14 @@ fragments and their exact source positions, owners, types and runtime slots.
 No checked target, slot ID, trusted condition or resource handle is accepted in a
 pure block. The internal resource component keeps its own schema.
 
+A `realization` resource statement carries the unresolved `callee`, up to
+three ordered `arguments` as paths, the local `result` name and the statement
+`span`. The paths carry their own spans. The `representation` field holds
+`real32`, `real64`, `complex32`, `complex64` or JSON null. The boolean
+`into` distinguishes the destination of `run` from a freshly bound result.
+The kernel resolves each operation in its source module and checks the
+identity of the protected `monad::float` declaration.
+
 The [runtime-extent profile](storage/resource-programs.md#runtime-extents) adds parameter kinds
 `runtime_space` (`name`, `implementation`, `dimension`, `span`), `runtime_basis`
 (`name`, `space`, `span`) and `runtime_map` (`name`, `source`, `target`, `access`,
@@ -1056,11 +1188,17 @@ The `packages` of a request ([The envelope](#the-envelope)) hold the
 selected dependency closure, and `root` names the root package.
 
 - Package: `source` (canonical manifest location), `name`, `version` (SemVer),
+  `edition: "2026"`,
   `dependencies: [{ "alias": "math", "target": "/canonical/math/Vastitas.toml" }]`,
   `modules: [Module...]`, and an optional `geometry_compat` export
   ([Indexed declarations](#indexed-declarations-and-rich-package-bodies)).
   The three identity fields distinguish owners. A manifest location occurs
   once, regardless of how many dependency aliases use it.
+  The Lean decoder independently requires the string `"2026"` on every
+  package, including the protected synthetic package of a flat program with
+  or without `--lib`. A missing edition, any other string or a value of another
+  type fails with `E_PROTOCOL`. Edition is admission metadata; it does not
+  change package identities or introduce another wire version.
 - Module: `path: ["logical", "components"]`, `public: Bool`, `span`,
   `imports`, `functions`, `generics`, `methods`, and the optional records of
   the later sections. The root has path `[]`.
@@ -1181,7 +1319,13 @@ Grant = { name, target: [identifier...], grantee_package: package-name,
           grantee_path: [identifier...], region: [[scalar...], ...],
           delegable?: Bool, public, span }
 Contribution = { name, target: [identifier...], methods: [Method...], public, span }
-Assembly = { events: [Event...], span }
+Assembly = { source: [AssemblyItem...], events: [Event...], span }
+AssemblyItem = { kind: "family", target: [identifier...], span }
+             | { kind: "borrow", grant: [identifier...], label: identifier | null, span }
+             | { kind: "delegate", delegation: [identifier...], label: identifier | null, span }
+             | { kind: "apply", contributions: [[identifier...]...], span }
+             | { kind: "transfer", declaration: [identifier...], span }
+             | { kind: "close", span }
 Event = { op: "borrow", grant: [identifier...], loan: identifier, span }
       | { op: "apply", contribution: [identifier...], loan: identifier | null, span }
       | { op: "return", loan: identifier, span }
@@ -1200,6 +1344,23 @@ records and events are rejected. Ordinary expressions keep the records of
 [Declarations, types and expressions](#declarations-types-and-expressions). A maximum of one assembly is permitted, exactly at
 the root package's root module. An omitted root assembly is an empty trace;
 all declaration, unapplied-body and completion audits still run.
+
+The required `source` array records parsed family headers, lexical commands and
+closing braces. Each grouped application keeps its paths together. Items have
+nonempty, nonoverlapping byte spans in source order. A closing brace spans
+one byte. The whole assembly spans its first header through its final brace.
+After checking authority, the kernel expands these items with a fresh loan-name
+counter shared by all blocks and compares every event, path, label and span.
+A receipt pins both arrays. Rust tokenization and the original file mapping
+remain inputs to this check.
+
+Each source `assemble path { … }` contributes its events to this single
+array in source order, ending in a seal of `path` at the closing brace.
+Loan blocks emit returns at their closing braces. An `apply a, b;`
+statement emits two applications in order with the same statement span.
+The kernel checks every edit's independently resolved family against
+the seal of its block, even for a borrow that applied no contribution.
+Duplicate seals, including through aliases, and an unsealed suffix reject.
 
 The kernel independently reconstructs grant and contribution lowering from
 original scopes, checks exact module authority and unresolved references,
@@ -1317,11 +1478,13 @@ Data annotations retain concrete scalar `named` and homogeneous `pair` types and
 Arguments are `{kind:"name",reference:TypePath}` or
 `{kind:"natural",value:String}`; expected parameter kinds determine whether a
 name refers to a declaration or a preceding local object binding.
-Fn types keep the scalar/recursive-Fn-only contract and its depth bound.
-A component of a Fn type is a Fn type or a data type of the kinds `named`,
-`pair`, `point`, `morphism` or `pointed`; another kind, such as an indexed
-type, is an error (`E_PROTOCOL`). A Fn type with a component other than `Nat`,
-`Int`, `Bool`, `Unit` or a Fn type is an error (`E_TYPE`) at the parameter,
+Fn types use the same nesting limit at every parameter and result.
+The decoder accepts nested function, `finite_hom`, `named`, `pair`, `point`,
+`morphism` and `pointed` components. Other tags produce `E_PROTOCOL`.
+For each `finite_hom`, the kernel resolves the category and both endpoints in
+the writing scope. A static use containing a Hom records these identities in
+its recursive `signature` in the function revision. A decoded component
+outside `Nat`, `Int`, `Bool`, `Unit`, finite Hom or Fn produces `E_TYPE` at the parameter,
 function, lambda or `let` statement that declares it. The kernel reports the
 first such type in the order of the program, after the namespace of the
 request validates.

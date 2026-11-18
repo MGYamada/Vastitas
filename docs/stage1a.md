@@ -14,16 +14,18 @@ time.
 > **Syntax**
 >
 > ```text
-> GenericDeclaration -> `generic` IDENTIFIER `(` GenericParameters? `)` `{` `domain` Domain `}`
-> GenericParameters -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
+> FamilyHeader -> `fn` IDENTIFIER `(` FamilyParameters? `)`
+>     `domain` `(` DomainKeys? `)` `;`
+> FamilyParameters -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
+> DomainKeys -> DomainKey ( `,` DomainKey )* `,`?
 > Domain -> `;` | DomainKey ( `,` DomainKey )* `,`? `;`
 > DomainKey -> `(` ( ScalarType ( `,` ScalarType )* `,`? )? `)`
 > ```
 
-`generic add(left, right) { domain (Int, Int), (Nat, Nat); }` declares the
+`fn add(left, right) domain((Int, Int), (Nat, Nat));` declares the
 generic `add` with two parameters. A **key** is a tuple of scalar types, one per
 parameter. The **domain** of the declaration lists keys at which callers may
-call the generic: `domain;` is the empty domain, and `domain ();` the single
+call the generic: `domain();` is the empty domain, and `domain(());` the single
 key of a generic without parameters. The **callable domain** of the generic is
 its domain together with the keys of its abstract methods, as
 [Abstract methods](#abstract-methods) describes.
@@ -39,7 +41,7 @@ Rules:
   key of its parameters, at most 4096. A seventh parameter is an error
   (`E_LIMIT`). [Appendix D](appendix/limits.md#generics-and-abstract-types) lists these
   limits.
-- A generic is not a function value, as
+- A family may be bound as a static target, as
   [Path expressions](language/expressions.md#path-expressions) says.
 
 ## Method declarations
@@ -48,7 +50,8 @@ Rules:
 >
 > ```text
 > MethodDeclaration ->
->     `method` Path `(` MethodParameters? `)` MethodSignature BlockExpression
+>     `fn` FunctionName `(` MethodParameters? `)` MethodSignature BlockExpression
+> FunctionName -> ( PathSegment `::` )* IDENTIFIER
 > MethodParameters -> MethodParameter ( `,` MethodParameter )* `,`?
 > MethodParameter -> IDENTIFIER `:` Path
 > MethodSignature -> Requirements? `->` MethodResult | `->` MethodResult Requirements
@@ -83,9 +86,9 @@ generic without parameters has no capability.
 
 Rules:
 
-- A method must name a generic in scope. A name that is not in scope is an
-  error (`E_NAME`). The name of another declaration is an error (`E_NAME` in
-  flat mode, `E_OWNER` in manifest mode).
+- Declarations with the same local name form one family. Without a header,
+  a scalar overload family admits the union of keys matched by its method
+  selectors and requirements.
 - In manifest mode a method must be in the module that defines its generic, as
   [Owners](language/edit-authority.md#owners) says.
 - A method has one selector per parameter of its generic. Another number is an
@@ -229,10 +232,10 @@ axioms.
 > **Syntax**
 >
 > ```text
-> AbstractMethodDeclaration ->
->     `abstract` `method` Path `(` MethodParameters? `)` MethodSignature
->     `{` `domain` ContractDomain `}`
-> ContractDomain -> `;` | ContractKey ( `,` ContractKey )* `,`? `;`
+> FunctionContract ->
+>     `fn` FunctionName `(` MethodParameters? `)` MethodSignature
+>     ( `domain` `(` ContractKeys? `)` )? `;`
+> ContractKeys -> ContractKey ( `,` ContractKey )* `,`?
 > ContractKey -> `(` ( Path ( `,` Path )* `,`? )? `)`
 > ```
 
@@ -257,7 +260,8 @@ Rules:
   parameters do.
 - A key that stands for no key of scalar types is an error
   (`E_CONTRACT_EMPTY`), even when another key of the domain is not empty.
-  `domain;` declares no keys.
+  `domain();` declares no keys; omitting the domain clause on a typed contract
+  uses its parameter selector tuple.
 - At each key of an abstract method, the winner's result type must equal the
   abstract method's result type. `Pair<Nat>` and `Pair<Int>` are different
   result types (`E_CONTRACT_RESULT`).
@@ -265,8 +269,8 @@ Rules:
   once.
 - An abstract method never wins and never runs.
 - In manifest mode, only the module that defines the generic may declare its
-  abstract methods (`E_OWNER`). An abstract method has no visibility, as
-  [Visibility](language/items.md#visibility) says.
+  abstract methods (`E_OWNER`). The public name belongs to the family; its declarations follow the rules in
+  [Visibility](language/items.md#visibility).
 
 ```vast
 {{#include ../examples/book/abstract/abstract-contracts.vast}}
@@ -305,5 +309,5 @@ target/debug/vastitas build examples/book/stdlib/promotion.vast \
 ```
 
 The executable writes
-`maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42` and exits with
+`maximum(self::add(pair_first(p), pair_second(p)), self::add(n, -7)) = 42` and exits with
 status 0.

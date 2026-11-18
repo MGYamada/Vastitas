@@ -1,0 +1,29 @@
+name: Run a numerical experiment
+description: Run a checked numerical harness with the common CI sampling profile.
+inputs:
+  harness:
+    description: Repository-relative path to the experiment's Python entry point.
+    required: true
+  profile:
+    description: Sampling profile (smoke or full).
+    required: true
+  results:
+    description: Results directory name under the runner temporary directory.
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        HARNESS: ${{ inputs.harness }}
+        PROFILE: ${{ inputs.profile }}
+        RESULTS: ${{ inputs.results }}
+      run: |
+        case "$PROFILE" in
+          smoke) profile_args=(--smoke --samples 6 --target-ms 0.1) ;;
+          full) profile_args=(--samples 12 --target-ms 5) ;;
+          *) echo "Unsupported numerical experiment profile: $PROFILE" >&2; exit 2 ;;
+        esac
+        python3 "$HARNESS" --prefix "$RUNNER_TEMP/vastitas-openblas" \
+          --output "$RUNNER_TEMP/$RESULTS" "${profile_args[@]}"
+        cat "$RUNNER_TEMP/$RESULTS/status.json"

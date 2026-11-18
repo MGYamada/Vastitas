@@ -1,0 +1,62 @@
+use category::Monad;
+
+pub indexed schema Kleisli = finite_kleisli(Monad);
+pub indexed schema KleisliTriple = finite_kleisli_triple(Monad);
+
+pub fn extend<M: Monad, X: Obj<M::category>, Y: Obj<M::category>>(
+    f: Hom<M::category, X, M::T<Y>>
+) -> Hom<M::category, M::T<X>, M::T<Y>> {
+    finite::lookup::<M::category::composition>(
+        finite::lookup::<M::multiplication>(Y), finite::lookup::<M::arrows>(f)
+    )
+}
+
+pub fn unit<M: Monad, X: Obj<M::category>>() -> Hom<M::category, X, M::T<X>> {
+    finite::lookup::<M::unit>(X)
+}
+
+pub fn bind<M: Monad, S: Obj<M::category>, X: Obj<M::category>, Y: Obj<M::category>>(
+    p: Hom<M::category, S, M::T<X>>, f: Hom<M::category, X, M::T<Y>>
+) -> Hom<M::category, S, M::T<Y>> {
+    let mapped = finite::lookup::<M::arrows>(f);
+    let extended = finite::lookup::<M::category::composition>(finite::lookup::<M::multiplication>(Y), mapped);
+    finite::lookup::<M::category::composition>(extended, p)
+}
+
+pub fn bind<M: Monad, S: Obj<M::category>, X: Obj<M::category>, Y: Obj<M::category>>(
+    p: Hom<M::category, S, M::T<X>>, k: Fn<(), Hom<M::category, X, M::T<Y>>>
+) -> Hom<M::category, S, M::T<Y>> {
+    bind::<M, S, X, Y>(p, k())
+}
+
+pub fn compose<M: Monad, X: Obj<M::category>, Y: Obj<M::category>, Z: Obj<M::category>>(
+    g: Hom<M::category, Y, M::T<Z>>, f: Hom<M::category, X, M::T<Y>>
+) -> Hom<M::category, X, M::T<Z>> {
+    let mapped = finite::lookup::<M::arrows>(g);
+    let extended = finite::lookup::<M::category::composition>(finite::lookup::<M::multiplication>(Z), mapped);
+    finite::lookup::<M::category::composition>(extended, f)
+}
+
+pub fn compose<M: Monad, X: Obj<M::category>, Y: Obj<M::category>, Z: Obj<M::category>>(
+    g: Fn<(), Hom<M::category, Y, M::T<Z>>>, f: Hom<M::category, X, M::T<Y>>
+) -> Hom<M::category, X, M::T<Z>> {
+    compose::<M, X, Y, Z>(g(), f)
+}
+
+pub fn compose<M: Monad, X: Obj<M::category>, Y: Obj<M::category>, Z: Obj<M::category>>(
+    g: Hom<M::category, Y, M::T<Z>>, f: Fn<(), Hom<M::category, X, M::T<Y>>>
+) -> Hom<M::category, X, M::T<Z>> {
+    compose::<M, X, Y, Z>(g, f())
+}
+
+pub fn compose<M: Monad, X: Obj<M::category>, Y: Obj<M::category>, Z: Obj<M::category>>(
+    g: Fn<(), Hom<M::category, Y, M::T<Z>>>, f: Fn<(), Hom<M::category, X, M::T<Y>>>
+) -> Hom<M::category, X, M::T<Z>> {
+    compose::<M, X, Y, Z>(g(), f())
+}
+
+pub fn lift<M: Monad, X: Obj<M::category>, Y: Obj<M::category>>(
+    f: Hom<M::category, X, Y>
+) -> Hom<M::category, X, M::T<Y>> {
+    finite::lookup::<M::category::composition>(finite::lookup::<M::unit>(Y), f)
+}

@@ -365,9 +365,8 @@ def include_errors(chapter, text, source):
 
 
 MAIN = re.compile(r"\s*(?:pub\s+)?(?:resource\s+)?fn\s+main\s*\(")
-# The beginning of a named function, resource function or method; an abstract
-# method has no body, and a lambda has no name.
-DEFINITION = re.compile(r"^[ \t]*(?:pub\s+)?(?:resource\s+)?(?:fn|method)\s+"
+# Every concrete method uses a named fn declaration. A lambda has no name.
+DEFINITION = re.compile(r"^[ \t]*(?:pub\s+)?(?:resource\s+)?fn\s+"
                         r"[A-Za-z_][A-Za-z0-9_]*(?:\s*::\s*[A-Za-z_][A-Za-z0-9_]*)*\s*\(", re.M)
 # What stands between the parameters and the body: a result type, `returns (…)`
 # and `requires (…)`, without a blank line, `;` or `=`.
@@ -455,12 +454,14 @@ def parser_vocabulary(root):
     sources = [root / "src/frontend.rs", *sorted((root / "src/frontend").glob("*.rs"))]
     text = "\n".join(path.read_text(encoding="utf-8") for path in sources)
     lexer = (root / "src/frontend.rs").read_text(encoding="utf-8")
-    operators = re.search(r'let Some\(op\) = \[([^\]]*)\]', lexer)
+    operators = re.search(r'let Some\(op\)\s*=\s*\[([^\]]*)\]', lexer)
     characters = re.search(r'else if "([^"]+)"\.contains\(ch\)', lexer)
     if not operators or not characters:
         raise ValueError("src/frontend.rs: the lexer's operator and punctuation lists were not found")
     symbols = set(re.findall(r'"([^"]+)"', operators[1])) | set(characters[1])
-    names = set(re.findall(r'"([A-Za-z_][A-Za-z0-9_]*)"', text))
+    component = r"[A-Za-z_][A-Za-z0-9_]*"
+    paths = re.findall(rf'"({component}(?:::{component})*)"', text)
+    names = {name for path in paths for name in path.split("::")}
     return symbols, names
 
 
@@ -525,7 +526,7 @@ def check_grammar(source, chapters):
 # The source files that the productions must derive from SourceFile: every
 # .vast file under these directories, apart from what the recorded
 # diagnostics of a rejected program decide.
-PARSED_SOURCES = ("examples", "stdlib/src", "nature")
+PARSED_SOURCES = ("examples", "stdlib/src", "nature", "monad/src")
 REJECTED = "examples/reject"
 # A file of a rejected program with one of these codes must not parse.
 PARSE_CODES = frozenset({"E_PARSE", "E_LEX"})

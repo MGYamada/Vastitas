@@ -7,16 +7,16 @@ fn fixture(runtime: bool, depth: usize, called: bool) -> Scratch {
     let project = Scratch::empty("resource work budget");
     project.write(
         "Vastitas.toml",
-        "[package]\nname='work'\nversion='0.1.0'\nroot='main.vast'\n",
+        "[package]\nedition = \"2026\"\nname='work'\nversion='0.1.0'\nroot='main.vast'\n",
     );
     let mut source = String::from("resource fn leaf() -> Unit {\n");
     if runtime {
-        source.push_str("runtime_allocate d: F64[1] runtime_layout(1,1,1,false);\n");
+        source.push_str("runtime_allocate d: F64<RR>[1] runtime_layout(1,1,1,false);\n");
         source.push_str(
             "runtime_borrow w = write(d); runtime_fill(w, f64_bits(0)); runtime_release(w);\n",
         );
     } else {
-        source.push_str("allocate d: F64[1]; borrow w = write(d, layout(0,1,1,1,false));\n");
+        source.push_str("allocate d: F64<RR>[1]; borrow w = write(d, layout(0,1,1,1,false));\n");
         source.push_str("fill(w, f64_bits(0)); release(w);\n");
     }
     let prefix = if runtime { "runtime_" } else { "" };

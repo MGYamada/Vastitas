@@ -5,8 +5,8 @@ use serde_json::{Value, json};
 use std::process::Command;
 
 const TYPES: &str = "abstract type Numeric; subtype Nat <: Numeric; subtype Int <: Numeric;";
-const METHODS: &str = "method widen(x: Nat) -> Int { int(x) } method widen(x: Int) -> Int { x }";
-const CONTRACT: &str = "abstract method widen(x: Numeric) -> Int { domain (Numeric); }";
+const METHODS: &str = "fn widen(x: Nat) -> Int { int(x) } fn widen(x: Int) -> Int { x }";
+const CONTRACT: &str = "fn widen(x: Numeric) -> Int domain((Numeric));";
 fn reject(source: &str, code: &str) {
     common::reject(source, code, "contracts.vast");
     let raw = request(source, "contracts.vast");
@@ -22,7 +22,7 @@ fn abstract_domains_extend_empty_generic_domains_with_and_without_functions() {
             "fn main() -> Int { let n: Nat = 20; widen(n) + widen(22) }"
         };
         native(
-            &format!("{TYPES} generic widen(x) {{ domain; }} {CONTRACT} {METHODS} {main}"),
+            &format!("{TYPES} fn widen(x) domain(); {CONTRACT} {METHODS} {main}"),
             &[],
             exits(42),
             "contracts.vast",
@@ -31,7 +31,7 @@ fn abstract_domains_extend_empty_generic_domains_with_and_without_functions() {
     let s = Scratch::empty("contract library");
     let library = s.write(
         "library.vast",
-        &format!("{TYPES} generic widen(x) {{ domain; }} {CONTRACT} {METHODS}"),
+        &format!("{TYPES} fn widen(x) domain(); {CONTRACT} {METHODS}"),
     );
     native(
         "fn main() -> Int { widen(42) }",
@@ -45,11 +45,11 @@ fn abstract_domains_extend_empty_generic_domains_with_and_without_functions() {
 fn callable_union_and_overlapping_contracts_are_order_independent() {
     let declarations = [
         TYPES,
-        "generic widen(x) { domain (Bool); }",
+        "fn widen(x) domain((Bool));",
         CONTRACT,
-        "abstract method widen(x: Any) -> Int { domain (Nat), (Bool), (Nat); }",
-        "abstract method widen(x: Int) -> Int { domain (Int); }",
-        "method widen(x: Bool) -> Int { if x { 2 } else { 0 } }",
+        "fn widen(x: Any) -> Int domain((Nat), (Bool), (Nat));",
+        "fn widen(x: Int) -> Int domain((Int));",
+        "fn widen(x: Bool) -> Int { if x { 2 } else { 0 } }",
         METHODS,
     ];
     for reversed in [false, true] {
@@ -70,25 +70,25 @@ fn callable_union_and_overlapping_contracts_are_order_independent() {
 #[test]
 fn empty_domains_are_explicit_and_nullary_contracts_are_callable() {
     success(&check(
-        "abstract type Empty; generic f(x) { domain; } abstract method f(x: Empty) -> Int { domain; }",
+        "abstract type Empty; fn f(x) domain(); fn f(x: Empty) -> Int domain();",
         "contracts.vast",
     ));
     reject(
-        "abstract type Empty; generic f(x) { domain; } abstract method f(x: Empty) -> Int { domain (Empty); }",
+        "abstract type Empty; fn f(x) domain(); fn f(x: Empty) -> Int domain((Empty));",
         "E_CONTRACT_EMPTY",
     );
     reject(
-        "abstract type Empty; generic f(x) { domain; } abstract method f(x: Any) -> Int { domain (Int), (Empty); } method f(x: Int) -> Int { x }",
+        "abstract type Empty; fn f(x) domain(); fn f(x: Any) -> Int domain((Int), (Empty)); fn f(x: Int) -> Int { x }",
         "E_CONTRACT_EMPTY",
     );
     native(
-        "generic f() { domain; } abstract method f() -> Int { domain (); } method f() -> Int { 42 } fn main() -> Int { f() }",
+        "fn f() domain(); fn f() -> Int domain(()); fn f() -> Int { 42 } fn main() -> Int { f() }",
         &[],
         exits(42),
         "contracts.vast",
     );
     reject(
-        "generic f() { domain; } abstract method f() requires (HasEq) -> Int { domain (); } method f() -> Int { 42 }",
+        "fn f() domain(); fn f() requires (HasEq) -> Int domain(()); fn f() -> Int { 42 }",
         "E_CONTRACT_DOMAIN",
     );
 }
@@ -96,35 +96,26 @@ fn empty_domains_are_explicit_and_nullary_contracts_are_callable() {
 #[test]
 fn each_contract_domain_must_satisfy_its_selectors_and_capabilities() {
     for (contract, code) in [
+        ("fn f(x: Int) -> Int domain((Number));", "E_CONTRACT_DOMAIN"),
         (
-            "abstract method f(x: Int) -> Int { domain (Number); }",
+            "fn f(x: Any) requires (HasOrder) -> Int domain((Any));",
             "E_CONTRACT_DOMAIN",
         ),
         (
-            "abstract method f(x: Any) requires (HasOrder) -> Int { domain (Any); }",
-            "E_CONTRACT_DOMAIN",
-        ),
-        (
-            "abstract method f(x: Any) requires (Unknown) -> Int { domain; }",
+            "fn f(x: Any) requires (Unknown) -> Int domain();",
             "E_CAPABILITY",
         ),
-        (
-            "abstract method f(x: Any) -> Int { domain (Int, Int); }",
-            "E_ARITY",
-        ),
-        ("abstract method f() -> Int { domain; }", "E_ARITY"),
-        (
-            "abstract method f(x: Any) -> Int { domain (Missing); }",
-            "E_NAME",
-        ),
+        ("fn f(x: Any) -> Int domain((Int, Int));", "E_ARITY"),
+        ("fn f() -> Int domain();", "E_ARITY"),
+        ("fn f(x: Any) -> Int domain((Missing));", "E_NAME"),
     ] {
         reject(
-            &format!("generic f(x) {{ domain; }} {contract} method f(x: Any) -> Int {{ 0 }}"),
+            &format!("fn f(x) domain(); {contract} fn f(x: Any) -> Int {{ 0 }}"),
             code,
         );
     }
     native(
-        "abstract type A; abstract type B; subtype Int <: A; subtype Int <: B; generic f(x) { domain; } abstract method f(x: A) requires (HasOrder) -> Int { domain (B); } method f(x: Int) -> Int { x } fn main() -> Int { f(42) }",
+        "abstract type A; abstract type B; subtype Int <: A; subtype Int <: B; fn f(x) domain(); fn f(x: A) requires (HasOrder) -> Int domain((B)); fn f(x: Int) -> Int { x } fn main() -> Int { f(42) }",
         &[],
         exits(42),
         "contracts.vast",
@@ -134,32 +125,32 @@ fn each_contract_domain_must_satisfy_its_selectors_and_capabilities() {
 #[test]
 fn contracts_never_supply_candidates_or_select_by_result_type() {
     reject(
-        &format!("{TYPES} generic widen(x) {{ domain; }} {CONTRACT}"),
+        &format!("{TYPES} fn widen(x) domain(); {CONTRACT}"),
         "E_DISPATCH_COVERAGE",
     );
     reject(
         &format!(
-            "{TYPES} generic widen(x) {{ domain; }} {CONTRACT} method widen(x: Any) requires (HasOrder) -> Int {{ 0 }} method widen(x: Numeric) -> Int {{ 0 }}"
+            "{TYPES} fn widen(x) domain(); {CONTRACT} fn widen(x: Any) requires (HasOrder) -> Int {{ 0 }} fn widen(x: Numeric) -> Int {{ 0 }}"
         ),
         "E_DISPATCH_AMBIGUOUS",
     );
     reject(
-        "generic f(x) { domain; } abstract method f(x: Number) -> Int { domain (Nat); } method f(x: Number) -> Int { 0 } method f(x: Nat) -> Nat { x }",
+        "fn f(x) domain(); fn f(x: Number) -> Int domain((Nat)); fn f(x: Number) -> Int { 0 } fn f(x: Nat) -> Nat { x }",
         "E_CONTRACT_RESULT",
     );
     reject(
         &format!(
-            "{TYPES} generic widen(x) {{ domain; }} {CONTRACT} {METHODS} abstract method widen(x: Nat) -> Nat {{ domain (Nat); }}"
+            "{TYPES} fn widen(x) domain(); {CONTRACT} {METHODS} fn widen(x: Nat) -> Nat domain((Nat));"
         ),
         "E_CONTRACT_RESULT",
     );
     // Even nonwinning and domain-external concrete bodies are independently checked.
     reject(
-        "generic f(x) { domain; } abstract method f(x: Int) -> Int { domain (Int); } method f(x: Any) -> Int { x } method f(x: Int) -> Int { x }",
+        "fn f(x) domain(); fn f(x: Int) -> Int domain((Int)); fn f(x: Any) -> Int { x } fn f(x: Int) -> Int { x }",
         "E_TYPE",
     );
     reject(
-        "generic f(x) { domain; } abstract method f(x: Int) -> Int { domain (Int); } method f(x: Int) -> Int { x } method f(x: Bool) -> Int { x }",
+        "fn f(x) domain(); fn f(x: Int) -> Int domain((Int)); fn f(x: Int) -> Int { x } fn f(x: Bool) -> Int { x }",
         "E_TYPE",
     );
 }
@@ -167,17 +158,17 @@ fn contracts_never_supply_candidates_or_select_by_result_type() {
 #[test]
 fn pair_contract_results_are_exact_and_do_not_admit_numeric_coercions() {
     native(
-        "generic f(x) { domain; } abstract method f(x: Int) -> Pair<Int> { domain (Int); } method f(x: Int) -> Pair<Int> { pair(x, x) } fn main() -> Int { pair_first(f(21)) + pair_second(f(21)) }",
+        "fn f(x) domain(); fn f(x: Int) -> Pair<Int> domain((Int)); fn f(x: Int) -> Pair<Int> { pair(x, x) } fn main() -> Int { pair_first(f(21)) + pair_second(f(21)) }",
         &[],
         exits(42),
         "contracts.vast",
     );
     reject(
-        "generic f(x) { domain; } abstract method f(x: Int) -> Pair<Nat> { domain (Int); } method f(x: Int) -> Pair<Int> { pair(x, x) }",
+        "fn f(x) domain(); fn f(x: Int) -> Pair<Nat> domain((Int)); fn f(x: Int) -> Pair<Int> { pair(x, x) }",
         "E_CONTRACT_RESULT",
     );
     reject(
-        "generic f(x) { domain; } abstract method f(x: Nat) -> Int { domain (Nat); } method f(x: Nat) -> Int { int(x) } fn main() -> Int { f(1) }",
+        "fn f(x) domain(); fn f(x: Nat) -> Int domain((Nat)); fn f(x: Nat) -> Int { int(x) } fn main() -> Int { f(1) }",
         "E_DISPATCH_DOMAIN",
     );
 }
@@ -185,7 +176,7 @@ fn pair_contract_results_are_exact_and_do_not_admit_numeric_coercions() {
 #[test]
 fn raw_contract_ir_cannot_bypass_result_domain_or_protocol_checks() {
     let raw = request(
-        &format!("{TYPES} generic widen(x) {{ domain; }} {CONTRACT} {METHODS}"),
+        &format!("{TYPES} fn widen(x) domain(); {CONTRACT} {METHODS}"),
         "contracts.vast",
     );
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
@@ -230,7 +221,7 @@ fn raw_contract_ir_cannot_bypass_result_domain_or_protocol_checks() {
 fn raw_contract_ir_cannot_repeat_a_parameter_name() {
     let raw = request(
         &format!(
-            "{TYPES} generic join(x, y) {{ domain; }} abstract method join(x: Numeric, y: Numeric) -> Int {{ domain (Numeric, Numeric); }} method join(x: Numeric, y: Numeric) -> Int {{ 1 }}"
+            "{TYPES} fn join(x, y) domain(); fn join(x: Numeric, y: Numeric) -> Int domain((Numeric, Numeric)); fn join(x: Numeric, y: Numeric) -> Int {{ 1 }}"
         ),
         "contracts.vast",
     );
@@ -253,7 +244,7 @@ fn raw_contract_ir_cannot_repeat_a_parameter_name() {
 fn package_contracts_resolve_aliases_but_keep_exact_generic_owner_authority() {
     let s = Scratch::empty("contract packages");
     s.write_package("lib",
-        "pub mod types { pub abstract type Numeric; subtype Int <: Numeric; } pub use types::Numeric as N; pub generic f(x) { domain; } abstract method f(x: N) -> Int { domain (N); } method f(x: Int) -> Int { x }",
+        "pub mod types { pub abstract type Numeric; subtype Int <: Numeric; } pub use types::Numeric as N; pub fn f(x) domain(); fn f(x: N) -> Int domain((N)); fn f(x: Int) -> Int { x }",
         "",
     );
     s.write_package(
@@ -283,10 +274,16 @@ fn package_contracts_resolve_aliases_but_keep_exact_generic_owner_authority() {
     );
     let output = Command::new(s.0.join("program")).output().unwrap();
     assert_eq!(ran(&output), exits(42));
-    for source in [
-        "abstract method dep::f(x: Int) -> Int { domain (Int); }",
-        "use dep::f as imported; abstract method imported(x: Int) -> Int { domain; }",
-        "pub generic f(x) { domain; } mod child { abstract method super::f(x: Int) -> Int { domain; } }",
+    for (source, code) in [
+        ("fn dep::f(x: Int) -> Int domain((Int));", "E_OWNER"),
+        (
+            "use dep::f as imported; fn imported(x: Int) -> Int domain();",
+            "E_OWNER",
+        ),
+        (
+            "pub fn f(x) domain(); mod child { fn super::f(x: Int) -> Int domain(); }",
+            "E_OWNER",
+        ),
     ] {
         s.write("app/main.vast", source);
         let output = cli()
@@ -295,7 +292,7 @@ fn package_contracts_resolve_aliases_but_keep_exact_generic_owner_authority() {
             .output()
             .unwrap();
         assert!(!output.status.success());
-        common::expect_code(&output, "E_OWNER");
+        common::expect_code(&output, code);
     }
 }
 
@@ -307,13 +304,14 @@ fn raw_module(source: &str) -> Value {
 #[test]
 fn raw_package_contracts_cannot_forge_edit_rights_or_erase_contracts() {
     let lib = raw_module(
-        "generic f(x) { domain; } abstract method f(x: Int) -> Int { domain (Int); } method f(x: Int) -> Int { x }",
+        "fn f(x) domain(); fn f(x: Int) -> Int domain((Int)); fn f(x: Int) -> Int { x }",
     );
-    let mut app = raw_module("fn main() -> Int { 42 }");
+    let source = "fn main() -> Int { 42 }";
+    let mut app = raw_module(source);
     app["functions"][0]["body"]["result"] = json!({"kind":"call","callee":"dep::f","args":[{"kind":"integer","value":"42","span":{"start":0,"end":0,"line":1,"column":1}}],"span":{"start":0,"end":0,"line":1,"column":1}});
-    let raw = json!({"version":common::CURRENT_PROTOCOL,"file":"contracts.vast","root":"/app","packages":[
-        {"source":"/app","name":"app","version":"0.1.0","dependencies":[{"alias":"dep","target":"/lib"}],"modules":[app]},
-        {"source":"/lib","name":"lib","version":"0.1.0","dependencies":[],"modules":[lib]}
+    let raw = json!({"version":common::CURRENT_PROTOCOL,"file":"contracts.vast","root":"/app","root_source":{"offset":0,"text":source},"packages":[
+        {"source":"/app","name":"app","version":"0.1.0","edition":"2026","dependencies":[{"alias":"dep","target":"/lib"}],"modules":[app]},
+        {"source":"/lib","name":"lib","version":"0.1.0","edition":"2026","dependencies":[],"modules":[lib]}
     ]});
     assert_eq!(kernel(&raw, "check")["ok"], true);
     let mut bad = raw.clone();
@@ -331,19 +329,19 @@ fn raw_package_contracts_cannot_forge_edit_rights_or_erase_contracts() {
 fn tuple_domains_expand_products_and_preserve_the_key_space_limit() {
     native(
         &format!(
-            "{TYPES} generic f(x, y) {{ domain; }} abstract method f(x: Numeric, y: Bool) requires (HasEq) -> Int {{ domain (Numeric, Bool); }} method f(x: Nat, y: Bool) -> Int {{ if y {{ int(x) }} else {{ 0 }} }} method f(x: Int, y: Bool) -> Int {{ if y {{ x }} else {{ 0 }} }} fn main() -> Int {{ let n: Nat = 20; f(n, true) + f(22, true) }}"
+            "{TYPES} fn f(x, y) domain(); fn f(x: Numeric, y: Bool) requires (HasEq) -> Int domain((Numeric, Bool)); fn f(x: Nat, y: Bool) -> Int {{ if y {{ int(x) }} else {{ 0 }} }} fn f(x: Int, y: Bool) -> Int {{ if y {{ x }} else {{ 0 }} }} fn main() -> Int {{ let n: Nat = 20; f(n, true) + f(22, true) }}"
         ),
         &[],
         exits(42),
         "contracts.vast",
     );
     reject(
-        "generic f(a,b,c,d,e,farg,g) { domain; } abstract method f(a: Any,b: Any,c: Any,d: Any,e: Any,farg: Any,g: Any) -> Int { domain; }",
+        "fn f(a,b,c,d,e,farg,g) domain(); fn f(a: Any,b: Any,c: Any,d: Any,e: Any,farg: Any,g: Any) -> Int domain();",
         "E_LIMIT",
     );
     // A malformed base domain is not silently discarded by canonical union.
     reject(
-        "generic f(x) { domain (Int, Int); } abstract method f(x: Int) -> Int { domain; }",
+        "fn f(x) domain((Int, Int)); fn f(x: Int) -> Int domain();",
         "E_DISPATCH_DOMAIN",
     );
 }

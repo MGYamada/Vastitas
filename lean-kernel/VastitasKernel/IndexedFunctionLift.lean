@@ -29,12 +29,15 @@ mutual
       | .lifted _ span => throw { code := "E_RESERVED", message := "lifted function references are backend-only", span }
       | .lambda params result body span =>
         let body ← liftBlock fuel namedCount origin owner scope body
-        let function : Function := ⟨"", params, result, body, false, span⟩
-        unless function.callable.isSome do throw { code := "E_TYPE", message := "lambda signatures require scalar/Fn types", span }
+        let function : Function := ⟨"", params, result, body, false, span, []⟩
+        unless function.callable.isSome do throw { code := "E_TYPE", message := "lambda signatures require scalars, finite Hom or Fn", span }
         let id := namedCount + (← get).size
         modify (·.push ⟨id, origin, owner, function, true, scope⟩)
         return .lifted id span
+      | .finiteLookup table args span => return .finiteLookup table (← args.mapM (liftExpr fuel namedCount origin owner scope)) span
       | .call path arguments span => return .call path (← arguments.mapM (liftExpr fuel namedCount origin owner scope)) span
+      | .finiteCall path indices arguments span =>
+        return .finiteCall path indices (← arguments.mapM (liftExpr fuel namedCount origin owner scope)) span
       | .invoke callee arguments span => return .invoke (← liftExpr fuel namedCount origin owner scope callee) (← arguments.mapM (liftExpr fuel namedCount origin owner scope)) span
       | .unary op value span => return .unary op (← liftExpr fuel namedCount origin owner scope value) span
       | .binary op left right span => return .binary op (← liftExpr fuel namedCount origin owner scope left) (← liftExpr fuel namedCount origin owner scope right) span

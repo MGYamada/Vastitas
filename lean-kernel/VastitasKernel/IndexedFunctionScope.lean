@@ -16,12 +16,20 @@ def dataTypeUses (bound : List String) : Source.DataType → List Source.Path
       legacyIndexUses bound target ++ legacyIndexUses bound source
   | .legacy _ | .inferredPackage => []
   | .object type => unbound bound type.domain ++ unbound bound type.marker
+  | .finiteHom category source target =>
+    unbound bound category ++ [source, target].flatMap fun path =>
+      (path.path.splitOn "T<>").flatMap fun parts => unbound bound ⟨parts, path.span⟩
   | .application family arguments => unbound bound family ++ arguments.flatMap fun argument =>
       match argument with | .natural _ => [] | .name path => unbound bound path
 
+private def fnTypeUses (bound : List String) : Nat → SignatureSyntax → List Source.Path
+  | 0, _ => []
+  | _ + 1, .data type => dataTypeUses bound type
+  | n + 1, .function params result => params.toList.flatMap (fnTypeUses bound n) ++ fnTypeUses bound n result
+
 def typeUses (bound : List String) : FnType → List Source.Path
   | .data type => dataTypeUses bound type
-  | .function _ => [] -- valid Fn signatures contain only scalar/Fn types
+  | .function s => fnTypeUses bound Limits.typeNesting s
 
 def signatureUses : List String → List Param → FnType → List Source.Path
   | bound, [], result => typeUses bound result
@@ -34,7 +42,11 @@ mutual
   def freeExpr : List String → Expr → List Source.Path
     | bound, .variable name span => unbound bound ⟨[name], span⟩
     | bound, .functionValue path _ => unbound bound path
+    | bound, .finiteLookup _ arguments _ => arguments.flatMap (freeExpr bound)
     | bound, .call path arguments _ => unbound bound path ++ arguments.flatMap (freeExpr bound)
+    | bound, .finiteCall path _ arguments _ =>
+      -- Explicit category and endpoint indices never read an outer runtime binding.
+      unbound bound path ++ arguments.flatMap (freeExpr bound)
     | bound, .invoke callee arguments _ => freeExpr bound callee ++ arguments.flatMap (freeExpr bound)
     | _, .lambda .. => []
     | bound, .unary _ value _ => freeExpr bound value
@@ -68,7 +80,7 @@ nested lambdas are checked against their own complete enclosing context. -/
 mutual
   def exprBindings : Expr → List (String × Span)
     | .lambda .. => []
-    | .call _ arguments _ => arguments.flatMap exprBindings
+    | .call _ arguments _ | .finiteCall _ _ arguments _ | .finiteLookup _ arguments _ => arguments.flatMap exprBindings
     | .invoke callee arguments _ => exprBindings callee ++ arguments.flatMap exprBindings
     | .unary _ value _ => exprBindings value
     | .binary _ left right _ => exprBindings left ++ exprBindings right
@@ -88,8 +100,9 @@ mutual
     | outer, .lambda params result body span =>
       { free := signatureUses [] params result ++ freeBlock (params.map (·.name)) body,
         outer, bindings := params.map (fun p => (p.name, p.span)) ++ blockBindings body,
-        function := ⟨"", params, result, body, false, span⟩ } :: blockScopes (params.map (·.name) ++ outer) body
-    | outer, .call _ arguments _ => arguments.flatMap (lambdaScopes outer)
+        function := ⟨"", params, result, body, false, span, []⟩ } :: blockScopes (params.map (·.name) ++ outer) body
+    | outer, .call _ arguments _ | outer, .finiteCall _ _ arguments _ | outer, .finiteLookup _ arguments _ =>
+      arguments.flatMap (lambdaScopes outer)
     | outer, .invoke callee arguments _ => lambdaScopes outer callee ++ arguments.flatMap (lambdaScopes outer)
     | outer, .unary _ value _ => lambdaScopes outer value
     | outer, .binary _ left right _ => lambdaScopes outer left ++ lambdaScopes outer right
@@ -117,13 +130,31 @@ def available (index : Namespace.Indexed) (scope : Namespace.Scope) (path : Sour
   if [["int"], ["pair"], ["pair_first"], ["pair_second"],
       ["Affine"], ["Base"], ["origin"], ["id"], ["dim"], ["compose"], ["apply"],
       ["QQ"], ["CInfReal"]].contains path.path then true
-  else (Namespace.resolve index scope path.path path.span).isOk
+  else if (Namespace.resolve index scope path.path path.span).isOk then true
+  -- A finite member uses the namespace of its carrier or category declaration.
+  -- The body checker validates the tag and its nominal type.
+  else
+    let visible (base : List String) :=
+      ((Namespace.resolve index scope base.reverse path.span).toOption).any
+        (fun owner => owner.kind == .indexedDeclaration)
+    match path.path.reverse with
+    | _ :: head :: tail => visible (head :: tail) || match head :: tail with
+      | "objects" :: "category" :: base => visible base
+      | "objects" :: base => visible base
+      | _ => false
+    | _ => false
+
+/-- A single-segment free occurrence names the lexical binder first, even
+when a global spelling would be available after lambda lifting. Qualified
+paths cannot capture a surrounding value. -/
+private def captured (lambda : LambdaScope) (use : Source.Path) : Bool :=
+  match use.path with | [name] => lambda.outer.contains name | _ => false
 
 /-- These conditions are recomputed from the actual input, not accepted from
 a frontend free-name or binding certificate. Body typing is a separate audit. -/
 def ScopeSafe (index : Namespace.Indexed) (scope : Namespace.Scope) (lambda : LambdaScope) : Prop :=
   lambda.function.callable.isSome = true ∧
-    (∀ use ∈ lambda.free, available index scope use = true) ∧
+    (∀ use ∈ lambda.free, captured lambda use = false ∧ available index scope use = true) ∧
     ∀ binding ∈ lambda.bindings, binding.1 ∉ lambda.outer
 
 instance (index : Namespace.Indexed) (scope : Namespace.Scope) (lambda : LambdaScope) :
@@ -148,16 +179,15 @@ instance (program : Program) : Decidable (ScopesSafe program) :=
 def scopeDiagnosticFor (index : Namespace.Indexed) (scopes : List (Namespace.Scope × LambdaScope)) : Diagnostic := Id.run do
   for (scope, lambda) in scopes do
     if lambda.function.callable.isNone then
-      return { code := "E_TYPE", message := "lambda signatures require scalar/Fn types", span := lambda.function.span }
+      return { code := "E_TYPE", message := "lambda signatures require scalars, finite Hom or Fn", span := lambda.function.span }
     for (name, span) in lambda.bindings do
       if lambda.outer.contains name then
         return { code := "E_SHADOW", message := s!"lambda binding '{name}' shadows an enclosing binding", span }
     for use in lambda.free do
-      unless available index scope use do
+      if captured lambda use || !available index scope use then
         let name := String.intercalate "::" use.path
-        let captured := match use.path with | [name] => lambda.outer.contains name | _ => false
         return {
-          code := if captured then "E_CAPTURE" else "E_NAME"
+          code := if captured lambda use then "E_CAPTURE" else "E_NAME"
           span := use.span
           message := s!"independent lambda cannot access '{name}'; use an explicit parameter or a visible global declaration" }
   return { code := "E_SCOPE", message := "lambda scope audit failed" }

@@ -162,9 +162,11 @@ theorem selected_bounds {env numerical resources left right output la ra policy}
   obtain ⟨a, b, ha, hb, _⟩ := selected_axes checked
   exact ⟨(List.getElem?_eq_some_iff.mp ha).1, (List.getElem?_eq_some_iff.mp hb).1⟩
 
-private theorem left_inner_group (rank axis : Nat) (ranks : rank = 2 ∨ rank = 3) (bound : axis < rank) :
+private theorem left_inner_group (rank axis : Nat) (ranks : rank = 1 ∨ rank = 2 ∨ rank = 3) (bound : axis < rank) :
     (leftGrouping rank axis).order.drop (leftGrouping rank axis).split = [axis] := by
-  rcases ranks with rfl | rfl
+  rcases ranks with rfl | rfl | rfl
+  · have : axis = 0 := by omega
+    subst axis; decide
   · have cases : axis = 0 ∨ axis = 1 := by omega
     rcases cases with rfl | rfl <;> decide
   · have cases : axis = 0 ∨ axis = 1 ∨ axis = 2 := by omega
@@ -192,12 +194,16 @@ theorem actual_single_operands {env numerical resources left right output la ra 
     View.extent]
 
 private theorem selected_left_coordinate (view : View) (axis : Nat) (indices : List Nat) (inner : Nat)
-    (ranks : view.axes.length = 2 ∨ view.axes.length = 3) (bound : axis < view.axes.length)
+    (ranks : view.axes.length = 1 ∨ view.axes.length = 2 ∨ view.axes.length = 3) (bound : axis < view.axes.length)
     (length : indices.length = view.axes.length)
     (grouping : view.grouping = leftGrouping view.axes.length axis) :
     view.coordinate (indices.set axis inner) =
       (view.flatten indices (freeAxes view.axes.length axis), inner) := by
-  rcases ranks with rank | rank
+  rcases ranks with rank | rank | rank
+  · have shape := List.eq_getElem_of_length_eq_one indices (length.trans rank)
+    have zero : axis = 0 := by omega
+    rw [shape, zero]
+    simp [View.coordinate, View.flatten, grouping, rank, zero, leftGrouping, freeAxes, List.range_succ]
   · have shape := List.eq_getElem_of_length_eq_two indices (length.trans rank)
     rw [shape]
     have cases : axis = 0 ∨ axis = 1 := by omega
@@ -210,12 +216,16 @@ private theorem selected_left_coordinate (view : View) (axis : Nat) (indices : L
       simp [View.coordinate, View.flatten, grouping, rank, leftGrouping, freeAxes, List.range_succ]
 
 private theorem selected_right_coordinate (view : View) (axis : Nat) (indices : List Nat) (inner : Nat)
-    (ranks : view.axes.length = 2 ∨ view.axes.length = 3) (bound : axis < view.axes.length)
+    (ranks : view.axes.length = 1 ∨ view.axes.length = 2 ∨ view.axes.length = 3) (bound : axis < view.axes.length)
     (length : indices.length = view.axes.length)
     (grouping : view.grouping = rightGrouping view.axes.length axis) :
     view.coordinate (indices.set axis inner) =
       (inner, view.flatten indices (freeAxes view.axes.length axis)) := by
-  rcases ranks with rank | rank
+  rcases ranks with rank | rank | rank
+  · have shape := List.eq_getElem_of_length_eq_one indices (length.trans rank)
+    have zero : axis = 0 := by omega
+    rw [shape, zero]
+    simp [View.coordinate, View.flatten, grouping, rank, zero, rightGrouping, freeAxes, List.range_succ]
   · have shape := List.eq_getElem_of_length_eq_two indices (length.trans rank)
     rw [shape]
     have cases : axis = 0 ∨ axis = 1 := by omega
@@ -227,7 +237,7 @@ private theorem selected_right_coordinate (view : View) (axis : Nat) (indices : 
     rcases cases with rfl | rfl | rfl <;>
       simp [View.coordinate, View.flatten, grouping, rank, rightGrouping, freeAxes, List.range_succ]
 
-/-- In each accepted rank-two/three orientation, substituting the selected
+/-- In each accepted orientation of ranks one through three, substituting the selected
 logical coordinate changes exactly the GEMM inner coordinate. All free axes
 retain their written order. -/
 theorem actual_selected_coordinates {env numerical resources left right output la ra policy}
@@ -287,5 +297,25 @@ theorem actual_single_reference {env numerical resources left right output la ra
     singleReference zero add mul leftCells rightCells left la row column := by
   rw [(actual_single_operands checked).2.2.2]
   rfl
+
+/-- In a matrix-column join the surviving row keeps its basis. The checked
+inner extent determines the ordered dot product, including the empty sum. -/
+theorem matrix_column_reference {env numerical resources left right output policy}
+    (checked : CheckedSingle env numerical resources left right output 1 0 policy)
+    {target contracted source : Basis}
+    (matrixAxes : left.axes = [target, contracted]) (columnAxis : right.axes = [source])
+    (zero : α) (add mul : α → α → α) (cells : Nat → Nat → α) (column : Nat → α) :
+    (DualPair contracted source ∨ DualPair source contracted) ∧
+    output.axes = [target] ∧ output.Initialized checked.after = true ∧
+    ∀ row, output.coordinate [row] = (row, 0) ∧
+      TensorNumerical.gemmReference zero add mul cells (fun k _ => column k)
+          checked.storage.operands.left.layout.logicalColumns row 0 =
+        (List.range contracted.space.dimension).foldl (fun acc k => add acc (mul (cells row k) (column k))) zero := by
+  refine ⟨by simpa [selectedPair, matrixAxes, columnAxis] using checked.selected,
+    by simpa [resultAxes, matrixAxes, columnAxis] using checked.axes, checked.outputInitialized, ?_⟩
+  intro row
+  constructor
+  · simp [View.coordinate, View.flatten, checked.grouping.2.2, resultGrouping, matrixAxes, columnAxis, List.range_succ]
+  · simp [TensorNumerical.gemmReference, (actual_single_operands checked).2.2.2, View.dimension, matrixAxes]
 
 end VastitasOracle.TensorContraction

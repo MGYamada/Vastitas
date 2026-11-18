@@ -12,7 +12,7 @@ its verifier and its regression examples. None is a part of the compiler.
 | [CUDA storage reuse](#cuda-reuse-reference) | Model only. Implemented: storage on the host, with the checks of allocation, initialization, loans and release that [Storage and ownership](../storage-ownership.md) and [Resource programs](../storage/resource-programs.md) specify. The compiler generates no GPU code. Planned: [#266](https://github.com/MGYamada/Vastitas/issues/266), [#210](https://github.com/MGYamada/Vastitas/issues/210) |
 | [CSR patterns and SpGEMM](#sparse-reference) | Model only. Implemented: dense [numerical maps](../linalg/maps-and-gemm.md) and their matrix products. Planned: [#243](https://github.com/MGYamada/Vastitas/issues/243) |
 | [Reduction plans](#reduction-reference) | Model only. Implemented: the [contraction trees](../linalg/networks-and-packing.md#contraction-trees) that a program declares for a tensor network. The reassociation of a reduction under declared laws is a model only. Planned: [#303](https://github.com/MGYamada/Vastitas/issues/303) |
-| [Float and SafeFloat](#float-reference) | Model only. Planned: [#318](https://github.com/MGYamada/Vastitas/issues/318), [#322](https://github.com/MGYamada/Vastitas/issues/322) |
+| [Float and SafeFloat](#float-reference) | Reference sequencing laws are proved in Lean. NativeFast separately executes the binary64 real identity on resource points. Executable SafeFloat and public Monad instances remain outside this profile. [#318](https://github.com/MGYamada/Vastitas/issues/318), [#322](https://github.com/MGYamada/Vastitas/issues/322) |
 | [Dependency invalidation](#incremental-reference) | Model only. Planned: [#339](https://github.com/MGYamada/Vastitas/issues/339) |
 
 Each section keeps the record of the change that added its model. Its
@@ -596,13 +596,12 @@ adds no Domain Checker or constitutional theorem, and does not close #303.
 
 ## Float / SafeFloat executable reference
 
-This is a bounded Python reference for [#318](https://github.com/MGYamada/Vastitas/issues/318),
-following its current Slice A and the pure-reference/execution split in
-[#322](https://github.com/MGYamada/Vastitas/issues/322). The pure reference also
-contains the pinned complex graph of [#855](https://github.com/MGYamada/Vastitas/issues/855).
-It does not complete these issues or install public `std::float` / `monad::float` packages. The mathematical
-contracts in [#310](https://github.com/MGYamada/Vastitas/issues/310) and
-[#313](https://github.com/MGYamada/Vastitas/issues/313) are unchanged.
+The Python reference exercises the fixed binary64 profile. The independent Lean
+reference defines sequencing over represented binary32 and binary64 operations.
+The compiler uses the protected float module for resource realization.
+SafeFloat errors and sequencing are proof-only in this edition.
+[#318](https://github.com/MGYamada/Vastitas/issues/318) · [#322](https://github.com/MGYamada/Vastitas/issues/322) · [Resource programs](../storage/resource-programs.md)
+The Python complex graph follows [#855](https://github.com/MGYamada/Vastitas/issues/855).
 
 Run from the repository root with Python's standard library only:
 
@@ -625,6 +624,8 @@ Lean, BLAS or third-party Python dependency is needed for these reference tests.
 | [test_float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_float_reference.py) | Representation and arithmetic checks independent of sequencing laws. |
 | [test_safe_float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_safe_float_reference.py) | Separate unit/associativity, flag monoid, morphism, equality, failure, and operational-trace tests. |
 | [test_complex_float_reference.py](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_complex_float_reference.py) | Independent F32 rounding vectors and bit roundtrips; exhaustive signed-zero input classes, edge values, NaNs, infinities, reciprocal, forbidden mixed precision and trace shape. |
+| [BinaryFloat.lean](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryFloat.lean) | Width-indexed bits, rational conversion, arithmetic, local flags and fixed-order numerical kernels. |
+| [SafeFloat.lean](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SafeFloat.lean) | Lean proofs for raw and checked sequencing with these primitives, ordered events and their projection to result and flags. |
 
 There is no general Reader/Writer/Except/State or transformer API. `Ok` and `Err`
 are ordinary tagged reference Result values, not a production exception
@@ -754,9 +755,19 @@ raw and 248,832 safe associativity cases, including failure at each step. The
 five-flag monoid is separately checked on all 32 masks (all 32³ triples). Lift
 bind tests cover all 32² mask pairs with ten special-bit values. Additional law
 tests use the actual arithmetic/checked primitives, including NaNs and ±0.
-These are finite regressions, not universal Lean proofs. Bind associativity does
-not permit reassociation of arithmetic: a separate negative test demonstrates
+The Python checks enumerate finite instances. A separate negative test demonstrates
 different binary64 results for the two additions around `2^53`, `1`, and `-2^53`.
+
+The Lean model gives every deterministic computation one Unit configuration.
+Each arithmetic or guard event records its site, operation and local flags.
+`run` retains the value or error and unions the five flags over the executed
+events. Its equality compares each scalar's bits, so the same NaN payload equals
+itself and the two signed zeros remain distinct. The raw and checked unit,
+associativity and lift equations preserve the entire ordered trace. The
+projection and congruence theorems show that bind preserves observation equality
+even when two computations produce different traces. The failing-site identity
+is observable only in the audit trace. Build the proofs and their binary32 and
+binary64 regression examples with `lake -d lean build VastitasOracle.SafeFloat`.
 
 ### Division, ordering and failure
 
@@ -823,21 +834,16 @@ site-observing profile requires its own explicit trace-refinement theorem.
 
 | Layer | Status of this increment |
 | --- | --- |
-| Executable reference | Python primitive and sequencing layers with regression tests; fixed binary64 real profile only. |
-| Lean monad/lift proofs | **Not implemented.** Prove flag-union laws, both unit laws and associativity by failure cases, and both lift equations extensionally at representation equality. Establish equality congruence for admitted continuations and the trace projection separately. |
-| Lean arithmetic proofs | **Not implemented.** Prove finite decoding/rounding and each operation's result/flag contract under the selected NaN, underflow and rounding policy; monad laws alone cannot prove these. |
-| Production Source/Core connection | **Not implemented.** Preserve operation identities, computational presentation, model/profile/revision provenance, accepted Core, branch schedule and guard evidence. No parser/protocol/checker/stdlib admission change here. |
-| Native refinement | **Not implemented or tested.** No CPU/GPU flags, fenv restoration, ABI, compiler optimization, BLAS/CUDA or native/reference conformance claim. |
+| Executable reference | Python covers binary64. Lean covers binary32 and binary64 conversion, raw arithmetic, checked division and lazy branches. |
+| Lean sequencing proofs | Flag union has an identity and is associative, commutative and idempotent. Both bind operations satisfy their unit and associativity laws, and lift preserves pure and bind. The signed-zero guard rejects both zero bit patterns. The first error retains previously executed events and flags and skips every continuation. |
+| Lean arithmetic proofs | Totalized real division by signed zero and the empty-dot unit-beta case have separate theorems. General rounding and operation-by-operation IEEE refinement remain open. |
+| Production Source/Core connection | The real binary64 identity binds its chart and graph to checked resource storage. Public SafeFloat sequencing and public floating Monad instances remain outside the edition. |
+| Native refinement | The NativeFast real identity reports flags as unavailable. Direct C quotient and inverse tests cover both widths. General source-to-native numerical refinement remains open. |
 | Mathematical accuracy/certification | **Not implemented.** Selected ideal RR/CC specifications, error/enclosure proofs and ideal nonzero evidence remain distinct obligations under #244/#313. |
 
-Future native work must compare represented results, retained flags, typed
-failures and branch/short-circuit observations against this selected reference,
-declare environment isolation/restoration and DAZ/FTZ/FMA policies, and separately
-prove refinement. Differential execution is useful evidence, not a substitute
-for that proof. The same applies to any promised first-failure-site trace.
-
-No acceptance checkbox in #318/#322, constitutional theorem, public Monad
-instance, or mathematical contract is marked complete by this reference.
+Any future execution profile that exposes flags or the first failure site must
+specify the observation and establish its relation to the reference. The current
+NativeFast profile exposes `Unavailable` for flags.
 
 <a id="incremental-reference"></a>
 

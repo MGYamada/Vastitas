@@ -185,7 +185,7 @@ path = "book/stdlib/promotion.vast"
 expect = "accept"
 libraries = ["stdlib/src/arithmetic/int.vast", "stdlib/src/arithmetic/nat.vast", "stdlib/src/arithmetic/generic.vast"]
 stdout = ""
-stderr = "maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42\n"
+stderr = "maximum(self::add(pair_first(p), pair_second(p)), self::add(n, -7)) = 42\n"
 
 [[case]]
 id = "book.types.pair-result"
@@ -1303,3 +1303,39 @@ kind = "source"
 path = "reject/types/pair-literals.vast"
 expect = "reject"
 diagnostic = "E_TYPE"
+
+[[case]]
+id = "package.finite-category"
+kind = "package"
+path = "packages/finite-category/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.finite-functor"
+kind = "package"
+path = "packages/finite-functor/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.finite-kleisli"
+kind = "package"
+path = "packages/finite-kleisli/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.finite-monad"
+kind = "package"
+path = "packages/finite-monad/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.finite-natural-transformation"
+kind = "package"
+path = "packages/finite-natural-transformation/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.float-identity"
+kind = "package"
+path = "packages/float-identity/Vastitas.toml"
+expect = "accept"

@@ -56,9 +56,9 @@ STRING_CHARACTER -> [` `-`!`] | [`#`-`[`] | [`]`-`~`]
 [Punctuation](../language/lexical-structure.md#punctuation):
 
 ```text
-PUNCTUATION -> `+` | `-` | `*` | `!` | `&&` | `||`
+PUNCTUATION -> `+` | `-` | `*` | `/` | `!` | `&&` | `||`
     | `==` | `!=` | `<` | `<=` | `>` | `>=`
-    | `->` | `::` | `<:`
+    | `->` | `=>` | `::` | `<:`
     | `(` | `)` | `{` | `}` | `[` | `]`
     | `,` | `:` | `;` | `=` | `.` | `^`
 ```
@@ -85,12 +85,12 @@ Chapter: [Items](../language/items.md).
 
 ```text
 Item -> `pub`? VisibleItem | HiddenItem
-VisibleItem -> Function | GenericDeclaration | AbstractTypeDeclaration
+VisibleItem -> Function | FamilyHeader | MethodDeclaration | FunctionContract
+    | AbstractTypeDeclaration
     | ModuleDeclaration | UseDeclaration | IndexedDeclaration | ResourceFunction
     | GrantDeclaration | DelegationDeclaration | TransferDeclaration
     | ContributionDeclaration
-HiddenItem -> MethodDeclaration | AbstractMethodDeclaration | SubtypeDeclaration
-    | AssemblyDeclaration
+HiddenItem -> SubtypeDeclaration | AssemblyDeclaration
 ```
 
 ## Functions
@@ -98,7 +98,9 @@ HiddenItem -> MethodDeclaration | AbstractMethodDeclaration | SubtypeDeclaration
 Chapter: [Functions](../language/functions.md).
 
 ```text
-Function -> `fn` IDENTIFIER `(` FunctionParameters? `)` `->` Type BlockExpression
+Function -> `fn` IDENTIFIER FiniteBinders? `(` FunctionParameters? `)` `->` Type BlockExpression
+FiniteBinders -> `<` FiniteBinder ( `,` FiniteBinder )* `,`? `>`
+FiniteBinder -> IDENTIFIER `:` Path | IDENTIFIER `:` `Obj` `<` IDENTIFIER ( `::` `category` )? `>`
 FunctionParameters -> FunctionParameter ( `,` FunctionParameter )* `,`?
 FunctionParameter -> IDENTIFIER `:` Type
 ```
@@ -133,7 +135,7 @@ Chapter: [Expressions](../language/expressions.md).
 ```text
 Expression -> LiteralExpression | UnitExpression | PathExpression
     | GroupedExpression | BlockExpression | IfExpression | CallExpression
-    | OperatorExpression | LambdaExpression | PackExpression
+    | OperatorExpression | LambdaExpression | PackExpression | FiniteLookupExpression | FiniteCallExpression
 ```
 
 [Literal expressions](../language/expressions.md#literal-expressions):
@@ -173,6 +175,8 @@ IfExpression ->
 
 ```text
 CallExpression -> Expression `(` CallArguments? `)`
+FiniteLookupExpression -> `finite` `::` `lookup` `::` `<` Path `>` `(` CallArguments? `)`
+FiniteCallExpression -> Path `::` `<` Path ( `,` Path )* `,`? `>` `(` CallArguments? `)`
 CallArguments -> Expression ( `,` Expression )* `,`?
 ```
 
@@ -182,7 +186,7 @@ CallArguments -> Expression ( `,` Expression )* `,`?
 OperatorExpression -> UnaryOperator Expression
     | Expression BinaryOperator Expression
 UnaryOperator -> `-` | `!`
-BinaryOperator -> `*` | `+` | `-` | `==` | `!=` | `<` | `<=` | `>` | `>=`
+BinaryOperator -> `*` | `/` | `+` | `-` | `==` | `!=` | `<` | `<=` | `>` | `>=`
     | `&&` | `||`
 ```
 
@@ -234,6 +238,8 @@ FunctionInputs -> Type | `(` ( Type ( `,` Type )* `,`? )? `)`
 ```text
 IndexedType -> IDENTIFIER ( `::` PathSegment )* `<` IndexedArguments? `>`
     | `Object` `<` Path `,` Path `>`
+    | `Hom` `<` Path `,` HomEndpoint `,` HomEndpoint `>`
+HomEndpoint -> Path | Path `::` `T` `<` HomEndpoint `>`
 IndexedArguments -> IndexedArgument ( `,` IndexedArgument )* `,`?
 IndexedArgument -> INTEGER_LITERAL | Path
 ```
@@ -259,8 +265,10 @@ Chapter: [Generics and dispatch](../stage1a.md).
 [Generic declarations](../stage1a.md#generic-declarations):
 
 ```text
-GenericDeclaration -> `generic` IDENTIFIER `(` GenericParameters? `)` `{` `domain` Domain `}`
-GenericParameters -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
+FamilyHeader -> `fn` IDENTIFIER `(` FamilyParameters? `)`
+    `domain` `(` DomainKeys? `)` `;`
+FamilyParameters -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
+DomainKeys -> DomainKey ( `,` DomainKey )* `,`?
 Domain -> `;` | DomainKey ( `,` DomainKey )* `,`? `;`
 DomainKey -> `(` ( ScalarType ( `,` ScalarType )* `,`? )? `)`
 ```
@@ -269,7 +277,8 @@ DomainKey -> `(` ( ScalarType ( `,` ScalarType )* `,`? )? `)`
 
 ```text
 MethodDeclaration ->
-    `method` Path `(` MethodParameters? `)` MethodSignature BlockExpression
+    `fn` FunctionName `(` MethodParameters? `)` MethodSignature BlockExpression
+FunctionName -> ( PathSegment `::` )* IDENTIFIER
 MethodParameters -> MethodParameter ( `,` MethodParameter )* `,`?
 MethodParameter -> IDENTIFIER `:` Path
 MethodSignature -> Requirements? `->` MethodResult | `->` MethodResult Requirements
@@ -288,10 +297,10 @@ SubtypeDeclaration -> `subtype` IDENTIFIER `<:` Path `;`
 [Abstract methods](../stage1a.md#abstract-methods):
 
 ```text
-AbstractMethodDeclaration ->
-    `abstract` `method` Path `(` MethodParameters? `)` MethodSignature
-    `{` `domain` ContractDomain `}`
-ContractDomain -> `;` | ContractKey ( `,` ContractKey )* `,`? `;`
+FunctionContract ->
+    `fn` FunctionName `(` MethodParameters? `)` MethodSignature
+    ( `domain` `(` ContractKeys? `)` )? `;`
+ContractKeys -> ContractKey ( `,` ContractKey )* `,`?
 ContractKey -> `(` ( Path ( `,` Path )* `,`? )? `)`
 ```
 
@@ -343,13 +352,11 @@ ContributionDeclaration ->
 [Assemblies](../language/edit-authority.md#assemblies):
 
 ```text
-AssemblyDeclaration -> `assembly` `{` AssemblyEvent* `}`
-AssemblyEvent -> `borrow` Path `as` IDENTIFIER `;`
-    | `reborrow` IDENTIFIER `via` Path `as` IDENTIFIER `;`
-    | `apply` Path ( `using` IDENTIFIER )? `;`
-    | `return` IDENTIFIER `;`
-    | `transfer` Path `;`
-    | `seal` Path `;`
+AssemblyDeclaration -> `assemble` Path `{` AssemblyItem* `}`
+AssemblyItem -> BorrowBlock | ApplyStatement | `transfer` Path `;`
+BorrowBlock -> `borrow` Path ( `as` IDENTIFIER )? `{` LoanItem* `}`
+LoanItem -> ApplyStatement | `delegate` Path ( `as` IDENTIFIER )? `{` LoanItem* `}`
+ApplyStatement -> `apply` Path ( `,` Path )* `;`
 ```
 
 [Transfers](../language/edit-authority.md#transfers):
@@ -370,6 +377,29 @@ IndexedDeclaration -> MarkerDeclaration | DescriptorImplementation
     | SmoothDeclaration | AffineDeclaration
     | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
     | PhysicalModelDeclaration | GluingDeclaration
+    | FiniteCarrierDeclaration | FiniteTableDeclaration | FiniteSchema | FiniteInstance
+```
+
+[Finite carriers and tables](../indexed-source.md#finite-carriers-and-tables):
+
+```text
+FiniteCarrierDeclaration ->
+    `indexed` `finite` IDENTIFIER `{` ( IDENTIFIER `;` )* `}`
+FiniteTableDeclaration ->
+    `indexed` `table` IDENTIFIER `(` FiniteTableInputs? `)` `->` Path
+    ( `where` `composable` `(` Path `,` Path `)` )? `{` FiniteTableRow* `}`
+FiniteSchema -> `indexed` `schema` IDENTIFIER `=`
+    ( `finite_category` | `finite_functor` | `finite_nat_trans` | `finite_monad`
+    | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
+FiniteInstance -> `indexed` `instance` IDENTIFIER `:` Path `=`
+    ( `finite_graph` `(` Path `,` Path `,` Path `,` Path `,` Path `,` Path `)`
+    | `finite_functor` `(` Path `,` Path `,` Path `,` Path `)`
+    | `finite_nat_trans` `(` Path `,` Path `,` Path `)`
+    | `finite_monad` `(` Path `,` Path `,` Path `,` Path `)`
+    | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
+FiniteTableInputs -> Path ( `,` Path )* `,`?
+FiniteTableRow -> `(` FiniteTableTags? `)` `=>` IDENTIFIER `;`
+FiniteTableTags -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
 ```
 
 [Markers](../indexed-source.md#markers):
@@ -974,7 +1004,7 @@ ResourceResult -> IDENTIFIER `:` ( OwnedType | NumericalResultType )
 OwnedType -> `Owned` `<` ElementType `,` INTEGER_LITERAL `>` ( `initialized` `[` Layouts? `]` )?
 BorrowedType -> ( `Read` | `Write` | `ReadWrite` )
     `<` ElementType `,` INTEGER_LITERAL `,` INTEGER_LITERAL `>` `initializes`?
-ElementType -> `F64` | `Complex` `<` `F64` `>`
+ElementType -> ( `F32` | `F64` ) `<` ( `RR` | `CC` ) `>`
 Layouts -> Layout ( `,` Layout )* `,`?
 Layout -> `layout` `(` INTEGER_LITERAL `,` INTEGER_LITERAL `,` INTEGER_LITERAL `,`
     INTEGER_LITERAL `,` ( `true` | `false` ) `)`
@@ -984,7 +1014,11 @@ Layout -> `layout` `(` INTEGER_LITERAL `,` INTEGER_LITERAL `,` INTEGER_LITERAL `
 
 ```text
 ResourceStatement -> StorageStatement `;` | BorrowStatement | ValueStatement
-    | ResourceCall | ResourceBranch | RuntimeStatement `;` | NumericalStatement
+    | ResourceCall | ResourceBranch | RuntimeStatement `;` | NumericalStatement | RealizationStatement
+RealizationStatement -> `let` IDENTIFIER `=` Path RealizationTypeArgument? `(` RealizationArguments? `)` `;`
+    | Path `(` RealizationArguments? `)` `->` IDENTIFIER `;`
+RealizationTypeArgument -> `::` `<` ( `F32` | `F64` ) `<` ( `RR` | `CC` ) `>` `>`
+RealizationArguments -> Path ( `,` Path ( `,` Path )? )? `,`?
 StorageStatement -> `allocate` IDENTIFIER `:` ElementType `[` INTEGER_LITERAL `]`
     | `move` IDENTIFIER `->` IDENTIFIER
     | `drop` `(` IDENTIFIER `)`
@@ -1001,9 +1035,10 @@ AccessMode -> `read` | `write` | `read_write`
 [Payloads](../storage/resource-programs.md#payloads):
 
 ```text
-Payload -> `f64` `(` Real `)` | `complex` `(` Real `,` Real `)`
-    | `f64_bits` `(` INTEGER_LITERAL `)`
-    | `complex_bits` `(` INTEGER_LITERAL `,` INTEGER_LITERAL `)`
+Payload -> ( `f32` | `f64` ) `(` Real `)`
+    | ( `complex32` | `complex` ) `(` Real `,` Real `)`
+    | ( `f32_bits` | `f64_bits` ) `(` INTEGER_LITERAL `)`
+    | ( `complex32_bits` | `complex_bits` ) `(` INTEGER_LITERAL `,` INTEGER_LITERAL `)`
 Real -> ( `+` | `-` )? ( INTEGER_LITERAL | FLOAT_LITERAL )
 ```
 
@@ -1233,7 +1268,8 @@ NetworkPort -> IDENTIFIER `.` ( `input` | `output` )
 
 ```text
 TensorView -> `tensor` IDENTIFIER `=`
-    ( `view2` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER ( `,` AxisGrouping )? `)`
+    ( `view1` `(` IDENTIFIER `,` IDENTIFIER `)`
+    | `view2` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER ( `,` AxisGrouping )? `)`
     | `view3` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,`
       AxisGrouping `)` )
 AxisGrouping -> `axes` `(` ( INTEGER_LITERAL ( `,` INTEGER_LITERAL )* `,`? )? `)`

@@ -63,7 +63,7 @@ private def rootModule (functions : List Json) : Json := Json.mkObj [
 functions of the program, public when `isPublic`. -/
 private def sourcePackage (source name : String) (isPublic : Bool) (dependencies : List Json := [])
     (extra : List (String × Json) := []) : Json := Json.mkObj ([
-  ("source", toJson source), ("name", toJson name), ("version", toJson "1.0.0"),
+  ("source", toJson source), ("name", toJson name), ("version", toJson "1.0.0"), ("edition", toJson currentEdition),
   ("dependencies", toJson dependencies),
   ("modules", toJson [rootModule (functions.map (publish isPublic))])] ++ extra)
 
@@ -72,7 +72,7 @@ field `legacy_geometry` set to `flag` when there is one. -/
 private def request (root : String) (packages : List Json) (flag : Option Json := some (toJson true))
     (version : Nat := RegressionRequest.currentProtocol) : Json := Json.mkObj ([
   ("version", toJson version), ("file", toJson "legacy.vast"), ("root", toJson root),
-  ("packages", toJson packages)] ++
+  ("root_source", RegressionRequest.emptyRootSource), ("packages", toJson packages)] ++
   match flag with | some value => [("legacy_geometry", value)] | none => [])
 
 /-- The request that `packages::flat_request` writes for the flat unit of
@@ -165,7 +165,7 @@ private def answer (json : Json) : Option (String × String × Span) :=
       (toJson [rootModule ((functions ++ [badSignature]).map (publish true))])])
   check s!"an invalid Fn signature of a flat unit: {repr (answer flagged)}"
     ((answer flagged).any fun (code, message, span) => code == "E_TYPE" &&
-      message == "Fn signatures contain only scalars and recursive Fn types" && span.start == 5)
+      message == "Fn signatures support scalars, finite Hom and recursive Fn types" && span.start == 5)
   let importOf (path alias : String) : Json := Json.mkObj [("path", toJson [path]), ("alias", toJson alias),
     ("public", toJson false), ("span", span)]
   let importingWith (anImport : Json) (flag : Option Json) : Json :=

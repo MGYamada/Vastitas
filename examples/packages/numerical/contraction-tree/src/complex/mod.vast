@@ -8,12 +8,12 @@ pub resource fn product() -> Unit {
     space wd = dual(w); basis bwd = derived(bw, wd);
     space ad = dual(a); basis bad = derived(ba, ad);
     space bd = dual(b); basis bbd = derived(bb, bd);
-    allocate original: Complex<F64>[39];
-    allocate matrix_a: Complex<F64>[23];
-    allocate matrix_b: Complex<F64>[33];
-    allocate scratch: Complex<F64>[47];
-    allocate middle: Complex<F64>[48];
-    allocate result: Complex<F64>[69];
+    allocate original: F64<CC>[39];
+    allocate matrix_a: F64<CC>[23];
+    allocate matrix_b: F64<CC>[33];
+    allocate scratch: F64<CC>[47];
+    allocate middle: F64<CC>[48];
+    allocate result: F64<CC>[69];
     borrow init_t = write(original, layout(16, 2, 12, 3, false));
     fill(init_t, complex_bits(4607182418800017408, 4607182418800017408));
     store(init_t, 1, 1, complex_bits(4613937818241073152, 4611686018427387904));

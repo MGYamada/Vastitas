@@ -62,7 +62,7 @@ instance (op : UnaryOp) (arg result : Ty) : Decidable (UnaryTyping op arg result
 
 def BinaryTyping (op : BinaryOp) (left right result : Ty) : Prop :=
   left = right ∧ match op with
-  | .add | .sub | .mul => (left = .nat ∨ left = .int) ∧ result = left
+  | .add | .sub | .mul | .div => (left = .nat ∨ left = .int) ∧ result = left
   | .eq | .ne =>
       (left = .nat ∨ left = .int ∨ left = .bool ∨ left = .unit) ∧ result = .bool
   | .lt | .le | .gt | .ge => (left = .nat ∨ left = .int) ∧ result = .bool

@@ -1,0 +1,64 @@
+// The six permutations of three points; comp(g, f) applies f first.
+indexed schema GroupCategory = finite_category;
+pub indexed finite Obj { o; }
+indexed finite Arr { p012; p021; p102; p120; p201; p210; }
+indexed table sourceOf(Arr) -> Obj {
+    (p012) => o;
+    (p021) => o;
+    (p102) => o;
+    (p120) => o;
+    (p201) => o;
+    (p210) => o;
+}
+indexed table targetOf(Arr) -> Obj {
+    (p012) => o;
+    (p021) => o;
+    (p102) => o;
+    (p120) => o;
+    (p201) => o;
+    (p210) => o;
+}
+indexed table ids(Obj) -> Arr { (o) => p012; }
+indexed table comp(Arr, Arr) -> Arr where composable(sourceOf, targetOf) {
+    (p012, p012) => p012;
+    (p012, p021) => p021;
+    (p012, p102) => p102;
+    (p012, p120) => p120;
+    (p012, p201) => p201;
+    (p012, p210) => p210;
+    (p021, p012) => p021;
+    (p021, p021) => p012;
+    (p021, p102) => p201;
+    (p021, p120) => p210;
+    (p021, p201) => p102;
+    (p021, p210) => p120;
+    (p102, p012) => p102;
+    (p102, p021) => p120;
+    (p102, p102) => p012;
+    (p102, p120) => p021;
+    (p102, p201) => p210;
+    (p102, p210) => p201;
+    (p120, p012) => p120;
+    (p120, p021) => p102;
+    (p120, p102) => p210;
+    (p120, p120) => p201;
+    (p120, p201) => p012;
+    (p120, p210) => p021;
+    (p201, p012) => p201;
+    (p201, p021) => p210;
+    (p201, p102) => p021;
+    (p201, p120) => p012;
+    (p201, p201) => p120;
+    (p201, p210) => p102;
+    (p210, p012) => p210;
+    (p210, p021) => p201;
+    (p210, p102) => p120;
+    (p210, p120) => p102;
+    (p210, p201) => p021;
+    (p210, p210) => p012;
+}
+pub indexed instance S3 : GroupCategory = finite_graph(Obj, Arr, sourceOf, targetOf, ids, comp);
+
+pub fn composeArrow(g: Hom<S3, Obj::o, Obj::o>, f: Hom<S3, Obj::o, Obj::o>) -> Hom<S3, Obj::o, Obj::o> {
+    finite::lookup::<S3::composition>(g, f)
+}

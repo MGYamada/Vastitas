@@ -246,6 +246,7 @@ def validateWithWork (p : Indexed) : Result ImportWork := do
   if !UniqueOwners p then throw (duplicateOwner p)
   if !Finite.distinct (p.declarations.map (symbol p.toProgram)) then problem {} "E_DUPLICATE" "conflicting generated declaration identities"
   validateGraph p
+  let hasFiniteCompose := p.packages.any (fun pkg => pkg.modules.any (·.hasFiniteCompose))
   for pkg in p.packages do
     if pkg.id.name.isEmpty || pkg.id.source.isEmpty || !validVersion pkg.id.version then
       problem {} "E_PROTOCOL" "invalid package name, location or SemVer version"
@@ -265,6 +266,7 @@ def validateWithWork (p : Indexed) : Result ImportWork := do
       let names := declarations.map (·.owner.name) ++ m.imports.map (·.alias) ++ pkg.dependencies.map (·.alias)
       if !Finite.distinct names then throw (collision p pkg m)
       for decl in declarations do
+        if decl.kind == .function && decl.owner.name == "compose" && m.hasFiniteCompose then continue
         if let .error diagnostic := declarationName decl.kind decl.owner.name m.span then
           throw { diagnostic with span := (declarationPlace p decl.owner).getD m.span }
       for entry in m.imports do
@@ -276,12 +278,14 @@ def validateWithWork (p : Indexed) : Result ImportWork := do
         -- target is still checked below, so a function or a module cannot
         -- acquire a reserved alias.
         let implicit := entry.path.getLast? == some entry.alias
-        if !(implicit && indexedSpelling entry.alias &&
-            p.declarations.any (·.kind == .indexedDeclaration)) then
+        if !(implicit && ((indexedSpelling entry.alias && p.declarations.any (·.kind == .indexedDeclaration)) ||
+            (entry.alias == "compose" && hasFiniteCompose))) then
           sourceName entry.alias entry.span
         if entry.alias == "package" then problem entry.span "E_RESERVED" "package is reserved as a path prefix"
         let (target, next) ← importWorkStep p scope entry work
         work := next
+        if implicit && target.kind == .function && entry.alias == "compose" && target.owner.name == "compose" &&
+            ((moduleAt p target.owner.scope).any (·.hasFiniteCompose)) then continue
         declarationName (if implicit && target.kind == .indexedDeclaration then target.kind else .function)
           entry.alias entry.span
   return work

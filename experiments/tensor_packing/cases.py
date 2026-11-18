@@ -55,7 +55,7 @@ def layout(value):
 def source(c):
     s, scalar = spec(c), c["scalar"]
     profile = "ComplexSmooth" if scalar else "RealSmooth"
-    kind = "Complex<F64>" if scalar else "F64"
+    kind = "F64<CC>" if scalar else "F64<RR>"
     lines = ["pub resource fn product() -> Unit {"]
     for name, axis in zip("uvwx", ("i", "k", "j", "l")):
         lines += [f"space {name} = linear(super::profiles::{profile}, {c[axis]}); basis b{name} = basis({name});"]
@@ -91,7 +91,7 @@ def source(c):
 def write_package(c, out):
     (out / "src/product").mkdir(parents=True)
     (out / "src/profiles").mkdir()
-    (out / "Vastitas.toml").write_text('[package]\nname = "tensor_bench"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
+    (out / "Vastitas.toml").write_text('[package]\nedition = "2026"\nname = "tensor_bench"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
     (out / "src/main.vast").write_text('mod profiles;\nmod product;\nresource fn main() -> Int {\ncall product::product() -> ();\nvalue { 0 }\n}\n')
     (out / "src/profiles/mod.vast").write_text((ROOT / "examples/packages/numerical/tensor-packing/src/profiles/mod.vast").read_text())
     (out / "src/product/mod.vast").write_text(source(c))
@@ -117,6 +117,7 @@ static const Patch patches[2][2] = {{{','.join(map(patch, s['patches']))}}};
 
 def split_generated(text):
     """Fail closed unless the actual returned program has the reviewed envelope."""
+    text = cleanup_envelope.normalize_main(text)
     marker = "def main : IO Unit := do\n"
     if text.count(marker) != 1:
         raise ValueError("unexpected generated main")

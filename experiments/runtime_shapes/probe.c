@@ -71,7 +71,7 @@ void bench_config(uint64_t mm,uint64_t kk,uint64_t nn,uint64_t pp) {
 VStorageArena *vstorage_new(uint64_t budget) { require(!active); active=storage_new_impl(budget); return active; }
 VStorageStatus vstorage_allocate(VStorageArena *a,uint32_t id,uint8_t scalar,uint64_t count) {
     VStorageStatus s=storage_allocate_impl(a,id,scalar,count);
-    if(s==VS_OK) { Buffer *b=lookup(a,id); for(uint64_t x=0;x<b->capacity/8;++x)memcpy(b->data+x,&poison,8); }
+    if(s==VS_OK) { Buffer *b=lookup(a,id); for(uint64_t x=0;x<b->capacity/8;++x)memcpy(b->data+8*x,&poison,8); }
     return s;
 }
 static int verify(VStorageArena *a) {
@@ -82,7 +82,7 @@ static int verify(VStorageArena *a) {
         for(uint64_t x=0;x<capacity[id];++x) {
             int logical=x/v.leading<v.columns&&x%v.leading<v.rows;
             for(unsigned part=0;part<=SCALAR;++part) {
-                uint64_t got;memcpy(&got,b->data+x*(SCALAR+1)+part,8);
+                uint64_t got;memcpy(&got,b->data+8*(x*(SCALAR+1)+part),8);
                 uint64_t want=poison;
                 if(logical) {
                     double value=id==0?1.0:id==1?(part?-1.0:2.0):(part?(double)k:(SCALAR?3.0:2.0)*(double)k);

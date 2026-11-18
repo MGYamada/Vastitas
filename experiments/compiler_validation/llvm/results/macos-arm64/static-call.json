@@ -1,0 +1,120 @@
+{
+  "status": "passed",
+  "target": {
+    "llvm": "23.1.4",
+    "triple": "arm64-apple-darwin27.2.0",
+    "layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+  },
+  "source_sha256": "d31fd8aaf63f62a79b7650d8e04dc2aace9d7c851908880608a48b7885445e86",
+  "reference_sha256": "98001b4d4ecf40b303d4798e3495658ec9e37d1335c1501a430ca49e47faa656",
+  "source_call": [
+    "forward",
+    "pick"
+  ],
+  "foreign_call": [
+    "vq_forward",
+    "vq_lookup"
+  ],
+  "module_sha256": "bdee993599796c09fecc126d0a332e668996aac3173daa70f7a4f8af4531ddc8",
+  "module_bytes": 709,
+  "ordinals_each_export": [
+    0,
+    1,
+    2,
+    3,
+    4095,
+    4294967295
+  ],
+  "results_each_export": [
+    1,
+    0,
+    1,
+    4294967295,
+    4294967295,
+    4294967295
+  ],
+  "specialization_rejections": [
+    "reversed-export-owners",
+    "private-callee",
+    "different-operand",
+    "different-caller-abi",
+    "bypassed-callee"
+  ],
+  "parser_and_handoff_rejections": [
+    "redirect-to-caller",
+    "constant-operand",
+    "wrong-return-abi",
+    "changed-definition-order",
+    "trailing-bytes"
+  ],
+  "emitter_comparison": {
+    "source": "src/lean/Lean/Compiler/IR/EmitLLVM.lean",
+    "sha256": "635bb0e78a3703614b9f175b13f2a8e2adaa890fe7ed144bc33e6e67fab99414",
+    "observations": {
+      "abi_and_untested_notice": {
+        "matched_lines": [
+          25
+        ],
+        "needle": "our CI for LLVM is dysfunctional"
+      },
+      "fixed_size_t": {
+        "matched_lines": [
+          42
+        ],
+        "needle": "def size_tType"
+      },
+      "case_default": {
+        "matched_lines": [
+          1096
+        ],
+        "needle": "def ensureHasDefault'"
+      },
+      "case_tag_width": {
+        "matched_lines": [
+          1111
+        ],
+        "needle": "buildZext builder tag"
+      },
+      "case_switch": {
+        "matched_lines": [
+          1115
+        ],
+        "needle": "buildSwitch builder tag"
+      },
+      "join_point_lowering": {
+        "matched_lines": [
+          1139
+        ],
+        "needle": "by generating SSA phi nodes"
+      },
+      "inbounds_gep": {
+        "matched_lines": [
+          732,
+          788
+        ],
+        "needle": "buildInBoundsGEP"
+      },
+      "bitcode_output": {
+        "matched_lines": [
+          1675
+        ],
+        "needle": "writeBitcodeToFile"
+      },
+      "static_application": {
+        "needle": "def emitFullApp",
+        "matched_lines": [
+          755
+        ]
+      },
+      "static_call": {
+        "needle": "buildCall2",
+        "matched_lines": [
+          767
+        ]
+      }
+    },
+    "role": "comparison only; not a correctness oracle",
+    "executed": false,
+    "execution_gap": "pinned Lean binary reports no LLVM feature"
+  }
+}

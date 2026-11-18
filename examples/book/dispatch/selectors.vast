@@ -1,10 +1,8 @@
-generic rank(x) {
-    domain (Nat), (Int), (Bool);
-}
+fn rank(x) domain((Nat), (Int), (Bool));
 
-method rank(x: Any) -> Int { 0 }
-method rank(x: Number) -> Int { 1 }
-method rank(x: Int) -> Int { 20 }
+fn rank(x: Any) -> Int { 0 }
+fn rank(x: Number) -> Int { 1 }
+fn rank(x: Int) -> Int { 20 }
 
 fn main() -> Int {
     let n: Nat = 7;

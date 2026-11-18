@@ -1,4 +1,5 @@
-import VastitasKernel.IndexedCallCoverage
+import VastitasKernel.FiniteForwarding
+import VastitasKernel.IndexedReverse
 
 namespace VastitasKernel.Indexed.FunctionSource.Compiler
 
@@ -31,17 +32,53 @@ def definitionIdentity (definition : Definition) : Nat × Nat × DeclId × Bool 
 
 /-- Recheck identity/coverage after signature preparation; the reconstruction
 equation additionally ties the actual function bodies and types to the input. -/
-def validPrepared (lifted : Lifted) (prepared : PreparedProgram) : Bool :=
-  prepared.input.prepared.toList.map (definitionIdentity ∘ Prepared.definition) ==
-    lifted.definitions.toList.map definitionIdentity
+def validFinitePrepared (input : Input) (entry : Prepared) (i : Nat) : Bool := Id.run do
+  let owner := entry.definition.owner
+  let some (fn,t) := input.templates[owner]? | return false
+  let some term := entry.finiteBody | return false
+  let .ok (params,result,expected) :=
+      t.instantiate input.body.declarations entry.finiteKey (List.range fn.params.length) | return false
+  return entry.definition.id == i && entry.definition.origin == i &&
+    entry.definition.bodyScope == owner.scope && !entry.definition.isLambda &&
+    !entry.finiteKey.isEmpty && input.finiteInstances[(owner,entry.finiteKey)]? == some i &&
+    params == entry.parameters && result == entry.result && entry.dataABI &&
+    entry.probeOutputs.isEmpty && Core.Reverse.termEq expected term
 
-def validTargetName (input : Input) (audit : Bool) (name : TargetName) (signature : Surface.TypeExpr) : Bool :=
-  signature.isFunction && signature.callableData && match name with
+def validPrepared (lifted : Lifted) (prepared : PreparedProgram) : Bool :=
+  let ordinary := prepared.input.prepared.toList.take lifted.definitions.size
+  let finite := prepared.input.prepared.toList.drop lifted.definitions.size
+  ordinary.map (definitionIdentity ∘ Prepared.definition) == lifted.definitions.toList.map definitionIdentity &&
+    (ordinary.all (fun e => e.finiteBody.isNone && e.finiteKey.isEmpty && e.dataABI) &&
+      prepared.input.finiteInstances.size == finite.length &&
+      finite.zipIdx.all fun (entry, offset) =>
+        validFinitePrepared prepared.input entry (lifted.definitions.size + offset))
+
+theorem prepared_contains_lifted {prepared : PreparedProgram} {lifted : Lifted} {definition : Definition}
+    (valid : validPrepared lifted prepared = true)
+    (member : definition ∈ lifted.definitions.toList) :
+    ∃ entry ∈ prepared.input.prepared, definitionIdentity entry.definition = definitionIdentity definition := by
+  simp only [validPrepared, Bool.and_eq_true, beq_iff_eq] at valid
+  have h : definitionIdentity definition ∈ (prepared.input.prepared.toList.take lifted.definitions.size).map
+      (definitionIdentity ∘ Prepared.definition) := valid.1.symm ▸ List.mem_map.mpr ⟨definition,member,rfl⟩
+  obtain ⟨e, he, same⟩ := List.mem_map.mp h
+  exact ⟨e, Array.mem_toList_iff.mp (List.mem_of_mem_take he), same⟩
+
+def selectedDefinition (input : Input) (owner : DeclId) (signature : Signature) : Option Nat := do
+  let family ← input.dispatch.families[owner]?
+  let key ← scalarSignatureKey signature
+  guard (family.domain.contains key)
+  let method ← family.checked.winner key
+  input.dispatch.definitions[(method, key)]?
+
+def validTargetName (input : Input) (audit : Bool) (name : TargetName) (signature : Signature) : Bool :=
+  signature.isFunction && signature.allData callableCoreData && match name with
   | .probe _ => audit
   | .concrete id => match input.prepared[id]? with
     | none => false
-    | some definition => definition.definition.function.callable == some signature &&
-        (definition.definition.isLambda || id < input.sourceCount) && (audit || input.executable definition.definition)
+    | some definition => definition.callable == some signature &&
+        (definition.definition.isLambda || id < input.sourceCount ||
+          selectedDefinition input definition.definition.owner signature == some id) &&
+        (audit || input.executable definition.definition)
 
 def validKey (input : Input) (audit : Bool) (key : Key) : Bool :=
   match input.prepared[key.definition]? with
@@ -60,7 +97,7 @@ def validOrigins (input : Input) (audit : Bool) (pass : Pass) : Bool :=
       | some key => validKey input audit key && match input.prepared[key.definition]? with
         | none => false
         | some definition => function.definition == definition.definition.owner &&
-            function.parameters == definition.parameters && function.returnType == definition.result
+            function.parameters == definition.parametersFor audit key && function.returnType == definition.result
 
 def validSourceCalls (input : Input) (pass : Pass) : Bool :=
   pass.calls.all fun call =>
@@ -84,8 +121,64 @@ def validDispatchCalls (input : Input) (pass : Pass) : Bool :=
       pass.origins[call.emittedId]? == some (Key.mk call.definition []) &&
       match input.prepared[call.caller.definition]? with
       | none => false
-      | some caller => caller.definition.bodyScope == call.scope) &&
+      | some caller => caller.definition.bodyScope == call.callerScope) &&
     dispatchCallCoverage input pass
+
+def validFamilyRef (input : Input) (ref : FamilyRef) : Bool :=
+    decide (ref.scope ∈ input.body.index.scopes) && decide (ref.target.kind = .generic) &&
+    decide ((Namespace.resolve input.body.index ref.scope ref.path.path ref.path.span).toOption = some ref.target) &&
+    input.dispatch.families.contains ref.target.owner
+def validStaticSelection (input : Input) (use : StaticUse) : Bool :=
+    match use.target.name, use.target.selected with
+      | .concrete id, some selection =>
+        validDispatchSelection input selection && selection.definition == id &&
+        scalarSignatureKey use.expected == some selection.key
+      | .concrete id, none =>
+        (input.prepared[id]?).any fun entry => entry.definition.isLambda || id < input.sourceCount
+      | .probe _, selection => selection.isNone
+
+/-- Scope, path and semantic identity are compared under structural equality.
+The lookup span has already served as the source position for diagnostics. -/
+def DispatchSelection.originKey (s : DispatchSelection) :
+    Namespace.Scope × List String × DeclId × Dispatch.Key × Nat × Nat :=
+  (s.scope, s.path.path, s.target.owner, s.key, s.method, s.definition)
+
+/-- Retaining the origin of an uncalled family reference is as important as
+checking actual calls. A typed family specialization must reselect the very
+same definition from its input types in the current assembly. -/
+def validFamilyUses (input : Input) (pass : Pass) : Bool :=
+  let typed := Std.HashSet.ofList (pass.staticUses.filterMap fun use => use.target.selected.map (·.originKey))
+  pass.familyRefs.all (validFamilyRef input) && pass.staticUses.all (validStaticSelection input) &&
+    pass.dispatchCalls.all fun call =>
+      call.callerScope == call.scope || typed.contains call.toDispatchSelection.originKey
+
+/-- Recheck the overload and represented specialization at the chosen indices.
+Each forced concrete target must also have a nullary call from this caller. -/
+def validForwardUse (input : Input) (audit : Bool) (site : ForwardUse)
+    (calls : Std.HashSet (Key × Key)) (uses : Std.HashSet (Option Key × TargetName)) : Bool := Id.run do
+  let mask := site.targets.map Option.isSome
+  let some entry := input.prepared[site.definition]? | return false
+  unless mask.contains true && (input.forwardMethods[(site.family,mask)]?).map (·.span) == some site.method &&
+      input.finiteInstances[(site.family,site.indices)]? == some site.definition &&
+      entry.definition.owner == site.family && entry.finiteKey == site.indices &&
+      calls.contains (site.caller,⟨site.definition,[]⟩) &&
+      site.targets.length == entry.parameters.length do return false
+  return (site.targets.zip entry.parameters).all fun
+    | (none,_) => true
+    | (some t,p) =>
+      let expected : Signature := .function .nil (.data p.result.type)
+      t.signature == expected && validTargetName input audit t.name expected &&
+        uses.contains (some site.caller,t.name) && match t.name with
+        | .probe _ => audit
+        | .concrete id => calls.contains (site.caller,⟨id,[]⟩)
+
+def validForwardUses (input : Input) (audit : Bool) (pass : Pass) : Bool :=
+  if pass.forwardUses.isEmpty then true else
+    let calls := Std.HashSet.ofList (pass.emittedCalls.map fun c => (c.caller,c.key))
+    let uses := Std.HashSet.ofList (pass.staticUses.map fun u => (u.caller,u.target.name))
+    let terms := Forwarding.fragments pass
+    pass.forwardUses.all fun site => validForwardUse input audit site calls uses &&
+      (terms[(site.caller,site.firstBinding)]?).any (Forwarding.matchesBody pass.origins audit site)
 
 /-- An independent positional bijection check, deliberately not the template
 cache's first-occurrence normalization. Repeated and distinct targets stay so. -/
@@ -128,9 +221,9 @@ def validProbeReuse (input : Input) (pass : Pass) (reuse : ProbeReuse) : Bool :=
     validProbeArguments input reuse.definition reuse.canonical && validProbeResult reuse &&
     match input.prepared[reuse.definition]? with
     | none => false
-    | some entry => match entry.definition.function.result, reuse.result, reuse.returned with
+    | some entry => match entry.resultType, reuse.result, reuse.returned with
       | .data _, none, none => true
-      | .function signature, some result, some returned =>
+      | signature@(.function ..), some result, some returned =>
         result.signature == signature && returned.signature == signature &&
           validTargetName input true result.name signature && validTargetName input true returned.name signature
       | _, _, _ => false
@@ -168,11 +261,15 @@ structure CheckedPass (prepared : PreparedProgram) (audit requireMain : Bool) wh
   accepted : validPass prepared.input audit lowered = true
   core : Core.Typing.CheckedModule requireMain
   coreInput : core.module = lowered.module
+  familyUses : validFamilyUses prepared.input lowered = true
+  forwardUses : validForwardUses prepared.input audit lowered = true
 
 def checkPass (prepared : PreparedProgram) (audit requireMain : Bool) : Namespace.Result (CheckedPass prepared audit requireMain) := do
   match reconstructed : lowerPass prepared audit with
   | .error diagnostic => .error diagnostic
   | .ok lowered =>
+    if forwarded : validForwardUses prepared.input audit lowered = true then
+    if familyUses : validFamilyUses prepared.input lowered = true then
     if accepted : validPass prepared.input audit lowered = true then
       match checked : Core.Typing.checkModule lowered.module requireMain with
       | .error diagnostic => .error diagnostic
@@ -186,8 +283,10 @@ def checkPass (prepared : PreparedProgram) (audit requireMain : Bool) : Namespac
               · contradiction
             · contradiction
           · contradiction
-        return ⟨lowered, reconstructed, accepted, core, same⟩
+        return ⟨lowered, reconstructed, accepted, core, same, familyUses, forwarded⟩
     else Namespace.problem {} "E_INTERNAL_FUNCTION" "function provenance/static-target audit failed"
+    else Namespace.problem {} "E_INTERNAL_FUNCTION" "function family identity or selection audit failed"
+    else Namespace.problem {} "E_INTERNAL_FUNCTION" "finite forwarding method or producer-call audit failed"
 
 structure CheckedProgram (program : Program) (requireMain : Bool) where
   dataEnvelope : Source.Bodies.dataOnly program.headers = .ok ()

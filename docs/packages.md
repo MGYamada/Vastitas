@@ -16,6 +16,7 @@ A manifest is a TOML file with these tables and keys:
 | --- | --- |
 | `[package]` `name` | The name of the package, a nonempty string |
 | `[package]` `version` | The version of the package, in Semantic Versioning |
+| `[package]` `edition` | The source edition, the string `"2026"` |
 | `[package]` `root` | The root source file. A relative path starts at the directory of the manifest |
 | `[dependencies]` *alias* `= { path = "…" }` | A dependency under an alias: the directory of its manifest. A relative path starts at the directory of the declaring manifest |
 | `[geometry_compat]` | The [geometry compatibility export](#geometry-compatibility-exports), optional |
@@ -24,11 +25,16 @@ Rules:
 
 - The manifest file must be named `Vastitas.toml`. Another name is an error
   (`E_INPUT`).
-- `name`, `version` and `root` are required. A missing key, an unknown key or
+- `name`, `version`, `edition` and `root` are required. A missing key, an unknown key or
   table, and a dependency in another form than `{ path = "…" }` are errors
   (`E_MANIFEST`).
 - An empty `name` is an error (`E_MANIFEST`), and so is a `version` that is not
   a Semantic Versioning version.
+- `edition` must be the string `"2026"` in every package, including dependencies.
+  Another string or a value of another type is an error (`E_MANIFEST`). The
+  compiler does not infer an edition or retry another edition. Flat programs,
+  including `--lib` inputs, use edition 2026 through their protected synthetic
+  package. The edition selects no alternative grammar in this release.
 - `root` must name a file inside the package directory whose name ends in
   `.vast`. Another file is an error (`E_INPUT`).
 - A dependency alias must be an ASCII

@@ -8,7 +8,7 @@ use common::{Scratch, success};
 /// A padded fill of two stored rows, read through a transposed view of three
 /// stored rows.
 const PADDED_TRANSPOSE: &str = "resource fn main() -> Int {
-    allocate data: F64[8];
+    allocate data: F64<RR>[8];
     borrow w = write(data, layout(8, 2, 2, 4, false));
     fill(w, f64(0.25));
     store(w, 0, 1, f64(3.0));
@@ -25,7 +25,7 @@ const PADDED_TRANSPOSE: &str = "resource fn main() -> Int {
 /// Two fills of stored rows with gaps between their cells. Together they
 /// write all eight cells, but the checker joins no such fills.
 const INTERLEAVED: &str = "resource fn main() -> Int {
-    allocate data: F64[8];
+    allocate data: F64<RR>[8];
     borrow low = write(data, layout(0, 2, 2, 4, false));
     fill(low, f64(1));
     release(low);
@@ -46,7 +46,7 @@ fn fixture(source: &str) -> Scratch {
     let scratch = Scratch::empty("resource init diagnostics");
     scratch.write(
         "Vastitas.toml",
-        "[package]\nname = \"diagnostics\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"diagnostics\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
     );
     scratch.write("src/main.vast", source);
     scratch
@@ -179,7 +179,7 @@ fn a_rejection_without_an_uncovered_cell_names_no_cell() {
 fn a_cell_written_in_one_arm_only_is_uncovered_after_the_join() {
     let source = "resource fn main() -> Int {
     let flag: Bool = value { true };
-    allocate data: F64[2];
+    allocate data: F64<RR>[2];
     borrow w = write(data, layout(0, 2, 1, 2, false));
     if flag { fill(w, f64(1)); } else { store(w, 0, 0, f64(1)); }
     release(w);
@@ -198,9 +198,9 @@ fn a_cell_written_in_one_arm_only_is_uncovered_after_the_join() {
 
 #[test]
 fn the_bytes_of_a_complex_cell_and_an_unwritten_allocation_are_exact() {
-    // A cell of `Complex<F64>` has 16 bytes.
+    // A cell of `F64<CC>` has 16 bytes.
     let source = "resource fn main() -> Int {
-    allocate data: Complex<F64>[4];
+    allocate data: F64<CC>[4];
     borrow w = write(data, layout(0, 1, 1, 1, false));
     fill(w, complex(1, 0));
     release(w);
@@ -226,7 +226,7 @@ fn the_bytes_of_a_complex_cell_and_an_unwritten_allocation_are_exact() {
 fn large_views_are_explained_without_enumerating_their_cells() {
     // A step of the search passes the 2^30 cells of the fill at once.
     let half = "resource fn main() -> Int {
-    allocate data: F64[2147483647];
+    allocate data: F64<RR>[2147483647];
     borrow w = write(data, layout(0, 1073741824, 1, 1073741824, false));
     fill(w, f64(1));
     release(w);
@@ -244,7 +244,7 @@ fn large_views_are_explained_without_enumerating_their_cells() {
     // A step passes a whole stored column that the fill covers, so the search
     // reaches the unwritten last column of a thousand.
     let column = "resource fn main() -> Int {
-    allocate data: F64[2000000000];
+    allocate data: F64<RR>[2000000000];
     borrow w = write(data, layout(0, 1000000, 999, 2000000, false));
     fill(w, f64(1));
     release(w);
@@ -263,7 +263,7 @@ fn large_views_are_explained_without_enumerating_their_cells() {
     // columns. The check does not join them, and the search ends by its bound
     // long before the last column: it names no cell.
     let rows = "resource fn main() -> Int {
-    allocate data: F64[6442450941];
+    allocate data: F64<RR>[6442450941];
     borrow low = write(data, layout(0, 1, 2147483647, 3, false));
     fill(low, f64(1));
     release(low);

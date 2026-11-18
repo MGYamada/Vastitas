@@ -7,6 +7,26 @@
 /* Synchronous CPU adapter. Initialized reads and loan permissions are supplied
  * by the exact checked schedule. This ABI independently validates live handles,
  * representations, layouts and copy aliasing before touching element storage. */
+typedef enum {
+    VS_F64 = 0, VS_COMPLEX_F64 = 1, VS_F32 = 2, VS_COMPLEX_F32 = 3
+} VStorageScalar;
+
+static inline unsigned vstorage_component_bytes(uint8_t scalar) {
+    switch (scalar) {
+    case VS_F64: case VS_COMPLEX_F64: return 8;
+    case VS_F32: case VS_COMPLEX_F32: return 4;
+    default: return 0;
+    }
+}
+
+static inline int vstorage_is_complex(uint8_t scalar) {
+    return scalar == VS_COMPLEX_F32 || scalar == VS_COMPLEX_F64;
+}
+
+static inline unsigned vstorage_element_bytes(uint8_t scalar) {
+    return vstorage_component_bytes(scalar) * (vstorage_is_complex(scalar) ? 2 : 1);
+}
+
 typedef struct VStorageArena VStorageArena;
 typedef struct {
     uint64_t offset, rows, columns, leading;
@@ -25,7 +45,7 @@ typedef enum {
  * descriptors. They must not outlive this operation or an intervening drop.
  * Logical loan rights and initialization remain the checked caller's duty. */
 typedef struct {
-    double *data;
+    void *data;
     uint64_t start, end, rows, columns, leading, bytes;
     uint32_t allocation;
     uint8_t scalar, transposed;

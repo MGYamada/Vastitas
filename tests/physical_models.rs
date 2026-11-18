@@ -13,8 +13,7 @@ mod common;
 use common::{Scratch, assert_wire_rejected, expect_code, kernel, remove_spans, success};
 use serde_json::{Value, json};
 
-const MANIFEST: &str =
-    "[package]\nname = \"two_level\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n";
+const MANIFEST: &str = "[package]\nedition = \"2026\"\nname = \"two_level\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n";
 
 /// The objects, the families and the `std` declarations of the model.
 const STD: &str = "// The two-level field of Stage 6 (#841).
@@ -494,8 +493,8 @@ fn stage6_syntax_errors_are_reported_at_their_place() {
             "main.vast:1:24: E_TYPE: a convention is `hbar_one`, the one convention of the profile",
         ),
         (
-            "fn half(n: Int) -> Int { n / 2 }\n",
-            "main.vast:1:28: E_UNSUPPORTED: division is not supported",
+            "fn half(n: Int) -> Int { n /= 2 }\n",
+            "main.vast:1:28: E_UNSUPPORTED: division assignment is not supported",
         ),
     ];
     for (source, expected) in cases {
@@ -536,7 +535,7 @@ use nature::errorbar::Comparison;
         .map(|line| format!("{line}\n"))
         .collect();
     let nature = common::checked_replace(NATURE, "indexed base_dimension T;\n", "");
-    let manifest = "[package]\nname = \"two_level\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
+    let manifest = "[package]\nedition = \"2026\"\nname = \"two_level\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
     let source = |fingerprint: &str| {
         format!(
             "{imports}{declarations}{}{MAIN}",

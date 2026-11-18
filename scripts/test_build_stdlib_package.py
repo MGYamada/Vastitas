@@ -78,7 +78,8 @@ class PackageGenerationTests(unittest.TestCase):
             + b"pub mod arithmetic;\n"
             + b"pub use geometry_library as geometry;\n"
             + b"pub use differential_library as differential;\n"
-            + b"pub use linalg_library as linalg;\n",
+            + b"pub use linalg_library as linalg;\n"
+            + b"pub use category_library as category;\n",
         )
         # The tracked manifest declares exactly the re-exported packages.
         stdlib = generator.ROOT / "stdlib"
@@ -93,6 +94,10 @@ class PackageGenerationTests(unittest.TestCase):
         for name in ("differential", "linalg"):
             library = tomllib.loads((stdlib / f"src/{name}/Vastitas.toml").read_text())
             self.assertEqual(library["dependencies"], {"geometry": {"path": "../geometry"}}, name)
+
+    def test_optional_kleisli_package_uses_the_existing_category(self):
+        package = tomllib.loads((generator.ROOT / "monad/Vastitas.toml").read_text())
+        self.assertEqual(package["dependencies"], {"category": {"path": "../stdlib/src/category"}})
 
 
 if __name__ == "__main__":

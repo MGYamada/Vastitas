@@ -1,5 +1,4 @@
-import VastitasKernel.IndexedAudit
-import VastitasKernel.Storage
+import VastitasKernel.StorageRealization
 
 /-! Nominal numerical values for the resource function compiler. Constructors
 reconstruct profiles from the common indexed environment; dimensions are not
@@ -27,15 +26,29 @@ structure Space where
 
 def Space.object (space : Space) : ObjectRef := .local space.type space.brand
 
-def Space.scalar (space : Space) : Scalar :=
-  match space.coefficient with | .real => .f64 | .complex => .complexF64
+/-- Component precision belongs to the storage interpretation of a basis. -/
+inductive Precision where
+  | binary32 | binary64
+  deriving Repr, BEq, ReflBEq, LawfulBEq, DecidableEq, Inhabited
+
+def Precision.ofScalar : Scalar → Precision
+  | .f32 | .complexF32 => .binary32
+  | .f64 | .complexF64 => .binary64
+
+def Precision.scalar : Precision → CoefficientKind → Scalar
+  | .binary32, .real => .f32 | .binary32, .complex => .complexF32
+  | .binary64, .real => .f64 | .binary64, .complex => .complexF64
+
+/-- The maximum cell width for this coefficient domain also supplies the
+binary64 allocation used for independent parameter probes. -/
+def Space.binary64Scalar (space : Space) : Scalar := Precision.binary64.scalar space.coefficient
 
 def Space.Valid (env : Environment) (space : Space) : Prop :=
   lookup env space.type.domain = some (.implementation space.type.marker
     (.linearDescriptor space.base space.coefficient) []) ∧
   space.type.Valid env ∧
   (scalarBaseProfile env space.base).map (fun profile => profile.2.1) = some space.setting ∧
-  space.dimension * space.scalar.width ≤ byteLimit
+  space.dimension * space.binary64Scalar.width ≤ byteLimit
 
 instance (env : Environment) (space : Space) : Decidable (space.Valid env) :=
   inferInstanceAs (Decidable (_ ∧ _ ∧ _ ∧ _))
@@ -102,7 +115,10 @@ structure MapView where
   loan : Loan
   conjugate : Bool := false
   origin : MapOrigin := .direct
+  precision : Precision
   deriving Repr, BEq, DecidableEq, Inhabited
+
+def MapView.scalar (view : MapView) : Scalar := view.precision.scalar view.source.space.coefficient
 
 inductive VectorOrigin where
   | direct
@@ -117,12 +133,15 @@ structure VectorView where
   loan : Loan
   conjugate : Bool := false
   origin : VectorOrigin := .direct
+  precision : Precision
   deriving Repr, BEq, DecidableEq, Inhabited
+
+def VectorView.scalar (view : VectorView) : Scalar := view.precision.scalar view.basis.space.coefficient
 
 def VectorView.Live (resources : Storage.State) (view : VectorView) : Prop :=
   resources.loan? view.loan.name = some view.loan ∧
   resources.suspended view.loan.name = false ∧
-  (resources.allocation? view.loan.allocation).map Allocation.scalar = some view.basis.space.scalar ∧
+  (resources.allocation? view.loan.allocation).map Allocation.scalar = some view.scalar ∧
   view.loan.layout.logicalRows = view.basis.space.dimension ∧ view.loan.layout.logicalColumns = 1
 
 instance (resources : Storage.State) (view : VectorView) : Decidable (view.Live resources) :=
@@ -143,7 +162,7 @@ or transposing a handle cannot silently reuse an obsolete interpretation. -/
 def MapView.Live (resources : Storage.State) (view : MapView) : Prop :=
   resources.loan? view.loan.name = some view.loan ∧
   resources.suspended view.loan.name = false ∧
-  (resources.allocation? view.loan.allocation).map Allocation.scalar = some view.source.space.scalar ∧
+  (resources.allocation? view.loan.allocation).map Allocation.scalar = some view.scalar ∧
   view.loan.layout.logicalRows = view.target.space.dimension ∧
   view.loan.layout.logicalColumns = view.source.space.dimension
 
@@ -158,7 +177,10 @@ structure OwnedMap where
   owner : Symbol
   allocation : Nat
   layout : Layout
+  precision : Precision
   deriving Repr, BEq, DecidableEq, Inhabited
+
+def OwnedMap.scalar (view : OwnedMap) : Scalar := view.precision.scalar view.source.space.coefficient
 
 def OwnedMap.Compatible (view : OwnedMap) : Prop :=
   view.source.space.type = view.target.space.type ∧
@@ -171,7 +193,7 @@ instance (view : OwnedMap) : Decidable view.Compatible :=
 
 def OwnedMap.Live (resources : Storage.State) (view : OwnedMap) : Prop :=
   ∃ allocation ∈ resources.owner? view.owner,
-    allocation.identity = view.allocation ∧ allocation.scalar = view.source.space.scalar ∧
+    allocation.identity = view.allocation ∧ allocation.scalar = view.scalar ∧
     checkLayout allocation.scalar allocation.capacity view.layout = true ∧
     view.layout.logicalRows = view.target.space.dimension ∧
     view.layout.logicalColumns = view.source.space.dimension
@@ -224,7 +246,7 @@ def basisOriginValid (values : Values) (name : Symbol) (basis : Basis) : Bool :=
     | _ => false
 
 def MapView.childOf (view parent : MapView) (transpose : Bool) : Bool :=
-  view.loan.allocation == parent.loan.allocation && view.loan.parent == some parent.loan.name &&
+  view.precision == parent.precision && view.loan.allocation == parent.loan.allocation && view.loan.parent == some parent.loan.name &&
   view.loan.layout == (if transpose then parent.loan.layout.transpose else parent.loan.layout)
 
 def adjointContract (values : Values) (original : MapView) (source target : Symbol) : Prop :=
@@ -270,7 +292,8 @@ def vectorOriginValid (values : Values) (name : Symbol) (view : VectorView) : Bo
   let parent (id : Symbol) (test : VectorView → Bool) :=
     id < name && match value? values id with
       | some (.vector original) =>
-        view.loan.allocation == original.loan.allocation && view.loan.parent == some original.loan.name &&
+        view.precision == original.precision && view.loan.allocation == original.loan.allocation &&
+        view.loan.parent == some original.loan.name &&
         view.loan.layout == original.loan.layout && test original
       | _ => false
   match view.origin with
@@ -350,6 +373,7 @@ inductive Evaluation (Name : Type := Symbol) where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 inductive Operation where
+  | realization (operation : Realization.Operation)
   | space (name : Symbol) (implementation : DeclId) (dimension : Nat)
   | basis (name space : Symbol)
   | involution (name space : Symbol)
@@ -416,21 +440,23 @@ def construct (env : Environment) (resources : Storage.State) (values : Values) 
   | .vector name loan basis => do
     let some (.basis basis) := value? values basis | reject "vector requires an explicit basis"
     let some loan := resources.loan? loan | reject "vector requires a live resource loan"
-    let view : VectorView := ⟨basis, loan, false, .direct⟩
+    let some allocation := resources.allocation? loan.allocation | reject "loan has no live allocation"
+    let view : VectorView := ⟨basis, loan, false, .direct, .ofScalar allocation.scalar⟩
     unless view.Live resources do reject "vector requires a live column with the basis dimension and scalar"
     insert env values name (.vector view)
   | .map name loan source target => do
     let some (.basis source) := value? values source | reject "map source requires an explicit basis"
     let some (.basis target) := value? values target | reject "map target requires an explicit basis"
     let some loan := resources.loan? loan | reject "map view requires a live resource loan"
-    let view : MapView := ⟨source, target, loan, false, .direct⟩
+    let some allocation := resources.allocation? loan.allocation | reject "loan has no live allocation"
+    let view : MapView := ⟨source, target, loan, false, .direct, .ofScalar allocation.scalar⟩
     unless view.Live resources do reject "map scalar, dimensions or loan state differs from its bases"
     insert env values name (.map view)
   | .ownedMap name owner layout source target => do
     let some (.basis source) := value? values source | reject "owned map source requires an explicit basis"
     let some (.basis target) := value? values target | reject "owned map target requires an explicit basis"
     let some allocation := resources.owner? owner | reject "owned map requires a live owner"
-    let view : OwnedMap := ⟨source, target, owner, allocation.identity, layout⟩
+    let view : OwnedMap := ⟨source, target, owner, allocation.identity, layout, .ofScalar allocation.scalar⟩
     unless view.Live resources do reject "owned map scalar, dimensions or layout differs from its allocation and bases"
     insert env values name (.ownedMap view)
   | .ownedView name loan owner => do
@@ -438,10 +464,10 @@ def construct (env : Environment) (resources : Storage.State) (values : Values) 
     let some loan := resources.loan? loan | reject "owned view requires a live loan"
     unless owned.Live resources && loan.allocation == owned.allocation && loan.layout == owned.layout do
       reject "owned view must retain its live allocation and exact coordinate layout"
-    let view : MapView := ⟨owned.source, owned.target, loan, false, .direct⟩
+    let view : MapView := ⟨owned.source, owned.target, loan, false, .direct, owned.precision⟩
     unless view.Live resources do reject "owned view requires an active compatible loan"
     insert env values name (.map view)
-  | .gemm .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. | .adjointInto .. | .hermitianDiagonal .. =>
+  | .realization .. | .gemm .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. | .adjointInto .. | .hermitianDiagonal .. =>
     reject "numerical resource operations must pass the composed check"
 
 structure CheckedTransform (env : Environment) (resources : Storage.State) (values : Values)
@@ -495,7 +521,7 @@ def checkTransform (env : Environment) (resources : Storage.State) (values : Val
           | none => reject "transform lost its checked child loan"
           | some loan =>
             let conjugate := if operation.conjugates then !original.conjugate else original.conjugate
-            let result : MapView := ⟨source, target, loan, conjugate, operation.origin parent⟩
+            let result : MapView := ⟨source, target, loan, conjugate, operation.origin parent, original.precision⟩
             match inserted : insert env values name (.map result) with
             | .error diagnostic => .error diagnostic
             | .ok output =>

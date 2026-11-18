@@ -17,7 +17,7 @@ fn source(complex: bool, m: u64, k: u64, n: u64, pad: u64) -> String {
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let literal = |real: f64, imaginary: f64| {
         if complex {
             format!("complex_bits({}, {})", bits(real), bits(imaginary))
@@ -108,7 +108,7 @@ fn fixture(source: &str) -> Scratch {
     let scratch = Scratch::empty("runtime shapes");
     scratch.write(
         "Vastitas.toml",
-        "[package]\nname = \"runtime_shapes\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"runtime_shapes\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
     );
     scratch.write("src/main.vast", source);
     scratch.write("src/profiles/mod.vast", PROFILES);
@@ -212,7 +212,7 @@ const LITERAL_SHAPES: &str = "mod profiles;
 resource fn main() -> Int {
     runtime_space u = linear(profiles::RealSmooth, 2);
     runtime_basis bu = basis(u);
-    runtime_allocate data: F64[4] runtime_layout(2, 2, 2, false);
+    runtime_allocate data: F64<RR>[4] runtime_layout(2, 2, 2, false);
     runtime_borrow w = write(data);
     runtime_map m = view(w, bu, bu);
     runtime_fill(w, f64_bits(4607182418800017408));
@@ -248,7 +248,7 @@ fn literal_runtime_guards_reject_contradictions_and_erase_true_checks() {
     for invalid in [
         LITERAL_SHAPES.replace("RealSmooth, 2)", "RealSmooth, 3)"),
         LITERAL_SHAPES.replace("RealSmooth, 2)", "RealSmooth, 2147483648)"),
-        LITERAL_SHAPES.replace("F64[4]", "F64[3]"),
+        LITERAL_SHAPES.replace("F64<RR>[4]", "F64<RR>[3]"),
         LITERAL_SHAPES.replace("runtime_layout(2, 2, 2", "runtime_layout(2, 2, 1"),
         LITERAL_SHAPES.replace("runtime_expect(r, 1, 1", "runtime_expect(r, 2, 1"),
         format!(
@@ -292,7 +292,7 @@ fn a_false_literal_guard_is_reported_at_its_statement() {
         "E_RUNTIME_GUARD: literal runtime space, map or call dimension guard is false";
     let issue = "resource fn main() -> Int {
     let k: Int = value { 1 };
-    runtime_allocate d: F64[2] runtime_layout(2, 2, 2, false);
+    runtime_allocate d: F64<RR>[2] runtime_layout(2, 2, 2, false);
     runtime_drop(d);
     value { 42 }
 }";
@@ -300,7 +300,7 @@ fn a_false_literal_guard_is_reported_at_its_statement() {
         "{}\nfn main() -> Int {{ 0 }}",
         LITERAL_SHAPES
             .replace("resource fn main", "resource fn unused")
-            .replace("F64[4]", "F64[3]")
+            .replace("F64<RR>[4]", "F64<RR>[3]")
     );
     let call = "mod profiles;
 resource fn consume(u: RuntimeSpace<profiles::RealSmooth, 3>) -> Unit { value { () } }
@@ -311,7 +311,11 @@ resource fn main() -> Int {
 }";
     for (source, place, message) in [
         (issue.to_string(), "3:5", PHYSICAL),
-        (LITERAL_SHAPES.replace("F64[4]", "F64[3]"), "5:5", PHYSICAL),
+        (
+            LITERAL_SHAPES.replace("F64<RR>[4]", "F64<RR>[3]"),
+            "5:5",
+            PHYSICAL,
+        ),
         (
             LITERAL_SHAPES.replace("runtime_layout(2, 2, 2", "runtime_layout(2, 2, 1"),
             "5:5",
@@ -431,8 +435,8 @@ fn source_rejects_implicit_layouts_inline_extent_arithmetic_and_duplicate_coeffi
             "expected `)`, found `,`",
         ),
         (
-            "F64[cap_a]",
-            "F64[lda * k]",
+            "F64<RR>[cap_a]",
+            "F64<RR>[lda * k]",
             "E_PARSE",
             "expected `]`, found `*`",
         ),
@@ -478,7 +482,7 @@ fn checker_preserves_runtime_call_identity_permissions_and_static_separation() {
     }
     let hidden = r#"
 resource fn leaf(n: Nat) -> Unit {
-    runtime_allocate data: F64[n] runtime_layout(n, 1, n, false);
+    runtime_allocate data: F64<RR>[n] runtime_layout(n, 1, n, false);
     runtime_drop(data);
     value { () }
 }
@@ -547,7 +551,9 @@ fn kernel_rejects_forged_runtime_metadata() {
 fn runtime_native_executes_caller_shapes_padding_empty_axes_and_preflight_failure() {
     // As examples.rs builds the runtime shapes package: with `cc` named.
     let options = common::numerical_build_options(Some("cc"));
-    let mut positive = Vec::new();
+    let mut positive = [false, true]
+        .map(|complex| common::binary32_fixture(&source(complex, 2, 3, 2, 2)))
+        .to_vec();
     for complex in [false, true] {
         for (m, k, n, pad) in [
             (2, 3, 2, 0),
@@ -648,7 +654,7 @@ fn runtime_storage_keeps_the_normal_build_free_of_blas() {
     let scratch = fixture(
         r#"
 resource fn allocate_and_read(n: Nat) -> Unit {
-    runtime_allocate data: F64[n] runtime_layout(n, 1, n, false);
+    runtime_allocate data: F64<RR>[n] runtime_layout(n, 1, n, false);
     runtime_borrow output = write(data);
     runtime_fill(output, f64_bits(4607182418800017408));
     runtime_release(output);

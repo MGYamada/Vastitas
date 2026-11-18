@@ -2,10 +2,11 @@
 import copy
 import json
 from pathlib import Path
+import re
 import unittest
 import zipfile
 
-from cases import shapes, source, split_generated
+from cases import cleanup_envelope, driver, shapes, source, split_generated
 from run import pair
 from verify import expected, verify
 
@@ -25,6 +26,26 @@ class Tests(unittest.TestCase):
     def test_changed_envelope_is_rejected(self):
         for text in ("", "def main : IO Unit := do\n  pure ()\n"):
             with self.assertRaises(ValueError):split_generated(text)
+
+    def test_status_entry_preserves_runtime_inputs_and_cleanup(self):
+        archive=Path(__file__).parent/"results/2026-11-01-macos/evidence.zip"
+        with zipfile.ZipFile(archive) as record:
+            for profile in ("real-normal", "real-transpose", "complex-normal", "complex-transpose"):
+                emitted=json.loads(record.read(profile+"/response.json"))["lean_source"]
+                current=emitted.replace('def main : IO Unit := do\n',
+                    'def main : IO UInt32 := do\n  let mut status : UInt32 := 0\n')
+                current=re.sub(r'    IO.println \((VastitasGenerated\.[A-Za-z0-9_]+(?: resourceValue_[0-9]+)*)\)',
+                    lambda m: f'    status := (UInt32.ofNat (Int.toNat (Int.emod ({m[1]}) 256)))', current)
+                current=current.replace('  finally\n    close shapeArena\n',
+                    '  catch cleanupError =>\n    close shapeArena\n    throw cleanupError\n  close shapeArena\n')+'  pure status\n'
+                with self.subTest(profile=profile):
+                    self.assertEqual(split_generated(current),split_generated(emitted))
+                    wrapped=driver(current)
+                    self.assertNotIn('pure status',wrapped)
+                    self.assertEqual(wrapped.count('throw cleanupError'),2)
+                    cleanup_envelope.require_execution(current,dict(returncode=0,stdout='',stderr=''))
+                    with self.assertRaises(ValueError):
+                        split_generated(current.replace('  pure status','  pure 0'))
 
     def test_cost_and_padding_hash_distinguish_scope_shape_and_scalar(self):
         base=dict(profile="real-normal",m=2,k=3,n=4,pad=0,repetitions=3,scope=0,implementation="generated")

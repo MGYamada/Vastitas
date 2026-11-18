@@ -5,7 +5,7 @@ pub resource fn exercise() -> Unit {
     involution sigma = canonical(v);
     metric hv = diagonal(bv, sigma, [2, -4]);
     metric hw = diagonal(bw, sigma, [3, 5, -2]);
-    allocate a: Complex<F64>[9]; allocate out: Complex<F64>[10];
+    allocate a: F64<CC>[9]; allocate out: F64<CC>[10];
     borrow wa = write(a, layout(16,3,2,4,false));
     store(wa,0,0,complex_bits(4607182418800017408, 4607182418800017408));
     store(wa,1,0,complex_bits(4613937818241073152, 4613937818241073152));
@@ -28,8 +28,8 @@ pub resource fn exercise() -> Unit {
     expect(ro,1,2,complex_bits(4613937818241073152, 13837309855095848960));
     release(ro); release(ra); drop(a); drop(out);
     space vc = conjugate(v,sigma); basis bvc = derived(bv,vc);
-    allocate x: Complex<F64>[3]; allocate y: Complex<F64>[3];
-    allocate scratch_owner: Complex<F64>[3]; allocate scalar_result: Complex<F64>[2];
+    allocate x: F64<CC>[3]; allocate y: F64<CC>[3];
+    allocate scratch_owner: F64<CC>[3]; allocate scalar_result: F64<CC>[2];
     borrow wx = write(x, layout(16,2,1,3,false));
     store(wx,0,0,complex_bits(4607182418800017408, 4607182418800017408)); store(wx,1,0,complex_bits(4611686018427387904, 13830554455654793216)); release(wx);
     borrow wy = write(y, layout(16,2,1,3,false));

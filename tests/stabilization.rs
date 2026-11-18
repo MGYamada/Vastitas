@@ -119,15 +119,15 @@ fn conversion_and_generative_identity_notes_are_specific() {
 fn coverage_notes_identify_candidates_capabilities_and_contract_sources() {
     for (source, reason) in [
         (
-            "generic f(x) { domain (Bool); }\nmethod f(x: Number) -> Int { 0 }",
+            "fn f(x) domain((Bool));\nfn f(x: Number) -> Int { 0 }",
             "selector mismatch",
         ),
         (
-            "generic f(x) { domain (Bool); }\nmethod f(x: Any) requires (HasOrder) -> Int { 0 }",
+            "fn f(x) domain((Bool));\nfn f(x: Any) requires (HasOrder) -> Int { 0 }",
             "key lacks HasOrder",
         ),
         (
-            "abstract type Logical; subtype Bool <: Logical;\ngeneric f(x) { domain (Int); }\nabstract method f(x: Logical) -> Int { domain (Logical); }\nmethod f(x: Number) -> Int { 0 }",
+            "abstract type Logical; subtype Bool <: Logical;\nfn f(x) domain((Int));\nfn f(x: Logical) -> Int domain((Logical));\nfn f(x: Number) -> Int { 0 }",
             "because of this abstract method contract",
         ),
     ] {
@@ -147,7 +147,7 @@ fn recursion_names_are_quoted_after_package_resolution_and_specialization() {
     let s = Scratch::empty("cycle");
     s.write(
         "Vastitas.toml",
-        "[package]\nname='rec'\nversion='0.1.0'\nroot='main.vast'\n",
+        "[package]\nedition = \"2026\"\nname='rec'\nversion='0.1.0'\nroot='main.vast'\n",
     );
     s.write("main.vast", "fn a() -> Int { b() } fn b() -> Int { a() }");
     let output = cli()

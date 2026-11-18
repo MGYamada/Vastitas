@@ -111,6 +111,16 @@ local macro "profile_view" ext:term:max view:ident id:term:max : tactic => `(tac
 theorem isMarker_append (id : DeclId) : isMarker big id = isMarker small id := by
   profile_view ext isMarker id
 
+theorem finiteCarrier_append (id : DeclId) : FiniteTables.carrier big id = FiniteTables.carrier small id := by
+  profile_view ext FiniteTables.carrier id
+
+theorem categoryView_append (id : DeclId) : FiniteCategories.view big id = FiniteCategories.view small id := by
+  profile_view ext FiniteCategories.view id
+
+theorem finiteTable_append (inputs : List DeclId) (output : DeclId) (rows : List (List String × String)) :
+    FiniteTables.validTable big inputs output rows = FiniteTables.validTable small inputs output rows := by
+  simp only [FiniteTables.validTable, funext (finiteCarrier_append ext)]
+
 theorem implementationMarker_append (id : DeclId) :
     implementationMarker big id = implementationMarker small id := by
   profile_view ext implementationMarker id

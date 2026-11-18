@@ -97,7 +97,7 @@
   {
    "issue": 525,
    "input": "package",
-   "source": "resource fn make() returns (int: Owned<F64, 1>) -> Int {\n    value { 0 }\n}\n",
+   "source": "resource fn make() returns (int: Owned<F64<RR>, 1>) -> Int {\n    value { 0 }\n}\n",
    "code": "E_RESERVED",
    "line": 1,
    "column": 29,
@@ -631,7 +631,7 @@
   {
    "issue": 569,
    "input": "flat",
-   "source": "assembly { }\nfn main() -> Int { 0 }\n",
+   "source": "assemble family { }\nfn main() -> Int { 0 }\n",
    "code": "E_UNSUPPORTED",
    "line": 1,
    "column": 1,
@@ -644,7 +644,7 @@
    "code": "E_PARSE",
    "line": 1,
    "column": 1,
-   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `fun`; help: did you mean `fn`?"
+   "message": "expected a top-level `fn`, `abstract type` or `subtype` declaration, found `fun`; help: did you mean `fn`?"
   },
   {
    "issue": 569,
@@ -653,7 +653,7 @@
    "code": "E_PARSE",
    "line": 2,
    "column": 1,
-   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `methd`; help: did you mean `method`?"
+   "message": "expected a top-level `fn`, `abstract type` or `subtype` declaration, found `methd`"
   },
   {
    "issue": 569,
@@ -662,7 +662,7 @@
    "code": "E_PARSE",
    "line": 1,
    "column": 1,
-   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `resource`"
+   "message": "expected a top-level `fn`, `abstract type` or `subtype` declaration, found `resource`"
   },
   {
    "issue": 569,
@@ -671,7 +671,7 @@
    "code": "E_PARSE",
    "line": 2,
    "column": 1,
-   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `42`"
+   "message": "expected a top-level `fn`, `abstract type` or `subtype` declaration, found `42`"
   },
   {
    "issue": 569,
@@ -680,7 +680,7 @@
    "code": "E_PARSE",
    "line": 2,
    "column": 1,
-   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `}`"
+   "message": "expected a top-level `fn`, `abstract type` or `subtype` declaration, found `}`"
   },
   {
    "issue": 552,
@@ -763,44 +763,44 @@
   {
    "issue": 702,
    "input": "package",
-   "source": "generic g(x) { domain (Int); }\nmethod g(x: Int) -> Nat::Family<X> { 1 }\nfn main() -> Int { g(1) }\n",
+   "source": "fn g(x) domain((Int));\nfn g(x: Int) -> Nat::Family<X> { 1 }\nfn main() -> Int { g(1) }\n",
    "code": "E_TYPE",
    "line": 2,
-   "column": 21,
+   "column": 17,
    "message": "method results require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>"
   },
   {
    "issue": 702,
    "input": "package",
-   "source": "generic g(x) { domain (Int); }\nabstract method g(x: Int) -> Pair::Family<X> { domain (Int); }\nfn main() -> Int { g(1) }\n",
+   "source": "fn g(x) domain((Int));\nfn g(x: Int) -> Pair::Family<X> domain((Int));\nfn main() -> Int { g(1) }\n",
    "code": "E_TYPE",
    "line": 2,
-   "column": 30,
+   "column": 17,
    "message": "method results require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>"
   },
   {
    "issue": 702,
    "input": "package",
-   "source": "generic g(x) { domain (Int); }\nmethod g(x: Int) -> Pair<Int> { pair(x, x) }\nfn main() -> Int { pair_first(g(1)) }\n",
+   "source": "fn g(x) domain((Int));\nfn g(x: Int) -> Pair<Int> { pair(x, x) }\nfn main() -> Int { pair_first(g(1)) }\n",
    "code": null
   },
   {
    "issue": 747,
    "input": "flat",
-   "source": "fn main() -> Int { 0 }\n\ngeneric g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\nfn g() -> Int { 1 }\n",
+   "source": "fn main() -> Int { 0 }\n\nfn g(x: Int) -> Int { 1 }\nfn g(x: Nat) -> Int { 2 }\nfn g(y: Int) -> Int { 3 }\n",
    "code": "E_DUPLICATE",
    "line": 5,
    "column": 1,
-   "message": "callable `g` is defined more than once"
+   "message": "duplicate method signature for `g`"
   },
   {
    "issue": 747,
    "input": "flat",
-   "source": "fn main() -> Int { 0 }\nfn g() -> Int { 1 }\ngeneric g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\n",
+   "source": "fn main() -> Int { 0 }\nfn g(x: Nat) -> Int { 1 }\nfn g(y: Nat) -> Int { 2 }\nfn g(x: Int) -> Int { x }\n",
    "code": "E_DUPLICATE",
    "line": 3,
    "column": 1,
-   "message": "callable `g` is defined more than once"
+   "message": "duplicate method signature for `g`"
   },
   {
    "issue": 747,
@@ -841,10 +841,10 @@
   {
    "issue": 747,
    "input": "flat",
-   "source": "generic super(x) { domain (Int); }\nmethod super(x: Int) -> Int { x }\nfn main() -> Int { 0 }\n",
+   "source": "fn super(x) domain((Int));\nfn super(x: Int) -> Int { x }\nfn main() -> Int { 0 }\n",
    "code": "E_RESERVED",
    "line": 1,
-   "column": 9,
+   "column": 4,
    "message": "`super` is reserved and cannot be used as a declaration or binding name"
   },
   {

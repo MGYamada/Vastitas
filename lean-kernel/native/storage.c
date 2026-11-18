@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+_Static_assert(sizeof(float) == 4 && FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128,
+               "storage requires binary32 float");
 _Static_assert(sizeof(double) == 8 && FLT_RADIX == 2 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024,
                "storage requires binary64 double");
 _Static_assert(sizeof(void *) == 8 && SIZE_MAX >= INT64_MAX && PTRDIFF_MAX >= INT64_MAX,
@@ -12,7 +14,7 @@ _Static_assert(sizeof(void *) == 8 && SIZE_MAX >= INT64_MAX && PTRDIFF_MAX >= IN
 _Static_assert(_Alignof(max_align_t) >= 8, "malloc must provide binary64 alignment");
 
 typedef struct {
-    double *data;
+    unsigned char *data;
     uint64_t capacity;
     uint8_t scalar, issued, live;
 } Buffer;
@@ -27,7 +29,7 @@ struct VStorageArena {
 
 typedef struct {
     Buffer *buffer;
-    uint64_t start, end, rows, columns, row_step, column_step, components, bytes;
+    uint64_t start, end, rows, columns, row_step, column_step, width, bytes;
 } Prepared;
 
 static int add(uint64_t a, uint64_t b, uint64_t *out) {
@@ -110,9 +112,10 @@ const char *vstorage_error(VStorageStatus status) {
 VStorageStatus vstorage_allocate(VStorageArena *arena, uint32_t id, uint8_t scalar, uint64_t elements) {
     if (!arena || arena->closed || id >= 4096 || (id < arena->count && arena->buffers[id].issued))
         return VS_HANDLE;
-    if (scalar > 1) return VS_SCALAR;
+    unsigned width = vstorage_element_bytes(scalar);
+    if (!width) return VS_SCALAR;
     uint64_t capacity;
-    if (!multiply(elements, scalar ? 16 : 8, &capacity)) return VS_OVERFLOW;
+    if (!multiply(elements, width, &capacity)) return VS_OVERFLOW;
     if (capacity > arena->budget - arena->stats.live_bytes) return VS_ALLOCATION;
     if (id >= arena->count) {
         uint32_t count = arena->count ? arena->count : 8;
@@ -126,7 +129,7 @@ VStorageStatus vstorage_allocate(VStorageArena *arena, uint32_t id, uint8_t scal
         arena->stats.metadata_bytes = sizeof(*arena) + count * sizeof(*buffers);
     }
     /* Zero-size allocations form no data pointer and call no malloc(0). */
-    double *data = capacity ? malloc((size_t)capacity) : NULL;
+    unsigned char *data = capacity ? malloc((size_t)capacity) : NULL;
     if (capacity && !data) return VS_ALLOCATION;
     arena->buffers[id] = (Buffer){data, capacity, scalar, 1, 1};
     arena->stats.data_allocations += capacity != 0;
@@ -143,24 +146,24 @@ static VStorageStatus prepare(VStorageArena *arena, uint32_t id, VStorageLayout 
     if (view.transposed > 1 || view.rows > INT32_MAX || view.columns > INT32_MAX ||
         view.leading > INT32_MAX || view.leading < 1 || view.leading < view.rows || view.offset > buffer->capacity)
         return VS_LAYOUT;
-    uint64_t width = buffer->scalar ? 16 : 8, components = width / 8;
+    uint64_t width = vstorage_element_bytes(buffer->scalar);
     uint64_t stride, end = view.offset, row_bytes, column_bytes, bytes;
     if (!multiply(view.leading, width, &stride) || !multiply(view.rows, view.columns, &bytes) ||
         !multiply(bytes, width, &bytes)) return VS_OVERFLOW;
     if (view.rows && view.columns) {
         /* A typed view begins at a whole element relative to its allocation.
-         * This is separate from the ABI's 8-byte component pointer alignment. */
+         * This is separate from the ABI's component pointer alignment. */
         if (view.offset % width) return VS_LAYOUT;
         if (!multiply(view.rows - 1, width, &row_bytes) || !multiply(view.columns - 1, stride, &column_bytes) ||
             !add(end, row_bytes, &end) || !add(end, column_bytes, &end) || !add(end, width, &end)) return VS_OVERFLOW;
         if (end > buffer->capacity || !buffer->data) return VS_LAYOUT;
         uintptr_t base = (uintptr_t)buffer->data;
-        if (end > UINTPTR_MAX - base || (base + view.offset) % 8) return VS_LAYOUT;
+        if (end > UINTPTR_MAX - base || (base + view.offset) % vstorage_component_bytes(buffer->scalar)) return VS_LAYOUT;
     }
     *out = (Prepared){buffer, view.offset, end,
         view.transposed ? view.columns : view.rows, view.transposed ? view.rows : view.columns,
-        view.transposed ? stride / 8 : components, view.transposed ? components : stride / 8,
-        components, bytes};
+        view.transposed ? stride : width, view.transposed ? width : stride,
+        width, bytes};
     return VS_OK;
 }
 
@@ -178,7 +181,7 @@ VStorageStatus vstorage_prepare_dense(VStorageArena *arena, uint32_t id,
     if (status != VS_OK) return status;
     /* Empty views form no pointer, including an aligned or unaligned offset at
      * the allocation's end. No backend may dereference that empty descriptor. */
-    double *data = prepared.bytes ? prepared.buffer->data + prepared.start / 8 : NULL;
+    void *data = prepared.bytes ? prepared.buffer->data + prepared.start : NULL;
     *out = (VStorageDense){data, prepared.start, prepared.end,
         prepared.rows, prepared.columns, view.leading, prepared.bytes, id,
         prepared.buffer->scalar, view.transposed};
@@ -197,13 +200,31 @@ void vstorage_record_write(VStorageArena *arena, uint64_t bytes) {
 }
 
 static uint64_t cell(const Prepared *view, uint64_t row, uint64_t column) {
-    return view->start / 8 + row * view->row_step + column * view->column_step;
+    return view->start + row * view->row_step + column * view->column_step;
 }
 
-static double payload(uint64_t bits) {
-    double value;
-    memcpy(&value, &bits, sizeof(value));
-    return value;
+/* Copy from floats of the declared width without evaluating their IEEE bits.
+ * Component integers arrive zero-extended in the fixed FFI lanes. */
+typedef union { float narrow[2]; double wide[2]; } Payload;
+
+static VStorageStatus encode_payload(uint8_t scalar, uint64_t real, uint64_t imaginary, Payload *out) {
+    if (vstorage_component_bytes(scalar) == 4) {
+        if (real > UINT32_MAX || (vstorage_is_complex(scalar) && imaginary > UINT32_MAX)) return VS_SCALAR;
+        uint32_t components[] = {(uint32_t)real, (uint32_t)imaginary};
+        memcpy(out->narrow, components, sizeof(components));
+    } else {
+        uint64_t components[] = {real, imaginary};
+        memcpy(out->wide, components, sizeof(components));
+    }
+    return VS_OK;
+}
+
+static inline void copy_element(void *dst, const void *src, uint64_t width) {
+    switch (width) {
+    case 4: memcpy(dst, src, 4); break;
+    case 8: memcpy(dst, src, 8); break;
+    case 16: memcpy(dst, src, 16); break;
+    }
 }
 
 VStorageStatus vstorage_fill(VStorageArena *arena, uint32_t id, VStorageLayout view,
@@ -211,24 +232,14 @@ VStorageStatus vstorage_fill(VStorageArena *arena, uint32_t id, VStorageLayout v
     Prepared output;
     VStorageStatus status = typed(arena, id, view, scalar, &output);
     if (status != VS_OK) return status;
+    Payload payload;
+    if ((status = encode_payload(scalar, real, imaginary, &payload)) != VS_OK) return status;
     if (!counter_fits(arena->stats.written_bytes, output.bytes)) return VS_OVERFLOW;
     if (!output.bytes) return VS_OK;
-    double re = payload(real), im = payload(imaginary);
-    /* Fill follows physical columns regardless of the logical transpose. */
-    uint64_t offset = view.offset / 8, leading = view.leading * output.components;
-    double *data = output.buffer->data;
-    if (output.components == 1) {
-        for (uint64_t column = 0; column < view.columns; ++column)
-            for (uint64_t row = 0; row < view.rows; ++row)
-                data[offset + column * leading + row] = re;
-    } else {
-        for (uint64_t column = 0; column < view.columns; ++column)
-            for (uint64_t row = 0; row < view.rows; ++row) {
-                uint64_t at = offset + column * leading + 2 * row;
-                data[at] = re;
-                data[at + 1] = im;
-            }
-    }
+    unsigned char *data = output.buffer->data + output.start;
+    for (uint64_t column = 0; column < view.columns; ++column)
+        for (uint64_t row = 0; row < view.rows; ++row)
+            copy_element(data + (column * view.leading + row) * output.width, &payload, output.width);
     arena->stats.written_bytes += output.bytes;
     return VS_OK;
 }
@@ -239,12 +250,23 @@ VStorageStatus vstorage_store(VStorageArena *arena, uint32_t id, VStorageLayout 
     VStorageStatus status = typed(arena, id, view, scalar, &output);
     if (status != VS_OK) return status;
     if (row >= output.rows || column >= output.columns) return VS_BOUNDS;
-    if (!counter_fits(arena->stats.written_bytes, output.components * 8)) return VS_OVERFLOW;
-    uint64_t at = cell(&output, row, column);
-    output.buffer->data[at] = payload(real);
-    if (output.components == 2) output.buffer->data[at + 1] = payload(imaginary);
-    arena->stats.written_bytes += output.components * 8;
+    Payload payload;
+    if ((status = encode_payload(scalar, real, imaginary, &payload)) != VS_OK) return status;
+    if (!counter_fits(arena->stats.written_bytes, output.width)) return VS_OVERFLOW;
+    copy_element(output.buffer->data + cell(&output, row, column), &payload, output.width);
+    arena->stats.written_bytes += output.width;
     return VS_OK;
+}
+
+static uint64_t read_component(const unsigned char *source, unsigned size) {
+    if (size == 4) {
+        uint32_t bits;
+        memcpy(&bits, source, sizeof(bits));
+        return bits;
+    }
+    uint64_t bits;
+    memcpy(&bits, source, sizeof(bits));
+    return bits;
 }
 
 VStorageStatus vstorage_expect_observed(VStorageArena *arena, uint32_t id, VStorageLayout view,
@@ -254,11 +276,13 @@ VStorageStatus vstorage_expect_observed(VStorageArena *arena, uint32_t id, VStor
     VStorageStatus status = typed(arena, id, view, scalar, &input);
     if (status != VS_OK) return status;
     if (row >= input.rows || column >= input.columns) return VS_BOUNDS;
-    uint64_t at = cell(&input, row, column), actual, other = 0;
-    memcpy(&actual, &input.buffer->data[at], 8);
-    if (input.components == 2) memcpy(&other, &input.buffer->data[at + 1], 8);
-    if (actual == real && (input.components == 1 || other == imaginary)) return VS_OK;
-    /* Failure only: report the same initialized cell that was compared. */
+    unsigned size = vstorage_component_bytes(scalar);
+    int complex = vstorage_is_complex(scalar);
+    if (size == 4 && (real > UINT32_MAX || (complex && imaginary > UINT32_MAX))) return VS_SCALAR;
+    const unsigned char *src = input.buffer->data + cell(&input, row, column);
+    uint64_t actual = read_component(src, size);
+    uint64_t other = complex ? read_component(src + size, size) : 0;
+    if (actual == real && (!complex || other == imaginary)) return VS_OK;
     if (observed) { observed[0] = actual; observed[1] = other; }
     return VS_EXPECT;
 }
@@ -311,7 +335,14 @@ static void append_component(Text *text, uint64_t bits) {
     append(text, "]");
 }
 static void append_payload(Text *text, uint8_t scalar, const uint64_t value[2]) {
-    if (!scalar) { append_component(text, value[0]); return; }
+    if (vstorage_component_bytes(scalar) == 4) {
+        append(text, vstorage_is_complex(scalar) ? "complex32_bits(" : "f32_bits(");
+        append_decimal(text, value[0]);
+        if (vstorage_is_complex(scalar)) { append(text, ", "); append_decimal(text, value[1]); }
+        append(text, ")");
+        return;
+    }
+    if (!vstorage_is_complex(scalar)) { append_component(text, value[0]); return; }
     append(text, "complex(");
     append_component(text, value[0]);
     append(text, ", ");
@@ -324,7 +355,7 @@ size_t vstorage_expect_message(char *buffer, size_t capacity, uint64_t row, uint
     /* Longest: 53 + 2*20 + 2 + 9 + 11 + 2*123 = 361 bytes before the NUL. A
      * component is at most 56 bytes: a 24-byte negative subnormal spelling has
      * 19-digit bits, and 20-digit bits imply a spelling of at most 23 bytes. */
-    if (!buffer || !capacity || !observed || !expected || scalar > 1) return 0;
+    if (!buffer || !capacity || !observed || !expected || !vstorage_element_bytes(scalar)) return 0;
     Text text = {buffer, capacity, 0, 0};
     append(&text, "E_NATIVE_EXPECT: stored bit pattern differs at cell (");
     append_decimal(&text, row);
@@ -341,17 +372,17 @@ size_t vstorage_expect_message(char *buffer, size_t capacity, uint64_t row, uint
 
 /* restrict is scoped to this synchronous kernel, after both full envelopes
  * have been checked. It is never attached to a borrowed allocation globally. */
-static void copy_kernel(const double *restrict source, double *restrict target, const Prepared *input, const Prepared *output) {
-    if (input->components == 1) {
+static void copy_kernel(const unsigned char *restrict source, unsigned char *restrict target, const Prepared *input, const Prepared *output) {
+    size_t element_bytes = input->width;
+    if (input->row_step == input->width && output->row_step == output->width) {
         for (uint64_t column = 0; column < input->columns; ++column)
-            for (uint64_t row = 0; row < input->rows; ++row)
-                target[cell(output, row, column)] = source[cell(input, row, column)];
+            memcpy(target + cell(output, 0, column), source + cell(input, 0, column),
+                   input->rows * element_bytes);
     } else {
         for (uint64_t column = 0; column < input->columns; ++column)
             for (uint64_t row = 0; row < input->rows; ++row) {
                 uint64_t src = cell(input, row, column), dst = cell(output, row, column);
-                target[dst] = source[src];
-                target[dst + 1] = source[src + 1];
+                copy_element(target + dst, source + src, element_bytes);
             }
     }
 }
@@ -372,8 +403,8 @@ VStorageStatus vstorage_copy(VStorageArena *arena, uint32_t source, VStorageLayo
     }
     if (!counter_fits(arena->stats.written_bytes, b.bytes) || !counter_fits(arena->stats.copied_bytes, b.bytes))
         return VS_OVERFLOW;
-    const double *source_data = a.buffer->data + a.start / 8;
-    double *target_data = b.buffer->data + b.start / 8;
+    const unsigned char *source_data = a.buffer->data + a.start;
+    unsigned char *target_data = b.buffer->data + b.start;
     a.start = 0;
     b.start = 0;
     copy_kernel(source_data, target_data, &a, &b);
@@ -384,10 +415,10 @@ VStorageStatus vstorage_copy(VStorageArena *arena, uint32_t source, VStorageLayo
 
 /* Each x-block is contiguous in both nontransposed layouts. Copy bytes rather
  * than evaluating double values, preserving every real/complex payload bit. */
-static void pack3_kernel(const double *restrict source, double *restrict target,
+static void pack3_kernel(const unsigned char *restrict source, unsigned char *restrict target,
                          const Prepared *input, const Prepared *output,
                          uint64_t i, uint64_t k, uint64_t j) {
-    size_t block_bytes = (size_t)(i * input->components * 8);
+    size_t block_bytes = (size_t)(i * input->width);
     for (uint64_t z = 0; z < k; ++z)
         for (uint64_t y = 0; y < j; ++y)
             memcpy(target + cell(output, i * y, z),
@@ -415,8 +446,8 @@ VStorageStatus vstorage_pack3(VStorageArena *arena, uint32_t source, VStorageLay
     if (source == target && !(a.end <= b.start || b.end <= a.start)) return VS_ALIAS;
     if (!counter_fits(arena->stats.written_bytes, b.bytes) ||
         !counter_fits(arena->stats.copied_bytes, b.bytes)) return VS_OVERFLOW;
-    const double *source_data = a.buffer->data + a.start / 8;
-    double *target_data = b.buffer->data + b.start / 8;
+    const unsigned char *source_data = a.buffer->data + a.start;
+    unsigned char *target_data = b.buffer->data + b.start;
     a.start = 0;
     b.start = 0;
     pack3_kernel(source_data, target_data, &a, &b, i, k, j);
@@ -467,7 +498,7 @@ static void grouping3_strides(const Grouping3 *grouping, const uint64_t dimensio
  * copies. The caller leaves larger blocks on the original cell loop. All
  * envelopes and strides have already been checked, including disjoint views
  * of the same allocation. */
-static void regroup3_blocks(const double *restrict source, double *restrict target,
+static void regroup3_blocks(const unsigned char *restrict source, unsigned char *restrict target,
                             const uint64_t source_stride[3], const uint64_t target_stride[3],
                             const uint64_t dimensions[3], unsigned middle, unsigned slow,
                             size_t block_bytes) {
@@ -506,7 +537,7 @@ VStorageStatus vstorage_regroup3(VStorageArena *arena, uint32_t source, VStorage
         !grouping3(output_grouping, dimensions, &to)) return VS_OPERATION;
     uint64_t volume, bytes;
     if (!multiply(d0, d1, &volume) || !multiply(volume, d2, &volume) ||
-        !multiply(volume, a.components * 8, &bytes)) return VS_OVERFLOW;
+        !multiply(volume, a.width, &bytes)) return VS_OVERFLOW;
     if (input.rows != from.rows || input.columns != from.columns ||
         output.rows != to.rows || output.columns != to.columns) return VS_SHAPE;
     if (a.buffer->scalar != b.buffer->scalar) return VS_SCALAR;
@@ -519,12 +550,12 @@ VStorageStatus vstorage_regroup3(VStorageArena *arena, uint32_t source, VStorage
     uint64_t source_stride[3], target_stride[3];
     grouping3_strides(&from, dimensions, &a, source_stride);
     grouping3_strides(&to, dimensions, &b, target_stride);
-    const double *source_data = a.buffer->data + a.start / 8;
-    double *target_data = b.buffer->data + b.start / 8;
+    const unsigned char *source_data = a.buffer->data + a.start;
+    unsigned char *target_data = b.buffer->data + b.start;
     unsigned fast = from.order[0];
-    size_t block_bytes = (size_t)(dimensions[fast] * a.components * 8);
-    if (dimensions[fast] > 1 && block_bytes <= 64 && source_stride[fast] == a.components &&
-        target_stride[fast] == a.components) {
+    size_t block_bytes = (size_t)(dimensions[fast] * a.width);
+    if (dimensions[fast] > 1 && block_bytes <= 64 && source_stride[fast] == a.width &&
+        target_stride[fast] == a.width) {
         /* Only a physically contiguous axis common to both views is coalesced.
          * The checked nonempty volume bounds this block size; the separated
          * envelopes justify memcpy even for two views of one allocation.
@@ -538,8 +569,7 @@ VStorageStatus vstorage_regroup3(VStorageArena *arena, uint32_t source, VStorage
                     uint64_t src = x0 * source_stride[0] + x1 * source_stride[1] + x2 * source_stride[2];
                     uint64_t dst = x0 * target_stride[0] + x1 * target_stride[1] + x2 * target_stride[2];
                     /* Both paths preserve signaling NaNs and signed zero bits. */
-                    if (a.components == 1) memcpy(target_data + dst, source_data + src, 8);
-                    else memcpy(target_data + dst, source_data + src, 16);
+                    copy_element(target_data + dst, source_data + src, a.width);
                 }
     }
     arena->stats.written_bytes += bytes;

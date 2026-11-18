@@ -1,10 +1,396 @@
 use super::*;
 
 #[test]
+fn resource_realization_calls_keep_unresolved_paths_representation_and_destination() {
+    let source = "use monad::float as ops;
+resource fn main() -> Int {
+    let r = ops::realize::<F64<RR>>(model::Line, model::Line::standard_chart);
+    let e = ops::interpret(model::idL, r, NativeFast);
+    let p = makePoint(r, input);
+    let q = makePoint(r, output);
+    execute(e, p) -> q;
+    value { 0 }
+}";
+    let parsed = parse_module_source(
+        SourceInput {
+            source,
+            file: "realization.vast",
+            offset: 0,
+        },
+        vec![],
+        true,
+        None,
+    )
+    .unwrap();
+    let body = &parsed.modules[0].resource_functions[0].declaration.body;
+    let wire = serde_json::to_value(body).unwrap();
+    assert_eq!(wire[0]["kind"], "realization");
+    assert_eq!(wire[0]["representation"], "real64");
+    assert_eq!(
+        wire[0]["callee"]["path"],
+        serde_json::json!(["ops", "realize"])
+    );
+    assert_eq!(
+        wire[0]["arguments"][1]["path"],
+        serde_json::json!(["model", "Line", "standard_chart"])
+    );
+    assert_eq!(wire[0]["result"], "r");
+    assert_eq!(wire[0]["into"], false);
+    assert_eq!(
+        wire[1]["arguments"][2]["path"],
+        serde_json::json!(["NativeFast"])
+    );
+    assert_eq!(wire[2]["callee"]["path"], serde_json::json!(["makePoint"]));
+    assert_eq!(wire[4]["result"], "q");
+    assert_eq!(wire[4]["into"], true);
+    assert!(wire[4]["representation"].is_null());
+    let crate::storage::source::Statement::Realization {
+        callee,
+        arguments,
+        span,
+        ..
+    } = &body[0]
+    else {
+        panic!("expected a realization call")
+    };
+    assert_eq!(&source[callee.span.start..callee.span.end], "ops::realize");
+    assert_eq!(
+        &source[arguments[1].span.start..arguments[1].span.end],
+        "model::Line::standard_chart"
+    );
+    assert!(source[span.start..span.end].ends_with("standard_chart);"));
+    assert_eq!(
+        serde_json::from_value::<Vec<crate::storage::source::Statement>>(wire).unwrap(),
+        *body
+    );
+}
+
+#[test]
+fn resource_realization_grammar_has_finite_representations_and_bounded_arguments() {
+    for (spelling, tag) in [
+        ("F32<RR>", "real32"),
+        ("F32<CC>", "complex32"),
+        ("F64<CC>", "complex64"),
+        ("F64<RR>", "real64"),
+    ] {
+        let source = format!(
+            "resource fn test() -> Unit {{ let x = aliased::<{spelling}>(X, X::standard_chart); value {{ () }} }}"
+        );
+        let parsed = parse_module_source(
+            SourceInput {
+                source: &source,
+                file: "r.vast",
+                offset: 0,
+            },
+            vec![],
+            true,
+            None,
+        )
+        .unwrap();
+        let statement = &parsed.modules[0].resource_functions[0].declaration.body[0];
+        assert_eq!(
+            serde_json::to_value(statement).unwrap()["representation"],
+            tag
+        );
+    }
+    for (call, code) in [
+        ("let r = a::<F16<RR>>(X, chart);", "E_TYPE"),
+        ("let r = a::<F64<QQ>>(X, chart);", "E_TYPE"),
+        ("let r = a(X, Y, Z, W);", "E_ARITY"),
+        ("ops::run(e,p) -> (q);", "E_PARSE"),
+    ] {
+        let source = format!("resource fn test() -> Unit {{ {call} value {{ () }} }}");
+        assert_eq!(
+            package_functions(&source).unwrap_err().code,
+            code,
+            "{source}"
+        );
+    }
+}
+
+fn package_functions(source: &str) -> Result<Vec<crate::namespace::Public<Function>>, Diagnostic> {
+    let parsed = parse_module_source(
+        SourceInput {
+            source,
+            file: "finite.vast",
+            offset: 0,
+        },
+        Vec::new(),
+        true,
+        None,
+    )?;
+    Ok(parsed.modules.into_iter().next().unwrap().functions)
+}
+
+#[test]
+fn finite_function_binders_and_calls_preserve_paths_and_source_spans() {
+    let source =
+        "pub fn compose<C: lib::Small, X: Obj<C>, Y: Obj<C>>(f: Hom<C,X,Y>) -> Hom<C,X,Y> { f }
+fn run(x: Hom<Other,Nodes::lo,Nodes::hi>) -> Hom<Other,Nodes::lo,Nodes::hi> {
+    package::compose::<Other,Nodes::lo,Nodes::hi,>(x)
+}";
+    let functions = package_functions(source).unwrap();
+    let template = &functions[0].declaration;
+    let [
+        StaticBinder::Category { name, schema, span },
+        StaticBinder::Object {
+            name: x,
+            category,
+            span: object_span,
+        },
+        _,
+    ] = template.finite_binders.as_slice()
+    else {
+        panic!("expected category and object binders")
+    };
+    assert_eq!(name, "C");
+    assert_eq!(schema.path, ["lib", "Small"]);
+    assert_eq!(&source[span.start..span.end], "C: lib::Small");
+    assert_eq!(&source[schema.span.start..schema.span.end], "lib::Small");
+    assert_eq!(x, "X");
+    assert_eq!(category, "C");
+    assert_eq!(&source[object_span.start..object_span.end], "X: Obj<C>");
+    let template = serde_json::to_value(template).unwrap();
+    assert_eq!(template["finite_binders"][0]["kind"], "category");
+    assert_eq!(template["finite_binders"][1]["kind"], "object");
+    assert_eq!(template["params"][0]["ty"]["kind"], "finite_hom");
+    let caller = &functions[1].declaration;
+    let ExprKind::FiniteCall {
+        callee,
+        indices,
+        args,
+    } = &caller.body.result.kind
+    else {
+        panic!("expected an explicit finite call")
+    };
+    assert_eq!(callee.path, ["package", "compose"]);
+    assert_eq!(
+        &source[callee.span.start..callee.span.end],
+        "package::compose"
+    );
+    assert_eq!(indices.len(), 3);
+    assert_eq!(
+        indices
+            .iter()
+            .map(|p| &source[p.span.start..p.span.end])
+            .collect::<Vec<_>>(),
+        ["Other", "Nodes::lo", "Nodes::hi"]
+    );
+    assert!(matches!(&args[..], [Expr { kind: ExprKind::Variable { name }, .. }] if name == "x"));
+    let wire = serde_json::to_value(caller).unwrap();
+    assert!(wire.get("finite_binders").is_none());
+    assert_eq!(wire["body"]["result"]["kind"], "finite_call");
+    assert_eq!(serde_json::from_value::<Function>(wire).unwrap(), *caller);
+}
+
+#[test]
+fn finite_monad_binders_and_endpoint_applications_retain_their_spelling_and_span() {
+    let source = "fn mapped<M: witness::Structure, X: Obj<M::category>>(\n\
+        f: Hom<M::category, X, M::T<X>>\n\
+    ) -> Hom<M::category, M::T<X>, M::T<M::T<X>>> { finite::lookup::<M::arrows>(f) }";
+    let functions = package_functions(source).unwrap();
+    let template = &functions[0].declaration;
+    let wire = serde_json::to_value(template).unwrap();
+    assert_eq!(wire["finite_binders"][1]["kind"], "monad_object");
+    assert_eq!(wire["finite_binders"][1]["monad"], "M");
+    let StaticBinder::MonadObject { span, .. } = &template.finite_binders[1] else {
+        panic!("expected a Monad category object binder");
+    };
+    assert_eq!(&source[span.start..span.end], "X: Obj<M::category>");
+    let Type::FiniteHom {
+        category,
+        source: x,
+        target,
+    } = &template.return_type
+    else {
+        panic!("expected a Hom");
+    };
+    assert_eq!(category.path, ["M", "category"]);
+    assert_eq!(x.path, ["M", "T<>", "X"]);
+    assert_eq!(target.path, ["M", "T<>", "M", "T<>", "X"]);
+    assert_eq!(&source[target.span.start..target.span.end], "M::T<M::T<X>>");
+    assert_eq!(serde_json::from_value::<Function>(wire).unwrap(), *template);
+    let concrete = source.replace("M::T<M::T<X>>", "M::T::X");
+    let functions = package_functions(&concrete).unwrap();
+    let Type::FiniteHom { target, .. } = &functions[0].declaration.return_type else {
+        panic!("expected a Hom");
+    };
+    assert_eq!(target.path, ["M", "T", "X"]);
+    assert_eq!(
+        package_functions(&source.replace("M::T<X>", "M::F<X>"))
+            .unwrap_err()
+            .code,
+        "E_TYPE"
+    );
+    let depth = MAX_PARSE_NESTING + 1;
+    let nested = format!("{}X{}", "M::T<".repeat(depth), ">".repeat(depth));
+    assert_eq!(
+        package_functions(&source.replace("M::T<M::T<X>>", &nested))
+            .unwrap_err()
+            .code,
+        "E_LIMIT"
+    );
+}
+
+#[test]
+fn derived_kleisli_declarations_preserve_the_selected_paths_and_spans() {
+    let offset = 91;
+    for (constructor, field) in [
+        ("finite_kleisli", "kleisli"),
+        ("finite_kleisli_triple", "kleisli_triple"),
+    ] {
+        let source = format!(
+            "pub indexed schema Shape = {constructor}(algebra::Monad);\n\
+             indexed instance Chosen : api::Shape = {constructor}(models::Closure);"
+        );
+        let parsed = parse_module_source(
+            SourceInput {
+                source: &source,
+                file: "kleisli.vast",
+                offset,
+            },
+            vec![],
+            true,
+            None,
+        )
+        .unwrap();
+        let decls = &parsed.modules[0].indexed_declarations;
+        assert_eq!(decls.len(), 2);
+        let schema = serde_json::to_value(&decls[0]).unwrap();
+        let instance = serde_json::to_value(&decls[1]).unwrap();
+        assert_eq!(schema["kind"], "schema");
+        assert_eq!(schema["public"], true);
+        assert_eq!(schema["schema_kind"], constructor);
+        assert_eq!(instance["kind"], "instance");
+        assert_eq!(instance["public"], false);
+        assert_eq!(instance[field].as_object().unwrap().len(), 1);
+        for (json_path, spelling) in [
+            (&schema["monad_schema"], "algebra::Monad"),
+            (&instance["schema"], "api::Shape"),
+            (&instance[field]["monad"], "models::Closure"),
+        ] {
+            let path: TypePath = serde_json::from_value(json_path.clone()).unwrap();
+            assert_eq!(path.path, spelling.split("::").collect::<Vec<_>>());
+            assert_eq!(path.span.start, offset + source.find(spelling).unwrap());
+            assert_eq!(path.span.end, path.span.start + spelling.len());
+        }
+        for declaration in decls {
+            let wire = serde_json::to_value(&declaration.declaration).unwrap();
+            assert_eq!(
+                serde_json::from_value::<crate::indexed::Declaration>(wire).unwrap(),
+                declaration.declaration
+            );
+        }
+    }
+}
+
+#[test]
+fn only_derived_schemas_and_instances_take_one_monad_path() {
+    for constructor in ["finite_kleisli", "finite_kleisli_triple"] {
+        for prefix in ["indexed schema S = ", "indexed instance K : S = "] {
+            for args in ["", "()", "(A, B)", "(A,)", "(A<B>)"] {
+                let source = format!("{prefix}{constructor}{args};");
+                assert_eq!(
+                    package_functions(&source).unwrap_err().code,
+                    "E_PARSE",
+                    "{source}"
+                );
+            }
+        }
+    }
+    for constructor in [
+        "finite_category",
+        "finite_functor",
+        "finite_nat_trans",
+        "finite_monad",
+    ] {
+        let source = format!("indexed schema S = {constructor};");
+        let parsed = parse_module_source(
+            SourceInput {
+                source: &source,
+                file: "schema.vast",
+                offset: 0,
+            },
+            vec![],
+            true,
+            None,
+        )
+        .unwrap();
+        let schema = &parsed.modules[0].indexed_declarations[0].declaration;
+        assert_eq!(
+            serde_json::to_value(schema).unwrap(),
+            serde_json::json!({
+                "name": "S", "kind": "schema", "schema_kind": constructor, "span": schema.span,
+            })
+        );
+        let source = format!("indexed schema S = {constructor}(A);");
+        assert_eq!(
+            package_functions(&source).unwrap_err().code,
+            "E_PARSE",
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn finite_function_grammar_rejects_general_parameters_and_unsupported_declarations() {
+    for (source, code) in [
+        ("fn f<T: Type>(x: Int) -> Int { x }", "E_TYPE"),
+        ("fn f<C: Small>(x: Int) -> Int;", "E_TYPE"),
+        ("fn f<C: Small>(x: Bool) requires() -> Bool { x }", "E_TYPE"),
+        ("fn f<>(x: Int) -> Int { x }", "E_PARSE"),
+        ("fn f<C: Small>(x) domain((Int));", "E_TYPE"),
+        (
+            "fn f<C: Small>(x: Int) -> Int { x } fn f(x: Int) -> Int { x }",
+            "E_TYPE",
+        ),
+        ("fn f(x: Int) -> Int { f::<1>(x) }", "E_PARSE"),
+        ("fn compose(x: Int) -> Int { x }", "E_RESERVED"),
+    ] {
+        assert_eq!(
+            package_functions(source).unwrap_err().code,
+            code,
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn inferred_family_keys_are_left_to_the_kernel() {
+    let source = "fn convert(x: Number) -> Int { 0 }
+        fn convert(x: Nat) -> Int { int(x) }
+        fn convert(x: Number) -> Int;
+        fn main() -> Int { let alias = convert; alias(42) }";
+    let module = parse(source, "inferred.vast").unwrap();
+    assert_eq!(module.generics.len(), 1);
+    assert_eq!(module.generics[0].domain, None);
+    assert_eq!(module.methods.len(), 2);
+    assert_eq!(module.abstract_methods[0].domain[0][0].path, ["Number"]);
+    let wire = serde_json::to_value(module).unwrap();
+    assert_eq!(
+        wire["generics"][0].get("domain"),
+        Some(&serde_json::Value::Null)
+    );
+}
+
+#[test]
+fn rejects_retired_family_spelling_at_its_declaration() {
+    for source in [
+        "generic f(x) { domain (Int); }",
+        "method f(x: Int) -> Int { x }",
+        "abstract method f(x: Int) -> Int { domain (Int); }",
+    ] {
+        let error = parse(source, "old.vast").unwrap_err().remove(0);
+        assert_eq!(error.code, "E_PARSE");
+        assert_eq!(error.span.start, 0);
+        assert!(error.message.contains("edition 2026 uses `fn`"));
+    }
+}
+
+#[test]
 fn method_result_diagnostics_describe_the_result_contract() {
     for result in ["Any", "Number", "Point<X, Base(QQ)>", "Fn<Int, Int>"] {
-        let source =
-            format!("generic f(x) {{ domain (Int); }} method f(x: Int) -> {result} {{ 0 }}");
+        let source = format!("fn f(x) domain((Int)); fn f(x: Int) -> {result} {{ 0 }}");
         let errors = parse(&source, "result.vast").unwrap_err();
         assert_eq!(errors[0].code, "E_TYPE");
         assert_eq!(
@@ -16,9 +402,9 @@ fn method_result_diagnostics_describe_the_result_contract() {
 
 #[test]
 fn parses_and_serializes_generic_families_without_selecting_methods() {
-    let source = "method choose(x: Number) -> Int requires (HasOrder, HasEq) { 1 }
-generic choose(x) { domain (Int), (Nat); }
-method choose(x: Any) requires (HasEq) -> Int { 2 }
+    let source = "fn choose(x: Number) -> Int requires (HasOrder, HasEq) { 1 }
+fn choose(x) domain((Int), (Nat));
+fn choose(x: Any) requires (HasEq) -> Int { 2 }
 fn main() -> Int { choose(10) }";
     let module = parse(source, "dispatch.vast").unwrap();
     assert_eq!(module.functions.len(), 1);
@@ -42,8 +428,8 @@ fn main() -> Int { choose(10) }";
 #[test]
 fn separate_sources_preserve_all_dispatch_declarations_and_spans() {
     let application = "fn main() -> Int { choose(1) }";
-    let family = "// family\ngeneric choose(value) { domain (Int); }";
-    let implementation = "// implementation\nmethod choose(x: Int) -> Int { helper(x) }";
+    let family = "// family\nfn choose(value) domain((Int));";
+    let implementation = "// implementation\nfn choose(x: Int) -> Int { helper(x) }";
     let helper = "fn helper(n: Int) -> Int { n + 1 }";
     let module = parse_sources(&[
         SourceInput {
@@ -73,7 +459,7 @@ fn separate_sources_preserve_all_dispatch_declarations_and_spans() {
     assert_eq!(module.methods.len(), 1);
     assert_eq!(
         module.generics[0].span.start,
-        100 + family.find("generic").unwrap()
+        100 + family.find("fn").unwrap()
     );
     assert_eq!(module.generics[0].span.line, 2);
     assert_eq!(
@@ -82,7 +468,7 @@ fn separate_sources_preserve_all_dispatch_declarations_and_spans() {
     );
     assert_eq!(
         module.methods[0].span.start,
-        200 + implementation.find("method").unwrap()
+        200 + implementation.find("fn").unwrap()
     );
     assert_eq!(module.methods[0].span.line, 2);
     assert_eq!(
@@ -94,14 +480,14 @@ fn separate_sources_preserve_all_dispatch_declarations_and_spans() {
 #[test]
 fn dispatch_domains_support_empty_and_zero_argument_families() {
     let module = parse(
-        "generic empty(x,) { domain; }
-generic constant() { domain (),; }
-method constant() -> Int requires () { 42 }",
+        "fn empty(x,) domain();
+fn constant() domain((),);
+fn constant() -> Int requires () { 42 }",
         "empty.vast",
     )
     .unwrap();
-    assert!(module.generics[0].domain.is_empty());
-    assert_eq!(module.generics[1].domain, vec![vec![]]);
+    assert!(module.generics[0].domain == Some(vec![]));
+    assert_eq!(module.generics[1].domain, Some(vec![vec![]]));
     assert!(module.methods[0].params.is_empty());
     assert!(module.methods[0].requires.is_empty());
 }
@@ -109,17 +495,17 @@ method constant() -> Int requires () { 42 }",
 #[test]
 fn dispatch_selectors_are_not_ordinary_value_types() {
     for source in [
-        "generic f(x) { domain (Number); }",
-        "generic f(x) { domain (Scheme); }",
-        "generic f(x) { domain (Int); } method f(x: Scheme) -> Int { 0 }",
-        "generic f(x) { domain (Int); } method f(x: Int) -> Any { x }",
-        "generic f(x) { domain (Int); } method f(x: Int) -> Pointed<Scheme, QQ> { x }",
+        "fn f(x) domain((Number));",
+        "fn f(x) domain((Scheme));",
+        "fn f(x) domain((Int)); fn f(x: Scheme) -> Int { 0 }",
+        "fn f(x) domain((Int)); fn f(x: Int) -> Any { x }",
+        "fn f(x) domain((Int)); fn f(x: Int) -> Pointed<Scheme, QQ> { x }",
     ] {
         assert_eq!(parse(source, "types.vast").unwrap_err()[0].code, "E_TYPE");
     }
     for source in [
-        "fn f(x: Any) -> Int { 0 }",
-        "generic f(x) { domain (Int); } method f(x: Number) -> Int { let y: Number = x; 0 }",
+        "fn f(x: Any) -> Int { let y: Any = x; 0 }",
+        "fn f(x) domain((Int)); fn f(x: Number) -> Int { let y: Number = x; 0 }",
     ] {
         assert_eq!(
             parse(source, "types.vast").unwrap_err()[0].code,
@@ -131,45 +517,39 @@ fn dispatch_selectors_are_not_ordinary_value_types() {
 #[test]
 fn generic_namespace_and_method_lexical_scope_are_checked() {
     for (source, code) in [
+        ("fn f(x) domain(); fn f(x) domain();", "E_DUPLICATE"),
+        ("fn f() -> Int { 0 } fn f(x: Int) -> Int { x }", "E_ARITY"),
+        ("fn missing(x: Int) -> Int { undeclared }", "E_NAME"),
+        ("fn main() domain(());", "E_MAIN"),
+        ("fn f(x, x) domain();", "E_DUPLICATE"),
         (
-            "generic f(x) { domain; } generic f(x) { domain; }",
-            "E_DUPLICATE",
-        ),
-        (
-            "fn f() -> Int { 0 } generic f(x) { domain; }",
-            "E_DUPLICATE",
-        ),
-        ("method missing(x: Int) -> Int { x }", "E_NAME"),
-        ("generic main() { domain (); }", "E_MAIN"),
-        ("generic f(x, x) { domain; }", "E_DUPLICATE"),
-        (
-            "generic f(x) { domain; } fn g() -> Int { let f = 1; f }",
+            "fn f(x) domain(); fn g() -> Int { let f = 1; f }",
             "E_SHADOW",
         ),
         (
-            "generic f(x) { domain (Int); } method f(f: Int) -> Int { f }",
+            "fn f(x) domain((Int)); fn f(f: Int) -> Int { f }",
             "E_SHADOW",
         ),
         (
-            "generic f(x) { domain (Int); } method f(x: Int) -> Int { hidden }",
+            "fn f(x) domain((Int)); fn f(x: Int) -> Int { hidden }",
             "E_NAME",
         ),
         (
-            "generic f(x) { domain (Int); } method f(x: Int) -> Int { let x = 1; x }",
+            "fn f(x) domain((Int)); fn f(x: Int) -> Int { let x = 1; x }",
             "E_DUPLICATE",
         ),
         (
-            "generic f(x) { domain (Int); } method f(x: Int) -> Int { x } method f(y: Nat) -> Int { x }",
+            "fn f(x) domain((Int)); fn f(x: Int) -> Int { x } fn f(y: Nat) -> Int { x }",
             "E_NAME",
         ),
     ] {
         let errors = parse(source, "names.vast").unwrap_err();
         assert_eq!(errors[0].code, code, "{source}");
     }
-    let invalid_method = "\nmethod f(x: Int) -> Int { unknown }";
+    let invalid_method = "\nfn f(x: Int) -> Int { unknown }";
     let errors = parse_sources(&[
         SourceInput {
-            source: "generic f(x) { domain (Int); }",
+            source: "fn f(x) domain((Int));",
             file: "family.vast",
             offset: 0,
         },
@@ -193,9 +573,9 @@ fn generic_recursion_and_capability_semantics_are_deferred_to_lean() {
     // The Int instance can call the Bool instance without recursion. Only
     // the backend knows which concrete method an application selects.
     let module = parse(
-        "generic choose(x) { domain (Int), (Bool); }
-method choose(x: Int) -> Int { choose(true) }
-method choose(x: Bool) -> Int { 1 }
+        "fn choose(x) domain((Int), (Bool));
+fn choose(x: Int) -> Int { choose(true) }
+fn choose(x: Bool) -> Int { 1 }
 fn main() -> Int { choose(0) }",
         "instances.vast",
     )
@@ -204,12 +584,12 @@ fn main() -> Int { choose(0) }",
     // The frontend also keeps genuinely cyclic generic calls intact; Lean
     // must reject the eventual cycle after independently selecting targets.
     parse(
-        "generic f(x) { domain (Int); } method f(x: Int) -> Int { f(x) }",
+        "fn f(x) domain((Int)); fn f(x: Int) -> Int { f(x) }",
         "cycle.vast",
     )
     .unwrap();
     let module = parse(
-        "generic f(x) { domain (Int); } method f(x: Int) -> Int requires (HasMetric) { 0 }",
+        "fn f(x) domain((Int)); fn f(x: Int) -> Int requires (HasMetric) { 0 }",
         "capability.vast",
     )
     .unwrap();
@@ -219,7 +599,7 @@ fn main() -> Int { choose(0) }",
 #[test]
 fn rejects_duplicate_requires_and_compiler_private_names() {
     let errors = parse(
-        "generic f(x) { domain (Int); } method f(x: Int) requires () -> Int requires () { 0 }",
+        "fn f(x) domain((Int)); fn f(x: Int) requires () -> Int requires () { 0 }",
         "requires.vast",
     )
     .unwrap_err();
@@ -227,7 +607,7 @@ fn rejects_duplicate_requires_and_compiler_private_names() {
     assert!(errors[0].message.contains("only one `requires`"));
     for source in [
         "fn __vastitas_internal() -> Int { 0 }",
-        "generic __vastitas_internal(x) { domain; }",
+        "fn __vastitas_internal(x) domain();",
         "fn main() -> Int { __vastitas_method_1(0) }",
         "fn main() -> Int { __vastitas_value }",
         "fn f(X: Scheme, p: Point<__vastitas_object, Base(QQ)>) -> Int { 0 }",
@@ -853,7 +1233,7 @@ fn else_if_keeps_scope_and_nesting_limits() {
 #[test]
 fn unsupported_arithmetic_and_float_literals_have_precise_spans() {
     for (expression, fragment, message) in [
-        ("7 / 2", "/", "division"),
+        ("n /= 2", "/=", "division assignment"),
         ("7 % 2", "%", "remainder"),
         ("1.25", "1.25", "floating-point"),
         ("1.", "1.", "floating-point"),
@@ -932,7 +1312,7 @@ fn malformed_input_reports_location_without_panicking() {
         "fn f(",
         "fn f() -> Int {",
         "fn f() -> Int { 1; }",
-        "fn f() -> Int { 1 / 2 }",
+        "fn f() -> Int { 1 / }",
     ] {
         let result = parse(source, "broken.vast");
         if !source.is_empty() {

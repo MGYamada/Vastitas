@@ -8,9 +8,9 @@ subtype Nat <: NaturalNumeric;
 abstract type Variety;
 abstract type Manifold;
 
-generic classify(x) { domain (Nat), (Int); }
-method classify(x: Numeric) -> Int { 0 }
-method classify(x: NaturalNumeric) -> Int { 42 }
+fn classify(x) domain((Nat), (Int));
+fn classify(x: Numeric) -> Int { 0 }
+fn classify(x: NaturalNumeric) -> Int { 42 }
 
 fn main() -> Int {
     let n: Nat = 1;

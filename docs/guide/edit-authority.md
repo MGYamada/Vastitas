@@ -61,15 +61,15 @@ The third package depends on both others, under the aliases `base` and
 {{#include ../../examples/packages/authority/edit-borrow/app/main.vast}}
 ```
 
-The assembly is a list of [*events*](../appendix/glossary.md#event). The compiler replays them in
-order when it checks the program:
+The compiler checks the following [*events*](../appendix/glossary.md#event)
+in the order given by the source:
 
 | Event | Effect |
 | --- | --- |
-| `borrow base::integers as edit;` | Activates the grant `integers` as the [*loan*](../appendix/glossary.md#edit-loan) `edit` |
-| `apply addon::sum using edit;` | Adds the methods of the contribution `sum` to `choose`, under the loan |
-| `return edit;` | Ends the loan |
-| `seal base::choose;` | Closes `choose` and checks it with all its methods |
+| `borrow base::integers as edit {` | Activates the grant `integers` as the [*loan*](../appendix/glossary.md#edit-loan) `edit` |
+| `apply addon::sum;` inside the loan | Adds the methods of the contribution `sum` to `choose`, under the loan |
+| Closing brace of `borrow` | Ends the loan |
+| Closing brace of `assemble base::choose` | Closes `choose` and checks it with all its methods |
 
 ```sh
 target/debug/vastitas check --manifest-path examples/packages/authority/edit-borrow/app/Vastitas.toml
@@ -79,11 +79,12 @@ target/debug/vastitas build --manifest-path examples/packages/authority/edit-bor
 
 The program writes `base::choose(40, 2) = 42` and exits with status 0:
 `choose(40, 2)` is a call of the method that the add-on contributed. Without
-the `assembly` block, the same call selects the method of the library, and
+the `assemble` block, the same call selects the method of the library, and
 the program writes `base::choose(40, 2) = 0`.
 
-A program has at most one assembly. It stands in the root module of the
-root package, the package whose manifest the command names. The assembly
+A program has at most one `assemble` block for each family. All blocks
+stand in the root module of the root package, the package whose manifest
+the command names. The assembly
 gives that package no edit authority of its own: each event uses a grant or
 a contribution that some module declared. All of this happens at compile time. The executable
 holds the final methods, and nothing changes them when it runs.
@@ -124,10 +125,9 @@ covers `(Int, Int)` only. The check covers `(Int, Nat)` although that key is
 outside the domain of `choose`. A recipient therefore changes the winners
 that the grant names and no others.
 
-A loan is exclusive, and an assembly finishes what it starts. A second
-`borrow` of a generic whose loan is still active is an error. Every loan must
-end with `return` before the seal, and every generic that the assembly edits
-must be sealed.
+A loan is exclusive. A nested `borrow` is an error; only a declared
+delegation may suspend an active loan. Each closing brace ends its loan
+before the family is sealed.
 [Assemblies](../language/edit-authority.md#assemblies) and
 [Sealing](../language/edit-authority.md#sealing) give the rules.
 
@@ -151,17 +151,17 @@ is in that module:
 ```
 
 A delegation has the form of a grant. Its region must lie in the region of
-the grant that it passes on. The assembly uses it with `reborrow`:
+the grant that it passes on. The assembly uses it with `delegate`:
 
 ```vast
 {{#include ../../examples/packages/authority/edit-authority/app/main.vast}}
 ```
 
-`reborrow parent via addon::inner as child;` activates the delegation as the
-loan `child`, inside the loan `parent`. `apply addon::ops::sum using child;`
+`delegate addon::inner as child { … }` activates the delegation as the
+loan `child`, inside the loan `parent`. Its `apply addon::ops::sum;`
 adds the method of `ops` under the inner loan. While `child` is active,
 `parent` is suspended and applies nothing. Loans end from the inside out, so
-`return child;` comes before `return parent;`.
+the end of `delegate` returns `child` before the end of `borrow` returns `parent`.
 
 ## Handing a generic over
 

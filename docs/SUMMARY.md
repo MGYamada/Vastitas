@@ -101,6 +101,7 @@
     - [Execution and planning reference models](reference/execution-plans.md)
   - [D: Compiler limits](appendix/limits.md)
   - [E: Historical roadmap and delivery records](appendix/history.md)
+    - [v0.1.0 finite admission and conformance](v0.1.0-admission.md)
     - [Historical Stages 2–7](guide/historical-roadmap.md)
     - [Stage 1 delivery and performance handoff](stage1-completion.md)
     - [Finite-profile acceptance and evidence](stage1-acceptance.md)

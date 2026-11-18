@@ -19,7 +19,7 @@ static uint64_t bits(double x) { uint64_t r; memcpy(&r,&x,8); return r; }
 static uint64_t hash(const VStorageDense *v) {
     uint64_t h=UINT64_C(1469598103934665603); unsigned width=v->scalar?2:1;
     for(uint64_t j=0;j<v->columns;++j) for(uint64_t i=0;i<v->rows;++i)
-        for(unsigned k=0;k<width;++k) { h^=bits(v->data[width*(j*v->leading+i)+k]); h*=UINT64_C(1099511628211); }
+        for(unsigned k=0;k<width;++k) { h^=bits(((const double *)v->data)[width*(j*v->leading+i)+k]); h*=UINT64_C(1099511628211); }
     return h;
 }
 static void sample(unsigned checked,unsigned pair,unsigned scalar,uint64_t n,uint64_t m,unsigned uniform,
@@ -68,16 +68,16 @@ static void sample(unsigned checked,unsigned pair,unsigned scalar,uint64_t n,uin
         double total=0;
         for(uint64_t i=0;i<n;++i) {
             total+=source[i];
-            assert(views[2].data[(scalar?2:1)*i]==3*source[i]);
-            if(scalar) assert(views[2].data[2*i+1]==-2*source[i]);
+            assert(((const double *)views[2].data)[(scalar?2:1)*i]==3*source[i]);
+            if(scalar) assert(((const double *)views[2].data)[2*i+1]==-2*source[i]);
         }
-        assert(views[3].data[0]==(scalar?total:3*total));
-        if(scalar) assert(views[3].data[1]==-5*total);
+        assert(((const double *)views[3].data)[0]==(scalar?total:3*total));
+        if(scalar) assert(((const double *)views[3].data)[1]==-5*total);
     } else {
         for(uint64_t j=0;j<n;++j) for(uint64_t i=0;i<m;++i) {
             uint64_t at=(scalar?2:1)*(j*views[1].leading+i);
-            assert(views[1].data[at]==target[j]/source[i]);
-            if(scalar) assert(views[1].data[at+1]==-target[j]/source[i]);
+            assert(((const double *)views[1].data)[at]==target[j]/source[i]);
+            if(scalar) assert(((const double *)views[1].data)[at+1]==-target[j]/source[i]);
         }
     }
     uint64_t digest=hash(views+(pair?3:1)); if(pair) digest^=hash(views+2);

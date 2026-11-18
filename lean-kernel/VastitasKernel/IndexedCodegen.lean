@@ -1,3 +1,4 @@
+import VastitasKernel.FiniteLookupLayout
 import VastitasKernel.IndexedTypeAudit
 import VastitasKernel.IndexedObservation
 
@@ -17,17 +18,29 @@ namespace VastitasKernel.Indexed.Core.Codegen
 open Typing
 open VastitasKernel.Indexed.Lowering (runtime algebra smooth frame spectral application literalType literalValue)
 
-/-- The primitives that a term calls, once per call. -/
-private def primitiveIds : Term → List DeclId
-  | .primitive id arguments _ => id :: arguments.flatMap primitiveIds
-  | .call _ arguments _ _ => arguments.flatMap primitiveIds
-  | .unary _ operand _ | .project _ _ operand | .natToInt operand | .scope operand | .ascribe _ operand =>
-    primitiveIds operand
-  | .binary _ left right _ | .pair _ left right => primitiveIds left ++ primitiveIds right
-  | .branch condition yes no _ => primitiveIds condition ++ primitiveIds yes ++ primitiveIds no
-  | .pack _ witness fields => primitiveIds witness ++ fields.flatMap primitiveIds
-  | .unpack _ _ value body | .letE _ value body => primitiveIds value ++ primitiveIds body
+/-- Collect leaf references in deterministic evaluation order. -/
+private def mentions (leaf : Term → List α) (term : Term) : List α :=
+  leaf term ++ match term with
+  | .primitive _ args _ | .call _ args _ _ => args.flatMap (mentions leaf)
+  | .unary _ a _ | .project _ _ a | .natToInt a | .scope a | .ascribe _ a => mentions leaf a
+  | .binary _ a b _ | .pair _ a b | .unpack _ _ a b | .letE _ a b => mentions leaf a ++ mentions leaf b
+  | .branch c a b _ => mentions leaf c ++ mentions leaf a ++ mentions leaf b
+  | .pack _ witness fields => mentions leaf witness ++ fields.flatMap (mentions leaf)
   | _ => []
+
+private def primitiveIds := mentions (fun term => match term with | .primitive id .. => [id] | _ => [])
+
+private structure LookupNames where
+  sites : Array FiniteLookup := #[]
+  ids : Std.HashMap FiniteLookup Nat := {}
+
+private def lookupNames (functions : List Function) : LookupNames := Id.run do
+  let mut names : LookupNames := {}
+  for f in functions do
+    for site in mentions (fun term => match term with | .finiteLookup site _ => [site] | _ => []) f.body do
+      unless names.ids.contains site do
+        names := ⟨names.sites.push site, names.ids.insert site names.sites.size⟩
+  return names
 
 /-- What the lowering of a call reads from the module: the distinct literals
 that the module declares once and every call names. The bases are those that
@@ -56,6 +69,7 @@ private def packageCases (env : Declarations) : List (Application × PackageShap
     (⟨declaration.id, [.domain shape.witnessType.domain, .marker shape.witnessType.marker]⟩, shape)
 
 private def renderType (env : Declarations) : DataType → Except String String
+  | .finite _ => .ok "Nat"
   | .pure .nat => .ok "Nat"
   | .pure .int => .ok "Int"
   | .pure .bool => .ok "Bool"
@@ -94,54 +108,90 @@ private def renderBinary (operator : BinaryOp) (left right : String) : String :=
   | .lt | .le | .gt | .ge => s!"(decide ({left} {operator.symbol} {right}))"
   | _ => s!"({left} {operator.symbol} {right})"
 
-private def renderTerm (env : Declarations) (ctx : RenderContext) : Term → Except String String
+private def renderAddress : FiniteLookup.Layout → Nat → String × List String
+  | .done, _ => ("0", [])
+  | .axis width stride rest, i =>
+    let (suffix, checks) := renderAddress rest (i + 1)
+    (s!"(a{i} * {stride} + {suffix})", s!"a{i} < {width}" :: checks)
+
+/-- A mixed-radix index addresses the Cartesian product in declaration order.
+The generated data is shared between all uses of the same selected signature.
+The bounds branch also covers impossible calls on a product with an empty factor. -/
+private def renderTable (env : Declarations) (site : FiniteLookup) (id : Nat) : Except String String := do
+  let some plan := site.plan? env.indexed | throw "invalid finite table specialization"
+  let some results := plan.dense? | throw "invalid finite table ordinal layout"
+  let widths := plan.domains.map List.length
+  let params := widths.zipIdx.map fun (_, i) => s!" (a{i} : Nat)"
+  let (index, checks) := renderAddress (.ofWidths widths) 0
+  let data := s!"finite_data_{id}"
+  let read := s!"(match {data}[{index}]? with | some result => result | none => unreachable!)"
+  let body := if checks.isEmpty then read else s!"if {String.intercalate " && " checks} then {read} else unreachable!"
+  return s!"def {data} : Array Nat := #[{String.intercalate ", " (results.map toString)}]\n" ++
+    s!"def finite_table_{id}{String.join params} : Nat :=\n  {body}\n"
+
+private def renderTerm (env : Declarations) (ctx : RenderContext) (lookups : LookupNames) : Term → Except String String
+  | .finiteLookup site symbols => do
+      let some id := lookups.ids[site]? | throw "missing finite table specialization"
+      return application s!"finite_table_{id}" (symbols.map variableName)
+  | .finiteTag id tag => do
+      let some tags := FiniteSort.tags env.indexed id | throw "missing finite carrier"
+      let some i := tags.idxOf? tag | throw "invalid finite tag"
+      return s!"({i} : Nat)"
   | .natural value => .ok s!"({value} : Nat)"
   | .integer value => .ok s!"({value} : Int)"
   | .boolean value => .ok (if value then "true" else "false")
   | .unit => .ok "()"
   | .variable symbol _ => .ok (variableName symbol)
   | .unary operator value _ => do
-      let value ← renderTerm env ctx value
+      let value ← renderTerm env ctx lookups value
       return match operator with | .neg => s!"(-{value})" | .not => s!"(!{value})"
   | .binary operator left right _ => do
-      return renderBinary operator (← renderTerm env ctx left) (← renderTerm env ctx right)
+      let a ← renderTerm env ctx lookups left
+      let b ← renderTerm env ctx lookups right
+      if operator == .div then
+        match left.result.type, right.result.type with
+        | .pure .nat, .pure .int => return application "Int.ediv" [application "Int.ofNat" [a], b]
+        | .pure .int, .pure .nat => return application "Int.ediv" [a, application "Int.ofNat" [b]]
+        | .pure .int, .pure .int => return application "Int.ediv" [a, b]
+        | _, _ => pure ()
+      return renderBinary operator a b
   | .pair _ first second => do
-      return application "Prod.mk" [← renderTerm env ctx first, ← renderTerm env ctx second]
+      return application "Prod.mk" [← renderTerm env ctx lookups first, ← renderTerm env ctx lookups second]
   | .project _ first value => do
-      return application (if first then "Prod.fst" else "Prod.snd") [← renderTerm env ctx value]
-  | .natToInt value => do return application "Int.ofNat" [← renderTerm env ctx value]
-  | .ascribe _ value | .scope value => renderTerm env ctx value
+      return application (if first then "Prod.fst" else "Prod.snd") [← renderTerm env ctx lookups value]
+  | .natToInt value => do return application "Int.ofNat" [← renderTerm env ctx lookups value]
+  | .ascribe _ value | .scope value => renderTerm env ctx lookups value
   | .primitive id arguments _ => do
       let some binding := env.primitive? id | throw "missing checked primitive declaration"
-      renderPrimitive ctx binding (← arguments.mapM (renderTerm env ctx))
+      renderPrimitive ctx binding (← arguments.mapM (renderTerm env ctx lookups))
   | .call id arguments _ _ => do
-      return application (functionName id) (← arguments.mapM (renderTerm env ctx))
+      return application (functionName id) (← arguments.mapM (renderTerm env ctx lookups))
   | .branch condition yes no _ => do
-      return s!"(if {← renderTerm env ctx condition} then {← renderTerm env ctx yes} else {← renderTerm env ctx no})"
+      return s!"(if {← renderTerm env ctx lookups condition} then {← renderTerm env ctx lookups yes} else {← renderTerm env ctx lookups no})"
   | .pack id witness fields => do
       let name ← renderType env (.package id)
-      return application (name ++ ".mk") ((← renderTerm env ctx witness) :: (← fields.mapM (renderTerm env ctx)))
+      return application (name ++ ".mk") ((← renderTerm env ctx lookups witness) :: (← fields.mapM (renderTerm env ctx lookups)))
   | .unpack witnessSymbol fieldSymbols package body => do
       let name := s!"packed_{witnessSymbol}"
       let fields := fieldSymbols.zipIdx.map fun (symbol, index) =>
         s!"let {variableName symbol} := {name}.field_{index}; "
-      return s!"(let {name} := {← renderTerm env ctx package}; let {variableName witnessSymbol} := {name}.witness; " ++
-        String.join fields ++ s!"{← renderTerm env ctx body})"
+      return s!"(let {name} := {← renderTerm env ctx lookups package}; let {variableName witnessSymbol} := {name}.witness; " ++
+        String.join fields ++ s!"{← renderTerm env ctx lookups body})"
   | .letE symbol value body => do
-      return s!"(let {variableName symbol} := {← renderTerm env ctx value}; {← renderTerm env ctx body})"
+      return s!"(let {variableName symbol} := {← renderTerm env ctx lookups value}; {← renderTerm env ctx lookups body})"
 
 private def renderPackage (env : Declarations) (shape : PackageShape) (index : Nat) : Except String String := do
   let fields ← (shape.instantiate (.local shape.witnessType 0)).zipIdx.mapM fun (field, index) => do
     return s!"  field_{index} : {← renderType env (.indexed field)}\n"
   return s!"structure {packageName index} where\n  witness : {runtime "Object"}\n" ++ String.join fields
 
-private def renderFunction (env : Declarations) (ctx : RenderContext) (function : Function) :
+private def renderFunction (env : Declarations) (ctx : RenderContext) (lookups : LookupNames) (function : Function) :
     Except String String := do
   let parameters ← function.parameters.mapM fun parameter => do
     return s!"({variableName parameter.symbol} : {← renderType env parameter.result.type})"
   let parameterText := if parameters.isEmpty then "" else " " ++ String.intercalate " " parameters
   return s!"def {functionName function.id}{parameterText} : {← renderType env function.returnType} :=\n  " ++
-    (← renderTerm env ctx function.body) ++ "\n"
+    (← renderTerm env ctx lookups function.body) ++ "\n"
 
 /-- The functions that a library with the roots `roots` emits: the roots and
 every function that they call, in module order. -/
@@ -173,7 +223,9 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
     renderPackage module.declarations entry.2 index
   let emitted := reachableFunctions module roots
   let ctx := libraryContext module emitted
-  let functions ← emitted.mapM (renderFunction module.declarations ctx)
+  let lookups := lookupNames emitted
+  let tables ← lookups.sites.toList.zipIdx.mapM fun (site, i) => renderTable module.declarations site i
+  let functions ← emitted.mapM (renderFunction module.declarations ctx lookups)
   -- Each shared literal is declared once, under the name that its calls write.
   let declare := fun (literals : List SharedLiteral) => literals.filterMap fun literal =>
     (ctx.name? literal).map fun name => s!"def {name} : {literalType literal} :=\n  {literalValue ctx literal}\n"
@@ -181,7 +233,7 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
   let literalDefinitions := declare calledLiterals
   -- Only programs that use exact algebra, smooth programs, frame matrices or
   -- spectral observations import those runtimes.
-  let texts := literalDefinitions ++ packages ++ functions
+  let texts := literalDefinitions ++ packages ++ tables ++ functions
   let usesAlgebra := texts.any fun text => (text.splitOn (algebra "")).length > 1
   let usesSmooth := texts.any fun text => (text.splitOn (smooth "")).length > 1
   let usesFrame := texts.any fun text => (text.splitOn (frame "")).length > 1
@@ -234,25 +286,27 @@ def entryPoint (module : Module) (main : Nat) : List Observation → Except Stri
     let some (steps, rest) := Observation.statements (Observation.extent observations) body
       | throw "an observation names no top-level statement of main"
     let env := module.declarations
-    let ctx := libraryContext module (reachableFunctions module [main])
+    let emitted := reachableFunctions module [main]
+    let ctx := libraryContext module emitted
+    let lookups := lookupNames emitted
     let mut lines := ""
     for (step, position) in steps.zipIdx do
       let observed := observations.find? (·.statement == position)
       match step, observed with
       | .letE symbol value, _ =>
-        lines := lines ++ s!"  let {variableName symbol} := ({← renderTerm env ctx value})\n"
+        lines := lines ++ s!"  let {variableName symbol} := ({← renderTerm env ctx lookups value})\n"
         if let some observation := observed then
           let some text := display value.result.type (variableName symbol)
             | throw "an observed value cannot be displayed"
           lines := lines ++ s!"  IO.eprintln ({observation.label.quote} ++ \" = \" ++ {text})\n"
       | .unpack witness fields package, none =>
         let name := s!"packed_{witness}"
-        lines := lines ++ s!"  let {name} := ({← renderTerm env ctx package})\n" ++
+        lines := lines ++ s!"  let {name} := ({← renderTerm env ctx lookups package})\n" ++
           s!"  let {variableName witness} := {name}.witness\n" ++
           String.join (fields.zipIdx.map fun (symbol, index) =>
             s!"  let {variableName symbol} := {name}.field_{index}\n")
       | .unpack .., some _ => throw "an observation names an unpack statement"
-    let result ← renderTerm env ctx rest
+    let result ← renderTerm env ctx lookups rest
     return "\nopen VastitasGenerated in\ndef main : IO UInt32 := do\n" ++ lines ++
       "  pure " ++ exitStatus ("(" ++ result ++ ")") ++ "\n"
 

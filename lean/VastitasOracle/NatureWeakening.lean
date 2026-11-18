@@ -399,6 +399,10 @@ theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   obtain ⟨id, declaration⟩ := entry
   cases declaration with
   | marker => exact Iff.rfl
+  | finiteCarrier tags => exact Iff.rfl
+  | finiteTable inputs output rows => simp only [Entry.Valid, finiteTable_append ext.profile]
+  | categorySchema | functorSchema | natTransSchema | monadSchema => exact Iff.rfl
+  | kleisliSchema | finiteKleisli | composableTable | finiteCategory | finiteFunctor | finiteNatTrans | finiteMonad => simp only [Entry.Valid, funext (categoryView_append ext.profile)]
   | implementation marker representation capabilities =>
     simp only [Entry.Valid, isMarker_append ext.profile, representationValid_append ext]
   | classification parents implementations =>

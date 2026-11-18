@@ -11,7 +11,7 @@ fn checked(source: &str) -> std::process::Output {
     let scratch = Scratch::empty("initialization records");
     scratch.write(
         "Vastitas.toml",
-        "[package]\nname = \"records\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"records\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
     );
     scratch.write("src/main.vast", source);
     common::manifest_command("check", scratch.0.join("Vastitas.toml"))
@@ -51,7 +51,7 @@ fn program(cells: usize, body: &[String], read: Option<(usize, usize)>) -> Strin
     let mut lines = vec![
         "resource fn main() -> Int {".to_owned(),
         "    let c: Bool = value { true };".to_owned(),
-        format!("    allocate d: F64[{cells}];"),
+        format!("    allocate d: F64<RR>[{cells}];"),
         format!("    borrow w = write(d, layout(0, {cells}, 1, {cells}, false));"),
     ];
     lines.extend(body.iter().map(|line| format!("    {line}")));

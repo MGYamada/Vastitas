@@ -273,7 +273,8 @@ Rules:
   them. [Diagnostics of resource programs](../storage/resource-programs.md#diagnostics)
   gives the largest number of notes.
 
-This program has three errors of names, and one run reports them all:
+This program has two unknown names and declarations of one family with
+different arities. One run reports all three diagnostics:
 
 ```vast
 {{#include ../../examples/reject/diagnostics/several-names.vast}}

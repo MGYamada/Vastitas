@@ -1,0 +1,5 @@
+[package]
+edition = "2026"
+name = "finite_category_example"
+version = "0.1.0"
+root = "src/main.vast"

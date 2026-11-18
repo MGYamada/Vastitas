@@ -1,0 +1,34 @@
+use std::category::Category;
+use std::category::Functor;
+use std::category::NatTrans;
+use std::category::Monad;
+
+// The one-object category of the group of order two.
+pub indexed finite Obj { o; }
+indexed finite Arr { e; s; }
+indexed table pt(Arr) -> Obj { (e) => o; (s) => o; }
+indexed table identity(Obj) -> Arr { (o) => e; }
+indexed table group(Arr, Arr) -> Arr where composable(pt, pt) {
+    (e, e) => e; (e, s) => s; (s, e) => s; (s, s) => e;
+}
+pub indexed instance C : Category = finite_graph(Obj, Arr, pt, pt, identity, group);
+
+indexed table sameObj(Obj) -> Obj { (o) => o; }
+indexed table sameArr(Arr) -> Arr { (e) => e; (s) => s; }
+indexed instance T : Functor = finite_functor(C, C, sameObj, sameArr);
+// Both the unit and multiplication select the nonidentity central arrow.
+indexed table involution(Obj) -> Arr { (o) => s; }
+indexed instance Twist : NatTrans = finite_nat_trans(T, T, involution);
+pub indexed instance M : Monad = finite_monad(C, T, Twist, Twist);
+
+pub fn next() -> Hom<C, Obj::o, Obj::o> { C::s }
+
+fn applyArrow(p: Hom<C, Obj::o, Obj::o>, k: Fn<(), Hom<C, Obj::o, Obj::o>>)
+    -> Hom<C, Obj::o, Obj::o> {
+    monad::kleisli::bind::<M, Obj::o, Obj::o, Obj::o>(p, k())
+}
+
+fn main() -> Int {
+    let cont: Fn<(), Hom<C, Obj::o, Obj::o>> = next;
+    if applyArrow(C::s, cont) == C::s { 42 } else { 7 }
+}

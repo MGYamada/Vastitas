@@ -212,7 +212,7 @@ def snapshot(candidate, authority_path, destination):
 
 def environment(work, prefix):
     search = [work, ROOT / "lean/.lake/build/lib/lean", ROOT / "lean-kernel/.lake/build/lib/lean", prefix / "lib/lean"]
-    return {**os.environ, "LEAN_PATH": os.pathsep.join(map(str, search)), "LEAN_NUM_THREADS": "1"}
+    return official.proof_environment(prefix, *search)
 
 
 def verify(args, work, report):

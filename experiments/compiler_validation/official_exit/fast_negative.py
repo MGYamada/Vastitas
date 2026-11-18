@@ -2,7 +2,6 @@
 """Run artifact, environment and standard-axiom substitutions against a provisioned fixture."""
 import argparse
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -49,7 +48,7 @@ def qualify(args):
         ("live", "export", "main_stack_kib", "timeout_seconds", "nanoda", "checked_declarations", "status")}
     with tempfile.TemporaryDirectory(prefix="vast-fast-negative-") as tmp:
         tmp = Path(tmp)
-        env = {**os.environ, "LEAN_PATH": str(tmp) + os.pathsep + str(prefix / "lib/lean"), "LEAN_NUM_THREADS": "1"}
+        env = official.proof_environment(prefix, tmp, prefix / "lib/lean")
         # A valid, independently type-checked export with exactly the requested theorem name.
         (tmp / "Other.lean").write_text("theorem printed : True := True.intro\n")
         subprocess.run([prefix / "bin/lean", "--root", ".", "-o", "Other.olean", "Other.lean"],

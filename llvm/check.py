@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 from typing import NamedTuple
 
@@ -192,6 +193,7 @@ def main():
             "layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
         },
     }
+    subprocess.run([sys.executable, ROOT / "scripts/build_stdlib_package.py"], cwd=ROOT, check=True)
     subprocess.run(["lake", "-d", "lean-kernel", "build", "vastitas-kernel"], cwd=ROOT, check=True)
     subprocess.run(["lake", "-d", "lean", "build", "VastitasOracle.CallFunction", "VastitasOracle.ExitFunction",
                     "VastitasOracle.DispatchFunction", "VastitasOracle.BinaryFunction",

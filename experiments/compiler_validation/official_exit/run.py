@@ -27,6 +27,13 @@ def load_reduction():
     return mod
 
 
+def proof_environment(prefix, *module_paths):
+    # leanchecker and leanexport also look up the sysroot when started outside
+    # a Lake package. Use the toolchain whose binaries run this proof.
+    return {**os.environ, "LEAN_SYSROOT": str(prefix), "LEAN_NUM_THREADS": "1",
+            "LEAN_PATH": os.pathsep.join(map(str, module_paths))}
+
+
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -264,7 +271,7 @@ def check(args):
         work = Path(tmp)
         if args.declarations:
             paths, import_digest = snapshot_local_imports(work, paths, args.import_snapshot)
-        env = {**os.environ, "LEAN_PATH": str(work) + os.pathsep + paths, "LEAN_NUM_THREADS": "1"}
+        env = proof_environment(lean_prefix, work, *paths.split(os.pathsep))
         shutil.copyfile(HERE / "Current.lean", work / "Current.lean")
         (work / "Inputs.lean").write_text(body)
         phases = []
@@ -352,6 +359,8 @@ def check(args):
                 logs = (work / (phase + ".stdout")).read_text() + (work / (phase + ".stderr")).read_text()
                 if f"replaying {name}" not in logs.splitlines():
                     raise ValueError(f"official checker did not identify module {name}")
+            else:
+                result["diagnostic"] = (work / (phase + ".stderr")).read_text(errors="replace")[:1200]
             phases.append(result)
             status[phase] = result["status"]
         authority_record = None

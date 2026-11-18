@@ -289,9 +289,10 @@ def pinned_tools():
 
 def standard(prefix, temp):
     # The standard environment is independent of all compiler and fixture imports.
-    env = {**os.environ, "LEAN_PATH": str(prefix / "lib/lean"), "LEAN_NUM_THREADS": "1"}
+    env = official.proof_environment(prefix, prefix / "lib/lean")
     proc = subprocess.run([prefix / "bin/leanexport", "Init", "--", *AXIOMS], cwd=temp,
-                          env=env, capture_output=True, timeout=30, check=True)
+                          env=env, capture_output=True, timeout=30)
+    require(proc.returncode == 0, "standard axiom export failed: " + proc.stderr[:1200].decode(errors="replace"))
     require(not proc.stderr and proc.stdout == STANDARD.read_bytes(), "pinned Init axiom environment changed")
     return {"bytes": len(proc.stdout), "records": len(proc.stdout.splitlines()),
             "sha256": hashlib.sha256(proc.stdout).hexdigest()}

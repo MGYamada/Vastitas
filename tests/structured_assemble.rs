@@ -30,7 +30,7 @@ fn published_examples_lower_to_their_original_authority_traces() {
     for (example, expected) in cases {
         let s = common::example_package(
             "authority goldens",
-            &format!("examples/packages/{example}"),
+            &format!("examples/packages/authority/{example}"),
             &[],
         );
         let raw = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);

@@ -2642,7 +2642,9 @@ fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
     let source = |complex: bool| {
         let (source, scalar, zero, one, result) = if complex {
             (
-                include_str!("../examples/packages/numerical/generative-owned-map/src/complex/mod.vast"),
+                include_str!(
+                    "../examples/packages/numerical/generative-owned-map/src/complex/mod.vast"
+                ),
                 "F64<CC>",
                 "complex_bits(0, 0)",
                 "complex_bits(4607182418800017408, 0)",
@@ -2650,7 +2652,9 @@ fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
             )
         } else {
             (
-                include_str!("../examples/packages/numerical/generative-owned-map/src/real/mod.vast"),
+                include_str!(
+                    "../examples/packages/numerical/generative-owned-map/src/real/mod.vast"
+                ),
                 "F64<RR>",
                 "f64_bits(0)",
                 "f64_bits(4607182418800017408)",

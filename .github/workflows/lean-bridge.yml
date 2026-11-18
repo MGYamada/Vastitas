@@ -2,6 +2,7 @@ name: Mathematical bridge
 
 on:
   push:
+    branches: [main]
     paths:
       - 'lean-bridge/**'
       - 'lean-toolchain'

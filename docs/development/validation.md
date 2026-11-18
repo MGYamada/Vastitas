@@ -463,7 +463,7 @@ workflow has no name, so the table gives its identifier.
 - `ci.yml` and the documentation workflow run on pull requests, on pushes to
   `main` and on manual dispatch. A push to the branch of a pull request is
   checked once, through its `pull_request` run. The bridge workflow runs on
-  pushes and pull requests that touch its paths, and on manual dispatch.
+  pushes to `main` and pull requests that touch its paths, and on manual dispatch.
 - In `ci.yml` and the bridge workflow, a later run for the same event and
   branch or pull request cancels the earlier one. Push runs and pull-request
   runs do not cancel each other.

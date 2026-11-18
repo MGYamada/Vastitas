@@ -604,7 +604,7 @@ id = "reject.diagnostics.several-names"
 kind = "source"
 path = "reject/diagnostics/several-names.vast"
 expect = "reject"
-diagnostic = "E_DUPLICATE"
+diagnostic = "E_NAME"
 
 [[case]]
 id = "reject.dispatch.crossed-selectors"

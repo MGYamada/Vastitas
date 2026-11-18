@@ -228,20 +228,25 @@ def compare_stream(candidate, reference, destination):
     """Snapshot only bytes identical to the independent authority stream."""
     count = 0
     audit_digest = hashlib.sha256()
-    with os.fdopen(os.open(candidate, os.O_RDONLY | os.O_NONBLOCK), "rb") as supplied, reference.open("rb") as trusted, destination.open("xb") as out:
+    with (
+        os.fdopen(os.open(candidate, os.O_RDONLY | os.O_NONBLOCK), "rb") as supplied,
+        reference.open("rb") as trusted,
+        os.fdopen(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb") as out,
+    ):
         info = os.fstat(supplied.fileno())
         expected_size = os.fstat(trusted.fileno()).st_size
         require(stat.S_ISREG(info.st_mode) and info.st_size == expected_size <= MAX_EXPORT,
                 "certificate must be a regular file of the complete authority size")
         while True:
-            block = trusted.read(CHUNK)
-            require(supplied.read(len(block) if block else 1) == block, "proof or transitive declarations differ")
-            if not block:
+            candidate_block = supplied.read(CHUNK)
+            require(candidate_block == trusted.read(CHUNK), "proof or transitive declarations differ")
+            if not candidate_block:
                 break
-            count += len(block)
-            require(count <= MAX_EXPORT, "export exceeds qualification bound")
-            audit_digest.update(block)
-            out.write(block)
+            count += len(candidate_block)
+            require(count <= expected_size, "export exceeds qualification bound")
+            audit_digest.update(candidate_block)
+            out.write(candidate_block)
+        require(count == expected_size, "incomplete certificate snapshot")
     return {"bytes": count, "sha256": audit_digest.hexdigest()}
 
 

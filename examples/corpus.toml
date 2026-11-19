@@ -1335,6 +1335,12 @@ path = "packages/finite-natural-transformation/Vastitas.toml"
 expect = "accept"
 
 [[case]]
+id = "package.float-complex-identity"
+kind = "package"
+path = "packages/float-complex-identity/Vastitas.toml"
+expect = "accept"
+
+[[case]]
 id = "package.float-identity"
 kind = "package"
 path = "packages/float-identity/Vastitas.toml"

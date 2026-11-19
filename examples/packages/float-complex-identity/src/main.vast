@@ -1,0 +1,33 @@
+use monad::float;
+indexed carrier Cauchy = cauchy_qq;
+indexed carrier Pairs = complex_pairs(Cauchy);
+indexed meadow RR = real_meadow(Cauchy);
+indexed meadow CC = complex_meadow(Pairs, RR);
+indexed affine Plane = Affine(CC, 2)[z, w];
+indexed morphism idP = identity(Plane);
+
+resource fn main() -> Int {
+    allocate inputBuffer: F64<CC>[2];
+    allocate outputBuffer: F64<CC>[2];
+    borrow init = write(inputBuffer, layout(0, 2, 1, 2, false));
+    // Preserve both complex components, including the NaN payload and the sign of zero.
+    store(init, 0, 0, complex_bits(9223372036854775808, 1));
+    store(init, 1, 0, complex_bits(0, 9218868437227405378));
+    release(init);
+    borrow input = read(inputBuffer, layout(0, 2, 1, 2, false));
+    borrow output = write(outputBuffer, layout(0, 2, 1, 2, false));
+    let r = float::realize::<F64<CC>>(Plane, Plane::standard_chart);
+    let e = float::interpret(idP, r, NativeFast);
+    let p = float::point(r, input);
+    let q = float::point(r, output);
+    float::run(e, p) -> q;
+    release(output);
+    release(input);
+    borrow result = read(outputBuffer, layout(0, 2, 1, 2, false));
+    expect(result, 0, 0, complex_bits(9223372036854775808, 1));
+    expect(result, 1, 0, complex_bits(0, 9218868437227405378));
+    release(result);
+    drop(outputBuffer);
+    drop(inputBuffer);
+    value { 0 }
+}

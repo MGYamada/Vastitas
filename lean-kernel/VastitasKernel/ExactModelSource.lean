@@ -20,6 +20,8 @@ private def lexemes (name : String) : ExactConstruction Source.Path → List Exa
   | .complexMeadow carrier real =>
     [.ident "meadow", .ident name, .punctuation '=', .ident "complex_meadow", .punctuation '(', ref carrier,
       .punctuation ',', ref real, .punctuation ')']
+  | .identity subject =>
+    [.ident "morphism", .ident name, .punctuation '=', .ident "identity", .punctuation '(', ref subject, .punctuation ')']
   | .affine model n coordinates =>
     [.ident "affine", .ident name, .punctuation '=', .ident "Affine", .punctuation '(', ref model,
       .punctuation ',', .dimension n, .punctuation ')', .punctuation '['] ++

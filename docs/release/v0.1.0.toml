@@ -37,7 +37,7 @@ number = 762
 title = "Finite edition 2026"
 state = "open"
 depends = [462, 455]
-remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Further finite schemas, complex numerical realizations and Affine wrappers remain."
+remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Further finite schemas and the four Affine wrappers remain."
 
 [[issue]]
 number = 533
@@ -72,7 +72,7 @@ number = 757
 title = "Exact complex model"
 state = "open"
 depends = []
-remaining = "The Oracle constructs the rational Cauchy quotient RR, pairs it to form CC, and embeds QQ(i) injectively. The Oracle proves the commutative-ring reduct and separate IsField proposition for both selected meadows. The Bridge proves that both carrier equivalences preserve addition, multiplication and totalized inversion, and gives the rational-coordinate interpretation. The QQ(i) embedding preserves multiplication, conjugation and totalized inversion. Edition 2026 checks the named real carrier, its meadow, the paired carrier and the complex meadow. A nominal affine object selects that exact model and an ordered standard chart. Public QQ(i) point constructions and numerical realizations remain."
+remaining = "The Oracle constructs the rational Cauchy quotient RR, pairs it to form CC, and embeds QQ(i) injectively. The Oracle proves the commutative-ring reduct and separate IsField proposition for both selected meadows. The Bridge proves that both carrier equivalences preserve addition, multiplication and totalized inversion, and gives the rational-coordinate interpretation. The QQ(i) embedding preserves multiplication, conjugation and totalized inversion. Edition 2026 checks the named real carrier, its meadow, the paired carrier and the complex meadow. A nominal affine object selects that exact model and an ordered standard chart. The checked complex standard chart supports identity copies at both widths. Public QQ(i) point constructions and more general numerical realizations remain."
 
 [[issue]]
 number = 758
@@ -86,14 +86,14 @@ number = 318
 title = "Numerical execution"
 state = "open"
 depends = [758]
-remaining = "The NativeFast identity at both RR precisions executes with explicit resource points and Unavailable flags. The Lean reference proves raw and checked sequencing, lift, trace projection and the signed-zero guard. Public arithmetic calls with exact argument and return bits remain."
+remaining = "The NativeFast identity at both RR and CC precisions executes with explicit resource points and Unavailable flags. The Lean reference proves raw and checked sequencing, lift, trace projection and the signed-zero guard. Public arithmetic calls with exact argument and return bits remain."
 
 [[issue]]
 number = 686
 title = "Numerical realizations"
 state = "open"
 depends = [757, 318, 762]
-remaining = "The canonical protected realize, interpret, point and run operations execute a declared real affine identity on its own standard chart into checked `F32<RR>` or `F64<RR>` storage. The point proof identifies the allocation and its exact representation. Complex chart subjects, further numerical graphs, full profile selection and the four Affine wrappers remain."
+remaining = "The canonical protected realize, interpret, point and run operations execute a declared real affine identity on its own standard chart into checked `F32<RR>` or `F64<RR>` storage. The point proof identifies the allocation and its exact representation. A named exact complex affine supports identity copies in F32<CC> and F64<CC>. Its receipt binds the selected carrier and both meadows. Further numerical graphs, full profile selection and the four Affine wrappers remain."
 
 [[issue]]
 number = 689
@@ -354,13 +354,13 @@ requirement = "F32 and F64 representations of RR and CC use explicit chart and p
 [row.dimension.source]
 state = "partial"
 claims = ["compiler-ir.realization@source", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
-note = "The protected float module admits realize, interpret, point and run for an existing smooth affine identity at either real precision and its own standard chart. Broader graphs, representations and wrappers remain."
+note = "The protected float module admits realize, interpret, point and run for the standard-chart identity of an existing smooth real or exact complex affine at both widths. Broader graphs and wrappers remain."
 document = ""
 
 [row.dimension.core]
 state = "partial"
 claims = ["compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
-note = "The checked real identity records its subject, chart, graph and NativeFast profile. Its physical copy passes the storage checker. All four representations have physical storage. Complex chart-bound realization remains open."
+note = "The checked identity records its subject, chart, graph and NativeFast profile. The physical copy passes the storage checker at all four representations. Complex charts retain the paired carrier and real and complex meadows."
 document = ""
 
 [row.dimension.midir]
@@ -378,7 +378,7 @@ document = ""
 [row.dimension.official]
 state = "partial"
 claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation"]
-note = "An accepted public run gives its lexical site, source identity declaration, exact Core morphism and checked storage copy. The binary reference proves the signed-zero divisor and unit-beta empty-dot cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. General operation and compiler refinement remain."
+note = "An accepted public run gives its lexical site, source identity declaration, nominal graph and checked storage copy. Complex copies also recover the selected mathematical model. The binary reference proves the signed-zero divisor and unit-beta empty-dot cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. General operation and compiler refinement remain."
 document = ""
 
 [row.dimension.fast]
@@ -390,7 +390,7 @@ document = ""
 [row.dimension.native]
 state = "partial"
 claims = ["compiler-ir.native-fast@profile", "compiler-ir.native-fast@identity-run"]
-note = "The public Lean-backed build runs the identity at both real precisions with Unavailable flags. Separately 828 direct C adapter cases cover real/complex division and complex inverse at both widths. Public arithmetic, four representation paths and LLVM native conformance remain."
+note = "The public Lean-backed build runs the identity in all four representations with Unavailable flags. Separately 828 direct C adapter cases cover real/complex division and complex inverse at both widths. Public arithmetic and verified LLVM native execution of numerical resource functions remain."
 document = ""
 
 [row.dimension.performance]
@@ -534,7 +534,7 @@ requirement = "Packages and normalized flat input use edition 2026 and wire epoc
 [row.dimension.source]
 state = "partial"
 claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
-note = "Manifest editions, finite category functions and chart-bound real identity calls at both precisions have public and tampered-wire tests. The remaining edition schemas, representations and realization wrappers remain."
+note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Further edition schemas and realization wrappers remain."
 document = ""
 
 [row.dimension.core]

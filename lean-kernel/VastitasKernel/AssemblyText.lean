@@ -331,7 +331,7 @@ private def isExactHeader (f : File) (indexed : Token) : Except String Bool := d
   let kind ← f.next indexed.after
   match kind.kind with
   | .word "carrier" | .word "meadow" => return true
-  | .word "affine" =>
+  | .word "affine" | .word "morphism" =>
     let name ← f.next kind.after
     let op ← f.next name.after
     return match op.kind with | .symbol '=' => true | _ => false
@@ -363,7 +363,7 @@ private def scanExact (f : File) : Nat → Cursor → Scope → Std.HashMap Nat 
 
 def checkExactHeaders (text : String) (base : Nat) (headers : Std.HashMap Nat ExactHeader) :
     Except String (Std.HashMap Nat ExactHeader) :=
-  if text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine") then
+  if text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine" || text.contains "identity") then
     scanExact ⟨text,base⟩ (text.utf8ByteSize + 1) {} {} headers
   else pure headers
 

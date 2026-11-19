@@ -374,7 +374,7 @@ Claims:
 Canonical realize::&lt;R&gt; binds a mathematical object, its base or site, chart, dimension, representation, reference and execution profiles and revisions. interpret binds the selected computation graph; run executes through resource buffers. Affine wrappers lower to this canonical form. A real wrapper creates a fresh smooth Affine(n) object; a complex wrapper creates a fresh algebraic Affine(CC,n) object. Realizing an existing object preserves its nominal identity. Exact mathematical CC is built over RR with a selected commutative ring reduct and separate field evidence. Finite executable coordinates embed QQ(i) into CC; they do not identify QQ(i) with CC. Numerical representations have a different Kind and gain no exact Field or CommRing authority.
 
 - Example: The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction.
-- Not executed: Selected mathematical affine charts have source and Core evidence. Numerical realization of the complex chart and four wrapper-to-Core correspondences remain pending.
+- Not executed: Selected mathematical affine charts have source and Core evidence. Identity realization is tested at both widths on the selected complex chart. Four wrapper-to-Core correspondences remain pending.
 
 Claims:
 
@@ -421,26 +421,28 @@ Claims:
   - Premises:
     - an accepted smooth real affine subject with its standard chart; for the computation an explicit source identity and the checked map with the same nominal endpoints
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: These proof-only descriptors support both real widths. The separate executable profile below supports the binary64 real identity.
+  - Note: These proof-only descriptors support both real widths. The executable identity supports both real widths on the selected smooth affine.
 - `source`: [Planned](../specifications.md#planned)
   - Issue: [#686](https://github.com/MGYamada/Vastitas/issues/686)
 - `identity-source`: [Tested](../specifications.md#tested)
   - Evidence:
     - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `real32_identity_preserves_payloads_and_replays_its_precision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `complex_identity_rejects_other_objects_models_charts_and_precisions` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `realization_rejects_wrong_chart_graph_precision_policy_or_live_point` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `realization_wire_recomputes_authority_and_rejects_untrusted_targets` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `unused_realization_functions_still_check_point_layout_and_liveness` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `dependency_names_do_not_grant_the_protected_float_identity` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
-  - Note: Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine subject and its own standard chart with either real precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy.
+  - Note: Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine or a named exact complex affine and its own standard chart at either supported precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy.
 - `identity-origin`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.NumericalRealization`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NumericalRealization.lean): `VastitasOracle.NumericalRealization.checked_site`, `VastitasOracle.NumericalRealization.profile_equations`, `VastitasOracle.NumericalRealization.executed_source_identity`, `VastitasOracle.NumericalRealization.executed_copy`, `VastitasOracle.NumericalRealization.point_scalar`
+    - [`VastitasOracle.NumericalRealization`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NumericalRealization.lean): `VastitasOracle.NumericalRealization.checked_site`, `VastitasOracle.NumericalRealization.profile_equations`, `VastitasOracle.NumericalRealization.executed_source_identity`, `VastitasOracle.NumericalRealization.executed_complex_model`, `VastitasOracle.NumericalRealization.executed_copy`, `VastitasOracle.NumericalRealization.point_scalar`
   - Premises:
     - The public wire checker accepted the request. For the execution conclusions the request selects an entry and the run receipt belongs to its checked execution.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Every executed receipt identifies the lexical run, its declared identity morphism and the exact checked Core identity on the same nominal subject. The chart recovers the ordered coordinates from that subject. The storage transition checks live represented points and emits the copy between their physical loans at this execution site.
+  - Note: Every executed receipt identifies the lexical run, its declared identity morphism and the exact checked Core identity on the same nominal subject. The chart recovers the ordered coordinates from that subject. Every executed complex copy recovers its named meadow, paired carrier, real meadow, Cauchy carrier and declared identity graph. The storage transition checks live represented points and emits the copy between their physical loans at this execution site.
 
 <a id="compiler-ir.native-fast"></a>
 
@@ -463,9 +465,10 @@ Claims:
   - Evidence:
     - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `real32_identity_preserves_payloads_and_replays_its_precision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `reborrowed_point_restores_its_parent_only_after_release` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend), [Lean-to-C toolchain and C compiler](assumptions.md#assumption.lean-to-c)
-  - Note: The public check/build/run test exercises a declared binary64 real identity using the Lean-generated native executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. Numerical arithmetic, verified LLVM emission and the remaining three executable representations are pending.
+  - Note: Public check/build/run tests execute smooth real and exact complex identities at both widths through the Lean-generated executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. Numerical arithmetic and verified LLVM emission for resource functions remain pending.
 
 <a id="compiler-ir.numeric-order"></a>
 

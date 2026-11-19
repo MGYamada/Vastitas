@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "6bac9a0f981dd394c5d4dd6a2d0730da87d6eb81",
-    "schema_sha256": "9cac196d18a977a8263210cd6860bffed64eb728d85132865d21031060189ab4"
+    "base_commit": "3649027c29327c52bf4d2637cc4e32e785f8e6df",
+    "schema_sha256": "9e159b1a003abafd7a854b5422c74d05ab0e26f88292a1ef7c73eee7af671a81"
   },
   "schema": {
     "sources": [
@@ -733,6 +733,10 @@
           {
             "id": "VastitasKernel.Indexed.ExactConstruction.complexMeadow",
             "signature": "complexMeadow ( carrier realModel : α )"
+          },
+          {
+            "id": "VastitasKernel.Indexed.ExactConstruction.identity",
+            "signature": "identity ( subject : α )"
           },
           {
             "id": "VastitasKernel.Indexed.ExactConstruction.affine",
@@ -3558,11 +3562,27 @@
         ]
       },
       {
+        "id": "VastitasKernel.Storage.Realization.ChartBase",
+        "source": "lean-kernel/VastitasKernel/StorageRealization.lean",
+        "kind": "inductive",
+        "header": "inductive ChartBase",
+        "constructors": [
+          {
+            "id": "VastitasKernel.Storage.Realization.ChartBase.smooth",
+            "signature": "smooth ( implementation marker : DeclId )"
+          },
+          {
+            "id": "VastitasKernel.Storage.Realization.ChartBase.exactComplex",
+            "signature": "exactComplex ( model carrier realModel realCarrier : DeclId )"
+          }
+        ]
+      },
+      {
         "id": "VastitasKernel.Storage.Realization.ChartProfile",
         "source": "lean-kernel/VastitasKernel/StorageRealization.lean",
         "kind": "structure",
         "header": "structure ChartProfile",
-        "fields": "implementation : DeclId marker : DeclId coordinates : List String"
+        "fields": "base : ChartBase coordinates : List String"
       },
       {
         "id": "VastitasKernel.Storage.Realization.Descriptor",
@@ -3580,6 +3600,22 @@
           {
             "id": "VastitasKernel.Storage.Realization.Flags.unavailable",
             "signature": "unavailable"
+          }
+        ]
+      },
+      {
+        "id": "VastitasKernel.Storage.Realization.GraphKind",
+        "source": "lean-kernel/VastitasKernel/StorageRealization.lean",
+        "kind": "inductive",
+        "header": "inductive GraphKind",
+        "constructors": [
+          {
+            "id": "VastitasKernel.Storage.Realization.GraphKind.smooth",
+            "signature": "smooth"
+          },
+          {
+            "id": "VastitasKernel.Storage.Realization.GraphKind.exact",
+            "signature": "exact"
           }
         ]
       },
@@ -5663,6 +5699,14 @@
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.Indexed.ExactConstruction.complexPairs",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.ExactConstruction.identity",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.ExactConstruction.identity",
       "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },
@@ -8755,11 +8799,43 @@
       "evidence": []
     },
     {
+      "origin": "VastitasKernel.Storage.Realization.ChartBase.exactComplex",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Storage.Realization.ChartBase.exactComplex",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Storage.Realization.ChartBase.smooth",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Storage.Realization.ChartBase.smooth",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
       "origin": "VastitasKernel.Storage.Realization.Flags.unavailable",
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.Storage.Realization.Flags.unavailable",
       "reason": "Realization metadata and operations require preservation of the checked chart, representation, graph, loans and exact copy schedule in MidIR.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Storage.Realization.GraphKind.exact",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Storage.Realization.GraphKind.exact",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Storage.Realization.GraphKind.smooth",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Storage.Realization.GraphKind.smooth",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },
     {

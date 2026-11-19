@@ -614,6 +614,8 @@ private def exactDiagnostic (env : Environment) (entry : Entry) (source : Declar
     if let some (.complexPairs _) := exactView env c then
       return problem real.span "complex_meadow needs a real meadow on this paired carrier's real component"
     return problem carrier.span "complex_meadow needs the selected paired carrier"
+  | .identity _, .identity subject =>
+    return problem subject.span "an exact identity morphism needs a named mathematical affine object"
   | .affine model n coords, .affine base .. =>
     if ((exactView env model).bind (·.model? (exactView env))).isNone then
       return problem base.span "Affine needs a selected mathematical meadow with its ring reduct"

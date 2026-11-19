@@ -106,6 +106,13 @@ For a runnable check of the component ABI, the Lean 4.35.0 control exported two 
 | `Bool`, `Float32`, `Float32` | `true` | `0x3fc00000` | `float vast_compare_choose32(uint8_t, float, float)` |
 | `Bool`, `Float`, `Float` | `false` | `0x4002000000000000` | `double vast_compare_choose64(uint8_t, double, double)` |
 
+The complex affine identity retains two component bit strings per coordinate.
+The checked copy preserves both through the storage runtime at binary32 and
+binary64. The public LLVM preview currently rejects that resource function
+before emitting bytes. Lean's scalar type mapping above supplies the width
+comparison. It does not define a complex buffer or its storage ownership.
+[Bit-preserving copy and preview boundary](../../tests/numerical_realization.rs)
+
 To add a sample, retain the complete public preview output in `llvm/src/`, register the source and its package in the replay runner, and register a closed theorem over that file in `Corpus.lean` under `checkedFiles`. Put commentary here so the file continues to match the bytes the theorem checks.
 
 

@@ -65,6 +65,14 @@ after execution. Each operation resolves to its owner in the module
 `monad::float`. Imports and re-exports can rename the module or an
 operation. A dependency named `monad` selects that dependency's namespace.
 
+For an affine declared over a named complex meadow, `indexed morphism idP =
+identity(Plane);` selects its identity graph. Both `F32<CC>` and `F64<CC>`
+copy the real and imaginary bits of each coordinate. The receipt names the
+affine, its ordered coordinates, the complex meadow and carrier, and the
+selected real meadow and its Cauchy carrier. A different object or a real
+chart cannot supply this graph. The example checks signed zero, a subnormal
+and a signaling NaN payload. [Complex identity example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/float-complex-identity/src/main.vast)
+
 ### Wire and checker boundary
 
 A package with a numerical representation has no `legacy_geometry`, even without

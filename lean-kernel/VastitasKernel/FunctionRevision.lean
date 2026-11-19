@@ -161,9 +161,14 @@ private def realizationRevision {p : Program} {main} (checked : Checked p main) 
     let d := site.operation.descriptor
     unless seen.contains d.subject do
       if let some profile := d.profile (numericalEnvironment checked.pureProgram) then
-        charts := charts.push <| Json.mkObj [("subject", ownerJson d.subject), ("chart", "standard_chart"),
-          ("coordinates", toJson profile.coordinates), ("marker", ownerJson profile.marker),
-          ("implementation", ownerJson profile.implementation)]
+        let subject := [("subject", ownerJson d.subject), ("chart", Json.str "standard_chart"),
+          ("coordinates", toJson profile.coordinates)]
+        let base := match profile.base with
+          | .smooth implementation marker => [("implementation", ownerJson implementation), ("marker", ownerJson marker)]
+          | .exactComplex model carrier realModel realCarrier =>
+            [("model", ownerJson model), ("carrier", ownerJson carrier),
+             ("real_model", ownerJson realModel), ("real_carrier", ownerJson realCarrier)]
+        charts := charts.push (Json.mkObj (subject ++ base))
       seen := seen.insert d.subject
   let runs := match h : p.entry with
     | none => #[]

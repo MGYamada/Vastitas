@@ -13,25 +13,48 @@ def Representation.scalar : Representation → Scalar
 
 def Representation.isReal (r : Representation) : Bool := r == .real64 || r == .real32
 
-/-- The only chart admitted here is the explicit standard coordinate chart of
-its nominal smooth-affine subject. -/
+/-- The standard chart belongs to its named mathematical subject. -/
 structure Descriptor where
   subject : DeclId
   chart : DeclId
   representation : Representation
   deriving Repr, Inhabited, BEq, ReflBEq, LawfulBEq, DecidableEq
 
+inductive ChartBase where
+  | smooth (implementation marker : DeclId)
+  | exactComplex (model carrier realModel realCarrier : DeclId)
+  deriving Repr, Inhabited, BEq, ReflBEq, LawfulBEq, DecidableEq
+
+inductive GraphKind where
+  | smooth | exact
+  deriving Repr, BEq, ReflBEq, LawfulBEq, DecidableEq, Hashable
+
+def ChartBase.kind : ChartBase → GraphKind
+  | .smooth .. => .smooth
+  | .exactComplex .. => .exact
+
 structure ChartProfile where
-  implementation : DeclId
-  marker : DeclId
+  base : ChartBase
   coordinates : List String
   deriving Repr, Inhabited, BEq, ReflBEq, LawfulBEq, DecidableEq
 
-def Descriptor.profile (d : Descriptor) (env : Environment) : Option ChartProfile := do
-  guard (d.subject == d.chart && d.representation.isReal)
-  let .smoothAffine impl coordinates ← lookup env d.subject | none
-  let .implementation marker .smoothAffine [] ← lookup env impl | none
-  return ⟨impl,marker,coordinates⟩
+def Descriptor.profile (d : Descriptor) (env : Environment) : Option ChartProfile :=
+  if d.subject != d.chart then none
+  else if d.representation.isReal then
+    match lookup env d.subject with
+    | some (.smoothAffine impl coordinates) =>
+      match lookup env impl with
+      | some (.implementation marker .smoothAffine []) => some ⟨.smooth impl marker,coordinates⟩
+      | _ => none
+    | _ => none
+  else
+    match lookup env d.subject with
+    | some (.exactGeometry (.affine model _ coordinates)) =>
+      let named := exactView env
+      match (named model).bind (·.model? named) with
+      | some (.pairs carrier realModel realCarrier) => some ⟨.exactComplex model carrier realModel realCarrier,coordinates⟩
+      | _ => none
+    | _ => none
 
 structure Plan where
   descriptor : Descriptor

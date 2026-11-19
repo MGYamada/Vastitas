@@ -322,6 +322,7 @@ inductive ExactConstruction (α : Type) where
   | complexPairs (realCarrier : α)
   | realMeadow (carrier : α)
   | complexMeadow (carrier realModel : α)
+  | identity (subject : α)
   | affine (model : α) (dimension : Nat) (coordinates : List String)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
@@ -330,6 +331,7 @@ def ExactConstruction.mapM [Monad m] (f : α → m β) : ExactConstruction α �
   | .complexPairs real => return .complexPairs (← f real)
   | .realMeadow carrier => return .realMeadow (← f carrier)
   | .complexMeadow carrier real => return .complexMeadow (← f carrier) (← f real)
+  | .identity subject => return .identity (← f subject)
   | .affine model n coords => return .affine (← f model) n coords
 
 inductive Declaration where
@@ -536,6 +538,7 @@ def ExactConstruction.valid (named : DeclId → Option (ExactConstruction DeclId
   | .cauchyQQ => true
   | .complexPairs real => named real == some .cauchyQQ
   | .realMeadow _ | .complexMeadow .. => (construction.model? named).isSome
+  | .identity subject => match named subject with | some (.affine ..) => true | _ => false
   | .affine model n coords => ((named model).bind (·.model? named)).isSome &&
       decide (n ≤ Limits.algebraGenerators) && n == coords.length && decide coords.Nodup
 

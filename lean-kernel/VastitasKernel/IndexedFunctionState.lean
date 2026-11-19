@@ -320,6 +320,7 @@ def indexedNotValue (declarations : Core.Declarations) (id : DeclId) : String :=
     if declarations.packages.any (·.id == id) then "a package declaration" else
     match Indexed.lookup declarations.indexed id with
     | some .marker => "a marker"
+    | some (.exactGeometry (.identity _)) => "an exact affine identity morphism"
     | some (.exactGeometry (.affine ..)) => "an exact affine object"
     | some (.exactGeometry (.realMeadow _)) | some (.exactGeometry (.complexMeadow ..)) => "a selected mathematical meadow"
     | some (.exactGeometry _) => "a mathematical carrier"

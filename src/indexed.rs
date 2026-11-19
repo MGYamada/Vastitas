@@ -224,6 +224,9 @@ pub enum SchemaKind {
 #[serde(tag = "construction", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ExactConstruction {
     CauchyQq,
+    Identity {
+        subject: TypePath,
+    },
     ComplexPairs {
         real_carrier: TypePath,
     },

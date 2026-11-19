@@ -490,6 +490,8 @@ private def finiteRow (j : Json) : Except String Source.FiniteRow := do
 
 private def exactConstruction (j : Json) : Except String (ExactConstruction Source.Path) := do
   match ← str j "construction" with
+  | "identity" =>
+    fields j ["construction", "subject"]; return .identity (← path (← field j "subject"))
   | "cauchy_qq" =>
     fields j ["construction"]; return .cauchyQQ
   | "complex_pairs" =>

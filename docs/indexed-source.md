@@ -39,7 +39,7 @@ profiles:
 >     | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
 >     | PhysicalModelDeclaration | GluingDeclaration
 >     | FiniteCarrierDeclaration | FiniteTableDeclaration | FiniteSchema | FiniteInstance
->     | ExactCarrierDeclaration | ExactMeadowDeclaration | ExactAffineDeclaration
+>     | ExactCarrierDeclaration | ExactMeadowDeclaration | ExactAffineDeclaration | ExactIdentityDeclaration
 > ```
 
 The word after `indexed` is the kind of the declaration:
@@ -334,6 +334,7 @@ to belong to the exact Monad schema selected by the defining view schema.
 >     ( `real_meadow` `(` Path `)` | `complex_meadow` `(` Path `,` Path `)` ) `;`
 > ExactAffineDeclaration -> `indexed` `affine` IDENTIFIER `=` `Affine`
 >     `(` Path `,` INTEGER_LITERAL `)` `[` Coordinates? `]` `;`
+> ExactIdentityDeclaration -> `indexed` `morphism` IDENTIFIER `=` `identity` `(` Path `)` `;`
 > ```
 
 ```vast
@@ -342,6 +343,7 @@ indexed carrier ComplexCarrier = complex_pairs(RealCarrier);
 indexed meadow RR = real_meadow(RealCarrier);
 indexed meadow CC = complex_meadow(ComplexCarrier, RR);
 indexed affine Plane = Affine(CC, 2)[z, w];
+indexed morphism idP = identity(Plane);
 ```
 
 The first declaration selects the carrier of rational Cauchy sequences modulo
@@ -357,7 +359,9 @@ The coordinate count must equal the dimension, the names must be distinct,
 and dimension zero has an empty chart. A point with rational coordinates on
 each real and imaginary axis embeds coordinatewise into the mathematical
 complex space. The finite exact-coordinate profile uses QQ(i). Numerical
-realization of the chart requires its own representation and storage evidence.
+realization of the identity on this chart uses two interleaved components per
+coordinate. The identity retains the declared affine as its source and target.
+[Identity maps on represented points](internals/numerical-backend.md#identity-maps-on-represented-points)
 
 ## Markers
 

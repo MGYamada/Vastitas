@@ -1464,6 +1464,14 @@ impl Parser {
     /// the other definitions: `first`, `second`, `restrict(φ)`,
     /// `trace_power(H, k)` and `char_coefficient(S, i)`.
     fn indexed_morphism(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        if self.consume("=") {
+            self.expect("identity")?;
+            return Ok(DeclarationBody::ExactGeometry {
+                definition: indexed::ExactConstruction::Identity {
+                    subject: self.parenthesized_path()?,
+                },
+            });
+        }
         let (family, indices) = self.indexed_application()?;
         let span = self.peek().span;
         let definition = match self.indexed_tag()?.as_str() {

@@ -474,7 +474,7 @@ have a different Kind and gain no exact Field or CommRing authority.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.realization)"
 example = "The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction."
-example_not_executed = "Selected mathematical affine charts have source and Core evidence. Numerical realization of the complex chart and four wrapper-to-Core correspondences remain pending."
+example_not_executed = "Selected mathematical affine charts have source and Core evidence. Identity realization is tested at both widths on the selected complex chart. Four wrapper-to-Core correspondences remain pending."
 
 [property."compiler-ir.realization".claim.complex-model]
 status = "planned"
@@ -560,7 +560,7 @@ evidence = [
 ]
 premises = ["an accepted smooth real affine subject with its standard chart; for the computation an explicit source identity and the checked map with the same nominal endpoints"]
 assumes = ["rust-frontend"]
-note = "These proof-only descriptors support both real widths. The separate executable profile below supports the binary64 real identity."
+note = "These proof-only descriptors support both real widths. The executable identity supports both real widths on the selected smooth affine."
 
 [property."compiler-ir.realization".claim.source]
 status = "planned"
@@ -570,13 +570,15 @@ issue = 686
 status = "tested"
 evidence = [
   "tests/numerical_realization.rs::canonical_realization_runs_into_existing_storage_and_replays_its_revision", "tests/numerical_realization.rs::real32_identity_preserves_payloads_and_replays_its_precision",
+  "tests/numerical_realization.rs::complex_charts_copy_both_components_and_bind_the_full_model_chain",
+  "tests/numerical_realization.rs::complex_identity_rejects_other_objects_models_charts_and_precisions",
   "tests/numerical_realization.rs::realization_rejects_wrong_chart_graph_precision_policy_or_live_point",
   "tests/numerical_realization.rs::realization_wire_recomputes_authority_and_rejects_untrusted_targets",
   "tests/numerical_realization.rs::unused_realization_functions_still_check_point_layout_and_liveness",
   "tests/numerical_realization.rs::dependency_names_do_not_grant_the_protected_float_identity",
   "tests/numerical_realization.rs::realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans",
 ]
-note = "Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine subject and its own standard chart with either real precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy."
+note = "Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine or a named exact complex affine and its own standard chart at either supported precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy."
 
 [property."compiler-ir.realization".claim.identity-origin]
 status = "proved-oracle"
@@ -584,12 +586,13 @@ evidence = [
   "VastitasOracle.NumericalRealization.checked_site",
   "VastitasOracle.NumericalRealization.profile_equations",
   "VastitasOracle.NumericalRealization.executed_source_identity",
+  "VastitasOracle.NumericalRealization.executed_complex_model",
   "VastitasOracle.NumericalRealization.executed_copy",
   "VastitasOracle.NumericalRealization.point_scalar",
 ]
 premises = ["The public wire checker accepted the request. For the execution conclusions the request selects an entry and the run receipt belongs to its checked execution."]
 assumes = ["rust-frontend"]
-note = "Every executed receipt identifies the lexical run, its declared identity morphism and the exact checked Core identity on the same nominal subject. The chart recovers the ordered coordinates from that subject. The storage transition checks live represented points and emits the copy between their physical loans at this execution site."
+note = "Every executed receipt identifies the lexical run, its declared identity morphism and the exact checked Core identity on the same nominal subject. The chart recovers the ordered coordinates from that subject. Every executed complex copy recovers its named meadow, paired carrier, real meadow, Cauchy carrier and declared identity graph. The storage transition checks live represented points and emits the copy between their physical loans at this execution site."
 
 [property."compiler-ir.native-fast"]
 title = "NativeFast preserves calls and reports unavailable flags"
@@ -620,10 +623,11 @@ issue = 318
 status = "tested"
 evidence = [
   "tests/numerical_realization.rs::canonical_realization_runs_into_existing_storage_and_replays_its_revision", "tests/numerical_realization.rs::real32_identity_preserves_payloads_and_replays_its_precision",
+  "tests/numerical_realization.rs::complex_charts_copy_both_components_and_bind_the_full_model_chain",
   "tests/numerical_realization.rs::reborrowed_point_restores_its_parent_only_after_release",
 ]
 assumes = ["rust-frontend", "lean-to-c"]
-note = "The public check/build/run test exercises a declared binary64 real identity using the Lean-generated native executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. Numerical arithmetic, verified LLVM emission and the remaining three executable representations are pending."
+note = "Public check/build/run tests execute smooth real and exact complex identities at both widths through the Lean-generated executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. Numerical arithmetic and verified LLVM emission for resource functions remain pending."
 
 [property."compiler-ir.numeric-order"]
 title = "Floating observation does not permit a compiler quotient"

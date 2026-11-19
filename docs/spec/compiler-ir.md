@@ -16,7 +16,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
-| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned |
+| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
 | [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
@@ -309,12 +309,33 @@ Claims:
 The ownership authority is the kernel storage checker on the storage plan of accepted Core. MidIR does not introduce a competing ownership checker. Each lowering preserves the plan's initialized bytes, provenance, layouts, aliases, suspended reborrows, inside-out returns, branch joins and normal or failure cleanup through refinement. A transformation that changes allocation, reuse, aliases or release order must provide their mapping in its untrusted witness. Local SSA well-formedness alone proves none of these resource facts. No owner or loan may escape its checked scope.
 
 - Example: Moving a release before the final read is rejected even when each function has a well-typed SSA body.
-- Not executed: The Core-to-MidIR and LLVM resource refinements are pending.
+- Not executed: Linear static storage entries with a literal result have the checked refinement below. Dynamic control flow, runtime extents and GEMM require additional lowering.
 
 Claims:
 
 - `refinement`: [Planned](../specifications.md#planned)
   - Issue: [#752](https://github.com/MGYamada/Vastitas/issues/752)
+- `static-effects`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.correspondence`
+  - Premises:
+    - The public checker accepted this wire and resource entry. Its static storage plan and literal Core result yielded an artifact. The complete bytes parse to that artifact's model.
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Both phases preserve the original ordered plan and its physical lowering. The theorem binds the revision, every call operand, target header, canonical bytes and the exit value derived from the selected Core literal.
+- `static-cleanup`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.acquired_run`, `VastitasOracle.StorageProgram.stop_on_failure`
+  - Premises:
+    - The modeled entry acquired its arena. Each external storage call supplies its status and successor state.
+  - Note: The call trace is a prefix of the checked schedule. The first failed call prevents later effects, releases the arena and returns 1. The normal exit also releases the arena.
+- `static-native`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - [`VastitasKernel.LLVM.StorageRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/StorageRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - `storage_entry_returns_the_checked_literal_after_its_effects` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `real32_identity_preserves_payloads_and_replays_its_precision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+  - Note: Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, failure reporting and literal process status. Dynamic shapes and GEMM remain outside this LLVM fragment.
 
 <a id="compiler-ir.runtime"></a>
 
@@ -456,7 +477,7 @@ Claims:
 The v0.1.0 native numerical profile is NativeFast. Emitted LLVM contains no floating arithmetic instruction, constrained floating operation or fast-math flag. Floating values cross it as bit patterns and adapter-call arguments. Class (i) adapters execute a fixed-order graph with separately rounded operations and are compared with the binary32 or binary64 reference; an arithmetic NaN is specified as a NaN without a fixed sign or payload. Class (ii) OpenBLAS calls are deterministic for one pinned build on one host under a foreign premise. No ideal tensor accuracy or error bound follows. Native flags are Unavailable, never empty. NativeFast does not specify the sign of a class (ii) zero or the sign and payload of a NaN from either class. Programs selecting a strict or LLVM-default floating profile reject. NativeFast is distinct from an opt-in fastfloat profile.
 
 - Example: A program requesting observable hardware IEEE flags is rejected instead of receiving fabricated empty flags.
-- Not executed: Public rejection and flags evidence exists for the F64&lt;RR&gt; identity. General adapter calls and their LLVM integration remain pending.
+- Not executed: All four identity representations have public rejection, flags and storage evidence. Arithmetic adapter calls remain pending on the LLVM path.
 
 Claims:
 
@@ -469,7 +490,7 @@ Claims:
     - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `reborrowed_point_restores_its_parent_only_after_release` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend), [Lean-to-C toolchain and C compiler](assumptions.md#assumption.lean-to-c)
-  - Note: Public check/build/run tests execute smooth real and exact complex identities at both widths through the Lean-generated executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. Numerical arithmetic and verified LLVM emission for resource functions remain pending.
+  - Note: Public check/build/run tests execute smooth real and exact complex identities at both widths through the Lean-generated executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. The static LLVM resource claim covers the same four identities. Public numerical arithmetic remains pending.
 
 <a id="compiler-ir.numeric-order"></a>
 
@@ -1147,7 +1168,7 @@ Claims:
 Indexed primitives and arbitrary-precision Nat and Int call one Lean-compiled runtime library under a labeled foreign premise. A C shim exposes operations that the runtime offers only inline. Each admitted Nat or Int operation is a call in this profile. Represented floating values stay in the resource layer and cross LLVM as bits and arguments to adapter calls. All four F32/RR, F64/RR, F32/CC and F64/CC representations are required. GEMM uses the pinned sequential LP64 OpenBLAS 0.3.34 adapter for sgemm, dgemm, cgemm and zgemm under a labeled host/build-specific premise, with the corresponding real or interleaved complex layout. A program that needs no numerical runtime requires no OpenBLAS. Fixed-order adapter results follow the reference result bits, with a NaN class where the reference does not specify the sign or payload. OpenBLAS results have the stated determinism premise on one pinned build and host. Error bounds and numerical correctness claims need their own evidence. The NativeFast flags observation is unavailable. Its storage expectation uses IEEE equality and a NaN expectation tests for NaN. Preserve foreign-call identity, argument bits and order even where an observation abstracts the result. The modeled LLVM subset emits no floating-point instructions and rejects strict, LLVM-default and unadmitted sign-observing profiles. Admitted division is totalized. The ordered same-precision scaled complex quotient uses totalized real divisions and fixes the order and effects of the graph, with inverse through the same graph. Emit no fallback, FMA or raw CUDA division substitution. Float values gain no public pure-Core float carrier. SafeFloat and the Result forms of safe division wait for the Result language support.
 
 - Example: A complex GEMM lowers to the selected adapter symbol with the original layouts and arguments, while the receipt records flags as unavailable.
-- Not executed: The required four native realization rows for the verified LLVM path are pending.
+- Not executed: Public LLVM builds execute all four identity copies. Arithmetic, GEMM and the complete four native realization rows remain pending.
 
 Claims:
 

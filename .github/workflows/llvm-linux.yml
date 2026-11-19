@@ -8,13 +8,20 @@ on:
       - 'experiments/compiler_validation/llvm/**'
       - 'src/driver/llvm*.rs'
       - 'lean-kernel/VastitasKernel/LLVM/**'
+      - 'lean-kernel/VastitasKernel/MidIR/**'
+      - 'lean-kernel/native/storage.*'
       - 'llvm/**'
       - 'tests/llvm_*.rs'
       - 'tests/finite_iso.rs'
       - 'tests/finite_opposite.rs'
+      - 'tests/numerical_realization.rs'
+      - 'examples/packages/float-identity/**'
+      - 'examples/packages/float-complex-identity/**'
       - 'tests/fixtures/FamilyComparison.vast'
       - 'scripts/build_openblas.py'
       - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'build.rs'
       - 'lean-toolchain'
       - 'rust-toolchain.toml'
   workflow_dispatch:
@@ -85,7 +92,7 @@ jobs:
           lake -d lean-kernel build vastitas-kernel
           export CARGO_TARGET_DIR="$RUNNER_TEMP/llvm-target"
           cargo test --locked --manifest-path experiments/compiler_validation/llvm/Cargo.toml --test handoff
-          cargo test --locked --features llvm-native --test llvm_preview --test llvm_package_roots --test finite_iso --test finite_opposite
+          cargo test --locked --features llvm-native --test llvm_preview --test llvm_package_roots --test finite_iso --test finite_opposite --test numerical_realization
           python3 llvm/check_exact_native.py --frontend "$CARGO_TARGET_DIR/debug/vastitas" \
             --backend "$CARGO_TARGET_DIR/debug/vastitas-llvm-qualification" | tee "$RUNNER_TEMP/llvm-qualification/checked-integers.log"
       - name: Retain native and upstream comparison records

@@ -68,6 +68,7 @@
     "VastitasOracle.SpectralRuntime",
     "VastitasOracle.SpectralWeakening",
     "VastitasOracle.StorageNumerical",
+    "VastitasOracle.StorageProgram",
     "VastitasOracle.TensorContraction",
     "VastitasOracle.TensorNumerical",
     "VastitasOracle.UnaryFunction"
@@ -396,6 +397,9 @@
     {"name": "VastitasOracle.SpectralWeakening.spectral_weakening_entry", "module": "VastitasOracle.SpectralWeakening", "kind": "theorem", "statement": "sha256:40675c90661e086bbcfaa442cdb784d14fd436428c44068fb2b326f8e0430130"},
     {"name": "VastitasOracle.SpectralWeakening.stage4_bindings_spectral_free", "module": "VastitasOracle.SpectralWeakening", "kind": "theorem", "statement": "sha256:ba7e697e09d7f2daeb75a248537261769f235204a2d89add530005e44653aeca"},
     {"name": "VastitasOracle.StorageNumerical.product_representation", "module": "VastitasOracle.StorageNumerical", "kind": "theorem", "statement": "sha256:cafd52a40b989da0c4f10362857986c8d7a317b5dbb9ae1fc5685294923e69c2"},
+    {"name": "VastitasOracle.StorageProgram.acquired_run", "module": "VastitasOracle.StorageProgram", "kind": "theorem", "statement": "sha256:e4846f03834bf80fde8d74aaf6ca8ae00dcb00f690c200067374d9d3a009ae8e"},
+    {"name": "VastitasOracle.StorageProgram.correspondence", "module": "VastitasOracle.StorageProgram", "kind": "theorem", "statement": "sha256:367bdffef212c19d65d7cdd63fb4a71b578fb8772fd2532ae75573ef99623eb3"},
+    {"name": "VastitasOracle.StorageProgram.stop_on_failure", "module": "VastitasOracle.StorageProgram", "kind": "theorem", "statement": "sha256:f33b22805d0fc50233d9bf0d811b460c4940128983b000aa9df8756d52dd57a6"},
     {"name": "VastitasOracle.TensorContraction.matrix_column_reference", "module": "VastitasOracle.TensorContraction", "kind": "theorem", "statement": "sha256:7c1afab6cf136a9b3a275ded4d640beeb1e0bca2d646ed421e9a008168a8f23d"},
     {"name": "VastitasOracle.TensorNumerical.checked_column", "module": "VastitasOracle.TensorNumerical", "kind": "theorem", "statement": "sha256:cb1317f218dc0c4945d85a625f491a806bb0c69a17ff12e46d8d770d8e6f9bb4"},
     {"name": "VastitasOracle.UnaryFunction.correspondence", "module": "VastitasOracle.UnaryFunction", "kind": "theorem", "statement": "sha256:e462f1cc35f2e076092d40fb3dc542c2ec0751676f99393251e806084abce318"},

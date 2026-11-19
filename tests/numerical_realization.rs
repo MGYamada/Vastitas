@@ -27,12 +27,56 @@ fn body(wire: &mut Value) -> &mut Vec<Value> {
         .unwrap()
 }
 
+fn check_llvm_identity(s: &common::Scratch, scalar: u8) {
+    let output = s
+        .command("check", MANIFEST)
+        .args([
+            "--llvm-preview",
+            "--target-triple",
+            "x86_64-unknown-linux-gnu",
+            "--data-layout",
+            "e-p:64:64",
+        ])
+        .output()
+        .unwrap();
+    common::success(&output);
+    let ir = std::str::from_utf8(&output.stdout).unwrap();
+    assert!(ir.contains(&format!(
+        "call i32 @vq_storage_allocate(ptr %arena, i64 0, i64 {scalar}, i64 2)"
+    )));
+    assert_eq!(ir.matches("call i32 @vq_storage_copy(").count(), 1);
+    assert_eq!(ir.matches("call i32 @vq_storage_expect(").count(), 2);
+    assert_eq!(
+        ir.matches("call void @vstorage_delete(ptr %arena)").count(),
+        2
+    );
+    assert!(!ir.contains("fastcc") && !ir.contains("inbounds"));
+    #[cfg(feature = "llvm-native")]
+    {
+        let build = s
+            .command("build", MANIFEST)
+            .args(["--llvm-preview", "-o", "llvm-program"])
+            .output()
+            .unwrap();
+        common::success(&build);
+        assert_eq!(
+            common::ran(
+                &std::process::Command::new(s.0.join("llvm-program"))
+                    .output()
+                    .unwrap()
+            ),
+            exits(0)
+        );
+    }
+}
+
 #[test]
 fn canonical_realization_runs_into_existing_storage_and_replays_its_revision() {
     let source = checked_replace(MAIN, "use monad::float;", "use monad::float as fp;")
         .replace("float::", "fp::");
     let s = fixture(&source);
     assert_eq!(s.check_build_and_run(MANIFEST), exits(0));
+    check_llvm_identity(&s, 0);
     let mut wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
     let response = kernel(&wire, "function-revision");
     assert_eq!(response["ok"], true, "{response}");
@@ -88,6 +132,7 @@ fn real32_identity_preserves_payloads_and_replays_its_precision() {
         .replace("9218868437227405378", "2139095106");
     let s = fixture(&source);
     assert_eq!(s.check_build_and_run(MANIFEST), exits(0));
+    check_llvm_identity(&s, 2);
     let mut wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
     let response = kernel(&wire, "function-revision");
     assert_eq!(response["ok"], true, "{response}");
@@ -320,19 +365,7 @@ fn complex_charts_copy_both_components_and_bind_the_full_model_chain() {
     ] {
         s.write("app/main.vast", &source);
         assert_eq!(s.check_build_and_run(MANIFEST), exits(0));
-        let llvm = s
-            .command("check", MANIFEST)
-            .args([
-                "--llvm-preview",
-                "--target-triple",
-                "x86_64-unknown-linux-gnu",
-                "--data-layout",
-                "e-p:64:64",
-            ])
-            .output()
-            .unwrap();
-        common::expect_code(&llvm, "E_UNSUPPORTED");
-        assert!(llvm.stdout.is_empty());
+        check_llvm_identity(&s, if rep == "F32<CC>" { 3 } else { 1 });
         let mut wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
         let result = kernel(&wire, "function-revision");
         assert_eq!(result["ok"], true, "{result}");

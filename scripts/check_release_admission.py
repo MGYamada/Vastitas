@@ -76,12 +76,15 @@ ROW_OBLIGATIONS = {
         'source': ('compiler-ir.realization@source', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
         'core': ('compiler-ir.float-carrier@storage', 'compiler-ir.float-carrier@binary64-storage',
                  'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
+        'midir': ('compiler-ir.midir@representation', 'compiler-ir.storage@static-effects'),
+        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.storage@static-effects'),
         'official': ('compiler-ir.numeric-order@reference', 'compiler-ir.numeric-order@reference-boundaries',
                      'compiler-ir.realization@identity-origin', 'compiler-ir.float-carrier@reference-laws',
                      'compiler-ir.realization@rational-coordinates', 'compiler-ir.realization@exact-fields',
                      'compiler-ir.realization@exact-chart-selection',
-                     'compiler-ir.realization@coordinate-interpretation'),
-        'native': ('compiler-ir.native-fast@profile', 'compiler-ir.native-fast@identity-run'),
+                     'compiler-ir.realization@coordinate-interpretation', 'compiler-ir.storage@static-effects',
+                     'compiler-ir.storage@static-cleanup'),
+        'native': ('compiler-ir.native-fast@profile', 'compiler-ir.native-fast@identity-run', 'compiler-ir.storage@static-native'),
     },
     'scalar-indexed': {
         'source': ('compiler-ir.operators@binding', 'compiler-ir.operators@exact-integers'),
@@ -96,9 +99,12 @@ ROW_OBLIGATIONS = {
         'native': ('compiler-ir.runtime@linkage', 'compiler-ir.backend@native'),
     },
     'resources': {
-        'source': ('compiler-ir.edition@admission',),
-        'core': ('compiler-ir.storage@refinement',),
-        'official': ('compiler-ir.constitution@finite-proofs',),
+        'source': ('compiler-ir.edition@admission', 'compiler-ir.storage@static-native'),
+        'core': ('compiler-ir.storage@refinement', 'compiler-ir.storage@static-effects'),
+        'midir': ('compiler-ir.midir@representation', 'compiler-ir.storage@static-effects'),
+        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.storage@static-effects'),
+        'official': ('compiler-ir.constitution@finite-proofs', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@static-cleanup'),
+        'native': ('compiler-ir.backend@native', 'compiler-ir.storage@static-native'),
     },
     'edition-verification': {
         'source': ('compiler-ir.edition@manifest', 'compiler-ir.edition@admission',
@@ -128,7 +134,8 @@ def obligations(row, dimension):
 def required_status(dimension, claim):
     if dimension == 'official' and claim == 'compiler-ir.realization@coordinate-interpretation':
         return 'proved-bridge'
-    if (dimension == 'official' or (dimension == 'llvm' and claim in LLVM_PROOFS)
+    if (claim == 'compiler-ir.storage@static-effects' or dimension == 'official'
+            or (dimension == 'llvm' and claim in LLVM_PROOFS)
             or (dimension == 'midir' and claim == 'compiler-ir.midir@finite-lookup')):
         return 'proved-oracle'
     return 'tested'

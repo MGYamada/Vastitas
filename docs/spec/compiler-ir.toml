@@ -372,11 +372,29 @@ No owner or loan may escape its checked scope.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.storage)"
 example = "Moving a release before the final read is rejected even when each function has a well-typed SSA body."
-example_not_executed = "The Core-to-MidIR and LLVM resource refinements are pending."
+example_not_executed = "Linear static storage entries with a literal result have the checked refinement below. Dynamic control flow, runtime extents and GEMM require additional lowering."
 
 [property."compiler-ir.storage".claim.refinement]
 status = "planned"
 issue = 752
+
+[property."compiler-ir.storage".claim.static-effects]
+status = "proved-oracle"
+evidence = ["VastitasOracle.StorageProgram.correspondence"]
+premises = ["The public checker accepted this wire and resource entry. Its static storage plan and literal Core result yielded an artifact. The complete bytes parse to that artifact's model."]
+assumes = ["rust-frontend"]
+note = "Both phases preserve the original ordered plan and its physical lowering. The theorem binds the revision, every call operand, target header, canonical bytes and the exit value derived from the selected Core literal."
+
+[property."compiler-ir.storage".claim.static-cleanup]
+status = "proved-oracle"
+evidence = ["VastitasOracle.StorageProgram.acquired_run", "VastitasOracle.StorageProgram.stop_on_failure"]
+premises = ["The modeled entry acquired its arena. Each external storage call supplies its status and successor state."]
+note = "The call trace is a prefix of the checked schedule. The first failed call prevents later effects, releases the arena and returns 1. The normal exit also releases the arena."
+
+[property."compiler-ir.storage".claim.static-native]
+status = "tested"
+evidence = ["VastitasKernel.LLVM.StorageRegression", "tests/llvm_preview.rs::storage_entry_returns_the_checked_literal_after_its_effects", "tests/numerical_realization.rs::canonical_realization_runs_into_existing_storage_and_replays_its_revision", "tests/numerical_realization.rs::real32_identity_preserves_payloads_and_replays_its_precision", "tests/numerical_realization.rs::complex_charts_copy_both_components_and_bind_the_full_model_chain"]
+note = "Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, failure reporting and literal process status. Dynamic shapes and GEMM remain outside this LLVM fragment."
 
 [property."compiler-ir.runtime"]
 title = "One foreign Lean runtime preserves exact arithmetic"
@@ -614,7 +632,7 @@ NativeFast is distinct from an opt-in fastfloat profile.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.native-fast)"
 example = "A program requesting observable hardware IEEE flags is rejected instead of receiving fabricated empty flags."
-example_not_executed = "Public rejection and flags evidence exists for the F64<RR> identity. General adapter calls and their LLVM integration remain pending."
+example_not_executed = "All four identity representations have public rejection, flags and storage evidence. Arithmetic adapter calls remain pending on the LLVM path."
 
 [property."compiler-ir.native-fast".claim.profile]
 status = "planned"
@@ -628,7 +646,7 @@ evidence = [
   "tests/numerical_realization.rs::reborrowed_point_restores_its_parent_only_after_release",
 ]
 assumes = ["rust-frontend", "lean-to-c"]
-note = "Public check/build/run tests execute smooth real and exact complex identities at both widths through the Lean-generated executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. Numerical arithmetic and verified LLVM emission for resource functions remain pending."
+note = "Public check/build/run tests execute smooth real and exact complex identities at both widths through the Lean-generated executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. The static LLVM resource claim covers the same four identities. Public numerical arithmetic remains pending."
 
 [property."compiler-ir.numeric-order"]
 title = "Floating observation does not permit a compiler quotient"
@@ -1537,7 +1555,7 @@ support.
 """
 specified_in = "[Planned LLVM compiler path](development/architecture.md#planned-llvm-compiler-path)"
 example = "A complex GEMM lowers to the selected adapter symbol with the original layouts and arguments, while the receipt records flags as unavailable."
-example_not_executed = "The required four native realization rows for the verified LLVM path are pending."
+example_not_executed = "Public LLVM builds execute all four identity copies. Arithmetic, GEMM and the complete four native realization rows remain pending."
 
 [property."compiler-ir.native.contract".claim.operations]
 status = "planned"

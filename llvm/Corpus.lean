@@ -4,6 +4,7 @@ import VastitasOracle.CallFunction
 import VastitasOracle.ExitFunction
 import VastitasOracle.DispatchFunction
 import VastitasKernel.LLVM.FiniteModule
+import VastitasOracle.StorageProgram
 import VastitasKernel.LLVM.ExactProgram
 import VastitasKernel.LLVM.FiniteExecution
 
@@ -418,6 +419,30 @@ private def forProgram {bytes : List UInt8} {code : ExactProgram.Code}
 private def forExact {bytes : List UInt8} {code : ExactLibrary.Code}
     (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
 
+/-- Two coordinate buffers and a standard chart with one complex or real
+element in each row. Reconstruct the payloads and the checked copy from the
+source fixture independently of its printed module. -/
+def affineIdentity (complex : Bool) : StorageModule.Code :=
+  let tag := if complex then 1 else 0
+  let view := [0,2,1,2,0]
+  let first := [tag,9223372036854775808,if complex then 1 else 0]
+  let second := if complex then [tag,0,9218868437227405378] else [tag,9218868437227405378,0]
+  ⟨header,[⟨.allocate,[0,tag,2]⟩, ⟨.allocate,[1,tag,2]⟩,
+    ⟨.store,[0] ++ view ++ [0,0] ++ first⟩, ⟨.store,[0] ++ view ++ [1,0] ++ second⟩,
+    ⟨.copy,[0] ++ view ++ [1] ++ view⟩, ⟨.expect,[1] ++ view ++ [0,0] ++ first⟩,
+    ⟨.expect,[1] ++ view ++ [1,0] ++ second⟩, ⟨.drop,[1]⟩, ⟨.drop,[0]⟩],0⟩
+
+def realIdentityBytes := corpus_bytes "src/float-identity.ll"
+def complexIdentityBytes := corpus_bytes "src/float-complex-identity.ll"
+
+set_option maxRecDepth 65536 in
+theorem real_identity_verified : realIdentityBytes = (affineIdentity false).print := rfl
+set_option maxRecDepth 65536 in
+theorem complex_identity_verified : complexIdentityBytes = (affineIdentity true).print := rfl
+
+private def forStorage {bytes : List UInt8} {code : StorageModule.Code}
+    (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
+
 private def forCode {bytes : List UInt8} {code : FiniteModule.Code}
     (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
 
@@ -433,6 +458,8 @@ def checkedFiles : List (String × ByteArray) :=
    ("empty-lookup.ll", forLookup empty_lookup_verified),
    ("unary-table.ll", forLookup unary_table_verified),
    ("closure-unit.ll", forLookup closure_unit_verified),
+   ("float-identity.ll", forStorage real_identity_verified),
+   ("float-complex-identity.ll", forStorage complex_identity_verified),
    ("opposite-s3.ll", forCode opposite_s3_verified),
    ("finite-iso.ll", forCode finite_iso_verified),
    ("finite-kleisli.ll", forCode finite_kleisli_verified),
@@ -487,6 +514,15 @@ def main (args : List String) : IO Unit := do
   checkEntry "structured-lookup-linux-x86_64.ll" Vastitas.LLVMCorpus.structuredLookupLinuxBytes
     Vastitas.LLVMCorpus.StructuredLookup.linuxCode 42
   checkEntry "static-selection.ll" Vastitas.LLVMCorpus.staticSelectionBytes Vastitas.LLVMCorpus.StaticSelection.code 42
+  for (complex,bytes) in [(false,Vastitas.LLVMCorpus.realIdentityBytes), (true,Vastitas.LLVMCorpus.complexIdentityBytes)] do
+    let code := Vastitas.LLVMCorpus.affineIdentity complex
+    let some parsed := VastitasKernel.LLVM.StorageModule.parse bytes
+      | throw (IO.userError "storage identity: cannot parse the complete entry")
+    unless decide (parsed = code) &&
+        decide (parsed.run (some ()) (fun s _ => (s,true)) = (code.calls,.success 0)) &&
+        decide (parsed.run (some ()) (fun s _ => (s,false)) = (code.calls.take 1,.failed)) &&
+        decide (parsed.run none (fun (s : Unit) _ => (s,true)) = ([],.unavailable)) do
+      throw (IO.userError "storage identity: different call order or arena exit")
   unless expected.mergeSort == (files.map Prod.fst).mergeSort do
     throw (IO.userError "source fixtures and registered LLVM byte theorems differ")
   for (name, certified) in files do

@@ -22,7 +22,7 @@ def midEntry {p : Phase} (m : VastitasKernel.MidIR.Module p) : Option Value := d
   let f ← m.functions[id]?
   MidIR.invoke m 1 f.target []
 
-private theorem coreLiteral (m : Core.Module) (lit : IntLiteral) (fuel : Nat) :
+theorem coreLiteral (m : Core.Module) (lit : IntLiteral) (fuel : Nat) :
     eval m (fuel + 3) (fun _ => none) (.scope lit.term) = some (.integer lit.value) := by
   cases lit <;> rfl
 

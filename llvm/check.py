@@ -33,6 +33,8 @@ CASES = [
     Sample("static-selection", HERE / "fixtures/StaticSelection.vast", "static_selection"),
     Sample("empty-lookup", HERE / "fixtures/EmptyLookup.vast", "empty_lookup"),
     Sample("closure-unit", HERE / "fixtures/ClosureUnit.vast", "closure_unit"),
+    Sample("float-identity", ROOT / "examples/packages/float-identity/Vastitas.toml", None),
+    Sample("float-complex-identity", ROOT / "examples/packages/float-complex-identity/Vastitas.toml", None),
     Sample("opposite-s3", HERE / "fixtures/opposite-s3/Vastitas.toml", None),
     Sample("finite-iso", HERE / "fixtures/finite-iso/Vastitas.toml", None),
     Sample("finite-kleisli", ROOT / "examples/packages/finite-kleisli/Vastitas.toml", None),
@@ -200,7 +202,7 @@ def main():
     subprocess.run(["lake", "-d", "lean-kernel", "build", "vastitas-kernel"], cwd=ROOT, check=True)
     subprocess.run(["lake", "-d", "lean", "build", "VastitasOracle.CallFunction", "VastitasOracle.ExitFunction",
                     "VastitasOracle.DispatchFunction", "VastitasOracle.BinaryFunction",
-                    "VastitasKernel.LLVM.FiniteExecution"], cwd=ROOT, check=True)
+                    "VastitasKernel.LLVM.FiniteExecution", "VastitasOracle.StorageProgram"], cwd=ROOT, check=True)
     subprocess.run(["lake", "-d", "lean", "env", "lean", "-DwarningAsError=true", "--run",
                     HERE / "Corpus.lean", HERE / "src", *sorted(registered)],
                    cwd=ROOT, check=True)

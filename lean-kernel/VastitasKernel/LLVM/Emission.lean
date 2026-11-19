@@ -1,4 +1,5 @@
 import VastitasKernel.LLVM.ExactProgram
+import VastitasKernel.LLVM.StorageProgram
 import VastitasKernel.LLVM.ExactFunction
 import VastitasKernel.LLVM.CallFunction
 import VastitasKernel.LLVM.BinaryFunction
@@ -14,6 +15,9 @@ namespace VastitasKernel.LLVM.Emission
 open Lean ResourceSource
 
 inductive Output (json : Json) (header : TargetHeader) where
+  | storage {main : Bool} {req : Wire.CheckedInput json main}
+      (a : StorageProgram.Artifact req header) (text : String)
+      (parsed : StorageModule.parse text.toUTF8.data.toList = some a.model)
   | exactProgram {main : Bool} {req : Wire.CheckedInput json main}
       (a : ExactProgram.Artifact req header) (text : String)
       (parsed : ExactProgram.parse text.toUTF8.data.toList = some a.model)
@@ -43,9 +47,10 @@ inductive Output (json : Json) (header : TargetHeader) where
       (parsed : FiniteModule.parse text.toUTF8.data.toList = some a.model)
 
 def Output.text {json header} : Output json header → String
-  | .exactProgram _ s _ | .exactLibrary _ s _ | .lookup _ s _ | .binary _ s _ | .forwarding _ s _ | .executable _ s _ | .folded _ s _ | .dispatch _ s _ | .finite _ s _ => s
+  | .storage _ s _ | .exactProgram _ s _ | .exactLibrary _ s _ | .lookup _ s _ | .binary _ s _ | .forwarding _ s _ | .executable _ s _ | .folded _ s _ | .dispatch _ s _ | .finite _ s _ => s
 
 def Output.kind {json header} : Output json header → String
+  | .storage .. => "storage-program"
   | .exactProgram .. => "boxed-exact-program"
   | .exactLibrary .. => "boxed-exact-library"
   | .lookup .. => "unary-lookup"
@@ -77,7 +82,11 @@ private def scalarApp {json main} (req : Wire.CheckedInput json main) (header : 
 
 private def app {json main} (req : Wire.CheckedInput json main) (header : TargetHeader) :
     Option (Output json header) :=
-  scalarApp req header <|> (do
+  if req.input.entry.isSome then do
+    let a ← StorageProgram.compile req header
+    let ⟨s, parsed⟩ ← checkedText a.model StorageModule.Code.print StorageModule.parse
+    return .storage a s parsed
+  else scalarApp req header <|> (do
     let a ← FiniteProgram.compile req header
     let ⟨s, parsed⟩ ← checkedText a.model FiniteModule.print FiniteModule.parse
     return .finite a s parsed) <|> do
@@ -108,12 +117,12 @@ private def library {json} (req : Wire.CheckedInput json false) (header : Target
 
 private def supported {α : Type} (o : Option α) : Except Diagnostic α :=
   o.elim (.error {code := "E_UNSUPPORTED", message :=
-    "checked module is outside the LLVM preview (closed exact integer main, assembled Bool branch, closed finite program, boxed integer program or library, unary or binary table lookup, or static forwarder)"}) .ok
+    "checked module is outside the LLVM preview (closed exact integer main, assembled Bool branch, closed finite program, static storage program, boxed integer program or library, unary or binary table lookup, or static forwarder)"}) .ok
 
 def check (json : Json) (header : TargetHeader) (requireExecutable : Bool) : Except Diagnostic (Output json header) := do
   if requireExecutable then return ← supported (app (← Wire.check json true) header)
   let req ← Wire.check json false
-  if (UnaryFunction.checkedCore req).main.isSome then return ← supported (app req header)
+  if req.input.entry.isSome || (UnaryFunction.checkedCore req).main.isSome then return ← supported (app req header)
   supported (library req header)
 
 end VastitasKernel.LLVM.Emission

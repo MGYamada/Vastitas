@@ -341,7 +341,7 @@ fn llvm_preview_rejects_unsupported_bodies_and_stale_revisions_before_printing()
         "fn choose(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { choose(4) }",
         "fn f(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { 7 }",
         "fn main() -> Int { let x = show!(-1); x }",
-        "resource fn main() -> Int { value { 3 } }",
+        "resource fn main() -> Int { value { if true { 3 } else { 4 } } }",
         "pub fn pick(a: Bool) -> Bool { a }",
     ] {
         let o = preview(&s, source);
@@ -458,6 +458,7 @@ fn every_declared_function_must_belong_to_the_preview_module() {
         TABLE.into(),
         format!("{TABLE}\n{caller}"),
         "fn main() -> Int { 0 }".into(),
+        "resource fn main() -> Int { value { 0 } }".into(),
     ] {
         let result = preview(&s, &format!("{module}\n{extra}"));
         success(&s.command("check", "app/Vastitas.toml").output().unwrap());
@@ -761,4 +762,36 @@ fn building_an_llvm_program_installs_it_without_running_it() {
             .unwrap(),
     );
     assert_eq!(fs::read(marker).unwrap(), b"ran");
+}
+
+#[test]
+fn storage_entry_returns_the_checked_literal_after_its_effects() {
+    let s = Scratch::empty("LLVM storage status");
+    let empty = preview(&s, "resource fn main() -> Int { value { -1 } }");
+    success(&empty);
+    let text = std::str::from_utf8(&empty.stdout).unwrap();
+    assert!(text.ends_with("  ret i32 255\n}\n"));
+    assert!(!text.contains("storage_new"));
+    let source = "resource fn main() -> Int { allocate a: F32<RR>[1]; borrow w = write(a, layout(0,1,1,1,false)); fill(w, f32_bits(17)); release(w); borrow r = read(a, layout(0,1,1,1,false)); expect(r,0,0,f32_bits(18)); release(r); drop(a); value { 42 } }";
+    let output = preview(&s, source);
+    success(&output);
+    let text = std::str::from_utf8(&output.stdout).unwrap();
+    assert!(text.contains("call i32 @vq_storage_fill("));
+    assert!(text.contains("  ret i32 42"));
+    #[cfg(feature = "llvm-native")]
+    {
+        let host = s
+            .command("build", "app/Vastitas.toml")
+            .args(["--llvm-preview", "-o", "llvm-program"])
+            .output()
+            .unwrap();
+        success(&host);
+        let llvm = std::process::Command::new(s.0.join("llvm-program"))
+            .output()
+            .unwrap();
+        let control = s.build_and_run("app/Vastitas.toml");
+        assert_eq!(common::ran(&llvm), control);
+        assert_eq!(llvm.status.code(), Some(1));
+        common::expect_code(&llvm, "E_NATIVE_EXPECT");
+    }
 }

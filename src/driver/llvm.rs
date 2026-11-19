@@ -10,10 +10,17 @@ pub(super) struct Target {
     pub(super) layout: String,
 }
 
+#[cfg(feature = "llvm-native")]
+enum Runtime {
+    Pure,
+    Boxed,
+    Storage,
+}
+
 pub(super) struct Artifact<'a> {
     pub(super) bytes: &'a [u8],
     #[cfg(feature = "llvm-native")]
-    boxed_runtime: bool,
+    runtime: Runtime,
 }
 
 pub(super) fn checked_bytes<'a>(
@@ -24,7 +31,13 @@ pub(super) fn checked_bytes<'a>(
     let artifact = &response["llvm"];
     let kind = artifact["kind"].as_str();
     let supported = match kind {
-        Some("entry-status" | "assembled-bool" | "finite-program" | "boxed-exact-program") => true,
+        Some(
+            "entry-status"
+            | "assembled-bool"
+            | "finite-program"
+            | "boxed-exact-program"
+            | "storage-program",
+        ) => true,
         Some("unary-lookup" | "binary-lookup" | "static-call" | "boxed-exact-library") => {
             !executable
         }
@@ -48,7 +61,11 @@ pub(super) fn checked_bytes<'a>(
     Ok(Artifact {
         bytes: text.as_bytes(),
         #[cfg(feature = "llvm-native")]
-        boxed_runtime: kind == Some("boxed-exact-program"),
+        runtime: match kind {
+            Some("boxed-exact-program") => Runtime::Boxed,
+            Some("storage-program") => Runtime::Storage,
+            _ => Runtime::Pure,
+        },
     })
 }
 
@@ -76,12 +93,22 @@ pub(super) fn build(
         .map_err(|e| format!("E_BUILD: cannot write LLVM handoff: {e}"))?;
     super::llvm_backend::emit_object(bytes, &handoff, &object)
         .map_err(|e| format!("E_BUILD: LLVM object generation failed: {e}"))?;
-    let mut command = if artifact.boxed_runtime {
+    let mut command = if matches!(artifact.runtime, Runtime::Boxed) {
         boxed_linker(&dir.0, cc)?
     } else {
         std::process::Command::new(super::invocation_compiler(cc.unwrap_or(OsStr::new("cc")))?)
     };
-    command.arg(&object).arg("-o").arg(&program);
+    command.arg(&object);
+    if matches!(artifact.runtime, Runtime::Storage) {
+        let archive = dir.0.join("libvastitas_llvm_storage.a");
+        std::fs::write(
+            &archive,
+            include_bytes!(concat!(env!("OUT_DIR"), "/libvastitas_llvm_storage.a")),
+        )
+        .map_err(|e| format!("E_BUILD: cannot stage the storage runtime: {e}"))?;
+        command.arg(archive);
+    }
+    command.arg("-o").arg(&program);
     let result = process::capture(
         command,
         None,

@@ -6,6 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 lake -d lean-kernel build \
   VastitasKernel.MidIR.Regression \
+  VastitasKernel.LLVM.StorageRegression \
   VastitasKernel.LLVM.Regression \
   VastitasKernel.TypeAuditRegression \
   VastitasKernel.DispatchRegression \

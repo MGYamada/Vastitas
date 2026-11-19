@@ -247,6 +247,11 @@ def run(args):
                                            "IndexedRuntime.o", "RuntimeProbe.o", "shim.o", "family.o"], work)
             executable = output / "program"
             system_libs = [] if sys.platform == "darwin" else ["-lm", "-lpthread"]
+            if sys.platform.startswith("linux"):
+                # OpenBLAS was built against the host libc. Use its linker
+                # driver with leanc's runtime flags and the host sysroot.
+                env["LEAN_CC"] = "cc"
+                report["native_link_driver"] = report["c_compiler"]
             measured("link", [leanc, *sdk, object_path, library, archive, *system_libs, "-o", executable], work)
             result = measured("execute", [executable])
             if not result.stdout.startswith("openblas=OpenBLAS 0.3.34 "):

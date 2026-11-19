@@ -401,6 +401,7 @@ theorem entryValid_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   | marker => exact Iff.rfl
   | finiteCarrier tags => exact Iff.rfl
   | finiteTable inputs output rows => simp only [Entry.Valid, finiteTable_append ext.profile]
+  | exactGeometry c => simp only [Entry.Valid, funext (exactView_append ext.profile)]
   | categorySchema | functorSchema | isoSchema | natTransSchema | monadSchema => exact Iff.rfl
   | kleisliSchema | finiteKleisli | composableTable | finiteCategory | finiteOpposite | finiteFunctor | finiteIso | finiteNatTrans | finiteMonad => simp only [Entry.Valid, funext (categoryView_append ext.profile)]
   | implementation marker representation capabilities =>

@@ -378,6 +378,7 @@ IndexedDeclaration -> MarkerDeclaration | DescriptorImplementation
     | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
     | PhysicalModelDeclaration | GluingDeclaration
     | FiniteCarrierDeclaration | FiniteTableDeclaration | FiniteSchema | FiniteInstance
+    | ExactCarrierDeclaration | ExactMeadowDeclaration | ExactAffineDeclaration
 ```
 
 [Finite carriers and tables](../indexed-source.md#finite-carriers-and-tables):
@@ -402,6 +403,17 @@ FiniteInstance -> `indexed` `instance` IDENTIFIER `:` Path `=`
 FiniteTableInputs -> Path ( `,` Path )* `,`?
 FiniteTableRow -> `(` FiniteTableTags? `)` `=>` IDENTIFIER `;`
 FiniteTableTags -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
+```
+
+[Exact models and affine coordinates](../indexed-source.md#exact-models-and-affine-coordinates):
+
+```text
+ExactCarrierDeclaration -> `indexed` `carrier` IDENTIFIER `=`
+    ( `cauchy_qq` | `complex_pairs` `(` Path `)` ) `;`
+ExactMeadowDeclaration -> `indexed` `meadow` IDENTIFIER `=`
+    ( `real_meadow` `(` Path `)` | `complex_meadow` `(` Path `,` Path `)` ) `;`
+ExactAffineDeclaration -> `indexed` `affine` IDENTIFIER `=` `Affine`
+    `(` Path `,` INTEGER_LITERAL `)` `[` Coordinates? `]` `;`
 ```
 
 [Markers](../indexed-source.md#markers):

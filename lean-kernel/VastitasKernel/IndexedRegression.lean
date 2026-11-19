@@ -99,6 +99,7 @@ private def renameParameter : Parameter → Parameter
   | other => other
 private def renameDeclaration : Declaration → Declaration
   | .marker => .marker
+  | .exactGeometry c => .exactGeometry (Id.run (c.mapM (pure ∘ renameId)))
   | .finiteCarrier tags => .finiteCarrier tags
   | .finiteTable inputs output rows => .finiteTable (inputs.map renameId) (renameId output) rows
   | .monadSchema => .monadSchema

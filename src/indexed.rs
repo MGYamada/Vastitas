@@ -221,9 +221,33 @@ pub enum SchemaKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "construction", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ExactConstruction {
+    CauchyQq,
+    ComplexPairs {
+        real_carrier: TypePath,
+    },
+    RealMeadow {
+        carrier: TypePath,
+    },
+    ComplexMeadow {
+        carrier: TypePath,
+        real_model: TypePath,
+    },
+    Affine {
+        model: TypePath,
+        dimension: String,
+        coordinates: Vec<String>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum DeclarationBody {
     Marker,
+    ExactGeometry {
+        definition: ExactConstruction,
+    },
     Finite {
         tags: Vec<FiniteTag>,
     },
@@ -704,7 +728,8 @@ impl DeclarationBody {
     /// (`packages::legacy_geometry`).
     pub fn is_algebraic(&self) -> bool {
         match self {
-            DeclarationBody::Affine { .. }
+            DeclarationBody::ExactGeometry { .. }
+            | DeclarationBody::Affine { .. }
             | DeclarationBody::Morphism { .. }
             | DeclarationBody::AffineFiber { .. }
             | DeclarationBody::AffineLocalization { .. }

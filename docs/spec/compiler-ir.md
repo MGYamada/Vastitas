@@ -19,7 +19,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
-| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
+| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
 | [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
@@ -374,12 +374,25 @@ Claims:
 Canonical realize::&lt;R&gt; binds a mathematical object, its base or site, chart, dimension, representation, reference and execution profiles and revisions. interpret binds the selected computation graph; run executes through resource buffers. Affine wrappers lower to this canonical form. A real wrapper creates a fresh smooth Affine(n) object; a complex wrapper creates a fresh algebraic Affine(CC,n) object. Realizing an existing object preserves its nominal identity. Exact mathematical CC is built over RR with a selected commutative ring reduct and separate field evidence. Finite executable coordinates embed QQ(i) into CC; they do not identify QQ(i) with CC. Numerical representations have a different Kind and gain no exact Field or CommRing authority.
 
 - Example: The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction.
-- Not executed: The selected mathematical rings and field laws are proved. The public complex chart and four wrapper-to-Core correspondences remain pending.
+- Not executed: Selected mathematical affine charts have source and Core evidence. Numerical realization of the complex chart and four wrapper-to-Core correspondences remain pending.
 
 Claims:
 
 - `complex-model`: [Planned](../specifications.md#planned)
   - Issue: [#757](https://github.com/MGYamada/Vastitas/issues/757)
+- `exact-chart-source`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `exact_affines_select_named_carriers_and_meadows_in_the_public_revision` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+    - `exact_affines_reject_wrong_kinds_dimensions_and_nominal_components` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+    - `static_model_selection_preserves_the_complete_constant_entry_module` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+    - `public_check_matches_physical_model_declarations_and_qualified_operand_spans` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+  - Note: A nominal affine declaration selects its real or complex mathematical meadow. Changing to another model with the same carrier changes the revision. The kernel matches every mathematical declaration, its path spans, visibility and coordinates with the submitted files.
+- `exact-chart-selection`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ExactAffine`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactAffine.lean): `VastitasOracle.ExactAffine.public_standard_chart`, `VastitasOracle.ExactAffine.paired_selection`, `VastitasOracle.ExactAffine.chart_injective`, `VastitasOracle.ExactAffine.isField`
+  - Premises:
+    - A protocol 10 request is accepted and its returned indexed environment contains the named mathematical affine declaration.
+  - Note: The declared dimension and coordinates select an injective rational-coordinate chart in the mathematical carrier. A selected complex model retains its paired carrier, its real meadow and the underlying Cauchy carrier. The field proposition refers to the same meadow. These claims concern standard-chart points and their declarations.
 - `exact-fields`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ExactComplexField`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactComplexField.lean): `VastitasOracle.ExactComplex.real_isField`, `VastitasOracle.ExactComplex.complex_isField`, `VastitasOracle.ExactComplex.RR.inv_zero`, `VastitasOracle.ExactComplex.CC.inv_zero`

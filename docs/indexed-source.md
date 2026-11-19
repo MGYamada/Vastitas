@@ -39,12 +39,14 @@ profiles:
 >     | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
 >     | PhysicalModelDeclaration | GluingDeclaration
 >     | FiniteCarrierDeclaration | FiniteTableDeclaration | FiniteSchema | FiniteInstance
+>     | ExactCarrierDeclaration | ExactMeadowDeclaration | ExactAffineDeclaration
 > ```
 
 The word after `indexed` is the kind of the declaration:
 
 | Kind | Declares | Syntax |
 | --- | --- | --- |
+| `carrier`, `meadow` | A [mathematical carrier or its selected operations](#exact-models-and-affine-coordinates) | `ExactCarrierDeclaration` and `ExactMeadowDeclaration` |
 | `marker` | A [marker](#markers) | `MarkerDeclaration` |
 | `schema`, `instance` | A [finite category or functor schema, or an instance](#finite-carriers-and-tables) | `FiniteSchema` and `FiniteInstance` |
 | `finite`, `table` | A [finite carrier or a table](#finite-carriers-and-tables) | `FiniteCarrierDeclaration` and `FiniteTableDeclaration` |
@@ -320,6 +322,42 @@ because `T(lo) = hi`. The triple supplies an explicit Monad index for
 Monad argument to these operations. Only the category view may occur as
 the category of a Kleisli Hom. The checker requires the underlying instance
 to belong to the exact Monad schema selected by the defining view schema.
+
+## Exact models and affine coordinates
+
+> **Syntax**
+>
+> ```text
+> ExactCarrierDeclaration -> `indexed` `carrier` IDENTIFIER `=`
+>     ( `cauchy_qq` | `complex_pairs` `(` Path `)` ) `;`
+> ExactMeadowDeclaration -> `indexed` `meadow` IDENTIFIER `=`
+>     ( `real_meadow` `(` Path `)` | `complex_meadow` `(` Path `,` Path `)` ) `;`
+> ExactAffineDeclaration -> `indexed` `affine` IDENTIFIER `=` `Affine`
+>     `(` Path `,` INTEGER_LITERAL `)` `[` Coordinates? `]` `;`
+> ```
+
+```vast
+indexed carrier RealCarrier = cauchy_qq;
+indexed carrier ComplexCarrier = complex_pairs(RealCarrier);
+indexed meadow RR = real_meadow(RealCarrier);
+indexed meadow CC = complex_meadow(ComplexCarrier, RR);
+indexed affine Plane = Affine(CC, 2)[z, w];
+```
+
+The first declaration selects the carrier of rational Cauchy sequences modulo
+equivalence. A paired carrier names its real component. A complex meadow names
+both the paired carrier and a real meadow on that exact component. Two
+declarations with identical operations still have their own model IDs.
+A meadow supplies its commutative-ring operations for `Affine`. The field law
+has a separate proof about the selected meadow.
+
+`Plane` has its own object ID and an ordered standard chart. A second plane
+over the same model and with the same coordinates has a different object ID.
+The coordinate count must equal the dimension, the names must be distinct,
+and dimension zero has an empty chart. A point with rational coordinates on
+each real and imaginary axis embeds coordinatewise into the mathematical
+complex space. The finite exact-coordinate profile uses QQ(i). Numerical
+realization of the chart requires its own representation and storage evidence.
 
 ## Markers
 

@@ -73,6 +73,7 @@ def validMetricEvidence (env : Environment) (metric : DeclId) (evidence : Metric
 def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Prop :=
   match entry.declaration with
   | .marker => True
+  | .exactGeometry c => c.valid (exactView env) = true
   | .finiteCarrier tags => FiniteTables.validCarrier tags = true
   | .finiteTable inputs output rows => FiniteTables.validTable env inputs output rows = true
   | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema => True
@@ -150,6 +151,7 @@ def validParents (env : Environment) (ranks : List (DeclId × Nat)) (entry : Ent
 def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Bool :=
   match entry.declaration with
   | .marker => true
+  | .exactGeometry c => c.valid (exactView env)
   | .finiteCarrier tags => FiniteTables.validCarrier tags
   | .finiteTable inputs output rows => FiniteTables.validTable env inputs output rows
   | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema => true

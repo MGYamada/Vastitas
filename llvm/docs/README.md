@@ -125,3 +125,11 @@ arguments. The entry passes the branch results to one explicit phi. An
 Lean 4.35.0 emits `switch` for tagged cases and stores join arguments on a
 jump. Its pinned binary reports no LLVM backend feature.
 [Lean tagged cases](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1090-L1137) · [Lean join arguments](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
+
+An edition-2026 package declaring an exact complex affine plane and returning
+the integer 42 emits the same complete module as the constant entry alone.
+On the retained macOS target it has 374 bytes and ends in `ret i32 u0x2A`.
+The declarations select a mathematical model during checking. This example
+exercises their erasure from a closed entry. Lean 4.35.0's hosted main obtains
+the result of a call and unboxes its status. [Public regression](../../tests/exact_affine_models.rs)
+· [Lean's main function](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1583)

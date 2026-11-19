@@ -179,6 +179,9 @@ theorem isMarker_append (id : DeclId) : isMarker big id = isMarker small id := b
 theorem finiteCarrier_append (id : DeclId) : FiniteTables.carrier big id = FiniteTables.carrier small id := by
   spectral_view ext FiniteTables.carrier id
 
+theorem exactView_append (id : DeclId) : exactView big id = exactView small id := by
+  spectral_view ext exactView id
+
 theorem categoryView_append (id : DeclId) : FiniteCategories.view big id = FiniteCategories.view small id := by
   spectral_view ext FiniteCategories.view id
 
@@ -733,6 +736,7 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   | finiteCarrier tags => simp only [validEntry, h]
   | finiteTable inputs output rows =>
     simp only [validEntry, h, FiniteTables.validTable, funext (finiteCarrier_append ext)]
+  | exactGeometry c => simp only [validEntry, h, funext (exactView_append ext)]
   | categorySchema | functorSchema | isoSchema | natTransSchema | monadSchema => simp only [validEntry, h]
   | kleisliSchema | finiteKleisli | composableTable | finiteCategory | finiteOpposite | finiteFunctor | finiteIso | finiteNatTrans | finiteMonad => simp only [validEntry, h, funext (categoryView_append ext)]
   | implementation marker representation capabilities =>

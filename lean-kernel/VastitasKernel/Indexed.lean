@@ -315,8 +315,26 @@ inductive KleisliKind where
   | category | triple
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-- Finite mathematical constructors. Carrier IDs, selected meadow IDs and affine
+object IDs inhabit distinct declaration roles. Coordinates name the standard chart. -/
+inductive ExactConstruction (α : Type) where
+  | cauchyQQ
+  | complexPairs (realCarrier : α)
+  | realMeadow (carrier : α)
+  | complexMeadow (carrier realModel : α)
+  | affine (model : α) (dimension : Nat) (coordinates : List String)
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+def ExactConstruction.mapM [Monad m] (f : α → m β) : ExactConstruction α → m (ExactConstruction β)
+  | .cauchyQQ => pure .cauchyQQ
+  | .complexPairs real => return .complexPairs (← f real)
+  | .realMeadow carrier => return .realMeadow (← f carrier)
+  | .complexMeadow carrier real => return .complexMeadow (← f carrier) (← f real)
+  | .affine model n coords => return .affine (← f model) n coords
+
 inductive Declaration where
   | marker
+  | exactGeometry (construction : ExactConstruction DeclId)
   | finiteCarrier (tags : List String)
   | finiteTable (inputs : List DeclId) (output : DeclId) (rows : List (List String × String))
   | categorySchema
@@ -487,6 +505,39 @@ def frameFamily? (env : Environment) (id : DeclId) : Option DeclId := (frameData
 
 /-- The smooth object of a declared frame. -/
 def frameObject? (env : Environment) (id : DeclId) : Option DeclId := (frameData? env id).map (·.2.1)
+
+/-- Only mathematical declarations contribute to model selection. -/
+def exactView (env : Environment) (id : DeclId) : Option (ExactConstruction DeclId) :=
+  match lookup env id with
+  | some (.exactGeometry construction) => some construction
+  | _ => none
+
+/-- The caller retains the selected model ID. A paired model also retains the
+particular real meadow and its carrier, even when another model has the same operations. -/
+inductive ExactModelProfile where
+  | cauchy (carrier : DeclId)
+  | pairs (carrier realModel realCarrier : DeclId)
+  deriving Repr, DecidableEq, BEq
+
+def ExactConstruction.model? (named : DeclId → Option (ExactConstruction DeclId)) :
+    ExactConstruction DeclId → Option ExactModelProfile
+  | .realMeadow carrier => do
+      guard (named carrier == some .cauchyQQ)
+      return .cauchy carrier
+  | .complexMeadow carrier realModel => do
+      let some (.complexPairs realCarrier) := named carrier | none
+      guard (named realCarrier == some .cauchyQQ && named realModel == some (.realMeadow realCarrier))
+      return .pairs carrier realModel realCarrier
+  | _ => none
+
+def ExactConstruction.valid (named : DeclId → Option (ExactConstruction DeclId))
+    (construction : ExactConstruction DeclId) : Bool :=
+  match construction with
+  | .cauchyQQ => true
+  | .complexPairs real => named real == some .cauchyQQ
+  | .realMeadow _ | .complexMeadow .. => (construction.model? named).isSome
+  | .affine model n coords => ((named model).bind (·.model? named)).isSome &&
+      decide (n ≤ Limits.algebraGenerators) && n == coords.length && decide coords.Nodup
 
 def isMarker (env : Environment) (id : DeclId) : Bool :=
   match lookup env id with | some .marker => true | _ => false

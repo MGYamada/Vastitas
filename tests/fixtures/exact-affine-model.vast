@@ -1,0 +1,8 @@
+indexed carrier RealCarrier = cauchy_qq;
+indexed carrier ComplexCarrier = complex_pairs(RealCarrier);
+indexed meadow RR = real_meadow(RealCarrier);
+indexed meadow CC = complex_meadow(ComplexCarrier, RR);
+indexed affine Plane = Affine(CC, 2)[z, w];
+indexed affine Origin = Affine(CC, 0)[];
+indexed affine RealLine = Affine(RR, 1)[x];
+fn main() -> Int { 42 }

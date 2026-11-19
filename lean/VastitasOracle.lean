@@ -5,6 +5,7 @@ import VastitasOracle.Core
 import VastitasOracle.ExactOperators
 import VastitasOracle.ExactComplex
 import VastitasOracle.ExactComplexField
+import VastitasOracle.ExactAffine
 import VastitasOracle.BinaryFunction
 import VastitasOracle.FiniteModule
 import VastitasOracle.CallFunction

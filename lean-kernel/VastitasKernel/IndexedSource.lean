@@ -228,6 +228,7 @@ structure FiniteRow where
 
 inductive Body where
   | marker
+  | exactGeometry (construction : ExactConstruction Path)
   | finiteCarrier (tags : List FiniteTag)
   | finiteTable (inputs : List Path) (output : Path) (rows : List FiniteRow)
   | categorySchema

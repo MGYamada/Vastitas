@@ -474,11 +474,32 @@ have a different Kind and gain no exact Field or CommRing authority.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.realization)"
 example = "The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction."
-example_not_executed = "The selected mathematical rings and field laws are proved. The public complex chart and four wrapper-to-Core correspondences remain pending."
+example_not_executed = "Selected mathematical affine charts have source and Core evidence. Numerical realization of the complex chart and four wrapper-to-Core correspondences remain pending."
 
 [property."compiler-ir.realization".claim.complex-model]
 status = "planned"
 issue = 757
+
+[property."compiler-ir.realization".claim.exact-chart-source]
+status = "tested"
+evidence = [
+  "tests/exact_affine_models.rs::exact_affines_select_named_carriers_and_meadows_in_the_public_revision",
+  "tests/exact_affine_models.rs::exact_affines_reject_wrong_kinds_dimensions_and_nominal_components",
+  "tests/exact_affine_models.rs::static_model_selection_preserves_the_complete_constant_entry_module",
+  "tests/exact_affine_models.rs::public_check_matches_physical_model_declarations_and_qualified_operand_spans",
+]
+note = "A nominal affine declaration selects its real or complex mathematical meadow. Changing to another model with the same carrier changes the revision. The kernel matches every mathematical declaration, its path spans, visibility and coordinates with the submitted files."
+
+[property."compiler-ir.realization".claim.exact-chart-selection]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.ExactAffine.public_standard_chart",
+  "VastitasOracle.ExactAffine.paired_selection",
+  "VastitasOracle.ExactAffine.chart_injective",
+  "VastitasOracle.ExactAffine.isField",
+]
+premises = ["A protocol 10 request is accepted and its returned indexed environment contains the named mathematical affine declaration."]
+note = "The declared dimension and coordinates select an injective rational-coordinate chart in the mathematical carrier. A selected complex model retains its paired carrier, its real meadow and the underlying Cauchy carrier. The field proposition refers to the same meadow. These claims concern standard-chart points and their declarations."
 
 [property."compiler-ir.realization".claim.exact-fields]
 status = "proved-oracle"

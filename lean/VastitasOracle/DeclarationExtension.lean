@@ -114,6 +114,9 @@ theorem isMarker_append (id : DeclId) : isMarker big id = isMarker small id := b
 theorem finiteCarrier_append (id : DeclId) : FiniteTables.carrier big id = FiniteTables.carrier small id := by
   profile_view ext FiniteTables.carrier id
 
+theorem exactView_append (id : DeclId) : exactView big id = exactView small id := by
+  profile_view ext exactView id
+
 theorem categoryView_append (id : DeclId) : FiniteCategories.view big id = FiniteCategories.view small id := by
   profile_view ext FiniteCategories.view id
 

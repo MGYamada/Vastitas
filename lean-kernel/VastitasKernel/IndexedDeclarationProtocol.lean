@@ -488,10 +488,31 @@ private def finiteRow (j : Json) : Except String Source.FiniteRow := do
   if key.length > FiniteTables.maxInputs then throw "finite row exceeds the key arity limit"
   return ⟨← key.mapM finiteTag, ← finiteTag (← field j "value"), ← decodeSpan j⟩
 
+private def exactConstruction (j : Json) : Except String (ExactConstruction Source.Path) := do
+  match ← str j "construction" with
+  | "cauchy_qq" =>
+    fields j ["construction"]; return .cauchyQQ
+  | "complex_pairs" =>
+    fields j ["construction", "real_carrier"]; return .complexPairs (← path (← field j "real_carrier"))
+  | "real_meadow" =>
+    fields j ["construction", "carrier"]; return .realMeadow (← path (← field j "carrier"))
+  | "complex_meadow" =>
+    fields j ["construction", "carrier", "real_model"]
+    return .complexMeadow (← path (← field j "carrier")) (← path (← field j "real_model"))
+  | "affine" =>
+    fields j ["construction", "model", "dimension", "coordinates"]
+    let coords ← array j "coordinates"
+    if coords.length > Limits.algebraGenerators then throw "exact affine chart exceeds the coordinate limit"
+    return .affine (← path (← field j "model")) (← smoothDimension (← str j "dimension")) (← coords.mapM Json.getStr?)
+  | _ => throw "unknown exact mathematical construction"
+
 def declarationBody (j : Json) : Except String Source.Body := do
   let common := ["kind", "name", "public", "span"]
   match ← str j "kind" with
   | "marker" => fields j common; return .marker
+  | "exact_geometry" =>
+    fields j (common ++ ["definition"])
+    return .exactGeometry (← exactConstruction (← field j "definition"))
   | "finite" =>
     fields j (common ++ ["tags"])
     let tags ← array j "tags"

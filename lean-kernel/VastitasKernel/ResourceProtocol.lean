@@ -1,4 +1,4 @@
-import VastitasKernel.PhysicalSources
+import VastitasKernel.ExactModelSource
 import VastitasKernel.FunctionRevision
 import VastitasKernel.ResourceCodegen
 import VastitasKernel.StorageFunctionProtocol
@@ -548,7 +548,7 @@ a package request, with the optional field `legacy_geometry`. Main reads the
 version before this decoder, and the decoder reads no other version. The
 reserved identities are checked on the request's packages, before the kernel
 adds the profile (`Program.profile`). -/
-def program (j : Json) : Except String Program := do
+private def decodedProgram (j : Json) : Except String Program := do
   fields j ["version", "file", "root", "root_source", "packages", "legacy_geometry", "expected_function_revision"]
   let version ← j.getObjValAs? Nat "version"
   if version != currentProtocol then throw s!"expected protocol {currentProtocol}"
@@ -557,11 +557,31 @@ def program (j : Json) : Except String Program := do
   let geometry ← legacyGeometry j
   let packages ← (← array j "packages").mapM package
   reservedIdentities root packages
-  let _ ← PhysicalSources.layout j
   if geometry then profileConflict packages
   let raw : Program := {file, root, packages, legacyGeometry := geometry}
   let names ← raw.valueFamilies.mapError (·.message)
   return {raw with operatorValues := names}
+
+/-- Verify all physical mathematical declarations of this exact input. -/
+def exactSources (j : Json) (p : Program) : Except String Unit := do
+  ExactModelSource.check (← PhysicalSources.layout j) p
+
+def program (j : Json) : Except String Program := do
+  let p ← decodedProgram j
+  exactSources j p
+  return p
+
+theorem exactSources_of_program {j : Json} {p : Program} (h : program j = .ok p) :
+    exactSources j p = .ok () := by
+  cases hd : decodedProgram j with
+  | error msg => simp [program, hd, Bind.bind, Except.bind] at h
+  | ok parsed =>
+    cases hs : exactSources j parsed with
+    | error msg => simp [program, hd, hs, Bind.bind, Except.bind] at h
+    | ok u =>
+      cases u
+      have eq : parsed = p := by simpa [program, hd, hs, Bind.bind, Except.bind, Pure.pure, Except.pure] using h
+      exact eq ▸ hs
 
 /-- The namespace work of the body passes that ran: those of the pure program
 and, when the program has resource fragments, the passes with them. Without

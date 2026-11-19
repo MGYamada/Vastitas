@@ -271,4 +271,100 @@ with absolute byte spans and file-local line/column positions. -/
 def parse (source : String) (base : Nat) : Except String (List Item) :=
   scan ⟨source, base⟩ (source.utf8ByteSize + 1) {} {} #[]
 
+/-- A model declaration's expected lexemes, rebuilt from the decoded syntax.
+Qualified operands retain their complete original path span. -/
+inductive ExactLexeme where
+  | ident (name : String)
+  | punctuation (ch : Char)
+  | reference (parts : List String) (span : Span)
+  | dimension (value : Nat)
+  | closeCoordinates (allowTrailingComma : Bool)
+  deriving Inhabited
+
+structure ExactHeader where
+  span : Span
+  isPublic : Bool
+  lexemes : List ExactLexeme
+  deriving Inhabited
+
+private def expectIdentifier (f : File) (c : Cursor) (name : String) : Except String Token := do
+  let t ← f.next c
+  let .word found := t.kind | throw "expected an identifier in the exact declaration"
+  unless found == name do throw "exact declaration identifier differs from the source"
+  return t
+
+private def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String Cursor
+  | .ident name => return (← expectIdentifier f c name).after
+  | .punctuation ch => do
+    let t ← f.next c
+    unless (match t.kind with | .symbol a => a == ch | _ => false) do
+      throw "exact declaration punctuation differs from the source"
+    return t.after
+  | .reference parts span => do
+    let head :: tail := parts | throw "empty exact model path"
+    let first ← expectIdentifier f c head
+    let mut last := first
+    for name in tail do
+      let sep ← f.next last.after
+      let .separator := sep.kind | throw "expected qualified exact model path"
+      last ← expectIdentifier f sep.after name
+    unless through first last == span do throw "exact model path span differs from the source"
+    return last.after
+  | .closeCoordinates allowComma => do
+    let next ← f.next c
+    let close ← match next.kind with
+      | .symbol ',' => if allowComma then f.next next.after else throw "unexpected comma in empty coordinates"
+      | _ => pure next
+    requireSymbol close ']'
+    return close.after
+  | .dimension value => do
+    let t ← f.next c
+    let .symbol digit := t.kind | throw "expected a decimal affine dimension"
+    unless digit.isDigit do throw "expected a decimal affine dimension"
+    let stop := String.Pos.Raw.nextWhile f.text Char.isDigit t.after.pos
+    let start : String.Pos.Raw := ⟨t.span.start - f.base⟩
+    if stop.byteIdx - start.byteIdx > Limits.algebraCoefficientDigits then throw "affine dimension exceeds digit limit"
+    unless (start.extract f.text stop).toNat? == some value do throw "exact affine dimension differs from the source"
+    return t.after.ascii (stop.byteIdx - t.after.pos.byteIdx)
+
+private def isExactHeader (f : File) (indexed : Token) : Except String Bool := do
+  let kind ← f.next indexed.after
+  match kind.kind with
+  | .word "carrier" | .word "meadow" => return true
+  | .word "affine" =>
+    let name ← f.next kind.after
+    let op ← f.next name.after
+    return match op.kind with | .symbol '=' => true | _ => false
+  | _ => return false
+
+/-- Every exact declaration in a physical source must consume one wire header,
+including unused declarations inside inline modules. Comments and literals
+cannot supply a declaration. The table is indexed by absolute UTF-8 offset. -/
+private def scanExact (f : File) : Nat → Cursor → Scope → Std.HashMap Nat ExactHeader →
+    Except String (Std.HashMap Nat ExactHeader)
+  | 0, _, _, _ => .error "exact declaration scan exceeded its file extent"
+  | fuel + 1, c, scope, headers => do
+    let t ← f.next c
+    if let .eof := t.kind then return headers
+    let exactHeader ← match t.kind with
+      | .word "indexed" => if scope.place == .declaration || scope.place == .afterPub then isExactHeader f t else pure false
+      | _ => pure false
+    if exactHeader then
+      let some h := headers[t.span.start]? | throw "physical exact declaration missing from the request"
+      unless h.isPublic == (scope.place == .afterPub) do throw "exact declaration visibility differs from the source"
+      let mut after := t.after
+      for lexeme in h.lexemes do after ← expectExact f after lexeme
+      let semi ← f.next after
+      requireSymbol semi ';'
+      unless through t semi == h.span do throw "exact declaration span differs from the source"
+      scanExact f fuel semi.after {scope with place := .declaration} (headers.erase t.span.start)
+    else
+      scanExact f fuel t.after (← ordinary scope t.kind) headers
+
+def checkExactHeaders (text : String) (base : Nat) (headers : Std.HashMap Nat ExactHeader) :
+    Except String (Std.HashMap Nat ExactHeader) :=
+  if text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine") then
+    scanExact ⟨text,base⟩ (text.utf8ByteSize + 1) {} {} headers
+  else pure headers
+
 end VastitasKernel.AssemblyText

@@ -101,6 +101,8 @@ def resolveBody (p : Namespace.Indexed) (graphs : GraphSources) (projections : P
   let add (declaration : Indexed.Declaration) := { env with indexed := env.indexed ++ [⟨owner, declaration⟩] }
   match body with
   | .marker => return add .marker
+  | .exactGeometry construction =>
+      return add (.exactGeometry (← construction.mapM (resolveId p scope)))
   | .finiteCarrier tags =>
       if tags.length > FiniteTables.limit then Namespace.problem span "E_LIMIT" "finite carrier exceeds 4096 tags"
       let mut seen : Std.HashSet String := {}
@@ -598,6 +600,28 @@ def entryRule (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry)
     (classificationRule env ranks entry).orElse fun _ =>
       (globalRule env entry).orElse fun _ => familyRule env entry
 
+/-- Locate the bad operand in a mathematical declaration that failed the Core check. -/
+private def exactDiagnostic (env : Environment) (entry : Entry) (source : Declaration) : Option Diagnostic := do
+  let .exactGeometry checked := entry.declaration | none
+  let .exactGeometry original := source.body | none
+  let problem := fun atSpan text => ({code := "E_EXACT_MODEL", span := atSpan, message := text} : Diagnostic)
+  match checked, original with
+  | .complexPairs _, .complexPairs base =>
+    return problem base.span "complex_pairs needs a rational Cauchy carrier"
+  | .realMeadow _, .realMeadow carrier =>
+    return problem carrier.span "real_meadow needs a rational Cauchy carrier"
+  | .complexMeadow c _, .complexMeadow carrier real =>
+    if let some (.complexPairs _) := exactView env c then
+      return problem real.span "complex_meadow needs a real meadow on this paired carrier's real component"
+    return problem carrier.span "complex_meadow needs the selected paired carrier"
+  | .affine model n coords, .affine base .. =>
+    if ((exactView env model).bind (·.model? (exactView env))).isNone then
+      return problem base.span "Affine needs a selected mathematical meadow with its ring reduct"
+    return {
+      code := "E_AFFINE_COORDINATE", span := source.span
+      message := s!"Affine({n}) needs {n} distinct coordinate names, got {coords.length}"}
+  | _, _ => none
+
 /-- Explain an independently rejected finite table using the original row and
 tag spans. Acceptance remains the check on the complete Core environment. -/
 private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declaration) :
@@ -770,6 +794,7 @@ def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
   let ranks := classRanks env.indexed
   match env.indexed.find? (fun entry => !validEntry env.indexed ranks entry) with
   | some entry =>
+    if let some d := (source entry.id).bind (exactDiagnostic env.indexed entry) then d else
     if let some d := (source entry.id).bind (tableDiagnostic env.indexed entry) then d else
     let (code, message) := (entryRule env.indexed ranks entry).getD ("E_TYPE", general)
     { code, message, span := span entry.id }

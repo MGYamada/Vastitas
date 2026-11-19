@@ -591,6 +591,7 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
   | marker => simp only [validEntry, h]
   | finiteCarrier tags => simp only [validEntry, h]
   | finiteTable inputs output rows => simp only [validEntry, h, finiteTable_append ext.profile]
+  | exactGeometry c => simp only [validEntry, h, funext (exactView_append ext.profile)]
   | categorySchema | functorSchema | isoSchema | natTransSchema | monadSchema => simp only [validEntry, h]
   | kleisliSchema | finiteKleisli | composableTable | finiteCategory | finiteOpposite | finiteFunctor | finiteIso | finiteNatTrans | finiteMonad => simp only [validEntry, h, funext (categoryView_append ext.profile)]
   | implementation marker representation capabilities =>

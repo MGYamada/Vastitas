@@ -48,10 +48,10 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: ./.github/actions/setup-elan
       - uses: ./.github/actions/setup-openblas
-      - name: Install LLVM system libraries
+      - name: Install LLVM and Lean runtime link dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libz3-dev libzstd-dev libxml2-dev libedit-dev libffi-dev libpfm4-dev zlib1g-dev libncurses-dev
+          sudo apt-get install -y --no-install-recommends libz3-dev libzstd-dev libxml2-dev libedit-dev libffi-dev libpfm4-dev zlib1g-dev libncurses-dev libc++-dev libc++abi-dev libuv1-dev
       - name: Verify and extract the pinned LLVM SDK
         working-directory: ${{ runner.temp }}
         run: |

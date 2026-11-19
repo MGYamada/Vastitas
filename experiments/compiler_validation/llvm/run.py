@@ -46,6 +46,15 @@ def environment(llvm, target):
     return env
 
 
+def linux_runtime_libraries(lean, work):
+    """Give the host linker the pinned Lean archives while it uses its own libc."""
+    directory = work / "lean-runtime-libs"
+    directory.mkdir()
+    for name in ("libc++.a", "libc++abi.a", "libunwind.a", "libuv.a", "libgmp.a"):
+        (directory / name).symlink_to((lean / "lib" / name).resolve(strict=True))
+    return directory
+
+
 def emitter_comparison(lean, extra_needles=None):
     """Identify the pinned upstream comparison source and its relevant gaps."""
     relative = "src/lean/Lean/Compiler/IR/EmitLLVM.lean"
@@ -247,6 +256,14 @@ def run(args):
                                            "IndexedRuntime.o", "RuntimeProbe.o", "shim.o", "family.o"], work)
             executable = output / "program"
             system_libs = [] if sys.platform == "darwin" else ["-lm", "-lpthread"]
+            if sys.platform.startswith("linux"):
+                # OpenBLAS was built against the host libc. Use its linker
+                # driver with leanc's runtime flags and the host sysroot.
+                directory = linux_runtime_libraries(lean, work)
+                system_libs.insert(0, "-L" + str(directory))
+                report["lean"]["linux_link_archives"] = sorted(p.name for p in directory.iterdir())
+                env["LEAN_CC"] = "cc"
+                report["native_link_driver"] = report["c_compiler"]
             measured("link", [leanc, *sdk, object_path, library, archive, *system_libs, "-o", executable], work)
             result = measured("execute", [executable])
             if not result.stdout.startswith("openblas=OpenBLAS 0.3.34 "):

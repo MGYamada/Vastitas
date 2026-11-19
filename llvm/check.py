@@ -25,6 +25,7 @@ CASES = [
     Sample("folded-arithmetic", HERE / "fixtures/FoldedArithmetic.vast", "folded_arithmetic"),
     Sample("boxed-program", HERE / "fixtures/BoxedProgram.vast", "boxed_program"),
     Sample("borrowed-operator", HERE / "fixtures/borrowed-operator/Vastitas.toml", None),
+    Sample("uncalled-operator", HERE / "fixtures/uncalled-operator/Vastitas.toml", None),
     Sample("boxed-arithmetic", HERE / "fixtures/BoxedArithmetic.vast", "boxed_arithmetic"),
     Sample("assembled-bool", HERE / "fixtures/AssembledBool.vast", "assembled_bool"),
     Sample("structured-lookup", HERE / "fixtures/StructuredLookup.vast", "structured_lookup"),

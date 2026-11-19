@@ -206,8 +206,9 @@ def compile {json : Lean.Json} {main : Bool} (req : Wire.CheckedInput json main)
     Option (Artifact req header) := do
   let linked ← PackageLink.compile req
   let ⟨model,lowered⟩ ← getChecked (translate linked.exe header)
-  let mainFn ← model.functions[model.entry]?
-  guard (mainFn.ops.any fun | .invoke .. => true | _ => false)
+  -- A root declaration or a sealed family can require a linked body even when
+  -- the entry has no calls. Single-function entries use the scalar profile.
+  guard (model.functions.size > 1)
   let ⟨target⟩ ← confirm (model.header = header)
   let ⟨fuel,cost⟩ ← getChecked (FiniteCost.entryWith true (PackageLink.core req))
   let ⟨value,modeled⟩ ← getChecked model.entryValue

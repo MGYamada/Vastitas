@@ -82,6 +82,22 @@ layout create no object. An existing object is never overwritten. Failures
 write a `blocked` report and return a nonzero exit status; there is no
 different-version or Lean/C fallback.
 
+## Linux CI
+
+The [Linux qualification workflow](../../../.github/workflows/llvm-linux.yml)
+runs when a pull request changes the native adapter, its qualification suite
+or the LLVM corpus. It also accepts a manual dispatch. The runner verifies
+the upstream LLVM 23.1.4 Linux x86-64 SDK archive against its SHA-256 before
+extracting the libraries and headers. It builds the same static qualification
+executable, runs the public native driver and compares the checked boxed
+integer programs with Lean-generated controls. On Linux the foreign archive
+links with the host C compiler selected through `leanc`, using the same libc
+as the OpenBLAS build. The host linker uses the C++, C++ ABI, unwind, uv and
+GMP archives supplied by the selected Lean release. The ABI report records
+their names and hashes, along with the link driver. The artifact contains the
+ABI report, the exact LLVM input to the ABI experiment, any upstream
+disassembly and the public conformance test summary.
+
 ## Measurements and comparison
 
 `report.json` records input and tool/library hashes, target/layout, link mode,
@@ -150,9 +166,25 @@ The bottle was extracted in a private temporary directory. Only its
 `llvm-config` executable needed relocation of its z3/zstd library references
 and a fresh ad-hoc signature; the installed LLVM was not changed. Static LLVM
 linkage still left the backend dependent on host z3/zstd dynamic libraries.
-This run therefore does not establish a self-contained distribution. Linux,
-offline installation and the production source-to-LLVM proof chain remain
-unqualified.
+Offline installation and the production source-to-LLVM proof chain have
+separate acceptance requirements.
+
+## Retained Linux result
+
+The [Linux x86-64 qualification](results/linux-x86_64/qualification.json)
+used static LLVM 23.1.4, the Lean 4.35.0 runtime and sequential LP64
+OpenBLAS 0.3.34. All four CBLAS calls executed. The [2,691 input bytes](results/linux-x86_64/program.ll)
+produced a 2,536-byte object. A one-byte change, malformed IR and a wrong
+layout were rejected. The pinned Linux Lean executable reported no LLVM
+feature for either upstream comparison fixture.
+
+The [public integer controls](results/linux-x86_64/checked-integers.txt)
+matched 121 native results across 15 checked libraries, all 15 heap ownership
+probes and the three hosted executable statuses. The assembled entry returned
+42 and rejected the sibling method; called and uncalled cross-package
+methods returned 42 and 7. These were executions on a hosted Ubuntu system.
+Offline distribution and broader source coverage are tracked separately.
+[CI execution and handoff tests](https://github.com/MGYamada/Vastitas/actions/runs/44439825391/job/135277593119)
 
 ## Isolated lexical proof component
 

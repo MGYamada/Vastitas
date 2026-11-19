@@ -1,0 +1,4 @@
+15 checked libraries, 121 native results matched Lean and exact integer expectations; 15 heap ownership probes passed
+3 hosted executable statuses matched generated Lean and independent expectations
+assembled integer entry returned 42 and rejected the sibling method in the expected revision
+called and uncalled cross-package methods matched the generated Lean controls at exit 42 and 7

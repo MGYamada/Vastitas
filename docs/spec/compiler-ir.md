@@ -19,7 +19,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
-| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
+| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
 | [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
@@ -374,26 +374,34 @@ Claims:
 Canonical realize::&lt;R&gt; binds a mathematical object, its base or site, chart, dimension, representation, reference and execution profiles and revisions. interpret binds the selected computation graph; run executes through resource buffers. Affine wrappers lower to this canonical form. A real wrapper creates a fresh smooth Affine(n) object; a complex wrapper creates a fresh algebraic Affine(CC,n) object. Realizing an existing object preserves its nominal identity. Exact mathematical CC is built over RR with a selected commutative ring reduct and separate field evidence. Finite executable coordinates embed QQ(i) into CC; they do not identify QQ(i) with CC. Numerical representations have a different Kind and gain no exact Field or CommRing authority.
 
 - Example: The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction.
-- Not executed: The mathematical CC prerequisite and the four wrapper-to-Core correspondences are pending.
+- Not executed: The selected mathematical rings and field laws are proved. The public complex chart and four wrapper-to-Core correspondences remain pending.
 
 Claims:
 
 - `complex-model`: [Planned](../specifications.md#planned)
   - Issue: [#757](https://github.com/MGYamada/Vastitas/issues/757)
+- `exact-fields`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ExactComplexField`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactComplexField.lean): `VastitasOracle.ExactComplex.real_isField`, `VastitasOracle.ExactComplex.complex_isField`, `VastitasOracle.ExactComplex.RR.inv_zero`, `VastitasOracle.ExactComplex.CC.inv_zero`
+  - Premises:
+    - The selected real meadow uses rational Cauchy classes. Complex elements are pairs of these classes. The real inverse uses classical choice on nonzero elements.
+  - Note: The meadow records its commutative-ring reduct and inversion equations. Each IsField proposition proves zero differs from one and every nonzero element multiplied by its selected inverse equals one.
 - `rational-coordinates`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ExactComplex`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactComplex.lean): `VastitasOracle.ExactComplex.ofRat_injective`, `VastitasOracle.ExactComplex.QQi.embed_injective`, `VastitasOracle.ExactComplex.QQi.inv_zero`
     - [`VastitasOracle.ExactComplexAdditive`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactComplexAdditive.lean): `VastitasOracle.ExactComplex.QQi.embed_zero`, `VastitasOracle.ExactComplex.QQi.embed_add`, `VastitasOracle.ExactComplex.QQi.embed_neg`
+    - [`VastitasOracle.ExactComplexRing`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactComplexRing.lean): `VastitasOracle.ExactComplex.QQi.embed_mul`, `VastitasOracle.ExactComplex.QQi.embed_conjugate`
+    - [`VastitasOracle.ExactComplexField`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactComplexField.lean): `VastitasOracle.ExactComplex.QQi.embed_inv`
   - Premises:
     - RR uses rational Cauchy sequences modulo eventual epsilon closeness. CC pairs two RR coordinates. Executable inputs are pairs of rational constants.
-  - Note: RR and CC carry pointwise addition and negation. The rational-coordinate embedding is injective and preserves zero, addition and negation. The coordinate inverse returns zero at zero.
+  - Note: The rational-coordinate embedding preserves zero, addition, negation, multiplication, conjugation and totalized inversion. Its injectivity gives decidable equality on rational coordinates.
 - `coordinate-interpretation`: [Proved (bridge)](../specifications.md#proved-bridge)
   - Evidence:
-    - [`VastitasBridge.Analysis.ExactComplex`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Analysis/ExactComplex.lean): `VastitasBridge.ExactComplex.real_ofRat`, `VastitasBridge.ExactComplex.coordinate_parts`, `VastitasBridge.ExactComplex.coordinate_add`, `VastitasBridge.ExactComplex.coordinate_neg`, `VastitasBridge.ExactComplex.coordinate_mul`, `VastitasBridge.ExactComplex.coordinate_conjugate`, `VastitasBridge.ExactComplex.coordinate_inv`
+    - [`VastitasBridge.Analysis.ExactComplex`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Analysis/ExactComplex.lean): `VastitasBridge.ExactComplex.real_ofRat`, `VastitasBridge.ExactComplex.real_add`, `VastitasBridge.ExactComplex.real_neg`, `VastitasBridge.ExactComplex.real_mul`, `VastitasBridge.ExactComplex.real_inv`, `VastitasBridge.ExactComplex.complex_add`, `VastitasBridge.ExactComplex.complex_mul`, `VastitasBridge.ExactComplex.complex_inv`, `VastitasBridge.ExactComplex.coordinate_parts`, `VastitasBridge.ExactComplex.coordinate_add`, `VastitasBridge.ExactComplex.coordinate_neg`, `VastitasBridge.ExactComplex.coordinate_mul`, `VastitasBridge.ExactComplex.coordinate_conjugate`, `VastitasBridge.ExactComplex.coordinate_inv`
   - Premises:
     - The Bridge identifies the Oracle's rational Cauchy quotient with Mathlib's real carrier and its pairs with Mathlib's complex carrier. Operands of the computable operations are rational coordinate pairs.
   - Assumes: [mathlib](assumptions.md#assumption.mathlib)
-  - Note: Addition, negation, multiplication, conjugation and totalized inversion of rational coordinates have their complex denotations.
+  - Note: On the full carriers, the equivalences preserve real addition, negation, multiplication and totalized inversion, and complex addition, multiplication and totalized inversion. On rational coordinates the Bridge also identifies both components and proves preservation of negation and conjugation.
 - `standard-real-chart`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.NumericalRealization`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NumericalRealization.lean): `VastitasOracle.NumericalRealization.dimension_from_subject`, `VastitasOracle.NumericalRealization.foreign_chart_impossible`, `VastitasOracle.NumericalRealization.complex_on_smooth_real_impossible`, `VastitasOracle.NumericalRealization.identity_presentation`

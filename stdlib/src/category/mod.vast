@@ -1,5 +1,6 @@
 pub indexed schema Category = finite_category;
 pub indexed schema Functor = finite_functor;
+pub indexed schema Iso = finite_iso;
 pub indexed schema NatTrans = finite_nat_trans;
 pub indexed schema Monad = finite_monad;
 

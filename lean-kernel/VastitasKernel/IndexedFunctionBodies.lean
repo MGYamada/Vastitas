@@ -121,6 +121,14 @@ private def lookupTable (input : Input) (scope : Namespace.Scope) (path : Source
           let some (.finiteNatTrans _ n) := Indexed.lookup env transformation
             | error path.span "E_MONAD" "expected a finite natural transformation"
           return (n.components, none)
+        | some (.finiteIso _ i) =>
+          let _ ← record base
+          match field with
+          | "forward" => return (i.forward, some owner)
+          | "inverse" => return (i.inverse, some owner)
+          | "source" => return (i.source, none)
+          | "target" => return (i.target, none)
+          | _ => error path.span "E_ISO" "expected a finite isomorphism projection"
         | some (.finiteNatTrans _ n) =>
           let _ ← record base
           unless field == "components" do error path.span "E_NAT_TRANS" "expected the components projection"
@@ -143,8 +151,9 @@ private def finiteCall (input : Input) (scope : Namespace.Scope) (path : Source.
   let arity ← match category, Indexed.lookup env table with
     | none, some (.finiteTable inputs _ _) => pure inputs.length
     | some _, some (.composableTable ..) => pure 2
+    | some _, some (.finiteTable [] _ _) => pure 0
     | some _, some (.finiteTable [_] _ _) => pure 1
-    | _, _ => error path.span "E_FINITE_TABLE" "expected a total table or the composition projection of a category"
+    | _, _ => error path.span "E_FINITE_TABLE" "expected a total finite table or a checked instance projection"
   unless args.length == arity do error path.span "E_ARITY" "wrong number of finite table arguments"
   let values ← args.mapM fun arg => do return Value.mk (← data (← visit arg) arg.span) none none
   let inputs ← (values.zip args).mapM fun (v, arg) => do

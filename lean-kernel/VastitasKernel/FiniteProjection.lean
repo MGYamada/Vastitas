@@ -17,6 +17,7 @@ walking declarations. This index cannot discover an instance by spelling. -/
 inductive InstanceFields where
   | category (graph : GraphFields Path)
   | functor (maps : FunctorFields Path)
+  | iso (fields : IsoFields Path)
   | transformation (fields : NatTransFields Path)
   | monad (fields : MonadFields Path)
   | kleisli (monad : Path)
@@ -28,6 +29,7 @@ def graphSources (declarations : List (DeclId × Declaration)) : GraphSources :=
     | .finiteCategory _ graph => index.insert owner (.category graph)
     | .finiteMonad _ m => index.insert owner (.monad m)
     | .finiteKleisli _ _ m => index.insert owner (.kleisli m)
+    | .finiteIso _ i => index.insert owner (.iso i)
     | .finiteNatTrans _ n => index.insert owner (.transformation n)
     | .finiteFunctor _ maps => index.insert owner (.functor maps)
     | _ => index
@@ -38,6 +40,7 @@ def InstanceFields.projections : InstanceFields → List (String × Path)
   | .monad m => [("unit", m.unit), ("multiplication", m.multiplication),
       ("category", m.category), ("arrows", m.functor)]
   | .kleisli m => [("unit", m), ("multiplication", m), ("category", m), ("arrows", m)]
+  | .iso i => [("source", i.source), ("target", i.target), ("forward", i.forward), ("inverse", i.inverse)]
   | .transformation n => [("components", n.components)]
   | .functor f => [("objects", f.objects), ("arrows", f.arrows)]
 
@@ -46,6 +49,7 @@ def InstanceFields.unknown (fields : InstanceFields) (name : String) : String ×
   | .category _ => ("E_CATEGORY", s!"unknown finite category projection '{name}'")
   | .monad _ => ("E_MONAD", s!"unknown finite Monad projection '{name}'")
   | .kleisli _ => ("E_KLEISLI", s!"unknown Kleisli view projection '{name}'")
+  | .iso _ => ("E_ISO", s!"unknown finite isomorphism projection '{name}'")
   | .transformation _ => ("E_NAT_TRANS", s!"unknown finite natural transformation projection '{name}'")
   | .functor _ => ("E_FUNCTOR", s!"unknown finite functor projection '{name}'")
 

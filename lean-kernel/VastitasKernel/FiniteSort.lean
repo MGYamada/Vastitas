@@ -1,3 +1,4 @@
+import VastitasKernel.FiniteIso
 import VastitasKernel.FiniteMonads
 import VastitasKernel.KleisliViews
 
@@ -40,6 +41,18 @@ def arrowSort? (env : Environment) (owner : DeclId) (tag : String) : Option Fini
   let (_, g) ← selected env owner
   guard (g.arrows.contains tag)
   return .hom owner (← g.src[[tag]]?) (← g.dst[[tag]]?)
+
+/-- A named isomorphism restricts its two nullary arrow tables to their
+checked Hom fibers. The selected table and category remain nominal. -/
+def isoArrow? (env : Environment) (owner table : DeclId) :
+    Option (DeclId × FiniteSort × List (List String × String)) := do
+  let .finiteIso schema i ← lookup env owner | none
+  let m ← (FiniteIso.select (FiniteCategories.view env) schema i).toOption
+  guard m.check.isOk
+  if table == i.forward then
+    return (i.forward, .hom i.category m.source m.target, [([], m.forward)])
+  guard (table == i.inverse)
+  return (i.inverse, .hom i.category m.target m.source, [([], m.inverse)])
 
 def restrictComposition (g : FiniteCategories.Graph) (range : List String) (keys : List (List String)) :
     Option (List (List String × String)) :=

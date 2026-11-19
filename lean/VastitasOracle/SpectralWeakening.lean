@@ -733,8 +733,8 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) {entry : Entry}
   | finiteCarrier tags => simp only [validEntry, h]
   | finiteTable inputs output rows =>
     simp only [validEntry, h, FiniteTables.validTable, funext (finiteCarrier_append ext)]
-  | categorySchema | functorSchema | natTransSchema | monadSchema => simp only [validEntry, h]
-  | kleisliSchema | finiteKleisli | composableTable | finiteCategory | finiteFunctor | finiteNatTrans | finiteMonad => simp only [validEntry, h, funext (categoryView_append ext)]
+  | categorySchema | functorSchema | isoSchema | natTransSchema | monadSchema => simp only [validEntry, h]
+  | kleisliSchema | finiteKleisli | composableTable | finiteCategory | finiteFunctor | finiteIso | finiteNatTrans | finiteMonad => simp only [validEntry, h, funext (categoryView_append ext)]
   | implementation marker representation capabilities =>
     simp only [validEntry, h, isMarker_append ext, representationValid_append ext]
   | classification parents implementations =>

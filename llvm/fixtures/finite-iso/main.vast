@@ -1,0 +1,31 @@
+use std::category::Category;
+use std::category::Iso;
+use std::category::compose;
+
+indexed finite Obj { a; b; }
+indexed finite Arr { aa; ab; ba; bb; }
+indexed table s(Arr) -> Obj { (aa) => a; (ab) => a; (ba) => b; (bb) => b; }
+indexed table t(Arr) -> Obj { (aa) => a; (ab) => b; (ba) => a; (bb) => b; }
+indexed table ids(Obj) -> Arr { (a) => aa; (b) => bb; }
+indexed table comp(Arr, Arr) -> Arr where composable(s, t) {
+    (aa, aa) => aa; (ab, aa) => ab; (ba, ab) => aa; (bb, ab) => ab;
+    (aa, ba) => ba; (ab, ba) => bb; (ba, bb) => ba; (bb, bb) => bb;
+}
+indexed instance C : Category = finite_graph(Obj, Arr, s, t, ids, comp);
+
+indexed table A() -> Obj { () => a; }
+indexed table B() -> Obj { () => b; }
+indexed table go() -> Arr { () => ab; }
+indexed table back() -> Arr { () => ba; }
+indexed instance I : Iso = finite_iso(C, A, B, go, back);
+
+fn forwardArrow() -> Hom<C, Obj::a, Obj::b> { finite::lookup::<I::forward>() }
+fn inverseArrow() -> Hom<C, Obj::b, Obj::a> { finite::lookup::<I::inverse>() }
+
+fn main() -> Int {
+    let f = forwardArrow();
+    let g = inverseArrow();
+    if compose(g, f) == C::aa {
+        if compose(f, g) == C::bb { 42 } else { 7 }
+    } else { 9 }
+}

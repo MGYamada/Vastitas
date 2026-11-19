@@ -278,6 +278,18 @@ structure FunctorFields (α : Type) where
 def FunctorFields.mapM [Monad m] (f : α → m β) (v : FunctorFields α) : m (FunctorFields β) := do
   return ⟨← f v.source, ← f v.target, ← f v.objects, ← f v.arrows⟩
 
+/-- The object and arrow fields select nullary tables in the named category. -/
+structure IsoFields (α : Type) where
+  category : α
+  source : α
+  target : α
+  forward : α
+  inverse : α
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+def IsoFields.mapM [Monad m] (f : α → m β) (i : IsoFields α) : m (IsoFields β) := do
+  return ⟨← f i.category, ← f i.source, ← f i.target, ← f i.forward, ← f i.inverse⟩
+
 structure NatTransFields (α : Type) where
   source : α
   target : α
@@ -309,12 +321,14 @@ inductive Declaration where
   | finiteTable (inputs : List DeclId) (output : DeclId) (rows : List (List String × String))
   | categorySchema
   | functorSchema
+  | isoSchema
   | natTransSchema
   | monadSchema
   | kleisliSchema (kind : KleisliKind) (monadSchema : DeclId)
   | composableTable (inputs : List DeclId) (output src dst : DeclId) (rows : List (List String × String))
   | finiteCategory (schema : DeclId) (graph : GraphFields DeclId)
   | finiteFunctor (schema : DeclId) (maps : FunctorFields DeclId)
+  | finiteIso (schema : DeclId) (fields : IsoFields DeclId)
   | finiteNatTrans (schema : DeclId) (fields : NatTransFields DeclId)
   | finiteMonad (schema : DeclId) (fields : MonadFields DeclId)
   | finiteKleisli (kind : KleisliKind) (schema monad : DeclId)

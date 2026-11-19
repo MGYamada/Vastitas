@@ -23,7 +23,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
 | [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
-| [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
+| [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
 | [Finite binders do not admit general polymorphism](#compiler-ir.finite-binders) | Planned, Tested, Tested, Tested, Proved (oracle) |
 | [Every transformation checks an untrusted witness](#compiler-ir.stage-validation) | Planned, Proved (oracle) |
 | [Local proofs compose over the same module](#compiler-ir.composition) | Planned |
@@ -588,6 +588,20 @@ Claims:
     - The named declaration belongs to the resolved environment of the accepted input. Source tables and transformations are selected by nominal declaration identity.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: Component endpoints and naturality hold for every object and arrow of the selected functors. The selected Monad has an identity source for its unit, the squared action for its multiplication, and equal defined results on both sides of the unit and associativity diagrams.
+- `isomorphism-source`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `both_isomorphism_projections_are_executable_in_their_own_hom_fibers` in [`tests/finite_iso.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_iso.rs)
+    - `a_one_sided_inverse_is_rejected_even_when_the_instance_is_unused` in [`tests/finite_iso.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_iso.rs)
+    - `the_wire_rechecks_the_named_inverse_and_rejects_supplied_law_evidence` in [`tests/finite_iso.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_iso.rs)
+  - Note: The two-object groupoid executes both inverse compositions. A split retraction fails a different equation in each orientation. Projections retain the exact category of their Hom results and edits invalidate the module revision.
+- `isomorphism-equations`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.IndexedSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/IndexedSource.lean): `VastitasOracle.FiniteIso.checked_iso`
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.public_finite_iso`
+  - Premises:
+    - A named isomorphism is a member of the independent checker's returned module environment. Its four nullary tables select elements of the named category's carriers.
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Both arrows belong to the selected category and have the declared endpoints. Their two ordered composites equal the identities selected by that category's table under the accepted input revision.
 - `laws`: [Planned](../specifications.md#planned)
   - Issue: [#199](https://github.com/MGYamada/Vastitas/issues/199)
 - `kleisli-equations`: [Proved (oracle)](../specifications.md#proved-oracle)

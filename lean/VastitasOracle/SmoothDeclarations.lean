@@ -175,8 +175,8 @@ theorem smooth_objects_are_declared {env : Environment} (envValid : env.Valid) {
       subst found
       dsimp only at entryValid
       exact ⟨coordinates, rfl, (smoothAffine_sound entryValid).2.2.2⟩
-    | marker | finiteCarrier | finiteTable | categorySchema | functorSchema | natTransSchema | monadSchema
-    | kleisliSchema | finiteKleisli | composableTable | finiteCategory | finiteFunctor | finiteNatTrans | finiteMonad
+    | marker | finiteCarrier | finiteTable | categorySchema | functorSchema | isoSchema | natTransSchema | monadSchema
+    | kleisliSchema | finiteKleisli | composableTable | finiteCategory | finiteFunctor | finiteIso | finiteNatTrans | finiteMonad
     | implementation | classification | family | metric | metricEvidence
     | frame | baseDimension | quantity | reading | scale | physicalMetric
     | freeModule | endomorphism | spectrum | branch

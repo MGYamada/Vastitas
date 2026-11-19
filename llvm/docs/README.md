@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains eighteen complete LLVM assembly files from edition 2026 Vastitas source. Lean checks a closed theorem for each file. Eight theorems establish parser acceptance of the stored bytes. Ten identify every byte with the canonical printout of an independent model. Replay parses those ten and compares the reconstructed models. It also evaluates the entries of the nine executable models. Seventeen files target macOS arm64. The structured lookup also has an x86-64 Linux file with the same function model. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains nineteen complete LLVM assembly files from edition 2026 Vastitas source. Lean checks a closed theorem for each file. Eight theorems establish parser acceptance of the stored bytes. Eleven identify every byte with the canonical printout of an independent model. Replay parses those eleven and compares the reconstructed models. It also evaluates the entries of the ten executable models. Eighteen files target macOS arm64. The structured lookup also has an x86-64 Linux file with the same function model. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -18,6 +18,7 @@ The corpus contains eighteen complete LLVM assembly files from edition 2026 Vast
 | [structured-lookup-linux-x86_64.ll](../src/structured-lookup-linux-x86_64.ll) · 2,647 bytes | [StructuredLookup.vast](../fixtures/StructuredLookup.vast) | The Linux target and data layout are part of the byte proof. The table, both Boolean methods, calls, branch and phi have the same model as the macOS file. | `structured_lookup_linux_verified` |
 | [empty-lookup.ll](../src/empty-lookup.ll) · 439 bytes | [EmptyLookup.vast](../fixtures/EmptyLookup.vast) | The input carrier is empty. The switch has only a default edge. Every foreign `i32` returns `-1`. | `empty_lookup_verified` |
 | [closure-unit.ll](../src/closure-unit.ll) · 549 bytes | [ClosureUnit.vast](../fixtures/ClosureUnit.vast) | The unit of the closure Monad on `lo < hi` returns the nonidentity arrow `up` at `lo` and the identity of `hi` at `hi`. The resulting arrow ordinals are 1 and 2. | `closure_unit_verified` |
+| [finite-iso.ll](../src/finite-iso.ll) · 2,515 bytes | [Two-object isomorphism](../fixtures/finite-iso/main.vast) | Two nullary lookups select arrows with opposite endpoints. Two composition functions check the inverse equations. The nested joins each have two predecessors. | `finite_iso_verified` |
 | [finite-kleisli.ll](../src/finite-kleisli.ll) · 4,463 bytes | [Finite Kleisli package](../../examples/packages/finite-kleisli/Vastitas.toml) | The real application calls `unit`, `bind`, `compose`, `lift` and `mappedUp`. Its five equalities combine in four `and i1` instructions, then a branch and phi choose exit status 0 or 1. | `finite_kleisli_verified` |
 | [kleisli-callback.ll](../src/kleisli-callback.ll) · 2,434 bytes | [Kleisli callback](../fixtures/kleisli-callback/main.vast) | The specialization of `applyArrow` calls the capture-free producer once, then passes its arrow ordinal to `bind`. Both the unit and multiplication of the selected Monad are the nonidentity element of the group of order two. | `kleisli_callback_verified` |
 | [kleisli-forward.ll](../src/kleisli-forward.ll) · 2,456 bytes | [Direct Kleisli operand](../fixtures/kleisli-forward/main.vast) | The application passes the imported producer to `bind(p, k)`. In `@f2`, the erased function value occupies one `i1` instruction, then the calls to `@f0` and `@f1` use the same order as the explicit invocation above. | `kleisli_forward_verified` |
@@ -25,7 +26,7 @@ The corpus contains eighteen complete LLVM assembly files from edition 2026 Vast
 | [s3-composition.ll](../src/s3-composition.ll) · 2,621 bytes | [S3Composition.vast](../fixtures/S3Composition.vast) | Two independently checked ordinals index the composition on six permutations. Row 1, column 2 gives ordinal 4. Reversing the inputs gives 3. | `s3_composition_verified` |
 | [static-call.ll](../src/static-call.ll) · 709 bytes | [CallComparison.vast](../../experiments/compiler_validation/llvm/CallComparison.vast) | The module defines the lookup and a second export, `@vq_forward`. Its single `call i32 @vq_lookup(i32 %tag)` passes the original tag and returns the result. | `static_call_verified` |
 
-Each file can be read or assembled independently. The eleven entry modules export `i32 @main()`. Four unary libraries export `i32 @vq_lookup(i32)`. The binary library exports `i32 @vq_lookup2(i32, i32)`. The call example also exports `i32 @vq_forward(i32)`. The boxed library exports `ptr @vq_exact(ptr, ptr)`. Its signature comment identifies the mathematical argument and result types.
+Each file can be read or assembled independently. The twelve entry modules export `i32 @main()`. Four unary libraries export `i32 @vq_lookup(i32)`. The binary library exports `i32 @vq_lookup2(i32, i32)`. The call example also exports `i32 @vq_forward(i32)`. The boxed library exports `ptr @vq_exact(ptr, ptr)`. Its signature comment identifies the mathematical argument and result types.
 
 The printer spells each target-header byte as an LLVM hexadecimal escape (for example, `\61` is `a`). Within the switch, `u0x0002` is the unsigned ordinal 2. The `i32 -1` at `%miss` has the unsigned value 4,294,967,295.
 
@@ -105,3 +106,11 @@ For a runnable check of the component ABI, the Lean 4.35.0 control exported two 
 | `Bool`, `Float`, `Float` | `false` | `0x4002000000000000` | `double vast_compare_choose64(uint8_t, double, double)` |
 
 To add a sample, retain the complete public preview output in `llvm/src/`, register the source and its package in the replay runner, and register a closed theorem over that file in `Corpus.lean` under `checkedFiles`. Put commentary here so the file continues to match the bytes the theorem checks.
+
+
+The two-object isomorphism module passes the two arrows to the composition
+functions in opposite orders. Its nested conditions join the exit values 42,
+7 and 9 using two LLVM phi nodes. Lean 4.35.0's `emitJmp` stores join
+arguments in slots before branching, and `emitJDecl` allocates variables for
+the join body. The corpus theorem covers every byte of the explicit-phi
+module. On macOS arm64, LLVM 23.1.4 emitted a 1,976-byte object. The linked object, the public native preview, the Lean/C build and a Lean control composing explicit endpoint pairs all returned 42. The pinned upstream executable reported no LLVM feature. [Lean join arguments](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060) · [Lean join declarations](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1130-L1144)

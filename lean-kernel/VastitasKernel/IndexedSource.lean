@@ -232,12 +232,14 @@ inductive Body where
   | finiteTable (inputs : List Path) (output : Path) (rows : List FiniteRow)
   | categorySchema
   | functorSchema
+  | isoSchema
   | natTransSchema
   | monadSchema
   | kleisliSchema (kind : KleisliKind) (monadSchema : Path)
   | composableTable (inputs : List Path) (output src dst : Path) (rows : List FiniteRow)
   | finiteCategory (schema : Path) (graph : GraphFields Path)
   | finiteFunctor (schema : Path) (maps : FunctorFields Path)
+  | finiteIso (schema : Path) (fields : IsoFields Path)
   | finiteNatTrans (schema : Path) (fields : NatTransFields Path)
   | finiteMonad (schema : Path) (fields : MonadFields Path)
   | finiteKleisli (kind : KleisliKind) (schema monad : Path)

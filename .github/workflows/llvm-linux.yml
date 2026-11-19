@@ -1,0 +1,98 @@
+name: LLVM native qualification
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/llvm-linux.yml'
+      - '.github/actions/setup-*/**'
+      - 'experiments/compiler_validation/llvm/**'
+      - 'src/driver/llvm*.rs'
+      - 'lean-kernel/VastitasKernel/LLVM/**'
+      - 'llvm/**'
+      - 'tests/llvm_*.rs'
+      - 'tests/fixtures/FamilyComparison.vast'
+      - 'scripts/build_openblas.py'
+      - 'Cargo.lock'
+      - 'lean-toolchain'
+      - 'rust-toolchain.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  qualify:
+    name: LLVM 23.1.4 static ABI and public integer programs (Linux x86-64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/experiments/source_workspace/results/*/evidence.zip
+      - uses: ./.github/actions/setup-python
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/setup-elan
+      - uses: ./.github/actions/setup-openblas
+      - name: Install LLVM system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libz3-dev libzstd-dev libxml2-dev libedit-dev libffi-dev libpfm4-dev zlib1g-dev libncurses-dev
+      - name: Verify and extract the pinned LLVM SDK
+        working-directory: ${{ runner.temp }}
+        run: |
+          archive=LLVM-23.1.4-Linux-X64.tar.zst
+          curl --fail --location --retry 3 --output "$archive" "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/$archive"
+          echo "efdd1dbd089b99bfcfcde7b8eb1236163f2e88df5a981cca4f783ec9cb5e0378  $archive" | sha256sum --check --strict
+          mkdir llvm-sdk
+          # Keep the LLVM libraries and headers used by llvm-sys. Excluding
+          # unrelated tools and Clang libraries leaves room for the Lean kernel.
+          tar --zstd -tf "$archive" | awk '/(^|\/)bin\/(llvm|llvm-config|llvm-dis)$/ || /(^|\/)include\/(llvm|llvm-c)\// || /(^|\/)lib(64)?\/([^/]+\/)?(libLLVM|libPolly|LLVMPolly)/' > llvm-sdk-members.txt
+          tar --zstd --no-recursion -xf "$archive" -C llvm-sdk -T llvm-sdk-members.txt
+          rm -- "$archive"
+          mapfile -t configs < <(find llvm-sdk -path '*/bin/llvm-config')
+          test "${#configs[@]}" -eq 1
+          prefix=$(realpath "$(dirname "${configs[0]}")/..")
+          test "$("$prefix/bin/llvm-config" --version)" = 23.1.4
+          echo "LLVM_SYS_231_PREFIX=$prefix" >> "$GITHUB_ENV"
+      - name: Qualify static LLVM, the Lean runtime and all four BLAS calls
+        run: |
+          python3 experiments/compiler_validation/llvm/run.py \
+            --llvm-prefix "$LLVM_SYS_231_PREFIX" --lean-prefix "$(lean --print-prefix)" \
+            --openblas-prefix "$RUNNER_TEMP/vastitas-openblas" --link-mode static \
+            --allow-cargo-downloads --target-dir "$RUNNER_TEMP/llvm-target" \
+            --output "$RUNNER_TEMP/llvm-qualification"
+      - name: Exercise verified bytes and the public native compiler
+        run: |
+          lake -d lean-kernel build vastitas-kernel
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/llvm-target"
+          cargo test --locked --manifest-path experiments/compiler_validation/llvm/Cargo.toml --test handoff
+          cargo test --locked --features llvm-native --test llvm_preview --test llvm_package_roots
+          python3 llvm/check_exact_native.py --frontend "$CARGO_TARGET_DIR/debug/vastitas" \
+            --backend "$CARGO_TARGET_DIR/debug/vastitas-llvm-qualification" | tee "$RUNNER_TEMP/llvm-qualification/checked-integers.log"
+      - name: Retain native and upstream comparison records
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: llvm-native-linux-x64
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/llvm-qualification/report.json
+            ${{ runner.temp }}/llvm-qualification/authorized.ll
+            ${{ runner.temp }}/llvm-qualification/*Comparison.ll
+            ${{ runner.temp }}/llvm-qualification/checked-integers.log

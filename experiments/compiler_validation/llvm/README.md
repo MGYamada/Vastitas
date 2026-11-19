@@ -82,6 +82,18 @@ layout create no object. An existing object is never overwritten. Failures
 write a `blocked` report and return a nonzero exit status; there is no
 different-version or Lean/C fallback.
 
+## Linux CI
+
+The [Linux qualification workflow](../../../.github/workflows/llvm-linux.yml)
+runs when a pull request changes the native adapter, its qualification suite
+or the LLVM corpus. It also accepts a manual dispatch. The runner verifies
+the upstream LLVM 23.1.4 Linux x86-64 SDK archive against its SHA-256 before
+extracting the libraries and headers. It builds the same static qualification
+executable, runs the public native driver and compares the checked boxed
+integer programs with Lean-generated controls. The artifact contains the
+ABI report, the exact LLVM input to the ABI experiment, any upstream
+disassembly and the public conformance test summary.
+
 ## Measurements and comparison
 
 `report.json` records input and tool/library hashes, target/layout, link mode,

@@ -13,6 +13,24 @@ import run_exit
 
 
 class QualificationTests(unittest.TestCase):
+    def test_linux_link_uses_only_the_pinned_lean_runtime_archives(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            lib = root / "lean/lib"
+            lib.mkdir(parents=True)
+            names = {"libc++.a", "libc++abi.a", "libunwind.a", "libuv.a", "libgmp.a"}
+            for name in names | {"libc.a"}:
+                (lib / name).touch()
+            selected = run.linux_runtime_libraries(lib.parent, root)
+            self.assertEqual({p.name for p in selected.iterdir()}, names)
+            for path in selected.iterdir():
+                self.assertEqual(path.resolve(strict=True), (lib / path.name).resolve())
+            (lib / "libc++.a").unlink()
+            retry = root / "retry"
+            retry.mkdir()
+            with self.assertRaises(FileNotFoundError):
+                run.linux_runtime_libraries(lib.parent, retry)
+
     def test_assembled_fixture_requires_the_contribution_and_all_three_current_symbols(self):
         case = run_exit.CASES["assembled-bool"]
         text = (run.ROOT / "llvm/fixtures" / case.source).read_bytes()

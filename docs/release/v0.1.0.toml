@@ -9,7 +9,7 @@ number = 749
 title = "Compiler specification and feasibility"
 state = "open"
 depends = []
-remaining = "Exploratory macOS reduction/native fixtures passed; Linux qualification, production coverage and compiler children remain."
+remaining = "Official Lean and nanoda checked the same 1,000-operation reduction exports on Linux x86-64 and macOS arm64. Both single-chunk and 64-operation chunk timings and peak RSS are recorded. The macOS native ABI fixture passed. The Linux native run, production coverage and compiler child issues remain."
 
 [[issue]]
 number = 839

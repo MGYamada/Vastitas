@@ -92,7 +92,9 @@ extracting the libraries and headers. It builds the same static qualification
 executable, runs the public native driver and compares the checked boxed
 integer programs with Lean-generated controls. On Linux the foreign archive
 links with the host C compiler selected through `leanc`, using the same libc
-as the OpenBLAS build. The ABI report records the link driver. The artifact contains the
+as the OpenBLAS build. The host linker uses the C++, C++ ABI, unwind, uv and
+GMP archives supplied by the selected Lean release. The ABI report records
+their names and hashes, along with the link driver. The artifact contains the
 ABI report, the exact LLVM input to the ABI experiment, any upstream
 disassembly and the public conformance test summary.
 

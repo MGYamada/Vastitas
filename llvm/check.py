@@ -204,9 +204,13 @@ def main():
     subprocess.run(["lake", "-d", "lean", "build", "VastitasOracle.CallFunction", "VastitasOracle.ExitFunction",
                     "VastitasOracle.DispatchFunction", "VastitasOracle.BinaryFunction",
                     "VastitasKernel.LLVM.FiniteExecution", "VastitasOracle.StorageProgram"], cwd=ROOT, check=True)
-    subprocess.run(["lake", "-d", "lean", "env", "lean", "-DwarningAsError=true", "--run",
+    # The closed equalities reduce large terms. Elaborating one declaration
+    # at a time avoids holding several kernel reductions in memory at once.
+    print(f"Checking closed Lean proofs for {len(registered)} LLVM files", flush=True)
+    subprocess.run(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
                     HERE / "Corpus.lean", HERE / "src", *sorted(registered)],
                    cwd=ROOT, check=True)
+    print("Lean corpus replay passed. Comparing the public compiler output.", flush=True)
     for name, source, package, target_name in CASES:
         target = targets[target_name]
         with tempfile.TemporaryDirectory(prefix="vastitas-llvm-corpus-") as tmp:

@@ -326,7 +326,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # macOS runs the complete corpus after a cold build, followed by three
+    # per-input certificate suites. Keep time for those suites on slower runners.
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 120 || 45 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -350,7 +352,7 @@ jobs:
             --output "$RUNNER_TEMP/proof-signed-literal.json"
       - name: Replay the Lean-verified LLVM corpus
         if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
-        run: python3 llvm/check.py 2>&1 | tee "$RUNNER_TEMP/proof-corpus.log"
+        run: python3 -u llvm/check.py 2>&1 | tee "$RUNNER_TEMP/proof-corpus.log"
       - name: Check the boxed program and proof substitutions in both modes
         if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite boxed 2>&1 | tee "$RUNNER_TEMP/proof-boxed.log"

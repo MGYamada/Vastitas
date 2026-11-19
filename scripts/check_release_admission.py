@@ -78,7 +78,8 @@ ROW_OBLIGATIONS = {
                  'compiler-ir.realization@identity-source'),
         'official': ('compiler-ir.numeric-order@reference', 'compiler-ir.numeric-order@reference-boundaries',
                      'compiler-ir.realization@identity-origin', 'compiler-ir.float-carrier@reference-laws',
-                     'compiler-ir.realization@rational-coordinates', 'compiler-ir.realization@coordinate-interpretation'),
+                     'compiler-ir.realization@rational-coordinates', 'compiler-ir.realization@exact-fields',
+                     'compiler-ir.realization@coordinate-interpretation'),
         'native': ('compiler-ir.native-fast@profile', 'compiler-ir.native-fast@identity-run'),
     },
     'scalar-indexed': {

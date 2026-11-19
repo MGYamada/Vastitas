@@ -803,6 +803,29 @@ premises = ["The named declaration belongs to the resolved environment of the ac
 assumes = ["rust-frontend"]
 note = "Component endpoints and naturality hold for every object and arrow of the selected functors. The selected Monad has an identity source for its unit, the squared action for its multiplication, and equal defined results on both sides of the unit and associativity diagrams."
 
+[property."compiler-ir.finite-models".claim.opposite-source]
+status = "tested"
+evidence = [
+  "tests/finite_opposite.rs::inversion_uses_the_covariant_functor_checker_on_the_opposite_of_s3",
+  "tests/finite_opposite.rs::the_opposite_swaps_endpoints_and_keeps_the_selected_category_nominal",
+]
+note = "A named Opposite shares its graph and swaps endpoints and composition order. Two applications restore the original order. Inversion on S3 passes the ordinary covariant functor equations on the opposite; switching its source to the original category fails on composition. The two-object test checks object fibers and refuses a cross-category argument."
+
+[property."compiler-ir.finite-models".claim.opposite-equations]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FiniteOpposite.involution",
+  "VastitasOracle.FiniteCategoryExecution.Opposite.units",
+  "VastitasOracle.FiniteCategoryExecution.Opposite.assoc",
+  "VastitasOracle.FiniteOpposite.hom_composition",
+  "VastitasOracle.FiniteOpposite.plan_reverses",
+  "VastitasOracle.FiniteModule.opposite_lookup_case",
+  "VastitasOracle.ResourceSource.public_opposite_functor",
+]
+premises = ["The public protocol accepted the named functor. Its source is the selected opposite of a declared finite base category. A Core plan lookup uses that nominal view and returns a tag."]
+assumes = ["rust-frontend"]
+note = "Identity and associativity transport from the checked base Hom operations. The Core lookup reads the reversed base row. For every in-domain pair the emitted switch has a case returning the ordinal of the mathematical opposite composite. The covariant functor law in the returned public declaration environment gives the reversed composition diagram for each composable pair in the base graph."
+
 [property."compiler-ir.finite-models".claim.isomorphism-source]
 status = "tested"
 evidence = [
@@ -1017,7 +1040,7 @@ this statement. These are not machine-code or foreign-runtime safety proofs.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.constitution)"
 example = "S3 arrows with different composition orders distinguish the admitted opposite interpretation from a mistaken covariant implementation."
-example_not_executed = "The finite typed statements, artifact correspondence and constitutional proofs are pending."
+example_test = "tests/finite_opposite.rs::inversion_uses_the_covariant_functor_checker_on_the_opposite_of_s3"
 
 [property."compiler-ir.constitution".claim.finite-proofs]
 status = "planned"

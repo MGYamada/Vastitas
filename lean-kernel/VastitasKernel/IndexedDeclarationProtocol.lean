@@ -526,6 +526,9 @@ def declarationBody (j : Json) : Except String Source.Body := do
     | "finite_monad" => return .monadSchema
     | _ => throw "unknown finite schema kind"
   | "instance" =>
+    if let .ok base := j.getObjVal? "opposite" then
+      fields j (common ++ ["schema", "opposite"])
+      return .finiteOpposite (← path (← field j "schema")) (← path base)
     for (key, kind) in [("kleisli", KleisliKind.category), ("kleisli_triple", .triple)] do
       if let .ok data := j.getObjVal? key then
         fields j (common ++ ["schema", key])

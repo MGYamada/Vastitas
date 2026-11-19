@@ -106,6 +106,7 @@ private def renameDeclaration : Declaration → Declaration
   | .finiteKleisli kind schema monad => .finiteKleisli kind (renameId schema) (renameId monad)
   | .finiteMonad schema m => .finiteMonad (renameId schema) (Id.run (m.mapM (pure ∘ renameId)))
   | .isoSchema => .isoSchema
+  | .finiteOpposite schema base => .finiteOpposite (renameId schema) (renameId base)
   | .finiteIso schema i => .finiteIso (renameId schema) (Id.run (i.mapM (pure ∘ renameId)))
   | .natTransSchema => .natTransSchema
   | .finiteNatTrans schema n => .finiteNatTrans (renameId schema) (Id.run (n.mapM (pure ∘ renameId)))

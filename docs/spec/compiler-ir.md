@@ -23,7 +23,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
 | [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
-| [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
+| [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
 | [Finite binders do not admit general polymorphism](#compiler-ir.finite-binders) | Planned, Tested, Tested, Tested, Proved (oracle) |
 | [Every transformation checks an untrusted witness](#compiler-ir.stage-validation) | Planned, Proved (oracle) |
 | [Local proofs compose over the same module](#compiler-ir.composition) | Planned |
@@ -588,6 +588,20 @@ Claims:
     - The named declaration belongs to the resolved environment of the accepted input. Source tables and transformations are selected by nominal declaration identity.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: Component endpoints and naturality hold for every object and arrow of the selected functors. The selected Monad has an identity source for its unit, the squared action for its multiplication, and equal defined results on both sides of the unit and associativity diagrams.
+- `opposite-source`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `inversion_uses_the_covariant_functor_checker_on_the_opposite_of_s3` in [`tests/finite_opposite.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_opposite.rs)
+    - `the_opposite_swaps_endpoints_and_keeps_the_selected_category_nominal` in [`tests/finite_opposite.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_opposite.rs)
+  - Note: A named Opposite shares its graph and swaps endpoints and composition order. Two applications restore the original order. Inversion on S3 passes the ordinary covariant functor equations on the opposite; switching its source to the original category fails on composition. The two-object test checks object fibers and refuses a cross-category argument.
+- `opposite-equations`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.FiniteOpposite`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/FiniteOpposite.lean): `VastitasOracle.FiniteOpposite.involution`, `VastitasOracle.FiniteCategoryExecution.Opposite.units`, `VastitasOracle.FiniteCategoryExecution.Opposite.assoc`, `VastitasOracle.FiniteOpposite.hom_composition`, `VastitasOracle.FiniteOpposite.plan_reverses`
+    - [`VastitasOracle.FiniteModule`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/FiniteModule.lean): `VastitasOracle.FiniteModule.opposite_lookup_case`
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.public_opposite_functor`
+  - Premises:
+    - The public protocol accepted the named functor. Its source is the selected opposite of a declared finite base category. A Core plan lookup uses that nominal view and returns a tag.
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Identity and associativity transport from the checked base Hom operations. The Core lookup reads the reversed base row. For every in-domain pair the emitted switch has a case returning the ordinal of the mathematical opposite composite. The covariant functor law in the returned public declaration environment gives the reversed composition diagram for each composable pair in the base graph.
 - `isomorphism-source`: [Tested](../specifications.md#tested)
   - Evidence:
     - `both_isomorphism_projections_are_executable_in_their_own_hom_fibers` in [`tests/finite_iso.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_iso.rs)
@@ -738,7 +752,7 @@ Claims:
 Typed CS_fin, MS_fin and CF_fin statements range over one pinned accepted U, P, E, Q, C and evidence interface. CS_fin relates the public accepted source AST, environment and returned Core with their applicable checks. Rust parsing remains an explicit assumption where no parser theorem exists. MS_fin relates checked storage and its initialized values, loans, aliases, cleanup and failures through the modeled lowering. CF_fin connects an admitted contravariant construction to an independent mathematical denotation, including a same-endpoint noncommuting example and reversed composition. Stage refinement alone does not establish that mathematical correspondence. Official Lean proofs and axiom closure are required before finite release acceptance; broader constitutional, Spec and CInfSpec claims remain outside this statement. These are not machine-code or foreign-runtime safety proofs.
 
 - Example: S3 arrows with different composition orders distinguish the admitted opposite interpretation from a mistaken covariant implementation.
-- Not executed: The finite typed statements, artifact correspondence and constitutional proofs are pending.
+- Run by: `inversion_uses_the_covariant_functor_checker_on_the_opposite_of_s3` in [`tests/finite_opposite.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_opposite.rs)
 
 Claims:
 

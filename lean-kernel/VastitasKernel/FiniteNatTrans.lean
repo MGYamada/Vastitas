@@ -28,8 +28,8 @@ def model (read : Read) (schema : DeclId) (n : NatTransFields DeclId) : Option M
   let f ← functorFields read n.source
   let g ← functorFields read n.target
   guard (parallel f g)
-  let (c, domain) ← FiniteFunctors.category read f.source
-  let (d, codomain) ← FiniteFunctors.category read f.target
+  let (c, domain) ← categoryView read f.source
+  let (d, codomain) ← categoryView read f.target
   return ⟨domain, codomain, ← mapping read f.objects c.objects d.objects,
     ← mapping read g.objects c.objects d.objects, ← mapping read f.arrows c.arrows d.arrows,
     ← mapping read g.arrows c.arrows d.arrows, ← mapping read n.components c.objects d.arrows⟩

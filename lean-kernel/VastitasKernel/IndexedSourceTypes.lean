@@ -119,7 +119,7 @@ def homEndpoint (program : Namespace.Indexed) (scope : Namespace.Scope)
         return (base, resolved, fields.category)
       return (base, resolved, resolved.owner)
     let some (visible, resolved, cat) := selected | return none
-    let some (.finiteCategory _ fields) := Indexed.lookup env cat | return none
+    let some (_, fields, _) := FiniteCategories.describe (FiniteCategories.view env) (Limits.namespaceResolution + 1) cat | return none
     return some (visible, resolved, fields.objects)
   let id ← match projected with
     | some (base, resolved, objects) => do

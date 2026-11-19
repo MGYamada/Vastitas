@@ -2,6 +2,7 @@ import VastitasKernel.ResourceProtocol
 import VastitasOracle.StorageFunctions
 import VastitasOracle.IndexedAuthority
 import VastitasOracle.IndexedSource
+import VastitasOracle.FiniteOpposite
 import VastitasOracle.IndexedProgramSafety
 
 /-! Public resource/source composition facts, tied to actual reconstruction and
@@ -221,6 +222,29 @@ theorem public_finite_functor {json : Lean.Json} (input : Wire.CheckedInput json
         VastitasOracle.FiniteFunctors.Preserves m :=
   ⟨input.revisionMatches, VastitasOracle.FiniteFunctors.checked_functor
     input.checked.pureProgram.authority.headers.declarations member⟩
+
+/-- A named functor from a declared opposite obeys the contravariant
+composition equation in the base graph of this specific public revision. -/
+theorem public_opposite_functor {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (member : ⟨owner, .finiteFunctor schema maps⟩ ∈
+      input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed)
+    (named : Indexed.FiniteCategories.view input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed
+      maps.source = some (.finiteOpposite categorySchema base))
+    (direct : Indexed.FiniteCategories.view input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed
+      base = some (.finiteCategory categorySchema fields))
+    (selected : Indexed.FiniteCategories.graph
+      (Indexed.FiniteCategories.view input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed)
+      categorySchema fields = some g) :
+    let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed
+    Wire.RevisionMatches json input.checked ∧
+      ∃ m, Indexed.FiniteFunctors.model (Indexed.FiniteCategories.view env) schema maps = some m ∧
+        ∀ h ∈ g.arrows, ∀ f ∈ g.arrows, g.composable h f = true →
+          VastitasOracle.FiniteFunctors.Commutes
+            ((g.composition[[h,f]]?).bind (Indexed.FiniteFunctors.image m.arrows))
+            (m.mappedComposition f h) := by
+  obtain ⟨revision, m, model, laws⟩ := public_finite_functor input member
+  have source := FiniteOpposite.model_source model (FiniteOpposite.selected_view named direct selected)
+  exact ⟨revision, m, model, fun _ h _ f pair => FiniteOpposite.map_reverses laws source h f pair⟩
 
 /-- The named isomorphism uses the category, arrows and both identities of
 this accepted public input. The same revision covers the unused declarations. -/

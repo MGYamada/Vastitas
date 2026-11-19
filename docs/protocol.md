@@ -128,6 +128,12 @@ The decoder requires exactly one record and checks its fields. Changing a
 category reference changes the revision even when both categories share
 their carriers and tables. [Finite carriers and tables](indexed-source.md#finite-carriers-and-tables)
 
+An `Opposite<C>` instance carries its selected category schema and a single
+`opposite` path to the base. The kernel bounds the declaration chain,
+checks schema identity and obtains both orientations from the same tables.
+Only the view owner can select the oriented composition in a Hom lookup.
+Supplying an extra graph or law field fails the instance decoder.
+
 A `finite_iso` schema admits an `iso` record with exactly five paths. Its
 `category` is a named finite category. The paths `source`, `target`,
 `forward` and `inverse` select nullary tables on its nominal object and

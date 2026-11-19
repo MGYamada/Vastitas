@@ -2,6 +2,7 @@ import Std.Data.HashMap.Lemmas
 import VastitasKernel.LLVM.FiniteExecution
 import VastitasKernel.LLVM.FiniteModule
 import VastitasOracle.FiniteLookupLayout
+import VastitasOracle.FiniteOpposite
 
 set_option autoImplicit false
 
@@ -301,5 +302,29 @@ theorem lookup_case {env : Environment} {site : FiniteLookup} {name : String}
   rw [ordinal] at h
   obtain ⟨i, addr, hit⟩ := Option.bind_eq_some_iff.mp h
   exact ⟨i,addr,table_case image.emitted hit⟩
+
+/-- Each in-domain pair in an emitted opposite-category table selects the
+block returning the ordinal of the mathematical opposite composite. The
+selected public category owns the Hom fibers and the base composition. -/
+theorem opposite_lookup_case {p : Source.Program} (checked : Source.CheckedDeclarations p)
+    {base owner table : DeclId} {m : FiniteHom.Model checked.resolved.declarations.indexed base}
+    (named : lookup checked.resolved.declarations.indexed owner = some (.finiteOpposite m.schema base))
+    {x y z name : String} (g : FiniteCategoryExecution.Opposite.Hom m y z)
+    (f : FiniteCategoryExecution.Opposite.Hom m x y)
+    (image : TableImage checked.resolved.declarations.indexed
+      ⟨table, some owner, [.hom owner y z, .hom owner x y], .hom owner x z⟩ name)
+    {digits : List Nat} (input : decodeKey image.plan.domains digits = some [g.tag,f.tag]) :
+    ∃ out i, image.plan.range.idxOf? (FiniteCategoryExecution.Opposite.compose checked g f).tag = some out ∧
+      (Layout.ofWidths (image.plan.domains.map List.length)).address digits = some i ∧
+      CaseReturns image.function i out := by
+  obtain ⟨tag, member, row⟩ := FiniteLookup.decoded_total image.plan input
+  have direct : FiniteCategories.view checked.resolved.declarations.indexed base = some (.finiteCategory m.schema m.fields) := by
+    simp [FiniteCategories.view, m.declared]
+  have baseRow := FiniteOpposite.plan_reverses named direct m.selected image.plan row
+  have same := Option.some.inj (baseRow.symm.trans (FiniteCategoryExecution.Opposite.compose_row checked g f))
+  subst tag
+  obtain ⟨out, ordinal⟩ := Option.isSome_iff_exists.mp (List.isSome_idxOf?.mpr member)
+  obtain ⟨i, address, returns⟩ := lookup_case image digits input row ordinal
+  exact ⟨out, i, ordinal, address, returns⟩
 
 end VastitasOracle.FiniteModule

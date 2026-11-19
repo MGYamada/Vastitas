@@ -138,6 +138,8 @@ def resolveBody (p : Namespace.Indexed) (graphs : GraphSources) (projections : P
   | .composableTable inputs output src dst rows =>
       return add (.composableTable (← inputs.mapM (resolveFinitePath p graphs projections scope)) (← resolveFinitePath p graphs projections scope output)
         (← resolveFinitePath p graphs projections scope src) (← resolveFinitePath p graphs projections scope dst) (rows.map fun r => (r.key.map (·.name), r.value.name)))
+  | .finiteOpposite schema category =>
+      return add (.finiteOpposite (← resolveId p scope schema) (← resolveId p scope category))
   | .finiteCategory schema graph =>
       return add (.finiteCategory (← resolveId p scope schema) (← graph.mapM (resolveFinitePath p graphs projections scope)))
   | .implementation marker representation capabilities =>
@@ -617,6 +619,11 @@ private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declar
       if !tags.contains value then return issue row.value.span "composition result must name an arrow"
       seen := seen.insert key
     return issue source.span "composition table is missing a composable pair"
+  if let .finiteOpposite schema _ := entry.declaration then
+    let .finiteOpposite schemaPath base := source.body | none
+    if named schema != some .categorySchema then
+      return { code := "E_CATEGORY", span := schemaPath.span, message := "Opposite requires a finite category schema" }
+    return { code := "E_CATEGORY", span := base.span, message := "Opposite requires a finite category of the selected schema within the resolution limit" }
   if let .finiteCategory schema fields := entry.declaration then
     let .finiteCategory schemaPath paths := source.body | none
     let problem := fun (sp : Span) (msg : String) => ({ span := sp, code := "E_CATEGORY", message := msg } : Diagnostic)
@@ -639,9 +646,9 @@ private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declar
     let .finiteFunctor schemaPath paths := source.body | none
     let problem := fun (sp : Span) (msg : String) => ({ span := sp, code := "E_FUNCTOR", message := msg } : Diagnostic)
     if named schema != some .functorSchema then return problem schemaPath.span "instance must select a finite functor schema"
-    let some (c, _) := FiniteFunctors.category named maps.source
+    let some (c, _) := FiniteCategories.categoryView named maps.source
       | return problem paths.source.span "functor source endpoint must name a finite category"
-    let some (d, _) := FiniteFunctors.category named maps.target
+    let some (d, _) := FiniteCategories.categoryView named maps.target
       | return problem paths.target.span "functor target endpoint must name a finite category"
     if (FiniteFunctors.mapping named maps.objects c.objects d.objects).isNone then
       return problem paths.objects.span "object map must be unary with the selected nominal object carriers"
@@ -683,8 +690,8 @@ private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declar
       | return problem paths.target.span "transformation target must name a finite functor"
     if !FiniteNatTrans.parallel f g then
       return problem paths.target.span "the two functors must have the same nominal source and target categories"
-    let some (.finiteCategory _ c) := named f.source | return problem paths.source.span "invalid functor source category"
-    let some (.finiteCategory _ d) := named f.target | return problem paths.source.span "invalid functor target category"
+    let some (c, _) := FiniteCategories.categoryView named f.source | return problem paths.source.span "invalid functor source category"
+    let some (d, _) := FiniteCategories.categoryView named f.target | return problem paths.source.span "invalid functor target category"
     if (FiniteFunctors.mapping named n.components c.objects d.arrows).isNone then
       return problem paths.components.span "components must be unary with the nominal source object and target arrow carriers"
     let some m := FiniteNatTrans.model named schema n | return problem source.span "invalid selected finite functor fields"

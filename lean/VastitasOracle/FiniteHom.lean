@@ -27,7 +27,7 @@ private theorem graph_comp {read : Read} {fields : GraphFields DeclId}
     (selected : graph read schema fields = some g) :
     ∃ ins out src dst rows,
       read fields.comp = some (.composableTable ins out src dst rows) ∧
-      g.composition = Std.HashMap.ofList rows ∧
+      g.composition = .forward (Std.HashMap.ofList rows) ∧
       endpoints read out src dst = some g.toEndpoints := by
   unfold graph at selected
   cases hs : read schema with
@@ -156,23 +156,28 @@ private theorem restrictComposition_row {g : Graph} {range : List String}
   obtain ⟨t, get, _, _, rfl, rfl⟩ := found
   exact get
 
-/-- Every executable lookup row agrees with the selected model's composition table. -/
-theorem core_composition_row {m : FiniteHom.Model env owner}
+/-- Every row restricted to two Hom fibers is read from the selected graph. -/
+theorem selected_composition_row (graph : FiniteSort.selected env owner = some (fields, g))
     (result : FiniteSort.composition? env owner after before = some (table, output, rows))
-    (member : (key, tag) ∈ rows) : m.data.composition[key]? = some tag := by
+    (member : (key, tag) ∈ rows) : g.composition[key]? = some tag := by
   cases after <;> cases before <;>
-    simp [FiniteSort.composition?, FiniteSort.selected, m.declared, m.selected, Option.bind_eq_some_iff] at result
+    simp [FiniteSort.composition?, graph, Option.bind_eq_some_iff] at result
   obtain ⟨_, _, _, _, _, _, _, _, _, _, hrows, _, _, rfl⟩ := result
   exact restrictComposition_row hrows member
 
-/-- The Core evaluator's actual plan looks up the same row as mathematical composition. -/
-theorem plan_atKey_composition {m : FiniteHom.Model env owner}
+theorem core_composition_row {m : FiniteHom.Model env owner}
+    (result : FiniteSort.composition? env owner after before = some (table, output, rows))
+    (member : (key, tag) ∈ rows) : m.data.composition[key]? = some tag :=
+  selected_composition_row (fields := m.fields) (by simp [FiniteSort.selected, m.declared, m.selected]) result member
+
+/-- A Core plan's actual result agrees with the selected graph in either orientation. -/
+theorem plan_atKey_selected (graph : FiniteSort.selected env owner = some (fields, g))
     (plan : FiniteLookup.Plan env ⟨table, some owner, [after,before], output⟩)
-    (evaluated : plan.atKey key = some tag) : m.data.composition[key]? = some tag := by
+    (evaluated : plan.atKey key = some tag) : g.composition[key]? = some tag := by
   have selected := plan.selectedRows
   simp [FiniteLookup.signature, Option.bind_eq_some_iff] at selected
   obtain ⟨actualTable, actualOutput, rows, actual, _, _, rfl⟩ := selected
-  apply core_composition_row (m := m) actual
+  apply selected_composition_row graph actual
   unfold FiniteLookup.Plan.atKey at evaluated
   cases h : plan.rows.find? (fun row => row.1 == key) with
   | none => simp [h] at evaluated
@@ -182,6 +187,11 @@ theorem plan_atKey_composition {m : FiniteHom.Model env owner}
     simp [h] at evaluated
     subst k; subst t
     exact List.mem_of_find?_eq_some h
+
+theorem plan_atKey_composition {m : FiniteHom.Model env owner}
+    (plan : FiniteLookup.Plan env ⟨table, some owner, [after,before], output⟩)
+    (evaluated : plan.atKey key = some tag) : m.data.composition[key]? = some tag :=
+  plan_atKey_selected (fields := m.fields) (by simp [FiniteSort.selected, m.declared, m.selected]) plan evaluated
 
 theorem hom_mem_input {m : FiniteHom.Model env owner} {tags : List String} (a : FiniteHom.Hom m x y)
     (input : FiniteSort.tags env (.hom owner x y) = some tags) : a.tag ∈ tags := by

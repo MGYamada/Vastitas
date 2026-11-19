@@ -194,6 +194,7 @@ pub struct FiniteMonad {
 #[serde(rename_all = "snake_case")]
 pub enum FiniteInstance {
     Graph(Box<FiniteGraph>),
+    Opposite(Box<TypePath>),
     Functor(Box<FiniteFunctor>),
     Iso(Box<FiniteIso>),
     Transformation(Box<NaturalTransformation>),

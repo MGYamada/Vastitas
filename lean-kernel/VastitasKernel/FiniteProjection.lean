@@ -16,6 +16,7 @@ def resolveId (p : Namespace.Indexed) (scope : Namespace.Scope) (path : Path) : 
 walking declarations. This index cannot discover an instance by spelling. -/
 inductive InstanceFields where
   | category (graph : GraphFields Path)
+  | opposite (base : Path)
   | functor (maps : FunctorFields Path)
   | iso (fields : IsoFields Path)
   | transformation (fields : NatTransFields Path)
@@ -26,6 +27,7 @@ abbrev GraphSources := Std.HashMap DeclId InstanceFields
 
 def graphSources (declarations : List (DeclId × Declaration)) : GraphSources :=
   declarations.foldl (init := {}) fun index (owner, d) => match d.body with
+    | .finiteOpposite _ base => index.insert owner (.opposite base)
     | .finiteCategory _ graph => index.insert owner (.category graph)
     | .finiteMonad _ m => index.insert owner (.monad m)
     | .finiteKleisli _ _ m => index.insert owner (.kleisli m)
@@ -35,6 +37,7 @@ def graphSources (declarations : List (DeclId × Declaration)) : GraphSources :=
     | _ => index
 
 def InstanceFields.projections : InstanceFields → List (String × Path)
+  | .opposite base => ["objects", "arrows", "source", "target", "identities", "composition"].map fun name => (name, base)
   | .category g => [("objects", g.objects), ("arrows", g.arrows), ("source", g.src),
       ("target", g.dst), ("identities", g.ids), ("composition", g.comp)]
   | .monad m => [("unit", m.unit), ("multiplication", m.multiplication),
@@ -46,7 +49,7 @@ def InstanceFields.projections : InstanceFields → List (String × Path)
 
 def InstanceFields.unknown (fields : InstanceFields) (name : String) : String × String :=
   match fields with
-  | .category _ => ("E_CATEGORY", s!"unknown finite category projection '{name}'")
+  | .category _ | .opposite _ => ("E_CATEGORY", s!"unknown finite category projection '{name}'")
   | .monad _ => ("E_MONAD", s!"unknown finite Monad projection '{name}'")
   | .kleisli _ => ("E_KLEISLI", s!"unknown Kleisli view projection '{name}'")
   | .iso _ => ("E_ISO", s!"unknown finite isomorphism projection '{name}'")
@@ -57,6 +60,7 @@ abbrev ProjectionKey := DeclId × String
 structure Projected where
   id : DeclId
   depth : Nat
+  reversedComposition : Bool := false
 
 abbrev ProjectionCache := Std.HashMap ProjectionKey Projected
 
@@ -100,6 +104,20 @@ where
       -- reference audit, even when the selected table or Monad is private.
       let next? ← do
         match graphs[key.1]? with
+        | some (.opposite _) =>
+          let owner ← liftM (resolveId index key.1.scope path)
+          let field := match key.2 with
+            | "source" => "target"
+            | "target" => "source"
+            | other => other
+          let some target := graphs[owner]?
+            | Namespace.problem path.span "E_CATEGORY" "Opposite requires a named category"
+          match target with
+          | .category _ | .opposite _ =>
+            let some (_, slot) := target.projections.find? (·.1 == field)
+              | Namespace.problem path.span "E_CATEGORY" "unknown Opposite projection"
+            pure (some ((owner, field), slot))
+          | _ => Namespace.problem path.span "E_CATEGORY" "Opposite requires a named category"
         | some (.kleisli _) =>
           let owner ← liftM (resolveId index key.1.scope path)
           let some (model@(.monad _)) := graphs[owner]?
@@ -123,8 +141,11 @@ where
       let resolved : Projected ← match next? with
         | some (next, nextPath) => do
             let found ← visit fuel next nextPath (active.insert key)
-            pure ⟨found.id, found.depth + 1⟩
-        | none => pure ⟨← liftM (resolveId index key.1.scope path), 1⟩
+            let flips := key.2 == "composition" && match graphs[key.1]? with
+              | some (.opposite _) => true
+              | _ => false
+            pure ⟨found.id, found.depth + 1, if flips then !found.reversedComposition else found.reversedComposition⟩
+        | none => pure ⟨← liftM (resolveId index key.1.scope path), 1, false⟩
       modify (·.insert key resolved)
       return resolved
 
@@ -135,6 +156,8 @@ def resolveFinitePath (index : Namespace.Indexed) (graphs : GraphSources)
     (cache : ProjectionCache) (scope : Namespace.Scope) (path : Path) : ResolveM DeclId := do
   if let some (key, _) ← projected? index graphs scope path then
     let some target := cache[key]? | Namespace.problem path.span "E_CATEGORY" "unresolved finite category field"
+    if target.reversedComposition then
+      Namespace.problem path.span "E_CATEGORY" "a reversed composition requires lookup through its named view"
     return target.id
   resolveId index scope path
 

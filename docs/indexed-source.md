@@ -157,6 +157,7 @@ and the package
 >     | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
 > FiniteInstance -> `indexed` `instance` IDENTIFIER `:` Path `=`
 >     ( `finite_graph` `(` Path `,` Path `,` Path `,` Path `,` Path `,` Path `)`
+>     | `Opposite` `<` Path `>`
 >     | `finite_functor` `(` Path `,` Path `,` Path `,` Path `)`
 >     | `finite_nat_trans` `(` Path `,` Path `,` Path `)`
 >     | `finite_iso` `(` Path `,` Path `,` Path `,` Path `,` Path `)`
@@ -166,6 +167,15 @@ and the package
 > FiniteTableRow -> `(` FiniteTableTags? `)` `=>` IDENTIFIER `;`
 > FiniteTableTags -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
 > ```
+
+The declaration `indexed instance R : Category = Opposite<C>;` uses the
+category schema of `C`. Both instances share the same objects, arrow tags and
+identities. In `R` the source and target tables exchange roles. Composition
+reads the base row in reverse argument order. A second application restores
+the original orientation. Concrete Hom values keep their selected owner.
+Use `R::composition` in a checked lookup or call `compose` on arrows of
+`R`. A raw table slot cannot represent a reversed composition. Functors,
+natural transformations and isomorphisms can select the named view.
 
 A named finite isomorphism selects its category and four nullary tables.
 The first two tables return the source and target object. The other two

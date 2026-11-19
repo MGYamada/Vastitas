@@ -49,7 +49,7 @@ ROW_OBLIGATIONS = {
     },
     'category': {
         'source': ('compiler-ir.finite-models@source-core', 'compiler-ir.finite-models@category-check',
-                   'compiler-ir.finite-models@isomorphism-source',
+                   'compiler-ir.finite-models@isomorphism-source', 'compiler-ir.finite-models@opposite-source',
                    'compiler-ir.finite-models@functor-source', 'compiler-ir.finite-models@transformation-monad-source',
                    'compiler-ir.finite-binders@category-functions', 'compiler-ir.finite-binders@monad-functions'),
         'core': ('compiler-ir.finite-binders@admission', 'compiler-ir.finite-binders@concrete-lookup',
@@ -59,7 +59,7 @@ ROW_OBLIGATIONS = {
                  'compiler-ir.llvm-bytes@binary-function', 'compiler-ir.llvm-bytes@binary-source',
                  'compiler-ir.llvm-bytes@finite-entry', 'compiler-ir.llvm-bytes@finite-package-source'),
         'official': ('compiler-ir.finite-models@laws', 'compiler-ir.finite-models@category-equations',
-                   'compiler-ir.finite-models@isomorphism-equations',
+                   'compiler-ir.finite-models@isomorphism-equations', 'compiler-ir.finite-models@opposite-equations',
                      'compiler-ir.finite-models@functor-equations', 'compiler-ir.finite-models@transformation-monad-equations',
                      'compiler-ir.finite-models@kleisli-equations',
                      'compiler-ir.finite-binders@typed-substitution',

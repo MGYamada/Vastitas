@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains nineteen complete LLVM assembly files from edition 2026 Vastitas source. Lean checks a closed theorem for each file. Eight theorems establish parser acceptance of the stored bytes. Eleven identify every byte with the canonical printout of an independent model. Replay parses those eleven and compares the reconstructed models. It also evaluates the entries of the ten executable models. Eighteen files target macOS arm64. The structured lookup also has an x86-64 Linux file with the same function model. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains twenty complete LLVM assembly files from edition 2026 Vastitas source. Lean checks a closed theorem for each file. Eight theorems establish parser acceptance of the stored bytes. Twelve identify every byte with the canonical printout of an independent model. Replay parses those twelve and compares the reconstructed models. It also evaluates the entries of the eleven executable models. Nineteen files target macOS arm64. The structured lookup also has an x86-64 Linux file with the same function model. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -18,6 +18,7 @@ The corpus contains nineteen complete LLVM assembly files from edition 2026 Vast
 | [structured-lookup-linux-x86_64.ll](../src/structured-lookup-linux-x86_64.ll) · 2,647 bytes | [StructuredLookup.vast](../fixtures/StructuredLookup.vast) | The Linux target and data layout are part of the byte proof. The table, both Boolean methods, calls, branch and phi have the same model as the macOS file. | `structured_lookup_linux_verified` |
 | [empty-lookup.ll](../src/empty-lookup.ll) · 439 bytes | [EmptyLookup.vast](../fixtures/EmptyLookup.vast) | The input carrier is empty. The switch has only a default edge. Every foreign `i32` returns `-1`. | `empty_lookup_verified` |
 | [closure-unit.ll](../src/closure-unit.ll) · 549 bytes | [ClosureUnit.vast](../fixtures/ClosureUnit.vast) | The unit of the closure Monad on `lo < hi` returns the nonidentity arrow `up` at `lo` and the identity of `hi` at `hi`. The resulting arrow ordinals are 1 and 2. | `closure_unit_verified` |
+| [opposite-s3.ll](../src/opposite-s3.ll) · 5,452 bytes | [Permutation inversion](../fixtures/opposite-s3/main.vast) | Two 36-row switches encode composition of the six permutations in reversed and original order. A six-row switch calculates the inverse. The entry distinguishes the two products and exits with 42. | `opposite_s3_verified` |
 | [finite-iso.ll](../src/finite-iso.ll) · 2,515 bytes | [Two-object isomorphism](../fixtures/finite-iso/main.vast) | Two nullary lookups select arrows with opposite endpoints. Two composition functions check the inverse equations. The nested joins each have two predecessors. | `finite_iso_verified` |
 | [finite-kleisli.ll](../src/finite-kleisli.ll) · 4,463 bytes | [Finite Kleisli package](../../examples/packages/finite-kleisli/Vastitas.toml) | The real application calls `unit`, `bind`, `compose`, `lift` and `mappedUp`. Its five equalities combine in four `and i1` instructions, then a branch and phi choose exit status 0 or 1. | `finite_kleisli_verified` |
 | [kleisli-callback.ll](../src/kleisli-callback.ll) · 2,434 bytes | [Kleisli callback](../fixtures/kleisli-callback/main.vast) | The specialization of `applyArrow` calls the capture-free producer once, then passes its arrow ordinal to `bind`. Both the unit and multiplication of the selected Monad are the nonidentity element of the group of order two. | `kleisli_callback_verified` |
@@ -114,3 +115,13 @@ functions in opposite orders. Its nested conditions join the exit values 42,
 arguments in slots before branching, and `emitJDecl` allocates variables for
 the join body. The corpus theorem covers every byte of the explicit-phi
 module. On macOS arm64, LLVM 23.1.4 emitted a 1,976-byte object. The linked object, the public native preview, the Lean/C build and a Lean control composing explicit endpoint pairs all returned 42. The pinned upstream executable reported no LLVM feature. [Lean join arguments](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060) · [Lean join declarations](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1130-L1144)
+
+
+The S3 opposite fixture constructs its expected LLVM model by composing the
+three images of each permutation. It derives the inverse by locating each
+image. Both switches check unsigned bounds before flattening their two
+arguments. The entry passes the branch results to one explicit phi. An
+[independent Lean reference](../../experiments/compiler_validation/llvm/OppositeComparison.lean) checks the inversion law for all 36 pairs and returns 42.
+Lean 4.35.0 emits `switch` for tagged cases and stores join arguments on a
+jump. Its pinned binary reports no LLVM backend feature.
+[Lean tagged cases](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1090-L1137) · [Lean join arguments](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)

@@ -81,6 +81,7 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
   | .finiteMonad schema fields => FiniteMonads.valid (FiniteCategories.view env) schema fields = true
   | .finiteIso schema fields => FiniteIso.valid (FiniteCategories.view env) schema fields = true
   | .finiteNatTrans schema fields => FiniteNatTrans.valid (FiniteCategories.view env) schema fields = true
+  | .finiteOpposite schema base => FiniteCategories.oppositeValid (FiniteCategories.view env) schema base = true
   | .finiteFunctor schema maps => FiniteFunctors.valid (FiniteCategories.view env) schema maps = true
   | .composableTable ins out src dst rows => FiniteCategories.compositionValid (FiniteCategories.view env) ins out src dst rows = true
   | .finiteCategory schema graph => FiniteCategories.valid (FiniteCategories.view env) schema graph = true
@@ -157,6 +158,7 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
   | .finiteMonad schema fields => FiniteMonads.valid (FiniteCategories.view env) schema fields
   | .finiteIso schema fields => FiniteIso.valid (FiniteCategories.view env) schema fields
   | .finiteNatTrans schema fields => FiniteNatTrans.valid (FiniteCategories.view env) schema fields
+  | .finiteOpposite schema base => FiniteCategories.oppositeValid (FiniteCategories.view env) schema base
   | .finiteFunctor schema maps => FiniteFunctors.valid (FiniteCategories.view env) schema maps
   | .composableTable ins out src dst rows => FiniteCategories.compositionValid (FiniteCategories.view env) ins out src dst rows
   | .finiteCategory schema graph => FiniteCategories.valid (FiniteCategories.view env) schema graph

@@ -23,8 +23,8 @@ the corresponding nominal carriers. Whole-environment checking separately
 checks every carrier, category and table used here. -/
 def model (read : Read) (schema : DeclId) (maps : FunctorFields DeclId) : Option Model := do
   let .functorSchema ← read schema | none
-  let (c, source) ← category read maps.source
-  let (d, target) ← category read maps.target
+  let (c, source) ← categoryView read maps.source
+  let (d, target) ← categoryView read maps.target
   return ⟨source, target, ← mapping read maps.objects c.objects d.objects,
     ← mapping read maps.arrows c.arrows d.arrows⟩
 

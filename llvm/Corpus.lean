@@ -100,6 +100,7 @@ set_option maxHeartbeats 2000000 in
 theorem boxed_arithmetic_verified : boxedBytes = boxedModel.print := by rfl
 
 def compositionBytes := corpus_bytes "src/s3-composition.ll"
+def oppositeBytes := corpus_bytes "src/opposite-s3.ll"
 def isoBytes := corpus_bytes "src/finite-iso.ll"
 def kleisliBytes := corpus_bytes "src/finite-kleisli.ll"
 def kleisliCallbackBytes := corpus_bytes "src/kleisli-callback.ll"
@@ -122,6 +123,36 @@ private def eq (d x y : Nat) : Instr := .compare (slot d) .eq .word (reg x) (reg
 
 private def straight (name : String) (arity : Nat) (ops : List Instr) (result : Nat) : Func :=
   ⟨name,true,.word,(List.range arity).map fun n => (.word,slot n),[⟨"b0",ops,ret (slot result)⟩]⟩
+
+namespace OppositeS3
+
+/-- A permutation is its three images. Lexicographic order gives the public
+arrow ordinals; ordinary composition applies the right permutation first. -/
+private def permutations : List (List Nat) :=
+  [[0,1,2], [0,2,1], [1,0,2], [1,2,0], [2,0,1], [2,1,0]]
+
+private def product (g f : List Nat) : Nat := permutations.idxOf (f.map fun i => g[i]!)
+
+private def composeAt (n : Nat) (reversed : Bool) : List Func :=
+  let name := s!"t{n}_0_2"
+  let rows := permutations.flatMap fun g => permutations.map fun f =>
+    if reversed then product f g else product g f
+  (table name [6,6] rows).toList ++ [straight s!"f{n}" 2 [call 2 name [0,1]] 2]
+
+def code : Code :=
+  let inverse := permutations.map fun p => permutations.idxOf ([0,1,2].map fun i => p.idxOf i)
+  let entry : Func := ⟨"f2",true,.word,[],[
+    ⟨"b0",[constant (slot 0) 1, constant (slot 1) 2, call 2 "f0" [0,1],
+      constant (slot 3) 1, constant (slot 4) 2, call 5 "f1" [3,4], constant (slot 6) 3,
+      call 7 "t2_0_7" [6], constant (slot 8) 3, eq 9 2 8, constant (slot 10) 4,
+      eq 11 5 10, both 12 9 11, constant (slot 13) 4, eq 14 7 13, both 15 12 14],
+      .branch (reg 15) "b1" "b2"⟩,
+    ⟨"b1",[constant "v1_0" 42],.jump "b3"⟩, ⟨"b2",[constant "v2_0" 7],.jump "b3"⟩,
+    ⟨"b3",[.phi "v3_0" .word [(.reg "v1_0","b1"),(.reg "v2_0","b2")]],ret "v3_0"⟩]⟩
+  ⟨header, composeAt 0 true ++ composeAt 1 false ++ (table "t2_0_7" [6] inverse).toList ++
+    [entry, ⟨"main",false,.word,[],[⟨"start",[.call "result" .word "f2" []],ret "result"⟩]⟩]⟩
+
+end OppositeS3
 
 namespace Iso
 
@@ -308,6 +339,10 @@ theorem finite_iso_verified : isoBytes = Iso.code.print := rfl
 
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 3000000 in
+theorem opposite_s3_verified : oppositeBytes = OppositeS3.code.print := rfl
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 3000000 in
 theorem finite_kleisli_verified : kleisliBytes = Kleisli.code.print := rfl
 
 set_option maxRecDepth 65536 in
@@ -398,6 +433,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("empty-lookup.ll", forLookup empty_lookup_verified),
    ("unary-table.ll", forLookup unary_table_verified),
    ("closure-unit.ll", forLookup closure_unit_verified),
+   ("opposite-s3.ll", forCode opposite_s3_verified),
    ("finite-iso.ll", forCode finite_iso_verified),
    ("finite-kleisli.ll", forCode finite_kleisli_verified),
    ("kleisli-callback.ll", forCode kleisli_callback_verified),
@@ -442,6 +478,7 @@ def main (args : List String) : IO Unit := do
       throw (IO.userError "boxed-program.ll: accepted a damaged call, startup or ownership instruction")
   unless VastitasKernel.LLVM.ExactLibrary.parse Vastitas.LLVMCorpus.boxedBytes == some Vastitas.LLVMCorpus.boxedModel do
     throw (IO.userError "boxed-arithmetic.ll: different typed call graph or ownership schedule")
+  checkEntry "opposite-s3.ll" Vastitas.LLVMCorpus.oppositeBytes Vastitas.LLVMCorpus.OppositeS3.code 42
   checkEntry "finite-iso.ll" Vastitas.LLVMCorpus.isoBytes Vastitas.LLVMCorpus.Iso.code 42
   checkEntry "finite-kleisli.ll" Vastitas.LLVMCorpus.kleisliBytes Vastitas.LLVMCorpus.Kleisli.code 0
   checkEntry "kleisli-callback.ll" Vastitas.LLVMCorpus.kleisliCallbackBytes Vastitas.LLVMCorpus.KleisliCallback.code 42

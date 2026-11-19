@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "e5d840ba05c22b532aef8a8cafc56acd038f6e2a",
-    "schema_sha256": "988290843ff8aafcabd5389248f78aea893ef052d53776505802fe6b4f22a502"
+    "base_commit": "80019e8e35b0adf8a2bad22fe5723f3739692e32",
+    "schema_sha256": "0147b55433077c6a3a26a5f38f497d8716224c98731a17b23aed66d41573e154"
   },
   "schema": {
     "sources": [
@@ -554,6 +554,10 @@
           {
             "id": "VastitasKernel.Indexed.Declaration.finiteCategory",
             "signature": "finiteCategory ( schema : DeclId ) ( graph : GraphFields DeclId )"
+          },
+          {
+            "id": "VastitasKernel.Indexed.Declaration.finiteOpposite",
+            "signature": "finiteOpposite ( schema category : DeclId )"
           },
           {
             "id": "VastitasKernel.Indexed.Declaration.finiteFunctor",
@@ -5355,6 +5359,14 @@
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.Indexed.Declaration.finiteNatTrans",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.Declaration.finiteOpposite",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.Declaration.finiteOpposite",
       "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },

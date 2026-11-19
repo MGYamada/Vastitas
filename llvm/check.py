@@ -33,6 +33,7 @@ CASES = [
     Sample("static-selection", HERE / "fixtures/StaticSelection.vast", "static_selection"),
     Sample("empty-lookup", HERE / "fixtures/EmptyLookup.vast", "empty_lookup"),
     Sample("closure-unit", HERE / "fixtures/ClosureUnit.vast", "closure_unit"),
+    Sample("opposite-s3", HERE / "fixtures/opposite-s3/Vastitas.toml", None),
     Sample("finite-iso", HERE / "fixtures/finite-iso/Vastitas.toml", None),
     Sample("finite-kleisli", ROOT / "examples/packages/finite-kleisli/Vastitas.toml", None),
     Sample("kleisli-callback", HERE / "fixtures/kleisli-callback/Vastitas.toml", None),

@@ -327,6 +327,7 @@ inductive Declaration where
   | kleisliSchema (kind : KleisliKind) (monadSchema : DeclId)
   | composableTable (inputs : List DeclId) (output src dst : DeclId) (rows : List (List String × String))
   | finiteCategory (schema : DeclId) (graph : GraphFields DeclId)
+  | finiteOpposite (schema category : DeclId)
   | finiteFunctor (schema : DeclId) (maps : FunctorFields DeclId)
   | finiteIso (schema : DeclId) (fields : IsoFields DeclId)
   | finiteNatTrans (schema : DeclId) (fields : NatTransFields DeclId)

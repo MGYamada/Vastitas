@@ -601,6 +601,12 @@ impl Parser {
         };
         let span = self.peek().span;
         let fields = match self.indexed_tag()?.as_str() {
+            "Opposite" => {
+                self.expect("<")?;
+                let category = self.type_path()?;
+                self.expect(">")?;
+                return Ok(indexed::FiniteInstance::Opposite(Box::new(category)));
+            }
             "finite_graph" => {
                 self.expect("(")?;
                 indexed::FiniteInstance::Graph(Box::new(indexed::FiniteGraph {
@@ -663,7 +669,7 @@ impl Parser {
             _ => {
                 return Err(diagnostic(
                     "E_PARSE",
-                    "expected finite_graph, finite_functor, finite_iso, finite_nat_trans, finite_monad, finite_kleisli or finite_kleisli_triple",
+                    "expected Opposite<C>, finite_graph, finite_functor, finite_iso, finite_nat_trans, finite_monad, finite_kleisli or finite_kleisli_triple",
                     span,
                 ));
             }

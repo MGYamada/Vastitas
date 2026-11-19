@@ -393,6 +393,7 @@ FiniteSchema -> `indexed` `schema` IDENTIFIER `=`
     | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
 FiniteInstance -> `indexed` `instance` IDENTIFIER `:` Path `=`
     ( `finite_graph` `(` Path `,` Path `,` Path `,` Path `,` Path `,` Path `)`
+    | `Opposite` `<` Path `>`
     | `finite_functor` `(` Path `,` Path `,` Path `,` Path `)`
     | `finite_nat_trans` `(` Path `,` Path `,` Path `)`
     | `finite_iso` `(` Path `,` Path `,` Path `,` Path `,` Path `)`

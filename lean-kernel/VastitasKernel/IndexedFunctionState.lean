@@ -336,7 +336,7 @@ def indexedNotValue (declarations : Core.Declarations) (id : DeclId) : String :=
     | some (.finiteFunctor ..) => "a finite functor instance"
     | some .categorySchema => "a finite category schema"
     | some (.composableTable ..) => "a dependent composition table"
-    | some (.finiteCategory ..) => "a finite category instance"
+    | some (.finiteCategory ..) | some (.finiteOpposite ..) => "a finite category instance"
     | some (.implementation ..) => "an implementation"
     | some (.classification ..) => "a classification"
     | some (.global _) => "a global object"
@@ -405,7 +405,7 @@ def resolveValue (input : Input) (scope : Namespace.Scope) (path : Source.Path) 
           | some (.finiteCarrier tags) => do
             unless tags.contains tag do error path.span "E_TYPE" "not a member of the selected finite carrier"
             pure (some (FiniteSort.carrier c.owner))
-          | some (.finiteCategory ..) => do
+          | some (.finiteCategory ..) | some (.finiteOpposite ..) => do
             let some sort := FiniteSort.arrowSort? env c.owner tag
               | error path.span "E_TYPE" "not an arrow of the selected finite category"
             pure (some sort)

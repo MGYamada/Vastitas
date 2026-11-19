@@ -282,6 +282,8 @@ inductive ExactLexeme where
   deriving Inhabited
 
 structure ExactHeader where
+  packageSource : String
+  modulePath : List String
   span : Span
   isPublic : Bool
   lexemes : List ExactLexeme
@@ -337,34 +339,54 @@ private def isExactHeader (f : File) (indexed : Token) : Except String Bool := d
     return match op.kind with | .symbol '=' => true | _ => false
   | _ => return false
 
-/-- Every exact declaration in a physical source must consume one wire header,
-including unused declarations inside inline modules. Comments and literals
-cannot supply a declaration. The table is indexed by absolute UTF-8 offset. -/
-private def scanExact (f : File) : Nat → Cursor → Scope → Std.HashMap Nat ExactHeader →
-    Except String (Std.HashMap Nat ExactHeader)
-  | 0, _, _, _ => .error "exact declaration scan exceeded its file extent"
-  | fuel + 1, c, scope, headers => do
+/-- Scan a file in its lexical module, collecting external modules in source
+order. A declaration inside a function body cannot change the module path. -/
+private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → List String →
+    Array (List String) → Std.HashMap Nat ExactHeader →
+    Except String (Array (List String) × Std.HashMap Nat ExactHeader)
+  | 0, _, _, _, _, _ => .error "exact declaration scan exceeded its file extent"
+  | fuel + 1, c, scope, reversedPath, external, headers => do
     let t ← f.next c
-    if let .eof := t.kind then return headers
-    let exactHeader ← match t.kind with
-      | .word "indexed" => if scope.place == .declaration || scope.place == .afterPub then isExactHeader f t else pure false
-      | _ => pure false
-    if exactHeader then
-      let some h := headers[t.span.start]? | throw "physical exact declaration missing from the request"
-      unless h.isPublic == (scope.place == .afterPub) do throw "exact declaration visibility differs from the source"
-      let mut after := t.after
-      for lexeme in h.lexemes do after ← expectExact f after lexeme
-      let semi ← f.next after
-      requireSymbol semi ';'
-      unless through t semi == h.span do throw "exact declaration span differs from the source"
-      scanExact f fuel semi.after {scope with place := .declaration} (headers.erase t.span.start)
-    else
-      scanExact f fuel t.after (← ordinary scope t.kind) headers
+    if let .eof := t.kind then
+      unless scope.between && scope.modules == 0 do throw "unclosed source delimiter"
+      return (external, headers)
+    let atDeclaration := scope.place == .declaration || scope.place == .afterPub
+    if atDeclaration then
+      if let .word "mod" := t.kind then
+        let name ← f.next t.after
+        let .word child := name.kind | throw "expected module name"
+        let delimiter ← f.next name.after
+        let path := child :: reversedPath
+        match delimiter.kind with
+        | .symbol ';' =>
+          return ← scanExact f pkg fuel delimiter.after {scope with place := .declaration}
+            reversedPath (external.push path.reverse) headers
+        | .symbol '{' =>
+          return ← scanExact f pkg fuel delimiter.after {scope with place := .declaration, modules := scope.modules + 1}
+            path external headers
+        | _ => throw "expected module body or semicolon"
+      if let .word "indexed" := t.kind then
+        if ← isExactHeader f t then
+          let some h := headers[t.span.start]? | throw "physical exact declaration missing from the request"
+          unless h.packageSource == pkg && h.modulePath == reversedPath.reverse do
+            throw "exact declaration belongs to another physical package or module"
+          unless h.isPublic == (scope.place == .afterPub) do throw "exact declaration visibility differs from the source"
+          let mut after := t.after
+          for lexeme in h.lexemes do after ← expectExact f after lexeme
+          let semi ← f.next after
+          requireSymbol semi ';'
+          unless through t semi == h.span do throw "exact declaration span differs from the source"
+          return ← scanExact f pkg fuel semi.after {scope with place := .declaration}
+            reversedPath external (headers.erase t.span.start)
+    let next ← ordinary scope t.kind
+    let path := if next.modules < scope.modules then reversedPath.drop 1 else reversedPath
+    scanExact f pkg fuel t.after next path external headers
 
-def checkExactHeaders (text : String) (base : Nat) (headers : Std.HashMap Nat ExactHeader) :
-    Except String (Std.HashMap Nat ExactHeader) :=
-  if text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine") then
-    scanExact ⟨text,base⟩ (text.utf8ByteSize + 1) {} {} headers
-  else pure headers
+def mayHaveExactHeaders (text : String) : Bool :=
+  text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine")
+
+def checkExactHeaders (text : String) (base : Nat) (pkg : String) (path : List String)
+    (headers : Std.HashMap Nat ExactHeader) : Except String (Array (List String) × Std.HashMap Nat ExactHeader) :=
+  scanExact ⟨text,base⟩ pkg (text.utf8ByteSize + 1) {} {} path.reverse #[] headers
 
 end VastitasKernel.AssemblyText

@@ -1,4 +1,4 @@
-import VastitasOracle.ExactComplex
+import VastitasOracle.ExactComplexField
 import Mathlib.Basic.Complex.Basic
 
 /-! Interpret the actual rational Cauchy quotient of the mathlib-free Oracle
@@ -33,6 +33,64 @@ def complexEquiv : CC ≃ ℂ where
   invFun z := ⟨realEquiv.symm z.re, realEquiv.symm z.im⟩
   left_inv z := by cases z; simp
   right_inv z := by cases z; simp
+
+theorem real_add (x y : RR) : realEquiv (RR.add x y) = realEquiv x + realEquiv y := by
+  induction x, y using Quotient.inductionOn₂ with
+  | _ a b => exact Real.mk_add (f := sequences a) (g := sequences b)
+
+theorem real_neg (x : RR) : realEquiv (RR.neg x) = -realEquiv x := by
+  induction x using Quotient.inductionOn with
+  | _ a => exact Real.mk_neg (f := sequences a)
+
+theorem real_mul (x y : RR) : realEquiv (RR.mul x y) = realEquiv x * realEquiv y := by
+  induction x, y using Quotient.inductionOn₂ with
+  | _ a b => exact Real.mk_mul (f := sequences a) (g := sequences b)
+
+private theorem real_zero : realEquiv 0 = 0 := by
+  change realEquiv (ofRat (0 : Rat)) = (0 : ℝ)
+  rw [real_ofRat]
+  norm_num
+private theorem real_one : realEquiv 1 = 1 := by
+  change realEquiv (ofRat (1 : Rat)) = (1 : ℝ)
+  rw [real_ofRat]
+  norm_num
+
+theorem real_inv (x : RR) : realEquiv (RR.inv x) = (realEquiv x)⁻¹ := by
+  by_cases h : x = 0
+  · subst x
+    rw [RR.inv_zero, real_zero, inv_zero]
+  · have hx : realEquiv x ≠ 0 := fun eq => h (realEquiv.injective (eq.trans real_zero.symm))
+    have prod := congrArg realEquiv (RR.mul_inv h)
+    change realEquiv (RR.mul x (RR.inv x)) = realEquiv 1 at prod
+    rw [real_mul, real_one] at prod
+    exact (mul_left_cancel₀ hx) (prod.trans (mul_inv_cancel₀ hx).symm)
+
+theorem complex_add (x y : CC) : complexEquiv (CC.add x y) = complexEquiv x + complexEquiv y := by
+  apply Complex.ext
+  · exact real_add _ _
+  · exact real_add _ _
+
+theorem complex_mul (x y : CC) : complexEquiv (CC.mul x y) = complexEquiv x * complexEquiv y := by
+  apply Complex.ext
+  · change realEquiv (RR.add (RR.mul x.re y.re) (RR.neg (RR.mul x.im y.im))) = _ - _
+    rw [real_add, real_neg, real_mul, real_mul, sub_eq_add_neg]
+    rfl
+  · change realEquiv (RR.add (RR.mul x.re y.im) (RR.mul x.im y.re)) = _ + _
+    rw [real_add, real_mul, real_mul]
+    rfl
+
+private theorem complex_zero : complexEquiv 0 = 0 := Complex.ext real_zero real_zero
+private theorem complex_one : complexEquiv 1 = 1 := Complex.ext real_one real_zero
+
+theorem complex_inv (x : CC) : complexEquiv (CC.inv x) = (complexEquiv x)⁻¹ := by
+  by_cases h : x = 0
+  · subst x
+    rw [CC.inv_zero, complex_zero, inv_zero]
+  · have hx : complexEquiv x ≠ 0 := fun eq => h (complexEquiv.injective (eq.trans complex_zero.symm))
+    have prod := congrArg complexEquiv (CC.mul_inv h)
+    change complexEquiv (CC.mul x (CC.inv x)) = complexEquiv 1 at prod
+    rw [complex_mul, complex_one] at prod
+    exact (mul_left_cancel₀ hx) (prod.trans (mul_inv_cancel₀ hx).symm)
 
 theorem coordinate_parts (x : QQi) :
     (complexEquiv x.embed).re = (x.re : ℝ) ∧

@@ -4,7 +4,7 @@ import VastitasOracle.HodgeFinite
 import VastitasOracle.Core
 import VastitasOracle.ExactOperators
 import VastitasOracle.ExactComplex
-import VastitasOracle.ExactComplexAdditive
+import VastitasOracle.ExactComplexField
 import VastitasOracle.BinaryFunction
 import VastitasOracle.FiniteModule
 import VastitasOracle.CallFunction

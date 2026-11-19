@@ -58,7 +58,7 @@ theorem neg_equivalent {a b : Sequence} (h : Equivalent a b) : Equivalent (neg a
   obtain ⟨n,hn⟩ := h ε pos
   exact ⟨n, fun j hj => near_pair_neg (hn j hj)⟩
 
-private theorem pointwise {a b : Sequence} (equal : ∀ i, a.term i = b.term i) :
+theorem pointwise {a b : Sequence} (equal : ∀ i, a.term i = b.term i) :
     Quotient.mk sequenceSetoid a = Quotient.mk sequenceSetoid b := by
   apply Quotient.sound
   intro ε pos

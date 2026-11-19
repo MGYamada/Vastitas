@@ -72,7 +72,7 @@ number = 757
 title = "Exact complex model"
 state = "open"
 depends = []
-remaining = "The Oracle constructs the rational Cauchy quotient RR, pairs it to form CC, and embeds QQ(i) injectively. The Bridge identifies these carriers with real and complex numbers and proves the rational-coordinate operations. The selected exact ring, independent field evidence and public affine chart correspondence remain."
+remaining = "The Oracle constructs the rational Cauchy quotient RR, pairs it to form CC, and embeds QQ(i) injectively. The Oracle proves the commutative-ring reduct and separate IsField proposition for both selected meadows. The Bridge proves that both carrier equivalences preserve addition, multiplication and totalized inversion, and gives the rational-coordinate interpretation. The QQ(i) embedding preserves multiplication, conjugation and totalized inversion. Source-level model identity, revision and public affine chart correspondence remain."
 
 [[issue]]
 number = 758
@@ -377,8 +377,8 @@ document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation"]
-note = "An accepted public run gives its lexical site, source identity declaration, exact Core morphism and checked storage copy. The binary reference proves the signed-zero divisor and unit-beta empty-dot cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. General operation and compiler refinement remain."
+claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation"]
+note = "An accepted public run gives its lexical site, source identity declaration, exact Core morphism and checked storage copy. The binary reference proves the signed-zero divisor and unit-beta empty-dot cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. General operation and compiler refinement remain."
 document = ""
 
 [row.dimension.fast]

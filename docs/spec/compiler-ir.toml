@@ -474,11 +474,22 @@ have a different Kind and gain no exact Field or CommRing authority.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.realization)"
 example = "The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction."
-example_not_executed = "The mathematical CC prerequisite and the four wrapper-to-Core correspondences are pending."
+example_not_executed = "The selected mathematical rings and field laws are proved. The public complex chart and four wrapper-to-Core correspondences remain pending."
 
 [property."compiler-ir.realization".claim.complex-model]
 status = "planned"
 issue = 757
+
+[property."compiler-ir.realization".claim.exact-fields]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.ExactComplex.real_isField",
+  "VastitasOracle.ExactComplex.complex_isField",
+  "VastitasOracle.ExactComplex.RR.inv_zero",
+  "VastitasOracle.ExactComplex.CC.inv_zero",
+]
+premises = ["The selected real meadow uses rational Cauchy classes. Complex elements are pairs of these classes. The real inverse uses classical choice on nonzero elements."]
+note = "The meadow records its commutative-ring reduct and inversion equations. Each IsField proposition proves zero differs from one and every nonzero element multiplied by its selected inverse equals one."
 
 [property."compiler-ir.realization".claim.rational-coordinates]
 status = "proved-oracle"
@@ -488,15 +499,25 @@ evidence = [
   "VastitasOracle.ExactComplex.QQi.embed_zero",
   "VastitasOracle.ExactComplex.QQi.embed_add",
   "VastitasOracle.ExactComplex.QQi.embed_neg",
+  "VastitasOracle.ExactComplex.QQi.embed_mul",
+  "VastitasOracle.ExactComplex.QQi.embed_conjugate",
+  "VastitasOracle.ExactComplex.QQi.embed_inv",
   "VastitasOracle.ExactComplex.QQi.inv_zero",
 ]
 premises = ["RR uses rational Cauchy sequences modulo eventual epsilon closeness. CC pairs two RR coordinates. Executable inputs are pairs of rational constants."]
-note = "RR and CC carry pointwise addition and negation. The rational-coordinate embedding is injective and preserves zero, addition and negation. The coordinate inverse returns zero at zero."
+note = "The rational-coordinate embedding preserves zero, addition, negation, multiplication, conjugation and totalized inversion. Its injectivity gives decidable equality on rational coordinates."
 
 [property."compiler-ir.realization".claim.coordinate-interpretation]
 status = "proved-bridge"
 evidence = [
   "VastitasBridge.ExactComplex.real_ofRat",
+  "VastitasBridge.ExactComplex.real_add",
+  "VastitasBridge.ExactComplex.real_neg",
+  "VastitasBridge.ExactComplex.real_mul",
+  "VastitasBridge.ExactComplex.real_inv",
+  "VastitasBridge.ExactComplex.complex_add",
+  "VastitasBridge.ExactComplex.complex_mul",
+  "VastitasBridge.ExactComplex.complex_inv",
   "VastitasBridge.ExactComplex.coordinate_parts",
   "VastitasBridge.ExactComplex.coordinate_add",
   "VastitasBridge.ExactComplex.coordinate_neg",
@@ -506,7 +527,7 @@ evidence = [
 ]
 premises = ["The Bridge identifies the Oracle's rational Cauchy quotient with Mathlib's real carrier and its pairs with Mathlib's complex carrier. Operands of the computable operations are rational coordinate pairs."]
 assumes = ["mathlib"]
-note = "Addition, negation, multiplication, conjugation and totalized inversion of rational coordinates have their complex denotations."
+note = "On the full carriers, the equivalences preserve real addition, negation, multiplication and totalized inversion, and complex addition, multiplication and totalized inversion. On rational coordinates the Bridge also identifies both components and proves preservation of negation and conjugation."
 
 [property."compiler-ir.realization".claim.standard-real-chart]
 status = "proved-oracle"

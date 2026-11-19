@@ -521,6 +521,7 @@ def declarationBody (j : Json) : Except String Source.Body := do
     match tag with
     | "finite_category" => return .categorySchema
     | "finite_functor" => return .functorSchema
+    | "finite_iso" => return .isoSchema
     | "finite_nat_trans" => return .natTransSchema
     | "finite_monad" => return .monadSchema
     | _ => throw "unknown finite schema kind"
@@ -536,6 +537,12 @@ def declarationBody (j : Json) : Except String Source.Body := do
       let get k := do path (← field data k)
       return .finiteMonad (← path (← field j "schema"))
         ⟨← get "category", ← get "functor", ← get "unit", ← get "multiplication"⟩
+    if let .ok data := j.getObjVal? "iso" then
+      fields j (common ++ ["schema", "iso"])
+      fields data ["category", "source", "target", "forward", "inverse"]
+      let get k := do path (← field data k)
+      return .finiteIso (← path (← field j "schema"))
+        ⟨← get "category", ← get "source", ← get "target", ← get "forward", ← get "inverse"⟩
     if let .ok data := j.getObjVal? "transformation" then
       fields j (common ++ ["schema", "transformation"])
       fields data ["source", "target", "components"]

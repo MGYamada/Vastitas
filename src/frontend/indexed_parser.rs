@@ -621,6 +621,16 @@ impl Parser {
                     arrows: comma_path(self)?,
                 }))
             }
+            "finite_iso" => {
+                self.expect("(")?;
+                indexed::FiniteInstance::Iso(Box::new(indexed::FiniteIso {
+                    category: self.type_path()?,
+                    source: comma_path(self)?,
+                    target: comma_path(self)?,
+                    forward: comma_path(self)?,
+                    inverse: comma_path(self)?,
+                }))
+            }
             "finite_nat_trans" => {
                 self.expect("(")?;
                 indexed::FiniteInstance::Transformation(Box::new(indexed::NaturalTransformation {
@@ -653,7 +663,7 @@ impl Parser {
             _ => {
                 return Err(diagnostic(
                     "E_PARSE",
-                    "expected finite_graph, finite_functor, finite_nat_trans, finite_monad, finite_kleisli or finite_kleisli_triple",
+                    "expected finite_graph, finite_functor, finite_iso, finite_nat_trans, finite_monad, finite_kleisli or finite_kleisli_triple",
                     span,
                 ));
             }
@@ -706,6 +716,7 @@ impl Parser {
                 let schema_kind = match self.indexed_tag()?.as_str() {
                     "finite_category" => indexed::SchemaKind::FiniteCategory,
                     "finite_functor" => indexed::SchemaKind::FiniteFunctor,
+                    "finite_iso" => indexed::SchemaKind::FiniteIso,
                     "finite_nat_trans" => indexed::SchemaKind::NaturalTransformation,
                     "finite_monad" => indexed::SchemaKind::FiniteMonad,
                     "finite_kleisli" => indexed::SchemaKind::FiniteKleisli {

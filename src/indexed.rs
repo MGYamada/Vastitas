@@ -165,6 +165,16 @@ pub struct FiniteFunctor {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct FiniteIso {
+    pub category: TypePath,
+    pub source: TypePath,
+    pub target: TypePath,
+    pub forward: TypePath,
+    pub inverse: TypePath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NaturalTransformation {
     pub source: TypePath,
     pub target: TypePath,
@@ -185,6 +195,7 @@ pub struct FiniteMonad {
 pub enum FiniteInstance {
     Graph(Box<FiniteGraph>),
     Functor(Box<FiniteFunctor>),
+    Iso(Box<FiniteIso>),
     Transformation(Box<NaturalTransformation>),
     Monad(Box<FiniteMonad>),
     Kleisli { monad: Box<TypePath> },
@@ -196,6 +207,7 @@ pub enum FiniteInstance {
 pub enum SchemaKind {
     FiniteCategory,
     FiniteFunctor,
+    FiniteIso,
     #[serde(rename = "finite_nat_trans")]
     NaturalTransformation,
     FiniteMonad,

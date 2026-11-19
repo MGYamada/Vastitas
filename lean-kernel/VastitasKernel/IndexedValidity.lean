@@ -4,6 +4,7 @@ import VastitasKernel.SpectralDeclarations
 import VastitasKernel.NatureModel
 import VastitasKernel.NatureErrorbar
 import VastitasKernel.GluingValidity
+import VastitasKernel.FiniteIso
 import VastitasKernel.FiniteMonads
 import VastitasKernel.KleisliViews
 
@@ -74,10 +75,11 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
   | .marker => True
   | .finiteCarrier tags => FiniteTables.validCarrier tags = true
   | .finiteTable inputs output rows => FiniteTables.validTable env inputs output rows = true
-  | .categorySchema | .functorSchema | .natTransSchema | .monadSchema => True
+  | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema => True
   | .kleisliSchema _ base => KleisliViews.validSchema (FiniteCategories.view env) base = true
   | .finiteKleisli kind schema monad => KleisliViews.valid (FiniteCategories.view env) kind schema monad = true
   | .finiteMonad schema fields => FiniteMonads.valid (FiniteCategories.view env) schema fields = true
+  | .finiteIso schema fields => FiniteIso.valid (FiniteCategories.view env) schema fields = true
   | .finiteNatTrans schema fields => FiniteNatTrans.valid (FiniteCategories.view env) schema fields = true
   | .finiteFunctor schema maps => FiniteFunctors.valid (FiniteCategories.view env) schema maps = true
   | .composableTable ins out src dst rows => FiniteCategories.compositionValid (FiniteCategories.view env) ins out src dst rows = true
@@ -149,10 +151,11 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
   | .marker => true
   | .finiteCarrier tags => FiniteTables.validCarrier tags
   | .finiteTable inputs output rows => FiniteTables.validTable env inputs output rows
-  | .categorySchema | .functorSchema | .natTransSchema | .monadSchema => true
+  | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema => true
   | .kleisliSchema _ base => KleisliViews.validSchema (FiniteCategories.view env) base
   | .finiteKleisli kind schema monad => KleisliViews.valid (FiniteCategories.view env) kind schema monad
   | .finiteMonad schema fields => FiniteMonads.valid (FiniteCategories.view env) schema fields
+  | .finiteIso schema fields => FiniteIso.valid (FiniteCategories.view env) schema fields
   | .finiteNatTrans schema fields => FiniteNatTrans.valid (FiniteCategories.view env) schema fields
   | .finiteFunctor schema maps => FiniteFunctors.valid (FiniteCategories.view env) schema maps
   | .composableTable ins out src dst rows => FiniteCategories.compositionValid (FiniteCategories.view env) ins out src dst rows

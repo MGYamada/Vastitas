@@ -8,7 +8,7 @@ def view (env : Environment) (id : DeclId) : Option Declaration := do
   let d ← lookup env id
   match d with
   | .finiteCarrier .. | .finiteTable .. | .categorySchema | .functorSchema
-  | .natTransSchema | .monadSchema | .kleisliSchema .. | .finiteKleisli .. | .finiteMonad ..
+  | .isoSchema | .finiteIso .. | .natTransSchema | .monadSchema | .kleisliSchema .. | .finiteKleisli .. | .finiteMonad ..
   | .finiteNatTrans .. | .finiteFunctor .. | .finiteCategory .. | .composableTable .. => return d
   | _ => none
 

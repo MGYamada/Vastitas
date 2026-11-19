@@ -153,18 +153,26 @@ and the package
 >     `indexed` `table` IDENTIFIER `(` FiniteTableInputs? `)` `->` Path
 >     ( `where` `composable` `(` Path `,` Path `)` )? `{` FiniteTableRow* `}`
 > FiniteSchema -> `indexed` `schema` IDENTIFIER `=`
->     ( `finite_category` | `finite_functor` | `finite_nat_trans` | `finite_monad`
+>     ( `finite_category` | `finite_functor` | `finite_nat_trans` | `finite_iso` | `finite_monad`
 >     | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
 > FiniteInstance -> `indexed` `instance` IDENTIFIER `:` Path `=`
 >     ( `finite_graph` `(` Path `,` Path `,` Path `,` Path `,` Path `,` Path `)`
 >     | `finite_functor` `(` Path `,` Path `,` Path `,` Path `)`
 >     | `finite_nat_trans` `(` Path `,` Path `,` Path `)`
+>     | `finite_iso` `(` Path `,` Path `,` Path `,` Path `,` Path `)`
 >     | `finite_monad` `(` Path `,` Path `,` Path `,` Path `)`
 >     | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
 > FiniteTableInputs -> Path ( `,` Path )* `,`?
 > FiniteTableRow -> `(` FiniteTableTags? `)` `=>` IDENTIFIER `;`
 > FiniteTableTags -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
 > ```
+
+A named finite isomorphism selects its category and four nullary tables.
+The first two tables return the source and target object. The other two
+return the forward and inverse arrows. The two objects may be distinct.
+The checker verifies both endpoints of each arrow and both inverse equations
+in the selected category. The instance exposes the four tables as
+`source`, `target`, `forward` and `inverse`.
 
 A **finite carrier** declares a set of named members.
 `indexed finite Bit { off; on; }` gives `Bit` two members. Each carrier

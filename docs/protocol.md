@@ -128,6 +128,12 @@ The decoder requires exactly one record and checks its fields. Changing a
 category reference changes the revision even when both categories share
 their carriers and tables. [Finite carriers and tables](indexed-source.md#finite-carriers-and-tables)
 
+A `finite_iso` schema admits an `iso` record with exactly five paths. Its
+`category` is a named finite category. The paths `source`, `target`,
+`forward` and `inverse` select nullary tables on its nominal object and
+arrow carriers. The module audit checks both inverse compositions even when
+the instance has no callers.
+
 A `finite_nat_trans` schema admits a `transformation` record with paths
 `source`, `target` and `components`. Both functors must name the same domain
 and codomain categories. The component table supplies one arrow per source

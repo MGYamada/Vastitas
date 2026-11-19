@@ -389,12 +389,13 @@ FiniteTableDeclaration ->
     `indexed` `table` IDENTIFIER `(` FiniteTableInputs? `)` `->` Path
     ( `where` `composable` `(` Path `,` Path `)` )? `{` FiniteTableRow* `}`
 FiniteSchema -> `indexed` `schema` IDENTIFIER `=`
-    ( `finite_category` | `finite_functor` | `finite_nat_trans` | `finite_monad`
+    ( `finite_category` | `finite_functor` | `finite_nat_trans` | `finite_iso` | `finite_monad`
     | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
 FiniteInstance -> `indexed` `instance` IDENTIFIER `:` Path `=`
     ( `finite_graph` `(` Path `,` Path `,` Path `,` Path `,` Path `,` Path `)`
     | `finite_functor` `(` Path `,` Path `,` Path `,` Path `)`
     | `finite_nat_trans` `(` Path `,` Path `,` Path `)`
+    | `finite_iso` `(` Path `,` Path `,` Path `,` Path `,` Path `)`
     | `finite_monad` `(` Path `,` Path `,` Path `,` Path `)`
     | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
 FiniteTableInputs -> Path ( `,` Path )* `,`?

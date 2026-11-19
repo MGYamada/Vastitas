@@ -222,6 +222,18 @@ theorem public_finite_functor {json : Lean.Json} (input : Wire.CheckedInput json
   ⟨input.revisionMatches, VastitasOracle.FiniteFunctors.checked_functor
     input.checked.pureProgram.authority.headers.declarations member⟩
 
+/-- The named isomorphism uses the category, arrows and both identities of
+this accepted public input. The same revision covers the unused declarations. -/
+theorem public_finite_iso {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (member : ⟨owner, .finiteIso schema fields⟩ ∈
+      input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed) :
+    let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed
+    Wire.RevisionMatches json input.checked ∧
+      ∃ m, Indexed.FiniteIso.select (Indexed.FiniteCategories.view env) schema fields = .ok m ∧
+        VastitasOracle.FiniteIso.Inverses m :=
+  ⟨input.revisionMatches, VastitasOracle.FiniteIso.checked_iso
+    input.checked.pureProgram.authority.headers.declarations member⟩
+
 /-- A transformation in the accepted module satisfies all its component
 endpoint and naturality equations under the very same checked revision. -/
 theorem public_finite_nat_trans {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

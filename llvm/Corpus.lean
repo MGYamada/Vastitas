@@ -100,6 +100,7 @@ set_option maxHeartbeats 2000000 in
 theorem boxed_arithmetic_verified : boxedBytes = boxedModel.print := by rfl
 
 def compositionBytes := corpus_bytes "src/s3-composition.ll"
+def isoBytes := corpus_bytes "src/finite-iso.ll"
 def kleisliBytes := corpus_bytes "src/finite-kleisli.ll"
 def kleisliCallbackBytes := corpus_bytes "src/kleisli-callback.ll"
 def kleisliForwardBytes := corpus_bytes "src/kleisli-forward.ll"
@@ -121,6 +122,34 @@ private def eq (d x y : Nat) : Instr := .compare (slot d) .eq .word (reg x) (reg
 
 private def straight (name : String) (arity : Nat) (ops : List Instr) (result : Nat) : Func :=
   ⟨name,true,.word,(List.range arity).map fun n => (.word,slot n),[⟨"b0",ops,ret (slot result)⟩]⟩
+
+namespace Iso
+
+private def projection (fn tableName : String) : List Func :=
+  (table tableName [] [0]).toList ++ [straight fn 0 [call 0 tableName []] 0]
+
+private def composeAt (fn tableName : String) : List Func :=
+  (table tableName [1,1] [0]).toList ++ [straight fn 2 [call 2 tableName [0,1]] 2]
+
+private def merge (name left right : String) : Instr :=
+  .phi (name ++ "_0") .word [(.reg ("v" ++ left ++ "_0"),"b" ++ left),(.reg ("v" ++ right ++ "_0"),"b" ++ right)]
+
+/-- The arrows have different endpoints but each Hom fiber here has one tag.
+Composition selects two specializations and each source branch retains its own join. -/
+def code : Code :=
+  let entry : Func := ⟨"f4", true, .word, [], [
+    ⟨"b0", [call 0 "f0" [], call 1 "f1" [], call 2 "f2" [1,0], constant (slot 3), eq 4 2 3],
+      .branch (reg 4) "b1" "b5"⟩,
+    ⟨"b1", [.call "v1_0" .word "f3" [⟨.word,reg 0⟩,⟨.word,reg 1⟩], constant "v1_1",
+      .compare "v1_2" .eq .word (.reg "v1_0") (.reg "v1_1")], .branch (.reg "v1_2") "b2" "b3"⟩,
+    ⟨"b2", [constant "v2_0" 42], .jump "b4"⟩, ⟨"b3", [constant "v3_0" 7], .jump "b4"⟩,
+    ⟨"b4", [merge "v4" "2" "3"], .jump "b6"⟩, ⟨"b5", [constant "v5_0" 9], .jump "b6"⟩,
+    ⟨"b6", [merge "v6" "4" "5"], ret "v6_0"⟩]⟩
+  ⟨header, projection "f0" "t0_0_0" ++ projection "f1" "t1_0_0" ++ composeAt "f2" "t2_0_2" ++
+    composeAt "f3" "t3_0_2" ++ [entry, ⟨"main", false, .word, [],
+      [⟨"start", [.call "result" .word "f4" []], ret "result"⟩]⟩]⟩
+
+end Iso
 
 namespace Kleisli
 
@@ -275,6 +304,10 @@ theorem static_selection_verified : staticSelectionBytes = StaticSelection.code.
 
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 3000000 in
+theorem finite_iso_verified : isoBytes = Iso.code.print := rfl
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 3000000 in
 theorem finite_kleisli_verified : kleisliBytes = Kleisli.code.print := rfl
 
 set_option maxRecDepth 65536 in
@@ -365,6 +398,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("empty-lookup.ll", forLookup empty_lookup_verified),
    ("unary-table.ll", forLookup unary_table_verified),
    ("closure-unit.ll", forLookup closure_unit_verified),
+   ("finite-iso.ll", forCode finite_iso_verified),
    ("finite-kleisli.ll", forCode finite_kleisli_verified),
    ("kleisli-callback.ll", forCode kleisli_callback_verified),
    ("kleisli-forward.ll", forCode kleisli_forward_verified),
@@ -408,6 +442,7 @@ def main (args : List String) : IO Unit := do
       throw (IO.userError "boxed-program.ll: accepted a damaged call, startup or ownership instruction")
   unless VastitasKernel.LLVM.ExactLibrary.parse Vastitas.LLVMCorpus.boxedBytes == some Vastitas.LLVMCorpus.boxedModel do
     throw (IO.userError "boxed-arithmetic.ll: different typed call graph or ownership schedule")
+  checkEntry "finite-iso.ll" Vastitas.LLVMCorpus.isoBytes Vastitas.LLVMCorpus.Iso.code 42
   checkEntry "finite-kleisli.ll" Vastitas.LLVMCorpus.kleisliBytes Vastitas.LLVMCorpus.Kleisli.code 0
   checkEntry "kleisli-callback.ll" Vastitas.LLVMCorpus.kleisliCallbackBytes Vastitas.LLVMCorpus.KleisliCallback.code 42
   checkEntry "kleisli-forward.ll" Vastitas.LLVMCorpus.kleisliForwardBytes Vastitas.LLVMCorpus.KleisliCallback.forwarded 42

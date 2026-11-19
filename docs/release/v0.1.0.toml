@@ -37,7 +37,7 @@ number = 762
 title = "Finite edition 2026"
 state = "open"
 depends = [462, 455]
-remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Further finite schemas, complex chart realizations and Affine wrappers remain."
+remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Further finite schemas, complex chart realizations and Affine wrappers remain."
 
 [[issue]]
 number = 533
@@ -58,7 +58,7 @@ number = 199
 title = "Category and mathematical Monad"
 state = "open"
 depends = [756]
-remaining = "Checked categories satisfy identity and associativity. Checked functors preserve both endpoints, identities and composition for all composable pairs. The named transformations and selected Monad laws hold on the checked tables. The accepted Monad yields both Kleisli identities and associativity. Its derived extension triple recovers the same unit, multiplication and action on the checked table rows. Iso and Opposite remain."
+remaining = "Checked categories satisfy identity and associativity. Checked functors preserve both endpoints, identities and composition for all composable pairs. The named transformations and selected Monad laws hold on the checked tables. The accepted Monad yields both Kleisli identities and associativity. Its derived extension triple recovers the same unit, multiplication and action on the checked table rows. Named isomorphisms expose both endpoint-typed arrows. The public checker proves both inverse equations. The two-object groupoid runs both compositions. The lazy Opposite view remains."
 
 [[issue]]
 number = 206
@@ -107,7 +107,7 @@ number = 750
 title = "Phase-indexed MidIR"
 state = "open"
 depends = []
-remaining = "The inventory tracks 588 constructor entries, all awaiting a release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. Full accepted-module coverage and ordered resource effects remain."
+remaining = "The inventory tracks 590 constructor entries, all awaiting a release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. Full accepted-module coverage and ordered resource effects remain."
 
 [[issue]]
 number = 751
@@ -233,7 +233,7 @@ requirement = "Finite carriers and tables provide Category, Functor, NatTrans, I
 
 [row.dimension.source]
 state = "partial"
-claims = ["compiler-ir.finite-models@source-core", "compiler-ir.finite-models@category-check", "compiler-ir.finite-models@functor-source", "compiler-ir.finite-models@transformation-monad-source", "compiler-ir.finite-binders@category-functions", "compiler-ir.finite-binders@monad-functions"]
+claims = ["compiler-ir.finite-models@source-core", "compiler-ir.finite-models@category-check", "compiler-ir.finite-models@isomorphism-source", "compiler-ir.finite-models@functor-source", "compiler-ir.finite-models@transformation-monad-source", "compiler-ir.finite-binders@category-functions", "compiler-ir.finite-binders@monad-functions"]
 note = "Public S3 and two-object category instances pass, and bad sparse composition and forged schemas fail. Concrete Hom calls and dependent composition execute. The same category-indexed fn handles noncommuting S3 and a two-object category. The public closure endofunctor on the chain executes both table projections. The nonidentity closure Monad executes its unit and multiplication. S3 tests the order of naturality, and two distinct Monads share an endofunctor in a second example. Ordinary functions take a Monad or one of its two derived views and static object arguments for unit, extend, bind, compose and lift."
 document = ""
 
@@ -252,13 +252,13 @@ document = ""
 [row.dimension.llvm]
 state = "partial"
 claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.llvm-bytes@switch-regression", "compiler-ir.llvm-bytes@binary-function", "compiler-ir.llvm-bytes@binary-source", "compiler-ir.llvm-bytes@finite-entry", "compiler-ir.llvm-bytes@finite-package-source"]
-note = "Unary component lookup and binary category composition lower through both MidIR phases to complete canonical LLVM bytes. Both parameter orders and foreign bounds are proved. The S3 LLVM qualification checks 36 products and 45 misses per order. The closure application links its four selected specializations. Both views preserve its original 4,463 bytes. A second entry specializes extend on the triple. Its 5,326 bytes retain the arrow map followed by base composition with the selected multiplication. Libraries with multiple public exports and general backend coverage remain."
+note = "Unary component lookup and binary category composition lower through both MidIR phases to complete canonical LLVM bytes. Both parameter orders and foreign bounds are proved. The S3 LLVM qualification checks 36 products and 45 misses per order. The closure application links its four selected specializations. Both views preserve its original 4,463 bytes. A second entry specializes extend on the triple. Its 5,326 bytes retain the arrow map followed by base composition with the selected multiplication. The two-object isomorphism emits 2,515 bytes with two nested joins. Its macOS arm64 executable returns 42. Libraries with multiple public exports and general backend coverage remain."
 document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.finite-models@laws", "compiler-ir.finite-models@category-equations", "compiler-ir.finite-models@functor-equations", "compiler-ir.finite-models@transformation-monad-equations", "compiler-ir.finite-models@kleisli-equations", "compiler-ir.finite-binders@typed-substitution", "compiler-ir.llvm-bytes@unary-function", "compiler-ir.llvm-bytes@finite-entry"]
-note = "On the accepted declaration environment the Oracle proves table lookup, category laws and the endpoint, identity and composition diagrams of the selected functor. The selected component endpoints, naturality and Monad diagrams also have checked equations. The selected finite Monad supplies both Kleisli identities and associativity, and its bind reads the exact selected rows. Each admitted view recovers the same revision, Monad structure, Kleisli laws and table rows. Canonical specializations of all five operational templates evaluate to the selected mathematical operations. The finite entry theorem relates the integer from the original Core to both MidIR evaluations and the exit from the parsed bytes. Per-compilation Official replay for the full package, Iso and Opposite remain."
+claims = ["compiler-ir.finite-models@laws", "compiler-ir.finite-models@category-equations", "compiler-ir.finite-models@isomorphism-equations", "compiler-ir.finite-models@functor-equations", "compiler-ir.finite-models@transformation-monad-equations", "compiler-ir.finite-models@kleisli-equations", "compiler-ir.finite-binders@typed-substitution", "compiler-ir.llvm-bytes@unary-function", "compiler-ir.llvm-bytes@finite-entry"]
+note = "On the accepted declaration environment the Oracle proves table lookup, category laws and the endpoint, identity and composition diagrams of the selected functor. The selected component endpoints, naturality and Monad diagrams also have checked equations. The selected finite Monad supplies both Kleisli identities and associativity, and its bind reads the exact selected rows. Each admitted view recovers the same revision, Monad structure, Kleisli laws and table rows. Canonical specializations of all five operational templates evaluate to the selected mathematical operations. The finite entry theorem relates the integer from the original Core to both MidIR evaluations and the exit from the parsed bytes. Per-compilation Official replay for the full package, Named isomorphisms expose both endpoint-typed arrows. The public checker proves both inverse equations. The two-object groupoid runs both compositions. The lazy Opposite view remains."
 document = ""
 
 [row.dimension.fast]
@@ -420,7 +420,7 @@ document = ""
 [row.dimension.core]
 state = "partial"
 claims = ["compiler-ir.coverage@ledger", "compiler-ir.coverage@inventory"]
-note = "The source-schema inventory checks 588 entries and their payloads. All dispositions are pending. Full scalar and indexed Core-to-MidIR coverage remains."
+note = "The source-schema inventory checks 590 entries and their payloads. All dispositions are pending. Full scalar and indexed Core-to-MidIR coverage remains."
 document = ""
 
 [row.dimension.midir]

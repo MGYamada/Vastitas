@@ -2,7 +2,7 @@ import VastitasKernel.FiniteSort
 
 namespace VastitasKernel.Indexed
 
-/-- A direct total table, a category composition, or a Monad arrow map on
+/-- A direct total table, a selected isomorphism arrow, a category composition, or a Monad arrow map on
 a Hom fiber. A projected lookup retains the actual nominal structure owner. -/
 structure FiniteLookup where
   table : DeclId
@@ -22,6 +22,7 @@ def signature (env : Environment) (table : DeclId) (category : Option DeclId) (i
     return (.carrier range, rows)
   | some owner =>
     let (actual, output, rows) ← match inputs with
+      | [] => FiniteSort.isoArrow? env owner table
       | [arg] => FiniteSort.monadMap? env owner arg
       | [after, before] => FiniteSort.composition? env owner after before
       | _ => none

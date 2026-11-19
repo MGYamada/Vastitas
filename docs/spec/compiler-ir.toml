@@ -803,6 +803,22 @@ premises = ["The named declaration belongs to the resolved environment of the ac
 assumes = ["rust-frontend"]
 note = "Component endpoints and naturality hold for every object and arrow of the selected functors. The selected Monad has an identity source for its unit, the squared action for its multiplication, and equal defined results on both sides of the unit and associativity diagrams."
 
+[property."compiler-ir.finite-models".claim.isomorphism-source]
+status = "tested"
+evidence = [
+  "tests/finite_iso.rs::both_isomorphism_projections_are_executable_in_their_own_hom_fibers",
+  "tests/finite_iso.rs::a_one_sided_inverse_is_rejected_even_when_the_instance_is_unused",
+  "tests/finite_iso.rs::the_wire_rechecks_the_named_inverse_and_rejects_supplied_law_evidence",
+]
+note = "The two-object groupoid executes both inverse compositions. A split retraction fails a different equation in each orientation. Projections retain the exact category of their Hom results and edits invalidate the module revision."
+
+[property."compiler-ir.finite-models".claim.isomorphism-equations]
+status = "proved-oracle"
+evidence = ["VastitasOracle.FiniteIso.checked_iso", "VastitasOracle.ResourceSource.public_finite_iso"]
+premises = ["A named isomorphism is a member of the independent checker's returned module environment. Its four nullary tables select elements of the named category's carriers."]
+assumes = ["rust-frontend"]
+note = "Both arrows belong to the selected category and have the declared endpoints. Their two ordered composites equal the identities selected by that category's table under the accepted input revision."
+
 [property."compiler-ir.finite-models".claim.laws]
 status = "planned"
 issue = 199

@@ -353,6 +353,49 @@ theorem checked_functor {p : Source.Program} (checked : CheckedDeclarations p)
 
 end VastitasOracle.FiniteFunctors
 
+namespace VastitasOracle.FiniteIso
+open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Source
+open Indexed.FiniteIso
+
+/-- Both equations use the identity selected by the category's actual table. -/
+structure Inverses (m : Model) : Prop where
+  forward : m.forward ∈ m.graph.arrows ∧ m.graph.src[[m.forward]]? = some m.source ∧
+    m.graph.dst[[m.forward]]? = some m.target
+  inverse : m.inverse ∈ m.graph.arrows ∧ m.graph.src[[m.inverse]]? = some m.target ∧
+    m.graph.dst[[m.inverse]]? = some m.source
+  atSource : ∃ id, m.graph.identity[[m.source]]? = some id ∧
+    m.graph.composition[[m.inverse, m.forward]]? = some id
+  atTarget : ∃ id, m.graph.identity[[m.target]]? = some id ∧
+    m.graph.composition[[m.forward, m.inverse]]? = some id
+
+private theorem of_check {m : Model} (ok : m.check = .ok ()) : Inverses m := by
+  unfold Model.check at ok
+  split at ok <;> try contradiction
+  split at ok <;> try contradiction
+  split at ok <;> try contradiction
+  split at ok <;> try contradiction
+  rename_i forward inverse source target
+  simp [Model.hom] at forward inverse
+  simp at source target
+  exact ⟨⟨forward.1.1, forward.1.2, forward.2⟩, ⟨inverse.1.1, inverse.1.2, inverse.2⟩,
+    ⟨_, m.sourceIdentity, source⟩, ⟨_, m.targetIdentity, target⟩⟩
+
+theorem checked_iso {p : Source.Program} (checked : CheckedDeclarations p)
+    (member : ⟨owner, .finiteIso schema fields⟩ ∈ checked.resolved.declarations.indexed) :
+    ∃ m, select (Indexed.FiniteCategories.view checked.resolved.declarations.indexed) schema fields = .ok m ∧
+      Inverses m := by
+  have good := ((Core.Typing.validDeclarations_iff _).mp checked.accepted).indexed.declarations _ member
+  change valid _ _ _ = true at good
+  cases sel : select (Indexed.FiniteCategories.view checked.resolved.declarations.indexed) schema fields with
+  | error e => simp [valid, sel, Except.bind, Except.toBool] at good
+  | ok m =>
+    refine ⟨m, rfl, of_check ?_⟩
+    cases h : m.check with
+    | ok u => cases u; rfl
+    | error e => simp [valid, sel, Except.bind, Except.toBool, h] at good
+
+end VastitasOracle.FiniteIso
+
 namespace VastitasOracle.FiniteNatTrans
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Source
 open Indexed.FiniteNatTrans

@@ -114,6 +114,7 @@ def resolveBody (p : Namespace.Indexed) (graphs : GraphSources) (projections : P
         (rows.map fun r => (r.key.map (·.name), r.value.name)))
   | .categorySchema => return add .categorySchema
   | .functorSchema => return add .functorSchema
+  | .isoSchema => return add .isoSchema
   | .natTransSchema => return add .natTransSchema
   | .monadSchema => return add .monadSchema
   | .kleisliSchema kind base => return add (.kleisliSchema kind (← resolveId p scope base))
@@ -121,6 +122,10 @@ def resolveBody (p : Namespace.Indexed) (graphs : GraphSources) (projections : P
       return add (.finiteKleisli kind (← resolveId p scope schema) (← resolveId p scope monad))
   | .finiteMonad schema fields =>
       return add (.finiteMonad (← resolveId p scope schema) (← fields.mapM (resolveId p scope)))
+  | .finiteIso schema i =>
+      let path := resolveFinitePath p graphs projections scope
+      return add (.finiteIso (← resolveId p scope schema)
+        ⟨← resolveId p scope i.category, ← path i.source, ← path i.target, ← path i.forward, ← path i.inverse⟩)
   | .finiteNatTrans schema n =>
       return add (.finiteNatTrans (← resolveId p scope schema)
         ⟨← resolveId p scope n.source, ← resolveId p scope n.target,
@@ -655,6 +660,19 @@ private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declar
       if let [g, f] := key then
         if !m.compositionAt g f then return problem paths.arrows.span s!"functor does not preserve composition of '{g}' after '{f}'"
     return problem source.span "invalid finite functor instance"
+  if let .finiteIso schema i := entry.declaration then
+    let .finiteIso schemaPath paths := source.body | none
+    let .error slot := (FiniteIso.select named schema i).bind FiniteIso.Model.check | none
+    let (path, message) : Path × String := match slot with
+      | .schema => (schemaPath, "instance must select a finite isomorphism schema")
+      | .category => (paths.category, "isomorphism requires a named finite category")
+      | .source => (paths.source, "source must select an object of this category by a nullary table")
+      | .target => (paths.target, "target must select an object of this category by a nullary table")
+      | .forward => (paths.forward, "forward must select an arrow from the source to the target")
+      | .inverse => (paths.inverse, "inverse must select an arrow from the target to the source")
+      | .sourceComposite => (paths.inverse, "inverse after forward must be the identity of the source")
+      | .targetComposite => (paths.forward, "forward after inverse must be the identity of the target")
+    return { code := "E_ISO", span := path.span, message := message }
   if let .finiteNatTrans schema n := entry.declaration then
     let .finiteNatTrans schemaPath paths := source.body | none
     let problem := fun (sp : Span) (msg : String) => ({ span := sp, code := "E_NAT_TRANS", message := msg } : Diagnostic)

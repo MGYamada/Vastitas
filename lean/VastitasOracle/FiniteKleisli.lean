@@ -1,5 +1,5 @@
 import VastitasOracle.KleisliTriple
-import VastitasOracle.FiniteMapTotal
+import VastitasOracle.FiniteOpposite
 import VastitasOracle.FiniteMonadSelection
 import VastitasOracle.ResourceSource
 
@@ -60,19 +60,6 @@ private theorem mu_laws : FiniteNatTrans.Natural
   cases found
   exact laws
 
-include c in
-private theorem category_laws :
-    (∀ x ∈ m.category.objects, m.category.identityAt x = true) ∧
-    (∀ f ∈ m.category.arrows, m.category.units f = true) ∧
-    (∀ g ∈ m.category.arrows, ∀ f ∈ m.category.arrows, m.category.composable g f = true →
-      m.category.ends g f = true ∧ ∀ h ∈ m.category.arrows, m.category.composable h g = true →
-        m.category.assoc h g f = true) := by
-  obtain ⟨g, found, laws⟩ := FiniteCategories.checked_category checked
-    (lookup_member (lookup_of_view c.selected.categoryFound))
-  rw [c.selected.categoryModel] at found
-  cases found
-  exact laws
-
 /-- A chosen tag together with the exact finite operation that returned it. -/
 private structure Output (tags : List String) (answer : Option String) where
   value : String
@@ -93,19 +80,11 @@ def T (x : Obj m) : Obj m := ⟨(objectAt c x).value, (objectAt c x).member⟩
 
 theorem T_row (x : Obj m) : image m.objects x.1 = some (T c x).1 := (objectAt c x).row
 
-private def idAt (x : Obj m) : Output m.category.arrows (image m.category.identity x.1) :=
-  let ranges := graph_tables c.selected.categoryModel
-  output (mapping_total (category c).accepted ranges.2.2 ranges.1 ranges.2.1 x.2)
-
 def identity (x : Obj m) : Hom c x x :=
-  let o := idAt c x
-  have row : m.category.identity[[x.1]]? = some o.value := o.row
-  have ends := (category_laws c).1 x.1 x.2
-  have endpoints : m.category.src[[o.value]]? = some x.1 ∧ m.category.dst[[o.value]]? = some x.1 := by
-    simpa [Graph.identityAt, row] using ends
-  ⟨o.value, o.member, endpoints.1, endpoints.2⟩
+  FiniteCategoryExecution.identity checked (m := category c) x
 
-theorem identity_row (x : Obj m) : image m.category.identity x.1 = some (identity c x).tag := (idAt c x).row
+theorem identity_row (x : Obj m) : image m.category.identity x.1 = some (identity c x).tag :=
+  FiniteCategoryExecution.identity_row checked (m := category c) x
 
 def comp {x y z : Obj m} (g : Hom c y z) (f : Hom c x y) : Hom c x z :=
   FiniteCategoryExecution.compose checked g f
@@ -177,12 +156,6 @@ def data : Kleisli.Data (Obj m) (Hom c) := ⟨identity c, comp c, T c, map c, et
 private theorem tag_ext {x y : Obj m} {f g : Hom c x y} (same : f.tag = g.tag) : f = g := by
   cases f; cases g; cases same; rfl
 
-private theorem composable {x y z : Obj m} (g : Hom c y z) (f : Hom c x y) :
-    m.category.composable g.tag f.tag = true := by
-  have src : m.category.src[[g.tag]]? = some y.1 := g.src
-  have dst : m.category.dst[[f.tag]]? = some y.1 := f.dst
-  simp [Indexed.FiniteCategories.Endpoints.composable, src, dst]
-
 /-- The category, functor and transformation laws of this interpretation
 come from the actual declared graphs. Both unit laws and multiplication
 associativity come from the independently checked Monad, with no second
@@ -190,22 +163,11 @@ enumeration of Kleisli arrows or triples. -/
 theorem lawful : Kleisli.Laws (data c) := by
   constructor <;> dsimp only [data]
   · intro x y f
-    apply tag_ext c
-    have eq := FiniteCategories.unit_equations ((category_laws c).2.1 f.tag f.member)
-      f.src f.dst (identity_row c y) (identity_row c x)
-    exact Option.some.inj ((comp_row c (identity c y) f).symm.trans eq.1)
+    exact (FiniteCategoryExecution.compose_units checked (m := category c) (x := x) (y := y) f).1
   · intro x y f
-    apply tag_ext c
-    have eq := FiniteCategories.unit_equations ((category_laws c).2.1 f.tag f.member)
-      f.src f.dst (identity_row c y) (identity_row c x)
-    exact Option.some.inj ((comp_row c f (identity c x)).symm.trans eq.2)
+    exact (FiniteCategoryExecution.compose_units checked (m := category c) (x := x) (y := y) f).2
   · intro w x y z h g f
-    apply tag_ext c
-    have assoc := ((category_laws c).2.2 g.tag g.member f.tag f.member
-      (composable c g f)).2 h.tag h.member (composable c h g)
-    obtain ⟨_, left, right⟩ := FiniteCategories.associative_equation assoc (comp_row c g f) (comp_row c h g)
-    exact Option.some.inj ((comp_row c (comp c h g) f).symm.trans
-      (right.trans (left.symm.trans (comp_row c h (comp c g f)))))
+    exact FiniteCategoryExecution.compose_assoc checked h g f
   · intro x
     apply tag_ext c
     have eq := commutes_eq ((functor_laws c).identity x.1 x.2)
@@ -213,7 +175,7 @@ theorem lawful : Kleisli.Laws (data c) := by
       identity_row c (T c x), Option.some.injEq] using eq
   · intro x y z g f
     apply tag_ext c
-    have eq := commutes_eq ((functor_laws c).composition g.tag g.member f.tag f.member (composable c g f))
+    have eq := commutes_eq ((functor_laws c).composition g.tag g.member f.tag f.member (FiniteCategoryExecution.composable g f))
     simpa only [Indexed.FiniteFunctors.Model.mappedComposition, comp_row c g f, map_row c g,
       map_row c f, Option.bind_eq_bind, Option.bind_some, map_row c (comp c g f), comp_row c (map c g) (map c f),
       Option.some.injEq] using eq

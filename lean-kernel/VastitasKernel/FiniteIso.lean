@@ -26,7 +26,7 @@ inductive Slot where
 
 def select (read : Read) (schema : DeclId) (fields : IsoFields DeclId) : Except Slot Model := do
   unless read schema == some .isoSchema do throw .schema
-  let some (c, g) := FiniteFunctors.category read fields.category | throw .category
+  let some (c, g) := categoryView read fields.category | throw .category
   let some x := constant read fields.source c.objects | throw .source
   let some y := constant read fields.target c.objects | throw .target
   let some f := constant read fields.forward c.arrows | throw .forward

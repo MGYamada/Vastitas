@@ -75,7 +75,13 @@ struct PhysicalFile {
 pub(crate) struct Sources {
     files: Vec<SourceFile>,
     bytes: usize,
-    receipt: Option<(PathBuf, (u64, u64))>,
+    protected: Vec<ProtectedInput>,
+}
+
+struct ProtectedInput {
+    canonical: PathBuf,
+    inode: (u64, u64),
+    kind: &'static str,
 }
 
 // Host input budgets apply before parsing or serializing the public request.
@@ -127,7 +133,7 @@ impl Sources {
         Self {
             files: Vec::new(),
             bytes: 0,
-            receipt: None,
+            protected: Vec::new(),
         }
     }
 
@@ -255,19 +261,29 @@ impl Sources {
         Ok(sources)
     }
 
-    pub(crate) fn protect_receipt(&mut self, canonical: PathBuf, metadata: &fs::Metadata) {
-        self.receipt = Some((canonical, (metadata.dev(), metadata.ino())));
+    pub(crate) fn protect_input(
+        &mut self,
+        canonical: PathBuf,
+        metadata: &fs::Metadata,
+        kind: &'static str,
+    ) {
+        self.protected.push(ProtectedInput {
+            canonical,
+            inode: (metadata.dev(), metadata.ino()),
+            kind,
+        });
     }
 
     pub(crate) fn protect_output(&self, output: &Path) -> Result<(), String> {
         if let Some(identity) = OutputIdentity::inspect(output)? {
-            if let Some((path, inode)) = &self.receipt
-                && (*path == identity.canonical || *inode == identity.identity)
-            {
-                return Err(format!(
-                    "E_OUTPUT: output would overwrite function revision {}",
-                    shown(path)
-                ));
+            for input in &self.protected {
+                if input.canonical == identity.canonical || input.inode == identity.identity {
+                    return Err(format!(
+                        "E_OUTPUT: output would overwrite {} {}",
+                        input.kind,
+                        shown(&input.canonical)
+                    ));
+                }
             }
             for source in &self.files {
                 identity.protect(source)?;

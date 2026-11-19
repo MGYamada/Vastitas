@@ -1,10 +1,10 @@
-import VastitasKernel.ResourceProtocol
+import VastitasOracle.ExactAffine
 
 set_option autoImplicit false
 
-/-! A proof-side descriptor for the canonical chart of an existing smooth
-affine object in an accepted public request. The only interpretation in this
-module is the syntactically explicit identity morphism. Public execution applies its checked storage copy to the selected resource points. -/
+/-! Standard charts of smooth real affines and exact complex affines. The
+public identity interpretation copies between two checked resource points.
+The chart and the literal graph are recovered from the accepted request. -/
 namespace VastitasOracle.NumericalRealization
 open VastitasKernel VastitasKernel.ResourceSource VastitasKernel.Indexed
 
@@ -145,47 +145,76 @@ theorem point_scalar {env : Indexed.Environment} {d : Storage.Realization.Descri
           cases x <;> cases y <;> decide
         exact ⟨loan, allocation, rfl, ha, same _ _ valid.1.1.2⟩
 
-/-- The marker, coordinate order and nominal standard chart are recovered
-from the primitive declarations of the same checked mathematical environment. -/
+/-- A chart is backed by declarations of the same accepted environment. -/
+def ChartEquations (env : Environment) (d : Storage.Realization.Descriptor)
+    (p : Storage.Realization.ChartProfile) : Prop :=
+  match p.base with
+  | .smooth impl marker =>
+    d.representation.isReal = true ∧
+    Indexed.lookup env d.subject = some (.smoothAffine impl p.coordinates) ∧
+    Indexed.lookup env impl = some (.implementation marker .smoothAffine [])
+  | .exactComplex model carrier realModel realCarrier =>
+    d.representation.isReal = false ∧
+    (∃ n, Indexed.lookup env d.subject = some (.exactGeometry (.affine model n p.coordinates))) ∧
+    (exactView env model).bind (·.model? (exactView env)) = some (.pairs carrier realModel realCarrier)
+
+/-- Exact IDs and coordinate order follow from the descriptor that the public
+checker actually used. The two kinds of chart require different component counts. -/
 theorem profile_equations {env : Environment} {d : Storage.Realization.Descriptor}
     {p : Storage.Realization.ChartProfile} (h : d.profile env = some p) :
-    d.chart = d.subject ∧ (d.representation = .real64 ∨ d.representation = .real32) ∧
-    Indexed.lookup env d.subject = some (.smoothAffine p.implementation p.coordinates) ∧
-    Indexed.lookup env p.implementation = some (.implementation p.marker .smoothAffine []) := by
+    d.chart = d.subject ∧ ChartEquations env d p := by
   unfold Storage.Realization.Descriptor.profile at h
-  simp only [guard, bind, pure] at h
   split at h
-  next auth =>
-    have allowed : d.subject = d.chart ∧ (d.representation = .real64 ∨ d.representation = .real32) := by
-      simpa only [Storage.Realization.Representation.isReal, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq] using auth
-    refine ⟨allowed.1.symm, allowed.2, ?_⟩
-    simp only [Option.bind_some] at h
-    obtain ⟨x,hx,body⟩ := Option.bind_eq_some_iff.mp h
-    split at body <;> try contradiction
-    obtain ⟨y,hy,someProfile⟩ := Option.bind_eq_some_iff.mp body
-    split at someProfile <;> try contradiction
-    cases someProfile
-    exact ⟨hx,hy⟩
-  next => simp [failure, Alternative.failure, Option.bind] at h
+  · contradiction
+  next same =>
+    refine ⟨?_, ?_⟩
+    · exact (Classical.not_not.mp (fun ne => same (bne_iff_ne.mpr ne))).symm
+    · split at h
+      next real =>
+        split at h <;> try contradiction
+        split at h <;> try contradiction
+        cases h
+        exact ⟨real, by assumption, by assumption⟩
+      next complex =>
+        split at h <;> try contradiction
+        dsimp only at h
+        split at h <;> try contradiction
+        cases h
+        exact ⟨Bool.eq_false_iff.mpr complex, ⟨_, by assumption⟩, by assumption⟩
 
-/-- A reached identity plan requires a declared identity in the public source
-and its full constant in Core. The normalized polynomial alone grants no run. -/
+def IdentityGraph (env : Indexed.Core.Declarations) (plan : Storage.Realization.Plan)
+    (p : Storage.Realization.ChartProfile) : Prop :=
+  match p.base with
+  | .smooth .. => ∃ family, env.primitive? plan.graph = some (.smoothConstant
+      ⟨family,[.object (.global plan.descriptor.subject),.object (.global plan.descriptor.subject)]⟩
+      (SmoothRuntime.identity p.coordinates.length))
+  | .exactComplex .. => exactView env.indexed plan.graph = some (.identity plan.descriptor.subject)
+
+theorem matches_identity {env : Indexed.Core.Declarations} {plan : Storage.Realization.Plan}
+    {p : Storage.Realization.ChartProfile} (h : matchesIdentity plan env p = true) : IdentityGraph env plan p := by
+  cases base : p.base with
+  | smooth impl marker =>
+    simp only [ResourceSource.matchesIdentity, base] at h
+    split at h <;> try contradiction
+    simp only [Id.run, pure, beq_iff_eq] at h
+    exact (show IdentityGraph env plan p from by rw [IdentityGraph, base]; exact ⟨_, h⟩)
+  | exactComplex model carrier realModel realCarrier =>
+    simpa [ResourceSource.matchesIdentity, IdentityGraph, base] using h
+
 theorem checked_run_identity {json main} (input : Wire.CheckedInput json main)
     (site : RealizationSite) (member : site ∈ input.checked.lowered.realizationSites)
-    {plan : Storage.Realization.Plan} {src dst} (op : site.operation = .run plan src dst) :
+    {plan : Storage.Realization.Plan} {src dst : Storage.Symbol} (op : site.operation = .run plan src dst) :
     let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations
-    ∃ profile family, plan.descriptor.profile env.indexed = some profile ∧
-      (declaredIdentities input.input.pureProgram.source.headers).contains plan.graph = true ∧
-      env.primitive? plan.graph = some (.smoothConstant
-        ⟨family,[.object (.global plan.descriptor.subject),.object (.global plan.descriptor.subject)]⟩
-        (SmoothRuntime.identity profile.coordinates.length)) := by
+    ∃ profile, plan.descriptor.profile env.indexed = some profile ∧
+      (declaredIdentities input.input.pureProgram.source.headers).contains (plan.graph,profile.base.kind) = true ∧
+      IdentityGraph env plan profile := by
   have h := (checked_site input site member).2
   dsimp only
   simp only [RealizationSite.valid, op, Storage.Realization.Operation.descriptor,
     Storage.Realization.Operation.family] at h
   repeat' (split at h <;> try contradiction)
-  all_goals simp only [Id.run, pure, Bool.and_eq_true, beq_iff_eq] at h
-  all_goals first | contradiction | exact ⟨_,_, by assumption,h.1,h.2⟩
+  simp only [Id.run, pure, Bool.and_eq_true] at h
+  exact ⟨_, by assumption, h.1, matches_identity h.2⟩
 
 /-- The executable receipt contains the real before/after states, both live
 point checks and the physical copy at this call's position in the schedule. -/
@@ -204,14 +233,17 @@ theorem executed_copy {json main} (input : Wire.CheckedInput json main)
 
 /-- Membership in the source identity index yields the original declaration
 and its literal presentation, before any polynomial normalization. -/
-theorem declared_identity_member {p : Source.Program} {graph : DeclId}
-    (selected : (declaredIdentities p).contains graph = true) :
-    ∃ decl, (graph,decl) ∈ p.owned ∧ ∃ family endpoints, decl.body = .morphism family endpoints .identity := by
+theorem declared_identity_member {p : Source.Program} {graph : DeclId} {kind : Storage.Realization.GraphKind}
+    (selected : (declaredIdentities p).contains (graph,kind) = true) :
+    ∃ decl, (graph,decl) ∈ p.owned ∧ declaredIdentityKind decl.body = some kind := by
   simp only [declaredIdentities, Std.HashSet.contains_ofList, List.contains_iff_mem, List.mem_filterMap] at selected
   obtain ⟨⟨owner,decl⟩,member,h⟩ := selected
-  split at h <;> try contradiction
-  cases h
-  exact ⟨decl,member,_,_,by assumption⟩
+  cases hk : declaredIdentityKind decl.body with
+  | none => simp [hk] at h
+  | some k =>
+    simp [hk] at h
+    obtain ⟨rfl,rfl⟩ := h
+    exact ⟨decl,member,hk⟩
 
 private theorem plan_eq_of_beq {a b : Storage.Realization.Plan} (h : (a == b) = true) : a = b := by
   obtain ⟨x,f,pa⟩ := a
@@ -233,12 +265,9 @@ theorem executed_source_identity {json main} (input : Wire.CheckedInput json mai
     ∃ site ∈ input.checked.lowered.realizationSites, ∃ src dst,
       (r.location.source.function.bind (input.checked.lowered.owners.toArray[·]?)) = some site.owner ∧
       site.position = r.location.source.path ∧ site.operation = .run r.plan src dst ∧
-      (∃ decl, (r.plan.graph,decl) ∈ input.input.pureProgram.source.headers.owned ∧
-        ∃ family endpoints, decl.body = .morphism family endpoints .identity) ∧
-      ∃ profile family, r.plan.descriptor.profile env.indexed = some profile ∧
-        env.primitive? r.plan.graph = some (.smoothConstant
-          ⟨family,[.object (.global r.plan.descriptor.subject),.object (.global r.plan.descriptor.subject)]⟩
-          (SmoothRuntime.identity profile.coordinates.length)) := by
+      ∃ profile, r.plan.descriptor.profile env.indexed = some profile ∧
+        (∃ decl, (r.plan.graph,decl) ∈ input.input.pureProgram.source.headers.owned ∧
+          declaredIdentityKind decl.body = some profile.base.kind) ∧ IdentityGraph env r.plan profile := by
   dsimp only
   obtain ⟨site,original,same⟩ := input.checked.runSources entry selected r member
   simp only [RealizationSite.matchesRun, Bool.and_eq_true, beq_iff_eq] at same
@@ -247,7 +276,36 @@ theorem executed_source_identity {json main} (input : Wire.CheckedInput json mai
   rename_i plan src dst h
   have eqPlan : plan = r.plan := plan_eq_of_beq op
   subst plan
-  obtain ⟨profile,family,chart,graph,eq⟩ := checked_run_identity input site original h
-  exact ⟨site,original,src,dst,owner,path,h,declared_identity_member graph,profile,family,chart,eq⟩
+  obtain ⟨profile,chart,graph,eq⟩ := checked_run_identity input site original h
+  exact ⟨site,original,src,dst,owner,path,h,profile,chart,declared_identity_member graph,eq⟩
+
+/-- An actual complex identity copy recovers its chart, the four declarations
+of its paired field, and its graph on this very affine. -/
+theorem executed_complex_model {json main} (input : Wire.CheckedInput json main)
+    (entry : Nat) (selected : input.input.entry = some entry) (r : Storage.Functions.RealizationRunReceipt)
+    (member : r ∈ (input.checked.execution entry selected).checked.context.realizationRuns.toList)
+    (complex : r.plan.descriptor.representation.isReal = false) :
+    let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed
+    let named := exactView env
+    let d := r.plan.descriptor
+    d.chart = d.subject ∧ ∃ model carrier realModel realCarrier dim coords,
+      Indexed.lookup env d.subject = some (.exactGeometry (.affine model dim coords)) ∧
+      named model = some (.complexMeadow carrier realModel) ∧ named carrier = some (.complexPairs realCarrier) ∧
+      named realCarrier = some .cauchyQQ ∧ named realModel = some (.realMeadow realCarrier) ∧
+      named r.plan.graph = some (.identity d.subject) := by
+  dsimp only
+  obtain ⟨_,_,_,_,_,_,_,p,h,_,graph⟩ := executed_source_identity input entry selected r member
+  obtain ⟨chart,eqs⟩ := profile_equations h
+  refine ⟨chart, ?_⟩
+  cases hb : p.base with
+  | smooth impl marker =>
+    rw [ChartEquations, hb] at eqs
+    simp [complex] at eqs
+  | exactComplex model carrier realModel realCarrier =>
+    rw [ChartEquations, hb] at eqs
+    rw [IdentityGraph, hb] at graph
+    obtain ⟨_,⟨dim,affine⟩,pair⟩ := eqs
+    obtain ⟨meadow,parts,real,base⟩ := ExactAffine.paired_selection pair
+    exact ⟨model,carrier,realModel,realCarrier,dim,p.coordinates,affine,meadow,parts,real,base,graph⟩
 
 end VastitasOracle.NumericalRealization

@@ -222,6 +222,22 @@ unused dependency functions preserves evaluation of the retained Core
 bodies at every fuel. Linking, machine execution and checking individual
 compilations in Fast or Official mode have separate evidence.
 
+## Static storage LLVM entries
+
+For a checked resource entry with a linear static storage plan and a literal
+Core result, `VastitasOracle.StorageProgram.correspondence` binds the physical
+call operands and order, selected revision, target header, and every byte of the
+parsed LLVM module. Its success status is the selected Core integer modulo 256.
+The modeled runtime supplies the outcome of each call. After arena acquisition,
+a failed call ends the trace and the entry releases the arena on both success
+and failure. For a NativeFast GEMM, the first call operand identifies the common
+live representation of both inputs and the output. Literal coefficients retain
+their component bits. A view coefficient names its allocation and offset.
+Reached resource callees can return a closed Unit literal after their effects.
+Native regressions compare real and complex identity copies and matrix products
+at both widths with the Lean/C implementation. Dynamic shapes and a proof of
+the external C implementation remain open.
+
 ## Independent mathematical bridge
 
 The theorems of the bridge are Proved (bridge). No public checker route calls

@@ -9,7 +9,7 @@ def view (env : Environment) (id : DeclId) : Option Declaration := do
   match d with
   | .finiteCarrier .. | .finiteTable .. | .categorySchema | .functorSchema
   | .isoSchema | .finiteIso .. | .natTransSchema | .monadSchema | .kleisliSchema .. | .finiteKleisli .. | .finiteMonad ..
-  | .finiteNatTrans .. | .finiteFunctor .. | .finiteCategory .. | .composableTable .. => return d
+  | .finiteNatTrans .. | .finiteFunctor .. | .finiteCategory .. | .finiteOpposite .. | .composableTable .. => return d
   | _ => none
 
 abbrev Read := DeclId → Option Declaration
@@ -54,9 +54,32 @@ def compositionValid (read : Read) (inputs : List DeclId) (output src dst : Decl
   let some pairs := e.pairs | return false
   return validRows pairs e.arrows rows
 
+/-- Both orientations retain the selected table. Reversal changes the order of
+the lookup key at use, so no reversed rows or products are allocated. -/
+inductive Composition where
+  | forward (table : Table)
+  | reversed (table : Table)
+
+def Composition.opposite : Composition → Composition
+  | .forward t => .reversed t
+  | .reversed t => .forward t
+
+def Composition.lookup (composition : Composition) (key : List String) : Option String :=
+  match composition with
+  | .forward t => t[key]?
+  | .reversed t => t[key.reverse]?
+
+instance : GetElem? Composition (List String) String (fun c k => (c.lookup k).isSome) where
+  getElem c k h := (c.lookup k).get h
+  getElem? := Composition.lookup
+
 structure Graph extends Endpoints where
   identity : Table
-  composition : Table
+  composition : Composition
+
+def Graph.opposite (g : Graph) : Graph :=
+  { g with src := g.dst, dst := g.src, composition := g.composition.opposite }
+
 
 def graph (read : Read) (schema : DeclId) (fields : GraphFields DeclId) : Option Graph := do
   let .categorySchema ← read schema | none
@@ -66,7 +89,33 @@ def graph (read : Read) (schema : DeclId) (fields : GraphFields DeclId) : Option
   guard (arr == fields.arrows)
   let .composableTable ins out src dst rows ← read fields.comp | none
   guard (ins == [arr, arr] && out == arr && src == fields.src && dst == fields.dst && rows.length ≤ limit)
-  return ⟨e, ids, Std.HashMap.ofList rows⟩
+  return ⟨e, ids, .forward (Std.HashMap.ofList rows)⟩
+
+/-- Resolve only declaration IDs and the orientation until a consumer asks for
+the graph. Each hop checks its exact category schema. Resolution fuel also
+bounds cyclic wire declarations. -/
+def describe (read : Read) : Nat → DeclId → Option (DeclId × GraphFields DeclId × Bool)
+  | 0, _ => none
+  | fuel + 1, owner => do
+    match ← read owner with
+    | .finiteCategory schema fields => return (schema, fields, false)
+    | .finiteOpposite schema base =>
+      let (chosen, fields, reverse) ← describe read fuel base
+      guard (schema == chosen)
+      return (schema, fields, !reverse)
+    | _ => none
+
+def oppositeValid (read : Read) (schema base : DeclId) : Bool :=
+  read schema == some .categorySchema &&
+    (describe read Limits.namespaceResolution base).any fun (chosen, _, _) => chosen == schema
+
+def orientedFields (fields : GraphFields DeclId) (reverse : Bool) : GraphFields DeclId :=
+  if reverse then { fields with src := fields.dst, dst := fields.src } else fields
+
+def categoryView (read : Read) (owner : DeclId) : Option (GraphFields DeclId × Graph) := do
+  let (schema, fields, reverse) ← describe read (Limits.namespaceResolution + 1) owner
+  let g ← graph read schema fields
+  return (orientedFields fields reverse, if reverse then g.opposite else g)
 
 def Graph.identityAt (g : Graph) (x : String) : Bool := Id.run do
   let some i := g.identity[[x]]? | return false

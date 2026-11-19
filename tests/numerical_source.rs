@@ -1093,10 +1093,38 @@ fn four_representations_execute_through_forwarded_public_maps() {
         .args(["-o", "program"])
         .args(common::numerical_build_options(None));
     success(&build.output().unwrap());
-    assert_eq!(
-        common::ran(&Command::new(s.0.join("program")).output().unwrap()),
-        common::exits(0)
+    let reference = Command::new(s.0.join("program")).output().unwrap();
+    assert_eq!(reference.status.code(), Some(0));
+    assert!(reference.stdout.is_empty() && reference.stderr.is_empty());
+    #[cfg(feature = "llvm-native")]
+    check_forwarded_llvm(&s, &reference);
+}
+
+#[cfg(feature = "llvm-native")]
+fn check_forwarded_llvm(s: &Scratch, reference: &std::process::Output) {
+    let build = |output: &str, options: &[String]| {
+        command(s, "build")
+            .args(["--llvm-preview", "-o", output])
+            .args(options)
+            .output()
+            .unwrap()
+    };
+    let options = common::numerical_build_options(None);
+    success(&build("program", &options));
+    let actual = Command::new(s.0.join("program")).output().unwrap();
+    assert_eq!(actual.status, reference.status);
+    assert_eq!(actual.stdout, reference.stdout);
+    assert_eq!(actual.stderr, reference.stderr);
+    let installed = std::fs::read(s.0.join("program")).unwrap();
+    common::expect_code(&build("program", &[]), "E_BUILD");
+    common::expect_code(
+        &build("program", &["--openblas-prefix".into(), "missing".into()]),
+        "E_BUILD",
     );
+    assert_eq!(std::fs::read(s.0.join("program")).unwrap(), installed);
+    let header = std::path::Path::new(&common::openblas_prefix()).join("include/cblas.h");
+    symlink(&header, s.0.join("header-alias")).unwrap();
+    common::expect_code(&build("header-alias", &options), "E_OUTPUT");
 }
 
 #[test]
@@ -1113,8 +1141,17 @@ fn public_maps_check_domain_and_precision_before_emitting_gemm() {
         ])
         .output()
         .unwrap();
-    common::expect_code(&preview, "E_UNSUPPORTED");
-    assert!(preview.stdout.is_empty(), "partial numerical LLVM module");
+    success(&preview);
+    let module_text = std::str::from_utf8(&preview.stdout).unwrap();
+    let calls: Vec<_> = module_text
+        .lines()
+        .filter_map(|line| {
+            let (_, operands) = line.split_once("call i32 @vq_storage_gemm(ptr %arena, i64 ")?;
+            operands.split_once(',').map(|(tag, _)| tag)
+        })
+        .collect();
+    assert_eq!(calls, ["0", "0", "1", "1", "2", "2", "3", "3"]);
+    assert!(!module_text.contains("fadd ") && !module_text.contains("fmul "));
     let wire = captured(&s);
     for (module_name, wrong_scalar, code) in [
         ("real", "f64", "E_RESOURCE_GEMM"),

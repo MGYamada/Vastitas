@@ -134,7 +134,7 @@ def run(args):
             else {"flag": value} for value in system_libraries]
         report["inputs"] = {name: digest(HERE / name) for name in (
             "Cargo.toml", "Cargo.lock", "src/main.rs", "shim.c", "RuntimeProbe.lean", "program.ll.in",
-            "Comparison.lean", "FamilyComparison.lean", "run.py", "measure.py")}
+            "Comparison.lean", "FamilyComparison.lean", "OppositeComparison.lean", "GemmComparison.lean", "run.py", "measure.py")}
         family_source = Path("tests/fixtures/FamilyComparison.vast")
         report["inputs"][str(family_source)] = digest(ROOT / family_source)
         adapter = Path("src/driver/llvm_backend.rs")
@@ -160,13 +160,22 @@ def run(args):
         suites = report["emitter_comparison"]["fixtures"] = {}
         with tempfile.TemporaryDirectory(prefix="vastitas-lean-llvm-") as temporary:
             comparison = Path(temporary)
-            for stem in ("Comparison", "FamilyComparison"):
+            for stem in ("Comparison", "FamilyComparison", "OppositeComparison", "GemmComparison"):
                 suite = suites[stem] = {"emitted": False, "disassembled": False}
                 source = stem + ".lean"
                 shutil.copyfile(HERE / source, comparison / source)
                 if stem == "FamilyComparison":
                     measured("lean_family_results", [lean_bin, "--run", source], comparison)
                     suite["reference_results_checked"] = True
+                if stem == "GemmComparison":
+                    result = measured("lean_gemm_coefficients", [lean_bin, "--run", source], comparison)
+                    suite["reference_component_bits"] = result.stdout.strip()
+                if stem == "OppositeComparison":
+                    result = measured("lean_opposite_results", [lean_bin, "--run", source],
+                                      comparison, expect_success=None)
+                    if result.returncode != 42:
+                        raise ValueError("opposite S3 comparison did not return 42")
+                    suite["reference_exit_status"] = result.returncode
                 if "LLVM" not in features:
                     suite["execution_gap"] = "pinned Lean binary reports no LLVM feature"
                     continue

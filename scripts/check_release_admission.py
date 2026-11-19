@@ -49,7 +49,7 @@ ROW_OBLIGATIONS = {
     },
     'category': {
         'source': ('compiler-ir.finite-models@source-core', 'compiler-ir.finite-models@category-check',
-                   'compiler-ir.finite-models@isomorphism-source',
+                   'compiler-ir.finite-models@isomorphism-source', 'compiler-ir.finite-models@opposite-source',
                    'compiler-ir.finite-models@functor-source', 'compiler-ir.finite-models@transformation-monad-source',
                    'compiler-ir.finite-binders@category-functions', 'compiler-ir.finite-binders@monad-functions'),
         'core': ('compiler-ir.finite-binders@admission', 'compiler-ir.finite-binders@concrete-lookup',
@@ -59,7 +59,7 @@ ROW_OBLIGATIONS = {
                  'compiler-ir.llvm-bytes@binary-function', 'compiler-ir.llvm-bytes@binary-source',
                  'compiler-ir.llvm-bytes@finite-entry', 'compiler-ir.llvm-bytes@finite-package-source'),
         'official': ('compiler-ir.finite-models@laws', 'compiler-ir.finite-models@category-equations',
-                   'compiler-ir.finite-models@isomorphism-equations',
+                   'compiler-ir.finite-models@isomorphism-equations', 'compiler-ir.finite-models@opposite-equations',
                      'compiler-ir.finite-models@functor-equations', 'compiler-ir.finite-models@transformation-monad-equations',
                      'compiler-ir.finite-models@kleisli-equations',
                      'compiler-ir.finite-binders@typed-substitution',
@@ -69,18 +69,25 @@ ROW_OBLIGATIONS = {
     'tensor': {
         'source': ('compiler-ir.edition@admission', 'compiler-ir.tensor@public-views'),
         'core': ('compiler-ir.tensor@semantics', 'compiler-ir.tensor@public-views'),
-        'official': ('compiler-ir.stage-validation@soundness', 'compiler-ir.tensor@coordinate-storage'),
-        'native': ('compiler-ir.tensor@native', 'compiler-ir.tensor@storage-native'),
+        'midir': ('compiler-ir.midir@representation', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi'),
+        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi'),
+        'official': ('compiler-ir.stage-validation@soundness', 'compiler-ir.tensor@coordinate-storage', 'compiler-ir.storage@gemm-abi'),
+        'native': ('compiler-ir.tensor@native', 'compiler-ir.tensor@storage-native', 'compiler-ir.storage@gemm-native'),
     },
     'numerical': {
-        'source': ('compiler-ir.realization@source', 'compiler-ir.realization@identity-source'),
+        'source': ('compiler-ir.realization@source', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
         'core': ('compiler-ir.float-carrier@storage', 'compiler-ir.float-carrier@binary64-storage',
-                 'compiler-ir.realization@identity-source'),
+                 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
+        'midir': ('compiler-ir.midir@representation', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi'),
+        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi'),
         'official': ('compiler-ir.numeric-order@reference', 'compiler-ir.numeric-order@reference-boundaries',
                      'compiler-ir.realization@identity-origin', 'compiler-ir.float-carrier@reference-laws',
                      'compiler-ir.realization@rational-coordinates', 'compiler-ir.realization@exact-fields',
-                     'compiler-ir.realization@coordinate-interpretation'),
-        'native': ('compiler-ir.native-fast@profile', 'compiler-ir.native-fast@identity-run'),
+                     'compiler-ir.realization@exact-chart-selection',
+                     'compiler-ir.realization@coordinate-interpretation', 'compiler-ir.storage@static-effects',
+                     'compiler-ir.storage@static-cleanup', 'compiler-ir.storage@gemm-abi'),
+        'native': ('compiler-ir.native-fast@profile', 'compiler-ir.native-fast@identity-run',
+                   'compiler-ir.storage@static-native', 'compiler-ir.storage@gemm-native'),
     },
     'scalar-indexed': {
         'source': ('compiler-ir.operators@binding', 'compiler-ir.operators@exact-integers'),
@@ -95,14 +102,18 @@ ROW_OBLIGATIONS = {
         'native': ('compiler-ir.runtime@linkage', 'compiler-ir.backend@native'),
     },
     'resources': {
-        'source': ('compiler-ir.edition@admission',),
-        'core': ('compiler-ir.storage@refinement',),
-        'official': ('compiler-ir.constitution@finite-proofs',),
+        'source': ('compiler-ir.edition@admission', 'compiler-ir.storage@static-native'),
+        'core': ('compiler-ir.storage@refinement', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@erased-unit'),
+        'midir': ('compiler-ir.midir@representation', 'compiler-ir.storage@static-effects'),
+        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.storage@static-effects'),
+        'official': ('compiler-ir.constitution@finite-proofs', 'compiler-ir.storage@static-effects',
+                     'compiler-ir.storage@static-cleanup', 'compiler-ir.storage@erased-unit'),
+        'native': ('compiler-ir.backend@native', 'compiler-ir.storage@static-native'),
     },
     'edition-verification': {
         'source': ('compiler-ir.edition@manifest', 'compiler-ir.edition@admission',
                    'compiler-ir.edition@finite-tables', 'compiler-ir.finite-binders@category-functions',
-                   'compiler-ir.realization@identity-source'),
+                   'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
         'core': ('compiler-ir.edition@manifest', 'compiler-ir.edition@correspondence',
                  'compiler-ir.edition@finite-tables'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.check-build@preview'),
@@ -127,7 +138,9 @@ def obligations(row, dimension):
 def required_status(dimension, claim):
     if dimension == 'official' and claim == 'compiler-ir.realization@coordinate-interpretation':
         return 'proved-bridge'
-    if (dimension == 'official' or (dimension == 'llvm' and claim in LLVM_PROOFS)
+    if (claim in {'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@erased-unit'}
+            or dimension == 'official'
+            or (dimension == 'llvm' and claim in LLVM_PROOFS)
             or (dimension == 'midir' and claim == 'compiler-ir.midir@finite-lookup')):
         return 'proved-oracle'
     return 'tested'

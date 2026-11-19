@@ -228,6 +228,7 @@ structure FiniteRow where
 
 inductive Body where
   | marker
+  | exactGeometry (construction : ExactConstruction Path)
   | finiteCarrier (tags : List FiniteTag)
   | finiteTable (inputs : List Path) (output : Path) (rows : List FiniteRow)
   | categorySchema
@@ -238,6 +239,7 @@ inductive Body where
   | kleisliSchema (kind : KleisliKind) (monadSchema : Path)
   | composableTable (inputs : List Path) (output src dst : Path) (rows : List FiniteRow)
   | finiteCategory (schema : Path) (graph : GraphFields Path)
+  | finiteOpposite (schema category : Path)
   | finiteFunctor (schema : Path) (maps : FunctorFields Path)
   | finiteIso (schema : Path) (fields : IsoFields Path)
   | finiteNatTrans (schema : Path) (fields : NatTransFields Path)

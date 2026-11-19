@@ -319,7 +319,9 @@ def validKey (t : FiniteTemplate) (env : Environment) (key : List StaticIndex) :
   let bySlot := key.toArray
   t.binders.length == key.length && (t.binders.zip key).all fun
     | (.category schema, .category owner) =>
-      match lookup env owner with | some (.finiteCategory s _) => s == schema | _ => false
+      match lookup env owner with
+      | some (.finiteCategory s _) | some (.finiteOpposite s _) => s == schema
+      | _ => false
     | (.monad schema, .monad owner) =>
       match lookup env owner with | some (.finiteMonad s _) => s == schema | _ => false
     | (.monadObject i, .object owner name) => Id.run do
@@ -330,6 +332,7 @@ def validKey (t : FiniteTemplate) (env : Environment) (key : List StaticIndex) :
     | (.object c, .object owner name) =>
       bySlot[c]? == some (.category owner) && match lookup env owner with
         | some (.finiteCategory _ fields) => (FiniteTables.carrier env fields.objects).any (·.contains name)
+        | some (.finiteOpposite ..) => (FiniteSort.selected env owner).any fun (_, g) => g.objects.contains name
         | _ => false
     | _ => false
 

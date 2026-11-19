@@ -1,0 +1,8 @@
+[package]
+edition = "2026"
+name = "float_complex_identity"
+version = "0.1.0"
+root = "src/main.vast"
+
+[dependencies]
+std = { path = "../../../stdlib" }

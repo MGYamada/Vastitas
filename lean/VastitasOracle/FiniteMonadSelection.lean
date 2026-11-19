@@ -47,6 +47,11 @@ private theorem category_found (h : FiniteFunctors.category read id = some (c, g
     obtain ⟨_, found, rfl, rfl⟩ := h
     exact ⟨schema, rfl, found⟩
 
+private theorem direct_view (h : FiniteFunctors.category read id = some (c, g)) :
+    FiniteCategories.categoryView read id = some (c, g) := by
+  obtain ⟨schema, declared, selected⟩ := category_found h
+  simp [FiniteCategories.categoryView, FiniteCategories.describe, declared, selected, FiniteCategories.orientedFields]
+
 private theorem functor_found (h : FiniteNatTrans.functorFields read id = some maps) :
     ∃ schema, read id = some (.finiteFunctor schema maps) ∧ read schema = some .functorSchema := by
   cases hd : read id with
@@ -132,7 +137,7 @@ private theorem component_selection {c : GraphFields DeclId} {t : FunctorFields 
   refine ⟨schema, n, found, ?_, hv⟩
   have both : f.source = t.source ∧ f.target = t.target := by simpa [FiniteNatTrans.parallel] using parallel
   simp [FiniteNatTrans.model, hs, hf, same, functor, parallel, both.1, both.2,
-    ts, tt, category, ho, ha, hv, obj, arr, guard]
+    ts, tt, direct_view category, ho, ha, hv, obj, arr, guard]
 
 /-- A successful Monad lookup retains the exact nominal category, endofunctor,
 unit, multiplication and all component tables from the checked environment. -/
@@ -185,7 +190,7 @@ theorem selection_of_model {s : MonadFields DeclId} (h : FiniteMonads.model read
   obtain ⟨us, nf, uf, un, um⟩ := component_selection hc ht ts tt ho ha unit
   obtain ⟨ms, mf, mk, mn, mm⟩ := component_selection hc ht ts tt ho ha mul
   have model : FiniteFunctors.model read fs t = some ⟨g,g,o,a⟩ := by
-    simp [FiniteFunctors.model, fsch, ts, tt, hc, ho, ha]
+    simp [FiniteFunctors.model, fsch, ts, tt, direct_view hc, ho, ha]
   exact ⟨⟨cs,c,cf,cg, fs,t,ff,model, us,nf,uf,un, ms,mf,mk,mn, ho,ha,um,mm⟩⟩
 
 end VastitasOracle.FiniteMonads

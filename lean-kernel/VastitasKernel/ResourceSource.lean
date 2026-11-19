@@ -648,7 +648,6 @@ private def lowerRealization (index : Namespace.Indexed) (scope : Namespace.Scop
   let bind (kind : BindingKind) := do return (← bindName index scope frame out kind span).1
   let (next, op) ← (match target.owner.name, rep, args, into with
     | "realize", some precision, [subject,chart], false => do
-      unless precision.isReal do Namespace.problem span "E_UNSUPPORTED" "a real smooth-affine chart requires F32<RR> or F64<RR>"
       let id ← ownerOf subject
       let "standard_chart" :: parent := chart.path.reverse
         | Namespace.problem chart.span "E_REALIZATION_CHART" "expected an explicit subject::standard_chart"
@@ -1020,22 +1019,33 @@ def numericalEnvironment {source requireMain}
 
 /-- Index original source declarations once. Exact polynomial normalization can
 erase operation order, so an extensional identity is insufficient. -/
-def declaredIdentities (source : Indexed.Source.Program) : Std.HashSet Indexed.DeclId :=
-  Std.HashSet.ofList (source.owned.filterMap fun (owner,decl) =>
-    match decl.body with | .morphism _ _ .identity => some owner | _ => none)
+def declaredIdentityKind : Indexed.Source.Body → Option Storage.Realization.GraphKind
+  | .morphism _ _ .identity => some .smooth
+  | .exactGeometry (.identity _) => some .exact
+  | _ => none
 
-def RealizationSite.valid (identities : Std.HashSet Indexed.DeclId) (env : Indexed.Core.Declarations)
-    (site : RealizationSite) : Bool := Id.run do
+def declaredIdentities (source : Indexed.Source.Program) : Std.HashSet (Indexed.DeclId × Storage.Realization.GraphKind) :=
+  Std.HashSet.ofList (source.owned.filterMap fun (owner,decl) => (declaredIdentityKind decl.body).map (owner, ·))
+
+/-- Identify the literal checked graph for each canonical chart. -/
+def matchesIdentity (plan : Storage.Realization.Plan) (env : Indexed.Core.Declarations) (p : Storage.Realization.ChartProfile) : Bool :=
+  match p.base with
+  | .smooth .. => Id.run do
+    let some (.smoothConstant app _) := env.primitive? plan.graph | return false
+    let x := Indexed.Index.object (.global plan.descriptor.subject)
+    return env.primitive? plan.graph == some (.smoothConstant ⟨app.family,[x,x]⟩
+      (SmoothRuntime.identity p.coordinates.length))
+  | .exactComplex .. => Indexed.exactView env.indexed plan.graph == some (.identity plan.descriptor.subject)
+
+def RealizationSite.valid (identities : Std.HashSet (Indexed.DeclId × Storage.Realization.GraphKind))
+    (env : Indexed.Core.Declarations) (site : RealizationSite) : Bool := Id.run do
   let d := site.operation.descriptor
   let some profile := d.profile env.indexed | return false
   unless site.functionId.owner == ⟨Namespace.floatScope,site.operation.family⟩ do return false
   match site.operation with
   | .realize _ | .point .. => return true
   | .interpret plan | .run plan .. =>
-    let some (.smoothConstant app _) := env.primitive? plan.graph | return false
-    return identities.contains plan.graph && env.primitive? plan.graph ==
-      some (.smoothConstant ⟨app.family,[.object (.global d.subject),.object (.global d.subject)]⟩
-        (SmoothRuntime.identity profile.coordinates.length))
+    return identities.contains (plan.graph,profile.base.kind) && matchesIdentity plan env profile
 
 def RealizationSite.resolves (index : Namespace.Indexed) (site : RealizationSite) : Bool :=
   match Namespace.resolve index site.owner.scope site.callee.path site.callee.span with

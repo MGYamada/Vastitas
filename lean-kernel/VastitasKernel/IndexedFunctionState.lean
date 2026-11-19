@@ -320,6 +320,10 @@ def indexedNotValue (declarations : Core.Declarations) (id : DeclId) : String :=
     if declarations.packages.any (·.id == id) then "a package declaration" else
     match Indexed.lookup declarations.indexed id with
     | some .marker => "a marker"
+    | some (.exactGeometry (.identity _)) => "an exact affine identity morphism"
+    | some (.exactGeometry (.affine ..)) => "an exact affine object"
+    | some (.exactGeometry (.realMeadow _)) | some (.exactGeometry (.complexMeadow ..)) => "a selected mathematical meadow"
+    | some (.exactGeometry _) => "a mathematical carrier"
     | some (.finiteCarrier _) => "a finite carrier"
     | some (.finiteTable ..) => "a finite table"
     | some .monadSchema => "a finite Monad schema"
@@ -336,7 +340,7 @@ def indexedNotValue (declarations : Core.Declarations) (id : DeclId) : String :=
     | some (.finiteFunctor ..) => "a finite functor instance"
     | some .categorySchema => "a finite category schema"
     | some (.composableTable ..) => "a dependent composition table"
-    | some (.finiteCategory ..) => "a finite category instance"
+    | some (.finiteCategory ..) | some (.finiteOpposite ..) => "a finite category instance"
     | some (.implementation ..) => "an implementation"
     | some (.classification ..) => "a classification"
     | some (.global _) => "a global object"
@@ -405,7 +409,7 @@ def resolveValue (input : Input) (scope : Namespace.Scope) (path : Source.Path) 
           | some (.finiteCarrier tags) => do
             unless tags.contains tag do error path.span "E_TYPE" "not a member of the selected finite carrier"
             pure (some (FiniteSort.carrier c.owner))
-          | some (.finiteCategory ..) => do
+          | some (.finiteCategory ..) | some (.finiteOpposite ..) => do
             let some sort := FiniteSort.arrowSort? env c.owner tag
               | error path.span "E_TYPE" "not an arrow of the selected finite category"
             pure (some sort)

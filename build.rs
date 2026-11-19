@@ -7,8 +7,34 @@ mod runtime_inputs;
 use runtime_inputs::{Package, executable_digest, executable_inputs, required_inputs};
 
 fn main() {
-    if env::var_os("CARGO_FEATURE_LLVM_NATIVE").is_some() {
+    #[cfg(feature = "llvm-native")]
+    {
         check_native_llvm();
+        for file in [
+            "lean-kernel/native/storage.c",
+            "lean-kernel/native/storage.h",
+            "lean-kernel/native/diagonal.c",
+            "lean-kernel/native/diagonal.h",
+            "lean-kernel/numerical/gemm.h",
+            "llvm/runtime/storage.c",
+            "llvm/runtime/storage_abi.h",
+            "llvm/runtime/gemm.c",
+        ] {
+            println!("cargo:rerun-if-changed={file}");
+        }
+        cc::Build::new()
+            .cargo_metadata(false)
+            .std("c11")
+            .opt_level(2)
+            .include("lean-kernel/native")
+            .include("lean-kernel/numerical")
+            .files([
+                "lean-kernel/native/storage.c",
+                "lean-kernel/native/diagonal.c",
+                "llvm/runtime/storage.c",
+                "llvm/runtime/gemm.c",
+            ])
+            .compile("vastitas_llvm_storage");
     }
     let path = "lean-kernel/compiler-limits.json";
     println!("cargo:rerun-if-changed={path}");
@@ -42,6 +68,7 @@ fn main() {
 
 /// Select the qualified static LLVM toolchain explicitly in a source build.
 /// The native adapter independently checks the linked library at runtime.
+#[cfg(feature = "llvm-native")]
 fn check_native_llvm() {
     const PREFIX: &str = "LLVM_SYS_231_PREFIX";
     println!("cargo:rerun-if-env-changed={PREFIX}");

@@ -23,8 +23,10 @@ def monadOwner? (env : Environment) (owner : DeclId) : Option DeclId := do
   | _ => none
 
 def selected (env : Environment) (owner : DeclId) : Option (GraphFields DeclId × FiniteCategories.Graph) := do
-  let .finiteCategory schema fields ← lookup env owner | none
-  return (fields, ← FiniteCategories.graph (FiniteCategories.view env) schema fields)
+  match ← lookup env owner with
+  | .finiteCategory schema fields => return (fields, ← FiniteCategories.graph (FiniteCategories.view env) schema fields)
+  | .finiteOpposite .. => FiniteCategories.categoryView (FiniteCategories.view env) owner
+  | _ => none
 
 def fiber (g : FiniteCategories.Graph) (x y : String) : Option (List String) := do
   guard (g.objects.contains x && g.objects.contains y)

@@ -10,10 +10,18 @@ pub(super) struct Target {
     pub(super) layout: String,
 }
 
+#[cfg(feature = "llvm-native")]
+enum Runtime {
+    Pure,
+    Boxed,
+    Storage,
+    Gemm,
+}
+
 pub(super) struct Artifact<'a> {
     pub(super) bytes: &'a [u8],
     #[cfg(feature = "llvm-native")]
-    boxed_runtime: bool,
+    runtime: Runtime,
 }
 
 pub(super) fn checked_bytes<'a>(
@@ -24,7 +32,14 @@ pub(super) fn checked_bytes<'a>(
     let artifact = &response["llvm"];
     let kind = artifact["kind"].as_str();
     let supported = match kind {
-        Some("entry-status" | "assembled-bool" | "finite-program" | "boxed-exact-program") => true,
+        Some(
+            "entry-status"
+            | "assembled-bool"
+            | "finite-program"
+            | "boxed-exact-program"
+            | "storage-program"
+            | "storage-gemm-program",
+        ) => true,
         Some("unary-lookup" | "binary-lookup" | "static-call" | "boxed-exact-library") => {
             !executable
         }
@@ -48,7 +63,12 @@ pub(super) fn checked_bytes<'a>(
     Ok(Artifact {
         bytes: text.as_bytes(),
         #[cfg(feature = "llvm-native")]
-        boxed_runtime: kind == Some("boxed-exact-program"),
+        runtime: match kind {
+            Some("boxed-exact-program") => Runtime::Boxed,
+            Some("storage-program") => Runtime::Storage,
+            Some("storage-gemm-program") => Runtime::Gemm,
+            _ => Runtime::Pure,
+        },
     })
 }
 
@@ -63,11 +83,19 @@ pub(super) fn host_target() -> Result<Target, String> {
 pub(super) fn build(
     artifact: &Artifact<'_>,
     output: &Path,
-    sources: &Sources,
+    sources: &mut Sources,
     cc: Option<&OsStr>,
+    openblas: Option<&Path>,
 ) -> Result<(), String> {
     use crate::process;
     let dir = super::PrivateDirectory::create("E_BUILD", "LLVM build directory")?;
+    let provider = match (&artifact.runtime, openblas) {
+        (Runtime::Gemm, Some(prefix)) => Some(stage_gemm(&dir.0, prefix, sources)?),
+        (Runtime::Gemm, None) => return Err("E_BUILD: numerical program requires --openblas-prefix with pinned sequential LP64 OpenBLAS 0.3.34".into()),
+        (_, Some(_)) => return Err("E_USAGE: --openblas-prefix requires a checked GEMM operation in the LLVM program".into()),
+        (_, None) => None,
+    };
+    sources.protect_output(output)?;
     let bytes = artifact.bytes;
     let handoff = dir.0.join("program.ll");
     let object = dir.0.join("program.o");
@@ -76,12 +104,32 @@ pub(super) fn build(
         .map_err(|e| format!("E_BUILD: cannot write LLVM handoff: {e}"))?;
     super::llvm_backend::emit_object(bytes, &handoff, &object)
         .map_err(|e| format!("E_BUILD: LLVM object generation failed: {e}"))?;
-    let mut command = if artifact.boxed_runtime {
+    let mut command = if matches!(artifact.runtime, Runtime::Boxed) {
         boxed_linker(&dir.0, cc)?
     } else {
         std::process::Command::new(super::invocation_compiler(cc.unwrap_or(OsStr::new("cc")))?)
     };
-    command.arg(&object).arg("-o").arg(&program);
+    command.arg(&object);
+    if provider.is_some() {
+        command
+            .args(["-std=c11", "-O3", "-ffp-contract=off", "-fno-fast-math"])
+            .arg("-I")
+            .arg(&dir.0)
+            .arg(dir.0.join("gemm.c"));
+    }
+    if matches!(artifact.runtime, Runtime::Storage | Runtime::Gemm) {
+        let archive = dir.0.join("libvastitas_llvm_storage.a");
+        std::fs::write(
+            &archive,
+            include_bytes!(concat!(env!("OUT_DIR"), "/libvastitas_llvm_storage.a")),
+        )
+        .map_err(|e| format!("E_BUILD: cannot stage the storage runtime: {e}"))?;
+        command.arg(archive);
+    }
+    if let Some(blas) = provider {
+        command.arg(blas).args(["-pthread", "-lm"]);
+    }
+    command.arg("-o").arg(&program);
     let result = process::capture(
         command,
         None,
@@ -124,6 +172,69 @@ fn boxed_linker(dir: &Path, cc: Option<&OsStr>) -> Result<std::process::Command,
     Ok(command)
 }
 
+/// Source builds bind the fixed adapter to the headers and static archive of
+/// the selected prefix. All three inputs are snapshotted before invoking the
+/// host compiler. The application continues to come from the checked object.
+#[cfg(feature = "llvm-native")]
+fn stage_gemm(
+    dir: &Path,
+    prefix: &Path,
+    sources: &mut Sources,
+) -> Result<std::path::PathBuf, String> {
+    for (name, contents) in [
+        (
+            "gemm.c",
+            &include_bytes!("../../lean-kernel/numerical/gemm.c")[..],
+        ),
+        (
+            "gemm.h",
+            include_bytes!("../../lean-kernel/numerical/gemm.h"),
+        ),
+        (
+            "gemm_kernels.inc",
+            include_bytes!("../../lean-kernel/numerical/gemm_kernels.inc"),
+        ),
+        (
+            "storage.h",
+            include_bytes!("../../lean-kernel/native/storage.h"),
+        ),
+        (
+            "diagonal.h",
+            include_bytes!("../../lean-kernel/native/diagonal.h"),
+        ),
+    ] {
+        std::fs::write(dir.join(name), contents).map_err(|e| {
+            format!("E_BUILD: cannot stage the fixed numerical adapter {name}: {e}")
+        })?;
+    }
+    for (relative, name) in [
+        ("include/cblas.h", "cblas.h"),
+        ("include/openblas_config.h", "openblas_config.h"),
+        ("lib/libopenblas.a", "libopenblas.a"),
+    ] {
+        let path = prefix.join(relative);
+        let mut snapshot = || -> std::io::Result<()> {
+            let canonical = path.canonicalize()?;
+            let mut file = std::fs::File::open(&canonical)?;
+            let metadata = file.metadata()?;
+            if !metadata.is_file() {
+                return Err(std::io::Error::other("expected a regular file"));
+            }
+            sources.protect_input(canonical, &metadata, "OpenBLAS input");
+            let mut copy = std::fs::File::create_new(dir.join(name))?;
+            std::io::copy(&mut file, &mut copy)?;
+            Ok(())
+        };
+        snapshot().map_err(|e| {
+            format!(
+                "E_BUILD: cannot stage pinned OpenBLAS input {}: {e}",
+                super::shown(&path)
+            )
+        })?;
+    }
+    Ok(dir.join("libopenblas.a"))
+}
+
 #[cfg(not(feature = "llvm-native"))]
 const MISSING: &str = "E_BUILD: LLVM native generation requires Vastitas built with --features llvm-native and LLVM 23.1.4";
 
@@ -136,8 +247,9 @@ pub(super) fn host_target() -> Result<Target, String> {
 pub(super) fn build(
     _: &Artifact<'_>,
     _: &Path,
-    _: &Sources,
+    _: &mut Sources,
     _: Option<&OsStr>,
+    _: Option<&Path>,
 ) -> Result<(), String> {
     Err(MISSING.into())
 }

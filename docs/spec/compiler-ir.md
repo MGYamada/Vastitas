@@ -16,14 +16,14 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
-| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned |
+| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
-| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
+| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
 | [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
-| [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
+| [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
 | [Finite binders do not admit general polymorphism](#compiler-ir.finite-binders) | Planned, Tested, Tested, Tested, Proved (oracle) |
 | [Every transformation checks an untrusted witness](#compiler-ir.stage-validation) | Planned, Proved (oracle) |
 | [Local proofs compose over the same module](#compiler-ir.composition) | Planned |
@@ -309,12 +309,53 @@ Claims:
 The ownership authority is the kernel storage checker on the storage plan of accepted Core. MidIR does not introduce a competing ownership checker. Each lowering preserves the plan's initialized bytes, provenance, layouts, aliases, suspended reborrows, inside-out returns, branch joins and normal or failure cleanup through refinement. A transformation that changes allocation, reuse, aliases or release order must provide their mapping in its untrusted witness. Local SSA well-formedness alone proves none of these resource facts. No owner or loan may escape its checked scope.
 
 - Example: Moving a release before the final read is rejected even when each function has a well-typed SSA body.
-- Not executed: The Core-to-MidIR and LLVM resource refinements are pending.
+- Not executed: The checker refines linear static plans, including NativeFast GEMM, with a literal entry result. Dynamic control flow and runtime extents require additional lowering.
 
 Claims:
 
 - `refinement`: [Planned](../specifications.md#planned)
   - Issue: [#752](https://github.com/MGYamada/Vastitas/issues/752)
+- `static-effects`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.correspondence`
+  - Premises:
+    - The public checker accepted this wire and resource entry. Its static storage plan and literal Core result yielded an artifact. The complete bytes parse to that artifact's model.
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Both phases preserve the original ordered plan and its physical lowering. The theorem binds the revision, every call operand, target header, canonical bytes and the exit value derived from the selected Core literal.
+- `static-cleanup`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.acquired_run`, `VastitasOracle.StorageProgram.stop_on_failure`
+  - Premises:
+    - The modeled entry acquired its arena. Each external storage call supplies its status and successor state.
+  - Note: The call trace is a prefix of the checked schedule. The first failed call prevents later effects, releases the arena and returns 1. The normal exit also releases the arena.
+- `static-native`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - [`VastitasKernel.LLVM.StorageRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/StorageRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - `storage_entry_returns_the_checked_literal_after_its_effects` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `real32_identity_preserves_payloads_and_replays_its_precision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+  - Note: Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, failure reporting and literal process status.
+- `gemm-abi`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.gemm_representation`
+  - Premises:
+    - Physical lowering resolved a NativeFast GEMM instruction in the live allocation map.
+  - Note: The first ABI operand selects the common physical representation of both inputs and the destination. The correspondence theorem separately binds every layout, coefficient and flag to the printed call.
+- `erased-unit`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.erased_unit`
+  - Premises:
+    - The checker recognized a closed Unit return of an inlined resource callee.
+  - Note: The selected Core body evaluates to Unit at every sufficient fuel. Its scheduled resource effects keep their order.
+- `gemm-native`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - [`VastitasKernel.LLVM.StorageRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/StorageRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - `inlined_resource_calls_only_erase_reached_literal_unit_returns` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `public_maps_check_domain_and_precision_before_emitting_gemm` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `four_representations_execute_through_forwarded_public_maps` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `tensor_column_contraction_executes_without_implicit_conjugation` in [`tests/tree_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/tree_source.rs)
+  - Note: The public compiler emits a typed storage call from fixed-layout maps. The native suite exercises overwrite and accumulate for all four representations with the pinned OpenBLAS adapter.
 
 <a id="compiler-ir.runtime"></a>
 
@@ -374,12 +415,26 @@ Claims:
 Canonical realize::&lt;R&gt; binds a mathematical object, its base or site, chart, dimension, representation, reference and execution profiles and revisions. interpret binds the selected computation graph; run executes through resource buffers. Affine wrappers lower to this canonical form. A real wrapper creates a fresh smooth Affine(n) object; a complex wrapper creates a fresh algebraic Affine(CC,n) object. Realizing an existing object preserves its nominal identity. Exact mathematical CC is built over RR with a selected commutative ring reduct and separate field evidence. Finite executable coordinates embed QQ(i) into CC; they do not identify QQ(i) with CC. Numerical representations have a different Kind and gain no exact Field or CommRing authority.
 
 - Example: The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction.
-- Not executed: The selected mathematical rings and field laws are proved. The public complex chart and four wrapper-to-Core correspondences remain pending.
+- Not executed: Selected mathematical affine charts have source and Core evidence. Identity realization is tested at both widths on the selected complex chart. Four wrapper-to-Core correspondences remain pending.
 
 Claims:
 
 - `complex-model`: [Planned](../specifications.md#planned)
   - Issue: [#757](https://github.com/MGYamada/Vastitas/issues/757)
+- `exact-chart-source`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `exact_affines_select_named_carriers_and_meadows_in_the_public_revision` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+    - `exact_affines_reject_wrong_kinds_dimensions_and_nominal_components` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+    - `static_model_selection_preserves_the_complete_constant_entry_module` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+    - `public_check_matches_physical_model_declarations_and_qualified_operand_spans` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+    - `exact_declarations_keep_their_physical_package_and_module` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+  - Note: A nominal affine declaration selects its real or complex mathematical meadow. Changing to another model with the same carrier changes the revision. The kernel matches every mathematical declaration, its declaring package and module, path spans, visibility and coordinates with the submitted files.
+- `exact-chart-selection`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ExactAffine`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactAffine.lean): `VastitasOracle.ExactAffine.public_standard_chart`, `VastitasOracle.ExactAffine.paired_selection`, `VastitasOracle.ExactAffine.chart_injective`, `VastitasOracle.ExactAffine.isField`
+  - Premises:
+    - A protocol 10 request is accepted and its returned indexed environment contains the named mathematical affine declaration.
+  - Note: The declared dimension and coordinates select an injective rational-coordinate chart in the mathematical carrier. A selected complex model retains its paired carrier, its real meadow and the underlying Cauchy carrier. The field proposition refers to the same meadow. These claims concern standard-chart points and their declarations.
 - `exact-fields`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ExactComplexField`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactComplexField.lean): `VastitasOracle.ExactComplex.real_isField`, `VastitasOracle.ExactComplex.complex_isField`, `VastitasOracle.ExactComplex.RR.inv_zero`, `VastitasOracle.ExactComplex.CC.inv_zero`
@@ -408,26 +463,28 @@ Claims:
   - Premises:
     - an accepted smooth real affine subject with its standard chart; for the computation an explicit source identity and the checked map with the same nominal endpoints
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: These proof-only descriptors support both real widths. The separate executable profile below supports the binary64 real identity.
+  - Note: These proof-only descriptors support both real widths. The executable identity supports both real widths on the selected smooth affine.
 - `source`: [Planned](../specifications.md#planned)
   - Issue: [#686](https://github.com/MGYamada/Vastitas/issues/686)
 - `identity-source`: [Tested](../specifications.md#tested)
   - Evidence:
     - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `real32_identity_preserves_payloads_and_replays_its_precision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `complex_identity_rejects_other_objects_models_charts_and_precisions` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `realization_rejects_wrong_chart_graph_precision_policy_or_live_point` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `realization_wire_recomputes_authority_and_rejects_untrusted_targets` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `unused_realization_functions_still_check_point_layout_and_liveness` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `dependency_names_do_not_grant_the_protected_float_identity` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
-  - Note: Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine subject and its own standard chart with either real precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy.
+  - Note: Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine or a named exact complex affine and its own standard chart at either supported precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy.
 - `identity-origin`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.NumericalRealization`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NumericalRealization.lean): `VastitasOracle.NumericalRealization.checked_site`, `VastitasOracle.NumericalRealization.profile_equations`, `VastitasOracle.NumericalRealization.executed_source_identity`, `VastitasOracle.NumericalRealization.executed_copy`, `VastitasOracle.NumericalRealization.point_scalar`
+    - [`VastitasOracle.NumericalRealization`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NumericalRealization.lean): `VastitasOracle.NumericalRealization.checked_site`, `VastitasOracle.NumericalRealization.profile_equations`, `VastitasOracle.NumericalRealization.executed_source_identity`, `VastitasOracle.NumericalRealization.executed_complex_model`, `VastitasOracle.NumericalRealization.executed_copy`, `VastitasOracle.NumericalRealization.point_scalar`
   - Premises:
     - The public wire checker accepted the request. For the execution conclusions the request selects an entry and the run receipt belongs to its checked execution.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Every executed receipt identifies the lexical run, its declared identity morphism and the exact checked Core identity on the same nominal subject. The chart recovers the ordered coordinates from that subject. The storage transition checks live represented points and emits the copy between their physical loans at this execution site.
+  - Note: Every executed receipt identifies the lexical run, its declared identity morphism and the exact checked Core identity on the same nominal subject. The chart recovers the ordered coordinates from that subject. Every executed complex copy recovers its named meadow, paired carrier, real meadow, Cauchy carrier and declared identity graph. The storage transition checks live represented points and emits the copy between their physical loans at this execution site.
 
 <a id="compiler-ir.native-fast"></a>
 
@@ -440,7 +497,7 @@ Claims:
 The v0.1.0 native numerical profile is NativeFast. Emitted LLVM contains no floating arithmetic instruction, constrained floating operation or fast-math flag. Floating values cross it as bit patterns and adapter-call arguments. Class (i) adapters execute a fixed-order graph with separately rounded operations and are compared with the binary32 or binary64 reference; an arithmetic NaN is specified as a NaN without a fixed sign or payload. Class (ii) OpenBLAS calls are deterministic for one pinned build on one host under a foreign premise. No ideal tensor accuracy or error bound follows. Native flags are Unavailable, never empty. NativeFast does not specify the sign of a class (ii) zero or the sign and payload of a NaN from either class. Programs selecting a strict or LLVM-default floating profile reject. NativeFast is distinct from an opt-in fastfloat profile.
 
 - Example: A program requesting observable hardware IEEE flags is rejected instead of receiving fabricated empty flags.
-- Not executed: Public rejection and flags evidence exists for the F64&lt;RR&gt; identity. General adapter calls and their LLVM integration remain pending.
+- Not executed: All four identity representations have public rejection, flags and storage evidence. Arithmetic adapter calls remain pending on the LLVM path.
 
 Claims:
 
@@ -450,9 +507,10 @@ Claims:
   - Evidence:
     - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `real32_identity_preserves_payloads_and_replays_its_precision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `reborrowed_point_restores_its_parent_only_after_release` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend), [Lean-to-C toolchain and C compiler](assumptions.md#assumption.lean-to-c)
-  - Note: The public check/build/run test exercises a declared binary64 real identity using the Lean-generated native executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. Numerical arithmetic, verified LLVM emission and the remaining three executable representations are pending.
+  - Note: Public check/build/run tests execute smooth real and exact complex identities at both widths through the Lean-generated executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. The static LLVM resource claim covers the same four identities. Public numerical arithmetic remains pending.
 
 <a id="compiler-ir.numeric-order"></a>
 
@@ -491,7 +549,7 @@ Claims:
 The admitted rank-1, rank-2 and rank-3 finite-free Tensor model owns the meaning of Vector and Matrix aliases. A matrix tensor and a linear-map view retain their distinct dual, basis and endpoint obligations. Contraction must preserve the use of every port and its checked mathematical role; ports do not establish disjoint memory. Numerical realization is explicit. GEMM uses the pinned sequential LP64 OpenBLAS adapter for all four representations: sgemm, dgemm, cgemm and zgemm. The interleaved complex layouts have 8-byte or 16-byte elements. Pure programs link no OpenBLAS. Packing, copies, allocation, retained bytes, versions and invalidation remain explicit costs.
 
 - Example: A 2 by 3 map followed by a 3 by 2 map requires matching nominal intermediate bases, not only matching dimensions.
-- Not executed: The exact finite-free tensor aliases and their numerical LLVM lowering are pending. The public storage cases below exercise all four GEMM representations through the Lean/C backend.
+- Not executed: The exact finite-free tensor aliases are pending. The public LLVM and Lean/C storage cases exercise fixed-layout GEMM in all four representations.
 
 Claims:
 
@@ -588,6 +646,20 @@ Claims:
     - The named declaration belongs to the resolved environment of the accepted input. Source tables and transformations are selected by nominal declaration identity.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: Component endpoints and naturality hold for every object and arrow of the selected functors. The selected Monad has an identity source for its unit, the squared action for its multiplication, and equal defined results on both sides of the unit and associativity diagrams.
+- `opposite-source`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `inversion_uses_the_covariant_functor_checker_on_the_opposite_of_s3` in [`tests/finite_opposite.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_opposite.rs)
+    - `the_opposite_swaps_endpoints_and_keeps_the_selected_category_nominal` in [`tests/finite_opposite.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_opposite.rs)
+  - Note: A named Opposite shares its graph and swaps endpoints and composition order. Two applications restore the original order. Inversion on S3 passes the ordinary covariant functor equations on the opposite; switching its source to the original category fails on composition. The two-object test checks object fibers and refuses a cross-category argument.
+- `opposite-equations`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.FiniteOpposite`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/FiniteOpposite.lean): `VastitasOracle.FiniteOpposite.involution`, `VastitasOracle.FiniteCategoryExecution.Opposite.units`, `VastitasOracle.FiniteCategoryExecution.Opposite.assoc`, `VastitasOracle.FiniteOpposite.hom_composition`, `VastitasOracle.FiniteOpposite.plan_reverses`
+    - [`VastitasOracle.FiniteModule`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/FiniteModule.lean): `VastitasOracle.FiniteModule.opposite_lookup_case`
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.public_opposite_functor`
+  - Premises:
+    - The public protocol accepted the named functor. Its source is the selected opposite of a declared finite base category. A Core plan lookup uses that nominal view and returns a tag.
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Identity and associativity transport from the checked base Hom operations. The Core lookup reads the reversed base row. For every in-domain pair the emitted switch has a case returning the ordinal of the mathematical opposite composite. The covariant functor law in the returned public declaration environment gives the reversed composition diagram for each composable pair in the base graph.
 - `isomorphism-source`: [Tested](../specifications.md#tested)
   - Evidence:
     - `both_isomorphism_projections_are_executable_in_their_own_hom_fibers` in [`tests/finite_iso.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_iso.rs)
@@ -738,7 +810,7 @@ Claims:
 Typed CS_fin, MS_fin and CF_fin statements range over one pinned accepted U, P, E, Q, C and evidence interface. CS_fin relates the public accepted source AST, environment and returned Core with their applicable checks. Rust parsing remains an explicit assumption where no parser theorem exists. MS_fin relates checked storage and its initialized values, loans, aliases, cleanup and failures through the modeled lowering. CF_fin connects an admitted contravariant construction to an independent mathematical denotation, including a same-endpoint noncommuting example and reversed composition. Stage refinement alone does not establish that mathematical correspondence. Official Lean proofs and axiom closure are required before finite release acceptance; broader constitutional, Spec and CInfSpec claims remain outside this statement. These are not machine-code or foreign-runtime safety proofs.
 
 - Example: S3 arrows with different composition orders distinguish the admitted opposite interpretation from a mistaken covariant implementation.
-- Not executed: The finite typed statements, artifact correspondence and constitutional proofs are pending.
+- Run by: `inversion_uses_the_covariant_functor_checker_on_the_opposite_of_s3` in [`tests/finite_opposite.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_opposite.rs)
 
 Claims:
 
@@ -1116,7 +1188,7 @@ Claims:
 Indexed primitives and arbitrary-precision Nat and Int call one Lean-compiled runtime library under a labeled foreign premise. A C shim exposes operations that the runtime offers only inline. Each admitted Nat or Int operation is a call in this profile. Represented floating values stay in the resource layer and cross LLVM as bits and arguments to adapter calls. All four F32/RR, F64/RR, F32/CC and F64/CC representations are required. GEMM uses the pinned sequential LP64 OpenBLAS 0.3.34 adapter for sgemm, dgemm, cgemm and zgemm under a labeled host/build-specific premise, with the corresponding real or interleaved complex layout. A program that needs no numerical runtime requires no OpenBLAS. Fixed-order adapter results follow the reference result bits, with a NaN class where the reference does not specify the sign or payload. OpenBLAS results have the stated determinism premise on one pinned build and host. Error bounds and numerical correctness claims need their own evidence. The NativeFast flags observation is unavailable. Its storage expectation uses IEEE equality and a NaN expectation tests for NaN. Preserve foreign-call identity, argument bits and order even where an observation abstracts the result. The modeled LLVM subset emits no floating-point instructions and rejects strict, LLVM-default and unadmitted sign-observing profiles. Admitted division is totalized. The ordered same-precision scaled complex quotient uses totalized real divisions and fixes the order and effects of the graph, with inverse through the same graph. Emit no fallback, FMA or raw CUDA division substitution. Float values gain no public pure-Core float carrier. SafeFloat and the Result forms of safe division wait for the Result language support.
 
 - Example: A complex GEMM lowers to the selected adapter symbol with the original layouts and arguments, while the receipt records flags as unavailable.
-- Not executed: The required four native realization rows for the verified LLVM path are pending.
+- Not executed: Public LLVM builds execute all four identity copies and fixed-layout matrix products. Public scalar arithmetic and the complete four native realization rows remain pending.
 
 Claims:
 

@@ -14,7 +14,8 @@ include = [
     "/stdlib/src/", "/stdlib/Vastitas.toml", "/stdlib/README.md", "/stdlib/docs/",
     "/scripts/build_stdlib_package.py",
     "/scripts/check_conformance_corpus.py",
-    "/nature/", "/monad/", "/llvm/fixtures/", "/llvm/runtime/exact.c",
+    "/nature/", "/monad/", "/llvm/fixtures/", "/llvm/runtime/exact.c", "/llvm/runtime/storage.c",
+    "/llvm/runtime/storage_abi.h", "/llvm/runtime/gemm.c",
     "/scripts/build_openblas.py",
     # The ignore rules of .gitignore for environment settings and Finder
     # metadata, at every directory level.
@@ -22,7 +23,7 @@ include = [
 ]
 
 [features]
-llvm-native = ["dep:llvm-sys"]
+llvm-native = ["dep:llvm-sys", "dep:cc"]
 
 [dependencies]
 llvm-sys = { version = "=231.0.1", optional = true, default-features = false, features = ["force-static"] }
@@ -34,6 +35,7 @@ toml = "0.8"
 semver = "1"
 
 [build-dependencies]
+cc = { version = "1", optional = true }
 serde_json = "1"
 
 [[bin]]

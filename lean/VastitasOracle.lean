@@ -5,10 +5,12 @@ import VastitasOracle.Core
 import VastitasOracle.ExactOperators
 import VastitasOracle.ExactComplex
 import VastitasOracle.ExactComplexField
+import VastitasOracle.ExactAffine
 import VastitasOracle.BinaryFunction
 import VastitasOracle.FiniteModule
 import VastitasOracle.CallFunction
 import VastitasOracle.ExitFunction
+import VastitasOracle.StorageProgram
 import VastitasOracle.DispatchFunction
 import VastitasOracle.AlgebraBasis
 import VastitasOracle.AffineDeclarations

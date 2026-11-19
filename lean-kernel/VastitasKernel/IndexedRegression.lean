@@ -99,6 +99,7 @@ private def renameParameter : Parameter → Parameter
   | other => other
 private def renameDeclaration : Declaration → Declaration
   | .marker => .marker
+  | .exactGeometry c => .exactGeometry (Id.run (c.mapM (pure ∘ renameId)))
   | .finiteCarrier tags => .finiteCarrier tags
   | .finiteTable inputs output rows => .finiteTable (inputs.map renameId) (renameId output) rows
   | .monadSchema => .monadSchema
@@ -106,6 +107,7 @@ private def renameDeclaration : Declaration → Declaration
   | .finiteKleisli kind schema monad => .finiteKleisli kind (renameId schema) (renameId monad)
   | .finiteMonad schema m => .finiteMonad (renameId schema) (Id.run (m.mapM (pure ∘ renameId)))
   | .isoSchema => .isoSchema
+  | .finiteOpposite schema base => .finiteOpposite (renameId schema) (renameId base)
   | .finiteIso schema i => .finiteIso (renameId schema) (Id.run (i.mapM (pure ∘ renameId)))
   | .natTransSchema => .natTransSchema
   | .finiteNatTrans schema n => .finiteNatTrans (renameId schema) (Id.run (n.mapM (pure ∘ renameId)))

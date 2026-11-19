@@ -96,7 +96,10 @@ private def lookupTable (input : Input) (scope : Namespace.Scope) (path : Source
     if let some (visible, target, owner) := authority? then
       if target.kind == .indexedDeclaration then
         match Indexed.lookup env owner with
-        | some (.finiteCategory _ graph) =>
+        | some (.finiteCategory ..) | some (.finiteOpposite ..) =>
+          let some (_, fields, reverse) := FiniteCategories.describe (FiniteCategories.view env) (Limits.namespaceResolution + 1) owner
+            | error path.span "E_CATEGORY" "expected a selected finite category"
+          let graph := FiniteCategories.orientedFields fields reverse
           let _ ← record visible
           match field with
           | "source" => return (graph.src, none)

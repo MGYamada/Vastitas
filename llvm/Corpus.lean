@@ -4,6 +4,7 @@ import VastitasOracle.CallFunction
 import VastitasOracle.ExitFunction
 import VastitasOracle.DispatchFunction
 import VastitasKernel.LLVM.FiniteModule
+import VastitasOracle.StorageProgram
 import VastitasKernel.LLVM.ExactProgram
 import VastitasKernel.LLVM.FiniteExecution
 
@@ -100,6 +101,7 @@ set_option maxHeartbeats 2000000 in
 theorem boxed_arithmetic_verified : boxedBytes = boxedModel.print := by rfl
 
 def compositionBytes := corpus_bytes "src/s3-composition.ll"
+def oppositeBytes := corpus_bytes "src/opposite-s3.ll"
 def isoBytes := corpus_bytes "src/finite-iso.ll"
 def kleisliBytes := corpus_bytes "src/finite-kleisli.ll"
 def kleisliCallbackBytes := corpus_bytes "src/kleisli-callback.ll"
@@ -122,6 +124,36 @@ private def eq (d x y : Nat) : Instr := .compare (slot d) .eq .word (reg x) (reg
 
 private def straight (name : String) (arity : Nat) (ops : List Instr) (result : Nat) : Func :=
   ⟨name,true,.word,(List.range arity).map fun n => (.word,slot n),[⟨"b0",ops,ret (slot result)⟩]⟩
+
+namespace OppositeS3
+
+/-- A permutation is its three images. Lexicographic order gives the public
+arrow ordinals; ordinary composition applies the right permutation first. -/
+private def permutations : List (List Nat) :=
+  [[0,1,2], [0,2,1], [1,0,2], [1,2,0], [2,0,1], [2,1,0]]
+
+private def product (g f : List Nat) : Nat := permutations.idxOf (f.map fun i => g[i]!)
+
+private def composeAt (n : Nat) (reversed : Bool) : List Func :=
+  let name := s!"t{n}_0_2"
+  let rows := permutations.flatMap fun g => permutations.map fun f =>
+    if reversed then product f g else product g f
+  (table name [6,6] rows).toList ++ [straight s!"f{n}" 2 [call 2 name [0,1]] 2]
+
+def code : Code :=
+  let inverse := permutations.map fun p => permutations.idxOf ([0,1,2].map fun i => p.idxOf i)
+  let entry : Func := ⟨"f2",true,.word,[],[
+    ⟨"b0",[constant (slot 0) 1, constant (slot 1) 2, call 2 "f0" [0,1],
+      constant (slot 3) 1, constant (slot 4) 2, call 5 "f1" [3,4], constant (slot 6) 3,
+      call 7 "t2_0_7" [6], constant (slot 8) 3, eq 9 2 8, constant (slot 10) 4,
+      eq 11 5 10, both 12 9 11, constant (slot 13) 4, eq 14 7 13, both 15 12 14],
+      .branch (reg 15) "b1" "b2"⟩,
+    ⟨"b1",[constant "v1_0" 42],.jump "b3"⟩, ⟨"b2",[constant "v2_0" 7],.jump "b3"⟩,
+    ⟨"b3",[.phi "v3_0" .word [(.reg "v1_0","b1"),(.reg "v2_0","b2")]],ret "v3_0"⟩]⟩
+  ⟨header, composeAt 0 true ++ composeAt 1 false ++ (table "t2_0_7" [6] inverse).toList ++
+    [entry, ⟨"main",false,.word,[],[⟨"start",[.call "result" .word "f2" []],ret "result"⟩]⟩]⟩
+
+end OppositeS3
 
 namespace Iso
 
@@ -308,6 +340,10 @@ theorem finite_iso_verified : isoBytes = Iso.code.print := rfl
 
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 3000000 in
+theorem opposite_s3_verified : oppositeBytes = OppositeS3.code.print := rfl
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 3000000 in
 theorem finite_kleisli_verified : kleisliBytes = Kleisli.code.print := rfl
 
 set_option maxRecDepth 65536 in
@@ -383,6 +419,93 @@ private def forProgram {bytes : List UInt8} {code : ExactProgram.Code}
 private def forExact {bytes : List UInt8} {code : ExactLibrary.Code}
     (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
 
+/-- Two coordinate buffers and a standard chart with one complex or real
+element in each row. Reconstruct the payloads and the checked copy from the
+source fixture independently of its printed module. -/
+def affineIdentity (complex : Bool) : StorageModule.Code :=
+  let tag := if complex then 1 else 0
+  let view := [0,2,1,2,0]
+  let first := [tag,9223372036854775808,if complex then 1 else 0]
+  let second := if complex then [tag,0,9218868437227405378] else [tag,9218868437227405378,0]
+  ⟨header,[⟨.allocate,[0,tag,2]⟩, ⟨.allocate,[1,tag,2]⟩,
+    ⟨.store,[0] ++ view ++ [0,0] ++ first⟩, ⟨.store,[0] ++ view ++ [1,0] ++ second⟩,
+    ⟨.copy,[0] ++ view ++ [1] ++ view⟩, ⟨.expect,[1] ++ view ++ [0,0] ++ first⟩,
+    ⟨.expect,[1] ++ view ++ [1,0] ++ second⟩, ⟨.drop,[1]⟩, ⟨.drop,[0]⟩],0⟩
+
+/-- Keep the same header, blank separator and final newline as the storage printer.
+Checking the individual lines avoids reducing the UTF-8 encoding of the whole module. -/
+private def storageBytes (header : List UInt8) (lines : List String) : List UInt8 :=
+  header ++ ("\n" ++ String.intercalate "\n" lines ++ "\n").toUTF8.data.toList
+
+/-- Each line equality can be kernel-checked in its own declaration. -/
+private theorem consLines {l r : String} {ls rs : List String} (line : l = r) (tail : ls = rs) :
+    l :: ls = r :: rs := by rw [line, tail]
+
+private theorem storageBytes_eq {h h' : List UInt8} {ls ls' : List String}
+    (sameHeader : h = h') (sameLines : ls = ls') : storageBytes h ls = storageBytes h' ls' := by
+  cases sameHeader
+  cases sameLines
+  rfl
+
+elab "storage_file " file:str : term => do
+  let path := System.FilePath.mk (← readThe Lean.Core.Context).fileName
+  let some dir := path.parent | throwError "corpus needs a source directory"
+  let raw ← IO.FS.readBinFile (dir / file.getString)
+  let some text := String.fromUTF8? raw | throwError "invalid UTF-8 in storage module"
+  let triple :: layout :: "" :: rest := text.splitOn "\n" | throwError "missing storage header"
+  let header := (triple ++ "\n" ++ layout ++ "\n").toUTF8.data.toList
+  let lines := rest.dropLast
+  unless storageBytes header lines == raw.data.toList do
+    throwError "storage lines do not reproduce the original bytes"
+  return Lean.mkApp2 (Lean.mkConst ``storageBytes) (Lean.toExpr header) (Lean.toExpr lines)
+
+def realIdentityBytes := storage_file "src/float-identity.ll"
+def complexIdentityBytes := storage_file "src/float-complex-identity.ll"
+
+set_option maxRecDepth 65536 in
+theorem real_identity_verified : realIdentityBytes = (affineIdentity false).print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+set_option maxRecDepth 65536 in
+theorem complex_identity_verified : complexIdentityBytes = (affineIdentity true).print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+
+/-- Independent schedule for the 1×1 coefficient example. With inputs 2 and
+3, the overwrite computes 3. The subsequent accumulation reads alpha from
+allocation 3 and computes 4 * 2 * 3 + 2 * 3 = 30. -/
+def gemmCoefficients : StorageModule.Code :=
+  let atCell := fun (id : Nat) => [id, 0, 1, 1, 1, 0]
+  let fill := fun id bits => VastitasKernel.MidIR.StorageEffects.Call.mk .fill (atCell id ++ [0, bits, 0])
+  let expect := fun bits => VastitasKernel.MidIR.StorageEffects.Call.mk .expect (atCell 2 ++ [0, 0, 0, bits, 0])
+  let matrices := [0] ++ atCell 0 ++ [0] ++ atCell 1 ++ [0] ++ atCell 2
+  let unit := 2^52
+  let two := 1024 * unit
+  let three := two + 2^51
+  let half := 1022 * unit
+  let thirty := 1027 * unit + 7 * 2^49
+  ⟨header, ([0,1,2,3].map fun id => ⟨.allocate, [id,0,1]⟩) ++
+    [fill 0 two, fill 1 three, fill 3 (1025 * unit),
+     ⟨.gemm, matrices ++ [0, 1,0,half,0,0,0, 0,0,0,0,0,0]⟩, expect three,
+     ⟨.gemm, matrices ++ [1, 2,0,0,0,3,0, 1,0,two,0,0,0]⟩, expect thirty] ++
+    ([3,2,1,0].map fun id => ⟨.drop, [id]⟩), 0⟩
+
+def gemmCoefficientBytes := storage_file "src/gemm-coefficients.ll"
+
+set_option maxRecDepth 65536 in
+theorem gemm_coefficients_verified : gemmCoefficientBytes = gemmCoefficients.print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+
+private def forStorage {bytes : List UInt8} {code : StorageModule.Code}
+    (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
+
 private def forCode {bytes : List UInt8} {code : FiniteModule.Code}
     (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
 
@@ -398,6 +521,10 @@ def checkedFiles : List (String × ByteArray) :=
    ("empty-lookup.ll", forLookup empty_lookup_verified),
    ("unary-table.ll", forLookup unary_table_verified),
    ("closure-unit.ll", forLookup closure_unit_verified),
+   ("gemm-coefficients.ll", forStorage gemm_coefficients_verified),
+   ("float-identity.ll", forStorage real_identity_verified),
+   ("float-complex-identity.ll", forStorage complex_identity_verified),
+   ("opposite-s3.ll", forCode opposite_s3_verified),
    ("finite-iso.ll", forCode finite_iso_verified),
    ("finite-kleisli.ll", forCode finite_kleisli_verified),
    ("kleisli-callback.ll", forCode kleisli_callback_verified),
@@ -442,6 +569,7 @@ def main (args : List String) : IO Unit := do
       throw (IO.userError "boxed-program.ll: accepted a damaged call, startup or ownership instruction")
   unless VastitasKernel.LLVM.ExactLibrary.parse Vastitas.LLVMCorpus.boxedBytes == some Vastitas.LLVMCorpus.boxedModel do
     throw (IO.userError "boxed-arithmetic.ll: different typed call graph or ownership schedule")
+  checkEntry "opposite-s3.ll" Vastitas.LLVMCorpus.oppositeBytes Vastitas.LLVMCorpus.OppositeS3.code 42
   checkEntry "finite-iso.ll" Vastitas.LLVMCorpus.isoBytes Vastitas.LLVMCorpus.Iso.code 42
   checkEntry "finite-kleisli.ll" Vastitas.LLVMCorpus.kleisliBytes Vastitas.LLVMCorpus.Kleisli.code 0
   checkEntry "kleisli-callback.ll" Vastitas.LLVMCorpus.kleisliCallbackBytes Vastitas.LLVMCorpus.KleisliCallback.code 42
@@ -450,6 +578,16 @@ def main (args : List String) : IO Unit := do
   checkEntry "structured-lookup-linux-x86_64.ll" Vastitas.LLVMCorpus.structuredLookupLinuxBytes
     Vastitas.LLVMCorpus.StructuredLookup.linuxCode 42
   checkEntry "static-selection.ll" Vastitas.LLVMCorpus.staticSelectionBytes Vastitas.LLVMCorpus.StaticSelection.code 42
+  for (code,bytes) in [(Vastitas.LLVMCorpus.affineIdentity false, Vastitas.LLVMCorpus.realIdentityBytes),
+      (Vastitas.LLVMCorpus.affineIdentity true, Vastitas.LLVMCorpus.complexIdentityBytes),
+      (Vastitas.LLVMCorpus.gemmCoefficients, Vastitas.LLVMCorpus.gemmCoefficientBytes)] do
+    let some parsed := VastitasKernel.LLVM.StorageModule.parse bytes
+      | throw (IO.userError "storage entry: cannot parse the complete entry")
+    unless decide (parsed = code) &&
+        decide (parsed.run (some ()) (fun s _ => (s,true)) = (code.calls,.success 0)) &&
+        decide (parsed.run (some ()) (fun s _ => (s,false)) = (code.calls.take 1,.failed)) &&
+        decide (parsed.run none (fun (s : Unit) _ => (s,true)) = ([],.unavailable)) do
+      throw (IO.userError "storage entry: different call order or arena exit")
   unless expected.mergeSort == (files.map Prod.fst).mergeSort do
     throw (IO.userError "source fixtures and registered LLVM byte theorems differ")
   for (name, certified) in files do

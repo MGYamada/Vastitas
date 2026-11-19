@@ -37,7 +37,7 @@ number = 762
 title = "Finite edition 2026"
 state = "open"
 depends = [462, 455]
-remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Further finite schemas, complex chart realizations and Affine wrappers remain."
+remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Further finite schemas and the four Affine wrappers remain."
 
 [[issue]]
 number = 533
@@ -58,7 +58,7 @@ number = 199
 title = "Category and mathematical Monad"
 state = "open"
 depends = [756]
-remaining = "Checked categories satisfy identity and associativity. Checked functors preserve both endpoints, identities and composition for all composable pairs. The named transformations and selected Monad laws hold on the checked tables. The accepted Monad yields both Kleisli identities and associativity. Its derived extension triple recovers the same unit, multiplication and action on the checked table rows. Named isomorphisms expose both endpoint-typed arrows. The public checker proves both inverse equations. The two-object groupoid runs both compositions. The lazy Opposite view remains."
+remaining = "Checked categories satisfy identity and associativity. Checked functors preserve both endpoints, identities and composition for all composable pairs. The named transformations and selected Monad laws hold on the checked tables. The accepted Monad yields both Kleisli identities and associativity. Its derived extension triple recovers the same unit, multiplication and action on the checked table rows. Named isomorphisms expose both endpoint-typed arrows. The public checker proves both inverse equations. The two-object groupoid runs both compositions. The lazy Opposite shares the graph and reverses both endpoints and composition. Inversion on S3 satisfies the ordinary functor laws with the opposite as its source. Whole-package verification remains."
 
 [[issue]]
 number = 206
@@ -72,7 +72,7 @@ number = 757
 title = "Exact complex model"
 state = "open"
 depends = []
-remaining = "The Oracle constructs the rational Cauchy quotient RR, pairs it to form CC, and embeds QQ(i) injectively. The Oracle proves the commutative-ring reduct and separate IsField proposition for both selected meadows. The Bridge proves that both carrier equivalences preserve addition, multiplication and totalized inversion, and gives the rational-coordinate interpretation. The QQ(i) embedding preserves multiplication, conjugation and totalized inversion. Source-level model identity, revision and public affine chart correspondence remain."
+remaining = "The Oracle constructs the rational Cauchy quotient RR, pairs it to form CC, and embeds QQ(i) injectively. The Oracle proves the commutative-ring reduct and separate IsField proposition for both selected meadows. The Bridge proves that both carrier equivalences preserve addition, multiplication and totalized inversion, and gives the rational-coordinate interpretation. The QQ(i) embedding preserves multiplication, conjugation and totalized inversion. Edition 2026 checks the named real carrier, its meadow, the paired carrier and the complex meadow. A nominal affine object selects that exact model and an ordered standard chart. The checked complex standard chart supports identity copies at both widths. Public QQ(i) point constructions and more general numerical realizations remain."
 
 [[issue]]
 number = 758
@@ -86,42 +86,42 @@ number = 318
 title = "Numerical execution"
 state = "open"
 depends = [758]
-remaining = "The NativeFast identity at both RR precisions executes with explicit resource points and Unavailable flags. The Lean reference proves raw and checked sequencing, lift, trace projection and the signed-zero guard. Public arithmetic calls with exact argument and return bits remain."
+remaining = "The NativeFast identity at both RR and CC precisions executes with explicit resource points and Unavailable flags. The Lean reference proves raw and checked sequencing, lift, trace projection and the signed-zero guard. Public arithmetic calls with exact argument and return bits remain."
 
 [[issue]]
 number = 686
 title = "Numerical realizations"
 state = "open"
 depends = [757, 318, 762]
-remaining = "The canonical protected realize, interpret, point and run operations execute a declared real affine identity on its own standard chart into checked `F32<RR>` or `F64<RR>` storage. The point proof identifies the allocation and its exact representation. Complex chart subjects, further numerical graphs, full profile selection and the four Affine wrappers remain."
+remaining = "The canonical protected realize, interpret, point and run operations execute a declared real affine identity on its own standard chart into checked `F32<RR>` or `F64<RR>` storage. The point proof identifies the allocation and its exact representation. A named exact complex affine supports identity copies in `F32<CC>` and `F64<CC>`. Its receipt binds the selected carrier and both meadows. The four identity copies also execute from checked LLVM on macOS arm64. Further numerical graphs, full profile selection and the four Affine wrappers remain."
 
 [[issue]]
 number = 689
 title = "Tensor aliases"
 state = "open"
 depends = []
-remaining = "Four public source-to-GEMM paths preserve the allocation precision through calls and execute via Lean/C. The storage adapter exercises 16 orientations per representation. Rank-one tensor columns share coordinates with vector views, and matrix-column contraction checks both the dual and surviving bases. The exact finite-free tensor aliases, LinearMap interpretation and checked LLVM lowering remain."
+remaining = "Four public source-to-GEMM paths preserve the allocation precision through calls and execute with both the LLVM preview and Lean/C. The storage adapter exercises 16 orientations per representation. Rank-one tensor columns share coordinates with vector views, and matrix-column contraction checks both the dual and surviving bases. The binary32 complex matrix-column join passes both input conjugation flags as false. The exact finite-free tensor aliases, LinearMap interpretation and rank-three LLVM lowering remain."
 
 [[issue]]
 number = 750
 title = "Phase-indexed MidIR"
 state = "open"
 depends = []
-remaining = "The inventory tracks 590 constructor entries, all awaiting a release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. Full accepted-module coverage and ordered resource effects remain."
+remaining = "The inventory tracks 604 constructor entries, all awaiting a release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. For static resource entries, linear effect tokens preserve the logical schedule and resolved physical calls. General control flow and full accepted-module coverage remain."
 
 [[issue]]
 number = 751
 title = "Closed opcode registry"
 state = "open"
 depends = [750]
-remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Comparisons, resources and numerical opcodes still need their full profile."
+remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Static storage opcodes bind allocation and view operands, component tags and exact payloads. Comparisons, dynamic resource plans and numerical arithmetic still need their full profile."
 
 [[issue]]
 number = 752
 title = "Translation validation"
 state = "open"
 depends = [751]
-remaining = "Unary lookup, binary nominal lookup and S3 composition, a forwarding caller, literal and folded Int entries, and an assembled Boolean family have complete LLVM-byte correspondence. For a folded entry the proof ties the full integer, ordered canonical operator keys and current revision to both MidIR phases. The Opt-to-Exec theorem covers linked calls at every depth. For a single boxed integer library both phases and the parsed calls give the same return observation under the runtime contract. General module witnesses, effects and cleanup remain."
+remaining = "Unary lookup, binary nominal lookup and S3 composition, a forwarding caller, literal and folded Int entries, and an assembled Boolean family have complete LLVM-byte correspondence. For a folded entry the proof ties the full integer, ordered canonical operator keys and current revision to both MidIR phases. The Opt-to-Exec theorem covers linked calls at every depth. For a single boxed integer library both phases and the parsed calls give the same return observation under the runtime contract. Static storage entries bind the checked plan and both phase schedules to the parsed LLVM bytes. Their modeled first-failure and normal exits preserve arena cleanup. General module witnesses, branches and reverse observations remain."
 
 [[issue]]
 number = 282
@@ -135,14 +135,14 @@ number = 763
 title = "Finite constitutional proofs"
 state = "open"
 depends = [752, 199]
-remaining = "Actual CS_fin, MS_fin, noncommuting CF_fin and module proof."
+remaining = "For each admitted functor from a named opposite the public revision yields the reversed composition diagram. Its Core lookup and emitted switch return the ordinal of the mathematical opposite composite for every in-domain pair. The S3 executable distinguishes both products. Whole-module CF_fin, CS_fin and storage-to-value MS_fin remain."
 
 [[issue]]
 number = 753
 title = "LLVM emission and native backend"
 state = "open"
 depends = [752]
-remaining = "The public LLVM preview emits complete bytes for unary lookup, its forwarding caller, signed literal and folded arithmetic entries, and a Bool caller with both predecessor edges of a phi. LLVM 23.1.4 on macOS arm64 also executed the closure Monad unit and binary lookup on S3, including reversed source operands. The compiler linked and installed three entry executables, which returned 255, 10 and 42. Closed finite packages emit direct calls, guarded row-major lookups with up to six axes, nullary lookups and phi nodes. The structured lookup retains both Boolean methods in 2,623 bytes for macOS arm64 and 2,647 bytes for x86-64 Linux. Both files have the same function model. On macOS, LLVM 23.1.4 emitted an ELF64 relocatable object from the Linux bytes. Straight-line boxed Nat/Int libraries call the versioned shim and release intermediate values. Broader CFGs, resource runtimes, Linux qualification and production verification modes remain."
+remaining = "The public LLVM preview emits complete bytes for unary lookup, its forwarding caller, signed literal and folded arithmetic entries, and a Bool caller with both predecessor edges of a phi. LLVM 23.1.4 on macOS arm64 also executed the closure Monad unit and binary lookup on S3, including reversed source operands. The compiler linked and installed three entry executables, which returned 255, 10 and 42. Closed finite packages emit direct calls, guarded row-major lookups with up to six axes, nullary lookups and phi nodes. The structured lookup retains both Boolean methods in 2,623 bytes for macOS arm64 and 2,647 bytes for x86-64 Linux. Both files have the same function model. On macOS, LLVM 23.1.4 emitted an ELF64 relocatable object from the Linux bytes. Straight-line boxed Nat/Int libraries call the versioned shim and release intermediate values. The static storage entry links a fixed C runtime and executes standard-chart identities at both widths for real and complex coordinates. Broader CFGs, numerical arithmetic, release qualification and production verification modes remain."
 
 [[issue]]
 number = 779
@@ -233,7 +233,7 @@ requirement = "Finite carriers and tables provide Category, Functor, NatTrans, I
 
 [row.dimension.source]
 state = "partial"
-claims = ["compiler-ir.finite-models@source-core", "compiler-ir.finite-models@category-check", "compiler-ir.finite-models@isomorphism-source", "compiler-ir.finite-models@functor-source", "compiler-ir.finite-models@transformation-monad-source", "compiler-ir.finite-binders@category-functions", "compiler-ir.finite-binders@monad-functions"]
+claims = ["compiler-ir.finite-models@source-core", "compiler-ir.finite-models@category-check", "compiler-ir.finite-models@isomorphism-source", "compiler-ir.finite-models@opposite-source", "compiler-ir.finite-models@functor-source", "compiler-ir.finite-models@transformation-monad-source", "compiler-ir.finite-binders@category-functions", "compiler-ir.finite-binders@monad-functions"]
 note = "Public S3 and two-object category instances pass, and bad sparse composition and forged schemas fail. Concrete Hom calls and dependent composition execute. The same category-indexed fn handles noncommuting S3 and a two-object category. The public closure endofunctor on the chain executes both table projections. The nonidentity closure Monad executes its unit and multiplication. S3 tests the order of naturality, and two distinct Monads share an endofunctor in a second example. Ordinary functions take a Monad or one of its two derived views and static object arguments for unit, extend, bind, compose and lift."
 document = ""
 
@@ -257,8 +257,8 @@ document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.finite-models@laws", "compiler-ir.finite-models@category-equations", "compiler-ir.finite-models@isomorphism-equations", "compiler-ir.finite-models@functor-equations", "compiler-ir.finite-models@transformation-monad-equations", "compiler-ir.finite-models@kleisli-equations", "compiler-ir.finite-binders@typed-substitution", "compiler-ir.llvm-bytes@unary-function", "compiler-ir.llvm-bytes@finite-entry"]
-note = "On the accepted declaration environment the Oracle proves table lookup, category laws and the endpoint, identity and composition diagrams of the selected functor. The selected component endpoints, naturality and Monad diagrams also have checked equations. The selected finite Monad supplies both Kleisli identities and associativity, and its bind reads the exact selected rows. Each admitted view recovers the same revision, Monad structure, Kleisli laws and table rows. Canonical specializations of all five operational templates evaluate to the selected mathematical operations. The finite entry theorem relates the integer from the original Core to both MidIR evaluations and the exit from the parsed bytes. For each named isomorphism the public checker proves both inverse equations on the selected endpoint-typed arrows. The two-object groupoid exercises both compositions. Per-compilation Official replay for the full package and the lazy Opposite view remain."
+claims = ["compiler-ir.finite-models@laws", "compiler-ir.finite-models@category-equations", "compiler-ir.finite-models@isomorphism-equations", "compiler-ir.finite-models@opposite-equations", "compiler-ir.finite-models@functor-equations", "compiler-ir.finite-models@transformation-monad-equations", "compiler-ir.finite-models@kleisli-equations", "compiler-ir.finite-binders@typed-substitution", "compiler-ir.llvm-bytes@unary-function", "compiler-ir.llvm-bytes@finite-entry"]
+note = "On the accepted declaration environment the Oracle proves table lookup, category laws and the endpoint, identity and composition diagrams of the selected functor. The selected component endpoints, naturality and Monad diagrams also have checked equations. The selected finite Monad supplies both Kleisli identities and associativity, and its bind reads the exact selected rows. Each admitted view recovers the same revision, Monad structure, Kleisli laws and table rows. Canonical specializations of all five operational templates evaluate to the selected mathematical operations. The finite entry theorem relates the integer from the original Core to both MidIR evaluations and the exit from the parsed bytes. For each named isomorphism the public checker proves both inverse equations on the selected endpoint-typed arrows. The two-object groupoid exercises both compositions. The public theorem for a functor from the named opposite recovers reversed composition on the selected base graph. The Core lookup returns its reversed row. Per-compilation Official replay for the full package remains."
 document = ""
 
 [row.dimension.fast]
@@ -304,21 +304,21 @@ note = "The resource checker validates the ordered bases, grouping and physical 
 document = ""
 
 [row.dimension.midir]
-state = "planned"
-claims = ["compiler-ir.midir@representation"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
+note = "The logical matrix-column contraction lowers to a fixed-layout GEMM. Its physical operands retain the common element type and both conjugation flags."
 document = ""
 
 [row.dimension.llvm]
-state = "planned"
-claims = ["compiler-ir.llvm-bytes@bytes"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
+note = "The complex binary32 matrix-column entry emits one GEMM. Changing the contracted dual or the surviving basis fails before emission. Rank-three schedules with packing remain open."
 document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.stage-validation@soundness", "compiler-ir.tensor@coordinate-storage"]
-note = "The oracle proves rank-one vector-coordinate agreement and exact scalar agreement of the three maps in an accepted product. Whole-module translation validation remains pending."
+claims = ["compiler-ir.stage-validation@soundness", "compiler-ir.tensor@coordinate-storage", "compiler-ir.storage@gemm-abi"]
+note = "The oracle proves rank-one vector-coordinate agreement and the common scalar of the three live GEMM allocations at the ABI. Whole-module translation validation remains pending."
 document = ""
 
 [row.dimension.fast]
@@ -329,8 +329,8 @@ document = ""
 
 [row.dimension.native]
 state = "partial"
-claims = ["compiler-ir.tensor@native", "compiler-ir.tensor@storage-native"]
-note = "Four representations execute through public Lean/C map calls, runtime shapes and tensor products using pinned OpenBLAS. Numerical LLVM execution remains pending."
+claims = ["compiler-ir.tensor@native", "compiler-ir.tensor@storage-native", "compiler-ir.storage@gemm-native"]
+note = "The LLVM and Lean/C builds execute four map representations and a binary32 complex matrix-column contraction. Both result coordinates are 33+6i. Dynamic shapes and rank-three products have separate Lean/C evidence."
 document = ""
 
 [row.dimension.performance]
@@ -353,32 +353,32 @@ requirement = "F32 and F64 representations of RR and CC use explicit chart and p
 
 [row.dimension.source]
 state = "partial"
-claims = ["compiler-ir.realization@source", "compiler-ir.realization@identity-source"]
-note = "The protected float module admits realize, interpret, point and run for an existing smooth affine identity at either real precision and its own standard chart. Broader graphs, representations and wrappers remain."
+claims = ["compiler-ir.realization@source", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+note = "The protected float module admits realize, interpret, point and run for the standard-chart identity of an existing smooth real or exact complex affine at both widths. Broader graphs and wrappers remain."
 document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@identity-source"]
-note = "The checked real identity records its subject, chart, graph and NativeFast profile. Its physical copy passes the storage checker. All four representations have physical storage. Complex chart-bound realization remains open."
+claims = ["compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+note = "The checked identity records its subject, chart, graph and NativeFast profile. The physical copy passes the storage checker at all four representations. Complex charts retain the paired carrier and real and complex meadows."
 document = ""
 
 [row.dimension.midir]
-state = "planned"
-claims = ["compiler-ir.midir@representation"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
+note = "The checked static plan fixes both effect orders and the physical operands for identity copies and GEMM in all four representations. Dynamic branches and runtime dimensions remain open."
 document = ""
 
 [row.dimension.llvm]
-state = "planned"
-claims = ["compiler-ir.llvm-bytes@bytes"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
+note = "The canonical module binds every byte of the target, status branches, calls, cleanup and literal exit to the checked entry. The corpus retains two identity copies and a scaled product with literal and view coefficients."
 document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation"]
-note = "An accepted public run gives its lexical site, source identity declaration, exact Core morphism and checked storage copy. The binary reference proves the signed-zero divisor and unit-beta empty-dot cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. General operation and compiler refinement remain."
+claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@gemm-abi"]
+note = "An accepted public run gives its lexical site, source identity declaration, nominal graph and checked storage copy. Complex copies also recover the selected mathematical model. The binary reference proves the signed-zero divisor and unit-beta empty-dot cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. The static LLVM model preserves the successful call order and the first-failure prefix with a single arena cleanup. Per-artifact verification and general compiler refinement remain."
 document = ""
 
 [row.dimension.fast]
@@ -389,8 +389,8 @@ document = ""
 
 [row.dimension.native]
 state = "partial"
-claims = ["compiler-ir.native-fast@profile", "compiler-ir.native-fast@identity-run"]
-note = "The public Lean-backed build runs the identity at both real precisions with Unavailable flags. Separately 828 direct C adapter cases cover real/complex division and complex inverse at both widths. Public arithmetic, four representation paths and LLVM native conformance remain."
+claims = ["compiler-ir.native-fast@profile", "compiler-ir.native-fast@identity-run", "compiler-ir.storage@static-native", "compiler-ir.storage@gemm-native"]
+note = "The LLVM preview executes the four identity variants and eight static matrix products with pinned OpenBLAS. The Lean/C control agrees. Separately, 828 direct C cases cover division and complex inverse. Public scalar arithmetic remains open."
 document = ""
 
 [row.dimension.performance]
@@ -472,33 +472,33 @@ issues = [752, 763]
 requirement = "Accepted storage plans preserve initialization, aliases, loans, cleanup and failures. Transformations preserve the selected primal and pullback observations."
 
 [row.dimension.source]
-state = "planned"
-claims = ["compiler-ir.edition@admission"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.edition@admission", "compiler-ir.storage@static-native"]
+note = "Public resource entries with fixed layouts and a literal return run through the storage LLVM preview. Reverse observations and dynamic plans remain pending."
 document = ""
 
 [row.dimension.core]
-state = "planned"
-claims = ["compiler-ir.storage@refinement"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.storage@refinement", "compiler-ir.storage@static-effects", "compiler-ir.storage@erased-unit"]
+note = "The entry supplies the checked terminal Core integer. An inlined reached resource callee can erase a closed Unit return after its scheduled effects. The checker retains all root owners and selected methods."
 document = ""
 
 [row.dimension.midir]
-state = "planned"
-claims = ["compiler-ir.midir@representation"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects"]
+note = "The two phase-indexed effect blocks preserve logical ownership events, physical operand order and a unique successor token for each operation."
 document = ""
 
 [row.dimension.llvm]
-state = "planned"
-claims = ["compiler-ir.llvm-bytes@bytes"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects"]
+note = "The complete parsed bytes carry the same physical operations and failure edges for the accepted static plan."
 document = ""
 
 [row.dimension.official]
-state = "planned"
-claims = ["compiler-ir.constitution@finite-proofs"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.constitution@finite-proofs", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@erased-unit"]
+note = "The general Oracle proof binds the static plan and its failure prefix. The finite constitution and per-input certificates for these modules remain pending."
 document = ""
 
 [row.dimension.fast]
@@ -508,9 +508,9 @@ note = "Actual source, proof or run evidence is pending; a specification is not 
 document = ""
 
 [row.dimension.native]
-state = "planned"
-claims = ["compiler-ir.backend@native"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.backend@native", "compiler-ir.storage@static-native"]
+note = "Native storage examples exercise all four scalar representations and compare a failing expectation with the reference path. Branches and reverse observations remain open."
 document = ""
 
 [row.dimension.performance]
@@ -533,8 +533,8 @@ requirement = "Packages and normalized flat input use edition 2026 and wire epoc
 
 [row.dimension.source]
 state = "partial"
-claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@identity-source"]
-note = "Manifest editions, finite category functions and chart-bound real identity calls at both precisions have public and tampered-wire tests. The remaining edition schemas, representations and realization wrappers remain."
+claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Further edition schemas and realization wrappers remain."
 document = ""
 
 [row.dimension.core]

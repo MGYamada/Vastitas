@@ -73,6 +73,7 @@ def validMetricEvidence (env : Environment) (metric : DeclId) (evidence : Metric
 def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Prop :=
   match entry.declaration with
   | .marker => True
+  | .exactGeometry c => c.valid (exactView env) = true
   | .finiteCarrier tags => FiniteTables.validCarrier tags = true
   | .finiteTable inputs output rows => FiniteTables.validTable env inputs output rows = true
   | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema => True
@@ -81,6 +82,7 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
   | .finiteMonad schema fields => FiniteMonads.valid (FiniteCategories.view env) schema fields = true
   | .finiteIso schema fields => FiniteIso.valid (FiniteCategories.view env) schema fields = true
   | .finiteNatTrans schema fields => FiniteNatTrans.valid (FiniteCategories.view env) schema fields = true
+  | .finiteOpposite schema base => FiniteCategories.oppositeValid (FiniteCategories.view env) schema base = true
   | .finiteFunctor schema maps => FiniteFunctors.valid (FiniteCategories.view env) schema maps = true
   | .composableTable ins out src dst rows => FiniteCategories.compositionValid (FiniteCategories.view env) ins out src dst rows = true
   | .finiteCategory schema graph => FiniteCategories.valid (FiniteCategories.view env) schema graph = true
@@ -149,6 +151,7 @@ def validParents (env : Environment) (ranks : List (DeclId × Nat)) (entry : Ent
 def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Bool :=
   match entry.declaration with
   | .marker => true
+  | .exactGeometry c => c.valid (exactView env)
   | .finiteCarrier tags => FiniteTables.validCarrier tags
   | .finiteTable inputs output rows => FiniteTables.validTable env inputs output rows
   | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema => true
@@ -157,6 +160,7 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
   | .finiteMonad schema fields => FiniteMonads.valid (FiniteCategories.view env) schema fields
   | .finiteIso schema fields => FiniteIso.valid (FiniteCategories.view env) schema fields
   | .finiteNatTrans schema fields => FiniteNatTrans.valid (FiniteCategories.view env) schema fields
+  | .finiteOpposite schema base => FiniteCategories.oppositeValid (FiniteCategories.view env) schema base
   | .finiteFunctor schema maps => FiniteFunctors.valid (FiniteCategories.view env) schema maps
   | .composableTable ins out src dst rows => FiniteCategories.compositionValid (FiniteCategories.view env) ins out src dst rows
   | .finiteCategory schema graph => FiniteCategories.valid (FiniteCategories.view env) schema graph

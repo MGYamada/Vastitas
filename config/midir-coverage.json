@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "e5d840ba05c22b532aef8a8cafc56acd038f6e2a",
-    "schema_sha256": "988290843ff8aafcabd5389248f78aea893ef052d53776505802fe6b4f22a502"
+    "base_commit": "01d41006ada8f46c27844577e53905a3695bbda0",
+    "schema_sha256": "def55703a5172f09fa1b022656f53979ec965bd8405a4575e99ec9f8fd902513"
   },
   "schema": {
     "sources": [
@@ -516,6 +516,10 @@
             "signature": "marker"
           },
           {
+            "id": "VastitasKernel.Indexed.Declaration.exactGeometry",
+            "signature": "exactGeometry ( construction : ExactConstruction DeclId )"
+          },
+          {
             "id": "VastitasKernel.Indexed.Declaration.finiteCarrier",
             "signature": "finiteCarrier ( tags : List String )"
           },
@@ -554,6 +558,10 @@
           {
             "id": "VastitasKernel.Indexed.Declaration.finiteCategory",
             "signature": "finiteCategory ( schema : DeclId ) ( graph : GraphFields DeclId )"
+          },
+          {
+            "id": "VastitasKernel.Indexed.Declaration.finiteOpposite",
+            "signature": "finiteOpposite ( schema category : DeclId )"
           },
           {
             "id": "VastitasKernel.Indexed.Declaration.finiteFunctor",
@@ -703,6 +711,54 @@
         "kind": "structure",
         "header": "structure Entry",
         "fields": "id : DeclId declaration : Declaration"
+      },
+      {
+        "id": "VastitasKernel.Indexed.ExactConstruction",
+        "source": "lean-kernel/VastitasKernel/Indexed.lean",
+        "kind": "inductive",
+        "header": "inductive ExactConstruction ( α : Type )",
+        "constructors": [
+          {
+            "id": "VastitasKernel.Indexed.ExactConstruction.cauchyQQ",
+            "signature": "cauchyQQ"
+          },
+          {
+            "id": "VastitasKernel.Indexed.ExactConstruction.complexPairs",
+            "signature": "complexPairs ( realCarrier : α )"
+          },
+          {
+            "id": "VastitasKernel.Indexed.ExactConstruction.realMeadow",
+            "signature": "realMeadow ( carrier : α )"
+          },
+          {
+            "id": "VastitasKernel.Indexed.ExactConstruction.complexMeadow",
+            "signature": "complexMeadow ( carrier realModel : α )"
+          },
+          {
+            "id": "VastitasKernel.Indexed.ExactConstruction.identity",
+            "signature": "identity ( subject : α )"
+          },
+          {
+            "id": "VastitasKernel.Indexed.ExactConstruction.affine",
+            "signature": "affine ( model : α ) ( dimension : Nat ) ( coordinates : List String )"
+          }
+        ]
+      },
+      {
+        "id": "VastitasKernel.Indexed.ExactModelProfile",
+        "source": "lean-kernel/VastitasKernel/Indexed.lean",
+        "kind": "inductive",
+        "header": "inductive ExactModelProfile",
+        "constructors": [
+          {
+            "id": "VastitasKernel.Indexed.ExactModelProfile.cauchy",
+            "signature": "cauchy ( carrier : DeclId )"
+          },
+          {
+            "id": "VastitasKernel.Indexed.ExactModelProfile.pairs",
+            "signature": "pairs ( carrier realModel realCarrier : DeclId )"
+          }
+        ]
       },
       {
         "id": "VastitasKernel.Indexed.Family",
@@ -3506,11 +3562,27 @@
         ]
       },
       {
+        "id": "VastitasKernel.Storage.Realization.ChartBase",
+        "source": "lean-kernel/VastitasKernel/StorageRealization.lean",
+        "kind": "inductive",
+        "header": "inductive ChartBase",
+        "constructors": [
+          {
+            "id": "VastitasKernel.Storage.Realization.ChartBase.smooth",
+            "signature": "smooth ( implementation marker : DeclId )"
+          },
+          {
+            "id": "VastitasKernel.Storage.Realization.ChartBase.exactComplex",
+            "signature": "exactComplex ( model carrier realModel realCarrier : DeclId )"
+          }
+        ]
+      },
+      {
         "id": "VastitasKernel.Storage.Realization.ChartProfile",
         "source": "lean-kernel/VastitasKernel/StorageRealization.lean",
         "kind": "structure",
         "header": "structure ChartProfile",
-        "fields": "implementation : DeclId marker : DeclId coordinates : List String"
+        "fields": "base : ChartBase coordinates : List String"
       },
       {
         "id": "VastitasKernel.Storage.Realization.Descriptor",
@@ -3528,6 +3600,22 @@
           {
             "id": "VastitasKernel.Storage.Realization.Flags.unavailable",
             "signature": "unavailable"
+          }
+        ]
+      },
+      {
+        "id": "VastitasKernel.Storage.Realization.GraphKind",
+        "source": "lean-kernel/VastitasKernel/StorageRealization.lean",
+        "kind": "inductive",
+        "header": "inductive GraphKind",
+        "constructors": [
+          {
+            "id": "VastitasKernel.Storage.Realization.GraphKind.smooth",
+            "signature": "smooth"
+          },
+          {
+            "id": "VastitasKernel.Storage.Realization.GraphKind.exact",
+            "signature": "exact"
           }
         ]
       },
@@ -4624,11 +4712,11 @@
         },
         {
           "source": "lean-kernel/numerical/gemm.c",
-          "sha256": "a250d2a6bd28f2696eac9324ad0cf58613df69f79da6d5ae5973091386de6747"
+          "sha256": "55bc64d88e927b6bddedc638ebed58a0c06c2c3d2604ece25e6a5501d30aa9cd"
         },
         {
           "source": "lean-kernel/numerical/gemm.h",
-          "sha256": "5ebe8eecff6e5812a63e41067b6f172e5a0682d027e17342f0b8667f251a8c1b"
+          "sha256": "3a8d13fcc46bd66b563c6d2f603b5fe0ab3a918b659b78df98e09dd1d54b11ec"
         },
         {
           "source": "lean-kernel/numerical/gemm_kernels.inc",
@@ -5295,6 +5383,14 @@
       "evidence": []
     },
     {
+      "origin": "VastitasKernel.Indexed.Declaration.exactGeometry",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.Declaration.exactGeometry",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
       "origin": "VastitasKernel.Indexed.Declaration.family",
       "disposition": "pending",
       "owner": "#751",
@@ -5355,6 +5451,14 @@
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.Indexed.Declaration.finiteNatTrans",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.Declaration.finiteOpposite",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.Declaration.finiteOpposite",
       "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },
@@ -5563,6 +5667,70 @@
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.Indexed.Declaration.transitionAverage",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.ExactConstruction.affine",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.ExactConstruction.affine",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.ExactConstruction.cauchyQQ",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.ExactConstruction.cauchyQQ",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.ExactConstruction.complexMeadow",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.ExactConstruction.complexMeadow",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.ExactConstruction.complexPairs",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.ExactConstruction.complexPairs",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.ExactConstruction.identity",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.ExactConstruction.identity",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.ExactConstruction.realMeadow",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.ExactConstruction.realMeadow",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.ExactModelProfile.cauchy",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.ExactModelProfile.cauchy",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Indexed.ExactModelProfile.pairs",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Indexed.ExactModelProfile.pairs",
       "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },
@@ -8631,11 +8799,43 @@
       "evidence": []
     },
     {
+      "origin": "VastitasKernel.Storage.Realization.ChartBase.exactComplex",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Storage.Realization.ChartBase.exactComplex",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Storage.Realization.ChartBase.smooth",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Storage.Realization.ChartBase.smooth",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
       "origin": "VastitasKernel.Storage.Realization.Flags.unavailable",
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.Storage.Realization.Flags.unavailable",
       "reason": "Realization metadata and operations require preservation of the checked chart, representation, graph, loans and exact copy schedule in MidIR.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Storage.Realization.GraphKind.exact",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Storage.Realization.GraphKind.exact",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.Storage.Realization.GraphKind.smooth",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.Storage.Realization.GraphKind.smooth",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },
     {

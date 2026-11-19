@@ -837,8 +837,8 @@ site-observing profile requires its own explicit trace-refinement theorem.
 | Executable reference | Python covers binary64. Lean covers binary32 and binary64 conversion, raw arithmetic, checked division and lazy branches. |
 | Lean sequencing proofs | Flag union has an identity and is associative, commutative and idempotent. Both bind operations satisfy their unit and associativity laws, and lift preserves pure and bind. The signed-zero guard rejects both zero bit patterns. The first error retains previously executed events and flags and skips every continuation. |
 | Lean arithmetic proofs | Totalized real division by signed zero and the empty-dot unit-beta case have separate theorems. General rounding and operation-by-operation IEEE refinement remain open. |
-| Production Source/Core connection | The real binary64 identity binds its chart and graph to checked resource storage. Public SafeFloat sequencing and public floating Monad instances remain outside the edition. |
-| Native refinement | The NativeFast real identity reports flags as unavailable. Direct C quotient and inverse tests cover both widths. General source-to-native numerical refinement remains open. |
+| Production Source/Core connection | The smooth real and exact complex identities bind chart and graph to checked resource storage at both widths. Public SafeFloat sequencing and public floating Monad instances remain outside the edition. |
+| Native refinement | NativeFast identity copies report flags as unavailable for all four representations. Direct C quotient and inverse tests cover both widths. General source-to-native numerical refinement remains open. |
 | Mathematical accuracy/certification | **Not implemented.** Selected ideal RR/CC specifications, error/enclosure proofs and ideal nonzero evidence remain distinct obligations under #244/#313. |
 
 Any future execution profile that exposes flags or the first failure site must

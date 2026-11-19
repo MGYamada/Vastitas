@@ -20,6 +20,7 @@ private structure Sizes where
   model : Nat
   rows : Std.HashMap DeclId Nat
   arrows : Std.HashMap DeclId Nat
+  oppositeWork : Std.HashMap DeclId Nat
 
 private def sizes (m : Module) : Sizes := Id.run do
   let env := m.declarations.indexed
@@ -37,11 +38,24 @@ private def sizes (m : Module) : Sizes := Id.run do
   for item in env do
     if let .finiteCategory _ graph := item.declaration then
       arrows := arrows.insert item.id (rows.getD graph.arrows 0)
-  return ⟨m.functions.length, env.length, model, rows, arrows⟩
+  let views := env.filter fun entry => match entry.declaration with
+    | .finiteOpposite .. => true
+    | _ => false
+  let mut oppositeWork := {}
+  if !views.isEmpty then
+    let byId := Std.HashMap.ofList (env.map fun entry => (entry.id, entry.declaration))
+    -- A view can cross at most this many distinct declarations in an accepted graph.
+    let scan := env.length * min views.length (Limits.namespaceResolution + 1)
+    for item in views do
+      oppositeWork := oppositeWork.insert item.id scan
+      if let some (_, fields, _) := FiniteCategories.describe (fun id => byId[id]?)
+          (Limits.namespaceResolution + 1) item.id then
+        arrows := arrows.insert item.id (rows.getD fields.arrows 0)
+  return ⟨m.functions.length, env.length, model, rows, arrows, oppositeWork⟩
 
 private def sortWork (s : Sizes) : FiniteSort → Nat
   | .carrier id => s.declarations + s.rows.getD id 0
-  | .hom .. => s.model
+  | .hom owner .. => s.model + s.oppositeWork.getD owner 0
 
 private def lookupWork (s : Sizes) (site : FiniteLookup) : Nat :=
   let rows := s.rows.getD site.table 0
@@ -53,7 +67,7 @@ private def lookupWork (s : Sizes) (site : FiniteLookup) : Nat :=
     -- restrictComposition checks membership in the output Hom for each row.
     -- A binary table has three cells per row. Its output fiber is a subset
     -- of the selected category's arrow carrier.
-    base + s.model + (rows / 3) * s.arrows.getD category 0
+    base + s.model + s.oppositeWork.getD category 0 + (rows / 3) * s.arrows.getD category 0
   | some _, _ => base + s.model
 
 private structure Work where

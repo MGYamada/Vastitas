@@ -98,7 +98,7 @@ static uint64_t vector_step(const VStorageDense *view, int row) {
 #undef WORD
 #undef COMPONENT
 
-VStorageStatus vgemm_execute_scaled(VStorageArena *arena,
+VStorageStatus vgemm_execute_scaled_as(VStorageArena *arena, int expected_scalar,
     uint32_t left, VStorageLayout left_view, uint8_t left_conjugate,
     uint32_t right, VStorageLayout right_view, uint8_t right_conjugate,
     uint32_t output, VStorageLayout output_view, VGemmMode mode,
@@ -115,7 +115,8 @@ VStorageStatus vgemm_execute_scaled(VStorageArena *arena,
         (status = vstorage_prepare_dense(arena, right, right_view, &b)) != VS_OK ||
         (status = vstorage_prepare_dense(arena, output, output_view, &c)) != VS_OK)
         return status;
-    if (a.scalar != b.scalar || a.scalar != c.scalar) return VS_SCALAR;
+    if (a.scalar != b.scalar || a.scalar != c.scalar ||
+        (expected_scalar != -1 && c.scalar != expected_scalar)) return VS_SCALAR;
     if (a.columns != b.rows || c.rows != a.rows || c.columns != b.columns) return VS_SHAPE;
     if (overlaps(&a, &c) || overlaps(&b, &c)) return VS_ALIAS;
     if (vstorage_component_bytes(c.scalar) == 4)
@@ -123,6 +124,15 @@ VStorageStatus vgemm_execute_scaled(VStorageArena *arena,
                         mode, alpha_input, beta_input, report);
     return update64(arena, output, output_view, a, b, c, left_conjugate, right_conjugate,
                     mode, alpha_input, beta_input, report);
+}
+
+VStorageStatus vgemm_execute_scaled(VStorageArena *arena,
+    uint32_t left, VStorageLayout left_view, uint8_t left_conjugate,
+    uint32_t right, VStorageLayout right_view, uint8_t right_conjugate,
+    uint32_t output, VStorageLayout output_view, VGemmMode mode,
+    VGemmCoefficient alpha_input, VGemmCoefficient beta_input, VGemmReport *report) {
+    return vgemm_execute_scaled_as(arena, -1, left, left_view, left_conjugate,
+        right, right_view, right_conjugate, output, output_view, mode, alpha_input, beta_input, report);
 }
 
 VStorageStatus vgemm_execute(VStorageArena *arena,

@@ -27,12 +27,56 @@ fn body(wire: &mut Value) -> &mut Vec<Value> {
         .unwrap()
 }
 
+fn check_llvm_identity(s: &common::Scratch, scalar: u8) {
+    let output = s
+        .command("check", MANIFEST)
+        .args([
+            "--llvm-preview",
+            "--target-triple",
+            "x86_64-unknown-linux-gnu",
+            "--data-layout",
+            "e-p:64:64",
+        ])
+        .output()
+        .unwrap();
+    common::success(&output);
+    let ir = std::str::from_utf8(&output.stdout).unwrap();
+    assert!(ir.contains(&format!(
+        "call i32 @vq_storage_allocate(ptr %arena, i64 0, i64 {scalar}, i64 2)"
+    )));
+    assert_eq!(ir.matches("call i32 @vq_storage_copy(").count(), 1);
+    assert_eq!(ir.matches("call i32 @vq_storage_expect(").count(), 2);
+    assert_eq!(
+        ir.matches("call void @vstorage_delete(ptr %arena)").count(),
+        2
+    );
+    assert!(!ir.contains("fastcc") && !ir.contains("inbounds"));
+    #[cfg(feature = "llvm-native")]
+    {
+        let build = s
+            .command("build", MANIFEST)
+            .args(["--llvm-preview", "-o", "llvm-program"])
+            .output()
+            .unwrap();
+        common::success(&build);
+        assert_eq!(
+            common::ran(
+                &std::process::Command::new(s.0.join("llvm-program"))
+                    .output()
+                    .unwrap()
+            ),
+            exits(0)
+        );
+    }
+}
+
 #[test]
 fn canonical_realization_runs_into_existing_storage_and_replays_its_revision() {
     let source = checked_replace(MAIN, "use monad::float;", "use monad::float as fp;")
         .replace("float::", "fp::");
     let s = fixture(&source);
     assert_eq!(s.check_build_and_run(MANIFEST), exits(0));
+    check_llvm_identity(&s, 0);
     let mut wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
     let response = kernel(&wire, "function-revision");
     assert_eq!(response["ok"], true, "{response}");
@@ -88,6 +132,7 @@ fn real32_identity_preserves_payloads_and_replays_its_precision() {
         .replace("9218868437227405378", "2139095106");
     let s = fixture(&source);
     assert_eq!(s.check_build_and_run(MANIFEST), exits(0));
+    check_llvm_identity(&s, 2);
     let mut wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
     let response = kernel(&wire, "function-revision");
     assert_eq!(response["ok"], true, "{response}");
@@ -298,5 +343,89 @@ fn realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans() {
         for mode in ["check", "emit"] {
             assert_wire_rejected(&kernel(&misplaced, mode), "E_PROTOCOL");
         }
+    }
+}
+
+const COMPLEX: &str = include_str!("../examples/packages/float-complex-identity/src/main.vast");
+
+#[test]
+fn complex_charts_copy_both_components_and_bind_the_full_model_chain() {
+    let s = fixture(COMPLEX);
+    let mut previous = None;
+    for (rep, source) in [
+        ("F64<CC>", COMPLEX.to_string()),
+        (
+            "F32<CC>",
+            COMPLEX
+                .replace("F64<CC>", "F32<CC>")
+                .replace("complex_bits", "complex32_bits")
+                .replace("9223372036854775808", "2147483648")
+                .replace("9218868437227405378", "2139095106"),
+        ),
+    ] {
+        s.write("app/main.vast", &source);
+        assert_eq!(s.check_build_and_run(MANIFEST), exits(0));
+        check_llvm_identity(&s, if rep == "F32<CC>" { 3 } else { 1 });
+        let mut wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
+        let result = kernel(&wire, "function-revision");
+        assert_eq!(result["ok"], true, "{result}");
+        let revision = &result["function_revision"];
+        let evidence = &revision["resource_realizations"];
+        let chart = &evidence["charts"][0];
+        for (field, name) in [
+            ("subject", "Plane"),
+            ("model", "CC"),
+            ("carrier", "Pairs"),
+            ("real_model", "RR"),
+            ("real_carrier", "Cauchy"),
+        ] {
+            assert_eq!(chart[field]["name"], name, "{field}");
+        }
+        assert_eq!(chart["coordinates"], json!(["z", "w"]));
+        assert!(
+            evidence["sites"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|site| site["representation"] == rep)
+        );
+        assert_eq!(evidence["runs"][0]["flags"], "Unavailable");
+        assert_eq!(evidence["runs"][0]["graph"]["name"], "idP");
+        if let Some(old) = previous {
+            wire["expected_function_revision"] = old;
+            assert_wire_rejected(&kernel(&wire, "check"), "E_FUNCTION_REVISION");
+        }
+        previous = Some(revision.clone());
+        wire["expected_function_revision"] = revision.clone();
+        wire["expected_function_revision"]["resource_realizations"]["charts"][0]["real_model"] =
+            chart["carrier"].clone();
+        assert_wire_rejected(&kernel(&wire, "check"), "E_FUNCTION_REVISION");
+    }
+}
+
+#[test]
+fn complex_identity_rejects_other_objects_models_charts_and_precisions() {
+    let extra = "indexed affine Other = Affine(CC, 2)[z, w];\nindexed affine Real = Affine(RR, 2)[z,w];\nindexed morphism otherId = identity(Other);\n";
+    let source = COMPLEX.replace("resource fn main()", &format!("{extra}resource fn main()"));
+    let s = fixture(&source);
+    for (from, to) in [
+        ("interpret(idP,", "interpret(otherId,"),
+        ("Plane::standard_chart", "Other::standard_chart"),
+        (
+            "(Plane, Plane::standard_chart)",
+            "(Real, Real::standard_chart)",
+        ),
+        ("realize::<F64<CC>>", "realize::<F64<RR>>"),
+        ("realize::<F64<CC>>", "realize::<F32<CC>>"),
+        ("identity(Plane)", "identity(CC)"),
+        ("(idP, r, NativeFast)", "(idP, r, strict_profile)"),
+    ] {
+        s.write("app/main.vast", &checked_replace(&source, from, to));
+        let output = s.check_manifest(MANIFEST);
+        assert!(!output.status.success(), "accepted {to}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("main.vast:"),
+            "{to}: {output:?}"
+        );
     }
 }

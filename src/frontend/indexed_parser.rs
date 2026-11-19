@@ -585,7 +585,7 @@ impl Parser {
         Ok(entries)
     }
 
-    fn finite_schema_dependency(&mut self) -> Result<TypePath, Diagnostic> {
+    fn parenthesized_path(&mut self) -> Result<TypePath, Diagnostic> {
         self.expect("(")?;
         let dependency = self.type_path()?;
         self.expect(")")?;
@@ -601,6 +601,12 @@ impl Parser {
         };
         let span = self.peek().span;
         let fields = match self.indexed_tag()?.as_str() {
+            "Opposite" => {
+                self.expect("<")?;
+                let category = self.type_path()?;
+                self.expect(">")?;
+                return Ok(indexed::FiniteInstance::Opposite(Box::new(category)));
+            }
             "finite_graph" => {
                 self.expect("(")?;
                 indexed::FiniteInstance::Graph(Box::new(indexed::FiniteGraph {
@@ -663,7 +669,7 @@ impl Parser {
             _ => {
                 return Err(diagnostic(
                     "E_PARSE",
-                    "expected finite_graph, finite_functor, finite_iso, finite_nat_trans, finite_monad, finite_kleisli or finite_kleisli_triple",
+                    "expected Opposite<C>, finite_graph, finite_functor, finite_iso, finite_nat_trans, finite_monad, finite_kleisli or finite_kleisli_triple",
                     span,
                 ));
             }
@@ -720,10 +726,10 @@ impl Parser {
                     "finite_nat_trans" => indexed::SchemaKind::NaturalTransformation,
                     "finite_monad" => indexed::SchemaKind::FiniteMonad,
                     "finite_kleisli" => indexed::SchemaKind::FiniteKleisli {
-                        monad_schema: self.finite_schema_dependency()?,
+                        monad_schema: self.parenthesized_path()?,
                     },
                     "finite_kleisli_triple" => indexed::SchemaKind::FiniteKleisliTriple {
-                        monad_schema: self.finite_schema_dependency()?,
+                        monad_schema: self.parenthesized_path()?,
                     },
                     _ => {
                         return Err(diagnostic(
@@ -775,6 +781,39 @@ impl Parser {
                 }
             }
             "marker" => DeclarationBody::Marker,
+            "carrier" | "meadow" => {
+                self.expect("=")?;
+                let span = self.peek().span;
+                let constructor = self.indexed_tag()?;
+                let definition = match (kind.as_str(), constructor.as_str()) {
+                    ("carrier", "cauchy_qq") => indexed::ExactConstruction::CauchyQq,
+                    ("carrier", "complex_pairs") => indexed::ExactConstruction::ComplexPairs {
+                        real_carrier: self.parenthesized_path()?,
+                    },
+                    ("meadow", "real_meadow") => indexed::ExactConstruction::RealMeadow {
+                        carrier: self.parenthesized_path()?,
+                    },
+                    ("meadow", "complex_meadow") => {
+                        self.expect("(")?;
+                        let carrier = self.type_path()?;
+                        self.expect(",")?;
+                        let real_model = self.type_path()?;
+                        self.expect(")")?;
+                        indexed::ExactConstruction::ComplexMeadow {
+                            carrier,
+                            real_model,
+                        }
+                    }
+                    _ => {
+                        return Err(diagnostic(
+                            "E_EXACT_MODEL",
+                            format!("unsupported {kind} constructor {constructor}"),
+                            span,
+                        ));
+                    }
+                };
+                DeclarationBody::ExactGeometry { definition }
+            }
             "implementation" => {
                 self.expect("(")?;
                 let marker = self.type_path()?;
@@ -1126,12 +1165,15 @@ impl Parser {
     /// the smooth object `(Impl) = Affine(n)[c, ...]`, or `(Impl) = Affine(K, n)[g, ...]`,
     /// which is sugar for `spec[g, ...] over K`.
     fn indexed_affine(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        if self.consume("=") {
+            return self.indexed_affine_space(None);
+        }
         self.expect("(")?;
         let implementation = self.type_path()?;
         self.expect(")")?;
         self.expect("=")?;
         if self.peek().is("Affine") {
-            return self.indexed_affine_space(implementation);
+            return self.indexed_affine_space(Some(implementation));
         }
         if self.consume("localize") {
             self.expect("(")?;
@@ -1311,7 +1353,7 @@ impl Parser {
     /// `Affine(n)[c, ...]` or `Affine(K, n)[g, ...]` after `=`.
     fn indexed_affine_space(
         &mut self,
-        implementation: TypePath,
+        implementation: Option<TypePath>,
     ) -> Result<DeclarationBody, Diagnostic> {
         let start = self.expect("Affine")?.span;
         self.expect("(")?;
@@ -1358,6 +1400,22 @@ impl Parser {
         }
         self.expect(")")?;
         let coordinates = self.delimited_list("[", "]", |p| Ok(p.name()?.0))?;
+        let Some(implementation) = implementation else {
+            let model = base.ok_or_else(|| {
+                diagnostic(
+                    "E_EXACT_MODEL",
+                    "an exact affine object needs its selected meadow as the first argument",
+                    start,
+                )
+            })?;
+            return Ok(DeclarationBody::ExactGeometry {
+                definition: indexed::ExactConstruction::Affine {
+                    model,
+                    dimension,
+                    coordinates,
+                },
+            });
+        };
         let Some(base) = base else {
             return Ok(DeclarationBody::SmoothAffine {
                 implementation,
@@ -1406,6 +1464,14 @@ impl Parser {
     /// the other definitions: `first`, `second`, `restrict(φ)`,
     /// `trace_power(H, k)` and `char_coefficient(S, i)`.
     fn indexed_morphism(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        if self.consume("=") {
+            self.expect("identity")?;
+            return Ok(DeclarationBody::ExactGeometry {
+                definition: indexed::ExactConstruction::Identity {
+                    subject: self.parenthesized_path()?,
+                },
+            });
+        }
         let (family, indices) = self.indexed_application()?;
         let span = self.peek().span;
         let definition = match self.indexed_tag()?.as_str() {

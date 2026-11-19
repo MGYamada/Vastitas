@@ -101,6 +101,8 @@ def resolveBody (p : Namespace.Indexed) (graphs : GraphSources) (projections : P
   let add (declaration : Indexed.Declaration) := { env with indexed := env.indexed ++ [⟨owner, declaration⟩] }
   match body with
   | .marker => return add .marker
+  | .exactGeometry construction =>
+      return add (.exactGeometry (← construction.mapM (resolveId p scope)))
   | .finiteCarrier tags =>
       if tags.length > FiniteTables.limit then Namespace.problem span "E_LIMIT" "finite carrier exceeds 4096 tags"
       let mut seen : Std.HashSet String := {}
@@ -138,6 +140,8 @@ def resolveBody (p : Namespace.Indexed) (graphs : GraphSources) (projections : P
   | .composableTable inputs output src dst rows =>
       return add (.composableTable (← inputs.mapM (resolveFinitePath p graphs projections scope)) (← resolveFinitePath p graphs projections scope output)
         (← resolveFinitePath p graphs projections scope src) (← resolveFinitePath p graphs projections scope dst) (rows.map fun r => (r.key.map (·.name), r.value.name)))
+  | .finiteOpposite schema category =>
+      return add (.finiteOpposite (← resolveId p scope schema) (← resolveId p scope category))
   | .finiteCategory schema graph =>
       return add (.finiteCategory (← resolveId p scope schema) (← graph.mapM (resolveFinitePath p graphs projections scope)))
   | .implementation marker representation capabilities =>
@@ -596,6 +600,30 @@ def entryRule (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry)
     (classificationRule env ranks entry).orElse fun _ =>
       (globalRule env entry).orElse fun _ => familyRule env entry
 
+/-- Locate the bad operand in a mathematical declaration that failed the Core check. -/
+private def exactDiagnostic (env : Environment) (entry : Entry) (source : Declaration) : Option Diagnostic := do
+  let .exactGeometry checked := entry.declaration | none
+  let .exactGeometry original := source.body | none
+  let problem := fun atSpan text => ({code := "E_EXACT_MODEL", span := atSpan, message := text} : Diagnostic)
+  match checked, original with
+  | .complexPairs _, .complexPairs base =>
+    return problem base.span "complex_pairs needs a rational Cauchy carrier"
+  | .realMeadow _, .realMeadow carrier =>
+    return problem carrier.span "real_meadow needs a rational Cauchy carrier"
+  | .complexMeadow c _, .complexMeadow carrier real =>
+    if let some (.complexPairs _) := exactView env c then
+      return problem real.span "complex_meadow needs a real meadow on this paired carrier's real component"
+    return problem carrier.span "complex_meadow needs the selected paired carrier"
+  | .identity _, .identity subject =>
+    return problem subject.span "an exact identity morphism needs a named mathematical affine object"
+  | .affine model n coords, .affine base .. =>
+    if ((exactView env model).bind (·.model? (exactView env))).isNone then
+      return problem base.span "Affine needs a selected mathematical meadow with its ring reduct"
+    return {
+      code := "E_AFFINE_COORDINATE", span := source.span
+      message := s!"Affine({n}) needs {n} distinct coordinate names, got {coords.length}"}
+  | _, _ => none
+
 /-- Explain an independently rejected finite table using the original row and
 tag spans. Acceptance remains the check on the complete Core environment. -/
 private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declaration) :
@@ -617,6 +645,11 @@ private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declar
       if !tags.contains value then return issue row.value.span "composition result must name an arrow"
       seen := seen.insert key
     return issue source.span "composition table is missing a composable pair"
+  if let .finiteOpposite schema _ := entry.declaration then
+    let .finiteOpposite schemaPath base := source.body | none
+    if named schema != some .categorySchema then
+      return { code := "E_CATEGORY", span := schemaPath.span, message := "Opposite requires a finite category schema" }
+    return { code := "E_CATEGORY", span := base.span, message := "Opposite requires a finite category of the selected schema within the resolution limit" }
   if let .finiteCategory schema fields := entry.declaration then
     let .finiteCategory schemaPath paths := source.body | none
     let problem := fun (sp : Span) (msg : String) => ({ span := sp, code := "E_CATEGORY", message := msg } : Diagnostic)
@@ -639,9 +672,9 @@ private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declar
     let .finiteFunctor schemaPath paths := source.body | none
     let problem := fun (sp : Span) (msg : String) => ({ span := sp, code := "E_FUNCTOR", message := msg } : Diagnostic)
     if named schema != some .functorSchema then return problem schemaPath.span "instance must select a finite functor schema"
-    let some (c, _) := FiniteFunctors.category named maps.source
+    let some (c, _) := FiniteCategories.categoryView named maps.source
       | return problem paths.source.span "functor source endpoint must name a finite category"
-    let some (d, _) := FiniteFunctors.category named maps.target
+    let some (d, _) := FiniteCategories.categoryView named maps.target
       | return problem paths.target.span "functor target endpoint must name a finite category"
     if (FiniteFunctors.mapping named maps.objects c.objects d.objects).isNone then
       return problem paths.objects.span "object map must be unary with the selected nominal object carriers"
@@ -683,8 +716,8 @@ private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declar
       | return problem paths.target.span "transformation target must name a finite functor"
     if !FiniteNatTrans.parallel f g then
       return problem paths.target.span "the two functors must have the same nominal source and target categories"
-    let some (.finiteCategory _ c) := named f.source | return problem paths.source.span "invalid functor source category"
-    let some (.finiteCategory _ d) := named f.target | return problem paths.source.span "invalid functor target category"
+    let some (c, _) := FiniteCategories.categoryView named f.source | return problem paths.source.span "invalid functor source category"
+    let some (d, _) := FiniteCategories.categoryView named f.target | return problem paths.source.span "invalid functor target category"
     if (FiniteFunctors.mapping named n.components c.objects d.arrows).isNone then
       return problem paths.components.span "components must be unary with the nominal source object and target arrow carriers"
     let some m := FiniteNatTrans.model named schema n | return problem source.span "invalid selected finite functor fields"
@@ -763,6 +796,7 @@ def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
   let ranks := classRanks env.indexed
   match env.indexed.find? (fun entry => !validEntry env.indexed ranks entry) with
   | some entry =>
+    if let some d := (source entry.id).bind (exactDiagnostic env.indexed entry) then d else
     if let some d := (source entry.id).bind (tableDiagnostic env.indexed entry) then d else
     let (code, message) := (entryRule env.indexed ranks entry).getD ("E_TYPE", general)
     { code, message, span := span entry.id }

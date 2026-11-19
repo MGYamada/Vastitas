@@ -20,6 +20,12 @@ The optional [`monad::kleisli` package](../../monad/docs/kleisli.md) consumes
 a named instance of this `Monad` schema. Its derived views, unit, extension, bind, composition and lift
 use that instance’s category, functor, unit and multiplication.
 
+A named view `indexed instance R : Category = Opposite<C>;` reverses both
+endpoints and composition. An ordinary functor with source `R` therefore
+reverses composition in `C`. The same operation on `R` restores the original
+order. The [permutation example](../../llvm/fixtures/opposite-s3/main.vast)
+exercises both orders in the same executable.
+
 For `S3` declared with this schema and arrows `g` and `f`, the call
 `std::category::compose(g, f)` infers the category and the three objects
 from the arguments. The explicit form for arrows on its sole object `o`

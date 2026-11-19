@@ -53,12 +53,19 @@ def prepare_case(work, case, source):
 def checked_sites(receipt, case, text, manifest=None):
     wire = receipt["input"]
     if case.package is None:
-        file, root, offset = case.source, "vastitas:compat:flat", 0
+        file, root = case.source, "vastitas:compat:flat"
+        source = {"offset": 0, "text": text}
     else:
         file = root = str(manifest.resolve(strict=True))
-        offset = manifest.stat().st_size + 1
+        manifest_bytes = manifest.read_bytes()
+        offset = len(manifest_bytes) + 1
+        entry = str(manifest.with_name("main.vast").resolve(strict=True))
+        source = {"offset": offset, "text": text, "files": [
+            {"path": file, "offset": 0, "text": manifest_bytes.decode("utf-8")},
+            {"path": entry, "offset": offset},
+        ]}
     if (wire["file"], wire["version"], wire["root"], wire["root_source"]) != (
-        file, 10, root, {"offset": offset, "text": text}
+        file, 10, root, source
     ):
         raise ValueError("checked revision does not describe the physical fixture source")
     sites = receipt["pure"]["operator_sites"]

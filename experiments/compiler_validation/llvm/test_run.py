@@ -21,7 +21,13 @@ class QualificationTests(unittest.TestCase):
             args, manifest = run_exit.prepare_case(work, case, text)
             self.assertEqual(args, ["--manifest-path", manifest])
             self.assertEqual((work / "main.vast").read_bytes(), text)
+            # Byte offsets account for UTF-8 and preserve physical line endings.
+            manifest.write_bytes(manifest.read_bytes() + "# λ".encode() + b"\r\n")
+            manifest_bytes = manifest.read_bytes()
+            offset = len(manifest_bytes) + 1
             root = str(manifest.resolve())
+            files = [{"path": root, "offset": 0, "text": manifest_bytes.decode()},
+                     {"path": str((work / "main.vast").resolve()), "offset": offset}]
             package = {"source": root, "name": case.package, "version": "0.1.0"}
             def owner(name):
                 return {"module": [], "name": name, "package": package}
@@ -30,7 +36,7 @@ class QualificationTests(unittest.TestCase):
             symbols = [symbol(0, "choose", 2), symbol(1, "main", 0), symbol(2, "choose", 1)]
             receipt = {
                 "input": {"file": root, "version": 10, "root": root,
-                          "root_source": {"offset": len(manifest.read_bytes()) + 1, "text": text.decode()},
+                          "root_source": {"offset": offset, "text": text.decode(), "files": files},
                           "packages": [{**package, "edition": "2026", "dependencies": []}]},
                 "families": [{"id": owner("main"), "definition": 0},
                              {"id": owner("choose"), "dispatch": [{"key": [2], "selected": {"definition": 2, "ordinal": 1,
@@ -59,6 +65,18 @@ class QualificationTests(unittest.TestCase):
                 field[path[-1]] = value
                 with self.subTest(path=path), self.assertRaises(ValueError):
                     run_exit.checked_dispatch(tampered, case, manifest)
+            for altered in ([], files[::-1], files + files[:1],
+                            [{**files[0], "text": "stale manifest"}, files[1]],
+                            [files[0], {**files[1], "offset": offset - 1}],
+                            [files[0], {**files[1], "path": root}]):
+                bad = deepcopy(receipt)
+                bad["input"]["root_source"]["files"] = altered
+                with self.subTest(files=altered), self.assertRaisesRegex(ValueError, "physical fixture"):
+                    run_exit.checked_sites(bad, case, text.decode(), manifest)
+            missing = deepcopy(receipt)
+            del missing["input"]["root_source"]["files"]
+            with self.assertRaisesRegex(ValueError, "physical fixture"):
+                run_exit.checked_sites(missing, case, text.decode(), manifest)
             receipt["input"]["root_source"]["offset"] -= 1
             with self.assertRaisesRegex(ValueError, "physical fixture"):
                 run_exit.checked_sites(receipt, case, text.decode(), manifest)

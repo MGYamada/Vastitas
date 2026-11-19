@@ -1,7 +1,7 @@
 # `std::category`
 
 The package `vastitas_category` declares schemas for finite categories, functors,
-natural transformations and monads.
+natural transformations, isomorphisms and monads.
 An application supplies an instance with its own objects, arrows, endpoint
 tables, identities and composition table. The package has no dependencies.
 See the [module source](../src/category/mod.vast) and
@@ -11,6 +11,7 @@ See the [module source](../src/category/mod.vast) and
 | --- | --- | --- |
 | `Category` | finite schema | An instance supplies the six fields of a finite category and satisfies the identity and associativity laws. |
 | `Functor` | finite schema | An instance supplies two named categories and their object and arrow maps. Those maps preserve endpoints, identities and composition. |
+| `Iso` | finite schema | A named instance selects a category, two objects and arrows between them in both directions. The forward and inverse arrows compose to the identity of each object. |
 | `NatTrans` | finite schema | An instance selects two functors with the same source and target categories. Its component table supplies one arrow per source object and the naturality square commutes for every source arrow. |
 | `Monad` | finite schema | An instance selects a category, an endofunctor and two natural transformations for its unit and multiplication. Its component tables satisfy both unit laws and associativity. |
 | `compose(g, f)` | function | Given `f: Hom<C, X, Y>` and `g: Hom<C, Y, Z>`, return `g` after `f` in `Hom<C, X, Z>` for the same category. |

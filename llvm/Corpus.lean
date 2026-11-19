@@ -432,13 +432,48 @@ def affineIdentity (complex : Bool) : StorageModule.Code :=
     ⟨.copy,[0] ++ view ++ [1] ++ view⟩, ⟨.expect,[1] ++ view ++ [0,0] ++ first⟩,
     ⟨.expect,[1] ++ view ++ [1,0] ++ second⟩, ⟨.drop,[1]⟩, ⟨.drop,[0]⟩],0⟩
 
-def realIdentityBytes := corpus_bytes "src/float-identity.ll"
-def complexIdentityBytes := corpus_bytes "src/float-complex-identity.ll"
+/-- Keep the same header, blank separator and final newline as the storage printer.
+Checking the individual lines avoids reducing the UTF-8 encoding of the whole module. -/
+private def storageBytes (header : List UInt8) (lines : List String) : List UInt8 :=
+  header ++ ("\n" ++ String.intercalate "\n" lines ++ "\n").toUTF8.data.toList
+
+/-- Each line equality can be kernel-checked in its own declaration. -/
+private theorem consLines {l r : String} {ls rs : List String} (line : l = r) (tail : ls = rs) :
+    l :: ls = r :: rs := by rw [line, tail]
+
+private theorem storageBytes_eq {h h' : List UInt8} {ls ls' : List String}
+    (sameHeader : h = h') (sameLines : ls = ls') : storageBytes h ls = storageBytes h' ls' := by
+  cases sameHeader
+  cases sameLines
+  rfl
+
+elab "storage_file " file:str : term => do
+  let path := System.FilePath.mk (← readThe Lean.Core.Context).fileName
+  let some dir := path.parent | throwError "corpus needs a source directory"
+  let raw ← IO.FS.readBinFile (dir / file.getString)
+  let some text := String.fromUTF8? raw | throwError "invalid UTF-8 in storage module"
+  let triple :: layout :: "" :: rest := text.splitOn "\n" | throwError "missing storage header"
+  let header := (triple ++ "\n" ++ layout ++ "\n").toUTF8.data.toList
+  let lines := rest.dropLast
+  unless storageBytes header lines == raw.data.toList do
+    throwError "storage lines do not reproduce the original bytes"
+  return Lean.mkApp2 (Lean.mkConst ``storageBytes) (Lean.toExpr header) (Lean.toExpr lines)
+
+def realIdentityBytes := storage_file "src/float-identity.ll"
+def complexIdentityBytes := storage_file "src/float-complex-identity.ll"
 
 set_option maxRecDepth 65536 in
-theorem real_identity_verified : realIdentityBytes = (affineIdentity false).print := rfl
+theorem real_identity_verified : realIdentityBytes = (affineIdentity false).print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
 set_option maxRecDepth 65536 in
-theorem complex_identity_verified : complexIdentityBytes = (affineIdentity true).print := rfl
+theorem complex_identity_verified : complexIdentityBytes = (affineIdentity true).print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
 
 /-- Independent schedule for the 1×1 coefficient example. With inputs 2 and
 3, the overwrite computes 3. The subsequent accumulation reads alpha from
@@ -459,10 +494,14 @@ def gemmCoefficients : StorageModule.Code :=
      ⟨.gemm, matrices ++ [1, 2,0,0,0,3,0, 1,0,two,0,0,0]⟩, expect thirty] ++
     ([3,2,1,0].map fun id => ⟨.drop, [id]⟩), 0⟩
 
-def gemmCoefficientBytes := corpus_bytes "src/gemm-coefficients.ll"
+def gemmCoefficientBytes := storage_file "src/gemm-coefficients.ll"
 
 set_option maxRecDepth 65536 in
-theorem gemm_coefficients_verified : gemmCoefficientBytes = gemmCoefficients.print := rfl
+theorem gemm_coefficients_verified : gemmCoefficientBytes = gemmCoefficients.print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
 
 private def forStorage {bytes : List UInt8} {code : StorageModule.Code}
     (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩

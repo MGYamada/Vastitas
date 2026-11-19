@@ -1,13 +1,17 @@
 # Functions
 
-A **function** declares typed parameters, a result type and a body. The body is
-a [block expression](expressions.md#block-expressions), and its value is the
-result of the function.
+A **function** belongs to its defining module. Its simplest form is a
+singleton declaring typed parameters, a result type and one body. The body
+is a [block expression](expressions.md#block-expressions) whose value is the
+result of the function. Multiple scalar methods with the same name form a
+family with finite [selection](../stage1a.md#selection).
 
 > **Syntax**
 >
 > ```text
-> Function -> `fn` IDENTIFIER `(` FunctionParameters? `)` `->` Type BlockExpression
+> Function -> `fn` IDENTIFIER FiniteBinders? `(` FunctionParameters? `)` `->` Type BlockExpression
+> FiniteBinders -> `<` FiniteBinder ( `,` FiniteBinder )* `,`? `>`
+> FiniteBinder -> IDENTIFIER `:` Path | IDENTIFIER `:` `Obj` `<` IDENTIFIER ( `::` `category` )? `>`
 > FunctionParameters -> FunctionParameter ( `,` FunctionParameter )* `,`?
 > FunctionParameter -> IDENTIFIER `:` Type
 > ```
@@ -15,6 +19,26 @@ result of the function.
 A function has no effects. Its result depends only on its arguments. The
 parameters are bindings of the body, and they follow the rules of
 [Scopes of bindings](statements.md#scopes-of-bindings).
+
+A finite function declares a category parameter such as `C: Category`
+and object parameters such as `X: Obj<C>`. The path after `C:` names a
+visible finite category schema. Each object parameter belongs to an earlier
+category parameter. These indices occur in parameter and result types such
+as `Hom<C, X, Y>`. A Monad parameter `M: Monad` selects its underlying
+category as `M::category`. The binder `X: Obj<M::category>` ranges over
+the objects of that category. The endpoint `M::T<X>` applies the selected
+endofunctor to the object at specialization. If two Monads have the same
+underlying category, an arrow alone cannot select between them. An explicit
+call such as `monad::kleisli::unit::<M, Obj::lo>()` supplies both indices. See [Finite carriers and tables](../indexed-source.md#finite-carriers-and-tables).
+
+A finite family may declare a forwarding method alongside its method on
+data. For example, the second parameter of `monad::kleisli::bind` can be a
+nullary function returning the required Hom. The forwarding method has the
+same owner, visibility, model binders and result as the data method. Its
+body calls that method with the same indices and parameters in order, and
+invokes each declared producer once. Each list of callable positions can
+select one forwarding method. At the call site, argument expressions are
+evaluated from left to right before any producer is invoked. [Kleisli operations](https://github.com/MGYamada/Vastitas/blob/main/monad/docs/kleisli.md)
 
 Rules:
 
@@ -57,7 +81,7 @@ Rules:
 - A call may name a function that the program declares later.
 - A function must not call itself, directly or through other functions. A
   cycle of calls is an error (`E_RECURSION`).
-- A call of a name that no function, generic,
+- A call of a name that no function family,
   [built-in function](expressions.md#built-in-functions), parameter or binding
   declares is an error (`E_NAME`). A call of a parameter or binding that does
   not have a [function type](types.md#function-types) is an error (`E_TYPE`).
@@ -84,23 +108,29 @@ The call of `missing_function` has no declaration to resolve to.
 
 ## Function values
 
-The name of a function whose parameter and result types are scalar or function
-types is also a value of a [function type](types.md#function-types). A
+The name of an ordinary function whose parameter and result types are scalars,
+finite Hom fibers or function types is also a value of a [function type](types.md#function-types). A
 [lambda expression](expressions.md#lambda-expressions) is an anonymous
 function. [Function values](../stage1b.md) says what a program may do with a
 function value.
 
 Rules:
 
-- The name of a function with a pair type, a geometric type or an indexed type
+- The name of a function with a pair type, a geometric type or an indexed type other than finite Hom
   among its parameter and result types is not a value. Using it as a value is
   an error (`E_TYPE`). A program may only call such a function by its name.
 - A function that has a function type among its parameter and result types
-  must have only scalar types and function types in its signature. Another
+  admits scalar types, finite Hom fibers and function types in its signature. Another
   type there is an error (`E_TYPE`). Its body may still use pairs and geometric
   values.
-- A built-in function is not a value. Its name used as a value is an error
-  (`E_NAME`).
+- The five [exact arithmetic families](expressions.md#operator-expressions)
+  are function values. In `let minus = std::operator::sub;`, `minus` can
+  select either integer method at a call. Passing it to a parameter of
+  type `Fn<(Nat, Nat), Nat>` selects the method on two natural numbers. The
+  parameter types choose the method; an incorrect result type is an error
+  (`E_TYPE`).
+- A built-in function such as `int` or `pair` is not a value. Its name used
+  as a value is an error (`E_NAME`).
 
 
 ```vast

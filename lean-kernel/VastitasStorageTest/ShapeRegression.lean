@@ -89,6 +89,8 @@ private def slots : Shapes.Slots := (List.range 10).map fun n => (n, if n % 2 ==
 private def literal : Scalar → Literal
   | .f64 => .f64 0
   | .complexF64 => .complexF64 0 0
+  | .f32 => .f32 0
+  | .complexF32 => .complexF32 0 0
 
 -- Logical m×k, k×n and m×n maps have independent leading dimensions,
 -- capacities and destination-row slot. Both input transposes are physical.

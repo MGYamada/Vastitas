@@ -124,14 +124,7 @@ theorem lifted_definition_checked {program : DispatchSource.Program} (checked : 
         checked.audit.lowered.origins[function.id]? = some key ∧ key.definition = prepared.definition.id ∧
         Core.Typing.FunctionTyped checked.audit.lowered.module.declarations
           (Core.Typing.signatures checked.audit.lowered.module) function := by
-  have same := checked.preparation
-  simp only [validPrepared, beq_iff_eq] at same
-  have present : definitionIdentity definition ∈ checked.compiler.input.prepared.toList.map
-      (definitionIdentity ∘ FunctionSource.Compiler.Prepared.definition) := by
-    rw [same]
-    exact List.mem_map.mpr ⟨definition, member, rfl⟩
-  obtain ⟨prepared, member, equal⟩ := List.mem_map.mp present
-  have member := Array.mem_toList_iff.mp member
+  obtain ⟨prepared, member, equal⟩ := prepared_contains_lifted checked.preparation member
   exact ⟨prepared, member, equal, definition_body_checked checked prepared member⟩
 
 theorem seed_body_checked {program : DispatchSource.Program} (checked : CheckedProgram program requireMain)

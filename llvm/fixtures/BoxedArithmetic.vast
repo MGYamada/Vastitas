@@ -1,0 +1,5 @@
+pub fn quotient(n: Nat, divisor: Int) -> Int {
+    let remainder: Nat = n - 5;
+    let q = std::operator::div(remainder, divisor);
+    q + q
+}

@@ -122,11 +122,11 @@ fn a_label_is_the_source_text_with_runs_of_whitespace_as_one_space() {
     run(
         "fn add(a: Int, b: Int) -> Int { a + b }
 fn main() -> Int {
-    let shown = show!(  add(1,
+    let shown = show!(  self::add(1,
             2)   +   3 );
     0
 }",
-        shows(&["add(1, 2) + 3 = 6"]),
+        shows(&["self::add(1, 2) + 3 = 6"]),
     );
 }
 
@@ -153,7 +153,7 @@ fn show_stands_only_in_the_top_level_lets_of_main() {
         "fn main() -> Int { let x = { let y = show!(1); y }; x }",
         "fn main() -> Int { let x = if true { let y = show!(1); y } else { 0 }; x }",
         "fn main() -> Int { let f = fn(a: Int) -> Int { let b = show!(a); b }; f(1) }",
-        "fn add(a: Int, b: Int) -> Int { a + b } fn main() -> Int { let x = add(show!(1), 2); x }",
+        "fn add(a: Int, b: Int) -> Int { a + b } fn main() -> Int { let x = self::add(show!(1), 2); x }",
         "fn main() -> Int { let x = show!(1) + 1; x }",
         "fn main() -> Int { let x = (show!(1)); x }",
         "fn main() -> Int { show!(1) }",

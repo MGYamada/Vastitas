@@ -35,12 +35,19 @@ theorem binary_total {env : Declarations} {world : World} {operator : BinaryOp}
     (rule : BinaryTyping operator left right result)
     (leftTyped : ValueHasType env world lhs left) (rightTyped : ValueHasType env world rhs right) :
     ∃ output, evalBinary operator lhs rhs = some output ∧ ValueHasType env world output result := by
-  obtain ⟨same, rule⟩ := rule
-  subst right
-  cases operator <;> dsimp only at rule
+  cases operator
+  case div =>
+    have divRefl : (BinaryOp.div == BinaryOp.div) = true := rfl
+    rcases rule with ⟨rfl,rfl,rfl⟩ | ⟨rfl,rfl,rfl⟩ | ⟨rfl,rfl,rfl⟩ | ⟨rfl,rfl,rfl⟩ <;>
+      cases lhs <;> cases rhs <;> simp_all [ValueHasType, evalBinary, evalNatBinary, evalIntBinary]
+  all_goals obtain ⟨same, rule⟩ := rule; subst right
   all_goals rcases rule with ⟨choice, rfl⟩
+  case eq | ne =>
+    rcases choice with rfl | rfl | rfl | rfl | finite
+    all_goals try (cases left <;> first | contradiction | skip)
+    all_goals cases lhs <;> cases rhs <;>
+      simp_all [ValueHasType, evalBinary, evalNatBinary, evalIntBinary]
   all_goals first
-    | obtain rfl | rfl | rfl | rfl := choice
     | obtain rfl | rfl := choice
     | subst left
   all_goals cases lhs <;> cases rhs <;>
@@ -146,7 +153,7 @@ theorem result_primitive_iff {env : Declarations} {world : World} {value : Value
       cases reference <;> simp only [Result.primitiveType?] at converted <;> try contradiction
       cases converted
       cases value <;> simp [PrimitiveValueHasType, ValueHasResult, ValueHasType, ValueHasRef]
-    | package application => simp [Result.primitiveType?] at converted
+    | finite _ | package _ => simp [Result.primitiveType?] at converted
 
 theorem results_primitive {env : Declarations} {world : World} {values : List Value} {results : List Result}
     {operands : List ValueType} (converted : results.mapM Result.primitiveType? = some operands)
@@ -202,7 +209,7 @@ theorem primitive_frame {world : World} {binding : PrimitiveBinding} {result : R
         cases reference <;> simp only [Result.primitiveType?] at converted <;> try contradiction
         cases converted
         exact unchanged_refl _ _
-      | package _ => contradiction
+      | finite _ | package _ => contradiction
 
 theorem unary_not_object {operator : UnaryOp} {argument result : DataType}
     (rule : UnaryTyping operator argument result) : ∀ type, result ≠ .object type := by
@@ -231,7 +238,7 @@ theorem descriptor_serial {result : Result} {type : ObjectType} {brand : Nat}
       cases converted
       simp [resultSerials, localSerial, primitiveBrand]
     | indexed _ => cases reference <;> simp [Result.primitiveType?] at converted
-    | package _ => contradiction
+    | finite _ | package _ => contradiction
 
 theorem primitive_fresh {env : Declarations} {world : World} {binding : PrimitiveBinding}
     {allowed : List ObjectRef} {operands : List ValueType} {output : ValueType} {result : Result}
@@ -266,7 +273,7 @@ theorem branch_result {env : Declarations} {world : World} {value : Value}
     · have localRule : LocalResult objectType result := by simpa only [same, ↓reduceIte] using association
       simpa only [branchSlots, same, ↓reduceIte] using local_result_total localRule valueTyped
         (show WorldFreshFor world (resultSerials result) from by simpa only [branchSlots, same, ↓reduceIte] using fresh)
-  | pure _ | indexed _ | package _ =>
+  | finite _ | pure _ | indexed _ | package _ =>
     rw [type] at association
     exact ⟨world, ⟨resultTyped, by simp [ValueHasRef, association]⟩,
       worldExtends_refl world, unchanged_refl world _⟩

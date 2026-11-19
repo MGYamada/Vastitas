@@ -77,7 +77,7 @@ const PROFILES: &str =
     include_str!("../examples/packages/numerical/numerical/src/profiles/mod.vast");
 
 /// Operations on a statically sized allocation.
-const STATIC: &str = "    allocate data: F64[1];
+const STATIC: &str = "    allocate data: F64<RR>[1];
     borrow output = write(data, layout(0, 1, 1, 1, false));
     store(output, 0, 0, f64_bits(4631107791820423168));
     release(output);
@@ -107,7 +107,7 @@ def main : IO UInt32 := do
 
 /// Operations on an allocation whose extent is a scalar slot.
 const SHAPED: &str = "    let n: Nat = value { 2 + 1 };
-    runtime_allocate dynamic: F64[n] runtime_layout(n, 1, n, false);
+    runtime_allocate dynamic: F64<RR>[n] runtime_layout(n, 1, n, false);
     runtime_borrow target = write(dynamic);
     runtime_fill(target, f64_bits(4607182418800017408));
     runtime_release(target);
@@ -130,7 +130,7 @@ fn package(source: &str) -> Scratch {
     let s = Scratch::empty("resource entry runtime");
     s.write(
         "Vastitas.toml",
-        "[package]\nname = \"entry\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"entry\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     s.write("main.vast", source);
     // The module that `DECLARATIONS` declares; no other source names it.

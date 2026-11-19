@@ -220,6 +220,10 @@ Implemented: every component of this chapter. Tested:
 [Run compiler, proof and native checks](validation.md) lists the commands for
 each component.
 
+The [Compiler IR v1 specification](../spec/compiler-ir.md) states the Planned
+successor from accepted Core through MidIR to LLVM IR. Its claim statuses
+do not change the evidence for the Lean-source path described here.
+
 ## History
 
 The page was a table of directories with a summary of the proof boundary.

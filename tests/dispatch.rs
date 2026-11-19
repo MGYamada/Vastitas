@@ -50,8 +50,8 @@ fn native_generic_arithmetic_uses_explicit_source_libraries() {
 #[test]
 fn unused_specializations_are_checked_but_not_emitted() {
     let response = kernel(request(
-        "generic wide(a,b,c,d,e,f) { domain; }
-method wide(a: Any,b: Any,c: Any,d: Any,e: Any,f: Any) -> Int { 0 }
+        "fn wide(a,b,c,d,e,f) domain();
+fn wide(a: Any,b: Any,c: Any,d: Any,e: Any,f: Any) -> Int { 0 }
 fn unused() -> Int { 7 }
 fn main() -> Int { 42 }",
     ));
@@ -59,8 +59,8 @@ fn main() -> Int { 42 }",
     let source = response["lean_source"].as_str().unwrap();
     assert_eq!(source.matches("\ndef f_").count(), 1);
     reject(
-        "generic wide(x) { domain; }
-method wide(x: Any) -> Int { x + 1 }
+        "fn wide(x) domain();
+fn wide(x: Any) -> Int { x + 1 }
 fn main() -> Int { 0 }",
         "E_TYPE",
     );
@@ -69,8 +69,8 @@ fn main() -> Int { 0 }",
 #[test]
 fn specialization_cycles_use_readable_names() {
     let message = reject(
-        "generic recursive(x) { domain (Int); }
-method recursive(x: Int) -> Int { recursive(x) }",
+        "fn recursive(x) domain((Int));
+fn recursive(x: Int) -> Int { recursive(x) }",
         "E_RECURSION",
     );
     assert!(
@@ -83,8 +83,8 @@ method recursive(x: Int) -> Int { recursive(x) }",
 #[test]
 fn native_dispatch_lowering_preserves_dependent_geometry_and_packages() {
     native(
-        "generic scalar_dimension(n) { domain (Nat); }
-method scalar_dimension(n: Nat) -> Int { int(n) }
+        "fn scalar_dimension(n) domain((Nat));
+fn scalar_dimension(n: Nat) -> Int { int(n) }
 fn make_ordinary(n: Nat) -> Pointed<Scheme, QQ> {
     let A = Affine(QQ, n);
     pack { scheme: A, point: origin(A) }
@@ -119,12 +119,12 @@ fn library_method_diagnostics_keep_original_files_and_lines_after_lowering() {
     let scratch = Scratch::empty("dispatch");
     let application = scratch.write(
         FILE,
-        "generic broken(x) { domain (Int); }\nfn main() -> Int { broken(0) }",
+        "fn broken(x) domain((Int));\nfn main() -> Int { broken(0) }",
     );
     let library = scratch.0.join("method body.vast");
     fs::write(
         &library,
-        "// library declaration\n\nmethod broken(x: Int) -> Int {\n    true\n}\n",
+        "// library declaration\n\nfn broken(x: Int) -> Int {\n    true\n}\n",
     )
     .unwrap();
     let output = cli()
@@ -143,15 +143,15 @@ fn library_method_diagnostics_keep_original_files_and_lines_after_lowering() {
 
     fs::write(
         &application,
-        "generic cross(x) { domain (Int); }\nfn main() -> Int { cross(0) }",
+        "fn cross(x) domain((Int));\nfn main() -> Int { cross(0) }",
     )
     .unwrap();
     let broad = scratch.0.join("broad method.vast");
     let ordered = scratch.0.join("ordered method.vast");
-    fs::write(&broad, "// broad\nmethod cross(x: Number) -> Int { 1 }\n").unwrap();
+    fs::write(&broad, "// broad\nfn cross(x: Number) -> Int { 1 }\n").unwrap();
     fs::write(
         &ordered,
-        "// capability method\n\nmethod cross(x: Any) -> Int requires (HasOrder) { 2 }\n",
+        "// capability method\n\nfn cross(x: Any) -> Int requires (HasOrder) { 2 }\n",
     )
     .unwrap();
     let output = cli()
@@ -178,14 +178,14 @@ fn library_method_diagnostics_keep_original_files_and_lines_after_lowering() {
 
 #[test]
 fn native_nominal_and_capability_selection_is_declaration_order_independent() {
-    let families = "generic choose(value) { domain (Int), (Nat), (Bool), (Unit); }
-generic rank(value) { domain (Int), (Nat), (Bool), (Unit); }";
+    let families = "fn choose(value) domain((Int), (Nat), (Bool), (Unit));
+fn rank(value) domain((Int), (Nat), (Bool), (Unit));";
     let methods = [
-        "method choose(x: Any) -> Int { 10 }",
-        "method choose(x: Number) -> Int { 20 }",
-        "method choose(x: Int) -> Int { 30 }",
-        "method rank(x: Any) -> Int requires (HasEq) { 1 }",
-        "method rank(x: Any) -> Int requires (HasOrder) { 2 }",
+        "fn choose(x: Any) -> Int { 10 }",
+        "fn choose(x: Number) -> Int { 20 }",
+        "fn choose(x: Int) -> Int { 30 }",
+        "fn rank(x: Any) -> Int requires (HasEq) { 1 }",
+        "fn rank(x: Any) -> Int requires (HasOrder) { 2 }",
     ];
     let main = "fn main() -> Int {
     let n: Nat = 0;
@@ -205,35 +205,32 @@ generic rank(value) { domain (Int), (Nat), (Bool), (Unit); }";
 #[test]
 fn empty_families_and_zero_argument_domains_have_distinct_meanings() {
     native(
-        "generic empty(x) { domain; }
-generic constant() { domain (); }
-method constant() -> Int { 42 }
+        "fn empty(x) domain();
+fn constant() domain(());
+fn constant() -> Int { 42 }
 fn main() -> Int { constant() }",
         &[],
         exits(42),
     );
     reject(
-        "generic empty(x) { domain; }
-method empty(x: Int) -> Int { 42 }
+        "fn empty(x) domain();
+fn empty(x: Int) -> Int { 42 }
 fn main() -> Int { empty(0) }",
         "E_DISPATCH_DOMAIN",
     );
     reject(
-        "generic constant() { domain (); }
-method constant() -> Int requires (HasEq) { 42 }",
+        "fn constant() domain(());
+fn constant() -> Int requires (HasEq) { 42 }",
         "E_CAPABILITY",
     );
 }
 
 #[test]
 fn coverage_is_checked_without_call_sites() {
+    reject("fn missing(x) domain((Int));", "E_DISPATCH_COVERAGE");
     reject(
-        "generic missing(x) { domain (Int); }",
-        "E_DISPATCH_COVERAGE",
-    );
-    reject(
-        "generic partial(x) { domain (Int), (Nat); }
-method partial(x: Int) -> Int { x }",
+        "fn partial(x) domain((Int), (Nat));
+fn partial(x: Int) -> Int { x }",
         "E_DISPATCH_COVERAGE",
     );
 }
@@ -241,10 +238,10 @@ method partial(x: Int) -> Int { x }",
 #[test]
 fn ambiguity_outside_the_callable_domain_cannot_be_hidden() {
     let message = reject(
-        "generic cross(x, y) { domain (Bool, Bool); }
-method cross(x: Any, y: Any) -> Int { 0 }
-method cross(x: Number, y: Any) -> Int { 1 }
-method cross(x: Any, y: Number) -> Int { 2 }",
+        "fn cross(x, y) domain((Bool, Bool));
+fn cross(x: Any, y: Any) -> Int { 0 }
+fn cross(x: Number, y: Any) -> Int { 1 }
+fn cross(x: Any, y: Number) -> Int { 2 }",
         "E_DISPATCH_AMBIGUOUS",
     );
     assert!(message.contains("cross"), "{message}");
@@ -253,15 +250,15 @@ method cross(x: Any, y: Number) -> Int { 2 }",
 #[test]
 fn specificity_uses_the_product_order_not_current_inhabitants() {
     reject(
-        "generic cross(x) { domain (Int), (Nat); }
-method cross(x: Number) -> Int { 1 }
-method cross(x: Any) -> Int requires (HasOrder) { 2 }",
+        "fn cross(x) domain((Int), (Nat));
+fn cross(x: Number) -> Int { 1 }
+fn cross(x: Any) -> Int requires (HasOrder) { 2 }",
         "E_DISPATCH_AMBIGUOUS",
     );
     let message = reject(
-        "generic describe(x) { domain (Int), (Nat); }
-method describe(x: Number) -> Int requires (HasOrder) { 1 }
-method describe(x: Int) -> Int { 2 }",
+        "fn describe(x) domain((Int), (Nat));
+fn describe(x: Number) -> Int requires (HasOrder) { 1 }
+fn describe(x: Int) -> Int { 2 }",
         "E_DISPATCH_AMBIGUOUS",
     );
     for expected in [
@@ -279,13 +276,13 @@ method describe(x: Int) -> Int { 2 }",
 #[test]
 fn pairwise_repairs_do_not_discharge_a_triple_ambiguity() {
     reject(
-        "generic triple(x, y, z) { domain (Int, Int, Int); }
-method triple(x: Int, y: Any, z: Any) -> Int { 1 }
-method triple(x: Any, y: Int, z: Any) -> Int { 2 }
-method triple(x: Any, y: Any, z: Int) -> Int { 3 }
-method triple(x: Int, y: Int, z: Any) -> Int { 4 }
-method triple(x: Int, y: Any, z: Int) -> Int { 5 }
-method triple(x: Any, y: Int, z: Int) -> Int { 6 }",
+        "fn triple(x, y, z) domain((Int, Int, Int));
+fn triple(x: Int, y: Any, z: Any) -> Int { 1 }
+fn triple(x: Any, y: Int, z: Any) -> Int { 2 }
+fn triple(x: Any, y: Any, z: Int) -> Int { 3 }
+fn triple(x: Int, y: Int, z: Any) -> Int { 4 }
+fn triple(x: Int, y: Any, z: Int) -> Int { 5 }
+fn triple(x: Any, y: Int, z: Int) -> Int { 6 }",
         "E_DISPATCH_AMBIGUOUS",
     );
 }
@@ -293,30 +290,28 @@ method triple(x: Any, y: Int, z: Int) -> Int { 6 }",
 #[test]
 fn canonical_capability_duplicates_and_impossible_requirements_are_rejected() {
     reject(
-        "generic duplicate(x) { domain (Int); }
-method duplicate(x: Int) -> Int requires (HasOrder) { 1 }
-method duplicate(x: Int) -> Int requires (HasEq, HasOrder) { 2 }",
+        "fn duplicate(x) domain((Int));
+fn duplicate(x: Int) -> Int requires (HasOrder) { 1 }
+fn duplicate(x: Int) -> Int requires (HasEq, HasOrder) { 2 }",
         "E_DUPLICATE",
     );
     reject(
-        "generic impossible(x) { domain (Bool); }
-method impossible(x: Bool) -> Int requires (HasOrder) { 1 }",
+        "fn impossible(x) domain((Bool));
+fn impossible(x: Bool) -> Int requires (HasOrder) { 1 }",
         "E_CAPABILITY",
     );
     reject(
-        "generic unknown(x) { domain (Int); }
-method unknown(x: Int) -> Int requires (HasMetric) { 1 }",
+        "fn unknown(x) domain((Int));
+fn unknown(x: Int) -> Int requires (HasMetric) { 1 }",
         "E_CAPABILITY",
     );
 }
 
 #[test]
 fn key_limit_applies_to_the_whole_universe_even_for_an_empty_domain() {
-    success(&check(
-        "generic boundary(p0, p1, p2, p3, p4, p5) { domain; }",
-    ));
+    success(&check("fn boundary(p0, p1, p2, p3, p4, p5) domain();"));
     reject(
-        "generic excessive(p0, p1, p2, p3, p4, p5, p6) { domain; }",
+        "fn excessive(p0, p1, p2, p3, p4, p5, p6) domain();",
         "E_LIMIT",
     );
 }
@@ -324,16 +319,16 @@ fn key_limit_applies_to_the_whole_universe_even_for_an_empty_domain() {
 #[test]
 fn every_applicable_body_is_checked_including_nonwinners_and_unexported_keys() {
     reject(
-        "generic hidden(x) { domain (Int), (Nat); }
-method hidden(x: Number) -> Int { x }
-method hidden(x: Int) -> Int { 1 }
-method hidden(x: Nat) -> Int { 2 }",
+        "fn hidden(x) domain((Int), (Nat));
+fn hidden(x: Number) -> Int { x }
+fn hidden(x: Int) -> Int { 1 }
+fn hidden(x: Nat) -> Int { 2 }",
         "E_TYPE",
     );
     reject(
-        "generic hidden(x) { domain (Int); }
-method hidden(x: Number) -> Int { x }
-method hidden(x: Int) -> Int { 1 }",
+        "fn hidden(x) domain((Int));
+fn hidden(x: Number) -> Int { x }
+fn hidden(x: Int) -> Int { 1 }",
         "E_TYPE",
     );
 }
@@ -341,17 +336,17 @@ method hidden(x: Int) -> Int { 1 }",
 #[test]
 fn expected_result_types_do_not_select_a_different_overload() {
     reject(
-        "generic identity(x) { domain (Int), (Nat); }
-method identity(x: Int) -> Int { x }
-method identity(x: Nat) -> Nat { x }
+        "fn identity(x) domain((Int), (Nat));
+fn identity(x: Int) -> Int { x }
+fn identity(x: Nat) -> Nat { x }
 fn main() -> Int { let n: Nat = identity(1); 0 }",
         "E_TYPE",
     );
     reject(
-        "generic add(x, y) { domain (Int, Int), (Nat, Nat); }
-method add(x: Int, y: Int) -> Int { x + y }
-method add(x: Nat, y: Nat) -> Nat { x + y }
-fn main() -> Int { let n: Nat = 1; add(n, 1) }",
+        "fn add(x, y) domain((Int, Int), (Nat, Nat));
+fn add(x: Int, y: Int) -> Int { x + y }
+fn add(x: Nat, y: Nat) -> Nat { x + y }
+fn main() -> Int { let n: Nat = 1; self::add(n, 1) }",
         "E_DISPATCH_DOMAIN",
     );
 }
@@ -359,14 +354,14 @@ fn main() -> Int { let n: Nat = 1; add(n, 1) }",
 #[test]
 fn recursion_is_checked_after_concrete_method_selection() {
     reject(
-        "generic recursive(x) { domain (Int); }
-method recursive(x: Int) -> Int { recursive(x) }",
+        "fn recursive(x) domain((Int));
+fn recursive(x: Int) -> Int { recursive(x) }",
         "E_RECURSION",
     );
     native(
-        "generic promote(x) { domain (Int), (Nat); }
-method promote(x: Nat) -> Int { promote(int(x)) }
-method promote(x: Int) -> Int { x + 1 }
+        "fn promote(x) domain((Int), (Nat));
+fn promote(x: Nat) -> Int { promote(int(x)) }
+fn promote(x: Int) -> Int { x + 1 }
 fn main() -> Int { let n: Nat = 41; promote(n) }",
         &[],
         exits(42),
@@ -376,8 +371,8 @@ fn main() -> Int { let n: Nat = 41; promote(n) }",
 #[test]
 fn forged_protocol_capabilities_and_candidate_hints_cannot_bypass_the_kernel() {
     let valid = request(
-        "generic pick(x) { domain (Bool); }
-method pick(x: Bool) -> Int requires (HasEq) { 42 }
+        "fn pick(x) domain((Bool));
+fn pick(x: Bool) -> Int requires (HasEq) { 42 }
 fn main() -> Int { pick(true) }",
     );
     assert_eq!(kernel(valid.clone())["ok"], true);
@@ -398,9 +393,9 @@ fn main() -> Int { pick(true) }",
     assert_rejected(forged_facts, "E_PROTOCOL");
 
     let mut ambiguous = request(
-        "generic cross(x) { domain (Int); }
-method cross(x: Number) -> Int { 1 }
-method cross(x: Any) -> Int requires (HasOrder) { 2 }
+        "fn cross(x) domain((Int));
+fn cross(x: Number) -> Int { 1 }
+fn cross(x: Any) -> Int requires (HasOrder) { 2 }
 fn main() -> Int { cross(0) }",
     );
     assert_rejected(ambiguous.clone(), "E_DISPATCH_AMBIGUOUS");
@@ -416,8 +411,8 @@ fn main() -> Int { cross(0) }",
 #[test]
 fn forged_private_names_and_dispatch_types_are_independently_rejected() {
     let valid = request(
-        "generic pick(x) { domain (Int); }
-method pick(x: Int) -> Int { x }
+        "fn pick(x) domain((Int));
+fn pick(x: Int) -> Int { x }
 fn main() -> Int { pick(42) }",
     );
     // No source declaration has a reserved name, so a call or a variable of

@@ -12,7 +12,7 @@ repository root without rebuilding either package:
   LEAN_PATH=lean-kernel/.lake/build/lib/lean:lean-kernel/native/.lake/build/lib/lean \
     lean scripts/check_runtime_shape_guards.lean
 
-The 5,488 layout cases cover both scalar widths, capacity/byte bounds, empty
+The 10,976 layout cases cover all four representations, capacity/byte bounds, empty
 dimensions, leading-dimension rules, LP64 boundaries and UInt64 maxima. The
 13 narrowing cases include negative Int, the signed native bound and values
 beyond UInt64; IO failures must agree with the checked optional conversion.
@@ -23,7 +23,7 @@ open VastitasKernel.Storage
 #eval show IO Unit from do
   let dimensions := [0, 1, 2, dimensionLimit - 1, dimensionLimit, dimensionLimit + 1, 2^64 - 1]
   let mut count := 0
-  for scalar in [Scalar.f64, Scalar.complexF64] do
+  for scalar in [Scalar.f64, .complexF64, .f32, .complexF32] do
     let capacities := [0, 1, 8, dimensionLimit * dimensionLimit,
       byteLimit / scalar.width - 1, byteLimit / scalar.width,
       byteLimit / scalar.width + 1, 2^64 - 1]
@@ -31,14 +31,14 @@ open VastitasKernel.Storage
       for rows in dimensions do
         for columns in dimensions do
           for leading in dimensions do
-            let tag : UInt8 := if scalar == .f64 then 0 else 1
+            let tag : UInt8 := match scalar with | .f64 => 0 | .complexF64 => 1 | .f32 => 2 | .complexF32 => 3
             let actual := VastitasStorageNative.runtimeLayoutValid tag
               elements.toUInt64 rows.toUInt64 columns.toUInt64 leading.toUInt64
             let expected := checkLayout scalar (elements * scalar.width) ⟨0, rows, columns, leading, false⟩
             unless actual == expected do
               throw (IO.userError s!"runtime/concrete mismatch: {repr scalar} {elements} {rows} {columns} {leading}")
             count := count + 1
-  unless count == 5488 do
+  unless count == 10976 do
     throw (IO.userError s!"unexpected layout coverage: {count}")
   let mut narrowingCount := 0
   for value in ([0, 1, byteLimit, byteLimit + 1, 2^64, 10^100] : List Nat) do

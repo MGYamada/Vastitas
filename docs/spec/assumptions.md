@@ -6,10 +6,10 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 43 |
-| [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 0 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 64 |
+| [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 3 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
-| [mathlib](#assumption.mathlib) | 16 |
+| [mathlib](#assumption.mathlib) | 17 |
 | [Promotion fixture reflection](#assumption.promotion-reflection) | 7 |
 
 <a id="assumption.rust-frontend"></a>
@@ -22,6 +22,27 @@ The Rust frontend parses each source into the wire request that the source denot
 
 Cited by:
 
+- [`compiler-ir.families`](compiler-ir.md#compiler-ir.families) (`revision-selection`)
+- [`compiler-ir.families`](compiler-ir.md#compiler-ir.families) (`static-retention`)
+- [`compiler-ir.realization`](compiler-ir.md#compiler-ir.realization) (`standard-real-chart`)
+- [`compiler-ir.realization`](compiler-ir.md#compiler-ir.realization) (`identity-origin`)
+- [`compiler-ir.native-fast`](compiler-ir.md#compiler-ir.native-fast) (`identity-run`)
+- [`compiler-ir.finite-models`](compiler-ir.md#compiler-ir.finite-models) (`category-equations`)
+- [`compiler-ir.finite-models`](compiler-ir.md#compiler-ir.finite-models) (`functor-equations`)
+- [`compiler-ir.finite-models`](compiler-ir.md#compiler-ir.finite-models) (`transformation-monad-equations`)
+- [`compiler-ir.finite-models`](compiler-ir.md#compiler-ir.finite-models) (`kleisli-equations`)
+- [`compiler-ir.finite-models`](compiler-ir.md#compiler-ir.finite-models) (`kleisli-run`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`unary-function`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`binary-function`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`finite-entry`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`static-call`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`entry-status`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`assembled-bool`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`folded-entry`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`boxed-library`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`boxed-program`)
+- [`compiler-ir.verification-modes`](compiler-ir.md#compiler-ir.verification-modes) (`boxed-stage`)
+- [`compiler-ir.check-build`](compiler-ir.md#compiler-ir.check-build) (`preview`)
 - [`evidence.names-metric`](metric-evidence.md#evidence.names-metric) (`oracle`)
 - [`evidence.nondegenerate`](metric-evidence.md#evidence.nondegenerate) (`oracle`)
 - [`evidence.nondegenerate`](metric-evidence.md#evidence.nondegenerate) (`bridge`)
@@ -74,7 +95,11 @@ Cited by:
 
 The Lean compiler and the C compiler translate generated Lean into native code that computes the Lean definitions. Native refinement is not proved.
 
-No claim cites this assumption.
+Cited by:
+
+- [`compiler-ir.native-fast`](compiler-ir.md#compiler-ir.native-fast) (`identity-run`)
+- [`compiler-ir.finite-models`](compiler-ir.md#compiler-ir.finite-models) (`kleisli-run`)
+- [`compiler-ir.check-build`](compiler-ir.md#compiler-ir.check-build) (`preview`)
 
 <a id="assumption.lean-rat-gmp"></a>
 
@@ -96,6 +121,7 @@ mathlib, at the commit that `lean-bridge/lake-manifest.json` pins, defines the m
 
 Cited by:
 
+- [`compiler-ir.realization`](compiler-ir.md#compiler-ir.realization) (`coordinate-interpretation`)
 - [`evidence.nondegenerate`](metric-evidence.md#evidence.nondegenerate) (`bridge`)
 - [`evidence.riemannian`](metric-evidence.md#evidence.riemannian) (`bridge`)
 - [`reverse-core.backward.saved`](reverse-core.md#reverse-core.backward.saved) (`bridge`)

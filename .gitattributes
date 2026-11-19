@@ -1,2 +1,5 @@
 # Preserve byte-verified CSV evidence with its original CRLF record separators.
 experiments/contraction_trees/results/*/raw.csv whitespace=cr-at-eol
+
+# Preserve the complete LLVM printer output under every checkout newline setting.
+llvm/src/*.ll -text

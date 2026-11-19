@@ -19,12 +19,17 @@ The library keeps its declarations in
 | Module | Content | Chapter |
 | --- | --- | --- |
 | `std::arithmetic` | Functions on `Int` and on `Nat`, and generic functions over both | This section, and [Chapter 4](dispatch.md) |
+| `std::category` | Finite categories, functors, natural transformations, selected Monads and arrow composition | [Finite carriers and tables](../indexed-source.md#finite-carriers-and-tables) |
 | `std::geometry` | Objects, points and morphisms, presented affine geometry, smooth geometry, metrics and frames | Chapters [7](indexed-geometry.md), [8](affine-geometry.md), [9](smooth-geometry.md) and [10](frames-and-dimensions.md) |
 | `std::differential` | Pullbacks and differentials of smooth maps | [Chapter 9](smooth-geometry.md) |
 | `std::linalg` | The families of free modules, matrix fields, their spectra and the regions of simple eigenvalues | [Matrix fields and their spectra](spectral-observations.md) |
 
 The name `std` is the dependency alias that the examples of this book give
-to the library.
+to the library. To sequence arrows of a selected `std::category::Monad`,
+add the separate `monad` package as a dependency. Its `monad::kleisli`
+module exports the derived `Kleisli` and `KleisliTriple` schemas and the
+ordinary functions `unit`, `extend`, `bind`, `compose` and `lift`.
+[Public package example](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/finite-kleisli)
 
 Physical dimensions are not mathematics, so they are not in `std`: the
 package `nature` in the directory `nature` of the repository holds

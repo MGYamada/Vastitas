@@ -65,7 +65,7 @@ static int verify(VStorageArena *a, uint64_t reps) {
     const double *data[3];
     for (unsigned id = 0; id < 3; ++id) {
         Buffer *buffer = lookup(a,id);
-        data[id] = buffer ? buffer->data : NULL;
+        data[id] = buffer ? (const double *)buffer->data : NULL;
     }
     return verify_data(data,reps,&checksum);
 }
@@ -78,7 +78,7 @@ VStorageArena *vstorage_new(uint64_t budget) {
 VStorageStatus vstorage_drop(VStorageArena *a, uint32_t id) {
     if (id == 2 && lookup(a,id)) {
         if (verify_on_drop) require(verify(a,1));
-        observed ^= word(lookup(a,id)->data[views[2].offset/8]);
+        observed ^= word(*(const double *)(lookup(a,id)->data + views[2].offset));
     }
     return storage_drop_impl(a,id);
 }
@@ -235,12 +235,12 @@ int main(void) {
     uint64_t native_hash = checksum;
     /* Every oracle channel must reject deliberate corruption. */
     for (unsigned id = 0; id < 3; ++id) {
-        double *cell = &a->buffers[id].data[views[id].offset/8];
+        double *cell = (double *)(a->buffers[id].data + views[id].offset);
         double old = *cell; *cell = old+1; require(!verify(a,1)); *cell = old;
     }
     if (views[2].offset) {
-        double old = a->buffers[2].data[0]; a->buffers[2].data[0] = 0;
-        require(!verify(a,1)); a->buffers[2].data[0] = old;
+        double old = *(double *)a->buffers[2].data; *(double *)a->buffers[2].data = 0;
+        require(!verify(a,1)); *(double *)a->buffers[2].data = old;
     }
     /* Aliased output must fail before write. */
     VGemmCoefficient x = {VGEMM_LITERAL,(uint8_t)scalar,word(alpha[0]),word(alpha[1]),0,0};

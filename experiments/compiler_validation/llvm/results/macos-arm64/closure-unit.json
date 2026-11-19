@@ -1,0 +1,107 @@
+{
+  "status": "passed",
+  "target": {
+    "llvm": "23.1.4",
+    "triple": "arm64-apple-darwin27.2.0",
+    "layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+  },
+  "source_sha256": "6d829e68611a58f33da18f9d3c32f1f5c0648c1a690ed9b2561a66aa141fc9c5",
+  "source_main_sha256": "45b9e7054036475b4d3a100e83496b65e32d1eb963a8c92a5d2765011d030a1f",
+  "source_function": "unitAt",
+  "checked_stages": [
+    "compiled Core",
+    "MidIR optimization",
+    "MidIR execution",
+    "LLVM module bytes"
+  ],
+  "reference_sha256": "568a81abab59c6b98cf31833571bedf42e39b72cd713bb6ec1abe19d4ed5a8a1",
+  "emitter_comparison": {
+    "source": "src/lean/Lean/Compiler/IR/EmitLLVM.lean",
+    "sha256": "635bb0e78a3703614b9f175b13f2a8e2adaa890fe7ed144bc33e6e67fab99414",
+    "observations": {
+      "abi_and_untested_notice": {
+        "matched_lines": [
+          25
+        ],
+        "needle": "our CI for LLVM is dysfunctional"
+      },
+      "fixed_size_t": {
+        "matched_lines": [
+          42
+        ],
+        "needle": "def size_tType"
+      },
+      "case_default": {
+        "matched_lines": [
+          1096
+        ],
+        "needle": "def ensureHasDefault'"
+      },
+      "case_tag_width": {
+        "matched_lines": [
+          1111
+        ],
+        "needle": "buildZext builder tag"
+      },
+      "case_switch": {
+        "matched_lines": [
+          1115
+        ],
+        "needle": "buildSwitch builder tag"
+      },
+      "join_point_lowering": {
+        "matched_lines": [
+          1139
+        ],
+        "needle": "by generating SSA phi nodes"
+      },
+      "executable_main": {
+        "matched_lines": [
+          1488
+        ],
+        "needle": "def emitMainFn ("
+      },
+      "main_status": {
+        "matched_lines": [
+          1583
+        ],
+        "needle": "let retv \u2190 callLeanUnboxUint32"
+      },
+      "inbounds_gep": {
+        "matched_lines": [
+          732,
+          788
+        ],
+        "needle": "buildInBoundsGEP"
+      },
+      "bitcode_output": {
+        "matched_lines": [
+          1675
+        ],
+        "needle": "writeBitcodeToFile"
+      }
+    },
+    "role": "comparison only; not a correctness oracle",
+    "executed": false,
+    "execution_gap": "pinned Lean binary reports no LLVM feature"
+  },
+  "module_bytes": 549,
+  "module_sha256": "cb6cc5d2f2162deae4acf3d32a9695f0779586c8f4031e0e9d36098109e98806",
+  "ordinals": [
+    0,
+    1,
+    2,
+    3,
+    4095,
+    4294967295
+  ],
+  "results": [
+    1,
+    2,
+    4294967295,
+    4294967295,
+    4294967295,
+    4294967295
+  ],
+  "changed_result_byte": "rejected before object emission"
+}

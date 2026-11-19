@@ -1,0 +1,8 @@
+[package]
+edition = "2026"
+name = "vastitas_monad"
+version = "0.1.0"
+root = "src/mod.vast"
+
+[dependencies]
+category = { path = "../stdlib/src/category" }

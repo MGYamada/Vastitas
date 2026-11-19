@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "experiment": "compiler-validation-reduction",
+  "scope": "isolated straight-line typed SSA and exact runtime-call lowering",
+  "production_midir": false,
+  "compiler_acceptance": false,
+  "host": {
+    "os": "Darwin",
+    "release": "27.2.0",
+    "machine": "arm64"
+  },
+  "toolchain": {
+    "lean": "leanprover/lean4:v4.35.0",
+    "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+    "nanoda": "0.4.19"
+  },
+  "workload": {
+    "operations": 1000,
+    "chunk_size": 1000,
+    "proof_method": "decide",
+    "model_sha256": "87f887bf8980beae67f22d26f00f571d934c2117e9ec46ea4be9002740e651b6",
+    "fixture_sha256": "02049eac360edc81f836785ed61f9a3d2377351c77f9deed95c7da4fe1b956e9"
+  },
+  "phases": [
+    {
+      "phase": "elaboration",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 4.5184776250389405,
+      "user_seconds": 5.441381,
+      "system_seconds": 0.35969999999999996,
+      "peak_rss_bytes": 721436672,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "official_replay",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 4.186562250019051,
+      "user_seconds": 3.319791,
+      "system_seconds": 0.7872979999999999,
+      "peak_rss_bytes": 572538880,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "export",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 0.7038866250077263,
+      "user_seconds": 0.293826,
+      "system_seconds": 0.259892,
+      "peak_rss_bytes": 929513472,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    {
+      "phase": "nanoda",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 3.3327457910054363,
+      "user_seconds": 3.292359,
+      "system_seconds": 0.034832999999999996,
+      "peak_rss_bytes": 279494656,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed",
+      "checked_declarations": 805
+    }
+  ],
+  "status": "passed",
+  "export": {
+    "sha256": "8f5cf1e9edd1ccc50a47369fcdb7a45c7528c643bb5f109ddf114cab81bab42d",
+    "bytes": 2217957,
+    "records": 43318,
+    "declarations": 805,
+    "target_theorems": [
+      "ReductionFixture.accepted0",
+      "ReductionFixture.refined0",
+      "ReductionFixture.changedCall0",
+      "ReductionFixture.changedWitness0",
+      "ReductionFixture.forwardReference",
+      "ReductionFixture.wrongOperandType"
+    ],
+    "axioms": [
+      "Quot.sound",
+      "propext"
+    ],
+    "axiom_environment_authenticated": false
+  }
+}

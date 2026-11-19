@@ -1,6 +1,6 @@
 resource fn choose(flag: Bool)
-    returns (data: Owned<F64, 1> initialized [layout(0, 1, 1, 1, false)]) -> Bool {
-    allocate data: F64[1];
+    returns (data: Owned<F64<RR>, 1> initialized [layout(0, 1, 1, 1, false)]) -> Bool {
+    allocate data: F64<RR>[1];
     borrow output = write(data, layout(0, 1, 1, 1, false));
     if flag {
         fill(output, f64_bits(4607182418800017408));
@@ -11,7 +11,7 @@ resource fn choose(flag: Bool)
     value { flag }
 }
 
-resource fn finish(data: Owned<F64, 1>, seed: Int) -> Int {
+resource fn finish(data: Owned<F64<RR>, 1>, seed: Int) -> Int {
     drop(data);
     let answer: Int = value { seed + 1 };
     value { answer }

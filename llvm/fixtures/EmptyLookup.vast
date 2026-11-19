@@ -1,0 +1,3 @@
+pub indexed finite Empty {}
+indexed table vacuous(Empty) -> Empty {}
+pub fn empty(x: Empty<>) -> Empty<> { finite::lookup::<vacuous>(x) }

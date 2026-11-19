@@ -1,4 +1,4 @@
-import VastitasOracle.IndexedValueSafety
+import VastitasOracle.FiniteLookup
 
 /-! Whole-term preservation follows the actual Core syntax. Callee contracts
 are discharged separately by induction over the independently checked order. -/
@@ -97,6 +97,21 @@ theorem safe_args_cons {module : Module} {functions : Signatures} {head : Term} 
   exact ⟨after, headValue :: results, arguments_cons headEval tailEval,
     ⟨result_of_worldExtends tailExtends headType, tailTypes⟩,
     worldExtends_trans headExtends tailExtends, unchanged_trans headFrame tailFrame⟩
+
+theorem safe_finiteLookup (module : Module) (functions : Signatures)
+    (site : FiniteLookup) (symbols : List Nat) : SafeTerm module functions (.finiteLookup site symbols) := by
+  intro ctx world values _ _ typed context _ _
+  obtain ⟨tag, ok, hasType⟩ := FiniteLookup.eval_total context typed.2.1 typed.2.2
+  refine ⟨world, .finiteTag site.output tag, ⟨1, ?_⟩, hasType, worldExtends_refl _, ?_⟩
+  · intro fuel enough
+    cases fuel <;> simp_all [eval]
+  · intro _ _; rfl
+
+theorem safe_finiteTag (module : Module) (functions : Signatures) (carrier : FiniteSort) (tag : String) :
+    SafeTerm module functions (.finiteTag carrier tag) := by
+  intro ctx world values valid calls typed context unique fresh
+  exact ⟨world, .finiteTag carrier tag, finiteTag module values carrier tag, ⟨⟨rfl, typed.2⟩, trivial⟩,
+    worldExtends_refl world, unchanged_refl world _⟩
 
 theorem safe_natural (module : Module) (functions : Signatures) (value : Nat) :
     SafeTerm module functions (.natural value) := by
@@ -449,6 +464,8 @@ theorem safe_term_under_calls (module : Module) (functions : Signatures) (term :
   Term.rec
     (motive_1 := SafeTerm module functions)
     (motive_2 := SafeArgs module functions)
+    (safe_finiteTag module functions)
+    (safe_finiteLookup module functions)
     (safe_natural module functions)
     (safe_integer module functions)
     (safe_boolean module functions)

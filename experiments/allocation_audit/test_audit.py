@@ -3,7 +3,12 @@ import copy
 import importlib.util
 import json
 import itertools
+import hashlib
+import os
 from pathlib import Path
+import re
+import sys
+import tempfile
 import unittest
 import zipfile
 
@@ -17,6 +22,112 @@ verify_spec.loader.exec_module(verifier)
 
 
 class AuditTests(unittest.TestCase):
+    def test_current_record_epoch_is_explicit_and_all_envelopes_agree(self):
+        policy = verifier.wire_epoch
+        epoch = policy.CURRENT_PROTOCOL
+        self.assertEqual(policy.declared({'wire_epoch': epoch}), epoch)
+        policy.envelopes(epoch, *[{'version': epoch} for _ in range(4)])
+        for value in (8, 9, epoch + 1, True, float(epoch), '10', None):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                policy.declared({'wire_epoch': value})
+        for position in range(4):
+            for bad in (8, 9, True, float(epoch), None):
+                documents = [{'version': epoch} for _ in range(4)]
+                documents[position]['version'] = bad
+                with self.subTest(position=position, bad=bad), self.assertRaises(ValueError):
+                    policy.envelopes(epoch, *documents)
+
+    def test_only_exact_known_metadata_can_take_historical_replay_path(self):
+        policy = verifier.wire_epoch
+        with zipfile.ZipFile(HERE / 'results/2026-11-01-macos-production/evidence.zip') as archive:
+            raw = archive.read('environment.json')
+        metadata = json.loads(raw)
+        self.assertEqual(policy.declared(metadata), 8)
+        policy.envelopes(8, {'version': 8}, {'version': 8})
+        policy.historical_identity(metadata, raw, 'allocation-audit')
+        for changed in (raw + b' ', b'{}'):
+            with self.assertRaisesRegex(ValueError, 'unknown metadata-absent'):
+                policy.historical_identity(json.loads(changed), changed, 'allocation-audit')
+
+    def test_new_runner_records_exact_kernel_stdin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = audit.Runner(Path(directory), dict(os.environ))
+            wire = json.dumps({'version': verifier.wire_epoch.CURRENT_PROTOCOL})
+            result = runner.run([sys.executable, '-c', 'import sys; sys.stdin.read()'], input=wire)
+            verifier.wire_epoch.input_binding(result, wire.encode())
+            self.assertEqual(json.loads((Path(directory) / 'commands.json').read_text())[0]['stdin'], result['stdin'])
+            with self.assertRaises(ValueError):
+                verifier.wire_epoch.input_binding(result, wire.encode() + b' ')
+
+    def test_current_offline_record_checks_every_input_response_and_logged_stdin(self):
+        # Synthetic epoch-policy fixture only; it is not re-emitted or described
+        # as a protocol-10 native measurement.
+        with zipfile.ZipFile(HERE / 'results/2026-11-01-macos-production/evidence.zip') as archive:
+            files = {name: archive.read(name) for name in archive.namelist()}
+        epoch = verifier.wire_epoch.CURRENT_PROTOCOL
+        environment = json.loads(files['environment.json'])
+        environment['wire_epoch'] = epoch
+        files['environment.json'] = json.dumps(environment).encode()
+        cases = json.loads(files['cases.json'])
+        commands = json.loads(files['commands.json'])
+        emissions = {phase: [c for c in commands if c['phase'] == phase]
+                     for phase in ('kernel_emit', 'kernel_failure_emit')}
+        paths = []
+        for index, (case, variant) in enumerate(itertools.product(cases, verifier.VARIANTS)):
+            prefix = case['case'] + '/' + variant + '/'
+            for name in ('package/wire.json', 'failure-wire.json', 'response.json', 'failure-response.json'):
+                path = prefix + name
+                document = json.loads(files[path]); document['version'] = epoch
+                if 'lean_source' in document:
+                    source = document['lean_source'].replace('def main : IO Unit := do\n',
+                        'def main : IO UInt32 := do\n  let mut status : UInt32 := 0\n')
+                    source = re.sub(r'    IO.println \((VastitasGenerated\.[A-Za-z0-9_]+)\)',
+                        lambda match: f'    status := (UInt32.ofNat (Int.toNat (Int.emod ({match[1]}) 256)))', source)
+                    document['lean_source'] = source + '  pure status\n'
+                    generated = 'GeneratedFailure.lean' if name == 'failure-response.json' else 'Generated.lean'
+                    files[prefix + generated] = document['lean_source'].encode()
+                files[path] = json.dumps(document).encode(); paths.append(path)
+            for phase, response, wire in (('kernel_emit', 'response.json', 'package/wire.json'),
+                                          ('kernel_failure_emit', 'failure-response.json', 'failure-wire.json')):
+                command = emissions[phase][index]
+                command['stdout'] = files[prefix + response].decode()
+                data = files[prefix + wire]
+                command['stdin'] = {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+        for command in commands:
+            if command['phase'] == 'public_execute':
+                command['stdout'] = ''
+        files['commands.json'] = json.dumps(commands).encode()
+        self.assertEqual(verifier.verify(files.__getitem__, files)['records'], 96)
+        for path in paths[:4]:
+            changed = dict(files)
+            document = json.loads(changed[path]); document['version'] = 8
+            changed[path] = json.dumps(document).encode()
+            with self.subTest(path=path), self.assertRaisesRegex(ValueError, 'epoch mismatch'):
+                verifier.verify(changed.__getitem__, changed)
+        changed = dict(files)
+        entries = json.loads(changed['commands.json'])
+        next(c for c in entries if c['phase'] == 'kernel_failure_emit')['stdin']['sha256'] = '0' * 64
+        changed['commands.json'] = json.dumps(entries).encode()
+        with self.assertRaisesRegex(ValueError, 'actual kernel input'):
+            verifier.verify(changed.__getitem__, changed)
+        changed = dict(files)
+        entries = json.loads(changed['commands.json'])
+        next(c for c in entries if c['phase'] == 'public_execute')['stdout'] = '0\n'
+        changed['commands.json'] = json.dumps(entries).encode()
+        with self.assertRaisesRegex(ValueError, 'without output'):
+            verifier.verify(changed.__getitem__, changed)
+
+    def test_retained_public_execution_must_print_zero_without_diagnostics(self):
+        with zipfile.ZipFile(HERE / 'results/2026-11-01-macos-production/evidence.zip') as archive:
+            files = {name: archive.read(name) for name in archive.namelist()}
+        for field, value in (('stdout', ''), ('stdout', '1\n'), ('stderr', 'unexpected warning')):
+            changed = dict(files)
+            entries = json.loads(changed['commands.json'])
+            next(c for c in entries if c['phase'] == 'public_execute')[field] = value
+            changed['commands.json'] = json.dumps(entries).encode()
+            with self.subTest(field=field, value=value), self.assertRaisesRegex(ValueError, 'retained canonical'):
+                verifier.verify(changed.__getitem__, changed)
+
     def verify_mutated_record(self, mutate, variant='production_shared', implementation='generated', scope=0):
         """Mutate semantic records and matching raw stdout, not archive hashes."""
         with zipfile.ZipFile(HERE / 'results/2026-11-01-macos-production/evidence.zip') as archive:

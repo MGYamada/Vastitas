@@ -13,14 +13,13 @@
 mod common;
 use common::{Scratch, checked_replace, expect_code, message_text, symbol_encoding};
 
-const BASE: &str = "pub generic choose(x, y) { domain (Int, Int); }
-method choose(x: Number, y: Number) -> Int { 0 }
+const BASE: &str = "pub fn choose(x, y) domain((Int, Int));
+fn choose(x: Number, y: Number) -> Int { 0 }
 pub grant integers : choose to addon { domain (Int, Int); }
 ";
 const ADDON: &str =
-    "pub contribution sum : base::choose { method base::choose(x: Int, y: Int) -> Int { x + y } }";
-const EVENTS: &str =
-    "borrow base::integers as edit; apply addon::sum using edit; return edit; seal base::choose;";
+    "pub contribution sum : base::choose { fn base::choose(x: Int, y: Int) -> Int { x + y } }";
+const EVENTS: &str = "borrow base::integers as edit { apply addon::sum; }";
 const CALL: &str = "fn main() -> Int { base::choose(40, 2) }";
 
 /// The packages `base`, `addon` (which depends on `base`) and the root `app`
@@ -33,7 +32,7 @@ fn packages(base: &str, addon: &str, events: &str, main: &str) -> Scratch {
     let assembly = if events.is_empty() {
         String::new()
     } else {
-        format!("assembly {{ {events} }} ")
+        format!("assemble base::choose {{ {events} }} ")
     };
     s.write_package(
         "app",
@@ -79,9 +78,9 @@ const DUPLICATE: [&str; 3] = [
 #[test]
 fn equal_methods_of_two_contributions_name_the_generic_by_its_path() {
     let addon = format!(
-        "{ADDON} pub contribution other : base::choose {{ method base::choose(a: Int, b: Int) -> Int {{ a * b }} }}"
+        "{ADDON} pub contribution other : base::choose {{ fn base::choose(a: Int, b: Int) -> Int {{ a * b }} }}"
     );
-    let events = "borrow base::integers as a; apply addon::sum using a; apply addon::other using a; return a; seal base::choose;";
+    let events = "borrow base::integers as a { apply addon::sum; apply addon::other; }";
     assert_eq!(
         rejected(&packages(BASE, &addon, events, CALL), "E_DUPLICATE"),
         DUPLICATE
@@ -93,7 +92,7 @@ fn equal_methods_inside_one_contribution_name_the_generic_by_its_path() {
     let addon = checked_replace(
         ADDON,
         "{ x + y } }",
-        "{ x + y } method base::choose(a: Int, b: Int) -> Int { a * b } }",
+        "{ x + y } fn base::choose(a: Int, b: Int) -> Int { a * b } }",
     );
     assert_eq!(
         rejected(&packages(BASE, &addon, EVENTS, CALL), "E_DUPLICATE"),
@@ -112,7 +111,7 @@ fn equal_methods_of_a_contribution_and_the_defining_module_name_the_generic_by_i
 
 #[test]
 fn a_repeated_generic_parameter_is_named_as_it_is_written() {
-    let repeated = "generic g(x, x) { domain (Int, Int); } method g(a: Int, b: Int) -> Int { a }";
+    let repeated = "fn g(x, x) domain((Int, Int)); fn g(a: Int, b: Int) -> Int { a }";
     let expected = ["E_DUPLICATE: duplicate generic parameter 'x'"];
     assert_eq!(
         rejected(
@@ -166,8 +165,7 @@ fn a_call_outside_the_domain_of_a_dependency_generic_names_it_by_its_path() {
         expected
     );
     // A generic in a module of the dependency is named with that module.
-    let nested =
-        "pub mod inner { pub generic pick(x) { domain (Int); } method pick(x: Int) -> Int { x } }";
+    let nested = "pub mod inner { pub fn pick(x) domain((Int)); fn pick(x: Int) -> Int { x } }";
     assert_eq!(
         rejected(
             &packages(
@@ -187,7 +185,7 @@ fn an_ambiguity_left_at_the_seal_names_the_generic_and_its_candidates_by_path() 
     let base = checked_replace(
         BASE,
         "pub grant",
-        "method choose(x: Int, y: Number) -> Int { 1 }\npub grant",
+        "fn choose(x: Int, y: Number) -> Int { 1 }\npub grant",
     );
     let addon = checked_replace(ADDON, "x: Int, y: Int", "x: Number, y: Int");
     assert_eq!(
@@ -209,8 +207,8 @@ fn an_uncovered_key_names_the_generic_and_its_candidates_by_path() {
     // A generic that the assembly edits.
     let base = checked_replace(
         BASE,
-        "domain (Int, Int); }\nmethod",
-        "domain (Int, Int), (Bool, Bool); }\nmethod",
+        "domain((Int, Int));\nfn",
+        "domain((Int, Int), (Bool, Bool));\nfn",
     );
     assert_eq!(
         rejected(&packages(&base, ADDON, EVENTS, CALL), "E_DISPATCH_COVERAGE"),
@@ -223,9 +221,7 @@ fn an_uncovered_key_names_the_generic_and_its_candidates_by_path() {
         ]
     );
     // A generic of the dependency that no assembly edits.
-    let base = format!(
-        "{BASE}pub generic other(x) {{ domain (Bool); }} method other(x: Number) -> Int {{ 0 }}"
-    );
+    let base = format!("{BASE}pub fn other(x) domain((Bool)); fn other(x: Number) -> Int {{ 0 }}");
     assert_eq!(
         rejected(&packages(&base, ADDON, EVENTS, CALL), "E_DISPATCH_COVERAGE"),
         [
@@ -261,7 +257,7 @@ fn abstract_types_are_named_by_path_in_hierarchy_notes_and_candidate_signatures(
         checked_replace(
             BASE,
             "pub grant",
-            "method choose(x: Small, y: Number) -> Int { 1 }\npub grant"
+            "fn choose(x: Small, y: Number) -> Int { 1 }\npub grant"
         )
     );
     let addon = checked_replace(ADDON, "x: Int, y: Int", "x: Number, y: base::Small");
@@ -282,7 +278,7 @@ fn abstract_types_are_named_by_path_in_hierarchy_notes_and_candidate_signatures(
 #[test]
 fn the_audit_of_an_unapplied_contribution_names_the_generic_by_its_path() {
     let addon = format!(
-        "{ADDON} pub contribution spare : base::choose {{ method base::choose(x: Int) -> Int {{ x }} }}"
+        "{ADDON} pub contribution spare : base::choose {{ fn base::choose(x: Int) -> Int {{ x }} }}"
     );
     assert_eq!(
         rejected(&packages(BASE, &addon, EVENTS, CALL), "E_ARITY"),
@@ -317,8 +313,8 @@ fn located(s: &Scratch, code: &str) -> Vec<String> {
 #[test]
 fn the_audit_of_an_unapplied_contribution_points_at_the_method_it_rejects() {
     const ARITY: &str = "base/main.vast:1:5: E_ARITY: generic 'base::choose': method selector arity differs from its generic";
-    const ACCEPTED: &str = "    method base::choose(a: Number, b: Int) -> Int { 0 }";
-    const UNARY: &str = "    method base::choose(c: Int) -> Int { c }";
+    const ACCEPTED: &str = "    fn base::choose(a: Number, b: Int) -> Int { 0 }";
+    const UNARY: &str = "    fn base::choose(c: Int) -> Int { c }";
     // `sum` and its method are on line 1 of `addon`, the methods of `spare`
     // on line 3 and after.
     let spare = |methods: &[&str]| {
@@ -346,7 +342,7 @@ fn the_audit_of_an_unapplied_contribution_points_at_the_method_it_rejects() {
         [ARITY.to_string(), note(4)]
     );
     // Another code of the audit with a candidate note.
-    let unsupported = "    method base::choose(c: Int, d: Int) -> Int requires (Foo) { c }";
+    let unsupported = "    fn base::choose(c: Int, d: Int) -> Int requires (Foo) { c }";
     assert_eq!(
         located(
             &packages(BASE, &spare(&[unsupported]), EVENTS, CALL),

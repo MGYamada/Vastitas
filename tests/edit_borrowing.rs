@@ -3,15 +3,14 @@ use common::{Scratch, cli, flat_module, kernel, request, success};
 use serde_json::{Value, json};
 
 const BASE: &str = r#"
-pub generic choose(x, y) { domain (Int, Int); }
-method choose(x: Number, y: Number) -> Int { 0 }
+pub fn choose(x, y) domain((Int, Int));
+fn choose(x: Number, y: Number) -> Int { 0 }
 pub grant integers : choose to addon { domain (Int, Int); }
 pub grant second : choose to addon { domain (Int, Int); }
 "#;
 const ADDON: &str =
-    "pub contribution sum : base::choose { method base::choose(x: Int, y: Int) -> Int { x + y } }";
-const EVENTS: &str =
-    "borrow base::integers as edit; apply addon::sum using edit; return edit; seal base::choose;";
+    "pub contribution sum : base::choose { fn base::choose(x: Int, y: Int) -> Int { x + y } }";
+const EVENTS: &str = "borrow base::integers as edit { apply addon::sum; }";
 
 fn fixture(base: &str, addon: &str, events: &str) -> Scratch {
     let s = Scratch::empty("edit borrowing");
@@ -19,7 +18,7 @@ fn fixture(base: &str, addon: &str, events: &str) -> Scratch {
     s.write_package("addon", addon, "base={path='../base'}");
     s.write_package(
         "app",
-        &format!("assembly {{ {events} }} fn main() -> Int {{ base::choose(40, 2) }}"),
+        &format!("assemble base::choose {{ {events} }} fn main() -> Int {{ base::choose(40, 2) }}"),
         "base={path='../base'}\naddon={path='../addon'}\ndiamond={path='../addon'}",
     );
     s
@@ -35,10 +34,7 @@ fn rejects(s: &Scratch, code: &str) {
 
 #[test]
 fn external_edit_and_diamond_replay_execute_once() {
-    let events = EVENTS.replace(
-        "return edit;",
-        "apply diamond::sum using edit; return edit;",
-    );
+    let events = EVENTS.replace("apply addon::sum;", "apply addon::sum, diamond::sum;");
     let s = fixture(BASE, ADDON, &events);
     success(&check(&s));
     success(
@@ -62,45 +58,56 @@ fn external_edit_and_diamond_replay_execute_once() {
 
 #[test]
 fn loans_are_exclusive_and_grants_do_not_activate_edit_authority() {
-    for (events, code) in [
-        (
-            "borrow base::integers as a; borrow base::integers as b;",
-            "E_BORROW",
+    rejects(&fixture(BASE, ADDON, "apply addon::sum;"), "E_OWNER");
+    rejects(
+        &fixture(
+            BASE,
+            ADDON,
+            "borrow base::integers as a { apply addon::sum; } borrow base::second as b { apply addon::sum; }",
         ),
-        ("apply addon::sum using absent;", "E_BORROW"),
-        ("apply addon::sum;", "E_OWNER"),
-        ("borrow base::integers as a; seal base::choose;", "E_BORROW"),
-        (
-            "borrow base::integers as a; return a; return a;",
-            "E_BORROW",
-        ),
-        ("borrow base::integers as a;", "E_BORROW"),
-        (
-            "borrow base::integers as a; apply addon::sum using a; return a;",
-            "E_ASSEMBLY",
-        ),
-        (
-            "seal base::choose; borrow base::integers as a;",
-            "E_ASSEMBLY",
-        ),
-        (
-            "borrow base::integers as a; return a; apply addon::sum using a;",
-            "E_BORROW",
-        ),
-        (
-            "borrow base::integers as a; apply addon::sum using a; return a; borrow base::second as b; apply addon::sum using b;",
-            "E_PROVENANCE",
-        ),
+        "E_PROVENANCE",
+    );
+
+    // These ill-scoped traces have no structured source spelling. Start with
+    // an accepted public request and replace only the event sequence.
+    let raw = raw_program();
+    let events = raw["packages"][0]["modules"][0]["assembly"]["events"]
+        .as_array()
+        .unwrap();
+    let (open, apply, close, seal) = (&events[0], &events[1], &events[2], &events[3]);
+    let mut absent = apply.clone();
+    absent["loan"] = json!("absent");
+    let mut other = open.clone();
+    other["loan"] = json!("other");
+    for (forged, code) in [
+        (json!([open, other, close, seal]), "E_BORROW"),
+        (json!([absent, seal]), "E_BORROW"),
+        (json!([open, seal]), "E_BORROW"),
+        (json!([open, close, close, seal]), "E_BORROW"),
+        (json!([open]), "E_BORROW"),
+        (json!([open, apply, close]), "E_ASSEMBLY"),
+        (json!([seal, open]), "E_ASSEMBLY"),
+        (json!([open, close, apply, seal]), "E_BORROW"),
     ] {
-        rejects(&fixture(BASE, ADDON, events), code);
+        let mut bad = raw.clone();
+        bad["packages"][0]["modules"][0]["assembly"]["events"] = forged;
+        common::assert_wire_rejected(&kernel(&bad, "check"), code);
     }
     let base = format!(
-        "{BASE} pub contribution own : choose {{ method choose(x: Int, y: Int) -> Int {{ 42 }} }}"
+        "{BASE} pub contribution own : choose {{ fn choose(x: Int, y: Int) -> Int {{ 42 }} }}"
     );
-    rejects(
-        &fixture(&base, ADDON, "borrow base::integers as a; apply base::own;"),
-        "E_BORROW",
-    );
+    let s = fixture(&base, ADDON, "borrow base::integers {} apply base::own;");
+    let mut raw = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+    let events = raw["packages"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|p| p["name"] == "app")
+        .unwrap()["modules"][0]["assembly"]["events"]
+        .as_array_mut()
+        .unwrap();
+    events.swap(1, 2); // Attempt the owner's edit while borrowed.
+    common::assert_wire_rejected(&kernel(raw, "check"), "E_BORROW");
 }
 
 #[test]
@@ -135,13 +142,13 @@ fn final_winning_footprint_and_all_bodies_are_checked() {
         common::exits(0)
     );
     let duplicate = format!(
-        "{ADDON} pub contribution other : base::choose {{ method base::choose(a: Int, b: Int) -> Int {{ 1 }} }}"
+        "{ADDON} pub contribution other : base::choose {{ fn base::choose(a: Int, b: Int) -> Int {{ 1 }} }}"
     );
     rejects(
         &fixture(
             BASE,
             &duplicate,
-            "borrow base::integers as a; apply addon::sum using a; apply addon::other using a; return a; seal base::choose;",
+            "borrow base::integers as a { apply addon::sum; apply addon::other; }",
         ),
         "E_DUPLICATE",
     );
@@ -157,16 +164,16 @@ fn open_return_can_be_repaired_by_owner_before_seal() {
         .join(", ");
     let base = format!(
         r#"
-pub generic choose(x, y) {{ domain (Int, Int); }}
-method choose(x: Any, y: Any) -> Int {{ 0 }}
+pub fn choose(x, y) domain((Int, Int));
+fn choose(x: Any, y: Any) -> Int {{ 0 }}
 pub grant integers : choose to addon {{ domain {region}; }}
-pub contribution repair : choose {{ method choose(x: Number, y: Number) -> Int {{ 42 }} }}
+pub contribution repair : choose {{ fn choose(x: Number, y: Number) -> Int {{ 42 }} }}
 "#
     );
     let addon = "pub contribution cross : base::choose {
-method base::choose(x: Number, y: Any) -> Int { 1 }
-method base::choose(x: Any, y: Number) -> Int { 2 } }";
-    let events = "borrow base::integers as a; apply addon::cross using a; return a; apply base::repair; seal base::choose;";
+fn base::choose(x: Number, y: Any) -> Int { 1 }
+fn base::choose(x: Any, y: Number) -> Int { 2 } }";
+    let events = "borrow base::integers as a { apply addon::cross; } apply base::repair;";
     success(&check(&fixture(&base, addon, events)));
     rejects(
         &fixture(&base, addon, &events.replace("apply base::repair;", "")),
@@ -183,7 +190,10 @@ fn exact_module_root_placement_and_selected_closure_are_required() {
     s.write("addon/child.vast", "pub fn marker() -> Int { 0 }");
     rejects(&s, "E_OWNER");
     let s = fixture(BASE, ADDON, EVENTS);
-    s.write("addon/main.vast", &format!("{ADDON} assembly {{ }}"));
+    s.write(
+        "addon/main.vast",
+        &format!("{ADDON} assemble base::choose {{ }}"),
+    );
     rejects(&s, "E_ASSEMBLY");
     let s = fixture(BASE, ADDON, EVENTS);
     s.write_package("unselected", "fn f() -> Int { 0 }", "");
@@ -197,7 +207,7 @@ fn exact_module_root_placement_and_selected_closure_are_required() {
 #[test]
 fn nonwinning_applied_body_is_checked_even_with_an_empty_footprint() {
     let base = BASE.replace("to addon { domain (Int, Int); }", "to addon { domain; }")
-        + "method choose(x: Int, y: Int) requires (HasOrder) -> Int { 42 }";
+        + "fn choose(x: Int, y: Int) requires (HasOrder) -> Int { 42 }";
     let addon = ADDON.replace("-> Int { x + y }", "requires (HasEq) -> Int { true }");
     rejects(&fixture(&base, &addon, EVENTS), "E_TYPE");
 }
@@ -206,7 +216,7 @@ fn nonwinning_applied_body_is_checked_even_with_an_empty_footprint() {
 fn hierarchy_and_contract_changes_revalidate_the_entire_assembly() {
     let base = BASE.replace("x: Number, y: Number", "x: Any, y: Any")
         + "pub abstract type Selected <: Any; subtype Int <: Selected;";
-    let addon = "pub contribution sum : base::choose { method base::choose(x: base::Selected, y: Int) -> Int { 42 } }";
+    let addon = "pub contribution sum : base::choose { fn base::choose(x: base::Selected, y: Int) -> Int { 42 } }";
     let s = fixture(&base, addon, EVENTS);
     success(&check(&s));
     // A newly admitted key lies outside the original exact grant region.
@@ -217,7 +227,7 @@ fn hierarchy_and_contract_changes_revalidate_the_entire_assembly() {
     rejects(&s, "E_IMPACT");
     s.write(
         "base/main.vast",
-        &(base + "abstract method choose(x: Int, y: Int) -> Bool { domain (Int, Int); }"),
+        &(base + "fn choose(x: Int, y: Int) -> Bool domain((Int, Int));"),
     );
     rejects(&s, "E_CONTRACT_RESULT");
 }
@@ -227,30 +237,42 @@ fn hierarchy_and_contract_changes_revalidate_the_entire_assembly() {
 fn raw_module(source: &str) -> Value {
     flat_module(&mut request(source, "edit-raw.vast")).take()
 }
+const RAW_MAIN: &str = "fn main() -> Int { 42 }";
+
 fn raw_program() -> Value {
     let span = json!({"start":0,"end":0,"line":1,"column":1});
     let mut base = raw_module(
-        "generic choose(x, y) { domain (Int, Int); } method choose(x: Number, y: Number) -> Int { 0 }",
+        "fn choose(x, y) domain((Int, Int)); fn choose(x: Number, y: Number) -> Int { 0 }",
     );
     base["grants"] = json!([{"name":"integers","target":["choose"],"grantee_package":"addon","grantee_path":[],
         "region":[["Int","Int"]],"span":span,"public":true}]);
     let mut addon = raw_module("");
-    let mut method = raw_module(
-        "generic choose(x,y) { domain; } method choose(x: Int,y: Int) -> Int { x+y }",
-    )["methods"][0]
+    let mut method = raw_module("fn choose(x,y) domain(); fn choose(x: Int,y: Int) -> Int { x+y }")
+        ["methods"][0]
         .take();
     method["name"] = json!("base::choose");
     addon["contributions"] = json!([{"name":"sum","target":["base","choose"],"methods":[method],"span":span,"public":true}]);
-    let mut app = raw_module("fn main() -> Int { 42 }");
-    app["assembly"] = json!({"span":span,"events":[
-        {"op":"borrow","grant":["base","integers"],"loan":"edit","span":span},
-        {"op":"apply","contribution":["addon","sum"],"loan":"edit","span":span},
-        {"op":"return","loan":"edit","span":span},
-        {"op":"seal","target":["base","choose"],"span":span}]});
-    json!({"version":common::CURRENT_PROTOCOL,"file":"edit-raw.vast","root":"/app/Vastitas.toml","packages":[
-        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","modules":[app],"dependencies":[{"alias":"base","target":"/base/Vastitas.toml"},{"alias":"addon","target":"/addon/Vastitas.toml"}]},
-        {"source":"/addon/Vastitas.toml","name":"addon","version":"0.1.0","modules":[addon],"dependencies":[{"alias":"base","target":"/base/Vastitas.toml"}]},
-        {"source":"/base/Vastitas.toml","name":"base","version":"0.1.0","modules":[base],"dependencies":[]}
+    let mut app = raw_module(RAW_MAIN);
+    // A handwritten protocol request with real, ordered lexical locations.
+    let text = format!(
+        "{RAW_MAIN}\nassemble base::choose {{ borrow base::integers as edit {{ apply addon::sum; }} }}"
+    );
+    let line_start = RAW_MAIN.len() + 1;
+    let place = |start: usize, end: usize| json!({"start":line_start+start,"end":line_start+end,"line":2,"column":start+1});
+    app["assembly"] = json!({"span":place(0,77),"source":[
+        {"kind":"family","target":["base","choose"],"span":place(0,23)},
+        {"kind":"borrow","grant":["base","integers"],"label":"edit","span":place(24,55)},
+        {"kind":"apply","contributions":[["addon","sum"]],"span":place(56,73)},
+        {"kind":"close","span":place(74,75)}, {"kind":"close","span":place(76,77)}],
+      "events":[
+        {"op":"borrow","grant":["base","integers"],"loan":"edit","span":place(24,55)},
+        {"op":"apply","contribution":["addon","sum"],"loan":"edit","span":place(56,73)},
+        {"op":"return","loan":"edit","span":place(74,75)},
+        {"op":"seal","target":["base","choose"],"span":place(76,77)}]});
+    json!({"version":common::CURRENT_PROTOCOL,"file":"edit-raw.vast","root":"/app/Vastitas.toml","root_source":{"offset":0,"text":text},"packages":[
+        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","edition":"2026","modules":[app],"dependencies":[{"alias":"base","target":"/base/Vastitas.toml"},{"alias":"addon","target":"/addon/Vastitas.toml"}]},
+        {"source":"/addon/Vastitas.toml","name":"addon","version":"0.1.0","edition":"2026","modules":[addon],"dependencies":[{"alias":"base","target":"/base/Vastitas.toml"}]},
+        {"source":"/base/Vastitas.toml","name":"base","version":"0.1.0","edition":"2026","modules":[base],"dependencies":[]}
     ]})
 }
 
@@ -310,7 +332,7 @@ fn new_words_are_contextual_and_ordinary_return_stays_unsupported() {
 
 #[test]
 fn omitted_assembly_keeps_all_declaration_and_unapplied_body_audits() {
-    for empty in ["", "assembly { }"] {
+    for empty in ["", "assemble base::choose { }"] {
         let s = fixture(BASE, ADDON, "");
         s.write(
             "app/main.vast",
@@ -331,6 +353,7 @@ fn omitted_assembly_keeps_all_declaration_and_unapplied_body_audits() {
         .as_object_mut()
         .unwrap()
         .remove("assembly");
+    raw["root_source"]["text"] = json!(RAW_MAIN);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     raw["packages"][1]["modules"][0]["contributions"][0]["methods"][0]["return_type"] =
         json!({"kind":"named","name":"Bool"});
@@ -338,16 +361,16 @@ fn omitted_assembly_keeps_all_declaration_and_unapplied_body_audits() {
 }
 
 #[test]
-fn domains_share_trailing_comma_rules_and_public_contracts_have_a_specific_error() {
+fn domains_share_trailing_comma_rules_and_contract_results_are_checked() {
     let base = BASE.replace("(Int, Int);", "(Int, Int,), ;")
-        + "abstract method choose(x: Int, y: Int) -> Int { domain (Int, Int,), ; }";
+        + "fn choose(x: Int, y: Int) -> Int domain((Int, Int,),);";
     success(&check(&fixture(&base, ADDON, EVENTS)));
     let s = fixture(
-        &base.replace("abstract method", "pub abstract method"),
+        &base.replace("-> Int domain", "-> Bool domain"),
         ADDON,
         EVENTS,
     );
     let output = check(&s);
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("abstract methods cannot be pub"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("E_CONTRACT_RESULT"));
 }

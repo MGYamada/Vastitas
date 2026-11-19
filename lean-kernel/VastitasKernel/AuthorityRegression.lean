@@ -56,6 +56,26 @@ private def rejects (result : Except Diagnostic α) (code : String) : Bool :=
 
 #eval check "authority assembly acceptance" ((assemble program.indexed).isOk)
 
+/-- A borrow with no edits still belongs to its enclosing family. The old
+trace discipline alone accepted a borrow/return of choose sealed as other. -/
+private def twoFamilies (trace : List EditEvent) : Namespace.Program :=
+  { program with packages := program.packages.map fun pkg =>
+    { pkg with modules := pkg.modules.map fun m =>
+      if pkg.id == app then { m with assembly := some ⟨trace, {}⟩ }
+      else if pkg.id == base then { m with
+        generics := m.generics ++ [{ m.generics.head! with name := "other" }],
+        methods := m.methods ++ [method "other" "Number"] }
+      else m } }
+
+private def borrowOnly : List EditEvent :=
+  [.borrow ["base", "outer"] "loan" {}, .release "loan" {}]
+#eval check "two blocks with independent family identities" ((assemble (twoFamilies
+  (borrowOnly ++ [.seal ["base", "choose"] {}, .seal ["base", "other"] {}])).indexed).isOk)
+#eval check "borrow cannot be hidden in another family block" (rejects (assemble (twoFamilies
+  (borrowOnly ++ [.seal ["base", "other"] {}, .seal ["base", "choose"] {}])).indexed) "E_ASSEMBLY")
+#eval check "trailing borrow must belong to a sealed block" (rejects (assemble
+  (twoFamilies borrowOnly).indexed) "E_ASSEMBLY")
+
 private def auditActive (test : Prepared program.indexed → State → Bool) : Bool :=
   match prepare program.indexed with
   | .error _ => false

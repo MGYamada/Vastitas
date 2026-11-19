@@ -641,7 +641,7 @@ name = "VastitasBridge"
     def manifest(self, directory, dependencies=""):
         """A package manifest under `directory` with the given [dependencies] lines."""
         self.write(f"{directory}/Vastitas.toml",
-                   f'[package]\nname = "p"\nversion = "0.1.0"\nroot = "mod.vast"\n\n[dependencies]\n{dependencies}')
+                   f'[package]\nedition = \'2026\'\nname = "p"\nversion = "0.1.0"\nroot = "mod.vast"\n\n[dependencies]\n{dependencies}')
 
     def library_packages(self):
         """The layout of the std and nature packages (ADR 0002 §1)."""
@@ -660,6 +660,17 @@ name = "VastitasBridge"
         self.manifest("nature/extra", 'geometry = { path = "../../stdlib/src/geometry" }\n'
                                       'nature = { path = ".." }\n')
         self.assertEqual(check_boundaries(self.root), [])
+
+    def test_optional_monad_may_consume_category_without_std_loading_monad(self):
+        self.library_packages()
+        self.manifest("stdlib/src/category")
+        self.manifest("monad", 'category = { path = "../stdlib/src/category" }\n')
+        self.assertEqual(check_boundaries(self.root), [])
+        self.manifest("stdlib", 'adapter = { path = "../monad" }\n')
+        self.assert_boundary_error("dependency `adapter` on ../monad leaves stdlib/")
+        self.manifest("stdlib")
+        self.manifest("monad", 'model = { path = "../nature" }\n')
+        self.assert_boundary_error("dependency `model` on ../nature leaves stdlib/ and monad/")
 
     def test_a_std_to_nature_edge_is_rejected(self):
         self.library_packages()
@@ -739,7 +750,7 @@ name = "VastitasBridge"
             with self.subTest(dependencies=dependencies):
                 self.manifest("stdlib/src/geometry", dependencies)
                 self.assert_boundary_error(f"stdlib/src/geometry/Vastitas.toml: {expected}")
-        self.write("stdlib/src/geometry/Vastitas.toml", "dependencies = 1\n[package]\n")
+        self.write("stdlib/src/geometry/Vastitas.toml", "dependencies = 1\n[package]\nedition = \'2026\'\n")
         self.assert_boundary_error("stdlib/src/geometry/Vastitas.toml: [dependencies] must be a table")
         self.write("stdlib/src/geometry/Vastitas.toml", "[package\n")
         self.assert_boundary_error("stdlib/src/geometry/Vastitas.toml: cannot check library dependencies")

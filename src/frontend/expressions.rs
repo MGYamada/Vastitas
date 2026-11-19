@@ -259,7 +259,7 @@ impl Parser {
                 "&&" => 3,
                 "==" | "!=" | "<" | "<=" | ">" | ">=" => 5,
                 "+" | "-" => 9,
-                "*" => 11,
+                "*" | "/" => 11,
                 _ => break,
             };
             if power < min_binding_power {
@@ -296,6 +296,24 @@ impl Parser {
     // recursion through nested calls.
     #[inline(never)]
     fn call(&mut self, callee: Expr, callee_depth: usize) -> Result<(Expr, usize), Diagnostic> {
+        let (args, mut children) = self.call_arguments()?;
+        let span = callee.span.through(self.previous().span);
+        let kind = match callee.kind {
+            ExprKind::Variable { name } => ExprKind::Call { callee: name, args },
+            _ => {
+                children = children.max(callee_depth);
+                ExprKind::Invoke {
+                    callee: Box::new(callee),
+                    args,
+                }
+            }
+        };
+        let depth = Self::tree_depth(children, span)?;
+        Ok((Expr { kind, span }, depth))
+    }
+
+    #[inline(never)]
+    fn call_arguments(&mut self) -> Result<(Vec<Expr>, usize), Diagnostic> {
         let mut args = Vec::new();
         let mut children = 0;
         if !self.consume(")") {
@@ -312,20 +330,7 @@ impl Parser {
                 }
             }
         }
-        let span = callee.span.through(self.previous().span);
-        let kind = match callee.kind {
-            // A named callee is part of the call node, not a child.
-            ExprKind::Variable { name } => ExprKind::Call { callee: name, args },
-            _ => {
-                children = children.max(callee_depth);
-                ExprKind::Invoke {
-                    callee: Box::new(callee),
-                    args,
-                }
-            }
-        };
-        let depth = Self::tree_depth(children, span)?;
-        Ok((Expr { kind, span }, depth))
+        Ok((args, children))
     }
 
     // Compound forms are parsed out of line, so the recursive path through
@@ -385,8 +390,24 @@ impl Parser {
                 if !KEYWORDS.contains(&name.as_str())
                     || (self.packages && name == "generic" && self.peek().is("::")) =>
             {
-                if self.packages {
-                    while self.consume("::") {
+                if !self.packages
+                    && name == "self"
+                    && self.peek().is("::")
+                    && self
+                        .peek_second()
+                        .is_some_and(|token| EXACT_OPERATORS.iter().any(|op| token.is(op)))
+                {
+                    self.advance();
+                    name.push_str("::");
+                    name.push_str(&self.path_component()?.0);
+                }
+                if self.packages || name == "std" {
+                    while self.peek().is("::") {
+                        let callee_span = start.through(self.previous().span);
+                        self.advance();
+                        if self.consume("<") {
+                            return self.finite_call(&name, callee_span);
+                        }
                         let (component, _) = self.path_component()?;
                         name.push_str("::");
                         name.push_str(&component);
@@ -422,6 +443,33 @@ impl Parser {
         let span = start.through(self.previous().span);
         let depth = Self::tree_depth(children, span)?;
         Ok((Expr { kind, span }, depth))
+    }
+
+    fn finite_call(&mut self, name: &str, callee_span: Span) -> Result<(Expr, usize), Diagnostic> {
+        self.indexed = true;
+        let first = self.type_path()?;
+        let remaining = if name != "finite::lookup" && self.consume(",") {
+            self.delimited_tail(">", Self::type_path)?
+        } else {
+            self.expect(">")?;
+            Vec::new()
+        };
+        self.expect("(")?;
+        let (args, children) = self.call_arguments()?;
+        let kind = if name == "finite::lookup" {
+            ExprKind::FiniteLookup { table: first, args }
+        } else {
+            ExprKind::FiniteCall {
+                callee: TypePath {
+                    path: name.split("::").map(str::to_owned).collect(),
+                    span: callee_span,
+                },
+                indices: std::iter::once(first).chain(remaining).collect(),
+                args,
+            }
+        };
+        let span = callee_span.through(self.previous().span);
+        Ok((Expr { kind, span }, Self::tree_depth(children, span)?))
     }
 
     #[inline(never)]
@@ -475,7 +523,7 @@ impl Parser {
 
     #[inline(never)]
     fn lambda(&mut self) -> Result<(ExprKind, usize), Diagnostic> {
-        let params = self.parameters(false)?;
+        let params = self.lambda_parameters()?;
         self.expect("->")?;
         let return_type = self.ty()?;
         let (body, depth) = self.block_with_depth()?;

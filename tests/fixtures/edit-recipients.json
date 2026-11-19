@@ -3,6 +3,7 @@
   "packages": [
     {
       "dependencies": [],
+      "edition": "2026",
       "modules": [
         {
           "contributions": [
@@ -13,18 +14,18 @@
                     "result": {
                       "kind": "integer",
                       "span": {
-                        "column": 72,
-                        "end": 592,
+                        "column": 68,
+                        "end": 627,
                         "line": 6,
-                        "start": 590
+                        "start": 625
                       },
                       "value": "99"
                     },
                     "span": {
-                      "column": 70,
-                      "end": 594,
+                      "column": 66,
+                      "end": 629,
                       "line": 6,
-                      "start": 588
+                      "start": 623
                     },
                     "statements": []
                   },
@@ -33,10 +34,10 @@
                     {
                       "name": "x",
                       "span": {
-                        "column": 47,
-                        "end": 571,
+                        "column": 43,
+                        "end": 606,
                         "line": 6,
-                        "start": 565
+                        "start": 600
                       },
                       "ty": {
                         "kind": "named",
@@ -46,10 +47,10 @@
                     {
                       "name": "y",
                       "span": {
-                        "column": 55,
-                        "end": 579,
+                        "column": 51,
+                        "end": 614,
                         "line": 6,
-                        "start": 573
+                        "start": 608
                       },
                       "ty": {
                         "kind": "named",
@@ -64,9 +65,9 @@
                   },
                   "span": {
                     "column": 33,
-                    "end": 594,
+                    "end": 629,
                     "line": 6,
-                    "start": 551
+                    "start": 590
                   }
                 }
               ],
@@ -74,9 +75,9 @@
               "public": true,
               "span": {
                 "column": 5,
-                "end": 596,
+                "end": 631,
                 "line": 6,
-                "start": 523
+                "start": 562
               },
               "target": [
                 "choose"
@@ -113,28 +114,28 @@
                 {
                   "name": "x",
                   "span": {
-                    "column": 20,
-                    "end": 327,
+                    "column": 15,
+                    "end": 373,
                     "line": 2,
-                    "start": 326
+                    "start": 372
                   }
                 },
                 {
                   "name": "y",
                   "span": {
-                    "column": 23,
-                    "end": 330,
+                    "column": 18,
+                    "end": 376,
                     "line": 2,
-                    "start": 329
+                    "start": 375
                   }
                 }
               ],
               "public": true,
               "span": {
                 "column": 5,
-                "end": 368,
+                "end": 411,
                 "line": 2,
-                "start": 311
+                "start": 362
               }
             }
           ],
@@ -153,9 +154,9 @@
               ],
               "span": {
                 "column": 5,
-                "end": 478,
+                "end": 517,
                 "line": 4,
-                "start": 416
+                "start": 455
               },
               "target": [
                 "choose"
@@ -169,18 +170,18 @@
                 "result": {
                   "kind": "integer",
                   "span": {
-                    "column": 40,
-                    "end": 409,
+                    "column": 36,
+                    "end": 448,
                     "line": 3,
-                    "start": 408
+                    "start": 447
                   },
                   "value": "0"
                 },
                 "span": {
-                  "column": 38,
-                  "end": 411,
+                  "column": 34,
+                  "end": 450,
                   "line": 3,
-                  "start": 406
+                  "start": 445
                 },
                 "statements": []
               },
@@ -189,10 +190,10 @@
                 {
                   "name": "x",
                   "span": {
-                    "column": 15,
-                    "end": 389,
+                    "column": 11,
+                    "end": 428,
                     "line": 3,
-                    "start": 383
+                    "start": 422
                   },
                   "ty": {
                     "kind": "named",
@@ -202,10 +203,10 @@
                 {
                   "name": "y",
                   "span": {
-                    "column": 23,
-                    "end": 397,
+                    "column": 19,
+                    "end": 436,
                     "line": 3,
-                    "start": 391
+                    "start": 430
                   },
                   "ty": {
                     "kind": "named",
@@ -220,9 +221,9 @@
               },
               "span": {
                 "column": 1,
-                "end": 411,
+                "end": 450,
                 "line": 3,
-                "start": 369
+                "start": 412
               }
             }
           ],
@@ -230,9 +231,9 @@
           "public": true,
           "span": {
             "column": 1,
-            "end": 310,
+            "end": 361,
             "line": 2,
-            "start": 307
+            "start": 358
           },
           "transfers": [
             {
@@ -242,9 +243,9 @@
               "public": true,
               "span": {
                 "column": 5,
-                "end": 518,
+                "end": 557,
                 "line": 5,
-                "start": 483
+                "start": 522
               },
               "target": [
                 "choose"
@@ -264,6 +265,7 @@
           "target": "/authority-fixture/base/Vastitas.toml"
         }
       ],
+      "edition": "2026",
       "modules": [
         {
           "contributions": [
@@ -277,10 +279,10 @@
                         "kind": "variable",
                         "name": "x",
                         "span": {
-                          "column": 86,
-                          "end": 865,
+                          "column": 82,
+                          "end": 892,
                           "line": 5,
-                          "start": 864
+                          "start": 891
                         }
                       },
                       "op": "+",
@@ -288,24 +290,24 @@
                         "kind": "variable",
                         "name": "y",
                         "span": {
-                          "column": 90,
-                          "end": 869,
+                          "column": 86,
+                          "end": 896,
                           "line": 5,
-                          "start": 868
+                          "start": 895
                         }
                       },
                       "span": {
-                        "column": 86,
-                        "end": 869,
+                        "column": 82,
+                        "end": 896,
                         "line": 5,
-                        "start": 864
+                        "start": 891
                       }
                     },
                     "span": {
-                      "column": 84,
-                      "end": 871,
+                      "column": 80,
+                      "end": 898,
                       "line": 5,
-                      "start": 862
+                      "start": 889
                     },
                     "statements": []
                   },
@@ -314,10 +316,10 @@
                     {
                       "name": "x",
                       "span": {
-                        "column": 61,
-                        "end": 845,
+                        "column": 57,
+                        "end": 872,
                         "line": 5,
-                        "start": 839
+                        "start": 866
                       },
                       "ty": {
                         "kind": "named",
@@ -327,10 +329,10 @@
                     {
                       "name": "y",
                       "span": {
-                        "column": 69,
-                        "end": 853,
+                        "column": 65,
+                        "end": 880,
                         "line": 5,
-                        "start": 847
+                        "start": 874
                       },
                       "ty": {
                         "kind": "named",
@@ -345,9 +347,9 @@
                   },
                   "span": {
                     "column": 41,
-                    "end": 871,
+                    "end": 898,
                     "line": 5,
-                    "start": 819
+                    "start": 850
                   }
                 }
               ],
@@ -355,9 +357,9 @@
               "public": true,
               "span": {
                 "column": 7,
-                "end": 873,
+                "end": 900,
                 "line": 5,
-                "start": 785
+                "start": 816
               },
               "target": [
                 "base",
@@ -375,9 +377,9 @@
           "public": true,
           "span": {
             "column": 5,
-            "end": 772,
+            "end": 803,
             "line": 4,
-            "start": 769
+            "start": 800
           }
         },
         {
@@ -389,18 +391,18 @@
                     "result": {
                       "kind": "integer",
                       "span": {
-                        "column": 88,
-                        "end": 760,
+                        "column": 84,
+                        "end": 791,
                         "line": 3,
-                        "start": 759
+                        "start": 790
                       },
                       "value": "2"
                     },
                     "span": {
-                      "column": 86,
-                      "end": 762,
+                      "column": 82,
+                      "end": 793,
                       "line": 3,
-                      "start": 757
+                      "start": 788
                     },
                     "statements": []
                   },
@@ -409,10 +411,10 @@
                     {
                       "name": "x",
                       "span": {
-                        "column": 61,
-                        "end": 739,
+                        "column": 57,
+                        "end": 770,
                         "line": 3,
-                        "start": 732
+                        "start": 763
                       },
                       "ty": {
                         "kind": "named",
@@ -422,10 +424,10 @@
                     {
                       "name": "y",
                       "span": {
-                        "column": 70,
-                        "end": 748,
+                        "column": 66,
+                        "end": 779,
                         "line": 3,
-                        "start": 741
+                        "start": 772
                       },
                       "ty": {
                         "kind": "named",
@@ -440,9 +442,9 @@
                   },
                   "span": {
                     "column": 41,
-                    "end": 762,
+                    "end": 793,
                     "line": 3,
-                    "start": 712
+                    "start": 747
                   }
                 }
               ],
@@ -450,9 +452,9 @@
               "public": true,
               "span": {
                 "column": 5,
-                "end": 764,
+                "end": 795,
                 "line": 3,
-                "start": 676
+                "start": 711
               },
               "target": [
                 "base",
@@ -476,9 +478,9 @@
               ],
               "span": {
                 "column": 5,
-                "end": 671,
+                "end": 706,
                 "line": 2,
-                "start": 603
+                "start": 638
               },
               "target": [
                 "base",
@@ -494,9 +496,9 @@
           "public": true,
           "span": {
             "column": 1,
-            "end": 602,
+            "end": 637,
             "line": 2,
-            "start": 599
+            "start": 634
           }
         }
       ],
@@ -519,6 +521,7 @@
           "target": "/authority-fixture/base/Vastitas.toml"
         }
       ],
+      "edition": "2026",
       "modules": [
         {
           "assembly": {
@@ -531,10 +534,10 @@
                 "loan": "parent",
                 "op": "borrow",
                 "span": {
-                  "column": 12,
-                  "end": 917,
+                  "column": 25,
+                  "end": 958,
                   "line": 1,
-                  "start": 888
+                  "start": 928
                 }
               },
               {
@@ -546,10 +549,10 @@
                 "op": "reborrow",
                 "parent": "parent",
                 "span": {
-                  "column": 42,
-                  "end": 960,
+                  "column": 56,
+                  "end": 991,
                   "line": 1,
-                  "start": 918
+                  "start": 959
                 }
               },
               {
@@ -561,30 +564,30 @@
                 "loan": "child",
                 "op": "apply",
                 "span": {
-                  "column": 85,
-                  "end": 995,
+                  "column": 89,
+                  "end": 1014,
                   "line": 1,
-                  "start": 961
+                  "start": 992
                 }
               },
               {
                 "loan": "child",
                 "op": "return",
                 "span": {
-                  "column": 120,
-                  "end": 1009,
+                  "column": 112,
+                  "end": 1016,
                   "line": 1,
-                  "start": 996
+                  "start": 1015
                 }
               },
               {
                 "loan": "parent",
                 "op": "return",
                 "span": {
-                  "column": 134,
-                  "end": 1024,
+                  "column": 114,
+                  "end": 1018,
                   "line": 1,
-                  "start": 1010
+                  "start": 1017
                 }
               },
               {
@@ -594,10 +597,10 @@
                 ],
                 "op": "transfer",
                 "span": {
-                  "column": 149,
-                  "end": 1048,
+                  "column": 116,
+                  "end": 1042,
                   "line": 1,
-                  "start": 1025
+                  "start": 1019
                 }
               },
               {
@@ -608,19 +611,19 @@
                 "loan": null,
                 "op": "apply",
                 "span": {
-                  "column": 173,
-                  "end": 1068,
+                  "column": 140,
+                  "end": 1062,
                   "line": 1,
-                  "start": 1049
+                  "start": 1043
                 }
               },
               {
                 "op": "seal",
                 "span": {
-                  "column": 193,
-                  "end": 1087,
+                  "column": 160,
+                  "end": 1064,
                   "line": 1,
-                  "start": 1069
+                  "start": 1063
                 },
                 "target": [
                   "base",
@@ -628,11 +631,125 @@
                 ]
               }
             ],
+            "source": [
+              {
+                "kind": "family",
+                "span": {
+                  "column": 1,
+                  "end": 927,
+                  "line": 1,
+                  "start": 904
+                },
+                "target": [
+                  "base",
+                  "choose"
+                ]
+              },
+              {
+                "grant": [
+                  "base",
+                  "outer"
+                ],
+                "kind": "borrow",
+                "label": "parent",
+                "span": {
+                  "column": 25,
+                  "end": 958,
+                  "line": 1,
+                  "start": 928
+                }
+              },
+              {
+                "delegation": [
+                  "addon",
+                  "inner"
+                ],
+                "kind": "delegate",
+                "label": "child",
+                "span": {
+                  "column": 56,
+                  "end": 991,
+                  "line": 1,
+                  "start": 959
+                }
+              },
+              {
+                "contributions": [
+                  [
+                    "addon",
+                    "ops",
+                    "sum"
+                  ]
+                ],
+                "kind": "apply",
+                "span": {
+                  "column": 89,
+                  "end": 1014,
+                  "line": 1,
+                  "start": 992
+                }
+              },
+              {
+                "kind": "close",
+                "span": {
+                  "column": 112,
+                  "end": 1016,
+                  "line": 1,
+                  "start": 1015
+                }
+              },
+              {
+                "kind": "close",
+                "span": {
+                  "column": 114,
+                  "end": 1018,
+                  "line": 1,
+                  "start": 1017
+                }
+              },
+              {
+                "declaration": [
+                  "base",
+                  "handoff"
+                ],
+                "kind": "transfer",
+                "span": {
+                  "column": 116,
+                  "end": 1042,
+                  "line": 1,
+                  "start": 1019
+                }
+              },
+              {
+                "contributions": [
+                  [
+                    "addon",
+                    "fresh"
+                  ]
+                ],
+                "kind": "apply",
+                "span": {
+                  "column": 140,
+                  "end": 1062,
+                  "line": 1,
+                  "start": 1043
+                }
+              },
+              {
+                "kind": "close",
+                "span": {
+                  "column": 160,
+                  "end": 1064,
+                  "line": 1,
+                  "start": 1063
+                }
+              }
+            ],
             "span": {
               "column": 1,
-              "end": 1089,
+              "end": 1064,
               "line": 1,
-              "start": 877
+              "start": 904
             }
           },
           "functions": [
@@ -645,20 +762,20 @@
                       {
                         "kind": "integer",
                         "span": {
-                          "column": 246,
-                          "end": 1124,
+                          "column": 194,
+                          "end": 1099,
                           "line": 1,
-                          "start": 1122
+                          "start": 1097
                         },
                         "value": "40"
                       },
                       {
                         "kind": "integer",
                         "span": {
-                          "column": 250,
-                          "end": 1127,
+                          "column": 198,
+                          "end": 1102,
                           "line": 1,
-                          "start": 1126
+                          "start": 1101
                         },
                         "value": "2"
                       }
@@ -666,10 +783,10 @@
                     "callee": "base::choose",
                     "kind": "call",
                     "span": {
-                      "column": 233,
-                      "end": 1128,
+                      "column": 181,
+                      "end": 1103,
                       "line": 1,
-                      "start": 1109
+                      "start": 1084
                     }
                   },
                   "op": "+",
@@ -678,20 +795,20 @@
                       {
                         "kind": "boolean",
                         "span": {
-                          "column": 268,
-                          "end": 1148,
+                          "column": 216,
+                          "end": 1123,
                           "line": 1,
-                          "start": 1144
+                          "start": 1119
                         },
                         "value": true
                       },
                       {
                         "kind": "boolean",
                         "span": {
-                          "column": 274,
-                          "end": 1154,
+                          "column": 222,
+                          "end": 1129,
                           "line": 1,
-                          "start": 1150
+                          "start": 1125
                         },
                         "value": true
                       }
@@ -699,24 +816,24 @@
                     "callee": "base::choose",
                     "kind": "call",
                     "span": {
-                      "column": 255,
-                      "end": 1155,
+                      "column": 203,
+                      "end": 1130,
                       "line": 1,
-                      "start": 1131
+                      "start": 1106
                     }
                   },
                   "span": {
-                    "column": 233,
-                    "end": 1155,
+                    "column": 181,
+                    "end": 1130,
                     "line": 1,
-                    "start": 1109
+                    "start": 1084
                   }
                 },
                 "span": {
-                  "column": 231,
-                  "end": 1157,
+                  "column": 179,
+                  "end": 1132,
                   "line": 1,
-                  "start": 1107
+                  "start": 1082
                 },
                 "statements": []
               },
@@ -728,10 +845,10 @@
                 "name": "Int"
               },
               "span": {
-                "column": 214,
-                "end": 1157,
+                "column": 162,
+                "end": 1132,
                 "line": 1,
-                "start": 1090
+                "start": 1065
               }
             }
           ],
@@ -742,9 +859,9 @@
           "public": true,
           "span": {
             "column": 1,
-            "end": 885,
+            "end": 912,
             "line": 1,
-            "start": 877
+            "start": 904
           }
         }
       ],
@@ -754,5 +871,40 @@
     }
   ],
   "root": "/authority-fixture/app/Vastitas.toml",
+  "root_source": {
+    "files": [
+      {
+        "offset": 0,
+        "path": "/authority-fixture/app/Vastitas.toml",
+        "text": "[package]\nedition = \"2026\"\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../base'}\naddon={path='../addon'}\nalias={path='../addon'}\n"
+      },
+      {
+        "offset": 157,
+        "path": "/authority-fixture/addon/Vastitas.toml",
+        "text": "[package]\nedition = \"2026\"\nname='addon'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../base'}\n"
+      },
+      {
+        "offset": 268,
+        "path": "/authority-fixture/base/Vastitas.toml",
+        "text": "[package]\nedition = \"2026\"\nname='base'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n\n"
+      },
+      {
+        "offset": 357,
+        "path": "/authority-fixture/base/main.vast",
+        "text": "\npub fn choose(x, y) domain((Int, Int), (Bool, Bool));\nfn choose(x: Any, y: Any) -> Int { 0 }\npub grant outer : choose to addon delegable { domain (Int, Int); }\npub transfer handoff : choose to addon;\npub contribution old : choose { fn choose(x: Int, y: Int) -> Int { 99 } }\n"
+      },
+      {
+        "offset": 633,
+        "path": "/authority-fixture/addon/main.vast",
+        "text": "\npub delegation inner : base::choose to addon::ops { domain (Int, Int); }\npub contribution fresh : base::choose { fn base::choose(x: Bool, y: Bool) -> Int { 2 } }\npub mod ops {\n  pub contribution sum : base::choose { fn base::choose(x: Int, y: Int) -> Int { x + y } }\n}\n"
+      },
+      {
+        "offset": 904,
+        "path": "/authority-fixture/app/main.vast"
+      }
+    ],
+    "offset": 904,
+    "text": "assemble base::choose { borrow base::outer as parent { delegate addon::inner as child { apply addon::ops::sum; } } transfer base::handoff; apply addon::fresh; } fn main() -> Int { base::choose(40, 2) + base::choose(true, true) }"
+  },
   "version": 10
 }

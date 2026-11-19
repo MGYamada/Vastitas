@@ -30,6 +30,7 @@ exports of its module.
 | --- | --- | --- |
 | `std` | `vastitas_std` | [The package root](docs/README.md#the-package-root) |
 | `std::arithmetic` | `vastitas_std` | [`arithmetic.md`](docs/arithmetic.md) |
+| `std::category` | `vastitas_category` | [`category.md`](docs/category.md) |
 | `std::geometry` | `vastitas_geometry` | [`geometry.md`](docs/geometry.md) |
 | `std::geometry::scheme` | `vastitas_geometry` | [`geometry/scheme.md`](docs/geometry/scheme.md) |
 | `std::geometry::scheme::affine` | `vastitas_geometry` | [`geometry/scheme/affine.md`](docs/geometry/scheme/affine.md) |
@@ -49,6 +50,7 @@ stdlib/
 ├── docs/                  the API reference
 └── src/
     ├── arithmetic/        flat sources of std::arithmetic
+    ├── category/          the package vastitas_category, std::category
     │   ├── int.vast
     │   ├── nat.vast
     │   └── generic.vast
@@ -74,11 +76,10 @@ move between supported layouts. The flat arithmetic sources and their
 generator remain a compatibility path; their layout is not the template for
 further modules of the library.
 
-The root module of `vastitas_std` re-exports the geometry package as
-`std::geometry`, the differential package as `std::differential` and the
-linalg package as `std::linalg`. The differential and linalg packages each
-depend on the geometry package alone, and the geometry package depends on
-nothing; `scripts/check_boundaries.py` checks these edges. The
+The root module of `vastitas_std` re-exports the category, geometry,
+differential and linalg packages under their module names. Category and
+geometry have no dependencies. Differential and linalg each depend on
+geometry alone. The script `scripts/check_boundaries.py` checks these edges. The
 [geometry README](src/geometry/README.md) describes the geometry package and
 its manifest.
 
@@ -98,7 +99,7 @@ rewriting a body. Rerun it after you edit the flat sources, and use
 checkout needs this step before the library is used in manifest mode; flat
 mode with `--lib` needs no generation. Tests and CI prepare the package
 automatically. The compiler loads the fixed manifest inputs and has no
-special generation or resolver path for the library. The geometry,
+special generation or resolver path for the library. The category, geometry,
 differential and linalg packages load their canonical sources directly.
 
 Then add a path dependency on this directory's `Vastitas.toml`, adjusting
@@ -113,7 +114,7 @@ std = { path = "../Vastitas/stdlib" }
 python3 scripts/build_stdlib_package.py
 cargo run -- build --manifest-path examples/packages/stdlib/promotion/Vastitas.toml -o target/promotion
 ./target/promotion
-# maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42
+# maximum(promoted_add(pair_first(p), pair_second(p)), promoted_add(n, -7)) = 42
 echo $?
 # 0
 ```
@@ -121,9 +122,10 @@ echo $?
 A copy of the library at another location is another package, with distinct
 nominal declarations, even when its name, version and source bytes are
 unchanged. In flat mode a program names the arithmetic files with `--lib`,
-as the [arithmetic page](docs/arithmetic.md#use) shows. Neither mode supplies
-an automatic prelude or a registry package manager; see
-[Packages](https://github.com/MGYamada/Vastitas/blob/main/docs/packages.md).
+as the [arithmetic page](docs/arithmetic.md#use) shows. Both modes supply the
+five compiler-defined operator names `add`, `sub`, `mul`, `div` and `neg`.
+The standard library source files require an explicit dependency or `--lib`.
+See [Packages](https://github.com/MGYamada/Vastitas/blob/main/docs/packages.md).
 
 > **Implementation note.** The driver sends a package graph that depends on
 > the geometry package without `legacy_geometry`, as

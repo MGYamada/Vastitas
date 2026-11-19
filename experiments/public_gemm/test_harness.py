@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 
-from cases import cases, driver, source, split_generated
+from cases import cases, cleanup_envelope, driver, source, split_generated
 from run import Runner, compare_pair
 
 # Codegen-envelope fixture, deliberately not represented as Lean acceptance.
@@ -36,6 +36,37 @@ def main : IO Unit := do
 
 
 class HarnessTests(unittest.TestCase):
+
+    def test_current_status_main_preserves_resource_schedule(self):
+        # #838 returns a UInt32 after the same unit-valued cleanup block.
+        import re
+        current = EMITTED.replace('def main : IO Unit := do\n',
+            'def main : IO UInt32 := do\n  let mut status : UInt32 := 0\n')
+        current = re.sub(r'    IO.println \((VastitasGenerated\.[A-Za-z0-9_]+)\)',
+            lambda m: f'    status := (UInt32.ofNat (Int.toNat (Int.emod ({m[1]}) 256)))', current)
+        current = current.replace('  finally\n    close arena\n',
+            '  catch cleanupError =>\n    close arena\n    throw cleanupError\n  close arena\n') + '  pure status\n'
+        self.assertEqual(split_generated(current), split_generated(EMITTED))
+        wrapped = driver(current)
+        self.assertNotIn('pure status', wrapped)
+        self.assertEqual(wrapped.count('throw cleanupError'), 2)
+        success = dict(returncode=0, stdout='', stderr='')
+        cleanup_envelope.require_execution(current, success)
+        cleanup_envelope.require_execution(EMITTED, {**success, 'stdout': '0\n'})
+        for result in ({**success, 'returncode': 1}, {**success, 'returncode': False},
+                       {**success, 'stdout': '0\n'}, {**success, 'stderr': 'failure'}):
+            with self.subTest(result=result), self.assertRaises(ValueError):
+                cleanup_envelope.require_execution(current, result)
+        with self.assertRaises(ValueError):
+            cleanup_envelope.require_execution(EMITTED, success)
+        for changed in (current.replace('  pure status', '  pure 0'),
+                        current.replace('Int.emod', 'Int.ediv'),
+                        current.replace(' 256)))', ' 255)))'),
+                        current.replace('    status :=', '    status := 0\n    status :='),
+                        current.replace('    throw cleanupError', '    pure ()')):
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                split_generated(changed)
+
     def test_large_inspection_output_is_retained_once(self):
         with tempfile.TemporaryDirectory() as directory:
             out = Path(directory)

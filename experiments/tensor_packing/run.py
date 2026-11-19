@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 
-from cases import ROOT, c_header, cases, driver, write_package
+from cases import cleanup_envelope, ROOT, c_header, cases, driver, write_package
 
 HERE = Path(__file__).resolve().parent
 # Reuse the copy experiment's statistical definitions, not a new convention.
@@ -176,8 +176,7 @@ def build_case(runner, c, work, wire, prefix, cc, kernel, lean_root, frontend):
     runner.run([frontend,"build","--manifest-path",manifest,"--openblas-prefix",prefix,
                 "--native-cc",cc[0],"-o",canonical],env=env,phase="public_build_total")
     result = runner.run([canonical],phase="canonical_execution_validation")
-    if result["stdout"].strip() != "0":
-        raise ValueError("canonical executable did not return the checked pure result")
+    cleanup_envelope.require_success(result)
     result = runner.run([kernel,"check"],input=wire,phase="independent_lean_check")
     if not json.loads(result["stdout"]).get("ok"):
         raise ValueError("independent Lean rejection")

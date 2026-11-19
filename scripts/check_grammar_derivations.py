@@ -352,7 +352,7 @@ CONTEXTS = (
             "resource fn probe() -> Int {\n{indented}\n    value {\n        0\n    }\n}\n"),
 )
 
-MANIFEST = '[package]\nname = "derived"\nversion = "0.1.0"\nroot = "src/main.vast"\n'
+MANIFEST = '[package]\nedition = \'2026\'\nname = "derived"\nversion = "0.1.0"\nroot = "src/main.vast"\n'
 
 
 # --- Rules of the Reference that forbid derived texts ----------------------------
@@ -390,8 +390,8 @@ def chained_comparison(tree, mode, grammar):
                     break
 
 
-FLAT_ITEMS = frozenset({"Function", "GenericDeclaration", "MethodDeclaration", "AbstractTypeDeclaration",
-                        "SubtypeDeclaration", "AbstractMethodDeclaration"})
+FLAT_ITEMS = frozenset({"Function", "FamilyHeader", "MethodDeclaration", "AbstractTypeDeclaration",
+                        "SubtypeDeclaration", "FunctionContract"})
 
 
 def flat_item(tree, mode, grammar):
@@ -409,15 +409,18 @@ def has_path(node):
     return "::" in node.leaves()
 
 
+FLAT_LOCAL_OPERATORS = {("self", "::", name) for name in ("add", "sub", "mul", "neg", "div")}
+
+
 def flat_expression_path(tree, mode, grammar):
     if mode == "flat":
         for node in tree.nodes():
-            if node.name == "PathExpression" and has_path(node):
+            if node.name == "FiniteLookupExpression" or (
+                    node.name == "PathExpression" and has_path(node) and next(iter(node.leaves())) != "std"
+                    and tuple(node.leaves()) not in FLAT_LOCAL_OPERATORS):
                 yield node
-            if node.name == "MethodDeclaration" and has_path(node.children[1]):
+            if node.name in ("MethodDeclaration", "FunctionContract") and has_path(node.children[1]):
                 yield node.children[1]
-            if node.name == "AbstractMethodDeclaration" and has_path(node.children[2]):
-                yield node.children[2]
 
 
 # The constructs whose paths are selectors, parents or the parent of a subtype.
@@ -435,11 +438,12 @@ def flat_generic_segment(tree, mode, grammar):
         yield from (node for node in tree.nodes() if node.name == "PathSegment" and node.children[0] == "generic")
 
 
-# The type names of Types and Geometric types, and `Object`, with the
+# The reserved type names, including the two explicit indexed forms, with the
 # production of the type that a name followed by `<` begins.
 TYPE_NAMES = {"Nat": "ScalarType", "Int": "ScalarType", "Bool": "ScalarType", "Unit": "ScalarType",
               "Pair": "PairType", "Fn": "FunctionType", "Scheme": "SettingType", "CInfScheme": "SettingType",
-              "Point": "PointType", "Morphism": "MorphismType", "Pointed": "PointedType", "Object": "ObjectType"}
+              "Point": "PointType", "Morphism": "MorphismType", "Pointed": "PointedType", "Object": "ObjectType",
+              "Hom": "HomType"}
 # The parser reads the arguments of such a type as the arguments of that type,
 # so the rules of the type give further codes: Pair types and Geometric types
 # give E_TYPE for an element of a pair, an endpoint that names no object and
@@ -455,9 +459,11 @@ def type_name_family(tree, mode, grammar):
         if node.name == "IndexedType" and node.children[0] in TYPE_NAMES and node.children[1] == "<":
             words = " ".join(node.leaves())
             own = TYPE_NAMES[node.children[0]]
-            if own == "ObjectType":
+            if own in {"ObjectType", "HomType"}:
                 parts = " ".join(list(node.leaves())[2:-1]).split(" , ")
-                fits = len(parts) == 2 and all(part and grammar.parse(part, start="Path") is None for part in parts)
+                arguments = ("Path", "HomEndpoint", "HomEndpoint") if own == "HomType" else ("Path", "Path")
+                fits = len(parts) == len(arguments) and all(
+                    grammar.parse(part, start=start) is None for part, start in zip(parts, arguments))
             else:
                 fits = grammar.parse(words, start=own) is None
             if not fits:
@@ -469,7 +475,7 @@ def flat_type_name_path(tree, mode, grammar):
     """In flat mode, a path in a type whose first segment is a type name, which begins that type."""
     if mode == "flat":
         yield from (node for node in tree.nodes() if node.name == "IndexedType" and node.children[1] == "::"
-                    and node.children[0] in TYPE_NAMES and node.children[0] != "Object")
+                    and node.children[0] in TYPE_NAMES and node.children[0] not in {"Object", "Hom"})
 
 
 def flat_indexed_type(tree, mode, grammar):
@@ -530,7 +536,7 @@ RULES = (
     Rule("pub in flat mode", "Items, Visibility: pub before an item is an error in flat mode",
          "E_UNSUPPORTED", flat_pub),
     Rule("path in an expression or a method name in flat mode", "Names and paths, Resolution: in flat "
-         "mode a path with :: is E_PARSE in an expression and in the name of a method", "E_PARSE",
+         "mode a qualified user path is E_PARSE in an expression and in the name of a method", "E_PARSE",
          flat_expression_path),
     Rule("path in a selector, a parent or a subtype in flat mode", "Names and paths, Resolution: in flat "
          "mode a path with :: is E_NAME in a selector, a parent or a subtype", "E_NAME", flat_selector_path),

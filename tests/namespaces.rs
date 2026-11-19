@@ -20,13 +20,14 @@ fn module(source: &str) -> Value {
 }
 
 fn request() -> Value {
-    let mut app = module("fn main() -> Int { 0 }");
+    let source = "fn main() -> Int { 0 }";
+    let mut app = module(source);
     app["functions"][0]["body"]["result"] =
         json!({"kind":"call","callee":"lib::value","args":[],"span":span()});
-    json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","packages":[
-        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0",
+    json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","root_source":{"offset":0,"text":source},"packages":[
+        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","edition":"2026",
          "dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
-        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0",
+        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","edition":"2026",
          "dependencies":[],"modules":[module("fn value() -> Int { 42 }")]}
     ]})
 }
@@ -75,7 +76,7 @@ fn forged_owner_dependency_visibility_and_reference_are_rejected() {
 #[test]
 fn imports_do_not_grant_method_ownership() {
     let mut raw = request();
-    let declarations = module("generic choose() { domain (); } method choose() -> Int { 1 }");
+    let declarations = module("fn choose() domain(()); fn choose() -> Int { 1 }");
     raw["packages"][1]["modules"][0]["generics"] = declarations["generics"].clone();
     let mut method = declarations["methods"][0].clone();
     method["name"] = json!("lib::choose");

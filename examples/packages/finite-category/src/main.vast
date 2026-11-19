@@ -1,0 +1,71 @@
+// The six permutations of three points; comp(g, f) applies f first.
+indexed schema GroupCategory = finite_category;
+indexed finite Obj { o; }
+indexed finite Arr { p012; p021; p102; p120; p201; p210; }
+indexed table sourceOf(Arr) -> Obj {
+    (p012) => o;
+    (p021) => o;
+    (p102) => o;
+    (p120) => o;
+    (p201) => o;
+    (p210) => o;
+}
+indexed table targetOf(Arr) -> Obj {
+    (p012) => o;
+    (p021) => o;
+    (p102) => o;
+    (p120) => o;
+    (p201) => o;
+    (p210) => o;
+}
+indexed table ids(Obj) -> Arr { (o) => p012; }
+indexed table comp(Arr, Arr) -> Arr where composable(sourceOf, targetOf) {
+    (p012, p012) => p012;
+    (p012, p021) => p021;
+    (p012, p102) => p102;
+    (p012, p120) => p120;
+    (p012, p201) => p201;
+    (p012, p210) => p210;
+    (p021, p012) => p021;
+    (p021, p021) => p012;
+    (p021, p102) => p201;
+    (p021, p120) => p210;
+    (p021, p201) => p102;
+    (p021, p210) => p120;
+    (p102, p012) => p102;
+    (p102, p021) => p120;
+    (p102, p102) => p012;
+    (p102, p120) => p021;
+    (p102, p201) => p210;
+    (p102, p210) => p201;
+    (p120, p012) => p120;
+    (p120, p021) => p102;
+    (p120, p102) => p210;
+    (p120, p120) => p201;
+    (p120, p201) => p012;
+    (p120, p210) => p021;
+    (p201, p012) => p201;
+    (p201, p021) => p210;
+    (p201, p102) => p021;
+    (p201, p120) => p012;
+    (p201, p201) => p120;
+    (p201, p210) => p102;
+    (p210, p012) => p210;
+    (p210, p021) => p201;
+    (p210, p102) => p120;
+    (p210, p120) => p102;
+    (p210, p201) => p021;
+    (p210, p210) => p012;
+}
+indexed instance S3 : GroupCategory = finite_graph(Obj, Arr, sourceOf, targetOf, ids, comp);
+
+fn composeArrow(g: Hom<S3, Obj::o, Obj::o>, f: Hom<S3, Obj::o, Obj::o>) -> Hom<S3, Obj::o, Obj::o> {
+    finite::lookup::<S3::composition>(g, f)
+}
+
+fn main() -> Int {
+    let a = composeArrow(S3::p021, S3::p102);
+    let b = composeArrow(S3::p102, S3::p021);
+    let identityArrow = finite::lookup::<S3::identities>(Obj::o);
+    if a == S3::p201 && b == S3::p120 && identityArrow == Arr::p012 { 0 } else { 1 }
+}

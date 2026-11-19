@@ -27,9 +27,11 @@ python3 scripts/build_stdlib_package.py
 cargo test --locked --all-targets
 python3 scripts/check_resource_cleanup.py
 python3 scripts/check_spec.py
+python3 scripts/check_release_admission.py
+python3 scripts/check_midir_coverage.py
 python3 scripts/check_primitive_table.py
 python3 -m unittest discover -s scripts -p 'test_*.py'
-cargo package --locked
+cargo package --locked --target-dir target/package-check
 ```
 
 | Command | What it checks |
@@ -42,9 +44,11 @@ cargo package --locked
 | `cargo test --locked --all-targets` | The unit tests and the integration tests, which run `check` and `build` and the built executables. Build the kernel first |
 | `check_resource_cleanup.py` | The cleanup of resource programs and the precedence of nested failures, without BLAS |
 | `check_spec.py` | The files of the [specifications](../specifications.md) and their generated chapters |
+| `check_release_admission.py` | The 23 issues and eight required profiles of the [v0.1.0 admission ledger](../v0.1.0-admission.md), including their separate source, Core, MidIR, LLVM, proof, native and performance states. `--require-complete` also rejects outstanding work; ordinary development CI checks consistency without declaring release readiness |
+| `check_midir_coverage.py` | The exact constructor and payload-schema inventory for the Core and storage families, plus the runtime manifest closure. A source addition, removal or signature change requires a reviewed inventory update. Pending rows do not authorize lowering; `--require-complete` rejects them |
 | `check_primitive_table.py` | The generated primitive table, as described below |
 | `unittest discover -s scripts` | The tests of the checkers and of the [reference models](../appendix/reference-models.md), among them `test_fixture_is_current` of `test_frame_reference.py`, which compares `tests/fixtures/frames.json` with the frame model |
-| `cargo package --locked` | The registry distribution builds from its packaged sources |
+| `cargo package --locked --target-dir target/package-check` | The registry distribution builds from its packaged sources. Its CLI records the extracted crate as its default kernel location. The separate target directory keeps the workspace CLI available for integration tests. |
 
 `build_stdlib_package.py` generates the standard-library package under the
 ignored directory `stdlib/target/package/`. With `--check` it compares that
@@ -141,6 +145,47 @@ build both build it before the audit.
 cited theorem, review the change, run
 `python3 scripts/check_spec.py --update-statements oracle` (or `bridge`) and
 review the diff of the statement pins.
+
+The [compiler IR specification](../spec/compiler-ir.md) defines the planned
+LLVM path. Its feasibility experiments run separately from public compiler
+acceptance. The no-mathlib CI job measures 1,000 operations in an isolated
+SSA model on Linux and macOS, both as one proof and in chunks of 64:
+
+```sh
+python3 experiments/compiler_validation/reduction/run.py --operations 1000 --chunk-size 1000
+python3 experiments/compiler_validation/reduction/run.py --operations 1000 --chunk-size 64 \
+  --output target/compiler-validation/reduction-chunk64.json
+python3 -m unittest discover -s experiments/compiler_validation/reduction -p 'test_*.py'
+python3 -m unittest discover -s experiments/compiler_validation/llvm -p 'test_*.py'
+```
+
+The reduction report separates elaboration, official replay, export and
+nanoda checks, with elapsed time and peak child memory for each. This model
+does not establish production MidIR, authenticated Fast-mode acceptance or
+LLVM-byte correspondence. Run it without another heavy Lean process.
+
+The opt-in LLVM experiment requires explicit development prefixes for LLVM
+23.1.4, Lean 4.35.0 and sequential LP64 OpenBLAS 0.3.34. Its
+`experiments/compiler_validation/llvm/README.md` gives the invocation and
+foreign premises. It exercises the pinned in-process LLVM API, Lean runtime
+calls, four GEMM ABIs, byte mutation rejection and target/layout checks. Its
+comparison with `Lean.Compiler.IR.EmitLLVM` records unavailable upstream
+fragments as coverage gaps. These checks qualify a hand-authored fixture on
+the measured host, not a release distribution or a compiler proof.
+
+The numerical experiment wrappers audit the emitted entry before replacing
+it with a private measurement loop. Current public executables return
+`UInt32` after cleanup; their zero-result fixtures must exit zero and write
+nothing. Only retained evidence uses the earlier printed-result contract.
+An unfamiliar entry, changed cleanup or mismatched result fails the harness.
+
+`python3 scripts/check_numerical_harness.py` generates all 28 current smoke
+fixtures for GEMM, packing, contraction trees and runtime shapes through the
+public frontend and independent checker, then audits each emitted wrapper.
+With `--prefix /path/to/openblas-0.3.34` it also builds and runs each public
+executable; Linux CI adds `--cc cc`. These fixtures cover the existing `F64<RR>`
+and `F64<CC>` representations. They neither measure performance nor
+establish the planned binary32 profiles.
 
 ## Frames and physical dimensions
 
@@ -408,8 +453,9 @@ workflow has no name, so the table gives its identifier.
 | Workflow | Job | Hosts | Runs |
 | --- | --- | --- | --- |
 | CI, `ci.yml` | Rust formatting and lint | Linux | `check_docs.py`, `check_primitive_table.py`, `check_spec.py`, `cargo fmt`, `cargo clippy`, `cargo package`, the Python tests under `scripts/`, `check_boundaries.py`, the [experiment harnesses](#experiment-harnesses), and the generation and `--check` of the standard-library package |
-| CI, `ci.yml` | Native compiler (host, no mathlib) | Linux and macOS | The kernel build, `check_boundaries.py` with the directory `lean/` absent, the three regression scripts, `cargo test --locked --all-targets`, `audit-lean`, `check_resource_cleanup.py` and the diagnostics model against the built compiler |
+| CI, `ci.yml` | Native compiler (host, no mathlib) | Linux and macOS | The kernel build, `check_boundaries.py` with the directory `lean/` absent, the isolated 20,000-function watchdog test, the boxed LLVM integer libraries and hosted executables against Lean-generated controls, the three regression scripts, `cargo test --locked --all-targets`, `audit-lean`, `check_resource_cleanup.py` and the diagnostics model against the built compiler |
 | CI, `ci.yml` | Optional GEMM adapter (host, OpenBLAS 0.3.34) | Linux and macOS | The commands of [Numerical adapters](#numerical-adapters) |
+| CI, `ci.yml` | Public compiler proof qualification (host) | Linux and macOS | The signed-literal proof, LLVM corpus replay, boxed program, physical input revisions and cross-package assembled method. Each host retains the proof report and logs. |
 | CI, `ci.yml` | Lean proofs and axiom audit | Linux | The commands of [Proof oracle and axiom audit](#proof-oracle-and-axiom-audit), without Mathlib |
 | Mathematical bridge, `lean-bridge.yml` | Daleckii–Krein proof and axiom audit | Linux | The commands of [Mathematical bridge](#mathematical-bridge) |
 | Documentation book, `documentation.yml` | `book` | Linux | `mdbook build` with the pinned release and `scripts/check_book.py` |
@@ -417,24 +463,30 @@ workflow has no name, so the table gives its identifier.
 - `ci.yml` and the documentation workflow run on pull requests, on pushes to
   `main` and on manual dispatch. A push to the branch of a pull request is
   checked once, through its `pull_request` run. The bridge workflow runs on
-  pushes and pull requests that touch its paths, and on manual dispatch.
+  pushes to `main` and pull requests that touch its paths, and on manual dispatch.
 - In `ci.yml` and the bridge workflow, a later run for the same event and
   branch or pull request cancels the earlier one. Push runs and pull-request
   runs do not cancel each other.
 - The workflows pin the revisions of their actions. `rust-toolchain.toml`
-  pins Rust to 1.99.1, and every Lean package pins Lean v4.35.0. `ci.yml` and
-  the OpenBLAS and experiment workflows pin Python to 3.15.2 with
-  `setup-python`. The bridge workflow and the documentation workflow have no
+  supplies the Rust channel to the shared setup action. The lint job also requests
+  rustfmt and Clippy. Every Lean package pins Lean v4.35.0. `ci.yml` and
+  the OpenBLAS and experiment workflows share `.github/actions/setup-python/action.yml`,
+  which pins Python to 3.15.2 and runs the loader check. The bridge workflow and the documentation workflow have no
   `setup-python` step: `check_boundaries.py` and `check_book.py` run there
   with the Python of the runner.
-- CI installs elan 4.2.4 from a release archive and checks the SHA-256 of the
-  archive before the installer runs. It does not execute elan's moving
-  `master` bootstrap script, and the installation does not modify shell
-  profiles.
+- Jobs that need Lean use the shared `.github/actions/setup-elan` action.
+  It checks the SHA-256 of the elan 4.2.4 archive before running its installer.
 - `scripts/check_ci_python.sh` checks Python without the extra loader path of
   `setup-python` before the native calibration. Another loader override is an
   error.
 - A checkout does not persist its credentials.
+- The numerical-adapter job and the public GEMM, tensor-packing and
+  contraction-tree experiments use the same OpenBLAS setup action. Its cache
+  key identifies the runner image, architecture, CPU profile and build recipe.
+  The three experiments use `.github/actions/run-numerical-experiment/action.yml`
+  for sampling. Smoke takes six samples at a target of 0.1 ms and full takes
+  twelve samples at a target of 5 ms.
+  On a miss it builds the checksum-pinned source in `$RUNNER_TEMP/vastitas-openblas`.
 - The observations of OpenBLAS packing and workspace, and the smoke runs of
   the GEMM, tensor-packing and contraction-tree experiments, have workflows of
   their own. They run on pushes to `main` that touch their inputs and on

@@ -1,19 +1,1352 @@
+# Compiler IR v1: the finite v0.1.0 contract adopted in #749.
+# Generate compiler-ir.md with scripts/check_spec.py --write.
+# A specified contract is not implemented, proved or natively qualified merely
+# because this file exists. Each claim below retains its own evidence status.
+
 [spec]
 id = "compiler-ir"
 title = "Compiler IR v1"
-subject = "The v0.1.0 Core-to-LLVM compiler path"
+subject = "finite v0.1.0 compiler"
 description = """
-This specification records the planned compiler path from the exact accepted
-Lean Core through the optimization and execution phases of one Vastitas MidIR
-to the exact bytes of an LLVM module. The current compiler emits Lean and has
-its own checked path. All claims on this page are Planned.
-
-First measure official-kernel and Fast replay on a representative MidIR
-artifact of about 1,000 operations, and qualify the LLVM toolchain, linked Lean
-runtime and numerical adapter on Linux and macOS. Then deliver the constructor
-coverage and opcode registry, the modeled LLVM subset and exact emitter, the
-validators and composition proofs, and the native handoff and evidence.
+This specification is the source of the adopted finite compiler-IR v1
+contract. It replaces the interim design text of PR #480 for that contract.
+The production path specified here is accepted Lean Core, optimization and
+execution phases of one MidIR, a modeled LLVM module and its complete emitted
+LLVM bytes. Each claim identifies its required work, scoped tests or checked
+theorems. The implemented Lean-source compilation path and its evidence
+remain in Compiler architecture.
+The eight decisions of #749 are recorded in the properties on the foreign
+runtime (D1 and D7), independent semantics (D2), storage safety (D3), edition
+(D4), floating carriers (D5), finite constitutional claims (D6), and the native
+floating profile (D8). The release audit records coverage separately from this
+specification; no specification text grants compiler acceptance.
 """
+
+[property."compiler-ir.feasibility"]
+title = "Feasibility before backend admission"
+subject = "verification and native toolchain"
+statement = """
+Before the main lowering and proof implementation, measure official-kernel
+reduction and nanoda checking over about 1,000 representative MidIR operations
+on the 16 GiB macOS reference host and Linux. Record wall time and peak memory
+separately for proof preparation and checking. Qualify llvm-sys 231.0.1 with
+LLVM 23.1.4, the pinned Lean runtime and sequential LP64 OpenBLAS 0.3.34 on both
+systems, recording build time, memory, disk use and binary size. A failure or
+an unavailable toolchain remains a blocker; changing a pin, using native
+evaluation as proof, or omitting a required platform does not pass the trial.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.feasibility)"
+example = "A per-function validator over a 1,000-operation candidate is checked by both pinned checkers before its granularity is admitted."
+example_not_executed = "The isolated 1,000-operation model and native fixture have exploratory macOS results under experiments/compiler_validation; production lowering and both-platform qualification remain pending."
+
+[property."compiler-ir.feasibility".claim.qualification]
+status = "planned"
+issue = 749
+
+[property."compiler-ir.edition"]
+title = "One finite edition and wire route"
+subject = "source and package admission"
+statement = """
+The finite public profile requires package edition 2026 and the single wire
+schema epoch 10. Flat input and --lib input normalize to that package envelope
+with protected synthesized identities and original source spans. The bundled
+frontend and independent Lean checker must agree on that schema. Retired
+versions 2 through 9, an alternate flat decoder, a missing or different
+edition and unsupported finite grammar forms must fail closed. The existing
+wire cutover and manifest-edition gate do not establish the remaining finite
+grammar or source-to-Core
+correspondence obligations. The general edition grammar and Lean-native
+frontend remain outside this finite profile.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.edition)"
+example = "A package and an equivalent flat input retain their original diagnostic locations through the same checked envelope."
+example_not_executed = "The complete finite edition and source-correspondence migration is pending."
+
+[property."compiler-ir.edition".claim.admission]
+status = "planned"
+issue = 762
+
+[property."compiler-ir.edition".claim.manifest]
+status = "tested"
+evidence = [
+  "tests/packages.rs::edition_is_explicit_and_exact_in_root_and_dependency_manifests",
+  "tests/protocol_epoch.rs::every_package_carries_the_edition_including_flat_library_inputs",
+  "tests/protocol_epoch.rs::the_frontend_the_kernel_and_version_share_one_epoch",
+  "tests/protocol_epoch.rs::every_version_below_the_epoch_fails_closed",
+]
+note = """
+This claim covers only the required manifest string edition = "2026", the
+fixed edition of protected flat and --lib envelopes, and independent Lean
+rejection of missing, different or non-string wire editions in every package.
+Source check/build reject before a backend runs; raw-wire check/emit use the
+real kernel. Package identities and wire epoch 10 are unchanged. CI builds
+the kernel before `cargo test --locked --all-targets`. This is regression
+evidence, not a source-to-Core theorem or acceptance of the planned fn,
+assemble, finite-indexed and numerical-realization grammar.
+"""
+
+[property."compiler-ir.edition".claim.finite-tables]
+status = "tested"
+evidence = [
+  "tests/finite_tables.rs::forward_references_and_degenerate_products_are_checked_on_wire",
+  "tests/finite_tables.rs::unknown_output_points_to_original_tag",
+  "tests/finite_values.rs::native_branch_compares_members_of_a_visible_carrier",
+  "tests/finite_values.rs::finite_value_has_no_integer_or_cross_owner_conversion",
+  "tests/finite_values.rs::changing_a_member_in_the_wire_reaches_the_independent_checker",
+]
+note = "Protocol 10 resolves nominal carriers and checks totality over bounded products, including empty factors and nullary tables. Ordinary first-order functions can accept, return and compare tags of a nominal carrier. The public native branch test uses the existing checked Lean backend. The finite-binder claims cover concrete Hom and static category and object parameters. Functor and Monad parameters remain pending."
+
+[property."compiler-ir.edition".claim.correspondence]
+status = "planned"
+issue = 533
+
+[property."compiler-ir.families"]
+title = "One owned static function family"
+subject = "function identity and assembly"
+statement = """
+Every named function has one owned static FunctionId, a complete method set
+and a checked assembly revision. A singleton function, a multi-method family
+and a bodyless coverage contract use the same public fn model. Static calls
+and function values retain their selected target and specialization key.
+Expected return types, import order and runtime values must not choose a
+method. Every body, including an unused, nonwinning or out-of-domain body,
+remains subject to the independent checks. Structured assemble blocks lower
+to edit events with statement and closing-brace spans; generated loan names
+are deterministic and collision-free. The migration removes public generic,
+method and flat assembly declarations without a permanent alternate parser.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.families)"
+example = "Changing an unselected method or a family owner invalidates the family evidence even if a selected call returns the same value."
+example_not_executed = "The unified family and structured assembly migration is pending."
+
+[property."compiler-ir.families".claim.family]
+status = "planned"
+issue = 462
+
+[property."compiler-ir.families".claim.public-syntax]
+status = "tested"
+evidence = [
+  "tests/edition_families.rs::implicit_overloads_select_static_targets_in_both_branches",
+  "tests/edition_families.rs::static_family_values_are_selected_by_argument_key",
+  "tests/edition_families.rs::retired_spellings_do_not_silently_register_a_family",
+  "tests/structured_assemble.rs::published_examples_lower_to_their_original_authority_traces",
+  "tests/structured_assemble.rs::assembly_binds_the_resolved_family_even_without_installing_a_method",
+  "tests/structured_assemble.rs::a_reexport_preserves_the_unedited_singleton_family_identity",
+  "tests/structured_assemble.rs::independently_replays_source_operands_labels_and_closing_braces",
+  "tests/structured_assemble.rs::entry_bytes_bind_every_assembly_even_if_the_entire_trace_is_removed",
+]
+note = "Public syntax, native behavior on the current backend, and independently rejected tampered edit events. These tests do not establish a universal family revision or LLVM correspondence."
+
+[property."compiler-ir.families".claim.revision-replay]
+status = "tested"
+evidence = [
+  "tests/function_revision.rs::selected_contribution_and_core_symbol_share_one_exact_revision",
+  "tests/function_revision.rs::resource_values_cannot_replay_another_specialization_table",
+  "tests/function_revision_cli.rs::build_rechecks_the_captured_assembly_and_preserves_output_on_mismatch",
+  "tests/function_revision_cli.rs::unchanged_llvm_bytes_do_not_authorize_an_edited_library_or_manifest",
+]
+note = "The optional receipt binds a whole protocol-10 input to its kernel-reconstructed families, selected ordinary or contributed methods and emitted Core symbols. The physical inputs include each loaded manifest, module and flat library. A byte edit in an unused comment invalidates replay even when all LLVM bytes match."
+
+[property."compiler-ir.families".claim.revision-selection]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.ResourceSource.expected_function_revision_exact",
+  "VastitasOracle.ResourceSource.expected_revision_selects_method",
+  "VastitasOracle.ResourceSource.structured_assembly_trace",
+]
+premises = ["the public protocol-10 request is accepted with the expected function revision present"]
+assumes = ["rust-frontend"]
+note = "Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises."
+
+[property."compiler-ir.families".claim.assembly]
+status = "planned"
+issue = 455
+
+[property."compiler-ir.families".claim.static-retention]
+status = "proved-oracle"
+evidence = ["VastitasOracle.PackageLink.retained_static_use", "VastitasOracle.IndexedDispatch.family_coercion_selected", "VastitasOracle.IndexedFunctions.static_target_data_abi", "VastitasOracle.IndexedFunctions.finite_forward_method", "VastitasOracle.IndexedFunctions.finite_forward_call_sequence", "VastitasOracle.IndexedFunctions.finite_forward_producer"]
+premises = ["A checked executable package yields a link artifact. The static use belongs to the executable pass and its caller is a retained specialization."]
+assumes = ["rust-frontend"]
+note = "The target has the expected Fn signature. Its data ABI preserves each finite Hom category and endpoints. Linkage retains every emitted sibling with its defining owner. For a typed family selection, the parameter key selects the checked method from that family. An executable forwarding site binds the arguments, calls its selected producers in order and passes their bound results to its represented specialization."
+
+[property."compiler-ir.operators"]
+title = "Operator spelling preserves family identity"
+subject = "canonical scalar operations"
+statement = """
+Each admitted value operator selects the same canonical family, method,
+assembly revision, Core denotation and effects as its named call:
+std::operator::add, sub, neg, mul and div. In particular, / and div are two
+spellings of one selected operation. Nat binary subtraction remains total
+saturating subtraction; unary Nat negation is not admitted. Division admits
+only the approved static promotion pairs, including Nat/Int to Int, with
+homogeneous operands selecting their own division first. This does not extend
+division's promotion rule to other operators. Implicit represented RR/CC
+promotion, unimplemented bounded-integer operations, %, fdiv and unadmitted
+dimension-annotation forms reject. A user function with the same short name
+must not change a glyph's owner. All five short names denote their canonical
+family; a competing unqualified binding at a call or function-value site
+requires explicit qualification or an import alias. Naming a bounded type does not admit its
+arithmetic or determine its overflow policy.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.operators)"
+example = "For admitted Nat operands 2 and 5, subtraction returns 0; / and div retain the same selected division FunctionId and type."
+example_not_executed = "The exact Nat/Int subset has public tests; represented scalar operations and production LLVM correspondence are pending."
+
+[property."compiler-ir.operators".claim.binding]
+status = "planned"
+issue = 462
+
+[property."compiler-ir.operators".claim.exact-integers]
+status = "tested"
+evidence = [
+  "tests/exact_operators.rs::named_and_glyph_exact_methods_agree_on_all_integer_keys",
+  "tests/exact_operators.rs::imported_operator_alias_and_same_spelling_local_family_are_distinct",
+  "tests/exact_operators.rs::division_promotion_does_not_admit_other_mixed_keys_or_nat_negation",
+  "tests/exact_operators.rs::returned_revision_binds_spelling_and_both_mixed_division_keys",
+  "tests/exact_operators.rs::exact_operator_families_are_static_values_with_checked_method_bodies",
+  "tests/exact_operators.rs::a_lifted_lambda_cannot_capture_or_reinterpret_a_div_binding",
+  "tests/exact_operators.rs::short_qualified_and_glyph_spelling_record_the_same_checked_site",
+  "tests/exact_operators.rs::all_prelude_calls_and_values_select_the_canonical_owner",
+  "tests/exact_operators.rs::a_short_name_cannot_select_a_conflicting_function_import_or_local_value",
+]
+note = "Public exact Nat and Int expressions and calls use the checked operator family. No floating operation, machine integer or optimization is admitted by this test."
+
+[property."compiler-ir.operators".claim.typed-profile]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ExactOperators.selection_in_profile"]
+premises = ["The actual Core term is well typed and produces an exact-operator receipt entry."]
+note = "Filtering the protected operator package by the receipt's FunctionId and actual operand key yields exactly one result, with the term's checked return type. The theorem covers the unbounded Nat/Int operations, including both orders of mixed division."
+
+[property."compiler-ir.coverage"]
+title = "Every constructor has an explicit disposition"
+subject = "Core and storage coverage"
+statement = """
+A ledger at a named source revision must enumerate every accepted Core,
+storage action, native storage instruction and runtime-extent constructor.
+For each constructor it records an admitted typed MidIR mapping or an
+explicit finite-profile rejection. Each admitted entry identifies its source
+fixture, family and method, model, ownership facts, opcode and downstream
+proof obligation. Any constructor or runtime change regenerates the ledger.
+The runtime inventory follows the transitive closure of the admitted snapshot,
+including frame and spectral runtimes where used; an older list of runtime
+modules is not a completeness argument. Missing entries must fail the
+coverage check instead of silently inheriting admission.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.coverage)"
+example = "Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing."
+example_not_executed = "The source-schema drift guard is implemented; admitted MidIR mappings and their preservation evidence remain pending."
+
+[property."compiler-ir.coverage".claim.ledger]
+status = "planned"
+issue = 750
+
+[property."compiler-ir.coverage".claim.inventory]
+status = "tested"
+evidence = [
+  "scripts/test_check_midir_coverage.py::CoverageTests::test_add_remove_change_constructor_and_payload_all_fail",
+  "scripts/test_check_midir_coverage.py::CoverageTests::test_constructor_coverage_has_no_missing_unknown_or_duplicate_rows",
+  "scripts/test_check_midir_coverage.py::CoverageTests::test_no_json_only_admission_or_wildcard_opcode",
+  "scripts/test_check_midir_coverage.py::CoverageTests::test_new_runtime_root_and_import_change_fail",
+]
+note = """
+This claim covers the reviewed constructor signatures, referenced record schemas
+and runtime manifest closure in config/midir-coverage.json. The guard rejects
+source drift, incomplete inventories and JSON-only promotion to admission.
+Every current constructor remains pending. The regular CI checker verifies
+inventory consistency; --require-complete intentionally fails. This is neither
+a typed MidIR mapping nor a proof that the selected source inventory exhausts
+future language extensions.
+"""
+
+[property."compiler-ir.midir"]
+title = "One phase-indexed typed MidIR"
+subject = "MidIR v1"
+statement = """
+MidIR has optimization and execution phases of the same Lean-defined
+Module, Function, Block, Op and Terminator representation. Typed SSA values
+and block arguments retain nominal model, basis and endpoint indices,
+FunctionId, selected method, assembly revision and specialization identity.
+The optimization phase retains mathematical operations and selected pullback
+information. The execution phase fixes the checked layouts, call ABI and
+resource schedule. Ordered effects are explicit; control-flow edges preserve
+block argument types and effect-token flow. Phase-specific well-formedness
+checks reject invalid dominance, missing blocks, duplicate definitions and
+incompatible joins. Bounded versioned dumps round-trip deterministically but
+carry no acceptance authority.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.midir)"
+example = "An SSA branch whose incoming value has a different nominal endpoint is rejected even when both values have the same storage size."
+example_not_executed = "The pure Bool and nominal tag fragment below exercises typed branches and joins. Module-wide validation is pending."
+
+[property."compiler-ir.midir".claim.representation]
+status = "planned"
+issue = 750
+
+[property."compiler-ir.midir".claim.pure-cfg]
+status = "tested"
+evidence = ["VastitasKernel.MidIR.Regression"]
+note = "The adapter consumes a checked wire request and a selected singleton. Regressions exercise typed block arguments, ordering tokens, SSA dominance, nominal comparison and rejection of unsupported Core. The public preview admits selected complete modules. General whole-module lowering remains pending."
+
+[property."compiler-ir.midir".claim.direct-call]
+status = "tested"
+evidence = ["VastitasKernel.MidIR.Regression"]
+note = "The pure module checker accepts an ordered direct call with the selected family, symbol, specialization key and nominal parameter and result types. Regressions change each field and reorder the functions. Resource effects and foreign calls remain open."
+
+[property."compiler-ir.midir".claim.finite-lookup]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.lookup_from_core", "VastitasOracle.MidIR.execute_denote_with"]
+premises = ["The Core symbol list yields the displayed SSA arguments in order. Core and MidIR refer to the same nominal site and declaration environment."]
+note = "Lookup evaluation agrees for arbitrary arity, including the empty list and dependent Hom composition. Each input carries its full nominal sort. This theorem concerns the operation, independently of whole-module lowering."
+
+[property."compiler-ir.registry"]
+title = "Closed opcodes have independent meanings"
+subject = "MidIR opcode registry"
+statement = """
+Each admitted opcode has a stable versioned tag, legal phases, operand and
+result types, nominal indices, independent denotation, effect or resource
+transition, Core origin, Opt-to-Exec obligation and external ABI where
+applicable. The registry covers the admitted arithmetic, indexed, storage,
+tensor, numerical and reverse operations. A family name alone grants no
+admission to another operation. Mathematical algorithm selection remains
+distinct from physical scheduling and profitability. An unknown opcode,
+unsupported attribute or unproved transformation must fail closed.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.registry)"
+example = "A tensor operation with a plausible shape but an unregistered dual or basis combination is rejected."
+example_not_executed = "The closed registry and its source-to-opcode evidence are pending."
+
+[property."compiler-ir.registry".claim.opcodes]
+status = "planned"
+issue = 751
+
+[property."compiler-ir.registry".claim.boolean-logic]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.boolNot_from_core", "VastitasOracle.MidIR.boolOr_from_core", "VastitasOracle.MidIR.execute_denote_with"]
+premises = ["The operands are Boolean values in either MidIR phase."]
+note = "Negation and disjunction return the same Boolean as the corresponding Core operation. The phase conversion preserves their denotations."
+
+[property."compiler-ir.registry".claim.int-literal]
+status = "tested"
+evidence = ["VastitasKernel.LLVM.Regression"]
+note = "For a selected argument-free main, the int.const.v1 opcode keeps the complete unbounded Int until the exit ABI projection. Kernel regressions exercise the actual checked wire entry and reject unsupported arithmetic. General integer operations still require a qualified runtime."
+
+[property."compiler-ir.registry".claim.exact-arithmetic]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.exact_binary_from_core", "VastitasOracle.MidIR.exact_unary_from_core"]
+premises = ["Arguments have the exact Nat/Int sorts in the opcode signature."]
+note = "Both MidIR phases preserve unbounded addition, subtraction, multiplication and division. Nat subtraction saturates. Mixed division has a distinct opcode for each operand order. Negation and explicit conversion have unary signatures."
+
+[property."compiler-ir.semantics"]
+title = "Semantics are independent of validators"
+subject = "observational refinement"
+statement = """
+The observation semantics, refinement relation and modeled LLVM semantics
+live in a dedicated mathlib-free namespace of VastitasOracle. They use the
+kernel's artifact data types but must not define meaning by the result of a
+validator. Observations include the selected mathematical value and pullback,
+ordered effects, failures, initialized storage and cleanup within the admitted
+fragment. Foreign operations have explicit premises. A future move into a
+separate mathematical package does not change these meanings or the oracle's
+sole local-kernel dependency for this release.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.semantics)"
+example = "A transformation that preserves the primal value but changes the selected pullback fails its observation relation."
+example_not_executed = "The independent semantics and stage refinement proofs are pending."
+
+[property."compiler-ir.semantics".claim.observations]
+status = "planned"
+issue = 752
+
+[property."compiler-ir.storage"]
+title = "Storage safety comes from checked refinement"
+subject = "ownership and initialization"
+statement = """
+The ownership authority is the kernel storage checker on the storage plan
+of accepted Core. MidIR does not introduce a competing ownership checker.
+Each lowering preserves the plan's initialized bytes, provenance, layouts,
+aliases, suspended reborrows, inside-out returns, branch joins and normal or
+failure cleanup through refinement. A transformation that changes allocation,
+reuse, aliases or release order must provide their mapping in its untrusted
+witness. Local SSA well-formedness alone proves none of these resource facts.
+No owner or loan may escape its checked scope.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.storage)"
+example = "Moving a release before the final read is rejected even when each function has a well-typed SSA body."
+example_not_executed = "The Core-to-MidIR and LLVM resource refinements are pending."
+
+[property."compiler-ir.storage".claim.refinement]
+status = "planned"
+issue = 752
+
+[property."compiler-ir.runtime"]
+title = "One foreign Lean runtime preserves exact arithmetic"
+subject = "indexed primitives and exact integers"
+statement = """
+Indexed primitives and every Nat or Int operation call one pinned foreign
+library built from the Lean runtime and the admitted kernel runtime modules.
+An operation available only as an inline C function is exposed by a fixed C
+shim in that library. Each call records its ABI, ownership and failure
+contract and implementation identity. Denotations stay the Lean definitions
+used by the oracle and bridge. Nat and Int remain unbounded, Nat subtraction
+saturates, and totalized division retains its chosen meaning. The executable
+must not replace them with unchecked machine-width arithmetic. Small-value
+inline paths need separate modeled instructions and proofs after this
+baseline. The Lean compiler, runtime, shim and GMP behavior remain labeled
+foreign premises, not consequences of the emitted-byte theorem.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.runtime)"
+example = "An integer larger than 64 bits crosses the fixed runtime ABI without narrowing to an LLVM i64 value."
+example_not_executed = "The LLVM-linked foreign runtime and its ABI qualification are pending."
+
+[property."compiler-ir.runtime".claim.linkage]
+status = "planned"
+issue = 753
+
+[property."compiler-ir.float-carrier"]
+title = "Floating carriers stay in the resource layer"
+subject = "numerical representations"
+statement = """
+The four admitted representations are F32<RR>, F64<RR>, F32<CC> and F64<CC>.
+Each value is a resource-layer buffer with an explicit representation,
+component width, component count, element byte size and realization identity.
+Allocation, literals, maps, vectors, tensors, packing, receipts and ABI
+arguments retain that identity; the coefficient alone does not choose a
+precision. Accepted pure Core gains no floating scalar, heterogeneous product
+or sum for this feature. Float and SafeFloat laws are Lean reference-model
+statements. A public Float Monad instance, executable SafeFloat, its lift and
+Result-based safediv wait for the separately admitted ADT profile. F64-first
+is an implementation order, not permission to omit either F32 representation.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.float-carrier)"
+example = "A real F32 buffer cannot be used as a real F64 buffer even when the mathematical base and dimension match."
+example_not_executed = "Four-representation source, storage and ABI support is pending."
+
+[property."compiler-ir.float-carrier".claim.storage]
+status = "planned"
+issue = 686
+
+[property."compiler-ir.float-carrier".claim.binary64-storage]
+status = "tested"
+evidence = ["tests/resource_source.rs::edition_2026_storage_requires_an_explicit_supported_representation", "tests/resource_source.rs::binary32_payloads_preserve_bits_and_use_the_selected_element_width"]
+note = "Both precisions of RR and CC have typed buffers and exact component payloads. Storage rejects cross-representation access, unknown tags and oversized binary32 payloads."
+
+[property."compiler-ir.float-carrier".claim.reference-laws]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.SafeFloat.flags_left_unit",
+  "VastitasOracle.SafeFloat.flags_right_unit",
+  "VastitasOracle.SafeFloat.flags_assoc",
+  "VastitasOracle.SafeFloat.raw_left_unit",
+  "VastitasOracle.SafeFloat.raw_right_unit",
+  "VastitasOracle.SafeFloat.raw_assoc",
+  "VastitasOracle.SafeFloat.safe_left_unit",
+  "VastitasOracle.SafeFloat.safe_right_unit",
+  "VastitasOracle.SafeFloat.safe_assoc",
+  "VastitasOracle.SafeFloat.lift_pure",
+  "VastitasOracle.SafeFloat.lift_bind",
+  "VastitasOracle.SafeFloat.raw_projection",
+  "VastitasOracle.SafeFloat.safe_projection",
+  "VastitasOracle.SafeFloat.raw_congr",
+  "VastitasOracle.SafeFloat.safe_congr",
+  "VastitasOracle.SafeFloat.zero_patterns",
+  "VastitasOracle.SafeFloat.guard_fail",
+  "VastitasOracle.SafeFloat.guard_pass",
+  "VastitasOracle.SafeFloat.first_error",
+  "VastitasOracle.SafeFloat.divide_order",
+]
+premises = ["The fixed reference profile admits deterministic pure Lean continuations and observes represented values and the union of the five operation-local symbolic flags. The checked division statements concern binary32 and binary64 real scalars."]
+note = "Both unit and associativity laws preserve ordered events, as do the pure and bind equations for lift. Projection forgets event identity and ordering while retaining the result and accumulated flags. Both signed-zero guard inputs produce the declared error without invoking division. These proof-only computations give no public SafeFloat execution or hardware flag observations."
+
+[property."compiler-ir.realization"]
+title = "Realization binds mathematical and numerical identities"
+subject = "realize, interpret and run"
+statement = """
+Canonical realize::<R> binds a mathematical object, its base or site, chart,
+dimension, representation, reference and execution profiles and revisions.
+interpret binds the selected computation graph; run executes through resource
+buffers. Affine wrappers lower to this canonical form. A real wrapper creates
+a fresh smooth Affine(n) object; a complex wrapper creates a fresh algebraic
+Affine(CC,n) object. Realizing an existing object preserves its nominal
+identity. Exact mathematical CC is built over RR with a selected commutative
+ring reduct and separate field evidence. Finite executable coordinates embed
+QQ(i) into CC; they do not identify QQ(i) with CC. Numerical representations
+have a different Kind and gain no exact Field or CommRing authority.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.realization)"
+example = "The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction."
+example_not_executed = "The mathematical CC prerequisite and the four wrapper-to-Core correspondences are pending."
+
+[property."compiler-ir.realization".claim.complex-model]
+status = "planned"
+issue = 757
+
+[property."compiler-ir.realization".claim.rational-coordinates]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.ExactComplex.ofRat_injective",
+  "VastitasOracle.ExactComplex.QQi.embed_injective",
+  "VastitasOracle.ExactComplex.QQi.embed_zero",
+  "VastitasOracle.ExactComplex.QQi.embed_add",
+  "VastitasOracle.ExactComplex.QQi.embed_neg",
+  "VastitasOracle.ExactComplex.QQi.inv_zero",
+]
+premises = ["RR uses rational Cauchy sequences modulo eventual epsilon closeness. CC pairs two RR coordinates. Executable inputs are pairs of rational constants."]
+note = "RR and CC carry pointwise addition and negation. The rational-coordinate embedding is injective and preserves zero, addition and negation. The coordinate inverse returns zero at zero."
+
+[property."compiler-ir.realization".claim.coordinate-interpretation]
+status = "proved-bridge"
+evidence = [
+  "VastitasBridge.ExactComplex.real_ofRat",
+  "VastitasBridge.ExactComplex.coordinate_parts",
+  "VastitasBridge.ExactComplex.coordinate_add",
+  "VastitasBridge.ExactComplex.coordinate_neg",
+  "VastitasBridge.ExactComplex.coordinate_mul",
+  "VastitasBridge.ExactComplex.coordinate_conjugate",
+  "VastitasBridge.ExactComplex.coordinate_inv",
+]
+premises = ["The Bridge identifies the Oracle's rational Cauchy quotient with Mathlib's real carrier and its pairs with Mathlib's complex carrier. Operands of the computable operations are rational coordinate pairs."]
+assumes = ["mathlib"]
+note = "Addition, negation, multiplication, conjugation and totalized inversion of rational coordinates have their complex denotations."
+
+[property."compiler-ir.realization".claim.standard-real-chart]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NumericalRealization.dimension_from_subject",
+  "VastitasOracle.NumericalRealization.foreign_chart_impossible",
+  "VastitasOracle.NumericalRealization.complex_on_smooth_real_impossible",
+  "VastitasOracle.NumericalRealization.identity_presentation",
+]
+premises = ["an accepted smooth real affine subject with its standard chart; for the computation an explicit source identity and the checked map with the same nominal endpoints"]
+assumes = ["rust-frontend"]
+note = "These proof-only descriptors support both real widths. The separate executable profile below supports the binary64 real identity."
+
+[property."compiler-ir.realization".claim.source]
+status = "planned"
+issue = 686
+
+[property."compiler-ir.realization".claim.identity-source]
+status = "tested"
+evidence = [
+  "tests/numerical_realization.rs::canonical_realization_runs_into_existing_storage_and_replays_its_revision", "tests/numerical_realization.rs::real32_identity_preserves_payloads_and_replays_its_precision",
+  "tests/numerical_realization.rs::realization_rejects_wrong_chart_graph_precision_policy_or_live_point",
+  "tests/numerical_realization.rs::realization_wire_recomputes_authority_and_rejects_untrusted_targets",
+  "tests/numerical_realization.rs::unused_realization_functions_still_check_point_layout_and_liveness",
+  "tests/numerical_realization.rs::dependency_names_do_not_grant_the_protected_float_identity",
+  "tests/numerical_realization.rs::realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans",
+]
+note = "Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine subject and its own standard chart with either real precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy."
+
+[property."compiler-ir.realization".claim.identity-origin]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NumericalRealization.checked_site",
+  "VastitasOracle.NumericalRealization.profile_equations",
+  "VastitasOracle.NumericalRealization.executed_source_identity",
+  "VastitasOracle.NumericalRealization.executed_copy",
+  "VastitasOracle.NumericalRealization.point_scalar",
+]
+premises = ["The public wire checker accepted the request. For the execution conclusions the request selects an entry and the run receipt belongs to its checked execution."]
+assumes = ["rust-frontend"]
+note = "Every executed receipt identifies the lexical run, its declared identity morphism and the exact checked Core identity on the same nominal subject. The chart recovers the ordered coordinates from that subject. The storage transition checks live represented points and emits the copy between their physical loans at this execution site."
+
+[property."compiler-ir.native-fast"]
+title = "NativeFast preserves calls and reports unavailable flags"
+subject = "native floating profile"
+statement = """
+The v0.1.0 native numerical profile is NativeFast. Emitted LLVM contains no
+floating arithmetic instruction, constrained floating operation or fast-math
+flag. Floating values cross it as bit patterns and adapter-call arguments.
+Class (i) adapters execute a fixed-order graph with separately rounded
+operations and are compared with the binary32 or binary64 reference; an
+arithmetic NaN is specified as a NaN without a fixed sign or payload.
+Class (ii) OpenBLAS calls are deterministic for one pinned build on one host
+under a foreign premise. No ideal tensor accuracy or error bound follows.
+Native flags are Unavailable, never empty. NativeFast does not specify the
+sign of a class (ii) zero or the sign and payload of a NaN from either class.
+Programs selecting a strict or LLVM-default floating profile reject.
+NativeFast is distinct from an opt-in fastfloat profile.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.native-fast)"
+example = "A program requesting observable hardware IEEE flags is rejected instead of receiving fabricated empty flags."
+example_not_executed = "Public rejection and flags evidence exists for the F64<RR> identity. General adapter calls and their LLVM integration remain pending."
+
+[property."compiler-ir.native-fast".claim.profile]
+status = "planned"
+issue = 318
+
+[property."compiler-ir.native-fast".claim.identity-run]
+status = "tested"
+evidence = [
+  "tests/numerical_realization.rs::canonical_realization_runs_into_existing_storage_and_replays_its_revision", "tests/numerical_realization.rs::real32_identity_preserves_payloads_and_replays_its_precision",
+  "tests/numerical_realization.rs::reborrowed_point_restores_its_parent_only_after_release",
+]
+assumes = ["rust-frontend", "lean-to-c"]
+note = "The public check/build/run test exercises a declared binary64 real identity using the Lean-generated native executable. The receipt reports NativeFast and Unavailable flags. The source and wire tests reject a conflicting policy, precision or revision. Numerical arithmetic, verified LLVM emission and the remaining three executable representations are pending."
+
+[property."compiler-ir.numeric-order"]
+title = "Floating observation does not permit a compiler quotient"
+subject = "fixed-order numerical operations"
+statement = """
+The baseline preserves foreign-call identity, argument bits, effect order
+and returned-bit identity. A one-step NaN or signed-zero observation is not
+a contextual congruence and must not authorize a rewrite. A stronger rewrite
+needs a proved operation-closed continuation relation or a checked domain
+restriction. The fixed-order reference includes dot update, diagonal scale
+and adjoint, totalized real division and the selected same-precision complex
+quotient graph. Real division takes the product on an effective-zero divisor
+and IEEE division otherwise. Complex inverse is division of (1,+0) by its
+argument using that graph, without a robust fallback, implicit widening, FMA
+or complex-specific NaN repair. Under NativeFast, expect uses IEEE equality
+and a NaN literal expects a NaN; it is not a raw-bit observation.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.numeric-order)"
+example = "Replacing a returned NaN's bits in a stage witness is rejected even when both results satisfy the one-step NaN observation."
+example_not_executed = "The reference laws below concern numerical results and local flags. The stage witness checks for arithmetic rewrites remain pending."
+
+[property."compiler-ir.numeric-order".claim.reference]
+status = "planned"
+issue = 758
+
+[property."compiler-ir.numeric-order".claim.reference-boundaries]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.BinaryFloat.finite_realDiv_zero",
+  "VastitasOracle.BinaryFloat.empty_dot_preserves",
+]
+premises = ["For real division the numerator is finite and the divisor is a signed zero in binary32 or binary64. For an empty dot update the cell predicates recognize beta as nonzero and one."]
+note = "A finite numerator divided by either signed zero returns zero with the exclusive-or sign and empty reference flags. An empty dot with unit beta returns the prior cell unchanged with empty local flags. Separately, scripts/check_float_kernels.py compares 828 input tuples across both widths against the C real quotient, ordered complex quotient and inverse adapters. The harness compares arithmetic NaNs by class and other values by bits. These direct adapter tests do not exercise a public arithmetic instruction."
+
+[property."compiler-ir.numeric-order".claim.lowering]
+status = "planned"
+issue = 751
+
+[property."compiler-ir.tensor"]
+title = "Tensor meaning precedes storage and GEMM"
+subject = "finite tensor and numerical profiles"
+statement = """
+The admitted rank-1, rank-2 and rank-3 finite-free Tensor model owns the
+meaning of Vector and Matrix aliases. A matrix tensor and a linear-map view
+retain their distinct dual, basis and endpoint obligations. Contraction must
+preserve the use of every port and its checked mathematical role; ports do
+not establish disjoint memory. Numerical realization is explicit. GEMM uses
+the pinned sequential LP64 OpenBLAS adapter for all four representations:
+sgemm, dgemm, cgemm and zgemm. The interleaved complex layouts have 8-byte or
+16-byte elements. Pure programs link no OpenBLAS. Packing, copies,
+allocation, retained bytes, versions and invalidation remain explicit costs.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.tensor)"
+example = "A 2 by 3 map followed by a 3 by 2 map requires matching nominal intermediate bases, not only matching dimensions."
+example_not_executed = "The exact finite-free tensor aliases and their numerical LLVM lowering are pending. The public storage cases below exercise all four GEMM representations through the Lean/C backend."
+
+[property."compiler-ir.tensor".claim.semantics]
+status = "planned"
+issue = 689
+
+[property."compiler-ir.tensor".claim.native]
+status = "planned"
+issue = 753
+
+[property."compiler-ir.tensor".claim.public-views]
+status = "tested"
+evidence = [
+  "tests/numerical_source.rs::public_maps_check_domain_and_precision_before_emitting_gemm",
+  "tests/tensor_source.rs::rank_one_tensor_uses_the_same_named_basis_and_live_column_as_a_vector",
+  "tests/tree_source.rs::tensor_column_contraction_requires_the_selected_dual_and_surviving_basis",
+]
+note = "Public resource functions construct maps and rank-one tensor columns from live allocations. Replaying a wire request with a different precision or coefficient domain fails before emission. Matrix-column contraction checks the dual basis on the contracted axis and the basis of the surviving port."
+
+[property."compiler-ir.tensor".claim.coordinate-storage]
+status = "proved-oracle"
+evidence = ["VastitasOracle.TensorNumerical.checked_column", "VastitasOracle.StorageNumerical.product_representation", "VastitasOracle.TensorContraction.matrix_column_reference"]
+premises = ["The checker returned a CheckedView on a singleton axis, a CheckedProduct on three map views, or a CheckedSingle joining axis 1 of a matrix to axis 0 of a column."]
+note = "A rank-one tensor shares its named basis, precision and live column loan with a vector, with coordinate i at (i, 0). All three maps in an accepted product have the scalar of the actual left allocation selected by checked GEMM. For a matrix-column join, the surviving basis indexes the initialized output. The GEMM reference at each row is the ordered dot product over the contracted axis, including dimension zero."
+
+[property."compiler-ir.tensor".claim.storage-native]
+status = "tested"
+evidence = [
+  "tests/numerical_source.rs::four_representations_execute_through_forwarded_public_maps",
+  "tests/runtime_shape_source.rs::runtime_native_executes_caller_shapes_padding_empty_axes_and_preflight_failure",
+  "tests/tensor_source.rs::tensor_native_executes_rank_three_permutation_bilinear_products_and_empty_axes",
+  "tests/tree_source.rs::tensor_column_contraction_executes_without_implicit_conjugation",
+]
+note = "The public Lean/C build executes static maps, caller-supplied shapes and tensor products at both precisions in both domains. A separate complex binary32 matrix-column product exercises a single surviving port."
+
+[property."compiler-ir.finite-models"]
+title = "Finite category models use checked tables"
+subject = "finite indexed families and selected models"
+statement = """
+Reusable finite carriers and tables are static data. Named category,
+functor, natural-transformation and Monad instances bind those data and their
+revisions to independently checked law evidence. Category composition covers
+all and only composable arrow pairs; a functor has both object and arrow maps.
+A selected Monad identity includes C, T, eta and mu, distinct from its
+proof-irrelevant IsMonad certificate. Opposite reverses endpoints and
+composition without duplicating the carrier. Generic finite schema checking,
+not the spelling std::category or a hard-coded example, supplies admission.
+S3 supplies a noncommuting category fixture, and the closure T(0)=T(1)=1 on
+0<1 supplies a nonidentity lawful Monad fixture. Derived Kleisli laws come
+from that same Monad evidence; its optional execution adapter owns no second
+mathematical semantics.
+
+The std::category::Monad schema owns the mathematical structure. The optional
+monad package depends on its category package. For a selected Monad M,
+monad::kleisli::unit at X returns eta_X. Given p from
+S to T X and f from X to T Y, bind(p,f) returns (mu_Y after T f) after p.
+The optional package exports Kleisli and KleisliTriple views of that named M.
+Hom<K,X,Y> uses the base fiber from X to T Y. extend(f) returns mu_Y after T f.
+compose(g,f) returns bind(f,g). lift(f) follows an ordinary arrow f by
+the unit at its target. Every arrow belongs to the selected category.
+Static object arguments select eta and mu, and the two runtime arrows of
+bind and compose are explicit parameters.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.finite-models)"
+example = "Two Monad structures on the same endofunctor remain different named structures when their eta or mu differs."
+example_test = "tests/finite_monads.rs::two_structures_on_one_endofunctor_select_distinct_units_and_multiplications"
+
+[property."compiler-ir.finite-models".claim.source-core]
+status = "planned"
+issue = 756
+
+[property."compiler-ir.finite-models".claim.category-check]
+status = "tested"
+evidence = [
+  "tests/finite_categories.rs::s3_and_partial_composition_check_independently",
+  "tests/finite_categories.rs::wrong_composition_law_and_wrong_sparse_domain_reject",
+  "tests/finite_categories.rs::category_projections_follow_the_instance_owner_and_remain_checked",
+  "tests/finite_categories.rs::a_projection_can_refer_to_a_later_instance",
+  "tests/finite_categories.rs::concrete_hom_checks_category_and_endpoints_on_the_native_path",
+]
+note = "Covers a noncommutative group and a two-object directed category on the public protocol. A public Hom value crosses a function boundary in the two-object fixture. Further lookup and composition tests appear below."
+
+[property."compiler-ir.finite-models".claim.category-equations]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FiniteTables.checked_table",
+  "VastitasOracle.FiniteTables.lookup_total",
+  "VastitasOracle.FiniteCategories.checked_category",
+  "VastitasOracle.FiniteCategories.unit_equations",
+  "VastitasOracle.FiniteCategories.associative_equation",
+  "VastitasOracle.FiniteCategories.checked_composition_endpoints",
+  "VastitasOracle.FiniteCategoryExecution.compose_total",
+  "VastitasOracle.FiniteCategoryExecution.compose_uses_selected_row",
+  "VastitasOracle.FiniteCategoryExecution.ordinal_eq_iff",
+  "VastitasOracle.FiniteCategoryExecution.core_literal_typed_iff",
+  "VastitasOracle.FiniteCategoryExecution.plan_atKey_composition",
+  "VastitasOracle.FiniteCategoryExecution.plan_atKey_compose_total",
+  "VastitasOracle.FiniteLookup.eval_total",
+  "VastitasOracle.FiniteLookup.dense_refines",
+  "VastitasOracle.FiniteLookup.address_rejects",
+]
+premises = ["the declaration is a member of the resolved environment of CheckedDeclarations; lookup uses the table's declared carriers and a key in its domain"]
+assumes = ["rust-frontend"]
+note = "The derived Hom composition on the selected accepted graph is total, returns the declared row, and preserves the nominal instance and both endpoints. Executable Lean regressions cover S3 and the two-object chain. The finite-binder claims cover category-indexed functions."
+
+[property."compiler-ir.finite-models".claim.functor-equations]
+status = "proved-oracle"
+evidence = ["VastitasOracle.FiniteFunctors.checked_functor", "VastitasOracle.ResourceSource.public_finite_functor"]
+premises = ["The named finiteFunctor declaration is a member of the resolved declaration environment of the accepted protocol 10 input. The compiler compares an expected revision when the request supplies one."]
+assumes = ["rust-frontend"]
+note = "Both endpoints, each identity and each composable pair give equal, defined table results in the selected categories. The public theorem uses the declaration environment of the returned program. The Rust parse, native execution and Monad laws have separate obligations."
+
+[property."compiler-ir.finite-models".claim.functor-source]
+status = "tested"
+evidence = [
+  "tests/finite_functors.rs::closure_endofunctor_checks_executes_and_preserves_all_path_spans",
+  "tests/finite_functors.rs::object_and_arrow_projections_cross_distinct_nominal_categories",
+  "tests/finite_functors.rs::unused_functor_checks_signatures_endpoints_identity_and_composition",
+  "tests/finite_functors.rs::changing_to_an_equivalent_category_instance_invalidates_the_functor_revision",
+]
+note = "The two total unary maps retain the nominal source and target carriers. Ordinary functions read F::objects and F::arrows. The closure endofunctor maps both objects of the chain to its upper object and every arrow to its identity. Inversion on S3 fails composition preservation."
+
+[property."compiler-ir.finite-models".claim.transformation-monad-source]
+status = "tested"
+evidence = [
+  "tests/finite_natural_transformations.rs::conjugation_in_s3_distinguishes_both_sides_of_the_naturality_equation",
+  "tests/finite_natural_transformations.rs::replay_rejects_an_equal_component_table_with_a_new_nominal_owner",
+  "tests/finite_monads.rs::closure_monad_exercises_both_projections_and_preserves_four_named_paths",
+  "tests/finite_monads.rs::two_structures_on_one_endofunctor_select_distinct_units_and_multiplications",
+  "tests/finite_monads.rs::a_natural_multiplication_can_fail_the_associativity_diagram",
+  "tests/finite_monads.rs::forged_fields_and_stale_revisions_cannot_select_a_different_monad",
+]
+note = "The public closure Monad executes its unit and multiplication on both objects of the chain. S3 conjugation tests the order of naturality and two structures on the same endofunctor have distinct component maps and revisions."
+
+[property."compiler-ir.finite-models".claim.transformation-monad-equations]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FiniteNatTrans.checked_transformation",
+  "VastitasOracle.ResourceSource.public_finite_nat_trans",
+  "VastitasOracle.FiniteMonads.checked_monad",
+  "VastitasOracle.ResourceSource.public_finite_monad",
+]
+premises = ["The named declaration belongs to the resolved environment of the accepted input. Source tables and transformations are selected by nominal declaration identity."]
+assumes = ["rust-frontend"]
+note = "Component endpoints and naturality hold for every object and arrow of the selected functors. The selected Monad has an identity source for its unit, the squared action for its multiplication, and equal defined results on both sides of the unit and associativity diagrams."
+
+[property."compiler-ir.finite-models".claim.laws]
+status = "planned"
+issue = 199
+
+[property."compiler-ir.finite-models".claim.kleisli-equations]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FiniteKleisli.public_kleisli",
+  "VastitasOracle.FiniteKleisli.public_triple",
+  "VastitasOracle.KleisliViewSemantics.public_view",
+  "VastitasOracle.KleisliViewSemantics.concrete_hom",
+  "VastitasOracle.KleisliViewExtension.public_extend",
+  "VastitasOracle.FiniteMonadExtend.eval_instantiated_extend",
+  "VastitasOracle.Kleisli.Triple.triple_roundtrip",
+  "VastitasOracle.FiniteKleisli.bind_row",
+  "VastitasOracle.Kleisli.unit_compose",
+  "VastitasOracle.Kleisli.compose_unit",
+  "VastitasOracle.Kleisli.compose_assoc",
+  "VastitasOracle.Kleisli.lift_comp",
+  "VastitasOracle.FiniteMonadUnit.eval_instantiated_unit",
+  "VastitasOracle.FiniteMonadUnit.eval_instantiated_lift",
+  "VastitasOracle.FiniteMonadBind.eval_instantiated_bind",
+  "VastitasOracle.FiniteMonadBind.eval_instantiated_compose",
+  "VastitasOracle.FiniteMonadBind.routes_of_instantiation",
+]
+premises = ["The selected Monad declaration belongs to the resolved environment of the accepted protocol 10 input. For the row equation the arguments are Hom arrows in the indicated fibers of its category."]
+assumes = ["rust-frontend"]
+note = "The public theorem derives the two Kleisli unit equations and associativity from the selected category, endofunctor, unit and multiplication. The derived extension triple recovers the selected arrow map and multiplication, and both data round trips preserve the structures. The bind result uses their arrow map, multiplication component and two category compositions. The generic laws give lift's preservation of composition. Both public view kinds recover the exact named Monad, its laws and its table rows in the same revision. For all five canonical templates, successful specialization yields Core with the mathematical result at the selected indices. Bind and compose recover their arrow map, multiplication and both compositions from the same successful specialization."
+
+[property."compiler-ir.finite-models".claim.execution]
+status = "planned"
+issue = 206
+
+[property."compiler-ir.finite-models".claim.kleisli-run]
+status = "tested"
+evidence = [
+  "tests/finite_monads.rs::only_category_exports_the_schema_and_only_kleisli_exports_the_operations",
+  "tests/finite_monads.rs::kleisli_bind_and_compose_preserve_noncommuting_s3_order",
+  "tests/finite_monads.rs::closure_kleisli_operations_bind_to_the_selected_revision",
+  "tests/finite_monads.rs::kleisli_specializations_distinguish_two_monads_on_one_functor",
+  "tests/finite_monads.rs::concrete_kleisli_hom_pulls_back_the_target_along_the_selected_object_map",
+  "tests/finite_monads.rs::derived_view_declarations_require_the_exact_kind_schema_and_direct_monad",
+  "tests/finite_monads.rs::distinct_views_of_one_monad_share_specialization_and_reject_stale_public_revision",
+  "tests/finite_monads.rs::direct_function_producing_a_represented_arrow_precedes_bind_and_compose_in_llvm",
+  "tests/finite_monads.rs::static_hom_callables_keep_their_declaring_package_and_fiber",
+  "tests/finite_monads.rs::finite_callable_methods_are_audited_before_selection",
+  "tests/finite_monads.rs::kleisli_forwarding_requires_declared_positions_and_exact_producer_fibers",
+  "tests/finite_monads.rs::nested_callbacks_with_an_empty_hom_result_are_audited_without_a_sample_arrow",
+]
+assumes = ["rust-frontend", "lean-to-c"]
+note = "The closure example selects unit, bind, compose and lift through its two named views. The checked Lean/C executable also distinguishes both orders of two S3 arrows for bind and compose. On a one-object group two structures with the same endofunctor produce distinct extensions and specialized symbols. Changing the view while keeping its underlying Monad preserves the specialization key and invalidates the saved source revision. Production LLVM delivery has its own execution obligation."
+
+[property."compiler-ir.finite-binders"]
+title = "Finite binders do not admit general polymorphism"
+subject = "finite table lookup and Hom indices"
+statement = """
+The finite public forms are indexed finite carrier declarations, indexed
+table declarations, indexed instance declarations and ordinary fn operations.
+Function binders range only over statically selected finite model, object,
+functor, transformation, Monad and table schemas. Hom indices and associated
+table projections are checked independently. Input types may determine a
+unique binder; otherwise the call supplies it explicitly with turbofish.
+For M bound to a Monad schema, Obj<M::category> selects its objects.
+Hom<M::category,X,M::T<Y>> uses the selected object action. A Hom value
+records its category and concrete endpoints. A caller supplies the Monad
+explicitly because several structures can share a category and endofunctor.
+Checking applies T to an explicit object argument, including when T maps
+several inputs to the same object.
+Expected result types must not choose it. A dependent table signature and
+checked coverage preserve Hom fibers during lookup. A raw tag has no implicit
+cast to Hom. Runtime arrows are finite tags and lookup lowers to validated
+finite branches; evidence and model selection have no runtime dictionary.
+The 4096-key and specialization bounds remain, and finite-law work is bounded
+before enumeration. General type parameters, arbitrary const computation,
+higher-rank forms and runtime model selection remain outside this profile.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.finite-binders)"
+example = "The projected composition table takes Hom(C,Y,Z) and Hom(C,X,Y) and returns Hom(C,X,Z) under the same selected C revision."
+example_test = "tests/finite_binders.rs::inferred_and_explicit_indices_select_the_same_nominal_specialization"
+
+[property."compiler-ir.finite-binders".claim.admission]
+status = "planned"
+issue = 756
+
+[property."compiler-ir.finite-binders".claim.concrete-lookup]
+status = "tested"
+evidence = [
+  "tests/finite_categories.rs::concrete_hom_checks_category_and_endpoints_on_the_native_path",
+  "tests/finite_categories.rs::concrete_hom_rejects_wrong_endpoints_raw_tags_and_identical_graph_clones",
+  "tests/finite_lookup.rs::imported_total_tables_execute_in_cartesian_order",
+  "tests/finite_lookup.rs::lookup_checks_argument_arity_and_nominal_owner_in_both_kernel_modes",
+  "tests/finite_lookup.rs::noncommuting_homs_execute_only_through_the_selected_composition",
+]
+note = "Ordinary functions use concrete endpoint-indexed Hom, total table lookup and the selected category's composition projection. The public native comparison runs the checked Lean backend."
+
+[property."compiler-ir.finite-binders".claim.category-functions]
+status = "tested"
+evidence = [
+  "tests/finite_binders.rs::inferred_and_explicit_indices_select_the_same_nominal_specialization",
+  "tests/finite_binders.rs::symbolic_composition_preserves_noncommuting_order",
+  "tests/finite_binders.rs::an_unused_template_is_checked_without_any_inhabited_model",
+  "tests/finite_binders.rs::inference_rejects_foreign_models_ambiguous_indices_and_conflicting_endpoints",
+  "tests/finite_lookup.rs::standard_category_composes_an_applications_noncommuting_arrows",
+]
+note = "A category schema and its objects can index an ordinary named function over Hom and Bool. The checked Lean backend executes noncommuting composition, and the receipt binds each specialized symbol to its model and endpoints."
+
+[property."compiler-ir.finite-binders".claim.monad-functions]
+status = "tested"
+evidence = [
+  "tests/finite_monads.rs::closure_kleisli_operations_bind_to_the_selected_revision",
+  "tests/finite_monads.rs::kleisli_specializations_distinguish_two_monads_on_one_functor",
+  "tests/finite_monads.rs::kleisli_projections_use_the_visible_monad_and_its_private_maps",
+  "tests/finite_monads.rs::kleisli_inference_cannot_recover_a_monad_from_a_hom_or_an_expected_type",
+]
+note = "Ordinary functions specialize on the exact nominal Monad. Each object in the key retains its category. A public instance selects private fields of its defining package, a private instance fails visibility checks, and changing a Monad in the returned revision prevents replay."
+
+[property."compiler-ir.finite-binders".claim.typed-substitution]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.FiniteFunctions.instantiate_sound",
+  "VastitasOracle.FiniteFunctions.realize_hom_iff",
+  "VastitasOracle.FiniteFunctions.wire_finite_specialization",
+  "VastitasOracle.FiniteFunctions.eval_instantiated_compose",
+]
+premises = ["The symbolic template instantiates under its nominal key, or the specialization is present in the finite part of the prepared pure program of an accepted protocol 10 request."]
+note = "Successful specialization yields the concrete signature and typed Core body under this key. Each realized Hom recovers both endpoints and the same nominal model from its static slots. The wire theorem binds each finite entry to its exact owner, substitution and typed function in the all-body audit. For a template with the typed body of the public compose function and a checked projection, the Core evaluator returns the mathematical composite on every pair in the two Hom fibers."
+
+[property."compiler-ir.stage-validation"]
+title = "Every transformation checks an untrusted witness"
+subject = "translation validators"
+statement = """
+Each validator receives the before and after artifacts plus a typed,
+untrusted data witness. Soundness quantifies over every witness: a true
+validator result implies observational refinement under the independent
+semantics and stated foreign premises. Separate stages cover Core-to-Opt,
+each enabled Opt pass, Opt-to-Exec, Exec-to-modeled LLVM and LLVM-to-bytes.
+The initial optional optimizations are pure exact constant folding and
+erasure of observationally inert metadata, each with its proof. A proposed
+optimization that fails validation may use only an independently revalidated
+baseline. A cost prediction, diagnostic receipt or cache hit is not proof.
+Unproved floating reassociation, FMA, NaN quotients and changes to a selected
+pullback must reject.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.stage-validation)"
+example = "A witness preserving a function's return value but dropping an ordered effect fails the validator."
+example_not_executed = "The stage validators and their universally quantified soundness proofs are pending."
+
+[property."compiler-ir.stage-validation".claim.soundness]
+status = "planned"
+issue = 752
+
+[property."compiler-ir.stage-validation".claim.pure-cfg]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.execute_denote", "VastitasOracle.MidIR.execute_run", "VastitasOracle.MidIR.execute_module", "VastitasOracle.MidIR.execute_invoke", "VastitasOracle.MidIR.unit_from_core"]
+premises = ["The closed pure MidIR opcode or function converts successfully from optimization to execution in the supplied indexed declaration environment."]
+note = "Denotation is equal for all inputs for this phase change, including branch selection, join arguments and failure. Successful module conversion preserves linked invocation at every depth for every target and argument list. Whole-module source and byte refinement with resources remains pending."
+
+[property."compiler-ir.composition"]
+title = "Local proofs compose over the same module"
+subject = "whole-module refinement"
+statement = """
+A checked composition theorem joins the stage proofs across calls,
+selected function and model identities, ABIs, global initialization,
+effects, foreign calls and shared resource ownership. Function-local
+validation alone is insufficient. Every composed proof names the same
+source and environment, returned Core, phase artifacts, target, foreign
+contracts and final LLVM bytes. Changed declarations, negative dispatch
+dependencies or an ABI mismatch invalidate the relevant evidence. The global
+acceptance theorem has one owner and does not create a second Domain or
+Ownership authority.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.composition)"
+example = "Two individually accepted functions with incompatible caller and callee ownership conventions do not produce an accepted module."
+example_not_executed = "The module composition theorem and its artifact-bound checks are pending."
+
+[property."compiler-ir.composition".claim.theorem]
+status = "planned"
+issue = 752
+
+[property."compiler-ir.constitution"]
+title = "Finite constitutional claims need their own proofs"
+subject = "CS_fin, MS_fin and CF_fin"
+statement = """
+Typed CS_fin, MS_fin and CF_fin statements range over one pinned accepted
+U, P, E, Q, C and evidence interface. CS_fin relates the public accepted
+source AST, environment and returned Core with their applicable checks.
+Rust parsing remains an explicit assumption where no parser theorem exists.
+MS_fin relates checked storage and its initialized values, loans, aliases,
+cleanup and failures through the modeled lowering. CF_fin connects an
+admitted contravariant construction to an independent mathematical denotation,
+including a same-endpoint noncommuting example and reversed composition.
+Stage refinement alone does not establish that mathematical correspondence.
+Official Lean proofs and axiom closure are required before finite release
+acceptance; broader constitutional, Spec and CInfSpec claims remain outside
+this statement. These are not machine-code or foreign-runtime safety proofs.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.constitution)"
+example = "S3 arrows with different composition orders distinguish the admitted opposite interpretation from a mistaken covariant implementation."
+example_not_executed = "The finite typed statements, artifact correspondence and constitutional proofs are pending."
+
+[property."compiler-ir.constitution".claim.finite-proofs]
+status = "planned"
+issue = 763
+
+[property."compiler-ir.llvm-model"]
+title = "The LLVM subset has explicit target and ABI semantics"
+subject = "modeled LLVM"
+statement = """
+Lean defines a bounded typed LLVM module subset with target triple, data
+layout, function and global signatures, instructions and external ABI
+contracts. MidIR block parameters become phi inputs with checked types and
+predecessors. Every emitted operation has a modeled meaning. Unknown
+instructions, floating arithmetic and unsupported attributes reject.
+Unproved poison or undefined-behavior promises are disabled, including nsw,
+nuw, exact, inbounds, nonnull, noalias, nocapture, readonly-style and fast-math
+attributes. Layout or disjointness facts must not enable such a promise
+without a separate artifact-bound theorem valid for all admitted executions.
+LLVMVerifyModule is a diagnostic check, not a semantic proof.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.llvm-model)"
+example = "Adding inbounds to a generated address calculation without an admitted promise proof is rejected."
+example_not_executed = "The LLVM subset, semantics and refinement validator are pending."
+
+[property."compiler-ir.llvm-model".claim.model]
+status = "planned"
+issue = 753
+
+[property."compiler-ir.llvm-bytes"]
+title = "The theorem reaches every emitted LLVM byte"
+subject = "LLVM printer, parser and handoff"
+statement = """
+A deterministic Lean-defined printer and bounded parser establish the
+modeled module's round-trip and correspondence to its complete canonical
+LLVM .ll byte sequence. A checksum or AST identity alone is insufficient.
+Before native optimization, the driver rereads the final file, compares all
+bytes with the verified sequence and supplies the same immutable buffer to
+the in-process libLLVM parser. A Rust builder, normalization pass or parser
+result must not alter the verified input. A byte change, target change,
+parser disagreement or extra instruction fails closed. The external parser
+and handoff remain labeled host premises and receive adversarial tests.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.llvm-bytes)"
+example = "Changing one byte after verification prevents native code generation even if a stored hash or theorem name remains unchanged."
+example_not_executed = "Unary and binary lookup, the static forwarder, literal and folded integer entries, an assembled Boolean branch and closed finite package entries have complete canonical-byte theorems. General functions and release verification modes remain pending."
+
+[property."compiler-ir.llvm-bytes".claim.bytes]
+status = "planned"
+issue = 753
+
+[property."compiler-ir.llvm-bytes".claim.lexical]
+status = "tested"
+evidence = ["VastitasKernel.LLVM.Regression"]
+note = """
+The isolated lexical component has 26 official-kernel reduction regressions
+for canonical quoted bytes, closed scalar/result spellings and bounded
+target/layout headers. Its general Lean theorems establish roundtrip and
+arbitrary-input canonicality for those codecs, including full consumption
+and size bounds. This test claim does not cover instructions, functions,
+CFG/phi, module well-formedness, external LLVM semantics or accepted Core.
+Lexically valid target strings do not establish a qualified target or ABI.
+The public preview uses these codecs for its target headers and complete modules.
+"""
+
+[property."compiler-ir.llvm-bytes".claim.switch-regression]
+status = "tested"
+evidence = ["VastitasKernel.LLVM.Regression"]
+note = "The complete unary finite-table function round-trips. Regressions check empty and nonempty tables, mismatched return values and a trailing byte. The separate unary-switch claim states the semantics of accepted bytes."
+
+[property."compiler-ir.llvm-bytes".claim.unary-switch]
+status = "proved-oracle"
+evidence = ["VastitasOracle.LLVMTable.named_result", "VastitasOracle.LLVMTable.outside_domain"]
+premises = ["The unary table image fixes the selected declaration, both nominal carriers, their ordinal orders and target header. The bounded parser returns that module for the supplied complete bytes."]
+note = "Every in-domain i32 ordinal yields the ordinal of the actual named lookup result. Foreign inputs outside the domain return UINT32_MAX. The theorem ends at bytes and the modeled result. The separate native experiment calls the host LLVM parser and checks the object against the Lean reference."
+
+[property."compiler-ir.llvm-bytes".claim.unary-function]
+status = "proved-oracle"
+evidence = ["VastitasOracle.UnaryFunction.correspondence", "VastitasOracle.UnaryFunction.foreign_miss"]
+premises = ["A protocol 10 library is accepted and the unary-function compiler returns an artifact for its one public root function, the selected target and its canonical lookup body. The complete byte string parses to its modeled switch module."]
+assumes = ["rust-frontend"]
+note = "For every in-domain i32 input, the checked Core body, both MidIR functions and the LLVM switch return the same logical tag under the recorded ordinal encodings. An out-of-domain i32 yields UINT32_MAX. The macOS arm64 qualification consumes the returned bytes with LLVM 23.1.4. General modules, native compiler correctness and proof-checking modes remain separate."
+
+[property."compiler-ir.llvm-bytes".claim.binary-function]
+status = "proved-oracle"
+evidence = ["VastitasOracle.BinaryFunction.correspondence", "VastitasOracle.BinaryFunction.word_result", "VastitasOracle.BinaryFunction.foreign_miss"]
+premises = ["A complete accepted library has one public binary lookup with distinct input parameters. Its artifact binds the source owner, frozen operands, both MidIR bodies, the validated dense table and the target header. The supplied bytes parse to this module."]
+assumes = ["rust-frontend"]
+note = "All in-domain pairs yield the selected named result under both nominal ordinal encodings. The two axis checks reject foreign coordinates before unsigned i32 address arithmetic. Reversing the operands in Core changes their order in SSA and the foreign signature. The complete parser rechecks both guards, the stride, branch, all cases and returns."
+
+[property."compiler-ir.llvm-bytes".claim.binary-source]
+status = "tested"
+evidence = ["tests/llvm_preview.rs::binary_lookup_preserves_nominal_axes_and_composition_order"]
+note = "The public LLVM preview checks both orders of S3 composition, a non-square total table and an empty carrier axis. The macOS LLVM 23.1.4 qualification additionally ran 36 valid and 45 invalid ordinal pairs for each operand order."
+
+[property."compiler-ir.llvm-bytes".claim.finite-entry]
+status = "proved-oracle"
+evidence = ["VastitasOracle.FiniteProgram.correspondence", "VastitasOracle.PackageLink.entry_all_fuel", "VastitasOracle.FiniteModule.lookup_case", "VastitasOracle.FiniteModule.binary_control", "VastitasOracle.FiniteModule.guarded_index_exact"]
+premises = ["The accepted wire program yields a closed finite executable artifact with bounded Core and MidIR entry observations. The supplied complete bytes parse to its modeled module."]
+assumes = ["rust-frontend"]
+note = "The original Core entry has the same integer at all sufficient fuel. Both MidIR phases agree on that integer at the certified bound. The actual lowered LLVM entry evaluates to its exit byte. Linkage records the original symbol of each retained function and the disposition of each excluded dependency. Each row has its matching switch arm and return block. For two to six axes, executing the emitted guard and address instructions reaches the switch with the mathematical row-major index exactly when all coordinates are in range. The external LLVM implementation and native linker are tested separately."
+
+[property."compiler-ir.llvm-bytes".claim.finite-package-source]
+status = "tested"
+evidence = ["tests/llvm_preview.rs::linked_closure_program_preserves_kleisli_calls_and_both_exit_edges", "tests/finite_monads.rs::kleisli_bind_and_compose_preserve_noncommuting_s3_order", "tests/llvm_preview.rs::repeated_direct_calls_pay_for_each_finite_table_lookup", "tests/llvm_package_roots.rs::uncalled_root_contribution_and_its_foreign_family_sibling_are_linked", "tests/llvm_package_roots.rs::unsupported_root_contribution_or_foreign_sibling_rejects_the_closed_package", "tests/llvm_package_roots.rs::root_borrow_and_apply_retains_a_wholly_foreign_family_and_implementation", "tests/llvm_package_roots.rs::explicit_seal_without_a_concrete_specialization_rejects_the_preview", "tests/llvm_package_roots.rs::assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module", "tests/llvm_package_roots.rs::all_admitted_lookup_arities_reach_llvm_in_declared_axis_order"]
+note = "The complete closure Monad program checks four named operations against its revision. Changing the compared arrow relation exercises the other exit edge. The S3 program distinguishes both operand orders using independently computed permutation products. Independent changes to a three-axis table row and its assembled predicate change the result and invalidate the saved revision. Source fixtures exercise all seven admitted arities with reversed row declarations."
+
+[property."compiler-ir.llvm-bytes".claim.static-call]
+status = "proved-oracle"
+evidence = ["VastitasOracle.CallFunction.correspondence", "VastitasOracle.CallFunction.foreign_miss"]
+premises = ["A checked protocol 10 library yields the artifact for two public exports in the required order, a unary table lookup and its direct forwarding caller. The bounded parser accepts the entire supplied byte list for the artifact's target and table."]
+assumes = ["rust-frontend"]
+note = "For every in-domain i32 argument, the checked caller's Core evaluation, both linked MidIR invocations and the modeled LLVM forwarder select the same result. An out-of-domain ordinal returns UINT32_MAX. The [macOS arm64 qualification](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/results/macos-arm64/static-call.json) parsed and ran the 709-byte module with LLVM 23.1.4 and checked both exports against their expected answers. The [LLVM corpus](https://github.com/MGYamada/Vastitas/tree/main/llvm) replays these lookup and static-call bytes from their sources and checks a closed parser equation for each retained fixture. The pinned Lean EmitLLVM source uses emitFullApp and buildCall2. Its binary lacks LLVM support, so executing the upstream emitter remains a comparison gap."
+
+[property."compiler-ir.llvm-bytes".claim.entry-status]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ExitFunction.correspondence"]
+premises = ["The checked wire application yields the entry artifact for one root main with no parameters and an Int literal body, including the canonical negated-literal form. The bounded parser accepts the complete supplied byte list for its target and exit status."]
+assumes = ["rust-frontend"]
+note = "The returned Core entry and both linked MidIR phases evaluate to the same unbounded integer. The modeled hosted main returns its Euclidean residue modulo 256. The proof identifies the complete LLVM bytes, including the target and its layout. This profile needs no foreign integer runtime because it computes only the exit status of the literal entry."
+
+[property."compiler-ir.llvm-bytes".claim.assembled-bool]
+status = "proved-oracle"
+evidence = ["VastitasOracle.DispatchFunction.correspondence", "VastitasOracle.DispatchFunction.method_correspondence"]
+premises = ["A checked program yields the dispatch artifact for one Bool family, an applied contribution, all executable sibling specializations and a root caller that branches to two integer results. The supplied complete bytes parse to its modeled module for the chosen header."]
+assumes = ["rust-frontend"]
+note = "The selected row, contribution and call target belong to the same checked revision. The actual Core and both MidIR invocations agree on the integer result. The LLVM module calls the selected body, branches on its i1 and joins the two exit values with an i32 phi. Every remaining specialized body has its own internal definition."
+
+[property."compiler-ir.llvm-bytes".claim.entry-regression]
+status = "tested"
+evidence = ["VastitasKernel.LLVM.Regression"]
+note = "The kernel regressions check canonical exit-module bytes, negative and large exit statuses, changed values, an invalid entry ABI and a return outside the byte range."
+
+[property."compiler-ir.llvm-bytes".claim.folded-entry]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ExactFold.evaluates", "VastitasOracle.ExitFunction.fold_correspondence"]
+premises = ["The checked module supplies a closed exact entry artifact. The complete byte string parses to its target and modeled exit module."]
+assumes = ["rust-frontend"]
+note = "The checked Core evaluates with sufficient fuel to the full integer retained by both MidIR stages. The ordered operator sites match the revision pass and each has one protected method for its argument key. The emitted main returns the Euclidean residue modulo 256. Variables must come from local closed bindings and intermediate results must meet the folding budget."
+
+[property."compiler-ir.llvm-bytes".claim.boxed-library]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ExactLibrary.bytes_correspondence"]
+premises = ["The complete checked public module is a single straight-line boxed integer export. Its bytes parse to its emitted model. Literal allocation succeeds. The modeled foreign call has no result on malformed argument lists. On its declared operand kinds it implements the unbounded operation on borrowed inputs and returns an owned value."]
+assumes = ["rust-frontend"]
+note = "The model reconstructs the checked execution SSA block including every typed parameter, literal, operand and return slot. Both checked MidIR phases and the parsed model have the same return observation for every argument list under the runtime contract. The proof also identifies the target header, result sort, current revision and complete bytes. Machine code, runtime memory management and general source-to-SSA refinement have separate obligations."
+
+[property."compiler-ir.llvm-bytes".claim.boxed-program]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ExactProgram.correspondence"]
+premises = ["The checker produces a linked, closed straight-line integer artifact and the complete bytes parse to its model."]
+assumes = ["rust-frontend"]
+note = "The original Core, the optimization and execution MidIR and the reconstructed module agree on the entire Int at the entry. The byte equation binds the target, typed direct calls, ownership instructions and hosted status projection. Runtime initialization, allocation, reference counting, object code and the host linker require native qualification."
+
+[property."compiler-ir.llvm-bytes".claim.boxed-regression]
+status = "tested"
+evidence = ["VastitasKernel.LLVM.Regression", "tests/llvm_preview.rs::boxed_integer_exports_bind_their_argument_order_and_full_revision", "tests/llvm_preview.rs::boxed_program_preserves_call_targets_and_borrowed_returns"]
+note = "The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls."
+
+[property."compiler-ir.verification-modes"]
+title = "Fast and Official verify the same artifact obligations"
+subject = "compiler verification modes"
+statement = """
+The two compiler modes are --mode=fast and --mode=official, with fast as the
+default. Both retain the same source, identity, ownership, stage and complete
+LLVM-byte obligations. Fast audits input-bound exported Lean evidence with
+the pinned toolchain's out-of-process nanoda_bin and reports verifier=nanoda
+and official_kernel_checked=false. Official checks those obligations with
+the pinned official Lean kernel and reports official_kernel_checked=true
+only after successful artifact and environment binding. Official reduction
+uses kernel-checked proof terms, not native_decide, bv_decide, ofReduceBool or
+an unproved axiom. Constitutional CI uses the official kernel only and is not
+a third compiler mode. A failed verifier must not silently change modes.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.verification-modes)"
+example = "An export unsupported by nanoda is rejected in Fast and requires an explicit Official invocation."
+example_not_executed = "The standalone signed-literal and live boxed-program qualifications exercise the verifier workers. General per-build verification and public mode selection remain pending."
+
+[property."compiler-ir.verification-modes".claim.modes]
+status = "planned"
+issue = 282
+
+[property."compiler-ir.verification-modes".claim.boxed-stage]
+status = "proved-oracle"
+evidence = ["VastitasOracle.BoxedCertificate.corresponds"]
+premises = ["The public emitter returns the checked boxed integer publication of this exact subject. The concrete execution-model certificate is valid."]
+assumes = ["rust-frontend"]
+note = "The wire decodes to the certified ordered physical paths, offsets, texts and entry. The certified full revision equals the artifact reconstructed from the independently checked program, including dispatch winners and operator sites. The certified Int agrees with the returned Core and both MidIR stages. The parser accepts all certified bytes as the published module. Closed stage proofs and the public emitter's dependent publication witness have distinct roles. The standalone driver checks the former per input."
+
+[property."compiler-ir.proof-binding"]
+title = "Proof binding authenticates statements and dependency closure"
+subject = "proof and environment authentication"
+statement = """
+Per-build evidence binds the source packages, edition, Charter, selected
+Core and MidIR, target, foreign environment and complete LLVM bytes to the
+theorem's type and proof. The standard axioms propext, Classical.choice and
+Quot.sound require their pinned statements and declaration structures, not
+only matching rendered names. The entire transitive declaration environment
+is checked, including unused disallowed axioms in an export. A versioned
+Fast coverage ledger identifies supported nanoda export forms; unsupported,
+truncated, stale, ambiguous or unbound exports reject. A standalone
+audit-lean result stays diagnostic and cannot authorize compilation. A cache
+hit or digest equality never skips the per-build semantic obligations.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.proof-binding)"
+example = "An export declaring propext with a different proposition is rejected despite its matching printed name."
+example_not_executed = "The signed-literal qualification binds a fixed complete export. The boxed-program stage verifier regenerates the declaration prefix for the current revision and checks the supplied proof of its precise proposition. A general compiler export policy and public Fast coverage ledger remain pending."
+
+[property."compiler-ir.proof-binding".claim.authentication]
+status = "planned"
+issue = 282
+
+[property."compiler-ir.check-build"]
+title = "Check stops after verified LLVM IR"
+subject = "command results and receipts"
+statement = """
+check and build construct and verify the same canonical chain through the
+complete LLVM bytes. check stops before the libLLVM backend, object generation
+and linking; a check-only distribution may omit native backend linkage.
+build additionally performs the byte comparison, object generation, host
+link and atomic output installation. Receipts separate verification mode,
+verifier, official-kernel status, verification endpoint and native-build
+status. They record target, ABI, runtime and backend identities. Official
+acceptance means verified LLVM IR under stated premises, never verified
+machine code. Optional diagnostics have no semantic acceptance authority.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.check-build)"
+example = "A successful Official check reports LLVM IR verification and no native executable, rather than a generic kernel_verified bit."
+example_not_executed = "The opt-in LLVM preview reports a compiled checker and its artifact endpoint. Fast and Official mode qualification remain open."
+
+[property."compiler-ir.check-build".claim.commands]
+status = "planned"
+issue = 417
+
+[property."compiler-ir.check-build".claim.preview]
+status = "tested"
+evidence = [
+  "tests/llvm_preview.rs::exact_exit_status_and_library_bytes_come_from_checked_public_core",
+  "tests/llvm_preview.rs::llvm_preview_rejects_unsupported_bodies_and_stale_revisions_before_printing",
+  "tests/llvm_preview.rs::target_choice_and_output_form_are_explicit",
+  "tests/llvm_preview.rs::every_declared_function_must_belong_to_the_preview_module",
+  "tests/llvm_preview.rs::sealed_library_revision_is_checked_on_the_complete_module",
+  "tests/llvm_preview.rs::closed_exact_operators_retain_method_keys_and_unbounded_values",
+  "tests/llvm_preview.rs::closed_constant_folding_limits_expansion_through_bindings",
+]
+assumes = ["rust-frontend", "lean-to-c"]
+note = "The public check --llvm-preview command accepts an explicit triple and data layout. Its whole-module output covers a literal or folded integer main, a branch on a contributed Boolean method, closed finite applications with zero to six ordered lookup inputs, and a forwarding library. The checker accounts for all source functions. A sealed forwarding library checks the assembly revision and call target even when another alias yields identical bytes. The protocol records modeled-llvm-bytes, compiled-lean-checker, official_kernel_checked=false and native_generated=false. Production Fast and Official per-artifact proof checking remain pending."
+
+[property."compiler-ir.backend"]
+title = "Native generation consumes the verified input in process"
+subject = "llvm-sys backend"
+statement = """
+The production native backend uses pinned llvm-sys 231.0.1 and qualified
+LLVM 23.1.4 libraries to parse the verified bytes and generate objects in
+process, followed by the platform linker. llvm-as, opt and llc may serve as
+diagnostics but are not mandatory production subprocesses. Missing or
+incompatible LLVM development libraries fail clearly in a source build;
+Cargo must not silently fetch another revision. Each build records library
+build and link identity, pass and target-machine options, CPU features,
+data layout and linker inputs. Backend optimization, machine code, runtime
+libraries and host execution remain outside the emitted-IR theorem. The
+driver preserves private temporaries, input/output alias protection, signal
+cleanup and atomic output installation without a Lean/C fallback.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.backend)"
+example = "A numerical build with a mismatched runtime or ABI leaves an existing output executable unchanged."
+example_not_executed = "Source builds with the llvm-native feature use the in-process LLVM 23.1.4 adapter for closed integer and finite package entries. General runtime, numerical and distribution qualification remain pending."
+
+[property."compiler-ir.backend".claim.native]
+status = "planned"
+issue = 753
+note = "The [literal](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/results/macos-arm64/exit-status.json) and [folded arithmetic](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/results/macos-arm64/folded-arithmetic.json) entries each yielded 374 checked LLVM bytes and a 512-byte object on macOS arm64 using LLVM 23.1.4 and llvm-sys 231.0.1. The installed processes returned 255 and 10. The feature-enabled CLI regression preserves an earlier executable after link failure or rejected input and rejects overwriting the source. The [complete closure Monad run](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/results/macos-arm64/finite-kleisli.json) records the linked symbols, actual 4,463 bytes, 2,760-byte object, both exit edges, and four rejected byte edits. The triple extension variant emits 5,326 bytes and a 3,176-byte object, and returns 42 on both native paths. Production verification modes, general executable modules and Linux qualification remain open."
+
+[property."compiler-ir.distribution"]
+title = "Qualified distributions include the pinned components"
+subject = "Linux and macOS distributions"
+statement = """
+Qualified prebuilt distributions statically link LLVM where supported and
+include the pinned Lean checker and runtime files, the toolchain-shipped
+nanoda_bin, and sequential LP64 OpenBLAS 0.3.34. Numerical executables alone
+link OpenBLAS. Ordinary check and build use no network download or separately
+installed elan, Cargo or LLVM. A smaller official-checker bundle requires
+loader, ABI, statement, export and axiom-authenticity tests first; otherwise
+the required pinned toolchain subset is shipped. Source builds keep explicit
+LLVM development-toolchain and OpenBLAS prefix requirements. Components retain
+their licenses and notices. A missing or mismatched component fails explicitly;
+no claim of a fully static operating-system runtime follows.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.distribution)"
+example = "An offline pure-program install smoke test links no OpenBLAS, while a numerical smoke test uses the bundled qualified library."
+example_not_executed = "Self-contained native distributions and their offline installation tests are pending."
+
+[property."compiler-ir.distribution".claim.packaging]
+status = "planned"
+issue = 753
+
+[property."compiler-ir.lean-comparison"]
+title = "Lean EmitLLVM is a comparison target"
+subject = "LLVM emitter comparison"
+statement = """
+Compare the emitter with Lean.Compiler.IR.EmitLLVM from the pinned Lean
+4.35.0 source. That source records untested LLVM CI and pending IO, void
+parameter and static-initializer ABI updates. It builds a mutable LLVM module
+and writes bitcode; it is not the correctness oracle for Vastitas's canonical
+textual LLVM bytes. Compare signatures, control flow, runtime ownership,
+initialization, call order and cost on shared scalar, branch, static-call,
+Pair and cleanup examples. Where the Lean emitter runs, retain disassembled
+IR. Record unsupported examples as comparison gaps and check Vastitas against
+its independent proofs and C or Lean references. Do not copy unproved
+attributes or fixed pointer-width assumptions. Repair of the entire upstream
+LLVM emitter is outside this release requirement.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.lean-comparison)"
+example = "A join-point example compares Lean's variable slots with Vastitas's validated phi inputs without requiring byte-identical IR."
+example_not_executed = "The generated closure package has five named calls in its entry and an explicit exit phi. The pinned Lean emitter uses slots for join arguments. The host toolchain lacks upstream bitcode emission."
+
+[property."compiler-ir.lean-comparison".claim.comparison]
+status = "planned"
+issue = 753
+note = "The comparison source is [Lean 4.35.0 EmitLLVM](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L25)."
+
+[property."compiler-ir.release-evidence"]
+title = "Release evidence has separate dimensions"
+subject = "finite admission and conformance"
+statement = """
+The release matrix links the finite public grammar, selected identities,
+accepted Core, MidIR opcodes, complete LLVM bytes, proof environment and native
+fixtures for each mandatory row. Feature implementation, independent proof,
+verified emission, native testing and measured performance remain separate
+dimensions. The six claim statuses retain their specification meanings.
+A names-only bounded-integer row has no implied executable coverage. Every
+admitted executable family has positive and negative public fixtures and its
+mode-specific qualification; a specified rejection is recorded separately
+from a successful Fast check. Neither this matrix nor the specification is
+another checker, proof or release authority. Missing mandatory evidence
+prevents release completion.
+"""
+specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.release-evidence)"
+example = "The twelve bounded-integer names can have a completed naming contract while their LLVM and native implementation is Not claimed."
+example_not_executed = "The release matrix and deterministic evidence rollup are pending."
+
+[property."compiler-ir.release-evidence".claim.audit]
+status = "planned"
+issue = 755
+
+[property."compiler-ir.performance"]
+title = "Performance is measured outside proof claims"
+subject = "cost and compile latency"
+statement = """
+Measure checking and proof preparation, LLVM code generation and linking
+separately from native execution. Record runtime calls, allocation, copies,
+packing, retained and peak bytes, and compare the full lifecycle and prepared
+reuse scopes with equivalent C. Match algorithms, scalar representations,
+layouts, backend versions, thread counts and output contracts. Acceptance
+timing runs in CI with the reported CPU and operating system; an interval
+crossing its declared budget is inconclusive. LLVM use and BLAS use alone
+are no C-class performance claim. The baseline passes its per-operation call
+costs to later validated integer fast paths, floating instructions, alias and
+range promises, vectorization and inlining.
+"""
+specified_in = "[Performance evidence](storage-ownership.md#performance-evidence-and-acceptance)"
+example = "A reused-buffer numerical call reports zero allocation separately from its measured overhead relative to the same plain-C call."
+example_not_executed = "Matched measurements of the MidIR and LLVM pipeline are pending."
+
+[property."compiler-ir.performance".claim.measurement]
+status = "planned"
+issue = 753
 
 [property."compiler-ir.source.acceptance"]
 title = "Both modes start with the same accepted Core"

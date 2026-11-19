@@ -15,6 +15,8 @@ vastitas check INPUT.vast [--lib LIBRARY.vast]...
 vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT
 vastitas check --manifest-path Vastitas.toml
 vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX] [--native-cc COMPILER]
+vastitas check --manifest-path Vastitas.toml --llvm-preview --target-triple TRIPLE --data-layout LAYOUT
+vastitas build --manifest-path Vastitas.toml --llvm-preview -o OUTPUT [--native-cc COMPILER]
 vastitas audit-lean LEAN4EXPORT.ndjson
 vastitas --help
 vastitas --version
@@ -24,7 +26,7 @@ vastitas --version
 
 | Command | What it does | What it writes on success |
 | --- | --- | --- |
-| `check` | Checks a program. The program need not have an entry point | The line `checked INPUT` on standard output |
+| `check` | Checks a program. The program need not have an entry point | The line `checked INPUT`, the JSON receipt with `--print-function-revision`, or the complete LLVM assembly with `--llvm-preview`, on standard output |
 | `build` | Checks a program in the same way and then builds an executable from its entry point | The file `OUTPUT`, and the line `built OUTPUT` on standard output |
 | `audit-lean` | Rechecks an exported Lean proof with a second checker. It checks no program. [`audit-lean`](#audit-lean) describes it | A report of four lines on standard output |
 | `--help`, `-h` | Prints the usage. `vastitas` without arguments does the same, and so do `check`, `build` and `audit-lean` with `--help` or `-h` as their only argument | The usage on standard output |
@@ -52,7 +54,27 @@ Rules:
 | `--manifest-path Vastitas.toml` | `check`, `build` | The root manifest of [manifest mode](../language/programs.md#manifest-mode) |
 | `-o OUTPUT` | `build` | The file of the executable. `build` requires it |
 | `--openblas-prefix PREFIX` | `build` | The directory of the OpenBLAS library for a [numerical build](#numerical-builds) |
-| `--native-cc COMPILER` | `build` | The C compiler and linker of a numerical build |
+| `--print-function-revision` | `check` | Print the independently checked function revision as one JSON object on standard output |
+| `--expect-function-revision FILE` | `check`, `build` | Require the current kernel to reconstruct the revision in this file |
+| `--llvm-preview` | `check`, `build` | Select the finite LLVM backend described below |
+| `--target-triple TRIPLE`, `--data-layout LAYOUT` | `check --llvm-preview` | Supply both fields of the LLVM module header |
+| `--native-cc COMPILER` | `build` | The compiler and linker of a numerical build, or the host linker of an LLVM build |
+
+For example, capture the revision of an assembly and require it when building:
+
+```sh
+vastitas check --manifest-path Vastitas.toml --print-function-revision > functions.json
+vastitas build --manifest-path Vastitas.toml --expect-function-revision functions.json -o program
+```
+
+The receipt contains the protocol input, including source locations and package
+paths, as well as the resolved functions and method selections. A change to an
+unselected body or to a recorded path can invalidate it. Checking or building
+with the receipt rechecks the program; a stale or altered receipt is an error
+(`E_FUNCTION_REVISION`). The two revision options cannot be combined. The CLI
+limits a receipt file to 16 MiB including its final newline; the complete
+request must also fit the ordinary protocol bound. The receipt covers function
+selection on the current Core route. It is not a native or LLVM certificate.
 
 Rules:
 
@@ -76,6 +98,83 @@ Rules:
   numerical option for a program that needs none.
 - [Building a numerical program](../linalg/maps-and-gemm.md#building-a-numerical-program)
   says which programs need `--openblas-prefix` and which must not have it.
+
+## LLVM preview
+
+With `--llvm-preview`, a library
+can export one unary finite table lookup, optionally followed by one static
+forwarding function. It can also export one binary finite lookup, including
+the composition of two arrows of a selected category. Both arguments keep
+their nominal fibers during checking. The foreign function `vq_lookup2`
+accepts two unsigned 32-bit ordinals and returns the output ordinal, or
+`UINT32_MAX` if either argument is out of range. An executable can define a single `main` returning an
+`Int` literal or a closed expression over `Nat` and `Int`. The checker can
+fold exact addition, subtraction, multiplication, division, signed negation,
+local bindings and explicit `int` conversion. It checks the selected
+operator and operand types against the compilation revision. Constant folding
+has a size bound on intermediate integers. The entry uses the residue modulo
+256 for the process exit status.
+
+A library may also export one straight-line function over `Nat` and `Int`.
+For example, `pub fn difference(a: Nat, b: Nat) -> Nat { a - b }`
+generates a call to the saturating subtraction routine. The exported symbol
+is `vq_exact`. Its ABI uses borrowed Lean objects for arguments and returns
+one owned object. The signature comment gives the argument and result kinds.
+The checker ties every arithmetic site to its selected method, reconstructs
+the SSA operands from the printed module and checks the retain/release calls.
+This library form supports expressions, local bindings and explicit `int`
+conversion. It requires an initialized Lean runtime and the boxed integer shim
+when a foreign caller links the resulting module.
+
+A straight-line integer executable can call other checked functions with
+`Nat` and `Int` arguments. Its LLVM module keeps each direct call, borrows
+the callee's arguments, and returns one owned object per call. The hosted
+`main` initializes the pinned Lean runtime and consumes the returned `Int`
+to obtain the exit status. The preview checks the closed entry at Core, both
+MidIR phases and the parsed module. Its evaluation budget allows up to 4,096
+bits per intermediate and 32,768 units across calls, parameters and operations.
+A source build of this form needs the pinned Lean toolchain to link the shim.
+
+Another executable form calls a selected method of one assembled Boolean
+family on a Boolean literal. Its `main` branches on the result and returns
+an integer literal on each path. Each method returns its argument or a
+Boolean literal. The checker retains the other specializations and checks
+the selected contribution against the current revision.
+
+A closed executable can also call functions on finite tags and Booleans
+across packages. It can look up tables with zero to six ordered inputs, compare
+tags, combine Boolean values with `!`, `&&` and `||`, take branches and return
+an integer exit status. A nullary table has one row. For two or more inputs,
+each coordinate must be in range before the helper computes a row-major index. For example, the closure Monad
+program calls all four functions in the optional `monad::kleisli` module.
+The checker retains every concrete root function, all callees and all emitted
+specializations of a retained family. The linker also keeps an otherwise unused
+family explicitly sealed with `assemble` and its applied implementations,
+including methods written in a dependency.
+Repeated calls each count toward the entry's table lookup work limit.
+Unsupported root bodies, missing
+concrete root functions and observable operations outside this profile
+produce `E_UNSUPPORTED`.
+[Source fixtures and retained LLVM assembly](https://github.com/MGYamada/Vastitas/tree/main/llvm/docs)
+
+`check --llvm-preview` checks the source and prints the complete canonical
+LLVM assembly for the supplied header. This command works with the default
+compiler build. It ends after the compiled Lean checker has recovered the
+modeled module from those bytes. A saved function revision can be required
+with `--expect-function-revision`. The revision and the assembly each occupy
+standard output, so `--print-function-revision` and `--llvm-preview` cannot
+be combined.
+
+`build --llvm-preview` requires the Cargo feature `llvm-native`. When
+compiling the driver, set `LLVM_SYS_231_PREFIX` to the installation of LLVM
+23.1.4. The driver obtains the host triple and data layout from libLLVM,
+checks the program, compares the complete assembly read back from its private
+directory with the checked output, and passes that buffer to libLLVM to
+produce an object. For a boxed integer program, the pinned `leanc` links the
+object with the embedded integer shim and the Lean runtime. Other supported
+entries link with the host `cc`. Both accept `--native-cc` and install the
+executable under the ordinary [output rules](#the-output-of-build).
+The LLVM build takes neither target overrides nor `--openblas-prefix`.
 
 ## Inputs
 
@@ -161,7 +260,7 @@ signal interrupts it.
 | `TMPDIR` | `build`, `audit-lean` | The directory in which the command makes its [temporary directory](#temporary-files) |
 | `ELAN_HOME`, `HOME` | `audit-lean` | Where `audit-lean` finds the pinned Lean toolchain |
 
-`build` starts `lean` and `lake` with the environment of the command. A
+The default `build` starts `lean` and `lake` with the environment of the command. A
 variable that selects another Lean toolchain, such as `ELAN_TOOLCHAIN`,
 therefore changes which `lean` they find, and `build` rejects a `lean` of
 another version, as [What `check` and `build` start](#what-check-and-build-start)
@@ -230,21 +329,23 @@ Rules:
 
 ## What `check` and `build` start
 
-`check` starts one program, the kernel executable. `build` starts the kernel
+`check` starts one program, the kernel executable. The default `build` starts the kernel
 executable and then the Lean toolchain, which compiles the program that the
 kernel generates.
 
 | Command | Programs that it starts | Where it finds them |
 | --- | --- | --- |
 | `check` | The kernel executable | The kernel root, or `VASTITAS_KERNEL` |
-| `build` | The kernel executable, `lean` and `lake` | The kernel root or `VASTITAS_KERNEL`, and `PATH` |
+| Default `build` | The kernel executable, `lean` and `lake` | The kernel root or `VASTITAS_KERNEL`, and `PATH` |
 | `build` of a program that needs a runtime, when the runtime is not yet compiled | Also `cc`, the C compiler of the machine | `PATH` |
+| `build --llvm-preview` for boxed integer calls | The kernel executable, `lean` to locate the pinned runtime, and its `leanc` linker driver | The kernel root or `VASTITAS_KERNEL`, `lean` on `PATH`, and optionally `--native-cc` |
+| Other supported `build --llvm-preview` entries | The kernel executable and host linker | The kernel root or `VASTITAS_KERNEL`, and `--native-cc` or `cc` on `PATH` |
 
 Rules:
 
 - `check` needs no Lean toolchain and no C compiler. With an empty `PATH`,
   `check` succeeds.
-- `build` needs `lean` and `lake` on `PATH`. With an empty `PATH`, `build` is
+- The default `build` needs `lean` and `lake` on `PATH`. With an empty `PATH`, it is
   an error (`E_BUILD`), even for a program that `check` accepts.
 - The Lean toolchain compiles and links the generated program with the C
   compiler that it holds. For a program that needs no runtime, `build`

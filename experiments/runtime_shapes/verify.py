@@ -5,10 +5,16 @@ if not __debug__:
 
 import argparse
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import struct
 import zipfile
+
+_cleanup_spec = importlib.util.spec_from_file_location(
+    'shape_record_cleanup', Path(__file__).resolve().parents[1] / 'native_cleanup.py')
+cleanup_envelope = importlib.util.module_from_spec(_cleanup_spec)
+_cleanup_spec.loader.exec_module(cleanup_envelope)
 
 PROFILES = ("real-normal", "real-transpose", "complex-normal", "complex-transpose")
 SHAPES = ((2,3,4,0), (3,5,2,2), (17,13,19,3), (0,3,4,1), (2,0,4,1), (2,3,0,1))
@@ -104,7 +110,8 @@ def verify(read, names):
         line=next(x for x in result["stderr"].splitlines() if x.startswith("AUDIT_FAILURE_CLEANUP "))
         assert json.loads(line.split(" ",1)[1])==dict(arenas=1,data_allocations=0,data_frees=0,live_bytes=0)
     commands=json.loads(read("commands.json"))
-    assert sum(c["phase"]=="public_execution" and c["returncode"]==0 and c["stdout"].strip()=="0" for c in commands)==4
+    executions = [c for c in commands if c["phase"] == "public_execution"]
+    assert len(executions) == 4
     assert sum(c["phase"]=="coordinate_cost_validation" and c["returncode"]==0 for c in commands)==48
     snapshots=0
     for path,digest in info["source_sha256"].items():
@@ -117,6 +124,9 @@ def verify(read, names):
         emitted=read(profile+"/Generated.lean").decode()
         wrapped=read(profile+"/Main.lean").decode()
         assert public["ok"] and public["lean_source"].count("    VastitasGemmNative.gemm ")==4
+        execution = [c for c in executions if Path(c['command'][0]).parent.name == profile]
+        assert len(execution) == 1
+        cleanup_envelope.require_execution(public['lean_source'], execution[0])
         assert actual["ok"] and actual["lean_source"]==emitted
         assert emitted.count("    VastitasGemmNative.gemm ")==2
         assert "def generatedOnce (m k n pad : Nat)" in wrapped

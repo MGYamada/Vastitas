@@ -12,7 +12,7 @@ impl Scratch {
         fs::write(path.join("main.vast"), source).unwrap();
         fs::write(
             path.join("Vastitas.toml"),
-            "[package]\nname='pairs'\nversion='0.1.0'\nroot='main.vast'\n",
+            "[package]\nedition = \"2026\"\nname='pairs'\nversion='0.1.0'\nroot='main.vast'\n",
         )
         .unwrap();
         scratch
@@ -175,7 +175,7 @@ fn malformed_pair_types_and_dispatch_uses_are_rejected_independently() {
         ("selector", "E_PROTOCOL"),
         ("result", "E_TYPE"),
     ] {
-        let mut raw = request("generic f(x) { domain (Int); } method f(x: Int) -> Int { 0 }");
+        let mut raw = request("fn f(x) domain((Int)); fn f(x: Int) -> Int { 0 }");
         let pair = json!({"kind":"pair","element":"Int"});
         let module = common::flat_module(&mut raw);
         match field {
@@ -194,19 +194,19 @@ fn malformed_pair_types_and_dispatch_uses_are_rejected_independently() {
 }
 
 const PAIR_METHODS: &str = "
-generic choose(x, y) { domain (Nat, Nat), (Nat, Int), (Int, Nat), (Int, Int); }
-method choose(x: Nat, y: Nat) -> Pair<Nat> { pair(x, y) }
-method choose(x: Nat, y: Int) -> Pair<Int> { pair(int(x), y) }
-method choose(x: Int, y: Nat) -> Pair<Int> { pair(x, int(y)) }
-method choose(x: Int, y: Int) -> Pair<Int> { pair(x, y) }
+fn choose(x, y) domain((Nat, Nat), (Nat, Int), (Int, Nat), (Int, Int));
+fn choose(x: Nat, y: Nat) -> Pair<Nat> { pair(x, y) }
+fn choose(x: Nat, y: Int) -> Pair<Int> { pair(int(x), y) }
+fn choose(x: Int, y: Nat) -> Pair<Int> { pair(x, int(y)) }
+fn choose(x: Int, y: Int) -> Pair<Int> { pair(x, y) }
 ";
 
 #[test]
 fn selected_pair_results_flow_to_projections_and_downstream_dispatch() {
     let caller = "
-generic scalar(x) { domain (Nat), (Int); }
-method scalar(x: Nat) -> Int { int(x) }
-method scalar(x: Int) -> Int { x }
+fn scalar(x) domain((Nat), (Int));
+fn scalar(x: Nat) -> Int { int(x) }
+fn scalar(x: Int) -> Int { x }
 fn main() -> Int {
     let n: Nat = 20;
     let nn: Pair<Nat> = choose(n, n);
@@ -246,11 +246,11 @@ fn pair_results_do_not_change_selection_or_whole_body_audits() {
     let cases = [
         (format!("{PAIR_METHODS} fn bad(n: Nat) -> Pair<Nat> {{ choose(n, 2) }}"), "E_TYPE"),
         (format!("{PAIR_METHODS} fn bad() -> Pair<Nat> {{ choose(1, 2) }}"), "E_TYPE"),
-        (format!("{PAIR_METHODS} method choose(x: Number, y: Number) -> Pair<Int> {{ pair(x, y) }}"), "E_TYPE"),
-        ("generic g(x) { domain (Int); } method g(x: Int) -> Pair<Int> { pair(x, x) } method g(x: Any) -> Pair<Int> { pair(x, x) }".into(), "E_TYPE"),
-        ("generic g(x) { domain (Int); } method g(x: Int) -> Pair<Int> { pair(x, x) } method g(x: Int) -> Int { x }".into(), "E_DUPLICATE"),
-        ("generic g(x) { domain (Int), (Nat); } method g(x: Int) -> Pair<Int> { pair(x, x) }".into(), "E_DISPATCH_COVERAGE"),
-        ("generic g(x, y) { domain (Nat, Nat); } method g(x: Nat, y: Number) -> Pair<Int> { pair(1, 2) } method g(x: Number, y: Int) -> Int { 0 }".into(), "E_DISPATCH_AMBIGUOUS"),
+        (format!("{PAIR_METHODS} fn choose(x: Number, y: Number) -> Pair<Int> {{ pair(x, y) }}"), "E_TYPE"),
+        ("fn g(x) domain((Int)); fn g(x: Int) -> Pair<Int> { pair(x, x) } fn g(x: Any) -> Pair<Int> { pair(x, x) }".into(), "E_TYPE"),
+        ("fn g(x) domain((Int)); fn g(x: Int) -> Pair<Int> { pair(x, x) } fn g(x: Int) -> Int { x }".into(), "E_DUPLICATE"),
+        ("fn g(x) domain((Int), (Nat)); fn g(x: Int) -> Pair<Int> { pair(x, x) }".into(), "E_DISPATCH_COVERAGE"),
+        ("fn g(x, y) domain((Nat, Nat)); fn g(x: Nat, y: Number) -> Pair<Int> { pair(1, 2) } fn g(x: Number, y: Int) -> Int { 0 }".into(), "E_DISPATCH_AMBIGUOUS"),
     ];
     for (source, expected) in cases {
         for extra in [
@@ -270,6 +270,6 @@ fn pair_results_do_not_change_selection_or_whole_body_audits() {
         }
     }
     // A losing method may return a different type when its own body is valid.
-    let valid = "generic g(x) { domain (Int); } method g(x: Int) -> Pair<Int> { pair(x, x) } method g(x: Number) -> Bool { true } fn main() -> Int { pair_first(g(42)) }";
+    let valid = "fn g(x) domain((Int)); fn g(x: Int) -> Pair<Int> { pair(x, x) } fn g(x: Number) -> Bool { true } fn main() -> Int { pair_first(g(42)) }";
     assert_eq!(backend(&request(valid))["ok"], true);
 }

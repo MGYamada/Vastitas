@@ -58,7 +58,7 @@ fn rejected(main: &str, operations: &str, code: &str) {
 }
 
 const SELF_COPY: &str = "resource fn main() -> Int {
-    allocate data: F64[12];
+    allocate data: F64<RR>[12];
     borrow w = write(data, layout(8, 2, 3, 4, false));
     fill(w, f64_bits(4607182418800017408));
     release(w);
@@ -71,9 +71,53 @@ const SELF_COPY: &str = "resource fn main() -> Int {
 }";
 
 #[test]
+fn edition_2026_storage_requires_an_explicit_supported_representation() {
+    for (element, marker, code) in [
+        ("F64", "F64", "E_TYPE"),
+        ("Complex<F64>", "Complex", "E_TYPE"),
+        ("F32<QQ>", "QQ", "E_TYPE"),
+        ("F32<X>", "X", "E_TYPE"),
+        ("F64<QQ>", "QQ", "E_TYPE"),
+        ("F64<X>", "X", "E_TYPE"),
+    ] {
+        let line = format!("  allocate buf: {element}[1];");
+        let source =
+            format!("resource fn main() -> Int {{\n{line}\n  drop(buf); value {{ 42 }}\n}}");
+        let fixture = fixture(&source, OPERATIONS);
+        let message = common::expect_code(&check(&fixture), code);
+        assert!(
+            message.contains(&format!(
+                "main.vast:2:{}: {code}",
+                line.find(marker).unwrap() + 1
+            )),
+            "{message}"
+        );
+        let output = fixture.write("kept", "previous artifact");
+        let build = cli()
+            .args(["build", "--manifest-path"])
+            .arg(fixture.0.join("app/Vastitas.toml"))
+            .arg("-o")
+            .arg(&output)
+            .output()
+            .unwrap();
+        common::expect_code(&build, code);
+        assert_eq!(
+            std::fs::read_to_string(output).unwrap(),
+            "previous artifact"
+        );
+    }
+    // A caller cannot reinterpret complex storage as a real view.
+    let source = "resource fn consume(buf: Read<F64<RR>, 1, 1>) -> Unit { value { () } }
+      resource fn main() -> Int { allocate x: F64<CC>[1];
+        borrow w = write(x, layout(0,1,1,1,false)); fill(w, complex(1.0,2.0)); release(w);
+        borrow r = read(x, layout(0,1,1,1,false)); call consume(r) -> (); release(r); drop(x); value { 0 } }";
+    rejected(source, OPERATIONS, "E_RESOURCE_TYPE");
+}
+
+#[test]
 fn exact_payload_spellings_emit_identical_bits_and_execute_without_blas() {
     let source = r#"resource fn main() -> Int {
-    allocate data: F64[6];
+    allocate data: F64<RR>[6];
     borrow w = write(data, layout(0, 6, 1, 6, false));
     fill(w, f64(1.5));
     store(w, 1, 0, f64(-0.25));
@@ -90,13 +134,13 @@ fn exact_payload_spellings_emit_identical_bits_and_execute_without_blas() {
     expect(r, 4, 0, f64_bits(9223372036854775808));
     expect(r, 5, 0, f64_bits(9221120237041090626));
     release(r); drop(data);
-    allocate complex_data: Complex<F64>[1];
+    allocate complex_data: F64<CC>[1];
     borrow init = write(complex_data, layout(0, 1, 1, 1, false));
     fill(init, complex(0X1P+0, -2.0)); release(init);
     borrow result = read(complex_data, layout(0, 1, 1, 1, false));
     expect(result, 0, 0, complex(1., -0x1p1)); release(result); drop(complex_data);
     let extent: Nat = value { 1 };
-    runtime_allocate dynamic_data: F64[extent] runtime_layout(extent, extent, extent, false);
+    runtime_allocate dynamic_data: F64<RR>[extent] runtime_layout(extent, extent, extent, false);
     runtime_borrow dynamic_init = write(dynamic_data);
     runtime_fill(dynamic_init, f64(0.5)); runtime_release(dynamic_init);
     runtime_borrow dynamic_read = read(dynamic_data);
@@ -111,6 +155,35 @@ fn exact_payload_spellings_emit_identical_bits_and_execute_without_blas() {
     let emitted = kernel(&raw, "emit");
     assert_eq!(emitted["ok"], true, "{emitted}");
     assert_eq!(emitted["numerical_runtime"], false);
+    let root = module(&raw, "storage_example", json!([]));
+    let body = raw
+        .pointer(&format!("{root}/resource_functions/0/body"))
+        .unwrap()
+        .as_array()
+        .unwrap();
+    let allocations: Vec<_> = body
+        .iter()
+        .filter(|statement| statement["action"]["op"] == "allocate")
+        .map(|statement| &statement["action"]["scalar"])
+        .collect();
+    assert_eq!(
+        allocations,
+        [&json!("f64"), &json!("complex_f64"), &json!("f64")]
+    );
+    for (fabricated, code) in [
+        ("f16", "E_PROTOCOL"),
+        ("complex_f128", "E_PROTOCOL"),
+        ("f32", "E_RESOURCE_TYPE"),
+        ("complex_f32", "E_RESOURCE_TYPE"),
+    ] {
+        let mut changed = raw.clone();
+        *changed
+            .pointer_mut(&format!("{root}/resource_functions/0/body/0/action/scalar"))
+            .unwrap() = json!(fabricated);
+        for mode in ["check", "emit"] {
+            common::assert_wire_rejected(&kernel(&changed, mode), code);
+        }
+    }
     success(
         &cli()
             .args(["build", "--manifest-path"])
@@ -141,9 +214,70 @@ fn exact_payload_spellings_emit_identical_bits_and_execute_without_blas() {
         );
     s.write("app/src/main.vast", &explicit);
     let mut bits = request(&s);
+    assert_eq!(raw["root_source"]["text"].take(), source);
+    assert_eq!(bits["root_source"]["text"].take(), explicit);
     common::remove_spans(&mut raw);
     common::remove_spans(&mut bits);
-    assert_eq!(raw, bits, "sugar may only change source spans");
+    assert_eq!(raw, bits, "both spellings must lower to the same payload");
+}
+
+#[test]
+fn binary32_payloads_preserve_bits_and_use_the_selected_element_width() {
+    let source = r#"resource fn main() -> Int {
+        allocate x: F32<RR>[4];
+        borrow w = write(x, layout(4, 2, 1, 2, false));
+        fill(w, f32(0x1p-149)); store(w, 1, 0, f32_bits(2147483648)); release(w);
+        borrow r = read(x, layout(4, 2, 1, 2, false));
+        expect(r, 0, 0, f32_bits(1)); expect(r, 1, 0, f32_bits(2147483648)); release(r);
+        drop(x);
+        allocate z: F32<CC>[3];
+        borrow a = write(z, layout(8, 2, 1, 2, false));
+        fill(a, complex32(-1.5, 0.25)); store(a, 1, 0, complex32_bits(2139095106, 1)); release(a);
+        borrow b = read(z, layout(8, 2, 1, 2, false));
+        expect(b, 0, 0, complex32_bits(3217031168, 1048576000));
+        expect(b, 1, 0, complex32_bits(2139095106, 1)); release(b); drop(z);
+        value { 42 }
+    }"#;
+    let s = fixture(source, OPERATIONS);
+    assert_eq!(
+        s.check_build_and_run("app/Vastitas.toml"),
+        common::exits(42)
+    );
+    let raw = request(&s);
+    let root = module(&raw, "storage_example", json!([]));
+    for (kind, field) in [("f32", "bits"), ("complex_f32", "imaginary")] {
+        let mut forged = raw.clone();
+        let value = forged
+            .pointer_mut(&format!("{root}/resource_functions/0/body"))
+            .unwrap()
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .filter_map(|statement| statement.get_mut("action")?.get_mut("value"))
+            .find(|v| v["kind"] == kind)
+            .unwrap();
+        value[field] = json!(1u64 << 32);
+        for mode in ["check", "emit"] {
+            common::assert_wire_rejected(&kernel(&forged, mode), "E_PROTOCOL");
+        }
+    }
+    for spelling in [
+        "f32(16777217)",
+        "f32(0x1p-150)",
+        "f32(-0)",
+        "f32_bits(4294967296)",
+    ] {
+        s.write(
+            "app/src/main.vast",
+            &source.replace("f32(0x1p-149)", spelling),
+        );
+        common::expect_code(&check(&s), "E_RESOURCE_LITERAL");
+    }
+    s.write(
+        "app/src/main.vast",
+        &source.replace("allocate z: F32<CC>", "allocate z: F64<RR>"),
+    );
+    common::expect_code(&check(&s), "E_RESOURCE_TYPE");
 }
 
 #[test]
@@ -168,7 +302,7 @@ fn inexact_payloads_report_the_literal_and_preserve_existing_outputs() {
     ] {
         let line = format!("    fill(w, {payload});");
         let source = format!(
-            "resource fn main() -> Int {{\n    // 日本語\n    allocate data: F64[1];\n    borrow w = write(data, layout(0, 1, 1, 1, false));\n{line}\n    release(w); drop(data); value {{ 0 }}\n}}"
+            "resource fn main() -> Int {{\n    // 日本語\n    allocate data: F64<RR>[1];\n    borrow w = write(data, layout(0, 1, 1, 1, false));\n{line}\n    release(w); drop(data); value {{ 0 }}\n}}"
         );
         let s = fixture(&source, OPERATIONS);
         s.write("program", "preserve this output");
@@ -203,7 +337,7 @@ fn inexact_payloads_report_the_literal_and_preserve_existing_outputs() {
         "E_UNSUPPORTED",
     );
     rejected(
-        "resource fn main() -> Int { allocate x: F64[1.0]; drop(x); value { 0 } }",
+        "resource fn main() -> Int { allocate x: F64<RR>[1.0]; drop(x); value { 0 } }",
         OPERATIONS,
         "E_PARSE",
     );
@@ -219,7 +353,7 @@ fn inexact_payloads_report_the_literal_and_preserve_existing_outputs() {
 }
 
 const COMPLEX_BOUNDARIES: &str = "resource fn main() -> Int {
-    allocate data: Complex<F64>[8];
+    allocate data: F64<CC>[8];
     borrow init = write(data, layout(0, 8, 1, 8, false));
     fill(init, complex_bits(4607182418800017408, 4611686018427387904));
     store(init, 1, 0, complex_bits(4613937818241073152, 4616189618054758400));
@@ -236,7 +370,7 @@ const COMPLEX_BOUNDARIES: &str = "resource fn main() -> Int {
     release(empty);
     release(parent);
     drop(data);
-    allocate real: F64[2];
+    allocate real: F64<RR>[2];
     borrow real_write = write(real, layout(8, 1, 1, 1, false));
     fill(real_write, f64_bits(4607182418800017408));
     release(real_write);
@@ -387,7 +521,7 @@ fn sequential_branch_writes_preserve_only_common_initialization() {
     let main = format!(
         "resource fn main() -> Int {{
             let flag: Bool = value {{ true }};
-            allocate data: F64[129];
+            allocate data: F64<RR>[129];
             borrow output = write(data, layout(0, 1, 129, 1, false));
             store(output, 0, 128, f64_bits(0));
             {branches}
@@ -466,12 +600,12 @@ fn cell_writes_initialize_padded_call_outputs_without_prefill() {
         .collect::<Vec<_>>()
         .join("\n");
     let main = format!(
-        "resource fn initialize(output: Write<F64, 2, 3> initializes) -> Unit {{
+        "resource fn initialize(output: Write<F64<RR>, 2, 3> initializes) -> Unit {{
             if false {{ {} }} else {{ {} }}
             value {{ () }}
         }}
         resource fn main() -> Int {{
-            allocate data: F64[12];
+            allocate data: F64<RR>[12];
             borrow output = write(data, layout(8, 2, 3, 4, false));
             call initialize(output) -> ();
             release(output);
@@ -690,7 +824,7 @@ const FILL: &str = "    fill(w, f64_bits(0));\n";
 /// a loan, fills, the release and the drop.
 fn filled(name: &str, statements: usize) -> String {
     format!(
-        "resource fn {name}() -> Int {{\n    allocate d: F64[1];\n    borrow w = write(d, layout(0, 1, 1, 1, false));\n{}    release(w);\n    drop(d);\n    value {{ 42 }}\n}}\n",
+        "resource fn {name}() -> Int {{\n    allocate d: F64<RR>[1];\n    borrow w = write(d, layout(0, 1, 1, 1, false));\n{}    release(w);\n    drop(d);\n    value {{ 42 }}\n}}\n",
         FILL.repeat(statements - 4)
     )
 }
@@ -699,7 +833,7 @@ fn filled(name: &str, statements: usize) -> String {
 /// statements in its first arm and one in its second.
 fn branching(before: usize, arm: usize) -> String {
     format!(
-        "resource fn main() -> Int {{\n    let flag: Bool = value {{ true }};\n    allocate d: F64[1];\n    borrow w = write(d, layout(0, 1, 1, 1, false));\n{}    if flag {{\n{}    }} else {{\n{FILL}    }}\n    release(w);\n    drop(d);\n    value {{ 42 }}\n}}\n",
+        "resource fn main() -> Int {{\n    let flag: Bool = value {{ true }};\n    allocate d: F64<RR>[1];\n    borrow w = write(d, layout(0, 1, 1, 1, false));\n{}    if flag {{\n{}    }} else {{\n{FILL}    }}\n    release(w);\n    drop(d);\n    value {{ 42 }}\n}}\n",
         FILL.repeat(before - 3),
         FILL.repeat(arm)
     )
@@ -929,7 +1063,7 @@ fn resource_source_enforces_move_borrow_initialization_and_name_scopes() {
     );
     rejected(
         MAIN,
-        &OPERATIONS.replace("F64[8]", "F64[18446744073709551616]"),
+        &OPERATIONS.replace("F64<RR>[8]", "F64<RR>[18446744073709551616]"),
         "E_RESOURCE_LIMIT",
     );
     rejected(
@@ -943,8 +1077,8 @@ fn resource_source_enforces_move_borrow_initialization_and_name_scopes() {
 fn resource_source_keeps_nonwinning_pure_bodies_and_library_entry_rules() {
     rejected(
         &MAIN.replace(
-            "method answer(x: Number) -> Int { 0 }",
-            "method answer(x: Number) -> Int { true }",
+            "fn answer(x: Number) -> Int { 0 }",
+            "fn answer(x: Number) -> Int { true }",
         ),
         OPERATIONS,
         "E_TYPE",

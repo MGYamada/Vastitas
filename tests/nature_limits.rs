@@ -7,7 +7,7 @@
 mod common;
 use common::{Scratch, expect_code, success};
 
-const APP_MANIFEST: &str = "[package]\nname = \"limits_demo\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
+const APP_MANIFEST: &str = "[package]\nedition = \"2026\"\nname = \"limits_demo\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
 
 /// The imports of every application, and the dimensionless quantity `Ratio`.
 const HEADER: &str = "use std::geometry::smooth::affine::SmoothR;

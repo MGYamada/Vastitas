@@ -7,6 +7,41 @@ laws. It is not a proof of floating arithmetic or C/BLAS native refinement. -/
 namespace VastitasOracle.TensorNumerical
 open VastitasKernel Storage Numerical Tensor
 
+/-- An accepted singleton axis determines the named basis and the physical
+column of the matching vector view. Each coordinate is in its original row. -/
+theorem checked_column {env values resources axis grouping loan}
+    (checked : CheckedView env values resources [axis] grouping loan) :
+    ∃ basis, checked.view.axes = [basis] ∧ basis.brand = axis ∧ checked.view.grouping = ⟨[0], 1⟩ ∧
+      (VectorView.mk basis checked.view.loan false .direct checked.view.precision).Live resources ∧
+      ∀ i : Nat, checked.view.coordinate [i] = (i, 0) := by
+  have axes := checked.axesFrom
+  obtain ⟨basis, only, brand⟩ : ∃ b, checked.view.axes = [b] ∧ b.brand = axis := by
+    cases h : checked.view.axes with
+    | nil => simp [h] at axes
+    | cons b rest =>
+      cases rest with
+      | nil => exact ⟨b, rfl, by simpa [h] using axes⟩
+      | cons c tail => simp [h] at axes
+  have grouped := checked.valid.2.1
+  have perm : checked.view.grouping.order.Perm [0] := by
+    simpa [only] using grouped.1
+  have order : checked.view.grouping.order = [0] := List.perm_singleton.mp perm
+  have split : checked.view.grouping.split = 1 := by
+    have h := grouped.2
+    simp only [only, List.length_singleton] at h
+    omega
+  have group : checked.view.grouping = ⟨[0], 1⟩ := by
+    cases h : checked.view.grouping
+    simp_all
+  refine ⟨basis, only, brand, group, ?_, ?_⟩
+  · have live := checked.live
+    refine ⟨live.1, live.2.1, ?_, ?_, ?_⟩
+    · simpa [only, VectorView.scalar] using live.2.2.1
+    · simpa [Layout.logicalRows, live.2.2.2.1, View.rows, View.extent, View.dimension, group, only] using live.2.2.2.2.1
+    · simpa [Layout.logicalColumns, live.2.2.2.1, View.columns, View.extent, group] using live.2.2.2.2.2
+  · intro i
+    simp [View.coordinate, View.flatten, group]
+
 private theorem mixed_bound {x y a b : Nat} (hx : x < a) (hy : y < b) : x + a * y < a * b := by
   have upper := Nat.mul_le_mul_left a (show y + 1 ≤ b by omega)
   simp only [Nat.mul_add, Nat.mul_one] at upper

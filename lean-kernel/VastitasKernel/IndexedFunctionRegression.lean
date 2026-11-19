@@ -8,7 +8,7 @@ open Compiler
 private def path (name : String) : Source.Path := ⟨name.splitOn "::", {}⟩
 private def int : FnType := .data (.pure .int)
 private def nat : FnType := .data (.pure .nat)
-private def intFn : Surface.TypeExpr := .function (.cons (.data (.named "Int")) .nil) (.data (.named "Int"))
+private def intFn : SignatureSyntax := .function (.cons (.data (.pure .int)) .nil) (.data (.pure .int))
 private def fnInt : FnType := .function intFn
 private def var (name : String) : Expr := .variable name {}
 private def num (value : Nat) : Expr := .integer (toString value) {}
@@ -16,7 +16,7 @@ private def call (name : String) (arguments : List Expr := []) : Expr := .call (
 private def invoke (callee : Expr) (arguments : List Expr) : Expr := .invoke callee arguments {}
 private def block (result : Expr) (statements : List Stmt := []) : Block := .mk statements result {}
 private def fn (name : String) (params : List Param) (result : FnType) (body : Block) : Function :=
-  ⟨name, params, result, body, true, {}⟩
+  ⟨name, params, result, body, true, {}, []⟩
 private def main (value : Expr) (statements : List Stmt := []) : Function := fn "main" [] int (block value statements)
 private def bind (name : String) (value : Expr) (type : Option FnType := none) : Stmt := .letE name type value {}
 private def lambda (body : Expr) : Expr := .lambda [⟨"x", int, {}⟩] int (block body) {}
@@ -80,7 +80,7 @@ def higherFixture : Program := program [add1, twice, main
 #eval rejects "Fn/data annotation mismatch" "E_TYPE" (program [add1, main (num 0) [bind "f" (var "add1") (some int)]])
 #eval rejects "data/Fn annotation mismatch" "E_TYPE" (program [main (num 0) [bind "f" (num 1) (some fnInt)]])
 #eval rejects "malformed Fn constructor" "E_TYPE" (program [main (num 0), fn "bad"
-  [⟨"f", .function (.data (.named "Int")), {}⟩] int (block (num 0))])
+  [⟨"f", .function (.data (.pure .int)), {}⟩] int (block (num 0))])
 #eval rejects "source Fn main argument cannot be erased" "E_MAIN" (program [add1,
   fn "main" [⟨"f", fnInt, {}⟩] int (block (num 0)), fn "caller" [] int (block (call "main" [var "add1"]))])
 #eval rejects "Fn main return" "E_MAIN" (program [add1, fn "main" [] fnInt (block (var "add1"))])
@@ -196,7 +196,7 @@ def privateTargetFixture : Program := library (program [main (invoke (call "geo:
     | none => false
     | some use =>
         !validPass checked.prepared.input false { checked.executable.lowered with staticUses :=
-          [{ use with expected := .data (.named "Int") }] } &&
+          [{ use with expected := .data (.pure .int) }] } &&
         !validPass checked.prepared.input false { checked.executable.lowered with staticUses :=
           [{ use with target := { use.target with name := .probe 0 } }] })
 #eval check "forged emitted call target rejected" (match Compiler.checkProgram higherFixture true with
@@ -324,7 +324,7 @@ private def probeAliasFixture : Program := program [pick, add1, main (num 0),
 transport, rather than just returning a formal input. Concrete identity is
 still reconstructed independently in the executable pass. -/
 private def factoryChain (count : Nat) : Program :=
-  let factoryType := FnType.function (.function (.cons (.data (.named "Unit")) .nil) intFn)
+  let factoryType := FnType.function (.function (.cons (.data (.pure .unit)) .nil) intFn)
   let wrappers := (List.range count).map fun id => fn s!"factoryForward{id}" [⟨"g", factoryType, {}⟩]
     fnInt (block (if id == 0 then call "g" [.unit {}] else call s!"factoryForward{id - 1}" [var "g"]))
   program (wrappers ++ [add1, fn "factory" [⟨"u", .data (.pure .unit), {}⟩] fnInt (block (var "add1")),
@@ -335,5 +335,30 @@ private def factoryChain (count : Nat) : Program :=
   | .ok checked => checked.audit.lowered.module.functions.length == 183 &&
       checked.executable.lowered.module.functions.length == 93 &&
       checked.audit.lowered.probeReuses.all validProbeResult)
+
+/-- Mutate the returned calls while retaining both the origin table and the
+forwarding receipt. Equal input and result types cannot authorize a swap. -/
+private def forwardSequenceRegression : Bool := Id.run do
+  let hom : Core.DataType := .finite (.hom default "o" "o")
+  let result : Core.Result := ⟨hom,none⟩
+  let producer := fun n => some (Target.mk (.concrete n) (.function .nil (.data hom)) none)
+  let site : ForwardUse := { (default : ForwardUse) with
+    definition := 7, targets := [producer 4,producer 5] }
+  let origins : Array Key := #[⟨4,[]⟩,⟨5,[]⟩,⟨7,[]⟩]
+  let callProducer := fun n => Core.Term.call n [] [] result
+  let args := [Core.Term.variable 2 result,.variable 3 result]
+  let fragment := fun first second tail => Core.Term.letE 0 .unit (.letE 1 .unit
+    (.letE 2 first (.letE 3 second tail)))
+  let represented := Core.Term.call 2 args [] result
+  let acceptsBody := Forwarding.matchesBody origins false site
+  return acceptsBody (fragment (callProducer 0) (callProducer 1) represented) &&
+    !acceptsBody (fragment (callProducer 1) (callProducer 0) represented) &&
+    !acceptsBody (fragment (callProducer 0) (callProducer 0) represented) &&
+    !acceptsBody (fragment (callProducer 0) (.variable 2 result) represented) &&
+    !acceptsBody (fragment (callProducer 0) (callProducer 1) (.call 2 args.reverse [] result)) &&
+    !acceptsBody (fragment (callProducer 0) (callProducer 1) (.call 0 args [] result)) &&
+    !acceptsBody (fragment (callProducer 0) (callProducer 1) (.letE 4 (callProducer 1) represented))
+
+#eval check "finite forwarding checks call order, multiplicity, results and callee" forwardSequenceRegression
 
 end VastitasKernel.Indexed.FunctionSource.Regression

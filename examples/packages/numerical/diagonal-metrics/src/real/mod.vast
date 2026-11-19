@@ -5,7 +5,7 @@ pub resource fn exercise() -> Unit {
     involution sigma = canonical(v);
     metric hv = diagonal(bv, sigma, [2, -4]);
     metric hw = diagonal(bw, sigma, [3, 5, -2]);
-    allocate a: F64[9]; allocate out: F64[10];
+    allocate a: F64<RR>[9]; allocate out: F64<RR>[10];
     borrow wa = write(a, layout(8,3,2,4,false));
     store(wa,0,0,f64_bits(4607182418800017408));
     store(wa,1,0,f64_bits(4613937818241073152));
@@ -30,8 +30,8 @@ pub resource fn exercise() -> Unit {
     expect(ro,1,2,f64_bits(4613937818241073152));
     release(ro); release(ra); drop(a); drop(out);
     space vc = conjugate(v,sigma); basis bvc = derived(bv,vc);
-    allocate x: F64[3]; allocate y: F64[3];
-    allocate scratch_owner: F64[3]; allocate scalar_result: F64[2];
+    allocate x: F64<RR>[3]; allocate y: F64<RR>[3];
+    allocate scratch_owner: F64<RR>[3]; allocate scalar_result: F64<RR>[2];
     borrow wx = write(x, layout(8,2,1,3,false));
     store(wx,0,0,f64_bits(4607182418800017408)); store(wx,1,0,f64_bits(4611686018427387904)); release(wx);
     borrow wy = write(y, layout(8,2,1,3,false));

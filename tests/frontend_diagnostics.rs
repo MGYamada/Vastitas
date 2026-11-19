@@ -19,7 +19,7 @@ fn check(input: &str, source: &str) -> String {
         "package" => {
             s.write(
                 "Vastitas.toml",
-                "[package]\nname = 'case'\nversion = '0.1.0'\nroot = 'case.vast'\n",
+                "[package]\nedition = \"2026\"\nname = 'case'\nversion = '0.1.0'\nroot = 'case.vast'\n",
             );
             s.write("case.vast", source);
             command

@@ -18,6 +18,7 @@ private def size (j : Json) (name : String) : Except String Nat := boundedNat j 
 
 def scalar (value : String) : Except String Scalar := match value with
   | "f64" => pure .f64 | "complex_f64" => pure .complexF64
+  | "f32" => pure .f32 | "complex_f32" => pure .complexF32
   | _ => throw "unsupported resource scalar representation"
 
 def access (value : String) : Except String Access := match value with
@@ -44,6 +45,12 @@ def literal (j : Json) : Except String Literal := do
   | "complex_f64" =>
     fields j ["kind", "real", "imaginary"]
     return .complexF64 (UInt64.ofNat (← size j "real")) (UInt64.ofNat (← size j "imaginary"))
+  | "f32" =>
+    fields j ["kind", "bits"]
+    return .f32 (UInt32.ofNat (← boundedNat j "bits" 32))
+  | "complex_f32" =>
+    fields j ["kind", "real", "imaginary"]
+    return .complexF32 (UInt32.ofNat (← boundedNat j "real" 32)) (UInt32.ofNat (← boundedNat j "imaginary" 32))
   | _ => throw "invalid resource literal representation"
 
 def gemmMode (value : String) : Except String GemmMode := match value with

@@ -1,0 +1,5 @@
+fn main() -> Int {
+    let numerator: Nat = 7;
+    let denominator: Int = -3;
+    std::operator::div(numerator, denominator) + 12
+}

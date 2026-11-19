@@ -1,0 +1,9 @@
+fn keep(x: Int) -> Int { x }
+
+fn twice(x: Int) -> Int { keep(x) + x }
+
+fn quotient(a: Int, b: Nat) -> Int { std::operator::div(a, b) }
+
+fn main() -> Int {
+    quotient(twice(-340282366920938463463374607431768211457), 3)
+}

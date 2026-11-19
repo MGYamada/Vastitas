@@ -32,7 +32,7 @@ fn checking_budget_diagnostic_does_not_depend_on_an_unrelated_generic() {
     }
     source.push_str("0\n}");
     let first = diagnostic(&check(&request(&source)), "E_LIMIT");
-    source.push_str("\ngeneric unrelated() { domain; }");
+    source.push_str("\nfn unrelated() domain();");
     let second = diagnostic(&check(&request(&source)), "E_LIMIT");
     assert_eq!(first["message"], second["message"]);
     assert_eq!(first["span"], second["span"]);
@@ -81,7 +81,7 @@ fn frontend_and_kernel_use_the_same_name_violation_codes() {
         }
         diagnostic(&check(&raw), code);
     }
-    let mut raw = request("generic present(x) { domain; } method present(x: Int) -> Int { x }");
+    let mut raw = request("fn present(x) domain(); fn present(x: Int) -> Int { x }");
     common::flat_module(&mut raw)["methods"][0]["name"] = json!("missing");
     diagnostic(&check(&raw), "E_NAME");
 }

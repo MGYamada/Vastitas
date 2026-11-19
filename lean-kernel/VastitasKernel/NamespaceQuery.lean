@@ -35,17 +35,18 @@ private theorem memberAt_span (fuel budget : Nat) (p : Indexed) (requester scope
 private theorem singleton_member (fuel budget : Nat) (p : Indexed) (scope : Scope) (name : String)
     (span : Span) (pkg : PackageLookup) (found : p.byPackage[scope.package.source]? = some pkg)
     (ordinary : name ≠ "self" ∧ name ≠ "super" ∧ name ≠ "package")
-    (notDependency : pkg.dependencies[name]? = none) :
+    (notDependency : pkg.dependencies[name]? = none)
+    (notPrelude : preludeOperator p scope pkg name = false) :
     (resolveAt (fuel + 2) p scope [name] {} span).run budget =
       (memberAt (fuel + 1) p scope scope name {} span).run budget := by
   obtain ⟨selfName, superName, packageName⟩ := ordinary
   cases visited : (memberAt (fuel + 1) p scope scope name {} span).run budget with
   | error diagnostic =>
-    simp [resolveAt, found, notDependency, StateT.run, StateT.bind, bind, Except.bind] at visited ⊢
+    simp [resolveAt, found, notDependency, notPrelude, StateT.run, StateT.bind, bind, Except.bind] at visited ⊢
     rw [visited]
   | ok result =>
     rcases result with ⟨target, remaining⟩
-    simp [resolveAt, found, notDependency, StateT.run, StateT.bind, bind, Except.bind] at visited ⊢
+    simp [resolveAt, found, notDependency, notPrelude, StateT.run, StateT.bind, bind, Except.bind] at visited ⊢
     rw [visited]
     rfl
 
@@ -83,10 +84,17 @@ theorem AliasHit.resolves {p : Indexed} (hit : AliasHit p) (span : Span) :
   | some pkg =>
     simp only [localAlias, found, Bool.and_eq_true, decide_eq_true_eq,
       Option.isNone_iff_eq_none] at eligible
+    have noPrelude : preludeOperator p hit.scope pkg hit.name = false := by
+      have imported := eligible.2
+      cases hm : moduleLookupAt p hit.scope with
+      | none => simp [hm] at imported
+      | some m =>
+        simp [hm] at imported
+        simp [preludeOperator, hm, imported]
     have original := hit.atSpan span
     unfold resolve
     rw [show Limits.namespaceResolution = (Limits.namespaceResolution - 2) + 2 from rfl,
-      singleton_member (Limits.namespaceResolution - 2) _ _ _ _ _ _ found eligible.1.1 eligible.1.2]
+      singleton_member (Limits.namespaceResolution - 2) _ _ _ _ _ _ found eligible.1.1 eligible.1.2 noPrelude]
     cases actual : (memberAt (Limits.namespaceResolution - 1) p hit.scope hit.scope hit.name {} span).run
         Limits.namespaceResolution with
     | error diagnostic =>
@@ -183,7 +191,8 @@ private def wordPrice (prices : Std.HashMap String Nat) (text : String) : Nat :=
   else 1 + prices.getD text 0
 
 /-- The explicit worklist visits the source once. Import declarations are charged separately
-by the spelling table and independently audited by the resolver. Diagnostic location objects do not represent references. -/
+by the spelling table and independently audited by the resolver. Source text
+and spans do not add namespace visits; the edit parser checks the entry text. -/
 private def priceNodes (prices : Std.HashMap String Nat) :
     Nat → List Lean.Json → Nat → Result (Fin (Limits.namespaceProgramWork + 1))
   | _, [], used =>
@@ -197,7 +206,7 @@ private def priceNodes (prices : Std.HashMap String Nat) :
       let work := match item with
         | .arr xs => xs.foldr List.cons rest
         | .obj fields => fields.toList.foldr (fun (key, value) stack =>
-            if key == "span" || key == "imports" then stack else value :: stack) rest
+            if key == "span" || key == "imports" || key == "root_source" then stack else value :: stack) rest
         | _ => rest
       priceNodes prices fuel work next
 

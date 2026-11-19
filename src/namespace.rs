@@ -36,8 +36,43 @@ pub(crate) struct Contribution {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Assembly {
+    pub source: Vec<AssemblyItem>,
     pub events: Vec<EditEvent>,
     pub span: Span,
+    #[serde(skip)]
+    pub expanded_count: usize,
+}
+
+/// A flat sequence of source items keeps lexical nesting independent of JSON depth.
+/// The checker reconstructs implicit loan names, returns and seals from these items.
+#[derive(Debug, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum AssemblyItem {
+    Family {
+        target: Vec<String>,
+        span: Span,
+    },
+    Borrow {
+        grant: Vec<String>,
+        label: Option<String>,
+        span: Span,
+    },
+    Delegate {
+        delegation: Vec<String>,
+        label: Option<String>,
+        span: Span,
+    },
+    Apply {
+        contributions: Vec<Vec<String>>,
+        span: Span,
+    },
+    Transfer {
+        declaration: Vec<String>,
+        span: Span,
+    },
+    Close {
+        span: Span,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -89,7 +124,7 @@ pub(crate) struct Import {
     /// The place of the name that a `use` without `as` binds, when that name
     /// is a compatibility spelling: the parser cannot tell whether the path
     /// names an `indexed` declaration, which may take it, or a module, which
-    /// may not (`reserved_module_uses`). Not part of the request.
+    /// may not (`packages::prepare_function_families`). Not part of the request.
     #[serde(skip)]
     pub deferred_name: Option<Span>,
 }
@@ -131,6 +166,30 @@ pub(crate) struct External {
     pub path: Vec<String>,
     pub public: bool,
     pub span: Span,
+}
+
+impl Module {
+    /// Every source reference that can select an existing function for editing.
+    /// An unqualified method with no local header can itself be an import alias.
+    pub(crate) fn edit_targets(&self) -> impl Iterator<Item = Vec<String>> + '_ {
+        self.grants
+            .iter()
+            .map(|d| &d.declaration.target)
+            .chain(self.delegations.iter().map(|d| &d.declaration.target))
+            .chain(self.transfers.iter().map(|d| &d.declaration.target))
+            .chain(self.contributions.iter().map(|d| &d.declaration.target))
+            .cloned()
+            .chain(
+                self.methods
+                    .iter()
+                    .map(|m| m.name.split("::").map(str::to_owned).collect()),
+            )
+            .chain(
+                self.abstract_methods
+                    .iter()
+                    .map(|c| c.name.split("::").map(str::to_owned).collect()),
+            )
+    }
 }
 
 pub(crate) struct Parsed {

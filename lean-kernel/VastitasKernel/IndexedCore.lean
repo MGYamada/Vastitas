@@ -1,3 +1,4 @@
+import VastitasKernel.FiniteLookup
 import VastitasKernel.Core
 import VastitasKernel.IndexedContractAudit
 
@@ -68,6 +69,7 @@ inductive PureType where
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 inductive DataType where
+  | finite (carrier : FiniteSort)
   | pure (type : PureType)
   | object (type : ObjectType)
   | indexed (application : Application)
@@ -91,6 +93,7 @@ def _root_.VastitasKernel.Indexed.PrimitiveBinding.argumentHint (binding : Primi
   binding.contract.shape.argumentHint position
 
 def DataType.Valid (env : Declarations) : DataType → Prop
+  | .finite id => (FiniteSort.tags env.indexed id).isSome = true
   | .pure _ => True
   | .object type => type.Valid env.indexed
   | .indexed application => application.Valid env.indexed
@@ -146,6 +149,8 @@ structure Parameter where
 /-- Hygienic Core: names only occur as canonical declaration references. Every
 node retains its result; full independent typing must check that annotation. -/
 inductive Term where
+  | finiteTag (carrier : FiniteSort) (tag : String)
+  | finiteLookup (site : FiniteLookup) (symbols : List Nat)
   | natural (value : Nat)
   | integer (value : Int)
   | boolean (value : Bool)
@@ -168,6 +173,8 @@ inductive Term where
   deriving Repr, Inhabited
 
 def Term.result : Term → Result
+  | .finiteLookup site _ => ⟨.finite site.output, none⟩
+  | .finiteTag id _ => ⟨.finite id, none⟩
   | .natural _ => ⟨.pure .nat, none⟩
   | .integer _ => ⟨.pure .int, none⟩
   | .boolean _ => ⟨.pure .bool, none⟩

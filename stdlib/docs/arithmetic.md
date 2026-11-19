@@ -80,8 +80,8 @@ Packages, built and run by `tests/examples.rs`:
   `use std::arithmetic::integers::int_abs;`. It writes
   `int_abs(int_sub(8, 50)) = 42` and exits with status 0.
 - [`examples/packages/stdlib/promotion/`](../../examples/packages/stdlib/promotion) imports
-  the three generics, as in `use std::arithmetic::generic::promote;`. It
-  writes `maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42` and
+  the three generics, naming `std::arithmetic::generic::add` as `promoted_add`. It
+  writes `maximum(promoted_add(pair_first(p), pair_second(p)), promoted_add(n, -7)) = 42` and
   exits with status 0.
 - [`examples/packages/stdlib/stdlib-geometry/`](../../examples/packages/stdlib/stdlib-geometry)
   calls `std::arithmetic::generic::add` by its full path.

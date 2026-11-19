@@ -51,9 +51,10 @@ type: a function with one parameter of type `Unit`. Calls chain: `constant()`
 returns a function, and `constant()()` calls that function. The program
 writes `adder()(constant()(), 2) = 42` and exits with status 0.
 
-The parameter and result types of a function type are scalar types and
-function types. A function with another type in its signature, such as a
-pair, is not a value, and a program calls it only by its name.
+Function types accept scalars, finite arrows and other function types.
+For example, a parameter of type `Fn<(), Hom<C, X, Y>>` takes a function
+that returns an arrow from `X` to `Y` in the specified category `C`.
+A function with a pair in its signature can be called directly by name.
 [Function types](../language/types.md#function-types) and
 [Function values](../language/functions.md#function-values) give the rules.
 
@@ -122,10 +123,12 @@ condition is the literal `true`. A call of `pick` with two different
 functions, such as `pick(true, increment, decrement)`, is the same error.
 [Static targets](../stage1b.md#static-targets) gives the rules.
 
-## Generics are not function values
+## Passing a family to a function
 
-The name of a generic stands for several methods, not for one definition. It
-is not a function value:
+A family passed to a parameter of type `Fn` uses the argument types of that
+parameter to select a method. The selected result must then agree with the
+result in the `Fn` type. Here `(Int, Int)` selects a method returning `Int`,
+so the family cannot supply the requested `Bool` result:
 
 ```vast
 {{#include ../../examples/reject/function-values/generic-value.vast}}
@@ -144,7 +147,7 @@ passes such a function:
 ```
 
 This program writes `fold(add_ints, 40, 2) = 42` and exits with status 0.
-Inside `add_ints`, the compiler chooses the method of `add` by the argument
+Inside `add_ints`, the compiler chooses the method of `self::add` by the argument
 types, as for every call of a generic. A function type is never part of a
 key: dispatch uses the scalar types only.
 

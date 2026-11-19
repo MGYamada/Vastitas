@@ -58,7 +58,7 @@ fn through_calls(source: &str, complex: bool) -> String {
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let pack_header = format!(
         "u: Space<super::profiles::{profile}, 2>, bu: Basis<u>, v: Space<super::profiles::{profile}, 3>, bv: Basis<v>, vd: DualSpace<v>, bvd: DerivedBasis<bv, vd>, w: Space<super::profiles::{profile}, 2>, bw: Basis<w>, source: Read<{scalar}, 2, 6>, destination: Write<{scalar}, 4, 3> initializes"
     );
@@ -90,7 +90,7 @@ fn through_owned_package(source: &str, complex: bool, condition: bool) -> String
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let width = if complex { 16 } else { 8 };
     let initialize_start = source.find("    borrow init_b = write(right,").unwrap();
     let initialize_end =
@@ -339,6 +339,52 @@ fn grouping_axis_bound_is_reported_at_the_tensor() {
 }
 
 #[test]
+fn rank_one_tensor_uses_the_same_named_basis_and_live_column_as_a_vector() {
+    fn column(profile: &str, scalar: &str, literal: &str) -> String {
+        format!(
+            "pub resource fn product() -> Unit {{
+            space v = linear(super::profiles::{profile}, 2); basis b = basis(v);
+            allocate data: {scalar}[2];
+            borrow w = write(data, layout(0,2,1,2,false)); fill(w,{literal}); release(w);
+            borrow r = read(data, layout(0,2,1,2,false));
+            tensor t = view1(r,b); vector x = view(r,b);
+            expect(r,1,0,{literal}); release(r); drop(data); value {{ () }}
+        }}"
+        )
+    }
+    let real = column("RealSmooth", "F32<RR>", "f32_bits(2147483648)");
+    let complex = column("ComplexSmooth", "F32<CC>", "complex32_bits(1,2143289345)");
+    let s = fixture(&real, &complex);
+    assert_eq!(s.check_build_and_run("Vastitas.toml"), common::exits(0));
+    let raw = captured(&s);
+    for (field, forged) in [
+        ("order", json!([1])),
+        ("split", json!(0)),
+        ("split", json!(2)),
+    ] {
+        let mut changed = raw.clone();
+        operation(&mut changed, "t")["grouping"][field] = forged;
+        for mode in ["check", "emit"] {
+            common::assert_wire_rejected(&kernel(&changed, mode), "E_TENSOR");
+        }
+    }
+    for (from, to) in [
+        (
+            "read(data, layout(0,2,1,2,false))",
+            "read(data, layout(0,1,2,1,false))",
+        ),
+        ("view1(r,b)", "view1(r,v)"),
+        (
+            "tensor t = view1(r,b);",
+            "release(r); tensor t = view1(r,b);",
+        ),
+    ] {
+        s.write("src/real/mod.vast", &real.replace(from, to));
+        common::expect_code(&command(&s, "check").output().unwrap(), "E_TENSOR");
+    }
+}
+
+#[test]
 fn tensor_wire_rejects_forged_axes_groupings_and_authority() {
     let raw = captured(&fixture(REAL, COMPLEX));
     for (field, forged) in [
@@ -411,7 +457,7 @@ fn constant_source(complex: bool, [i, k, j, n]: [usize; 4]) -> String {
     } else {
         "RealSmooth"
     };
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let width = if complex { 16 } else { 8 };
     let input = if complex {
         "complex_bits(0, 4607182418800017408)"
@@ -471,6 +517,11 @@ fn tensor_native_executes_rank_three_permutation_bilinear_products_and_empty_axe
     let options = common::numerical_build_options(None);
     let mut cases = vec![
         (REAL.to_owned(), COMPLEX.to_owned()),
+        (
+            common::binary32_fixture(&through_calls(REAL, false)).replace("layout(8,", "layout(4,"),
+            common::binary32_fixture(&through_calls(COMPLEX, true))
+                .replace("layout(16,", "layout(8,"),
+        ),
         (through_calls(REAL, false), through_calls(COMPLEX, true)),
     ];
     cases.push((

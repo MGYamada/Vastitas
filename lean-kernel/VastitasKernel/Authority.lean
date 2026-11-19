@@ -175,6 +175,10 @@ def install (state : State) (applied : Applied) (span : Span) : Result State := 
     return state
   return { state with applied := state.applied ++ [applied], edited := state.edited.insert applied.contribution.target.owner }
 
+private def requireSealTarget (target : Namespace.Target) (span : Span) : Result Unit := do
+  unless target.kind == .function || target.kind == .generic do
+    problem span "E_TYPE" "only a named function family can be sealed"
+
 def step (p : Indexed) (prepared : Prepared p) (state : State) (event : EditEvent) : Result State := do
   match event with
   | .borrow path name span =>
@@ -238,7 +242,7 @@ def step (p : Indexed) (prepared : Prepared p) (state : State) (event : EditEven
     return { state with history := state.history ++ [transfer], edited := state.edited.insert transfer.target.owner }
   | .seal path span =>
     let target ← resolve p prepared.core.rootScope path span
-    Edit.requireKind target .generic span
+    requireSealTarget target span
     if !unborrowed state target.owner then problem span "E_BORROW" "cannot seal with an outstanding loan"
     if state.sealed.contains target.owner then problem span "E_ASSEMBLY" "generic is already sealed"
     return { state with sealed := state.sealed.insert target.owner }
@@ -289,7 +293,8 @@ def TransitionAllowed (p : Indexed) (prepared : Prepared p)
       (∀ prior ∈ before.history, prior.id ≠ transfer.id) ∧
       SameState after { before with history := before.history ++ [transfer], edited := before.edited.insert transfer.target.owner }
   | .seal path span => ∃ target ∈ p.declarations,
-      target.kind = .generic ∧ Edit.ResolvesAs p prepared.core.rootScope path span .generic target.owner ∧
+      (target.kind = .function ∨ target.kind = .generic) ∧
+      Edit.ResolvesAs p prepared.core.rootScope path span target.kind target.owner ∧
       unborrowed before target.owner = true ∧ before.sealed.contains target.owner = false ∧
       SameState after { before with sealed := before.sealed.insert target.owner }
 instance : Decidable (TransitionAllowed p prepared before event after) := by
@@ -353,6 +358,37 @@ instance : Decidable (DeclarationsAuthorized prepared state) := by unfold Declar
 def finalSurface (prepared : Prepared p) (state : State) : Surface.Program :=
   Edit.finalSurface prepared.core state.core
 
+/-- The seal on the closing brace delimits its family block. A valid sequence
+of authority transitions alone does not imply this property: for example, a
+grant of another family could be borrowed and returned without editing it.
+Use the reconstructed declaration targets, not the spellings of paths. -/
+def checkBlockTargets (p : Indexed) (prepared : Prepared p) : Result Unit := do
+  let events := prepared.core.assembly.events
+  if events.isEmpty then return ()
+  let mut owners : Std.HashMap Owner Owner := {}
+  for grant in prepared.core.grants ++ prepared.delegations do
+    owners := owners.insert grant.id grant.target.owner
+  for transfer in prepared.transfers do
+    owners := owners.insert transfer.id transfer.target.owner
+  for contribution in prepared.core.contributions do
+    owners := owners.insert contribution.id contribution.target.owner
+  let mut family : Option Owner := none
+  for event in events.reverse do
+    let scope := prepared.core.rootScope
+    match event with
+    | .seal path span =>
+      let target ← resolve p scope path span
+      requireSealTarget target span
+      family := some target.owner
+    | _ =>
+      let some expected := family | problem event.span "E_ASSEMBLY" "assemble block is missing its final seal"
+      match event with
+      | .borrow path _ span | .reborrow _ path _ span | .apply path _ span | .transfer path span =>
+        let target ← resolve p scope path span
+        if owners[target.owner]? != some expected then
+          problem span "E_ASSEMBLY" "edit declaration targets another function family than the enclosing assemble block"
+      | _ => pure ()
+
 structure Assembled (p : Indexed) where
   prepared : Prepared p
   preparedFrom : prepare p = .ok prepared
@@ -363,6 +399,7 @@ structure Assembled (p : Indexed) where
   namespaces : UniqueOwners p ∧ ReferencesValid p { prepared.core.base with references := prepared.references }
   state : State
   traced : runTrace p prepared prepared.core.assembly.events {} = .ok state
+  blockTargets : checkBlockTargets p prepared = .ok ()
   returned : state.loans.isEmpty = true
   sealed : state.edited.toList.all (state.sealed.contains ·) = true
   authorized : DeclarationsAuthorized prepared state
@@ -387,19 +424,22 @@ def assemble (p : Indexed) : Result (Assembled p) := do
             | .ok state =>
               if returned : state.loans.isEmpty = true then
                 if sealed : state.edited.toList.all (state.sealed.contains ·) = true then
-                  if authorized : DeclarationsAuthorized prepared state then
-                    match completed : Edit.completeFamilies (finalSurface prepared state) with
-                    | .error error =>
-                      throw (sourceDiagnostic p (Edit.completeFamilies (finalSurface prepared state) ·) error)
-                    | .ok families =>
-                      if footprints : Edit.FootprintsAuthorized prepared.core state.core families then
-                        match auditFrom : Edit.unappliedAudit prepared.core state.core families with
-                        | .error error => throw error
-                        | .ok audit => return {
-                            prepared, preparedFrom, corresponds, graph, graphFrom, memberships, namespaces,
-                            state, traced, returned, sealed, authorized, families, completed, footprints, audit, auditFrom }
-                      else throw (Edit.footprintDiagnostic prepared.core state.core families)
-                  else problem prepared.core.assembly.span "E_OWNER" "authority declaration issuer never owned its target"
+                  match blockTargets : checkBlockTargets p prepared with
+                  | .error error => throw error
+                  | .ok () =>
+                    if authorized : DeclarationsAuthorized prepared state then
+                      match completed : Edit.completeFamilies (finalSurface prepared state) with
+                      | .error error =>
+                        throw (sourceDiagnostic p (Edit.completeFamilies (finalSurface prepared state) ·) error)
+                      | .ok families =>
+                        if footprints : Edit.FootprintsAuthorized prepared.core state.core families then
+                          match auditFrom : Edit.unappliedAudit prepared.core state.core families with
+                          | .error error => throw error
+                          | .ok audit => return {
+                              prepared, preparedFrom, corresponds, graph, graphFrom, memberships, namespaces,
+                              state, traced, blockTargets, returned, sealed, authorized, families, completed, footprints, audit, auditFrom }
+                        else throw (Edit.footprintDiagnostic prepared.core state.core families)
+                    else problem prepared.core.assembly.span "E_OWNER" "authority declaration issuer never owned its target"
                 else problem prepared.core.assembly.span "E_ASSEMBLY" "every edited or transferred generic must be sealed"
               else problem prepared.core.assembly.span "E_BORROW" "assembly ends with outstanding edit loans"
           else problem {} "E_INTERNAL_NAMESPACE" "namespace identity or reference audit failed"

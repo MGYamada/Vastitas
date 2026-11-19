@@ -1,7 +1,7 @@
 fn main() -> Int {
     let left: Nat = 20;
     let right: Nat = 22;
-    let total: Nat = add(left, right);
+    let total: Nat = self::add(left, right);
     let largest = show!(maximum(nat_to_int(total), 41));
     0
 }

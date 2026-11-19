@@ -1,0 +1,30 @@
+// Components of the natural transformation from the identity to the closure on lo < hi.
+use std::category::Category;
+use std::category::Functor;
+use std::category::NatTrans;
+
+indexed finite Obj { lo; hi; }
+indexed finite Arr { leftId; up; rightId; }
+indexed table s(Arr) -> Obj { (leftId) => lo; (up) => lo; (rightId) => hi; }
+indexed table t(Arr) -> Obj { (leftId) => lo; (up) => hi; (rightId) => hi; }
+indexed table ids(Obj) -> Arr { (lo) => leftId; (hi) => rightId; }
+indexed table comp(Arr, Arr) -> Arr where composable(s, t) {
+    (leftId, leftId) => leftId; (up, leftId) => up;
+    (rightId, up) => up; (rightId, rightId) => rightId;
+}
+indexed instance C : Category = finite_graph(Obj, Arr, s, t, ids, comp);
+
+indexed table sameObj(Obj) -> Obj { (lo) => lo; (hi) => hi; }
+indexed table sameArr(Arr) -> Arr { (leftId) => leftId; (up) => up; (rightId) => rightId; }
+indexed instance Id : Functor = finite_functor(C, C, sameObj, sameArr);
+indexed table closeObj(Obj) -> Obj { (lo) => hi; (hi) => hi; }
+indexed table closeArr(Arr) -> Arr { (leftId) => rightId; (up) => rightId; (rightId) => rightId; }
+indexed instance Closure : Functor = finite_functor(C, C, closeObj, closeArr);
+
+indexed instance Eta : NatTrans = finite_nat_trans(Id, Closure, etaAt);
+indexed table etaAt(Obj) -> Arr { (lo) => up; (hi) => rightId; }
+
+fn componentAt(x: Obj<>) -> Arr<> { finite::lookup::<Eta::components>(x) }
+fn main() -> Int {
+    if componentAt(Obj::lo) == Arr::up && componentAt(Obj::hi) == Arr::rightId { 0 } else { 1 }
+}

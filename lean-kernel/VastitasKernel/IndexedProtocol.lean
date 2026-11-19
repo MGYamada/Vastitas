@@ -40,7 +40,10 @@ def geometryProfile (j : Json) : Except String (GeometryProfile Source.Path) := 
     ← get "point", ← get "morphism", ← get "pointed", ← get "compose", ← get "apply"⟩
 
 def package (j : Json) : Except String DispatchSource.Package := do
-  fields j ["source", "name", "version", "dependencies", "modules", "geometry_compat"]
+  fields j ["source", "name", "version", "edition", "dependencies", "modules", "geometry_compat"]
+  let edition ← (str j "edition").mapError fun error => s!"package edition: {error}"
+  if edition != currentEdition then
+    throw s!"package edition must be '{currentEdition}'"
   let dependencies ← (← array j "dependencies").mapM fun dep => do
     fields dep ["alias", "target"]
     return { alias := ← str dep "alias", target := ← str dep "target" : Namespace.Dependency }

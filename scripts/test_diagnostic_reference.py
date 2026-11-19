@@ -1,6 +1,7 @@
 """Identity, uncertainty and actual-checker join/repair regression coverage."""
 
 import copy
+import hashlib
 import itertools
 import json
 import os
@@ -49,14 +50,32 @@ def revise(value, package):
 
 class DiagnosticReferenceTests(unittest.TestCase):
     def test_v1_fingerprint_vector(self):
-        # Resolving an edit recipient by its package name changes the source
-        # snapshot and therefore this occurrence ID; the semantic issue key
-        # stays fixed.
+        # The complete source snapshot includes the required edition of all
+        # three manifests. The semantic issue key does not include those bytes.
         ids = dr.identities(fixture())
         self.assertEqual(ids["reference_occurrence_id"], "vastitas-reference-occurrence-v1:"
-                         "4c2d4e07becbff4ec09177bc00bf052b8352d7f015e8b539b38bc373fae528a3")
+                         "ecc3fd011d62d15a8099bf73a475d15ac0bac0e535c7d89311d2b8655320e864")
         self.assertEqual(ids["semantic_issue_key"], "vastitas-reference-issue-v1:"
                          "76dbc53ef5595642f8c6d1fe4331052d4f6f724cfecfb8154fa0ec506c244e8d")
+
+    def test_edition_changes_the_source_snapshot_but_not_the_semantic_issue(self):
+        record = fixture()
+        source = package_sources(("A", "B"), repair=False)
+        # Change only the edition in the migrated fn/assemble fixture. These
+        # edition-less manifests are not submitted to the compiler.
+        legacy = dict(source)
+        manifests = [path for path in source if path.endswith("/Vastitas.toml")]
+        self.assertEqual(len(manifests), 3)
+        for path in manifests:
+            self.assertEqual(source[path].count("edition = '2026'\n"), 1)
+            legacy[path] = source[path].replace("edition = '2026'\n", "")
+        record["semantic"]["environment"]["input_revision"] = (
+            "sha256:" + hashlib.sha256(dr.canonical_json(legacy)).hexdigest())
+        old, current = dr.identities(record), dr.identities(fixture())
+        self.assertEqual(old["reference_occurrence_id"], "vastitas-reference-occurrence-v1:"
+                         "513258a0655da393d0c431f2bc8ce5f0d82df63e391caba51f9e91bdb8c043cb")
+        self.assertNotEqual(old["reference_occurrence_id"], current["reference_occurrence_id"])
+        self.assertEqual(old["semantic_issue_key"], current["semantic_issue_key"])
 
     def test_independent_contributions_join_and_owner_repair(self):
         for names in (("default",), ("default", "A"), ("default", "B"),

@@ -44,6 +44,14 @@ fn reject(s: &Scratch, args: &[&str], expected: &str) -> String {
 }
 
 #[test]
+fn namespace_references_in_a_large_source_comment_do_not_spend_the_resolution_budget() {
+    let s = Scratch::empty("root source namespace budget");
+    let text = format!("//{}\nfn main() -> Int {{ 42 }}", "::".repeat(4_000_001));
+    s.write("main.vast", &text);
+    common::success(&s.cli().args(["check", "main.vast"]).output().unwrap());
+}
+
+#[test]
 fn blocking_and_device_sources_are_rejected_without_reading() {
     let s = Scratch::empty("special inputs");
     mkfifo(&s.0.join("pipe.vast"), Mode::S_IRUSR | Mode::S_IWUSR).unwrap();
@@ -71,7 +79,7 @@ fn blocking_and_device_sources_are_rejected_without_reading() {
     fs::remove_file(s.0.join("Vastitas.toml")).unwrap();
     s.write(
         "Vastitas.toml",
-        "[package]\nname='special'\nversion='0.1.0'\nroot='main.vast'\n",
+        "[package]\nedition = \"2026\"\nname='special'\nversion='0.1.0'\nroot='main.vast'\n",
     );
     s.write("main.vast", "mod pipe; fn main() -> Int { 0 }");
     reject(
@@ -168,7 +176,7 @@ fn reused_source_bytes_are_charged_for_each_logical_module() {
     let s = Scratch::empty("total input size");
     s.write(
         "Vastitas.toml",
-        "[package]\nname='large'\nversion='0.1.0'\nroot='main.vast'\n",
+        "[package]\nedition = \"2026\"\nname='large'\nversion='0.1.0'\nroot='main.vast'\n",
     );
     s.write("main.vast", "mod a; mod b; mod c; mod d;");
     let text = format!("//{}", "x".repeat(16 * 1024 * 1024 - 2));
@@ -189,7 +197,7 @@ fn symlink_module_fanout_is_bounded_across_the_package_closure() {
     let s = Scratch::empty("module fanout");
     s.write(
         "Vastitas.toml",
-        "[package]\nname='fanout'\nversion='0.1.0'\nroot='L0/mod.vast'\n",
+        "[package]\nedition = \"2026\"\nname='fanout'\nversion='0.1.0'\nroot='L0/mod.vast'\n",
     );
     for depth in 0..14 {
         s.write(
@@ -256,7 +264,9 @@ fn manifest_paths_in_errors_carry_no_terminal_controls() {
         s.write(&format!("{name}/main.vast"), "fn main() -> Int { 0 }");
         s.write(
             &format!("{name}/Vastitas.toml"),
-            &format!("[package]\nname = \"probe\"\nversion = \"0.1.0\"\n{body}\n"),
+            &format!(
+                "[package]\nedition = \"2026\"\nname = \"probe\"\nversion = \"0.1.0\"\n{body}\n"
+            ),
         );
     };
     package("root", format!("root = \"{hostile}.vast\""));
@@ -500,7 +510,7 @@ fn manifest_text_in_toml_errors_carries_no_terminal_controls() {
                 "5 | \"k\\u001b[2J\\nE_FORGED: x\" = 1\n",
                 "  | ^^^^^^^^^^^^^^^^^^^^^^^^^\n",
                 "unknown field `k<U+001B>[2J<U+000A>E_FORGED: x`, ",
-                "expected one of `name`, `version`, `root`\n",
+                "expected one of `name`, `version`, `root`, `edition`\n",
             ),
         ),
         (
@@ -555,7 +565,9 @@ fn package_paths_in_diagnostics_carry_no_terminal_controls() {
     let root = canonical(&s);
     let mut cases = Cases::default();
     let manifest = |root: &str, rest: &str| {
-        format!("[package]\nname = \"probe\"\nversion = \"0.1.0\"\nroot = \"{root}\"\n{rest}")
+        format!(
+            "[package]\nedition = \"2026\"\nname = \"probe\"\nversion = \"0.1.0\"\nroot = \"{root}\"\n{rest}"
+        )
     };
 
     // The prefix of a source diagnostic, for a root file under a hostile name.
@@ -578,7 +590,7 @@ fn package_paths_in_diagnostics_carry_no_terminal_controls() {
     // each `E_MANIFEST` error, and the path of a dependency cycle. `PATH`
     // stands for the path of that manifest.
     let dependency = format!("[dependencies]\ndep = {{ path = \"{SPELLED}\" }}\n");
-    const DEP: &str = "[package]\nname = \"dep\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n";
+    const DEP: &str = "[package]\nedition = \"2026\"\nname = \"dep\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n";
     for (name, body, code, expected) in [
         (
             "empty-name",
@@ -1115,7 +1127,7 @@ fn package_names_in_kernel_diagnostics_carry_no_terminal_controls() {
         s.write(
             &format!("{name}/Vastitas.toml"),
             &format!(
-                "[package]\nname = \"{package}\"\nversion = \"0.1.0\"\nroot = \"{spelled}\"\n"
+                "[package]\nedition = \"2026\"\nname = \"{package}\"\nversion = \"0.1.0\"\nroot = \"{spelled}\"\n"
             ),
         );
         s.write(
@@ -1152,13 +1164,13 @@ fn package_names_in_kernel_diagnostics_carry_no_terminal_controls() {
     s.write(
         "wire/Vastitas.toml",
         &format!(
-            "[package]\nname = \"{SPELLED}\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n[dependencies]\ndep = {{ path = \"{SPELLED}\" }}\n"
+            "[package]\nedition = \"2026\"\nname = \"{SPELLED}\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n[dependencies]\ndep = {{ path = \"{SPELLED}\" }}\n"
         ),
     );
     s.write("wire/main.vast", "fn main() -> Int { 0 }");
     s.write(
         &format!("wire/{HOSTILE}/Vastitas.toml"),
-        "[package]\nname = \"dep\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"dep\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     s.write(&format!("wire/{HOSTILE}/main.vast"), "");
     let wire = common::captured_wire(

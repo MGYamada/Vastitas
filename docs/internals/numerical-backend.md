@@ -19,10 +19,51 @@ map loans and typed GEMM in public resource functions.
 
 The [mathematics-first charter](../adr/0001-mathematics-first-stdlib.md) distinguishes
 an ideal mathematical coefficient domain from its numerical realization. The
-existing resource scalars `F64` and `ComplexF64` describe binary64 storage; neither
-is an exact `Field` or a `C∞`-ring. `ComplexF64` is still a closed representation,
-not a general public `Complex<T>` type constructor. No further scalar dispatch key,
+four resource element types select one real component or two interleaved complex
+components at binary32 or binary64 precision. They lower to the closed wire
+scalars `f32`, `complex_f32`, `f64` and `complex_f64`. No further scalar dispatch key,
 pure floating arithmetic or recursive `Fn` scalar type is introduced here.
+
+Selecting a resource element type supplies the storage layout. A
+realization descriptor additionally needs a checked object, a chart on that
+same object, an owned function target and a result type that retains them
+together. The call `float::realize::<R>(X, chart)`, the `Affine(R,n)`
+wrappers, and `interpret` and `run` on their results are specified in
+[the numerical realization contract](../spec/compiler-ir.md#compiler-ir.realization).
+
+The proof oracle's `NumericalRealization.fromChecked` constructs the standard
+coordinate chart descriptor of an existing smooth affine object from the
+declaration environment of an accepted request. The descriptor keeps the
+original object's identity, its `smooth_affine` implementation and real marker,
+its ordered coordinates and the binary32 or binary64 real representation.
+`dimension_from_subject` binds its dimension to the checked object.
+Another object of the same dimension cannot supply the chart. A complex
+representation requires a different mathematical subject.
+
+`NumericalRealization.interpretIdentity` checks one computational presentation:
+a morphism explicitly declared as the identity of that object. The regression
+checks that a pullback written as `t -> t` has the same exact mathematical Core
+constant as the identity declaration. Only the latter supplies this identity
+graph. General floating evaluation must preserve the original operation order.
+
+### Identity maps on represented points
+
+A resource function can import `monad::float` and choose the representation
+`F32<RR>` or `F64<RR>` for the standard chart of a smooth affine object. A point uses
+a borrowed column of coordinates. The identity map reads its input point
+and writes its coordinates to the destination point. The storage checker
+checks initialization, access and layout before the copy. Native execution
+reports floating-point flags as `Unavailable`.
+
+```vast
+{{#include ../../examples/packages/float-identity/src/main.vast:realize}}
+```
+
+The example declares `Plane` with two coordinates and declares `idP` as
+its identity. It checks the bits of negative zero and a signaling NaN
+after execution. Each operation resolves to its owner in the module
+`monad::float`. Imports and re-exports can rename the module or an
+operation. A dependency named `monad` selects that dependency's namespace.
 
 ### Wire and checker boundary
 
@@ -507,7 +548,7 @@ descriptor must not survive an intervening drop or concurrent arena mutation.
 An arena is used synchronously by one resource operation at a time.
 
 `vgemm_execute` preserves the original alpha-one/beta-zero-or-one entry.
-`vgemm_execute_scaled` adds explicit binary64 coefficients and actual scalar-view
+`vgemm_execute_scaled` adds explicit coefficients at the operand precision and actual scalar-view
 reads. Default alpha is one; default beta is zero for overwrite and one for
 accumulate. Both entries use the same preflight and execution path.
 
@@ -518,8 +559,8 @@ accumulate. Both entries use the same preflight and execution path.
 
 `VGemmCoefficient` selects default, explicit scalar bits, or one scalar at a
 live allocation/byte offset. Nonempty complex views and live complex coefficient
-views must start on a 16-byte element boundary relative to that allocation;
-the native binary64 component pointer alignment remains 8 bytes. Half-element
+views must start on an element boundary relative to that allocation, at a
+multiple of 8 bytes for complex binary32 or 16 bytes for complex binary64. Half-element
 offsets fail preflight before reading coefficients or writing output. Views
 undergo bounds/alignment/scalar and output
 separation checks, then their values are read before any output mutation. They
@@ -536,7 +577,7 @@ alias one another; output must be disjoint from both. Disjoint views in one
 allocation are permitted only when their physical bounding byte intervals do not
 overlap. Unsupported layouts are rejected; no implicit packing or alias-repair
 copy is introduced. CBLAS receives column-major buffers through one direct
-`dgemm` or `zgemm` call for nondegenerate compatible operands, except that a
+`sgemm`, `dgemm`, `cgemm` or `zgemm` call for nondegenerate compatible operands, except that a
 1×1 output uses the [fused scalar path](#numerical-adapter--scalar-outputs).
 
 Transpose and conjugation are independent input operations. Complex inputs use
@@ -553,8 +594,8 @@ the explicit alpha/beta coefficients.
 These raw flags do not confer mathematical dual/adjoint authority: the
 [public typed caller](../linalg/transforms-and-metrics.md#dual-and-conjugate-spaces) independently checks derived
 endpoints/bases or declared orthonormal metric evidence before selecting flags.
-Complex scalars and arrays use two adjacent binary64
-components; alpha/beta use the CBLAS pointer convention.
+Complex scalars and array elements use adjacent real and imaginary components
+at the selected precision. Alpha and beta use the CBLAS pointer convention.
 
 An empty output performs no matrix element access and no kernel call; explicit
 coefficient views are still checked and read. For nonempty output and zero inner

@@ -143,7 +143,7 @@ structure CheckedDiagonalPairing (env : Environment) (resources : State) (values
   ownersRestored : (after.allocations.map fun allocation => (allocation.owner, allocation.identity)) =
     (resources.allocations.map fun allocation => (allocation.owner, allocation.identity))
   loansRestored : after.loans = resources.loans
-  initialized : scalarOutputReady after output right.basis.space.scalar = true
+  initialized : scalarOutputReady after output right.scalar = true
 
 def checkDiagonalPairing (env : Environment) (resources : State) (values : Values)
     (leftName rightName output metricName scratch writeLoan readLoan leftChild : Symbol)
@@ -173,7 +173,7 @@ def checkDiagonalPairing (env : Environment) (resources : State) (values : Value
                           if ownersRestored : (after.allocations.map fun allocation => (allocation.owner, allocation.identity)) =
                               (resources.allocations.map fun allocation => (allocation.owner, allocation.identity)) then
                             if loansRestored : after.loans = resources.loans then
-                              if initialized : scalarOutputReady after output right.basis.space.scalar = true then
+                              if initialized : scalarOutputReady after output right.scalar = true then
                                 return ⟨valuesValid, left, right, leftFrom, rightFrom, leftLive, rightLive, metric,
                                   metricFrom, form, realization, realizationAccepted, after, accepted, same ▸ replayed,
                                   leftRestored, rightRestored, ownersRestored, loansRestored, initialized⟩

@@ -44,6 +44,8 @@ def indexLabel (env : Core.Declarations) (geometry : Option (GeometryProfile Dec
 
 def typeLabel (env : Core.Declarations) (geometry : Option (GeometryProfile DeclId))
     (origins : Origins) : Core.DataType → String
+  | .finite (.carrier id) => id.qualified
+  | .finite (.hom owner x y) => s!"Hom<{owner.qualified}, {x}, {y}>"
   | .pure .nat => "Nat" | .pure .int => "Int" | .pure .bool => "Bool" | .pure .unit => "Unit"
   | .pure (.pair .nat) => "Pair<Nat>" | .pure (.pair .int) => "Pair<Int>"
   | .object type => objectTypeLabel env geometry type

@@ -96,6 +96,7 @@ def PackageHasType (env : Declarations) (witness : Object) (fields : List Indexe
       (shape.instantiate shape.representative)
 
 def ValueHasType (env : Declarations) (world : World) : Value → DataType → Prop
+  | .finiteTag c tag, .finite expected => c = expected ∧ (FiniteSort.tags env.indexed c).any (·.contains tag) = true
   | .natural _, .pure .nat | .integer _, .pure .int
   | .boolean _, .pure .bool | .unit, .pure .unit => True
   | .pairNat _ _, .pure (.pair .nat) | .pairInt _ _, .pure (.pair .int) => True
@@ -158,6 +159,7 @@ def evalNatBinary (operator : BinaryOp) (left right : Nat) : Option Value :=
   | .add => some (.natural (left + right))
   | .sub => some (.natural (left - right))
   | .mul => some (.natural (left * right))
+  | .div => some (.natural (left / right))
   | .eq => some (.boolean (left == right))
   | .ne => some (.boolean (left != right))
   | .lt => some (.boolean (decide (left < right)))
@@ -171,6 +173,7 @@ def evalIntBinary (operator : BinaryOp) (left right : Int) : Option Value :=
   | .add => some (.integer (left + right))
   | .sub => some (.integer (left - right))
   | .mul => some (.integer (left * right))
+  | .div => some (.integer (left / right))
   | .eq => some (.boolean (left == right))
   | .ne => some (.boolean (left != right))
   | .lt => some (.boolean (decide (left < right)))
@@ -180,8 +183,13 @@ def evalIntBinary (operator : BinaryOp) (left right : Int) : Option Value :=
   | _ => none
 
 def evalBinary (operator : BinaryOp) : Value → Value → Option Value
+  | .finiteTag l x, .finiteTag r y =>
+    if l != r then none else match operator with
+      | .eq => some (.boolean (x == y)) | .ne => some (.boolean (x != y)) | _ => none
   | .natural left, .natural right => evalNatBinary operator left right
   | .integer left, .integer right => evalIntBinary operator left right
+  | .integer left, .natural right => if operator == .div then some (.integer (left / Int.ofNat right)) else none
+  | .natural left, .integer right => if operator == .div then some (.integer (Int.ofNat left / right)) else none
   | .boolean left, .boolean right => match operator with
     | .and => some (.boolean (left && right)) | .or => some (.boolean (left || right))
     | .eq => some (.boolean (left == right)) | .ne => some (.boolean (left != right)) | _ => none
@@ -205,6 +213,20 @@ def evalPair : PairElem → Value → Value → Option Value
   | .int, .integer first, .integer second => some (.pairInt first second)
   | _, _, _ => none
 
+def readFiniteTags (values : Values) : List Nat → List FiniteSort → Option (List String)
+  | [], [] => some []
+  | symbol :: rest, sort :: sorts => do
+    let .finiteTag actual tag ← values symbol | none
+    guard (actual == sort)
+    return tag :: (← readFiniteTags values rest sorts)
+  | _, _ => none
+
+def evalFiniteLookup (env : Indexed.Environment) (values : Values) (site : FiniteLookup)
+    (symbols : List Nat) : Option Value := do
+  let plan ← site.plan? env
+  let key ← readFiniteTags values symbols site.inputs
+  return .finiteTag site.output (← plan.atKey key)
+
 def evalProject : PairElem → Bool → Value → Option Value
   | .nat, first, .pairNat left right => some (.natural (if first then left else right))
   | .int, first, .pairInt left right => some (.integer (if first then left else right))
@@ -216,6 +238,8 @@ test, not the source language or the native program. -/
 def eval (module : Module) : Nat → Values → Term → Option Value
   | 0, _, _ => none
   | fuel + 1, values, term => match term with
+    | .finiteLookup site symbols => evalFiniteLookup module.declarations.indexed values site symbols
+    | .finiteTag id t => some (.finiteTag id t)
     | .natural value => some (.natural value)
     | .integer value => some (.integer value)
     | .boolean value => some (.boolean value)

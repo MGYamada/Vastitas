@@ -10,7 +10,7 @@ have arbitrary precision, so arithmetic never overflows.
 > ```text
 > Expression -> LiteralExpression | UnitExpression | PathExpression
 >     | GroupedExpression | BlockExpression | IfExpression | CallExpression
->     | OperatorExpression | LambdaExpression | PackExpression
+>     | OperatorExpression | LambdaExpression | PackExpression | FiniteLookupExpression | FiniteCallExpression
 > ```
 
 ## Literal expressions
@@ -96,8 +96,9 @@ Rules:
 - `generic` alone is not a path expression. Where an expression begins, it is
   an error (`E_PARSE`) in both modes, as
   [Keywords](lexical-structure.md#keywords) says of a strict keyword.
-- The name of a generic is not a value. A generic as a value is an error
-  (`E_TYPE`). A function or lambda that calls the generic is a value.
+- A family name may be bound to a local name and called by argument key.
+  A monomorphic `Fn` context selects a method by its parameter types and
+  then checks its result. A result type never selects a method.
 - The name of an abstract type or of a module is not a value. An abstract type
   as a value is an error (`E_NAME` in flat mode, `E_TYPE` in manifest mode),
   and a module as a value is an error (`E_NAME`).
@@ -173,6 +174,8 @@ Rules:
 >
 > ```text
 > CallExpression -> Expression `(` CallArguments? `)`
+> FiniteLookupExpression -> `finite` `::` `lookup` `::` `<` Path `>` `(` CallArguments? `)`
+> FiniteCallExpression -> Path `::` `<` Path ( `,` Path )* `,`? `>` `(` CallArguments? `)`
 > CallArguments -> Expression ( `,` Expression )* `,`?
 > ```
 
@@ -182,6 +185,13 @@ gives the rules for functions, and
 [Selection](../stage1a.md#selection) the rules
 for generics. Any other callee is an expression whose value is a function, and
 the call applies that function to the arguments.
+
+A finite lookup selects its table by the explicit path inside `::<...>`.
+Its arguments supply the row key. See [Finite carriers and tables](../indexed-source.md#finite-carriers-and-tables).
+
+A finite function call supplies category and object paths between `::<`
+and `>` in declaration order. An ordinary call can omit the indices when
+the value arguments determine them all.
 
 Rules:
 
@@ -202,7 +212,7 @@ Rules:
 > OperatorExpression -> UnaryOperator Expression
 >     | Expression BinaryOperator Expression
 > UnaryOperator -> `-` | `!`
-> BinaryOperator -> `*` | `+` | `-` | `==` | `!=` | `<` | `<=` | `>` | `>=`
+> BinaryOperator -> `*` | `/` | `+` | `-` | `==` | `!=` | `<` | `<=` | `>` | `>=`
 >     | `&&` | `||`
 > ```
 
@@ -213,7 +223,7 @@ to those that bind least tightly:
 | --- | --- |
 | Calls `f(…)` | Left to right |
 | Unary `-` `!` | Prefix |
-| `*` | Left to right |
+| `*` `/` | Left to right |
 | `+` `-` | Left to right |
 | `==` `!=` `<` `<=` `>` `>=` | Parentheses required |
 | `&&` | Left to right |
@@ -228,6 +238,8 @@ Each operator accepts the operand types in this table:
 | `+` `*` | Two `Nat`, or two `Int` | The operand type |
 | Binary `-` | Two `Nat` | `Nat`, and 0 where the difference is negative |
 | Binary `-` | Two `Int` | `Int` |
+| `/` | Two `Nat` | `Nat` |
+| `/` | Two `Int`, or a `Nat` and an `Int` in either order | `Int` |
 | `==` `!=` | Two `Nat`, two `Int`, two `Bool` or two `Unit` | `Bool` |
 | `<` `<=` `>` `>=` | Two `Nat`, or two `Int` | `Bool` |
 | `&&` `\|\|` | Two `Bool` | `Bool` |
@@ -235,12 +247,27 @@ Each operator accepts the operand types in this table:
 `!a` is `true` when `a` is `false`. `a && b` is `true` when both operands are
 `true`, and `a || b` is `true` when at least one operand is `true`.
 
+The arithmetic prelude binds `add`, `sub`, `mul`, `neg` and `div`
+to the corresponding families in `std::operator`. Each short name, its
+qualified name and its glyph select the same operation. A package can also
+import the family under a fresh name with `use std::operator::sub as cut;`.
+Using a short name for a different declaration, imported family or local
+binding is an error (`E_NAME`). To call a module's own `sub`, write
+`self::sub`. A local module or dependency named `std` conflicts with
+the qualified operator path (`E_NAME`). An operator family
+can also be [bound or passed as a function value](functions.md#function-values).
+For example, a parameter of type `Fn<(Int, Nat), Int>` can take
+`std::operator::div` to divide an integer by a natural number.
+
 Rules:
 
-- The two operands of a binary operator must have the same type. Operands of
-  different types, such as a `Nat` and an `Int`, are an error (`E_TYPE`). The
-  language has no implicit conversions; [`int`](#built-in-functions) converts
-  explicitly.
+- Division checks the operands independently. An unannotated integer literal
+  in a division has type `Int`. In a mixed division the compiler converts the
+  `Nat` operand with [`int`](#built-in-functions). The quotient is Euclidean:
+  `-7 / 3` is `-3` and `-7 / -3` is `3`. Division by zero returns zero.
+  `div(a, b)` calls this operation.
+- For every other binary operator the two operands must have the same type.
+  Different types are an error (`E_TYPE`).
 - The operands of `!`, `&&` and `||` must have type `Bool`, and the operand of
   unary `-` must have type `Int`. Another type is an error (`E_TYPE`).
 - Two operands of one type that the table does not list for an arithmetic
@@ -265,6 +292,7 @@ The executable writes these lines and exits with status 0:
 n - 5 = 0
 int(n) - 5 = -2
 2 + 3 * -below = 8
+-7 / n = -3
 ```
 
 A comparison chain is an error:
@@ -277,7 +305,7 @@ A comparison chain is an error:
 {{#include ../../examples/reject/expressions/chained-comparison.stderr}}
 ```
 
-`Nat` and `Int` operands do not mix:
+Addition rejects a `Nat` and an `Int`:
 
 ```vast
 {{#include ../../examples/reject/expressions/mixed-integers.vast}}

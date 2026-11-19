@@ -69,7 +69,7 @@ Preserve selected raw evidence in this repository before hosted retention ends.
 Shared hosted runs remain exploratory and do not accept the controlled-host
 performance gate or establish native refinement.
 
-Cases cover `F64` and `Complex<F64>`, contiguous and offset/padded layouts,
+Cases cover `F64<RR>` and `F64<CC>`, contiguous and offset/padded layouts,
 and `(i,k,j,l)` equal to `(2,3,4,5)`, `(7,11,5,13)`, `(32,48,24,40)`.
 Smoke selects only the first size. All axes are unequal. Constant fills plus
 asymmetric complex patches (including an off-corner input value) keep source/checker work bounded as sizes

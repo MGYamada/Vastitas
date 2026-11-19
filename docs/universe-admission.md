@@ -16,7 +16,7 @@ is no additional foundational axiom, proof verifier or Domain Checker.
 | --- | --- | --- |
 | `scalar` | Nat, Int, Bool, Unit, homogeneous Nat/Int pairs | Existing `Indexed.Core.PureType`, `Semantics.ValueHasType`, actual Core audit and evaluation |
 | `tensorShape` | The exact symbolic layout interpreted over mathematical Nat valuations | `Storage.Shapes.Layout`, live integral slot checks, `Shapes.check`, then `Storage.checkLayout` at a valuation |
-| `ownedMap` | Finite coordinate functions returning the existing real/complex UInt64 literal bit patterns, indexed by the selected nominal bases | `Numerical.Valid`, exact basis equality, `auditState`, `OwnedMap.Live` and `OwnedMap.Initialized` |
+| `ownedMap` | Finite coordinate functions returning real or complex literal bit patterns at a single binary32 or binary64 precision, indexed by the selected nominal bases | `Numerical.Valid`, exact basis equality, `auditState`, `OwnedMap.Live` and `OwnedMap.Initialized` |
 
 “Finite scalar profile” means a closed set of implemented scalar types; Nat and
 Int remain arbitrary precision. Pair support is existing homogeneous Pair support,

@@ -5,6 +5,7 @@ on:
     # Heavy OpenBLAS observations run on main and on demand, not on every PR (#571).
     branches: [main]
     paths:
+      - '.github/actions/setup-python/**'
       - '.github/workflows/**'
       - 'scripts/**'
       - 'experiments/**'
@@ -46,11 +47,7 @@ jobs:
           sparse-checkout: |
             /*
             !/experiments/source_workspace/results/*/evidence.zip
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.15.2'
-      - name: Validate Python without a loader override
-        run: bash scripts/check_ci_python.sh
+      - uses: ./.github/actions/setup-python
       - name: Replay and mutation regressions
         run: python3 -m unittest discover -s experiments/openblas_packing -p 'test_*.py'
       - name: Calibrate unchanged packing kernels and observe paired backends

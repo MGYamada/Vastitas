@@ -14,16 +14,20 @@ include = [
     "/stdlib/src/", "/stdlib/Vastitas.toml", "/stdlib/README.md", "/stdlib/docs/",
     "/scripts/build_stdlib_package.py",
     "/scripts/check_conformance_corpus.py",
-    "/nature/",
+    "/nature/", "/monad/", "/llvm/fixtures/", "/llvm/runtime/exact.c",
     "/scripts/build_openblas.py",
     # The ignore rules of .gitignore for environment settings and Finder
     # metadata, at every directory level.
     "!**/.env", "!**/.env.*", "!**/.DS_Store",
 ]
 
+[features]
+llvm-native = ["dep:llvm-sys"]
+
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+llvm-sys = { version = "=231.0.1", optional = true, default-features = false, features = ["force-static"] }
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = { version = "1", features = ["raw_value"] }
 signal-hook = "0.4"
 nix = { version = "0.29", features = ["signal", "process", "fs"] }
 toml = "0.8"

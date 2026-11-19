@@ -10,10 +10,11 @@ open Functions
 attribute [local instance] lexOrd
 
 inductive Family where
-  | product | network | evaluation | tensor | cached | tree | adjoint | pairing
+  | product | network | evaluation | tensor | cached | tree | adjoint | pairing | realizationRun
   deriving Repr, BEq, ReflBEq, LawfulBEq, DecidableEq, Hashable, Inhabited
 
 private def family? : Functions.Statement → Option Family
+  | .numerical (.realization (.run ..)) => some .realizationRun
   | .numerical (.gemm ..) => some .product
   | .network .. => some .network
   | .numerical (.evaluate ..) => some .evaluation
@@ -105,6 +106,7 @@ def Slice.entries (s : Slice) (keep : Action → Bool) : List Entry :=
 /-- Each constructor carries the original dependent checker receipt. The network
 emitter also retains its shared product receipt, checked separately below. -/
 inductive Origin where
+  | realizationRun (receipt : RealizationRunReceipt)
   | product (receipt : NumericalReceipt)
   | network (receipt : NetworkReceipt)
   | evaluation (receipt : EvaluationReceipt)
@@ -115,6 +117,7 @@ inductive Origin where
   | pairing (receipt : DiagonalPairingReceipt)
 
 def Origin.slice : Origin → Slice
+  | .realizationRun r => sliceAt r.location .realizationRun [.action (.copy r.input r.output)]
   | .product r => sliceAt r.location (if r.networkProduct then .network else .product)
       [.action (.gemm (r.checked.product.request r.mode r.policy))]
   | .network r => sliceAt r.location .network [.action (.gemm r.checked.request)]
@@ -137,7 +140,8 @@ def origins (c : Context) : List Origin :=
   ((c.products.toList.filter fun r => !r.networkProduct).map .product) ++
     c.networks.toList.map .network ++ c.evaluations.toList.map .evaluation ++
     c.tensorContractions.toList.map .tensor ++ c.cachedContractions.toList.map .cached ++
-    c.trees.toList.map .tree ++ c.adjoints.toList.map .adjoint ++ c.diagonalPairings.toList.map .pairing
+    c.trees.toList.map .tree ++ c.adjoints.toList.map .adjoint ++ c.diagonalPairings.toList.map .pairing ++
+    c.realizationRuns.toList.map .realizationRun
 
 /-- Sorting by the physical address avoids searching the entire receipt ledger
 for every instruction. Equality compares the full operation and its operands. -/

@@ -97,7 +97,7 @@ private def dimensions (rows columns leading elements : Nat) : Shapes.Valuation 
   let .ok declarations := Indexed.Source.checkDeclarations NumericalFixture.source
     | throw (IO.userError "actual numerical declarations rejected")
   let env := declarations.resolved.declarations.indexed
-  for (scalar, implementation) in [(Scalar.f64, "Real"), (.complexF64, "Complex")] do
+  for (scalar, implementation) in [(Scalar.f32, "Real"), (.complexF32, "Complex"), (.f64, "Real"), (.complexF64, "Complex")] do
     let padded : Storage.Layout := ⟨0, 2, 2, 4, false⟩
     let producer : Functions.Function := ⟨1,
       [.space 0 (NumericalFixture.id implementation) 2, .basis 1 0], [(10, .ownedMap 1 1)], [

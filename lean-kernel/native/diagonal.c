@@ -59,7 +59,7 @@ int vdiagonal_overlaps(const VStorageDense *a, const VStorageDense *b) {
 
 static uint64_t coordinate(const VStorageDense *view, uint64_t row, uint64_t column) {
     return (view->transposed ? row * view->leading + column : column * view->leading + row) *
-        (view->scalar ? 2 : 1);
+        (vstorage_is_complex(view->scalar) ? 2 : 1);
 }
 
 /* Each kernel is specialized at its call by a constant uniform argument, so
@@ -73,17 +73,17 @@ static uint64_t coordinate(const VStorageDense *view, uint64_t row, uint64_t col
 
 SPECIALIZED void weight_kernel(const VStorageDense *input, const VStorageDense *output,
                                  const uint8_t *weights, const int uniform, uint8_t conjugate) {
+    const double *from = input->data;
+    double *to = output->data;
     const double fixed = uniform ? weight_at(weights, 0) : 0.0;
     /* Ordinary columns are contiguous even when their enclosing allocations
      * have padded leading dimensions. Select representation/stride once, not
      * per element. A transposed physical row retains the explicit stride path. */
-    if (!input->transposed && !input->scalar) {
-        const double *from=input->data; double *to=output->data;
+    if (!input->transposed && !vstorage_is_complex(input->scalar)) {
         for (uint64_t i=0;i<input->rows;++i) to[i]=from[i]*(uniform?fixed:weight_at(weights,i));
         return;
     }
-    if (!input->transposed && input->scalar) {
-        const double *from=input->data; double *to=output->data;
+    if (!input->transposed && vstorage_is_complex(input->scalar)) {
         for (uint64_t i=0;i<input->rows;++i) {
             double weight=uniform?fixed:weight_at(weights,i);
             to[2*i]=from[2*i]*weight;
@@ -94,8 +94,8 @@ SPECIALIZED void weight_kernel(const VStorageDense *input, const VStorageDense *
     for (uint64_t i = 0; i < input->rows; ++i) {
         uint64_t a = coordinate(input, i, 0), b = coordinate(output, i, 0);
         double weight = uniform ? fixed : weight_at(weights, i);
-        output->data[b] = input->data[a] * weight;
-        if (input->scalar) output->data[b + 1] = (conjugate ? -input->data[a + 1] : input->data[a + 1]) * weight;
+        to[b] = from[a] * weight;
+        if (vstorage_is_complex(input->scalar)) to[b + 1] = (conjugate ? -from[a + 1] : from[a + 1]) * weight;
     }
 }
 
@@ -113,7 +113,7 @@ static VStorageStatus operands(VStorageArena *arena, uint32_t input, VStorageLay
     if (status != VS_OK) return status;
     status = vstorage_prepare_dense(arena, output, output_view, b);
     if (status != VS_OK) return status;
-    if (a->scalar != b->scalar) return VS_SCALAR;
+    if (a->scalar != b->scalar || vstorage_component_bytes(a->scalar) != 8) return VS_SCALAR;
     if (vdiagonal_overlaps(a, b)) return VS_ALIAS;
     return VS_OK;
 }
@@ -137,23 +137,25 @@ VStorageStatus vdiagonal_scale(VStorageArena *arena,
 SPECIALIZED void adjoint_kernel(const VStorageDense *a, const VStorageDense *b,
                                   const uint8_t *source, const int source_uniform,
                                   VDiagonal target, uint8_t conjugate) {
+    const double *in = a->data;
+    double *out = b->data;
     const double fixed = source_uniform ? weight_at(source, 0) : 0.0;
     const uint64_t target_step = target.uniform ? 0 : 1;
-    if (!a->transposed && !a->scalar) {
+    if (!a->transposed && !vstorage_is_complex(a->scalar)) {
         for (uint64_t j=0;j<b->columns;++j) {
             double target_weight=weight_at(target.data,j*target_step);
             for (uint64_t i=0;i<b->rows;++i)
-                b->data[j*b->leading+i]=(a->data[i*a->leading+j]*target_weight)/
+                out[j*b->leading+i]=(in[i*a->leading+j]*target_weight)/
                     (source_uniform?fixed:weight_at(source,i));
         }
-    } else if (!a->transposed && a->scalar) {
+    } else if (!a->transposed && vstorage_is_complex(a->scalar)) {
         for (uint64_t j=0;j<b->columns;++j) {
             double target_weight=weight_at(target.data,j*target_step);
             for (uint64_t i=0;i<b->rows;++i) {
                 uint64_t from=2*(i*a->leading+j),to=2*(j*b->leading+i);
                 double source_weight=source_uniform?fixed:weight_at(source,i);
-                b->data[to]=(a->data[from]*target_weight)/source_weight;
-                b->data[to+1]=((conjugate?-a->data[from+1]:a->data[from+1])*target_weight)/source_weight;
+                out[to]=(in[from]*target_weight)/source_weight;
+                out[to+1]=((conjugate?-in[from+1]:in[from+1])*target_weight)/source_weight;
             }
         }
     } else {
@@ -162,8 +164,8 @@ SPECIALIZED void adjoint_kernel(const VStorageDense *a, const VStorageDense *b,
             for (uint64_t i = 0; i < b->rows; ++i) {
                 uint64_t from = coordinate(a, j, i), to = coordinate(b, i, j);
                 double source_weight = source_uniform ? fixed : weight_at(source, i);
-                b->data[to] = (a->data[from] * target_weight) / source_weight;
-                if (a->scalar) b->data[to + 1] = ((conjugate ? -a->data[from + 1] : a->data[from + 1]) * target_weight) / source_weight;
+                out[to] = (in[from] * target_weight) / source_weight;
+                if (vstorage_is_complex(a->scalar)) out[to + 1] = ((conjugate ? -in[from + 1] : in[from + 1]) * target_weight) / source_weight;
             }
         }
     }

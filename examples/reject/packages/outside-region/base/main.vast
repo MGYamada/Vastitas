@@ -1,5 +1,5 @@
-pub generic choose(x, y) { domain (Int, Int); }
-method choose(x: Number, y: Number) -> Int { 0 }
+pub fn choose(x, y) domain((Int, Int));
+fn choose(x: Number, y: Number) -> Int { 0 }
 
 pub grant integers : choose to region_addon {
   domain (Int, Int);

@@ -183,6 +183,7 @@ impl Parser {
     fn indexed_constraint(&mut self) -> Result<Constraint, Diagnostic> {
         let span = self.peek().span;
         let kind = self.indexed_tag()?;
+
         self.expect("(")?;
         let left = self.indexed_slot()?;
         if kind == "canonical" {
@@ -538,10 +539,147 @@ impl Parser {
         Ok(binding)
     }
 
+    fn finite_tag(&mut self) -> Result<indexed::FiniteTag, Diagnostic> {
+        // Members are labels scoped by their carrier, not value or type bindings.
+        let (name, span) = self.name()?;
+        if name.starts_with("__vastitas_") {
+            return Err(reserved_prefix(span));
+        }
+        Ok(indexed::FiniteTag { name, span })
+    }
+
+    fn finite_tuple<T>(
+        &mut self,
+        mut item: impl FnMut(&mut Self) -> Result<T, Diagnostic>,
+    ) -> Result<Vec<T>, Diagnostic> {
+        let mut arity = 0;
+        self.delimited_list("(", ")", |p| {
+            arity += 1;
+            if arity > 6 {
+                return Err(diagnostic(
+                    "E_LIMIT",
+                    "finite table arity exceeds six",
+                    p.peek().span,
+                ));
+            }
+            item(p)
+        })
+    }
+
+    fn finite_entries<T>(
+        &mut self,
+        mut entry: impl FnMut(&mut Self) -> Result<T, Diagnostic>,
+    ) -> Result<Vec<T>, Diagnostic> {
+        self.expect("{")?;
+        let mut entries = Vec::new();
+        while !self.consume("}") {
+            if entries.len() == 4096 {
+                return Err(diagnostic(
+                    "E_LIMIT",
+                    "more than 4096 finite entries",
+                    self.peek().span,
+                ));
+            }
+            entries.push(entry(self)?);
+        }
+        Ok(entries)
+    }
+
+    fn finite_schema_dependency(&mut self) -> Result<TypePath, Diagnostic> {
+        self.expect("(")?;
+        let dependency = self.type_path()?;
+        self.expect(")")?;
+        Ok(dependency)
+    }
+
+    /// Read the fixed number of declaration paths for each constructor.
+    /// Resolution and the laws of its named schema are checked by the kernel.
+    fn finite_instance(&mut self) -> Result<indexed::FiniteInstance, Diagnostic> {
+        let comma_path = |p: &mut Self| {
+            p.expect(",")?;
+            p.type_path()
+        };
+        let span = self.peek().span;
+        let fields = match self.indexed_tag()?.as_str() {
+            "finite_graph" => {
+                self.expect("(")?;
+                indexed::FiniteInstance::Graph(Box::new(indexed::FiniteGraph {
+                    objects: self.type_path()?,
+                    arrows: comma_path(self)?,
+                    src: comma_path(self)?,
+                    dst: comma_path(self)?,
+                    ids: comma_path(self)?,
+                    comp: comma_path(self)?,
+                }))
+            }
+            "finite_functor" => {
+                self.expect("(")?;
+                indexed::FiniteInstance::Functor(Box::new(indexed::FiniteFunctor {
+                    source: self.type_path()?,
+                    target: comma_path(self)?,
+                    objects: comma_path(self)?,
+                    arrows: comma_path(self)?,
+                }))
+            }
+            "finite_nat_trans" => {
+                self.expect("(")?;
+                indexed::FiniteInstance::Transformation(Box::new(indexed::NaturalTransformation {
+                    source: self.type_path()?,
+                    target: comma_path(self)?,
+                    components: comma_path(self)?,
+                }))
+            }
+            "finite_monad" => {
+                self.expect("(")?;
+                indexed::FiniteInstance::Monad(Box::new(indexed::FiniteMonad {
+                    category: self.type_path()?,
+                    functor: comma_path(self)?,
+                    unit: comma_path(self)?,
+                    multiplication: comma_path(self)?,
+                }))
+            }
+            "finite_kleisli" => {
+                self.expect("(")?;
+                indexed::FiniteInstance::Kleisli {
+                    monad: Box::new(self.type_path()?),
+                }
+            }
+            "finite_kleisli_triple" => {
+                self.expect("(")?;
+                indexed::FiniteInstance::KleisliTriple {
+                    monad: Box::new(self.type_path()?),
+                }
+            }
+            _ => {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "expected finite_graph, finite_functor, finite_nat_trans, finite_monad, finite_kleisli or finite_kleisli_triple",
+                    span,
+                ));
+            }
+        };
+        self.expect(")")?;
+        Ok(fields)
+    }
+
     pub(super) fn indexed_declaration(&mut self) -> Result<indexed::Declaration, Diagnostic> {
         self.indexed = true;
         let start = self.expect("indexed")?.span;
         let kind = self.indexed_tag()?;
+        // Slash only denotes division in a value expression. The Stage 6
+        // forms below are semicolon-terminated records with no nested items.
+        if matches!(kind.as_str(), "quantity" | "physical" | "model" | "average")
+            && let Some(token) = self.tokens[self.position..]
+                .iter()
+                .take_while(|token| !token.is(";"))
+                .find(|token| token.is("/"))
+        {
+            return Err(diagnostic(
+                "E_UNSUPPORTED",
+                "division is not supported in this indexed declaration",
+                token.span,
+            ));
+        }
         let (name, name_span) = self.name()?;
         if name.starts_with("__vastitas_") {
             return Err(diagnostic(
@@ -555,6 +693,76 @@ impl Parser {
             check_binding_name(&name, name_span)?;
         }
         let body = match kind.as_str() {
+            "finite" => DeclarationBody::Finite {
+                tags: self.finite_entries(|p| {
+                    let tag = p.finite_tag()?;
+                    p.expect(";")?;
+                    Ok(tag)
+                })?,
+            },
+            "schema" => {
+                self.expect("=")?;
+                let span = self.peek().span;
+                let schema_kind = match self.indexed_tag()?.as_str() {
+                    "finite_category" => indexed::SchemaKind::FiniteCategory,
+                    "finite_functor" => indexed::SchemaKind::FiniteFunctor,
+                    "finite_nat_trans" => indexed::SchemaKind::NaturalTransformation,
+                    "finite_monad" => indexed::SchemaKind::FiniteMonad,
+                    "finite_kleisli" => indexed::SchemaKind::FiniteKleisli {
+                        monad_schema: self.finite_schema_dependency()?,
+                    },
+                    "finite_kleisli_triple" => indexed::SchemaKind::FiniteKleisliTriple {
+                        monad_schema: self.finite_schema_dependency()?,
+                    },
+                    _ => {
+                        return Err(diagnostic(
+                            "E_PARSE",
+                            "expected finite_category, finite_functor, finite_nat_trans, finite_monad, finite_kleisli or finite_kleisli_triple",
+                            span,
+                        ));
+                    }
+                };
+                DeclarationBody::Schema { schema_kind }
+            }
+            "instance" => {
+                self.expect(":")?;
+                let schema = self.type_path()?;
+                self.expect("=")?;
+                DeclarationBody::Instance {
+                    schema,
+                    fields: self.finite_instance()?,
+                }
+            }
+            "table" => {
+                let inputs = self.finite_tuple(Self::type_path)?;
+                self.expect("->")?;
+                let output = self.type_path()?;
+                let composable = if self.consume("where") {
+                    self.expect("composable")?;
+                    self.expect("(")?;
+                    let src = self.type_path()?;
+                    self.expect(",")?;
+                    let dst = self.type_path()?;
+                    self.expect(")")?;
+                    Some(indexed::Composable { src, dst })
+                } else {
+                    None
+                };
+                let rows = self.finite_entries(|p| {
+                    let start = p.peek().span;
+                    let key = p.finite_tuple(Self::finite_tag)?;
+                    p.expect("=>")?;
+                    let value = p.finite_tag()?;
+                    let span = start.through(p.expect(";")?.span);
+                    Ok(indexed::FiniteTableRow { key, value, span })
+                })?;
+                DeclarationBody::Table {
+                    composable,
+                    inputs,
+                    output,
+                    rows,
+                }
+            }
             "marker" => DeclarationBody::Marker,
             "implementation" => {
                 self.expect("(")?;
@@ -800,12 +1008,48 @@ impl Parser {
                 ));
             }
         };
-        let end = self.expect(";")?.span;
+        let end = if matches!(
+            body,
+            DeclarationBody::Finite { .. } | DeclarationBody::Table { .. }
+        ) {
+            self.previous().span
+        } else {
+            self.expect(";")?.span
+        };
         Ok(indexed::Declaration {
             name,
             body,
             span: start.through(end),
         })
+    }
+
+    // One or more applications of a selected endofunctor to a static object.
+    // Concrete endpoint paths are read with the ordinary namespace grammar.
+    fn hom_endpoint(&mut self) -> Result<TypePath, Diagnostic> {
+        let mut endpoint = self.type_path()?;
+        if !self.consume("<") {
+            return Ok(endpoint);
+        }
+        match endpoint.path.as_mut_slice() {
+            // Angle brackets cannot occur inside a source identifier.
+            [.., _, op] if op == "T" => *op = "T<>".into(),
+            _ => {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "a Hom endpoint application requires a selected Monad's T",
+                    endpoint.span,
+                ));
+            }
+        }
+        if self.nesting >= MAX_PARSE_NESTING {
+            return Err(self.nesting_limit());
+        }
+        self.nesting += 1;
+        let argument = self.hom_endpoint();
+        self.nesting -= 1;
+        endpoint.path.extend(argument?.path);
+        endpoint.span = endpoint.span.through(self.type_close()?.span);
+        Ok(endpoint)
     }
 
     pub(super) fn indexed_type(&mut self, first: String, start: Span) -> Result<Type, Diagnostic> {
@@ -819,6 +1063,19 @@ impl Parser {
             span: start.through(self.previous().span),
         };
         self.expect("<")?;
+        if family.path == ["Hom"] {
+            let category = Box::new(self.type_path()?);
+            self.expect(",")?;
+            let source = Box::new(self.hom_endpoint()?);
+            self.expect(",")?;
+            let target = Box::new(self.hom_endpoint()?);
+            self.type_close()?;
+            return Ok(Type::FiniteHom {
+                category,
+                source,
+                target,
+            });
+        }
         if family.path == ["Object"] {
             let domain = self.type_path()?;
             self.expect(",")?;
@@ -1283,7 +1540,7 @@ impl Parser {
 
     /// A physical dimension after `quantity … =` or `value =`: `1`, or base
     /// dimensions with integer exponents, as in `L * T^-1`. There is no
-    /// division; the lexer already rejects `/`.
+    /// division in a dimension annotation.
     fn indexed_dimension(&mut self) -> Result<Vec<indexed::DimensionFactor>, Diagnostic> {
         let token = self.peek().clone();
         if let TokenKind::Number(value) = &token.kind {
@@ -3429,13 +3686,13 @@ mod tests {
             (
                 "indexed quantity Speed = L / T;",
                 "E_UNSUPPORTED",
-                "division is not supported",
+                "division is not supported in this indexed declaration",
                 "/",
             ),
             (
                 "indexed physical P: PhysicalMetric<C> = interpret(G, reading = phys, euclidean, value = L / T);",
                 "E_UNSUPPORTED",
-                "division is not supported",
+                "division is not supported in this indexed declaration",
                 "/",
             ),
             (
@@ -4521,10 +4778,10 @@ fn exponent(witness: Int) -> Int { let localize = witness; localize }
         };
         let division = (
             "E_UNSUPPORTED".to_string(),
-            "division is not supported".to_string(),
+            "division is not supported in this indexed declaration".to_string(),
             "/".to_string(),
         );
-        assert_eq!(first("fn main() -> Int { 4 / 2 }"), division);
+        parse_module("fn main() -> Int { 4 / 2 }").expect("division in a value expression");
         assert_eq!(first("indexed quantity Speed = L / T;"), division);
         assert_eq!(
             first(r#"indexed model M: Model<P> = model(hamiltonian = H / 2);"#),

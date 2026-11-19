@@ -408,8 +408,12 @@ separate from these representation/ownership checks. -/
 inductive Literal where
   | f64 (bits : UInt64)
   | complexF64 (real imaginary : UInt64)
+  | f32 (bits : UInt32)
+  | complexF32 (real imaginary : UInt32)
   deriving Repr, BEq, DecidableEq, Inhabited
-def Literal.scalar : Literal → Scalar | .f64 _ => .f64 | .complexF64 .. => .complexF64
+def Literal.scalar : Literal → Scalar
+  | .f64 _ => .f64 | .complexF64 .. => .complexF64
+  | .f32 _ => .f32 | .complexF32 .. => .complexF32
 
 /-- This is a resource/backend operation, not nominal mathematical map authority.
 Public source must additionally check endpoints, bases and transformed roles. -/
@@ -767,6 +771,8 @@ structure DiagonalOperands where
 def checkDiagonalOperands (state : State) (input output : Symbol) : Except Error DiagonalOperands := do
   let (input, inputAllocation) ← usable state input false
   let (output, outputAllocation) ← usable state output true
+  if inputAllocation.scalar.componentBytes != 8 then
+    reject "E_RESOURCE_DIAGONAL" "this diagonal coefficient table requires binary64 storage"
   if inputAllocation.scalar != outputAllocation.scalar then
     reject "E_RESOURCE_DIAGONAL" "diagonal operation requires matching scalar representations"
   if !inputAllocation.initialization.covers inputAllocation.scalar input.layout then

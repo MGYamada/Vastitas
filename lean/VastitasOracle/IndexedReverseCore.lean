@@ -28,6 +28,8 @@ open VastitasKernel.Indexed.Core.Reverse
 theorem termEq_sound {a b : Term} (equal : termEq a b = true) : a = b := by
   induction a using Term.rec (motive_2 := fun as => ∀ bs, termsEq as bs = true → as = bs)
     generalizing b with
+  | finiteLookup _ _ => cases b <;> simp_all [termEq]
+  | finiteTag _ _ => cases b <;> simp_all [termEq]
   | natural x => cases b <;> simp_all [termEq]
   | integer x => cases b <;> simp_all [termEq]
   | boolean x => cases b <;> simp_all [termEq]

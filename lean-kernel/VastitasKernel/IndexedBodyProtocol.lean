@@ -60,16 +60,18 @@ def dataType (j : Json) : Except String Source.DataType := do
   | "indexed_object" =>
     fields j ["kind", "domain", "marker"]
     return .object ⟨← path (← field j "domain"), ← path (← field j "marker")⟩
+  | "finite_hom" =>
+    fields j ["kind", "category", "source", "target"]
+    return .finiteHom (← path (← field j "category")) (← path (← field j "source"))
+      (← path (← field j "target"))
   | "indexed_apply" =>
     fields j ["kind", "family", "arguments"]
     return .application (← path (← field j "family")) (← (← array j "arguments").mapM typeArgument)
   | _ => throw "expected an indexed object/application or pure data type"
 
-/-- A Fn signature. Its data components are decoded with every data kind,
-scalars or not; a signature with a component other than a scalar is an error
-of the checked program (`E_TYPE`, see `ResourceSource.invalidSignature?`,
-#533). Indexed types are no Fn components. -/
-def callableType : Nat → Json → Except String Surface.TypeExpr
+/-- Decode source paths at every Hom leaf. Resolution needs the checked namespace
+and the scope in which the signature was written. -/
+def callableType : Nat → Json → Except String FunctionSource.SignatureSyntax
   | 0, _ => throw "IR type nesting exceeds the supported limit"
   | fuel + 1, j => do
     match ← str j "kind" with
@@ -77,18 +79,13 @@ def callableType : Nat → Json → Except String Surface.TypeExpr
       fields j ["kind", "params", "return_type"]
       return .function (← (← array j "params").mapM (callableType fuel))
         (← callableType fuel (← field j "return_type"))
-    | "named" => fields j ["kind", "name"]; return .data (.named (← str j "name"))
-    | "pair" => fields j ["kind", "element"]; return .data (.pair (← str j "element"))
-    | "point" =>
-      fields j ["kind", "target", "source"]
-      return .data (.point (← legacyIndex (← field j "target")) (← legacyIndex (← field j "source")))
-    | "morphism" =>
-      fields j ["kind", "source", "target"]
-      return .data (.morphism (← legacyIndex (← field j "source")) (← legacyIndex (← field j "target")))
-    | "pointed" =>
-      fields j ["kind", "setting", "base"]
-      return .data (.pointed (← str j "setting") (← str j "base"))
-    | _ => throw "Fn signatures contain only scalars and recursive Fn types"
+    | "named" =>
+      fields j ["kind", "name"]
+      let name ← str j "name"
+      if let .ok t := pureType j then return .data (.pure t)
+      return .data (.legacy (.named name))
+    | "finite_hom" | "pair" | "point" | "morphism" | "pointed" => return .data (← dataType j)
+    | _ => throw "Fn signatures support scalars, finite Hom and recursive Fn types"
 
 def fnType (j : Json) : Except String FunctionSource.FnType := do
   if (← str j "kind") == "function" then
@@ -98,6 +95,19 @@ def fnType (j : Json) : Except String FunctionSource.FnType := do
 def fnParam (j : Json) : Except String FunctionSource.Param := do
   fields j ["name", "ty", "span"]
   return ⟨← str j "name", ← fnType (← field j "ty"), ← decodeSpan j⟩
+
+def staticBinder (j : Json) : Except String FunctionSource.StaticBinder := do
+  match ← str j "kind" with
+  | "category" =>
+    fields j ["kind", "name", "schema", "span"]
+    return .category (← str j "name") (← path (← field j "schema")) (← decodeSpan j)
+  | "object" =>
+    fields j ["kind", "name", "category", "span"]
+    return .object (← str j "name") (← str j "category") (← decodeSpan j)
+  | "monad_object" =>
+    fields j ["kind", "name", "monad", "span"]
+    return .monadObject (← str j "name") (← str j "monad") (← decodeSpan j)
+  | _ => throw "unknown finite function binder kind"
 
 mutual
   def expression : Nat → Json → Except String FunctionSource.Expr
@@ -118,6 +128,17 @@ mutual
       | "call" =>
         fields j (common ++ ["callee", "args"])
         return .call (← namedPath (← str j "callee") span)
+          (← (← array j "args").mapM (expression fuel)) span
+      | "finite_lookup" =>
+        fields j (common ++ ["table", "args"])
+        let args ← array j "args"
+        if args.length > FiniteTables.maxInputs then throw "finite lookup exceeds its arity limit"
+        return .finiteLookup (← path (← field j "table")) (← args.mapM (expression fuel)) span
+      | "finite_call" =>
+        fields j (common ++ ["callee", "indices", "args"])
+        let indices ← array j "indices"
+        if indices.isEmpty then throw "an explicit finite call requires indices"
+        return .finiteCall (← path (← field j "callee")) (← indices.mapM path)
           (← (← array j "args").mapM (expression fuel)) span
       | "invoke" =>
         fields j (common ++ ["callee", "args"])
@@ -176,11 +197,12 @@ mutual
 end
 
 def function (j : Json) : Except String FunctionSource.Function := do
-  fields j ["name", "params", "return_type", "body", "span", "public"]
+  fields j ["name", "finite_binders", "params", "return_type", "body", "span", "public"]
   return {
     name := ← str j "name", params := ← (← array j "params").mapM fnParam,
     result := ← fnType (← field j "return_type"), body := ← block Limits.sourceNesting (← field j "body"),
-    isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j }
+    isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j,
+    finiteBinders := ← (← optionalArray j "finite_binders").mapM staticBinder }
 
 def methodParam (j : Json) : Except String Surface.Param := do
   fields j ["name", "ty", "span"]

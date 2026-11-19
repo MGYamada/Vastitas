@@ -6,7 +6,9 @@ namespace VastitasKernel.Storage.Functions
 
 open Internal
 
-private def zero : Scalar → Literal | .f64 => .f64 0 | .complexF64 => .complexF64 0 0
+private def zero : Scalar → Literal
+  | .f64 => .f64 0 | .complexF64 => .complexF64 0 0
+  | .f32 => .f32 0 | .complexF32 => .complexF32 0 0
 
 private def initializeRegion (owner : Symbol) (scalar : Scalar) (layout : Layout) : M Unit := do
   let loan ← fresh
@@ -70,11 +72,11 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
         scalarSlots := (capacity, .nat) :: (leading, .nat) :: context.scalarSlots
         scalarInputs := context.scalarInputs ++ [(capacity, .nat), (leading, .nat)]}
       let layout : Shapes.Layout := ⟨targetBasis.space.dimension, sourceBasis.space.dimension, .slot leading, false⟩
-      runtimeStep (.allocate owner sourceBasis.space.scalar (.slot capacity) layout)
+      runtimeStep (.allocate owner sourceBasis.space.binary64Scalar (.slot capacity) layout)
       if access.reads then
         let writer ← fresh
         runtimeStep (.borrow writer (.owner owner) .write)
-        runtimeStep (.fill writer (zero sourceBasis.space.scalar))
+        runtimeStep (.fill writer (zero sourceBasis.space.binary64Scalar))
         runtimeStep (.release writer)
       let loan ← fresh
       runtimeStep (.borrow loan (.owner owner) access)
@@ -151,7 +153,7 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
         | throw {code := "E_NUMERICAL_TYPE", message := "map input requires an earlier target basis"}
       let rows := targetBasis.space.dimension
       let columns := sourceBasis.space.dimension
-      let scalar := sourceBasis.space.scalar
+      let scalar := sourceBasis.space.binary64Scalar
       let layout : Layout := ⟨0, rows, columns, max 1 rows, false⟩
       step (.allocate owner scalar (rows * columns))
       if access.reads then initializeRegion owner scalar layout
@@ -169,7 +171,7 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       let some (.basis vectorBasis) := Numerical.value? context.numerical basis
         | throw {code := "E_NUMERICAL_TYPE", message := "vector input requires an earlier basis"}
       let rows := vectorBasis.space.dimension
-      let scalar := vectorBasis.space.scalar
+      let scalar := vectorBasis.space.binary64Scalar
       let layout : Layout := ⟨0, rows, 1, max 1 rows, false⟩
       step (.allocate owner scalar rows)
       if access.reads then initializeRegion owner scalar layout
@@ -191,7 +193,7 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
         | throw {code := "E_NUMERICAL_TYPE", message := "owned map input requires an earlier target basis"}
       let rows := targetBasis.space.dimension
       let columns := sourceBasis.space.dimension
-      let scalar := sourceBasis.space.scalar
+      let scalar := sourceBasis.space.binary64Scalar
       let layout : Layout := ⟨0, rows, columns, max 1 rows, false⟩
       step (.allocate owner scalar (rows * columns))
       initializeRegion owner scalar layout
@@ -215,7 +217,7 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
         (.space space sourceBasis.space.type.domain dimension)
       let values ← Numerical.construct context.environment context.resources values (.basis basis space)
       set {context with numerical := values}
-      let scalar := sourceBasis.space.scalar
+      let scalar := sourceBasis.space.binary64Scalar
       let layout : Layout := ⟨0, dimension, sourceBasis.space.dimension, max 1 dimension, false⟩
       step (.allocate owner scalar (dimension * sourceBasis.space.dimension))
       initializeRegion owner scalar layout

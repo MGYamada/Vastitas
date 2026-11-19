@@ -133,7 +133,7 @@ both payloads, for example
 `E_NATIVE_EXPECT: stored bit pattern differs at cell (0, 0): holds f64(0x1.4p1) [bits 4612811918334230528]; expected f64(0x1.cp1) [bits 4615063718147915776]`.
 Finite nonzero components use the exact `f64(hex)` spelling followed by their
 decimal bits; zeros, infinities and NaNs use `f64_bits(bits)`, so signed zeros
-and NaN payloads stay visible. A `Complex<F64>` cell shows both components as
+and NaN payloads stay visible. A `F64<CC>` cell shows both components as
 `complex(real, imaginary)`. The ASCII message is formatted without host `printf`
 float conversion, so it is identical across hosts, and has at most 361 bytes.
 It is built only after the bit comparison fails. Handle, scalar, layout and bounds
@@ -403,7 +403,7 @@ caller-restoration failures. `tests/runtime_shape_source.rs` checks public/raw
 wire rejection and executes 17 positive and five failing source programs in its
 optional native suite. The numerical CI runs that suite on both supported OSes.
 The [storage-native guard regression](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_runtime_shape_guards.lean)
-compares 5,488 physical-layout boundary tuples and 13 integral narrowing cases
+compares 10,976 physical-layout boundary tuples and 13 integral narrowing cases
 against the actual runtime and checker helpers.
 These finite checks supplement both the universal mathematical guard theorems
 and the 13 actual helper/expression theorems above. The storage-native harness

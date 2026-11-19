@@ -66,7 +66,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="vastitas-namespace-scaling-") as directory:
         directory = Path(directory)
         manifest = directory / "Vastitas.toml"
-        manifest.write_text("[package]\nname='namespace_scaling'\nversion='0.1.0'\n"
+        manifest.write_text("[package]\nedition = \'2026\'\nname='namespace_scaling'\nversion='0.1.0'\n"
                             "root='main.vast'\n", encoding="utf-8")
         for imports, references in CASES:
             program = source(imports, references)

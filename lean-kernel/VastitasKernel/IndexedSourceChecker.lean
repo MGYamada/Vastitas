@@ -1,4 +1,4 @@
-import VastitasKernel.IndexedSource
+import VastitasKernel.FiniteProjection
 import VastitasKernel.IndexedPrimitiveFamilies
 import VastitasKernel.NamespaceChecker
 import VastitasKernel.IndexedTypeAudit
@@ -14,15 +14,6 @@ import VastitasKernel.IndexedDeclarationRules
 import VastitasKernel.IndexedGluingSource
 
 namespace VastitasKernel.Indexed.Source
-
-abbrev ResolveM := StateT (List Reference) Namespace.Result
-
-def resolveId (p : Namespace.Indexed) (scope : Namespace.Scope) (path : Path) : ResolveM DeclId := do
-  let target ← Namespace.resolve p scope path.path path.span
-  if target.kind != .indexedDeclaration then
-    Namespace.problem path.span "E_TYPE" "expected an indexed declaration"
-  modify (⟨scope, path, target⟩ :: ·)
-  return target.owner
 
 def resolveParameter (p : Namespace.Indexed) (scope : Namespace.Scope) : Parameter → ResolveM Indexed.Parameter
   | .domain => pure .domain
@@ -103,12 +94,47 @@ def stage6Object (code : String) (span : Span) (what form : String) (indices : L
   | _ => Namespace.problem span code <|
       s!"{what} names one object, as in `{form}<X>`, but {indices.length} are given"
 
-def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : Body)
+def resolveBody (p : Namespace.Indexed) (graphs : GraphSources) (projections : ProjectionCache)
+    (owner : DeclId) (span : Span) (body : Body)
     (env : Core.Declarations) : ResolveM Core.Declarations := do
   let scope := owner.scope
   let add (declaration : Indexed.Declaration) := { env with indexed := env.indexed ++ [⟨owner, declaration⟩] }
   match body with
   | .marker => return add .marker
+  | .finiteCarrier tags =>
+      if tags.length > FiniteTables.limit then Namespace.problem span "E_LIMIT" "finite carrier exceeds 4096 tags"
+      let mut seen : Std.HashSet String := {}
+      for tag in tags do
+        unless FiniteTables.validCarrier [tag.name] do Namespace.problem tag.span "E_NAME" "invalid finite carrier tag"
+        if seen.contains tag.name then Namespace.problem tag.span "E_DUPLICATE" s!"duplicate finite tag '{tag.name}'"
+        seen := seen.insert tag.name
+      return add (.finiteCarrier (tags.map (·.name)))
+  | .finiteTable inputs output rows =>
+      return add (.finiteTable (← inputs.mapM (resolveFinitePath p graphs projections scope)) (← resolveFinitePath p graphs projections scope output)
+        (rows.map fun r => (r.key.map (·.name), r.value.name)))
+  | .categorySchema => return add .categorySchema
+  | .functorSchema => return add .functorSchema
+  | .natTransSchema => return add .natTransSchema
+  | .monadSchema => return add .monadSchema
+  | .kleisliSchema kind base => return add (.kleisliSchema kind (← resolveId p scope base))
+  | .finiteKleisli kind schema monad =>
+      return add (.finiteKleisli kind (← resolveId p scope schema) (← resolveId p scope monad))
+  | .finiteMonad schema fields =>
+      return add (.finiteMonad (← resolveId p scope schema) (← fields.mapM (resolveId p scope)))
+  | .finiteNatTrans schema n =>
+      return add (.finiteNatTrans (← resolveId p scope schema)
+        ⟨← resolveId p scope n.source, ← resolveId p scope n.target,
+         ← resolveFinitePath p graphs projections scope n.components⟩)
+  | .finiteFunctor schema maps =>
+      return add (.finiteFunctor (← resolveId p scope schema)
+        ⟨← resolveId p scope maps.source, ← resolveId p scope maps.target,
+         ← resolveFinitePath p graphs projections scope maps.objects,
+         ← resolveFinitePath p graphs projections scope maps.arrows⟩)
+  | .composableTable inputs output src dst rows =>
+      return add (.composableTable (← inputs.mapM (resolveFinitePath p graphs projections scope)) (← resolveFinitePath p graphs projections scope output)
+        (← resolveFinitePath p graphs projections scope src) (← resolveFinitePath p graphs projections scope dst) (rows.map fun r => (r.key.map (·.name), r.value.name)))
+  | .finiteCategory schema graph =>
+      return add (.finiteCategory (← resolveId p scope schema) (← graph.mapM (resolveFinitePath p graphs projections scope)))
   | .implementation marker representation capabilities =>
       return add (.implementation (← resolveId p scope marker)
         (← resolveRepresentation p scope representation) capabilities)
@@ -403,8 +429,12 @@ def resolveGeometry (p : Program) (env : Core.Declarations) :
 complete finite environment is validated. No observed-use domain inference. -/
 def lower (p : Program) : Namespace.Result Resolved := do
   let index := p.indexed
-  let action : ResolveM Core.Declarations := p.owned.foldlM (fun env entry =>
-    resolveBody index entry.1 entry.2.span entry.2.body env) ⟨[], [], []⟩
+  let owned := p.owned
+  let graphs := graphSources owned
+  let action : ResolveM Core.Declarations := do
+    let projections ← buildProjectionCache index graphs owned
+    owned.foldlM (fun env entry =>
+      resolveBody index graphs projections entry.1 entry.2.span entry.2.body env) ⟨[], [], []⟩
   let (declarations, references) ← action.run []
   let sources := p.owned.map fun (owner, d) => (owner, d.span, d.body)
   checkSmoothImplementations sources declarations
@@ -561,6 +591,147 @@ def entryRule (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry)
     (classificationRule env ranks entry).orElse fun _ =>
       (globalRule env entry).orElse fun _ => familyRule env entry
 
+/-- Explain an independently rejected finite table using the original row and
+tag spans. Acceptance remains the check on the complete Core environment. -/
+private def tableDiagnostic (env : Environment) (entry : Entry) (source : Declaration) :
+    Option Diagnostic := do
+  let named := FiniteCategories.view env
+  let issue := fun (span : Span) (message : String) => ({ code := "E_FINITE_TABLE", message, span } : Diagnostic)
+  if let .composableTable inputs out src dst rows := entry.declaration then
+    let .composableTable _ _ s t sourceRows := source.body | none
+    if inputs != [out, out] then return issue source.span "composition requires the same arrow carrier twice and as result"
+    if (FiniteCategories.unary named src out).isNone then return issue s.span "source must map the arrow carrier to objects"
+    let some e := FiniteCategories.endpoints named out src dst | return issue t.span "source and destination must share their arrow and object carriers"
+    let some pairs := e.pairs | return { code := "E_LIMIT", span := source.span, message := "finite composability check exceeds the profile or depends on an invalid endpoint table" }
+    let allowed := Std.HashSet.ofList pairs
+    let tags := Std.HashSet.ofList e.arrows
+    let mut seen : Std.HashSet (List String) := {}
+    for ((key, value), row) in rows.zip sourceRows do
+      if !allowed.contains key then return issue row.span "this pair of arrows is not composable"
+      if seen.contains key then return issue row.span "duplicate composition row"
+      if !tags.contains value then return issue row.value.span "composition result must name an arrow"
+      seen := seen.insert key
+    return issue source.span "composition table is missing a composable pair"
+  if let .finiteCategory schema fields := entry.declaration then
+    let .finiteCategory schemaPath paths := source.body | none
+    let problem := fun (sp : Span) (msg : String) => ({ span := sp, code := "E_CATEGORY", message := msg } : Diagnostic)
+    if named schema != some .categorySchema then return problem schemaPath.span "instance must select a finite category schema"
+    let some g := FiniteCategories.graph named schema fields
+      | return problem source.span "finite graph fields do not have the declared nominal endpoints or composition domain"
+    let some pairs := g.toEndpoints.pairs
+      | return { span := paths.comp.span, code := "E_LIMIT", message := "finite category key comparison exceeds the bounded profile" }
+    if pairs.length * g.arrows.length > Limits.elaborationWork then
+      return { span := paths.comp.span, code := "E_LIMIT", message := "finite category law checks exceed the bounded profile" }
+    if let some obj := g.objects.find? (!g.identityAt ·) then return problem paths.ids.span s!"identity of '{obj}' has incorrect endpoints"
+    if let some arr := g.arrows.find? (!g.units ·) then return problem paths.comp.span s!"left or right identity law fails for '{arr}'"
+    for key in pairs do
+      if let [m, f] := key then
+        if !g.ends m f then return problem paths.comp.span s!"composition of '{m}' after '{f}' has incorrect endpoints"
+        if let some h := g.arrows.find? (fun h => g.composable h m && !g.assoc h m f) then
+          return problem paths.comp.span s!"associativity fails at ('{h}', '{m}', '{f}')"
+    return problem source.span "invalid finite category instance"
+  if let .finiteFunctor schema maps := entry.declaration then
+    let .finiteFunctor schemaPath paths := source.body | none
+    let problem := fun (sp : Span) (msg : String) => ({ span := sp, code := "E_FUNCTOR", message := msg } : Diagnostic)
+    if named schema != some .functorSchema then return problem schemaPath.span "instance must select a finite functor schema"
+    let some (c, _) := FiniteFunctors.category named maps.source
+      | return problem paths.source.span "functor source endpoint must name a finite category"
+    let some (d, _) := FiniteFunctors.category named maps.target
+      | return problem paths.target.span "functor target endpoint must name a finite category"
+    if (FiniteFunctors.mapping named maps.objects c.objects d.objects).isNone then
+      return problem paths.objects.span "object map must be unary with the selected nominal object carriers"
+    if (FiniteFunctors.mapping named maps.arrows c.arrows d.arrows).isNone then
+      return problem paths.arrows.span "arrow map must be unary with the selected nominal arrow carriers"
+    let some m := FiniteFunctors.model named schema maps | return problem source.span "invalid finite functor fields"
+    let some pairs := m.source.toEndpoints.pairs
+      | return { span := paths.source.span, code := "E_LIMIT", message := "functor source composability exceeds the bounded profile" }
+    if m.source.objects.length > FiniteTables.limit then
+      return { span := paths.source.span, code := "E_LIMIT", message := "functor source exceeds the object tag limit" }
+    if let some f := m.source.arrows.find? (!m.endpointsAt ·) then
+      return problem paths.arrows.span s!"arrow map does not preserve endpoints of '{f}'"
+    if let some x := m.source.objects.find? (!m.identityAt ·) then
+      return problem paths.arrows.span s!"functor does not preserve the identity of '{x}'"
+    for key in pairs do
+      if let [g, f] := key then
+        if !m.compositionAt g f then return problem paths.arrows.span s!"functor does not preserve composition of '{g}' after '{f}'"
+    return problem source.span "invalid finite functor instance"
+  if let .finiteNatTrans schema n := entry.declaration then
+    let .finiteNatTrans schemaPath paths := source.body | none
+    let problem := fun (sp : Span) (msg : String) => ({ span := sp, code := "E_NAT_TRANS", message := msg } : Diagnostic)
+    if named schema != some .natTransSchema then return problem schemaPath.span "instance must select a finite natural transformation schema"
+    let some f := FiniteNatTrans.functorFields named n.source
+      | return problem paths.source.span "transformation source must name a finite functor"
+    let some g := FiniteNatTrans.functorFields named n.target
+      | return problem paths.target.span "transformation target must name a finite functor"
+    if !FiniteNatTrans.parallel f g then
+      return problem paths.target.span "the two functors must have the same nominal source and target categories"
+    let some (.finiteCategory _ c) := named f.source | return problem paths.source.span "invalid functor source category"
+    let some (.finiteCategory _ d) := named f.target | return problem paths.source.span "invalid functor target category"
+    if (FiniteFunctors.mapping named n.components c.objects d.arrows).isNone then
+      return problem paths.components.span "components must be unary with the nominal source object and target arrow carriers"
+    let some m := FiniteNatTrans.model named schema n | return problem source.span "invalid selected finite functor fields"
+    if !FiniteNatTrans.bounded m then
+      return { span := paths.source.span, code := "E_LIMIT", message := "naturality check exceeds the finite carrier limits" }
+    if let some x := m.domain.objects.find? (!m.endpointsAt ·) then
+      return problem paths.components.span s!"component at '{x}' has incorrect endpoints"
+    if let some f := m.domain.arrows.find? (!m.naturalAt ·) then
+      return problem paths.components.span s!"naturality fails on arrow '{f}'"
+    return problem source.span "invalid finite natural transformation"
+  if let .kleisliSchema .. := entry.declaration then
+    let .kleisliSchema _ base := source.body | none
+    return { code := "E_KLEISLI", span := base.span, message := "a Kleisli schema requires a named finite Monad schema" }
+  if let .finiteKleisli kind schema _ := entry.declaration then
+    let .finiteKleisli _ schemaPath monadPath := source.body | none
+    if !(named schema).any (fun d => match d with
+        | .kleisliSchema k _ => k == kind
+        | _ => false) then
+      return { code := "E_KLEISLI", span := schemaPath.span, message := "instance must select a Kleisli schema of the same kind" }
+    return { code := "E_KLEISLI", span := monadPath.span, message := "view requires a named Monad of its schema's exact Monad schema" }
+  if let .finiteMonad schema fields := entry.declaration then
+    let .finiteMonad schemaPath paths := source.body | none
+    let problem := fun (sp : Span) (msg : String) => ({ span := sp, code := "E_MONAD", message := msg } : Diagnostic)
+    match FiniteMonads.select named schema fields with
+    | .error .schema => return problem schemaPath.span "instance must select a finite Monad schema"
+    | .error .category => return problem paths.category.span "Monad requires a named finite category"
+    | .error .functor => return problem paths.functor.span "Monad requires an endofunctor on the exact selected nominal category"
+    | .error .unit => return problem paths.unit.span "unit must be a natural transformation from an identity functor to the exact selected endofunctor"
+    | .error .multiplication => return problem paths.multiplication.span "multiplication must be a natural transformation from a square functor to the exact selected endofunctor"
+    | .ok m =>
+      if !FiniteMonads.bounded m then
+        return { span := paths.category.span, code := "E_LIMIT", message := "Monad diagrams exceed the finite carrier limits" }
+      if !m.category.objects.all (FiniteMonads.identityAt m.identityObjects) ||
+          !m.category.arrows.all (FiniteMonads.identityAt m.identityArrows) then
+        return problem paths.unit.span "unit source must act as the identity on every object and arrow"
+      if !m.category.objects.all (FiniteMonads.squareAt m.squareObjects m.objects) ||
+          !m.category.arrows.all (FiniteMonads.squareAt m.squareArrows m.arrows) then
+        return problem paths.multiplication.span "multiplication source must act as the square of the selected functor on every object and arrow"
+      if let some x := m.category.objects.find? (!m.unitAt ·) then
+        return problem paths.unit.span s!"Monad unit law fails at '{x}'"
+      if let some x := m.category.objects.find? (!m.assocAt ·) then
+        return problem paths.multiplication.span s!"Monad associativity fails at '{x}'"
+      return problem source.span "invalid finite Monad instance"
+  let .finiteTable inputs output _ := entry.declaration | none
+  let .finiteTable paths result rows := source.body | none
+  let mut domains := []
+  for (id, path) in inputs.zip paths do
+    let some tags := FiniteTables.carrier env id | return issue path.span "table input must name a finite carrier"
+    domains := domains ++ [tags]
+  let some range := FiniteTables.carrier env output | return issue result.span "table output must name a finite carrier"
+  let some _ := FiniteTables.keys domains
+    | return { code := "E_LIMIT", span := source.span, message := "finite table key product exceeds the bounded profile" }
+  let allowed := domains.map Std.HashSet.ofList
+  let outputs := Std.HashSet.ofList range
+  let mut seen : Std.HashSet (List String) := {}
+  for row in rows do
+    if row.key.length != allowed.length then return issue row.span "finite table row has the wrong arity"
+    for (tag, tags) in row.key.zip allowed do
+      if !tags.contains tag.name then return issue tag.span s!"unknown input tag '{tag.name}' for this carrier"
+    if !outputs.contains row.value.name then return issue row.value.span s!"unknown result tag '{row.value.name}' for this carrier"
+    let key := row.key.map (·.name)
+    if seen.contains key then return issue row.span "duplicate finite table row"
+    seen := seen.insert key
+  return issue source.span "finite table has missing rows for the declared product"
+
 /-- Presentation only: the diagnostic for declarations that
 `Core.validDeclarations` rejects. It is at the first declaration that fails
 its own check, and its message is the rule that the declaration breaks, where
@@ -574,6 +745,7 @@ def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
   let ranks := classRanks env.indexed
   match env.indexed.find? (fun entry => !validEntry env.indexed ranks entry) with
   | some entry =>
+    if let some d := (source entry.id).bind (tableDiagnostic env.indexed entry) then d else
     let (code, message) := (entryRule env.indexed ranks entry).getD ("E_TYPE", general)
     { code, message, span := span entry.id }
   | none =>

@@ -1,9 +1,11 @@
 [package]
+edition = "2026"
 name = "vastitas_std"
 version = "0.1.0"
 root = "target/package/lib.vast"
 
 [dependencies]
+category_library = { path = "src/category" }
 geometry_library = { path = "src/geometry" }
 differential_library = { path = "src/differential" }
 linalg_library = { path = "src/linalg" }

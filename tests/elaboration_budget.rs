@@ -15,14 +15,14 @@ fn body(lets: usize) -> String {
 
 fn method(name: &str, lets: usize) -> String {
     format!(
-        "method {name}(a: Any, b: Any, c: Any, d: Any, e: Any, f: Any) -> Int {{ {} }}",
+        "fn {name}(a: Any, b: Any, c: Any, d: Any, e: Any, f: Any) -> Int {{ {} }}",
         body(lets)
     )
 }
 
 fn family(name: &str, lets: usize) -> String {
     format!(
-        "generic {name}(a, b, c, d, e, f) {{ domain (Int, Int, Int, Int, Int, Int); }}\n{}\n",
+        "fn {name}(a, b, c, d, e, f) domain((Int, Int, Int, Int, Int, Int));\n{}\n",
         method(name, lets)
     )
 }
@@ -83,7 +83,7 @@ fn unapplied_and_applied_bodies_share_the_preparation_budget() {
         let scratch = Scratch::empty("unapplied work");
         let manifest = scratch.write(
             "Vastitas.toml",
-            "[package]\nname='budget'\nversion='0.1.0'\nroot='main.vast'\n",
+            "[package]\nedition = \"2026\"\nname='budget'\nversion='0.1.0'\nroot='main.vast'\n",
         );
         scratch.write(
             "main.vast",

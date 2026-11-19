@@ -56,7 +56,7 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &[&str])] = &[
     (
         "examples/book/stdlib/promotion.vast",
         &[INT, NAT, GENERIC],
-        &["maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42"],
+        &["maximum(self::add(pair_first(p), pair_second(p)), self::add(n, -7)) = 42"],
     ),
     (
         "examples/book/abstract/abstract-selectors.vast",
@@ -100,7 +100,12 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &[&str])] = &[
     (
         "examples/book/expressions/operators.vast",
         &[],
-        &["n - 5 = 0", "int(n) - 5 = -2", "2 + 3 * -below = 8"],
+        &[
+            "n - 5 = 0",
+            "int(n) - 5 = -2",
+            "2 + 3 * -below = 8",
+            "-7 / n = -3",
+        ],
     ),
     (
         "examples/book/expressions/sign.vast",
@@ -693,7 +698,7 @@ fn promotion_package() {
             "--manifest-path",
             "examples/packages/stdlib/promotion/Vastitas.toml",
         ],
-        &["maximum(add(pair_first(p), pair_second(p)), add(n, -7)) = 42"],
+        &["maximum(promoted_add(pair_first(p), pair_second(p)), promoted_add(n, -7)) = 42"],
     );
 }
 

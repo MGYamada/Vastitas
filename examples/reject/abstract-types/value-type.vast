@@ -3,8 +3,9 @@ subtype Nat <: Numeric;
 subtype Int <: Numeric;
 
 // An abstract type is a selector of methods. It is not the type of a value.
-fn twice(x: Numeric) -> Int {
-    0
+fn twice(x: Int) -> Int {
+    let n: Numeric = x;
+    n + n
 }
 
 fn main() -> Int {

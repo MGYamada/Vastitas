@@ -1,0 +1,163 @@
+{
+  "status": "passed",
+  "source": "llvm/fixtures/ExitStatus.vast",
+  "source_sha256": "d7b73937ae11b2c8caad422ca81a1947a34bb6a04e193e9fb527a8f5cbe1b27c",
+  "source_value": "-340282366920938463463374607431768211457",
+  "replayed_revision_sha256": "578b4bad9af9ae5df6b7873925b19e96c7fcf15e54883dacf32b96ec5672bc29",
+  "checked_operator_sites": [
+    {
+      "core": 0,
+      "id": {
+        "module": [
+          "operator"
+        ],
+        "name": "neg",
+        "package": {
+          "name": "std",
+          "source": "vastitas:compat:operators",
+          "version": "2026.0.0"
+        }
+      },
+      "key": [
+        "Int"
+      ]
+    }
+  ],
+  "default_lean_c_exit_code": 255,
+  "lean_reference_expression": "-340282366920938463463374607431768211457",
+  "modeled_mod_256": 255,
+  "native_exit_code": 255,
+  "lean_reference_exit_code": 255,
+  "target": {
+    "llvm": "23.1.4",
+    "triple": "arm64-apple-darwin27.2.0",
+    "layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+  },
+  "abi": "i32 main()",
+  "cpu": "generic",
+  "features": "",
+  "optimization": "none",
+  "relocation": "PIC",
+  "runtime_inputs": "system startup and C runtime",
+  "llvm_sys": "231.0.1",
+  "llvm_link": "static",
+  "llvm_config_sha256": "7d5af426e347095f2dcd0d61723f07898588216f8fed3c217f845f9314b8c209",
+  "llvm_prefix_static_archives": {
+    "count": 201,
+    "sorted_name_digest_pairs_sha256": "80b22909afaec86f8111d20d3c29bf534778788dc0dfaf70abdb6317b10210ff"
+  },
+  "installed_dynamic_libraries": [
+    "libSystem.B.dylib"
+  ],
+  "compiler_sha256": "dc309d635b3cc4697413b83049cf6b4868be7a6815fabcfb09a3caf55781ce3b",
+  "adapter_sha256": "495de74c37178dab2a930ef783bbf75215a1a261b11b6a190bcb956d9fba981e",
+  "adapter_source_sha256": "3ac276dc0ceed96acec0f13fc176409c04af657473729b8fab6382d273d7fd6f",
+  "cargo_lock_sha256": "9439c4ae7d74ef817ec1b5efee2d6cab925e9fb92f5969cca98ac535e0b9b6f1",
+  "kernel_sha256": "78bf0217752d3e2fe30746d594f2a84d2b2a4fba6c3091ed6dbea06f4f9a98e6",
+  "link_driver": {
+    "name": "cc",
+    "sha256": "ed6f5284033aa2aae6a58427c25ba3ab119947b40365627b24e5d51a4b70a1cd",
+    "version": "Apple clang version 21.0.0 (clang-2100.4.1.1)"
+  },
+  "host_llvm_bytes": 374,
+  "host_llvm_sha256": "9b085d3daf09b1488c95c8f69cab588d1d821f4d6fc5bcaf3254e9662a268e03",
+  "corpus_target_equals_host": true,
+  "corpus_compared_byte_for_byte": "llvm/src/exit-status.ll",
+  "corpus_sha256": "9b085d3daf09b1488c95c8f69cab588d1d821f4d6fc5bcaf3254e9662a268e03",
+  "object_bytes": 512,
+  "executable_bytes": 16840,
+  "emitter_comparison": {
+    "source": "src/lean/Lean/Compiler/IR/EmitLLVM.lean",
+    "sha256": "635bb0e78a3703614b9f175b13f2a8e2adaa890fe7ed144bc33e6e67fab99414",
+    "observations": {
+      "abi_and_untested_notice": {
+        "matched_lines": [
+          25
+        ],
+        "needle": "our CI for LLVM is dysfunctional"
+      },
+      "fixed_size_t": {
+        "matched_lines": [
+          42
+        ],
+        "needle": "def size_tType"
+      },
+      "case_default": {
+        "matched_lines": [
+          1096
+        ],
+        "needle": "def ensureHasDefault'"
+      },
+      "case_tag_width": {
+        "matched_lines": [
+          1111
+        ],
+        "needle": "buildZext builder tag"
+      },
+      "case_switch": {
+        "matched_lines": [
+          1115
+        ],
+        "needle": "buildSwitch builder tag"
+      },
+      "join_point_lowering": {
+        "matched_lines": [
+          1139
+        ],
+        "needle": "by generating SSA phi nodes"
+      },
+      "executable_main": {
+        "matched_lines": [
+          1488
+        ],
+        "needle": "def emitMainFn ("
+      },
+      "main_status": {
+        "matched_lines": [
+          1583
+        ],
+        "needle": "let retv \u2190 callLeanUnboxUint32"
+      },
+      "inbounds_gep": {
+        "matched_lines": [
+          732,
+          788
+        ],
+        "needle": "buildInBoundsGEP"
+      },
+      "bitcode_output": {
+        "matched_lines": [
+          1675
+        ],
+        "needle": "writeBitcodeToFile"
+      },
+      "numeric_literal": {
+        "matched_lines": [
+          626
+        ],
+        "needle": "def emitNumLit ("
+      },
+      "static_application": {
+        "matched_lines": [
+          755
+        ],
+        "needle": "def emitFullApp ("
+      }
+    },
+    "role": "comparison only; not a correctness oracle",
+    "executed": false,
+    "execution_gap": "pinned Lean binary reports no LLVM feature"
+  },
+  "wall_seconds_single_invocation": {
+    "capture_function_revision": 0.078945,
+    "check_host_complete_bytes": 0.082677,
+    "adapter_read_compare_parse_verify_emit": 0.019548,
+    "system_link_control": 0.067886,
+    "public_build_check_emit_link_install": 0.15537,
+    "installed_program": 0.022563,
+    "control_program": 0.224464,
+    "default_lean_c_build": 1.952148,
+    "default_lean_c_program": 0.222104,
+    "lean_reference_result": 0.977448
+  }
+}

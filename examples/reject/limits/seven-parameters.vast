@@ -1,5 +1,5 @@
-generic total(a, b, c, d, e, f, g) { domain (Int, Int, Int, Int, Int, Int, Int); }
-method total(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int) -> Int {
+fn total(a, b, c, d, e, f, g) domain((Int, Int, Int, Int, Int, Int, Int));
+fn total(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int) -> Int {
     a + b + c + d + e + f + g
 }
 

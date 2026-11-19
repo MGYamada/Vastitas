@@ -9,7 +9,8 @@ namespace VastitasKernel.Indexed.FunctionSource.WorkBudget
 
 mutual
   def expression : Expr → Nat
-    | .call _ arguments _ => 1 + (arguments.map expression).sum
+    | .call _ arguments _ | .finiteLookup _ arguments _ => 1 + (arguments.map expression).sum
+    | .finiteCall _ indices arguments _ => 1 + indices.length + (arguments.map expression).sum
     | .invoke callee arguments _ => 1 + expression callee + (arguments.map expression).sum
     | .lambda params _ body _ => 1 + params.length + block body
     | .unary _ value _ => 1 + expression value
@@ -25,7 +26,7 @@ mutual
     | .mk statements result _ => 1 + (statements.map statement).sum + expression result
 end
 
-def function (source : Function) : Nat := 1 + source.params.length + block source.body
+def function (source : Function) : Nat := 1 + source.params.length + source.finiteBinders.length + block source.body
 
 def charge (used amount : Nat) (span : Span) : Namespace.Result Nat :=
   if used + amount > Limits.elaborationWork then

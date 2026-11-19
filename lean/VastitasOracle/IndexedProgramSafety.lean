@@ -54,7 +54,7 @@ theorem function_call_returns (checked : CheckedModule requireMain) (function : 
       value_agreement (by simp [DataType.refs]) valueTyped
     obtain ⟨after, typed, extension, frame⟩ := local_result_total returnRule callerType fresh
     exact ⟨after, value, called, typed, extension, frame⟩
-  | pure _ | indexed _ | package _ =>
+  | finite _ | pure _ | indexed _ | package _ =>
     rw [returnType] at returnRule
     subst result
     refine ⟨world, value, called, ⟨?_, trivial⟩, worldExtends_refl world, unchanged_refl world _⟩

@@ -2,6 +2,7 @@ name: Mathematical bridge
 
 on:
   push:
+    branches: [main]
     paths:
       - 'lean-bridge/**'
       - 'lean-toolchain'
@@ -19,6 +20,7 @@ on:
       - 'lean/lean-toolchain'
       - 'scripts/check_boundaries.py'
       - 'scripts/test_check_boundaries.py'
+      - '.github/actions/setup-elan/**'
       - 'scripts/install_ci_elan.py'
       - 'scripts/test_ci_bootstrap.py'
       - 'scripts/replay_lean.sh'
@@ -45,6 +47,7 @@ on:
       - 'lean/lean-toolchain'
       - 'scripts/check_boundaries.py'
       - 'scripts/test_check_boundaries.py'
+      - '.github/actions/setup-elan/**'
       - 'scripts/install_ci_elan.py'
       - 'scripts/test_ci_bootstrap.py'
       - 'scripts/replay_lean.sh'
@@ -86,8 +89,7 @@ jobs:
         run: |
           python3 scripts/check_boundaries.py
           python3 -m unittest discover -s scripts -p 'test_check_boundaries.py'
-      - name: Install checksum-pinned elan
-        run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
+      - uses: ./.github/actions/setup-elan
       - name: Install the pinned Lean toolchain
         working-directory: lean-bridge
         run: lake --version

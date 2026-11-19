@@ -186,7 +186,7 @@ fn indexed_packages_use_the_same_probe_reuse_checker() {
     let scratch = Scratch::empty("functions");
     let manifest = scratch.write(
         "Vastitas.toml",
-        "[package]\nname='probe_reuse'\nversion='0.1.0'\nroot='src/main.vast'\n",
+        "[package]\nedition = \"2026\"\nname='probe_reuse'\nversion='0.1.0'\nroot='src/main.vast'\n",
     );
     scratch.write(
         "src/main.vast",
@@ -392,8 +392,8 @@ fn main() -> Int {
 #[test]
 fn functions_and_dispatch_call_each_other_and_keep_library_locations() {
     native(
-        "generic offset(x) { domain (Int); }
-method offset(x: Int) -> Int { run(fn(y: Int) -> Int { y + 1 }, x) }
+        "fn offset(x) domain((Int));
+fn offset(x: Int) -> Int { run(fn(y: Int) -> Int { y + 1 }, x) }
 fn run(callback: Fn<Int, Int>, x: Int) -> Int { callback(x) }
 fn main() -> Int { let wrapped = fn(x: Int) -> Int { offset(x) }; run(wrapped, 41) }",
         &[],
@@ -412,6 +412,29 @@ fn main() -> Int { let wrapped = fn(x: Int) -> Int { offset(x) }; run(wrapped, 4
         "fn main() -> Int { run(increment, 41) }",
         &[library, helper],
         exits(42),
+    );
+}
+
+#[test]
+fn inferred_family_alias_selects_by_arguments_and_can_pass_or_return_at_one_key() {
+    let source = "fn rank(x: Bool) -> Int { if x { 10 } else { 0 } }
+fn rank(x: Int) -> Int { x + 1 }
+fn run(f: Fn<Int, Int>) -> Int { f(19) }
+fn ranked() -> Fn<Bool, Int> { rank }
+fn main() -> Int {
+    let f = rank;
+    let second = f;
+    second(true) + f(1) + run(second) + ranked()(true)
+}";
+    success(&check(source));
+    native(source, &[], exits(42));
+    reject(
+        &source.replace("ranked() -> Fn<Bool, Int>", "ranked() -> Fn<Bool, Bool>"),
+        "E_TYPE",
+    );
+    reject(
+        &source.replace("second(true)", "second(())"),
+        "E_DISPATCH_DOMAIN",
     );
 }
 
@@ -440,7 +463,7 @@ fn invalid_function_contracts_and_unresolved_targets_are_rejected() {
             "E_TYPE",
         ),
         (
-            "generic g(x) { domain (Int); } method g(x: Int) -> Int { x } fn main() -> Int { let callback = g; 0 }",
+            "fn g(x) domain((Int)); fn g(x: Int) -> Int { x } fn main() -> Int { let callback: Fn<Int, Bool> = g; 0 }",
             "E_TYPE",
         ),
         (
@@ -522,7 +545,7 @@ fn lambda_cycle_diagnostics_use_source_locations_in_flat_and_package_modes() {
     let manifest = scratch.0.join("Vastitas.toml");
     fs::write(
         &manifest,
-        "[package]\nname='cycle'\nversion='0.1.0'\nroot='function input.vast'\n",
+        "[package]\nedition = \"2026\"\nname='cycle'\nversion='0.1.0'\nroot='function input.vast'\n",
     )
     .unwrap();
     for package in [false, true] {
@@ -549,8 +572,8 @@ fn lambda_cycle_diagnostics_use_source_locations_in_flat_and_package_modes() {
 #[test]
 fn functions_do_not_hide_invalid_applicable_methods() {
     reject(
-        "generic fallback(x) { domain; }
-method fallback(x: Any) -> Int { let callback = fn(y: Int) -> Int { y }; x + callback(1) }
+        "fn fallback(x) domain();
+fn fallback(x: Any) -> Int { let callback = fn(y: Int) -> Int { y }; x + callback(1) }
 fn main() -> Int { 0 }",
         "E_TYPE",
     );
@@ -652,9 +675,9 @@ fn function_type_depth_is_bounded_on_both_sides() {
 
 #[test]
 fn lowered_type_reuse_preserves_contextual_literals_and_nominal_endpoints() {
-    let declarations = "generic keep(x) { domain (Nat), (Int); }
-method keep(x: Nat) -> Nat { x }
-method keep(x: Int) -> Int { x }
+    let declarations = "fn keep(x) domain((Nat), (Int));
+fn keep(x: Nat) -> Nat { x }
+fn keep(x: Int) -> Int { x }
 fn point(X: Scheme) -> Point<X, Base(QQ)> { origin(X) }
 fn natural(n: Nat) -> Nat { let zero: Nat = { let z: Nat = 0 + 0; z }; if true { 0 } else { keep(n) + zero } }
 ";

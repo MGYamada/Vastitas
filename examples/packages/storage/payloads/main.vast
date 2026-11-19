@@ -1,7 +1,7 @@
 // Payloads in the number spellings, read back as bits.
 resource fn main() -> Int {
-    allocate reals: F64[2];
-    allocate pairs: Complex<F64>[1];
+    allocate reals: F64<RR>[2];
+    allocate pairs: F64<CC>[1];
     borrow output = write(reals, layout(0, 2, 1, 2, false));
     borrow complex_output = write(pairs, layout(0, 1, 1, 1, false));
     // ANCHOR: payloads

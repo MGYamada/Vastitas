@@ -16,7 +16,7 @@ impl Scratch {
             format!("use std::arithmetic::generic::promote;\n{source}"),
         )
         .unwrap();
-        fs::write(path.join("Vastitas.toml"), format!("[package]\nname='promotion_app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={{path={}}}\n", serde_json::to_string(&root().join("stdlib").to_string_lossy()).unwrap())).unwrap();
+        fs::write(path.join("Vastitas.toml"), format!("[package]\nedition = \"2026\"\nname='promotion_app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={{path={}}}\n", serde_json::to_string(&root().join("stdlib").to_string_lossy()).unwrap())).unwrap();
         scratch
     }
     /// The compiler in `mode` in this directory, on the package when
@@ -71,9 +71,12 @@ fn flat_request(source: &str) -> Value {
     let mut command = scratch.cli();
     command.args(["check", "promotion-contract.vast"]);
     for name in ["int", "nat", "generic"] {
-        command
-            .arg("--lib")
-            .arg(root().join(format!("stdlib/src/arithmetic/{name}.vast")));
+        let relative = format!("arithmetic/{name}.vast");
+        scratch.write(
+            &relative,
+            &fs::read_to_string(root().join("stdlib/src").join(&relative)).unwrap(),
+        );
+        command.arg("--lib").arg(relative);
     }
     common::captured_wire(command, common::CURRENT_PROTOCOL)
 }
@@ -211,7 +214,7 @@ fn package_promote_owner_is_exact_and_imports_only_grant_calls() {
     rejects(&external, "E_OWNER");
     fs::write(
         scratch.0.join("main.vast"),
-        "method std::arithmetic::generic::promote(x: Int, y: Int) -> Pair<Int> { pair(x, y) }",
+        "fn std::arithmetic::generic::promote(x: Int, y: Int) -> Pair<Int> { pair(x, y) }",
     )
     .unwrap();
     let output = scratch.compiler("check", true).output().unwrap();
@@ -239,28 +242,39 @@ fn aliases_reexports_and_reordered_imports_keep_the_same_family() {
 #[test]
 fn promotion_families_in_distinct_package_locations_and_versions_stay_distinct() {
     let scratch = Scratch::new(VALUES);
-    let raw = scratch.raw(true);
+    let stdlib = root().join("stdlib");
+    let manifest = fs::read_to_string(stdlib.join("Vastitas.toml")).unwrap();
+    let app = fs::read_to_string(scratch.0.join("Vastitas.toml")).unwrap();
+    scratch.write("Vastitas.toml", &(app + "other={path='other'}\n"));
+    let other = scratch.0.join("other");
+    fs::create_dir_all(other.join("target")).unwrap();
+    std::os::unix::fs::symlink(stdlib.join("src"), other.join("src")).unwrap();
+    success(
+        &Command::new("cp")
+            .arg("-R")
+            .arg(stdlib.join("target/package"))
+            .arg(other.join("target"))
+            .output()
+            .unwrap(),
+    );
     for version in ["0.1.0", "0.2.0"] {
-        let mut altered = raw.clone();
-        let packages = altered["packages"].as_array_mut().unwrap();
-        let mut other = packages
+        fs::write(
+            other.join("Vastitas.toml"),
+            manifest.replace("0.1.0", version),
+        )
+        .unwrap();
+        let wire = scratch.raw(true);
+        let packages: Vec<_> = wire["packages"]
+            .as_array()
+            .unwrap()
             .iter()
-            .find(|p| p["name"] == "vastitas_std")
-            .unwrap()
-            .clone();
-        other["source"] = json!("/another-stdlib/Vastitas.toml");
-        other["version"] = json!(version);
-        packages
-            .iter_mut()
-            .find(|p| p["name"] == "promotion_app")
-            .unwrap()["dependencies"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!({"alias":"other","target":"/another-stdlib/Vastitas.toml"}));
-        packages.push(other);
-        // Both complete families are independently checked, even though the
-        // application calls only one. Merging short names would create duplicates.
-        assert_eq!(check_raw(&altered)["ok"], true);
+            .filter(|p| p["name"] == "vastitas_std")
+            .collect();
+        assert_eq!(packages.len(), 2);
+        assert_ne!(packages[0]["source"], packages[1]["source"]);
+        assert!(packages.iter().any(|p| p["version"] == version));
+        // Both families are checked even though only one is called.
+        assert_eq!(check_raw(&wire)["ok"], true);
     }
 }
 
@@ -272,16 +286,16 @@ fn source_children_and_siblings_cannot_extend_the_promote_owner() {
             fs::read_to_string(root().join(format!("stdlib/src/arithmetic/{name}.vast"))).unwrap()
         })
         .join("\n")
-        .replace("\ngeneric promote", "\npub generic promote");
+        .replace("\nfn promote", "\npub fn promote");
     let body = "(x: Int, y: Int) -> Pair<Int> { pair(x, y) }";
     for (inside, outside) in [
         (
-            format!("pub mod child {{ method super::promote{body} }}"),
+            format!("pub mod child {{ fn super::promote{body} }}"),
             String::new(),
         ),
         (
             String::new(),
-            format!("pub mod sibling {{ method super::generic::promote{body} }}"),
+            format!("pub mod sibling {{ fn super::generic::promote{body} }}"),
         ),
     ] {
         fs::write(
@@ -302,21 +316,22 @@ fn mixed_arithmetic_delegates_to_homogeneous_kernels_in_both_modes() {
     let source = "fn main() -> Int {
         let n: Nat = 20; let m: Nat = 22; let z: Nat = 0;
         let big: Nat = 123456789012345678901234567890;
-        let nn: Nat = add(n, m); let nm: Nat = maximum(n, m);
-        if nn == 42 && nm == m && add(n, 22) == 42 && add(22, n) == 42 &&
+        let nn: Nat = self::add(n, m); let nm: Nat = maximum(n, m);
+        if nn == 42 && nm == m && self::add(n, 22) == 42 && self::add(22, n) == 42 &&
            maximum(n, 22) == 22 && maximum(22, n) == 22 &&
-           add(n, -7) == 13 && add(-7, n) == 13 &&
+           self::add(n, -7) == 13 && self::add(-7, n) == 13 &&
            maximum(n, -7) == 20 && maximum(-7, n) == 20 &&
-           add(-7, -2) == -9 && maximum(-7, -2) == -2 &&
-           add(big, -1) == 123456789012345678901234567889 &&
-           maximum(-1, big) == int(big) && add(z, 0) == 0 && maximum(z, -1) == 0
+           self::add(-7, -2) == -9 && maximum(-7, -2) == -2 &&
+           self::add(big, -1) == 123456789012345678901234567889 &&
+           maximum(-1, big) == int(big) && self::add(z, 0) == 0 && maximum(z, -1) == 0
         { 42 } else { -1 }
     }";
     let scratch = Scratch::new(source);
     fs::write(
         scratch.0.join("main.vast"),
         format!(
-            "use std::arithmetic::generic::add; use std::arithmetic::generic::maximum;\n{source}"
+            "use std::arithmetic::generic::add as promoted_add; use std::arithmetic::generic::maximum;\n{}",
+            source.replace("self::add", "promoted_add")
         ),
     )
     .unwrap();
@@ -339,23 +354,23 @@ fn mixed_arithmetic_delegates_to_homogeneous_kernels_in_both_modes() {
 fn promotion_does_not_hide_specialized_cycles_or_bad_applicable_bodies() {
     let declarations = [
         (
-            "generic cycle(x, y) { domain (Nat, Nat), (Nat, Int), (Int, Nat), (Int, Int); } method cycle(x: Number, y: Number) -> Int { let p = promote(x, y); cycle(pair_first(p), pair_second(p)) }",
+            "fn cycle(x, y) domain((Nat, Nat), (Nat, Int), (Int, Nat), (Int, Int)); fn cycle(x: Number, y: Number) -> Int { let p = promote(x, y); cycle(pair_first(p), pair_second(p)) }",
             "E_RECURSION",
         ),
         (
-            "generic cycle(x, y) { domain (Nat, Int), (Int, Int); } method cycle(x: Nat, y: Int) -> Int { let p = promote(x, y); cycle(pair_first(p), pair_second(p)) } method cycle(x: Int, y: Int) -> Int { cycle(x, y) }",
+            "fn cycle(x, y) domain((Nat, Int), (Int, Int)); fn cycle(x: Nat, y: Int) -> Int { let p = promote(x, y); cycle(pair_first(p), pair_second(p)) } fn cycle(x: Int, y: Int) -> Int { cycle(x, y) }",
             "E_RECURSION",
         ),
         (
-            "fn helper(x: Int, y: Int) -> Int { cycle(x, y) } generic cycle(x, y) { domain (Int, Int); } method cycle(x: Int, y: Int) -> Int { helper(x, y) }",
+            "fn helper(x: Int, y: Int) -> Int { cycle(x, y) } fn cycle(x, y) domain((Int, Int)); fn cycle(x: Int, y: Int) -> Int { helper(x, y) }",
             "E_RECURSION",
         ),
         (
-            "method add(x: Number, y: Number) -> Int { let p = promote(x, y); pair_first(p) }",
+            "fn add(x: Number, y: Number) -> Int { let p = promote(x, y); pair_first(p) }",
             "E_TYPE",
         ),
         (
-            "method add(x: Any, y: Any) -> Int { let p = promote(x, y); pair_first(p) }",
+            "fn add(x: Any, y: Any) -> Int { let p = promote(x, y); pair_first(p) }",
             "E_TYPE",
         ),
         ("fn bad(n: Nat) -> Int { n + 1 }", "E_TYPE"),

@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSmoothContracts
+import VastitasKernel.FiniteSort
 import VastitasKernel.IndexedRuntime
 import VastitasKernel.FrameRuntime
 
@@ -66,6 +67,7 @@ inductive IndexedValue where
   deriving Repr, DecidableEq
 
 inductive Value where
+  | finiteTag (carrier : FiniteSort) (tag : String)
   | natural (value : Nat)
   | integer (value : Int)
   | boolean (value : Bool)

@@ -67,7 +67,7 @@ static int verify(VStorageArena *a, uint64_t reps) {
     const double *data[4];
     for (unsigned id = 0; id < 4; ++id) {
         Buffer *buffer = lookup(a,id);
-        data[id] = buffer ? buffer->data : NULL;
+        data[id] = buffer ? (const double *)buffer->data : NULL;
     }
     return verify_data(data,reps,&checksum);
 }
@@ -80,7 +80,7 @@ VStorageArena *vstorage_new(uint64_t budget) {
 VStorageStatus vstorage_drop(VStorageArena *a, uint32_t id) {
     if (id == 3 && lookup(a,id)) {
         if (verify_on_drop) require(verify(a,1));
-        observed ^= word(lookup(a,id)->data[views[3].offset/8]);
+        observed ^= word(*(const double *)(lookup(a,id)->data + views[3].offset));
     }
     return storage_drop_impl(a,id);
 }
@@ -264,7 +264,7 @@ static void flat_copy_mutation(VStorageArena *a) {
      * alone would not demonstrate that the contraction sees the mutation. */
     uint64_t row = dim_i-1, col = views[3].columns-1;
     Z want = product(row,col);
-    const double *got = output.data+(row+output.leading*col)*(scalar+1);
+    const double *got = (const double *)output.data+(row+output.leading*col)*(scalar+1);
     long double tol = 32*DBL_EPSILON*(dim_k+1)*fmaxl(1,fabsl(want.r));
     require(fabsl((long double)got[0]-want.r) > tol);
     native_operation(a);
@@ -279,11 +279,11 @@ int main(void) {
     flat_copy_mutation(a); require(checksum == native_hash);
     /* All four logical buffers and all four padded envelopes are observed. */
     for (unsigned id = 0; id < 4; ++id) {
-        double *cell = &a->buffers[id].data[views[id].offset/8];
+        double *cell = (double *)(a->buffers[id].data + views[id].offset);
         double old = *cell; *cell = old+1; require(!verify(a,1)); *cell = old;
         if (views[id].offset) {
-            old = a->buffers[id].data[0]; a->buffers[id].data[0] = 0;
-            require(!verify(a,1)); a->buffers[id].data[0] = old;
+            old = *(double *)a->buffers[id].data; *(double *)a->buffers[id].data = 0;
+            require(!verify(a,1)); *(double *)a->buffers[id].data = old;
         }
     }
     VStorageStats saved = vstorage_stats(a);

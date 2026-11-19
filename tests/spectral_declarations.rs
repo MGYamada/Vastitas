@@ -10,8 +10,7 @@ mod common;
 use common::{Scratch, expect_code, kernel, remove_spans, success};
 use serde_json::{Value, json};
 
-const MANIFEST: &str =
-    "[package]\nname = \"spectral_declarations\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n";
+const MANIFEST: &str = "[package]\nedition = \"2026\"\nname = \"spectral_declarations\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n";
 
 /// Every Stage 5 form of the frontend in one module, on the plane of the
 /// roadmap: H = rows((x, y), (y, -x)) on V = basis(e1, e2), its spectrum S

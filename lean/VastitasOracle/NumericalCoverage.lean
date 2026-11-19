@@ -36,6 +36,7 @@ def environment : Origin → Indexed.Environment
   | .tree r => r.environment
   | .adjoint r => r.environment
   | .pairing r => r.environment
+  | .realizationRun r => r.environment
 
 /-- These are the original prefix and post-emission code snapshots stored in
 the dependent receipt, including intermediate actions of composite operations. -/
@@ -48,6 +49,7 @@ def history : Origin → List Statement × List Statement
   | .tree r => (r.priorCode, r.code)
   | .adjoint r => (r.priorCode, r.code)
   | .pairing r => (r.priorCode, r.code)
+  | .realizationRun r => (r.priorCode, r.code)
 
 theorem original_emission (origin : Origin) :
     origin.slice.address.2 = (history origin).1.length ∧
@@ -81,6 +83,10 @@ theorem origin_environment {functions entry env signatures} (e : Execution funct
   | pairing r =>
     simp [origins, -Array.mem_toList_iff] at member
     exact e.diagonalPairingOrigins r member
+
+  | realizationRun r =>
+    simp [origins, -Array.mem_toList_iff] at member
+    exact (e.realizationOrigins r member).1
 
 theorem coverage {functions entry env signatures} (e : Execution functions entry env signatures) :
     (entries required [] 0 e.checked.statements).Perm (recorded e.checked.context) ∧

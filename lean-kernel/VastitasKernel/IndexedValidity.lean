@@ -4,6 +4,8 @@ import VastitasKernel.SpectralDeclarations
 import VastitasKernel.NatureModel
 import VastitasKernel.NatureErrorbar
 import VastitasKernel.GluingValidity
+import VastitasKernel.FiniteMonads
+import VastitasKernel.KleisliViews
 
 /-! The validity of indexed declaration entries (`Entry.Valid`, `validEntry`)
 and of the whole declaration environment (`Environment.Valid`,
@@ -70,6 +72,16 @@ def validMetricEvidence (env : Environment) (metric : DeclId) (evidence : Metric
 def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Prop :=
   match entry.declaration with
   | .marker => True
+  | .finiteCarrier tags => FiniteTables.validCarrier tags = true
+  | .finiteTable inputs output rows => FiniteTables.validTable env inputs output rows = true
+  | .categorySchema | .functorSchema | .natTransSchema | .monadSchema => True
+  | .kleisliSchema _ base => KleisliViews.validSchema (FiniteCategories.view env) base = true
+  | .finiteKleisli kind schema monad => KleisliViews.valid (FiniteCategories.view env) kind schema monad = true
+  | .finiteMonad schema fields => FiniteMonads.valid (FiniteCategories.view env) schema fields = true
+  | .finiteNatTrans schema fields => FiniteNatTrans.valid (FiniteCategories.view env) schema fields = true
+  | .finiteFunctor schema maps => FiniteFunctors.valid (FiniteCategories.view env) schema maps = true
+  | .composableTable ins out src dst rows => FiniteCategories.compositionValid (FiniteCategories.view env) ins out src dst rows = true
+  | .finiteCategory schema graph => FiniteCategories.valid (FiniteCategories.view env) schema graph = true
   | .implementation marker representation capabilities =>
       isMarker env marker = true ∧ capabilities.Nodup ∧ representation.Valid env marker capabilities
   | .classification parents implementations =>
@@ -135,6 +147,16 @@ def validParents (env : Environment) (ranks : List (DeclId × Nat)) (entry : Ent
 def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Bool :=
   match entry.declaration with
   | .marker => true
+  | .finiteCarrier tags => FiniteTables.validCarrier tags
+  | .finiteTable inputs output rows => FiniteTables.validTable env inputs output rows
+  | .categorySchema | .functorSchema | .natTransSchema | .monadSchema => true
+  | .kleisliSchema _ base => KleisliViews.validSchema (FiniteCategories.view env) base
+  | .finiteKleisli kind schema monad => KleisliViews.valid (FiniteCategories.view env) kind schema monad
+  | .finiteMonad schema fields => FiniteMonads.valid (FiniteCategories.view env) schema fields
+  | .finiteNatTrans schema fields => FiniteNatTrans.valid (FiniteCategories.view env) schema fields
+  | .finiteFunctor schema maps => FiniteFunctors.valid (FiniteCategories.view env) schema maps
+  | .composableTable ins out src dst rows => FiniteCategories.compositionValid (FiniteCategories.view env) ins out src dst rows
+  | .finiteCategory schema graph => FiniteCategories.valid (FiniteCategories.view env) schema graph
   | .implementation marker representation capabilities =>
       isMarker env marker && decide capabilities.Nodup && decide (representation.Valid env marker capabilities)
   | .classification parents implementations =>

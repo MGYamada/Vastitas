@@ -119,7 +119,7 @@ fn owned_packages_enforce_affine_scope_and_actual_nominal_arguments() {
         ),
         (
             "returns (boxed: OwnedMapTo<bu, 3>)",
-            "returns (boxed: Owned<F64, 10> initialized [layout(8, 3, 2, 4, false)])",
+            "returns (boxed: Owned<F64<RR>, 10> initialized [layout(8, 3, 2, 4, false)])",
             "E_NUMERICAL_PACKAGE",
         ),
         (
@@ -148,7 +148,7 @@ fn owned_packages_enforce_affine_scope_and_actual_nominal_arguments() {
     }
     // Opaque storage cannot be erased by a helper contract, including unused bodies.
     let erased = format!(
-        "{}\nresource fn erase(input: Owned<F64, 10>) -> Unit {{ drop(input); value {{ () }} }}",
+        "{}\nresource fn erase(input: Owned<F64<RR>, 10>) -> Unit {{ drop(input); value {{ () }} }}",
         REAL.replace(
             "move updated -> moved;",
             "call erase(updated) -> (); move updated -> moved;"

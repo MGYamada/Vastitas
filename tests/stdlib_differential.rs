@@ -376,7 +376,7 @@ fn a_library_gradient_can_take_neither_the_object_nor_sharp() {
             "{stderr}"
         );
     }
-    // sharp is not a function value, and Fn values carry scalars only.
+    // sharp is not a function value, and this declaration uses an indexed cotangent outside the callable profile.
     for (body, code, message) in [
         (
             "fn probe() -> Int { let s = sharp_skew; 0 }",
@@ -386,17 +386,17 @@ fn a_library_gradient_can_take_neither_the_object_nor_sharp() {
         (
             "fn probe() -> Int { let s = gradient; 0 }",
             "E_TYPE",
-            "Fn values require scalar/Fn signatures; indexed and Pair functions are direct-call only",
+            "Fn values require scalars, finite Hom or Fn in the signature",
         ),
         (
             "fn probe() -> Int { let s = fn(c: Cotangent<Plane>) -> Tangent<Plane> { sharp_skew(c) }; 0 }",
             "E_TYPE",
-            "lambda signatures require scalar/Fn types",
+            "lambda signatures require scalars, finite Hom or Fn",
         ),
         (
             "fn apply_sharp(s: Fn<Cotangent<Plane>, Tangent<Plane>>, c: Cotangent<Plane>) -> Tangent<Plane> { s(c) }",
             "E_PROTOCOL",
-            "Fn signatures contain only scalars and recursive Fn types",
+            "Fn signatures support scalars, finite Hom and recursive Fn types",
         ),
     ] {
         let stderr = rejects(&with(body), code);

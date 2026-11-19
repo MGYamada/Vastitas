@@ -55,7 +55,7 @@ theorem all_accesses_aligned {scalar : Scalar} {capacity : Nat} {layout : Layout
     (accepted : checkLayout scalar capacity layout = true) {row column : Nat}
     (inside : layout.InDomain row column) : layout.address scalar row column % scalar.alignment = 0 := by
   have boundary := all_accesses_at_element_boundary accepted inside
-  cases scalar <;> simp only [Scalar.width, Scalar.alignment] at boundary ⊢ <;> omega
+  cases scalar <;> simp only [Scalar.width, Scalar.alignment, Scalar.components, Scalar.componentBytes] at boundary ⊢ <;> omega
 
 private theorem earlier_column (width leading r1 r2 c1 c2 : Nat)
     (rowBound : r1 < leading) (columnOrder : c1 < c2) :
@@ -132,7 +132,9 @@ theorem native_stride_fits {scalar : Scalar} {capacity : Nat} {layout : Layout}
     (accepted : checkLayout scalar capacity layout = true) :
     layout.leading * scalar.width ≤ byteLimit := by
   have leading := (checked_layout accepted).2.2.2.2.1
-  cases scalar <;> simp [Scalar.width, dimensionLimit, byteLimit] at leading ⊢ <;> omega
+  cases scalar <;>
+    simp [Scalar.width, Scalar.componentBytes, Scalar.components, dimensionLimit, byteLimit] at leading ⊢ <;>
+    omega
 
 theorem native_offset_intermediates {scalar : Scalar} {capacity : Nat} {layout : Layout}
     (accepted : checkLayout scalar capacity layout = true) {row column : Nat}

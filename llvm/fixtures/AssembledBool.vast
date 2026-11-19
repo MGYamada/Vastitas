@@ -1,0 +1,13 @@
+fn choose(b: Bool) -> Bool { false }
+
+contribution winner : choose {
+    fn choose(b: Bool) requires (HasEq) -> Bool { b }
+}
+
+assemble choose {
+    apply winner;
+}
+
+fn main() -> Int {
+    if choose(true) { 42 } else { 7 }
+}

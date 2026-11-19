@@ -13,18 +13,18 @@
  * interleaved complex representation and single-pass memory traffic. Per-column
  * base pointers replace the adapter's full indexed cell calculations. Neither baseline
  * tiles, packs, conjugates, changes loop order, or uses non-temporal stores. */
-static void c_kernel(const double *restrict source, double *restrict target,
+static void c_kernel(const unsigned char *restrict source, unsigned char *restrict target,
                      const Prepared *a, const Prepared *b) {
     for (uint64_t col = 0; col < a->columns; ++col) {
-        const double *s = source + col * a->column_step;
-        double *d = target + col * b->column_step;
-        if (a->components == 1) {
+        const double *s = (const double *)(source + col * a->column_step);
+        double *d = (double *)(target + col * b->column_step);
+        if (a->width == sizeof(double)) {
             for (uint64_t row = 0; row < a->rows; ++row)
-                d[row * b->row_step] = s[row * a->row_step];
+                d[row * (b->row_step / sizeof(double))] = s[row * (a->row_step / sizeof(double))];
         } else {
             for (uint64_t row = 0; row < a->rows; ++row) {
-                d[row * b->row_step] = s[row * a->row_step];
-                d[row * b->row_step + 1] = s[row * a->row_step + 1];
+                d[row * (b->row_step / sizeof(double))] = s[row * (a->row_step / sizeof(double))];
+                d[row * (b->row_step / sizeof(double)) + 1] = s[row * (a->row_step / sizeof(double)) + 1];
             }
         }
     }
@@ -50,8 +50,8 @@ VStorageStatus bench_c_copy(VStorageArena *arena, uint32_t source, VStorageLayou
     }
     if (!counter_fits(arena->stats.written_bytes, b.bytes) || !counter_fits(arena->stats.copied_bytes, b.bytes))
         return VS_OVERFLOW;
-    const double *s = a.buffer->data + a.start / 8;
-    double *d = b.buffer->data + b.start / 8;
+    const unsigned char *s = a.buffer->data + a.start;
+    unsigned char *d = b.buffer->data + b.start;
     c_kernel(s, d, &a, &b);
     arena->stats.written_bytes += b.bytes;
     arena->stats.copied_bytes += b.bytes;
@@ -82,7 +82,7 @@ static int initialize(BenchFixture *f, uint32_t id, uint64_t elements, int sourc
     Prepared p;
     VStorageLayout full = {0, elements, 1, elements ? elements : 1, 0};
     if (prepare(f->arena, id, full, &p) != VS_OK) return 0;
-    *data = p.buffer->data;
+    *data = (double *)p.buffer->data;
     uint64_t words = elements * (f->scalar ? 2 : 1);
     for (uint64_t i = 0; i < words; ++i) {
         uint64_t bits = source ? input_bits(i) : sentinel;
@@ -148,7 +148,7 @@ uint64_t bench_observe(const BenchFixture *f) {
     uint64_t n = f->target_words;
     return n ? bits_at(f->target, 0) ^ bits_at(f->target, n / 2) ^ bits_at(f->target, n - 1) : 0;
 }
-struct BenchPrepared { Prepared a, b; const double *s; double *d; int no_work; };
+struct BenchPrepared { Prepared a, b; const unsigned char *s; unsigned char *d; int no_work; };
 BenchPrepared *bench_prepare(BenchFixture *f) {
     /* Check the actual boundary before exposing an experiment-local kernel.
      * This preliminary copy and its counters are outside all timed intervals. */
@@ -159,8 +159,8 @@ BenchPrepared *bench_prepare(BenchFixture *f) {
         prepare(f->arena, f->self ? 0 : 1, f->output, &p->b) != VS_OK) { free(p); return NULL; }
     p->no_work = !p->a.bytes || f->self;
     if (!p->no_work) {
-        p->s = p->a.buffer->data + p->a.start / 8;
-        p->d = p->b.buffer->data + p->b.start / 8;
+        p->s = p->a.buffer->data + p->a.start;
+        p->d = p->b.buffer->data + p->b.start;
         p->a.start = p->b.start = 0;
     }
     return p;

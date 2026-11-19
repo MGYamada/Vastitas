@@ -316,7 +316,7 @@ def main():
                 shutil.copyfile(path,target)
                 inputs[relative] = tree.sha(path)
     for relative in ('examples/packages/numerical/contraction-tree/src/profiles/mod.vast',
-                     'experiments/native_cleanup.py',
+                     'experiments/native_cleanup.py', 'scripts/kernel_protocol.py', 'lean-kernel/VastitasKernel/Protocol.lean',
                      'lean-kernel/VastitasKernel/StorageCodegen.lean',
                      'lean-kernel/VastitasKernel/ResourceCodegen.lean',
                      'experiments/stock_allocation_capabilities/vendor/mimalloc-stats.h',
@@ -402,7 +402,7 @@ def main():
              for p in sorted(out.rglob('*')) if p.is_file() and not '.lake' in p.relative_to(out).parts
              and not 'openblas_include' in p.relative_to(out).parts
              and p.relative_to(out).as_posix() not in binaries}
-    record = {'schema':4 if heap_binding else 3 if with_packing else 2 if lean_binding else 1,'kind':'source-workspace-costs','head':head,'status':status,
+    record = {'schema':4 if heap_binding else 3 if with_packing else 2 if lean_binding else 1,'wire_epoch':tree.PROTOCOL,'kind':'source-workspace-costs','head':head,'status':status,
               'selection':('debug-streaming-one' if args.one_case else 'streaming') if args.streaming else
                           'debug-one' if args.one_case else 'smoke' if args.smoke else 'full',
               'host':{'platform':platform.platform(),'cc':cc},'environment':env,

@@ -18,10 +18,10 @@ def runtimeExtentInt (value : Int) : IO UInt64 := do
 All products below are bounded before evaluation. The native storage/GEMM
 adapter still independently checks actual handles, capacities and aliases. -/
 @[inline] def runtimeLayoutValid (scalar : UInt8) (elements rows columns leading : UInt64) : Bool :=
-  if scalar > 1 || rows > 2147483647 || columns > 2147483647 ||
+  if scalar > 3 || rows > 2147483647 || columns > 2147483647 ||
       leading > 2147483647 || leading < 1 || leading < rows then false
   else
-    let width : UInt64 := if scalar == 0 then 8 else 16
+    let width : UInt64 := match scalar with | 1 => 16 | 2 => 4 | _ => 8
     if elements > 9223372036854775807 / width then false
     else if rows == 0 || columns == 0 then true
     else (columns - 1) * leading + rows ≤ elements

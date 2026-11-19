@@ -272,7 +272,7 @@ theorem value_rename_forward {env : Declarations} {before after : World} {type :
   | pure type =>
     cases type <;> cases value <;> simp_all [DataType.rename, ValueHasType]
     all_goals rename_i element _ _; cases element <;> simp_all
-  | object type => cases value <;> exact typed
+  | finite _ | object _ => cases value <;> exact typed
   | indexed application =>
     cases value <;> try exact False.elim typed
     exact indexed_rename_forward valid transport typed
@@ -291,7 +291,7 @@ theorem value_rename_backward {env : Declarations} {before after : World} {type 
   | pure type =>
     cases type <;> cases value <;> simp_all [DataType.rename, ValueHasType]
     all_goals rename_i element _ _; cases element <;> simp_all
-  | object type => cases value <;> exact typed
+  | finite _ | object _ => cases value <;> exact typed
   | indexed application =>
     cases value <;> try exact False.elim typed
     exact indexed_rename_backward envValid valid transport typed

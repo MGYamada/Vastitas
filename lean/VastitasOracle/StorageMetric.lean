@@ -86,7 +86,7 @@ theorem pairing_returns_resources {env resources values left right output metric
     checked.after.loans = resources.loans ∧
     (checked.after.allocations.map fun allocation => (allocation.owner, allocation.identity)) =
       (resources.allocations.map fun allocation => (allocation.owner, allocation.identity)) ∧
-    scalarOutputReady checked.after output checked.right.basis.space.scalar = true :=
+    scalarOutputReady checked.after output checked.right.scalar = true :=
   ⟨checked.loansRestored, checked.ownersRestored, checked.initialized⟩
 
 theorem pairing_exact_emission (receipt : Functions.DiagonalPairingReceipt) :

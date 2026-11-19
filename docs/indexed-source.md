@@ -38,6 +38,7 @@ profiles:
 >     | SmoothDeclaration | AffineDeclaration
 >     | FrameProfileDeclaration | DimensionDeclaration | SpectralDeclaration
 >     | PhysicalModelDeclaration | GluingDeclaration
+>     | FiniteCarrierDeclaration | FiniteTableDeclaration | FiniteSchema | FiniteInstance
 > ```
 
 The word after `indexed` is the kind of the declaration:
@@ -45,6 +46,8 @@ The word after `indexed` is the kind of the declaration:
 | Kind | Declares | Syntax |
 | --- | --- | --- |
 | `marker` | A [marker](#markers) | `MarkerDeclaration` |
+| `schema`, `instance` | A [finite category or functor schema, or an instance](#finite-carriers-and-tables) | `FiniteSchema` and `FiniteInstance` |
+| `finite`, `table` | A [finite carrier or a table](#finite-carriers-and-tables) | `FiniteCarrierDeclaration` and `FiniteTableDeclaration` |
 | `implementation` | An [implementation](#implementations) | `DescriptorImplementation` here, `ScalarBaseImplementation` and `LinearImplementation` in [Linear implementations](linalg/maps-and-gemm.md#linear-implementations), `SmoothImplementation` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), and a form of `AffineDeclaration` |
 | `classification` | A [classification](#classifications) | `ClassificationDeclaration` |
 | `global` | A [global object](#global-objects) | `GlobalDeclaration` |
@@ -138,6 +141,167 @@ and the package
 > representation, capability or validity claim from the frontend.
 > [The indexed checker](internals/indexed-checker.md) describes these checks
 > and what is proved about them.
+
+## Finite carriers and tables
+
+> **Syntax**
+>
+> ```text
+> FiniteCarrierDeclaration ->
+>     `indexed` `finite` IDENTIFIER `{` ( IDENTIFIER `;` )* `}`
+> FiniteTableDeclaration ->
+>     `indexed` `table` IDENTIFIER `(` FiniteTableInputs? `)` `->` Path
+>     ( `where` `composable` `(` Path `,` Path `)` )? `{` FiniteTableRow* `}`
+> FiniteSchema -> `indexed` `schema` IDENTIFIER `=`
+>     ( `finite_category` | `finite_functor` | `finite_nat_trans` | `finite_monad`
+>     | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
+> FiniteInstance -> `indexed` `instance` IDENTIFIER `:` Path `=`
+>     ( `finite_graph` `(` Path `,` Path `,` Path `,` Path `,` Path `,` Path `)`
+>     | `finite_functor` `(` Path `,` Path `,` Path `,` Path `)`
+>     | `finite_nat_trans` `(` Path `,` Path `,` Path `)`
+>     | `finite_monad` `(` Path `,` Path `,` Path `,` Path `)`
+>     | ( `finite_kleisli` | `finite_kleisli_triple` ) `(` Path `)` ) `;`
+> FiniteTableInputs -> Path ( `,` Path )* `,`?
+> FiniteTableRow -> `(` FiniteTableTags? `)` `=>` IDENTIFIER `;`
+> FiniteTableTags -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
+> ```
+
+A **finite carrier** declares a set of named members.
+`indexed finite Bit { off; on; }` gives `Bit` two members. Each carrier
+has its own identity, including when two carriers use the same names.
+Member names are local to their carrier. Each occurs once.
+
+A finite carrier supplies a value type with an empty index list, such as
+`Bit<>`. A value expression `Bit::on` names the member `on` of that
+carrier. An ordinary function may accept and return the type. For example,
+`fn flip(x: Bit<>) -> Bit<> { if x == Bit::on { Bit::off } else { Bit::on } }`
+uses the two members declared above. Equality and inequality require values
+of the same carrier. A tag of another carrier or an integer in its place is
+an error (`E_TYPE`); arithmetic on tags is an error (`E_OPERATOR`).
+A carrier tag carries no evidence of membership in a particular Hom fiber.
+
+A **finite table** declares one output member for each tuple of input
+members. For example, `indexed table flip(Bit) -> Bit { (on) => off;
+(off) => on; }` gives both rows of a function from `Bit` to `Bit`.
+The input and output paths must name visible finite carriers. The order
+of the input paths gives the carrier of each column. The checker requires
+each tuple exactly once and checks each output against its carrier.
+
+The call `finite::lookup::<flip>(b)` returns the member named by the
+row for `b`. Each argument must have the carrier type declared for
+its column. A call to a nullary table uses `()`.
+
+A carrier may be empty. A table with an empty input carrier has no rows.
+A table with zero inputs has exactly one row, with key `()`.
+The limits are 4,096 members per carrier, six inputs per table and
+4,096 possible keys per table.
+
+For composition, `where composable(s, t)` restricts the two columns to
+pairs `(g, f)` for which `s(g) = t(f)`. A table must give exactly the rows
+of its domain. `indexed schema Small = finite_category;` declares a schema.
+An instance names that schema and gives six paths to `finite_graph`, in order:
+objects, arrows, source, target, identities and composition. The checker
+resolves these paths before checking endpoints, identity laws and associativity.
+For an arrow count `n` and a composable pair count `p`, the checker requires
+`n*n` and `p*n` to fit the work limit of 1,000,000. The name `Small` has no special meaning. The [S3 example](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/finite-category)
+uses the six permutations as arrows on one object.
+
+`Hom<C, Obj::lo, Obj::hi>` is the value type of arrows from `lo` to
+`hi` in the named instance `C`. Both endpoints must name members of the
+selected object carrier. When the carrier is private, refer to its members
+through the visible instance, for example `C::objects::lo`. A fiber can
+be empty.
+
+An expression such as `C::up` constructs an arrow value. The checker
+reads the source and target of `up` from the selected graph. An ordinary
+function can accept, return or compare values of this type. Passing an
+integer, a member of the underlying arrow carrier, or an arrow of another
+instance produces `E_TYPE`. This also applies when two instances share
+all six graph fields.
+
+`finite::lookup::<C::composition>(g, f)` composes `g` after `f`.
+For `f` from `x` to `y` and `g` from `y` to `z` the result belongs
+to the fiber from `x` to `z` of the same instance. The `source`,
+`target` and `identities` projections select ordinary total tables
+with their declared carrier types.
+
+In a finite table signature, a composability condition, or the six fields of
+`finite_graph`, the path `C::composition` names the composition table of the
+visible instance `C`. Its other fields are `objects`, `arrows`, `source`,
+`target`, and `identities`. For example, a declaration can use
+`indexed table label(C::objects) -> Bit` even when the defining package
+exports the instance but keeps its object carrier private. The checker selects
+`C` in the caller's module and each field in its declaring module. A field
+does not grant edit authority. Forward references and reexports preserve the
+selection. Projection cycles are an error (`E_CYCLE`); an unknown field of
+a category instance is an error (`E_CATEGORY`).
+
+A **finite functor** maps the objects and arrows of one named category to
+those of another. For example, given two checked categories `C` and `D`
+and two total unary tables `onObj` and `onArr`, these declarations name
+their functor.
+
+```vast
+indexed schema Map = finite_functor;
+indexed instance F : Map = finite_functor(C, D, onObj, onArr);
+```
+
+The input and output carriers of `onObj` must be the object carriers of
+`C` and `D` in that order. The corresponding arrow carriers determine
+the signature of `onArr`. For each arrow the checker compares both mapped
+endpoints. It also checks the image of each identity and the equation
+`F(g ∘ f) = F(g) ∘ F(f)` for every composable pair. An endofunctor may
+use the same category for both fields and map an object to a different object.
+
+Inside an ordinary function, `finite::lookup::<F::objects>(x)` reads the
+object map and `finite::lookup::<F::arrows>(a)` reads the arrow map. These
+lookups use the nominal carrier types declared by the selected tables.
+
+A natural transformation `E` from `F` to `G` uses two functors on the
+same named source and target categories. Its component table maps each
+source object `x` to a target arrow from `F(x)` to `G(x)`.
+For every arrow `f` from `x` to `y`, the checker tests the equation
+`E(y) ∘ F(f) = G(f) ∘ E(x)` in the target category. For example, the
+unit of the closure that sends both objects of the chain `lo < hi` to
+`hi` has two components. Its component at `lo` is the arrow to `hi`,
+and its component at `hi` is the identity. An ordinary function reads a
+component with `finite::lookup::<E::components>(x)`.
+
+A finite monad selects four declarations in order. They are a category
+`C`, an endofunctor `T` on `C`, a unit `E` from the identity to `T`,
+and a multiplication `M` from the twice-applied `T` to `T`. The checker
+compares the source functors of the two transformations with the required
+actions on every object and arrow. For each object it checks both unit laws
+and associativity in `C`. Two structures on the same `T` may select
+different transformations. For a named monad `K`, the projections
+`K::unit` and `K::multiplication` select their component tables.
+The schema lives at `std::category::Monad`. The separate, optional `monad`
+package provides ordinary functions in `monad::kleisli` that take the selected Monad and its
+object indices. Given arrows `p : S → T(X)` and `f : X → T(Y)`, `bind(p,f)`
+returns `μ(Y) ∘ T(f) ∘ p`. The argument order of `compose(g,f)` matches
+category composition. The function `lift(f)` composes the ordinary arrow
+with the unit at its target. In the chain example, the unit at `lo` is the
+arrow `up`. Binding it to another `up` yields `up` again. The example also
+compiles with the [LLVM preview](guide/cli.md#llvm-preview). Its checked
+revision identifies the selected Monad and static objects for each call.
+[Public Kleisli example](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/finite-kleisli)
+
+The same package exports two schemas derived from `std::category::Monad`.
+For a named instance `M`, declare the views as follows.
+
+```vast
+indexed instance K : monad::kleisli::Kleisli = finite_kleisli(M);
+indexed instance Triple : monad::kleisli::KleisliTriple = finite_kleisli_triple(M);
+```
+
+An arrow of type `Hom<K, X, Y>` belongs to the base fiber `Hom<C, X, T(Y)>`.
+For example, on the chain the arrow `up` belongs to `Hom<K, lo, lo>`
+because `T(lo) = hi`. The triple supplies an explicit Monad index for
+`monad::kleisli::extend::<Triple, X, Y>(f)`, which returns
+`μ(Y) ∘ T(f) : Hom<C, T(X), T(Y)>`. Either view may supply the named
+Monad argument to these operations. Only the category view may occur as
+the category of a Kleisli Hom. The checker requires the underlying instance
+to belong to the exact Monad schema selected by the defining view schema.
 
 ## Markers
 

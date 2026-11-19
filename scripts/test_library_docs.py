@@ -29,7 +29,7 @@ class LibraryDocsTests(unittest.TestCase):
 
         The root module lies outside src/, at the root that the manifest names.
         """
-        self.write("nature/Vastitas.toml", '[package]\nname = "n"\nversion = "0.1.0"\nroot = "lib.vast"\n')
+        self.write("nature/Vastitas.toml", '[package]\nedition = \'2026\'\nname = "n"\nversion = "0.1.0"\nroot = "lib.vast"\n')
         self.write("nature/lib.vast", "// The root.\npub use dimension_library as dimension;\n")
         self.write("nature/src/dimension/mod.vast",
                    "// pub indexed base_dimension Hidden; is a comment.\n"
@@ -93,7 +93,7 @@ class LibraryDocsTests(unittest.TestCase):
         for name, _ in generator.ARITHMETIC:
             self.write(f"stdlib/src/arithmetic/{name}.vast", f"fn {name}_one() -> Int {{ 1 }}\n")
         self.write("stdlib/src/arithmetic/generic.vast",
-                   "generic twice(value) {\n    domain (Int);\n}\nmethod twice(value: Int) -> Int { value }\n")
+                   "fn twice(value) domain((Int));\nfn twice(value: Int) -> Int { value }\n")
         self.write("stdlib/src/geometry/mod.vast", "pub indexed marker QQ;\n")
         self.write("stdlib/src/differential/mod.vast", "")
         self.write("stdlib/docs/README.md", TABLE + "".join(

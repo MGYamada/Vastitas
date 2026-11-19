@@ -13,15 +13,22 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+mod llvm;
+#[cfg(feature = "llvm-native")]
+mod llvm_backend;
+mod revision;
+
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 const USAGE: &str = concat!(
     "vastitas ",
     env!("CARGO_PKG_VERSION"),
-    "\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX] [--native-cc COMPILER]\n  vastitas audit-lean LEAN4EXPORT.ndjson\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nNumerical builds require pinned sequential LP64 OpenBLAS 0.3.34 via --openblas-prefix.\n--native-cc explicitly selects the compiler/linker for numerical builds (for example cc on Linux).\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n"
+    "\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX] [--native-cc COMPILER]\n  vastitas audit-lean LEAN4EXPORT.ndjson\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nNumerical builds require pinned sequential LP64 OpenBLAS 0.3.34 via --openblas-prefix.\n--native-cc explicitly selects the compiler/linker for numerical builds (for example cc on Linux).\ncheck --print-function-revision prints checked JSON; check/build --expect-function-revision FILE rechecks it.\ncheck --llvm-preview --target-triple TRIPLE --data-layout LAYOUT writes the modeled LLVM bytes.\nbuild --llvm-preview -o OUTPUT uses the native target and requires the llvm-native feature.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n"
 );
 
 struct Options {
     mode: &'static str,
+    llvm_target: Option<llvm::Target>,
+    expected_revision: Option<PathBuf>,
     input: Option<PathBuf>,
     manifest: Option<PathBuf>,
     libraries: Vec<PathBuf>,
@@ -37,6 +44,11 @@ fn options(args: &[OsString]) -> Result<Options, String> {
         Some("build") => "emit",
         _ => return Err(usage()),
     };
+    let mut expected_revision = None;
+    let mut print_revision = false;
+    let mut llvm_preview = false;
+    let mut triple = None;
+    let mut layout = None;
     let mut input = None;
     let mut output = None;
     let mut libraries = Vec::new();
@@ -45,7 +57,41 @@ fn options(args: &[OsString]) -> Result<Options, String> {
     let mut native_cc = None;
     let mut remaining = args.iter().skip(1);
     while let Some(arg) = remaining.next() {
-        if arg == "--manifest-path" {
+        if arg == "--print-function-revision" {
+            if mode != "check" || print_revision {
+                return Err(usage());
+            }
+            print_revision = true;
+        } else if arg == "--llvm-preview" {
+            if llvm_preview {
+                return Err(usage());
+            }
+            llvm_preview = true;
+        } else if arg == "--target-triple" || arg == "--data-layout" {
+            let slot = if arg == "--target-triple" {
+                &mut triple
+            } else {
+                &mut layout
+            };
+            let value = remaining
+                .next()
+                .and_then(|v| v.to_str())
+                .ok_or_else(usage)?;
+            if value.is_empty()
+                || value.starts_with('-')
+                || slot.replace(value.to_owned()).is_some()
+            {
+                return Err(usage());
+            }
+        } else if arg == "--expect-function-revision" {
+            let path = remaining.next().ok_or_else(usage)?;
+            if path.is_empty()
+                || path.to_string_lossy().starts_with('-')
+                || expected_revision.replace(PathBuf::from(path)).is_some()
+            {
+                return Err(usage());
+            }
+        } else if arg == "--manifest-path" {
             if manifest.is_some() {
                 return Err(usage());
             }
@@ -96,8 +142,31 @@ fn options(args: &[OsString]) -> Result<Options, String> {
     if manifest.is_some() == input.is_some() || (manifest.is_some() && !libraries.is_empty()) {
         return Err(usage());
     }
+    if print_revision && expected_revision.is_some() {
+        return Err(usage());
+    }
+    let llvm_target = match (llvm_preview, mode, triple, layout) {
+        (true, "check", Some(triple), Some(layout)) if !print_revision => {
+            Some(llvm::Target { triple, layout })
+        }
+        (true, "emit", None, None) if openblas.is_none() => None,
+        (false, _, None, None) => None,
+        _ => return Err(usage()),
+    };
     Ok(Options {
-        mode,
+        llvm_target,
+        mode: if llvm_preview {
+            if mode == "emit" {
+                "llvm-build"
+            } else {
+                "llvm-check"
+            }
+        } else if print_revision {
+            "function-revision"
+        } else {
+            mode
+        },
+        expected_revision,
         input,
         manifest,
         libraries,
@@ -131,6 +200,8 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     }
     let Options {
         mode,
+        llvm_target,
+        expected_revision,
         input,
         manifest,
         libraries,
@@ -143,7 +214,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         probe_output_directory(output)?;
     }
     let display_input = manifest.as_ref().or(input.as_ref()).unwrap().clone();
-    let (sources, request, shape) = if let Some(manifest) = manifest {
+    let (mut sources, mut request, shape) = if let Some(manifest) = manifest {
         let (sources, module) = crate::packages::load(&manifest, output.as_deref())?;
         let request = kernel_request(&module, &sources, "packages")?;
         let observed = module.observes();
@@ -167,7 +238,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .any(|function| !function.observations.is_empty());
         // Every flat unit is sent as one package with the legacy geometry,
         // with or without `--lib` and `show!` (#533).
-        let program = crate::packages::flat_request(module);
+        let program = crate::packages::flat_request(module, sources.root_source_at(0));
         let request = kernel_request(&program, &sources, "module")?;
         (
             sources,
@@ -178,15 +249,21 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             },
         )
     };
+    if let Some(path) = &expected_revision {
+        revision::attach(&mut request, path, &mut sources)?;
+        if let Some(path) = &output {
+            sources.protect_output(path)?;
+        }
+    }
     let configured_executable = std::env::var_os("VASTITAS_KERNEL").map(PathBuf::from);
     let default_executable = configured_executable.is_none();
-    let root = if output.is_some() || default_executable {
+    let root = if mode == "emit" || default_executable {
         Some(kernel_root()?)
     } else {
         None
     };
-    if output.is_some() {
-        // Native builds embed the root in a generated Lake manifest.
+    if mode == "emit" {
+        // Lean-native builds embed the root in a generated Lake manifest.
         manifest_text(
             root.as_ref().expect("native build requires kernel root"),
             "kernel root",
@@ -203,14 +280,41 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .expect("default executable requires kernel root");
         return Err(missing_kernel(root, &executable));
     }
-    let response = invoke_kernel(
+    let llvm_target = if mode == "llvm-build" {
+        Some(llvm::host_target()?)
+    } else {
+        llvm_target
+    };
+    let (response, printed_revision) = invoke_kernel(
         &executable,
         mode,
+        llvm_target.as_ref(),
         &request,
         &sources,
         root.as_deref(),
         shape,
     )?;
+    if mode == "function-revision" {
+        return revision::print(printed_revision.as_deref());
+    }
+    if expected_revision.is_some()
+        && response.get("function_revision_matched") != Some(&Value::Bool(true))
+    {
+        return Err("E_PROTOCOL: kernel did not confirm the expected function revision".into());
+    }
+    if let Some(target) = llvm_target {
+        let artifact = llvm::checked_bytes(&response, &target, output.is_some())?;
+        if let Some(output) = output {
+            llvm::build(&artifact, &output, &sources, native_cc.as_deref())?;
+            println!("built {}", shown(&output));
+        } else {
+            std::io::stdout()
+                .lock()
+                .write_all(artifact.bytes)
+                .map_err(|e| format!("E_OUTPUT: cannot write LLVM bytes: {e}"))?;
+        }
+        return Ok(());
+    }
     if let Some(output) = output {
         let lean_source = response
             .get("lean_source")
@@ -437,11 +541,12 @@ const LEGACY_GEOMETRY_WITH_SHOW: &str = "help: a package that uses `show!` has t
 fn invoke_kernel(
     executable: &Path,
     mode: &str,
+    target: Option<&llvm::Target>,
     request: &[u8],
     sources: &Sources,
     root: Option<&Path>,
     shape: Request,
-) -> Result<Value, String> {
+) -> Result<(Value, Option<String>), String> {
     // A flat unit sent as a package names its declarations as the kernel's
     // own adaptation of a flat unit shows them: without the package (#836).
     let shown_message = |message: &str| {
@@ -453,10 +558,18 @@ fn invoke_kernel(
     };
     let mut command = Command::new(executable);
     command.arg(mode);
+    if let Some(target) = target {
+        command.args([&target.triple, &target.layout]);
+    }
     let retention = crate::process::Retention::Complete(MAX_BACKEND_RESPONSE);
     let output = crate::process::capture(command, Some(request), retention)
         .map_err(|error| subprocess_error(error, "E_BACKEND", &shown(executable), true))?;
-    let response: Value = serde_json::from_slice(&output.stdout).map_err(|error| {
+    let (response, printed_revision) = if mode == "function-revision" {
+        revision::decode_print_response(&output.stdout)
+    } else {
+        serde_json::from_slice(&output.stdout).map(|v| (v, None))
+    }
+    .map_err(|error| {
         format!(
             "E_PROTOCOL: invalid backend response: {error}\n{}",
             String::from_utf8_lossy(&output.stderr)
@@ -543,7 +656,7 @@ fn invoke_kernel(
             rebuild_advice(root)
         ));
     }
-    Ok(response)
+    Ok((response, printed_revision))
 }
 
 fn response_span(item: &Value) -> Span {
@@ -809,6 +922,30 @@ fn check_lean_version(directory: &Path, toolchain: &str) -> Result<(), String> {
     ))
 }
 
+fn pinned_lean_prefix(directory: &Path) -> Result<PathBuf, String> {
+    let mut command = Command::new("lean");
+    command
+        .current_dir(directory)
+        .env_remove("LEAN_SYSROOT")
+        .arg("--print-prefix");
+    let result = crate::process::capture(
+        command,
+        None,
+        crate::process::Retention::Complete(64 * 1024),
+    )
+    .map_err(|error| subprocess_error(error, "E_BUILD", "Lean prefix query", false))?;
+    if !result.status.success() {
+        return Err("E_BUILD: cannot query the pinned Lean installation".into());
+    }
+    let path = std::str::from_utf8(&result.stdout)
+        .map_err(|_| "E_BUILD: invalid Lean installation path".to_owned())?
+        .trim();
+    if !Path::new(path).is_absolute() {
+        return Err("E_BUILD: expected an absolute Lean installation path".into());
+    }
+    Ok(PathBuf::from(path))
+}
+
 /// Generated programs import only the runtime modules of the selected
 /// packages, so `verify_runtime_inputs` covers every module that Lake compiles
 /// for them. A response that imports any other module is refused. The name of
@@ -1023,21 +1160,7 @@ fn build_native(
         let package_options = if native_cc.is_some() {
             // Select host libc while retaining the pinned Lean C++ support
             // libraries. Do not add Lean's portable lib/glibc to this path.
-            let mut command = Command::new("lean");
-            command.current_dir(kernel_root).arg("--print-prefix");
-            let retention = crate::process::Retention::Complete(64 * 1024);
-            let result = crate::process::capture(command, None, retention)
-                .map_err(|error| subprocess_error(error, "E_BUILD", "Lean prefix query", false))?;
-            if !result.status.success() {
-                return Err("E_BUILD: cannot query the pinned Lean installation".into());
-            }
-            let lean_prefix = std::str::from_utf8(&result.stdout)
-                .map_err(|_| "E_BUILD: invalid Lean installation path".to_string())?
-                .trim();
-            if lean_prefix.is_empty() {
-                return Err("E_BUILD: empty Lean installation path".into());
-            }
-            let library = Path::new(lean_prefix).join("lib");
+            let library = pinned_lean_prefix(kernel_root)?.join("lib");
             let library_path = lean_string(manifest_text(&library, "Lean library")?);
             format!(" where\n  moreLinkArgs := #[\"-L\", {library_path}]")
         } else {

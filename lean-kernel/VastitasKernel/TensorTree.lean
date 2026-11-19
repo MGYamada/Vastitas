@@ -35,7 +35,7 @@ def Graph.mapM [Monad m] (f : α → m β) (graph : Graph α) : m (Graph β) := 
 def Graph.Bounded (graph : Graph Name) : Prop :=
   2 ≤ graph.occurrences.length ∧ graph.occurrences.length ≤ 64 ∧
   graph.edges.length + 1 = graph.occurrences.length ∧
-  (graph.boundary.length = 2 ∨ graph.boundary.length = 3)
+  (graph.boundary.length = 1 ∨ graph.boundary.length = 2 ∨ graph.boundary.length = 3)
 instance (graph : Graph Name) : Decidable graph.Bounded :=
   inferInstanceAs (Decidable (_ ∧ _ ∧ _ ∧ _))
 
@@ -181,7 +181,7 @@ structure CheckedStart (environment : Indexed.Environment) (numerical : Numerica
 def start (environment : Indexed.Environment) (numerical : Numerical.Values)
     (resources : State) (values : Tensor.Values) (graph : Graph) :
     Except Error (CheckedStart environment numerical resources values graph) := do
-  unless graph.Bounded do reject "tree requires two to sixty-four occurrences, n-1 edges and a rank-two/three boundary"
+  unless graph.Bounded do reject "tree requires two to sixty-four occurrences, n-1 edges and a boundary of rank one to three"
   if valuesValid : Tensor.Valid environment numerical values then
     if resourcesValid : auditState resources then
       if graphValid : graph.WellFormed values then

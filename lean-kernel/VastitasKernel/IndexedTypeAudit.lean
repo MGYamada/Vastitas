@@ -126,6 +126,7 @@ mutual
       (index : ContextIndex ctx) (known : Option (PLift (PrimitivesValid env))) (term : Term) :
       Decidable (HasType env functions ctx term) := by
     cases term with
+    | finiteLookup | finiteTag => unfold HasType; infer_instance
     | natural | integer | boolean | unit => unfold HasType; infer_instance
     | «variable» symbol result =>
       unfold HasType
@@ -272,7 +273,7 @@ def resultSerials (result : Result) : List Nat := result.reference.toList.filter
 /-- Audit all actual allocation nodes, even unused branches. Canonical globals
 and aliases do not allocate. Numeric freshness is independent of claimed types. -/
 def allocatedSerials (env : Declarations) : Term → List Nat
-  | .natural _ | .integer _ | .boolean _ | .unit | .variable .. => []
+  | .finiteLookup .. | .finiteTag .. | .natural _ | .integer _ | .boolean _ | .unit | .variable .. => []
   | .primitive id arguments result => arguments.flatMap (allocatedSerials env) ++
       (match env.primitive? id with
         | some binding => if binding.allocates then resultSerials result else []

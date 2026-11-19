@@ -1,9 +1,7 @@
-generic double(x) {
-    domain (Nat), (Int);
-}
+fn double(x) domain((Nat), (Int));
 
-method double(x: Nat) -> Nat { x + x }
-method double(x: Int) -> Int { x + x }
+fn double(x: Nat) -> Nat { x + x }
+fn double(x: Int) -> Int { x + x }
 
 fn main() -> Int {
     let n: Nat = 10;

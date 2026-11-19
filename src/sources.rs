@@ -8,8 +8,10 @@ use crate::ir::{Module, Span};
 use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
 use std::io::Read;
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 /// Text as the compiler shows it on the terminal. A manifest, a file name and
 /// the names a manifest gives reach diagnostics, and a TOML escape or a file
@@ -42,13 +44,38 @@ struct SourceFile {
     canonical: PathBuf,
     identity: (u64, u64),
     name: String,
-    text: String,
+    text: Rc<String>,
     offset: usize,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub(crate) struct RootSource {
+    offset: usize,
+    text: Rc<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    files: Vec<PhysicalFile>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+enum InputPath {
+    Utf8(String),
+    UnixBytes(Vec<u8>),
+}
+
+#[derive(Debug, serde::Serialize)]
+struct PhysicalFile {
+    path: InputPath,
+    offset: usize,
+    // The entry text already appears in RootSource at this offset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<Rc<String>>,
 }
 
 pub(crate) struct Sources {
     files: Vec<SourceFile>,
     bytes: usize,
+    receipt: Option<(PathBuf, (u64, u64))>,
 }
 
 // Host input budgets apply before parsing or serializing the public request.
@@ -100,6 +127,7 @@ impl Sources {
         Self {
             files: Vec::new(),
             bytes: 0,
+            receipt: None,
         }
     }
 
@@ -197,7 +225,7 @@ impl Sources {
             canonical,
             identity: (metadata.dev(), metadata.ino()),
             name: path.to_string_lossy().into_owned(),
-            text,
+            text: Rc::new(text),
             offset,
         });
         Ok(())
@@ -227,8 +255,20 @@ impl Sources {
         Ok(sources)
     }
 
+    pub(crate) fn protect_receipt(&mut self, canonical: PathBuf, metadata: &fs::Metadata) {
+        self.receipt = Some((canonical, (metadata.dev(), metadata.ino())));
+    }
+
     pub(crate) fn protect_output(&self, output: &Path) -> Result<(), String> {
         if let Some(identity) = OutputIdentity::inspect(output)? {
+            if let Some((path, inode)) = &self.receipt
+                && (*path == identity.canonical || *inode == identity.identity)
+            {
+                return Err(format!(
+                    "E_OUTPUT: output would overwrite function revision {}",
+                    shown(path)
+                ));
+            }
             for source in &self.files {
                 identity.protect(source)?;
             }
@@ -274,6 +314,34 @@ impl Sources {
             .iter()
             .rposition(|file| file.offset <= offset)
             .unwrap_or(0)
+    }
+
+    /// The lexer's original UTF-8 file and its position in this compilation.
+    /// Read from the retained input so a later file change cannot affect assembly.
+    pub(crate) fn root_source_at(&self, offset: usize) -> RootSource {
+        let file = &self.files[self.file_index(offset)];
+        // A single UTF-8 entry is already identified by the request's file
+        // field. Multi-file requests bind even manifests and unused libraries.
+        let files = if self.files.len() == 1 && file.path.to_str().is_some() {
+            Vec::new()
+        } else {
+            self.files
+                .iter()
+                .map(|input| PhysicalFile {
+                    path: match input.path.to_str() {
+                        Some(path) => InputPath::Utf8(path.to_owned()),
+                        None => InputPath::UnixBytes(input.path.as_os_str().as_bytes().to_vec()),
+                    },
+                    offset: input.offset,
+                    text: (input.offset != file.offset).then(|| Rc::clone(&input.text)),
+                })
+                .collect()
+        };
+        RootSource {
+            offset: file.offset,
+            text: Rc::clone(&file.text),
+            files,
+        }
     }
 
     /// One diagnostic line. The message of a kernel diagnostic can name a

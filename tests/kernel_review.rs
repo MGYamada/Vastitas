@@ -13,7 +13,7 @@ fn package(source: &str) -> Scratch {
     let scratch = Scratch::empty("kernel review");
     scratch.write(
         "Vastitas.toml",
-        "[package]\nname = \"review\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"review\"\nversion = \"0.1.0\"\nroot = \"src/main.vast\"\n",
     );
     scratch.write("src/main.vast", source);
     scratch
@@ -80,7 +80,7 @@ fn assert_protocol(response: &Value, fragment: &str) {
 #[test]
 fn function_exit_escape_names_each_leaked_owner_and_loan() {
     // #534: the primary span stays at the value block; notes name the owners.
-    let one = "resource fn main() -> Int {\n    allocate data: F64[1];\n    value { 0 }\n}";
+    let one = "resource fn main() -> Int {\n    allocate data: F64<RR>[1];\n    value { 0 }\n}";
     let message = rejection(&package(one), "E_RESOURCE_ESCAPE");
     assert_primary(&message, one, "{ 0 }", "E_RESOURCE_ESCAPE");
     assert_note(
@@ -90,7 +90,7 @@ fn function_exit_escape_names_each_leaked_owner_and_loan() {
         "leaked owner is `data`, introduced here",
     );
 
-    let two = "resource fn main() -> Int {\n    allocate data: F64[1];\n    allocate other: F64[2];\n    allocate kept: F64[1];\n    drop(kept);\n    value { 0 }\n}";
+    let two = "resource fn main() -> Int {\n    allocate data: F64<RR>[1];\n    allocate other: F64<RR>[2];\n    allocate kept: F64<RR>[1];\n    drop(kept);\n    value { 0 }\n}";
     let message = rejection(&package(two), "E_RESOURCE_ESCAPE");
     for name in ["data", "other"] {
         assert_note(
@@ -102,7 +102,7 @@ fn function_exit_escape_names_each_leaked_owner_and_loan() {
     }
     assert!(!message.contains("`kept`"), "{message}");
 
-    let loan = "resource fn main() -> Int {\n    allocate data: F64[4];\n    borrow w = write(data, layout(0, 2, 2, 2, false));\n    value { 0 }\n}";
+    let loan = "resource fn main() -> Int {\n    allocate data: F64<RR>[4];\n    borrow w = write(data, layout(0, 2, 2, 2, false));\n    value { 0 }\n}";
     let message = rejection(&package(loan), "E_RESOURCE_ESCAPE");
     assert_note(
         &message,
@@ -112,7 +112,7 @@ fn function_exit_escape_names_each_leaked_owner_and_loan() {
     );
 
     // A leaked callee owner is named in the callee.
-    let nested = "resource fn helper() -> Unit {\n    allocate hidden: F64[1];\n    value { () }\n}\nresource fn main() -> Int {\n    call helper() -> ();\n    value { 0 }\n}";
+    let nested = "resource fn helper() -> Unit {\n    allocate hidden: F64<RR>[1];\n    value { () }\n}\nresource fn main() -> Int {\n    call helper() -> ();\n    value { 0 }\n}";
     let message = rejection(&package(nested), "E_RESOURCE_ESCAPE");
     assert_note(
         &message,
@@ -156,7 +156,7 @@ fn layout_rejection_names_the_failing_condition() {
         ),
     ] {
         let source = format!(
-            "resource fn main() -> Int {{\n    allocate data: F64[4];\n    borrow w = write(data, layout({layout}));\n    release(w);\n    drop(data);\n    value {{ 0 }}\n}}"
+            "resource fn main() -> Int {{\n    allocate data: F64<RR>[4];\n    borrow w = write(data, layout({layout}));\n    release(w);\n    drop(data);\n    value {{ 0 }}\n}}"
         );
         let message = rejection(&package(&source), "E_RESOURCE_LAYOUT");
         assert_primary(&message, &source, "borrow w", "E_RESOURCE_LAYOUT");
@@ -247,20 +247,20 @@ fn gram_entries_and_literals_require_plain_decimal_digits() {
 }
 
 const BASE: &str = r#"
-pub generic choose(x, y) { domain (Int, Int), (Bool, Bool); }
-method choose(x: Any, y: Any) -> Int { 0 }
-pub fn helper(x: Int) -> Int { x }
+pub fn choose(x, y) domain((Int, Int), (Bool, Bool));
+fn choose(x: Any, y: Any) -> Int { 0 }
+pub abstract type Witness;
 pub grant outer : choose to addon delegable { domain (Int, Int); }
 pub transfer handoff : choose to addon;
 "#;
 const ADDON: &str = r#"
 pub delegation inner : base::choose to addon::ops { domain (Int, Int); }
-pub contribution fresh : base::choose { method base::choose(x: Bool, y: Bool) -> Int { 2 } }
+pub contribution fresh : base::choose { fn base::choose(x: Bool, y: Bool) -> Int { 2 } }
 pub mod ops {
-  pub contribution sum : base::choose { method base::choose(x: Int, y: Int) -> Int { x + y } }
+  pub contribution sum : base::choose { fn base::choose(x: Int, y: Int) -> Int { x + y } }
 }
 "#;
-const EVENTS: &str = "borrow base::outer as parent; reborrow parent via addon::inner as child; apply addon::ops::sum using child; return child; return parent; transfer base::handoff; apply addon::fresh; seal base::choose;";
+const EVENTS: &str = "borrow base::outer as parent { delegate addon::inner as child { apply addon::ops::sum; } } transfer base::handoff; apply addon::fresh;";
 
 fn authority(base: &str, addon: &str, events: &str) -> Scratch {
     let s = Scratch::empty("kernel review authority");
@@ -270,7 +270,7 @@ fn authority(base: &str, addon: &str, events: &str) -> Scratch {
         (
             "app",
             format!(
-                "assembly {{ {events} }} fn main() -> Int {{ base::choose(40, 2) + base::choose(true, true) }}"
+                "assemble base::choose {{ {events} }} fn main() -> Int {{ base::choose(40, 2) + base::choose(true, true) }}"
             ),
             "base={path='../base'}\naddon={path='../addon'}",
         ),
@@ -278,7 +278,7 @@ fn authority(base: &str, addon: &str, events: &str) -> Scratch {
         s.write(
             &format!("{name}/Vastitas.toml"),
             &format!(
-                "[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}\n"
+                "[package]\nedition = \"2026\"\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}\n"
             ),
         );
         s.write(&format!("{name}/main.vast"), &source);
@@ -363,15 +363,15 @@ fn edit_paths_resolve_component_wise() {
 }
 
 #[test]
-fn grants_and_delegations_require_a_generic_target() {
+fn grants_and_delegations_require_a_function_family_target() {
     // #563.1: an explicit kind check, not a failed generic lookup. Grants and
     // delegations share `lowerGrant`.
     let stray_grant = BASE.replace(
         "pub grant outer : choose to addon",
-        "pub grant stray : helper to addon delegable { domain (Int, Int); }\npub grant outer : choose to addon",
+        "pub grant stray : Witness to addon delegable { domain (Int, Int); }\npub grant outer : choose to addon",
     );
     let stray_delegation = format!(
-        "{ADDON}\npub delegation stray : base::helper to addon::ops {{ domain (Int, Int); }}\n"
+        "{ADDON}\npub delegation stray : base::Witness to addon::ops {{ domain (Int, Int); }}\n"
     );
     for (base, addon) in [
         (stray_grant.as_str(), ADDON),
@@ -499,19 +499,16 @@ fn reborrow_chain(depth: usize) -> Scratch {
             "  pub delegation d{index} : super::choose to review::{to} delegable {{ domain (Int); }}\n"
         ));
     }
-    let mut events = String::from("  borrow g0 as l0;\n");
+    let mut events = String::from("  borrow g0 as l0 {\n");
     for index in 1..=depth {
         let module = if index % 2 == 1 { "a" } else { "b" };
-        events.push_str(&format!(
-            "  reborrow l{} via {module}::d{index} as l{index};\n",
-            index - 1
-        ));
+        events.push_str(&format!("  delegate {module}::d{index} as l{index} {{\n"));
     }
-    for index in (0..=depth).rev() {
-        events.push_str(&format!("  return l{index};\n"));
+    for _ in 0..=depth {
+        events.push_str("  }\n");
     }
     package(&format!(
-        "pub generic choose(x) {{ domain (Int); }}\nmethod choose(x: Any) -> Int {{ 0 }}\npub grant g0 : choose to review::a delegable {{ domain (Int); }}\npub mod a {{\n{a}}}\npub mod b {{\n{b}}}\nassembly {{\n{events}  seal choose;\n}}\nfn main() -> Int {{ choose(1) }}\n"
+        "pub fn choose(x) domain((Int));\nfn choose(x: Any) -> Int {{ 0 }}\npub grant g0 : choose to review::a delegable {{ domain (Int); }}\npub mod a {{\n{a}}}\npub mod b {{\n{b}}}\nassemble choose {{\n{events}}}\nfn main() -> Int {{ choose(1) }}\n"
     ))
 }
 
@@ -519,7 +516,7 @@ fn reborrow_chain(depth: usize) -> Scratch {
 fn owner_applications(count: usize) -> Scratch {
     let types = ["Nat", "Int", "Bool", "Unit"];
     let mut source = String::from(
-        "pub generic g(a, b, c, d, e) { domain (Int, Int, Int, Int, Int); }\nmethod g(a: Any, b: Any, c: Any, d: Any, e: Any) -> Int { 0 }\n",
+        "pub fn g(a, b, c, d, e) domain((Int, Int, Int, Int, Int));\nfn g(a: Any, b: Any, c: Any, d: Any, e: Any) -> Int { 0 }\n",
     );
     for index in 0..count {
         let mut rest = index;
@@ -529,7 +526,7 @@ fn owner_applications(count: usize) -> Scratch {
             rest /= 4;
         }
         source.push_str(&format!(
-            "contribution c{index} : g {{ method g({}) -> Int {{ {index} }} }}\n",
+            "contribution c{index} : g {{ fn g({}) -> Int {{ {index} }} }}\n",
             params.join(", ")
         ));
     }
@@ -537,7 +534,7 @@ fn owner_applications(count: usize) -> Scratch {
         .map(|index| format!("apply c{index}; "))
         .collect();
     source.push_str(&format!(
-        "assembly {{ {events}seal g; }}\nfn main() -> Int {{ g(1, 2, 3, 4, 5) }}\n"
+        "assemble g {{ {events} }}\nfn main() -> Int {{ g(1, 2, 3, 4, 5) }}\n"
     ));
     package(&source)
 }
@@ -571,7 +568,7 @@ fn repeated_applications(events: usize, grant: bool) -> String {
         ""
     };
     format!(
-        "pub generic g(x) {{ domain (Int); }}\n{grant}contribution c : g {{ method g(x: Int) -> Int {{ x }} }}\n\n  assembly {{\n{}  seal g;\n}}\nfn main() -> Int {{ g(42) }}\n",
+        "pub fn g(x) domain((Int));\n{grant}contribution c : g {{ fn g(x: Int) -> Int {{ x }} }}\n\n  assemble g {{\n{}}}\nfn main() -> Int {{ g(42) }}\n",
         "  apply c;\n".repeat(events - 1)
     )
 }
@@ -592,7 +589,7 @@ fn assembly_event_limit_is_reported_at_the_assembly() {
         for events in [limit + 1, 2 * limit] {
             let source = repeated_applications(events, grant);
             let message = rejection(&package(&source), "E_LIMIT");
-            assert_primary(&message, &source, "assembly {", "E_LIMIT");
+            assert_primary(&message, &source, "assemble g {", "E_LIMIT");
             assert!(
                 message.contains(&format!(
                     "E_LIMIT: assembly exceeds the limit of {limit} events"
@@ -626,7 +623,7 @@ fn forged_method_results_fail_wire_decoding() {
     // also for a type that begins with a scalar name (#702). The decoder
     // still refuses another type.
     let scratch = package(
-        "generic g(x) { domain (Int); }\nmethod g(x: Int) -> Int { x }\nresource fn main() -> Int { value { g(42) } }\n",
+        "fn g(x) domain((Int));\nfn g(x: Int) -> Int { x }\nresource fn main() -> Int { value { g(42) } }\n",
     );
     let raw = captured(&manifest(&scratch), common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
@@ -663,7 +660,7 @@ fn dispatch_table_construction_is_budgeted() {
     // before any other budget applied.
     let choices = ["Nat", "Int", "Bool", "Unit", "Number", "Any"];
     let mut source =
-        String::from("generic g(a, b, c, d, e, f) { domain (Int, Int, Int, Int, Int, Int); }\n");
+        String::from("fn g(a, b, c, d, e, f) domain((Int, Int, Int, Int, Int, Int));\n");
     for index in 0..7776usize {
         let mut rest = index;
         let mut params = Vec::new();
@@ -672,7 +669,7 @@ fn dispatch_table_construction_is_budgeted() {
             rest /= 6;
         }
         params.push("f: Any".into());
-        source.push_str(&format!("method g({}) -> Int {{ 0 }}\n", params.join(", ")));
+        source.push_str(&format!("fn g({}) -> Int {{ 0 }}\n", params.join(", ")));
     }
     source.push_str("fn main() -> Int { g(1, 2, 3, 4, 5, 6) }\n");
     let scratch = Scratch::empty("kernel review dispatch");

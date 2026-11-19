@@ -45,13 +45,129 @@ theorem lambda_scope {program : Program} (checked : CheckedProgram program requi
     (scope : Namespace.Scope) (lambda : LambdaScope) (member : (scope, lambda) ∈ program.lambdaScopes) :
     lambda.function.callable.isSome = true ∧
     (∀ use ∈ lambda.free, available program.headers.indexed scope use = true) ∧
-    ∀ binding ∈ lambda.bindings, binding.1 ∉ lambda.outer := checked.scopes _ member
+    ∀ binding ∈ lambda.bindings, binding.1 ∉ lambda.outer := by
+  have h := checked.scopes _ member
+  exact ⟨h.1, fun use mem => (h.2.1 use mem).2, h.2.2⟩
 
 theorem origins_valid {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain) :
     validOrigins prepared.input audit checked.lowered = true := by
   have accepted := checked.accepted
   simp only [validPass, Bool.and_eq_true, and_assoc] at accepted
   exact accepted.1
+
+private theorem forward_site {prepared : PreparedProgram}
+    (checked : CheckedPass prepared false requireMain) (site : ForwardUse)
+    (member : site ∈ checked.lowered.forwardUses) :
+    validForwardUse prepared.input false site
+      (Std.HashSet.ofList (checked.lowered.emittedCalls.map fun c => (c.caller,c.key)))
+      (Std.HashSet.ofList (checked.lowered.staticUses.map fun u => (u.caller,u.target.name))) = true ∧
+    ((Forwarding.fragments checked.lowered)[(site.caller,site.firstBinding)]?).any
+      (Forwarding.matchesBody checked.lowered.origins false site) = true := by
+  have valid := checked.forwardUses
+  cases members : checked.lowered.forwardUses with
+  | nil => simp [members] at member
+  | cons =>
+    simp only [validForwardUses, members, List.isEmpty_cons, Bool.false_eq_true, ite_false,
+      Bool.and_eq_true, List.all_eq_true] at valid
+    exact valid site (members ▸ member)
+
+/-- The callable positions select the checked declaration of this family.
+The nominal indices select the represented Core definition independently. -/
+theorem finite_forward_method {prepared : PreparedProgram}
+    (checked : CheckedPass prepared false requireMain) (site : ForwardUse)
+    (member : site ∈ checked.lowered.forwardUses) :
+    let mask := site.targets.map Option.isSome
+    (prepared.input.forwardMethods[(site.family,mask)]?).map (·.span) = some site.method ∧
+    prepared.input.finiteInstances[(site.family,site.indices)]? = some site.definition ∧
+    ∃ entry, prepared.input.prepared[site.definition]? = some entry ∧
+      entry.definition.owner = site.family ∧ entry.finiteKey = site.indices ∧
+      site.targets.length = entry.parameters.length ∧
+      ∀ t p, (some t,p) ∈ site.targets.zip entry.parameters →
+        t.signature = .function .nil (.data p.result.type) := by
+  dsimp only
+  have chosen := (forward_site checked site member).1
+  unfold validForwardUse at chosen
+  cases e : prepared.input.prepared[site.definition]? with
+  | none => simp [e] at chosen
+  | some entry =>
+    simp only [e, Id.run] at chosen
+    split at chosen
+    · rename_i ok
+      simp only [Bool.and_eq_true, beq_iff_eq, and_assoc] at ok
+      obtain ⟨_,method,indices,owner,key,_,arity⟩ := ok
+      refine ⟨method,indices,entry,rfl,owner,key,arity,?_⟩
+      intro t p mem
+      simp only [pure, List.all_eq_true] at chosen
+      have arg := chosen (some t,p) mem
+      simp only [Bool.and_eq_true, beq_iff_eq, and_assoc] at arg
+      exact arg.1
+    · contradiction
+
+private theorem peel_exact {n : Nat} {term tail : Core.Term} {bs : List (Nat × Core.Term)}
+    (h : Forwarding.peel n term = some (bs,tail)) :
+    bs.length = n ∧ term = bs.foldr (fun p body => Core.Term.letE p.1 p.2 body) tail := by
+  induction n generalizing term bs tail with
+  | zero => simp [Forwarding.peel] at h; obtain ⟨rfl,rfl⟩ := h; exact ⟨rfl,rfl⟩
+  | succ n ih =>
+    cases term <;> simp only [Forwarding.peel] at h <;> try contradiction
+    rename_i s v rest
+    cases p : Forwarding.peel n rest with
+    | none => simp [p] at h
+    | some pair =>
+      obtain ⟨xs,last⟩ := pair
+      obtain ⟨len,eq⟩ := ih p
+      simp [p] at h
+      obtain ⟨rfl,rfl⟩ := h
+      simp [len,eq]
+
+/-- An executable forwarding site binds all inputs before forcing producers in
+parameter order. Its final direct call consumes exactly those bound results. -/
+theorem finite_forward_call_sequence {prepared : PreparedProgram}
+    (checked : CheckedPass prepared false requireMain) (site : ForwardUse)
+    (member : site ∈ checked.lowered.forwardUses) :
+    ∃ (body : Core.Term) (inputs forced : List (Nat × Core.Term)) (callee : Nat) (passed : List Core.Term) (result : Core.Result),
+      (Forwarding.fragments checked.lowered)[(site.caller,site.firstBinding)]? = some body ∧
+      inputs.length = site.targets.length ∧ forced.length = site.targets.length ∧
+      body = inputs.foldr (fun p b => Core.Term.letE p.1 p.2 b)
+        (forced.foldr (fun p b => Core.Term.letE p.1 p.2 b) (.call callee passed [] result)) ∧
+      checked.lowered.origins[callee]? = some ⟨site.definition,[]⟩ ∧
+      passed.mapM Forwarding.variableSymbol = some (forced.map Prod.fst) ∧
+      ∀ row ∈ (inputs.zip site.targets).zip forced,
+        Forwarding.argumentMatches checked.lowered.origins false row.1.1.1 row.1.2 row.2.2 = true := by
+  have hit := (forward_site checked site member).2
+  cases found : (Forwarding.fragments checked.lowered)[(site.caller,site.firstBinding)]? with
+  | none => simp [found] at hit
+  | some body =>
+    have ok : Forwarding.matchesBody checked.lowered.origins false site body = true := by simpa [found] using hit
+    unfold Forwarding.matchesBody at ok
+    cases a : Forwarding.peel site.targets.length body with
+    | none => simp [a] at ok
+    | some p =>
+      obtain ⟨inputs,inner⟩ := p
+      obtain ⟨alen,abody⟩ := peel_exact a
+      cases b : Forwarding.peel site.targets.length inner with
+      | none => simp [a,b] at ok
+      | some p =>
+        obtain ⟨forced,last⟩ := p
+        obtain ⟨blen,bbody⟩ := peel_exact b
+        cases last <;> simp [a,b] at ok
+        rename_i callee passed subs result
+        cases subs <;> simp [Id.run, pure] at ok
+        refine ⟨body,inputs,forced,callee,passed,result,rfl,alen,blen,by rw [abody,bbody],ok.1.1,ok.1.2,?_⟩
+        rintro ⟨⟨⟨s,v⟩,t⟩,d,e⟩ mem
+        exact ok.2 s v t d e mem
+
+/-- In an executable slice, a producer operand is exactly one call to the
+retained nullary definition. The result ABI is supplied by Core typing. -/
+theorem finite_forward_producer {origins : Array Key} {source : Nat} {target : Target} {value : Core.Term}
+    (accepted : Forwarding.argumentMatches origins false source (some target) value = true) :
+    ∃ defn callee result, target.name = .concrete defn ∧
+      value = .call callee [] [] result ∧ origins[callee]? = some ⟨defn,[]⟩ := by
+  obtain ⟨name,sig,sel⟩ := target
+  cases name <;> cases value <;> simp [Forwarding.argumentMatches] at accepted
+  rename_i defn callee args subs result
+  cases args <;> cases subs <;> simp at accepted
+  exact ⟨defn,callee,result,rfl,rfl,accepted⟩
 
 private theorem static_use {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
     (use : StaticUse) (member : use ∈ checked.lowered.staticUses) :
@@ -74,7 +190,7 @@ theorem target_signature_exact {prepared : PreparedProgram} (checked : CheckedPa
     (use : StaticUse) (member : use ∈ checked.lowered.staticUses) (id : Nat)
     (concrete : use.target.name = .concrete id) :
     ∃ definition, prepared.input.prepared[id]? = some definition ∧
-      definition.definition.function.callable = some use.expected ∧ use.target.signature = use.expected := by
+      definition.callable = some use.expected ∧ use.target.signature = use.expected := by
   obtain ⟨same, valid⟩ := static_use checked use member
   cases found : prepared.input.prepared[id]? with
   | none => simp [validTargetName, concrete, found] at valid
@@ -82,6 +198,29 @@ theorem target_signature_exact {prepared : PreparedProgram} (checked : CheckedPa
     refine ⟨definition, rfl, ?_, same⟩
     simp only [validTargetName, concrete, found, Bool.and_eq_true, beq_iff_eq, and_assoc] at valid
     exact valid.2.2.1
+
+/-- The signature of a retained concrete function value has exactly the data
+parameters and result used by its Core ABI. A finite Hom leaf carries its
+category and endpoints in this equality. -/
+theorem static_target_data_abi {prepared : PreparedProgram}
+    (checked : CheckedPass prepared false requireMain) (use : StaticUse)
+    (member : use ∈ checked.lowered.staticUses) :
+    ∃ id definition, use.target.name = .concrete id ∧ prepared.input.prepared[id]? = some definition ∧
+      use.expected = .function definition.paramTypes definition.resultType ∧
+      definition.paramTypes.filterMap Signature.dataHint = definition.parameters.map (·.result.type) ∧
+      (Signature.dataHint definition.resultType).getD (.pure .unit) = definition.result := by
+  obtain ⟨id, concrete⟩ := executable_target_concrete checked use member
+  obtain ⟨definition, found, signature, _⟩ := target_signature_exact checked use member id concrete
+  by_cases h : definition.definition.function.finiteBinders.isEmpty && definition.dataABI &&
+      definition.paramTypes.all (·.allData callableCoreData) && definition.resultType.allData callableCoreData
+  · have abi : definition.dataABI = true := by
+      simp only [Bool.and_eq_true] at h
+      exact h.1.1.2
+    simp only [Prepared.dataABI, Bool.and_eq_true, beq_iff_eq] at abi
+    exact ⟨id, definition, concrete, found, by simpa [Prepared.callable, guard, h] using signature.symm,
+      abi.1, abi.2⟩
+  · simp [Prepared.callable, guard, h] at signature
+    contradiction
 
 private theorem emitted_call_valid {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
     (call : EmittedCall) (member : call ∈ checked.lowered.emittedCalls) :
@@ -230,7 +369,7 @@ theorem function_origin {prepared : PreparedProgram} (checked : CheckedPass prep
     function.id = index ∧ ∃ key definition,
       checked.lowered.origins[index]? = some key ∧ prepared.input.prepared[key.definition]? = some definition ∧
       validKey prepared.input audit key = true ∧ function.definition = definition.definition.owner ∧
-      function.parameters = definition.parameters ∧ function.returnType = definition.result := by
+      function.parameters = definition.parametersFor audit key ∧ function.returnType = definition.result := by
   have valid := origins_valid checked
   simp only [validOrigins, Bool.and_eq_true, List.all_eq_true] at valid
   have entry := valid.2 (function, index) (List.mem_zipIdx_iff_getElem?.mpr found)
@@ -284,13 +423,7 @@ theorem lifted_definition_checked {program : Program} (checked : CheckedProgram 
         checked.audit.lowered.origins[function.id]? = some key ∧ key.definition = prepared.definition.id ∧
         Core.Typing.FunctionTyped checked.audit.lowered.module.declarations
           (Core.Typing.signatures checked.audit.lowered.module) function := by
-  have same := checked.preparation
-  simp only [validPrepared, beq_iff_eq] at same
-  have present : definitionIdentity definition ∈ checked.prepared.input.prepared.toList.map (definitionIdentity ∘ Prepared.definition) := by
-    rw [same]
-    exact List.mem_map.mpr ⟨definition, member, rfl⟩
-  obtain ⟨prepared, member, equal⟩ := List.mem_map.mp present
-  have member := Array.mem_toList_iff.mp member
+  obtain ⟨prepared, member, equal⟩ := prepared_contains_lifted checked.preparation member
   exact ⟨prepared, member, equal, definition_body_checked checked prepared member⟩
 
 theorem source_call_resolves {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)

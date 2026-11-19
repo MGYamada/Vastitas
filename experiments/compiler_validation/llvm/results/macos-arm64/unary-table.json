@@ -1,0 +1,149 @@
+{
+  "status": "passed",
+  "target": {
+    "llvm": "23.1.4",
+    "triple": "arm64-apple-darwin27.2.0",
+    "layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+  },
+  "source_sha256": "53f38aa32ca96c6c11ca1bca394fdf15a8333177a0afedffaaba7daca1782ddb",
+  "source_main_sha256": "1e92feb3aafd4a388c36026a29ac5fd244f9ab7ab1dba350ecd98d1c322a2ad6",
+  "source_function": "pick",
+  "checked_stages": [
+    "compiled Core",
+    "MidIR optimization",
+    "MidIR execution",
+    "LLVM module bytes"
+  ],
+  "specialization_rejections": [
+    "wrong-owner",
+    "private-function",
+    "constant-body",
+    "second-function"
+  ],
+  "reference_sha256": "3b067ab7d1de966f313b772bc53c8edd8f17709f62bd92942a0dfffa9982e4cd",
+  "emitter_comparison": {
+    "source": "src/lean/Lean/Compiler/IR/EmitLLVM.lean",
+    "sha256": "635bb0e78a3703614b9f175b13f2a8e2adaa890fe7ed144bc33e6e67fab99414",
+    "observations": {
+      "abi_and_untested_notice": {
+        "matched_lines": [
+          25
+        ],
+        "needle": "our CI for LLVM is dysfunctional"
+      },
+      "fixed_size_t": {
+        "matched_lines": [
+          42
+        ],
+        "needle": "def size_tType"
+      },
+      "case_default": {
+        "matched_lines": [
+          1096
+        ],
+        "needle": "def ensureHasDefault'"
+      },
+      "case_tag_width": {
+        "matched_lines": [
+          1111
+        ],
+        "needle": "buildZext builder tag"
+      },
+      "case_switch": {
+        "matched_lines": [
+          1115
+        ],
+        "needle": "buildSwitch builder tag"
+      },
+      "join_point_lowering": {
+        "matched_lines": [
+          1139
+        ],
+        "needle": "by generating SSA phi nodes"
+      },
+      "inbounds_gep": {
+        "matched_lines": [
+          732,
+          788
+        ],
+        "needle": "buildInBoundsGEP"
+      },
+      "bitcode_output": {
+        "matched_lines": [
+          1675
+        ],
+        "needle": "writeBitcodeToFile"
+      }
+    },
+    "role": "comparison only; not a correctness oracle",
+    "executed": false,
+    "execution_gap": "pinned Lean binary reports no LLVM feature"
+  },
+  "module_bytes": 604,
+  "module_sha256": "a751512977634e05b5dff9d09c26b63e04a633941c73f384b0124d6799485b38",
+  "ordinals": [
+    0,
+    1,
+    2,
+    3,
+    4095,
+    4294967295
+  ],
+  "results": [
+    1,
+    0,
+    1,
+    4294967295,
+    4294967295,
+    4294967295
+  ],
+  "changed_result_byte": "rejected before object emission",
+  "boundaries": {
+    "fixture_sha256": "f4d4f34c9d82f24b36912c9b7d6231a35bf67a62899eff1afc2fe7865a7815b3",
+    "inputs": "0..4096 and UINT32_MAX",
+    "cases": [
+      {
+        "rows": 0,
+        "module_bytes": 439,
+        "module_sha256": "25ab93ce9b4955b32f3ed40744e7aa85cdea52e3aa048408c61148582f27a5cd",
+        "object_bytes": 512,
+        "matched_inputs": 4098,
+        "parser_and_handoff_rejected": [
+          "trailing-comment",
+          "undefined-default-block",
+          "changed-miss-value"
+        ],
+        "raw_llvm": {
+          "trailing-comment": "accepted",
+          "undefined-default-block": "rejected",
+          "changed-miss-value": "accepted"
+        }
+      },
+      {
+        "rows": 4096,
+        "module_bytes": 225719,
+        "module_sha256": "267290cc99b35b299cd6c75d5268d6376fa08184dcd37300b23cadecf845aa67",
+        "object_bytes": 66224,
+        "matched_inputs": 4098,
+        "parser_and_handoff_rejected": [
+          "trailing-comment",
+          "undefined-default-block",
+          "retargeted-edge",
+          "duplicate-case",
+          "out-of-range-output",
+          "wrong-row-count",
+          "4097-complete-cases"
+        ],
+        "raw_llvm": {
+          "trailing-comment": "accepted",
+          "undefined-default-block": "rejected",
+          "retargeted-edge": "accepted",
+          "duplicate-case": "rejected",
+          "out-of-range-output": "accepted",
+          "wrong-row-count": "accepted",
+          "4097-complete-cases": "accepted"
+        }
+      }
+    ]
+  }
+}

@@ -76,7 +76,7 @@ fn check((matrix, inverse): (String, String)) -> Output {
     s.write(
         "Vastitas.toml",
         &format!(
-            "[package]\nname = \"frame_limits\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = {{ path = {:?} }}\n",
+            "[package]\nedition = \"2026\"\nname = \"frame_limits\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = {{ path = {:?} }}\n",
             root().join("stdlib")
         ),
     );

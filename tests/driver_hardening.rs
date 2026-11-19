@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 
 const PINNED: &str = include_str!("../lean-kernel/lean-toolchain");
 const RESOURCE_MAIN: &str = "resource fn main() -> Int {
-    allocate data: F64[1];
+    allocate data: F64<RR>[1];
     borrow output = write(data, layout(0, 1, 1, 1, false));
     store(output, 0, 0, f64_bits(4631107791820423168));
     release(output);
@@ -267,7 +267,7 @@ fn module_files_must_match_module_names_exactly() {
         let s = Scratch::empty("driver_hardening modules");
         s.write(
             "app/Vastitas.toml",
-            "[package]\nname = 'app'\nversion = '0.1.0'\nroot = 'src/main.vast'\n",
+            "[package]\nedition = \"2026\"\nname = 'app'\nversion = '0.1.0'\nroot = 'src/main.vast'\n",
         );
         s.write("app/src/main.vast", root);
         for (path, source) in files {
@@ -285,7 +285,7 @@ fn module_files_must_match_module_names_exactly() {
     let s = Scratch::empty("driver_hardening modules");
     s.write(
         "app/Vastitas.toml",
-        "[package]\nname = 'app'\nversion = '0.1.0'\nroot = 'src/main.vast'\n",
+        "[package]\nedition = \"2026\"\nname = 'app'\nversion = '0.1.0'\nroot = 'src/main.vast'\n",
     );
     s.write("app/src/main.vast", "mod Geo; fn main() -> Int { 0 }");
     s.write("app/src/Geo/mod.vast", "mod Shape;");
@@ -359,7 +359,7 @@ fn generated_manifests_escape_paths_for_their_own_syntax() {
     // optional runtimes.
     s.write(
         "pkg/Vastitas.toml",
-        "[package]\nname = 'numeric'\nversion = '0.1.0'\nroot = 'main.vast'\n",
+        "[package]\nedition = \"2026\"\nname = 'numeric'\nversion = '0.1.0'\nroot = 'main.vast'\n",
     );
     s.write("pkg/main.vast", RESOURCE_MAIN);
     let backend = s.0.join("numerical-backend");

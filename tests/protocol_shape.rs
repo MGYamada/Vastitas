@@ -58,7 +58,7 @@ fn flat_requests_reject_unknown_fields_in_every_nested_record_shape() {
         include_str!("../examples/book/functions/functions.vast").to_string(),
         include_str!("../examples/book/values/pairs.vast").to_string(),
         geometric,
-        "fn empty() -> Unit { { () } } generic f(x) { domain (Int); } method f(x: Int) -> Int { x } fn main() -> Int { f(0) }".to_string(),
+        "fn empty() -> Unit { { () } } fn f(x) domain((Int)); fn f(x: Int) -> Int { x } fn main() -> Int { f(0) }".to_string(),
         include_str!("../examples/book/abstract/abstract-contracts.vast").to_string(),
     ] {
         cases.push(request(&source, "shape.vast"));
@@ -356,13 +356,13 @@ fn package_requests_carry_legacy_geometry_exactly_without_indexed_records() {
         ("plain", "fn main() -> Int { 0 }", "", true),
         (
             "abstract",
-            "pub abstract type Numeric;\nsubtype Int <: Numeric;\ngeneric f(x) { domain (Int); }\nmethod f(x: Numeric) -> Int { 0 }\nfn main() -> Int { f(1) }",
+            "pub abstract type Numeric;\nsubtype Int <: Numeric;\nfn f(x) domain((Int));\nfn f(x: Numeric) -> Int { 0 }\nfn main() -> Int { f(1) }",
             "",
             true,
         ),
         (
             "assembled",
-            "pub generic g(x) { domain (Int); }\ncontribution c : g { method g(x: Int) -> Int { x } }\nassembly {\n  apply c;\n  seal g;\n}\nfn main() -> Int { g(42) }",
+            "pub fn g(x) domain((Int));\ncontribution c : g { fn g(x: Int) -> Int { x } }\nassemble g {\n  apply c;\n}\nfn main() -> Int { g(42) }",
             "",
             true,
         ),
@@ -387,7 +387,7 @@ fn package_requests_carry_legacy_geometry_exactly_without_indexed_records() {
         ),
         (
             "app",
-            "pub generic g(x) { domain (Int); }\npub grant spare : g to app::a { domain (Int); }\npub mod a {}\ncontribution c : g { method g(x: Int) -> Int { x } }\nassembly {\n  apply c;\n  seal g;\n}\nfn main() -> Int { g(42) }",
+            "pub fn g(x) domain((Int));\npub grant spare : g to app::a { domain (Int); }\npub mod a {}\ncontribution c : g { fn g(x: Int) -> Int { x } }\nassemble g {\n  apply c;\n}\nfn main() -> Int { g(42) }",
             "",
             false,
         ),

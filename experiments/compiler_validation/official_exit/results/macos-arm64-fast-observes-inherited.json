@@ -1,0 +1,40 @@
+{
+  "profile": "public-artifact",
+  "theorem": "VastitasQualification.ExitAdmission.observesArtifact",
+  "verifier": "nanoda",
+  "official_kernel_checked_by_audit": false,
+  "verification_terminus": "public-emission-and-bytes",
+  "standard_environment": {
+    "bytes": 13039,
+    "records": 225,
+    "sha256": "3161cada6d59c35be1776a7eabb803f99522c465c37af56ec7972cc6d56821b0"
+  },
+  "export": {
+    "bytes": 284929112,
+    "sha256": "064db5b0a0af5449f14b309877691c98a293ebe24d83ccf85c8cc0e45b8bb83b"
+  },
+  "closure": {
+    "records": 5357280,
+    "expressions": 5126200,
+    "declarations": 29331,
+    "standard_axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "closed_references": 28847
+  },
+  "nanoda": {
+    "phase": "nanoda",
+    "exit_code": -6,
+    "timed_out": false,
+    "wall_seconds": 40.13401204202091,
+    "user_seconds": 32.414119,
+    "system_seconds": 2.671841,
+    "peak_rss_bytes": 878968832,
+    "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+    "status": "failed"
+  },
+  "status": "rejected",
+  "reason": "nanoda exceeded its checking stack"
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check that the API reference pages of the libraries list exactly the exports of their modules.
 
-Each module directory of `stdlib/src/` and `nature/src/`, which holds a
+Each module directory of `stdlib/src/`, `nature/src/` and `monad/src/`, which holds a
 `mod.vast`, has a page under `docs/` of its library at the same path:
 `stdlib/src/geometry/scheme/` has `stdlib/docs/geometry/scheme.md`. The root
 module of a library has `docs/README.md`: the root file that the manifest
@@ -28,7 +28,7 @@ from urllib.parse import unquote, urlsplit
 import build_stdlib_package as generator
 
 ROOT = Path(__file__).resolve().parents[1]
-LIBRARIES = ("stdlib", "nature")
+LIBRARIES = ("stdlib", "nature", "monad")
 HEADER = ["Name", "Kind", "Contract"]
 
 COMMENT = re.compile(r"//[^\n]*")
@@ -36,7 +36,7 @@ PUB = re.compile(r"\bpub\b")
 # A public item at the start of a line, and the name that it exports.
 PUBLIC = re.compile(
     r"^pub\s+(?:indexed\s+[a-z_]+\s+(?P<indexed>\w+)"
-    r"|(?:fn|generic)\s+(?P<function>\w+)"
+    r"|fn\s+(?P<function>\w+)"
     r"|mod\s+(?P<module>\w+)\s*;"
     r"|use\s+(?P<path>\w+(?:::\w+)*)(?:\s+as\s+(?P<alias>\w+))?\s*;)",
     re.M,
@@ -57,6 +57,8 @@ def exports(source):
             line = text.count("\n", 0, match.start()) + 1
             errors.append(f"line {line}: this check reads no public item here; extend scripts/library_docs.py")
             continue
+        if item["function"] and item["function"] in names:
+            continue  # Several fn bodies export one family name.
         names.append(item["indexed"] or item["function"] or item["module"] or item["alias"]
                      or item["path"].rsplit("::", 1)[-1])
     return names, errors

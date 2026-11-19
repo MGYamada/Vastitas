@@ -1,0 +1,115 @@
+{
+  "checker": "nanoda 0.4.19",
+  "profile": "printed-bytes",
+  "tests": {
+    "independently-valid-same-name-foreign-statement": {
+      "phase": "certificate-comparison",
+      "reason": "certificate must be a regular file of the complete authority size"
+    },
+    "same-counterfeit-authority-and-candidate": {
+      "phase": "qualified-image",
+      "reason": "unqualified reference image"
+    },
+    "changed-standard-axiom-statement": {
+      "phase": "certificate-comparison",
+      "reason": "proof or transitive declarations differ"
+    },
+    "changed-proof-with-retained-theorem-type": {
+      "phase": "certificate-comparison",
+      "reason": "proof or transitive declarations differ"
+    },
+    "changed-transitive-definition": {
+      "phase": "certificate-comparison",
+      "reason": "proof or transitive declarations differ"
+    },
+    "truncated-valid-prefix": {
+      "phase": "certificate-comparison",
+      "reason": "certificate must be a regular file of the complete authority size"
+    },
+    "unknown-trailing-declaration": {
+      "phase": "certificate-comparison",
+      "reason": "certificate must be a regular file of the complete authority size"
+    },
+    "same-length-environment-mutation": {
+      "phase": "certificate-comparison",
+      "reason": "proof or transitive declarations differ"
+    },
+    "dotted-component-axiom-alias": {
+      "phase": "declaration-closure",
+      "reason": "nonstandard or ambiguously named axiom"
+    },
+    "unused-unapproved-axiom": {
+      "phase": "declaration-closure",
+      "reason": "nonstandard or ambiguously named axiom"
+    },
+    "missing-constant-declaration": {
+      "phase": "declaration-closure",
+      "reason": "missing 1 transitive declarations, including Missing"
+    },
+    "unsupported-expression-form": {
+      "phase": "declaration-closure",
+      "reason": "unsupported expression future"
+    },
+    "duplicate-name-identifier": {
+      "phase": "declaration-closure",
+      "reason": "invalid name record"
+    },
+    "one-altered-llvm-byte": {
+      "phase": "live-subject",
+      "reason": "supplied LLVM bytes differ from the public compiler output"
+    },
+    "different-source-same-exit": {
+      "phase": "live-subject",
+      "reason": "the complete public revision differs from the closed artifact"
+    },
+    "different-claimed-integer": {
+      "phase": "live-subject",
+      "reason": "live source, wire, target, emitted bytes or claimed value differs from Inputs.lean"
+    },
+    "forged-current-revision-identical-source-and-bytes": {
+      "phase": "live-subject",
+      "reason": "the complete public revision differs from the closed artifact"
+    }
+  },
+  "genuine_certificate_control": {
+    "live": {
+      "attempt": "live-public-comparison",
+      "status": "passed",
+      "frontend_sha256": "999919ae3f829cb4a751439ee7983c1a06527d80ad527c5bf1f710eb4aebc474",
+      "kernel_sha256": "f537b017cf5debb505d57713222de637712be95bd90020c403c8dc6320f755af",
+      "schema": 1,
+      "protocol": 10,
+      "owner": "vastitas:compat:flat",
+      "file": "ExitStatus.vast",
+      "source_sha256": "d7b73937ae11b2c8caad422ca81a1947a34bb6a04e193e9fb527a8f5cbe1b27c",
+      "source_byte_length": 126,
+      "wire_sha256": "035aa688327c395f1ee390b60f7dc6566b139d9992a0602d1dc4819dbb45bb76",
+      "full_revision_sha256": "dd442bcda7add3e5678f4c7ec3dab53068907e940c364cba58ee85660cab0c38",
+      "lean_input_sha256": "070cab632c61ca6164f53bb2c688d7ad8707600ba81a8e37e54292c3163c51f1",
+      "emitted_sha256": "9b085d3daf09b1488c95c8f69cab588d1d821f4d6fc5bcaf3254e9662a268e03",
+      "byte_length": 374,
+      "target_triple": "arm64-apple-darwin27.2.0",
+      "data_layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+    },
+    "export": {
+      "bytes": 2633111,
+      "sha256": "ad4beb0d713ce863ed0191cd2e5fe444e3c977787b93553f13ed0a818c7f321a"
+    },
+    "main_stack_kib": 49152,
+    "timeout_seconds": 30,
+    "nanoda": {
+      "phase": "nanoda",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 0.34405629098182544,
+      "user_seconds": 0.27904799999999996,
+      "system_seconds": 0.019052,
+      "peak_rss_bytes": 54181888,
+      "peak_rss_scope": "wait4 maximum resident set; not summed concurrent process memory",
+      "status": "passed"
+    },
+    "checked_declarations": 1371,
+    "status": "passed"
+  },
+  "standalone_other_theorem_checked": 20
+}

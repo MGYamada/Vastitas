@@ -1,4 +1,4 @@
-resource fn peek(input: Read<F64, 2, 2>) -> Unit {
+resource fn peek(input: Read<F64<RR>, 2, 2>) -> Unit {
     // The offset of a layout counts bytes of the allocation.
     borrow corner = read(input, layout(0, 1, 1, 1, false));
     release(corner);
@@ -6,7 +6,7 @@ resource fn peek(input: Read<F64, 2, 2>) -> Unit {
 }
 
 resource fn main() -> Int {
-    allocate data: F64[12];
+    allocate data: F64<RR>[12];
     borrow output = write(data, layout(0, 3, 4, 3, false));
     fill(output, f64(1));
     release(output);

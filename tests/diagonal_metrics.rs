@@ -51,7 +51,7 @@ fn branched(source: &str) -> String {
     )
 }
 fn empty(complex: bool, scale: &str) -> String {
-    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let scalar = if complex { "F64<CC>" } else { "F64<RR>" };
     let profile = if complex {
         "ComplexSmooth"
     } else {
@@ -84,14 +84,14 @@ fn empty(complex: bool, scale: &str) -> String {
 fn boundary(complex: bool, scale: &str) -> String {
     let (scalar, profile, input, expected) = if complex {
         (
-            "Complex<F64>",
+            "F64<CC>",
             "ComplexSmooth",
             "complex_bits(4607182418800017408,4607182418800017408)",
             "complex_bits(4607182418800017408,13830554455654793216)",
         )
     } else {
         (
-            "F64",
+            "F64<RR>",
             "RealSmooth",
             "f64_bits(4607182418800017408)",
             "f64_bits(4607182418800017408)",
@@ -157,7 +157,7 @@ fn diagonal_metrics_check_actual_real_complex_operations_and_branches() {
         "hermitian_diagonal(xc,vy,result1,hv,scratch(scratch_owner,layout(8,2,1,3,false)),overwrite,NativeFast);",
         "call pair_into(v,bv,sigma,hv,vc,bvc,xc,vy,result1,scratch0) -> (scratch1);",
     ).replace("drop(scratch_owner)","drop(scratch1)")
-    + "\nresource fn pair_into(v: Space<super::profiles::RealSmooth,2>,bv: Basis<v>,sigma: Involution<v>,h: Metric<bv,sigma>,vc: ConjugateSpace<v,sigma>,bvc: DerivedBasis<bv,vc>,x: ReadVector<bvc>,y: ReadVector<bv>,out: Write<F64,1,1> initializes,s: Owned<F64,3>) returns (s: Owned<F64,3>) -> Unit { hermitian_diagonal(x,y,out,h,scratch(s,layout(8,2,1,3,false)),overwrite,NativeFast); value { () } }";
+    + "\nresource fn pair_into(v: Space<super::profiles::RealSmooth,2>,bv: Basis<v>,sigma: Involution<v>,h: Metric<bv,sigma>,vc: ConjugateSpace<v,sigma>,bvc: DerivedBasis<bv,vc>,x: ReadVector<bvc>,y: ReadVector<bv>,out: Write<F64<RR>,1,1> initializes,s: Owned<F64<RR>,3>) returns (s: Owned<F64<RR>,3>) -> Unit { hermitian_diagonal(x,y,out,h,scratch(s,layout(8,2,1,3,false)),overwrite,NativeFast); value { () } }";
     success(
         &command(&fixture(&pair_helper, COMPLEX), "check")
             .output()
@@ -261,7 +261,7 @@ fn diagonal_metrics_reject_wrong_forms_access_and_unrealizable_entries() {
     ] {
         rejection(&REAL.replace(from, to), code);
     }
-    let opaque = REAL.replace("allocate scratch_owner: F64[3];", "space hidden = linear(super::profiles::RealSmooth,1); basis hidden_basis = basis(hidden); allocate scratch_buffer: F64[3]; borrow initialize = write(scratch_buffer,layout(8,1,2,1,false)); fill(initialize,f64_bits(0)); release(initialize); map scratch_map = owned(scratch_buffer,layout(8,1,2,1,false),bv,hidden_basis); map scratch_owner = pack(scratch_map);");
+    let opaque = REAL.replace("allocate scratch_owner: F64<RR>[3];", "space hidden = linear(super::profiles::RealSmooth,1); basis hidden_basis = basis(hidden); allocate scratch_buffer: F64<RR>[3]; borrow initialize = write(scratch_buffer,layout(8,1,2,1,false)); fill(initialize,f64_bits(0)); release(initialize); map scratch_map = owned(scratch_buffer,layout(8,1,2,1,false),bv,hidden_basis); map scratch_owner = pack(scratch_map);");
     rejection(&opaque, "E_NUMERICAL_PACKAGE");
     let unused = REAL
         .replace("pub resource fn exercise()", "resource fn unused_bad()")

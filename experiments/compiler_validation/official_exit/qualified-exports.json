@@ -1,0 +1,14 @@
+{
+  "public-artifact": {
+    "bytes": 290726880,
+    "sha256": "a1c9685d5d6b7eac9cbd47fd3a8807f9c3259dfd3ab31673a60eea98ece6abd4"
+  },
+  "printed-bytes": {
+    "bytes": 2633111,
+    "sha256": "ad4beb0d713ce863ed0191cd2e5fe444e3c977787b93553f13ed0a818c7f321a"
+  },
+  "signed-endpoints": {
+    "bytes": 79572654,
+    "sha256": "9d8aaf132ddb19455f268fe80e022629c427c203e4378188f9bb7229add7a781"
+  }
+}

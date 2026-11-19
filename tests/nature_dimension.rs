@@ -61,7 +61,7 @@ fn main() -> Int {
 }
 ";
 
-const APP_MANIFEST: &str = "[package]\nname = \"nature_dimension_demo\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
+const APP_MANIFEST: &str = "[package]\nedition = \"2026\"\nname = \"nature_dimension_demo\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n\n[dependencies]\nstd = { path = \"../stdlib\" }\nnature = { path = \"../nature\" }\n";
 
 /// The application `main` in `app/` with copies of the stdlib in `stdlib/`
 /// and of the nature package in `nature/`, as in the repository. The app and

@@ -10,13 +10,16 @@ namespace VastitasKernel.Storage.NativeText
 /-- `width` spaces of indentation. -/
 def indentation (width : Nat) : String := String.ofList (List.replicate width ' ')
 
-/-- The scalar code of the native runtimes: 0 for `f64`, 1 for `complexF64`. -/
-def scalar : Scalar → Nat | .f64 => 0 | .complexF64 => 1
+/-- ABI tags shared with VStorageScalar. -/
+def scalar : Scalar → Nat
+  | .f64 => 0 | .complexF64 => 1 | .f32 => 2 | .complexF32 => 3
 
 /-- A literal as its scalar code and the bits of its real and imaginary parts. -/
 def literal : Literal → String
   | .f64 bits => s!"0 {bits.toNat} 0"
   | .complexF64 real imaginary => s!"1 {real.toNat} {imaginary.toNat}"
+  | .f32 bits => s!"2 {bits.toNat} 0"
+  | .complexF32 real imaginary => s!"3 {real.toNat} {imaginary.toNat}"
 
 /-- A GEMM coefficient as six numbers: its kind (0 default, 1 literal, 2 view),
 the three numbers of a literal, and the allocation and offset of a view. -/

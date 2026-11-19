@@ -57,14 +57,14 @@ fn generated_package_preserves_comment_boundaries_in_native_programs() {
     fs::write(sources.join("int.vast"), changed).unwrap();
     fs::write(
         scratch.0.join("stdlib/Vastitas.toml"),
-        format!("[package]\nname='stdlib'\nversion='0.1.0'\nroot='target/package/lib.vast'\n[dependencies]\ngeometry_library={{path='{}'}}\ndifferential_library={{path='{}'}}\nlinalg_library={{path='{}'}}\n", root.join("stdlib/src/geometry").display(), root.join("stdlib/src/differential").display(), root.join("stdlib/src/linalg").display()),
+        format!("[package]\nedition = \"2026\"\nname='stdlib'\nversion='0.1.0'\nroot='target/package/lib.vast'\n[dependencies]\ngeometry_library={{path='{}'}}\ndifferential_library={{path='{}'}}\nlinalg_library={{path='{}'}}\ncategory_library={{path='{}'}}\n", root.join("stdlib/src/geometry").display(), root.join("stdlib/src/differential").display(), root.join("stdlib/src/linalg").display(), root.join("stdlib/src/category").display()),
     )
     .unwrap();
-    scratch.write("Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='package.vast'\n[dependencies]\nstd={path='stdlib'}\n");
-    scratch.write("flat.vast", "fn main() -> Int { add(2, 3) }");
+    scratch.write("Vastitas.toml", "[package]\nedition = \"2026\"\nname='app'\nversion='0.1.0'\nroot='package.vast'\n[dependencies]\nstd={path='stdlib'}\n");
+    scratch.write("flat.vast", "fn main() -> Int { self::add(2, 3) }");
     scratch.write(
         "package.vast",
-        "use std::arithmetic::generic::add;\nfn main() -> Int { add(2, 3) }",
+        "use std::arithmetic::generic::add as promoted_add;\nfn main() -> Int { promoted_add(2, 3) }",
     );
     for args in [vec![], vec!["--check"]] {
         success(

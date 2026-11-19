@@ -15,13 +15,57 @@ the types of storage.
 
 Rules:
 
-- A type name that this chapter or [Geometric types](geometric-types.md) does
-  not define is an error (`E_UNSUPPORTED`), unless it names an
+- A type name that the syntax of this chapter or
+  [Geometric types](geometric-types.md) does not admit is an error
+  (`E_UNSUPPORTED`), unless it names an
   [indexed type](#indexed-types) in manifest mode.
 - Parameters of a method have selectors, such as `Number` and `Any`, which
   [Method declarations](../stage1a.md#method-declarations) describes. A
   selector that is not a scalar type is not a type: as a type of a value it
   falls under the previous rule.
+
+## Public type names
+
+Public type names begin with an uppercase letter by convention, preferably
+in `UpperCamelCase`. Mathematical acronym and model names, such as `ZZ`,
+`QQ`, `RR`, `CC` and `GF`, retain their spelling. Modules, functions and
+value bindings use `snake_case` by convention. These conventions do not
+restrict the [identifier grammar](lexical-structure.md#identifiers).
+
+The following names are the sole canonical vocabulary for bounded machine
+integer types. Their implementation is separate from this naming contract;
+they are not alternatives in `ScalarType` and do not make a bounded integer
+type usable in a program.
+
+| Signed name | Unsigned name | Width |
+| --- | --- | --- |
+| `I8` | `U8` | 8 bits |
+| `I16` | `U16` | 16 bits |
+| `I32` | `U32` | 32 bits |
+| `I64` | `U64` | 64 bits |
+| `I128` | `U128` | 128 bits |
+| `ISize` | `USize` | The selected target's pointer width |
+
+Rules of the naming contract:
+
+- Public bindings for these machine types must use the names of the table.
+  Lowercase Rust spellings, such as `i32`, `u32`, `isize` and `usize`, and
+  alternatives such as `Int32` and `UInt32`, must not be public aliases for
+  these types. Rust and Lean implementation identifiers keep their own
+  spellings.
+- A signed name denotes its signed two's-complement value range; an
+  unsigned name denotes its nonnegative range. The target determines the
+  width of `ISize` and `USize`; no host-width assumption determines it.
+- These identities must remain distinct from the unbounded `Nat` and `Int`.
+  The naming contract changes neither integer-literal typing nor the
+  explicit conversion `int(n)`.
+- A width, a signedness or a name grants no conversion, arithmetic operation
+  or overflow policy. Such operations require their own admitted contract.
+  `U8`, a finite field of 256 elements, a residue ring modulo 256 and a bit
+  sequence of length 8 have distinct mathematical meanings.
+
+[Scalar types](#scalar-types) lists the executable pure scalar types.
+[Literal expressions](expressions.md#literal-expressions) specifies their defaults.
 
 ## Scalar types
 
@@ -38,8 +82,8 @@ Rules:
 | `Bool` | `true` and `false` |
 | `Unit` | The single value `()` |
 
-`Nat` and `Int` are distinct types, and no value converts implicitly from one
-to the other. `int(n)` converts a `Nat` to an `Int`, and no function converts
+`Nat` and `Int` are distinct types. Only division of a `Nat` and an `Int`
+converts its `Nat` operand implicitly. `int(n)` converts a `Nat` to an `Int`, and no function converts
 back. [Operator expressions](expressions.md#operator-expressions) give the
 operations on scalars. A pure program has no floating-point, string or
 character types.
@@ -105,11 +149,14 @@ and they are not a tuple type.
 | No parameters | `Fn<(), Int>` |
 | One `Unit` parameter | `Fn<Unit, Int>` |
 | A function parameter and a function result | `Fn<Fn<Int, Int>, Fn<Int, Int>>` |
+| No parameters, returning a finite arrow | `Fn<(), Hom<C, X, Y>>` |
 
 Rules:
 
-- The parameter and result types of a function type must be scalar types or
-  function types. Another type, such as a pair or a geometric type, is an error
+- Its parameter and result types may be scalars, finite Hom fibers or function
+  types. A Hom in an ordinary function is resolved in its declaration scope.
+  Passing its value across a package boundary preserves the category identity
+  and both endpoints. Another type, such as a pair or a geometric type, is an error
   (`E_TYPE`). The body of a lambda may still use pairs and geometric values.
 - In some programs the compiler reports the error of the previous rule with
   another code. They are the programs that write an
@@ -137,6 +184,8 @@ function types.
 > ```text
 > IndexedType -> IDENTIFIER ( `::` PathSegment )* `<` IndexedArguments? `>`
 >     | `Object` `<` Path `,` Path `>`
+>     | `Hom` `<` Path `,` HomEndpoint `,` HomEndpoint `>`
+> HomEndpoint -> Path | Path `::` `T` `<` HomEndpoint `>`
 > IndexedArguments -> IndexedArgument ( `,` IndexedArgument )* `,`?
 > IndexedArgument -> INTEGER_LITERAL | Path
 > ```
@@ -149,14 +198,21 @@ declarations. An **indexed type** applies such a family to its arguments, as in
 `D` with the coefficient marker `K`.
 [Object types](../indexed-source.md#object-types) gives the rules of
 `Object<D, K>`, and [Families](../indexed-source.md#families) the rules of the
-other indexed types. [Smooth affine declarations](smooth-declarations.md) and
+indexed family applications. `Hom<C, Obj::x, Obj::y>` is the type of arrows
+from `x` to `y` in a named finite category. A Monad parameter may supply the
+category and an endpoint. For example, `Hom<M::category, X, M::T<Y>>`
+denotes arrows from `X` to the image of `Y` under the selected
+endofunctor. Repeated application such as `M::T<M::T<Y>>` is a bounded
+static lookup. See
+[Finite carriers and tables](../indexed-source.md#finite-carriers-and-tables).
+[Smooth affine declarations](smooth-declarations.md) and
 [Presented affine declarations](../affine-geometry.md) give further families.
 
 Rules:
 
-- A type is an indexed type in three cases. It is a path with `::`, or it is
-  `Object<…>`, or it is a name followed by `<`. In the third case the name is
-  neither `Object` nor a type name of this chapter or of
+- Indexed types include the explicit forms `Object<…>` and `Hom<…>`,
+  qualified paths and applications of a name followed by `<`. The latter
+  form requires a name other than the type names of this chapter or of
   [Geometric types](geometric-types.md). `Point<>` and `Object<>` are errors
   (`E_PARSE`).
 - Indexed types are valid only in manifest mode. In flat mode an indexed type

@@ -89,6 +89,90 @@ def legacyDataType (profile : GeometryProfile DeclId) (ctx : TypeContext) : RawT
     return .package (profile.package base)
   | _ => Namespace.problem {} "E_TYPE" "unsupported legacy geometry annotation"
 
+/-- Resolve the visible owner of a category projection. A private underlying
+Monad or category stays accessible only through its checked public view. -/
+def projectedMonadCategory? (program : Namespace.Indexed) (scope : Namespace.Scope)
+    (env : Environment) (path : Path) : Option (Path × Namespace.Target × DeclId) := do
+  let "category" :: rest := path.path.reverse | none
+  let base : Path := ⟨rest.reverse, path.span⟩
+  let target ← (Namespace.resolve program scope base.path base.span).toOption
+  guard (target.kind == .indexedDeclaration)
+  let model ← FiniteSort.monadOwner? env target.owner
+  let .finiteMonad _ fields ← lookup env model | none
+  return (base, target, fields.category)
+
+/-- Object indices carry the owner of their finite carrier through ordinary name resolution. -/
+def homEndpoint (program : Namespace.Indexed) (scope : Namespace.Scope)
+    (path : Path) (env : Indexed.Environment) (g : FiniteCategories.Graph) : ResolveM String := do
+  let tag :: head :: tail := path.path.reverse
+    | Namespace.problem path.span "E_TYPE" "expected an object carrier and tag"
+  let carrier : Path := ⟨(head :: tail).reverse, path.span⟩
+  let projected := Id.run do
+    let "objects" :: model :: rest := head :: tail | return none
+    let base : Path := ⟨(model :: rest).reverse, path.span⟩
+    let selected := do
+      if let some p := projectedMonadCategory? program scope env base then return p
+      let resolved ← (Namespace.resolve program scope base.path base.span).toOption
+      guard (resolved.kind == .indexedDeclaration)
+      if let some owner := KleisliViews.selected (FiniteCategories.view env) .category resolved.owner then
+        let .finiteMonad _ fields ← lookup env owner | none
+        return (base, resolved, fields.category)
+      return (base, resolved, resolved.owner)
+    let some (visible, resolved, cat) := selected | return none
+    let some (.finiteCategory _ fields) := Indexed.lookup env cat | return none
+    return some (visible, resolved, fields.objects)
+  let id ← match projected with
+    | some (base, resolved, objects) => do
+      modify (⟨scope, base, resolved⟩ :: ·)
+      pure objects
+    | none => resolveId program scope carrier
+  unless id == g.objectId && g.objects.contains tag do
+    Namespace.problem path.span "E_TYPE" "endpoint is not an object of the selected finite category"
+  return tag
+
+private structure HomCategory where
+  owner : DeclId
+  graph : FiniteCategories.Graph
+  targetAction : Option FiniteCategories.Table := none
+
+private def homCategory (program : Namespace.Indexed) (scope : Namespace.Scope) (env : Environment)
+    (category : Path) : ResolveM HomCategory := do
+  let owner ← do
+    if let some (base, target, cat) := projectedMonadCategory? program scope env category then
+      modify (⟨scope,base,target⟩ :: ·)
+      pure cat
+    else resolveId program scope category
+  if let some monad := KleisliViews.selected (FiniteCategories.view env) .category owner then
+    let some (fields, m) := FiniteSort.monad? env monad
+      | Namespace.problem category.span "E_MONAD" "Kleisli category requires its selected finite Monad"
+    return ⟨fields.category, m.category, some m.objects⟩
+  let some (_, g) := FiniteSort.selected env owner
+    | Namespace.problem category.span "E_TYPE" "Hom requires a named finite category instance"
+  return ⟨owner, g, none⟩
+
+/-- A concrete static object action resolves the named Monad in the original
+scope and checks that its category is the selected Hom category. The internal
+angle-bracket marker cannot be an identifier in an ordinary path. -/
+private def mappedEndpoint (program : Namespace.Indexed) (scope : Namespace.Scope)
+    (env : Environment) (owner : DeclId) (g : FiniteCategories.Graph) (path : Path) : ResolveM String :=
+  visit (Limits.typeNesting + 1) path.path
+where
+  visit : Nat → List String → ResolveM String
+    | 0, _ => Namespace.problem path.span "E_LIMIT" "Monad object action exceeds the type nesting limit"
+    | fuel+1, parts => do
+      let (base, suffix) := parts.span (· != "T<>")
+      if let _ :: arg := suffix then
+        if base.isEmpty then Namespace.problem path.span "E_TYPE" "object action requires a named Monad"
+        let authority ← resolveId program scope ⟨base, path.span⟩
+        let some (fields,m) := (FiniteSort.monadOwner? env authority).bind (FiniteSort.monad? env)
+          | Namespace.problem path.span "E_MONAD" "object action requires a named finite Monad"
+        unless fields.category == owner do Namespace.problem path.span "E_TYPE" "object action belongs to a different category"
+        let x ← visit fuel arg
+        let some tx := FiniteFunctors.image m.objects x
+          | Namespace.problem path.span "E_TYPE" "object action has no value at this endpoint"
+        return tx
+      homEndpoint program scope ⟨parts,path.span⟩ env g
+
 def elaborateDataType (program : Namespace.Indexed) (env : Core.Declarations)
     (scope : Namespace.Scope) (ctx : TypeContext) (input : Source.DataType)
     (geometry : Option (GeometryProfile DeclId) := none) : ResolveM Core.DataType := do
@@ -100,9 +184,22 @@ def elaborateDataType (program : Namespace.Indexed) (env : Core.Declarations)
         | Namespace.problem {} "E_TYPE" "legacy geometry syntax requires exactly one explicit library compatibility export"
       legacyDataType profile ctx type
   | .inferredPackage => Namespace.problem {} "E_TYPE" "an inferred package is only valid in legacy pack syntax"
+  | .finiteHom category source target =>
+      let cat ← homCategory program scope env.indexed category
+      let x ← mappedEndpoint program scope env.indexed cat.owner cat.graph source
+      let y ← mappedEndpoint program scope env.indexed cat.owner cat.graph target
+      let targetTag ← match cat.targetAction with
+        | none => pure y
+        | some action => match FiniteFunctors.image action y with
+          | some ty => pure ty
+          | none => Namespace.problem target.span "E_TYPE" "Kleisli target has no image under the selected Monad"
+      return .finite (.hom cat.owner x targetTag)
   | .application path arguments =>
       let id ← resolveId program scope path
       match Indexed.lookup env.indexed id with
+      | some (.finiteCarrier _) =>
+          unless arguments.isEmpty do Namespace.problem path.span "E_TYPE" "finite carrier takes no indices"
+          return .finite id
       | some (.family family) => return .indexed ⟨id,
           ← resolveTypeArguments program scope ctx family.parameters arguments path.span⟩
       | _ =>

@@ -13,6 +13,10 @@ import json
 from pathlib import Path
 import zipfile
 
+_epoch_spec = importlib.util.spec_from_file_location('allocation_record_epoch', Path(__file__).with_name('wire_epoch.py'))
+wire_epoch = importlib.util.module_from_spec(_epoch_spec)
+_epoch_spec.loader.exec_module(wire_epoch)
+
 VARIANTS = ('production_shared', 'private_fresh')
 SIZES = {'tiny':(2,3,4,5,6), 'small':(7,17,5,11,13), 'bulk':(24,40,32,48,56)}
 KINDS = {'ffi_ok','arena_external','generated_ctor','control','ffi_error','persistent_unit'}
@@ -96,6 +100,7 @@ def costs(case,scope,reps):
 def verify(read,names):
     load=lambda name:json.loads(read(name))
     environment=load('environment.json')
+    epoch=wire_epoch.declared(environment)
     assert environment['schema']==2 and environment['variants']==list(VARIANTS)
     assert environment['recorded_inputs_unchanged'] is True
     # The prototype verifier/record remains separate and unmodified.
@@ -223,10 +228,22 @@ def verify(read,names):
             else:assert relative in ('target/debug/vastitas','target/release/vastitas','lean-kernel/.lake/build/bin/vastitas-kernel')
         elif path.endswith('/include/lean/lean.h'):assert hashlib.sha256(read('pinned-lean.h')).hexdigest()==digest
         elif path.endswith('/include/lean/config.h'):assert hashlib.sha256(read('pinned-config.h')).hexdigest()==digest
-    for case,variant in itertools.product(cases,VARIANTS):
+    emissions = {phase: [command for command in commands if command['phase'] == phase]
+                 for phase in ('kernel_emit', 'kernel_failure_emit')}
+    executions = [command for command in commands if command['phase'] == 'public_execute']
+    for index,(case,variant) in enumerate(itertools.product(cases,VARIANTS)):
         prefix=case+'/'+variant+'/'
         response=load(prefix+'response.json');failure=load(prefix+'failure-response.json')
-        assert response['ok'] and failure['ok'] and response['version']==failure['version']==8
+        wire_epoch.envelopes(epoch, load(prefix+'package/wire.json'), load(prefix+'failure-wire.json'), response, failure)
+        assert response['ok'] is True and failure['ok'] is True
+        cleanup_runner().fixtures.cleanup_envelope.require_execution(response['lean_source'], executions[index])
+        for phase,document,data in (
+                ('kernel_emit',response,read(prefix+'package/wire.json')),
+                ('kernel_failure_emit',failure,json.dumps(load(prefix+'failure-wire.json')).encode())):
+            command=emissions[phase][index]
+            assert json.loads(command['stdout']) == document
+            if 'wire_epoch' in environment:
+                wire_epoch.input_binding(command,data)
         assert response['lean_source'].encode()==read(prefix+'Generated.lean')
         assert failure['lean_source'].encode()==read(prefix+'GeneratedFailure.lean')
         assert b'lean_is_exclusive' in read(prefix+'Emitted.c') and b'lean_alloc_ctor' in read(prefix+'Emitted.c')
@@ -240,6 +257,7 @@ def verify(read,names):
     assert b'lean_mark_persistent(result);\n    allocation_thread_initialize(result);' in thread
     assert b'audit_shared_create' not in thread
     assert load('status.json')==dict(schema=2,status='passed',rows=len(rows),performance='not measured')
+    wire_epoch.historical_identity(environment,read('environment.json'),'allocation-audit')
     return dict(status='passed',schema=2,records=len(rows),pairs=len(rows)//2,source_snapshots=snapshots,failure_cleanups=len(failures),thread_processes=4,performance='not measured')
 
 

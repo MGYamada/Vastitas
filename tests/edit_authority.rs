@@ -3,29 +3,30 @@ use common::{Scratch, kernel};
 use serde_json::{Value, json};
 
 const BASE: &str = r#"
-pub generic choose(x, y) { domain (Int, Int), (Bool, Bool); }
-method choose(x: Any, y: Any) -> Int { 0 }
+pub fn choose(x, y) domain((Int, Int), (Bool, Bool));
+fn choose(x: Any, y: Any) -> Int { 0 }
 pub grant outer : choose to addon delegable { domain (Int, Int); }
 pub transfer handoff : choose to addon;
-pub contribution old : choose { method choose(x: Int, y: Int) -> Int { 99 } }
+pub contribution old : choose { fn choose(x: Int, y: Int) -> Int { 99 } }
 "#;
 const ADDON: &str = r#"
 pub delegation inner : base::choose to addon::ops { domain (Int, Int); }
-pub contribution fresh : base::choose { method base::choose(x: Bool, y: Bool) -> Int { 2 } }
+pub contribution fresh : base::choose { fn base::choose(x: Bool, y: Bool) -> Int { 2 } }
 pub mod ops {
-  pub contribution sum : base::choose { method base::choose(x: Int, y: Int) -> Int { x + y } }
+  pub contribution sum : base::choose { fn base::choose(x: Int, y: Int) -> Int { x + y } }
 }
 "#;
-const NESTED: &str = "borrow base::outer as parent; reborrow parent via addon::inner as child; apply addon::ops::sum using child; return child; return parent;";
+const NESTED: &str =
+    "borrow base::outer as parent { delegate addon::inner as child { apply addon::ops::sum; } }";
+const MAIN: &str = "fn main() -> Int { base::choose(40, 2) + base::choose(true, true) }";
 
 fn fixture(base: &str, addon: &str, events: &str) -> Scratch {
     let s = Scratch::empty("edit authority");
     s.write_package("base", base, "");
     s.write_package("addon", addon, "base={path='../base'}");
-    s.write_package("app",
-        &format!(
-            "assembly {{ {events} }} fn main() -> Int {{ base::choose(40, 2) + base::choose(true, true) }}"
-        ),
+    s.write_package(
+        "app",
+        &format!("assemble base::choose {{ {events} }} {MAIN}"),
         "base={path='../base'}\naddon={path='../addon'}\nalias={path='../addon'}",
     );
     s
@@ -47,9 +48,20 @@ fn request(s: &Scratch) -> Value {
     s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL)
 }
 
+fn root_events(raw: &mut Value) -> &mut Vec<Value> {
+    raw["packages"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|p| p["name"] == "app")
+        .unwrap()["modules"][0]["assembly"]["events"]
+        .as_array_mut()
+        .unwrap()
+}
+
 #[test]
 fn authority_ir_matches_public_checker_fixture() {
-    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
+    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh;");
     let s = fixture(BASE, ADDON, &events);
     let mut raw = request(&s);
     // Relocate the complete temporary source graph consistently. Preserve
@@ -94,7 +106,7 @@ fn authority_ir_matches_public_checker_fixture() {
 
 #[test]
 fn named_recipients_keep_manifest_identity_and_ignore_dependency_aliases() {
-    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
+    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh;");
     let s = fixture(BASE, ADDON, &events);
     let raw = request(&s);
     let packages = raw["packages"].as_array().unwrap();
@@ -123,8 +135,8 @@ fn named_recipients_keep_manifest_identity_and_ignore_dependency_aliases() {
     let moved = s.0.join("vendor/deep/receiver");
     std::fs::create_dir_all(moved.parent().unwrap()).unwrap();
     std::fs::rename(s.0.join("addon"), &moved).unwrap();
-    s.write("vendor/deep/receiver/Vastitas.toml", "[package]\nname='addon'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../../../base'}\n");
-    s.write("app/Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../base'}\naddon={path='../vendor/deep/receiver'}\nalias={path='../vendor/deep/receiver'}\n");
+    s.write("vendor/deep/receiver/Vastitas.toml", "[package]\nedition = \"2026\"\nname='addon'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../../../base'}\n");
+    s.write("app/Vastitas.toml", "[package]\nedition = \"2026\"\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../base'}\naddon={path='../vendor/deep/receiver'}\nalias={path='../vendor/deep/receiver'}\n");
     native(&s, common::exits(44));
 }
 
@@ -132,49 +144,34 @@ fn named_recipients_keep_manifest_identity_and_ignore_dependency_aliases() {
 fn every_unused_recipient_declaration_rejects_ambiguous_packages_before_modules() {
     for kind in ["grants", "delegations", "transfers"] {
         let s = fixture(BASE, ADDON, "");
-        let mut raw = request(&s);
-        for package in raw["packages"].as_array_mut().unwrap() {
-            for module in package["modules"].as_array_mut().unwrap() {
-                module.as_object_mut().unwrap().remove("assembly");
-                for other in ["grants", "delegations", "transfers"] {
-                    if other != kind {
-                        module.as_object_mut().unwrap().remove(other);
+        s.write("app/main.vast", MAIN);
+        let request_for_kind = || {
+            let mut raw = request(&s);
+            for package in raw["packages"].as_array_mut().unwrap() {
+                for module in package["modules"].as_array_mut().unwrap() {
+                    for other in ["grants", "delegations", "transfers"] {
+                        if other != kind {
+                            module.as_object_mut().unwrap().remove(other);
+                        }
                     }
                 }
             }
-        }
-        assert_eq!(kernel(&raw, "check")["ok"], true, "{kind}: {raw}");
-        // Different version and source; only the original has `ops`.
-        // Neither difference is a permitted name disambiguator.
-        let mut duplicate = raw["packages"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|p| p["name"] == "addon")
-            .unwrap()
-            .clone();
-        duplicate["source"] = json!("/second-addon/Vastitas.toml");
-        duplicate["version"] = json!("2.0.0");
-        duplicate["modules"]
-            .as_array_mut()
-            .unwrap()
-            .retain(|m| m["path"] == json!([]));
-        let root = duplicate["modules"][0].as_object_mut().unwrap();
-        for field in ["grants", "delegations", "transfers", "contributions"] {
-            root.remove(field);
-        }
-        raw["packages"].as_array_mut().unwrap().push(duplicate);
-        let root = raw["root"].clone();
-        let app = raw["packages"]
-            .as_array_mut()
-            .unwrap()
-            .iter_mut()
-            .find(|p| p["source"] == root)
-            .unwrap();
-        app["dependencies"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!({"alias":"second", "target":"/second-addon/Vastitas.toml"}));
+            raw
+        };
+        assert_eq!(kernel(request_for_kind(), "check")["ok"], true, "{kind}");
+        // Use two actual manifests. Only the first package has `ops`;
+        // neither module contents nor version disambiguates the recipient.
+        s.write(
+            "second/Vastitas.toml",
+            "[package]\nedition='2026'\nname='addon'\nversion='2.0.0'\nroot='main.vast'\n",
+        );
+        s.write("second/main.vast", "");
+        let manifest = std::fs::read_to_string(s.0.join("app/Vastitas.toml")).unwrap();
+        s.write(
+            "app/Vastitas.toml",
+            &(manifest + "second={path='../second'}\n"),
+        );
+        let mut raw = request_for_kind();
         for reverse in [false, true] {
             if reverse {
                 raw["packages"].as_array_mut().unwrap().reverse();
@@ -254,7 +251,7 @@ fn module_recipients_are_unsupported_and_authority_keeps_optional_runtime_bounda
         "E_UNSUPPORTED",
     );
     let s = fixture(BASE, ADDON, "");
-    s.write("app/main.vast", "resource fn main() -> Int { allocate data: F64[1]; borrow w = write(data, layout(0, 1, 1, 1, false)); fill(w, f64(2.0)); release(w); drop(data); value { base::choose(40, 2) } }");
+    s.write("app/main.vast", "resource fn main() -> Int { allocate data: F64<RR>[1]; borrow w = write(data, layout(0, 1, 1, 1, false)); fill(w, f64(2.0)); release(w); drop(data); value { base::choose(40, 2) } }");
     let raw = request(&s);
     let response = kernel(&raw, "emit");
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
@@ -265,42 +262,40 @@ fn module_recipients_are_unsupported_and_authority_keeps_optional_runtime_bounda
 
 #[test]
 fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() {
-    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
+    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh;");
     let s = fixture(BASE, ADDON, &events);
     native(&s, common::exits(44));
     // Reexports/aliases preserve both declaration identity and provenance.
     let replay = events.replace(
-        "return child;",
-        "apply alias::ops::sum using child; return child;",
+        "apply addon::ops::sum;",
+        "apply addon::ops::sum, alias::ops::sum;",
     );
     native(&fixture(BASE, ADDON, &replay), common::exits(44));
     // Grants survive permanent transfer; using the original grant still needs
     // an explicit active loan, while its old owner cannot directly edit.
-    let events = format!("transfer base::handoff; {NESTED} apply addon::fresh; seal base::choose;");
+    let events = format!("transfer base::handoff; {NESTED} apply addon::fresh;");
     native(&fixture(BASE, ADDON, &events), common::exits(44));
     let deeper = ADDON.replace("to addon::ops {", "to addon::ops delegable {").replace(
         "pub mod ops {",
         r#"pub mod ops {
         pub delegation deeper : base::choose to addon::ops::deep { domain (Int, Int); }
-        pub mod deep { pub contribution sum : base::choose { method base::choose(x: Int, y: Int) -> Int { x + y } } }
+        pub mod deep { pub contribution sum : base::choose { fn base::choose(x: Int, y: Int) -> Int { x + y } } }
         "#,
     );
-    let events = events.replace("apply addon::ops::sum using child;",
-        "reborrow child via addon::ops::deeper as grandchild; apply addon::ops::deep::sum using grandchild; return grandchild;");
+    let events = events.replace(
+        "apply addon::ops::sum;",
+        "delegate addon::ops::deeper as grandchild { apply addon::ops::deep::sum; }",
+    );
     native(&fixture(BASE, &deeper, &events), common::exits(44));
     let addon = format!(
-        "{ADDON} pub contribution numeric : base::choose {{ method base::choose(x: Int, y: Int) -> Int {{ x + y }} }}"
+        "{ADDON} pub contribution numeric : base::choose {{ fn base::choose(x: Int, y: Int) -> Int {{ x + y }} }}"
     );
     for order in [
         "apply addon::numeric; apply addon::fresh;",
         "apply addon::fresh; apply addon::numeric;",
     ] {
         native(
-            &fixture(
-                BASE,
-                &addon,
-                &format!("transfer base::handoff; {order} seal base::choose;"),
-            ),
+            &fixture(BASE, &addon, &format!("transfer base::handoff; {order}")),
             common::exits(44),
         );
     }
@@ -309,8 +304,11 @@ fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() 
 #[test]
 fn indexed_declarations_preserve_nested_loans_transfer_and_unapplied_audits() {
     let base = format!("indexed marker Wire; {BASE}");
-    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
+    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh;");
     native(&fixture(&base, ADDON, &events), common::exits(44));
+    let mut bad = request(&fixture(&base, ADDON, &events));
+    root_events(&mut bad)[3]["loan"] = json!("parent");
+    common::assert_wire_rejected(&kernel(bad, "check"), "E_BORROW");
     reject(
         &fixture(
             &base,
@@ -320,14 +318,6 @@ fn indexed_declarations_preserve_nested_loans_transfer_and_unapplied_audits() {
         "E_OWNER",
     );
     reject(
-        &fixture(
-            &base,
-            ADDON,
-            "borrow base::outer as parent; reborrow parent via addon::inner as child; return parent;",
-        ),
-        "E_BORROW",
-    );
-    reject(
         &fixture(&base.replace("{ 99 }", "{ true }"), ADDON, &events),
         "E_TYPE",
     );
@@ -335,44 +325,83 @@ fn indexed_declarations_preserve_nested_loans_transfer_and_unapplied_audits() {
 
 #[test]
 fn suspended_parent_return_order_and_exact_delegation_are_enforced() {
-    let prefix = "borrow base::outer as parent; reborrow parent via addon::inner as child;";
-    for suffix in [
-        "apply addon::fresh using parent;",
-        "return parent;",
-        "reborrow parent via addon::inner as another;",
-        "transfer base::handoff;",
-        "apply base::old;",
+    let raw = request(&fixture(
+        BASE,
+        ADDON,
+        &format!("{NESTED} transfer base::handoff;"),
+    ));
+    for (index, key, value) in [
+        (2, "loan", "parent"),
+        (3, "loan", "parent"),
+        (1, "parent", "child"),
     ] {
-        reject(
-            &fixture(BASE, ADDON, &format!("{prefix} {suffix}")),
-            "E_BORROW",
-        );
+        let mut bad = raw.clone();
+        root_events(&mut bad)[index][key] = json!(value);
+        common::assert_wire_rejected(&kernel(&bad, "check"), "E_BORROW");
+    }
+    for fault in [
+        "reborrow_suspended_parent",
+        "transfer_during_child",
+        "owner_edit_during_child",
+        "unreturned_children",
+        "transfer_during_root",
+        "transfer_without_seal",
+        "transfer_after_seal",
+    ] {
+        let mut bad = raw.clone();
+        let events = root_events(&mut bad);
+        let code = match fault {
+            "reborrow_suspended_parent" => {
+                let mut second = events[1].clone();
+                second["loan"] = json!("another");
+                events.insert(2, second);
+                "E_BORROW"
+            }
+            "transfer_during_child" => {
+                events.swap(2, 5);
+                "E_BORROW"
+            }
+            "owner_edit_during_child" => {
+                events[2]["loan"] = Value::Null;
+                events[2]["contribution"] = json!(["base", "old"]);
+                "E_BORROW"
+            }
+            "unreturned_children" => {
+                events.truncate(2);
+                "E_BORROW"
+            }
+            "transfer_during_root" => {
+                events.swap(1, 5);
+                "E_BORROW"
+            }
+            "transfer_without_seal" => {
+                events.pop();
+                "E_ASSEMBLY"
+            }
+            "transfer_after_seal" => {
+                events.swap(5, 6);
+                "E_ASSEMBLY"
+            }
+            _ => unreachable!(),
+        };
+        common::assert_wire_rejected(&kernel(&bad, "check"), code);
     }
     reject(
-        &fixture(
-            &BASE.replace(" delegable", ""),
-            ADDON,
-            &format!("{NESTED} seal base::choose;"),
-        ),
+        &fixture(&BASE.replace(" delegable", ""), ADDON, NESTED),
         "E_OWNER",
     );
     reject(
         &fixture(
             BASE,
             &ADDON.replace("domain (Int, Int);", "domain (Int, Int), (Nat, Nat);"),
-            &format!("{NESTED} seal base::choose;"),
+            NESTED,
         ),
         "E_OWNER",
     );
     reject(
-        &fixture(
-            BASE,
-            &ADDON.replace("to addon::ops", "to addon"),
-            &format!("{NESTED} seal base::choose;"),
-        ),
+        &fixture(BASE, &ADDON.replace("to addon::ops", "to addon"), NESTED),
         "E_OWNER",
     );
-    reject(&fixture(BASE, ADDON, prefix), "E_BORROW");
 }
 
 #[test]
@@ -380,13 +409,7 @@ fn transfer_revokes_old_authority_and_requires_returned_loans_and_completion() {
     for (events, code) in [
         ("transfer base::handoff; apply base::old;", "E_OWNER"),
         ("apply addon::fresh;", "E_OWNER"),
-        (
-            "borrow base::outer as parent; transfer base::handoff;",
-            "E_BORROW",
-        ),
         ("transfer base::handoff; transfer base::handoff;", "E_OWNER"),
-        ("transfer base::handoff;", "E_ASSEMBLY"),
-        ("seal base::choose; transfer base::handoff;", "E_ASSEMBLY"),
     ] {
         reject(&fixture(BASE, ADDON, events), code);
     }
@@ -396,14 +419,14 @@ fn transfer_revokes_old_authority_and_requires_returned_loans_and_completion() {
         format!("{ADDON} pub grant own : base::choose to addon::ops {{ domain (Int, Int); }}");
     reject(&fixture(BASE, &addon, ""), "E_OWNER");
     reject(
-        &fixture(BASE, &addon, "borrow addon::own as edit;"),
+        &fixture(BASE, &addon, "borrow addon::own as edit {}"),
         "E_OWNER",
     );
     native(
         &fixture(
             BASE,
             &addon,
-            "transfer base::handoff; borrow addon::own as edit; apply addon::ops::sum using edit; return edit; seal base::choose;",
+            "transfer base::handoff; borrow addon::own as edit { apply addon::ops::sum; }",
         ),
         common::exits(42),
     );
@@ -411,7 +434,7 @@ fn transfer_revokes_old_authority_and_requires_returned_loans_and_completion() {
 
 #[test]
 fn the_wire_reconstructs_authority_and_checks_all_bodies() {
-    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
+    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh;");
     let s = fixture(BASE, ADDON, &events);
     let raw = request(&s);
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
@@ -459,23 +482,18 @@ fn open_obligations_survive_nested_returns_and_transfer_until_owner_repairs() {
     let addon = format!(
         r#"
 pub delegation inner : base::choose to addon::ops {{ domain {region}; }}
-pub contribution fresh : base::choose {{ method base::choose(x: Number, y: Number) -> Int {{ 42 }} }}
+pub contribution fresh : base::choose {{ fn base::choose(x: Number, y: Number) -> Int {{ 42 }} }}
 pub mod ops {{ pub contribution sum : base::choose {{
-  method base::choose(x: Number, y: Any) -> Int {{ 1 }}
-  method base::choose(x: Any, y: Number) -> Int {{ 2 }}
+  fn base::choose(x: Number, y: Any) -> Int {{ 1 }}
+  fn base::choose(x: Any, y: Number) -> Int {{ 2 }}
 }} }}
 "#
     );
     reject(
-        &fixture(
-            &base,
-            &addon,
-            &format!("{NESTED} transfer base::handoff; seal base::choose;"),
-        ),
+        &fixture(&base, &addon, &format!("{NESTED} transfer base::handoff;")),
         "E_DISPATCH_AMBIGUOUS",
     );
-    let repaired =
-        format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
+    let repaired = format!("{NESTED} transfer base::handoff; apply addon::fresh;");
     native(&fixture(&base, &addon, &repaired), common::exits(42));
     reject(
         &fixture(&base, &addon.replace("{ 1 }", "{ true }"), &repaired),
@@ -487,7 +505,7 @@ pub mod ops {{ pub contribution sum : base::choose {{
         &fixture(
             BASE,
             &ADDON.replace("domain (Int, Int);", "domain;"),
-            &format!("{NESTED} seal base::choose;"),
+            NESTED,
         ),
         "E_IMPACT",
     );
@@ -498,13 +516,13 @@ fn transfer_does_not_grant_membership_or_abstract_contract_authority() {
     let base = format!("{BASE} pub abstract type Logical;");
     for extra in [
         "subtype Bool <: base::Logical;",
-        "abstract method base::choose(x: Int, y: Int) -> Int { domain (Int, Int); }",
+        "fn base::choose(x: Int, y: Int) -> Int domain((Int, Int));",
     ] {
         reject(
             &fixture(
                 &base,
                 &format!("{ADDON} {extra}"),
-                "transfer base::handoff; seal base::choose;",
+                "transfer base::handoff;",
             ),
             "E_OWNER",
         );

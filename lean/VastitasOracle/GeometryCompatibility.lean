@@ -49,15 +49,17 @@ theorem prepared_profile {program : FunctionSource.Program} {env : Core.Declarat
   simp only [bind, Except.bind] at lowered
   split at lowered
   · contradiction
-  · cases resolved : (Source.resolveGeometry program.headers env).run [] with
-    | error diagnostic => simp [resolved] at lowered
-    | ok pair =>
-      rcases pair with ⟨geometry, references⟩
-      simp only [resolved] at lowered
-      split at lowered
-      · contradiction
-      · cases lowered
-        exact ⟨references, rfl⟩
+  · rename_i ordinary preparedOrdinary
+    have exportProfile : ∃ refs, (Source.resolveGeometry program.headers env).run [] =
+        .ok (ordinary.input.body.geometry, refs) := by
+      change (FunctionSource.WorkBudget.check (lifted.definitions.toList.map (·.function)) >>= _) =
+        .ok ordinary at preparedOrdinary
+      simp only [bind, Except.bind] at preparedOrdinary
+      repeat' (split at preparedOrdinary <;> try contradiction)
+      cases preparedOrdinary
+      exact ⟨_, by assumption⟩
+    repeat' (split at lowered <;> try contradiction)
+    all_goals cases lowered; exact exportProfile
 
 theorem lowered_profile {program : Source.Program} {resolved : Source.Resolved}
     (lowered : Source.lower program = .ok resolved) :

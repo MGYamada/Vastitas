@@ -6,13 +6,19 @@ This is not a runtime pointer or an assertion that foreign storage is live. -/
 namespace VastitasKernel.Storage
 
 inductive Scalar where
-  | f64 | complexF64
+  | f64 | complexF64 | f32 | complexF32
   deriving Repr, BEq, DecidableEq, Inhabited
 
-def Scalar.width : Scalar → Nat | .f64 => 8 | .complexF64 => 16
-/-- Native binary64 component alignment. Typed views additionally preserve
-whole-element boundaries relative to their allocation origin. -/
-def Scalar.alignment (_ : Scalar) : Nat := 8
+def Scalar.componentBytes : Scalar → Nat
+  | .f32 | .complexF32 => 4
+  | .f64 | .complexF64 => 8
+
+def Scalar.components : Scalar → Nat
+  | .f32 | .f64 => 1
+  | .complexF32 | .complexF64 => 2
+
+def Scalar.width (s : Scalar) : Nat := s.componentBytes * s.components
+def Scalar.alignment := Scalar.componentBytes
 
 /-- A dense physical rectangle and an explicit logical transpose. `leading`
 is measured in elements; `offset` and capacity are measured in bytes. Padding

@@ -6,8 +6,8 @@ pub resource fn product() -> Unit {
     space x = linear(super::profiles::ComplexSmooth, 2); basis bx = basis(x);
     space vd = dual(v); basis bvd = derived(bv, vd);
     space xd = dual(x); basis bxd = derived(bx, xd);
-    allocate original: Complex<F64>[20]; allocate right: Complex<F64>[10];
-    allocate scratch: Complex<F64>[17]; allocate result: Complex<F64>[12];
+    allocate original: F64<CC>[20]; allocate right: F64<CC>[10];
+    allocate scratch: F64<CC>[17]; allocate result: F64<CC>[12];
     borrow init_t = write(original, layout(16, 2, 6, 3, false));
     store(init_t, 0, 0, complex_bits(0, 4607182418800017408));
     store(init_t, 1, 0, complex_bits(0, 4611686018427387904));

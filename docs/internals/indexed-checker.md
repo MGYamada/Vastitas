@@ -78,7 +78,7 @@ unapplied contribution body checking, nested loans and permanent transfer.
 Indexed values can occur in ordinary data signatures and method bodies. Finite
 dispatch still uses only the existing scalar/abstract selectors and capabilities;
 all applicable bodies, including nonwinners and out-of-domain keys, are checked.
-Fn signatures still contain only scalar/recursive-Fn types. Independent lambdas
+Fn signatures can contain scalars, finite Hom fibers and nested Fn types. Independent lambdas
 cannot capture values or object names appearing in indexed annotations.
 Separate signature probes audit unused bodies and cannot enter executable targets.
 
@@ -325,7 +325,11 @@ independent lambdas, invocation and recursive `Fn` signatures. Data annotations
 reuse the same indexed declarations, exact namespace resolver and dependent Core.
 Higher-order signatures contain only Nat/Int/Bool/Unit and recursive Fn types;
 Pair and indexed types remain available in direct data calls and local bodies.
-Generic families are not Fn values. This is not a public wire format.
+An overloaded family name denotes a static reference to its owner in the
+current assembly. A local binding keeps that reference across calls at
+different admitted keys. A parameter, return or annotation of type `Fn`
+chooses one method from the parameter types and then checks the return
+type. An unselected family is never a value in the runtime Core.
 
 The backend reconstructs source IDs and lifted lambda IDs from the enclosing
 package/module and traversal, independently audits their provenance, and rejects
@@ -403,6 +407,12 @@ A separate ledger re-resolves the generic path and checks its admitted key,
 selected method and emitted source definition. Core typing independently checks
 the resulting call signatures, nominal indices, scopes and dependency order.
 All ordinary source functions and lifted lambdas retain the same coverage audit.
+
+An inferred header uses `domain: null` on the wire. The kernel checks the
+assembled selectors and capabilities and unions their applicable keys with
+the declared contracts. An explicit array keeps its previous meaning,
+including an empty array. A static family binding uses this same dispatcher;
+the frontend sends neither the inferred keys nor the winner.
 
 `VastitasOracle.IndexedDispatch.applicable_body_checked` connects every actual
 applicable pair to a typed body in the returned audit Core. `source_body_checked`

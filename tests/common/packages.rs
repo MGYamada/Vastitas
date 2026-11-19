@@ -10,10 +10,10 @@ pub fn read(path: &Path) -> String {
 }
 
 /// The stdlib directories that an application's copy of the stdlib holds:
-/// the generated `std` entrypoint package and the geometry, differential and
-/// linalg packages.
-pub const STDLIB_PACKAGES: [&str; 4] = [
+/// the generated `std` entrypoint and its public library packages.
+pub const STDLIB_PACKAGES: [&str; 5] = [
     "target/package",
+    "src/category",
     "src/geometry",
     "src/differential",
     "src/linalg",

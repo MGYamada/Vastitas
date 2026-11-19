@@ -1,12 +1,11 @@
-assembly {
-  borrow base::outer as parent;
-  reborrow parent via addon::inner as child;
-  apply addon::ops::sum using child;
-  return child;
-  return parent;
+assemble base::choose {
+  borrow base::outer as parent {
+    delegate addon::inner as child {
+      apply addon::ops::sum;
+    }
+  }
   transfer base::handoff;
   apply addon::boolean;
-  seal base::choose;
 }
 fn main() -> Int {
     let total = show!(base::choose(40, 2) + base::choose(true, true));

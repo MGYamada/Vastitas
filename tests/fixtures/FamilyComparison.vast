@@ -1,0 +1,10 @@
+// The argument key fixes the call target before either branch executes.
+fn adjust(x: Nat) -> Nat { x - 5 }
+fn adjust(x: Int) -> Int { x - 5 }
+fn evaluate(flag: Bool, n: Nat, i: Int) -> Int {
+    if flag { int(adjust(n)) } else { adjust(i) }
+}
+fn main() -> Int {
+    let n: Nat = 2;
+    if evaluate(true, n, 2) == 0 && evaluate(false, n, 2) == -3 { 0 } else { 1 }
+}

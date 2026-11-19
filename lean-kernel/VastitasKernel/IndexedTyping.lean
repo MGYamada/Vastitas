@@ -142,12 +142,16 @@ instance (op : UnaryOp) (argument result : DataType) : Decidable (UnaryTyping op
   cases op <;> unfold UnaryTyping <;> infer_instance
 
 def BinaryTyping (op : BinaryOp) (left right result : DataType) : Prop :=
-  left = right ∧ match op with
-  | .add | .sub | .mul => (left = .pure .nat ∨ left = .pure .int) ∧ result = left
-  | .eq | .ne =>
-      (left = .pure .nat ∨ left = .pure .int ∨ left = .pure .bool ∨ left = .pure .unit) ∧ result = .pure .bool
-  | .lt | .le | .gt | .ge => (left = .pure .nat ∨ left = .pure .int) ∧ result = .pure .bool
-  | .and | .or => left = .pure .bool ∧ result = .pure .bool
+  match op with
+  | .div => (left = .pure .nat ∧ right = .pure .nat ∧ result = .pure .nat) ∨
+      (left = .pure .int ∧ right = .pure .int ∧ result = .pure .int) ∨
+      (left = .pure .nat ∧ right = .pure .int ∧ result = .pure .int) ∨
+      (left = .pure .int ∧ right = .pure .nat ∧ result = .pure .int)
+  | .add | .sub | .mul => left = right ∧ (left = .pure .nat ∨ left = .pure .int) ∧ result = left
+  | .eq | .ne => left = right ∧
+      (left = .pure .nat ∨ left = .pure .int ∨ left = .pure .bool ∨ left = .pure .unit ∨ (left matches .finite _)) ∧ result = .pure .bool
+  | .lt | .le | .gt | .ge => left = right ∧ (left = .pure .nat ∨ left = .pure .int) ∧ result = .pure .bool
+  | .and | .or => left = right ∧ left = .pure .bool ∧ result = .pure .bool
 
 instance (op : BinaryOp) (left right result : DataType) : Decidable (BinaryTyping op left right result) := by
   cases op <;> unfold BinaryTyping <;> infer_instance
@@ -212,6 +216,9 @@ def openedContext (shape : PackageShape) (witnessSymbol : Nat) (fieldSymbols : L
 mutual
   def HasType (env : Declarations) (functions : Signatures) (ctx : Context) (term : Term) : Prop :=
     term.result.Valid env ∧ match term with
+    | .finiteLookup site symbols => (site.plan? env.indexed).isSome = true ∧
+        symbols.mapM (lookup ctx) = some (site.inputs.map fun sort => ⟨.finite sort, none⟩)
+    | .finiteTag id tag => (FiniteSort.tags env.indexed id).any (·.contains tag) = true
     | .natural _ | .integer _ | .boolean _ | .unit => True
     | .variable symbol result => lookup ctx symbol = some result
     | .unary op operand result => HasType env functions ctx operand ∧ UnaryTyping op operand.result.type result.type

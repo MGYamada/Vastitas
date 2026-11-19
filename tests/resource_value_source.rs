@@ -6,8 +6,8 @@ use std::process::Command;
 
 const FUNCTIONS: &str = r#"
 resource fn choose(flag: Bool, n: Nat, delta: Int, token: Unit)
-    returns (data: Owned<F64, 1> initialized [layout(0, 1, 1, 1, false)]) -> Bool {
-    allocate data: F64[1];
+    returns (data: Owned<F64<RR>, 1> initialized [layout(0, 1, 1, 1, false)]) -> Bool {
+    allocate data: F64<RR>[1];
     borrow output = write(data, layout(0, 1, 1, 1, false));
     if flag {
         fill(output, f64_bits(4607182418800017408));
@@ -19,7 +19,7 @@ resource fn choose(flag: Bool, n: Nat, delta: Int, token: Unit)
     let selected: Bool = value { if remainder == 0 { flag } else { false } };
     value { selected }
 }
-resource fn finish(input: Owned<F64, 1>, seed: Int) -> Int {
+resource fn finish(input: Owned<F64<RR>, 1>, seed: Int) -> Int {
     drop(input);
     let next: Int = value { seed + 1 };
     value { next }
@@ -55,7 +55,7 @@ fn fixture(source: &str) -> Scratch {
     let scratch = Scratch::empty("resource value flow");
     scratch.write(
         "Vastitas.toml",
-        "[package]\nname = \"resource_values\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
+        "[package]\nedition = \"2026\"\nname = \"resource_values\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     scratch.write("main.vast", source);
     scratch

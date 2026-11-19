@@ -2,12 +2,10 @@ abstract type Numeric;
 subtype Nat <: Numeric;
 subtype Int <: Numeric;
 
-generic widen(x) { domain; }
-abstract method widen(x: Numeric) -> Int {
-    domain (Numeric);
-}
-method widen(x: Nat) -> Int { int(x) }
-method widen(x: Int) -> Int { x }
+fn widen(x) domain();
+fn widen(x: Numeric) -> Int domain((Numeric));
+fn widen(x: Nat) -> Int { int(x) }
+fn widen(x: Int) -> Int { x }
 
 fn main() -> Int {
     let n: Nat = 20;

@@ -31,7 +31,8 @@ theorem whole_layout (scalar : Scalar) (elements rows columns leading : Nat) :
   simp only [checkLayout, decide_eq_true_eq]
   cases scalar <;> by_cases zeroRows : rows = 0 <;> by_cases zeroColumns : columns = 0 <;>
     simp_all [Layout.Valid, Layout.empty, Layout.endByte, layoutPredicate,
-      Scalar.width, byteLimit, dimensionLimit, Nat.max_le, ← Nat.mul_assoc] <;> omega
+      Scalar.width, Scalar.componentBytes, Scalar.components, byteLimit, dimensionLimit,
+      Nat.max_le, ← Nat.mul_assoc] <;> omega
 
 theorem span_toNat (rows columns leading : UInt64)
     (rowBound : rows.toNat ≤ dimensionLimit)
@@ -54,7 +55,8 @@ theorem span_toNat (rows columns leading : UInt64)
   simp only [UInt64.toNat_ofNat]
   rw [Nat.mod_eq_of_lt productFits, Nat.mod_eq_of_lt sumFits]
 
-def scalarTag : Scalar → UInt8 | .f64 => 0 | .complexF64 => 1
+def scalarTag : Scalar → UInt8
+  | .f64 => 0 | .complexF64 => 1 | .f32 => 2 | .complexF32 => 3
 
 theorem runtime_layout (scalar : Scalar) (elements rows columns leading : UInt64) :
     VastitasStorageNative.runtimeLayoutValid (scalarTag scalar) elements rows columns leading =
@@ -65,7 +67,7 @@ theorem runtime_layout (scalar : Scalar) (elements rows columns leading : UInt64
       UInt8.lt_iff_toNat_lt, UInt64.lt_iff_toNat_lt,
       UInt64.le_iff_toNat_le, ← UInt64.toNat_inj]
   all_goals
-    simp only [layoutPredicate, Scalar.width, byteLimit, dimensionLimit]
+    simp only [layoutPredicate, Scalar.width, Scalar.componentBytes, Scalar.components, byteLimit, dimensionLimit]
     constructor
     · rintro ⟨⟨⟨⟨⟨hr, hc⟩, hl⟩, hn⟩, hrl⟩, he, hs⟩
       refine ⟨he, hr, hc, hl, by omega, hrl, ?_⟩
@@ -158,7 +160,7 @@ theorem extent_int_failure (value : Int) (rejected : Shapes.narrowInt value = no
     simpa [VastitasStorageNative.runtimeExtentInt, negative] using extent_nat_failure value.toNat rejected
 
 theorem invalid_scalar (scalar : UInt8) (elements rows columns leading : UInt64)
-    (invalid : 1 < scalar) :
+    (invalid : 3 < scalar) :
     VastitasStorageNative.runtimeLayoutValid scalar elements rows columns leading = false := by
   simp [VastitasStorageNative.runtimeLayoutValid, invalid]
 

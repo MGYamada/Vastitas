@@ -1,0 +1,253 @@
+import VastitasKernel.ResourceProtocol
+
+set_option autoImplicit false
+
+/-! A proof-side descriptor for the canonical chart of an existing smooth
+affine object in an accepted public request. The only interpretation in this
+module is the syntactically explicit identity morphism. Public execution applies its checked storage copy to the selected resource points. -/
+namespace VastitasOracle.NumericalRealization
+open VastitasKernel VastitasKernel.ResourceSource VastitasKernel.Indexed
+
+inductive Representation where
+  | real32 | real64 | complex32 | complex64
+  deriving DecidableEq, Repr
+
+/-- Valid only for canonical smooth affines: the standard coordinate chart
+is nominally indexed by the existing object. No chart is inferred for gluings. -/
+structure RealChart where
+  subject : DeclId
+  deriving DecidableEq, Repr
+
+/-- Retain the smooth site by construction and its concrete implementation:
+the coefficient *marker* does not stand for a geometric base object. -/
+structure Descriptor (env : Environment) (rep : Representation) (subject : DeclId) (chart : RealChart) where
+  implementation : DeclId
+  realMarker : DeclId
+  coordinates : List String
+  exactSubject : Indexed.lookup env subject = some (.smoothAffine implementation coordinates)
+  exactImplementation : Indexed.lookup env implementation = some (.implementation realMarker .smoothAffine [])
+  exactChart : chart.subject = subject
+  real : rep = .real32 ∨ rep = .real64
+
+def construct (env : Environment) (rep : Representation)
+    (subject : DeclId) (chart : RealChart) : Option (Descriptor env rep subject chart) := do
+  if h : chart.subject = subject then
+    if r : rep = .real32 ∨ rep = .real64 then
+      match hs : Indexed.lookup env subject with
+      | some (.smoothAffine impl coordinates) =>
+        match hi : Indexed.lookup env impl with
+        | some (.implementation marker .smoothAffine []) =>
+          return ⟨impl, marker, coordinates, hs, hi, h, r⟩
+        | _ => none
+      | _ => none
+    else none
+  else none
+
+/-- No caller-supplied declaration table, chart dimension or coefficient
+type becomes evidence: the environment is the accepted public input's. -/
+def fromChecked {json : Lean.Json} {main : Bool} (input : Wire.CheckedInput json main)
+    (rep : Representation) (subject : DeclId) (chart : RealChart) :=
+  construct (numericalEnvironment input.checked.pureProgram) rep subject chart
+
+/-- Original source matters: the existing smooth-map normalizer can turn
+floating-distinct programs into identical exact polynomials. Only an explicit
+identity declaration denotes this graph; inspecting its exact map alone would
+wrongly accept a pullback that merely simplifies to identity. -/
+def declaredIdentity (p : Source.Program) (owner : DeclId) : Bool :=
+  (p.owned.find? (fun pair => pair.1 == owner)).any fun pair =>
+    match pair.2.body with | .morphism _ _ .identity => true | _ => false
+
+structure IdentityPlan {json : Lean.Json} {main : Bool} (input : Wire.CheckedInput json main)
+    (rep : Representation) (subject graph : DeclId) (chart : RealChart) where
+  descriptor : Descriptor (numericalEnvironment input.checked.pureProgram) rep subject chart
+  sourceIdentity : declaredIdentity input.input.pureProgram.source.headers graph = true
+  family : DeclId
+  checkedMap : input.checked.pureProgram.authority.headers.declarations.resolved.declarations.primitive? graph =
+    some (.smoothConstant ⟨family, [.object (.global subject), .object (.global subject)]⟩
+      (SmoothRuntime.identity descriptor.coordinates.length))
+
+/-- Check the selected computation from the same source and mathematical
+environment as the realization's descriptor. Comparing the whole map also
+binds its source arity. This finite graph has no floating arithmetic. -/
+def interpretIdentity {json : Lean.Json} {main : Bool} (input : Wire.CheckedInput json main)
+    (rep : Representation) (subject graph : DeclId) (chart : RealChart) :
+    Option (IdentityPlan input rep subject graph chart) := do
+  let d ← fromChecked input rep subject chart
+  if h : declaredIdentity input.input.pureProgram.source.headers graph = true then
+    let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations
+    let some (.smoothConstant app _) := env.primitive? graph | none
+    if hc : env.primitive? graph =
+        some (.smoothConstant ⟨app.family, [.object (.global subject), .object (.global subject)]⟩
+          (SmoothRuntime.identity d.coordinates.length)) then
+      return ⟨d, h, app.family, hc⟩
+    else none
+  else none
+
+/-- A denotationally equal polynomial is insufficient: every selected
+presentation is the identity as actually declared, and the checked Core
+constant has the same two nominal endpoints. -/
+theorem identity_presentation {json : Lean.Json} {main : Bool}
+    {input : Wire.CheckedInput json main} {rep : Representation} {subject graph : DeclId} {chart : RealChart}
+    (plan : IdentityPlan input rep subject graph chart) :
+    declaredIdentity input.input.pureProgram.source.headers graph = true ∧
+    input.checked.pureProgram.authority.headers.declarations.resolved.declarations.primitive? graph =
+      some (.smoothConstant ⟨plan.family, [.object (.global subject), .object (.global subject)]⟩
+        (SmoothRuntime.identity plan.descriptor.coordinates.length)) :=
+  ⟨plan.sourceIdentity, plan.checkedMap⟩
+
+theorem foreign_chart_impossible {env : Environment} {rep : Representation} {subject : DeclId} {chart : RealChart}
+    (d : Descriptor env rep subject chart) (foreignChart : chart.subject ≠ subject) : False :=
+  foreignChart d.exactChart
+
+theorem complex_on_smooth_real_impossible {env : Environment} {subject : DeclId} {chart : RealChart}
+    (d : Descriptor env .complex64 subject chart) : False := by
+  cases d.real <;> contradiction
+
+theorem dimension_from_subject {env : Environment} {rep : Representation} {subject : DeclId} {chart : RealChart}
+    (d : Descriptor env rep subject chart) :
+    smoothDimension? env subject = some d.coordinates.length := by
+  simp [smoothDimension?, smoothCoordinates?, d.exactSubject]
+
+/-- Every site, including one in an uncalled library function, resolved in
+its source namespace and passed the chart and graph check of this very request. -/
+theorem checked_site {json main} (input : Wire.CheckedInput json main)
+    (site : RealizationSite) (member : site ∈ input.checked.lowered.realizationSites) :
+    site.resolves input.input.pureProgram.source.headers.indexed = true ∧
+    site.valid (declaredIdentities input.input.pureProgram.source.headers)
+      input.checked.pureProgram.authority.headers.declarations.resolved.declarations = true := by
+  have h := input.checked.realizations
+  generalize he : input.checked.lowered.realizationSites = sites at h member
+  cases sites with
+  | nil => contradiction
+  | cons s rest =>
+    simp only [validRealizations, List.isEmpty_cons, Bool.false_eq_true, ↓reduceIte, List.all_eq_true] at h
+    simpa only [Bool.and_eq_true] using h site member
+
+/-- The point selects a physical allocation with exactly its descriptor's
+representation, including when two distinct scalar types occupy eight bytes. -/
+theorem point_scalar {env : Indexed.Environment} {d : Storage.Realization.Descriptor}
+    {s : Storage.State} {name : Storage.Symbol}
+    (valid : Storage.Realization.pointValid env d s name = true) :
+    ∃ l a, s.loan? name = some l ∧ s.allocation? l.allocation = some a ∧
+      a.scalar = d.representation.scalar := by
+  cases hp : d.profile env with
+  | none => simp [Storage.Realization.pointValid, hp] at valid
+  | some profile =>
+    cases hl : s.loan? name with
+    | none => simp [Storage.Realization.pointValid, hp, hl] at valid
+    | some loan =>
+      cases ha : s.allocation? loan.allocation with
+      | none => simp [Storage.Realization.pointValid, hp, hl, ha] at valid
+      | some allocation =>
+        simp [Storage.Realization.pointValid, hp, hl, ha] at valid
+        have same : ∀ x y : Storage.Scalar, (x == y) = true → x = y := by
+          intro x y
+          cases x <;> cases y <;> decide
+        exact ⟨loan, allocation, rfl, ha, same _ _ valid.1.1.2⟩
+
+/-- The marker, coordinate order and nominal standard chart are recovered
+from the primitive declarations of the same checked mathematical environment. -/
+theorem profile_equations {env : Environment} {d : Storage.Realization.Descriptor}
+    {p : Storage.Realization.ChartProfile} (h : d.profile env = some p) :
+    d.chart = d.subject ∧ (d.representation = .real64 ∨ d.representation = .real32) ∧
+    Indexed.lookup env d.subject = some (.smoothAffine p.implementation p.coordinates) ∧
+    Indexed.lookup env p.implementation = some (.implementation p.marker .smoothAffine []) := by
+  unfold Storage.Realization.Descriptor.profile at h
+  simp only [guard, bind, pure] at h
+  split at h
+  next auth =>
+    have allowed : d.subject = d.chart ∧ (d.representation = .real64 ∨ d.representation = .real32) := by
+      simpa only [Storage.Realization.Representation.isReal, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq] using auth
+    refine ⟨allowed.1.symm, allowed.2, ?_⟩
+    simp only [Option.bind_some] at h
+    obtain ⟨x,hx,body⟩ := Option.bind_eq_some_iff.mp h
+    split at body <;> try contradiction
+    obtain ⟨y,hy,someProfile⟩ := Option.bind_eq_some_iff.mp body
+    split at someProfile <;> try contradiction
+    cases someProfile
+    exact ⟨hx,hy⟩
+  next => simp [failure, Alternative.failure, Option.bind] at h
+
+/-- A reached identity plan requires a declared identity in the public source
+and its full constant in Core. The normalized polynomial alone grants no run. -/
+theorem checked_run_identity {json main} (input : Wire.CheckedInput json main)
+    (site : RealizationSite) (member : site ∈ input.checked.lowered.realizationSites)
+    {plan : Storage.Realization.Plan} {src dst} (op : site.operation = .run plan src dst) :
+    let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations
+    ∃ profile family, plan.descriptor.profile env.indexed = some profile ∧
+      (declaredIdentities input.input.pureProgram.source.headers).contains plan.graph = true ∧
+      env.primitive? plan.graph = some (.smoothConstant
+        ⟨family,[.object (.global plan.descriptor.subject),.object (.global plan.descriptor.subject)]⟩
+        (SmoothRuntime.identity profile.coordinates.length)) := by
+  have h := (checked_site input site member).2
+  dsimp only
+  simp only [RealizationSite.valid, op, Storage.Realization.Operation.descriptor,
+    Storage.Realization.Operation.family] at h
+  repeat' (split at h <;> try contradiction)
+  all_goals simp only [Id.run, pure, Bool.and_eq_true, beq_iff_eq] at h
+  all_goals first | contradiction | exact ⟨_,_, by assumption,h.1,h.2⟩
+
+/-- The executable receipt contains the real before/after states, both live
+point checks and the physical copy at this call's position in the schedule. -/
+theorem executed_copy {json main} (input : Wire.CheckedInput json main)
+    (entry : Nat) (selected : input.input.entry = some entry)
+    (r : Storage.Functions.RealizationRunReceipt)
+    (member : r ∈ (input.checked.execution entry selected).checked.context.realizationRuns.toList) :
+    r.environment = numericalEnvironment input.checked.pureProgram ∧
+    sourceRun input.checked.lowered.functions r.location.source = some r.plan ∧
+    Storage.Realization.pointValid r.environment r.plan.descriptor r.before r.input = true ∧
+    Storage.Realization.pointValid r.environment r.plan.descriptor r.before r.output = true ∧
+    Storage.checkAction r.before (.copy r.input r.output) = .ok r.after ∧
+    r.priorCode ++ [.action (.copy r.input r.output)] = r.code := by
+  have h := (input.checked.execution entry selected).realizationOrigins r member
+  exact ⟨h.1,h.2,r.inputValid,r.outputValid,r.transitioned,r.emitted⟩
+
+/-- Membership in the source identity index yields the original declaration
+and its literal presentation, before any polynomial normalization. -/
+theorem declared_identity_member {p : Source.Program} {graph : DeclId}
+    (selected : (declaredIdentities p).contains graph = true) :
+    ∃ decl, (graph,decl) ∈ p.owned ∧ ∃ family endpoints, decl.body = .morphism family endpoints .identity := by
+  simp only [declaredIdentities, Std.HashSet.contains_ofList, List.contains_iff_mem, List.mem_filterMap] at selected
+  obtain ⟨⟨owner,decl⟩,member,h⟩ := selected
+  split at h <;> try contradiction
+  cases h
+  exact ⟨decl,member,_,_,by assumption⟩
+
+private theorem plan_eq_of_beq {a b : Storage.Realization.Plan} (h : (a == b) = true) : a = b := by
+  obtain ⟨x,f,pa⟩ := a
+  obtain ⟨y,g,pb⟩ := b
+  cases pa
+  cases pb
+  change (x == y && (f == g && true)) = true at h
+  simp only [Bool.and_true, Bool.and_eq_true, beq_iff_eq] at h
+  obtain ⟨rfl,rfl⟩ := h
+  rfl
+
+/-- Every executed receipt points back to the lexical run, the original
+identity declaration and the exact checked morphism on the selected subject.
+The caller need only provide an actual receipt of the public execution. -/
+theorem executed_source_identity {json main} (input : Wire.CheckedInput json main)
+    (entry : Nat) (selected : input.input.entry = some entry) (r : Storage.Functions.RealizationRunReceipt)
+    (member : r ∈ (input.checked.execution entry selected).checked.context.realizationRuns.toList) :
+    let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations
+    ∃ site ∈ input.checked.lowered.realizationSites, ∃ src dst,
+      (r.location.source.function.bind (input.checked.lowered.owners.toArray[·]?)) = some site.owner ∧
+      site.position = r.location.source.path ∧ site.operation = .run r.plan src dst ∧
+      (∃ decl, (r.plan.graph,decl) ∈ input.input.pureProgram.source.headers.owned ∧
+        ∃ family endpoints, decl.body = .morphism family endpoints .identity) ∧
+      ∃ profile family, r.plan.descriptor.profile env.indexed = some profile ∧
+        env.primitive? r.plan.graph = some (.smoothConstant
+          ⟨family,[.object (.global r.plan.descriptor.subject),.object (.global r.plan.descriptor.subject)]⟩
+          (SmoothRuntime.identity profile.coordinates.length)) := by
+  dsimp only
+  obtain ⟨site,original,same⟩ := input.checked.runSources entry selected r member
+  simp only [RealizationSite.matchesRun, Bool.and_eq_true, beq_iff_eq] at same
+  obtain ⟨⟨owner,path⟩,op⟩ := same
+  split at op <;> try contradiction
+  rename_i plan src dst h
+  have eqPlan : plan = r.plan := plan_eq_of_beq op
+  subst plan
+  obtain ⟨profile,family,chart,graph,eq⟩ := checked_run_identity input site original h
+  exact ⟨site,original,src,dst,owner,path,h,declared_identity_member graph,profile,family,chart,eq⟩
+
+end VastitasOracle.NumericalRealization

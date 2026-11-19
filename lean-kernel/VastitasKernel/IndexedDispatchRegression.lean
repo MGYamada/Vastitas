@@ -12,7 +12,7 @@ private def var (name : String) : Expr := .variable name {}
 private def call (name : String) (args : List Expr := []) : Expr := .call (path name) args {}
 private def block (value : Expr) (statements : List Stmt := []) : Block := .mk statements value {}
 private def main (value : Expr) (statements : List Stmt := []) : FunctionSource.Function :=
-  ⟨"main", [], int, block value statements, true, {}⟩
+  ⟨"main", [], int, block value statements, true, {}, []⟩
 private def generic : Namespace.Generic := {
   name := "adjust", params := [{ name := "value", span := {} }], domain := [[.named "Int"]],
   isPublic := true, span := {} }
@@ -50,7 +50,7 @@ def dispatchFixture : Program := program [broad, narrow]
 #eval rejects "applicable nonwinner body" "E_TYPE" (program [{ broad with body := block (.boolean false {}) }, narrow])
 #eval rejects "out-of-domain applicable body" "E_TYPE" (program
   [{ broad with body := block (.binary "+" (var "x") (num 1) {}) }, narrow])
-#eval rejects "generic is not a Fn value" "E_TYPE" (program [broad, narrow]
+#eval accepts "invoking a static family reference" (program [broad, narrow]
   (main (.invoke (.functionValue (path "adjust") {}) [num 1] {})))
 #eval rejects "Pair is not a dispatch key" "E_TYPE" (program [broad, narrow]
   (main (call "adjust" [call "pair" [num 1, num 2]])))
@@ -76,6 +76,48 @@ def dispatchFixture : Program := program [broad, narrow]
 private def rootModule (p : Program) (change : Module → Module) : Program :=
   { p with packages := p.packages.map fun pkg => { pkg with modules := pkg.modules.map fun m =>
     if pkg.id.source == p.root && m.module.path.isEmpty then change m else m } }
+
+private def inferredFamily (entries : List Method) (entry : FunctionSource.Function) : Program :=
+  rootModule (program entries entry) fun m =>
+    { m with module := { m.module with generics := [{ generic with domain := [], inferDomain := true }] } }
+
+private def localFamily := inferredFamily [broad, narrow] <| main
+  (.binary "+" (call "f" [var "n"]) (call "f" [num 8]) {})
+  [.letE "f" none (var "adjust") {}, .letE "n" (some (.data (.pure .nat))) (num 2) {}]
+
+#eval check "one resolved family alias emits both checked winners" (match checkProgram localFamily true with
+  | .error _ => false
+  | .ok checked =>
+    let calls := checked.executable.lowered.dispatchCalls
+    calls.any (fun c => c.key == [0] && c.method == 0) &&
+    calls.any (fun c => c.key == [1] && c.method == 1) &&
+    checked.executable.lowered.familyRefs.length == 1)
+
+#eval accepts "family coerces to an exact Fn parameter" (program [broad, narrow]
+  (main (call "twice" [var "adjust", num 1])))
+
+private def fnType (arg result : Core.PureType) : FnType :=
+  .function (.function (.cons (.data (.pure arg)) .nil) (.data (.pure result)))
+
+#eval accepts "return a monomorphic family specialization" (rootModule (program [broad, narrow]
+    (main (.invoke (call "get") [num 1] {}))) fun m =>
+  { m with functions := m.functions ++ [⟨"get", [], fnType .int .int, block (var "adjust"), false, {}, []⟩] })
+#eval rejects "result annotation cannot select a losing method" "E_TYPE" (program [broad, narrow]
+  (main (num 1) [.letE "f" (some (fnType .int .bool)) (var "adjust") {}]))
+#eval rejects "coercion cannot select outside an explicit domain" "E_DISPATCH_DOMAIN" (program [broad, narrow]
+  (main (num 1) [.letE "f" (some (fnType .nat .int)) (var "adjust") {}]))
+#eval rejects "capability restricts an inferred family" "E_DISPATCH_DOMAIN"
+  (inferredFamily [{ (method "Any" (block (num 1))) with requirements := ["HasOrder"] }]
+    (main (call "adjust" [.unit {}])))
+
+#eval check "forged owner of an uncalled family reference fails independent validation" (match checkProgram
+    (program [broad, narrow] (main (num 1) [.letE "f" none (var "adjust") {}])) true with
+  | .error _ => false
+  | .ok checked => let pass := checked.executable.lowered
+                   match pass.familyRefs with
+                   | [ref] => !Compiler.validFamilyUses checked.compiler.input { pass with familyRefs :=
+                                  [{ ref with target := { ref.target with owner := { ref.target.owner with name := "fake" } } }] }
+                   | _ => false)
 private def contract (result : RawType := .named "Int") : RawAbstractMethod := {
   name := "adjust", params := [⟨"x", .named "Number", {}⟩], returnType := result,
   domain := [[path "Number"]], requirements := [], span := {} }
@@ -116,6 +158,27 @@ private def joined (second : String) (covered : Bool := true) : Program :=
 private def libraryModule (p : Program) (change : Module → Module) : Program :=
   { p with packages := p.packages.map fun pkg => { pkg with modules := pkg.modules.map fun m =>
     if pkg.id.source != p.root && m.module.path.isEmpty then change m else m } }
+
+private def crossScope : Program :=
+  let p := rootModule (program [broad, narrow] (main (call "geo::consume" [var "adjust"]))) fun m =>
+    { m with module := { m.module with generics := [{ generic with isPublic := false }] } }
+  libraryModule p fun m =>
+    { m with functions := m.functions ++
+      [⟨"consume", [⟨"callback", fnType .int .int, {}⟩], int, block (call "callback" [num 5]), true, {}, []⟩] }
+
+#eval check "a private selected family can cross scopes without granting name access" (match checkProgram crossScope true with
+  | .error _ => false
+  | .ok checked =>
+    let pass := checked.executable.lowered
+    pass.dispatchCalls.any (fun c => c.callerScope != c.scope) &&
+      !Compiler.validFamilyUses checked.compiler.input { pass with staticUses := [] })
+
+#eval rejects "runtime choice cannot merge different family identities" "E_STATIC_CALL" (rootModule
+    (program [broad, narrow] (main (.invoke
+      (.branch (.boolean true {}) (block (var "adjust")) (block (var "rival")) {}) [num 1] {}))) fun m =>
+  { m with
+    module := { m.module with generics := m.module.generics ++ [{ generic with name := "rival" }] }
+    methods := m.methods ++ [{ broad with target := path "rival" }] })
 #eval rejects "foreign generic owner" "E_OWNER" (libraryModule
   (program [{ broad with target := path "geo::foreign" }]) fun m =>
     { m with module := { m.module with generics := [{ generic with name := "foreign" }] } })

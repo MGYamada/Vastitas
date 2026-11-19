@@ -1,5 +1,15 @@
+import VastitasOracle.BinaryFloat
+import VastitasOracle.SafeFloat
 import VastitasOracle.HodgeFinite
 import VastitasOracle.Core
+import VastitasOracle.ExactOperators
+import VastitasOracle.ExactComplex
+import VastitasOracle.ExactComplexAdditive
+import VastitasOracle.BinaryFunction
+import VastitasOracle.FiniteModule
+import VastitasOracle.CallFunction
+import VastitasOracle.ExitFunction
+import VastitasOracle.DispatchFunction
 import VastitasOracle.AlgebraBasis
 import VastitasOracle.AffineDeclarations
 import VastitasOracle.AffineMorphisms
@@ -61,6 +71,18 @@ import VastitasOracle.IndexedCallTransport
 import VastitasOracle.IndexedArgumentSafety
 import VastitasOracle.IndexedProgramSafety
 import VastitasOracle.IndexedSource
+import VastitasOracle.ExactLibrary
+import VastitasOracle.BoxedCertificate
+import VastitasOracle.ExactProgram
+import VastitasOracle.MidIRRegression
+import VastitasOracle.PackageLink
+import VastitasOracle.FiniteLookupLayout
+import VastitasOracle.FiniteHom
+import VastitasOracle.FiniteMonadEvaluation
+import VastitasOracle.FiniteMonadUnit
+import VastitasOracle.FiniteMonadBind
+import VastitasOracle.KleisliViewExtension
+import VastitasOracle.FiniteFunctions
 import VastitasOracle.IndexedSourceTypes
 import VastitasOracle.IndexedFunctions
 import VastitasOracle.IndexedDispatch
@@ -77,6 +99,7 @@ import VastitasOracle.StorageGemm
 import VastitasOracle.StorageFunctions
 import VastitasOracle.StorageNumerical
 import VastitasOracle.ResourceSource
+import VastitasOracle.NumericalRealizationRegression
 import VastitasOracle.ResourceCodegen
 import VastitasOracle.ResourceValueFlow
 import VastitasOracle.IndexedReverseCore
@@ -98,6 +121,7 @@ import VastitasOracle.ScalarFuelRegression
 import VastitasOracle.CallCoverage
 import VastitasOracle.NumericalCoverage
 import VastitasOracle.UniverseAdmission
+import VastitasOracle.FiniteProgram
 
 /-!
 Root of the Vastitas proof oracle. The oracle imports the implementation's

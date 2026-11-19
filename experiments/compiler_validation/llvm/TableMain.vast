@@ -1,0 +1,8 @@
+use lib::Input;
+use lib::Output;
+use lib::pick;
+
+fn main() -> Int {
+    if pick(Input::first) == Output::high && pick(Input::second) == Output::low
+        && pick(Input::third) == Output::high { 0 } else { 1 }
+}

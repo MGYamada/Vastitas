@@ -589,6 +589,10 @@ theorem validEntry_of_extension (ranks : List (DeclId × Nat)) (entry : Entry) :
     validEntry big ranks entry = validEntry small ranks entry := by
   cases h : entry.declaration with
   | marker => simp only [validEntry, h]
+  | finiteCarrier tags => simp only [validEntry, h]
+  | finiteTable inputs output rows => simp only [validEntry, h, finiteTable_append ext.profile]
+  | categorySchema | functorSchema | natTransSchema | monadSchema => simp only [validEntry, h]
+  | kleisliSchema | finiteKleisli | composableTable | finiteCategory | finiteFunctor | finiteNatTrans | finiteMonad => simp only [validEntry, h, funext (categoryView_append ext.profile)]
   | implementation marker representation capabilities =>
     simp only [validEntry, h, isMarker_append ext.profile, representationValid_append ext]
   | classification parents implementations =>

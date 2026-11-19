@@ -65,6 +65,14 @@ impl<'a> Resolver<'a> {
             scope: Scope::default(),
         };
         for (i, function) in module.functions.iter().enumerate() {
+            if !function.finite_binders.is_empty()
+                && function
+                    .params
+                    .iter()
+                    .any(|param| matches!(param.ty, Type::Function { .. }))
+            {
+                continue;
+            }
             if this.functions.insert(&function.name, i).is_some() {
                 this.errors.push(diagnostic(
                     "E_DUPLICATE",
@@ -92,7 +100,7 @@ impl<'a> Resolver<'a> {
             if generic.name == "main" {
                 this.errors.push(diagnostic(
                     "E_MAIN",
-                    "the entrypoint must be an ordinary `fn main() -> Int`, not a generic",
+                    "the entrypoint requires a single concrete `fn main() -> Int` body",
                     generic.span,
                 ));
             }
@@ -136,12 +144,45 @@ impl<'a> Resolver<'a> {
             this.block(&function.body, Some(i));
             this.scope.truncate(0);
         }
+        let inferred: HashMap<_, _> = module
+            .generics
+            .iter()
+            .filter(|generic| generic.domain.is_none())
+            .map(|generic| (generic.name.as_str(), generic.params.len()))
+            .collect();
+        let mut signatures = std::collections::HashSet::new();
         for method in &module.methods {
+            if let Some(arity) = inferred.get(method.name.as_str()) {
+                if *arity != method.params.len() {
+                    this.errors.push(diagnostic(
+                        "E_ARITY",
+                        format!("methods of `{}` must have the same arity", method.name),
+                        method.span,
+                    ));
+                }
+                let selectors: Vec<_> = method
+                    .params
+                    .iter()
+                    .filter_map(|param| match &param.ty {
+                        Type::Named { name } => Some(name.as_str()),
+                        _ => None,
+                    })
+                    .collect();
+                let mut requirements: Vec<_> = method.requires.iter().collect();
+                requirements.sort_unstable();
+                if !signatures.insert((method.name.as_str(), selectors, requirements)) {
+                    this.errors.push(diagnostic(
+                        "E_DUPLICATE",
+                        format!("duplicate method signature for `{}`", method.name),
+                        method.span,
+                    ));
+                }
+            }
             if !this.generics.contains_key(method.name.as_str()) {
                 this.errors.push(diagnostic(
                     "E_NAME",
                     format!(
-                        "method `{}` requires a declared generic of the same name",
+                        "method `{}` requires a declared function family of the same name",
                         method.name
                     ),
                     method.span,
@@ -161,7 +202,7 @@ impl<'a> Resolver<'a> {
                 this.errors.push(diagnostic(
                     "E_NAME",
                     format!(
-                        "abstract method `{}` requires a declared generic",
+                        "contract `{}` requires a declared function family",
                         contract.name
                     ),
                     contract.span,
@@ -368,6 +409,11 @@ impl<'a> Resolver<'a> {
                 self.scope.truncate(mark);
                 self.scope.frame -= 1;
             }
+            ExprKind::FiniteLookup { args, .. } | ExprKind::FiniteCall { args, .. } => {
+                for arg in args {
+                    self.expr(arg, function, false);
+                }
+            }
             ExprKind::Invoke { callee, args } => {
                 self.expr(callee, function, false);
                 for arg in args {
@@ -375,20 +421,20 @@ impl<'a> Resolver<'a> {
                 }
             }
             ExprKind::Variable { name } => {
+                let declared = name.strip_prefix("self::").unwrap_or(name);
                 if name.starts_with("__vastitas_") {
                     self.errors.push(reserved_prefix(expr.span));
                 } else if matches!(name.as_str(), "QQ" | "CInfReal") {
                     if !ring_position {
                         self.errors.push(diagnostic("E_RING", format!("`{name}` is a coefficient-ring marker, usable only in Affine or Base"), expr.span));
                     }
-                } else if !self.scope.contains(name) && !self.functions.contains_key(name.as_str())
+                } else if !self.scope.contains(name)
+                    && !self.functions.contains_key(declared)
+                    && !self.generics.contains_key(declared)
+                    && !exact_operator_name(name)
                 {
                     if self.scope.enclosing(name) {
                         self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture `{name}`; pass it as an explicit parameter"), expr.span));
-                        return;
-                    }
-                    if self.generics.contains_key(name.as_str()) {
-                        self.errors.push(diagnostic("E_TYPE", "a generic is not a Fn value; use an explicit ordinary-function wrapper", expr.span));
                         return;
                     }
                     self.errors.push(diagnostic(
@@ -399,9 +445,10 @@ impl<'a> Resolver<'a> {
                 }
             }
             ExprKind::Call { callee, args } => {
+                let declared = callee.strip_prefix("self::").unwrap_or(callee);
                 if callee.starts_with("__vastitas_") {
                     self.errors.push(reserved_prefix(expr.span));
-                } else if let Some(&target) = self.functions.get(callee.as_str()) {
+                } else if let Some(&target) = self.functions.get(declared) {
                     if let Some(function) = function {
                         self.calls[function].push(target);
                     }
@@ -409,8 +456,9 @@ impl<'a> Resolver<'a> {
                     // Function-valued bindings are checked independently by Lean.
                 } else if self.scope.enclosing(callee) {
                     self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture `{callee}`; pass it as an explicit parameter"), expr.span));
-                } else if !self.generics.contains_key(callee.as_str())
+                } else if !self.generics.contains_key(declared)
                     && !BUILTINS.contains(&callee.as_str())
+                    && !exact_operator_name(callee)
                 {
                     let hint = if callee == "nat_to_int" {
                         "; help: nat_to_int is defined by the arithmetic standard library (include it with --lib or a package import); the builtin conversion is int(...)"
@@ -421,7 +469,7 @@ impl<'a> Resolver<'a> {
                     } else {
                         ""
                     };
-                    self.errors.push(diagnostic("E_NAME", format!("unknown function `{callee}`; calls require a declared function, generic, or supported builtin{hint}"), expr.span));
+                    self.errors.push(diagnostic("E_NAME", format!("unknown function `{callee}`; calls require a declared function family or supported builtin{hint}"), expr.span));
                 }
                 for (i, arg) in args.iter().enumerate() {
                     self.expr(

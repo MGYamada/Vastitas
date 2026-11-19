@@ -162,20 +162,12 @@ impl Parser {
     }
 
     fn resource_scalar(&mut self) -> Result<Scalar, Diagnostic> {
-        if self.consume("F64") {
-            return Ok(Scalar::F64);
-        }
-        if self.consume("Complex") {
-            self.expect("<")?;
-            self.expect("F64")?;
-            self.expect(">")?;
-            return Ok(Scalar::ComplexF64);
-        }
-        Err(diagnostic(
-            "E_TYPE",
-            "resource elements require F64 or Complex<F64>",
-            self.peek().span,
-        ))
+        Ok(match self.numerical_representation()? {
+            NumericalRepresentation::Real32 => Scalar::F32,
+            NumericalRepresentation::Complex32 => Scalar::ComplexF32,
+            NumericalRepresentation::Real64 => Scalar::F64,
+            NumericalRepresentation::Complex64 => Scalar::ComplexF64,
+        })
     }
 
     fn resource_layout(&mut self) -> Result<Layout, Diagnostic> {
@@ -508,34 +500,82 @@ impl Parser {
     }
 
     fn resource_literal(&mut self) -> Result<Literal, Diagnostic> {
-        let (complex, exact) = if self.consume("f64_bits") {
-            (false, false)
-        } else if self.consume("complex_bits") {
-            (true, false)
-        } else if self.consume("f64") {
-            (false, true)
-        } else if self.consume("complex") {
-            (true, true)
-        } else {
-            return Err(diagnostic(
-                "E_TYPE",
-                "resource payloads use exact f64/complex literals or explicit f64_bits/complex_bits",
-                self.peek().span,
-            ));
+        let token = self.advance();
+        let name = match &token.kind {
+            TokenKind::Name(name) => name.as_str(),
+            _ => "",
+        };
+        let (scalar, exact) = match name {
+            "f64" => (Scalar::F64, true),
+            "f64_bits" => (Scalar::F64, false),
+            "complex" => (Scalar::ComplexF64, true),
+            "complex_bits" => (Scalar::ComplexF64, false),
+            "f32" => (Scalar::F32, true),
+            "f32_bits" => (Scalar::F32, false),
+            "complex32" => (Scalar::ComplexF32, true),
+            "complex32_bits" => (Scalar::ComplexF32, false),
+            _ => {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "expected a real or complex resource literal with explicit precision",
+                    token.span,
+                ));
+            }
         };
         self.expect("(")?;
-        let real = self.resource_payload_number(exact)?;
-        let value = if complex {
-            self.expect(",")?;
-            Literal::ComplexF64 {
-                real,
-                imaginary: self.resource_payload_number(exact)?,
+        let value = match scalar {
+            Scalar::F32 => Literal::F32 {
+                bits: self.resource_payload32(exact)?,
+            },
+            Scalar::F64 => Literal::F64 {
+                bits: self.resource_payload_number(exact)?,
+            },
+            Scalar::ComplexF32 => {
+                let real = self.resource_payload32(exact)?;
+                self.expect(",")?;
+                Literal::ComplexF32 {
+                    real,
+                    imaginary: self.resource_payload32(exact)?,
+                }
             }
-        } else {
-            Literal::F64 { bits: real }
+            Scalar::ComplexF64 => {
+                let real = self.resource_payload_number(exact)?;
+                self.expect(",")?;
+                Literal::ComplexF64 {
+                    real,
+                    imaginary: self.resource_payload_number(exact)?,
+                }
+            }
         };
         self.expect(")")?;
         Ok(value)
+    }
+
+    fn resource_payload32(&mut self, exact: bool) -> Result<u32, Diagnostic> {
+        let start = self.peek().span;
+        let payload = self.resource_payload_number(exact)?;
+        let span = start.through(self.previous().span);
+        if !exact {
+            return u32::try_from(payload).map_err(|_| {
+                diagnostic(
+                    "E_RESOURCE_LITERAL",
+                    "binary32 payload exceeds 32 bits",
+                    span,
+                )
+            });
+        }
+        // Every finite binary32 value embeds exactly in binary64. The common
+        // decimal/hex parser already established exactness of the wider value.
+        let wide = f64::from_bits(payload);
+        let narrow = wide as f32;
+        if f64::from(narrow).to_bits() != payload {
+            return Err(diagnostic(
+                "E_RESOURCE_LITERAL",
+                "literal is not exactly representable in binary32",
+                span,
+            ));
+        }
+        Ok(narrow.to_bits())
     }
 
     fn resource_payload_number(&mut self, exact: bool) -> Result<u64, Diagnostic> {
@@ -1241,7 +1281,9 @@ impl Parser {
             let start = self.previous().span;
             let name = self.binding_name()?.0;
             self.expect("=")?;
-            let rank = if self.consume("view2") {
+            let rank = if self.consume("view1") {
+                1
+            } else if self.consume("view2") {
                 2
             } else {
                 self.expect("view3")?;
@@ -1254,9 +1296,9 @@ impl Parser {
                 self.expect(",")?;
                 axes.push(self.name()?.0);
             }
-            let grouping = if rank == 2 && self.peek().is(")") {
+            let grouping = if rank == 1 || (rank == 2 && self.peek().is(")")) {
                 TensorGrouping {
-                    order: vec![0, 1],
+                    order: (0..rank as u64).collect(),
                     split: 1,
                 }
             } else {
@@ -1520,11 +1562,11 @@ impl Parser {
         }
         if !(2..=64).contains(&graph.occurrences.len())
             || graph.edges.len() + 1 != graph.occurrences.len()
-            || !(2..=3).contains(&graph.boundary.len())
+            || !(1..=3).contains(&graph.boundary.len())
         {
             return Err(diagnostic(
                 "E_TENSOR_TREE",
-                "tree requires two to sixty-four occurrences, n-1 edges and rank-two/three boundary",
+                "tree requires two to sixty-four occurrences, n-1 edges and a boundary of rank one to three",
                 start,
             ));
         }
@@ -1644,6 +1686,71 @@ impl Parser {
         result
     }
 
+    /// `let r = path::<F64<RR>>(...);` binds a result. A call with
+    /// `-> p` writes to a point that the caller has already named.
+    fn realization_call(
+        &mut self,
+        start: Span,
+        binding: Option<String>,
+    ) -> Result<crate::storage::source::Statement, Diagnostic> {
+        let mut callee = self.path_component().map(|(name, span)| TypePath {
+            path: vec![name],
+            span,
+        })?;
+        while self.peek().is("::") && !self.second_is("<") {
+            self.advance();
+            let (name, span) = self.path_component()?;
+            callee.path.push(name);
+            callee.span = callee.span.through(span);
+        }
+        let representation = if self.consume("::") {
+            self.expect("<")?;
+            let rep = self.numerical_representation()?;
+            self.type_close()?;
+            Some(rep)
+        } else {
+            None
+        };
+        let arguments = self.delimited_list("(", ")", Self::type_path)?;
+        if arguments.len() > 3 {
+            return Err(diagnostic(
+                "E_ARITY",
+                "a realization operation takes at most three arguments",
+                arguments[3].span,
+            ));
+        }
+        let into = binding.is_none();
+        let result = match binding {
+            Some(result) => result,
+            None => {
+                self.expect("->")?;
+                self.name()?.0
+            }
+        };
+        let end = self.expect(";")?.span;
+        Ok(crate::storage::source::Statement::Realization {
+            callee,
+            representation,
+            arguments,
+            result,
+            into,
+            span: start.through(end),
+        })
+    }
+
+    fn realization_into(&self) -> bool {
+        if self.second_is("::") {
+            return true;
+        }
+        self.second_is("(")
+            && self.tokens[self.position + 2..]
+                .iter()
+                .take_while(|token| !token.is(";") && !token.is("}"))
+                .position(|token| token.is(")"))
+                .and_then(|end| self.tokens.get(self.position + 3 + end))
+                .is_some_and(|token| token.is("->"))
+    }
+
     fn resource_statements(
         &mut self,
     ) -> Result<Vec<crate::storage::source::Statement>, Diagnostic> {
@@ -1653,6 +1760,10 @@ impl Parser {
             let start = self.peek().span;
             let statement = if self.consume("let") {
                 let name = self.binding_name()?.0;
+                if self.consume("=") {
+                    body.push(self.realization_call(start, Some(name))?);
+                    continue;
+                }
                 self.expect(":")?;
                 let ty = self.resource_pure_type(
                     "E_RESOURCE_VALUE",
@@ -1684,6 +1795,8 @@ impl Parser {
                         span: start.through(self.previous().span),
                     }
                 }
+            } else if self.realization_into() {
+                self.realization_call(start, None)?
             } else if [
                 "runtime_allocate",
                 "runtime_move",

@@ -12,6 +12,7 @@ import VastitasBridge.AlgebraicGeometry.Kernel.FiberProducts
 import VastitasBridge.AlgebraicGeometry.Kernel.Gluing
 import VastitasBridge.Analysis.DaleckiiKrein
 import VastitasBridge.Analysis.DaleckiiKreinTyped
+import VastitasBridge.Analysis.ExactComplex
 import VastitasBridge.Differential.Prerequisites
 import VastitasBridge.Differential.Derivative
 import VastitasBridge.Differential.ChainRule

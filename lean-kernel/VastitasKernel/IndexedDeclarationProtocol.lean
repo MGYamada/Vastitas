@@ -478,10 +478,82 @@ def sourcePoint (j : Json) : Except String Source.SourcePoint := do
   fields j ["coordinates", "value", "uncertainty"]
   return ⟨← (← array j "coordinates").mapM pointCoordinate, ← sourceMeasured j⟩
 
+private def finiteTag (j : Json) : Except String Source.FiniteTag := do
+  fields j ["name", "span"]
+  return ⟨← str j "name", ← decodeSpan j⟩
+
+private def finiteRow (j : Json) : Except String Source.FiniteRow := do
+  fields j ["key", "value", "span"]
+  let key ← array j "key"
+  if key.length > FiniteTables.maxInputs then throw "finite row exceeds the key arity limit"
+  return ⟨← key.mapM finiteTag, ← finiteTag (← field j "value"), ← decodeSpan j⟩
+
 def declarationBody (j : Json) : Except String Source.Body := do
   let common := ["kind", "name", "public", "span"]
   match ← str j "kind" with
   | "marker" => fields j common; return .marker
+  | "finite" =>
+    fields j (common ++ ["tags"])
+    let tags ← array j "tags"
+    if tags.length > FiniteTables.limit then throw "finite carrier exceeds the tag limit"
+    return .finiteCarrier (← tags.mapM finiteTag)
+  | "table" =>
+    fields j (common ++ ["inputs", "output", "rows", "composable"])
+    let inputs ← array j "inputs"
+    let rows ← array j "rows"
+    if inputs.length > FiniteTables.maxInputs || rows.length > FiniteTables.limit then
+      throw "finite table exceeds the arity or row limit"
+    let inputs ← inputs.mapM path
+    let output ← path (← field j "output")
+    let rows ← rows.mapM finiteRow
+    match j.getObjVal? "composable" with
+    | .error _ => return .finiteTable inputs output rows
+    | .ok endpoints =>
+      fields endpoints ["src", "dst"]
+      return .composableTable inputs output (← path (← field endpoints "src")) (← path (← field endpoints "dst")) rows
+  | "schema" =>
+    let tag ← str j "schema_kind"
+    if tag == "finite_kleisli" || tag == "finite_kleisli_triple" then
+      fields j (common ++ ["schema_kind", "monad_schema"])
+      return .kleisliSchema (if tag == "finite_kleisli" then .category else .triple)
+        (← path (← field j "monad_schema"))
+    fields j (common ++ ["schema_kind"])
+    match tag with
+    | "finite_category" => return .categorySchema
+    | "finite_functor" => return .functorSchema
+    | "finite_nat_trans" => return .natTransSchema
+    | "finite_monad" => return .monadSchema
+    | _ => throw "unknown finite schema kind"
+  | "instance" =>
+    for (key, kind) in [("kleisli", KleisliKind.category), ("kleisli_triple", .triple)] do
+      if let .ok data := j.getObjVal? key then
+        fields j (common ++ ["schema", key])
+        fields data ["monad"]
+        return .finiteKleisli kind (← path (← field j "schema")) (← path (← field data "monad"))
+    if let .ok data := j.getObjVal? "monad" then
+      fields j (common ++ ["schema", "monad"])
+      fields data ["category", "functor", "unit", "multiplication"]
+      let get k := do path (← field data k)
+      return .finiteMonad (← path (← field j "schema"))
+        ⟨← get "category", ← get "functor", ← get "unit", ← get "multiplication"⟩
+    if let .ok data := j.getObjVal? "transformation" then
+      fields j (common ++ ["schema", "transformation"])
+      fields data ["source", "target", "components"]
+      let get k := do path (← field data k)
+      return .finiteNatTrans (← path (← field j "schema"))
+        ⟨← get "source", ← get "target", ← get "components"⟩
+    if let .ok maps := j.getObjVal? "functor" then
+      fields j (common ++ ["schema", "functor"])
+      fields maps ["source", "target", "objects", "arrows"]
+      let get k := do path (← field maps k)
+      return .finiteFunctor (← path (← field j "schema"))
+        ⟨← get "source", ← get "target", ← get "objects", ← get "arrows"⟩
+    fields j (common ++ ["schema", "graph"])
+    let graph ← field j "graph"
+    fields graph ["objects", "arrows", "src", "dst", "ids", "comp"]
+    let get k := do path (← field graph k)
+    return .finiteCategory (← path (← field j "schema"))
+      ⟨← get "objects", ← get "arrows", ← get "src", ← get "dst", ← get "ids", ← get "comp"⟩
   | "implementation" =>
     fields j (common ++ ["marker", "representation", "capabilities"])
     return .implementation (← path (← field j "marker"))

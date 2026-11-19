@@ -1,0 +1,13 @@
+use arrows::C;
+use arrows::M;
+use arrows::Obj;
+
+fn applyArrow(p: Hom<C, Obj::o, Obj::o>, k: Fn<(), Hom<C, Obj::o, Obj::o>>)
+    -> Hom<C, Obj::o, Obj::o> {
+    monad::kleisli::bind::<M, Obj::o, Obj::o, Obj::o>(p, k)
+}
+
+fn main() -> Int {
+    let cont: Fn<(), Hom<C, Obj::o, Obj::o>> = arrows::next;
+    if applyArrow(C::s, cont) == C::s { 42 } else { 7 }
+}

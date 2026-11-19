@@ -1,0 +1,627 @@
+{
+  "status": "passed",
+  "target": {
+    "llvm": "23.1.4",
+    "triple": "arm64-apple-darwin27.2.0",
+    "layout": "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+  },
+  "llvm_sys": "231.0.1",
+  "lean_commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+  "source": "examples/packages/finite-kleisli/src/main.vast",
+  "source_sha256": "4e9258ea1ba65273c7b7fd158e2f2be3e7addc103c11e9afbc0fa594172cd94b",
+  "kleisli_library_sha256": "cdc70a407ee7a17314631fb8a02cea19c676f8d68f8d0b0c8cc34fd3c7ba1a61",
+  "complete_llvm": {
+    "bytes": 4463,
+    "sha256": "99805878008d38ae7c70fee86140c46bc2529dfcdd742c917369f8f8db576888",
+    "instructions": {
+      "specializations": 6,
+      "lookup_helpers": 8,
+      "calls_to_specializations_including_main_wrapper": 6,
+      "lookup_calls": 8,
+      "equality": 5,
+      "and_including_table_guards": 9,
+      "phi": 1,
+      "switches": 8,
+      "branches": 6
+    }
+  },
+  "object_bytes": 2760,
+  "dependencies": [
+    "libSystem.B.dylib"
+  ],
+  "source_linkage": {
+    "calls": [
+      {
+        "callees": [],
+        "caller": 0
+      },
+      {
+        "callees": [],
+        "caller": 1
+      },
+      {
+        "callees": [],
+        "caller": 2
+      },
+      {
+        "callees": [],
+        "caller": 3
+      },
+      {
+        "callees": [],
+        "caller": 4
+      },
+      {
+        "callees": [
+          1,
+          2,
+          3,
+          4,
+          0
+        ],
+        "caller": 5
+      }
+    ],
+    "core_and_midir_integer": 0,
+    "local_entry": 5,
+    "modeled_exit": 0,
+    "observation_fuel": 107,
+    "original_symbols": 33,
+    "retained": [
+      {
+        "body_module": [],
+        "body_package": "finite_kleisli_example",
+        "definition": 15,
+        "indices": [],
+        "local_symbol": 0,
+        "owner": {
+          "module": [],
+          "name": "mappedUp",
+          "package": "finite_kleisli_example",
+          "version": "0.1.0"
+        },
+        "source_symbol": 15
+      },
+      {
+        "body_module": [
+          "kleisli"
+        ],
+        "body_package": "vastitas_monad",
+        "definition": 29,
+        "indices": [
+          {
+            "monad": {
+              "module": [],
+              "name": "M",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            }
+          },
+          {
+            "category": {
+              "module": [],
+              "name": "C",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            },
+            "object": "lo"
+          }
+        ],
+        "local_symbol": 1,
+        "owner": {
+          "module": [
+            "kleisli"
+          ],
+          "name": "unit",
+          "package": "vastitas_monad",
+          "version": "0.1.0"
+        },
+        "source_symbol": 16
+      },
+      {
+        "body_module": [
+          "kleisli"
+        ],
+        "body_package": "vastitas_monad",
+        "definition": 30,
+        "indices": [
+          {
+            "monad": {
+              "module": [],
+              "name": "M",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            }
+          },
+          {
+            "category": {
+              "module": [],
+              "name": "C",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            },
+            "object": "lo"
+          },
+          {
+            "category": {
+              "module": [],
+              "name": "C",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            },
+            "object": "lo"
+          },
+          {
+            "category": {
+              "module": [],
+              "name": "C",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            },
+            "object": "hi"
+          }
+        ],
+        "local_symbol": 2,
+        "owner": {
+          "module": [
+            "kleisli"
+          ],
+          "name": "bind",
+          "package": "vastitas_monad",
+          "version": "0.1.0"
+        },
+        "source_symbol": 17
+      },
+      {
+        "body_module": [
+          "kleisli"
+        ],
+        "body_package": "vastitas_monad",
+        "definition": 31,
+        "indices": [
+          {
+            "monad": {
+              "module": [],
+              "name": "M",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            }
+          },
+          {
+            "category": {
+              "module": [],
+              "name": "C",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            },
+            "object": "lo"
+          },
+          {
+            "category": {
+              "module": [],
+              "name": "C",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            },
+            "object": "lo"
+          },
+          {
+            "category": {
+              "module": [],
+              "name": "C",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            },
+            "object": "hi"
+          }
+        ],
+        "local_symbol": 3,
+        "owner": {
+          "module": [
+            "kleisli"
+          ],
+          "name": "compose",
+          "package": "vastitas_monad",
+          "version": "0.1.0"
+        },
+        "source_symbol": 18
+      },
+      {
+        "body_module": [
+          "kleisli"
+        ],
+        "body_package": "vastitas_monad",
+        "definition": 32,
+        "indices": [
+          {
+            "monad": {
+              "module": [],
+              "name": "M",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            }
+          },
+          {
+            "category": {
+              "module": [],
+              "name": "C",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            },
+            "object": "hi"
+          },
+          {
+            "category": {
+              "module": [],
+              "name": "C",
+              "package": "finite_kleisli_example",
+              "version": "0.1.0"
+            },
+            "object": "hi"
+          }
+        ],
+        "local_symbol": 4,
+        "owner": {
+          "module": [
+            "kleisli"
+          ],
+          "name": "lift",
+          "package": "vastitas_monad",
+          "version": "0.1.0"
+        },
+        "source_symbol": 19
+      },
+      {
+        "body_module": [],
+        "body_package": "finite_kleisli_example",
+        "definition": 16,
+        "indices": [],
+        "local_symbol": 5,
+        "owner": {
+          "module": [],
+          "name": "main",
+          "package": "finite_kleisli_example",
+          "version": "0.1.0"
+        },
+        "source_symbol": 20
+      }
+    ],
+    "source_entry": 20
+  },
+  "original": {
+    "expected": 0,
+    "model": 0,
+    "lean_c": 0,
+    "public_native": 0,
+    "host_control": 0
+  },
+  "alternate": {
+    "source_change": "u != C::up",
+    "source_sha256": "b741b4f9754598640908479a12a72a869a9ddd9f682cc4d45ec404aa253a8bfc",
+    "llvm_sha256": "083924bc79029cce14acd492fe7af5b5ba1a1e736234d53565a44a03bbf2a0d9",
+    "model": 1,
+    "lean_c": 1,
+    "public_native": 1
+  },
+  "extension": {
+    "source_call": "monad::kleisli::extend::<Triple, Obj::lo, Obj::hi>(C::up)",
+    "source_sha256": "a55becd19c1ffef85b55515ba9ccb94a4ae8693573b2a42129c5311d436dd7c4",
+    "llvm_sha256": "5d8c8713b17c6f2440f7b8c9c6e1b0d8114993282640db96ede019543619edbc",
+    "llvm_bytes": 5326,
+    "object_bytes": 3176,
+    "model": 42,
+    "core_and_midir_integer": 42,
+    "lean_c": 42,
+    "public_native": 42,
+    "host_control": 42,
+    "lean_reference": 42,
+    "specialization": {
+      "body_module": [
+        "kleisli"
+      ],
+      "body_package": "vastitas_monad",
+      "definition": 32,
+      "indices": [
+        {
+          "monad": {
+            "module": [],
+            "name": "M",
+            "package": "finite_kleisli_example",
+            "version": "0.1.0"
+          }
+        },
+        {
+          "category": {
+            "module": [],
+            "name": "C",
+            "package": "finite_kleisli_example",
+            "version": "0.1.0"
+          },
+          "object": "lo"
+        },
+        {
+          "category": {
+            "module": [],
+            "name": "C",
+            "package": "finite_kleisli_example",
+            "version": "0.1.0"
+          },
+          "object": "hi"
+        }
+      ],
+      "local_symbol": 4,
+      "owner": {
+        "module": [
+          "kleisli"
+        ],
+        "name": "extend",
+        "package": "vastitas_monad",
+        "version": "0.1.0"
+      },
+      "source_symbol": 19
+    },
+    "function": {
+      "local_symbol": 4,
+      "operations": [
+        {
+          "opcode": "finite.ordinal.v1",
+          "operands": []
+        },
+        {
+          "authority": {
+            "module": [],
+            "name": "M",
+            "package": "finite_kleisli_example",
+            "version": "0.1.0"
+          },
+          "opcode": "finite.lookup.ordinal.v1",
+          "operands": [
+            [
+              0,
+              0
+            ]
+          ],
+          "table": {
+            "module": [],
+            "name": "closeArr",
+            "package": "finite_kleisli_example",
+            "version": "0.1.0"
+          }
+        },
+        {
+          "authority": {
+            "module": [],
+            "name": "C",
+            "package": "finite_kleisli_example",
+            "version": "0.1.0"
+          },
+          "opcode": "finite.lookup.ordinal.v1",
+          "operands": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              2
+            ]
+          ],
+          "table": {
+            "module": [],
+            "name": "comp",
+            "package": "finite_kleisli_example",
+            "version": "0.1.0"
+          }
+        }
+      ],
+      "owner": {
+        "module": [
+          "kleisli"
+        ],
+        "name": "extend",
+        "package": "vastitas_monad",
+        "version": "0.1.0"
+      }
+    },
+    "entry_calls": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      0
+    ],
+    "action_helper": "t4_0_2",
+    "composition_helper": "t4_0_3",
+    "llvm_body": [
+      "define internal i32 @f4 ( i32 %v0_0 ) {",
+      "b0:",
+      "  %v0_1 = add i32 0 , 0",
+      "  %v0_2 = call i32 @t4_0_2 ( i32 %v0_0 )",
+      "  %v0_3 = call i32 @t4_0_3 ( i32 %v0_1 , i32 %v0_2 )",
+      "  ret i32 %v0_3",
+      "}"
+    ]
+  },
+  "mutations": {
+    "truncated": {
+      "canonical_model": "rejected",
+      "original_handoff": "rejected"
+    },
+    "duplicate-phi-predecessor": {
+      "canonical_model": "rejected",
+      "original_handoff": "rejected"
+    },
+    "comparison-reversed": {
+      "canonical_model": "different",
+      "original_handoff": "rejected",
+      "independent_host_control_status": 1
+    },
+    "branch-reversed": {
+      "canonical_model": "different",
+      "original_handoff": "rejected",
+      "independent_host_control_status": 1
+    }
+  },
+  "reference_sha256": "324c7ab1ab0394de36fd07b5546f868d35a4ca8d730ab8cdcc4c53ef0c3d909a",
+  "emitter_comparison": {
+    "source": "src/lean/Lean/Compiler/IR/EmitLLVM.lean",
+    "sha256": "635bb0e78a3703614b9f175b13f2a8e2adaa890fe7ed144bc33e6e67fab99414",
+    "observations": {
+      "abi_and_untested_notice": {
+        "matched_lines": [
+          25
+        ],
+        "needle": "our CI for LLVM is dysfunctional"
+      },
+      "fixed_size_t": {
+        "matched_lines": [
+          42
+        ],
+        "needle": "def size_tType"
+      },
+      "case_default": {
+        "matched_lines": [
+          1096
+        ],
+        "needle": "def ensureHasDefault'"
+      },
+      "case_tag_width": {
+        "matched_lines": [
+          1111
+        ],
+        "needle": "buildZext builder tag"
+      },
+      "case_switch": {
+        "needle": "LLVM.buildSwitch builder tag defaultBB",
+        "matched_lines": [
+          1115
+        ]
+      },
+      "join_point_lowering": {
+        "matched_lines": [
+          1139
+        ],
+        "needle": "by generating SSA phi nodes"
+      },
+      "executable_main": {
+        "matched_lines": [
+          1488
+        ],
+        "needle": "def emitMainFn ("
+      },
+      "main_status": {
+        "matched_lines": [
+          1583
+        ],
+        "needle": "let retv \u2190 callLeanUnboxUint32"
+      },
+      "inbounds_gep": {
+        "matched_lines": [
+          732,
+          788
+        ],
+        "needle": "buildInBoundsGEP"
+      },
+      "bitcode_output": {
+        "matched_lines": [
+          1675
+        ],
+        "needle": "writeBitcodeToFile"
+      },
+      "static_application": {
+        "needle": "def emitFullApp",
+        "matched_lines": [
+          755
+        ]
+      },
+      "static_call": {
+        "needle": "buildCall2",
+        "matched_lines": [
+          767
+        ]
+      },
+      "conditional": {
+        "needle": "def emitCase (",
+        "matched_lines": [
+          1104
+        ]
+      },
+      "jump": {
+        "needle": "def emitJmp (",
+        "matched_lines": [
+          1050
+        ]
+      },
+      "static_argument_load": {
+        "needle": "let yv \u2190 LLVM.buildLoad2 builder yty yslot",
+        "matched_lines": [
+          765
+        ]
+      },
+      "static_result_store": {
+        "needle": "LLVM.buildStore builder zv zslot",
+        "matched_lines": [
+          768,
+          771,
+          774,
+          794
+        ]
+      },
+      "join": {
+        "needle": "def emitJDecl (",
+        "matched_lines": [
+          1130
+        ]
+      },
+      "join_argument_store": {
+        "needle": "emitLhsSlotStore builder p.x xv",
+        "matched_lines": [
+          1058
+        ]
+      }
+    },
+    "role": "comparison only; not a correctness oracle",
+    "executed": false,
+    "execution_gap": "pinned Lean binary reports no LLVM feature",
+    "features": []
+  },
+  "seconds": {
+    "original_revision": 1.69069,
+    "original_check": 0.396386,
+    "original_public_native_build": 1.779387,
+    "original_public_native_execute": 0.294124,
+    "original_lean_c_build": 7.595368,
+    "original_lean_c_execute": 0.138195,
+    "original_source_revision_midir_bytes": 43.087445,
+    "alternate_revision": 1.410849,
+    "alternate_check": 0.24237,
+    "alternate_public_native_build": 0.52399,
+    "alternate_public_native_execute": 0.211599,
+    "alternate_lean_c_build": 3.858867,
+    "alternate_lean_c_execute": 0.508649,
+    "alternate_source_revision_midir_bytes": 11.187557,
+    "extension_revision": 0.32704,
+    "extension_check": 0.255689,
+    "extension_public_native_build": 0.37305,
+    "extension_public_native_execute": 0.22218,
+    "extension_lean_c_build": 3.841642,
+    "extension_lean_c_execute": 0.242913,
+    "extension_source_revision_midir_bytes": 23.251984,
+    "adapter_read_compare_parse_verify_object": 0.162869,
+    "host_link": 0.450829,
+    "host_execute": 0.196278,
+    "extension_adapter_object": 0.037178,
+    "extension_control_link": 0.113084,
+    "extension_control_execute": 0.192521,
+    "comparison-reversed_control_object": 0.035909,
+    "comparison-reversed_control_link": 0.112611,
+    "comparison-reversed_control_execute": 0.192981,
+    "branch-reversed_control_object": 0.049069,
+    "branch-reversed_control_link": 0.126592,
+    "branch-reversed_control_execute": 0.235547,
+    "lean_model_bytes_and_mutations": 11.916894,
+    "independent_closure_reference": 2.974867,
+    "independent_extension_reference": 2.719663
+  }
+}

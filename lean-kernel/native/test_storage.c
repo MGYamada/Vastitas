@@ -71,11 +71,20 @@ static void layouts(uint8_t scalar) {
     /* Payload operations preserve zeros, infinities and quiet/signaling NaNs;
      * they perform no floating-point arithmetic or implicit conjugation. */
     uint64_t bits[] = {0,UINT64_C(0x8000000000000000),UINT64_C(0x7ff0000000000000),
-        UINT64_C(0xfff0000000000000),UINT64_C(0x7ff8000000000042),UINT64_C(0x7ff0000000000001)};
+        UINT64_C(0xfff0000000000000),UINT64_C(0x7ff8000000000042),UINT64_C(0x7ff0000000000001),
+        UINT64_C(0xfff0000000001234), UINT64_C(1), UINT64_C(0x8000000000000001)};
     for (unsigned i = 0; i < sizeof(bits)/sizeof(bits[0]); ++i) {
         assert(vstorage_fill(a,0,full,scalar,bits[i],bits[i]) == VS_OK);
         assert(vstorage_copy(a,0,full,1,full) == VS_OK);
         assert_value(a,1,full,scalar,0,0,bits[i],bits[i]);
+        /* A transposed, padded vector takes the strided copy path. Its two
+         * complex components can carry different signaling/quiet payloads. */
+        VStorageLayout strided = {0, 1, 3, 4, 1};
+        VStorageLayout dest = {0, 3, 1, 3, 0};
+        uint64_t other = bits[(i + 1) % (sizeof(bits) / sizeof(bits[0]))];
+        assert(vstorage_store(a,0,strided,1,0,scalar,bits[i],other) == VS_OK);
+        assert(vstorage_copy(a,0,strided,1,dest) == VS_OK);
+        assert_value(a,1,dest,scalar,1,0,bits[i],other);
     }
     assert(vstorage_drop(a,0) == VS_OK);
     assert(vstorage_fill(a,0,full,scalar,two,two) == VS_HANDLE);
@@ -620,7 +629,7 @@ static void expect_failures(void) {
     char buffer[VSTORAGE_EXPECT_MESSAGE_BYTES];
     size_t length = vstorage_expect_message(buffer, sizeof(buffer), UINT64_MAX, UINT64_MAX, 1, widest, widest);
     assert(length == 361 && strlen(buffer) == length);
-    assert(vstorage_expect_message(buffer, sizeof(buffer), 0, 0, 2, widest, widest) == 0);
+    assert(vstorage_expect_message(buffer, sizeof(buffer), 0, 0, 4, widest, widest) == 0);
     vstorage_delete(a);
 }
 

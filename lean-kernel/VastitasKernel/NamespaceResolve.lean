@@ -1,4 +1,6 @@
 import VastitasKernel.Namespace
+import VastitasKernel.OperatorNames
+import VastitasKernel.FloatNames
 import VastitasKernel.FunctionScope
 import VastitasKernel.Distinct
 
@@ -90,6 +92,13 @@ def charge (span : Span) : ResolutionM Unit
 -- Import resolution uses the original requesting scope for each traversed
 -- visibility edge. Resolving an alias checks its declaration's visibility first,
 -- then its source path in the alias's own scope, preserving the original target.
+/-- The arithmetic prelude supplies only an otherwise unbound single name.
+An existing alias, even one with a resolution error, must be checked normally. -/
+def preludeOperator (p : Indexed) (scope : Scope) (pkg : PackageLookup) (name : String) : Bool :=
+  operatorName name && pkg.dependencies[name]?.isNone &&
+    p.byOwner[(⟨scope, name⟩ : Owner)]?.isNone &&
+    (moduleLookupAt p scope).any (fun m => !m.imports.contains name)
+
 mutual
   def memberAt : Nat → Indexed → Scope → Scope → String → Std.TreeSet ImportKey → Span → ResolutionM Target
     | 0, _, _, _, _, _, span => problem span "E_LIMIT" s!"namespace resolution exceeds the {Limits.namespaceResolution}-unit budget"
@@ -130,10 +139,22 @@ mutual
         let (parent, remaining) ← ancestors scope ("super" :: rest) span
         descend fuel p scope (← moduleTarget p parent span) remaining active span
       | name :: rest =>
+        if rest.isEmpty && preludeOperator p scope pkg name then
+          return ⟨(operatorId name).owner, .generic, true⟩
+        if let ["operator", op] := rest then
+          if name == "std" && operatorName op then
+            if pkg.dependencies.contains name || p.byOwner.contains ⟨scope, name⟩ ||
+                (moduleLookupAt p scope).any (·.imports.contains name) then
+              problem span "E_NAME" "std::operator conflicts with a local std path"
+            return ⟨(operatorId op).owner, .generic, true⟩
         if let some dep := pkg.dependencies[name]? then
           let some target := packageAt p dep.target | problem span "E_NAME" "unknown dependency target"
           descend fuel p scope (dependencyRoot target) rest active span
         else
+          if rest.head? == some "float" && name == "monad" &&
+              !p.byOwner.contains ⟨scope, name⟩ && !(moduleLookupAt p scope).any (·.imports.contains name) then
+            if let some float := packageAt p floatScope.package.source then
+              return ← descend fuel p scope (dependencyRoot float) rest active span
           let target ← memberAt fuel p scope scope name active span
           descend fuel p scope target rest active span
 end
@@ -148,7 +169,7 @@ def unboundName (p : Indexed) (scope : Scope) (name : String) : Bool :=
   match p.byPackage[scope.package.source]?, moduleLookupAt p scope with
   | some pkg, some m =>
     name != "self" && name != "super" && name != "package" &&
-      !pkg.dependencies.contains name && !p.byOwner.contains ⟨scope, name⟩ && !m.imports.contains name
+      !pkg.dependencies.contains name && !p.byOwner.contains ⟨scope, name⟩ && !m.imports.contains name && !operatorName name
   | _, _ => false
 
 /-- An unbound name never resolves, so treating it as absent cannot shadow a
@@ -160,7 +181,7 @@ theorem resolve_unboundName (p : Indexed) (scope : Scope) (name : String) (span 
   split at unbound
   · rename_i pkg m hpkg hm
     simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true'] at unbound
-    obtain ⟨⟨⟨⟨⟨hself, hsuper⟩, hpackage⟩, hdep⟩, hown⟩, himp⟩ := unbound
+    obtain ⟨⟨⟨⟨⟨⟨hself, hsuper⟩, hpackage⟩, hdep⟩, hown⟩, himp⟩, hop⟩ := unbound
     obtain ⟨fuel, limit⟩ : ∃ fuel, Limits.namespaceResolution = fuel + 2 :=
       ⟨Limits.namespaceResolution - 2, by decide⟩
     have hdep' : pkg.dependencies[name]? = none := Std.HashMap.getElem?_eq_none_of_contains_eq_false hdep
@@ -169,8 +190,7 @@ theorem resolve_unboundName (p : Indexed) (scope : Scope) (name : String) (span 
     have himp' : m.imports[name]? = none := Std.HashMap.getElem?_eq_none_of_contains_eq_false himp
     unfold resolve
     rw [limit]
-    simp only [resolveAt, hpkg]
-    simp only [hdep', memberAt, hown', hm, himp']
+    simp [resolveAt, hpkg, preludeOperator, hop, hdep', memberAt, hown', hm, himp']
     exact ⟨_, rfl, rfl⟩
   · simp at unbound
 
@@ -206,8 +226,7 @@ theorem resolve_childModule (p : Indexed) (scope : Scope) (name : String) (span 
         Std.HashMap.getElem?_eq_none_of_contains_eq_false hdep
       unfold resolve at resolved
       rw [limit] at resolved
-      simp only [resolveAt, hpkg] at resolved
-      simp only [hdep', memberAt, hown] at resolved
+      simp [resolveAt, hpkg, preludeOperator, hdep', hown, memberAt] at resolved
       have hkind : found.kind = .module := by
         revert hmodule; cases found.kind <;> decide
       have hcharge : StateT.run (charge span) (fuel + 2) = .ok ((), fuel + 1) := rfl

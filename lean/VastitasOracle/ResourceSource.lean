@@ -144,6 +144,54 @@ theorem namespace_work_bound {json : Lean.Json} (input : VastitasKernel.Resource
     input.namespaceReceipt.inputUnits.val + VastitasKernel.ResourceSource.Wire.namespaceUnits input.checked ≤ Limits.namespaceProgramWork :=
   ⟨input.namespaceReceipt.priced, input.namespaceReceipt.bounded⟩
 
+/-- The checked entry file's lexical projection agrees with the structured
+wire commands. Expanding either yields the exact events and spans in the
+independently accepted authority trace. File acquisition and the non-edit
+grammar are frontend premises. -/
+theorem structured_assembly_trace {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    let a := input.checked.pureProgram.authority.headers.assembled
+    ∃ file items trace, AssemblySource.rootFile json = .ok file ∧
+      AssemblyText.parse file.text file.offset = .ok items ∧
+      AssemblySource.read json = .ok items ∧ AssemblySource.expand items = .ok trace ∧
+      trace.events = a.prepared.core.assembly.events ∧
+      trace.span.all (· == a.prepared.core.assembly.span) = true ∧
+      VastitasKernel.Authority.Trace _ a.prepared {} trace.events a.state := by
+  let source := input.assemblySource
+  refine ⟨source.file, source.items, source.trace, source.supplied, source.lexical,
+    source.decoded, source.expanded, source.exactEvents, source.exactSpan, ?_⟩
+  rw [source.exactEvents]
+  exact (VastitasOracle.Authority.assembled_trace _).1
+
+/-- Supplying a revision cannot select a method. Acceptance implies exact
+equality with the complete receipt reconstructed from this program's checked
+authority and Core passes. No claim about LLVM or native execution follows. -/
+theorem expected_function_revision_exact {json expected : Lean.Json}
+    (input : Wire.CheckedInput json requireMain)
+    (supplied : json.getObjVal? "expected_function_revision" = .ok expected) :
+    expected.compress = (FunctionRevision.artifact (Wire.revisionInput json) input.checked).compress := by
+  have h := input.revisionMatches
+  simp only [Wire.RevisionMatches, supplied] at h
+  exact h.2.2
+
+/-- At this same replayed revision the source owner/key selects the exact
+method and definition of each executable dispatch edge; the callee symbol
+is the specialization emitted for that definition. -/
+theorem expected_revision_selects_method {json expected : Lean.Json}
+    (input : Wire.CheckedInput json requireMain)
+    (supplied : json.getObjVal? "expected_function_revision" = .ok expected)
+    (call : FunctionSource.Compiler.DispatchCall)
+    (member : call ∈ input.checked.pureProgram.executable.lowered.dispatchCalls) :
+    expected.compress = (FunctionRevision.artifact (Wire.revisionInput json) input.checked).compress ∧
+    input.checked.pureProgram.executable.lowered.origins[call.emittedId]? =
+      some (FunctionSource.Compiler.Key.mk call.definition []) ∧
+    ∃ family, input.checked.pureProgram.compiler.input.dispatch.families[call.target.owner]? = some family ∧
+      call.key ∈ family.domain ∧
+      Dispatch.Selection family.nominals.hierarchy family.checked.methods call.key (some call.method) ∧
+      input.checked.pureProgram.compiler.input.dispatch.definitions[(call.method, call.key)]? = some call.definition :=
+  ⟨expected_function_revision_exact input supplied,
+    IndexedDispatch.dispatch_call_emitted input.checked.pureProgram.executable call member,
+    (IndexedDispatch.dispatch_call_selected input.checked.pureProgram.executable call member).2.2.2⟩
+
 theorem public_input {json : Lean.Json} (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain) :
     VastitasKernel.ResourceSource.Wire.program json = .ok input.input ∧
     VastitasKernel.ResourceSource.check input.input requireMain = .ok input.checked ∧
@@ -161,6 +209,42 @@ theorem public_numerical_declaration {json : Lean.Json}
       marker capabilities :=
   (IndexedSource.checked_implementation_contract _ input.checked.pureProgram.authority.headers.declarations
     id marker representation capabilities member).2.2
+
+/-- The public protocol checks every named functor, including unused ones,
+in its own accepted declaration environment at the input's checked revision. -/
+theorem public_finite_functor {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (member : ⟨owner, .finiteFunctor schema maps⟩ ∈
+      input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed) :
+    let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed
+    Wire.RevisionMatches json input.checked ∧
+      ∃ m, Indexed.FiniteFunctors.model (Indexed.FiniteCategories.view env) schema maps = some m ∧
+        VastitasOracle.FiniteFunctors.Preserves m :=
+  ⟨input.revisionMatches, VastitasOracle.FiniteFunctors.checked_functor
+    input.checked.pureProgram.authority.headers.declarations member⟩
+
+/-- A transformation in the accepted module satisfies all its component
+endpoint and naturality equations under the very same checked revision. -/
+theorem public_finite_nat_trans {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (member : ⟨owner, .finiteNatTrans schema fields⟩ ∈
+      input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed) :
+    let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed
+    Wire.RevisionMatches json input.checked ∧
+      ∃ m, Indexed.FiniteNatTrans.model (Indexed.FiniteCategories.view env) schema fields = some m ∧
+        VastitasOracle.FiniteNatTrans.Natural m :=
+  ⟨input.revisionMatches, VastitasOracle.FiniteNatTrans.checked_transformation
+    input.checked.pureProgram.authority.headers.declarations member⟩
+
+/-- A named Monad of the public checked module satisfies both unit laws
+and associativity for the structure selected by this exact input revision. -/
+theorem public_finite_monad {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (member : ⟨owner, .finiteMonad schema fields⟩ ∈
+      input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed) :
+    let env := input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed
+    Wire.RevisionMatches json input.checked ∧
+      ∃ m, Indexed.FiniteMonads.model (Indexed.FiniteCategories.view env) schema fields = some m ∧
+        VastitasOracle.FiniteMonads.Diagrams m :=
+  ⟨input.revisionMatches, VastitasOracle.FiniteMonads.checked_monad
+    input.checked.pureProgram.authority.headers.declarations member⟩
 
 /-- Every actual product receipt belongs to the environment returned by this
 same public source check, and records its own exact emitted resource operation. -/

@@ -1,4 +1,5 @@
-pub fn area(side: Int) -> Int { side * side }
+pub fn area(side) domain((Int));
+fn area(side: Int) -> Int { side * side }
 
 mod plane {
     pub fn area(side: Int) -> Int { side * side }

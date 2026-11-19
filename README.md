@@ -65,8 +65,8 @@ tar -xzf vastitas-0.1.0-beta.crate
 cd vastitas-0.1.0-beta
 export VASTITAS_KERNEL_ROOT="$PWD/lean-kernel"
 lake -d lean-kernel build vastitas-kernel
-vastitas check examples/pointed.vast
-vastitas build examples/pointed.vast -o pointed
+vastitas check examples/book/geometry/pointed.vast
+vastitas build examples/book/geometry/pointed.vast -o pointed
 ./pointed
 ```
 
@@ -123,6 +123,7 @@ entry needs them. [Compiler architecture](https://github.com/MGYamada/Vastitas/b
 The [validation guide](https://github.com/MGYamada/Vastitas/blob/main/docs/development/validation.md) lists Rust, kernel,
 oracle, native and CI checks. The [proof reference](https://github.com/MGYamada/Vastitas/blob/main/docs/verification.md)
 identifies the exact accepted inputs, conclusions and assumptions.
+The [LLVM IR corpus](llvm/docs/README.md) contains complete Lean-checked modules and instructions for replaying each one from its Vastitas source.
 
 ## License
 

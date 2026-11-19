@@ -85,6 +85,23 @@ structure NumericalReceipt where
   location : NumericalLocation priorCode
   networkProduct : Bool
 
+/-- A public run preserves its selected graph and chart at the exact checked
+copy, including the two physical loans and its source and schedule position. -/
+structure RealizationRunReceipt where
+  environment : Indexed.Environment
+  plan : Realization.Plan
+  input : Symbol
+  output : Symbol
+  before : State
+  inputValid : Realization.pointValid environment plan.descriptor before input = true
+  outputValid : Realization.pointValid environment plan.descriptor before output = true
+  after : State
+  transitioned : checkAction before (.copy input output) = .ok after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.copy input output)] = code
+  location : NumericalLocation priorCode
+
 structure NetworkReceipt where
   environment : Indexed.Environment
   resources : State

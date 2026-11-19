@@ -386,7 +386,8 @@ Claims:
     - `exact_affines_reject_wrong_kinds_dimensions_and_nominal_components` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
     - `static_model_selection_preserves_the_complete_constant_entry_module` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
     - `public_check_matches_physical_model_declarations_and_qualified_operand_spans` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
-  - Note: A nominal affine declaration selects its real or complex mathematical meadow. Changing to another model with the same carrier changes the revision. The kernel matches every mathematical declaration, its path spans, visibility and coordinates with the submitted files.
+    - `exact_declarations_keep_their_physical_package_and_module` in [`tests/exact_affine_models.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_affine_models.rs)
+  - Note: A nominal affine declaration selects its real or complex mathematical meadow. Changing to another model with the same carrier changes the revision. The kernel matches every mathematical declaration, its declaring package and module, path spans, visibility and coordinates with the submitted files.
 - `exact-chart-selection`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ExactAffine`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactAffine.lean): `VastitasOracle.ExactAffine.public_standard_chart`, `VastitasOracle.ExactAffine.paired_selection`, `VastitasOracle.ExactAffine.chart_injective`, `VastitasOracle.ExactAffine.isField`

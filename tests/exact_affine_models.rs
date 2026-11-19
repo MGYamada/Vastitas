@@ -148,3 +148,55 @@ fn public_check_matches_physical_model_declarations_and_qualified_operand_spans(
         assert_wire_rejected(&kernel(changed, "check"), "E_PROTOCOL");
     }
 }
+
+#[test]
+fn exact_declarations_keep_their_physical_package_and_module() {
+    let p = Scratch::empty("exact declaration owners");
+    p.write_package("dep", "pub indexed carrier Base = cauchy_qq;", "");
+    p.write_package(
+        "app",
+        "mod outer { pub mod nested; } mod sibling; pub indexed carrier Root = cauchy_qq; fn main() -> Int { 42 }",
+        "dep = { path = '../dep' }",
+    );
+    p.write(
+        "app/outer/nested.vast",
+        "pub indexed carrier Nested = cauchy_qq;",
+    );
+    p.write(
+        "app/sibling.vast",
+        "mod inner { pub indexed carrier Inner = cauchy_qq; }",
+    );
+    let wire = p.captured(MANIFEST, 10);
+    let accepted = kernel(&wire, "check");
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    for (from, to) in [("Nested", "Inner"), ("Inner", "Root"), ("Base", "Root")] {
+        let mut forged = wire.clone();
+        let packages = forged["packages"].as_array_mut().unwrap();
+        let mut modules: Vec<_> = packages
+            .iter_mut()
+            .flat_map(|p| p["modules"].as_array_mut().unwrap())
+            .filter_map(|m| m.get_mut("indexed_declarations")?.as_array_mut())
+            .collect();
+        let moved = modules
+            .iter_mut()
+            .find_map(|ds| {
+                let i = ds.iter().position(|d| d["name"] == from)?;
+                Some(ds.remove(i))
+            })
+            .unwrap();
+        let destination = modules
+            .into_iter()
+            .find(|declarations| declarations.iter().any(|d| d["name"] == to))
+            .unwrap();
+        destination.push(moved);
+        let result = kernel(forged, "check");
+        assert_wire_rejected(&result, "E_PROTOCOL");
+        assert!(
+            result["diagnostics"][0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("physical package or module"),
+            "{result}"
+        );
+    }
+}

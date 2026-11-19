@@ -29,19 +29,40 @@ private def lexemes (name : String) : ExactConstruction Source.Path → List Exa
 
 def check (layout : PhysicalSources.Layout) (program : ResourceSource.Program) : Except String Unit := do
   let mut headers : Std.HashMap Nat ExactHeader := {}
+  let flat := program.root == flatPackageId.source
   let mut manifests : Std.TreeSet String := {}
   for pkg in program.packages do
-    if program.root != flatPackageId.source then manifests := manifests.insert pkg.id.source
+    if !flat then manifests := manifests.insert pkg.id.source
     for m in pkg.modules do
       for decl in m.pureModule.declarations do
         if let .exactGeometry c := decl.body then
           if let .affine _ _ coords := c then
             unless coords.all SpectralDeclarations.isIdentifier do throw "invalid exact affine coordinate identifier"
           if headers.contains decl.span.start then throw "duplicate physical exact declaration"
-          headers := headers.insert decl.span.start ⟨decl.span, decl.isPublic, lexemes decl.name c⟩
+          headers := headers.insert decl.span.start ⟨pkg.id.source, m.pureModule.module.path, decl.span, decl.isPublic, lexemes decl.name c⟩
+  if headers.isEmpty then
+    -- An omitted mathematical declaration must still be discovered in its
+    -- physical text. Other files need no module traversal in this common case.
+    for file in layout.files do
+      unless (String.fromUTF8? file.path).any manifests.contains do
+        if mayHaveExactHeaders file.text then
+          let _ ← checkExactHeaders file.text file.offset "" [] {}
+    return ()
+  -- The loader reads each package manifest, its dependencies, then its root.
+  -- External modules are visited depth first in the order of their physical
+  -- declarations. The same physical path can occur at different offsets.
+  let mut pending : List (String × List (List String)) :=
+    if flat then [(flatPackageId.source,[[]])] else []
   for file in layout.files do
-    unless (String.fromUTF8? file.path).any manifests.contains do
-      headers ← checkExactHeaders file.text file.offset headers
+    if let some name := (String.fromUTF8? file.path).filter manifests.contains then
+      pending := (name,[[]]) :: pending
+    else
+      let (pkg, path :: rest) :: ancestors := pending | throw "source file lacks a declaring module"
+      let (external, left) ← checkExactHeaders file.text file.offset pkg path headers
+      headers := left
+      let next := external.toList ++ rest
+      pending := if next.isEmpty then ancestors else (pkg,next) :: ancestors
+  unless pending.isEmpty do throw "missing declared external module in physical inputs"
   unless headers.isEmpty do throw "exact declaration has no matching physical source"
 
 end VastitasKernel.ExactModelSource

@@ -67,12 +67,24 @@ another location.
 
 ## Evidence boundary
 
-The retained JSON records are exploratory macOS arm64 runs of this isolated
-fragment. They are not a controlled timing comparison or a compilation-time
-budget: host variation, filesystem caches and chunk granularity affect them.
-Each record describes its own workload and theorem list. Linux evidence,
-production Core/MidIR artifacts, CFG/block parameters, ownership/effects,
-LLVM-byte binding and compiler Fast/Official admission remain separate work.
+Both jobs in [CI run 44433469554](https://github.com/MGYamada/Vastitas/actions/runs/44433469554)
+checked the same 1,000 operations under Lean 4.35.0 and nanoda 0.4.19.
+The single-chunk and 64-operation chunk exports contain 805 and 910 declarations
+respectively. Each export has the same SHA-256 on both hosts.
+
+| CI runner and report | Chunk size | Official replay (s / peak MiB) | nanoda (s / peak MiB) |
+| --- | ---: | ---: | ---: |
+| [Linux x86-64](results/ci-linux-x86_64-1000.json) | 1,000 | 5.02 / 629 | 5.48 / 156 |
+| [Linux x86-64](results/ci-linux-x86_64-1000-chunk64.json) | 64 | 1.91 / 480 | 1.21 / 23 |
+| [macOS arm64](results/ci-macos-arm64-1000.json) | 1,000 | 7.95 / 546 | 8.99 / 284 |
+| [macOS arm64](results/ci-macos-arm64-1000-chunk64.json) | 64 | 3.58 / 368 | 1.93 / 19 |
+
+The reports give per-process peak RSS, elaboration and export costs, toolchain
+identity and generated theorem names. The original local macOS samples remain
+in the same directory. These single-run timings depend on the host and its
+caches. Production Core/MidIR artifacts, CFG/block parameters, ownership and
+effects, LLVM-byte binding and public Fast/Official admission have separate
+acceptance tests.
 
 The general theorem and the concrete `decide` proofs contain no native
 evaluation proof shortcut. The exported closure uses the permitted `propext`

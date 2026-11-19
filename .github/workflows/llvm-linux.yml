@@ -52,16 +52,7 @@ jobs:
       - name: Install LLVM and Lean runtime link dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libz3-dev libzstd-dev libxml2-dev libedit-dev libffi-dev libpfm4-dev zlib1g-dev libncurses-dev libc++-18-dev libc++abi-18-dev libuv1-dev
-          # Ubuntu keeps the static C++ ABI archive in LLVM 18's versioned directory.
-          # Expose just that library to the host linker used with OpenBLAS.
-          mkdir "$RUNNER_TEMP/lean-host-abi"
-          for name in libc++abi.so libc++abi.a; do
-            source=/usr/lib/llvm-18/lib/$name
-            test -f "$source"
-            ln -s "$source" "$RUNNER_TEMP/lean-host-abi/$name"
-          done
-          echo 'int main(void) { return 0; }' | cc -x c - -L"$RUNNER_TEMP/lean-host-abi" -Wl,-Bstatic -lc++abi -Wl,-Bdynamic -o "$RUNNER_TEMP/lean-abi-probe"
+          sudo apt-get install -y --no-install-recommends libz3-dev libzstd-dev libxml2-dev libedit-dev libffi-dev libpfm4-dev zlib1g-dev libncurses-dev
       - name: Verify and extract the pinned LLVM SDK
         working-directory: ${{ runner.temp }}
         run: |
@@ -82,8 +73,6 @@ jobs:
           test "$("$prefix/bin/llvm-config" --version)" = 23.1.4
           echo "LLVM_SYS_231_PREFIX=$prefix" >> "$GITHUB_ENV"
       - name: Qualify static LLVM, the Lean runtime and all four BLAS calls
-        env:
-          LIBRARY_PATH: ${{ runner.temp }}/lean-host-abi
         run: |
           python3 experiments/compiler_validation/llvm/run.py \
             --llvm-prefix "$LLVM_SYS_231_PREFIX" --lean-prefix "$(lean --print-prefix)" \

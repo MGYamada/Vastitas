@@ -61,8 +61,10 @@ jobs:
           mkdir llvm-sdk
           # Keep the LLVM libraries and headers used by llvm-sys. Excluding
           # unrelated tools and Clang libraries leaves room for the Lean kernel.
-          tar --zstd -tf "$archive" | awk '/(^|\/)bin\/(llvm|llvm-config|llvm-dis)$/ || /(^|\/)include\/(llvm|llvm-c)\// || /(^|\/)lib(64)?\/([^/]+\/)?(libLLVM|libPolly|LLVMPolly)/' > llvm-sdk-members.txt
-          tar --zstd --no-recursion -xf "$archive" -C llvm-sdk -T llvm-sdk-members.txt
+          # The upstream archive uses a 1 GiB zstd window.
+          read_sdk() { zstd --decompress --stdout --memory=1024MB -- "$archive"; }
+          read_sdk | tar -tf - | awk '/(^|\/)bin\/(llvm|llvm-config|llvm-dis)$/ || /(^|\/)include\/(llvm|llvm-c)\// || /(^|\/)lib(64)?\/([^/]+\/)?(libLLVM|libPolly|LLVMPolly)/' > llvm-sdk-members.txt
+          read_sdk | tar --no-recursion -xf - -C llvm-sdk -T llvm-sdk-members.txt
           rm -- "$archive"
           mapfile -t configs < <(find llvm-sdk -path '*/bin/llvm-config')
           test "${#configs[@]}" -eq 1

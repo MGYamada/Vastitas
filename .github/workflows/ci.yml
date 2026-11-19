@@ -102,7 +102,7 @@ jobs:
 
   compiler-without-mathlib:
     name: Native compiler (${{ matrix.os }}, no mathlib)
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 45 || 30 }}
     strategy:
       fail-fast: false
       matrix:

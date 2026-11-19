@@ -78,6 +78,19 @@ set_option maxRecDepth 65536 in
 set_option maxHeartbeats 2000000 in
 theorem borrowed_operator_verified : borrowedOperatorBytes = borrowedOperator.print := by rfl
 
+def uncalledOperator : ExactProgram.Code :=
+  ⟨header,#[
+    ⟨[],.int,[.primitive (.int 7)],0⟩,
+    unselectedChoose .nat .nat, unselectedChoose .nat .int,
+    unselectedChoose .int .nat, unselectedChoose .int .int,
+    ⟨[.int,.int],.int,[.primitive (.apply (.int .add) [0,1])],2⟩],0⟩
+
+def uncalledOperatorBytes := corpus_bytes "src/uncalled-operator.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem uncalled_operator_verified : uncalledOperatorBytes = uncalledOperator.print := by rfl
+
 def boxedModel : ExactLibrary.Code :=
   ⟨header,[.nat,.int],.int,[.nat 5,.apply (.nat .sub) [0,2],.apply .natIntDiv [3,1],
     .apply (.int .add) [4,4]],5⟩
@@ -346,6 +359,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("folded-arithmetic.ll", forExit folded_arithmetic_verified),
    ("boxed-program.ll", forProgram boxed_program_verified),
    ("borrowed-operator.ll", forProgram borrowed_operator_verified),
+   ("uncalled-operator.ll", forProgram uncalled_operator_verified),
    ("boxed-arithmetic.ll", forExact boxed_arithmetic_verified),
    ("assembled-bool.ll", forDispatch assembled_bool_verified),
    ("empty-lookup.ll", forLookup empty_lookup_verified),
@@ -376,6 +390,10 @@ def main (args : List String) : IO Unit := do
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.borrowedOperatorBytes == some borrowed &&
       borrowed.entryValue == some 42 do
     throw (IO.userError "borrowed-operator.ll: different method bodies, call target or integer result")
+  let uncalled := Vastitas.LLVMCorpus.uncalledOperator
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.uncalledOperatorBytes == some uncalled &&
+      uncalled.entryValue == some 7 do
+    throw (IO.userError "uncalled-operator.ll: wrong retained functions or entry result")
   let program := Vastitas.LLVMCorpus.boxedProgram
   let moduleText := String.fromUTF8! ⟨Vastitas.LLVMCorpus.programBytes.toArray⟩
   unless VastitasKernel.LLVM.ExactProgram.parse moduleText.toUTF8.data.toList == some program do

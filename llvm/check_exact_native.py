@@ -202,18 +202,21 @@ fn main() -> Int { adjust(40) }
     run([leanc, *sdk, "shim.o", obj, "-o", "assembled"])
     if subprocess.run([work / "assembled"], cwd=work).returncode != 42:
         raise ValueError("assembled integer entry did not call the selected method")
-    manifest = ROOT / "llvm/fixtures/borrowed-operator/Vastitas.toml"
-    emit_preview([args.frontend, "check", "--manifest-path", manifest, "--llvm-preview",
-                  "--target-triple", target["triple"], "--data-layout", target["layout"]], "borrowed.o")
-    run([leanc, *sdk, "shim.o", "borrowed.o", "-o", "borrowed"])
-    (work / "BorrowedControl.lean").write_text(
-        "@[noinline] def chosen (x y : @& Int) : Int := x + y\n"
-        "def main : IO UInt32 := pure ((chosen 40 2) % 256).toNat.toUInt32\n")
-    run([prefix / "bin/lean", "-c", "BorrowedControl.c", "BorrowedControl.lean"])
-    run([leanc, *sdk, "BorrowedControl.c", "-o", "borrowed-control"])
-    for executable in ["borrowed", "borrowed-control"]:
-        if subprocess.run([work / executable], cwd=work).returncode != 42:
-            raise ValueError(f"{executable}: the method selected through the borrowed grant must return 42")
+    for fixture, control, expected in [("borrowed-operator", "chosen 40 2", 42),
+                                       ("uncalled-operator", "(7 : Int)", 7)]:
+        manifest = ROOT / "llvm/fixtures" / fixture / "Vastitas.toml"
+        obj = fixture + ".o"
+        emit_preview([args.frontend, "check", "--manifest-path", manifest, "--llvm-preview",
+                      "--target-triple", target["triple"], "--data-layout", target["layout"]], obj)
+        run([leanc, *sdk, "shim.o", obj, "-o", fixture])
+        (work / "BorrowedControl.lean").write_text(
+            "@[noinline] def chosen (x y : @& Int) : Int := x + y\n"
+            f"def main : IO UInt32 := pure (({control}) % 256).toNat.toUInt32\n")
+        run([prefix / "bin/lean", "-c", "BorrowedControl.c", "BorrowedControl.lean"])
+        run([leanc, *sdk, "BorrowedControl.c", "-o", "borrowed-control"])
+        for executable in [fixture, "borrowed-control"]:
+            if subprocess.run([work / executable], cwd=work).returncode != expected:
+                raise ValueError(f"{fixture}: {executable} must return {expected}")
     return count, examples, len(divisors)
 
 
@@ -232,7 +235,7 @@ def main():
     print(f"{count} checked libraries, {examples} native results matched Lean and exact integer expectations; {count} heap ownership probes passed")
     print(f"{programs} hosted executable statuses matched generated Lean and independent expectations")
     print("assembled integer entry returned 42 and rejected the sibling method in the expected revision")
-    print("cross-package assembled operator and generated Lean control both returned 42")
+    print("called and uncalled cross-package methods matched the generated Lean controls at exit 42 and 7")
 
 
 if __name__ == "__main__":

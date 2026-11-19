@@ -339,7 +339,7 @@ fn llvm_preview_rejects_unsupported_bodies_and_stale_revisions_before_printing()
     let s = Scratch::empty("LLVM preview rejected");
     for source in [
         "fn choose(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { choose(4) }",
-        "fn f() -> Int { 1 } fn main() -> Int { 7 }",
+        "fn f(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { 7 }",
         "fn main() -> Int { let x = show!(-1); x }",
         "resource fn main() -> Int { value { 3 } }",
         "pub fn pick(a: Bool) -> Bool { a }",

@@ -61,6 +61,60 @@ fn uncalled_root_contribution_and_its_foreign_family_sibling_are_linked() {
 }
 
 #[test]
+fn an_uninvoked_borrowed_integer_family_keeps_both_bodies_and_the_revision() {
+    let entry = include_str!("../llvm/fixtures/uncalled-operator/main.vast");
+    let project = common::example_package(
+        "uncalled boxed methods",
+        "examples/packages/authority/edit-borrow",
+        &[("app/main.vast", entry)],
+    );
+    let output = preview(&project);
+    success(&output);
+    let llvm = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(llvm.matches("define internal ptr @vq_f").count(), 6);
+    assert_eq!(llvm.matches("call ptr @vq_f").count(), 1, "{llvm}");
+    assert!(llvm.contains("call ptr @vastitas_int_add_v1"), "{llvm}");
+
+    let revision = project
+        .command("check", MANIFEST)
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&revision);
+    let saved = project.0.join("revision.json");
+    std::fs::write(&saved, revision.stdout).unwrap();
+    let replay = || {
+        project
+            .command("check", MANIFEST)
+            .args([
+                "--llvm-preview",
+                "--target-triple",
+                "aarch64-apple-darwin",
+                "--data-layout",
+                "e-m:o-i64:64-n32:64-S128",
+                "--expect-function-revision",
+            ])
+            .arg(&saved)
+            .output()
+            .unwrap()
+    };
+    let matched = replay();
+    success(&matched);
+    assert_eq!(matched.stdout, llvm.as_bytes());
+    let base = std::fs::read_to_string(project.0.join("lib/main.vast")).unwrap();
+    project.write(
+        "lib/main.vast",
+        &common::checked_replace(&base, "{ 0 }", "{ 1 }"),
+    );
+    let stale = replay();
+    expect_code(&stale, "E_FUNCTION_REVISION");
+    assert!(stale.stdout.is_empty());
+    let revised = preview(&project);
+    success(&revised);
+    assert_ne!(revised.stdout, llvm.as_bytes());
+}
+
+#[test]
 fn unsupported_root_contribution_or_foreign_sibling_rejects_the_closed_package() {
     for (base, implementation) in [
         ("false", "let p = pair(1, 2); b"),

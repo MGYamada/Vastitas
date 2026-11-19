@@ -211,6 +211,17 @@ def check_borrowed_operator(work, args, check):
             "a same-signature sibling must fail before any module bytes are published")
     print("same-family (Int, Int) sibling rejected by the public emitter", flush=True)
 
+    args.manifest_path = verify.ROOT / "llvm/fixtures/uncalled-operator/Vastitas.toml"
+    uncalled, _ = check("uncalled-operator", "official")
+    compiled = work / "uncalled-operator"
+    peer, _ = check("uncalled-operator-fast", "fast", candidate=compiled / "sealed.ndjson")
+    require(uncalled["certificate"] == peer["certificate"] and uncalled["functions"] == 6
+            and uncalled["physical_inputs"] == 6 and uncalled["integer_result"] == "7",
+            "uncalled method family or entry differs")
+    retained = verify.ROOT / "llvm/src/uncalled-operator.ll"
+    require((compiled / "preview.ll").read_bytes() == retained.read_bytes(), "different uncalled-family module")
+
+
 
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)

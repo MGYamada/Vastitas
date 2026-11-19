@@ -78,19 +78,19 @@ class AdmissionTests(unittest.TestCase):
         self.assertFalse(admission.rollup(self.data)['complete'])
 
     def test_static_storage_refinement_requires_a_proof_at_every_layer(self):
-        ref = 'compiler-ir.storage@static-effects'
+        storage_proofs = {'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi',
+                          'compiler-ir.storage@erased-unit'}
         for row in self.data['row']:
             for dimension, cell in row['dimension'].items():
-                if ref not in cell['claims']:
-                    continue
-                with self.subTest(row=row['id'], dimension=dimension):
-                    cell['state'] = 'complete'
-                    claims = {r: (None, None, SimpleNamespace(status=admission.required_status(dimension, r)))
-                              for r in cell['claims']}
-                    self.assertEqual(self.errors(claims=claims), [])
-                    claims[ref][2].status = 'tested'
-                    self.assertTrue(any(ref in e for e in self.errors(claims=claims)))
-                    cell['state'] = 'partial'
+                for ref in storage_proofs.intersection(cell['claims']):
+                    with self.subTest(row=row['id'], dimension=dimension, claim=ref):
+                        cell['state'] = 'complete'
+                        claims = {r: (None, None, SimpleNamespace(status=admission.required_status(dimension, r)))
+                                  for r in cell['claims']}
+                        self.assertEqual(self.errors(claims=claims), [])
+                        claims[ref][2].status = 'tested'
+                        self.assertTrue(any(ref in e for e in self.errors(claims=claims)))
+                        cell['state'] = 'partial'
 
     def test_complete_native_needs_tested_evidence_and_known_refs(self):
         cell = self.data['row'][0]['dimension']['native']

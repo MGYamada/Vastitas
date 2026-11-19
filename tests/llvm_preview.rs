@@ -791,7 +791,31 @@ fn storage_entry_returns_the_checked_literal_after_its_effects() {
             .unwrap();
         let control = s.build_and_run("app/Vastitas.toml");
         assert_eq!(common::ran(&llvm), control);
+        assert_eq!(String::from_utf8_lossy(&llvm.stderr), control.stderr);
         assert_eq!(llvm.status.code(), Some(1));
         common::expect_code(&llvm, "E_NATIVE_EXPECT");
+    }
+}
+
+#[test]
+fn inlined_resource_calls_only_erase_reached_literal_unit_returns() {
+    let s = Scratch::empty("LLVM resource unit returns");
+    let source = "resource fn touch() -> Unit { value { () } }
+resource fn main() -> Int { call touch() -> (); value { 42 } }";
+    let output = preview(&s, source);
+    success(&output);
+    assert!(
+        std::str::from_utf8(&output.stdout)
+            .unwrap()
+            .ends_with("  ret i32 42\n}\n")
+    );
+    for unsupported in [
+        source.replace("call touch() -> ();", ""),
+        source.replace("value { () }", "value { if true { () } else { () } }"),
+        format!("fn spare() -> Unit {{ () }}\n{source}"),
+    ] {
+        let rejected = preview(&s, &unsupported);
+        common::expect_code(&rejected, "E_UNSUPPORTED");
+        assert!(rejected.stdout.is_empty());
     }
 }

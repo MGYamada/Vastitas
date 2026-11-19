@@ -440,6 +440,30 @@ theorem real_identity_verified : realIdentityBytes = (affineIdentity false).prin
 set_option maxRecDepth 65536 in
 theorem complex_identity_verified : complexIdentityBytes = (affineIdentity true).print := rfl
 
+/-- Independent schedule for the 1×1 coefficient example. With inputs 2 and
+3, the overwrite computes 3. The subsequent accumulation reads alpha from
+allocation 3 and computes 4 * 2 * 3 + 2 * 3 = 30. -/
+def gemmCoefficients : StorageModule.Code :=
+  let atCell := fun (id : Nat) => [id, 0, 1, 1, 1, 0]
+  let fill := fun id bits => VastitasKernel.MidIR.StorageEffects.Call.mk .fill (atCell id ++ [0, bits, 0])
+  let expect := fun bits => VastitasKernel.MidIR.StorageEffects.Call.mk .expect (atCell 2 ++ [0, 0, 0, bits, 0])
+  let matrices := [0] ++ atCell 0 ++ [0] ++ atCell 1 ++ [0] ++ atCell 2
+  let unit := 2^52
+  let two := 1024 * unit
+  let three := two + 2^51
+  let half := 1022 * unit
+  let thirty := 1027 * unit + 7 * 2^49
+  ⟨header, ([0,1,2,3].map fun id => ⟨.allocate, [id,0,1]⟩) ++
+    [fill 0 two, fill 1 three, fill 3 (1025 * unit),
+     ⟨.gemm, matrices ++ [0, 1,0,half,0,0,0, 0,0,0,0,0,0]⟩, expect three,
+     ⟨.gemm, matrices ++ [1, 2,0,0,0,3,0, 1,0,two,0,0,0]⟩, expect thirty] ++
+    ([3,2,1,0].map fun id => ⟨.drop, [id]⟩), 0⟩
+
+def gemmCoefficientBytes := corpus_bytes "src/gemm-coefficients.ll"
+
+set_option maxRecDepth 65536 in
+theorem gemm_coefficients_verified : gemmCoefficientBytes = gemmCoefficients.print := rfl
+
 private def forStorage {bytes : List UInt8} {code : StorageModule.Code}
     (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
 
@@ -458,6 +482,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("empty-lookup.ll", forLookup empty_lookup_verified),
    ("unary-table.ll", forLookup unary_table_verified),
    ("closure-unit.ll", forLookup closure_unit_verified),
+   ("gemm-coefficients.ll", forStorage gemm_coefficients_verified),
    ("float-identity.ll", forStorage real_identity_verified),
    ("float-complex-identity.ll", forStorage complex_identity_verified),
    ("opposite-s3.ll", forCode opposite_s3_verified),
@@ -514,15 +539,16 @@ def main (args : List String) : IO Unit := do
   checkEntry "structured-lookup-linux-x86_64.ll" Vastitas.LLVMCorpus.structuredLookupLinuxBytes
     Vastitas.LLVMCorpus.StructuredLookup.linuxCode 42
   checkEntry "static-selection.ll" Vastitas.LLVMCorpus.staticSelectionBytes Vastitas.LLVMCorpus.StaticSelection.code 42
-  for (complex,bytes) in [(false,Vastitas.LLVMCorpus.realIdentityBytes), (true,Vastitas.LLVMCorpus.complexIdentityBytes)] do
-    let code := Vastitas.LLVMCorpus.affineIdentity complex
+  for (code,bytes) in [(Vastitas.LLVMCorpus.affineIdentity false, Vastitas.LLVMCorpus.realIdentityBytes),
+      (Vastitas.LLVMCorpus.affineIdentity true, Vastitas.LLVMCorpus.complexIdentityBytes),
+      (Vastitas.LLVMCorpus.gemmCoefficients, Vastitas.LLVMCorpus.gemmCoefficientBytes)] do
     let some parsed := VastitasKernel.LLVM.StorageModule.parse bytes
-      | throw (IO.userError "storage identity: cannot parse the complete entry")
+      | throw (IO.userError "storage entry: cannot parse the complete entry")
     unless decide (parsed = code) &&
         decide (parsed.run (some ()) (fun s _ => (s,true)) = (code.calls,.success 0)) &&
         decide (parsed.run (some ()) (fun s _ => (s,false)) = (code.calls.take 1,.failed)) &&
         decide (parsed.run none (fun (s : Unit) _ => (s,true)) = ([],.unavailable)) do
-      throw (IO.userError "storage identity: different call order or arena exit")
+      throw (IO.userError "storage entry: different call order or arena exit")
   unless expected.mergeSort == (files.map Prod.fst).mergeSort do
     throw (IO.userError "source fixtures and registered LLVM byte theorems differ")
   for (name, certified) in files do

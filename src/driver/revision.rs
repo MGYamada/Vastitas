@@ -51,7 +51,7 @@ pub(super) fn attach(
     if !raw.get().starts_with('{') {
         return Err("E_FUNCTION_REVISION: expected one JSON object".into());
     }
-    sources.protect_receipt(canonical, &metadata);
+    sources.protect_input(canonical, &metadata, "function revision");
     if request.pop() != Some(b'}') {
         return Err("E_PROTOCOL: invalid package envelope".into());
     }

@@ -372,7 +372,7 @@ No owner or loan may escape its checked scope.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.storage)"
 example = "Moving a release before the final read is rejected even when each function has a well-typed SSA body."
-example_not_executed = "Linear static storage entries with a literal result have the checked refinement below. Dynamic control flow, runtime extents and GEMM require additional lowering."
+example_not_executed = "The checker refines linear static plans, including NativeFast GEMM, with a literal entry result. Dynamic control flow and runtime extents require additional lowering."
 
 [property."compiler-ir.storage".claim.refinement]
 status = "planned"
@@ -394,7 +394,24 @@ note = "The call trace is a prefix of the checked schedule. The first failed cal
 [property."compiler-ir.storage".claim.static-native]
 status = "tested"
 evidence = ["VastitasKernel.LLVM.StorageRegression", "tests/llvm_preview.rs::storage_entry_returns_the_checked_literal_after_its_effects", "tests/numerical_realization.rs::canonical_realization_runs_into_existing_storage_and_replays_its_revision", "tests/numerical_realization.rs::real32_identity_preserves_payloads_and_replays_its_precision", "tests/numerical_realization.rs::complex_charts_copy_both_components_and_bind_the_full_model_chain"]
-note = "Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, failure reporting and literal process status. Dynamic shapes and GEMM remain outside this LLVM fragment."
+note = "Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, failure reporting and literal process status."
+
+[property."compiler-ir.storage".claim.gemm-abi]
+status = "proved-oracle"
+evidence = ["VastitasOracle.StorageProgram.gemm_representation"]
+premises = ["Physical lowering resolved a NativeFast GEMM instruction in the live allocation map."]
+note = "The first ABI operand selects the common physical representation of both inputs and the destination. The correspondence theorem separately binds every layout, coefficient and flag to the printed call."
+
+[property."compiler-ir.storage".claim.erased-unit]
+status = "proved-oracle"
+evidence = ["VastitasOracle.StorageProgram.erased_unit"]
+premises = ["The checker recognized a closed Unit return of an inlined resource callee."]
+note = "The selected Core body evaluates to Unit at every sufficient fuel. Its scheduled resource effects keep their order."
+
+[property."compiler-ir.storage".claim.gemm-native]
+status = "tested"
+evidence = ["VastitasKernel.LLVM.StorageRegression", "tests/llvm_preview.rs::inlined_resource_calls_only_erase_reached_literal_unit_returns", "tests/numerical_source.rs::public_maps_check_domain_and_precision_before_emitting_gemm", "tests/numerical_source.rs::four_representations_execute_through_forwarded_public_maps", "tests/tree_source.rs::tensor_column_contraction_executes_without_implicit_conjugation"]
+note = "The public compiler emits a typed storage call from fixed-layout maps. The native suite exercises overwrite and accumulate for all four representations with the pinned OpenBLAS adapter."
 
 [property."compiler-ir.runtime"]
 title = "One foreign Lean runtime preserves exact arithmetic"
@@ -701,7 +718,7 @@ allocation, retained bytes, versions and invalidation remain explicit costs.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.tensor)"
 example = "A 2 by 3 map followed by a 3 by 2 map requires matching nominal intermediate bases, not only matching dimensions."
-example_not_executed = "The exact finite-free tensor aliases and their numerical LLVM lowering are pending. The public storage cases below exercise all four GEMM representations through the Lean/C backend."
+example_not_executed = "The exact finite-free tensor aliases are pending. The public LLVM and Lean/C storage cases exercise fixed-layout GEMM in all four representations."
 
 [property."compiler-ir.tensor".claim.semantics]
 status = "planned"
@@ -1555,7 +1572,7 @@ support.
 """
 specified_in = "[Planned LLVM compiler path](development/architecture.md#planned-llvm-compiler-path)"
 example = "A complex GEMM lowers to the selected adapter symbol with the original layouts and arguments, while the receipt records flags as unavailable."
-example_not_executed = "Public LLVM builds execute all four identity copies. Arithmetic, GEMM and the complete four native realization rows remain pending."
+example_not_executed = "Public LLVM builds execute all four identity copies and fixed-layout matrix products. Public scalar arithmetic and the complete four native realization rows remain pending."
 
 [property."compiler-ir.native.contract".claim.operations]
 status = "planned"

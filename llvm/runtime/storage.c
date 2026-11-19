@@ -1,14 +1,7 @@
-#include "storage.h"
-#include <stdio.h>
+#include "storage_abi.h"
 
 /* Fixed scalar ABI for emitted LLVM. Each i64 arrives as one unsigned word.
  * Views are constructed here using the host C ABI for VStorageLayout. */
-static int32_t checked(VStorageStatus status) {
-    if (status == VS_OK) return 0;
-    fprintf(stderr, "uncaught exception: %s\n", vstorage_error(status));
-    return 1;
-}
-
 VStorageArena *vq_storage_new(uint64_t budget) {
     VStorageArena *arena = vstorage_new(budget);
     if (arena == NULL) (void)checked(VS_ALLOCATION);
@@ -25,11 +18,6 @@ int32_t vq_storage_allocate(VStorageArena *arena, uint64_t id, uint64_t scalar,
 int32_t vq_storage_drop(VStorageArena *arena, uint64_t id) {
     if (id > UINT32_MAX) return checked(VS_HANDLE);
     return checked(vstorage_drop(arena, (uint32_t)id));
-}
-
-static VStorageLayout view(uint64_t offset, uint64_t rows, uint64_t columns,
-                           uint64_t leading, uint64_t transposed) {
-    return (VStorageLayout){offset, rows, columns, leading, (uint8_t)transposed};
 }
 
 static VStorageStatus operands(uint64_t id, uint64_t transposed, uint64_t scalar) {

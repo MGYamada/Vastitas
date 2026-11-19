@@ -33,6 +33,7 @@ CASES = [
     Sample("static-selection", HERE / "fixtures/StaticSelection.vast", "static_selection"),
     Sample("empty-lookup", HERE / "fixtures/EmptyLookup.vast", "empty_lookup"),
     Sample("closure-unit", HERE / "fixtures/ClosureUnit.vast", "closure_unit"),
+    Sample("gemm-coefficients", ROOT / "examples/packages/numerical/gemm-coefficients/Vastitas.toml", None),
     Sample("float-identity", ROOT / "examples/packages/float-identity/Vastitas.toml", None),
     Sample("float-complex-identity", ROOT / "examples/packages/float-complex-identity/Vastitas.toml", None),
     Sample("opposite-s3", HERE / "fixtures/opposite-s3/Vastitas.toml", None),

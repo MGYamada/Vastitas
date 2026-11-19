@@ -100,7 +100,7 @@ number = 689
 title = "Tensor aliases"
 state = "open"
 depends = []
-remaining = "Four public source-to-GEMM paths preserve the allocation precision through calls and execute via Lean/C. The storage adapter exercises 16 orientations per representation. Rank-one tensor columns share coordinates with vector views, and matrix-column contraction checks both the dual and surviving bases. The exact finite-free tensor aliases, LinearMap interpretation and checked LLVM lowering remain."
+remaining = "Four public source-to-GEMM paths preserve the allocation precision through calls and execute with both the LLVM preview and Lean/C. The storage adapter exercises 16 orientations per representation. Rank-one tensor columns share coordinates with vector views, and matrix-column contraction checks both the dual and surviving bases. The binary32 complex matrix-column join passes both input conjugation flags as false. The exact finite-free tensor aliases, LinearMap interpretation and rank-three LLVM lowering remain."
 
 [[issue]]
 number = 750
@@ -304,21 +304,21 @@ note = "The resource checker validates the ordered bases, grouping and physical 
 document = ""
 
 [row.dimension.midir]
-state = "planned"
-claims = ["compiler-ir.midir@representation"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
+note = "The logical matrix-column contraction lowers to a fixed-layout GEMM. Its physical operands retain the common element type and both conjugation flags."
 document = ""
 
 [row.dimension.llvm]
-state = "planned"
-claims = ["compiler-ir.llvm-bytes@bytes"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
+note = "The complex binary32 matrix-column entry emits one GEMM. Changing the contracted dual or the surviving basis fails before emission. Rank-three schedules with packing remain open."
 document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.stage-validation@soundness", "compiler-ir.tensor@coordinate-storage"]
-note = "The oracle proves rank-one vector-coordinate agreement and exact scalar agreement of the three maps in an accepted product. Whole-module translation validation remains pending."
+claims = ["compiler-ir.stage-validation@soundness", "compiler-ir.tensor@coordinate-storage", "compiler-ir.storage@gemm-abi"]
+note = "The oracle proves rank-one vector-coordinate agreement and the common scalar of the three live GEMM allocations at the ABI. Whole-module translation validation remains pending."
 document = ""
 
 [row.dimension.fast]
@@ -329,8 +329,8 @@ document = ""
 
 [row.dimension.native]
 state = "partial"
-claims = ["compiler-ir.tensor@native", "compiler-ir.tensor@storage-native"]
-note = "Four representations execute through public Lean/C map calls, runtime shapes and tensor products using pinned OpenBLAS. Numerical LLVM execution remains pending."
+claims = ["compiler-ir.tensor@native", "compiler-ir.tensor@storage-native", "compiler-ir.storage@gemm-native"]
+note = "The LLVM and Lean/C builds execute four map representations and a binary32 complex matrix-column contraction. Both result coordinates are 33+6i. Dynamic shapes and rank-three products have separate Lean/C evidence."
 document = ""
 
 [row.dimension.performance]
@@ -365,19 +365,19 @@ document = ""
 
 [row.dimension.midir]
 state = "partial"
-claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects"]
-note = "The checked static plan fixes both token orders and the physical call operands for all four identity copies. Dynamic branches, runtime dimensions and GEMM remain open."
+claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
+note = "The checked static plan fixes both effect orders and the physical operands for identity copies and GEMM in all four representations. Dynamic branches and runtime dimensions remain open."
 document = ""
 
 [row.dimension.llvm]
 state = "partial"
-claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects"]
-note = "The canonical module binds every byte of the target, status branches, calls, cleanup and literal exit to the checked entry. The corpus retains real and complex examples."
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
+note = "The canonical module binds every byte of the target, status branches, calls, cleanup and literal exit to the checked entry. The corpus retains two identity copies and a scaled product with literal and view coefficients."
 document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup"]
+claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@gemm-abi"]
 note = "An accepted public run gives its lexical site, source identity declaration, nominal graph and checked storage copy. Complex copies also recover the selected mathematical model. The binary reference proves the signed-zero divisor and unit-beta empty-dot cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. The static LLVM model preserves the successful call order and the first-failure prefix with a single arena cleanup. Per-artifact verification and general compiler refinement remain."
 document = ""
 
@@ -389,8 +389,8 @@ document = ""
 
 [row.dimension.native]
 state = "partial"
-claims = ["compiler-ir.native-fast@profile", "compiler-ir.native-fast@identity-run", "compiler-ir.storage@static-native"]
-note = "The public Lean-backed build runs the identity in all four representations with Unavailable flags. Separately 828 direct C adapter cases cover real/complex division and complex inverse at both widths. The public LLVM preview builds and executes all four identity variants using the storage runtime. Public arithmetic and GEMM on this path remain open."
+claims = ["compiler-ir.native-fast@profile", "compiler-ir.native-fast@identity-run", "compiler-ir.storage@static-native", "compiler-ir.storage@gemm-native"]
+note = "The LLVM preview executes the four identity variants and eight static matrix products with pinned OpenBLAS. The Lean/C control agrees. Separately, 828 direct C cases cover division and complex inverse. Public scalar arithmetic remains open."
 document = ""
 
 [row.dimension.performance]
@@ -479,8 +479,8 @@ document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.storage@refinement", "compiler-ir.storage@static-effects"]
-note = "The selected pure fragment supplies the terminal Core result. The existing storage checker validates the complete plan of this static entry."
+claims = ["compiler-ir.storage@refinement", "compiler-ir.storage@static-effects", "compiler-ir.storage@erased-unit"]
+note = "The entry supplies the checked terminal Core integer. An inlined reached resource callee can erase a closed Unit return after its scheduled effects. The checker retains all root owners and selected methods."
 document = ""
 
 [row.dimension.midir]
@@ -497,7 +497,7 @@ document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.constitution@finite-proofs", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup"]
+claims = ["compiler-ir.constitution@finite-proofs", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@erased-unit"]
 note = "The general Oracle proof binds the static plan and its failure prefix. The finite constitution and per-input certificates for these modules remain pending."
 document = ""
 

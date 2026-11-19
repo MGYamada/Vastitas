@@ -36,12 +36,42 @@ fn tensor_column_contraction_requires_the_selected_dual_and_surviving_basis() {
         "pub resource fn product() -> Unit { value { () } }",
     );
     success(&command(&s, "check").output().unwrap());
+    let preview = || {
+        command(&s, "check")
+            .args([
+                "--llvm-preview",
+                "--target-triple",
+                "aarch64-apple-darwin",
+                "--data-layout",
+                "e-m:o-i64:64-n32:64-S128",
+            ])
+            .output()
+            .unwrap()
+    };
+    let emitted = preview();
+    success(&emitted);
+    let text = std::str::from_utf8(&emitted.stdout).unwrap();
+    let mut calls = text.lines().filter_map(|line| {
+        line.split_once("call i32 @vq_storage_gemm(ptr %arena, i64 ")
+            .map(|(_, args)| {
+                args.trim_end_matches(')')
+                    .split(", i64 ")
+                    .collect::<Vec<_>>()
+            })
+    });
+    let args = calls.next().expect("matrix-column product");
+    assert_eq!(args.len(), 34);
+    assert_eq!((args[0], args[7], args[14]), ("3", "0", "0"));
+    assert!(calls.next().is_none());
     for source in [
         COLUMN_PRODUCT.replace("view2(ra,bu,bvd)", "view2(ra,bu,bv)"),
         COLUMN_PRODUCT.replace("boundary(a[0])", "boundary(x[0])"),
     ] {
         s.write("src/real/mod.vast", &source);
         common::expect_code(&command(&s, "check").output().unwrap(), "E_TENSOR_TREE");
+        let invalid = preview();
+        common::expect_code(&invalid, "E_TENSOR_TREE");
+        assert!(invalid.stdout.is_empty());
     }
 }
 
@@ -52,15 +82,23 @@ fn tensor_column_contraction_executes_without_implicit_conjugation() {
         COLUMN_PRODUCT,
         "pub resource fn product() -> Unit { value { () } }",
     );
-    let mut build = command(&s, "build");
-    build
-        .args(["-o", "program"])
-        .args(common::numerical_build_options(None));
-    success(&build.output().unwrap());
-    assert_eq!(
-        common::ran(&Command::new(s.0.join("program")).output().unwrap()),
-        common::exits(0)
-    );
+    let options = common::numerical_build_options(None);
+    let run = |name: &str, backend: &[&str]| {
+        success(
+            &command(&s, "build")
+                .args(backend)
+                .args(["-o", name])
+                .args(&options)
+                .output()
+                .unwrap(),
+        );
+        let output = Command::new(s.0.join(name)).output().unwrap();
+        assert_eq!(output.status.code(), Some(0));
+        assert!(output.stdout.is_empty() && output.stderr.is_empty());
+    };
+    run("program", &[]);
+    #[cfg(feature = "llvm-native")]
+    run("llvm-program", &["--llvm-preview"]);
 }
 
 fn fixture(real: &str, complex: &str) -> Scratch {

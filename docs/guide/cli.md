@@ -174,7 +174,10 @@ produce an object. For a boxed integer program, the pinned `leanc` links the
 object with the embedded integer shim and the Lean runtime. Other supported
 entries link with the host `cc`. Both accept `--native-cc` and install the
 executable under the ordinary [output rules](#the-output-of-build).
-The LLVM build takes neither target overrides nor `--openblas-prefix`.
+A fixed-layout NativeFast GEMM uses `--openblas-prefix PREFIX`. The driver
+reads the two provider headers and the static OpenBLAS archive from that prefix,
+compiles the fixed numerical adapter, and links it with the checked object.
+Other LLVM entries reject the prefix. The host determines the build target.
 
 ## Inputs
 

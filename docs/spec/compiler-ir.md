@@ -16,7 +16,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
-| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested |
+| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
 | [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
@@ -309,7 +309,7 @@ Claims:
 The ownership authority is the kernel storage checker on the storage plan of accepted Core. MidIR does not introduce a competing ownership checker. Each lowering preserves the plan's initialized bytes, provenance, layouts, aliases, suspended reborrows, inside-out returns, branch joins and normal or failure cleanup through refinement. A transformation that changes allocation, reuse, aliases or release order must provide their mapping in its untrusted witness. Local SSA well-formedness alone proves none of these resource facts. No owner or loan may escape its checked scope.
 
 - Example: Moving a release before the final read is rejected even when each function has a well-typed SSA body.
-- Not executed: Linear static storage entries with a literal result have the checked refinement below. Dynamic control flow, runtime extents and GEMM require additional lowering.
+- Not executed: The checker refines linear static plans, including NativeFast GEMM, with a literal entry result. Dynamic control flow and runtime extents require additional lowering.
 
 Claims:
 
@@ -335,7 +335,27 @@ Claims:
     - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `real32_identity_preserves_payloads_and_replays_its_precision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
-  - Note: Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, failure reporting and literal process status. Dynamic shapes and GEMM remain outside this LLVM fragment.
+  - Note: Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, failure reporting and literal process status.
+- `gemm-abi`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.gemm_representation`
+  - Premises:
+    - Physical lowering resolved a NativeFast GEMM instruction in the live allocation map.
+  - Note: The first ABI operand selects the common physical representation of both inputs and the destination. The correspondence theorem separately binds every layout, coefficient and flag to the printed call.
+- `erased-unit`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.erased_unit`
+  - Premises:
+    - The checker recognized a closed Unit return of an inlined resource callee.
+  - Note: The selected Core body evaluates to Unit at every sufficient fuel. Its scheduled resource effects keep their order.
+- `gemm-native`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - [`VastitasKernel.LLVM.StorageRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/StorageRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - `inlined_resource_calls_only_erase_reached_literal_unit_returns` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `public_maps_check_domain_and_precision_before_emitting_gemm` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `four_representations_execute_through_forwarded_public_maps` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `tensor_column_contraction_executes_without_implicit_conjugation` in [`tests/tree_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/tree_source.rs)
+  - Note: The public compiler emits a typed storage call from fixed-layout maps. The native suite exercises overwrite and accumulate for all four representations with the pinned OpenBLAS adapter.
 
 <a id="compiler-ir.runtime"></a>
 
@@ -529,7 +549,7 @@ Claims:
 The admitted rank-1, rank-2 and rank-3 finite-free Tensor model owns the meaning of Vector and Matrix aliases. A matrix tensor and a linear-map view retain their distinct dual, basis and endpoint obligations. Contraction must preserve the use of every port and its checked mathematical role; ports do not establish disjoint memory. Numerical realization is explicit. GEMM uses the pinned sequential LP64 OpenBLAS adapter for all four representations: sgemm, dgemm, cgemm and zgemm. The interleaved complex layouts have 8-byte or 16-byte elements. Pure programs link no OpenBLAS. Packing, copies, allocation, retained bytes, versions and invalidation remain explicit costs.
 
 - Example: A 2 by 3 map followed by a 3 by 2 map requires matching nominal intermediate bases, not only matching dimensions.
-- Not executed: The exact finite-free tensor aliases and their numerical LLVM lowering are pending. The public storage cases below exercise all four GEMM representations through the Lean/C backend.
+- Not executed: The exact finite-free tensor aliases are pending. The public LLVM and Lean/C storage cases exercise fixed-layout GEMM in all four representations.
 
 Claims:
 
@@ -1168,7 +1188,7 @@ Claims:
 Indexed primitives and arbitrary-precision Nat and Int call one Lean-compiled runtime library under a labeled foreign premise. A C shim exposes operations that the runtime offers only inline. Each admitted Nat or Int operation is a call in this profile. Represented floating values stay in the resource layer and cross LLVM as bits and arguments to adapter calls. All four F32/RR, F64/RR, F32/CC and F64/CC representations are required. GEMM uses the pinned sequential LP64 OpenBLAS 0.3.34 adapter for sgemm, dgemm, cgemm and zgemm under a labeled host/build-specific premise, with the corresponding real or interleaved complex layout. A program that needs no numerical runtime requires no OpenBLAS. Fixed-order adapter results follow the reference result bits, with a NaN class where the reference does not specify the sign or payload. OpenBLAS results have the stated determinism premise on one pinned build and host. Error bounds and numerical correctness claims need their own evidence. The NativeFast flags observation is unavailable. Its storage expectation uses IEEE equality and a NaN expectation tests for NaN. Preserve foreign-call identity, argument bits and order even where an observation abstracts the result. The modeled LLVM subset emits no floating-point instructions and rejects strict, LLVM-default and unadmitted sign-observing profiles. Admitted division is totalized. The ordered same-precision scaled complex quotient uses totalized real divisions and fixes the order and effects of the graph, with inverse through the same graph. Emit no fallback, FMA or raw CUDA division substitution. Float values gain no public pure-Core float carrier. SafeFloat and the Result forms of safe division wait for the Result language support.
 
 - Example: A complex GEMM lowers to the selected adapter symbol with the original layouts and arguments, while the receipt records flags as unavailable.
-- Not executed: Public LLVM builds execute all four identity copies. Arithmetic, GEMM and the complete four native realization rows remain pending.
+- Not executed: Public LLVM builds execute all four identity copies and fixed-layout matrix products. Public scalar arithmetic and the complete four native realization rows remain pending.
 
 Claims:
 

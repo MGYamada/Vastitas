@@ -13,7 +13,12 @@ fn main() {
         for file in [
             "lean-kernel/native/storage.c",
             "lean-kernel/native/storage.h",
+            "lean-kernel/native/diagonal.c",
+            "lean-kernel/native/diagonal.h",
+            "lean-kernel/numerical/gemm.h",
             "llvm/runtime/storage.c",
+            "llvm/runtime/storage_abi.h",
+            "llvm/runtime/gemm.c",
         ] {
             println!("cargo:rerun-if-changed={file}");
         }
@@ -22,7 +27,13 @@ fn main() {
             .std("c11")
             .opt_level(2)
             .include("lean-kernel/native")
-            .files(["lean-kernel/native/storage.c", "llvm/runtime/storage.c"])
+            .include("lean-kernel/numerical")
+            .files([
+                "lean-kernel/native/storage.c",
+                "lean-kernel/native/diagonal.c",
+                "llvm/runtime/storage.c",
+                "llvm/runtime/gemm.c",
+            ])
             .compile("vastitas_llvm_storage");
     }
     let path = "lean-kernel/compiler-limits.json";

@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "3649027c29327c52bf4d2637cc4e32e785f8e6df",
-    "schema_sha256": "9e159b1a003abafd7a854b5422c74d05ab0e26f88292a1ef7c73eee7af671a81"
+    "base_commit": "01d41006ada8f46c27844577e53905a3695bbda0",
+    "schema_sha256": "def55703a5172f09fa1b022656f53979ec965bd8405a4575e99ec9f8fd902513"
   },
   "schema": {
     "sources": [
@@ -4712,11 +4712,11 @@
         },
         {
           "source": "lean-kernel/numerical/gemm.c",
-          "sha256": "a250d2a6bd28f2696eac9324ad0cf58613df69f79da6d5ae5973091386de6747"
+          "sha256": "55bc64d88e927b6bddedc638ebed58a0c06c2c3d2604ece25e6a5501d30aa9cd"
         },
         {
           "source": "lean-kernel/numerical/gemm.h",
-          "sha256": "5ebe8eecff6e5812a63e41067b6f172e5a0682d027e17342f0b8667f251a8c1b"
+          "sha256": "3a8d13fcc46bd66b563c6d2f603b5fe0ab3a918b659b78df98e09dd1d54b11ec"
         },
         {
           "source": "lean-kernel/numerical/gemm_kernels.inc",

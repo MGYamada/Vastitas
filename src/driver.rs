@@ -149,7 +149,7 @@ fn options(args: &[OsString]) -> Result<Options, String> {
         (true, "check", Some(triple), Some(layout)) if !print_revision => {
             Some(llvm::Target { triple, layout })
         }
-        (true, "emit", None, None) if openblas.is_none() => None,
+        (true, "emit", None, None) => None,
         (false, _, None, None) => None,
         _ => return Err(usage()),
     };
@@ -305,7 +305,13 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     if let Some(target) = llvm_target {
         let artifact = llvm::checked_bytes(&response, &target, output.is_some())?;
         if let Some(output) = output {
-            llvm::build(&artifact, &output, &sources, native_cc.as_deref())?;
+            llvm::build(
+                &artifact,
+                &output,
+                &mut sources,
+                native_cc.as_deref(),
+                openblas.as_deref(),
+            )?;
             println!("built {}", shown(&output));
         } else {
             std::io::stdout()

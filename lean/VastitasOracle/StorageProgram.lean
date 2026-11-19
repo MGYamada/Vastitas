@@ -19,7 +19,7 @@ theorem correspondence {json main header} {req : ResourceSource.Wire.CheckedInpu
     ordered a.effects.opt = true ∧ ordered a.effects.exe = true ∧
     Storage.Native.lower 4096 {} ((req.checked.execution a.entry a.selected).checked.statements) =
       .ok (a.effects.checked.ownership.finalState, a.effects.checked.instructions) ∧
-    a.effects.checked.instructions.mapM physical = some a.model.calls ∧
+    resolveCalls a.effects.checked.instructions = some a.model.calls ∧
     a.model.calls.all Call.valid = true ∧
     Core.Semantics.eval req.checked.values.compiled.core.module (fuel + 3) (fun _ => none) a.core.body =
       some (.integer a.literal.value) ∧ a.model.status.toNat = (a.literal.value % 256).toNat := by
@@ -31,6 +31,30 @@ theorem correspondence {json main header} {req : ResourceSource.Wire.CheckedInpu
   · exact (congrArg (Storage.Native.lower 4096 {}) same).trans a.effects.checked.lowered
   · rw [a.term]
     exact ExitFunction.coreLiteral _ _ _
+
+/-- A checked nullary return of an inlined resource callee evaluates to Unit
+at every sufficient fuel, including when its result was not requested. -/
+theorem erased_unit {json main callee} {req : ResourceSource.Wire.CheckedInput json main}
+    (u : LLVM.StorageProgram.UnitReturn req callee) (fuel : Nat) :
+    Core.Semantics.eval req.checked.values.compiled.core.module (fuel + 2) (fun _ => none) u.core.body = some .unit := by
+  rw [u.literal]
+  rfl
+
+/-- The tag crossing the GEMM ABI denotes the common representation of the
+three matrix allocations in the checked physical schedule. -/
+theorem gemm_representation {live : Std.HashMap Nat Storage.Scalar} {a va ca b vb cb out vo mode alpha beta call}
+    (resolved : resolveInstruction live (.gemm a va ca b vb cb out vo mode .nativeFast alpha beta) = some call) :
+    ∃ element, live[a]? = some element ∧ live[b]? = some element ∧ live[out]? = some element ∧
+      call.target = .gemm ∧ call.arguments.head? = some (Storage.NativeText.scalar element) := by
+  cases found : live[out]? with
+  | none => simp [resolveInstruction, found] at resolved
+  | some element =>
+    simp only [resolveInstruction, found, Option.bind_eq_bind, Option.bind_some] at resolved
+    split at resolved
+    · rename_i same
+      cases resolved
+      exact ⟨element, same.1, same.2.1, rfl, rfl, rfl⟩
+    · contradiction
 
 /-- For every response from the foreign ABI, the executed calls form a prefix
 and the acquired arena has one release on either possible exit. -/

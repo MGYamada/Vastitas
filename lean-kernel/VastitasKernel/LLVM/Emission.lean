@@ -50,7 +50,7 @@ def Output.text {json header} : Output json header → String
   | .storage _ s _ | .exactProgram _ s _ | .exactLibrary _ s _ | .lookup _ s _ | .binary _ s _ | .forwarding _ s _ | .executable _ s _ | .folded _ s _ | .dispatch _ s _ | .finite _ s _ => s
 
 def Output.kind {json header} : Output json header → String
-  | .storage .. => "storage-program"
+  | .storage a .. => if a.model.calls.any (·.target == .gemm) then "storage-gemm-program" else "storage-program"
   | .exactProgram .. => "boxed-exact-program"
   | .exactLibrary .. => "boxed-exact-library"
   | .lookup .. => "unary-lookup"

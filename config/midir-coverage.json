@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "0b4f5a5ad329e28674b4801c00414c7a0132c2e8",
-    "schema_sha256": "4045285cf3c5ba965a33d6472f4154e5208aa1b5185ca467375575e77e43f36b"
+    "base_commit": "e556bd831eb17546106fbd8f32f8eb739ba03913",
+    "schema_sha256": "bc1805144d81dcfa1dd59fc412c0a16a17ce1151e46b7bfd5c40aacc1ca3d1e1"
   },
   "schema": {
     "sources": [
@@ -4680,7 +4680,7 @@
         },
         {
           "source": "lean-kernel/lakefile.toml",
-          "sha256": "df4fa1b1f03ce3f17eb718efcd136cf205a0e8dcc39ef0d477b621a47271e4e2"
+          "sha256": "07775d8cef936164b9c3fd9aa8c3081083b207397c651058ba2f9d7885ea5760"
         },
         {
           "source": "lean-kernel/native/diagonal.c",

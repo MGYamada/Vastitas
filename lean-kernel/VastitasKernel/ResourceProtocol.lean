@@ -1,4 +1,4 @@
-import VastitasKernel.ExactModelSource
+import VastitasKernel.EditSourceFiles
 import VastitasKernel.FunctionRevision
 import VastitasKernel.ResourceCodegen
 import VastitasKernel.StorageFunctionProtocol
@@ -626,6 +626,7 @@ structure CheckedInput (json : Json) (requireMain : Bool) where
   checked : Checked input requireMain
   accepted : ResourceSource.check input requireMain = .ok checked
   assemblySource : AssemblySource.Corresponds json checked.pureProgram.authority.headers.assembled.prepared.core.assembly
+  editSources : EditSourceFiles.check json input = .ok ()
   revisionMatches : RevisionMatches json checked
   /-- The price of the request's JSON, in which the compatibility profile of
   `legacy_geometry` has no part, and the checked passes. -/
@@ -639,9 +640,12 @@ def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput j
     | .error diagnostic => .error diagnostic
     | .ok result => do
       let assembly ← AssemblySource.check json result.value.pureProgram.authority.headers.assembled.prepared.core.assembly
-      if h : RevisionMatches json result.value then
-        .ok ⟨input, decoded, result.value, result.accepted, assembly, h, result.receipt⟩
-      else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
+      match edits : EditSourceFiles.check json input with
+      | .error message => .error { code := "E_ASSEMBLY", message }
+      | .ok () =>
+        if h : RevisionMatches json result.value then
+          .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, h, result.receipt⟩
+        else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
 
 /-- Public generation consumes the budgeted wire request's exact checked program. -/
 def emit (json : Json) : Except Diagnostic Codegen.Generated := do

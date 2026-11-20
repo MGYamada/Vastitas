@@ -317,9 +317,26 @@ structure RealizationCall where
   span : Span
   lexemes : List ExactLexeme
 
+structure EditMethod where
+  target : List String
+  params : List (String × List String × Span)
+  requires_ : List String
+  result : List ExactLexeme
+  span : Span
+  body : Span
+
+structure EditDeclaration extends ExactHeader where
+  /-- A contribution's opening brace is the last header lexeme. -/
+  methods : Option (List EditMethod) := none
+
+abbrev EditDeclarations := Std.HashMap Nat EditDeclaration
+
 structure SourceChecks where
   headers : Std.HashMap Nat ExactHeader := {}
   calls : Std.HashMap Nat RealizationCall := {}
+  /-- Set only for the post-authority comparison with original edit declarations. -/
+  edits : Option EditDeclarations := none
+  allowAssembly : Bool := false
   deriving Inhabited
 
 def SourceChecks.isEmpty (s : SourceChecks) := s.headers.isEmpty && s.calls.isEmpty
@@ -408,6 +425,41 @@ private def delimiter (f : File) (stop : Char) : Nat → Cursor → List Char �
 
 private def untilSymbol (f : File) (stop : Char) (c : Cursor) :=
   delimiter f stop (f.remaining c) c [] Limits.sourceNesting
+
+def pathLexemes (parts : List String) : List ExactLexeme :=
+  (parts.map ExactLexeme.ident).intersperse .separator
+
+def listLexemes (items : List (List ExactLexeme)) (close : Char) : List ExactLexeme :=
+  (items.intersperse [.punctuation ',']).flatten ++ [.closeList close (!items.isEmpty)]
+
+private def expectSyntax (f : File) (c : Cursor) (syntax_ : List ExactLexeme) :=
+  syntax_.foldlM (expectExact f) c
+
+private def sameSpan (f : File) (head : Token) (after : Cursor) (expected : Span) : Bool :=
+  {head.span with «end» := f.base + after.pos.byteIdx} == expected
+
+private def checkEditMethod (f : File) (c : Cursor) (m : EditMethod) : Except String Cursor := do
+  let first ← expectIdentifier f c "fn"
+  let mut after ← expectSyntax f first.after (pathLexemes m.target ++ [.punctuation '('])
+  for ((name, ty, span), i) in m.params.zipIdx do
+    if i != 0 then after ← expectExact f after (.punctuation ',')
+    let param ← expectIdentifier f after name
+    after ← expectSyntax f param.after ([.punctuation ':'] ++ pathLexemes ty)
+    unless sameSpan f param after span do throw "contributed parameter span differs from its source"
+  after ← expectExact f after (.closeList ')' (!m.params.isEmpty))
+  let requirements := [.ident "requires", .punctuation '('] ++ listLexemes (m.requires_.map fun n => [.ident n]) ')'
+  let before := (← f.next after).kind matches .word "requires"
+  if before then after ← expectSyntax f after requirements
+  after ← expectSyntax f after ([.arrow] ++ m.result)
+  if !before && ((← f.next after).kind matches .word "requires") then
+    after ← expectSyntax f after requirements
+  else if !before && !m.requires_.isEmpty then throw "contributed fn requires clause missing from source"
+  let opening ← f.next after
+  requireSymbol opening '{'
+  let close ← untilSymbol f '}' opening.after
+  unless through opening close == m.body && through first close == m.span do
+    throw "contributed fn body or declaration span differs from its source"
+  return close.after
 
 private def realizationForm (f : File) (head : Token) : Except String Bool := do
   let .word word := head.kind | return false
@@ -500,7 +552,27 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
           return ← scanExact f pkg fuel delimiter.after {scope with place := .declaration, modules := scope.modules + 1}
             path external checks
         | _ => throw "expected module body or semicolon"
-      if let .word "indexed" := t.kind then
+      if let some edits := checks.edits then
+        if let .word keyword := t.kind then
+          if keyword == "assembly" then throw "retired assembly declaration"
+          if keyword == "assemble" && (!checks.allowAssembly || scope.modules != 0 || scope.place == .afterPub) then
+            throw "assemble is allowed only in the entry module of the root package"
+          if keyword == "generic" || keyword == "method" ||
+              (keyword == "abstract" && ((← f.next t.after).kind matches .word "method")) then
+            throw "edition 2026 requires fn for a function family, method or contract"
+          if ["grant", "delegation", "transfer", "contribution"].contains keyword then
+            let some h := edits[t.span.start]? | throw "physical edit declaration missing from the request"
+            unless h.packageSource == pkg && h.modulePath == reversedPath.reverse &&
+                h.isPublic == (scope.place == .afterPub) do
+              throw "edit declaration package, module or visibility differs from the source"
+            let mut after ← expectSyntax f c h.lexemes
+            if let some methods := h.methods then
+              after ← methods.foldlM (checkEditMethod f) after
+              after ← expectExact f after (.punctuation '}')
+            unless sameSpan f t after h.span do throw "edit declaration span differs from the source"
+            return ← scanExact f pkg fuel after {scope with place := .declaration} reversedPath external
+              {checks with edits := some (edits.erase t.span.start)}
+      else if let .word "indexed" := t.kind then
         if ← isExactHeader f t then
           let some h := checks.headers[t.span.start]? | throw "physical exact declaration missing from the request"
           unless h.packageSource == pkg && h.modulePath == reversedPath.reverse do
@@ -513,7 +585,7 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
           unless through t semi == h.span do throw "exact declaration span differs from the source"
           return ← scanExact f pkg fuel semi.after {scope with place := .declaration}
             reversedPath external {checks with headers := checks.headers.erase t.span.start}
-      if let .word "resource" := t.kind then
+      if checks.edits.isNone && (t.kind matches .word "resource") then
         let fnToken ← expectIdentifier f t.after "fn"
         let name ← f.next fnToken.after
         let .word fnName := name.kind | throw "expected resource function name"

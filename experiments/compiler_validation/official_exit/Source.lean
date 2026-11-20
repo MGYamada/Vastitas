@@ -25,6 +25,8 @@ def candidate : ResourceSource.Program := {
 
 theorem decodedProgram : ResourceSource.Wire.program wire = .ok candidate := by cbv
 
+theorem physicalEdits : EditSourceFiles.check wire candidate = .ok () := by cbv
+
 theorem acceptedEnvelope : ResourceSource.envelope candidate = .ok () := by rfl
 
 /-- The entire source candidate, including the checked owner and literal spans,

@@ -61,12 +61,46 @@ private def collectCalls (owner : ResourceOwner) (branches : List ResourceBranch
       | _ => pure checks
     collectCalls owner branches (index + 1) tail checks
 
+/-- Associate each scanned file with the package and module which declared it.
+An empty expected table still discovers omitted declarations in physical files. -/
+def scanFiles (layout : PhysicalSources.Layout) (program : ResourceSource.Program)
+    (relevant : String → Bool) (initial : SourceChecks) : Except String SourceChecks := do
+  let mut checks := initial
+  let flat := program.root == flatPackageId.source
+  let manifests : Std.TreeSet String := if flat then {} else .ofList (program.packages.map (·.id.source))
+  let hasAssembly := checks.edits.isSome && program.packages.any fun pkg =>
+    pkg.modules.any fun m => m.pureModule.module.assembly.any fun a => !a.events.isEmpty
+  if flat && (hasAssembly || checks.edits.any (fun t => !t.isEmpty)) then
+    throw "edit declarations require a package manifest"
+  if checks.isEmpty && checks.edits.all (·.isEmpty) && !hasAssembly then
+    -- Discover omitted declarations and calls even if the wire has none.
+    for file in layout.files do
+      unless (String.fromUTF8? file.path).any manifests.contains do
+        if relevant file.text then
+          let _ ← checkExactHeaders file.text file.offset "" [] checks
+    return checks
+  -- The loader reads each package manifest, its dependencies, then its root.
+  -- External modules are visited depth first in the order of their physical
+  -- declarations. The same physical path can occur at different offsets.
+  let mut pending : List (String × List (List String)) :=
+    if flat then [(flatPackageId.source,[[]])] else []
+  for file in layout.files, i in [:layout.files.size] do
+    if let some name := (String.fromUTF8? file.path).filter manifests.contains then
+      pending := (name,[[]]) :: pending
+    else
+      let (pkg, path :: rest) :: ancestors := pending | throw "source file lacks a declaring module"
+      let entry := !flat && pkg == program.root && path.isEmpty
+      if checks.edits.isSome && entry != (i == layout.entry) then throw "assembly entry differs from the physical root module"
+      let (external, left) ← checkExactHeaders file.text file.offset pkg path {checks with allowAssembly := entry}
+      checks := left
+      let next := external.toList ++ rest
+      pending := if next.isEmpty then ancestors else (pkg,next) :: ancestors
+  unless pending.isEmpty do throw "missing declared external module in physical inputs"
+  return checks
+
 def check (layout : PhysicalSources.Layout) (program : ResourceSource.Program) : Except String Unit := do
   let mut checks : SourceChecks := {}
-  let flat := program.root == flatPackageId.source
-  let mut manifests : Std.TreeSet String := {}
   for pkg in program.packages do
-    if !flat then manifests := manifests.insert pkg.id.source
     for m in pkg.modules do
       for decl in m.pureModule.declarations do
         if let .exactGeometry c := decl.body then
@@ -77,28 +111,7 @@ def check (layout : PhysicalSources.Layout) (program : ResourceSource.Program) :
           checks := {checks with headers := checks.headers.insert decl.span.start header}
       for fn in m.functions do
         checks ← collectCalls ⟨pkg.id.source, m.pureModule.module.path, fn.name, fn.span.start, fn.isPublic⟩ [] 0 fn.body checks
-  if checks.isEmpty then
-    -- Discover omitted declarations and calls even if the wire has none.
-    for file in layout.files do
-      unless (String.fromUTF8? file.path).any manifests.contains do
-        if mayHaveExactHeaders file.text then
-          let _ ← checkExactHeaders file.text file.offset "" [] {}
-    return ()
-  -- The loader reads each package manifest, its dependencies, then its root.
-  -- External modules are visited depth first in the order of their physical
-  -- declarations. The same physical path can occur at different offsets.
-  let mut pending : List (String × List (List String)) :=
-    if flat then [(flatPackageId.source,[[]])] else []
-  for file in layout.files do
-    if let some name := (String.fromUTF8? file.path).filter manifests.contains then
-      pending := (name,[[]]) :: pending
-    else
-      let (pkg, path :: rest) :: ancestors := pending | throw "source file lacks a declaring module"
-      let (external, left) ← checkExactHeaders file.text file.offset pkg path checks
-      checks := left
-      let next := external.toList ++ rest
-      pending := if next.isEmpty then ancestors else (pkg,next) :: ancestors
-  unless pending.isEmpty do throw "missing declared external module in physical inputs"
+  checks ← scanFiles layout program mayHaveExactHeaders checks
   unless checks.headers.isEmpty do throw "exact declaration has no matching physical source"
   unless checks.calls.isEmpty do throw "realization has no matching physical source"
 

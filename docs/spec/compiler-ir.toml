@@ -133,6 +133,9 @@ evidence = [
   "tests/structured_assemble.rs::assembly_binds_the_resolved_family_even_without_installing_a_method",
   "tests/structured_assemble.rs::a_reexport_preserves_the_unedited_singleton_family_identity",
   "tests/structured_assemble.rs::independently_replays_source_operands_labels_and_closing_braces",
+  "tests/edit_authority.rs::physical_declarations_bind_unused_authority_and_contributed_signatures",
+  "tests/edit_authority.rs::physical_dependency_files_reject_omitted_edits_and_retired_declarations",
+  "tests/edit_authority.rs::flat_library_bytes_cannot_supply_an_unreported_assembly",
   "tests/structured_assemble.rs::entry_bytes_bind_every_assembly_even_if_the_entire_trace_is_removed",
 ]
 note = "Public syntax, native behavior on the current backend, and independently rejected tampered edit events. These tests do not establish a universal family revision or LLVM correspondence."
@@ -153,10 +156,11 @@ evidence = [
   "VastitasOracle.ResourceSource.expected_function_revision_exact",
   "VastitasOracle.ResourceSource.expected_revision_selects_method",
   "VastitasOracle.ResourceSource.structured_assembly_trace",
+  "VastitasOracle.ResourceSource.physical_edit_declarations",
 ]
 premises = ["the public protocol-10 request is accepted with the expected function revision present"]
 assumes = ["rust-frontend"]
-note = "Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises."
+note = "Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan of grants, delegations, transfers and contribution signatures consumes the complete table reconstructed from the decoded packages. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises."
 
 [property."compiler-ir.families".claim.assembly]
 status = "planned"

@@ -1377,8 +1377,13 @@ nonempty, nonoverlapping byte spans in source order. A closing brace spans
 one byte. The whole assembly spans its first header through its final brace.
 After checking authority, the kernel expands these items with a fresh loan-name
 counter shared by all blocks and compares every event, path, label and span.
-A receipt pins both arrays. Rust tokenization and the original file mapping
-remain inputs to this check.
+Lean also scans the physical files supplied by the loader for grants,
+delegations, transfers and contributions. It matches their declaring package,
+module, visibility, target, recipient, region and original span. For each
+contribution it matches every method in order, including parameter names and
+selectors, requirements, result type and body extent. Unused declarations
+undergo the same checks. The authority checker typechecks the decoded method
+bodies. A receipt pins the complete request, including the physical bytes.
 
 Each source `assemble path { … }` contributes its events to this single
 array in source order, ending in a seal of `path` at the closing brace.

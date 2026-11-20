@@ -163,6 +163,28 @@ theorem structured_assembly_trace {json : Lean.Json} (input : Wire.CheckedInput 
   rw [source.exactEvents]
   exact (VastitasOracle.Authority.assembled_trace _).1
 
+/-- The public request carries the physical edit declaration comparison for
+the very program whose contributions and assembly passed the authority checker. -/
+theorem physical_edit_declarations {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      checked.edits.any (·.isEmpty) = true := by
+  have accepted := input.editSources
+  cases h : EditSourceFiles.collect input.input with
+  | error err => simp [EditSourceFiles.check, bind, Except.bind, h] at accepted
+  | ok expected =>
+    cases l : PhysicalSources.layout json with
+    | error err => simp [EditSourceFiles.check, bind, Except.bind, h, l] at accepted
+    | ok layout =>
+      cases s : ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} with
+      | error err => simp [EditSourceFiles.check, bind, Except.bind, h, l, s] at accepted
+      | ok checked =>
+        refine ⟨expected, layout, checked, rfl, rfl, s, ?_⟩
+        cases e : checked.edits.any (·.isEmpty) with
+        | true => rfl
+        | false => simp [EditSourceFiles.check, bind, Except.bind, throw, h, l, s, e] at accepted
+
 /-- Supplying a revision cannot select a method. Acceptance implies exact
 equality with the complete receipt reconstructed from this program's checked
 authority and Core passes. No claim about LLVM or native execution follows. -/

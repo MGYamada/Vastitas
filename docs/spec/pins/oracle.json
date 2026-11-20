@@ -249,6 +249,7 @@
     {"name": "VastitasOracle.PackageLink.retained_static_use", "module": "VastitasOracle.PackageLink", "kind": "theorem", "statement": "sha256:845699e105be10a8cfa2c83583687a1f18f7c05b14ef66bade1a5cbfb4852ccf"},
     {"name": "VastitasOracle.ResourceSource.expected_function_revision_exact", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:6f6b049c644dbfc9e31fec2010ca7dbbf2bb987fee92de01153fb6ad19d22531"},
     {"name": "VastitasOracle.ResourceSource.expected_revision_selects_method", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:f3d9aac4d0fcd2b07e8a0baa70dd9113fb18f09c2a1f142203cfe07216e50ed9"},
+    {"name": "VastitasOracle.ResourceSource.physical_edit_declarations", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:e6b4719288746a5f699aa403a91fea4c20682f7cc5ff9f8af746258d32954616"},
     {"name": "VastitasOracle.ResourceSource.public_finite_functor", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:a52864a8dbb01d19f3674d9d0a2980d5313fd1d159e1c5d7008033df90c86f4e"},
     {"name": "VastitasOracle.ResourceSource.public_finite_iso", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:9accb28551d9c6b4551613436c073c53d5dc7c681342bde2983d90cd7f642ce2"},
     {"name": "VastitasOracle.ResourceSource.public_finite_monad", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:6d21e350d35d66254f41e83bf2a32d2c1e9dcd04f36027e7df98d841b899465a"},

@@ -172,22 +172,24 @@ theorem physical_edit_declarations {json : Lean.Json} (input : Wire.CheckedInput
       checked.edits.any (·.isEmpty) = true ∧
       ∀ item ∈ EditSourceFiles.sourceMethods input.input,
         EditSourceFiles.BodyCorresponds layout checked item := by
-  have accepted := input.editSources
-  cases h : EditSourceFiles.collect input.input with
-  | error err => simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, h] at accepted
-  | ok expected =>
-    cases l : PhysicalSources.layout json with
-    | error err => simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, h, l] at accepted
-    | ok layout =>
-      cases s : ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} with
-      | error err => simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, h, l, s] at accepted
-      | ok checked =>
-        refine ⟨expected, layout, checked, rfl, rfl, s, ?_⟩
-        cases e : checked.edits.any (·.isEmpty) with
-        | true =>
-          simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, h, l, s, e] at accepted
-          exact ⟨rfl, fun _ member => EditSourceFiles.checkBodies_sound accepted member⟩
-        | false => simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, throw, h, l, s, e] at accepted
+  obtain ⟨expected, layout, checked, collected, physical, scan, empty, bodies, _⟩ :=
+    EditSourceFiles.check_evidence input.editSources
+  exact ⟨expected, layout, checked, collected, physical, scan, empty,
+    fun _ member => EditSourceFiles.checkBodies_sound bodies member⟩
+
+/-- Every finite carrier, table, schema and instance in this accepted program
+replays in its declaring file. The inventory also accounts for uncalled and
+unused declarations in the physical modules. -/
+theorem physical_finite_declarations {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      Finite.sameCounts checked.finiteSites.keys ((FiniteSourceFiles.declarations input.input).map (·.span.start)) = true ∧
+      ∀ item ∈ FiniteSourceFiles.declarations input.input, FiniteSourceFiles.Corresponds layout checked.finiteSites item := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, finite⟩ :=
+    EditSourceFiles.check_evidence input.editSources
+  obtain ⟨inventory, all⟩ := FiniteSourceFiles.check_sound finite
+  exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
 
 /-- Even an unapplied contribution has a replay of its decoded method's
 complete syntax, in its original package, module and physical file. -/

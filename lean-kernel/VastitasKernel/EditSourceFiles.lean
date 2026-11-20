@@ -1,4 +1,4 @@
-import VastitasKernel.ExactModelSource
+import VastitasKernel.FiniteSourceFiles
 import VastitasKernel.MethodBodyText
 
 set_option autoImplicit false
@@ -215,5 +215,23 @@ def check (json : Lean.Json) (program : ResourceSource.Program) : Except Diagnos
   unless checked.edits.any (·.isEmpty) do
     throw (diagnostic {} "edit declaration has no matching physical source")
   checkBodies layout checked (sourceMethods program)
+  FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program)
+
+theorem check_evidence {json : Lean.Json} {program : ResourceSource.Program}
+    (accepted : check json program = .ok ()) :
+    ∃ expected layout checked, collect program = .ok expected ∧ PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout program relevant {edits := some expected} = .ok checked ∧
+      checked.edits.any (·.isEmpty) = true ∧ checkBodies layout checked (sourceMethods program) = .ok () ∧
+      FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program) = .ok () := by
+  cases h : collect program <;> simp [check, Except.mapError, bind, Except.bind, h] at accepted
+  rename_i expected
+  cases l : PhysicalSources.layout json <;> simp [l] at accepted
+  rename_i layout
+  cases s : ExactModelSource.scanFiles layout program relevant {edits := some expected} <;>
+    simp [s] at accepted
+  rename_i checked
+  cases e : checked.edits.any (·.isEmpty) <;> simp [e, throw] at accepted
+  cases b : checkBodies layout checked (sourceMethods program) <;> simp [b] at accepted
+  exact ⟨expected, layout, checked, rfl, rfl, s, e, b, accepted⟩
 
 end VastitasKernel.EditSourceFiles

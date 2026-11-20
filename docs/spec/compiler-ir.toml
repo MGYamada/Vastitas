@@ -90,11 +90,21 @@ status = "tested"
 evidence = [
   "tests/finite_tables.rs::forward_references_and_degenerate_products_are_checked_on_wire",
   "tests/finite_tables.rs::unknown_output_points_to_original_tag",
+  "tests/finite_tables.rs::finite_declarations_match_their_files_even_when_the_other_table_is_valid",
+  "tests/finite_tables.rs::category_and_monad_fields_match_the_selected_source_operands",
+  "tests/finite_tables.rs::changing_a_physical_nullary_table_changes_the_llvm_case_and_revision",
   "tests/finite_values.rs::native_branch_compares_members_of_a_visible_carrier",
   "tests/finite_values.rs::finite_value_has_no_integer_or_cross_owner_conversion",
   "tests/finite_values.rs::changing_a_member_in_the_wire_reaches_the_independent_checker",
 ]
 note = "Protocol 10 resolves nominal carriers and checks totality over bounded products, including empty factors and nullary tables. Ordinary first-order functions can accept, return and compare tags of a nominal carrier. The public native branch test uses the existing checked Lean backend. The finite-binder claims cover concrete Hom and static category and object parameters. Functor and Monad parameters remain pending."
+
+[property."compiler-ir.edition".claim.finite-declaration-source]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ResourceSource.physical_finite_declarations"]
+premises = ["the public protocol-10 request passed the independent checker"]
+assumes = ["rust-frontend"]
+note = "The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema and instance in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input."
 
 [property."compiler-ir.edition".claim.correspondence]
 status = "planned"

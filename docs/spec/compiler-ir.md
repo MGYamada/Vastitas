@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Planned |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Tested, Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Tested, Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
@@ -92,10 +92,20 @@ Claims:
   - Evidence:
     - `forward_references_and_degenerate_products_are_checked_on_wire` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
     - `unknown_output_points_to_original_tag` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
+    - `finite_declarations_match_their_files_even_when_the_other_table_is_valid` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
+    - `category_and_monad_fields_match_the_selected_source_operands` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
+    - `changing_a_physical_nullary_table_changes_the_llvm_case_and_revision` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
     - `native_branch_compares_members_of_a_visible_carrier` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
     - `finite_value_has_no_integer_or_cross_owner_conversion` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
     - `changing_a_member_in_the_wire_reaches_the_independent_checker` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
   - Note: Protocol 10 resolves nominal carriers and checks totality over bounded products, including empty factors and nullary tables. Ordinary first-order functions can accept, return and compare tags of a nominal carrier. The public native branch test uses the existing checked Lean backend. The finite-binder claims cover concrete Hom and static category and object parameters. Functor and Monad parameters remain pending.
+- `finite-declaration-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_finite_declarations`
+  - Premises:
+    - the public protocol-10 request passed the independent checker
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema and instance in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
 - `correspondence`: [Planned](../specifications.md#planned)
   - Issue: [#533](https://github.com/MGYamada/Vastitas/issues/533)
 

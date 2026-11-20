@@ -187,6 +187,7 @@ inductive ExactLexeme where
   | dimension (value : Nat)
   | separator
   | arrow
+  | rowArrow
   | closeList (ch : Char) (allowTrailingComma : Bool)
   deriving Inhabited
 
@@ -275,6 +276,14 @@ structure MethodSite where
   opening : Span
   closing : Span
 
+structure FiniteSite where
+  packageSource : String
+  modulePath : List String
+  isPublic : Bool
+  fileIndex : Nat
+  before : Cursor
+  span : Span
+
 structure SourceChecks where
   headers : Std.HashMap Nat ExactHeader := {}
   calls : Std.HashMap Nat RealizationCall := {}
@@ -284,6 +293,7 @@ structure SourceChecks where
   flat : Bool := false
   fileIndex : Nat := 0
   bodies : Std.HashMap Nat MethodSite := {}
+  finiteSites : Std.HashMap Nat FiniteSite := {}
   /-- Repeated static-indexed functions form their own finite family. Repeated
   ordinary bodies must have appeared in the dispatch declaration inventory. -/
   singletonNames : Std.HashMap (String × List String × List String) Bool := {}
@@ -297,7 +307,15 @@ private def expectIdentifier (f : File) (c : Cursor) (name : String) : Except St
   unless found == name do throw "identifier differs from the physical source"
   return t
 
-private def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String Cursor
+private def expectArrow (f : File) (c : Cursor) (first : Char) : Except String Cursor := do
+  let t ← f.next c
+  requireSymbol t first
+  let gt ← f.next t.after
+  requireSymbol gt '>'
+  unless t.span.end == gt.span.start do throw "expected adjacent arrow characters"
+  return gt.after
+
+def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String Cursor
   | .ident name => return (← expectIdentifier f c name).after
   | .punctuation ch => do
     let t ← f.next c
@@ -318,13 +336,8 @@ private def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String 
     let t ← f.next c
     let .separator := t.kind | throw "expected qualified call separator"
     return t.after
-  | .arrow => do
-    let t ← f.next c
-    requireSymbol t '-'
-    let gt ← f.next t.after
-    requireSymbol gt '>'
-    unless t.span.end == gt.span.start do throw "expected a destination arrow"
-    return gt.after
+  | .arrow => expectArrow f c '-'
+  | .rowArrow => expectArrow f c '='
   | .closeList ch allowComma => do
     let next ← f.next c
     let close ← match next.kind with
@@ -385,7 +398,7 @@ def listLexemes (items : List (List ExactLexeme)) (close : Char) : List ExactLex
 private def expectSyntax (f : File) (c : Cursor) (syntax_ : List ExactLexeme) :=
   syntax_.foldlM (expectExact f) c
 
-private def sameSpan (f : File) (head : Token) (after : Cursor) (expected : Span) : Bool :=
+def sameSpan (f : File) (head : Token) (after : Cursor) (expected : Span) : Bool :=
   {head.span with «end» := f.base + after.pos.byteIdx} == expected
 
 private def checkSignature (f : File) (first : Token) (m : FamilySignature) :
@@ -565,6 +578,13 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
         | _ => throw "expected module body or semicolon"
       if let some edits := checks.edits then
         if let .word keyword := t.kind then
+          if keyword == "indexed" then
+            let kind ← f.next t.after
+            if let .word kind := kind.kind then
+              if ["finite", "table", "schema", "instance"].contains kind then
+                let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span
+                return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
+                  {checks with finiteSites := checks.finiteSites.insert t.span.start site}
           if keyword == "assembly" then throw "retired assembly declaration"
           if keyword == "assemble" && (!checks.allowAssembly || scope.modules != 0 || scope.place == .afterPub) then
             throw "assemble is allowed only in the entry module of the root package"
@@ -630,6 +650,9 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
 def mayHaveExactHeaders (text : String) : Bool :=
   text.contains "resource" ||
     (text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine" || text.contains "identity"))
+
+def mayHaveFiniteDeclarations (text : String) : Bool :=
+  text.contains "indexed" && ["finite", "table", "schema", "instance"].any (fun word => text.contains word)
 
 def checkExactHeaders (text : String) (base : Nat) (pkg : String) (path : List String)
     (checks : SourceChecks) : Except String (Array (List String) × SourceChecks) :=

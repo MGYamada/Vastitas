@@ -37,7 +37,7 @@ number = 762
 title = "Finite edition 2026"
 state = "open"
 depends = [462, 455]
-remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Fresh Affine identities execute at all four representations. Further finite schemas remain."
+remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Fresh Affine identities execute at all four representations. Lean replays finite carriers, tables, schemas and named instances in the files that declare them. This includes unused tables, row extents, selected Monad fields and associated paths. Finite binder and ordinary function source correspondence remain partial."
 
 [[issue]]
 number = 533
@@ -534,13 +534,13 @@ requirement = "Packages and normalized flat input use edition 2026 and wire epoc
 [row.dimension.source]
 state = "partial"
 claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
-note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Physical Affine calls bind the constructor, precision and coordinate dimension in the same edition. Further edition schemas remain."
+note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Physical Affine calls bind the constructor, precision and coordinate dimension in the same edition. The source and wire agree on each finite schema, instance, carrier and ordered row. Further finite binder and function forms remain."
 document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@correspondence", "compiler-ir.edition@finite-tables"]
-note = "Lean independently checks package editions and finite tables. This does not establish source/Core correspondence for the entire edition."
+claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@correspondence", "compiler-ir.edition@finite-tables", "compiler-ir.edition@finite-declaration-source"]
+note = "Lean checks the physical finite declarations against the accepted input, including uncalled definitions and all nominal paths and row spans. The public checker also binds package editions. Correspondence for the rest of the edition remains open."
 document = ""
 
 [row.dimension.midir]

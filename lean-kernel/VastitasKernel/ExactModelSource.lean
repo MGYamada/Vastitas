@@ -76,7 +76,8 @@ def scanFiles (layout : PhysicalSources.Layout) (program : ResourceSource.Progra
   if flat && (hasAssembly || checks.edits.any (fun t => !t.headers.isEmpty)) then
     throw "edit declarations require a package manifest"
   if checks.isEmpty && checks.edits.all (·.isEmpty) && !hasAssembly &&
-      (checks.edits.isNone || layout.files.size == 1) then
+      (checks.edits.isNone || (layout.files.size == 1 &&
+        !layout.files[0]?.any (fun file => mayHaveFiniteDeclarations file.text))) then
     -- Discover omitted declarations and calls even if the wire has none.
     for file in layout.files do
       unless (String.fromUTF8? file.path).any manifests.contains do

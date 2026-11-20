@@ -348,6 +348,41 @@ fn boxed_program_links_the_integer_runtime_and_returns_the_checked_status() {
 }
 
 #[test]
+fn singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget() {
+    let s = Scratch::empty("singleton exact runtime");
+    let source = include_str!("../llvm/fixtures/SingletonPower.vast");
+    let original = preview(&s, source);
+    success(&original);
+    let receipt = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&receipt);
+    let revision: serde_json::Value = serde_json::from_slice(&receipt.stdout).unwrap();
+    let sites = revision["pure"]["operator_sites"].as_array().unwrap();
+    assert_eq!(sites.len(), 9);
+    for (i, site) in sites.iter().enumerate() {
+        assert_eq!(site["core"], 0);
+        assert_eq!(site["id"]["name"], if i < 8 { "mul" } else { "div" });
+        assert_eq!(site["key"], serde_json::json!(["Int", "Int"]));
+    }
+    std::fs::write(s.0.join("revision.json"), receipt.stdout).unwrap();
+    let named = source.replace("x0 * x0", "std::operator::mul(x0, x0)");
+    let changed = preview(&s, &named);
+    success(&changed);
+    assert_eq!(changed.stdout, original.stdout);
+    let stale = s
+        .command("check", "app/Vastitas.toml")
+        .args(TARGET)
+        .args(["--expect-function-revision", "revision.json"])
+        .output()
+        .unwrap();
+    expect_code(&stale, "E_FUNCTION_REVISION");
+    assert!(stale.stdout.is_empty());
+}
+
+#[test]
 fn closed_constant_folding_limits_expansion_through_bindings() {
     let s = Scratch::empty("LLVM fold budget");
     let mut source = String::from("fn main() -> Int { let x0 = 256;");

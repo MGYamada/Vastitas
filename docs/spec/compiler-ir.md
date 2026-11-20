@@ -990,7 +990,8 @@ Claims:
     - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - `boxed_integer_exports_bind_their_argument_order_and_full_revision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `boxed_program_preserves_call_targets_and_borrowed_returns` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
-  - Note: The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls.
+    - `singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+  - Note: The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls. A singleton entry uses the same checked runtime operations when its intermediate squares exceed the folding budget. Named and symbolic multiplication produce the same bytes and retain their source revisions.
 
 <a id="compiler-ir.verification-modes"></a>
 

@@ -133,6 +133,16 @@ def run(work, suite):
     require(stale["llvm_sha256"] == official["llvm_sha256"] and stale["revision_sha256"] != official["revision_sha256"],
             "stale-source control must preserve exactly the emitted bytes")
 
+    source.write_bytes((verify.ROOT / "llvm/fixtures/SingletonPower.vast").read_bytes())
+    single, _ = check("singleton", "official")
+    single_dir = work / "singleton"
+    replay, _ = check("singleton-fast", "fast", candidate=single_dir / "sealed.ndjson")
+    require(single["functions"] == 1 and int(single["integer_result"]) == 3**256 // 7
+            and single["certificate"] == replay["certificate"],
+            "the single-function runtime certificate must cover the full quotient in both modes")
+    require((single_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/singleton-power.ll").read_bytes(),
+            "single-function certificate differs from the retained LLVM module")
+
 
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""

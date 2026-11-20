@@ -169,6 +169,17 @@ def native(args, work):
             observed = subprocess.run([work / executable], cwd=work).returncode
             if observed != expected:
                 raise ValueError(f"{executable} with divisor {divisor}: expected {expected}, got {observed}")
+    emit((ROOT / "llvm/fixtures/SingletonPower.vast").read_text(), "power.o")
+    run([leanc, *sdk, "shim.o", "power.o", "-o", "power"])
+    control = ["@[noinline] def powerQuotient (x0 : @& Int) : Int :="]
+    control.extend(f"  let x{i+1} := x{i} * x{i}" for i in range(8))
+    control += ["  x8 / 7", "def main : IO UInt32 := pure (((powerQuotient 3) % 256).toNat.toUInt32)"]
+    (work / "PowerControl.lean").write_text("\n".join(control) + "\n")
+    run([prefix / "bin/lean", "-c", "PowerControl.c", "PowerControl.lean"])
+    run([leanc, *sdk, "PowerControl.c", "-o", "power-control"])
+    for executable in ["power", "power-control"]:
+        if subprocess.run([work / executable], cwd=work).returncode != (3**256 // 7) % 256:
+            raise ValueError(f"{executable}: incorrect singleton quotient status")
     # The two adjust methods share a family and ABI. The revision also records
     # the arithmetic site in the checked, nonwinning method.
     obj = "assembled.o"
@@ -217,7 +228,7 @@ fn main() -> Int { adjust(40) }
         for executable in [fixture, "borrowed-control"]:
             if subprocess.run([work / executable], cwd=work).returncode != expected:
                 raise ValueError(f"{fixture}: {executable} must return {expected}")
-    return count, examples, len(divisors)
+    return count, examples, len(divisors) + 1
 
 
 def main():

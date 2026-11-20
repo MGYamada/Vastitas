@@ -63,6 +63,17 @@ set_option maxRecDepth 65536 in
 set_option maxHeartbeats 2000000 in
 theorem boxed_program_verified : programBytes = boxedProgram.print := by rfl
 
+def singletonPower : ExactProgram.Code :=
+  let squares := (List.range 8).map fun i => ExactProgram.Instruction.primitive (.apply (.int .mul) [i,i])
+  ⟨header, #[⟨[], .int, [.primitive (.int 3)] ++ squares ++
+    [.primitive (.int 7), .primitive (.apply (.int .div) [8,9])], 10⟩], 0⟩
+
+def singletonPowerBytes := corpus_bytes "src/singleton-power.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem singleton_power_verified : singletonPowerBytes = singletonPower.print := by rfl
+
 private def unselectedChoose (left right : ExactLibrary.Kind) : ExactProgram.Function :=
   ⟨[left,right],.int,[.primitive (.int 0)],2⟩
 
@@ -530,6 +541,7 @@ def checkedFiles : List (String × ByteArray) :=
   [("exit-status.ll", forExit exit_status_verified),
    ("folded-arithmetic.ll", forExit folded_arithmetic_verified),
    ("boxed-program.ll", forProgram boxed_program_verified),
+   ("singleton-power.ll", forProgram singleton_power_verified),
    ("borrowed-operator.ll", forProgram borrowed_operator_verified),
    ("uncalled-operator.ll", forProgram uncalled_operator_verified),
    ("boxed-arithmetic.ll", forExact boxed_arithmetic_verified),
@@ -564,6 +576,10 @@ private def checkEntry (file : String) (bytes : List UInt8)
 def main (args : List String) : IO Unit := do
   let root :: expected := args | throw (IO.userError "expected corpus directory and filenames")
   let files := Vastitas.LLVMCorpus.checkedFiles
+  let power := Vastitas.LLVMCorpus.singletonPower
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.singletonPowerBytes == some power &&
+      power.entryValue == some ((3^256 : Int) / 7) do
+    throw (IO.userError "singleton-power.ll: wrong runtime operations or full quotient")
   let borrowed := Vastitas.LLVMCorpus.borrowedOperator
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.borrowedOperatorBytes == some borrowed &&
       borrowed.entryValue == some 42 do

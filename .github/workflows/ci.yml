@@ -124,6 +124,8 @@ jobs:
             /stdlib/
             /monad/
             /llvm/fixtures/
+            /llvm/src/float-identity.ll
+            /llvm/src/float-complex-identity.ll
             /llvm/runtime/
             /llvm/check_exact_native.py
             /nature/

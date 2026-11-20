@@ -258,6 +258,16 @@ fn main() -> Int { choose(38) + convert(true) }
         common::exits(42)
     );
     let wire = s.captured("app/Vastitas.toml", CURRENT_PROTOCOL);
+    let mut reordered = wire.clone();
+    reordered["packages"][0]["modules"][0]["methods"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    for action in ["check", "emit"] {
+        assert_eq!(kernel(&reordered, action)["ok"], true);
+    }
+    reordered["root_source"]["text"] = json!(source.replace("{ 17 }", "{ 71 }"));
+    rejected(&reordered);
     for (from, to) in [
         ("arg,", "foo,"),
         ("(Int,), (Bool,),", "(Nat,), (Bool,),"),

@@ -1390,6 +1390,10 @@ ranges. The checker compares the expressions, statements, typed binders,
 source spans and operator grouping in each body. A mismatched token carries
 its physical byte range and file-local line and column.
 
+In an unedited program the wire may permute the defining methods. Each
+method still has to match its original declaration and body by source
+position. Edit revisions retain the defining order within each family.
+
 The checker reads an explicit family domain from its declaration, retaining
 the order of parameters and keys. An inferred header takes its name, span
 and typed parameter spans from its first method or bodyless contract.

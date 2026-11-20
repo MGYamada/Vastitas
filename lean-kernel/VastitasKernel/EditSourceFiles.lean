@@ -68,6 +68,18 @@ private abbrev FirstDeclarations := Std.HashMap String (Span × List (String × 
 private def recordFirst (table : FirstDeclarations) (name : String) (span : Span) (params : List (String × Span)) :=
   if table[name]?.any (fun item => item.1.start ≤ span.start) then table else table.insert name (span, params)
 
+/-- Edit revisions number defining methods in their declaring order. Without
+edits, an unordered wire inventory still identifies each body by its source
+span and must preserve order-independent finite dispatch. -/
+private def checkEditOrder (program : ResourceSource.Program) : Except String Unit := do
+  for pkg in program.packages do
+    for m in pkg.modules do
+      let mut previous : Std.HashMap (List String) Nat := {}
+      for d in m.pureModule.methods do
+        let target := d.target.path
+        if previous[target]?.any (· ≥ d.span.start) then throw "method order differs from the source family"
+        previous := previous.insert target d.span.start
+
 def collect (program : ResourceSource.Program) : Except String EditDeclarations := do
   let mut table : EditDeclarations := {}
   for pkg in program.packages do
@@ -100,11 +112,8 @@ def collect (program : ResourceSource.Program) : Except String EditDeclarations 
       let visibility := fun name => locals[name]?.bind fun g =>
         if g.inferDomain || !g.isPublic then some g.isPublic else none
       let mut first : FirstDeclarations := {}
-      let mut previous : Std.HashMap (List String) Nat := {}
       for d in m.pureModule.methods do
         let target := d.target.path
-        if previous[target]?.any (· ≥ d.span.start) then throw "method order differs from the source family"
-        previous := previous.insert target d.span.start
         let name := String.intercalate "::" target
         first := recordFirst first name d.span (d.params.map fun p => (p.name, p.span))
         table ← addFamily table ⟨pkg.id.source, owner.path, d.span, visibility name, .method (← method d)⟩
@@ -116,6 +125,7 @@ def collect (program : ResourceSource.Program) : Except String EditDeclarations 
         if g.inferDomain then
           let origin := (g.span, g.params.map fun p => (p.name, p.span))
           unless first[g.name]? == some origin do throw "inferred family header differs from its first declaration"
+  if !table.headers.isEmpty || ExactModelSource.hasAssembly program then checkEditOrder program
   return table
 
 structure OwnedMethod where

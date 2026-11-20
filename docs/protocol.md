@@ -1381,14 +1381,28 @@ Lean also scans the physical files supplied by the loader for grants,
 delegations, transfers and contributions. It matches their declaring package,
 module, visibility, target, recipient, region and original span. For each
 contribution it matches every method in order, including parameter names and
-selectors, requirements and result type. In a program that declares
-or assembles edits, the checker also locates the defining methods in their
-lexical modules. It reads each body from the physical file and compares the
-decoded expressions, statements, typed binders, source spans and operator
-grouping. Selected, fallback and unapplied methods undergo the same check.
-When a method token differs, the diagnostic carries its byte range and
-file-local line and column. The authority checker typechecks these same
-decoded bodies. A receipt pins the complete request, including the physical bytes.
+selectors, requirements and result type.
+
+Every decoded defining method is checked in its lexical module, including
+in programs without an `assemble` block. For flat input, the entry and each
+`--lib` file belong to the protected root module and have separate byte
+ranges. The checker compares the expressions, statements, typed binders,
+source spans and operator grouping in each body. A mismatched token carries
+its physical byte range and file-local line and column.
+
+The checker reads an explicit family domain from its declaration, retaining
+the order of parameters and keys. An inferred header takes its name, span
+and typed parameter spans from its first method or bodyless contract.
+Defining declarations respect the family's visibility. A contract with an
+explicit domain retains the path and source span of every selector. In the
+shorthand form, its domain is the single row of selectors at their parameter
+type spans. If the request omits a family entirely, its physical declarations
+can still reveal a bodyless contract, an abstract selector, a nonempty
+`requires` clause or repeated ordinary functions in the same module. Multiple
+functions with finite index binders use the separate finite dispatch rules.
+The authority checker checks the resulting callable keys and
+typechecks the decoded bodies. A receipt pins the complete request, including
+the physical bytes.
 
 Each source `assemble path { … }` contributes its events to this single
 array in source order, ending in a seal of `path` at the closing brace.

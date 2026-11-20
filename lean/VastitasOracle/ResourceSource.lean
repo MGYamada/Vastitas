@@ -205,10 +205,9 @@ theorem contributed_method_body {json : Lean.Json} (input : Wire.CheckedInput js
   refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_right _ ?_⟩⟩
   exact List.mem_flatMap.mpr ⟨c, hc, List.mem_map.mpr ⟨d, hd, rfl⟩⟩
 
-/-- An edit revision replays each original defining method, including a
+/-- The public request replays each original defining method, including a
 fallback with no call site in the compiled entry. -/
 theorem defining_method_body {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
-    (edited : EditSourceFiles.hasEdits input.input = true)
     {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
     {d : Indexed.DispatchSource.Method} (hd : d ∈ m.pureModule.methods) :
     ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
@@ -218,7 +217,6 @@ theorem defining_method_body {json : Lean.Json} (input : Wire.CheckedInput json 
   obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_edit_declarations input
   refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
   unfold EditSourceFiles.sourceMethods
-  simp only [edited, ite_true]
   apply List.mem_flatMap.mpr
   refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_left _ ?_⟩⟩
   exact List.mem_map.mpr ⟨d, hd, rfl⟩

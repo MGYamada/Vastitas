@@ -25,6 +25,11 @@ name = "promotionFixture"
 path = "../tests/fixtures/promotion.json"
 text = true
 
+[[input_file]]
+name = "promotionPolicyFixture"
+path = "../tests/fixtures/promotion-policy.json"
+text = true
+
 # Test/proof fixtures are separate from the ordinary compiler library.
 # Targets with `autoImplicit = false` reject an undeclared name instead of
 # silently binding it; VastitasKernel itself still relies on auto-bound
@@ -33,7 +38,7 @@ text = true
 name = "VastitasPromotion"
 leanOptions = { autoImplicit = false }
 roots = ["VastitasPromotion.IndexedFixture", "VastitasPromotion.IndexedRegression"]
-needs = ["promotionFixture"]
+needs = ["promotionFixture", "promotionPolicyFixture"]
 
 [[input_file]]
 name = "recipientFixture"

@@ -238,3 +238,135 @@ fn main() -> Int { inspect(true) }
         rejected(&bad);
     }
 }
+
+#[test]
+fn unedited_package_families_bind_domains_contracts_visibility_and_bodies() {
+    let source = r#"
+pub fn choose(arg,) domain((Int,), (Bool,),);
+fn choose(x: Any) -> Int { 17 }
+fn choose(x: Int) requires (HasEq,) -> Int { x + 1 }
+fn choose(x: Int) -> Int requires (HasEq) domain((Int,),);
+fn choose(x: Bool) -> Int;
+pub fn convert(x: Bool) -> Int { 3 }
+pub fn convert(x: Int) -> Int { 4 }
+fn main() -> Int { choose(38) + convert(true) }
+"#;
+    let s = Scratch::empty("family files");
+    s.write_package("app", source, "");
+    assert_eq!(
+        s.check_build_and_run("app/Vastitas.toml"),
+        common::exits(42)
+    );
+    let wire = s.captured("app/Vastitas.toml", CURRENT_PROTOCOL);
+    for (from, to) in [
+        ("arg,", "foo,"),
+        ("(Int,), (Bool,),", "(Nat,), (Bool,),"),
+        ("omain((Int,),);", "omain((Nat,),);"),
+        ("{ 17 }", "{ 71 }"),
+        ("{ x + 1 }", "{ x - 1 }"),
+        ("{ 4 }", "{ 5 }"),
+        ("pub fn convert(x: Int)", "    fn convert(x: Int)"),
+    ] {
+        assert_eq!(source.matches(from).count(), 1);
+        assert_eq!(from.len(), to.len());
+        let mut bad = wire.clone();
+        bad["root_source"]["text"] = json!(source.replace(from, to));
+        rejected(&bad);
+    }
+    let mut bad = wire.clone();
+    bad["packages"][0]["modules"][0]["abstract_methods"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    rejected(&bad);
+    let mut bad = wire.clone();
+    let implied =
+        &mut bad["packages"][0]["modules"][0]["abstract_methods"][1]["domain"][0][0]["span"];
+    let old_column = implied["column"].as_u64().unwrap();
+    implied["column"] = json!(old_column + 1);
+    rejected(&bad);
+    let mut bad = wire;
+    let inferred = bad["packages"][0]["modules"][0]["generics"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|g| g["name"] == "convert")
+        .unwrap();
+    inferred["params"][0]["name"] = json!("other");
+    rejected(&bad);
+}
+
+#[test]
+fn flat_libraries_bind_inferred_methods_to_their_own_file() {
+    let s = Scratch::empty("flat family files");
+    let entry = "fn main() -> Int { choose(40) }";
+    s.write("entry.vast", entry);
+    let library = s.write("overload.vast", "fn choose(x: Int) -> Int { x + 2 }");
+    let unused = s.write("other.vast", "// β\nfn choose(b: Bool) -> Int { 71 }");
+    common::native(entry, &[library, unused], common::exits(42), "flat.vast");
+    let mut capture = s.cli();
+    capture.args([
+        "check",
+        "entry.vast",
+        "--lib",
+        "overload.vast",
+        "--lib",
+        "other.vast",
+    ]);
+    let wire = common::captured_wire(capture, CURRENT_PROTOCOL);
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (source, old, new) in [("overload.vast", "+", "-"), ("other.vast", "71", "72")] {
+        let mut bad = wire.clone();
+        let row = bad["root_source"]["files"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|f| f["path"].as_str().unwrap().ends_with(source))
+            .unwrap();
+        let original = row["text"].as_str().unwrap();
+        let start = row["offset"].as_u64().unwrap() + original.find(old).unwrap() as u64;
+        row["text"] = json!(original.replace(old, new));
+        for action in ["check", "emit"] {
+            let response = kernel(&bad, action);
+            assert_wire_rejected(&response, "E_ASSEMBLY");
+            assert_eq!(response["diagnostics"][0]["span"]["start"], start);
+        }
+    }
+}
+
+#[test]
+fn omitting_a_whole_dispatch_family_cannot_turn_its_bodies_into_singletons() {
+    let entry = "fn main() -> Int { 42 }";
+    for declarations in [
+        "fn unused(x: Int) -> Int { 1 } fn unused(b: Bool) -> Int { 2 }",
+        "fn unused(x: Number) -> Int { 1 }",
+        "fn unused(x: Int) -> Int requires (HasEq) { x }",
+        "fn unused(x) domain();",
+    ] {
+        let mut wire = common::request(&format!("{entry} {declarations}"), "omitted.vast");
+        assert_eq!(kernel(&wire, "check")["ok"], true);
+        let module = common::flat_module(&mut wire);
+        module["generics"] = json!([]);
+        module["methods"] = json!([]);
+        rejected(&wire);
+    }
+    let s = Scratch::empty("omitted family across files");
+    s.write("main.vast", entry);
+    s.write("first.vast", "fn unused(x: Int) -> Int { x }");
+    s.write("second.vast", "fn unused(b: Bool) -> Bool { b }");
+    let mut capture = s.cli();
+    capture.args([
+        "check",
+        "main.vast",
+        "--lib",
+        "first.vast",
+        "--lib",
+        "second.vast",
+    ]);
+    let mut wire = common::captured_wire(capture, CURRENT_PROTOCOL);
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    let module = common::flat_module(&mut wire);
+    module["generics"] = json!([]);
+    module["methods"] = json!([]);
+    rejected(&wire);
+}

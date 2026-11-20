@@ -224,11 +224,13 @@ structure RealizationCall where
   span : Span
   lexemes : List ExactLexeme
 
-structure EditMethod where
+structure FamilySignature where
   target : List String
   params : List (String × List String × Span)
   requires_ : List String
   result : List ExactLexeme
+
+structure EditMethod extends FamilySignature where
   span : Span
   body : Span
 
@@ -236,15 +238,28 @@ structure EditDeclaration extends ExactHeader where
   /-- A contribution's opening brace is the last header lexeme. -/
   contribution : Option (String × List EditMethod) := none
 
+inductive FamilyDeclaration where
+  | header (tokens : List ExactLexeme)
+  | contract (signature : FamilySignature) (domain : List (List (List String × Span)))
+  | method (decl : EditMethod)
+
+structure ScopedDeclaration where
+  packageSource : String
+  modulePath : List String
+  span : Span
+  /-- An explicit public family allows the method to omit its visibility. -/
+  requiredVisibility : Option Bool
+  declaration : FamilyDeclaration
+
 structure EditDeclarations where
   headers : Std.HashMap Nat EditDeclaration := {}
-  methods : Std.HashMap Nat (String × List String × EditMethod) := {}
+  families : Std.HashMap Nat ScopedDeclaration := {}
   /-- Surface family names in each lexical scope, including imported aliases. -/
   targets : Std.HashSet (String × List String × List String) := {}
   deriving Inhabited
 
 def EditDeclarations.isEmpty (edits : EditDeclarations) : Bool :=
-  edits.headers.isEmpty && edits.methods.isEmpty
+  edits.headers.isEmpty && edits.families.isEmpty
 
 structure MethodOwner where
   packageSource : String
@@ -266,8 +281,12 @@ structure SourceChecks where
   /-- Set only for the post-authority comparison with original edit declarations. -/
   edits : Option EditDeclarations := none
   allowAssembly : Bool := false
+  flat : Bool := false
   fileIndex : Nat := 0
   bodies : Std.HashMap Nat MethodSite := {}
+  /-- Repeated static-indexed functions form their own finite family. Repeated
+  ordinary bodies must have appeared in the dispatch declaration inventory. -/
+  singletonNames : Std.HashMap (String × List String × List String) Bool := {}
   deriving Inhabited
 
 def SourceChecks.isEmpty (s : SourceChecks) := s.headers.isEmpty && s.calls.isEmpty
@@ -369,16 +388,18 @@ private def expectSyntax (f : File) (c : Cursor) (syntax_ : List ExactLexeme) :=
 private def sameSpan (f : File) (head : Token) (after : Cursor) (expected : Span) : Bool :=
   {head.span with «end» := f.base + after.pos.byteIdx} == expected
 
-private def checkEditMethod (f : File) (pkg : String) (modulePath : List String) (origin : Option String)
-    (state : Cursor × SourceChecks) (m : EditMethod) : Except String (Cursor × SourceChecks) := do
-  let (c, checks) := state
-  let first ← expectIdentifier f c "fn"
+private def checkSignature (f : File) (first : Token) (m : FamilySignature) :
+    Except String (Cursor × List (List String × Span)) := do
   let mut after ← expectSyntax f first.after (pathLexemes m.target ++ [.punctuation '('])
+  let mut selectors := []
   for ((name, ty, span), i) in m.params.zipIdx do
     if i != 0 then after ← expectExact f after (.punctuation ',')
     let param ← expectIdentifier f after name
-    after ← expectSyntax f param.after ([.punctuation ':'] ++ pathLexemes ty)
-    unless sameSpan f param after span do throw "contributed parameter span differs from its source"
+    let colon ← expectExact f param.after (.punctuation ':')
+    let typeStart ← f.next colon
+    after ← expectSyntax f colon (pathLexemes ty)
+    selectors := (ty, {typeStart.span with «end» := f.base + after.pos.byteIdx}) :: selectors
+    unless sameSpan f param after span do throw "family parameter span differs from its source"
   after ← expectExact f after (.closeList ')' (!m.params.isEmpty))
   let requirements := [.ident "requires", .punctuation '('] ++ listLexemes (m.requires_.map fun n => [.ident n]) ')'
   let before := (← f.next after).kind matches .word "requires"
@@ -386,7 +407,14 @@ private def checkEditMethod (f : File) (pkg : String) (modulePath : List String)
   after ← expectSyntax f after ([.arrow] ++ m.result)
   if !before && ((← f.next after).kind matches .word "requires") then
     after ← expectSyntax f after requirements
-  else if !before && !m.requires_.isEmpty then throw "contributed fn requires clause missing from source"
+  else if !before && !m.requires_.isEmpty then throw "family requires clause missing from source"
+  return (after, selectors.reverse)
+
+private def checkEditMethod (f : File) (pkg : String) (modulePath : List String) (origin : Option String)
+    (state : Cursor × SourceChecks) (m : EditMethod) : Except String (Cursor × SourceChecks) := do
+  let (c, checks) := state
+  let first ← expectIdentifier f c "fn"
+  let (after, _) ← checkSignature f first m.toFamilySignature
   let opening ← f.next after
   requireSymbol opening '{'
   let close ← untilSymbol f '}' opening.after
@@ -395,6 +423,28 @@ private def checkEditMethod (f : File) (pkg : String) (modulePath : List String)
   if checks.bodies.contains first.span.start then throw "duplicate physical method site"
   let site := MethodSite.mk ⟨pkg, modulePath, origin, m.target⟩ (through first close) checks.fileIndex opening.span close.span
   return (close.after, {checks with bodies := checks.bodies.insert first.span.start site})
+
+private def checkFamily (f : File) (c : Cursor) (first : Token) (pkg : String) (modulePath : List String)
+    (isPublic : Bool) (checks : SourceChecks) (decl : ScopedDeclaration) : Except String (Cursor × SourceChecks) := do
+  unless decl.packageSource == pkg && decl.modulePath == modulePath do
+    throw "function family declaration belongs to another physical module"
+  if checks.flat && isPublic then throw "flat family declarations have implicit public visibility"
+  unless decl.requiredVisibility.all (· == (checks.flat || isPublic)) do
+    throw "function family visibility differs from its source"
+  let after ← match decl.declaration with
+    | .header tokens => expectSyntax f first.after tokens
+    | .method m => return ← checkEditMethod f pkg modulePath none (c, checks) m
+    | .contract signature domain => do
+      let (after, selectors) ← checkSignature f first signature
+      if (← f.next after).kind matches .word "domain" then
+        let rows := domain.map fun key =>
+          [.punctuation '('] ++ listLexemes (key.map fun (parts, span) => [.reference parts span]) ')'
+        expectSyntax f after ([.ident "domain", .punctuation '('] ++ listLexemes rows ')' ++ [.punctuation ';'])
+      else
+        unless domain == [selectors] do throw "shorthand contract domain differs from the parameter selectors"
+        expectExact f after (.punctuation ';')
+  unless sameSpan f first after decl.span do throw "function family declaration span differs from its source"
+  return (after, checks)
 
 private def realizationForm (f : File) (head : Token) : Except String Bool := do
   let .word word := head.kind | return false
@@ -462,16 +512,31 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
       let last ← untilSymbol f ';' head.after
       resourceBlock f owner fuel last.after branches (index + 1) checks
 
-/-- A family header or contract ends in a semicolon. Its scalar method
-signature contains no brace before the opening brace of a concrete body. -/
-private def hasMethodBody (f : File) : Nat → Token → Except String Bool
+/-- An unregistered body can only be an ordinary or static-indexed function.
+A named abstract selector or a nonempty requires clause makes an ordinary
+body a dispatch method even when it is the only declaration of its name. -/
+private def singletonOpening (f : File) (finite : Bool) : Nat → Token → Except String Token
   | 0, _ => throw "unterminated function family declaration"
   | fuel + 1, t => do
     match t.kind with
-    | .symbol '{' => return true
-    | .symbol ';' => return false
+    | .symbol '{' => return t
+    | .symbol ';' => throw "physical function family header or contract missing from request"
     | .symbol '}' | .eof => throw "incomplete function family declaration"
-    | _ => hasMethodBody f fuel (← f.next t.after)
+    | .symbol ':' =>
+      unless finite do
+        let (parts, after) ← path f t.after
+        if after.kind matches .symbol ',' | .symbol ')' then
+          unless parts.length == 1 && ["Nat", "Int", "Bool", "Unit", "Scheme", "CInfScheme"].contains (parts.headD "") do
+            throw "physical method with a dispatch selector missing from request"
+        return ← singletonOpening f finite fuel after
+    | .word "requires" =>
+      let opening ← f.next t.after
+      requireSymbol opening '('
+      let close ← f.next opening.after
+      unless close.kind matches .symbol ')' do throw "physical method with requirements missing from request"
+      return ← singletonOpening f finite fuel (← f.next close.after)
+    | _ => pure ()
+    singletonOpening f finite fuel (← f.next t.after)
 
 /-- Scan a file in its lexical module, collecting external modules in source
 order. A declaration inside a function body cannot change the module path. -/
@@ -506,17 +571,23 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
           if keyword == "generic" || keyword == "method" ||
               (keyword == "abstract" && ((← f.next t.after).kind matches .word "method")) then
             throw "edition 2026 requires fn for a function family, method or contract"
-          if keyword == "fn" && !edits.targets.isEmpty then
-            if let some (owner, modules, method) := edits.methods[t.span.start]? then
-              unless owner == pkg && modules == reversedPath.reverse do
-                throw "function family method belongs to another physical module"
-              let (after, checks) ← checkEditMethod f pkg modules none (c, checks) method
-              let edits := {edits with methods := edits.methods.erase t.span.start}
+          if keyword == "fn" then
+            if let some decl := edits.families[t.span.start]? then
+              let (after, checks) ← checkFamily f c t pkg reversedPath.reverse (scope.place == .afterPub) checks decl
+              let edits := {edits with families := edits.families.erase t.span.start}
               return ← scanExact f pkg fuel after {scope with place := .declaration} reversedPath external
                 {checks with edits := some edits}
             let (target, next) ← path f t.after
-            if target.length > 1 || edits.targets.contains (pkg, reversedPath.reverse, target) then
-              if ← hasMethodBody f (f.remaining t.after) next then throw "physical function family method missing from the request"
+            let key := (pkg, reversedPath.reverse, target)
+            if target.length > 1 || edits.targets.contains key then
+              throw "physical function family declaration missing from request"
+            let finite := next.kind matches .symbol '<'
+            if checks.singletonNames[key]?.any (fun previous => !finite || !previous) then
+              throw "physical function overloads missing from request"
+            let opening ← singletonOpening f finite (f.remaining t.after) next
+            let close ← untilSymbol f '}' opening.after
+            let checks := {checks with singletonNames := checks.singletonNames.insert key finite}
+            return ← scanExact f pkg fuel close.after {scope with place := .declaration} reversedPath external checks
           if ["grant", "delegation", "transfer", "contribution"].contains keyword then
             let some h := edits.headers[t.span.start]? | throw "physical edit declaration missing from the request"
             unless h.packageSource == pkg && h.modulePath == reversedPath.reverse &&

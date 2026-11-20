@@ -343,25 +343,33 @@ fn raw_module(source: &str) -> serde_json::Value {
 
 #[test]
 fn raw_package_ir_cannot_forge_membership_authority_visibility_or_winners() {
-    let source = "fn f(x) domain((Int)); fn f(x: Numeric) -> Int { 42 } fn main() -> Int { f(1) }";
-    let mut app = raw_module(source);
-    app["methods"][0]["params"][0]["ty"]["name"] = json!("lib::Numeric");
-    let raw = json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","root_source":{"offset":0,"text":source},"packages":[
-        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","edition":"2026","dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
-        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","edition":"2026","dependencies":[],"modules":[raw_module("abstract type Numeric; subtype Int <: Numeric;")]}
-    ]});
+    let s = Scratch::empty("nominal authority");
+    s.write_package(
+        "lib",
+        "pub abstract type Numeric; subtype Int <: Numeric;",
+        "",
+    );
+    s.write_package(
+        "app",
+        "fn f(x) domain((Int)); fn f(x: lib::Numeric) -> Int { 42 } fn main() -> Int { f(1) }",
+        "lib={path='../lib'}",
+    );
+    let raw = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
+    let packages = raw["packages"].as_array().unwrap();
+    let lib = packages.iter().position(|p| p["name"] == "lib").unwrap();
+    let app = packages.iter().position(|p| p["name"] == "app").unwrap();
     let mut unauthorized = raw.clone();
-    let mut membership = unauthorized["packages"][1]["modules"][0]["subtypes"][0].clone();
+    let mut membership = unauthorized["packages"][lib]["modules"][0]["subtypes"][0].clone();
     membership["target"]["path"] = json!(["lib", "Numeric"]);
-    unauthorized["packages"][0]["modules"][0]["subtypes"] = json!([membership]);
+    unauthorized["packages"][app]["modules"][0]["subtypes"] = json!([membership]);
     common::assert_wire_rejected(&kernel(unauthorized, "check"), "E_OWNER");
     let mut hidden = raw.clone();
-    hidden["packages"][1]["modules"][0]["abstract_types"][0]["public"] = json!(false);
+    hidden["packages"][lib]["modules"][0]["abstract_types"][0]["public"] = json!(false);
     common::assert_wire_rejected(&kernel(hidden, "check"), "E_VISIBILITY");
     for field in ["owner", "selected", "hierarchy"] {
         let mut forged = raw.clone();
-        forged["packages"][0]["modules"][0]["methods"][0][field] = json!("trusted");
+        forged["packages"][app]["modules"][0]["methods"][0][field] = json!("trusted");
         common::assert_wire_rejected(&kernel(forged, "check"), "E_PROTOCOL");
     }
 }

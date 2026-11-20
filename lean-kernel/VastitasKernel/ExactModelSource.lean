@@ -73,9 +73,10 @@ def scanFiles (layout : PhysicalSources.Layout) (program : ResourceSource.Progra
   let flat := program.root == flatPackageId.source
   let manifests : Std.TreeSet String := if flat then {} else .ofList (program.packages.map (·.id.source))
   let hasAssembly := checks.edits.isSome && hasAssembly program
-  if flat && (hasAssembly || checks.edits.any (fun t => !t.isEmpty)) then
+  if flat && (hasAssembly || checks.edits.any (fun t => !t.headers.isEmpty)) then
     throw "edit declarations require a package manifest"
-  if checks.isEmpty && checks.edits.all (·.isEmpty) && !hasAssembly then
+  if checks.isEmpty && checks.edits.all (·.isEmpty) && !hasAssembly &&
+      (checks.edits.isNone || layout.files.size == 1) then
     -- Discover omitted declarations and calls even if the wire has none.
     for file in layout.files do
       unless (String.fromUTF8? file.path).any manifests.contains do
@@ -85,14 +86,22 @@ def scanFiles (layout : PhysicalSources.Layout) (program : ResourceSource.Progra
   -- The loader reads each package manifest, its dependencies, then its root.
   -- External modules are visited depth first in the order of their physical
   -- declarations. The same physical path can occur at different offsets.
-  let mut pending : List (String × List (List String)) :=
-    if flat then [(flatPackageId.source,[[]])] else []
+  if flat then
+    -- The entry and every --lib file contribute to the same protected root
+    -- module. The byte layout assigns a separate range to each occurrence.
+    for file in layout.files, i in [:layout.files.size] do
+      let (external, left) ← checkExactHeaders file.text file.offset program.root []
+        {checks with flat := true, fileIndex := i, allowAssembly := false}
+      unless external.isEmpty do throw "external modules require a package manifest"
+      checks := left
+    return checks
+  let mut pending : List (String × List (List String)) := []
   for file in layout.files, i in [:layout.files.size] do
     if let some name := (String.fromUTF8? file.path).filter manifests.contains then
       pending := (name,[[]]) :: pending
     else
       let (pkg, path :: rest) :: ancestors := pending | throw "source file lacks a declaring module"
-      let entry := !flat && pkg == program.root && path.isEmpty
+      let entry := pkg == program.root && path.isEmpty
       if checks.edits.isSome && entry != (i == layout.entry) then throw "assembly entry differs from the physical root module"
       let (external, left) ← checkExactHeaders file.text file.offset pkg path {checks with allowAssembly := entry, fileIndex := i}
       checks := left

@@ -1,0 +1,202 @@
+[
+  {
+    "after": "pair(000000000, 00000)",
+    "before": "pair(int(left), right)",
+    "index": 1,
+    "method": {
+      "body": {
+        "result": {
+          "args": [
+            {
+              "kind": "integer",
+              "span": {
+                "column": 10,
+                "end": 1656,
+                "line": 12,
+                "start": 1647
+              },
+              "value": "0"
+            },
+            {
+              "kind": "integer",
+              "span": {
+                "column": 21,
+                "end": 1663,
+                "line": 12,
+                "start": 1658
+              },
+              "value": "0"
+            }
+          ],
+          "callee": "pair",
+          "kind": "call",
+          "span": {
+            "column": 5,
+            "end": 1664,
+            "line": 12,
+            "start": 1642
+          }
+        },
+        "span": {
+          "column": 48,
+          "end": 1666,
+          "line": 11,
+          "start": 1636
+        },
+        "statements": []
+      },
+      "name": "promote",
+      "params": [
+        {
+          "name": "left",
+          "span": {
+            "column": 12,
+            "end": 1609,
+            "line": 11,
+            "start": 1600
+          },
+          "ty": {
+            "kind": "named",
+            "name": "Nat"
+          }
+        },
+        {
+          "name": "right",
+          "span": {
+            "column": 23,
+            "end": 1621,
+            "line": 11,
+            "start": 1611
+          },
+          "ty": {
+            "kind": "named",
+            "name": "Int"
+          }
+        }
+      ],
+      "requires": [],
+      "return_type": {
+        "element": "Int",
+        "kind": "pair"
+      },
+      "span": {
+        "column": 1,
+        "end": 1666,
+        "line": 11,
+        "start": 1589
+      }
+    }
+  },
+  {
+    "after": "fn promote(lo: Nat, hi: Nat) -> Pair<Int> {\n    pair(int(lo), int(hi))",
+    "before": "fn promote(left: Nat, right: Nat) -> Pair<Nat> {\n    pair(left, right)",
+    "index": 0,
+    "method": {
+      "body": {
+        "result": {
+          "args": [
+            {
+              "args": [
+                {
+                  "kind": "variable",
+                  "name": "lo",
+                  "span": {
+                    "column": 14,
+                    "end": 1574,
+                    "line": 8,
+                    "start": 1572
+                  }
+                }
+              ],
+              "callee": "int",
+              "kind": "call",
+              "span": {
+                "column": 10,
+                "end": 1575,
+                "line": 8,
+                "start": 1568
+              }
+            },
+            {
+              "args": [
+                {
+                  "kind": "variable",
+                  "name": "hi",
+                  "span": {
+                    "column": 23,
+                    "end": 1583,
+                    "line": 8,
+                    "start": 1581
+                  }
+                }
+              ],
+              "callee": "int",
+              "kind": "call",
+              "span": {
+                "column": 19,
+                "end": 1584,
+                "line": 8,
+                "start": 1577
+              }
+            }
+          ],
+          "callee": "pair",
+          "kind": "call",
+          "span": {
+            "column": 5,
+            "end": 1585,
+            "line": 8,
+            "start": 1563
+          }
+        },
+        "span": {
+          "column": 43,
+          "end": 1587,
+          "line": 7,
+          "start": 1557
+        },
+        "statements": []
+      },
+      "name": "promote",
+      "params": [
+        {
+          "name": "lo",
+          "span": {
+            "column": 12,
+            "end": 1533,
+            "line": 7,
+            "start": 1526
+          },
+          "ty": {
+            "kind": "named",
+            "name": "Nat"
+          }
+        },
+        {
+          "name": "hi",
+          "span": {
+            "column": 21,
+            "end": 1542,
+            "line": 7,
+            "start": 1535
+          },
+          "ty": {
+            "kind": "named",
+            "name": "Nat"
+          }
+        }
+      ],
+      "requires": [],
+      "return_type": {
+        "element": "Int",
+        "kind": "pair"
+      },
+      "span": {
+        "column": 1,
+        "end": 1587,
+        "line": 7,
+        "start": 1515
+      }
+    }
+  }
+]

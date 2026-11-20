@@ -66,16 +66,24 @@ fn check_raw(raw: &Value) -> Value {
 /// inputs: the one package of a flat unit. Its declarations are in
 /// `common::flat_module`.
 fn flat_request(source: &str) -> Value {
+    flat_edited_request(source, None)
+}
+
+fn flat_edited_request(source: &str, edit: Option<(&str, &str)>) -> Value {
     let scratch = Scratch::empty("promotion request");
     scratch.write("promotion-contract.vast", source);
     let mut command = scratch.cli();
     command.args(["check", "promotion-contract.vast"]);
     for name in ["int", "nat", "generic"] {
         let relative = format!("arithmetic/{name}.vast");
-        scratch.write(
-            &relative,
-            &fs::read_to_string(root().join("stdlib/src").join(&relative)).unwrap(),
-        );
+        let mut text = fs::read_to_string(root().join("stdlib/src").join(&relative)).unwrap();
+        if name == "generic"
+            && let Some((before, after)) = edit
+        {
+            assert_eq!(text.matches(before).count(), 1);
+            text = text.replace(before, after);
+        }
+        scratch.write(&relative, &text);
         command.arg("--lib").arg(relative);
     }
     common::captured_wire(command, common::CURRENT_PROTOCOL)
@@ -446,4 +454,42 @@ fn stdlib_ir_matches_proof_fixture() {
         "stdlib frontend request differs from the numerical proof fixture promotion.json"
     );
     assert_eq!(check_raw(&expected)["ok"], true);
+}
+
+/// Replacing one declaration with another of the same byte length keeps the
+/// other declarations' global positions. The Lean regression applies these
+/// small deltas to the canonical request and evaluates the resulting Core.
+#[test]
+fn promotion_policy_mutations_are_real_frontend_requests() {
+    let canonical = flat_request("");
+    let mut cases = Vec::new();
+    for (index, before, after) in [
+        (1, "pair(int(left), right)", "pair(000000000, 00000)"),
+        (
+            0,
+            "fn promote(left: Nat, right: Nat) -> Pair<Nat> {\n    pair(left, right)",
+            "fn promote(lo: Nat, hi: Nat) -> Pair<Int> {\n    pair(int(lo), int(hi))",
+        ),
+    ] {
+        assert_eq!(before.len(), after.len());
+        let actual = flat_edited_request("", Some((before, after)));
+        let method = &actual["packages"][0]["modules"][0]["methods"][index];
+        let mut replay = canonical.clone();
+        common::flat_module(&mut replay)["methods"][index] = method.clone();
+        let files = replay["root_source"]["files"].as_array_mut().unwrap();
+        let generic = files
+            .iter_mut()
+            .find(|file| file["path"] == "arithmetic/generic.vast")
+            .unwrap();
+        generic["text"] = json!(generic["text"].as_str().unwrap().replace(before, after));
+        assert_eq!(replay, actual);
+        assert_eq!(check_raw(&actual)["ok"], true);
+        cases.push(json!({"index":index, "before":before, "after":after, "method":method}));
+    }
+    let path = root().join("tests/fixtures/promotion-policy.json");
+    if common::regenerate_fixture("VASTITAS_UPDATE_PROMOTION_FIXTURE") {
+        fs::write(&path, serde_json::to_string_pretty(&cases).unwrap() + "\n").unwrap();
+    }
+    let stored: Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+    assert_eq!(json!(cases), stored);
 }

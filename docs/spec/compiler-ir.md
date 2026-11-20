@@ -129,6 +129,10 @@ Claims:
     - `physical_dependency_files_reject_omitted_edits_and_retired_declarations` in [`tests/edit_authority.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_authority.rs)
     - `flat_library_bytes_cannot_supply_an_unreported_assembly` in [`tests/edit_authority.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_authority.rs)
     - `edits_bind_the_selected_fallback_and_unapplied_method_bodies` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `unedited_package_families_bind_domains_contracts_visibility_and_bodies` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `flat_libraries_bind_inferred_methods_to_their_own_file` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `omitting_a_whole_dispatch_family_cannot_turn_its_bodies_into_singletons` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `promotion_policy_mutations_are_real_frontend_requests` in [`tests/promotion.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/promotion.rs)
     - `contributed_method_reads_indexed_pack_unpack_and_nominal_types` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
     - `contributed_finite_calls_keep_index_paths_and_lookup_operands` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
     - `a_defining_method_checks_legacy_pack_pairs_and_static_function_values` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
@@ -147,7 +151,7 @@ Claims:
   - Premises:
     - the public protocol-10 request is accepted with the expected function revision present
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan consumes the declared edit permissions and method signatures. Each contributed method and each defining family method in an edited program has a checked replay of its full body in the physical file, bound to its package, module, family path, contribution and declaration span. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises.
+  - Note: Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan consumes the declared edit permissions, explicit domains, bodyless contracts and defining method signatures. An inferred family header uses the span and parameters of its first declaration. Each contributed method and each defining family method has a checked replay of its full body in the physical file, bound to its package, module, family path, contribution and declaration span. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises.
 - `assembly`: [Planned](../specifications.md#planned)
   - Issue: [#455](https://github.com/MGYamada/Vastitas/issues/455)
 - `static-retention`: [Proved (oracle)](../specifications.md#proved-oracle)

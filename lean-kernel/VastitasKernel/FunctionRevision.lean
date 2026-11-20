@@ -125,7 +125,8 @@ private def realizationSite (site : RealizationSite) : Json :=
   let fields := [("owner", ownerJson site.owner), ("path", toJson site.position),
     ("span", spanJson site.span), ("id", functionIdJson site.functionId),
     ("subject", ownerJson d.subject), ("chart", ownerJson d.chart),
-    ("representation", toJson (representationName d.representation))]
+    ("representation", toJson (representationName d.representation))] ++
+    (site.affine.toList.map fun _ => ("constructor", functionIdJson ⟨Namespace.affineConstructor⟩))
   Json.mkObj <| fields ++ match op with
     | .realize _ => []
     | .interpret plan => planFields plan

@@ -19,7 +19,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
-| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Tested, Proved (oracle) |
+| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle) |
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
 | [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
@@ -415,7 +415,7 @@ Claims:
 Canonical realize::&lt;R&gt; binds a mathematical object, its base or site, chart, dimension, representation, reference and execution profiles and revisions. interpret binds the selected computation graph; run executes through resource buffers. Affine wrappers lower to this canonical form. A real wrapper creates a fresh smooth Affine(n) object; a complex wrapper creates a fresh algebraic Affine(CC,n) object. Realizing an existing object preserves its nominal identity. Exact mathematical CC is built over RR with a selected commutative ring reduct and separate field evidence. Finite executable coordinates embed QQ(i) into CC; they do not identify QQ(i) with CC. Numerical representations have a different Kind and gain no exact Field or CommRing authority.
 
 - Example: The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction.
-- Not executed: Selected mathematical affine charts have source and Core evidence. Identity realization is tested at both widths on the selected complex chart. Four wrapper-to-Core correspondences remain pending.
+- Not executed: Selected mathematical affine charts have source and Core evidence. Identity realization is tested at both widths on the selected complex chart. Nonstandard chart execution and further numerical graphs remain open.
 
 Claims:
 
@@ -466,6 +466,17 @@ Claims:
   - Note: These proof-only descriptors support both real widths. The executable identity supports both real widths on the selected smooth affine.
 - `source`: [Planned](../specifications.md#planned)
   - Issue: [#686](https://github.com/MGYamada/Vastitas/issues/686)
+- `affine-wrappers`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `affine_wrappers_run_the_same_identity_bytes_at_all_four_representations` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `affine_wrappers_bind_fresh_subjects_constructor_dimension_and_physical_source` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+  - Note: Each fresh standard-chart identity produces the same complete LLVM bytes as the explicit identity at that representation. The revision binds both the constructor and realize family. Regressions change the subject, lexical constructor, representation, dimension and revision.
+- `affine-expansion`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.NumericalRealization`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NumericalRealization.lean): `VastitasOracle.NumericalRealization.checked_affine_realization`, `VastitasOracle.NumericalRealization.affine_subjects_distinct`
+  - Premises:
+    - A checked wire input contains the written affine site in its lowered realization sites. Distinct constructor occurrences have distinct physical start offsets in the input.
+  - Note: The site selects the protected realize family and the canonical descriptor of its generated subject. The checked chart has the written dimension. Different physical occurrences produce distinct nominal owners.
 - `identity-source`: [Tested](../specifications.md#tested)
   - Evidence:
     - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)

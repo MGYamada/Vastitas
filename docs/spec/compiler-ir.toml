@@ -509,7 +509,7 @@ have a different Kind and gain no exact Field or CommRing authority.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.realization)"
 example = "The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction."
-example_not_executed = "Selected mathematical affine charts have source and Core evidence. Identity realization is tested at both widths on the selected complex chart. Four wrapper-to-Core correspondences remain pending."
+example_not_executed = "Selected mathematical affine charts have source and Core evidence. Identity realization is tested at both widths on the selected complex chart. Nonstandard chart execution and further numerical graphs remain open."
 
 [property."compiler-ir.realization".claim.complex-model]
 status = "planned"
@@ -601,6 +601,23 @@ note = "These proof-only descriptors support both real widths. The executable id
 [property."compiler-ir.realization".claim.source]
 status = "planned"
 issue = 686
+
+[property."compiler-ir.realization".claim.affine-wrappers]
+status = "tested"
+evidence = [
+  "tests/numerical_realization.rs::affine_wrappers_run_the_same_identity_bytes_at_all_four_representations",
+  "tests/numerical_realization.rs::affine_wrappers_bind_fresh_subjects_constructor_dimension_and_physical_source",
+]
+note = "Each fresh standard-chart identity produces the same complete LLVM bytes as the explicit identity at that representation. The revision binds both the constructor and realize family. Regressions change the subject, lexical constructor, representation, dimension and revision."
+
+[property."compiler-ir.realization".claim.affine-expansion]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.NumericalRealization.checked_affine_realization",
+  "VastitasOracle.NumericalRealization.affine_subjects_distinct",
+]
+premises = ["A checked wire input contains the written affine site in its lowered realization sites. Distinct constructor occurrences have distinct physical start offsets in the input."]
+note = "The site selects the protected realize family and the canonical descriptor of its generated subject. The checked chart has the written dimension. Different physical occurrences produce distinct nominal owners."
 
 [property."compiler-ir.realization".claim.identity-source]
 status = "tested"

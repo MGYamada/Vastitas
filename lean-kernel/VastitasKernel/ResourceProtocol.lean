@@ -377,22 +377,32 @@ private def realizationPaths (j : Json) (span : Span) :
     place := p.span
   return (callee, args)
 
+private def numericalRepresentation : Json → Except String FloatRepresentation
+  | .str "real32" => pure .real32
+  | .str "real64" => pure .real64
+  | .str "complex32" => pure .complex32
+  | .str "complex64" => pure .complex64
+  | _ => throw "unknown numerical representation"
+
 private def statements : Nat → List Json → Except String (List Statement)
   | _, [] => pure []
   | 0, _ :: _ => throw "resource source exceeds decoding depth bound"
   | fuel + 1, first :: rest => do
     let span ← decodeSpan first
     let statement ← match ← str first "kind" with
+      | "affine_realization" =>
+        fields first ["kind", "callee", "representation", "dimension", "result", "span"]
+        let callee ← Indexed.Wire.path (← field first "callee")
+        let rep ← numericalRepresentation (← field first "representation")
+        let n ← first.getObjValAs? Nat "dimension"
+        unless n ≤ Limits.algebraGenerators do throw "affine wrapper exceeds the coordinate limit"
+        pure (.affineRealization callee ⟨rep, n, span⟩ (← str first "result"))
       | "realization" =>
         fields first ["kind", "callee", "representation", "arguments", "result", "into", "span"]
         let (callee, arguments) ← realizationPaths first span
         let representation : Option FloatRepresentation ← match ← field first "representation" with
           | .null => pure none
-          | .str "real32" => pure (some .real32)
-          | .str "real64" => pure (some .real64)
-          | .str "complex32" => pure (some .complex32)
-          | .str "complex64" => pure (some .complex64)
-          | _ => throw "unknown numerical representation"
+          | value => some <$> numericalRepresentation value
         pure (.realization callee representation arguments (← str first "result") (← first.getObjValAs? Bool "into") span)
       | "runtime" =>
         fields first ["kind", "action", "span"]

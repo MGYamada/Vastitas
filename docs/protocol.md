@@ -829,6 +829,15 @@ three ordered `arguments` as paths, the local `result` name and the statement
 `into` distinguishes the destination of `run` from a freshly bound result.
 The kernel resolves each operation in its source module and checks the
 identity of the protected `monad::float` declaration.
+
+An `affine_realization` statement carries `callee`, `representation`,
+`dimension`, `result` and `span`. The decoder bounds the number of coordinates
+before the kernel constructs declarations. The kernel resolves the edition's
+unqualified `Affine` constructor in the caller's scope and creates a private
+mathematical subject and identity graph for that physical occurrence. Its
+revision records both the constructor and the canonical `realize` family.
+On a descriptor bound to `r`, `r::identity` selects the graph of that subject.
+
 It reads the realization calls from the physical edition 2026 files and
 matches their package, module, function, statement index and enclosing
 branch conditions to the wire. The callee, representation, ordered paths,

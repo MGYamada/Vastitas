@@ -1711,6 +1711,41 @@ impl Parser {
         } else {
             None
         };
+        if representation.is_none()
+            && self.peek().is("(")
+            && self
+                .tokens
+                .get(self.position + 2)
+                .is_some_and(|t| t.is("<"))
+        {
+            self.expect("(")?;
+            let representation = self.numerical_representation()?;
+            self.expect(",")?;
+            let dimension = self.resource_number()?;
+            if dimension > crate::limits::MAX_ALGEBRA_GENERATORS as u64 {
+                return Err(diagnostic(
+                    "E_LIMIT",
+                    format!(
+                        "an affine chart has at most {} coordinates",
+                        crate::limits::MAX_ALGEBRA_GENERATORS
+                    ),
+                    self.previous().span,
+                ));
+            }
+            self.consume(",");
+            self.expect(")")?;
+            let end = self.expect(";")?.span;
+            let result = binding.ok_or_else(|| {
+                diagnostic("E_REALIZATION", "bind the fresh affine to a name", start)
+            })?;
+            return Ok(crate::storage::source::Statement::AffineRealization {
+                callee,
+                representation,
+                dimension,
+                result,
+                span: start.through(end),
+            });
+        }
         let arguments = self.delimited_list("(", ")", Self::type_path)?;
         if arguments.len() > 3 {
             return Err(diagnostic(

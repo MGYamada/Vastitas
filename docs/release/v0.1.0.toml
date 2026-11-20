@@ -37,7 +37,7 @@ number = 762
 title = "Finite edition 2026"
 state = "open"
 depends = [462, 455]
-remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Further finite schemas and the four Affine wrappers remain."
+remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Fresh Affine identities execute at all four representations. Further finite schemas remain."
 
 [[issue]]
 number = 533
@@ -93,7 +93,7 @@ number = 686
 title = "Numerical realizations"
 state = "open"
 depends = [757, 318, 762]
-remaining = "The canonical protected realize, interpret, point and run operations execute a declared real affine identity on its own standard chart into checked `F32<RR>` or `F64<RR>` storage. The point proof identifies the allocation and its exact representation. A named exact complex affine supports identity copies in `F32<CC>` and `F64<CC>`. Its receipt binds the selected carrier and both meadows. The four identity copies also execute from checked LLVM on macOS arm64. Further numerical graphs, full profile selection and the four Affine wrappers remain."
+remaining = "The canonical protected realize, interpret, point and run operations execute a declared real affine identity on its own standard chart into checked `F32<RR>` or `F64<RR>` storage. The point proof identifies the allocation and its exact representation. A named exact complex affine supports identity copies in `F32<CC>` and `F64<CC>`. Its receipt binds the selected carrier and both meadows. The four identity copies also execute from checked LLVM on macOS arm64. The four fresh Affine wrappers use the same checked realization and identity copy. Further numerical graphs and full profile selection remain."
 
 [[issue]]
 number = 689
@@ -353,13 +353,13 @@ requirement = "F32 and F64 representations of RR and CC use explicit chart and p
 
 [row.dimension.source]
 state = "partial"
-claims = ["compiler-ir.realization@source", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
-note = "The protected float module admits realize, interpret, point and run for the standard-chart identity of an existing smooth real or exact complex affine at both widths. Broader graphs and wrappers remain."
+claims = ["compiler-ir.realization@source", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+note = "The protected float module admits realize, interpret, point and run for the standard-chart identity of an existing smooth real or exact complex affine at both widths. The four wrappers construct fresh standard charts and use the same identity copy. Broader graphs remain."
 document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+claims = ["compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@affine-expansion", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
 note = "The checked identity records its subject, chart, graph and NativeFast profile. The physical copy passes the storage checker at all four representations. Complex charts retain the paired carrier and real and complex meadows."
 document = ""
 
@@ -534,7 +534,7 @@ requirement = "Packages and normalized flat input use edition 2026 and wire epoc
 [row.dimension.source]
 state = "partial"
 claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
-note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Further edition schemas and realization wrappers remain."
+note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Physical Affine calls bind the constructor, precision and coordinate dimension in the same edition. Further edition schemas remain."
 document = ""
 
 [row.dimension.core]

@@ -26,18 +26,25 @@ private def lexemes (name : String) : ExactConstruction Source.Path → List Exa
       .punctuation ',', .dimension n, .punctuation ')', .punctuation '['] ++
       (coordinates.map ExactLexeme.ident).intersperse (.punctuation ',') ++ [.closeList ']' (!coordinates.isEmpty)]
 
-private def precision (r : ResourceSource.FloatRepresentation) : List ExactLexeme :=
+private def representation (r : ResourceSource.FloatRepresentation) : List ExactLexeme :=
   let (width, carrier) := match r with
     | .real32 => ("F32", "RR") | .complex32 => ("F32", "CC")
     | .real64 => ("F64", "RR") | .complex64 => ("F64", "CC")
-  [.separator, .punctuation '<', .ident width, .punctuation '<', .ident carrier,
-    .punctuation '>', .punctuation '>']
+  [.ident width, .punctuation '<', .ident carrier, .punctuation '>']
+
+private def precision (r : ResourceSource.FloatRepresentation) : List ExactLexeme :=
+  [.separator, .punctuation '<'] ++ representation r ++ [.punctuation '>']
 
 private def collectCalls (owner : ResourceOwner) (branches : List ResourceBranch) (index : Nat) :
     List ResourceSource.Statement → SourceChecks → Except String SourceChecks
   | [], checks => pure checks
   | first :: tail, checks => do
     let checks ← match first with
+      | .affineRealization callee site result => do
+        if checks.calls.contains site.span.start then throw "duplicate physical realization statement"
+        let tokens := [.ident "let", .ident result, .punctuation '=', ref callee, .punctuation '('] ++
+          representation site.representation ++ [.punctuation ',', .dimension site.dimension, .closeList ')' true]
+        pure {checks with calls := checks.calls.insert site.span.start ⟨owner, branches, index, site.span, tokens⟩}
       | .realization callee rep args result into span => do
         if checks.calls.contains span.start then throw "duplicate physical realization statement"
         let binding := if into then [] else [.ident "let", .ident result, .punctuation '=']

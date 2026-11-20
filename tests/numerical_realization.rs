@@ -120,20 +120,25 @@ fn body(wire: &mut Value) -> &mut Vec<Value> {
         .unwrap()
 }
 
-fn check_llvm_identity(s: &common::Scratch, scalar: u8) {
+fn preview_bytes(s: &common::Scratch, triple: &str, layout: &str) -> Vec<u8> {
     let output = s
         .command("check", MANIFEST)
         .args([
             "--llvm-preview",
             "--target-triple",
-            "x86_64-unknown-linux-gnu",
+            triple,
             "--data-layout",
-            "e-p:64:64",
+            layout,
         ])
         .output()
         .unwrap();
     common::success(&output);
-    let ir = std::str::from_utf8(&output.stdout).unwrap();
+    output.stdout
+}
+
+fn check_llvm_identity(s: &common::Scratch, scalar: u8) -> Vec<u8> {
+    let bytes = preview_bytes(s, "x86_64-unknown-linux-gnu", "e-p:64:64");
+    let ir = std::str::from_utf8(&bytes).unwrap();
     assert!(ir.contains(&format!(
         "call i32 @vq_storage_allocate(ptr %arena, i64 0, i64 {scalar}, i64 2)"
     )));
@@ -161,6 +166,7 @@ fn check_llvm_identity(s: &common::Scratch, scalar: u8) {
             exits(0)
         );
     }
+    bytes
 }
 
 #[test]
@@ -443,6 +449,109 @@ fn realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans() {
 }
 
 const COMPLEX: &str = include_str!("../examples/packages/float-complex-identity/src/main.vast");
+
+#[test]
+fn affine_wrappers_run_the_same_identity_bytes_at_all_four_representations() {
+    let s = fixture(MAIN);
+    for (repr, template, scalar) in [
+        ("F64<RR>", MAIN, 0),
+        ("F64<CC>", COMPLEX, 1),
+        ("F32<RR>", MAIN, 2),
+        ("F32<CC>", COMPLEX, 3),
+    ] {
+        let canonical = if repr.starts_with("F32") {
+            template
+                .replace("F64<", "F32<")
+                .replace("f64_bits", "f32_bits")
+                .replace("complex_bits", "complex32_bits")
+                .replace("9223372036854775808", "2147483648")
+                .replace("9218868437227405378", "2139095106")
+        } else {
+            template.to_owned()
+        };
+        s.write("app/main.vast", &canonical);
+        let bytes = preview_bytes(&s, "x86_64-unknown-linux-gnu", "e-p:64:64");
+        let resource = canonical.split_once("resource fn main").unwrap().1;
+        let wrapper = format!("use monad::float;\nresource fn main{resource}")
+            .replace(
+                &format!("float::realize::<{repr}>(Plane, Plane::standard_chart)"),
+                &format!("Affine({repr}, 2)"),
+            )
+            .replace("interpret(idP,", "interpret(r::identity,");
+        s.write("app/main.vast", &wrapper);
+        assert_eq!(s.check_build_and_run(MANIFEST), exits(0));
+        assert_eq!(check_llvm_identity(&s, scalar), bytes, "{repr}");
+        let corpus = match scalar {
+            0 => Some(include_bytes!("../llvm/src/float-identity.ll").as_slice()),
+            1 => Some(include_bytes!("../llvm/src/float-complex-identity.ll").as_slice()),
+            _ => None,
+        };
+        if let Some(retained) = corpus {
+            let emitted = preview_bytes(
+                &s,
+                "arm64-apple-darwin27.2.0",
+                "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
+            );
+            assert_eq!(emitted, retained, "{repr}");
+        }
+        let mut wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
+        let response = kernel(&wire, "function-revision");
+        let rev = &response["function_revision"];
+        let site = &rev["resource_realizations"]["sites"][0];
+        assert_eq!(site["constructor"]["name"], "Affine");
+        assert_eq!(site["constructor"]["module"], json!(["geometry"]));
+        assert_eq!(site["id"]["name"], "realize");
+        assert_eq!(site["subject"], site["chart"]);
+        assert_eq!(site["representation"], repr);
+        wire["expected_function_revision"] = rev.clone();
+        assert_eq!(kernel(&wire, "check")["function_revision_matched"], true);
+        wire["expected_function_revision"]["resource_realizations"]["sites"][0]["constructor"] =
+            site["id"].clone();
+        assert_wire_rejected(&kernel(&wire, "check"), "E_FUNCTION_REVISION");
+    }
+}
+
+#[test]
+fn affine_wrappers_bind_fresh_subjects_constructor_dimension_and_physical_source() {
+    let source = "use monad::float;
+        resource fn main() -> Int {
+            let a = Affine(F32<CC>, 2);
+            let b = Affine(F32<CC>, 2,);
+            let e = float::interpret(b::identity, b, NativeFast);
+            value { 0 }
+        }";
+    let s = fixture(source);
+    let wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
+    let response = kernel(&wire, "function-revision");
+    assert_eq!(response["ok"], true, "{response}");
+    let charts = response["function_revision"]["resource_realizations"]["charts"]
+        .as_array()
+        .unwrap();
+    assert_eq!(charts.len(), 2);
+    assert_ne!(charts[0]["subject"], charts[1]["subject"]);
+    for (key, value) in [
+        ("dimension", json!(3)),
+        ("representation", json!("real32")),
+        ("result", json!("other")),
+    ] {
+        let mut forged = wire.clone();
+        body(&mut forged)[0][key] = value;
+        assert_wire_rejected(&kernel(&forged, "check"), "E_PROTOCOL");
+    }
+    for (from, to, code) in [
+        ("b::identity, b", "a::identity, b", "E_REALIZATION"),
+        ("= Affine(", "= foreign(", "E_REALIZATION"),
+        (
+            "use monad::float;",
+            "mod Affine {} use monad::float;",
+            "E_REALIZATION",
+        ),
+        ("F32<CC>, 2", "F32<CC>, 17", "E_LIMIT"),
+    ] {
+        s.write("app/main.vast", &source.replace(from, to));
+        common::expect_code(&s.check_manifest(MANIFEST), code);
+    }
+}
 
 #[test]
 fn complex_charts_copy_both_components_and_bind_the_full_model_chain() {

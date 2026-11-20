@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "01d41006ada8f46c27844577e53905a3695bbda0",
-    "schema_sha256": "def55703a5172f09fa1b022656f53979ec965bd8405a4575e99ec9f8fd902513"
+    "base_commit": "0b4f5a5ad329e28674b4801c00414c7a0132c2e8",
+    "schema_sha256": "4045285cf3c5ba965a33d6472f4154e5208aa1b5185ca467375575e77e43f36b"
   },
   "schema": {
     "sources": [
@@ -33,6 +33,7 @@
       "lean-kernel/VastitasKernel/TensorNumerical.lean",
       "lean-kernel/VastitasKernel/TensorNetwork.lean",
       "lean-kernel/VastitasKernel/TensorTree.lean",
+      "lean-kernel/VastitasKernel/AffineRealizationProfile.lean",
       "lean-kernel/VastitasKernel/ResourceSource.lean",
       "lean-kernel/VastitasKernel/MidIR/IR.lean"
     ],
@@ -195,6 +196,13 @@
         "kind": "structure",
         "header": "structure DiagnosticNote",
         "fields": "message : String span : Span : = { }"
+      },
+      {
+        "id": "VastitasKernel.Indexed.AffineRealizationProfile.Site",
+        "source": "lean-kernel/VastitasKernel/AffineRealizationProfile.lean",
+        "kind": "structure",
+        "header": "structure Site",
+        "fields": "representation : Storage . Realization . Representation dimension : Nat span : Span"
       },
       {
         "id": "VastitasKernel.Indexed.Application",
@@ -1968,7 +1976,7 @@
         "source": "lean-kernel/VastitasKernel/ResourceSource.lean",
         "kind": "structure",
         "header": "structure RealizationSite",
-        "fields": "owner : Indexed . DeclId position : List Nat functionId : Namespace . FunctionId operation : Realization . Operation callee : Indexed . Source . Path span : Span"
+        "fields": "owner : Indexed . DeclId position : List Nat functionId : Namespace . FunctionId operation : Realization . Operation callee : Indexed . Source . Path span : Span affine : Option Indexed . AffineRealizationProfile . Site : = none"
       },
       {
         "id": "VastitasKernel.ResourceSource.Reference",
@@ -2073,6 +2081,10 @@
         "kind": "inductive",
         "header": "inductive Statement",
         "constructors": [
+          {
+            "id": "VastitasKernel.ResourceSource.Statement.affineRealization",
+            "signature": "affineRealization ( callee : Indexed . Source . Path ) ( site : Indexed . AffineRealizationProfile . Site ) ( result : String )"
+          },
           {
             "id": "VastitasKernel.ResourceSource.Statement.realization",
             "signature": "realization ( callee : Indexed . Source . Path ) ( representation : Option FloatRepresentation ) ( arguments : List Indexed . Source . Path ) ( result : String ) ( into : Bool ) ( span : Span )"
@@ -7259,6 +7271,14 @@
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.ResourceSource.Statement.action",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.ResourceSource.Statement.affineRealization",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.ResourceSource.Statement.affineRealization",
       "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },

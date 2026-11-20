@@ -2,6 +2,7 @@
 """Compare checked boxed libraries and hosted programs with generated Lean controls."""
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -101,6 +102,20 @@ def native(args, work):
         subprocess.run(cmd, cwd=work, check=True)
 
     run([leanc, *sdk, "-O2", "-c", ROOT / "llvm/runtime/exact.c", "-o", "shim.o"])
+    run([leanc, *sdk, "-O2", "-Dvastitas_exit_status_v1=original_exit_status",
+         "-c", ROOT / "llvm/runtime/exact.c", "-o", "observed-shim.o"])
+    run(["cc", *sdk, "-std=c11", "-O2", "-I", prefix / "include",
+         "-c", ROOT / "llvm/fixtures/BoxedResultProbe.c", "-o", "probe.o"])
+
+    def check_integer(obj, expected):
+        # Relink the same object. The probe borrows the entire Int before the
+        # production projection consumes it. Both controls have the same status.
+        run([leanc, *sdk, obj, "observed-shim.o", "probe.o", "-o", "observed"])
+        for candidate, verdict in [(expected, "match"), (expected + 256, "mismatch")]:
+            child = subprocess.run([work / "observed"], cwd=work, capture_output=True, text=True,
+                                   env={**os.environ, "VASTITAS_TEST_EXPECT_INTEGER": str(candidate)})
+            if child.returncode != expected % 256 or child.stdout != verdict + "\n" or child.stderr:
+                raise ValueError(f"{obj}: full integer comparison failed for {candidate}")
     (work / "Vastitas.toml").write_text('[package]\nname = "exact"\nversion = "0.1.0"\n'
                                        'edition = "2026"\nroot = "main.vast"\n')
     check = [args.frontend, "check", "--manifest-path", work / "Vastitas.toml"]
@@ -164,12 +179,15 @@ def native(args, work):
         (work / "HostedControl.lean").write_text("\n".join(control) + "\n")
         run([prefix / "bin/lean", "-c", "HostedControl.c", "HostedControl.lean"])
         run([leanc, *sdk, "HostedControl.c", "-o", "control"])
-        expected = quotient(2 * numerator, divisor) % 256
+        full = quotient(2 * numerator, divisor)
+        check_integer(obj, full)
+        expected = full % 256
         for executable in ["hosted", "control"]:
             observed = subprocess.run([work / executable], cwd=work).returncode
             if observed != expected:
                 raise ValueError(f"{executable} with divisor {divisor}: expected {expected}, got {observed}")
     emit((ROOT / "llvm/fixtures/SingletonPower.vast").read_text(), "power.o")
+    check_integer("power.o", 3**256 // 7)
     run([leanc, *sdk, "shim.o", "power.o", "-o", "power"])
     control = ["@[noinline] def powerQuotient (x0 : @& Int) : Int :="]
     control.extend(f"  let x{i+1} := x{i} * x{i}" for i in range(8))
@@ -211,6 +229,7 @@ fn main() -> Int { adjust(40) }
     if invalid.returncode == 0 or invalid.stdout or b"E_FUNCTION_REVISION" not in invalid.stderr:
         raise ValueError("accepted a nonwinning method from the same family and ABI")
     run([leanc, *sdk, "shim.o", obj, "-o", "assembled"])
+    check_integer(obj, 42)
     if subprocess.run([work / "assembled"], cwd=work).returncode != 42:
         raise ValueError("assembled integer entry did not call the selected method")
     for fixture, control, expected in [("borrowed-operator", "chosen 40 2", 42),
@@ -220,6 +239,7 @@ fn main() -> Int { adjust(40) }
         emit_preview([args.frontend, "check", "--manifest-path", manifest, "--llvm-preview",
                       "--target-triple", target["triple"], "--data-layout", target["layout"]], obj)
         run([leanc, *sdk, "shim.o", obj, "-o", fixture])
+        check_integer(obj, expected)
         (work / "BorrowedControl.lean").write_text(
             "@[noinline] def chosen (x y : @& Int) : Int := x + y\n"
             f"def main : IO UInt32 := pure (({control}) % 256).toNat.toUInt32\n")
@@ -245,6 +265,7 @@ def main():
         count, examples, programs = native(args, Path(tmp))
     print(f"{count} checked libraries, {examples} native results matched Lean and exact integer expectations; {count} heap ownership probes passed")
     print(f"{programs} hosted executable statuses matched generated Lean and independent expectations")
+    print("hosted result probes matched each full integer and distinguished a value larger by 256")
     print("assembled integer entry returned 42 and rejected the sibling method in the expected revision")
     print("called and uncalled cross-package methods matched the generated Lean controls at exit 42 and 7")
 

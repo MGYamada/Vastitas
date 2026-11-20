@@ -829,6 +829,11 @@ three ordered `arguments` as paths, the local `result` name and the statement
 `into` distinguishes the destination of `run` from a freshly bound result.
 The kernel resolves each operation in its source module and checks the
 identity of the protected `monad::float` declaration.
+It reads the realization calls from the physical edition 2026 files and
+matches their package, module, function, statement index and enclosing
+branch conditions to the wire. The callee, representation, ordered paths,
+binding or destination, and UTF-8 source spans must agree. This check
+also covers discarded descriptors and functions outside the entry's call graph.
 
 The [runtime-extent profile](storage/resource-programs.md#runtime-extents) adds parameter kinds
 `runtime_space` (`name`, `implementation`, `dimension`, `span`), `runtime_basis`

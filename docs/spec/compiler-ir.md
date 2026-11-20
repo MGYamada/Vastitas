@@ -19,7 +19,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
-| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
+| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Tested, Proved (oracle) |
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
 | [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
@@ -478,6 +478,11 @@ Claims:
     - `dependency_names_do_not_grant_the_protected_float_identity` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
   - Note: Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine or a named exact complex affine and its own standard chart at either supported precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy.
+- `physical-calls`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `physical_source_binds_realizations_even_when_the_descriptor_is_unused` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `realization_calls_in_an_external_module_keep_their_owner_and_order` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+  - Note: The kernel compares calls with the submitted physical files, including an unused descriptor in a branch and a pair of unused calls in an external module. Regressions cover a changed precision, namespace alias, result name, argument column, function, visibility, branch condition or arm, swapped calls and omissions.
 - `identity-origin`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.NumericalRealization`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NumericalRealization.lean): `VastitasOracle.NumericalRealization.checked_site`, `VastitasOracle.NumericalRealization.profile_equations`, `VastitasOracle.NumericalRealization.executed_source_identity`, `VastitasOracle.NumericalRealization.executed_complex_model`, `VastitasOracle.NumericalRealization.executed_copy`, `VastitasOracle.NumericalRealization.point_scalar`

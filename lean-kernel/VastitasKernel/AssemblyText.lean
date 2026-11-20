@@ -278,7 +278,9 @@ inductive ExactLexeme where
   | punctuation (ch : Char)
   | reference (parts : List String) (span : Span)
   | dimension (value : Nat)
-  | closeCoordinates (allowTrailingComma : Bool)
+  | separator
+  | arrow
+  | closeList (ch : Char) (allowTrailingComma : Bool)
   deriving Inhabited
 
 structure ExactHeader where
@@ -289,10 +291,43 @@ structure ExactHeader where
   lexemes : List ExactLexeme
   deriving Inhabited
 
+structure ResourceOwner where
+  packageSource : String
+  modulePath : List String
+  name : String
+  start : Nat
+  isPublic : Bool
+  deriving Inhabited, BEq
+
+inductive ResourceCondition where
+  | literal (value : Bool)
+  | binding (name : String)
+  deriving BEq
+
+structure ResourceBranch where
+  index : Nat
+  condition : ResourceCondition
+  yes : Bool
+  deriving BEq
+
+structure RealizationCall where
+  owner : ResourceOwner
+  branches : List ResourceBranch
+  index : Nat
+  span : Span
+  lexemes : List ExactLexeme
+
+structure SourceChecks where
+  headers : Std.HashMap Nat ExactHeader := {}
+  calls : Std.HashMap Nat RealizationCall := {}
+  deriving Inhabited
+
+def SourceChecks.isEmpty (s : SourceChecks) := s.headers.isEmpty && s.calls.isEmpty
+
 private def expectIdentifier (f : File) (c : Cursor) (name : String) : Except String Token := do
   let t ← f.next c
-  let .word found := t.kind | throw "expected an identifier in the exact declaration"
-  unless found == name do throw "exact declaration identifier differs from the source"
+  let .word found := t.kind | throw "expected a physical source identifier"
+  unless found == name do throw "identifier differs from the physical source"
   return t
 
 private def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String Cursor
@@ -312,12 +347,23 @@ private def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String 
       last ← expectIdentifier f sep.after name
     unless through first last == span do throw "exact model path span differs from the source"
     return last.after
-  | .closeCoordinates allowComma => do
+  | .separator => do
+    let t ← f.next c
+    let .separator := t.kind | throw "expected qualified call separator"
+    return t.after
+  | .arrow => do
+    let t ← f.next c
+    requireSymbol t '-'
+    let gt ← f.next t.after
+    requireSymbol gt '>'
+    unless t.span.end == gt.span.start do throw "expected a destination arrow"
+    return gt.after
+  | .closeList ch allowComma => do
     let next ← f.next c
     let close ← match next.kind with
-      | .symbol ',' => if allowComma then f.next next.after else throw "unexpected comma in empty coordinates"
+      | .symbol ',' => if allowComma then f.next next.after else throw "unexpected comma in empty list"
       | _ => pure next
-    requireSymbol close ']'
+    requireSymbol close ch
     return close.after
   | .dimension value => do
     let t ← f.next c
@@ -339,17 +385,106 @@ private def isExactHeader (f : File) (indexed : Token) : Except String Bool := d
     return match op.kind with | .symbol '=' => true | _ => false
   | _ => return false
 
+/-- Skip complete nested groups while finding the terminator of a statement
+or signature. Strings and comments have already been consumed by the lexer. -/
+private def delimiter (f : File) (stop : Char) : Nat → Cursor → List Char → Nat → Except String Token
+  | 0, _, _, _ => .error "missing resource delimiter"
+  | fuel + 1, cursor, closes, room => do
+    let t ← f.next cursor
+    match t.kind with
+    | .eof => throw "unterminated resource source"
+    | .symbol ch =>
+      if closes.isEmpty && ch == stop then return t
+      let closing := match ch with | '{' => some '}' | '(' => some ')' | '[' => some ']' | _ => none
+      if let some close := closing then
+        let room + 1 := room | throw "resource delimiter nesting limit"
+        return ← delimiter f stop fuel t.after (close :: closes) room
+      if ch == '}' || ch == ')' || ch == ']' then
+        let expected :: rest := closes | throw "unexpected resource delimiter"
+        unless expected == ch do throw "mismatched resource delimiter"
+        return ← delimiter f stop fuel t.after rest (room + 1)
+    | _ => pure ()
+    delimiter f stop fuel t.after closes room
+
+private def untilSymbol (f : File) (stop : Char) (c : Cursor) :=
+  delimiter f stop (f.remaining c) c [] Limits.sourceNesting
+
+private def realizationForm (f : File) (head : Token) : Except String Bool := do
+  let .word word := head.kind | return false
+  let next ← f.next head.after
+  if word == "let" then
+    let op ← f.next next.after
+    return match op.kind with | .symbol '=' => true | _ => false
+  match next.kind with
+  | .separator => return true
+  | .symbol '(' =>
+    let close ← untilSymbol f ')' next.after
+    let op ← f.next close.after
+    return match op.kind with | .symbol '-' => true | _ => false
+  | _ => return false
+
+/-- Compare each realization at its physical statement index. Other resource
+statements contribute to the index, including compound contractions. Pure
+value blocks contain their own language and are skipped as balanced groups. -/
+private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor → List ResourceBranch → Nat →
+    SourceChecks → Except String (Token × SourceChecks)
+  | 0, _, _, _, _ => .error "resource scan exceeded its file extent"
+  | fuel + 1, c, branches, index, checks => do
+    let head ← f.next c
+    match head.kind with
+    | .eof => throw "unterminated resource function"
+    | .symbol '}' => return (head, checks)
+    | .word "value" =>
+      unless branches.isEmpty do throw "unexpected value return inside a resource branch"
+      let start ← f.next head.after
+      requireSymbol start '{'
+      let body ← untilSymbol f '}' start.after
+      let close ← f.next body.after
+      requireSymbol close '}'
+      return (close, checks)
+    | .word "if" =>
+      unless branches.length < Limits.sourceNesting do throw "resource branch nesting limit"
+      let test ← f.next head.after
+      let .word name := test.kind | throw "expected resource branch condition"
+      let condition := match name with
+        | "true" => ResourceCondition.literal true | "false" => .literal false | name => .binding name
+      let openYes ← f.next test.after
+      requireSymbol openYes '{'
+      let (yes, checks) ← resourceBlock f owner fuel openYes.after (⟨index, condition, true⟩ :: branches) 0 checks
+      let otherwise ← expectIdentifier f yes.after "else"
+      let openNo ← f.next otherwise.after
+      requireSymbol openNo '{'
+      let (no, checks) ← resourceBlock f owner fuel openNo.after (⟨index, condition, false⟩ :: branches) 0 checks
+      resourceBlock f owner fuel no.after branches (index + 1) checks
+    | .word "contract" | .word "contract_tree" =>
+      let start ← untilSymbol f '{' head.after
+      let endBlock ← untilSymbol f '}' start.after
+      resourceBlock f owner fuel endBlock.after branches (index + 1) checks
+    | _ =>
+      if ← realizationForm f head then
+        let some site := checks.calls[head.span.start]? | throw "physical realization missing from request"
+        unless site.owner == owner && site.branches == branches && site.index == index do
+          throw "realization belongs to another function or statement position"
+        let mut cursor := c
+        for lexeme in site.lexemes do cursor ← expectExact f cursor lexeme
+        let last ← f.next cursor
+        requireSymbol last ';'
+        unless through head last == site.span do throw "realization statement span differs from source"
+        return ← resourceBlock f owner fuel last.after branches (index + 1)
+          {checks with calls := checks.calls.erase head.span.start}
+      let last ← untilSymbol f ';' head.after
+      resourceBlock f owner fuel last.after branches (index + 1) checks
+
 /-- Scan a file in its lexical module, collecting external modules in source
 order. A declaration inside a function body cannot change the module path. -/
 private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → List String →
-    Array (List String) → Std.HashMap Nat ExactHeader →
-    Except String (Array (List String) × Std.HashMap Nat ExactHeader)
+    Array (List String) → SourceChecks → Except String (Array (List String) × SourceChecks)
   | 0, _, _, _, _, _ => .error "exact declaration scan exceeded its file extent"
-  | fuel + 1, c, scope, reversedPath, external, headers => do
+  | fuel + 1, c, scope, reversedPath, external, checks => do
     let t ← f.next c
     if let .eof := t.kind then
       unless scope.between && scope.modules == 0 do throw "unclosed source delimiter"
-      return (external, headers)
+      return (external, checks)
     let atDeclaration := scope.place == .declaration || scope.place == .afterPub
     if atDeclaration then
       if let .word "mod" := t.kind then
@@ -360,14 +495,14 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
         match delimiter.kind with
         | .symbol ';' =>
           return ← scanExact f pkg fuel delimiter.after {scope with place := .declaration}
-            reversedPath (external.push path.reverse) headers
+            reversedPath (external.push path.reverse) checks
         | .symbol '{' =>
           return ← scanExact f pkg fuel delimiter.after {scope with place := .declaration, modules := scope.modules + 1}
-            path external headers
+            path external checks
         | _ => throw "expected module body or semicolon"
       if let .word "indexed" := t.kind then
         if ← isExactHeader f t then
-          let some h := headers[t.span.start]? | throw "physical exact declaration missing from the request"
+          let some h := checks.headers[t.span.start]? | throw "physical exact declaration missing from the request"
           unless h.packageSource == pkg && h.modulePath == reversedPath.reverse do
             throw "exact declaration belongs to another physical package or module"
           unless h.isPublic == (scope.place == .afterPub) do throw "exact declaration visibility differs from the source"
@@ -377,16 +512,25 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
           requireSymbol semi ';'
           unless through t semi == h.span do throw "exact declaration span differs from the source"
           return ← scanExact f pkg fuel semi.after {scope with place := .declaration}
-            reversedPath external (headers.erase t.span.start)
+            reversedPath external {checks with headers := checks.headers.erase t.span.start}
+      if let .word "resource" := t.kind then
+        let fnToken ← expectIdentifier f t.after "fn"
+        let name ← f.next fnToken.after
+        let .word fnName := name.kind | throw "expected resource function name"
+        let owner := ResourceOwner.mk pkg reversedPath.reverse fnName t.span.start (scope.place == .afterPub)
+        let start ← untilSymbol f '{' name.after
+        let (close, checks) ← resourceBlock f owner (f.remaining start.after) start.after [] 0 checks
+        return ← scanExact f pkg fuel close.after {scope with place := .declaration} reversedPath external checks
     let next ← ordinary scope t.kind
     let path := if next.modules < scope.modules then reversedPath.drop 1 else reversedPath
-    scanExact f pkg fuel t.after next path external headers
+    scanExact f pkg fuel t.after next path external checks
 
 def mayHaveExactHeaders (text : String) : Bool :=
-  text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine" || text.contains "identity")
+  text.contains "resource" ||
+    (text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine" || text.contains "identity"))
 
 def checkExactHeaders (text : String) (base : Nat) (pkg : String) (path : List String)
-    (headers : Std.HashMap Nat ExactHeader) : Except String (Array (List String) × Std.HashMap Nat ExactHeader) :=
-  scanExact ⟨text,base⟩ pkg (text.utf8ByteSize + 1) {} {} path.reverse #[] headers
+    (checks : SourceChecks) : Except String (Array (List String) × SourceChecks) :=
+  scanExact ⟨text,base⟩ pkg (text.utf8ByteSize + 1) {} {} path.reverse #[] checks
 
 end VastitasKernel.AssemblyText

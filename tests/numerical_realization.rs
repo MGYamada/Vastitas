@@ -6,6 +6,99 @@ use serde_json::{Value, json};
 const MAIN: &str = include_str!("../examples/packages/float-identity/src/main.vast");
 const MANIFEST: &str = "app/Vastitas.toml";
 
+#[test]
+fn physical_source_binds_realizations_even_when_the_descriptor_is_unused() {
+    let source = "use monad::float; use monad::float as other;
+        use std::geometry::smooth::affine::SmoothR;
+        indexed affine Plane(SmoothR) = Affine(2)[x, y];
+        resource fn main() -> Int {
+            if true {
+                let r = float::realize::<F32<RR>>(Plane, Plane::standard_chart,);
+            } else { }
+            value { 0 }
+        }";
+    let s = fixture(source);
+    let wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for change in [
+        "precision",
+        "callee",
+        "result",
+        "location",
+        "branch",
+        "condition",
+        "omit",
+    ] {
+        let mut changed = wire.clone();
+        let branch = &mut body(&mut changed)[0];
+        let site = &mut branch["yes"][0];
+        match change {
+            "precision" => site["representation"] = json!("real64"),
+            "callee" => site["callee"]["path"][0] = json!("other"),
+            "result" => site["result"] = json!("renamed"),
+            "location" => site["arguments"][0]["span"]["column"] = json!(1),
+            "branch" => {
+                branch["no"] = branch["yes"].take();
+                branch["yes"] = json!([]);
+            }
+            "condition" => branch["condition"] = json!(false),
+            "omit" => branch["yes"] = json!([]),
+            _ => unreachable!(),
+        }
+        for mode in ["check", "emit"] {
+            assert_wire_rejected(&kernel(&changed, mode), "E_PROTOCOL");
+        }
+    }
+}
+
+#[test]
+fn realization_calls_in_an_external_module_keep_their_owner_and_order() {
+    let s = fixture("mod model; resource fn main() -> Int { value { 0 } }");
+    let source = "use monad::float;
+        use std::geometry::smooth::affine::SmoothR;
+        indexed affine Plane(SmoothR) = Affine(2)[x, y];
+        pub resource fn first() -> Unit {
+            // 数値: this comment contains let fake = float::run(a,b) -> q;
+            let a = float::realize::<F32<RR>>(Plane, Plane::standard_chart);
+            let b = float :: realize :: < F64 < RR > >(Plane, Plane :: standard_chart,);
+            value { () }
+        }
+        pub resource fn second() -> Unit { value { () } }";
+    s.write("app/model.vast", &source.replace('\n', "\r\n"));
+    let wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for change in ["order", "function", "visibility", "omit function"] {
+        let mut changed = wire.clone();
+        let module = changed["packages"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .flat_map(|p| p["modules"].as_array_mut().unwrap())
+            .find(|m| m["path"] == json!(["model"]))
+            .unwrap();
+        let functions = module["resource_functions"].as_array_mut().unwrap();
+        let first = functions.iter().position(|f| f["name"] == "first").unwrap();
+        match change {
+            "order" => functions[first]["body"].as_array_mut().unwrap().swap(0, 1),
+            "function" => {
+                let moved = functions[first]["body"].take();
+                functions[first]["body"] = json!([]);
+                let second = functions
+                    .iter_mut()
+                    .find(|f| f["name"] == "second")
+                    .unwrap();
+                second["body"] = moved;
+            }
+            "visibility" => functions[first]["public"] = json!(false),
+            "omit function" => {
+                functions.remove(first);
+            }
+            _ => unreachable!(),
+        }
+        assert_wire_rejected(&kernel(&changed, "check"), "E_PROTOCOL");
+    }
+}
+
 fn fixture(main: &str) -> common::Scratch {
     let manifest = include_str!("../examples/packages/float-identity/Vastitas.toml")
         .replace("../../../stdlib", "../stdlib")
@@ -315,12 +408,15 @@ fn dependency_names_do_not_grant_the_protected_float_identity() {
 fn realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans() {
     let s = fixture(MAIN);
     let wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
-    let mut unknown = wire.clone();
+    s.write(
+        "app/main.vast",
+        &checked_replace(MAIN, "Plane::standard_chart", "Plane::wrong_chart"),
+    );
+    let mut unknown = s.captured(MANIFEST, CURRENT_PROTOCOL);
     let site = body(&mut unknown)
         .iter_mut()
         .find(|s| s["callee"]["path"] == json!(["float", "realize"]))
         .unwrap();
-    site["arguments"][1]["path"][1] = json!("wrong_chart");
     let expected = site["arguments"][1]["span"].clone();
     for mode in ["check", "emit"] {
         let response = kernel(&unknown, mode);

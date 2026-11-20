@@ -44,7 +44,7 @@ number = 533
 title = "Single wire epoch"
 state = "open"
 depends = [762]
-remaining = "Remaining accepted-Core correspondence and migration evidence."
+remaining = "Canonical resource realization calls are checked against the physical source, including precision, lexical owner, branch conditions, statement order and original path spans. Other source-to-Core and resource correspondence evidence remains."
 
 [[issue]]
 number = 756

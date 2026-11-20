@@ -616,6 +616,14 @@ evidence = [
 ]
 note = "Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine or a named exact complex affine and its own standard chart at either supported precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy."
 
+[property."compiler-ir.realization".claim.physical-calls]
+status = "tested"
+evidence = [
+  "tests/numerical_realization.rs::physical_source_binds_realizations_even_when_the_descriptor_is_unused",
+  "tests/numerical_realization.rs::realization_calls_in_an_external_module_keep_their_owner_and_order",
+]
+note = "The kernel compares calls with the submitted physical files, including an unused descriptor in a branch and a pair of unused calls in an external module. Regressions cover a changed precision, namespace alias, result name, argument column, function, visibility, branch condition or arm, swapped calls and omissions."
+
 [property."compiler-ir.realization".claim.identity-origin]
 status = "proved-oracle"
 evidence = [

@@ -105,6 +105,7 @@
     {"name": "VastitasOracle.ExactComplex.ofRat_injective", "module": "VastitasOracle.ExactComplex", "kind": "theorem", "statement": "sha256:f408041d439d47061f3ebd073af319cbdb95e418eeb80f05e01167df6dd1d753"},
     {"name": "VastitasOracle.ExactComplex.real_isField", "module": "VastitasOracle.ExactComplexField", "kind": "theorem", "statement": "sha256:41b0e5b574fcf26b52bc8d3f2bd103ac76dc7a1904c98534b6a6a74903c6ba8f"},
     {"name": "VastitasOracle.ExactFold.evaluates", "module": "VastitasOracle.ExactFold", "kind": "theorem", "statement": "sha256:757d1dea8088f3905c54f4fbe536ba6ed9fdbf8c3878b6f33ac91c3541f8cfe7"},
+    {"name": "VastitasOracle.ExactFold.literal_comparison_evaluates", "module": "VastitasOracle.ExactFold", "kind": "theorem", "statement": "sha256:910ae40a51d3d23e7216a211808d9868cdb9e7d54579b1dc32f22c50076d3337"},
     {"name": "VastitasOracle.ExactLibrary.bytes_correspondence", "module": "VastitasOracle.ExactLibrary", "kind": "theorem", "statement": "sha256:6ebec3f0433975bfa2bdc45b9e8a85da2f442052a61f7a3a00305d1290dbf3bb"},
     {"name": "VastitasOracle.ExactOperators.selection_in_profile", "module": "VastitasOracle.ExactOperators", "kind": "theorem", "statement": "sha256:0d8f119094c565500d55d0f6de3497f61a3d6a85ea9692ecb3dcb70f1d4777a1"},
     {"name": "VastitasOracle.ExactProgram.correspondence", "module": "VastitasOracle.ExactProgram", "kind": "theorem", "statement": "sha256:0f7fbcb2d410f4466b641682edd17175735fa1d77a38c6317ed7abdb95556f3a"},

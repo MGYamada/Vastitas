@@ -80,8 +80,7 @@ private def atom (nodes : Nat) (extra : Nat := 0) : Work := ⟨nodes, nodes + ex
 private instance : Add Work := ⟨fun a b => ⟨a.nodes + b.nodes, a.units + b.units⟩⟩
 
 private def localWork (exact : Bool) (s : Sizes) : Indexed.Core.Term → Work
-  | .unit | .integer _ | .boolean _ | .variable .. => atom 1
-  | .natural _ => atom (if exact then 1 else outside)
+  | .unit | .integer _ | .natural _ | .boolean _ | .variable .. => atom 1
   | .natToInt arg => if exact then atom 1 + localWork exact s arg else atom outside
   | .finiteTag t _ => atom 1 (sortWork s t)
   | .finiteLookup site args => atom (1 + args.length) (lookupWork s site)

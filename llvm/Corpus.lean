@@ -109,6 +109,7 @@ def kleisliForwardBytes := corpus_bytes "src/kleisli-forward.ll"
 def structuredLookupBytes := corpus_bytes "src/structured-lookup.ll"
 def structuredLookupLinuxBytes := corpus_bytes "src/structured-lookup-linux-x86_64.ll"
 def staticSelectionBytes := corpus_bytes "src/static-selection.ll"
+def literalComparisonBytes := corpus_bytes "src/literal-comparison.ll"
 
 open FiniteModule
 
@@ -275,6 +276,17 @@ def code : Code :=
 
 end StaticSelection
 
+/-- The selected and fallback methods compare different full integers with
+equal low bytes. Their Boolean constants feed the remaining argument tests. -/
+def literalComparisonCode : Code :=
+  let method name b := boolHelper name [(.bit, slot 0)] [bit 1 b, both 2 0 1] 2
+  let entry : Func := ⟨"f1", true, .word, [], [
+    ⟨"b0", [bit 0 true, boolCall 1 "f0" [0]], .branch (reg 1) "b1" "b2"⟩,
+    ⟨"b1", [constant "v1_0" 42], .jump "b3"⟩, ⟨"b2", [constant "v2_0" 7], .jump "b3"⟩,
+    ⟨"b3", [.phi "v3_0" .word [(.reg "v1_0", "b1"), (.reg "v2_0", "b2")]], ret "v3_0"⟩]⟩
+  ⟨header, [method "f0" true, entry, method "f2" false,
+    ⟨"main", false, .word, [], [⟨"start", [.call "result" .word "f1" []], ret "result"⟩]⟩]⟩
+
 namespace StructuredLookup
 
 private def digits : Func :=
@@ -333,6 +345,10 @@ theorem structured_lookup_linux_verified : structuredLookupLinuxBytes = Structur
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 3000000 in
 theorem static_selection_verified : staticSelectionBytes = StaticSelection.code.print := rfl
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem literal_comparison_verified : literalComparisonBytes = literalComparisonCode.print := rfl
 
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 3000000 in
@@ -532,6 +548,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("structured-lookup.ll", forCode structured_lookup_verified),
    ("structured-lookup-linux-x86_64.ll", forCode structured_lookup_linux_verified),
    ("static-selection.ll", forCode static_selection_verified),
+   ("literal-comparison.ll", forCode literal_comparison_verified),
    ("s3-composition.ll", forBinary s3_composition_verified),
    ("static-call.ll", forCall static_call_verified)]
 
@@ -578,6 +595,7 @@ def main (args : List String) : IO Unit := do
   checkEntry "structured-lookup-linux-x86_64.ll" Vastitas.LLVMCorpus.structuredLookupLinuxBytes
     Vastitas.LLVMCorpus.StructuredLookup.linuxCode 42
   checkEntry "static-selection.ll" Vastitas.LLVMCorpus.staticSelectionBytes Vastitas.LLVMCorpus.StaticSelection.code 42
+  checkEntry "literal-comparison.ll" Vastitas.LLVMCorpus.literalComparisonBytes Vastitas.LLVMCorpus.literalComparisonCode 42
   for (code,bytes) in [(Vastitas.LLVMCorpus.affineIdentity false, Vastitas.LLVMCorpus.realIdentityBytes),
       (Vastitas.LLVMCorpus.affineIdentity true, Vastitas.LLVMCorpus.complexIdentityBytes),
       (Vastitas.LLVMCorpus.gemmCoefficients, Vastitas.LLVMCorpus.gemmCoefficientBytes)] do

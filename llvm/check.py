@@ -31,6 +31,7 @@ CASES = [
     Sample("structured-lookup", HERE / "fixtures/StructuredLookup.vast", "structured_lookup"),
     Sample("structured-lookup-linux-x86_64", HERE / "fixtures/StructuredLookup.vast", "structured_lookup", "linux-x86_64"),
     Sample("static-selection", HERE / "fixtures/StaticSelection.vast", "static_selection"),
+    Sample("literal-comparison", HERE / "fixtures/LiteralComparison.vast", "literal_comparison"),
     Sample("empty-lookup", HERE / "fixtures/EmptyLookup.vast", "empty_lookup"),
     Sample("closure-unit", HERE / "fixtures/ClosureUnit.vast", "closure_unit"),
     Sample("gemm-coefficients", ROOT / "examples/packages/numerical/gemm-coefficients/Vastitas.toml", None),

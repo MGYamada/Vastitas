@@ -144,7 +144,10 @@ the selected contribution against the current revision.
 A closed executable can also call functions on finite tags and Booleans
 across packages. It can look up tables with zero to six ordered inputs, compare
 tags, combine Boolean values with `!`, `&&` and `||`, take branches and return
-an integer exit status. A nullary table has one row. For two or more inputs,
+an integer exit status. The compiler folds `==` and `!=` between two integer
+literals of the same type using their full values. For example, `0 == 256`
+is false even though both integers give exit status zero.
+A nullary table has one row. For two or more inputs,
 each coordinate must be in range before the helper computes a row-major index. For example, the closure Monad
 program calls all four functions in the optional `monad::kleisli` module.
 The checker retains every concrete root function, all callees and all emitted

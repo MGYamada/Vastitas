@@ -67,6 +67,8 @@ private def lowerTerm (resolve : Nat → Option CallTarget) (ctx : List (Nat × 
     let x ← lowerTerm resolve ctx rhs
     lowerTerm resolve ((symbol, x) :: ctx) body
   | .binary op left right _ => do
+    if let some value := ExactFold.literalComparison op left right then
+      return ← emit (.boolean value) []
     let code ← liftM (match op with
       | .and => some Opcode.boolAnd
       | .or => some Opcode.boolOr

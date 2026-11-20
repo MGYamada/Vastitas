@@ -1,0 +1,11 @@
+fn choose(b: Bool) -> Bool { b && (0 == 256) }
+
+contribution exact : choose {
+    fn choose(b: Bool) requires (HasEq) -> Bool {
+        b && (-340282366920938463463374607431768211457 != -1)
+    }
+}
+
+assemble choose { apply exact; }
+
+fn main() -> Int { if choose(true) { 42 } else { 7 } }

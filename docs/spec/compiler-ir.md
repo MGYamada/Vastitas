@@ -25,7 +25,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
 | [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
 | [Finite binders do not admit general polymorphism](#compiler-ir.finite-binders) | Planned, Tested, Tested, Tested, Proved (oracle) |
-| [Every transformation checks an untrusted witness](#compiler-ir.stage-validation) | Planned, Proved (oracle) |
+| [Every transformation checks an untrusted witness](#compiler-ir.stage-validation) | Proved (oracle), Planned, Proved (oracle) |
 | [Local proofs compose over the same module](#compiler-ir.composition) | Planned |
 | [Finite constitutional claims need their own proofs](#compiler-ir.constitution) | Planned |
 | [The LLVM subset has explicit target and ABI semantics](#compiler-ir.llvm-model) | Planned |
@@ -772,6 +772,12 @@ Each validator receives the before and after artifacts plus a typed, untrusted d
 
 Claims:
 
+- `literal-comparison`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ExactFold`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactFold.lean): `VastitasOracle.ExactFold.literal_comparison_evaluates`
+  - Premises:
+    - The literal comparison folder returns a Boolean for two operands in the checked Core.
+  - Note: For every caller environment and module, evaluation of the original comparison with sufficient fuel yields that Boolean. The fold compares two Nat literals or two Int literals at full precision. The selected and fallback methods in the literal-comparison corpus use this rule before their Boolean arguments are known.
 - `soundness`: [Planned](../specifications.md#planned)
   - Issue: [#752](https://github.com/MGYamada/Vastitas/issues/752)
 - `pure-cfg`: [Proved (oracle)](../specifications.md#proved-oracle)

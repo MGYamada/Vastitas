@@ -28,6 +28,68 @@ fn preview(s: &Scratch, source: &str) -> Output {
         .unwrap()
 }
 
+const LITERAL_COMPARISON: &str = include_str!("../llvm/fixtures/LiteralComparison.vast");
+
+#[test]
+fn literal_comparisons_bind_both_assembled_bodies_to_the_revision() {
+    let s = Scratch::empty("exact literal comparison");
+    let original = preview(&s, LITERAL_COMPARISON);
+    success(&original);
+    let receipt = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&receipt);
+    std::fs::write(s.0.join("receipt.json"), receipt.stdout).unwrap();
+    let replay = || {
+        s.command("check", "app/Vastitas.toml")
+            .args(TARGET)
+            .args(["--expect-function-revision", "receipt.json"])
+            .output()
+            .unwrap()
+    };
+    let matched = replay();
+    success(&matched);
+    assert_eq!(matched.stdout, original.stdout);
+
+    // Editing either method preserves its Boolean answer and all LLVM bytes.
+    // Each original integer is still part of the checked program's revision.
+    for (old, new) in [("0 == 256", "0 == 512"), ("!= -1", "!= -257")] {
+        let edited = preview(&s, &LITERAL_COMPARISON.replace(old, new));
+        success(&edited);
+        assert_eq!(edited.stdout, original.stdout);
+        let stale = replay();
+        expect_code(&stale, "E_FUNCTION_REVISION");
+        assert!(stale.stdout.is_empty());
+    }
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
+fn literal_comparisons_use_full_integers_in_the_native_selected_method() {
+    let s = Scratch::empty("full integer literal native comparison");
+    for (op, status) in [("!=", 42), ("==", 7)] {
+        s.write_package("app", &LITERAL_COMPARISON.replace("!=", op), "");
+        for (name, flags) in [("lean", &[][..]), ("llvm", &["--llvm-preview"][..])] {
+            let build = s
+                .command("build", "app/Vastitas.toml")
+                .args(flags)
+                .args(["-o", name])
+                .output()
+                .unwrap();
+            success(&build);
+            assert_eq!(
+                std::process::Command::new(s.0.join(name))
+                    .status()
+                    .unwrap()
+                    .code(),
+                Some(status)
+            );
+        }
+    }
+}
+
 #[test]
 fn exact_exit_status_and_library_bytes_come_from_checked_public_core() {
     let s = Scratch::empty("LLVM check");

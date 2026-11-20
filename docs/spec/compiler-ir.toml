@@ -1050,6 +1050,12 @@ specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.stage-validatio
 example = "A witness preserving a function's return value but dropping an ordered effect fails the validator."
 example_not_executed = "The stage validators and their universally quantified soundness proofs are pending."
 
+[property."compiler-ir.stage-validation".claim.literal-comparison]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ExactFold.literal_comparison_evaluates"]
+premises = ["The literal comparison folder returns a Boolean for two operands in the checked Core."]
+note = "For every caller environment and module, evaluation of the original comparison with sufficient fuel yields that Boolean. The fold compares two Nat literals or two Int literals at full precision. The selected and fallback methods in the literal-comparison corpus use this rule before their Boolean arguments are known."
+
 [property."compiler-ir.stage-validation".claim.soundness]
 status = "planned"
 issue = 752

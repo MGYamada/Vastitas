@@ -12,6 +12,13 @@ private def other : FiniteSort := .carrier (owner "Other")
 private def env : Environment :=
   [⟨owner "Bit", .finiteCarrier ["off", "on"]⟩, ⟨owner "Other", .finiteCarrier ["off", "on"]⟩]
 private def check := RegressionSupport.check "finite MidIR regression"
+
+#guard ExactFold.literalComparison .ne (.ascribe (.pure .nat) (.natural (2^128))) (.natural 0) == some true
+#guard ExactFold.literalComparison .eq (.natural (2^128)) (.natural (2^128)) == some true
+#guard (ExactFold.literalComparison .eq (.integer 0) (.natural 0)).isNone
+#guard (ExactFold.literalComparison .ne (.ascribe (.pure .int) (.natural 0)) (.integer 1)).isNone
+#guard (ExactFold.literalComparison .eq (.variable 0 ⟨.pure .int, none⟩) (.integer 0)).isNone
+
 private def fn (blocks : Array (Block .optimization)) : Function .optimization :=
   ⟨⟨owner "flip"⟩, 0, ⟨0, []⟩, #[.finite bit], .finite bit, blocks⟩
 private def graph : Array (Block .optimization) := #[

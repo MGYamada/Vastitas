@@ -1381,9 +1381,14 @@ Lean also scans the physical files supplied by the loader for grants,
 delegations, transfers and contributions. It matches their declaring package,
 module, visibility, target, recipient, region and original span. For each
 contribution it matches every method in order, including parameter names and
-selectors, requirements, result type and body extent. Unused declarations
-undergo the same checks. The authority checker typechecks the decoded method
-bodies. A receipt pins the complete request, including the physical bytes.
+selectors, requirements and result type. In a program that declares
+or assembles edits, the checker also locates the defining methods in their
+lexical modules. It reads each body from the physical file and compares the
+decoded expressions, statements, typed binders, source spans and operator
+grouping. Selected, fallback and unapplied methods undergo the same check.
+When a method token differs, the diagnostic carries its byte range and
+file-local line and column. The authority checker typechecks these same
+decoded bodies. A receipt pins the complete request, including the physical bytes.
 
 Each source `assemble path { … }` contributes its events to this single
 array in source order, ending in a seal of `path` at the closing brace.

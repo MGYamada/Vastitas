@@ -169,21 +169,59 @@ theorem physical_edit_declarations {json : Lean.Json} (input : Wire.CheckedInput
     ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
       PhysicalSources.layout json = .ok layout ∧
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
-      checked.edits.any (·.isEmpty) = true := by
+      checked.edits.any (·.isEmpty) = true ∧
+      ∀ item ∈ EditSourceFiles.sourceMethods input.input,
+        EditSourceFiles.BodyCorresponds layout checked item := by
   have accepted := input.editSources
   cases h : EditSourceFiles.collect input.input with
-  | error err => simp [EditSourceFiles.check, bind, Except.bind, h] at accepted
+  | error err => simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, h] at accepted
   | ok expected =>
     cases l : PhysicalSources.layout json with
-    | error err => simp [EditSourceFiles.check, bind, Except.bind, h, l] at accepted
+    | error err => simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, h, l] at accepted
     | ok layout =>
       cases s : ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} with
-      | error err => simp [EditSourceFiles.check, bind, Except.bind, h, l, s] at accepted
+      | error err => simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, h, l, s] at accepted
       | ok checked =>
         refine ⟨expected, layout, checked, rfl, rfl, s, ?_⟩
         cases e : checked.edits.any (·.isEmpty) with
-        | true => rfl
-        | false => simp [EditSourceFiles.check, bind, Except.bind, throw, h, l, s, e] at accepted
+        | true =>
+          simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, h, l, s, e] at accepted
+          exact ⟨rfl, fun _ member => EditSourceFiles.checkBodies_sound accepted member⟩
+        | false => simp [EditSourceFiles.check, Except.mapError, bind, Except.bind, throw, h, l, s, e] at accepted
+
+/-- Even an unapplied contribution has a replay of its decoded method's
+complete syntax, in its original package, module and physical file. -/
+theorem contributed_method_body {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {c : Indexed.DispatchSource.Contribution} (hc : c ∈ m.pureModule.contributions)
+    {d : Indexed.DispatchSource.Method} (hd : d ∈ c.methods) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      EditSourceFiles.BodyCorresponds layout checked ⟨pkg.id.source, m.pureModule.module.path, some c.name, d⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_edit_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_right _ ?_⟩⟩
+  exact List.mem_flatMap.mpr ⟨c, hc, List.mem_map.mpr ⟨d, hd, rfl⟩⟩
+
+/-- An edit revision replays each original defining method, including a
+fallback with no call site in the compiled entry. -/
+theorem defining_method_body {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (edited : EditSourceFiles.hasEdits input.input = true)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.DispatchSource.Method} (hd : d ∈ m.pureModule.methods) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      EditSourceFiles.BodyCorresponds layout checked ⟨pkg.id.source, m.pureModule.module.path, none, d⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_edit_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  unfold EditSourceFiles.sourceMethods
+  simp only [edited, ite_true]
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_left _ ?_⟩⟩
+  exact List.mem_map.mpr ⟨d, hd, rfl⟩
 
 /-- Supplying a revision cannot select a method. Acceptance implies exact
 equality with the complete receipt reconstructed from this program's checked

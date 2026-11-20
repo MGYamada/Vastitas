@@ -128,6 +128,10 @@ Claims:
     - `physical_declarations_bind_unused_authority_and_contributed_signatures` in [`tests/edit_authority.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_authority.rs)
     - `physical_dependency_files_reject_omitted_edits_and_retired_declarations` in [`tests/edit_authority.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_authority.rs)
     - `flat_library_bytes_cannot_supply_an_unreported_assembly` in [`tests/edit_authority.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_authority.rs)
+    - `edits_bind_the_selected_fallback_and_unapplied_method_bodies` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `contributed_method_reads_indexed_pack_unpack_and_nominal_types` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `contributed_finite_calls_keep_index_paths_and_lookup_operands` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `a_defining_method_checks_legacy_pack_pairs_and_static_function_values` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
     - `entry_bytes_bind_every_assembly_even_if_the_entire_trace_is_removed` in [`tests/structured_assemble.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/structured_assemble.rs)
   - Note: Public syntax, native behavior on the current backend, and independently rejected tampered edit events. These tests do not establish a universal family revision or LLVM correspondence.
 - `revision-replay`: [Tested](../specifications.md#tested)
@@ -139,11 +143,11 @@ Claims:
   - Note: The optional receipt binds a whole protocol-10 input to its kernel-reconstructed families, selected ordinary or contributed methods and emitted Core symbols. The physical inputs include each loaded manifest, module and flat library. A byte edit in an unused comment invalidates replay even when all LLVM bytes match.
 - `revision-selection`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.expected_function_revision_exact`, `VastitasOracle.ResourceSource.expected_revision_selects_method`, `VastitasOracle.ResourceSource.structured_assembly_trace`, `VastitasOracle.ResourceSource.physical_edit_declarations`
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.expected_function_revision_exact`, `VastitasOracle.ResourceSource.expected_revision_selects_method`, `VastitasOracle.ResourceSource.structured_assembly_trace`, `VastitasOracle.ResourceSource.physical_edit_declarations`, `VastitasOracle.ResourceSource.contributed_method_body`, `VastitasOracle.ResourceSource.defining_method_body`
   - Premises:
     - the public protocol-10 request is accepted with the expected function revision present
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan of grants, delegations, transfers and contribution signatures consumes the complete table reconstructed from the decoded packages. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises.
+  - Note: Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan consumes the declared edit permissions and method signatures. Each contributed method and each defining family method in an edited program has a checked replay of its full body in the physical file, bound to its package, module, family path, contribution and declaration span. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises.
 - `assembly`: [Planned](../specifications.md#planned)
   - Issue: [#455](https://github.com/MGYamada/Vastitas/issues/455)
 - `static-retention`: [Proved (oracle)](../specifications.md#proved-oracle)

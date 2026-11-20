@@ -641,7 +641,7 @@ def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput j
     | .ok result => do
       let assembly ← AssemblySource.check json result.value.pureProgram.authority.headers.assembled.prepared.core.assembly
       match edits : EditSourceFiles.check json input with
-      | .error message => .error { code := "E_ASSEMBLY", message }
+      | .error diagnostic => .error diagnostic
       | .ok () =>
         if h : RevisionMatches json result.value then
           .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, h, result.receipt⟩

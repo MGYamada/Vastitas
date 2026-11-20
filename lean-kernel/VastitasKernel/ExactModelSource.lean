@@ -61,6 +61,10 @@ private def collectCalls (owner : ResourceOwner) (branches : List ResourceBranch
       | _ => pure checks
     collectCalls owner branches (index + 1) tail checks
 
+def hasAssembly (program : ResourceSource.Program) : Bool :=
+  program.packages.any fun pkg =>
+    pkg.modules.any fun m => m.pureModule.module.assembly.any fun a => !a.events.isEmpty
+
 /-- Associate each scanned file with the package and module which declared it.
 An empty expected table still discovers omitted declarations in physical files. -/
 def scanFiles (layout : PhysicalSources.Layout) (program : ResourceSource.Program)
@@ -68,8 +72,7 @@ def scanFiles (layout : PhysicalSources.Layout) (program : ResourceSource.Progra
   let mut checks := initial
   let flat := program.root == flatPackageId.source
   let manifests : Std.TreeSet String := if flat then {} else .ofList (program.packages.map (·.id.source))
-  let hasAssembly := checks.edits.isSome && program.packages.any fun pkg =>
-    pkg.modules.any fun m => m.pureModule.module.assembly.any fun a => !a.events.isEmpty
+  let hasAssembly := checks.edits.isSome && hasAssembly program
   if flat && (hasAssembly || checks.edits.any (fun t => !t.isEmpty)) then
     throw "edit declarations require a package manifest"
   if checks.isEmpty && checks.edits.all (·.isEmpty) && !hasAssembly then
@@ -91,7 +94,7 @@ def scanFiles (layout : PhysicalSources.Layout) (program : ResourceSource.Progra
       let (pkg, path :: rest) :: ancestors := pending | throw "source file lacks a declaring module"
       let entry := !flat && pkg == program.root && path.isEmpty
       if checks.edits.isSome && entry != (i == layout.entry) then throw "assembly entry differs from the physical root module"
-      let (external, left) ← checkExactHeaders file.text file.offset pkg path {checks with allowAssembly := entry}
+      let (external, left) ← checkExactHeaders file.text file.offset pkg path {checks with allowAssembly := entry, fileIndex := i}
       checks := left
       let next := external.toList ++ rest
       pending := if next.isEmpty then ancestors else (pkg,next) :: ancestors

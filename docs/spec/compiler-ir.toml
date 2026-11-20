@@ -136,6 +136,10 @@ evidence = [
   "tests/edit_authority.rs::physical_declarations_bind_unused_authority_and_contributed_signatures",
   "tests/edit_authority.rs::physical_dependency_files_reject_omitted_edits_and_retired_declarations",
   "tests/edit_authority.rs::flat_library_bytes_cannot_supply_an_unreported_assembly",
+  "tests/edit_method_bodies.rs::edits_bind_the_selected_fallback_and_unapplied_method_bodies",
+  "tests/edit_method_bodies.rs::contributed_method_reads_indexed_pack_unpack_and_nominal_types",
+  "tests/edit_method_bodies.rs::contributed_finite_calls_keep_index_paths_and_lookup_operands",
+  "tests/edit_method_bodies.rs::a_defining_method_checks_legacy_pack_pairs_and_static_function_values",
   "tests/structured_assemble.rs::entry_bytes_bind_every_assembly_even_if_the_entire_trace_is_removed",
 ]
 note = "Public syntax, native behavior on the current backend, and independently rejected tampered edit events. These tests do not establish a universal family revision or LLVM correspondence."
@@ -157,10 +161,12 @@ evidence = [
   "VastitasOracle.ResourceSource.expected_revision_selects_method",
   "VastitasOracle.ResourceSource.structured_assembly_trace",
   "VastitasOracle.ResourceSource.physical_edit_declarations",
+  "VastitasOracle.ResourceSource.contributed_method_body",
+  "VastitasOracle.ResourceSource.defining_method_body",
 ]
 premises = ["the public protocol-10 request is accepted with the expected function revision present"]
 assumes = ["rust-frontend"]
-note = "Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan of grants, delegations, transfers and contribution signatures consumes the complete table reconstructed from the decoded packages. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises."
+note = "Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan consumes the declared edit permissions and method signatures. Each contributed method and each defining family method in an edited program has a checked replay of its full body in the physical file, bound to its package, module, family path, contribution and declaration span. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises."
 
 [property."compiler-ir.families".claim.assembly]
 status = "planned"

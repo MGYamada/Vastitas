@@ -1,5 +1,6 @@
 import VastitasKernel.ResourceProtocol
 import VastitasOracle.StorageFunctions
+import VastitasOracle.BinaryFloat
 import VastitasOracle.IndexedAuthority
 import VastitasOracle.IndexedSource
 import VastitasOracle.FiniteOpposite
@@ -227,6 +228,43 @@ theorem physical_edit_declarations {json : Lean.Json} (input : Wire.CheckedInput
     EditSourceFiles.check_evidence input.editSources
   exact ⟨expected, layout, checked, collected, physical, scan, empty,
     fun _ member => EditSourceFiles.checkBodies_sound bodies member⟩
+
+/-- Rational interpretation of the exact-literal checker’s extracted IEEE fields. -/
+def componentValue (c : ResourceLiteralText.Component) : Option Rat :=
+  if c.finite then
+    let scale : Rat := if c.exponent < 0 then Rat.divInt 1 (2^c.exponent.natAbs : Nat) else (2^c.exponent.toNat : Nat)
+    let q := (c.significand : Rat) * scale
+    some (if c.negative then -q else q)
+  else none
+
+/-- At both widths the extracted fields have the Oracle’s rational value for every bit pattern. -/
+theorem literal_component_value {f : BinaryFloat.Format} (x : BinaryFloat.Scalar f) :
+    componentValue (ResourceLiteralText.component x.bits.toNat f.fractionBits (f.width - f.fractionBits - 1)) =
+      BinaryFloat.denote? x := by
+  unfold BinaryFloat.denote? componentValue
+  have classify (n infinity : Nat) : decide (n < infinity) = !(decide (n = infinity) || decide (n > infinity)) := by
+    rcases Nat.lt_trichotomy n infinity with h | h | h
+    · simp [h, Nat.ne_of_lt h, Nat.not_lt_of_ge (Nat.le_of_lt h)]
+    · simp [h]
+    · simp [h, Nat.ne_of_gt h, Nat.not_lt_of_ge (Nat.le_of_lt h)]
+  have finite : (ResourceLiteralText.component x.bits.toNat f.fractionBits (f.width - f.fractionBits - 1)).finite =
+      !(BinaryFloat.isInf x || BinaryFloat.isNaN x) := by
+    cases f <;> apply classify
+  rw [finite]
+  cases BinaryFloat.isInf x || BinaryFloat.isNaN x <;> cases f <;> rfl
+/-- Every literal cell operation in a checked resource body consumes its complete
+physical statement at the same function and branch position. The inventories
+agree even when a function or branch does not execute. -/
+theorem physical_resource_cells {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      Finite.sameCounts checked.cells.keys ((ResourceCellSource.items input.input).map (·.cell.span.start)) = true ∧
+      ∀ i ∈ ResourceCellSource.items input.input, ResourceCellSource.Corresponds layout checked.cells i := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, cells, _, _⟩ :=
+    EditSourceFiles.all_evidence input.editSources
+  obtain ⟨inventory, all⟩ := ResourceCellSource.check_sound cells
+  exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
 
 /-- Every finite carrier, table, schema, instance and static-indexed function in this accepted program
 replays in its declaring file. The inventory also accounts for uncalled and

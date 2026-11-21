@@ -76,8 +76,8 @@ ROW_OBLIGATIONS = {
         'native': ('compiler-ir.tensor@native', 'compiler-ir.tensor@storage-native', 'compiler-ir.storage@gemm-native'),
     },
     'numerical': {
-        'source': ('compiler-ir.realization@source', 'compiler-ir.realization@affine-wrappers', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
-        'core': ('compiler-ir.float-carrier@storage', 'compiler-ir.float-carrier@binary64-storage',
+        'source': ('compiler-ir.edition@resource-cell-replay', 'compiler-ir.realization@source', 'compiler-ir.realization@affine-wrappers', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
+        'core': ('compiler-ir.edition@resource-cell-source', 'compiler-ir.float-carrier@storage', 'compiler-ir.float-carrier@binary64-storage',
                  'compiler-ir.realization@affine-wrappers', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
         'midir': ('compiler-ir.midir@representation', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi'),
@@ -114,10 +114,12 @@ ROW_OBLIGATIONS = {
     },
     'edition-verification': {
         'source': ('compiler-ir.edition@manifest', 'compiler-ir.edition@admission',
-                   'compiler-ir.edition@finite-tables', 'compiler-ir.edition@affine-replay', 'compiler-ir.finite-binders@category-functions',
+                   'compiler-ir.edition@finite-tables', 'compiler-ir.edition@affine-replay', 'compiler-ir.edition@resource-cell-replay',
+                   'compiler-ir.finite-binders@category-functions',
                    'compiler-ir.realization@affine-wrappers', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
         'core': ('compiler-ir.edition@manifest', 'compiler-ir.edition@manifest-source', 'compiler-ir.edition@correspondence',
                  'compiler-ir.edition@finite-tables', 'compiler-ir.edition@finite-declaration-source', 'compiler-ir.edition@affine-source',
+                 'compiler-ir.edition@resource-cell-source',
                  'compiler-ir.families@singleton-source', 'compiler-ir.edition@namespace-source',
                  'compiler-ir.families@selector-source'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.check-build@preview'),
@@ -144,7 +146,8 @@ def required_status(dimension, claim):
         return 'proved-bridge'
     if (claim in {'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@erased-unit',
                   'compiler-ir.edition@manifest-source', 'compiler-ir.edition@finite-declaration-source', 'compiler-ir.families@singleton-source',
-                  'compiler-ir.edition@namespace-source', 'compiler-ir.edition@affine-source', 'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'}
+                  'compiler-ir.edition@namespace-source', 'compiler-ir.edition@affine-source', 'compiler-ir.edition@resource-cell-source',
+                  'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'}
             or dimension == 'official'
             or (dimension == 'llvm' and claim in LLVM_PROOFS)
             or (dimension == 'midir' and claim in {'compiler-ir.midir@finite-lookup', 'compiler-ir.registry@exact-arithmetic',

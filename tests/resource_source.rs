@@ -152,6 +152,25 @@ fn exact_payload_spellings_emit_identical_bits_and_execute_without_blas() {
     success(&check(&s));
     let mut raw = request(&s);
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
+    for (written, altered) in [
+        ("f64(-0.25)", "f64(-0.50)"),
+        ("f64(0x1p-1074)", "f64(0x1p-1073)"),
+        ("complex(1., -0x1p1)", "complex(1., +0x1p1)"),
+        (
+            "runtime_fill(dynamic_init, f64(0.5))",
+            "runtime_fill(dynamic_init, f64(0.1))",
+        ),
+        (
+            "runtime_expect(dynamic_read, 0, 0,",
+            "runtime_expect(dynamic_read, 0, 1,",
+        ),
+    ] {
+        let mut changed = raw.clone();
+        changed["root_source"]["text"] = json!(common::checked_replace(source, written, altered));
+        for mode in ["check", "emit"] {
+            common::assert_wire_rejected(&kernel(&changed, mode), "E_RESOURCE_SOURCE");
+        }
+    }
     let emitted = kernel(&raw, "emit");
     assert_eq!(emitted["ok"], true, "{emitted}");
     assert_eq!(emitted["numerical_runtime"], false);

@@ -167,7 +167,7 @@ class AdmissionTests(unittest.TestCase):
     def test_source_replays_require_oracle_proofs_in_complete_core_rows(self):
         for name, obligations in (
             ('functions', ('compiler-ir.families@singleton-source', 'compiler-ir.edition@namespace-source')),
-            ('edition-verification', ('compiler-ir.edition@finite-declaration-source',
+            ('edition-verification', ('compiler-ir.edition@finite-declaration-source', 'compiler-ir.edition@resource-cell-source',
                                       'compiler-ir.families@singleton-source', 'compiler-ir.edition@namespace-source')),
         ):
             cell = next(row for row in self.data['row'] if row['id'] == name)['dimension']['core']

@@ -66,6 +66,116 @@ fn a_coordinate_pullback_cannot_impersonate_the_declared_identity_in_llvm() {
 }
 
 #[test]
+fn cell_payloads_and_coordinates_match_the_physical_source_before_llvm() {
+    let s = fixture(MAIN);
+    let triple = "x86_64-unknown-linux-gnu";
+    let layout = "e-p:64:64";
+    for (template, narrow, scalar) in [
+        (MAIN, false, 0),
+        (COMPLEX, false, 1),
+        (MAIN, true, 2),
+        (COMPLEX, true, 3),
+    ] {
+        let source = if narrow {
+            template
+                .replace("F64<", "F32<")
+                .replace("f64_bits", "f32_bits")
+                .replace("complex_bits", "complex32_bits")
+                .replace("9223372036854775808", "2147483648")
+                .replace("9218868437227405378", "2139095106")
+        } else {
+            template.to_owned()
+        };
+        s.write("app/main.vast", &source);
+        let original = s.captured(MANIFEST, CURRENT_PROTOCOL);
+        let baseline = preview_bytes(&s, triple, layout);
+        let zero = if narrow {
+            "2147483648"
+        } else {
+            "9223372036854775808"
+        };
+        let subnormal = if narrow {
+            "2147483649"
+        } else {
+            "9223372036854775809"
+        };
+        let nan = if narrow {
+            "2139095106"
+        } else {
+            "9218868437227405378"
+        };
+        let next_nan = if narrow {
+            "2139095107"
+        } else {
+            "9218868437227405379"
+        };
+        let mut wrong = original.clone();
+        for (before, after) in [
+            (zero, subnormal),
+            (nan, next_nan),
+            ("expect(result, 1,", "expect(result, 0,"),
+        ] {
+            let changed = source.replacen(before, after, 1);
+            assert_ne!(changed, source);
+            wrong["root_source"]["text"] = json!(changed);
+            for mode in ["llvm-check", "llvm-build"] {
+                let result = common::kernel_with_args(&wrong, &[mode, triple, layout]);
+                assert_wire_rejected(&result, "E_RESOURCE_SOURCE");
+                let at = result["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+                assert!(changed.lines().nth(at - 1).unwrap().contains(after));
+                assert!(result.get("llvm").is_none());
+            }
+        }
+        // Reparse a genuine edit to the store and its corresponding expectation.
+        // The payload is also visible in the storage shim's LLVM operands.
+        let genuine = checked_replace(&source, zero, subnormal);
+        s.write("app/main.vast", &genuine);
+        let new_bytes = check_llvm_identity(&s, scalar);
+        assert_ne!(new_bytes, baseline);
+        assert!(std::str::from_utf8(&new_bytes).unwrap().contains(subnormal));
+    }
+}
+
+#[test]
+fn even_uncalled_cell_statements_keep_their_physical_branch_and_inventory() {
+    let source = "resource fn helper() -> Unit {
+        allocate x: F32<RR>[1]; borrow w = write(x,layout(0,1,1,1,false));
+        if true { fill(w, f32(1)); } else { fill(w, f32(2)); }
+        release(w); drop(x); value { () }
+    }
+    resource fn main() -> Int { value { 0 } }";
+    let s = fixture(source);
+    let raw = s.captured(MANIFEST, CURRENT_PROTOCOL);
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    let mut swapped = raw.clone();
+    let branch = swapped["packages"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .flat_map(|p| p["modules"].as_array_mut().unwrap())
+        .filter_map(|m| m.get_mut("resource_functions")?.as_array_mut())
+        .flatten()
+        .find(|f| f["name"] == "helper")
+        .unwrap()["body"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|s| s["kind"] == "branch")
+        .unwrap();
+    let left = branch["yes"].take();
+    branch["yes"] = branch["no"].take();
+    branch["no"] = left;
+    let mut omitted = raw;
+    let cell = "fill(w, f32(2));";
+    omitted["root_source"]["text"] = json!(checked_replace(source, cell, &" ".repeat(cell.len())));
+    for wire in [swapped, omitted] {
+        for mode in ["check", "function-revision", "emit"] {
+            assert_wire_rejected(&kernel(&wire, mode), "E_RESOURCE_SOURCE");
+        }
+    }
+}
+
+#[test]
 fn physical_source_binds_realizations_even_when_the_descriptor_is_unused() {
     let source = "use monad::float; use monad::float as other;
         use std::geometry::smooth::affine::SmoothR;
@@ -540,19 +650,18 @@ fn affine_wrappers_run_the_same_identity_bytes_at_all_four_representations() {
         s.write("app/main.vast", &wrapper);
         assert_eq!(s.check_build_and_run(MANIFEST), exits(0));
         assert_eq!(check_llvm_identity(&s, scalar), bytes, "{repr}");
-        let corpus = match scalar {
-            0 => Some(include_bytes!("../llvm/src/float-identity.ll").as_slice()),
-            1 => Some(include_bytes!("../llvm/src/float-complex-identity.ll").as_slice()),
-            _ => None,
-        };
-        if let Some(retained) = corpus {
-            let emitted = preview_bytes(
-                &s,
-                "arm64-apple-darwin27.2.0",
-                "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
-            );
-            assert_eq!(emitted, retained, "{repr}");
-        }
+        let retained = [
+            include_bytes!("../llvm/src/float-identity.ll").as_slice(),
+            include_bytes!("../llvm/src/float-complex-identity.ll").as_slice(),
+            include_bytes!("../llvm/src/float32-identity.ll").as_slice(),
+            include_bytes!("../llvm/src/float32-complex-identity.ll").as_slice(),
+        ];
+        let emitted = preview_bytes(
+            &s,
+            "arm64-apple-darwin27.2.0",
+            "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
+        );
+        assert_eq!(emitted, retained[usize::from(scalar)], "{repr}");
         let mut wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
         let response = kernel(&wire, "function-revision");
         let rev = &response["function_revision"];

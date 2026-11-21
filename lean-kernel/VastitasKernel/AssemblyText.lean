@@ -206,18 +206,26 @@ structure ResourceOwner where
   name : String
   start : Nat
   isPublic : Bool
-  deriving Inhabited, BEq
+  deriving Inhabited, BEq, DecidableEq
 
 inductive ResourceCondition where
   | literal (value : Bool)
   | binding (name : String)
-  deriving BEq
+  deriving BEq, DecidableEq
 
 structure ResourceBranch where
   index : Nat
   condition : ResourceCondition
   yes : Bool
-  deriving BEq
+  deriving BEq, DecidableEq
+
+structure CellSite where
+  owner : ResourceOwner
+  branches : List ResourceBranch
+  index : Nat
+  fileIndex : Nat
+  before : Cursor
+  span : Span
 
 structure RealizationCall where
   owner : ResourceOwner
@@ -293,6 +301,7 @@ structure FiniteSite where
 structure SourceChecks where
   headers : Std.HashMap Nat ExactHeader := {}
   calls : Std.HashMap Nat RealizationCall := {}
+  cells : Std.HashMap Nat CellSite := {}
   /-- Set only for the post-authority comparison with original edit declarations. -/
   edits : Option EditDeclarations := none
   allowAssembly : Bool := false
@@ -530,7 +539,7 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
       let endBlock ← untilSymbol f '}' start.after
       resourceBlock f owner fuel endBlock.after branches (index + 1) checks
     | _ =>
-      if ← realizationForm f head then
+      if ← (if checks.edits.isNone then realizationForm f head else pure false) then
         let some site := checks.calls[head.span.start]? | throw "physical realization missing from request"
         unless site.owner == owner && site.branches == branches && site.index == index do
           throw "realization belongs to another function or statement position"
@@ -542,6 +551,12 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
         return ← resourceBlock f owner fuel last.after branches (index + 1)
           {checks with calls := checks.calls.erase head.span.start}
       let last ← untilSymbol f ';' head.after
+      let checks := match checks.edits, head.kind with
+        | some _, .word "fill" | some _, .word "store" | some _, .word "expect"
+        | some _, .word "runtime_fill" | some _, .word "runtime_expect" =>
+          let site := CellSite.mk owner branches index checks.fileIndex c (through head last)
+          {checks with cells := checks.cells.insert head.span.start site}
+        | _, _ => checks
       resourceBlock f owner fuel last.after branches (index + 1) checks
 
 /-- An unregistered body can only be an ordinary or static-indexed function.
@@ -671,7 +686,7 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
           unless through t semi == h.span do throw "exact declaration span differs from the source"
           return ← scanExact f pkg fuel semi.after {scope with place := .declaration}
             reversedPath external {checks with headers := checks.headers.erase t.span.start}
-      if checks.edits.isNone && (t.kind matches .word "resource") then
+      if t.kind matches .word "resource" then
         let fnToken ← expectIdentifier f t.after "fn"
         let name ← f.next fnToken.after
         let .word fnName := name.kind | throw "expected resource function name"

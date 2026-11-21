@@ -44,7 +44,7 @@ number = 533
 title = "Single wire epoch"
 state = "open"
 depends = [762]
-remaining = "Canonical resource realization calls are checked against the physical source, including precision, lexical owner, branch conditions, statement order and original path spans. Defining and contributed family method bodies are checked against physical source down to operators, grouping, nominal type paths and original node spans. Lean compares physical affine polynomials with the decoded trees before normalization. Token mismatches retain the physical byte range and file-local coordinates. Other source-to-Core and resource correspondence evidence remains."
+remaining = "Literal cell operations replay against physical source in both arms and in uncalled functions. Lean checks precision and each real or complex component before generating the storage calls. Canonical resource realization calls are checked against the physical source, including precision, lexical owner, branch conditions, statement order and original path spans. Defining and contributed family method bodies are checked against physical source down to operators, grouping, nominal type paths and original node spans. Lean compares physical affine polynomials with the decoded trees before normalization. Token mismatches retain the physical byte range and file-local coordinates. Other source-to-Core and resource correspondence evidence remains."
 
 [[issue]]
 number = 756
@@ -353,13 +353,13 @@ requirement = "F32 and F64 representations of RR and CC use explicit chart and p
 
 [row.dimension.source]
 state = "partial"
-claims = ["compiler-ir.realization@source", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+claims = ["compiler-ir.edition@resource-cell-replay", "compiler-ir.realization@source", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
 note = "The protected float module admits realize, interpret, point and run for the standard-chart identity of an existing smooth real or exact complex affine at both widths. The four wrappers construct fresh standard charts and use the same identity copy. Broader graphs remain."
 document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+claims = ["compiler-ir.edition@resource-cell-source", "compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
 note = "The checked identity records its subject, chart, graph and NativeFast profile. The physical copy passes the storage checker at all four representations. Complex charts retain the paired carrier and real and complex meadows."
 document = ""
 
@@ -372,7 +372,7 @@ document = ""
 [row.dimension.llvm]
 state = "partial"
 claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
-note = "The canonical module binds every byte of the target, status branches, calls, cleanup and literal exit to the checked entry. The corpus retains two identity copies and a scaled product with literal and view coefficients."
+note = "The canonical module binds every byte of the target, status branches, calls, cleanup and literal exit to the checked entry. The corpus retains all four width and carrier variants of the identity copy and a scaled product with literal and view coefficients."
 document = ""
 
 [row.dimension.official]
@@ -533,13 +533,13 @@ requirement = "Packages and normalized flat input use edition 2026 and wire epoc
 
 [row.dimension.source]
 state = "partial"
-claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.edition@affine-replay", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.edition@affine-replay", "compiler-ir.edition@resource-cell-replay", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
 note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Physical Affine calls bind the constructor, precision and coordinate dimension in the same edition. The source and wire agree on each finite schema, instance, carrier and ordered row. Finite-indexed functions replay their schema references, signatures and bodies even without an application. Uncalled ordinary singletons also replay against the physical files. Tampered observation sites fail the independent check. A flat main belongs to the entry file even when all wire spans match a library definition."
 document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@manifest-source", "compiler-ir.edition@correspondence", "compiler-ir.edition@finite-tables", "compiler-ir.edition@finite-declaration-source", "compiler-ir.edition@affine-source", "compiler-ir.families@singleton-source", "compiler-ir.edition@namespace-source", "compiler-ir.families@selector-source"]
+claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@manifest-source", "compiler-ir.edition@correspondence", "compiler-ir.edition@finite-tables", "compiler-ir.edition@finite-declaration-source", "compiler-ir.edition@affine-source", "compiler-ir.edition@resource-cell-source", "compiler-ir.families@singleton-source", "compiler-ir.edition@namespace-source", "compiler-ir.families@selector-source"]
 note = "Lean checks the physical finite declarations against the accepted input, including uncalled finite functions, their binders, signatures and bodies, and the nominal paths and row spans of finite tables. Each ordinary singleton replays at its physical declaration, including its visibility, body and observed initializers. Each use and non-root mod replays at its lexical owner with the same visibility. Each file-backed package, including every unused dependency, carries a physical manifest with the name, version and edition carried by the wire. Presented affine equations, the ordered coordinates of a smooth standard chart and the defining graphs of its typed morphisms replay in the same declaration inventory. Correspondence for the rest of the edition remains open."
 document = ""
 

@@ -1,5 +1,6 @@
 import VastitasKernel.FiniteSourceFiles
 import VastitasKernel.MethodBodyText
+import VastitasKernel.ResourceCellSource
 
 set_option autoImplicit false
 
@@ -214,14 +215,17 @@ def check (json : Lean.Json) (program : ResourceSource.Program) : Except Diagnos
   let checked ← (ExactModelSource.scanFiles layout program relevant {edits := some expected}).mapError (diagnostic {})
   unless checked.edits.any (·.isEmpty) do
     throw (diagnostic {} "edit declaration has no matching physical source")
+  ResourceCellSource.check layout checked.cells (ResourceCellSource.items program)
   checkBodies layout checked (sourceMethods program)
   FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program)
 
-theorem check_evidence {json : Lean.Json} {program : ResourceSource.Program}
+theorem all_evidence {json : Lean.Json} {program : ResourceSource.Program}
     (accepted : check json program = .ok ()) :
     ∃ expected layout checked, collect program = .ok expected ∧ PhysicalSources.layout json = .ok layout ∧
       ExactModelSource.scanFiles layout program relevant {edits := some expected} = .ok checked ∧
-      checked.edits.any (·.isEmpty) = true ∧ checkBodies layout checked (sourceMethods program) = .ok () ∧
+      checked.edits.any (·.isEmpty) = true ∧
+      ResourceCellSource.check layout checked.cells (ResourceCellSource.items program) = .ok () ∧
+      checkBodies layout checked (sourceMethods program) = .ok () ∧
       FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program) = .ok () := by
   cases h : collect program <;> simp [check, Except.mapError, bind, Except.bind, h] at accepted
   rename_i expected
@@ -231,7 +235,17 @@ theorem check_evidence {json : Lean.Json} {program : ResourceSource.Program}
     simp [s] at accepted
   rename_i checked
   cases e : checked.edits.any (·.isEmpty) <;> simp [e, throw] at accepted
+  cases cells : ResourceCellSource.check layout checked.cells (ResourceCellSource.items program) <;> simp [cells] at accepted
   cases b : checkBodies layout checked (sourceMethods program) <;> simp [b] at accepted
-  exact ⟨expected, layout, checked, rfl, rfl, s, e, b, accepted⟩
+  exact ⟨expected, layout, checked, rfl, rfl, s, e, cells, b, accepted⟩
+
+theorem check_evidence {json : Lean.Json} {program : ResourceSource.Program}
+    (accepted : check json program = .ok ()) :
+    ∃ expected layout checked, collect program = .ok expected ∧ PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout program relevant {edits := some expected} = .ok checked ∧
+      checked.edits.any (·.isEmpty) = true ∧ checkBodies layout checked (sourceMethods program) = .ok () ∧
+      FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program) = .ok () := by
+  obtain ⟨expected, layout, checked, inputs, files, scan, edits, _, bodies, finite⟩ := all_evidence accepted
+  exact ⟨expected, layout, checked, inputs, files, scan, edits, bodies, finite⟩
 
 end VastitasKernel.EditSourceFiles

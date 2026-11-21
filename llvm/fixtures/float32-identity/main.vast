@@ -1,0 +1,27 @@
+use monad::float;
+
+resource fn main() -> Int {
+    allocate inputBuffer: F32<RR>[2];
+    allocate outputBuffer: F32<RR>[2];
+    borrow init = write(inputBuffer, layout(0, 2, 1, 2, false));
+    // Negative zero and a signaling NaN with payload 66.
+    store(init, 0, 0, f32_bits(2147483648));
+    store(init, 1, 0, f32_bits(2139095106));
+    release(init);
+    borrow input = read(inputBuffer, layout(0, 2, 1, 2, false));
+    borrow output = write(outputBuffer, layout(0, 2, 1, 2, false));
+    let r = Affine(F32<RR>, 2);
+    let e = float::interpret(r::identity, r, NativeFast);
+    let p = float::point(r, input);
+    let q = float::point(r, output);
+    float::run(e, p) -> q;
+    release(output);
+    release(input);
+    borrow result = read(outputBuffer, layout(0, 2, 1, 2, false));
+    expect(result, 0, 0, f32_bits(2147483648));
+    expect(result, 1, 0, f32_bits(2139095106));
+    release(result);
+    drop(outputBuffer);
+    drop(inputBuffer);
+    value { 0 }
+}

@@ -926,8 +926,13 @@ Rust checks that each finite decimal or hexadecimal component denotes its
 payload exactly. For `f32` and `complex32` the payload is 32 bits per component,
 and for `f64` and `complex` it is 64. The corresponding explicit-bit spellings
 produce the same wire literal. Lean checks the tag, width and use of those
-bits in the storage plan. The conversion from the original literal spelling
-is a frontend assumption. [Literal admission](storage/resource-programs.md#payloads)
+bits in the storage plan. For top-level and branched resource statements
+`fill`, `store`, `expect`, `runtime_fill` and `runtime_expect`, Lean also
+replays the literal in its declaring function. It checks the loan or vector,
+indices, precision and each component, including the NaN payload and the sign
+of zero. A mismatch in an otherwise well-typed request yields
+`E_RESOURCE_SOURCE` before code generation. Conversion of GEMM coefficients
+from their original source spelling remains a frontend assumption. [Literal admission](storage/resource-programs.md#payloads)
 Absent fields retain alpha one and beta zero/one. Explicit null and unknown
 fields reject. Overwrite accepts no beta operand; accumulate requires initialized
 output even for beta zero. A coefficient loan must be a matching initialized

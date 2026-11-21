@@ -40,6 +40,8 @@ CASES = [
     Sample("gemm-coefficients", ROOT / "examples/packages/numerical/gemm-coefficients/Vastitas.toml", None),
     Sample("float-identity", ROOT / "examples/packages/float-identity/Vastitas.toml", None),
     Sample("float-complex-identity", ROOT / "examples/packages/float-complex-identity/Vastitas.toml", None),
+    Sample("float32-identity", HERE / "fixtures/float32-identity/Vastitas.toml", None),
+    Sample("float32-complex-identity", HERE / "fixtures/float32-complex-identity/Vastitas.toml", None),
     Sample("opposite-s3", HERE / "fixtures/opposite-s3/Vastitas.toml", None),
     Sample("finite-iso", HERE / "fixtures/finite-iso/Vastitas.toml", None),
     Sample("finite-kleisli", ROOT / "examples/packages/finite-kleisli/Vastitas.toml", None),

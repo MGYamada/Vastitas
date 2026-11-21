@@ -494,11 +494,15 @@ private def forExact {bytes : List UInt8} {code : ExactLibrary.Code}
 /-- Two coordinate buffers and a standard chart with one complex or real
 element in each row. Reconstruct the payloads and the checked copy from the
 source fixture independently of its printed module. -/
-def affineIdentity (complex : Bool) : StorageModule.Code :=
-  let tag := if complex then 1 else 0
+def affineIdentity (scalar : VastitasKernel.Storage.Scalar) : StorageModule.Code :=
+  let (tag, complex, negativeZero, nan) : Nat × Bool × Nat × Nat := match scalar with
+    | .f64 => (0, false, 2^63, 9218868437227405378)
+    | .complexF64 => (1, true, 2^63, 9218868437227405378)
+    | .f32 => (2, false, 2^31, 2139095106)
+    | .complexF32 => (3, true, 2^31, 2139095106)
   let view := [0,2,1,2,0]
-  let first := [tag,9223372036854775808,if complex then 1 else 0]
-  let second := if complex then [tag,0,9218868437227405378] else [tag,9218868437227405378,0]
+  let first := [tag,negativeZero,if complex then 1 else 0]
+  let second := if complex then [tag,0,nan] else [tag,nan,0]
   ⟨header,[⟨.allocate,[0,tag,2]⟩, ⟨.allocate,[1,tag,2]⟩,
     ⟨.store,[0] ++ view ++ [0,0] ++ first⟩, ⟨.store,[0] ++ view ++ [1,0] ++ second⟩,
     ⟨.copy,[0] ++ view ++ [1] ++ view⟩, ⟨.expect,[1] ++ view ++ [0,0] ++ first⟩,
@@ -533,15 +537,30 @@ elab "storage_file " file:str : term => do
 
 def realIdentityBytes := storage_file "src/float-identity.ll"
 def complexIdentityBytes := storage_file "src/float-complex-identity.ll"
+def real32IdentityBytes := storage_file "src/float32-identity.ll"
+def complex32IdentityBytes := storage_file "src/float32-complex-identity.ll"
 
 set_option maxRecDepth 65536 in
-theorem real_identity_verified : realIdentityBytes = (affineIdentity false).print := by
+theorem real_identity_verified : realIdentityBytes = (affineIdentity .f64).print := by
   apply storageBytes_eq
   · as_aux_lemma => rfl
   · repeat' (apply consLines; case line => as_aux_lemma => rfl)
     rfl
 set_option maxRecDepth 65536 in
-theorem complex_identity_verified : complexIdentityBytes = (affineIdentity true).print := by
+theorem complex_identity_verified : complexIdentityBytes = (affineIdentity .complexF64).print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+
+set_option maxRecDepth 65536 in
+theorem real32_identity_verified : real32IdentityBytes = (affineIdentity .f32).print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+set_option maxRecDepth 65536 in
+theorem complex32_identity_verified : complex32IdentityBytes = (affineIdentity .complexF32).print := by
   apply storageBytes_eq
   · as_aux_lemma => rfl
   · repeat' (apply consLines; case line => as_aux_lemma => rfl)
@@ -598,6 +617,8 @@ def checkedFiles : List (String × ByteArray) :=
    ("gemm-coefficients.ll", forStorage gemm_coefficients_verified),
    ("float-identity.ll", forStorage real_identity_verified),
    ("float-complex-identity.ll", forStorage complex_identity_verified),
+   ("float32-identity.ll", forStorage real32_identity_verified),
+   ("float32-complex-identity.ll", forStorage complex32_identity_verified),
    ("opposite-s3.ll", forCode opposite_s3_verified),
    ("finite-iso.ll", forCode finite_iso_verified),
    ("finite-kleisli.ll", forCode finite_kleisli_verified),
@@ -673,8 +694,10 @@ def main (args : List String) : IO Unit := do
   checkEntry "finite-projection.ll" Vastitas.LLVMCorpus.projectionBytes Vastitas.LLVMCorpus.projectionCode 42
   checkEntry "static-selection.ll" Vastitas.LLVMCorpus.staticSelectionBytes Vastitas.LLVMCorpus.StaticSelection.code 42
   checkEntry "literal-comparison.ll" Vastitas.LLVMCorpus.literalComparisonBytes Vastitas.LLVMCorpus.literalComparisonCode 42
-  for (code,bytes) in [(Vastitas.LLVMCorpus.affineIdentity false, Vastitas.LLVMCorpus.realIdentityBytes),
-      (Vastitas.LLVMCorpus.affineIdentity true, Vastitas.LLVMCorpus.complexIdentityBytes),
+  for (code,bytes) in [(Vastitas.LLVMCorpus.affineIdentity .f64, Vastitas.LLVMCorpus.realIdentityBytes),
+      (Vastitas.LLVMCorpus.affineIdentity .complexF64, Vastitas.LLVMCorpus.complexIdentityBytes),
+      (Vastitas.LLVMCorpus.affineIdentity .f32, Vastitas.LLVMCorpus.real32IdentityBytes),
+      (Vastitas.LLVMCorpus.affineIdentity .complexF32, Vastitas.LLVMCorpus.complex32IdentityBytes),
       (Vastitas.LLVMCorpus.gemmCoefficients, Vastitas.LLVMCorpus.gemmCoefficientBytes)] do
     let some parsed := VastitasKernel.LLVM.StorageModule.parse bytes
       | throw (IO.userError "storage entry: cannot parse the complete entry")

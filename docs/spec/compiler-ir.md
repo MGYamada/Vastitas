@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
@@ -127,6 +127,19 @@ Claims:
     - the public protocol-10 checker accepted the request
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: For each presented affine object, fiber product, principal localization and smooth affine space, Lean checks the declaration in its physical package and module. It checks visibility, declaration extent, implementation and base paths, ordered coordinates, relations and substitutions. Polynomial comparison preserves the decoded expression tree before normalization, including the order of summands and factors. For each typed morphism the source inventory identifies the file and first token where its family, endpoints and defining operation replay. The loader supplies the physical files.
+- `resource-cell-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_resource_cells`, `VastitasOracle.ResourceSource.literal_component_value`
+  - Premises:
+    - the public protocol-10 checker accepted the resource program
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Every static fill, store or expect and every runtime fill or expect in a resource statement list replays at its physical span with its package, module, function, branch path and statement index. The physical and decoded inventories have the same counts. Each literal has the declared precision and carrier. The checker compares raw components as unsigned integers and exact decimal or hexadecimal spellings with the dyadic value of each component. For every binary32 and binary64 bit pattern, the finite classification and signed dyadic fields used in that comparison have the independent binary-float Oracle’s rational denotation. The loader supplies the source files. GEMM coefficients and nested contraction-plan actions have separate proof obligations.
+- `resource-cell-replay`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `cell_payloads_and_coordinates_match_the_physical_source_before_llvm` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `even_uncalled_cell_statements_keep_their_physical_branch_and_inventory` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `exact_payload_spellings_emit_identical_bits_and_execute_without_blas` in [`tests/resource_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_source.rs)
+  - Note: The LLVM check and build paths reject source-only changes to signed zero, a NaN payload and a coordinate at all four representations. A genuine change to both stores and expectations changes the emitted shim operands. Decimal, hexadecimal and runtime-extent cell operations also replay against their original bits.
 - `affine-replay`: [Tested](../specifications.md#tested)
   - Evidence:
     - `physical_affine_relations_and_substitutions_match_before_normalization` in [`tests/affine_geometry.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/affine_geometry.rs)

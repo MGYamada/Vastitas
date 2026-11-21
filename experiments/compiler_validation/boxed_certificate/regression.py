@@ -11,12 +11,12 @@ import verify
 from verify import fast, require
 
 
-def run(work, suite):
+def run(work, suite, frontend):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
     target = json.loads(verify.official.TARGET_REPORT.read_bytes())["target"]
-    args = Namespace(source=source, lib=[], manifest_path=None, frontend=verify.ROOT / "target/debug/vastitas",
+    args = Namespace(source=source, lib=[], manifest_path=None, frontend=frontend,
                      mode="official", candidate=None, save_candidate=None, timeout=120,
                      target_triple=target["triple"], data_layout=target["layout"])
 
@@ -41,6 +41,19 @@ def run(work, suite):
         check_physical_inputs(work, args, source, check)
         return
     if suite == "assembly":
+        source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedPairs.vast").read_bytes())
+        args.source = None
+        args.manifest_path = work / "Vastitas.toml"
+        args.manifest_path.write_text('[package]\nname = "boxed_pairs"\nversion = "0.1.0"\n'
+                                      'edition = "2026"\nroot = "main.vast"\n')
+        checked, _ = check("pairs", "official")
+        pair_dir = work / "pairs"
+        replay, _ = check("pairs-fast", "fast", candidate=pair_dir / "sealed.ndjson")
+        require(checked["certificate"] == replay["certificate"] and checked["physical_inputs"] == 2
+                and checked["functions"] == 5
+                and checked["integer_result"] == "42", "wrong assembled pair method or entry value")
+        require((pair_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/boxed-pairs.ll").read_bytes(),
+                "pair certificate differs from the retained LLVM module")
         check_borrowed_operator(work, args, check)
         return
 
@@ -237,7 +250,8 @@ if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
     suites = ["boxed", "inputs", "assembly"]
     parser.add_argument("--suite", choices=suites, help="run one suite (default: all)")
+    parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
     args = parser.parse_args()
     for suite in ([args.suite] if args.suite else suites):
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
-            run(Path(tmp), suite)
+            run(Path(tmp), suite, args.frontend.resolve())

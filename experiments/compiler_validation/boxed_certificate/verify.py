@@ -23,9 +23,13 @@ GOAL = "VastitasProof.obligation"
 THEOREM = "VastitasProof.checked"
 ROOTS = [*fast.AXIOMS, "Eq.refl", "id", "VastitasOracle.BoxedCertificate.Valid.mk",
          "VastitasOracle.BoxedCertificate.printedLines", GOAL]
-KINDS = {"Int": ".int", "Nat": ".nat"}
+KINDS = {"Int": ".int", "Nat": ".nat", "Pair<Int>": "(.pair .int)", "Pair<Nat>": "(.pair .nat)"}
 OPS = {f"{k}_{op}": f"(.{k} .{op})" for k in ("int", "nat") for op in ("add", "sub", "mul", "div")}
 OPS.update(nat_int_div=".natIntDiv", int_nat_div=".intNatDiv", int_neg=".neg", nat_to_int=".natToInt")
+for element in ("nat", "int"):
+    OPS[f"{element}_pair"] = f"(.pair .{element})"
+    OPS[f"{element}_pair_first"] = f"(.project .{element} true)"
+    OPS[f"{element}_pair_second"] = f"(.project .{element} false)"
 PROOF = """by
   refine ⟨rfl, ?_, rfl, rfl, rfl, ?_⟩
   · with_unfolding_all rfl

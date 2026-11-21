@@ -29,6 +29,7 @@ fn preview(s: &Scratch, source: &str) -> Output {
 }
 
 const LITERAL_COMPARISON: &str = include_str!("../llvm/fixtures/LiteralComparison.vast");
+const BOXED_PAIRS: &str = include_str!("../llvm/fixtures/BoxedPairs.vast");
 
 fn assembled_selectors(parent: &str, child: &str) -> String {
     format!(
@@ -153,25 +154,30 @@ fn literal_comparisons_bind_both_assembled_bodies_to_the_revision() {
 #[cfg(feature = "llvm-native")]
 #[test]
 fn literal_comparisons_use_full_integers_in_the_native_selected_method() {
-    let s = Scratch::empty("full integer literal native comparison");
     for (op, status) in [("!=", 42), ("==", 7)] {
-        s.write_package("app", &LITERAL_COMPARISON.replace("!=", op), "");
-        for (name, flags) in [("lean", &[][..]), ("llvm", &["--llvm-preview"][..])] {
-            let build = s
-                .command("build", "app/Vastitas.toml")
-                .args(flags)
-                .args(["-o", name])
-                .output()
-                .unwrap();
-            success(&build);
-            assert_eq!(
-                std::process::Command::new(s.0.join(name))
-                    .status()
-                    .unwrap()
-                    .code(),
-                Some(status)
-            );
-        }
+        check_native_status(&LITERAL_COMPARISON.replace("!=", op), status);
+    }
+}
+
+#[cfg(feature = "llvm-native")]
+fn check_native_status(source: &str, status: i32) {
+    let s = Scratch::empty("assembled native comparison");
+    s.write_package("app", source, "");
+    for (name, flags) in [("lean", &[][..]), ("llvm", &["--llvm-preview"][..])] {
+        let build = s
+            .command("build", "app/Vastitas.toml")
+            .args(flags)
+            .args(["-o", name])
+            .output()
+            .unwrap();
+        success(&build);
+        assert_eq!(
+            std::process::Command::new(s.0.join(name))
+                .status()
+                .unwrap()
+                .code(),
+            Some(status)
+        );
     }
 }
 
@@ -405,6 +411,64 @@ fn boxed_program_preserves_call_targets_and_borrowed_returns() {
     }
     source.push_str("x12 }");
     expect_code(&preview(&s, &source), "E_UNSUPPORTED");
+}
+
+#[test]
+fn boxed_pair_results_bind_both_methods_to_the_revision() {
+    let s = Scratch::empty("pair-valued method revision");
+    let original = preview(&s, BOXED_PAIRS);
+    success(&original);
+    let text = std::str::from_utf8(&original.stdout).unwrap();
+    assert_eq!(text.matches("define internal ptr ").count(), 5);
+    for signature in [
+        "(Nat) -> Pair<Nat>",
+        "(Int) -> Pair<Int>",
+        "(Pair<Int>) -> Pair<Int>",
+    ] {
+        assert!(text.contains(&format!("; boxed {signature}")));
+    }
+    let receipt = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&receipt);
+    s.write(
+        "revision.json",
+        std::str::from_utf8(&receipt.stdout).unwrap(),
+    );
+    let replay = || {
+        s.command("check", "app/Vastitas.toml")
+            .args(TARGET)
+            .args(["--expect-function-revision", "revision.json"])
+            .output()
+            .unwrap()
+    };
+    let matched = replay();
+    success(&matched);
+    assert_eq!(matched.stdout, original.stdout);
+
+    for edited in [
+        BOXED_PAIRS.replace("apply prioritized;", ""),
+        BOXED_PAIRS.replace("pair(0, x)", "pair(1, x)"),
+    ] {
+        let other = preview(&s, &edited);
+        success(&other);
+        assert_ne!(other.stdout, original.stdout);
+        let stale = replay();
+        expect_code(&stale, "E_FUNCTION_REVISION");
+        assert!(stale.stdout.is_empty());
+    }
+    let invalid = preview(&s, "pub fn bad(p: Pair<Int>) -> Pair<Nat> { p }");
+    expect_code(&invalid, "E_TYPE");
+    assert!(invalid.stdout.is_empty());
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
+fn boxed_pair_results_select_both_native_methods() {
+    check_native_status(BOXED_PAIRS, 42);
+    check_native_status(&BOXED_PAIRS.replace("apply prioritized;", ""), 43);
 }
 
 #[cfg(feature = "llvm-native")]

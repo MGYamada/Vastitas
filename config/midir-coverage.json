@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "cc23476f0282893974dbe20fa29be90d6819c213",
-    "schema_sha256": "f2f99f3cc3ea7913b9b3f4c7ae0821ea16575cda0e83a4d2da20cadb494bbf20"
+    "base_commit": "af43ec71a4ba34bc1f9b05e5950552b4be1ffa8c",
+    "schema_sha256": "0f51356512662fa643c9ae0ecc846049cac8eb633e2fbaf7467ba723556fc6a2"
   },
   "schema": {
     "sources": [
@@ -1270,6 +1270,14 @@
           {
             "id": "VastitasKernel.MidIR.ExactOp.natToInt",
             "signature": "natToInt"
+          },
+          {
+            "id": "VastitasKernel.MidIR.ExactOp.pair",
+            "signature": "pair ( element : PairElem )"
+          },
+          {
+            "id": "VastitasKernel.MidIR.ExactOp.project",
+            "signature": "project ( element : PairElem ) ( first : Bool )"
           }
         ]
       },
@@ -1445,6 +1453,10 @@
           {
             "id": "VastitasKernel.MidIR.Ty.int",
             "signature": "int"
+          },
+          {
+            "id": "VastitasKernel.MidIR.Ty.pair",
+            "signature": "pair ( element : PairElem )"
           },
           {
             "id": "VastitasKernel.MidIR.Ty.finite",
@@ -6291,6 +6303,22 @@
       "evidence": []
     },
     {
+      "origin": "VastitasKernel.MidIR.ExactOp.pair",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.MidIR.ExactOp.pair",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.MidIR.ExactOp.project",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.MidIR.ExactOp.project",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
       "origin": "VastitasKernel.MidIR.IntLiteral.integer",
       "disposition": "pending",
       "owner": "#751",
@@ -6487,6 +6515,14 @@
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.MidIR.Ty.nat",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.MidIR.Ty.pair",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.MidIR.Ty.pair",
       "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },

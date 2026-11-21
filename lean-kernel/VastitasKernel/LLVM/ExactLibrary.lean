@@ -17,12 +17,18 @@ inductive Step where
 
 inductive Kind where
   | nat | int
+  | pair (element : PairElem)
   deriving DecidableEq, Repr
 
-def Kind.name : Kind → String | .nat => "Nat" | .int => "Int"
-def Kind.read : String → Option Kind | "Nat" => some .nat | "Int" => some .int | _ => none
-def Kind.ofTy : MidIR.Ty → Option Kind | .nat => some .nat | .int => some .int | _ => none
-def Kind.type : Kind → MidIR.Ty | .nat => .nat | .int => .int
+def Kind.name : Kind → String
+  | .nat => "Nat" | .int => "Int" | .pair e => s!"Pair<{e.label}>"
+def Kind.read : String → Option Kind
+  | "Nat" => some .nat | "Int" => some .int
+  | "Pair<Nat>" => some (.pair .nat) | "Pair<Int>" => some (.pair .int) | _ => none
+def Kind.ofTy : MidIR.Ty → Option Kind
+  | .nat => some .nat | .int => some .int | .pair e => some (.pair e) | _ => none
+def Kind.type : Kind → MidIR.Ty
+  | .nat => .nat | .int => .int | .pair e => .pair e
 
 structure Code where
   header : TargetHeader
@@ -100,7 +106,8 @@ def Code.valid (c : Code) : Bool := Id.run do
 
 private def operations : List ExactOp :=
   let arith : List Arithmetic := [.add,.sub,.mul,.div]
-  arith.map .nat ++ arith.map .int ++ [.natIntDiv,.intNatDiv,.neg,.natToInt]
+  arith.map .nat ++ arith.map .int ++ [.natIntDiv,.intNatDiv,.neg,.natToInt] ++
+    [PairElem.nat,.int].flatMap fun e => [.pair e,.project e true,.project e false]
 
 def strip (s left right : String) : Option String := do
   guard (s.startsWith left && s.endsWith right && s.length ≥ left.length + right.length)

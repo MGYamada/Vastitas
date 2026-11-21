@@ -165,6 +165,34 @@ def native(args, work):
         run([work / "compare"])
         count += 1
         examples += len(rows)
+    for kind in ("Nat", "Int"):
+        obj = f"swap-{kind}.o"
+        emit(f"pub fn swap(p: Pair<{kind}>) -> Pair<{kind}> {{ pair(pair_second(p), pair_first(p)) }}", obj)
+        pair_type = f"({kind} × {kind})"
+        left = BIG if kind == "Nat" else -BIG
+        control = [
+            '@[extern "vq_pair_ownership"] opaque ownership (useNat : UInt8) : Bool',
+            f'@[extern "vq_exact"] opaque candidate (p : @& {pair_type}) : {pair_type}',
+            f"@[noinline] def reference (p : @& {pair_type}) : {pair_type} := (p.2, p.1)",
+            "def main : IO Unit := do",
+            f'  unless ownership {int(kind == "Nat")} do throw (IO.userError "incorrect pair reference counts")',
+            f"  for input in [(({left}), {BIG + 2}), (({left}), ({left})), (0, 1)] do",
+            "    unless candidate input == reference input && candidate input == (input.2, input.1) do",
+            '      throw (IO.userError "incorrect ordered pair components")',
+        ]
+        (work / "SwapControl.lean").write_text("\n".join(control) + "\n")
+        run([prefix / "bin/lean", "-c", "SwapControl.c", "SwapControl.lean"])
+        run([leanc, *sdk, "SwapControl.c", ROOT / "llvm/fixtures/PairOwnership.c", "shim.o", obj, "-o", "swap"])
+        run([work / "swap"])
+
+    pair_source = (ROOT / "llvm/fixtures/BoxedPairs.vast").read_text()
+    for source, obj, expected in [(pair_source, "applied-pair.o", 42),
+                                  (pair_source.replace("apply prioritized;", ""), "default-pair.o", 2**128 + 43)]:
+        emit(source, obj)
+        check_integer(obj, expected)
+        run([leanc, *sdk, "shim.o", obj, "-o", "pairs"])
+        if subprocess.run([work / "pairs"], cwd=work).returncode != expected % 256:
+            raise ValueError("pair-returning method selected the wrong exit")
     hosted = (ROOT / "llvm/fixtures/BoxedProgram.vast").read_text()
     numerator = -(2**128 + 1)
     divisors = [3, 0, 1]
@@ -265,6 +293,8 @@ def main():
         count, examples, programs = native(args, Path(tmp))
     print(f"{count} checked libraries, {examples} native results matched Lean and exact integer expectations; {count} heap ownership probes passed")
     print(f"{programs} hosted executable statuses matched generated Lean and independent expectations")
+    print("both pair exports matched compiled Lean on heap and immediate values; distinct and aliased field counts matched before and after release")
+    print("pair-returning assembly selected full integer results 42 and 2^128 + 43")
     print("hosted result probes matched each full integer and distinguished a value larger by 256")
     print("assembled integer entry returned 42 and rejected the sibling method in the expected revision")
     print("called and uncalled cross-package methods matched the generated Lean controls at exit 42 and 7")

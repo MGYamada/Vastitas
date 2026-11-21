@@ -14,7 +14,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
-| [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle) |
+| [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle), Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
 | [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
@@ -331,6 +331,12 @@ Claims:
   - Premises:
     - Arguments have the exact Nat/Int sorts in the opcode signature.
   - Note: Both MidIR phases preserve unbounded addition, subtraction, multiplication and division. Nat subtraction saturates. Mixed division has a distinct opcode for each operand order. Negation and explicit conversion have unary signatures.
+- `pair-operations`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.MidIR`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/MidIR.lean): `VastitasOracle.MidIR.pair_from_core`, `VastitasOracle.MidIR.pair_projections`, `VastitasOracle.MidIR.execute_denote_with`
+  - Premises:
+    - A homogeneous pair has element sort Nat or Int. The projection equations apply when construction succeeds for the supplied Core values.
+  - Note: Construction and ordered projection use the Core semantics at the declared arity. Projecting a constructed pair recovers each unbounded component in either MidIR phase. Native allocation and reference counting have separate tests.
 
 <a id="compiler-ir.semantics"></a>
 
@@ -1024,7 +1030,7 @@ Claims:
   - Evidence:
     - [`VastitasOracle.ExactLibrary`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactLibrary.lean): `VastitasOracle.ExactLibrary.bytes_correspondence`
   - Premises:
-    - The complete checked public module is a single straight-line boxed integer export. Its bytes parse to its emitted model. Literal allocation succeeds. The modeled foreign call has no result on malformed argument lists. On its declared operand kinds it implements the unbounded operation on borrowed inputs and returns an owned value.
+    - The complete checked public module is a single straight-line export over boxed integers and homogeneous pairs. Its bytes parse to its emitted model. Literal allocation succeeds. The modeled foreign call has no result on malformed argument lists. On its declared operand kinds it implements the unbounded operation on borrowed inputs and returns an owned value.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: The model reconstructs the checked execution SSA block including every typed parameter, literal, operand and return slot. Both checked MidIR phases and the parsed model have the same return observation for every argument list under the runtime contract. The proof also identifies the target header, result sort, current revision and complete bytes. Machine code, runtime memory management and general source-to-SSA refinement have separate obligations.
 - `boxed-program`: [Proved (oracle)](../specifications.md#proved-oracle)
@@ -1040,7 +1046,8 @@ Claims:
     - `boxed_integer_exports_bind_their_argument_order_and_full_revision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `boxed_program_preserves_call_targets_and_borrowed_returns` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
-  - Note: The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls. A singleton entry uses the same checked runtime operations when its intermediate squares exceed the folding budget. Named and symbolic multiplication produce the same bytes and retain their source revisions.
+    - `boxed_pair_results_bind_both_methods_to_the_revision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+  - Note: The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls. A singleton entry uses the same checked runtime operations when its intermediate squares exceed the folding budget. Named and symbolic multiplication produce the same bytes and retain their source revisions. A linked pair-valued family retains both methods. Editing its unselected body or removing the applied contribution invalidates the saved revision.
 
 <a id="compiler-ir.verification-modes"></a>
 

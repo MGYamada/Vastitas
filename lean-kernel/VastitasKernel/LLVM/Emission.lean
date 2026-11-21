@@ -98,7 +98,7 @@ private def library {json} (req : Wire.CheckedInput json false) (header : Target
     Option (Output json header) := do
   match (UnaryFunction.checkedCore req).functions with
   | [f] =>
-    if f.returnType == .pure .int || f.returnType == .pure .nat then
+    if f.returnType matches .pure .int | .pure .nat | .pure (.pair _) then
       let a ← ExactFunction.compile req header
       let ⟨s,parsed⟩ ← checkedText a.model ExactLibrary.Code.print ExactLibrary.parse
       return .exactLibrary a s parsed

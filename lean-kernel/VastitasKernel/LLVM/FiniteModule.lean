@@ -21,7 +21,7 @@ private def functionName (i : Nat) := s!"f{i}"
 private def widthOf : MidIR.Ty → Option Width
   | .unit | .bool => some .bit
   | .int | .finite _ => some .word
-  | .nat => none
+  | .nat | .pair _ => none
 private def lit (n : Nat) := Operand.literal n.toUInt32
 private def word (n : Nat) : Arg := ⟨.word, lit n⟩
 private def caseName (n : Nat) := s!"case{n}"

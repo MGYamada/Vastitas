@@ -60,7 +60,11 @@ sections that hold its route theorems and its component theorems.
   holds the component theorems. [Code generation entries](#code-generation-entries)
   holds the theorems on the pure Core of the public route: the route theorem
   `IndexedReverseCore.public_resource_compiled`, and the theorems on the
-  certificate of `ResourceSource.check`.
+  certificate of `ResourceSource.check`. For homogeneous integer pairs,
+  `VastitasOracle.MidIR.pair_from_core` identifies each operation with Core.
+  `pair_projections` proves that the two projections recover the ordered inputs.
+  The native probe separately checks reference counts when both fields contain
+  the same heap integer. [Pair operations](spec/compiler-ir.md#compiler-ir.registry)
 - **Generics, dispatch, abstract types and abstract methods.**
   [Dispatch over indexed bodies](#dispatch-over-indexed-bodies) holds the
   route theorems. The components are the

@@ -395,6 +395,12 @@ evidence = ["VastitasOracle.MidIR.exact_binary_from_core", "VastitasOracle.MidIR
 premises = ["Arguments have the exact Nat/Int sorts in the opcode signature."]
 note = "Both MidIR phases preserve unbounded addition, subtraction, multiplication and division. Nat subtraction saturates. Mixed division has a distinct opcode for each operand order. Negation and explicit conversion have unary signatures."
 
+[property."compiler-ir.registry".claim.pair-operations]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.pair_from_core", "VastitasOracle.MidIR.pair_projections", "VastitasOracle.MidIR.execute_denote_with"]
+premises = ["A homogeneous pair has element sort Nat or Int. The projection equations apply when construction succeeds for the supplied Core values."]
+note = "Construction and ordered projection use the Core semantics at the declared arity. Projecting a constructed pair recovers each unbounded component in either MidIR phase. Native allocation and reference counting have separate tests."
+
 [property."compiler-ir.semantics"]
 title = "Semantics are independent of validators"
 subject = "observational refinement"
@@ -1354,7 +1360,7 @@ note = "The checked Core evaluates with sufficient fuel to the full integer reta
 [property."compiler-ir.llvm-bytes".claim.boxed-library]
 status = "proved-oracle"
 evidence = ["VastitasOracle.ExactLibrary.bytes_correspondence"]
-premises = ["The complete checked public module is a single straight-line boxed integer export. Its bytes parse to its emitted model. Literal allocation succeeds. The modeled foreign call has no result on malformed argument lists. On its declared operand kinds it implements the unbounded operation on borrowed inputs and returns an owned value."]
+premises = ["The complete checked public module is a single straight-line export over boxed integers and homogeneous pairs. Its bytes parse to its emitted model. Literal allocation succeeds. The modeled foreign call has no result on malformed argument lists. On its declared operand kinds it implements the unbounded operation on borrowed inputs and returns an owned value."]
 assumes = ["rust-frontend"]
 note = "The model reconstructs the checked execution SSA block including every typed parameter, literal, operand and return slot. Both checked MidIR phases and the parsed model have the same return observation for every argument list under the runtime contract. The proof also identifies the target header, result sort, current revision and complete bytes. Machine code, runtime memory management and general source-to-SSA refinement have separate obligations."
 
@@ -1367,8 +1373,8 @@ note = "The original Core, the optimization and execution MidIR and the reconstr
 
 [property."compiler-ir.llvm-bytes".claim.boxed-regression]
 status = "tested"
-evidence = ["VastitasPublicTest.LLVM.Regression", "tests/llvm_preview.rs::boxed_integer_exports_bind_their_argument_order_and_full_revision", "tests/llvm_preview.rs::boxed_program_preserves_call_targets_and_borrowed_returns", "tests/llvm_preview.rs::singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget"]
-note = "The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls. A singleton entry uses the same checked runtime operations when its intermediate squares exceed the folding budget. Named and symbolic multiplication produce the same bytes and retain their source revisions."
+evidence = ["VastitasPublicTest.LLVM.Regression", "tests/llvm_preview.rs::boxed_integer_exports_bind_their_argument_order_and_full_revision", "tests/llvm_preview.rs::boxed_program_preserves_call_targets_and_borrowed_returns", "tests/llvm_preview.rs::singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget", "tests/llvm_preview.rs::boxed_pair_results_bind_both_methods_to_the_revision"]
+note = "The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls. A singleton entry uses the same checked runtime operations when its intermediate squares exceed the folding budget. Named and symbolic multiplication produce the same bytes and retain their source revisions. A linked pair-valued family retains both methods. Editing its unselected body or removing the applied contribution invalidates the saved revision."
 
 [property."compiler-ir.verification-modes"]
 title = "Fast and Official verify the same artifact obligations"

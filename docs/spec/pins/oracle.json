@@ -218,6 +218,8 @@
     {"name": "VastitasOracle.MidIR.execute_module", "module": "VastitasOracle.MidIR", "kind": "theorem", "statement": "sha256:67700677a5645b9616e196d344eb73c71c65100f6d98b04329248c109d67c269"},
     {"name": "VastitasOracle.MidIR.execute_run", "module": "VastitasOracle.MidIR", "kind": "theorem", "statement": "sha256:84e38e38fa451b95feadb19484f7b9816ac1593c26fdda0e116ba0710bb225b6"},
     {"name": "VastitasOracle.MidIR.lookup_from_core", "module": "VastitasOracle.MidIR", "kind": "theorem", "statement": "sha256:3b340355478e846ac0f6bd98f8069a8479fc5d5d6d08fc6e6f2f4674621a381b"},
+    {"name": "VastitasOracle.MidIR.pair_from_core", "module": "VastitasOracle.MidIR", "kind": "theorem", "statement": "sha256:ac699e5a7f7e3ce688044acdbbd7d46b238ad79c4e7d1f09ac66690740526e6d"},
+    {"name": "VastitasOracle.MidIR.pair_projections", "module": "VastitasOracle.MidIR", "kind": "theorem", "statement": "sha256:30f6da129a89fe36ac18bbd8a9c4e04424bea82608d806f4d858fbd403893546"},
     {"name": "VastitasOracle.MidIR.unit_from_core", "module": "VastitasOracle.MidIR", "kind": "theorem", "statement": "sha256:c6b6356352b8829015b34dbfffc5b5b9ee37e33d7f60bb649bec1b41eea88bb5"},
     {"name": "VastitasOracle.NatureDimension.euclidean_rejected", "module": "VastitasOracle.NatureDimension", "kind": "theorem", "statement": "sha256:903512badcb74f19c10d060191df28956a2cc4a61aa257cc43034a5c132633c0"},
     {"name": "VastitasOracle.NatureDimension.euclidean_sound", "module": "VastitasOracle.NatureDimension", "kind": "theorem", "statement": "sha256:3658aaf997e12d13893dd8c5301d1d36be6f3895e882b253fc85de44c32feccc"},

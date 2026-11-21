@@ -93,7 +93,8 @@ ROW_OBLIGATIONS = {
     'scalar-indexed': {
         'source': ('compiler-ir.operators@binding', 'compiler-ir.operators@exact-integers'),
         'core': ('compiler-ir.coverage@ledger', 'compiler-ir.coverage@inventory'),
-        'midir': ('compiler-ir.registry@opcodes', 'compiler-ir.registry@int-literal', 'compiler-ir.registry@exact-arithmetic'),
+        'midir': ('compiler-ir.registry@opcodes', 'compiler-ir.registry@int-literal',
+                  'compiler-ir.registry@exact-arithmetic', 'compiler-ir.registry@pair-operations'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@entry-status',
                  'compiler-ir.llvm-bytes@folded-entry', 'compiler-ir.llvm-bytes@entry-regression',
                  'compiler-ir.llvm-bytes@boxed-library', 'compiler-ir.llvm-bytes@boxed-program',
@@ -146,7 +147,8 @@ def required_status(dimension, claim):
                   'compiler-ir.edition@namespace-source', 'compiler-ir.families@selector-source'}
             or dimension == 'official'
             or (dimension == 'llvm' and claim in LLVM_PROOFS)
-            or (dimension == 'midir' and claim == 'compiler-ir.midir@finite-lookup')):
+            or (dimension == 'midir' and claim in {'compiler-ir.midir@finite-lookup', 'compiler-ir.registry@exact-arithmetic',
+                                                   'compiler-ir.registry@pair-operations'})):
         return 'proved-oracle'
     return 'tested'
 

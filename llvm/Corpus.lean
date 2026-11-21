@@ -63,6 +63,27 @@ set_option maxRecDepth 65536 in
 set_option maxHeartbeats 2000000 in
 theorem boxed_program_verified : programBytes = boxedProgram.print := by rfl
 
+def boxedPairs : ExactProgram.Code :=
+  let op := fun code refs => ExactProgram.Instruction.primitive (.apply code refs)
+  let neighbors : ExactProgram.Function := ⟨[.nat],.pair .nat,
+    [.primitive (.nat 1), op (.nat .sub) [0,1], op (.pair .nat) [2,0]], 3⟩
+  let swap : ExactProgram.Function := ⟨[.pair .int],.pair .int,
+    [op (.project .int false) [0], op (.project .int true) [0], op (.pair .int) [1,2]], 3⟩
+  let split := fun refs => ExactProgram.Function.mk [.int] (.pair .int)
+    [.primitive (.int 0), op (.pair .int) refs] 2
+  let entry : ExactProgram.Function := ⟨[],.int,[
+    .primitive (.nat (2^128 + 1)), .invoke 0 [0], .primitive (.int (-(2^128 + 1))), .invoke 2 [2],
+    .invoke 1 [3], op (.project .nat false) [1], op (.project .nat true) [1], op (.nat .sub) [5,6],
+    op (.project .int false) [4], op (.project .nat true) [1], op .natToInt [9], op (.int .add) [8,10],
+    op .natToInt [7], op (.int .add) [11,12], .primitive (.int 42), op (.int .add) [13,14]],15⟩
+  ⟨header, #[neighbors,swap,split [0,1],entry,split [1,0]],3⟩
+
+def pairBytes := corpus_bytes "src/boxed-pairs.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem boxed_pairs_verified : pairBytes = boxedPairs.print := by rfl
+
 def singletonPower : ExactProgram.Code :=
   let squares := (List.range 8).map fun i => ExactProgram.Instruction.primitive (.apply (.int .mul) [i,i])
   ⟨header, #[⟨[], .int, [.primitive (.int 3)] ++ squares ++
@@ -556,6 +577,7 @@ def checkedFiles : List (String × ByteArray) :=
   [("exit-status.ll", forExit exit_status_verified),
    ("folded-arithmetic.ll", forExit folded_arithmetic_verified),
    ("boxed-program.ll", forProgram boxed_program_verified),
+   ("boxed-pairs.ll", forProgram boxed_pairs_verified),
    ("singleton-power.ll", forProgram singleton_power_verified),
    ("borrowed-operator.ll", forProgram borrowed_operator_verified),
    ("uncalled-operator.ll", forProgram uncalled_operator_verified),
@@ -604,6 +626,16 @@ def main (args : List String) : IO Unit := do
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.uncalledOperatorBytes == some uncalled &&
       uncalled.entryValue == some 7 do
     throw (IO.userError "uncalled-operator.ll: wrong retained functions or entry result")
+  let pairs := Vastitas.LLVMCorpus.boxedPairs
+  let pairText := String.fromUTF8! ⟨Vastitas.LLVMCorpus.pairBytes.toArray⟩
+  unless VastitasKernel.LLVM.ExactProgram.parse pairText.toUTF8.data.toList == some pairs && pairs.entryValue == some 42 do
+    throw (IO.userError "boxed-pairs.ll: incorrect pair functions or full integer")
+  for (before,after) in [("call ptr @vastitas_int_pair_second_v1(ptr %v4)", "call ptr @vastitas_nat_pair_second_v1(ptr %v4)"),
+      ("call ptr @vq_f1(ptr %v3)", "call ptr @vq_f1(ptr %v1)"),
+      ("call void @vastitas_release_v1(ptr %v4)", "call void @vastitas_retain_v1(ptr %v4)")] do
+    let changed := pairText.replace before after
+    if changed == pairText || (VastitasKernel.LLVM.ExactProgram.parse changed.toUTF8.data.toList).isSome then
+      throw (IO.userError "boxed-pairs.ll: accepted an invalid component, argument type or release")
   let program := Vastitas.LLVMCorpus.boxedProgram
   let moduleText := String.fromUTF8! ⟨Vastitas.LLVMCorpus.programBytes.toArray⟩
   unless VastitasKernel.LLVM.ExactProgram.parse moduleText.toUTF8.data.toList == some program do

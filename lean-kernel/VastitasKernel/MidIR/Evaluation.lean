@@ -38,6 +38,8 @@ def exactValue : ExactOp → List Value → Option Value
   | .intNatDiv, [.integer a, .natural b] => some (.integer (a / Int.ofNat b))
   | .neg, [.integer a] => some (.integer (-a))
   | .natToInt, [.natural a] => some (.integer (Int.ofNat a))
+  | .pair e, [a,b] => evalPair e a b
+  | .project e first, [p] => evalProject e first p
   | _, _ => none
 
 def denote {p : Phase} (env : Environment) (op : Opcode p) (args : List Value)

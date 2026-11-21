@@ -177,7 +177,10 @@ private def evalFn (functions : Array Function) : Nat → Nat → List Value →
         | .invoke idx refs => evalFn functions depth idx (← liftM (refs.mapM (values[·]?)))
       -- Every operand has already passed this bound before multiplication.
       let bounded : Bool := match v with
-        | .natural n => n.log2 < 4096 | .integer n => n.natAbs.log2 < 4096 | _ => false
+        | .natural n => n.log2 < 4096 | .integer n => n.natAbs.log2 < 4096
+        | .pairNat a b => a.log2 < 4096 && b.log2 < 4096
+        | .pairInt a b => a.natAbs.log2 < 4096 && b.natAbs.log2 < 4096
+        | _ => false
       guard bounded
       values := values.push v
     liftM (values[f.result]?)

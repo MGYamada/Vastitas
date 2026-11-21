@@ -115,7 +115,7 @@ ROW_OBLIGATIONS = {
                    'compiler-ir.edition@finite-tables', 'compiler-ir.finite-binders@category-functions',
                    'compiler-ir.realization@affine-wrappers', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
         'core': ('compiler-ir.edition@manifest', 'compiler-ir.edition@correspondence',
-                 'compiler-ir.edition@finite-tables'),
+                 'compiler-ir.edition@finite-tables', 'compiler-ir.edition@finite-declaration-source'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.check-build@preview'),
         'official': ('compiler-ir.composition@theorem',),
         'fast': ('compiler-ir.proof-binding@authentication',),

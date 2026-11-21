@@ -695,14 +695,21 @@ fn main() -> Int {{ if selected::<K1,Obj::o>() == C::e {{ 42 }} else {{ 1 }} }}"
     p.write_package("app", &source, "");
     let first = kernel(p.captured(MANIFEST, 10), "function-revision");
     assert_eq!(first["ok"], true, "{first}");
-    p.write(
-        "app/main.vast",
-        &checked_replace(&source, "::<K1,", "::<K2,"),
-    );
+    let second_source = checked_replace(&source, "::<K1,", "::<K2,");
+    p.write("app/main.vast", &second_source);
     let mut wire = p.captured(MANIFEST, 10);
     let second = kernel(&wire, "function-revision");
     assert_eq!(second["ok"], true, "{second}");
-    let specializations = [&first, &second].map(|accepted| {
+    let changed_source = checked_replace(
+        &second_source,
+        "K2 : KShape = finite_kleisli(A)",
+        "K2 : KShape = finite_kleisli(B)",
+    );
+    p.write("app/main.vast", &changed_source);
+    let mut changed_wire = p.captured(MANIFEST, 10);
+    let changed = kernel(&changed_wire, "function-revision");
+    assert_eq!(changed["ok"], true, "{changed}");
+    let specializations = [&first, &second, &changed].map(|accepted| {
         let matches: Vec<_> = accepted["function_revision"]["pure"]["symbols"]
             .as_array()
             .unwrap()
@@ -712,21 +719,33 @@ fn main() -> Int {{ if selected::<K1,Obj::o>() == C::e {{ 42 }} else {{ 1 }} }}"
             })
             .collect();
         assert_eq!(matches.len(), 1);
-        assert_eq!(
-            matches[0]["specialization"]["finite_indices"][0]["monad"]["name"],
-            "A"
-        );
         &matches[0]["specialization"]
     });
     assert_eq!(specializations[0], specializations[1]);
+    for (specialization, monad) in specializations.into_iter().zip(["A", "A", "B"]) {
+        assert_eq!(specialization["finite_indices"][0]["monad"]["name"], monad);
+    }
     assert_ne!(first["function_revision"], second["function_revision"]);
     wire["expected_function_revision"] = second["function_revision"].clone();
     assert_eq!(kernel(&wire, "check")["function_revision_matched"], true);
     let mut forged = wire.clone();
-    decl(&mut forged, "K2")["kleisli"]["monad"]["path"] = json!(["B"]);
-    assert_wire_rejected(&kernel(forged, "emit"), "E_FUNCTION_REVISION");
+    let operand = &mut decl(&mut forged, "K2")["kleisli"]["monad"];
+    let span = operand["span"].clone();
+    operand["path"] = json!(["B"]);
+    let rejected = kernel(forged, "emit");
+    assert_wire_rejected(&rejected, "E_FINITE_SOURCE");
+    assert_eq!(rejected["diagnostics"][0]["span"], span);
     wire["expected_function_revision"] = first["function_revision"].clone();
     assert_wire_rejected(&kernel(wire, "emit"), "E_FUNCTION_REVISION");
+    changed_wire["expected_function_revision"] = second["function_revision"].clone();
+    for mode in ["check", "emit"] {
+        assert_wire_rejected(&kernel(&changed_wire, mode), "E_FUNCTION_REVISION");
+    }
+    changed_wire["expected_function_revision"] = changed["function_revision"].clone();
+    assert_eq!(
+        kernel(changed_wire, "emit")["function_revision_matched"],
+        true
+    );
 }
 
 #[test]

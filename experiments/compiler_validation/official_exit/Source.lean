@@ -4,8 +4,8 @@ namespace VastitasQualification.ExitAdmission
 open Lean VastitasKernel VastitasQualification.ExitFixture
 set_option maxRecDepth 30000
 
--- The physical declaration scan starts with an empty table of exact headers.
-attribute [local cbv_eval] Std.HashMap.isEmpty_emptyWithCapacity
+-- This source has neither edit declarations nor finite declaration sites.
+attribute [local cbv_eval] Std.HashMap.isEmpty_emptyWithCapacity Std.HashMap.keys_emptyWithCapacity
 
 private def mainFn : Indexed.FunctionSource.Function := {
   name := "main", params := [], result := .data (.pure .int), isPublic := true

@@ -163,6 +163,30 @@ theorem structured_assembly_trace {json : Lean.Json} (input : Wire.CheckedInput 
   rw [source.exactEvents]
   exact (VastitasOracle.Authority.assembled_trace _).1
 
+/-- Each file-backed package in the accepted module has a physical manifest at its
+own path. Reading its package.edition field yields the edition required by the wire decoder. -/
+theorem physical_manifest_edition {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (disk : input.input.root ≠ flatPackageId.source) {pkg : Package} (hp : pkg ∈ input.input.packages) :
+    ∃ (layout : PhysicalSources.Layout) (i : Nat) (file : PhysicalSources.File), PhysicalSources.layout json = .ok layout ∧ layout.files[i]? = some file ∧
+      file.path = pkg.id.source.toUTF8 ∧ ManifestEdition.readEdition file.text = some currentEdition := by
+  have checked := Wire.exactSources_of_program input.decoded
+  cases h : PhysicalSources.layout json with
+  | error msg => simp [Wire.exactSources, h, Bind.bind, Except.bind] at checked
+  | ok layout =>
+    by_cases he : Wire.editionsMatch layout input.input = true
+    · simp [Wire.editionsMatch, disk, List.all_eq_true] at he
+      have found := he pkg hp
+      cases f : Wire.manifestFile? layout (Wire.physicalFileIndex layout) pkg.id.source with
+      | none => simp [f] at found
+      | some file =>
+        have edition : ManifestEdition.readEdition file.text = some currentEdition := by simpa [f] using found
+        simp only [Wire.manifestFile?, Option.bind_eq_some_iff, bind] at f
+        obtain ⟨i, _, record, situated, accepted⟩ := f
+        simp [guard, pure] at accepted
+        obtain ⟨path, rfl⟩ := accepted
+        exact ⟨layout, i, record, rfl, situated, congrArg ByteArray.mk path, edition⟩
+    · simp [Wire.exactSources, h, he, Bind.bind, Except.bind, throw] at checked
+
 /-- The public request carries the physical edit declaration comparison for
 the very program whose contributions and assembly passed the authority checker. -/
 theorem physical_edit_declarations {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :

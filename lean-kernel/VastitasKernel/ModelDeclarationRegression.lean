@@ -127,12 +127,8 @@ private def mod (declarations : List Json) : Json := Json.mkObj [
   ("methods", toJson ([] : List Json)), ("functions", toJson ([] : List Json)),
   ("indexed_declarations", toJson declarations)]
 
-private def request (version : Nat) (declarations : List Json) : Json := Json.mkObj [
-  ("version", toJson version), ("file", toJson "model.vast"),
-  ("root", toJson "/model/Vastitas.toml"), ("root_source", RegressionRequest.emptyRootSource),
-  ("packages", toJson [Json.mkObj [
-    ("source", toJson "/model/Vastitas.toml"), ("name", toJson "model"), ("version", toJson "0.1.0"), ("edition", toJson currentEdition),
-    ("dependencies", toJson ([] : List Json)), ("modules", toJson [mod declarations])]])]
+private def request (version : Nat) (declarations : List Json) : Json :=
+  RegressionRequest.package "model" [mod declarations] version
 
 /-- The code and message of a public request through `ResourceSource.Wire`,
 or `accepted`. -/

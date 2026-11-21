@@ -116,7 +116,7 @@ ROW_OBLIGATIONS = {
         'source': ('compiler-ir.edition@manifest', 'compiler-ir.edition@admission',
                    'compiler-ir.edition@finite-tables', 'compiler-ir.finite-binders@category-functions',
                    'compiler-ir.realization@affine-wrappers', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
-        'core': ('compiler-ir.edition@manifest', 'compiler-ir.edition@correspondence',
+        'core': ('compiler-ir.edition@manifest', 'compiler-ir.edition@manifest-source', 'compiler-ir.edition@correspondence',
                  'compiler-ir.edition@finite-tables', 'compiler-ir.edition@finite-declaration-source',
                  'compiler-ir.families@singleton-source', 'compiler-ir.edition@namespace-source',
                  'compiler-ir.families@selector-source'),
@@ -143,7 +143,7 @@ def required_status(dimension, claim):
     if dimension == 'official' and claim == 'compiler-ir.realization@coordinate-interpretation':
         return 'proved-bridge'
     if (claim in {'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@erased-unit',
-                  'compiler-ir.edition@finite-declaration-source', 'compiler-ir.families@singleton-source',
+                  'compiler-ir.edition@manifest-source', 'compiler-ir.edition@finite-declaration-source', 'compiler-ir.families@singleton-source',
                   'compiler-ir.edition@namespace-source', 'compiler-ir.families@selector-source'}
             or dimension == 'official'
             or (dimension == 'llvm' and claim in LLVM_PROOFS)

@@ -257,7 +257,12 @@ non-UTF-8 path uses the original path bytes in a JSON array.
 The checker reconstructs every offset from the preceding UTF-8 byte
 lengths and the one-byte separator. For disk-backed packages it checks
 that the first input is the root manifest, every package manifest occurs,
-and the entry contains the root module’s source location. The function
+and the entry contains the root module’s source location. For every package
+the checker reads `package.edition` from the manifest at its recorded path.
+Table headers, dotted keys and inline tables can all select this field.
+A comment or a string containing the field's spelling cannot supply it.
+The decoded field and the wire edition must both equal the string `"2026"`.
+The function
 revision includes the ordered files. Even a comment-only change in a
 library or dependency manifest invalidates its replay. Filesystem discovery
 and the translation of source declarations into wire records use the Rust

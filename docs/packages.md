@@ -31,10 +31,11 @@ Rules:
 - An empty `name` is an error (`E_MANIFEST`), and so is a `version` that is not
   a Semantic Versioning version.
 - `edition` must be the string `"2026"` in every package, including dependencies.
-  Another string or a value of another type is an error (`E_MANIFEST`). The
-  compiler does not infer an edition or retry another edition. Flat programs,
-  including `--lib` inputs, use edition 2026 through their protected synthetic
-  package. The edition selects no alternative grammar in this release.
+  The loader reports another value as `E_MANIFEST`. The Lean checker reads
+  `package.edition` from the manifest text supplied for each package, even
+  when the program uses none of its exports. It requires the same edition
+  in the wire record. Flat programs, including `--lib` inputs, use edition
+  2026 through their protected synthetic package.
 - `root` must name a file inside the package directory whose name ends in
   `.vast`. Another file is an error (`E_INPUT`).
 - A dependency alias must be an ASCII

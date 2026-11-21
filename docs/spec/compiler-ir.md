@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Tested, Proved (oracle), Proved (oracle), Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
@@ -89,9 +89,18 @@ Claims:
   - Evidence:
     - `edition_is_explicit_and_exact_in_root_and_dependency_manifests` in [`tests/packages.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/packages.rs)
     - `every_package_carries_the_edition_including_flat_library_inputs` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
+    - `physical_manifest_editions_bind_the_root_and_unused_dependencies` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
+    - `physical_edition_accepts_equivalent_toml_and_ignores_decoys` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `the_frontend_the_kernel_and_version_share_one_epoch` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `every_version_below_the_epoch_fails_closed` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
   - Note: This claim covers only the required manifest string edition = "2026", the fixed edition of protected flat and --lib envelopes, and independent Lean rejection of missing, different or non-string wire editions in every package. Source check/build reject before a backend runs; raw-wire check/emit use the real kernel. Package identities and wire epoch 10 are unchanged. CI builds the kernel before `cargo test --locked --all-targets`. This is regression evidence, not a source-to-Core theorem or acceptance of the planned fn, assemble, finite-indexed and numerical-realization grammar.
+- `manifest-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_manifest_edition`
+  - Premises:
+    - the independent protocol-10 checker accepted a file-backed program
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Each accepted package has a manifest record at its own path among the physical inputs. Reading package.edition from its text yields the current edition, including for unused dependencies. The loader supplies the file contents and checks the rest of the TOML manifest schema. Flat inputs carry their edition in the protected package envelope.
 - `finite-tables`: [Tested](../specifications.md#tested)
   - Evidence:
     - `forward_references_and_degenerate_products_are_checked_on_wire` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)

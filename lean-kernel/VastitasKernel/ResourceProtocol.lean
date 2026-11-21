@@ -1,3 +1,4 @@
+import VastitasKernel.ManifestEdition
 import VastitasKernel.EditSourceFiles
 import VastitasKernel.FunctionRevision
 import VastitasKernel.ResourceCodegen
@@ -572,9 +573,31 @@ private def decodedProgram (j : Json) : Except String Program := do
   let names ← raw.valueFamilies.mapError (·.message)
   return {raw with operatorValues := names}
 
-/-- Verify all physical mathematical declarations of this exact input. -/
+/-- Index physical UTF-8 paths once for the entire closure. Module paths may
+repeat. The physical layout requires a unique record per package manifest. -/
+def physicalFileIndex (layout : PhysicalSources.Layout) : Std.TreeMap String Nat := Id.run do
+  let mut index := {}
+  for file in layout.files, i in [:layout.files.size] do
+    if let some path := String.fromUTF8? file.path then index := index.insert path i
+  return index
+
+def manifestFile? (layout : PhysicalSources.Layout) (index : Std.TreeMap String Nat)
+    (owner : String) : Option PhysicalSources.File := do
+  let file ← layout.files[← index.get? owner]?
+  guard (file.path.data = owner.toUTF8.data)
+  return file
+
+def editionsMatch (layout : PhysicalSources.Layout) (p : Program) : Bool :=
+  p.root == flatPackageId.source || Id.run do
+    let index := physicalFileIndex layout
+    return p.packages.all fun pkg => (manifestFile? layout index pkg.id.source).any fun file =>
+      ManifestEdition.readEdition file.text == some currentEdition
+
+/-- Check the manifest of each physical package and the mathematical declarations of its modules. -/
 def exactSources (j : Json) (p : Program) : Except String Unit := do
-  ExactModelSource.check (← PhysicalSources.layout j) p
+  let layout ← PhysicalSources.layout j
+  unless editionsMatch layout p do throw "physical package manifest requires package.edition = \"2026\""
+  ExactModelSource.check layout p
 
 def program (j : Json) : Except String Program := do
   let p ← decodedProgram j

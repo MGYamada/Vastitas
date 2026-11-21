@@ -76,6 +76,8 @@ status = "tested"
 evidence = [
   "tests/packages.rs::edition_is_explicit_and_exact_in_root_and_dependency_manifests",
   "tests/protocol_epoch.rs::every_package_carries_the_edition_including_flat_library_inputs",
+  "tests/protocol_epoch.rs::physical_manifest_editions_bind_the_root_and_unused_dependencies",
+  "tests/protocol_epoch.rs::physical_edition_accepts_equivalent_toml_and_ignores_decoys",
   "tests/protocol_epoch.rs::the_frontend_the_kernel_and_version_share_one_epoch",
   "tests/protocol_epoch.rs::every_version_below_the_epoch_fails_closed",
 ]
@@ -89,6 +91,13 @@ the kernel before `cargo test --locked --all-targets`. This is regression
 evidence, not a source-to-Core theorem or acceptance of the planned fn,
 assemble, finite-indexed and numerical-realization grammar.
 """
+
+[property."compiler-ir.edition".claim.manifest-source]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ResourceSource.physical_manifest_edition"]
+premises = ["the independent protocol-10 checker accepted a file-backed program"]
+assumes = ["rust-frontend"]
+note = "Each accepted package has a manifest record at its own path among the physical inputs. Reading package.edition from its text yields the current edition, including for unused dependencies. The loader supplies the file contents and checks the rest of the TOML manifest schema. Flat inputs carry their edition in the protected package envelope."
 
 [property."compiler-ir.edition".claim.finite-tables]
 status = "tested"

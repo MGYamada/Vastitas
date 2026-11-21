@@ -92,7 +92,7 @@ ROW_OBLIGATIONS = {
     },
     'scalar-indexed': {
         'source': ('compiler-ir.operators@binding', 'compiler-ir.operators@exact-integers'),
-        'core': ('compiler-ir.coverage@ledger', 'compiler-ir.coverage@inventory', 'compiler-ir.coverage@literal-lowering', 'compiler-ir.operators@selected-method'),
+        'core': ('compiler-ir.coverage@ledger', 'compiler-ir.coverage@inventory', 'compiler-ir.coverage@literal-lowering', 'compiler-ir.coverage@finite-lowering', 'compiler-ir.operators@selected-method'),
         'midir': ('compiler-ir.registry@opcodes', 'compiler-ir.registry@int-literal',
                   'compiler-ir.registry@exact-arithmetic', 'compiler-ir.registry@pair-operations'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@entry-status',
@@ -144,7 +144,7 @@ def obligations(row, dimension):
 def required_status(dimension, claim):
     if dimension == 'official' and claim == 'compiler-ir.realization@coordinate-interpretation':
         return 'proved-bridge'
-    if (claim in {'compiler-ir.coverage@literal-lowering', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@erased-unit',
+    if (claim in {'compiler-ir.coverage@literal-lowering', 'compiler-ir.coverage@finite-lowering', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@erased-unit',
                   'compiler-ir.edition@manifest-source', 'compiler-ir.edition@finite-declaration-source', 'compiler-ir.families@singleton-source',
                   'compiler-ir.edition@namespace-source', 'compiler-ir.edition@affine-source', 'compiler-ir.edition@resource-cell-source', 'compiler-ir.edition@resource-product-source', 'compiler-ir.edition@resource-ownership-source', 'compiler-ir.edition@resource-value-source',
                   'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'}

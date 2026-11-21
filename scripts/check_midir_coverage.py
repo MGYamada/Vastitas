@@ -39,6 +39,8 @@ MODULE = re.compile(r"[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*\Z")
 
 
 LITERAL_THEOREM = "VastitasOracle.MidIR.literal_constructor_coverage"
+FINITE_TAG_THEOREM = "VastitasOracle.MidIR.finite_tag_constructor_coverage"
+LOOKUP_THEOREM = "VastitasOracle.MidIR.finite_lookup_constructor_coverage"
 
 
 class CoverageError(ValueError):
@@ -429,7 +431,7 @@ def validate(ledger, actual, require_complete=False):
         if status == "admitted":
             raise CoverageError(f"admission unavailable before closed-registry evidence checking: {origin}")
         if status == "lowered":
-            if item["evidence"] != [LITERAL_THEOREM]:
+            if item["evidence"] not in ([LITERAL_THEOREM], [FINITE_TAG_THEOREM], [LOOKUP_THEOREM]):
                 raise CoverageError(f"missing checked local lowering theorem for {origin}")
         elif item["evidence"]:
             raise CoverageError(f"unrecognized evidence schema for {origin}")
@@ -445,13 +447,13 @@ def check_lowerings(ledger, rows):
     """Resolve every local mapping against the proved registry in the built Oracle."""
     expected = {}
     for row in rows:
-        if set(row) != {"origin", "opcode"} or not all(isinstance(v, str) for v in row.values()):
+        if set(row) != {"origin", "opcode", "theorem"} or not all(isinstance(v, str) for v in row.values()):
             raise CoverageError("invalid compiled lowering row")
         origin = row["origin"]
         if origin in expected:
             raise CoverageError(f"duplicate compiled lowering for {origin}")
-        expected[origin] = "midir." + row["opcode"]
-    recorded = {r["origin"]: r["planned_opcode"] for r in ledger["coverage"] if r["disposition"] == "lowered"}
+        expected[origin] = ("midir." + row["opcode"], [row["theorem"]])
+    recorded = {r["origin"]: (r["planned_opcode"], r["evidence"]) for r in ledger["coverage"] if r["disposition"] == "lowered"}
     if expected != recorded:
         changed = sorted(k for k in expected.keys() | recorded.keys() if expected.get(k) != recorded.get(k))
         raise CoverageError("compiled lowering differs from ledger: " + ", ".join(changed))

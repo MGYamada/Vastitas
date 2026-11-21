@@ -107,7 +107,7 @@ number = 750
 title = "Phase-indexed MidIR"
 state = "open"
 depends = []
-remaining = "The inventory tracks 608 constructors. For Unit, Bool, Nat and Int literals, the actual builder appends a nullary instruction and returns its SSA slot. Both phase denotations agree with the Core evaluator. CI compares the four typed registry rows with the checked-in ledger. The other 604 constructors await local mapping and release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. For static resource entries, linear effect tokens preserve the logical schedule and resolved physical calls. General control flow and full accepted-module coverage remain."
+remaining = "The inventory tracks 608 constructors. For Unit, Bool, Nat and Int literals, the actual builder appends a nullary instruction and returns its SSA slot. Both phase denotations agree with the Core evaluator. CI compares six typed registry rows and their proof names with the checked-in ledger. Finite tags resolve in their declared carrier or Hom fiber. Lookup instructions preserve the table and ordered operands. The other 602 constructors await local mapping and release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. For static resource entries, linear effect tokens preserve the logical schedule and resolved physical calls. General control flow and full accepted-module coverage remain."
 
 [[issue]]
 number = 751
@@ -419,8 +419,8 @@ document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.coverage@ledger", "compiler-ir.coverage@inventory", "compiler-ir.coverage@literal-lowering", "compiler-ir.operators@selected-method"]
-note = "The source-schema inventory checks 608 entries and their payloads. Four literal constructors have proved local mappings. The other 604 await review. Full scalar and indexed Core-to-MidIR coverage remains."
+claims = ["compiler-ir.coverage@ledger", "compiler-ir.coverage@inventory", "compiler-ir.coverage@literal-lowering", "compiler-ir.coverage@finite-lowering", "compiler-ir.operators@selected-method"]
+note = "The source-schema inventory checks 608 entries and their payloads. Four literal constructors, finite tags and finite lookups have proved local mappings. The other 602 await review. Full scalar and indexed Core-to-MidIR coverage remains."
 document = ""
 
 [row.dimension.midir]

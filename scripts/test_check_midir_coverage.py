@@ -216,10 +216,10 @@ class CoverageTests(unittest.TestCase):
         row = ledger["coverage"][0]
         row.update(disposition="lowered", planned_opcode="midir.unit.const.v1", evidence=[guard.LITERAL_THEOREM])
         self.assertEqual(self.check(ledger)["lowered"], 1)
-        compiled = {"origin": row["origin"], "opcode": "unit.const.v1"}
+        compiled = {"origin": row["origin"], "opcode": "unit.const.v1", "theorem": guard.LITERAL_THEOREM}
         guard.check_lowerings(ledger, [compiled])
         for forged in [[], [compiled, compiled], [{**compiled, "opcode": "bool.const.v1"}],
-                       [{**compiled, "origin": "Example.Term.other"}]]:
+                       [{**compiled, "origin": "Example.Term.other"}], [{**compiled, "theorem": guard.FINITE_TAG_THEOREM}]]:
             with self.subTest(forged=forged), self.assertRaises(guard.CoverageError):
                 guard.check_lowerings(ledger, forged)
         row["evidence"] = []

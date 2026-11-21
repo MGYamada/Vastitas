@@ -5194,19 +5194,23 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.finiteLookup",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.finiteLookup",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.finite.lookup.tag.v1",
+      "reason": "The builder resolves the ordered symbol list before appending the table instruction. Both phases evaluate the Core lookup at its selected table and nominal argument sorts.",
+      "evidence": [
+        "VastitasOracle.MidIR.finite_lookup_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.finiteTag",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.finiteTag",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.finite.tag.v1",
+      "reason": "The SSA builder emits the nominal tag. The execution opcode resolves it in the declared carrier or Hom fiber, preserves Core denotation and rejects undeclared tags.",
+      "evidence": [
+        "VastitasOracle.MidIR.finite_tag_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.integer",

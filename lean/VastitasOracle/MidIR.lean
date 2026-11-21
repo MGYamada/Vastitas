@@ -52,6 +52,15 @@ private theorem lookupKey_eq (values : Values) (symbols : List Nat) (sorts : Lis
           simp [List.mapM_cons, h, args, lookupKey, readFiniteTags, ← tail, guard] <;>
           split <;> rfl
 
+/-- Reading a missing Core operand and failing to select a table are both
+observable as a failed lookup. The equality includes those partial cases. -/
+theorem lookup_from_core_partial (env : Environment) (site : FiniteLookup) (values : Values)
+    (symbols : List Nat) :
+    (symbols.mapM values >>= lookupValue env site) = evalFiniteLookup env values site symbols := by
+  have key := lookupKey_eq values symbols site.inputs
+  cases args : symbols.mapM values <;> cases plan : site.plan? env <;>
+    simp [lookupValue, evalFiniteLookup, ← key, args, plan]
+
 /-- Applies equally to nullary tables, multiple columns and a dependent
 composition table. The source and MidIR read the same checked plan. -/
 theorem lookup_from_core (env : Environment) (site : FiniteLookup) (values : Values)

@@ -114,20 +114,59 @@ private theorem lower_literal_action (lit : Literal) (resolve : Nat → Option C
     lowerTerm resolve ctx lit.term = emit (lit.opcode .optimization) [] := by
   cases lit <;> rfl
 
-/-- A literal appends precisely one instruction in a live block, preserves the
-preceding blocks and operations, and returns the new SSA slot. -/
-def AppendsLiteral (lit : Literal) : Prop :=
+/-- The production builder appends one nullary instruction to the live block
+and returns its SSA slot. All preceding blocks and instructions are preserved. -/
+def AppendsNullary (term : Core.Term) (code : Opcode .optimization) : Prop :=
   ∀ resolve ctx (prior : Array Draft) (params : Array Ty) (prefixOps : Array (Op .optimization)),
-    (lowerTerm resolve ctx lit.term).run (prior.push {params, ops := prefixOps}) =
+    (lowerTerm resolve ctx term).run (prior.push {params, ops := prefixOps}) =
       some (⟨prior.size, params.size + prefixOps.size⟩,
-        prior.push {params, ops := prefixOps.push ⟨lit.opcode .optimization, []⟩})
+        prior.push {params, ops := prefixOps.push ⟨code, []⟩})
 
-theorem appends_literal (lit : Literal) : AppendsLiteral lit := by
-  intro resolve ctx prior params prefixOps
-  rw [lower_literal_action lit resolve ctx]
+private theorem emit_live (code : Opcode .optimization) (args : List Ref) (prior : Array Draft)
+    (params : Array Ty) (prefixOps : Array (Op .optimization)) :
+    (emit code args).run (prior.push {params, ops := prefixOps}) =
+      some (⟨prior.size, params.size + prefixOps.size⟩,
+        prior.push {params, ops := prefixOps.push ⟨code, args⟩}) := by
   simp [emit, active, StateT.run, bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get,
     pure, guard, StateT.pure, liftM, monadLift, MonadLift.monadLift, StateT.lift,
     set, StateT.set, Array.set!, Array.setIfInBounds, Array.set_push]
+
+private theorem appends_nullary {term code}
+    (lower : ∀ resolve ctx, lowerTerm resolve ctx term = emit code []) : AppendsNullary term code := by
+  intro resolve ctx prior params prefixOps
+  rw [lower resolve ctx]
+  exact emit_live _ _ _ _ _
+
+def AppendsLiteral (lit : Literal) : Prop := AppendsNullary lit.term (lit.opcode .optimization)
+
+theorem appends_literal (lit : Literal) : AppendsLiteral lit :=
+  appends_nullary (lower_literal_action lit)
+
+theorem appends_finite_tag (carrier : FiniteSort) (tag : String) :
+    AppendsNullary (.finiteTag carrier tag) (.finiteTag carrier tag) :=
+  appends_nullary (fun _ _ => rfl)
+
+/-- The name of this opcode is shared by every nominal carrier and Hom fiber.
+The opcode itself carries the actual sort and tag. -/
+def finiteTagRegistryRow : Lean.Name × String := (``Core.Term.finiteTag, "finite.tag.v1")
+
+/-- Read every Core symbol in order. Missing symbols fail before emission.
+The successful instruction contains exactly the resolved SSA references. -/
+def AppendsLookup (site : FiniteLookup) (symbols : List Nat) : Prop :=
+  ∀ resolve (ctx : List (Nat × Ref)) (prior : Array Draft) (params : Array Ty) (prefixOps : Array (Op .optimization)),
+    (lowerTerm resolve ctx (.finiteLookup site symbols)).run (prior.push {params, ops := prefixOps}) =
+      (symbols.mapM (fun sym => ctx.lookup sym)).map fun args =>
+        (⟨prior.size, params.size + prefixOps.size⟩,
+          prior.push {params, ops := prefixOps.push ⟨.lookupTag site, args⟩})
+
+theorem appends_lookup (site : FiniteLookup) (symbols : List Nat) : AppendsLookup site symbols := by
+  intro resolve ctx prior params prefixOps
+  change ((do let refs ← liftM (symbols.mapM (fun sym => ctx.lookup sym)); emit (.lookupTag site) refs) : Builder Ref).run _ = _
+  cases found : symbols.mapM (fun sym => ctx.lookup sym) with
+  | none => rfl
+  | some args => exact emit_live _ _ _ _ _
+
+def lookupRegistryRow : Lean.Name × String := (``Core.Term.finiteLookup, "finite.lookup.tag.v1")
 
 /-- Structural lowering of one exact body. Acceptance of a source module and
 its family identities belongs to the checked request adapter in MidIR.Checked. -/

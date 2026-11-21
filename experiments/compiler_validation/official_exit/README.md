@@ -71,13 +71,14 @@ python3 experiments/compiler_validation/official_exit/run.py --staged --timeout 
 
 [Source.lean](Source.lean) identifies the entire decoded `ResourceSource.Program`,
 including every expression span, and proves acceptance of its public envelope.
-Its layout equality connects the captured request to two physical checks.
-[PhysicalScan.lean](PhysicalScan.lean) locates the singleton in the file and
-[PhysicalReplay.lean](PhysicalReplay.lean) parses its signature, body and
-signed integer at that location. These checks import the source checker and
-elaborate in separate processes. The lexer uses a proved byte-to-character
-lookup for this ASCII fixture. Both modules undergo independent
-`leanchecker` replay under the same qualification run.
+Its layout equality connects the captured request to the physical checks.
+[PhysicalScan.lean](PhysicalScan.lean) locates the singleton in the file.
+[PhysicalDeclaration.lean](PhysicalDeclaration.lean) parses its signature, body and
+signed integer at that location. [PhysicalReplay.lean](PhysicalReplay.lean)
+combines this result with the flat manifest check and the empty cell and product
+inventories. Each module elaborates and undergoes independent `leanchecker`
+replay in a separate process under the same limits. The lexer uses a proved
+byte-to-character lookup for this ASCII fixture.
 [NamespaceGates.lean](NamespaceGates.lean) establishes unique owners and emitted
 symbol names for all 25 declarations, the root package lookup and the
 full wire charge of 34 units. One declaration is `main`. The other 24 come

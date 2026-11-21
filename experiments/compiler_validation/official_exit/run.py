@@ -106,7 +106,8 @@ PROOFS = {
 
 ENDPOINTS = [("Decoded", "decoded"), ("Printed", "printed"), ("Facts", "endpoints")]
 STAGED = [
-    ("PhysicalScan", "scannedEntry"), ("PhysicalReplay", "physicalEditsOfLayout"),
+    ("PhysicalScan", "scannedEntry"), ("PhysicalDeclaration", "replayedDeclaration"),
+    ("PhysicalReplay", "physicalEditsOfLayout"),
     ("Source", "source_and_envelope"), ("NamespaceGates", "namespace_gates"),
     ("NamespaceValidation", "declarationsFromLower"),
     ("Admission", "wire_of_parts"), ("Lexical", "wire_of_pass"),

@@ -152,7 +152,7 @@ Claims:
     - `product_coefficients_and_operands_match_the_physical_source_before_llvm` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
     - `dual_and_hermitian_evaluation_replay_physical_operands_and_metric` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
     - `runtime_product_coefficient_matches_the_literal_in_the_declaring_function` in [`tests/runtime_shape_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/runtime_shape_source.rs)
-    - `physical_gemm_alpha_changes_the_computed_cells_on_the_llvm_route` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `physical_gemm_alpha_changes_the_computed_cells` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
   - Note: A changed physical coefficient, argument or metric rejects in an otherwise valid request. Both named-coefficient orders give identical LLVM bytes. Reparsing a changed hexadecimal alpha changes the literal bits in the storage call. The native control computes 1.5 and 27 after changing alpha to one quarter. Its first comparison reports the observed 1.5 when the original expectation of 3 is retained.
 - `affine-replay`: [Tested](../specifications.md#tested)
   - Evidence:

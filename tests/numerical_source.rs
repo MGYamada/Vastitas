@@ -2805,8 +2805,8 @@ fn dual_and_hermitian_evaluation_replay_physical_operands_and_metric() {
 }
 
 #[test]
-#[ignore = "requires the pinned OpenBLAS prefix and the public LLVM native compiler"]
-fn physical_gemm_alpha_changes_the_computed_cells_on_the_llvm_route() {
+#[ignore = "requires the pinned OpenBLAS prefix; the LLVM matrix also runs the checked LLVM route"]
+fn physical_gemm_alpha_changes_the_computed_cells() {
     let source = include_str!("../examples/packages/numerical/gemm-coefficients/main.vast");
     let package = common::example_package(
         "native physical product coefficients",
@@ -2820,20 +2820,26 @@ fn physical_gemm_alpha_changes_the_computed_cells_on_the_llvm_route() {
             "expect(updated, 0, 0, f64(1.5))",
         )
         .replace("f64(30)", "f64(27)");
-    for (text, expected) in [(source, 0), (&quarter, 1), (&updated, 0)] {
-        package.write("main.vast", text);
-        success(
-            &command(&package, "build")
-                .args(["--llvm-preview", "-o", "program"])
-                .args(common::numerical_build_options(None))
-                .output()
-                .unwrap(),
-        );
-        let output = Command::new(package.0.join("program")).output().unwrap();
-        assert_eq!(output.status.code(), Some(expected));
-        if expected == 1 {
-            common::expect_code(&output, "E_NATIVE_EXPECT");
-            assert!(String::from_utf8_lossy(&output.stderr).contains("4609434218613702656"));
+    let check = |backend: &[&str]| {
+        for (text, expected) in [(source, 0), (&quarter, 1), (&updated, 0)] {
+            package.write("main.vast", text);
+            success(
+                &command(&package, "build")
+                    .args(backend)
+                    .args(["-o", "program"])
+                    .args(common::numerical_build_options(None))
+                    .output()
+                    .unwrap(),
+            );
+            let output = Command::new(package.0.join("program")).output().unwrap();
+            assert_eq!(output.status.code(), Some(expected));
+            if expected == 1 {
+                common::expect_code(&output, "E_NATIVE_EXPECT");
+                assert!(String::from_utf8_lossy(&output.stderr).contains("4609434218613702656"));
+            }
         }
-    }
+    };
+    check(&[]);
+    #[cfg(feature = "llvm-native")]
+    check(&["--llvm-preview"]);
 }

@@ -146,7 +146,7 @@ jobs:
             | tee "$RUNNER_TEMP/llvm-qualification/kleisli-native.log"
           export VASTITAS_TEST_OPENBLAS_PREFIX="$RUNNER_TEMP/vastitas-openblas" VASTITAS_TEST_NATIVE_CC=cc
           cargo test --locked --features llvm-native --test numerical_source four_representations_execute_through_forwarded_public_maps -- --ignored --exact
-          cargo test --locked --features llvm-native --test numerical_source physical_gemm_alpha_changes_the_computed_cells_on_the_llvm_route -- --ignored --exact
+          cargo test --locked --features llvm-native --test numerical_source physical_gemm_alpha_changes_the_computed_cells -- --ignored --exact
           cargo test --locked --features llvm-native --test tree_source tensor_column_contraction_executes_without_implicit_conjugation -- --ignored --exact
           python3 llvm/check_exact_native.py --frontend "$CARGO_TARGET_DIR/debug/vastitas" \
             --backend "$CARGO_TARGET_DIR/debug/vastitas-llvm-qualification" | tee "$RUNNER_TEMP/llvm-qualification/checked-integers.log"

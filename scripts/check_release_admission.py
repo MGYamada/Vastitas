@@ -99,7 +99,7 @@ ROW_OBLIGATIONS = {
                  'compiler-ir.llvm-bytes@boxed-regression'),
         'official': ('compiler-ir.stage-validation@soundness', 'compiler-ir.llvm-bytes@entry-status',
                      'compiler-ir.llvm-bytes@folded-entry', 'compiler-ir.verification-modes@boxed-stage'),
-        'native': ('compiler-ir.runtime@linkage', 'compiler-ir.backend@native'),
+        'native': ('compiler-ir.runtime@linkage', 'compiler-ir.backend@native', 'compiler-ir.feasibility@qualification'),
     },
     'resources': {
         'source': ('compiler-ir.edition@admission', 'compiler-ir.storage@static-native'),

@@ -43,8 +43,22 @@ defaults:
 
 jobs:
   qualify:
-    name: LLVM 23.1.4 static ABI and public integer programs (Linux x86-64)
-    runs-on: ubuntu-24.04
+    name: LLVM 23.1.4 static ABI and public integer programs (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux x86-64
+            runner: ubuntu-24.04
+            sdk: Linux-X64
+            sha256: efdd1dbd089b99bfcfcde7b8eb1236163f2e88df5a981cca4f783ec9cb5e0378
+            artifact: linux-x64
+          - platform: macOS arm64
+            runner: macos-latest
+            sdk: macOS-ARM64
+            sha256: 0f8b0db925ab54a63028d788e85b14abaa25492e9608819728c17f6786948da4
+            artifact: macos-arm64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     env:
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -62,26 +76,36 @@ jobs:
       - uses: ./.github/actions/setup-elan
       - uses: ./.github/actions/setup-openblas
       - name: Install LLVM and Lean runtime link dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends libz3-dev libzstd-dev libxml2-dev libedit-dev libffi-dev libpfm4-dev zlib1g-dev libncurses-dev
+      - name: Prepare archive tools and native link dependencies on macOS
+        if: runner.os == 'macOS'
+        run: |
+          test "$(uname -m)" = arm64
+          brew install gnu-tar zstd z3
+          echo "LIBRARY_PATH=$(brew --prefix)/lib" >> "$GITHUB_ENV"
       - name: Verify and extract the pinned LLVM SDK
         working-directory: ${{ runner.temp }}
+        env:
+          LLVM_SDK: ${{ matrix.sdk }}
+          LLVM_SDK_SHA256: ${{ matrix.sha256 }}
         run: |
-          archive=LLVM-23.1.4-Linux-X64.tar.zst
+          archive="LLVM-23.1.4-${LLVM_SDK}.tar.zst"
           curl --fail --location --retry 3 --output "$archive" "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/$archive"
-          echo "efdd1dbd089b99bfcfcde7b8eb1236163f2e88df5a981cca4f783ec9cb5e0378  $archive" | sha256sum --check --strict
+          echo "$LLVM_SDK_SHA256  $archive" | shasum -a 256 -c -
           mkdir llvm-sdk
           # Keep the LLVM libraries and headers used by llvm-sys. Excluding
           # unrelated tools and Clang libraries leaves room for the Lean kernel.
           # The upstream archive uses a 1 GiB zstd window.
+          tar_tool=tar
+          if [[ "$RUNNER_OS" == macOS ]]; then tar_tool=gtar; fi
           read_sdk() { zstd --decompress --stdout --memory=1024MB -- "$archive"; }
-          read_sdk | tar -tf - | awk '/(^|\/)bin\/(llvm|llvm-config|llvm-dis)$/ || /(^|\/)include\/(llvm|llvm-c)\// || /(^|\/)lib(64)?\/([^/]+\/)?(libLLVM|libPolly|LLVMPolly)/' > llvm-sdk-members.txt
-          read_sdk | tar --no-recursion -xf - -C llvm-sdk -T llvm-sdk-members.txt
+          read_sdk | "$tar_tool" -tf - | awk '/(^|\/)bin\/(llvm|llvm-config|llvm-dis)$/ || /(^|\/)include\/(llvm|llvm-c)\// || /(^|\/)lib(64)?\/([^/]+\/)?(libLLVM|libPolly|LLVMPolly)/' > llvm-sdk-members.txt
+          read_sdk | "$tar_tool" --no-recursion -xf - -C llvm-sdk -T llvm-sdk-members.txt
           rm -- "$archive"
-          mapfile -t configs < <(find llvm-sdk -path '*/bin/llvm-config')
-          test "${#configs[@]}" -eq 1
-          prefix=$(realpath "$(dirname "${configs[0]}")/..")
+          prefix=$(python3 -c 'from pathlib import Path; (config,) = Path("llvm-sdk").rglob("bin/llvm-config"); print(config.parent.parent.resolve())')
           test "$("$prefix/bin/llvm-config" --version)" = 23.1.4
           echo "LLVM_SYS_231_PREFIX=$prefix" >> "$GITHUB_ENV"
       - name: Qualify static LLVM, the Lean runtime and all four BLAS calls
@@ -106,7 +130,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: llvm-native-linux-x64
+          name: llvm-native-${{ matrix.artifact }}
           if-no-files-found: warn
           retention-days: 30
           path: |

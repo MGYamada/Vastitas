@@ -449,8 +449,8 @@ document = ""
 
 [row.dimension.native]
 state = "partial"
-claims = ["compiler-ir.runtime@linkage", "compiler-ir.backend@native"]
-note = "On macOS arm64 the feature-enabled LLVM preview linked the literal main and a closed mixed Nat/Int division and addition. They returned 255 and 10. Each experiment compared all 374 bytes, the separate object, the installed executable and the Lean/C result. On macOS arm64 the libLLVM adapter emitted 15 checked boxed libraries. Their 121 native calls matched the generated Lean/C controls and independent integer expectations. The public LLVM build linked calls across four boxed integer functions and returned 84, 0 and 254 for three divisors. Linux qualification and release packaging remain."
+claims = ["compiler-ir.runtime@linkage", "compiler-ir.backend@native", "compiler-ir.feasibility@qualification"]
+note = "On macOS arm64 the literal main and a closed mixed Nat/Int expression returned 255 and 10. Their 374 bytes, linked object, installed executable and Lean/C results agreed. The macOS arm64 and Linux x86-64 controls matched 121 native results from 15 boxed libraries and the hosted results 84, 0 and 254. Both hosts have complete target-specific ABI fixture bytes and measured static LLVM, Lean runtime and OpenBLAS links. Full indexed-program coverage and offline packaging remain."
 document = ""
 
 [row.dimension.performance]

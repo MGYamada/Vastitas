@@ -8,7 +8,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 
 | Property | Claims |
 | --- | --- |
-| [Feasibility before backend admission](#compiler-ir.feasibility) | Planned |
+| [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
 | [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Tested, Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
@@ -56,13 +56,17 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 
 Before the main lowering and proof implementation, measure official-kernel reduction and nanoda checking over about 1,000 representative MidIR operations on the 16 GiB macOS reference host and Linux. Record wall time and peak memory separately for proof preparation and checking. Qualify llvm-sys 231.0.1 with LLVM 23.1.4, the pinned Lean runtime and sequential LP64 OpenBLAS 0.3.34 on both systems, recording build time, memory, disk use and binary size. A failure or an unavailable toolchain remains a blocker; changing a pin, using native evaluation as proof, or omitting a required platform does not pass the trial.
 
-- Example: A per-function validator over a 1,000-operation candidate is checked by both pinned checkers before its granularity is admitted.
-- Not executed: The isolated 1,000-operation model and native fixture have exploratory macOS results under experiments/compiler_validation; production lowering and both-platform qualification remain pending.
+- Example: Official Lean and nanoda replay the same isolated 1,000-operation workload as one proof and in 64-operation chunks on Linux x86-64 and macOS arm64.
+- Run by: `QualificationRecords.test_both_hosts_replayed_the_same_thousand_operation_exports` in [`experiments/compiler_validation/reduction/test_records.py`](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/reduction/test_records.py)
 
 Claims:
 
-- `qualification`: [Planned](../specifications.md#planned)
-  - Issue: [#749](https://github.com/MGYamada/Vastitas/issues/749)
+- `qualification`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `QualificationRecords.test_retained_records_bind_current_fixture_and_model` in [`experiments/compiler_validation/reduction/test_records.py`](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/reduction/test_records.py)
+    - `QualificationRecords.test_both_hosts_replayed_the_same_thousand_operation_exports` in [`experiments/compiler_validation/reduction/test_records.py`](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/reduction/test_records.py)
+    - `QualificationRecords.test_static_abi_records_bind_both_hosts_to_the_complete_fixture` in [`experiments/compiler_validation/llvm/test_records.py`](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/test_records.py)
+  - Note: The reduction records give wall time and peak resident memory for elaboration, Official replay, export and nanoda. Both native hosts linked LLVM 23.1.4 through llvm-sys 231.0.1 with the Lean 4.35.0 runtime and sequential LP64 OpenBLAS 0.3.34. Their target-specific inputs executed all four GEMM entry points. The native records include object and executable sizes, build-tree size and per-phase costs. These measurements cover the two feasibility experiments. Production module composition and offline distribution have separate requirements.
 
 <a id="compiler-ir.edition"></a>
 

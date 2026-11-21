@@ -536,11 +536,12 @@ evidence = [
   "VastitasOracle.SafeFloat.zero_patterns",
   "VastitasOracle.SafeFloat.guard_fail",
   "VastitasOracle.SafeFloat.guard_pass",
+  "VastitasOracle.SafeFloat.recover_checked_real_div",
   "VastitasOracle.SafeFloat.first_error",
   "VastitasOracle.SafeFloat.divide_order",
 ]
 premises = ["The fixed reference profile admits deterministic pure Lean continuations and observes represented values and the union of the five operation-local symbolic flags. The checked division statements concern binary32 and binary64 real scalars."]
-note = "Both unit and associativity laws preserve ordered events, as do the pure and bind equations for lift. Projection forgets event identity and ordering while retaining the result and accumulated flags. Both signed-zero guard inputs produce the declared error without invoking division. These proof-only computations give no public SafeFloat execution or hardware flag observations."
+note = "Both unit and associativity laws preserve ordered events, as do the pure and bind equations for lift. Projection retains the result and accumulated flags. Recovering a failed real zero guard by multiplying the two operands gives ordinary totalized division on every input pattern, including its five reference flags. The checked trace still records the guard."
 
 [property."compiler-ir.realization"]
 title = "Realization binds mathematical and numerical identities"
@@ -763,6 +764,21 @@ example_not_executed = "The reference laws below concern numerical results and l
 [property."compiler-ir.numeric-order".claim.reference]
 status = "planned"
 issue = 758
+
+[property."compiler-ir.numeric-order".claim.one-step]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.BinaryFloat.observe_eq_iff",
+  "VastitasOracle.BinaryFloat.add_one_step",
+  "VastitasOracle.BinaryFloat.sub_one_step",
+  "VastitasOracle.BinaryFloat.mul_one_step",
+  "VastitasOracle.BinaryFloat.realDiv_one_step",
+  "VastitasOracle.BinaryFloat.comparisons_one_step",
+  "VastitasOracle.BinaryFloat.infinity_zero_invalid",
+  "VastitasOracle.BinaryFloat.raw_division_separates_zeros",
+]
+premises = ["The pure binary32 or binary64 profile uses ties-to-even and gradual underflow. Each pair of real input operands consists of identical non-NaNs or two signed zeros. The arithmetic result is observed once, together with its five local flags."]
+note = "Addition, subtraction, multiplication and totalized division preserve the stated one-step observation and local flags. Equality and strict order return the same Booleans. Infinity times either zero and its totalized quotient produce an invalid NaN. Raw division of one by the two zeros produces opposite infinities. NaN results fall outside the input relation, so applying the theorem to a continuation requires further hypotheses. The validation contract requires the actual foreign calls and bits."
 
 [property."compiler-ir.numeric-order".claim.reference-boundaries]
 status = "proved-oracle"

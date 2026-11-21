@@ -274,6 +274,23 @@ theorem finite_realDiv_zero {a b : Scalar f} (ha : isNaN a = false)
     pure, guard]
   rfl
 
+/-- Zero-sign identification fails for raw division: the quotients are
+different infinities, although the same exception is raised in both cases. -/
+theorem raw_division_separates_zeros (f : Format) :
+    ieeeDiv (one f) (zero f) = ⟨infinity f, { divideByZero := true }⟩ ∧
+    ieeeDiv (one f) (zero f true) = ⟨infinity f true, { divideByZero := true }⟩ ∧
+    infinity f ≠ infinity f true := by
+  cases f <;> decide
+
+/-- Non-NaN inputs may produce a NaN under either multiplication or
+totalized division. This holds for both signs of infinity and zero. -/
+theorem infinity_zero_invalid (f : Format) (si sz : Bool) :
+    let x := infinity f si
+    let y := zero f sz
+    isNaN x = false ∧ isNaN y = false ∧ isNaN (mul x y).value = true ∧
+      (mul x y).flags = { invalid := true } ∧ realDiv x y = mul x y := by
+  cases f <;> cases si <;> cases sz <;> decide
+
 /-- An empty contraction only scales the prior destination, independent of alpha,
 including exceptional coefficients. The unit beta path preserves its raw bits. -/
 theorem empty_dot_preserves {α : Type} (op : CellOps α) (alpha beta : α)
@@ -297,5 +314,191 @@ theorem zero_beta_skips_old {α : Type} (op : CellOps α) (alpha beta : α)
     (hb : op.isZero beta = true) :
     dotUpdate op alpha beta old count input = dotUpdate op alpha beta other count input := by
   simp [dotUpdate, hb]
+
+/-! ### One-operation observations on related non-NaN inputs -/
+
+/-- The input domain for one operation excludes NaNs. It identifies the two
+signed zeros and otherwise requires bit identity. -/
+def RelatedInputs (a b : Scalar f) : Prop :=
+  isNaN a = false ∧ isNaN b = false ∧ (a = b ∨ (isZero a = true ∧ isZero b = true))
+
+inductive Observation (f : Format) where
+  | zero
+  | nan
+  | bits (value : BitVec f.width)
+  deriving DecidableEq
+
+/-- Used only at the end of a single operation. -/
+def observe (a : Scalar f) : Observation f :=
+  if isZero a then .zero else if isNaN a then .nan else .bits a.bits
+
+def observeLocal (r : Local (Scalar f)) := (observe r.value, r.flags)
+
+private theorem observe_zero (s : Bool) : observe (zero f s) = .zero := by
+  cases f <;> cases s <;> decide
+
+private theorem observe_round (q : Rat) (s t : Bool) :
+    observeLocal (roundRNE f q s) = observeLocal (roundRNE f q t) := by
+  by_cases h : q == 0
+  · simp [roundRNE, h, observeLocal, pure, Id.run, observe_zero]
+  · simp [roundRNE, h]
+
+private theorem zero_facts {z : Scalar f} (h : isZero z = true) :
+    isNaN z = false ∧ isInf z = false ∧ finiteValue z = 0 := by
+  have m := magnitude_of_zero h
+  refine ⟨by simp [isNaN, m], ?_, by simp [finiteValue, m]⟩
+  cases f <;> simp_all [isInf, infinityBits, hidden, Format.bias, Format.fractionBits]
+
+private theorem noNaN {a b : Scalar f} (ha : isNaN a = false) (hb : isNaN b = false) :
+    propagateNaN a b = none := by
+  simp [propagateNaN, guard, ha, hb]
+
+private theorem add_zero_left {z w y : Scalar f} (hz : isZero z = true)
+    (hw : isZero w = true) (hy : isNaN y = false) :
+    observeLocal (add z y) = observeLocal (add w y) := by
+  obtain ⟨zn, zi, zv⟩ := zero_facts hz
+  obtain ⟨wn, wi, wv⟩ := zero_facts hw
+  cases hi : isInf y <;>
+    simp [add, Id.run, pure, noNaN zn hy, noNaN wn hy, zi, wi, hi, zv, wv] <;> apply observe_round
+
+private theorem add_zero_right {x z w : Scalar f} (hx : isNaN x = false)
+    (hz : isZero z = true) (hw : isZero w = true) :
+    observeLocal (add x z) = observeLocal (add x w) := by
+  obtain ⟨zn, zi, zv⟩ := zero_facts hz
+  obtain ⟨wn, wi, wv⟩ := zero_facts hw
+  cases hi : isInf x <;>
+    simp [add, Id.run, pure, noNaN hx zn, noNaN hx wn, zi, wi, hi, zv, wv] <;> apply observe_round
+
+private theorem mul_zero_left {z w y : Scalar f} (hz : isZero z = true)
+    (hw : isZero w = true) (hy : isNaN y = false) :
+    observeLocal (mul z y) = observeLocal (mul w y) := by
+  obtain ⟨zn, zi, zv⟩ := zero_facts hz
+  obtain ⟨wn, wi, wv⟩ := zero_facts hw
+  cases hi : isInf y <;>
+    simp [mul, Id.run, pure, noNaN zn hy, noNaN wn hy, zi, wi, hi, hz, hw, zv, wv] <;> apply observe_round
+
+private theorem mul_zero_right {x z w : Scalar f} (hx : isNaN x = false)
+    (hz : isZero z = true) (hw : isZero w = true) :
+    observeLocal (mul x z) = observeLocal (mul x w) := by
+  obtain ⟨zn, zi, zv⟩ := zero_facts hz
+  obtain ⟨wn, wi, wv⟩ := zero_facts hw
+  cases hi : isInf x <;>
+    simp [mul, Id.run, pure, noNaN hx zn, noNaN hx wn, zi, wi, hi, hz, hw, zv, wv] <;> apply observe_round
+
+private theorem div_zero_left {z w y : Scalar f} (hz : isZero z = true)
+    (hw : isZero w = true) (hy : isNaN y = false) :
+    observeLocal (realDiv z y) = observeLocal (realDiv w y) := by
+  cases h : isZero y with
+  | true => simpa [realDiv, h] using mul_zero_left hz hw hy
+  | false =>
+    obtain ⟨zn, zi, zv⟩ := zero_facts hz
+    obtain ⟨wn, wi, wv⟩ := zero_facts hw
+    cases hi : isInf y with
+    | false =>
+      simp [realDiv, h, ieeeDiv, noNaN zn hy, noNaN wn hy, hi, zi, wi, zv, wv, Id.run, pure]
+      apply observe_round
+    | true =>
+      simp [realDiv, h, ieeeDiv, noNaN zn hy, noNaN wn hy, hi, zi, wi, Id.run, pure,
+        observeLocal, observe_zero]
+
+private theorem div_zero_right {x z w : Scalar f} (hx : isNaN x = false)
+    (hz : isZero z = true) (hw : isZero w = true) :
+    observeLocal (realDiv x z) = observeLocal (realDiv x w) := by
+  simpa [realDiv, hz, hw] using mul_zero_right hx hz hw
+
+private theorem magnitude_negate (a : Scalar f) : magnitude (negate a) = magnitude a := by
+  cases f <;> simp [negate, signed, fromBits, magnitude, signBit, Format.width, BitVec.toNat_ofNat]
+  all_goals split <;> omega
+
+private theorem negate_related {a b : Scalar f} (h : RelatedInputs a b) :
+    RelatedInputs (negate a) (negate b) := by
+  obtain ⟨ha, hb, eq | ⟨za, zb⟩⟩ := h
+  · subst b
+    simp_all [RelatedInputs, isNaN, magnitude_negate]
+  · exact ⟨by simpa [isNaN, magnitude_negate] using ha,
+           by simpa [isNaN, magnitude_negate] using hb, Or.inr
+           ⟨by simpa [isZero, magnitude_negate] using za, by simpa [isZero, magnitude_negate] using zb⟩⟩
+
+private theorem of_zero_substitutions {β : Type} (op : Scalar f → Scalar f → β)
+    (left : ∀ {z w y}, isZero z = true → isZero w = true → isNaN y = false → op z y = op w y)
+    (right : ∀ {x z w}, isNaN x = false → isZero z = true → isZero w = true → op x z = op x w)
+    {a a' b b' : Scalar f} (ha : RelatedInputs a a') (hb : RelatedInputs b b') :
+    op a b = op a' b' := by
+  refine Eq.trans (b := op a' b) ?_ ?_
+  · rcases ha.2.2 with rfl | ⟨za, za'⟩
+    · rfl
+    · exact left za za' hb.1
+  · rcases hb.2.2 with rfl | ⟨zb, zb'⟩
+    · rfl
+    · exact right ha.2.1 zb zb'
+
+theorem add_one_step {a a' b b' : Scalar f} (ha : RelatedInputs a a') (hb : RelatedInputs b b') :
+    observeLocal (add a b) = observeLocal (add a' b') :=
+  of_zero_substitutions (fun x y => observeLocal (add x y)) add_zero_left add_zero_right ha hb
+
+theorem sub_one_step {a a' b b' : Scalar f} (ha : RelatedInputs a a') (hb : RelatedInputs b b') :
+    observeLocal (sub a b) = observeLocal (sub a' b') := by
+  simpa [sub, noNaN ha.1 hb.1, noNaN ha.2.1 hb.2.1] using add_one_step ha (negate_related hb)
+
+theorem mul_one_step {a a' b b' : Scalar f} (ha : RelatedInputs a a') (hb : RelatedInputs b b') :
+    observeLocal (mul a b) = observeLocal (mul a' b') :=
+  of_zero_substitutions (fun x y => observeLocal (mul x y)) mul_zero_left mul_zero_right ha hb
+
+theorem realDiv_one_step {a a' b b' : Scalar f} (ha : RelatedInputs a a') (hb : RelatedInputs b b') :
+    observeLocal (realDiv a b) = observeLocal (realDiv a' b') :=
+  of_zero_substitutions (fun x y => observeLocal (realDiv x y)) div_zero_left div_zero_right ha hb
+
+private theorem eq_zero_left {z y : Scalar f} (hz : isZero z = true) (hy : isNaN y = false) :
+    eqIEEE z y = isZero y := by
+  have zn := (zero_facts hz).1
+  cases h : isZero y with
+  | true => simp [eqIEEE, zn, hy, hz, h]
+  | false =>
+    have ne : z.bits ≠ y.bits := by
+      intro e
+      have same : z = y := by cases z; cases y; congr
+      simp_all
+    simp [eqIEEE, zn, hy, hz, h, ne]
+
+private theorem eq_zero_right {x z : Scalar f} (hx : isNaN x = false) (hz : isZero z = true) :
+    eqIEEE x z = isZero x := by
+  rw [← eq_zero_left hz hx]
+  simp [eqIEEE, Bool.and_comm, Bool.or_comm, BEq.comm]
+
+private theorem lt_zero_left {z y : Scalar f} (hz : isZero z = true) (hy : isNaN y = false) :
+    ltIEEE z y = (!isZero y && !negative y) := by
+  have zn := (zero_facts hz).1
+  rcases h : isZero y with _ | _
+  · have pos : 0 < magnitude y := Nat.pos_of_ne_zero (by simpa [isZero] using h)
+    cases sz : negative z <;> cases sy : negative y <;>
+      simp [ltIEEE, zn, hy, eq_zero_left hz hy, h, sz, sy, magnitude_of_zero hz, pos]
+  · simp [ltIEEE, zn, hy, eq_zero_left hz hy, h]
+
+private theorem lt_zero_right {x z : Scalar f} (hx : isNaN x = false) (hz : isZero z = true) :
+    ltIEEE x z = (!isZero x && negative x) := by
+  have zn := (zero_facts hz).1
+  rcases h : isZero x with _ | _
+  · have pos : 0 < magnitude x := Nat.pos_of_ne_zero (by simpa [isZero] using h)
+    cases sx : negative x <;> cases sz : negative z <;>
+      simp [ltIEEE, hx, zn, eq_zero_right hx hz, h, sz, sx, magnitude_of_zero hz, pos]
+  · simp [ltIEEE, hx, zn, eq_zero_right hx hz, h]
+
+theorem comparisons_one_step {a a' b b' : Scalar f} (ha : RelatedInputs a a') (hb : RelatedInputs b b') :
+    eqIEEE a b = eqIEEE a' b' ∧ ltIEEE a b = ltIEEE a' b' := by
+  constructor
+  · exact of_zero_substitutions eqIEEE (fun hz hw hy => (eq_zero_left hz hy).trans (eq_zero_left hw hy).symm)
+      (fun hx hz hw => (eq_zero_right hx hz).trans (eq_zero_right hx hw).symm) ha hb
+  · exact of_zero_substitutions ltIEEE (fun hz hw hy => (lt_zero_left hz hy).trans (lt_zero_left hw hy).symm)
+      (fun hx hz hw => (lt_zero_right hx hz).trans (lt_zero_right hx hw).symm) ha hb
+
+/-- The observation compares ordinary nonzero values by all their bits. It
+identifies the two zero signs and observes arithmetic NaNs by class. -/
+theorem observe_eq_iff (a b : Scalar f) : observe a = observe b ↔
+    a = b ∨ (isZero a = true ∧ isZero b = true) ∨ (isNaN a = true ∧ isNaN b = true) := by
+  have bits : a.bits = b.bits ↔ a = b := by cases a; cases b; simp
+  by_cases eq : a = b
+  · simp [eq]
+  · cases za : isZero a <;> cases zb : isZero b <;> cases na : isNaN a <;> cases nb : isNaN b <;>
+      simp_all [observe, zero_facts]
 
 end VastitasOracle.BinaryFloat

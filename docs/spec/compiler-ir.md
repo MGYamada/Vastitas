@@ -21,7 +21,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
 | [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle) |
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
-| [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Planned |
+| [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
 | [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
 | [Finite binders do not admit general polymorphism](#compiler-ir.finite-binders) | Planned, Tested, Tested, Tested, Proved (oracle) |
@@ -442,10 +442,10 @@ Claims:
   - Note: Both precisions of RR and CC have typed buffers and exact component payloads. Storage rejects cross-representation access, unknown tags and oversized binary32 payloads.
 - `reference-laws`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.SafeFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SafeFloat.lean): `VastitasOracle.SafeFloat.flags_left_unit`, `VastitasOracle.SafeFloat.flags_right_unit`, `VastitasOracle.SafeFloat.flags_assoc`, `VastitasOracle.SafeFloat.raw_left_unit`, `VastitasOracle.SafeFloat.raw_right_unit`, `VastitasOracle.SafeFloat.raw_assoc`, `VastitasOracle.SafeFloat.safe_left_unit`, `VastitasOracle.SafeFloat.safe_right_unit`, `VastitasOracle.SafeFloat.safe_assoc`, `VastitasOracle.SafeFloat.lift_pure`, `VastitasOracle.SafeFloat.lift_bind`, `VastitasOracle.SafeFloat.raw_projection`, `VastitasOracle.SafeFloat.safe_projection`, `VastitasOracle.SafeFloat.raw_congr`, `VastitasOracle.SafeFloat.safe_congr`, `VastitasOracle.SafeFloat.zero_patterns`, `VastitasOracle.SafeFloat.guard_fail`, `VastitasOracle.SafeFloat.guard_pass`, `VastitasOracle.SafeFloat.first_error`, `VastitasOracle.SafeFloat.divide_order`
+    - [`VastitasOracle.SafeFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SafeFloat.lean): `VastitasOracle.SafeFloat.flags_left_unit`, `VastitasOracle.SafeFloat.flags_right_unit`, `VastitasOracle.SafeFloat.flags_assoc`, `VastitasOracle.SafeFloat.raw_left_unit`, `VastitasOracle.SafeFloat.raw_right_unit`, `VastitasOracle.SafeFloat.raw_assoc`, `VastitasOracle.SafeFloat.safe_left_unit`, `VastitasOracle.SafeFloat.safe_right_unit`, `VastitasOracle.SafeFloat.safe_assoc`, `VastitasOracle.SafeFloat.lift_pure`, `VastitasOracle.SafeFloat.lift_bind`, `VastitasOracle.SafeFloat.raw_projection`, `VastitasOracle.SafeFloat.safe_projection`, `VastitasOracle.SafeFloat.raw_congr`, `VastitasOracle.SafeFloat.safe_congr`, `VastitasOracle.SafeFloat.zero_patterns`, `VastitasOracle.SafeFloat.guard_fail`, `VastitasOracle.SafeFloat.guard_pass`, `VastitasOracle.SafeFloat.recover_checked_real_div`, `VastitasOracle.SafeFloat.first_error`, `VastitasOracle.SafeFloat.divide_order`
   - Premises:
     - The fixed reference profile admits deterministic pure Lean continuations and observes represented values and the union of the five operation-local symbolic flags. The checked division statements concern binary32 and binary64 real scalars.
-  - Note: Both unit and associativity laws preserve ordered events, as do the pure and bind equations for lift. Projection forgets event identity and ordering while retaining the result and accumulated flags. Both signed-zero guard inputs produce the declared error without invoking division. These proof-only computations give no public SafeFloat execution or hardware flag observations.
+  - Note: Both unit and associativity laws preserve ordered events, as do the pure and bind equations for lift. Projection retains the result and accumulated flags. Recovering a failed real zero guard by multiplying the two operands gives ordinary totalized division on every input pattern, including its five reference flags. The checked trace still records the guard.
 
 <a id="compiler-ir.realization"></a>
 
@@ -588,6 +588,12 @@ Claims:
 
 - `reference`: [Planned](../specifications.md#planned)
   - Issue: [#758](https://github.com/MGYamada/Vastitas/issues/758)
+- `one-step`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.BinaryFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryFloat.lean): `VastitasOracle.BinaryFloat.observe_eq_iff`, `VastitasOracle.BinaryFloat.add_one_step`, `VastitasOracle.BinaryFloat.sub_one_step`, `VastitasOracle.BinaryFloat.mul_one_step`, `VastitasOracle.BinaryFloat.realDiv_one_step`, `VastitasOracle.BinaryFloat.comparisons_one_step`, `VastitasOracle.BinaryFloat.infinity_zero_invalid`, `VastitasOracle.BinaryFloat.raw_division_separates_zeros`
+  - Premises:
+    - The pure binary32 or binary64 profile uses ties-to-even and gradual underflow. Each pair of real input operands consists of identical non-NaNs or two signed zeros. The arithmetic result is observed once, together with its five local flags.
+  - Note: Addition, subtraction, multiplication and totalized division preserve the stated one-step observation and local flags. Equality and strict order return the same Booleans. Infinity times either zero and its totalized quotient produce an invalid NaN. Raw division of one by the two zeros produces opposite infinities. NaN results fall outside the input relation, so applying the theorem to a continuation requires further hypotheses. The validation contract requires the actual foreign calls and bits.
 - `reference-boundaries`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.BinaryFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryFloat.lean): `VastitasOracle.BinaryFloat.finite_realDiv_zero`, `VastitasOracle.BinaryFloat.empty_dot_preserves`, `VastitasOracle.BinaryFloat.zero_alpha_skips_inputs`, `VastitasOracle.BinaryFloat.zero_beta_skips_old`

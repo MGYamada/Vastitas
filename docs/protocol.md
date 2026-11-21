@@ -899,10 +899,12 @@ value checking and resource checks before native generation.
 
 Numerical GEMM optionally carries `alpha`/`beta` operands, each either
 `{kind:"literal",value:<resource literal>}` or `{kind:"loan",loan:<local name>}`.
-Source `f64(...)`/`complex(...)` exact finite literals lower to the same unsigned
-64-bit payload fields as `f64_bits`/`complex_bits`; decimal or hex strings are not
-wire values. See [literal admission](storage/resource-programs.md#payloads) for exactness and
-the explicit-bit treatment of signed zero and nonfinite values.
+Rust checks that each finite decimal or hexadecimal component denotes its
+payload exactly. For `f32` and `complex32` the payload is 32 bits per component,
+and for `f64` and `complex` it is 64. The corresponding explicit-bit spellings
+produce the same wire literal. Lean checks the tag, width and use of those
+bits in the storage plan. The conversion from the original literal spelling
+is a frontend assumption. [Literal admission](storage/resource-programs.md#payloads)
 Absent fields retain alpha one and beta zero/one. Explicit null and unknown
 fields reject. Overwrite accepts no beta operand; accumulate requires initialized
 output even for beta zero. A coefficient loan must be a matching initialized

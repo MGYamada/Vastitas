@@ -81,7 +81,7 @@ ROW_OBLIGATIONS = {
                  'compiler-ir.realization@affine-wrappers', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
         'midir': ('compiler-ir.midir@representation', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi'),
-        'official': ('compiler-ir.numeric-order@reference', 'compiler-ir.numeric-order@reference-boundaries',
+        'official': ('compiler-ir.numeric-order@reference', 'compiler-ir.numeric-order@reference-boundaries', 'compiler-ir.numeric-order@one-step',
                      'compiler-ir.realization@affine-expansion', 'compiler-ir.realization@identity-origin', 'compiler-ir.float-carrier@reference-laws',
                      'compiler-ir.realization@rational-coordinates', 'compiler-ir.realization@exact-fields',
                      'compiler-ir.realization@exact-chart-selection',

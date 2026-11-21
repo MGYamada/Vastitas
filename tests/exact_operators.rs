@@ -291,6 +291,7 @@ fn a_short_name_cannot_select_a_conflicting_function_import_or_local_value() {
         "flat-local-operator.vast",
     );
 }
+
 #[test]
 fn the_revision_names_the_sole_method_and_result_at_every_integer_key() {
     use serde_json::json;
@@ -326,7 +327,7 @@ fn the_revision_names_the_sole_method_and_result_at_every_integer_key() {
     let revision = &response["function_revision"];
     let sites = revision["pure"]["operator_sites"].as_array().unwrap();
     assert_eq!(sites.len(), 2 * cases.len());
-    for (sites, (name, _, _, key, ordinal, result)) in sites.chunks_exact(2).zip(cases) {
+    for (sites, (name, _, _, key, ordinal, result)) in sites.as_chunks::<2>().0.iter().zip(cases) {
         assert_eq!(sites[0], sites[1]);
         assert_eq!(sites[0]["id"]["name"], name);
         assert_eq!(

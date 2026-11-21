@@ -65,7 +65,25 @@ fn package_order_and_aliases_preserve_resolution() {
     raw["packages"][1]["dependencies"][0]["alias"] = json!("alt");
     raw["packages"][1]["modules"][0]["functions"][0]["body"]["result"]["callee"] =
         json!("alt::value");
-    rejects(&raw, "E_FUNCTION_SOURCE");
+    rejects(&raw, "E_MANIFEST_SOURCE");
+
+    let scratch = Scratch::empty("physical call through a dependency alias");
+    scratch.write_package("lib", LIBRARY, "");
+    scratch.write_package(
+        "app",
+        "fn main() -> Int { lib::value() }",
+        "lib={path='../lib'}\nalt={path='../lib'}",
+    );
+    let mut two_aliases = scratch.captured("app/Vastitas.toml", CURRENT_PROTOCOL);
+    assert_eq!(check(&two_aliases)["ok"], true);
+    let app = two_aliases["packages"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|pkg| pkg["name"] == "app")
+        .unwrap();
+    app["modules"][0]["functions"][0]["body"]["result"]["callee"] = json!("alt::value");
+    rejects(&two_aliases, "E_FUNCTION_SOURCE");
 }
 
 #[test]

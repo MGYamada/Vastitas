@@ -1,5 +1,6 @@
 import VastitasKernel.MethodBodyText
 import VastitasKernel.ResourceHeaderSource
+import VastitasKernel.ResourceViewSource
 
 set_option autoImplicit false
 
@@ -10,6 +11,7 @@ open AssemblyText ResourceSource ResourceStatementSource SourceText Indexed
 
 inductive ValueSite where
   | signature (header : ResourceHeaderSource.Signature)
+  | view (operation : ResourceViewSource.View)
   | guard (condition : ResourceCondition)
   | binding (name : String) (type : Core.PureType) (body : FunctionSource.Block)
   | call (binding : Option (String × Core.PureType)) (callee : List String) (arguments results : List String)
@@ -21,7 +23,7 @@ private def select : Statement → Option (ValueSite × Span)
   | .value name type body s => some (.binding name type body, s)
   | .callValue path args outs name type s => some (.call (some (name,type)) path.path args outs, s)
   | .call path args outs s => some (.call none path.path args outs, s)
-  | _ => none
+  | stmt => (ResourceViewSource.select stmt).map fun (op, span) => (.view op, span)
 
 private def boundaries (fn : Function) : List (Nat × ValueSite × Span) :=
   let .mk _ _ span := fn.valueBody
@@ -49,6 +51,7 @@ def replay (file : File) (site : ResourceStatementSite) (v : ValueSite) (span : 
   let before := site.before
   match v with
   | .signature header => runGroup (ResourceHeaderSource.header header) file site
+  | .view op => runStatement (ResourceViewSource.spelling op) file before span
   | .guard cond =>
     runGroup (do
       token (.ident "if")

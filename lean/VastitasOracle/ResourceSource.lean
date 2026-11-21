@@ -301,8 +301,8 @@ theorem physical_resource_ownership {json : Lean.Json} (input : Wire.CheckedInpu
   obtain ⟨inventory, all⟩ := ResourceStatementSource.check_sound ownership
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
 
-/-- Each resource signature, conditional guard, binding and call replays at its
-lexical owner. The final result block follows the function's last statement. -/
+/-- Resource signatures, guards, numerical views, bindings and calls replay at
+their lexical owners. The final result block follows the function's last statement. -/
 theorem physical_resource_values {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
     ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
       PhysicalSources.layout json = .ok layout ∧

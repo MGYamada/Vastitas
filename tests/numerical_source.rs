@@ -2898,3 +2898,100 @@ fn storage_owners_and_layouts_match_the_source_before_llvm() {
         old_bytes.replace(original_call, changed_call)
     );
 }
+
+#[test]
+fn physical_spaces_bases_and_map_views_precede_storage_llvm() {
+    let source = include_str!("../examples/packages/numerical/gemm-coefficients/main.vast");
+    let package = common::example_package(
+        "physical numerical views",
+        "examples/packages/numerical/gemm-coefficients",
+        &[],
+    );
+    let wire = captured(&package);
+    let check = |candidate: &Value, mode| {
+        common::kernel_with_args(candidate, &[mode, "x86_64-unknown-linux-gnu", "e-p:64:64"])
+    };
+    let original = check(&wire, "llvm-check");
+    assert_eq!(original["ok"], true, "{original}");
+    for (from, to) in [
+        ("RealSmooth, 1", "RealSmooth, 2"),
+        ("basis(u)", "basis(w)"),
+        ("view(input_a, bu, bu)", "view(input_b, bu, bu)"),
+        ("view(output, bu, bu)", "view(output, bu, bv)"),
+    ] {
+        let changed = source.replacen(from, to, 1);
+        assert_ne!(source, changed);
+        assert_eq!(changed.len(), source.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        for mode in ["llvm-check", "llvm-build"] {
+            let response = check(&stale, mode);
+            common::assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+            assert!(response.get("llvm").is_none());
+            let line = response["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+            assert!(changed.lines().nth(line - 1).unwrap().contains(to));
+        }
+    }
+    let equivalent = source.replace("linear(RealSmooth, 1)", "linear(RealSmooth, 0001)");
+    package.write("main.vast", &equivalent);
+    let regenerated = check(&captured(&package), "llvm-check");
+    assert_eq!(regenerated["ok"], true, "{regenerated}");
+    assert_eq!(original["llvm"]["ir"], regenerated["llvm"]["ir"]);
+
+    let redirected = source.replace("map left = view(input_a", "map left = view(input_b");
+    package.write("main.vast", &redirected);
+    let rebuilt = check(&captured(&package), "llvm-check");
+    assert_eq!(rebuilt["ok"], true, "{rebuilt}");
+    let before = original["llvm"]["ir"].as_str().unwrap();
+    let old_operand = "@vq_storage_gemm(ptr %arena, i64 0, i64 0,";
+    assert_eq!(before.matches(old_operand).count(), 2);
+    assert_eq!(
+        rebuilt["llvm"]["ir"],
+        before.replace(old_operand, "@vq_storage_gemm(ptr %arena, i64 0, i64 1,")
+    );
+}
+
+#[test]
+fn physical_metric_entries_and_transformed_views_keep_their_module_and_role() {
+    let package = common::example_package(
+        "physical diagonal metrics",
+        "examples/packages/numerical/diagonal-metrics",
+        &[],
+    );
+    let wire = captured(&package);
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    let source = include_str!("../examples/packages/numerical/diagonal-metrics/src/real/mod.vast");
+    for (from, to) in [
+        ("[2, -4]", "[2,  4]"),
+        ("[3, 5, -2]", "[5, 3, -2]"),
+        ("derived(bv,vc)", "derived(bw,vc)"),
+        ("conjugate(vx,bvc,sigma)", "conjugate(vy,bvc,sigma)"),
+        (
+            "adjoint_into(input,output,hv,hw",
+            "adjoint_into(input,output,hw,hv",
+        ),
+        (
+            "scratch_owner,layout(8,2,1,3",
+            "scratch_owner,layout(8,2,1,4",
+        ),
+    ] {
+        let changed = source.replacen(from, to, 1);
+        assert_ne!(source, changed);
+        assert_eq!(changed.len(), source.len());
+        let mut stale = wire.clone();
+        let file = stale["root_source"]["files"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|f| f["path"].as_str().unwrap().ends_with("/src/real/mod.vast"))
+            .unwrap();
+        assert_eq!(file["text"], source);
+        file["text"] = json!(changed);
+        let response = kernel(&stale, "check");
+        common::assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+        let line = response["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+        assert!(changed.lines().nth(line - 1).unwrap().contains(to));
+    }
+    package.write("src/real/mod.vast", &source.replace("[2, -4]", "[2, -4,]"));
+    success(&command(&package, "check").output().unwrap());
+}

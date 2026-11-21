@@ -189,6 +189,16 @@ The four `Affine(R, 2)` fixtures compare every byte of their LLVM module with th
 
 In the real identity example, the physical declaration supplies the dimension and the order of the chart coordinates. Changing `Affine(2)[x, y]` to `Affine(2)[y, x]` while retaining the original wire fails at `y` before the storage copy can be emitted. Substituting `pullback(x -> x, y -> y)` for the written `identity` also fails before emission, even though the exact coordinate maps agree. [Physical chart and graph regressions](../../tests/numerical_realization.rs)
 
+The GEMM coefficient fixture has two read-only input buffers. For the Linux
+x86-64 target the original source and a dimension spelled `0001` produce identical 4,317-byte
+modules. Rebinding the left map to the second input changes exactly one ordered
+buffer operand in each of the two `vq_storage_gemm` calls. On macOS arm64 the
+original and the equivalent spelling exit 0. The redirected program exits 1 at
+its original numerical expectation. Lean 4.35.0's `emitSimpleExternalCall`
+builds the argument list in parameter order. Here the checked storage schedule
+also supplies the concrete buffer number for each operand.
+[Pinned external calls](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L679) · [Public GEMM operand regression](../../tests/numerical_source.rs)
+
 The physical return type of that resource entry is checked before LLVM emission.
 Changing only `main() -> Int` to `main() -> Nat` in its saved protocol request
 fails at the result type and produces no module. Lean 4.35.0's `emitFnDeclAux`

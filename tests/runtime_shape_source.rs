@@ -780,3 +780,31 @@ fn runtime_function_ports_replay_paths_extents_access_and_initialization() {
         assert!(replacement.lines().nth(line - 1).unwrap().contains(changed));
     }
 }
+
+#[test]
+fn runtime_spaces_and_views_replay_their_physical_extent_and_endpoints() {
+    let source = source(false, 1, 1, 1, 0);
+    let wire = request(&fixture(&source));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (from, to) in [
+        (
+            "linear(profiles::RealSmooth, m)",
+            "linear(profiles::RealSmooth, k)",
+        ),
+        ("runtime_basis bu = basis(u)", "runtime_basis bu = basis(v)"),
+        (
+            "runtime_map left = view(a, bv, bu)",
+            "runtime_map left = view(a, bu, bv)",
+        ),
+    ] {
+        let changed = source.replacen(from, to, 1);
+        assert_ne!(changed, source);
+        assert_eq!(source.len(), changed.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        let response = kernel(stale, "check");
+        common::assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+        let line = response["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+        assert!(changed.lines().nth(line - 1).unwrap().contains(to));
+    }
+}

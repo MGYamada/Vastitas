@@ -148,9 +148,12 @@ Claims:
   - Premises:
     - the public protocol-10 checker accepted the resource program
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: The physical inventory includes every resource signature with its ordered parameters, port types, source spans and results. Each conditional guard replays at its branch position even when both arms are empty. It includes each function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span.
+  - Note: The physical inventory includes every resource signature with its ordered parameters, port types, source spans and results. Each conditional guard replays at its branch position even when both arms are empty. The same inventory binds static and runtime numerical spaces, bases, nominal vector and map views, signed Gram entries, transformed endpoints, and the operands of adjoint and diagonal evaluation calls to their physical source. It includes each function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span.
 - `resource-value-replay`: [Tested](../specifications.md#tested)
   - Evidence:
+    - `physical_spaces_bases_and_map_views_precede_storage_llvm` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `physical_metric_entries_and_transformed_views_keep_their_module_and_role` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `runtime_spaces_and_views_replay_their_physical_extent_and_endpoints` in [`tests/runtime_shape_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/runtime_shape_source.rs)
     - `resource_signatures_match_the_physical_parameters_and_return_ports` in [`tests/resource_value_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_value_source.rs)
     - `even_empty_resource_branches_replay_their_guard_and_position` in [`tests/resource_value_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_value_source.rs)
     - `runtime_function_ports_replay_paths_extents_access_and_initialization` in [`tests/runtime_shape_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/runtime_shape_source.rs)

@@ -577,8 +577,13 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
         | some _, .word "let" => do
           let name ← f.next head.after
           pure ((← f.next name.after).kind matches .symbol ':')
+        | some _, .word "call" | some _, .word "runtime_space" | some _, .word "runtime_basis"
+        | some _, .word "runtime_map" | some _, .word "space" | some _, .word "basis"
+        | some _, .word "involution" | some _, .word "metric" | some _, .word "map"
+        | some _, .word "vector" | some _, .word "unpack" | some _, .word "adjoint_into"
+        | some _, .word "hermitian_diagonal" => pure true
         | _, _ => pure false
-      let checks := if valueBinding || (checks.edits.isSome && (head.kind matches .word "call")) then
+      let checks := if valueBinding then
         {checks with values := checks.values.insert head.span.start site}
       else checks
       let checks := match checks.edits, head.kind with

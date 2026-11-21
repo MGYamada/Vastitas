@@ -905,6 +905,13 @@ map endpoints and representation widths all participate. The scope scan records
 the opening and closing braces. Signature and guard checks reuse those boundaries,
 including the guards of empty branches in uncalled functions.
 
+Each numerical space, basis, vector and map declaration replays its operands
+in the defining module. A runtime dimension refers to the written extent slot
+or literal. A dual, conjugate or adjoint view carries its written endpoints,
+involution or metrics. A metric replays its signed Gram entries in order.
+The checks also bind owned map layouts, packing and unpacking, and the scratch
+view of a diagonal Hermitian evaluation to their source.
+
 Lean reads the pure blocks inside typed resource bindings and the final
 `value` block in each resource function. It checks their expression spans
 and the position of the final block after the last resource statement. For

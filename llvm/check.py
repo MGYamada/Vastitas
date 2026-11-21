@@ -31,6 +31,7 @@ CASES = [
     Sample("assembled-bool", HERE / "fixtures/AssembledBool.vast", "assembled_bool"),
     Sample("structured-lookup", HERE / "fixtures/StructuredLookup.vast", "structured_lookup"),
     Sample("structured-lookup-linux-x86_64", HERE / "fixtures/StructuredLookup.vast", "structured_lookup", "linux-x86_64"),
+    Sample("finite-projection", HERE / "fixtures/FiniteProjection.vast", "finite_projection"),
     Sample("static-selection", HERE / "fixtures/StaticSelection.vast", "static_selection"),
     Sample("literal-comparison", HERE / "fixtures/LiteralComparison.vast", "literal_comparison"),
     Sample("empty-lookup", HERE / "fixtures/EmptyLookup.vast", "empty_lookup"),

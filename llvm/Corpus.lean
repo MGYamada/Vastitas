@@ -120,6 +120,7 @@ def kleisliForwardBytes := corpus_bytes "src/kleisli-forward.ll"
 def structuredLookupBytes := corpus_bytes "src/structured-lookup.ll"
 def structuredLookupLinuxBytes := corpus_bytes "src/structured-lookup-linux-x86_64.ll"
 def staticSelectionBytes := corpus_bytes "src/static-selection.ll"
+def projectionBytes := corpus_bytes "src/finite-projection.ll"
 def literalComparisonBytes := corpus_bytes "src/literal-comparison.ll"
 
 open FiniteModule
@@ -266,6 +267,20 @@ private def boolCall (dst : Nat) (callee : String) (args : List Nat) : Instr :=
 private def boolHelper (name : String) (params : List (Width × String)) (ops : List Instr)
     (result : Nat) : Func :=
   ⟨name, true, .bit, params, [⟨"b0", ops, .ret ⟨.bit, reg result⟩⟩]⟩
+
+/-- The checked category and object specialize the function statically. Its
+two runtime parameters are Booleans, and its body returns the first one. -/
+def projectionCode : Code :=
+  let project := boolHelper "f0" [(.bit, slot 0), (.bit, slot 1)] [] 0
+  let entry : Func := ⟨"f1", true, .word, [], [
+    ⟨"b0", [bit 0 true, bit 1 false, boolCall 2 "f0" [0,1]], .branch (reg 2) "b1" "b2"⟩,
+    ⟨"b1", [constant "v1_0" 42], .jump "b3"⟩, ⟨"b2", [constant "v2_0" 7], .jump "b3"⟩,
+    ⟨"b3", [.phi "v3_0" .word [(.reg "v1_0","b1"),(.reg "v2_0","b2")]], ret "v3_0"⟩]⟩
+  ⟨header, [project, entry,
+    ⟨"main", false, .word, [], [⟨"start", [.call "result" .word "f1" []], ret "result"⟩]⟩]⟩
+
+set_option maxRecDepth 65536 in
+theorem finite_projection_verified : projectionBytes = projectionCode.print := rfl
 
 namespace StaticSelection
 
@@ -559,6 +574,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("kleisli-forward.ll", forCode kleisli_forward_verified),
    ("structured-lookup.ll", forCode structured_lookup_verified),
    ("structured-lookup-linux-x86_64.ll", forCode structured_lookup_linux_verified),
+   ("finite-projection.ll", forCode finite_projection_verified),
    ("static-selection.ll", forCode static_selection_verified),
    ("literal-comparison.ll", forCode literal_comparison_verified),
    ("s3-composition.ll", forBinary s3_composition_verified),
@@ -610,6 +626,7 @@ def main (args : List String) : IO Unit := do
   checkEntry "structured-lookup.ll" Vastitas.LLVMCorpus.structuredLookupBytes Vastitas.LLVMCorpus.StructuredLookup.code 42
   checkEntry "structured-lookup-linux-x86_64.ll" Vastitas.LLVMCorpus.structuredLookupLinuxBytes
     Vastitas.LLVMCorpus.StructuredLookup.linuxCode 42
+  checkEntry "finite-projection.ll" Vastitas.LLVMCorpus.projectionBytes Vastitas.LLVMCorpus.projectionCode 42
   checkEntry "static-selection.ll" Vastitas.LLVMCorpus.staticSelectionBytes Vastitas.LLVMCorpus.StaticSelection.code 42
   checkEntry "literal-comparison.ll" Vastitas.LLVMCorpus.literalComparisonBytes Vastitas.LLVMCorpus.literalComparisonCode 42
   for (code,bytes) in [(Vastitas.LLVMCorpus.affineIdentity false, Vastitas.LLVMCorpus.realIdentityBytes),

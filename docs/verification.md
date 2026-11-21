@@ -207,6 +207,13 @@ The separately built mathematical bridge is described below.
 
 ## Closed finite LLVM executables
 
+For each finite-indexed function in an accepted protocol 10 input,
+`VastitasOracle.ResourceSource.physical_finite_function` gives its replay in the
+declaring package and lexical module. The kernel matches the schema and
+object binders, parameters, result and body against the source file even
+when no call selects the function. The Rust loader supplies the file bytes
+and their global offsets. [Protocol 10](protocol.md)
+
 `VastitasOracle.FiniteProgram.correspondence` applies to the public
 checker route when it returns a finite executable artifact and the complete
 input bytes parse to its modeled module. The theorem identifies those bytes

@@ -602,11 +602,17 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
             if target.length > 1 || edits.targets.contains key then
               throw "physical function family declaration missing from request"
             let finite := next.kind matches .symbol '<'
+            if finite && checks.flat && scope.place == .afterPub then
+              throw "flat finite-indexed functions have implicit public visibility"
             if checks.singletonNames[key]?.any (fun previous => !finite || !previous) then
               throw "physical function overloads missing from request"
             let opening ← singletonOpening f finite (f.remaining t.after) next
             let close ← untilSymbol f '}' opening.after
             let checks := {checks with singletonNames := checks.singletonNames.insert key finite}
+            let checks := if finite then
+              let site := FiniteSite.mk pkg reversedPath.reverse (checks.flat || scope.place == .afterPub) checks.fileIndex c t.span
+              {checks with finiteSites := checks.finiteSites.insert t.span.start site}
+            else checks
             return ← scanExact f pkg fuel close.after {scope with place := .declaration} reversedPath external checks
           if ["grant", "delegation", "transfer", "contribution"].contains keyword then
             let some h := edits.headers[t.span.start]? | throw "physical edit declaration missing from the request"
@@ -652,7 +658,8 @@ def mayHaveExactHeaders (text : String) : Bool :=
     (text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine" || text.contains "identity"))
 
 def mayHaveFiniteDeclarations (text : String) : Bool :=
-  text.contains "indexed" && ["finite", "table", "schema", "instance"].any (fun word => text.contains word)
+  (text.contains "indexed" && ["finite", "table", "schema", "instance"].any (fun word => text.contains word)) ||
+    (text.contains "fn" && text.contains "<" && text.contains ":")
 
 def checkExactHeaders (text : String) (base : Nat) (pkg : String) (path : List String)
     (checks : SourceChecks) : Except String (Array (List String) × SourceChecks) :=

@@ -339,6 +339,45 @@ mutual
       sameSpan start span
 end
 
+private def staticBinder (b : StaticBinder) : Parser Unit := do
+  let start ← here
+  let span ← match b with
+    | .category name schema span => do
+      identifier name
+      takeText ":"
+      reference schema
+      pure span
+    | .object name owner span | .monadObject name owner span => do
+      identifier name
+      spell [":", "Obj", "<"]
+      identifier owner
+      if b matches .monadObject .. then spell ["::", "category"]
+      takeText ">"
+      pure span
+  sameSpan start span
+
+/-- Replay the whole finite-indexed declaration, including binder and schema
+spans. The scanner supplied the original fn token in the declaring module. -/
+def checkFiniteFunction (file : File) (first : Token) (function : Function) : Except Diagnostic Unit := do
+  let check : Parser Unit := do
+    takeText "fn"
+    identifier function.name
+    takeText "<"
+    separated function.finiteBinders staticBinder ">"
+    takeText "("
+    separated function.params parameter ")"
+    operator "->"
+    fnType function.result
+    block Limits.sourceNesting function.body
+    sameSpan first.span function.span
+  unless first.kind matches .word "fn" do
+    throw ⟨"E_FINITE_SOURCE", "expected a finite-indexed function", first.span, []⟩
+  match check.run file ⟨first, some ("fn", first)⟩ with
+  | .ok _ _ => return ()
+  | .error message state =>
+    let token := state.ahead.map Prod.snd |>.getD state.last
+    throw ⟨"E_FINITE_SOURCE", message, token.span, []⟩
+
 def check (f : File) (opening : Span) (body : Block) : Except Diagnostic Token := do
   let errorAt := fun (span : Span) (message : String) => Diagnostic.mk "E_ASSEMBLY" message span []
   unless f.base ≤ opening.start && opening.end ≤ f.base + f.text.utf8ByteSize do

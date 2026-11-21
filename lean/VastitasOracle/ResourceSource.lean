@@ -177,7 +177,7 @@ theorem physical_edit_declarations {json : Lean.Json} (input : Wire.CheckedInput
   exact ⟨expected, layout, checked, collected, physical, scan, empty,
     fun _ member => EditSourceFiles.checkBodies_sound bodies member⟩
 
-/-- Every finite carrier, table, schema and instance in this accepted program
+/-- Every finite carrier, table, schema, instance and static-indexed function in this accepted program
 replays in its declaring file. The inventory also accounts for uncalled and
 unused declarations in the physical modules. -/
 theorem physical_finite_declarations {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
@@ -190,6 +190,22 @@ theorem physical_finite_declarations {json : Lean.Json} (input : Wire.CheckedInp
     EditSourceFiles.check_evidence input.editSources
   obtain ⟨inventory, all⟩ := FiniteSourceFiles.check_sound finite
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
+
+/-- Each finite-indexed function, including an unused overload, replays its own
+binders, parameter and result types and body in its declaring module. -/
+theorem physical_finite_function {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {f : Indexed.FunctionSource.Function} (hf : f ∈ m.pureModule.functions) (finite : f.finiteBinders.isEmpty = false) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, f.span, f.isPublic, .function f⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_right _ ?_⟩⟩
+  exact List.mem_filterMap.mpr ⟨f, hf, by simp [finite]⟩
 
 /-- Even an unapplied contribution has a replay of its decoded method's
 complete syntax, in its original package, module and physical file. -/

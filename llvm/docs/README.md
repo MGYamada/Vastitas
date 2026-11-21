@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains 25 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 17. Replay parses each of those 17 files and evaluates its executable models. The structured lookup has macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains 26 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 18. Replay parses each of those 18 files and evaluates its executable models. The structured lookup has macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -15,6 +15,7 @@ The corpus contains 25 complete LLVM assembly files from edition 2026 Vastitas s
 | [boxed-arithmetic.ll](../src/boxed-arithmetic.ll) · 1,021 bytes | [BoxedArithmetic.vast](../fixtures/BoxedArithmetic.vast) | The two borrowed arguments determine the result. The function subtracts 5 from the Nat, divides by the Int, adds the quotient to itself, releases three intermediate references and returns an owned Int. | `boxed_arithmetic_verified` |
 | [assembled-bool.ll](../src/assembled-bool.ll) · 688 bytes | [AssembledBool.vast](../fixtures/AssembledBool.vast) | `main` calls the selected Boolean method and branches on the result. The two incoming edges supply 42 and 7 to the `phi`. The selected contribution returns its argument. The nonselected method also has a definition and returns false. | `assembled_bool_verified` |
 | [literal-comparison.ll](../src/literal-comparison.ll) · 924 bytes | [LiteralComparison.vast](../fixtures/LiteralComparison.vast) | The selected method distinguishes −(2¹²⁸+1) from −1. The fallback compares 0 with 256. Both pairs share their low byte. The two Boolean results survive in separate methods. | `literal_comparison_verified` |
+| [finite-projection.ll](../src/finite-projection.ll) · 802 bytes | [FiniteProjection.vast](../fixtures/FiniteProjection.vast) | The finite model and object select one specialization. Its two Boolean parameters remain in SSA, and returning the first selects exit 42. | `finite_projection_verified` |
 | [static-selection.ll](../src/static-selection.ll) · 1,448 bytes | [StaticSelection.vast](../fixtures/StaticSelection.vast) | The assembled method passes through `keep`. Two specializations of `invoke` call distinct targets with the same Boolean argument. The method returns true and the lambda returns false, so the entry selects 42. | `static_selection_verified` |
 | [structured-lookup.ll](../src/structured-lookup.ll) · 2,623 bytes | [StructuredLookup.vast](../fixtures/StructuredLookup.vast) | A 2 × 3 × 2 table maps three nominal tags to digit 9. A nullary table supplies the expected digit. The selected method uses `!a || b`, and the other method retains `!a && !b`. | `structured_lookup_verified` |
 | [structured-lookup-linux-x86_64.ll](../src/structured-lookup-linux-x86_64.ll) · 2,647 bytes | [StructuredLookup.vast](../fixtures/StructuredLookup.vast) | The Linux target and data layout are part of the byte proof. The table, both Boolean methods, calls, branch and phi have the same model as the macOS file. | `structured_lookup_linux_verified` |
@@ -78,6 +79,18 @@ the generated Lean/C executables and an independent Lean control returned 42
 and 7. Lean 4.35.0's `emitCase` zero-extends a discriminant for its switch,
 and `emitJmp` writes join arguments to slots. Direct bitcode generation on
 the comparison toolchain requires `-DLLVM=ON`. [Physical table regression](../../tests/finite_tables.rs) · [Pinned emitCase](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1104-L1126) · [Pinned emitJmp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1065)
+
+A finite-indexed Boolean function can return either of its two parameters. For
+the same index specialization and arguments `(true, false)`, changing the body
+from `{ b }` to `{ q }` changes a single byte in the 802-byte arm64 module. The return instruction
+`ret i1 %v0_0` becomes `ret i1 %v0_1`. Lean 4.35.0's `FnBody.ret` calls
+`emitArgVal` to load the selected argument from its slot, then passes it to
+`LLVM.buildRet`. The revision-matched llvm-sys executables, the generated
+Lean/C controls and an independent Lean program returned 42 and 7,
+respectively. The second source rejected the first revision before emitting
+bytes. Direct Lean bitcode generation required a toolchain built with
+`-DLLVM=ON`.
+[Finite function regression](../../tests/finite_binders.rs) · [Pinned argument load](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L576-L581) · [Pinned return](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1176-L1178)
 
 In the structured lookup, three unsigned comparisons guard the row-major index `(row * 3 + column) * 2 + bit`. The nullary table switches on the literal zero. Lean 4.35.0's `emitCase` zero-extends one discriminant to `i64` before building its switch. Here the closed function takes three `i32` parameters and switches on their checked `i32` index. A Lean reference using constructor cases returned 42 with `lean --run`. Generating bitcode with `lean -b` stopped at the toolchain’s LLVM build check, so the comparison uses the pinned emitter source. [Structured lookup IR](../src/structured-lookup.ll) · [Pinned emitCase](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1104-L1127)
 

@@ -102,14 +102,14 @@ Claims:
     - `native_branch_compares_members_of_a_visible_carrier` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
     - `finite_value_has_no_integer_or_cross_owner_conversion` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
     - `changing_a_member_in_the_wire_reaches_the_independent_checker` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
-  - Note: Protocol 10 resolves nominal carriers and checks totality over bounded products, including empty factors and nullary tables. Ordinary first-order functions can accept, return and compare tags of a nominal carrier. The public native branch test uses the existing checked Lean backend. The finite-binder claims cover concrete Hom and static category and object parameters. Functor and Monad parameters remain pending.
+  - Note: Protocol 10 resolves nominal carriers and checks totality over bounded products, including empty factors and nullary tables. Ordinary first-order functions can accept, return and compare tags of a nominal carrier. The public native branch test uses the existing checked Lean backend. The finite-binder claims below describe concrete Hom and the implemented static category, object and Monad parameters.
 - `finite-declaration-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_finite_declarations`
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_finite_declarations`, `VastitasOracle.ResourceSource.physical_finite_function`
   - Premises:
     - the public protocol-10 request passed the independent checker
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema and instance in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
+  - Note: The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
 - `correspondence`: [Planned](../specifications.md#planned)
   - Issue: [#533](https://github.com/MGYamada/Vastitas/issues/533)
 
@@ -781,6 +781,8 @@ Claims:
     - `inferred_and_explicit_indices_select_the_same_nominal_specialization` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
     - `symbolic_composition_preserves_noncommuting_order` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
     - `an_unused_template_is_checked_without_any_inhabited_model` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
+    - `unused_finite_functions_bind_their_schema_signature_and_body_to_the_original_file` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
+    - `changing_a_finite_function_result_changes_its_ssa_operand_and_revision` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
     - `inference_rejects_foreign_models_ambiguous_indices_and_conflicting_endpoints` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
     - `standard_category_composes_an_applications_noncommuting_arrows` in [`tests/finite_lookup.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_lookup.rs)
   - Note: A category schema and its objects can index an ordinary named function over Hom and Bool. The checked Lean backend executes noncommuting composition, and the receipt binds each specialized symbol to its model and endpoints.

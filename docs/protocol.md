@@ -122,9 +122,10 @@ checks the input bindings, producer calls and final call in order.
 
 Lean replays each finite carrier, table, schema and instance in the source
 file supplied for its package and lexical module. It checks visibility, tag
-order, qualified path spans and both ends of every table row. Unused
-declarations participate in the same inventory. A valid table that differs
-from the submitted source fails with `E_FINITE_SOURCE`. Ill-typed tables
+order, qualified path spans and both ends of every table row. Finite-indexed functions participate in the same inventory, including uncalled
+functions. Lean checks each static binder and its schema or object projection,
+the parameter and result types, and the expression body. An otherwise valid
+substitution in a declaration fails with `E_FINITE_SOURCE` at the source token. Ill-typed tables
 and false categorical laws retain their own diagnostics.
 
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.

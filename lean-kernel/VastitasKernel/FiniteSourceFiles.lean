@@ -1,9 +1,11 @@
 import VastitasKernel.ExactModelSource
+import VastitasKernel.MethodBodyText
 
 set_option autoImplicit false
 
 /-! Replay finite declarations from the original file after the independent
-table, endpoint and law checks. Key and result tags retain their own spans. -/
+table, endpoint and law checks. Match table rows and finite-indexed function
+signatures and bodies at their original source spans. -/
 namespace VastitasKernel.FiniteSourceFiles
 open Indexed AssemblyText SourceText
 
@@ -54,17 +56,24 @@ def form (d : Source.Declaration) : Option Form :=
   | .finiteKleisli k s m => some (instance_ s (application (kleisliName k) [m]))
   | _ => none
 
+inductive DeclarationSyntax where
+  | indexed (declaration : Form)
+  | function (declaration : FunctionSource.Function)
+
 structure Item where
   packageSource : String
   modulePath : List String
   span : Span
   isPublic : Bool
-  syntax_ : Form
+  syntax_ : DeclarationSyntax
 
 def declarations (program : ResourceSource.Program) : List Item :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
-    m.pureModule.declarations.filterMap fun d =>
-      (form d).map fun syntax_ => ⟨pkg.id.source, m.pureModule.module.path, d.span, d.isPublic, syntax_⟩
+    let item := fun span visibility syntax_ => Item.mk pkg.id.source m.pureModule.module.path span visibility syntax_
+    let indexed := m.pureModule.declarations.filterMap fun d =>
+      (form d).map fun shape => item d.span d.isPublic (.indexed shape)
+    indexed ++ m.pureModule.functions.filterMap fun f =>
+      if f.finiteBinders.isEmpty then none else some (item f.span f.isPublic (.function f))
 
 private def errorAt (span : Span) (message : String) : Diagnostic := {code := "E_FINITE_SOURCE", span, message}
 
@@ -75,16 +84,21 @@ private def readTokens (file : File) (before : Cursor) (tokens : List ExactLexem
       let offset := file.base + cursor.pos.byteIdx
       errorAt (span.getD ⟨offset, offset, cursor.line, cursor.column⟩) msg
 
-def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Unit := do
-  let first ← (file.next before).mapError (errorAt item.span)
+private def replayIndexed (file : File) (first : Token) (shape : Form) (span : Span) : Except Diagnostic Unit := do
   unless first.kind matches .word "indexed" do throw (errorAt first.span "expected a finite indexed declaration")
-  let mut after ← readTokens file first.after item.syntax_.header
-  for (span, row) in item.syntax_.rows do
+  let mut after ← readTokens file first.after shape.header
+  for (span, row) in shape.rows do
     let head ← (file.next after).mapError (errorAt first.span)
     after ← readTokens file after row
     unless sameSpan file head after span do throw (errorAt head.span "finite table row span differs from its source")
-  after ← readTokens file after [.punctuation item.syntax_.closing]
-  unless sameSpan file first after item.span do throw (errorAt first.span "finite declaration span differs from its source")
+  after ← readTokens file after [.punctuation shape.closing]
+  unless sameSpan file first after span do throw (errorAt first.span "finite declaration span differs from its source")
+
+def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Unit := do
+  let first ← (file.next before).mapError (errorAt item.span)
+  match item.syntax_ with
+  | .indexed shape => replayIndexed file first shape item.span
+  | .function f => MethodBodyText.checkFiniteFunction file first f
 
 abbrev Sites := Std.HashMap Nat FiniteSite
 

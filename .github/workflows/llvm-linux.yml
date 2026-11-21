@@ -12,6 +12,7 @@ on:
       - 'lean-kernel/native/storage.*'
       - 'llvm/**'
       - 'tests/llvm_*.rs'
+      - 'tests/finite_binders.rs'
       - 'tests/finite_iso.rs'
       - 'tests/finite_opposite.rs'
       - 'tests/numerical_realization.rs'
@@ -132,7 +133,7 @@ jobs:
           lake -d lean-kernel build vastitas-kernel
           export CARGO_TARGET_DIR="$RUNNER_TEMP/llvm-target"
           cargo test --locked --manifest-path experiments/compiler_validation/llvm/Cargo.toml --test handoff
-          cargo test --locked --features llvm-native --test llvm_preview --test llvm_package_roots --test finite_iso --test finite_opposite --test numerical_realization
+          cargo test --locked --features llvm-native --test llvm_preview --test llvm_package_roots --test finite_binders --test finite_iso --test finite_opposite --test numerical_realization
           export VASTITAS_TEST_OPENBLAS_PREFIX="$RUNNER_TEMP/vastitas-openblas" VASTITAS_TEST_NATIVE_CC=cc
           cargo test --locked --features llvm-native --test numerical_source four_representations_execute_through_forwarded_public_maps -- --ignored --exact
           cargo test --locked --features llvm-native --test tree_source tensor_column_contraction_executes_without_implicit_conjugation -- --ignored --exact

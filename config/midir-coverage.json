@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "01d41006ada8f46c27844577e53905a3695bbda0",
-    "schema_sha256": "def55703a5172f09fa1b022656f53979ec965bd8405a4575e99ec9f8fd902513"
+    "base_commit": "af43ec71a4ba34bc1f9b05e5950552b4be1ffa8c",
+    "schema_sha256": "0f51356512662fa643c9ae0ecc846049cac8eb633e2fbaf7467ba723556fc6a2"
   },
   "schema": {
     "sources": [
@@ -33,6 +33,7 @@
       "lean-kernel/VastitasKernel/TensorNumerical.lean",
       "lean-kernel/VastitasKernel/TensorNetwork.lean",
       "lean-kernel/VastitasKernel/TensorTree.lean",
+      "lean-kernel/VastitasKernel/AffineRealizationProfile.lean",
       "lean-kernel/VastitasKernel/ResourceSource.lean",
       "lean-kernel/VastitasKernel/MidIR/IR.lean"
     ],
@@ -195,6 +196,13 @@
         "kind": "structure",
         "header": "structure DiagnosticNote",
         "fields": "message : String span : Span : = { }"
+      },
+      {
+        "id": "VastitasKernel.Indexed.AffineRealizationProfile.Site",
+        "source": "lean-kernel/VastitasKernel/AffineRealizationProfile.lean",
+        "kind": "structure",
+        "header": "structure Site",
+        "fields": "representation : Storage . Realization . Representation dimension : Nat span : Span"
       },
       {
         "id": "VastitasKernel.Indexed.Application",
@@ -1262,6 +1270,14 @@
           {
             "id": "VastitasKernel.MidIR.ExactOp.natToInt",
             "signature": "natToInt"
+          },
+          {
+            "id": "VastitasKernel.MidIR.ExactOp.pair",
+            "signature": "pair ( element : PairElem )"
+          },
+          {
+            "id": "VastitasKernel.MidIR.ExactOp.project",
+            "signature": "project ( element : PairElem ) ( first : Bool )"
           }
         ]
       },
@@ -1437,6 +1453,10 @@
           {
             "id": "VastitasKernel.MidIR.Ty.int",
             "signature": "int"
+          },
+          {
+            "id": "VastitasKernel.MidIR.Ty.pair",
+            "signature": "pair ( element : PairElem )"
           },
           {
             "id": "VastitasKernel.MidIR.Ty.finite",
@@ -1968,7 +1988,7 @@
         "source": "lean-kernel/VastitasKernel/ResourceSource.lean",
         "kind": "structure",
         "header": "structure RealizationSite",
-        "fields": "owner : Indexed . DeclId position : List Nat functionId : Namespace . FunctionId operation : Realization . Operation callee : Indexed . Source . Path span : Span"
+        "fields": "owner : Indexed . DeclId position : List Nat functionId : Namespace . FunctionId operation : Realization . Operation callee : Indexed . Source . Path span : Span affine : Option Indexed . AffineRealizationProfile . Site : = none"
       },
       {
         "id": "VastitasKernel.ResourceSource.Reference",
@@ -2073,6 +2093,10 @@
         "kind": "inductive",
         "header": "inductive Statement",
         "constructors": [
+          {
+            "id": "VastitasKernel.ResourceSource.Statement.affineRealization",
+            "signature": "affineRealization ( callee : Indexed . Source . Path ) ( site : Indexed . AffineRealizationProfile . Site ) ( result : String )"
+          },
           {
             "id": "VastitasKernel.ResourceSource.Statement.realization",
             "signature": "realization ( callee : Indexed . Source . Path ) ( representation : Option FloatRepresentation ) ( arguments : List Indexed . Source . Path ) ( result : String ) ( into : Bool ) ( span : Span )"
@@ -4668,7 +4692,7 @@
         },
         {
           "source": "lean-kernel/lakefile.toml",
-          "sha256": "df4fa1b1f03ce3f17eb718efcd136cf205a0e8dcc39ef0d477b621a47271e4e2"
+          "sha256": "76a0463f3408a5a4d05647999dee5f2220ca858794f43b556359ab9ad1f9c222"
         },
         {
           "source": "lean-kernel/native/diagonal.c",
@@ -6279,6 +6303,22 @@
       "evidence": []
     },
     {
+      "origin": "VastitasKernel.MidIR.ExactOp.pair",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.MidIR.ExactOp.pair",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.MidIR.ExactOp.project",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.MidIR.ExactOp.project",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
       "origin": "VastitasKernel.MidIR.IntLiteral.integer",
       "disposition": "pending",
       "owner": "#751",
@@ -6475,6 +6515,14 @@
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.MidIR.Ty.nat",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.MidIR.Ty.pair",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.MidIR.Ty.pair",
       "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },
@@ -7259,6 +7307,14 @@
       "disposition": "pending",
       "owner": "#751",
       "planned_opcode": "midir.ResourceSource.Statement.action",
+      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.ResourceSource.Statement.affineRealization",
+      "disposition": "pending",
+      "owner": "#751",
+      "planned_opcode": "midir.ResourceSource.Statement.affineRealization",
       "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
       "evidence": []
     },

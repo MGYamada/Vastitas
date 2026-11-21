@@ -120,6 +120,36 @@ entry carries its selected target and its full nullary Hom signature. The
 checker reads the returned Core at the caller's first argument binding and
 checks the input bindings, producer calls and final call in order.
 
+Lean replays each finite carrier, table, schema and instance in the source
+file supplied for its package and lexical module. It checks visibility, tag
+order, qualified path spans and both ends of every table row. Finite-indexed functions participate in the same inventory, including uncalled
+functions. Lean checks each static binder and its schema or object projection,
+the parameter and result types, and the expression body. An otherwise valid
+substitution in a declaration fails with `E_FINITE_SOURCE` at the source token. Ill-typed tables
+and false categorical laws retain their own diagnostics.
+
+For an ordinary singleton `fn`, the same inventory includes each unused
+function. Lean checks its name, visibility, parameters, return type and body
+against the declaring file. The statement indices in `observations` select
+the initializers wrapped in `show!`. A mismatch in the physical singleton
+or its body has diagnostic `E_FUNCTION_SOURCE`. In a protected flat input,
+`main` belongs to the entry file. A definition of `main` in a `--lib` file
+has diagnostic `E_LIBRARY` at its declaration span.
+
+The checker matches each `use` and `pub use` to the path, alias, visibility
+and full declaration span in the file that contains it. An unused re-export
+participates in the same check. Omitting an import or changing its path yields
+`E_IMPORT_SOURCE`. Inline and external `mod` declarations are checked in the
+parent's module scope, including empty modules. The inline record uses the
+`mod` keyword span. The external record extends through the semicolon.
+A mismatch in either declaration yields `E_MODULE_SOURCE`.
+
+For `abstract type` and `subtype`, Lean checks the declaring module,
+visibility, ordered parent paths, scalar membership and original spans.
+Both declarations participate even when no function uses the selector.
+A decoded hierarchy that type-checks but differs from the source yields
+`E_HIERARCHY_SOURCE` before a function revision or LLVM module is returned.
+
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record
 with four paths named `source`, `target`, `objects` and `arrows`. Each
@@ -227,8 +257,14 @@ non-UTF-8 path uses the original path bytes in a JSON array.
 The checker reconstructs every offset from the preceding UTF-8 byte
 lengths and the one-byte separator. For disk-backed packages it checks
 that the first input is the root manifest, every package manifest occurs,
-and the entry contains the root module’s source location. The function
-revision includes the ordered files. Even a comment-only change in a
+and the entry contains the root module’s source location. For every package
+the checker reads `package.name`, `package.version` and `package.edition`
+from the manifest at its recorded path. The first two fields must match the
+package ID used in function families and edit authority.
+Table headers, dotted keys and inline tables can all select these fields.
+A comment or a string containing the field's spelling cannot supply it.
+The decoded field and the wire edition must both equal the string `"2026"`.
+The function revision includes the ordered files. Even a comment-only change in a
 library or dependency manifest invalidates its replay. Filesystem discovery
 and the translation of source declarations into wire records use the Rust
 frontend.
@@ -830,6 +866,20 @@ three ordered `arguments` as paths, the local `result` name and the statement
 The kernel resolves each operation in its source module and checks the
 identity of the protected `monad::float` declaration.
 
+An `affine_realization` statement carries `callee`, `representation`,
+`dimension`, `result` and `span`. The decoder bounds the number of coordinates
+before the kernel constructs declarations. The kernel resolves the edition's
+unqualified `Affine` constructor in the caller's scope and creates a private
+mathematical subject and identity graph for that physical occurrence. Its
+revision records both the constructor and the canonical `realize` family.
+On a descriptor bound to `r`, `r::identity` selects the graph of that subject.
+
+It reads the realization calls from the physical edition 2026 files and
+matches their package, module, function, statement index and enclosing
+branch conditions to the wire. The callee, representation, ordered paths,
+binding or destination, and UTF-8 source spans must agree. This check
+also covers discarded descriptors and functions outside the entry's call graph.
+
 The [runtime-extent profile](storage/resource-programs.md#runtime-extents) adds parameter kinds
 `runtime_space` (`name`, `implementation`, `dimension`, `span`), `runtime_basis`
 (`name`, `space`, `span`) and `runtime_map` (`name`, `source`, `target`, `access`,
@@ -861,10 +911,12 @@ value checking and resource checks before native generation.
 
 Numerical GEMM optionally carries `alpha`/`beta` operands, each either
 `{kind:"literal",value:<resource literal>}` or `{kind:"loan",loan:<local name>}`.
-Source `f64(...)`/`complex(...)` exact finite literals lower to the same unsigned
-64-bit payload fields as `f64_bits`/`complex_bits`; decimal or hex strings are not
-wire values. See [literal admission](storage/resource-programs.md#payloads) for exactness and
-the explicit-bit treatment of signed zero and nonfinite values.
+Rust checks that each finite decimal or hexadecimal component denotes its
+payload exactly. For `f32` and `complex32` the payload is 32 bits per component,
+and for `f64` and `complex` it is 64. The corresponding explicit-bit spellings
+produce the same wire literal. Lean checks the tag, width and use of those
+bits in the storage plan. The conversion from the original literal spelling
+is a frontend assumption. [Literal admission](storage/resource-programs.md#payloads)
 Absent fields retain alpha one and beta zero/one. Explicit null and unknown
 fields reject. Overwrite accepts no beta operand; accumulate requires initialized
 output even for beta zero. A coefficient loan must be a matching initialized
@@ -1363,8 +1415,36 @@ nonempty, nonoverlapping byte spans in source order. A closing brace spans
 one byte. The whole assembly spans its first header through its final brace.
 After checking authority, the kernel expands these items with a fresh loan-name
 counter shared by all blocks and compares every event, path, label and span.
-A receipt pins both arrays. Rust tokenization and the original file mapping
-remain inputs to this check.
+Lean also scans the physical files supplied by the loader for grants,
+delegations, transfers and contributions. It matches their declaring package,
+module, visibility, target, recipient, region and original span. For each
+contribution it matches every method in order, including parameter names and
+selectors, requirements and result type.
+
+Every decoded defining method is checked in its lexical module, including
+in programs without an `assemble` block. For flat input, the entry and each
+`--lib` file belong to the protected root module and have separate byte
+ranges. The checker compares the expressions, statements, typed binders,
+source spans and operator grouping in each body. A mismatched token carries
+its physical byte range and file-local line and column.
+
+In an unedited program the wire may permute the defining methods. Each
+method still has to match its original declaration and body by source
+position. Edit revisions retain the defining order within each family.
+
+The checker reads an explicit family domain from its declaration, retaining
+the order of parameters and keys. An inferred header takes its name, span
+and typed parameter spans from its first method or bodyless contract.
+Defining declarations respect the family's visibility. A contract with an
+explicit domain retains the path and source span of every selector. In the
+shorthand form, its domain is the single row of selectors at their parameter
+type spans. If the request omits a family entirely, its physical declarations
+can still reveal a bodyless contract, an abstract selector, a nonempty
+`requires` clause or repeated ordinary functions in the same module. Multiple
+functions with finite index binders use the separate finite dispatch rules.
+The authority checker checks the resulting callable keys and
+typechecks the decoded bodies. A receipt pins the complete request, including
+the physical bytes.
 
 Each source `assemble path { … }` contributes its events to this single
 array in source order, ending in a seal of `path` at the closing brace.
@@ -1674,22 +1754,22 @@ receipts, doctest execution, or official package admission.
   `the_kernel_refuses_tampered_observations` refuses an observation
   outside `main`, of a function value, of a missing statement, an empty list
   and a foreign field. The kernel regression
-  `VastitasKernel.ObservationRegression` decodes, checks and generates the
+  `VastitasPublicTest.ObservationRegression` decodes, checks and generates the
   observations without the driver.
 - `tests/protocol_shape.rs::package_requests_carry_legacy_geometry_exactly_without_indexed_records`
   and `flat_requests_carry_legacy_geometry` pin the requests that carry
   `legacy_geometry`: every flat program and the package programs without a
   record of [Flat programs and the legacy geometry](#flat-programs-and-the-legacy-geometry),
   and no other. The kernel regression
-  `VastitasKernel.CompatibilityProfileRegression` checks that the kernel
+  `VastitasPublicTest.CompatibilityProfileRegression` checks that the kernel
   accepts and generates a flat and a package program with the legacy geometry
   with the field and rejects them without it. It rejects the field with a
   value other than `true` and beside a `geometry_compat` export, and the
   profile's identity in a request.
-- The kernel regressions `VastitasKernel.IndexedWireRegression` and
+- The kernel regressions `VastitasPublicTest.IndexedWireRegression` and
   `VastitasPublicTest.AuthorityRegression` decode and check requests without
   the driver. `VastitasKernel.FrameDeclarationRegression`,
-  `VastitasKernel.FrameRegression` and `VastitasKernel.NatureRegression`
+  `VastitasKernel.FrameRegression` and `VastitasPublicTest.NatureRegression`
   decode every frame and physical-dimension form.
   `VastitasKernel.SpectralDeclarationRegression` and
   `VastitasKernel.SpectralRegression` do the same for the spectral forms.

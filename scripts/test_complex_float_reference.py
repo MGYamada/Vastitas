@@ -85,6 +85,13 @@ class FixedGraphTests(unittest.TestCase):
             minus = scalar.zero(True, kind=kind)
             yield kind, sign, one, minus_one, plus, minus
 
+    def test_real_zero_divisor_preserves_both_operand_signs(self):
+        for kind, _, one, minus_one, plus, minus in self.cases():
+            for x, y in product((one, minus_one, plus, minus), (plus, minus)):
+                with self.subTest(kind=kind.__name__, x=x.bits, y=y.bits):
+                    expected = minus if x.negative != y.negative else plus
+                    self.assertEqual(scalar.rdiv(x, y), scalar.Local(expected, F.NONE))
+
     def test_full_operation_order_no_fma_and_flag_folding(self):
         for kind, _, one, _, plus, _ in self.cases():
             result = complex_ref.divide(complex_ref.ComplexBits(one, plus),

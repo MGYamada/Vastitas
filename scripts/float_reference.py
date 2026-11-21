@@ -259,6 +259,6 @@ def abs_bits(a: F32 | F64) -> Local:
 
 
 def rdiv(a: F32 | F64, b: F32 | F64) -> Local:
-    """#318's totalized real division: a / ±0 = a * +0, including local flags."""
+    """For a signed zero divisor, multiply the actual operands with local flags."""
     _same_format(a, b)
-    return mul(a, zero(kind=type(a))) if b.is_zero else div(a, b)
+    return mul(a, b) if b.is_zero else div(a, b)

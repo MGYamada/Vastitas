@@ -136,6 +136,17 @@ theorem exact_unary_from_core (n : Nat) (i : Int) :
     Evaluation.exactValue .neg [.integer i] = evalUnary .neg (.integer i) ∧
     Evaluation.exactValue .natToInt [.natural n] = some (.integer (Int.ofNat n)) := ⟨rfl, rfl⟩
 
+/-- At the declared arity, both element sorts use the Core construction and projection rules. -/
+theorem pair_from_core (e : PairElem) (a b p : Value) (first : Bool) :
+    Evaluation.exactValue (.pair e) [a,b] = evalPair e a b ∧
+    Evaluation.exactValue (.project e first) [p] = evalProject e first p := ⟨rfl,rfl⟩
+
+theorem pair_projections (e : PairElem) (x y : Value)
+    (p : Value) (made : Evaluation.exactValue (.pair e) [x,y] = some p) :
+    Evaluation.exactValue (.project e true) [p] = some x ∧
+    Evaluation.exactValue (.project e false) [p] = some y := by
+  cases e <;> cases x <;> cases y <;> cases made <;> exact ⟨rfl,rfl⟩
+
 theorem boolAnd_from_core {p : Phase} (env : Environment) (a b : Bool) :
     denote env (.boolAnd : Opcode p) [.boolean a, .boolean b] =
       evalBinary .and (.boolean a) (.boolean b) := rfl

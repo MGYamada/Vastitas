@@ -28,6 +28,159 @@ fn preview(s: &Scratch, source: &str) -> Output {
         .unwrap()
 }
 
+const LITERAL_COMPARISON: &str = include_str!("../llvm/fixtures/LiteralComparison.vast");
+const BOXED_PAIRS: &str = include_str!("../llvm/fixtures/BoxedPairs.vast");
+
+fn assembled_selectors(parent: &str, child: &str) -> String {
+    format!(
+        "abstract type {parent};
+abstract type {child} <: {parent};
+subtype Bool <: {child};
+fn pick(x) domain((Bool));
+contribution methods : pick {{
+    fn pick(x: Cold) -> Bool {{ false }}
+    fn pick(x: Warm) -> Bool {{ true }}
+}}
+assemble pick {{ apply methods; }}
+fn main() -> Int {{ if pick(false) {{ 42 }} else {{ 7 }} }}"
+    )
+}
+
+#[test]
+fn assembled_selector_hierarchy_binds_the_winner_on_every_kernel_route() {
+    let s = Scratch::empty("physical selector revision");
+    let compile = |parent, child| {
+        let output = preview(&s, &assembled_selectors(parent, child));
+        success(&output);
+        let raw = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+        let revision = common::kernel(&raw, "function-revision");
+        let text = String::from_utf8(output.stdout).unwrap();
+        (raw, revision["function_revision"].clone(), text)
+    };
+    let (warm, revision, warm_ir) = compile("Cold", "Warm");
+    let (mut cold, other, cold_ir) = compile("Warm", "Cold");
+    let call = "/pure/dispatch_calls/0";
+    let a = revision.pointer(call).unwrap();
+    let b = other.pointer(call).unwrap();
+    assert_eq!(a["id"], b["id"]);
+    assert_eq!(a["key"], b["key"]);
+    assert_ne!(a["method"], b["method"]);
+    for (ir, value) in [(&warm_ir, 1), (&cold_ir, 0)] {
+        assert!(ir.contains(&format!(
+            "define internal i1 @vq_selected(i1 %arg) {{\nentry:\n  ret i1 {value}\n}}"
+        )));
+    }
+    cold["expected_function_revision"] = revision;
+    common::assert_wire_rejected(&common::kernel(&cold, "check"), "E_FUNCTION_REVISION");
+    cold.as_object_mut()
+        .unwrap()
+        .remove("expected_function_revision");
+    // Both decoded hierarchies are lawful. Only the original .vast bytes
+    // determine which of the two contributed definitions is more specific.
+    cold["root_source"] = warm["root_source"].clone();
+    for args in [
+        &["check"][..],
+        &["emit"],
+        &["function-revision"],
+        &["llvm-check", TARGET[2], TARGET[4]],
+        &["llvm-build", TARGET[2], TARGET[4]],
+    ] {
+        let response = common::kernel_with_args(&cold, args);
+        common::assert_wire_rejected(&response, "E_HIERARCHY_SOURCE");
+        assert!(response.get("llvm").is_none());
+    }
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
+fn assembled_selector_order_drives_both_native_exit_edges() {
+    let s = Scratch::empty("native selector order");
+    for (parent, child, status) in [("Cold", "Warm", 42), ("Warm", "Cold", 7)] {
+        s.write_package("app", &assembled_selectors(parent, child), "");
+        for (name, flags) in [("lean", &[][..]), ("llvm", &["--llvm-preview"][..])] {
+            let build = s
+                .command("build", "app/Vastitas.toml")
+                .args(flags)
+                .args(["-o", name])
+                .output()
+                .unwrap();
+            success(&build);
+            assert_eq!(
+                std::process::Command::new(s.0.join(name))
+                    .status()
+                    .unwrap()
+                    .code(),
+                Some(status)
+            );
+        }
+    }
+}
+
+#[test]
+fn literal_comparisons_bind_both_assembled_bodies_to_the_revision() {
+    let s = Scratch::empty("exact literal comparison");
+    let original = preview(&s, LITERAL_COMPARISON);
+    success(&original);
+    let receipt = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&receipt);
+    std::fs::write(s.0.join("receipt.json"), receipt.stdout).unwrap();
+    let replay = || {
+        s.command("check", "app/Vastitas.toml")
+            .args(TARGET)
+            .args(["--expect-function-revision", "receipt.json"])
+            .output()
+            .unwrap()
+    };
+    let matched = replay();
+    success(&matched);
+    assert_eq!(matched.stdout, original.stdout);
+
+    // Editing either method preserves its Boolean answer and all LLVM bytes.
+    // Each original integer is still part of the checked program's revision.
+    for (old, new) in [("0 == 256", "0 == 512"), ("!= -1", "!= -257")] {
+        let edited = preview(&s, &LITERAL_COMPARISON.replace(old, new));
+        success(&edited);
+        assert_eq!(edited.stdout, original.stdout);
+        let stale = replay();
+        expect_code(&stale, "E_FUNCTION_REVISION");
+        assert!(stale.stdout.is_empty());
+    }
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
+fn literal_comparisons_use_full_integers_in_the_native_selected_method() {
+    for (op, status) in [("!=", 42), ("==", 7)] {
+        check_native_status(&LITERAL_COMPARISON.replace("!=", op), status);
+    }
+}
+
+#[cfg(feature = "llvm-native")]
+fn check_native_status(source: &str, status: i32) {
+    let s = Scratch::empty("assembled native comparison");
+    s.write_package("app", source, "");
+    for (name, flags) in [("lean", &[][..]), ("llvm", &["--llvm-preview"][..])] {
+        let build = s
+            .command("build", "app/Vastitas.toml")
+            .args(flags)
+            .args(["-o", name])
+            .output()
+            .unwrap();
+        success(&build);
+        assert_eq!(
+            std::process::Command::new(s.0.join(name))
+                .status()
+                .unwrap()
+                .code(),
+            Some(status)
+        );
+    }
+}
+
 #[test]
 fn exact_exit_status_and_library_bytes_come_from_checked_public_core() {
     let s = Scratch::empty("LLVM check");
@@ -260,6 +413,64 @@ fn boxed_program_preserves_call_targets_and_borrowed_returns() {
     expect_code(&preview(&s, &source), "E_UNSUPPORTED");
 }
 
+#[test]
+fn boxed_pair_results_bind_both_methods_to_the_revision() {
+    let s = Scratch::empty("pair-valued method revision");
+    let original = preview(&s, BOXED_PAIRS);
+    success(&original);
+    let text = std::str::from_utf8(&original.stdout).unwrap();
+    assert_eq!(text.matches("define internal ptr ").count(), 5);
+    for signature in [
+        "(Nat) -> Pair<Nat>",
+        "(Int) -> Pair<Int>",
+        "(Pair<Int>) -> Pair<Int>",
+    ] {
+        assert!(text.contains(&format!("; boxed {signature}")));
+    }
+    let receipt = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&receipt);
+    s.write(
+        "revision.json",
+        std::str::from_utf8(&receipt.stdout).unwrap(),
+    );
+    let replay = || {
+        s.command("check", "app/Vastitas.toml")
+            .args(TARGET)
+            .args(["--expect-function-revision", "revision.json"])
+            .output()
+            .unwrap()
+    };
+    let matched = replay();
+    success(&matched);
+    assert_eq!(matched.stdout, original.stdout);
+
+    for edited in [
+        BOXED_PAIRS.replace("apply prioritized;", ""),
+        BOXED_PAIRS.replace("pair(0, x)", "pair(1, x)"),
+    ] {
+        let other = preview(&s, &edited);
+        success(&other);
+        assert_ne!(other.stdout, original.stdout);
+        let stale = replay();
+        expect_code(&stale, "E_FUNCTION_REVISION");
+        assert!(stale.stdout.is_empty());
+    }
+    let invalid = preview(&s, "pub fn bad(p: Pair<Int>) -> Pair<Nat> { p }");
+    expect_code(&invalid, "E_TYPE");
+    assert!(invalid.stdout.is_empty());
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
+fn boxed_pair_results_select_both_native_methods() {
+    check_native_status(BOXED_PAIRS, 42);
+    check_native_status(&BOXED_PAIRS.replace("apply prioritized;", ""), 43);
+}
+
 #[cfg(feature = "llvm-native")]
 #[test]
 fn boxed_program_links_the_integer_runtime_and_returns_the_checked_status() {
@@ -283,6 +494,41 @@ fn boxed_program_links_the_integer_runtime_and_returns_the_checked_status() {
         expect_code(&failed, "E_BUILD");
         assert_eq!(std::fs::read(path).unwrap(), saved);
     }
+}
+
+#[test]
+fn singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget() {
+    let s = Scratch::empty("singleton exact runtime");
+    let source = include_str!("../llvm/fixtures/SingletonPower.vast");
+    let original = preview(&s, source);
+    success(&original);
+    let receipt = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&receipt);
+    let revision: serde_json::Value = serde_json::from_slice(&receipt.stdout).unwrap();
+    let sites = revision["pure"]["operator_sites"].as_array().unwrap();
+    assert_eq!(sites.len(), 9);
+    for (i, site) in sites.iter().enumerate() {
+        assert_eq!(site["core"], 0);
+        assert_eq!(site["id"]["name"], if i < 8 { "mul" } else { "div" });
+        assert_eq!(site["key"], serde_json::json!(["Int", "Int"]));
+    }
+    std::fs::write(s.0.join("revision.json"), receipt.stdout).unwrap();
+    let named = source.replace("x0 * x0", "std::operator::mul(x0, x0)");
+    let changed = preview(&s, &named);
+    success(&changed);
+    assert_eq!(changed.stdout, original.stdout);
+    let stale = s
+        .command("check", "app/Vastitas.toml")
+        .args(TARGET)
+        .args(["--expect-function-revision", "revision.json"])
+        .output()
+        .unwrap();
+    expect_code(&stale, "E_FUNCTION_REVISION");
+    assert!(stale.stdout.is_empty());
 }
 
 #[test]
@@ -672,6 +918,56 @@ fn checked_llvm_executable_installs_atomically_and_rejects_unsupported_replaceme
     let unsupported = build().output().unwrap();
     expect_code(&unsupported, "E_UNSUPPORTED");
     assert_eq!(fs::read(&output).unwrap(), saved);
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
+fn imported_callees_execute_only_with_their_current_source_revision() {
+    let s = Scratch::empty("LLVM imported function");
+    let manifest = "app/Vastitas.toml";
+    let build = || {
+        s.command("build", manifest)
+            .args([
+                "--llvm-preview",
+                "--expect-function-revision",
+                "revision.json",
+                "-o",
+                "llvm-program",
+            ])
+            .output()
+            .unwrap()
+    };
+    s.write(
+        "app/defs.vast",
+        "pub fn left() -> Int { 42 } pub fn next() -> Int { 7 }",
+    );
+    let installed = s.0.join("llvm-program");
+    for (name, status) in [("left", 42), ("next", 7)] {
+        let source =
+            format!("mod defs; use defs::{name} as picked; fn main() -> Int {{ picked() }}");
+        s.write_package("app", &source, "");
+        if name == "next" {
+            let previous = std::fs::read(&installed).unwrap();
+            expect_code(&build(), "E_FUNCTION_REVISION");
+            assert_eq!(std::fs::read(&installed).unwrap(), previous);
+        }
+        let revision = s
+            .command("check", manifest)
+            .arg("--print-function-revision")
+            .output()
+            .unwrap();
+        success(&revision);
+        std::fs::write(s.0.join("revision.json"), revision.stdout).unwrap();
+        success(&build());
+        assert_eq!(
+            std::process::Command::new(&installed)
+                .status()
+                .unwrap()
+                .code(),
+            Some(status)
+        );
+        assert_eq!(s.build_and_run(manifest), common::exits(status));
+    }
 }
 
 #[cfg(feature = "llvm-native")]

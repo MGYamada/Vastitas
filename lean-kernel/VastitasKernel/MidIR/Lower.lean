@@ -57,6 +57,12 @@ private def lowerTerm (resolve : Nat → Option CallTarget) (ctx : List (Nat × 
     if let some ⟨literal, _⟩ := IntLiteral.inspect (.unary .neg arg ann) then
       emit (.integer literal.value) []
     else emit (.exactOp .neg) [← lowerTerm resolve ctx arg]
+  | .pair element first second => do
+    let left ← lowerTerm resolve ctx first
+    let right ← lowerTerm resolve ctx second
+    emit (.exactOp (.pair element)) [left, right]
+  | .project element first arg => do
+    emit (.exactOp (.project element first)) [← lowerTerm resolve ctx arg]
   | .natToInt arg => do emit (.exactOp .natToInt) [← lowerTerm resolve ctx arg]
   | .variable symbol _ => liftM (ctx.lookup symbol)
   | .scope body => lowerTerm resolve ctx body
@@ -67,6 +73,8 @@ private def lowerTerm (resolve : Nat → Option CallTarget) (ctx : List (Nat × 
     let x ← lowerTerm resolve ctx rhs
     lowerTerm resolve ((symbol, x) :: ctx) body
   | .binary op left right _ => do
+    if let some value := ExactFold.literalComparison op left right then
+      return ← emit (.boolean value) []
     let code ← liftM (match op with
       | .and => some Opcode.boolAnd
       | .or => some Opcode.boolOr

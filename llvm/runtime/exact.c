@@ -1,4 +1,4 @@
-/* Boxed ABI for LLVM integer libraries: arguments are borrowed, results owned. */
+/* Boxed integer and pair ABI. All value operations borrow inputs and return an owned result. */
 #include <lean/lean.h>
 
 lean_obj_res vastitas_nat_decimal_v1(const char *digits) { return lean_cstr_to_nat(digits); }
@@ -36,7 +36,30 @@ lean_obj_res vastitas_int_nat_div_v1(b_lean_obj_arg a, b_lean_obj_arg b) {
     return quotient;
 }
 
-/* This hosted entry calls only runtime integer primitives. It has no generated
+/* Each field owns a reference, including when both fields alias one input. */
+static lean_obj_res make_pair(b_lean_obj_arg a, b_lean_obj_arg b) {
+    lean_obj_res pair = lean_alloc_ctor(0, 2, 0);
+    lean_inc(a);
+    lean_ctor_set(pair, 0, a);
+    lean_inc(b);
+    lean_ctor_set(pair, 1, b);
+    return pair;
+}
+
+static lean_obj_res pair_field(b_lean_obj_arg pair, unsigned index) {
+    b_lean_obj_res value = lean_ctor_get(pair, index);
+    lean_inc(value);
+    return value;
+}
+
+lean_obj_res vastitas_nat_pair_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return make_pair(a, b); }
+lean_obj_res vastitas_int_pair_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return make_pair(a, b); }
+lean_obj_res vastitas_nat_pair_first_v1(b_lean_obj_arg p) { return pair_field(p, 0); }
+lean_obj_res vastitas_nat_pair_second_v1(b_lean_obj_arg p) { return pair_field(p, 1); }
+lean_obj_res vastitas_int_pair_first_v1(b_lean_obj_arg p) { return pair_field(p, 0); }
+lean_obj_res vastitas_int_pair_second_v1(b_lean_obj_arg p) { return pair_field(p, 1); }
+
+/* This hosted entry calls boxed runtime primitives. It has no generated
    Lean modules or IO initializers. This is the pinned generated-C declaration. */
 extern void lean_initialize_runtime_module(void);
 void vastitas_initialize_v1(void) {

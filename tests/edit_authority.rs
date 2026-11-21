@@ -143,22 +143,22 @@ fn named_recipients_keep_manifest_identity_and_ignore_dependency_aliases() {
 #[test]
 fn every_unused_recipient_declaration_rejects_ambiguous_packages_before_modules() {
     for kind in ["grants", "delegations", "transfers"] {
-        let s = fixture(BASE, ADDON, "");
+        let base = BASE
+            .lines()
+            .filter(|line| {
+                (!line.starts_with("pub grant ") || kind == "grants")
+                    && (!line.starts_with("pub transfer ") || kind == "transfers")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let addon = ADDON
+            .lines()
+            .filter(|line| !line.starts_with("pub delegation ") || kind == "delegations")
+            .collect::<Vec<_>>()
+            .join("\n");
+        let s = fixture(&base, &addon, "");
         s.write("app/main.vast", MAIN);
-        let request_for_kind = || {
-            let mut raw = request(&s);
-            for package in raw["packages"].as_array_mut().unwrap() {
-                for module in package["modules"].as_array_mut().unwrap() {
-                    for other in ["grants", "delegations", "transfers"] {
-                        if other != kind {
-                            module.as_object_mut().unwrap().remove(other);
-                        }
-                    }
-                }
-            }
-            raw
-        };
-        assert_eq!(kernel(request_for_kind(), "check")["ok"], true, "{kind}");
+        assert_eq!(kernel(request(&s), "check")["ok"], true, "{kind}");
         // Use two actual manifests. Only the first package has `ops`;
         // neither module contents nor version disambiguates the recipient.
         s.write(
@@ -171,7 +171,7 @@ fn every_unused_recipient_declaration_rejects_ambiguous_packages_before_modules(
             "app/Vastitas.toml",
             &(manifest + "second={path='../second'}\n"),
         );
-        let mut raw = request_for_kind();
+        let mut raw = request(&s);
         for reverse in [false, true] {
             if reverse {
                 raw["packages"].as_array_mut().unwrap().reverse();
@@ -539,5 +539,167 @@ fn transfer_does_not_grant_membership_or_abstract_contract_authority() {
         let mut flat = common::request("fn main() -> Int { 42 }", "flat.vast");
         flat[field] = json!([]);
         common::assert_wire_rejected(&kernel(flat, "check"), "E_PROTOCOL");
+    }
+}
+
+#[test]
+fn physical_declarations_bind_unused_authority_and_contributed_signatures() {
+    let (addon, _) = ADDON.split_once("pub mod ops {").unwrap();
+    let s = fixture(BASE, &format!("{addon}pub mod ops;"), "");
+    s.write(
+        "addon/ops.vast",
+        "pub contribution sum : base::choose {
+            fn base::choose(x: Int, y: Int,) requires (HasEq,) -> Int { x + y }
+            fn base::choose(x: Bool, y: Bool) -> Int requires (HasEq) { 3 }
+        }",
+    );
+    let wire = request(&s);
+    let packages = wire["packages"].as_array().unwrap();
+    let base = packages.iter().position(|p| p["name"] == "base").unwrap();
+    let addon = packages.iter().position(|p| p["name"] == "addon").unwrap();
+    let modules = packages[addon]["modules"].as_array().unwrap();
+    let ops = modules
+        .iter()
+        .position(|m| m["path"] == json!(["ops"]))
+        .unwrap();
+    let root = modules.iter().position(|m| m["path"] == json!([])).unwrap();
+    for mode in ["check", "emit"] {
+        let good = kernel(&wire, mode);
+        assert_eq!(good["ok"], true, "{good}");
+        for mutation in [
+            "visibility",
+            "recipient",
+            "region",
+            "delegable",
+            "transfer",
+            "drop",
+            "method order",
+            "requires",
+            "body span",
+            "parameter span",
+            "module",
+        ] {
+            let mut bad = wire.clone();
+            let module = &mut bad["packages"][base]["modules"][0];
+            match mutation {
+                "visibility" => module["grants"][0]["public"] = json!(false),
+                "recipient" => module["transfers"][0]["grantee_package"] = json!("app"),
+                "region" => module["grants"][0]["region"] = json!([["Bool", "Bool"]]),
+                "delegable" => module["grants"][0]["delegable"] = json!(false),
+                "transfer" => module["transfers"][0]["name"] = json!("other"),
+                "drop" => {
+                    module.as_object_mut().unwrap().remove("grants");
+                }
+                "module" => {
+                    let modules = &mut bad["packages"][addon]["modules"];
+                    let contribution = modules[ops]["contributions"]
+                        .as_array_mut()
+                        .unwrap()
+                        .remove(0);
+                    modules[root]["contributions"]
+                        .as_array_mut()
+                        .unwrap()
+                        .push(contribution);
+                }
+                change => {
+                    let module = &mut bad["packages"][addon]["modules"][ops];
+                    let methods = module["contributions"][0]["methods"]
+                        .as_array_mut()
+                        .unwrap();
+                    match change {
+                        "method order" => methods.swap(0, 1),
+                        "requires" => methods[0]["requires"] = json!([]),
+                        "body span" => methods[1]["body"]["span"]["column"] = json!(1),
+                        "parameter span" => methods[1]["params"][0]["span"]["column"] = json!(1),
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            let rejected = kernel(bad, mode);
+            assert_eq!(
+                rejected["diagnostics"][0]["code"], "E_ASSEMBLY",
+                "{mode} {mutation}: {rejected}"
+            );
+        }
+        let mut bad = wire.clone();
+        bad["packages"][addon]["modules"][root]["delegations"][0]["region"] = json!([]);
+        common::assert_wire_rejected(&kernel(bad, mode), "E_ASSEMBLY");
+    }
+}
+
+#[test]
+fn physical_dependency_files_reject_omitted_edits_and_retired_declarations() {
+    let marker = "// placeholder for a same-length physical declaration                    ";
+    let s = fixture(BASE, &format!("{ADDON} pub mod generic;"), "");
+    s.write(
+        "addon/generic.vast",
+        &format!("fn grant() -> Int {{ 3 }}\n{marker}\n"),
+    );
+    let wire = request(&s);
+    for mode in ["check", "emit"] {
+        let good = kernel(&wire, mode);
+        assert_eq!(good["ok"], true, "{good}");
+        for declaration in [
+            "assemble base::choose { }",
+            "assembly {}",
+            "generic f(x);",
+            "method f(x: Int) -> Int { x }",
+            "abstract method f(x: Int) -> Int;",
+            "pub transfer handoff : base::choose to addon;",
+            "contribution extra : base::choose {}",
+        ] {
+            let mut bad = wire.clone();
+            let file = bad["root_source"]["files"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|row| {
+                    row["path"]
+                        .as_str()
+                        .is_some_and(|p| p.ends_with("/generic.vast"))
+                })
+                .unwrap();
+            let original = file["text"].as_str().unwrap();
+            let replacement = format!("{declaration:<width$}", width = marker.len());
+            assert_eq!(replacement.len(), marker.len());
+            file["text"] = json!(original.replace(marker, &replacement));
+            common::assert_wire_rejected(&kernel(bad, mode), "E_ASSEMBLY");
+        }
+    }
+}
+
+#[test]
+fn flat_library_bytes_cannot_supply_an_unreported_assembly() {
+    let s = Scratch::empty("flat library edit");
+    s.write("main.vast", "fn main() -> Int { identity(42) }");
+    s.write(
+        "lib.vast",
+        "fn identity(x: Int) -> Int { x }\n// assemble identity {}\n",
+    );
+    let wire = common::captured_wire(
+        s.cli().args(["check", "main.vast", "--lib", "lib.vast"]),
+        common::CURRENT_PROTOCOL,
+    );
+    let mut changed = wire.clone();
+    let file = changed["root_source"]["files"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|file| {
+            file["text"]
+                .as_str()
+                .is_some_and(|t| t.contains("// assemble"))
+        })
+        .unwrap();
+    file["text"] = json!(
+        file["text"]
+            .as_str()
+            .unwrap()
+            .replace("// assemble", "   assemble")
+    );
+    for mode in ["check", "emit"] {
+        let good = kernel(&wire, mode);
+        assert_eq!(good["ok"], true, "{good}");
+        common::assert_wire_rejected(&kernel(&changed, mode), "E_ASSEMBLY");
     }
 }

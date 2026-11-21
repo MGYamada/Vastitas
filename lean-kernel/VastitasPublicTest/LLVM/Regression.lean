@@ -1,3 +1,4 @@
+import VastitasPublicTest.SingletonFixtures
 import VastitasKernel.LLVM.ExactLibrary
 import VastitasKernel.LLVM.UnaryTable
 import VastitasKernel.LLVM.ExitFunction
@@ -115,23 +116,6 @@ theorem exit_rejects_suffix : ExitMain.parse (ExitMain.print ⟨header,42⟩ ++ 
 end
 
 open Lean
-private def sourceSpan := Json.mkObj [("start", 0), ("end", 1), ("line", 1), ("column", 1)]
-
-private def integerExpr (digits : String) := Json.mkObj
-  [("kind", "integer"), ("value", digits), ("span", sourceSpan)]
-
-private def negateExpr (e : Json) := Json.mkObj
-  [("kind", "unary"), ("op", "-"), ("operand", e), ("span", sourceSpan)]
-
-private def exitRequest (e : Json) (extra := false) : Json := Id.run do
-  let fn (name : String) := Json.mkObj [("name", name), ("public", true), ("span", sourceSpan),
-    ("params", .arr #[]), ("return_type", Json.mkObj [("kind","named"),("name","Int")]),
-    ("body", Json.mkObj [("result", e), ("statements", .arr #[]), ("span", sourceSpan)])]
-  let functions := if extra then #[fn "main", fn "extra"] else #[fn "main"]
-  let mod := Json.mkObj [("path", .arr #[]), ("public", true), ("span", sourceSpan), ("imports", .arr #[]),
-    ("generics", .arr #[]), ("methods", .arr #[]), ("functions", .arr functions)]
-  return RegressionRequest.package "exit" [mod]
-
 private def qualify (wire : Json) (needsEntry : Bool) (expected : Option (Int × UInt8)) : Bool := Id.run do
   let .ok req := ResourceSource.Wire.check wire needsEntry | return false
   match ExitFunction.compile req header, expected with
@@ -143,15 +127,10 @@ private def qualify (wire : Json) (needsEntry : Bool) (expected : Option (Int ×
 
 #eval RegressionSupport.check "literal main" "checked entry in check and build modes" (Id.run do
   let big := 340282366920938463463374607431768211501
-  let positive := integerExpr (toString big)
-  let sum := Json.mkObj [("kind","binary"),("op","+"),("left",integerExpr "1"),
-    ("right",integerExpr "2"),("span",sourceSpan)]
   for needsEntry in [true,false] do
-    unless qualify (exitRequest positive) needsEntry (some (big,45)) &&
-      qualify (exitRequest (negateExpr positive)) needsEntry (some (-big,211)) &&
-      qualify (exitRequest (integerExpr "256")) needsEntry (some (256,0)) &&
-      qualify (exitRequest sum) needsEntry none &&
-      qualify (exitRequest (integerExpr "1") true) needsEntry none do return false
+    for (fixture, expected) in [("positive", some (big,45)), ("negative", some (-big,211)),
+        ("modulus", some (256,0)), ("sum", none), ("extra", none)] do
+      unless qualify (RegressionRequest.physical fixture) needsEntry expected do return false
   return true)
 
 private def boxed : ExactLibrary.Code :=

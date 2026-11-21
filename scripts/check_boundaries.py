@@ -549,6 +549,8 @@ def check_boundaries(root):
                     allowed = {"Lake"}
             if source.is_relative_to(kernel / "VastitasPromotion"):
                 allowed.add("VastitasPromotion")
+            if source.is_relative_to(kernel / "VastitasPublicTest"):
+                allowed.add("VastitasPublicTest")
             if source.is_relative_to(kernel / "VastitasStorageTest"):
                 allowed.add("VastitasStorageTest")
             if not module_allowed(name, allowed):

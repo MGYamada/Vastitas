@@ -163,6 +163,189 @@ theorem structured_assembly_trace {json : Lean.Json} (input : Wire.CheckedInput 
   rw [source.exactEvents]
   exact (VastitasOracle.Authority.assembled_trace _).1
 
+/-- Each file-backed package has a manifest at its own path in the accepted
+request. Its physical fields supply the name and version in the package ID
+and the edition admitted by the wire decoder. -/
+theorem physical_manifest_metadata {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (disk : input.input.root ≠ flatPackageId.source) {pkg : Package} (hp : pkg ∈ input.input.packages) :
+    ∃ (layout : PhysicalSources.Layout) (i : Nat) (file : PhysicalSources.File),
+      PhysicalSources.layout json = .ok layout ∧ layout.files[i]? = some file ∧
+      file.path = pkg.id.source.toUTF8 ∧
+      ManifestMetadata.read? file.text = some ⟨pkg.id.name, pkg.id.version, currentEdition⟩ := by
+  have checked := Wire.exactSources_of_program input.decoded
+  cases h : PhysicalSources.layout json with
+  | error msg => simp [Wire.exactSources, h, Bind.bind, Except.bind] at checked
+  | ok layout =>
+    cases he : Wire.mismatchedManifest? layout input.input with
+    | some other => simp [Wire.exactSources, h, he, Bind.bind, Except.bind, throw] at checked
+    | none =>
+      simp [Wire.mismatchedManifest?, disk, List.find?_eq_none] at he
+      have found := he pkg hp
+      cases f : Wire.manifestFile? layout (Wire.physicalFileIndex layout) pkg.id.source with
+      | none => simp [f] at found
+      | some file =>
+        have fields : ManifestMetadata.read? file.text = some ⟨pkg.id.name, pkg.id.version, currentEdition⟩ := by
+          simpa [f] using found
+        simp only [Wire.manifestFile?, Option.bind_eq_some_iff, bind] at f
+        obtain ⟨i, _, record, situated, accepted⟩ := f
+        simp [guard, pure] at accepted
+        obtain ⟨path, rfl⟩ := accepted
+        exact ⟨layout, i, record, rfl, situated, congrArg ByteArray.mk path, fields⟩
+
+/-- The public request carries the physical edit declaration comparison for
+the very program whose contributions and assembly passed the authority checker. -/
+theorem physical_edit_declarations {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      checked.edits.any (·.isEmpty) = true ∧
+      ∀ item ∈ EditSourceFiles.sourceMethods input.input,
+        EditSourceFiles.BodyCorresponds layout checked item := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, empty, bodies, _⟩ :=
+    EditSourceFiles.check_evidence input.editSources
+  exact ⟨expected, layout, checked, collected, physical, scan, empty,
+    fun _ member => EditSourceFiles.checkBodies_sound bodies member⟩
+
+/-- Every finite carrier, table, schema, instance and static-indexed function in this accepted program
+replays in its declaring file. The inventory also accounts for uncalled and
+unused declarations in the physical modules. -/
+theorem physical_finite_declarations {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      Finite.sameCounts checked.finiteSites.keys ((FiniteSourceFiles.declarations input.input).map (·.span.start)) = true ∧
+      ∀ item ∈ FiniteSourceFiles.declarations input.input, FiniteSourceFiles.Corresponds layout checked.finiteSites item := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, finite⟩ :=
+    EditSourceFiles.check_evidence input.editSources
+  obtain ⟨inventory, all⟩ := FiniteSourceFiles.check_sound finite
+  exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
+
+/-- An accepted non-root module carries its visibility and its declaring
+module's path at the original inline or external declaration. -/
+theorem physical_module {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {name : String} (named : m.pureModule.module.path.getLast? = some name) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path.dropLast, m.pureModule.module.span,
+          m.pureModule.module.isPublic, .namespaceModule name⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm,
+    List.mem_append_left _ (List.mem_append_left _ (List.mem_append_left _ ?_))⟩⟩
+  exact List.mem_map.mpr ⟨name, by simp [named], rfl⟩
+
+/-- Every import in the checked program replays the written target, its explicit
+or implicit alias, visibility and terminator in its declaring module. -/
+theorem physical_import {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {i : Namespace.Import} (hi : i ∈ m.pureModule.module.imports) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, i.span, i.isPublic, .namespaceImport i⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_left _ (List.mem_append_left _ (List.mem_append_right _ ?_))⟩⟩
+  exact List.mem_map.mpr ⟨i, hi, rfl⟩
+
+/-- The abstract parents and concrete memberships used by dispatch come from the
+same accepted request as its assembly. This includes selectors without a call. -/
+theorem physical_selector_hierarchy {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      (∀ t ∈ m.pureModule.module.abstractTypes, FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, t.span, t.isPublic, .abstractType t⟩) ∧
+      (∀ s ∈ m.pureModule.module.subtypes, FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, s.span, false, .subtype s⟩) := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, ?_, ?_⟩
+  · intro t ht
+    apply all
+    apply List.mem_flatMap.mpr
+    refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, ?_⟩⟩
+    exact List.mem_append_left _ (List.mem_append_right _ (List.mem_append_left _
+      (List.mem_append_left _ (List.mem_map.mpr ⟨t, ht, rfl⟩))))
+  · intro s hs
+    apply all
+    apply List.mem_flatMap.mpr
+    refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, ?_⟩⟩
+    exact List.mem_append_left _ (List.mem_append_right _ (List.mem_append_left _
+      (List.mem_append_right _ (List.mem_map.mpr ⟨s, hs, rfl⟩))))
+
+/-- Each finite-indexed function, including an unused overload, replays its own
+binders, parameter and result types and body in its declaring module. -/
+theorem physical_finite_function {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {f : Indexed.FunctionSource.Function} (hf : f ∈ m.pureModule.functions) (finite : f.finiteBinders.isEmpty = false) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, f.span, f.isPublic, .function f⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_right _ ?_⟩⟩
+  exact List.mem_map.mpr ⟨f, hf, by simp [finite]⟩
+
+/-- Each ordinary singleton replays at its defining file's tokens. The list
+of observations selects exactly the top-level source initializers wrapped in
+`show!`; labels remain presentation metadata. -/
+theorem physical_singleton_function {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {f : Indexed.FunctionSource.Function} (hf : f ∈ m.pureModule.functions) (ordinary : f.finiteBinders.isEmpty = true) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, f.span, f.isPublic,
+          .singleton f (((m.observations.lookup f.name).getD []).map (·.statement))⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_right _ ?_⟩⟩
+  exact List.mem_map.mpr ⟨f, hf, by simp [ordinary]⟩
+
+/-- Even an unapplied contribution has a replay of its decoded method's
+complete syntax, in its original package, module and physical file. -/
+theorem contributed_method_body {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {c : Indexed.DispatchSource.Contribution} (hc : c ∈ m.pureModule.contributions)
+    {d : Indexed.DispatchSource.Method} (hd : d ∈ c.methods) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      EditSourceFiles.BodyCorresponds layout checked ⟨pkg.id.source, m.pureModule.module.path, some c.name, d⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_edit_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_right _ ?_⟩⟩
+  exact List.mem_flatMap.mpr ⟨c, hc, List.mem_map.mpr ⟨d, hd, rfl⟩⟩
+
+/-- The public request replays each original defining method, including a
+fallback with no call site in the compiled entry. -/
+theorem defining_method_body {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.DispatchSource.Method} (hd : d ∈ m.pureModule.methods) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      EditSourceFiles.BodyCorresponds layout checked ⟨pkg.id.source, m.pureModule.module.path, none, d⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_edit_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  unfold EditSourceFiles.sourceMethods
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_left _ ?_⟩⟩
+  exact List.mem_map.mpr ⟨d, hd, rfl⟩
+
 /-- Supplying a revision cannot select a method. Acceptance implies exact
 equality with the complete receipt reconstructed from this program's checked
 authority and Core passes. No claim about LLVM or native execution follows. -/

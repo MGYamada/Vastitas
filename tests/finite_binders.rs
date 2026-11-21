@@ -117,6 +117,140 @@ fn symbolic_composition_preserves_noncommuting_order() {
 }
 
 #[test]
+fn unused_finite_functions_bind_their_schema_signature_and_body_to_the_original_file() {
+    let p = Scratch::empty("physical finite function");
+    p.write_package("app", "mod definitions; fn main() -> Int { 7 }", "");
+    let source = "// λ\r\nindexed schema Shape = finite_category;\nindexed schema Other = finite_category;\n\
+        pub fn flag<M: Shape, X: Obj<M>,>(b: Bool, q: Bool,) -> Bool { b }";
+    p.write("app/definitions.vast", source);
+    let original = p.captured(MANIFEST, CURRENT_PROTOCOL);
+    assert_eq!(kernel(&original, "check")["ok"], true);
+    for (from, to) in [
+        ("M: Shape", "M: Other"),
+        ("pub fn", "    fn"),
+        ("{ b }", "{ q }"),
+    ] {
+        p.write(
+            "app/definitions.vast",
+            &common::checked_replace(source, from, to),
+        );
+        let other = p.captured(MANIFEST, CURRENT_PROTOCOL);
+        assert_eq!(kernel(&other, "check")["ok"], true);
+        let mut forged = original.clone();
+        forged["root_source"] = other["root_source"].clone();
+        for mode in ["check", "function-revision", "emit"] {
+            let error = kernel(&forged, mode);
+            assert_wire_rejected(&error, "E_FINITE_SOURCE");
+            assert_eq!(error["diagnostics"][0]["span"]["line"], 4);
+            if from == "{ b }" {
+                let column = source.lines().last().unwrap().find("b }").unwrap() + 1;
+                assert_eq!(error["diagnostics"][0]["span"]["column"], column);
+            }
+        }
+    }
+    let mut shifted = original.clone();
+    template(&mut shifted, "flag")["finite_binders"][0]["span"]["column"] = json!(1);
+    assert_wire_rejected(&kernel(shifted, "emit"), "E_FINITE_SOURCE");
+    let mut erased = original.clone();
+    template(&mut erased, "flag")
+        .as_object_mut()
+        .unwrap()
+        .remove("finite_binders");
+    assert_wire_rejected(&kernel(erased, "check"), "E_FINITE_SOURCE");
+    let mut omitted = original;
+    let module = omitted["packages"][0]["modules"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|m| m["path"] == json!(["definitions"]))
+        .unwrap();
+    module["functions"] = json!([]);
+    assert_wire_rejected(&kernel(omitted, "emit"), "E_FINITE_SOURCE");
+
+    let flat_source = "fn main() -> Int { 7 }";
+    let mut flat = common::request(flat_source, "main.vast");
+    flat["root_source"]["text"] = json!(format!(
+        "{flat_source}\nfn ghost<M: Gone>() -> Bool {{ true }}"
+    ));
+    let error = kernel(flat, "check");
+    assert_wire_rejected(&error, "E_FINITE_SOURCE");
+    assert_eq!(error["diagnostics"][0]["span"]["line"], 2);
+}
+
+#[test]
+fn changing_a_finite_function_result_changes_its_ssa_operand_and_revision() {
+    let p = Scratch::empty("finite function LLVM");
+    let source = include_str!("../llvm/fixtures/FiniteProjection.vast");
+    p.write_package("app", source, "");
+    let saved = p.0.join("revision.json");
+    #[cfg(feature = "llvm-native")]
+    let binary = p.0.join("finite-native");
+    #[cfg(feature = "llvm-native")]
+    let build = || {
+        p.command("build", MANIFEST)
+            .args(["--llvm-preview", "--expect-function-revision"])
+            .arg(&saved)
+            .arg("-o")
+            .arg(&binary)
+            .output()
+            .unwrap()
+    };
+    let mut modules = Vec::new();
+    for (selected, status) in [("b", 42), ("q", 7)] {
+        p.write(
+            "app/main.vast",
+            &common::checked_replace(source, "{ b }", &format!("{{ {selected} }}")),
+        );
+        let preview = || {
+            let mut cmd = p.command("check", MANIFEST);
+            cmd.args([
+                "--llvm-preview",
+                "--target-triple",
+                "x86_64-unknown-linux-gnu",
+                "--data-layout",
+                "e-m:e-i64:64-n8:16:32:64-S128",
+                "--expect-function-revision",
+            ])
+            .arg(&saved);
+            cmd.output().unwrap()
+        };
+        if selected == "q" {
+            let stale = preview();
+            common::expect_code(&stale, "E_FUNCTION_REVISION");
+            assert!(stale.stdout.is_empty());
+            #[cfg(feature = "llvm-native")]
+            {
+                let installed = std::fs::read(&binary).unwrap();
+                common::expect_code(&build(), "E_FUNCTION_REVISION");
+                assert_eq!(std::fs::read(&binary).unwrap(), installed);
+            }
+        }
+        let revision = p
+            .command("check", MANIFEST)
+            .arg("--print-function-revision")
+            .output()
+            .unwrap();
+        common::success(&revision);
+        std::fs::write(&saved, revision.stdout).unwrap();
+        let llvm = preview();
+        common::success(&llvm);
+        modules.push(String::from_utf8(llvm.stdout).unwrap());
+        assert_eq!(p.check_build_and_run(MANIFEST), exits(status));
+        #[cfg(feature = "llvm-native")]
+        {
+            common::success(&build());
+            assert_eq!(
+                std::process::Command::new(&binary).status().unwrap().code(),
+                Some(status)
+            );
+        }
+    }
+    let ret = "ret i1 %v0_0";
+    assert_eq!(modules[0].matches(ret).count(), 1);
+    assert_eq!(modules[0].replace(ret, "ret i1 %v0_1"), modules[1]);
+}
+
+#[test]
 fn an_unused_template_is_checked_without_any_inhabited_model() {
     let p = Scratch::empty("symbolic body without models");
     p.write_package("ops", OPS, "");

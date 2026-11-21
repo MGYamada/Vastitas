@@ -9,7 +9,7 @@ number = 749
 title = "Compiler specification and feasibility"
 state = "open"
 depends = []
-remaining = "Official Lean and nanoda checked the same 1,000-operation reduction exports on Linux x86-64 and macOS arm64. Both single-chunk and 64-operation chunk timings and peak RSS are recorded. The native ABI fixture linked the pinned LLVM, Lean and all four OpenBLAS calls on both platforms. The Linux public compiler matched 121 results and 15 heap ownership probes. Production coverage, offline distribution and compiler child issues remain."
+remaining = "Official Lean and nanoda checked the same 1,000-operation reduction exports on Linux x86-64 and macOS arm64. Both single-chunk and 64-operation chunk timings and peak RSS are recorded. The native ABI fixture linked the pinned LLVM, Lean and all four OpenBLAS calls on both platforms. On Linux x86-64 and macOS arm64 the public compiler matched 121 integer results, 15 heap ownership probes and four executable exits. Both hosts ran the four public map representations and the tensor column contraction. Production coverage, offline distribution and compiler child issues remain. [Two-host CI qualification](https://github.com/MGYamada/Vastitas/actions/runs/44871839008)"
 
 [[issue]]
 number = 839
@@ -23,28 +23,28 @@ number = 462
 title = "Static fn families"
 state = "open"
 depends = []
-remaining = "The revision records every loaded manifest and source file, the selected family, key, contribution and Core symbol. A library or dependency-manifest edit invalidates replay even if the complete LLVM module stays identical. Closed Nat/Int arithmetic reaches complete LLVM bytes with the ordered canonical operator keys and sole protected methods checked. Boxed functions retain the operator sites for runtime arguments. A linked integer executable checks its direct calls and every operator site in the same revision. Swapping the operands of named mixed division selects the other ABI and invalidates the previous revision. A selected Bool method can pass through a function returning Fn. Two specializations then call that method and a lambda in the same native module. More general method bodies, argument types and module shapes remain."
+remaining = "The revision records every loaded manifest and source file, the selected family, key, contribution and Core symbol. A library or dependency-manifest edit invalidates replay even if the complete LLVM module stays identical. Closed Nat/Int arithmetic reaches complete LLVM bytes with the ordered canonical operator keys and sole protected methods checked. Boxed functions retain the operator sites for runtime arguments. A linked integer executable checks its direct calls and every operator site in the same revision. Swapping the operands of named mixed division selects the other ABI and invalidates the previous revision. A selected Bool method can pass through a function returning Fn. Two specializations then call that method and a lambda in the same native module. The compiler folds full-width literal equality and inequality inside parameterized methods. A checked edition 2026 example retains both assembled bodies. Editing either integer invalidates revision replay even when all 924 LLVM bytes stay identical. Lean replays the defining methods of every accepted dispatch family and the complete source of each ordinary singleton, including unused functions and flat libraries. Explicit domains, bodyless contracts and inferred headers are checked in their declaring scope. Pair-valued methods and ordinary calls preserve both element sorts and ordered projections in the boxed ABI. Removing the applied contribution or editing its unselected sibling invalidates the saved revision. More general LLVM method bodies, argument types and module shapes remain."
 
 [[issue]]
 number = 455
 title = "Structured assemble"
 state = "open"
 depends = [462]
-remaining = "Lean reads the edit commands from the submitted entry bytes, compares the complete structured trace and original brace spans, and checks the selected method against the saved revision. The sealed forwarding library and an assembled Bool family reach complete LLVM bytes. The assembled family preserves the selected and nonselected bodies. A three-axis lookup and a nullary table feed a selected negation and disjunction. Changing the row invalidates the revision. One source revision reproduces the macOS arm64 and x86-64 Linux modules. Editing either method invalidates that revision on both targets. Explicitly sealing a dependency family retains its emitted siblings, including applied implementations from another package, even with no calls. An assembled integer entry retains both arithmetic methods and returns 42 through the selected addition. Substituting the other definition and Core symbol in the same family fails revision replay. The [cross-package corpus example](https://github.com/MGYamada/Vastitas/blob/main/llvm/src/borrowed-operator.ll) binds six physical inputs and all 2,051 bytes in Official and Fast stage certificates. The macOS arm64 executable and Lean control return 42. An uncalled sealed integer family retains all five method specializations beside the entry, including the contribution and its four fallback bodies. The [LLVM file](https://github.com/MGYamada/Vastitas/blob/main/llvm/src/uncalled-operator.ll) has 1,829 bytes and its entry returns 7. Changing a fallback body invalidates the revision. Broader downstream methods and module shapes remain."
+remaining = "Lean reads the edit commands from the submitted entry bytes, compares the complete structured trace and original brace spans, and checks the selected method against the saved revision. The checker matches grant, delegation, transfer and contribution declarations to physical files in all selected packages, including unused declarations, method signatures and body spans. The sealed forwarding library and an assembled Bool family reach complete LLVM bytes. The assembled family preserves the selected and nonselected bodies. A three-axis lookup and a nullary table feed a selected negation and disjunction. Changing the row invalidates the revision. One source revision reproduces the macOS arm64 and x86-64 Linux modules. Editing either method invalidates that revision on both targets. Explicitly sealing a dependency family retains its emitted siblings, including applied implementations from another package, even with no calls. An assembled integer entry retains both arithmetic methods and returns 42 through the selected addition. Substituting the other definition and Core symbol in the same family fails revision replay. The [cross-package corpus example](https://github.com/MGYamada/Vastitas/blob/main/llvm/src/borrowed-operator.ll) binds six physical inputs and all 2,051 bytes in Official and Fast stage certificates. The macOS arm64 executable and Lean control return 42. An uncalled sealed integer family retains all five method specializations beside the entry, including the contribution and its four fallback bodies. The [LLVM file](https://github.com/MGYamada/Vastitas/blob/main/llvm/src/uncalled-operator.ll) has 1,829 bytes and its entry returns 7. Changing a fallback body invalidates the revision. The public checker replays the complete syntax of defining and contributed family bodies against their physical files, including uncalled fallbacks and unapplied contributions. Written imports resolve each assembled family at its original file and span. Two aliases of the same dependency can produce identical LLVM bytes, while mixing either input with the other import fails. A change to the written selector order changes which contributed method wins for the same Bool key. Both native executables agree with the Lean/C controls on exits 42 and 7. Substituting the other decoded hierarchy fails all five kernel routes at the original declaration. The defining, contributing and assembling package identities also match the names and versions in their respective manifests. A pair-returning family keeps both bodies in one linked LLVM module. The selected contribution and its default method produce distinct full-width integer results. Broader downstream LLVM lowering and module shapes remain."
 
 [[issue]]
 number = 762
 title = "Finite edition 2026"
 state = "open"
 depends = [462, 455]
-remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Further finite schemas and the four Affine wrappers remain."
+remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Fresh Affine identities execute at all four representations. Lean replays finite carriers, tables, schemas and named instances in the files that declare them. This includes unused tables, row extents, selected Monad fields and associated paths. Lean replays finite-indexed function binders, nominal schemas, signatures and bodies, including uncalled functions. Ordinary singletons replay their signatures, bodies and observed initializers at their original source tokens. Lean also checks every use and each non-root module against its declaring file, including re-exports and empty modules. Every abstract selector and concrete membership replays its qualified paths and spans against its physical declaration. For each file-backed package, Lean reads the edition, name and version at its manifest path and checks the owner used by FunctionId. The full edition-to-Core correspondence remains open."
 
 [[issue]]
 number = 533
 title = "Single wire epoch"
 state = "open"
 depends = [762]
-remaining = "Remaining accepted-Core correspondence and migration evidence."
+remaining = "Canonical resource realization calls are checked against the physical source, including precision, lexical owner, branch conditions, statement order and original path spans. Defining and contributed family method bodies are checked against physical source down to operators, grouping, nominal type paths and original node spans. Token mismatches retain the physical byte range and file-local coordinates. Other source-to-Core and resource correspondence evidence remains."
 
 [[issue]]
 number = 756
@@ -65,7 +65,7 @@ number = 206
 title = "Operational Kleisli"
 state = "open"
 depends = [199]
-remaining = "The optional monad::kleisli package exports both derived views and five ordinary functions. Each view selects a named std::category::Monad. The five canonical template specializations evaluate to the selected mathematical operations. The S3 executable distinguishes opposite argument orders. The public LLVM preview compiles the whole closure example. Its macOS arm64 executable returns 0. Selecting extend through the triple in a second entry produces 5,326 LLVM bytes and exit 42. The noncommuting S3 example returns 42 through the same path. An ordinary function may take a capture-free Fn returning a nominal Hom and call it to supply bind with an arrow. The two-arrow callback fixture has 2,434 checked LLVM bytes and distinguishes both producer results on macOS arm64. The direct bind(p, k) fixture has 2,456 checked LLVM bytes. The executable-pass theorem identifies the ordered producer calls in the returned Core, and the S3 test exercises both callable positions of compose. Linux qualification and release verification modes remain."
+remaining = "The optional monad::kleisli package exports both derived views and five ordinary functions. Each view selects a named std::category::Monad. The five canonical template specializations evaluate to the selected mathematical operations. The S3 executable distinguishes opposite argument orders. The public LLVM preview compiles the whole closure example. Its macOS arm64 executable returns 0. Selecting extend through the triple in a second entry produces 5,326 LLVM bytes and exit 42. The noncommuting S3 example returns 42 through the same path. An ordinary function may take a capture-free Fn returning a nominal Hom and call it to supply bind with an arrow. The two-arrow callback fixture has 2,434 checked LLVM bytes and distinguishes both producer results on macOS arm64. The direct bind(p, k) fixture has 2,456 checked LLVM bytes. The executable-pass theorem identifies the ordered producer calls in the returned Core, and the S3 test exercises both callable positions of compose. The public LLVM build executes the closure program on Linux x86-64 and macOS arm64, with each exit edge selected in turn. The native matrix exercises both producer results with explicit invocation and direct forwarding, noncommuting S3 order and two Monads on one functor. Release verification modes remain open."
 
 [[issue]]
 number = 757
@@ -79,7 +79,7 @@ number = 758
 title = "Fixed-order numerical references"
 state = "open"
 depends = []
-remaining = "Lean models binary32/64 rounding, special values, flags and fixed-order kernels. The real zero-divisor and empty-dot laws are proved. The C quotient and inverse adapters agree on 828 input tuples. Full kernel differentials, reference laws and public arithmetic integration remain."
+remaining = "Lean models binary32/64 rounding, special values, flags and fixed-order kernels. The real zero-divisor and empty-dot laws are proved. On 828 tuples the independent references agree on scalar and complex bits and flags. C real division, complex division and inverse match the native observation for both widths and permitted aliases. The production one-cell dot adapter matches 948 Lean cases across all four representations. Zero alpha and zero beta have independent input and prior-destination irrelevance proofs. For related non-NaN operands Lean proves the one-operation observation and all five flags for four real arithmetic operations, and proves equality and order observations. The checked guard with product recovery gives the same real division at every bit pattern. Diagonal kernel differentials and public arithmetic integration remain."
 
 [[issue]]
 number = 318
@@ -93,7 +93,7 @@ number = 686
 title = "Numerical realizations"
 state = "open"
 depends = [757, 318, 762]
-remaining = "The canonical protected realize, interpret, point and run operations execute a declared real affine identity on its own standard chart into checked `F32<RR>` or `F64<RR>` storage. The point proof identifies the allocation and its exact representation. A named exact complex affine supports identity copies in `F32<CC>` and `F64<CC>`. Its receipt binds the selected carrier and both meadows. The four identity copies also execute from checked LLVM on macOS arm64. Further numerical graphs, full profile selection and the four Affine wrappers remain."
+remaining = "The canonical protected realize, interpret, point and run operations execute a declared real affine identity on its own standard chart into checked `F32<RR>` or `F64<RR>` storage. The point proof identifies the allocation and its exact representation. A named exact complex affine supports identity copies in `F32<CC>` and `F64<CC>`. Its receipt binds the selected carrier and both meadows. The four identity copies execute through the checked LLVM preview on Linux x86-64 and macOS arm64. The four fresh Affine wrappers use the same checked realization and identity copy. Further numerical graphs and full profile selection remain."
 
 [[issue]]
 number = 689
@@ -107,14 +107,14 @@ number = 750
 title = "Phase-indexed MidIR"
 state = "open"
 depends = []
-remaining = "The inventory tracks 604 constructor entries, all awaiting a release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. For static resource entries, linear effect tokens preserve the logical schedule and resolved physical calls. General control flow and full accepted-module coverage remain."
+remaining = "The inventory tracks 608 constructor entries, all awaiting a release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. For static resource entries, linear effect tokens preserve the logical schedule and resolved physical calls. General control flow and full accepted-module coverage remain."
 
 [[issue]]
 number = 751
 title = "Closed opcode registry"
 state = "open"
 depends = [750]
-remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Static storage opcodes bind allocation and view operands, component tags and exact payloads. Comparisons, dynamic resource plans and numerical arithmetic still need their full profile."
+remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Construction and both projections preserve the element sort and order for homogeneous Nat and Int pairs. Static storage opcodes bind allocation and view operands, component tags and exact payloads. Comparisons, dynamic resource plans and numerical arithmetic still need their full profile."
 
 [[issue]]
 number = 752
@@ -179,8 +179,8 @@ document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.families@assembly", "compiler-ir.families@public-syntax", "compiler-ir.families@revision-replay"]
-note = "Structured borrow, apply, return and seal lower to the checked edit trace. The checked revision binds the trace and selected method."
+claims = ["compiler-ir.families@assembly", "compiler-ir.families@public-syntax", "compiler-ir.edition@manifest-source", "compiler-ir.families@revision-replay", "compiler-ir.families@singleton-source", "compiler-ir.edition@namespace-source", "compiler-ir.families@selector-source"]
+note = "Structured borrow, apply, return and seal lower to the checked edit trace. The checked revision binds the trace and selected method. The defining package and the contribution owner take their names and versions from their physical manifests."
 document = ""
 
 [row.dimension.midir]
@@ -270,7 +270,7 @@ document = ""
 [row.dimension.native]
 state = "partial"
 claims = ["compiler-ir.finite-models@execution", "compiler-ir.finite-models@kleisli-run"]
-note = "The checked Lean/C path executes the four public operations on the closure Monad. Two structures on the same endofunctor exercise distinct unit, bind and extend results. The LLVM preview builds the closure executable on macOS arm64 and the noncommuting S3 executable returns 42. The triple extension variant returns 42 with Lean/C, the public LLVM build and the independent llvm-sys object/link path. The [host report](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/results/macos-arm64/finite-kleisli.json) records the selected indices, Core and MidIR observations, native status and adversarial byte checks. Release-mode and Linux conformance remain."
+note = "The checked Lean/C path executes the four public operations on the closure Monad. Two structures on the same endofunctor exercise distinct unit, bind and extend results. The LLVM preview builds the closure executable on macOS arm64 and the noncommuting S3 executable returns 42. The triple extension variant returns 42 with Lean/C, the public LLVM build and the independent llvm-sys object/link path. The [host report](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/results/macos-arm64/finite-kleisli.json) records the selected indices, Core and MidIR observations, native status and adversarial byte checks. Both hosts run the closure program with both exit edges. The LLVM native workflow runs the callback and direct forwarding specimens on both hosts. On macOS arm64 they each return 42 or 7 as the imported producer changes, reject the earlier revision and agree with the Lean/C controls. Release verification modes remain open."
 document = ""
 
 [row.dimension.performance]
@@ -353,13 +353,13 @@ requirement = "F32 and F64 representations of RR and CC use explicit chart and p
 
 [row.dimension.source]
 state = "partial"
-claims = ["compiler-ir.realization@source", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
-note = "The protected float module admits realize, interpret, point and run for the standard-chart identity of an existing smooth real or exact complex affine at both widths. Broader graphs and wrappers remain."
+claims = ["compiler-ir.realization@source", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+note = "The protected float module admits realize, interpret, point and run for the standard-chart identity of an existing smooth real or exact complex affine at both widths. The four wrappers construct fresh standard charts and use the same identity copy. Broader graphs remain."
 document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+claims = ["compiler-ir.float-carrier@storage", "compiler-ir.float-carrier@binary64-storage", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
 note = "The checked identity records its subject, chart, graph and NativeFast profile. The physical copy passes the storage checker at all four representations. Complex charts retain the paired carrier and real and complex meadows."
 document = ""
 
@@ -377,8 +377,8 @@ document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@gemm-abi"]
-note = "An accepted public run gives its lexical site, source identity declaration, nominal graph and checked storage copy. Complex copies also recover the selected mathematical model. The binary reference proves the signed-zero divisor and unit-beta empty-dot cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. The static LLVM model preserves the successful call order and the first-failure prefix with a single arena cleanup. Per-artifact verification and general compiler refinement remain."
+claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.numeric-order@one-step", "compiler-ir.realization@affine-expansion", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@gemm-abi"]
+note = "An accepted public run gives its lexical site, source identity declaration, nominal graph and checked storage copy. Complex copies also recover the selected mathematical model. The binary reference proves the real one-step result and flag relation, including the infinity-times-zero case. It also proves the signed-zero divisor and dot coefficient cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. The static LLVM model preserves the successful call order and the first-failure prefix with a single arena cleanup. Per-artifact verification and general compiler refinement remain."
 document = ""
 
 [row.dimension.fast]
@@ -390,13 +390,13 @@ document = ""
 [row.dimension.native]
 state = "partial"
 claims = ["compiler-ir.native-fast@profile", "compiler-ir.native-fast@identity-run", "compiler-ir.storage@static-native", "compiler-ir.storage@gemm-native"]
-note = "The LLVM preview executes the four identity variants and eight static matrix products with pinned OpenBLAS. The Lean/C control agrees. Separately, 828 direct C cases cover division and complex inverse. Public scalar arithmetic remains open."
+note = "The LLVM preview executes the four identity variants and eight static matrix products with pinned OpenBLAS. The Lean/C control agrees. The direct adapter comparisons cover 828 division and inverse inputs and 948 fixed-order one-cell dot updates across all four representations. Public scalar arithmetic remains open."
 document = ""
 
 [row.dimension.performance]
 state = "planned"
 claims = ["compiler-ir.performance@measurement"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+note = "The protocol-10 numerical harness passed its Linux smoke runs on the integrated main commit for [public GEMM](https://github.com/MGYamada/Vastitas/actions/runs/44641391606), [tensor packing](https://github.com/MGYamada/Vastitas/actions/runs/44641391600) and [contraction trees](https://github.com/MGYamada/Vastitas/actions/runs/44641391593). These runs check the generated programs, arena-C and plain-C output and cost contracts. Release timing for the LLVM path across four representations remains open."
 document = ""
 
 [row.dimension.vocabulary]
@@ -420,19 +420,19 @@ document = ""
 [row.dimension.core]
 state = "partial"
 claims = ["compiler-ir.coverage@ledger", "compiler-ir.coverage@inventory"]
-note = "The source-schema inventory checks 590 entries and their payloads. All dispositions are pending. Full scalar and indexed Core-to-MidIR coverage remains."
+note = "The source-schema inventory checks 608 entries and their payloads. All dispositions are pending. Full scalar and indexed Core-to-MidIR coverage remains."
 document = ""
 
 [row.dimension.midir]
 state = "partial"
-claims = ["compiler-ir.registry@opcodes", "compiler-ir.registry@int-literal", "compiler-ir.registry@exact-arithmetic"]
-note = "Both phases preserve unbounded arithmetic and the two mixed division signatures. The Oracle checks the operations against Core for all correctly typed operands. General scalar comparisons and indexed primitives remain."
+claims = ["compiler-ir.registry@opcodes", "compiler-ir.registry@int-literal", "compiler-ir.registry@exact-arithmetic", "compiler-ir.registry@pair-operations"]
+note = "Both phases preserve unbounded arithmetic and the two mixed division signatures. The Oracle checks the operations against Core for all correctly typed operands. Constructing and projecting a homogeneous Nat or Int pair preserves each component. General scalar comparisons and indexed primitives remain."
 document = ""
 
 [row.dimension.llvm]
 state = "partial"
 claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.llvm-bytes@entry-status", "compiler-ir.llvm-bytes@folded-entry", "compiler-ir.llvm-bytes@entry-regression", "compiler-ir.llvm-bytes@boxed-library", "compiler-ir.llvm-bytes@boxed-program", "compiler-ir.llvm-bytes@boxed-regression"]
-note = "Closed integer literals and exact expressions reach complete target-specific bytes. The fold checks canonical methods, saturating Nat subtraction and the operand order of mixed division. The boxed library also emits runtime calls with typed SSA arguments and a checked ownership schedule. Linked, straight-line integer programs preserve their direct calls, complete integer entry value and owned return through the hosted status projection. General branches over boxed integers and indexed primitives remain."
+note = "Closed integer literals and exact expressions reach complete target-specific bytes. The fold checks canonical methods, saturating Nat subtraction and the operand order of mixed division. The boxed library also emits runtime calls with typed SSA arguments and a checked ownership schedule. Linked, straight-line integer programs preserve their direct calls, complete integer entry value and owned return through the hosted status projection. A singleton entry emits eight boxed multiplications and a division when the fold exceeds its budget. Its stage certificate covers the 403-bit quotient and all 1,977 bytes. Five linked functions return, swap and project pairs under the selected assembly revision. General branches over boxed integers and indexed primitives remain."
 document = ""
 
 [row.dimension.official]
@@ -449,8 +449,8 @@ document = ""
 
 [row.dimension.native]
 state = "partial"
-claims = ["compiler-ir.runtime@linkage", "compiler-ir.backend@native"]
-note = "On macOS arm64 the feature-enabled LLVM preview linked the literal main and a closed mixed Nat/Int division and addition. They returned 255 and 10. Each experiment compared all 374 bytes, the separate object, the installed executable and the Lean/C result. On macOS arm64 the libLLVM adapter emitted 15 checked boxed libraries. Their 121 native calls matched the generated Lean/C controls and independent integer expectations. The public LLVM build linked calls across four boxed integer functions and returned 84, 0 and 254 for three divisors. Linux qualification and release packaging remain."
+claims = ["compiler-ir.runtime@linkage", "compiler-ir.backend@native", "compiler-ir.feasibility@qualification"]
+note = "On macOS arm64 the literal main and a closed mixed Nat/Int expression returned 255 and 10. Their 374 bytes, linked object, installed executable and Lean/C results agreed. The macOS arm64 and Linux x86-64 controls matched 121 native results from 15 boxed libraries and four hosted exits, with full-value controls for each result. Both hosts have complete target-specific ABI fixture bytes and measured static LLVM, Lean runtime and OpenBLAS links. Full indexed-program coverage and offline packaging remain."
 document = ""
 
 [row.dimension.performance]
@@ -533,14 +533,14 @@ requirement = "Packages and normalized flat input use edition 2026 and wire epoc
 
 [row.dimension.source]
 state = "partial"
-claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
-note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Further edition schemas and realization wrappers remain."
+claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
+note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Physical Affine calls bind the constructor, precision and coordinate dimension in the same edition. The source and wire agree on each finite schema, instance, carrier and ordered row. Finite-indexed functions replay their schema references, signatures and bodies even without an application. Uncalled ordinary singletons also replay against the physical files. Tampered observation sites fail the independent check. A flat main belongs to the entry file even when all wire spans match a library definition."
 document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@correspondence", "compiler-ir.edition@finite-tables"]
-note = "Lean independently checks package editions and finite tables. This does not establish source/Core correspondence for the entire edition."
+claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@manifest-source", "compiler-ir.edition@correspondence", "compiler-ir.edition@finite-tables", "compiler-ir.edition@finite-declaration-source", "compiler-ir.families@singleton-source", "compiler-ir.edition@namespace-source", "compiler-ir.families@selector-source"]
+note = "Lean checks the physical finite declarations against the accepted input, including uncalled finite functions, their binders, signatures and bodies, and the nominal paths and row spans of finite tables. Each ordinary singleton replays at its physical declaration, including its visibility, body and observed initializers. Each use and non-root mod replays at its lexical owner with the same visibility. Each file-backed package, including every unused dependency, carries a physical manifest with the name, version and edition carried by the wire. Correspondence for the rest of the edition remains open."
 document = ""
 
 [row.dimension.midir]

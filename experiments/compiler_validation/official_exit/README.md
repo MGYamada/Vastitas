@@ -62,14 +62,22 @@ time limits during elaboration. Their peak RSS was 936,968,192 and
 ## Decomposed source admission
 
 The staged experiment follows the actual signed-literal request through the
-source and namespace checkers. Reproduce its resource bounds with
+source and namespace checkers. Run the physical source replay with the same
+limits as the complete artifact job.
 
 ```sh
-python3 experiments/compiler_validation/official_exit/run.py --staged --timeout 55 --memory 2048
+python3 experiments/compiler_validation/official_exit/run.py --staged --timeout 120 --memory 2500
 ```
 
 [Source.lean](Source.lean) identifies the entire decoded `ResourceSource.Program`,
 including every expression span, and proves acceptance of its public envelope.
+Its layout equality connects the captured request to two physical checks.
+[PhysicalScan.lean](PhysicalScan.lean) locates the singleton in the file and
+[PhysicalReplay.lean](PhysicalReplay.lean) parses its signature, body and
+signed integer at that location. These checks import the source checker and
+elaborate in separate processes. The lexer uses a proved byte-to-character
+lookup for this ASCII fixture. Both modules undergo independent
+`leanchecker` replay under the same qualification run.
 [NamespaceGates.lean](NamespaceGates.lean) establishes unique owners and emitted
 symbol names for all 25 declarations, the root package lookup and the
 full wire charge of 34 units. One declaration is `main`. The other 24 come

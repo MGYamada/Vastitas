@@ -8,24 +8,24 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 
 | Property | Claims |
 | --- | --- |
-| [Feasibility before backend admission](#compiler-ir.feasibility) | Planned |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Tested, Planned |
-| [One owned static function family](#compiler-ir.families) | Planned, Tested, Tested, Proved (oracle), Planned, Proved (oracle) |
+| [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned |
+| [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
-| [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle) |
+| [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle), Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
 | [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
-| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle) |
+| [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle) |
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
-| [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Planned |
+| [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
 | [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
 | [Finite binders do not admit general polymorphism](#compiler-ir.finite-binders) | Planned, Tested, Tested, Tested, Proved (oracle) |
-| [Every transformation checks an untrusted witness](#compiler-ir.stage-validation) | Planned, Proved (oracle) |
+| [Every transformation checks an untrusted witness](#compiler-ir.stage-validation) | Proved (oracle), Planned, Proved (oracle) |
 | [Local proofs compose over the same module](#compiler-ir.composition) | Planned |
 | [Finite constitutional claims need their own proofs](#compiler-ir.constitution) | Planned |
 | [The LLVM subset has explicit target and ABI semantics](#compiler-ir.llvm-model) | Planned |
@@ -56,13 +56,17 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 
 Before the main lowering and proof implementation, measure official-kernel reduction and nanoda checking over about 1,000 representative MidIR operations on the 16 GiB macOS reference host and Linux. Record wall time and peak memory separately for proof preparation and checking. Qualify llvm-sys 231.0.1 with LLVM 23.1.4, the pinned Lean runtime and sequential LP64 OpenBLAS 0.3.34 on both systems, recording build time, memory, disk use and binary size. A failure or an unavailable toolchain remains a blocker; changing a pin, using native evaluation as proof, or omitting a required platform does not pass the trial.
 
-- Example: A per-function validator over a 1,000-operation candidate is checked by both pinned checkers before its granularity is admitted.
-- Not executed: The isolated 1,000-operation model and native fixture have exploratory macOS results under experiments/compiler_validation; production lowering and both-platform qualification remain pending.
+- Example: Official Lean and nanoda replay the same isolated 1,000-operation workload as one proof and in 64-operation chunks on Linux x86-64 and macOS arm64.
+- Run by: `QualificationRecords.test_both_hosts_replayed_the_same_thousand_operation_exports` in [`experiments/compiler_validation/reduction/test_records.py`](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/reduction/test_records.py)
 
 Claims:
 
-- `qualification`: [Planned](../specifications.md#planned)
-  - Issue: [#749](https://github.com/MGYamada/Vastitas/issues/749)
+- `qualification`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `QualificationRecords.test_retained_records_bind_current_fixture_and_model` in [`experiments/compiler_validation/reduction/test_records.py`](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/reduction/test_records.py)
+    - `QualificationRecords.test_both_hosts_replayed_the_same_thousand_operation_exports` in [`experiments/compiler_validation/reduction/test_records.py`](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/reduction/test_records.py)
+    - `QualificationRecords.test_static_abi_records_bind_both_hosts_to_the_complete_fixture` in [`experiments/compiler_validation/llvm/test_records.py`](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_validation/llvm/test_records.py)
+  - Note: The reduction records give wall time and peak resident memory for elaboration, Official replay, export and nanoda. Both native hosts linked LLVM 23.1.4 through llvm-sys 231.0.1 with the Lean 4.35.0 runtime and sequential LP64 OpenBLAS 0.3.34. Their target-specific inputs executed all four GEMM entry points. The native records include object and executable sizes, build-tree size and per-phase costs. At 921f386c the public compiler also matched 121 integer results, 15 heap ownership probes and four hosted exits on each platform. Production module composition and offline distribution have separate requirements. [Two-host compiler qualification](https://github.com/MGYamada/Vastitas/actions/runs/44871839008)
 
 <a id="compiler-ir.edition"></a>
 
@@ -85,17 +89,44 @@ Claims:
   - Evidence:
     - `edition_is_explicit_and_exact_in_root_and_dependency_manifests` in [`tests/packages.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/packages.rs)
     - `every_package_carries_the_edition_including_flat_library_inputs` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
+    - `physical_manifest_editions_bind_the_root_and_unused_dependencies` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
+    - `physical_edition_accepts_equivalent_toml_and_ignores_decoys` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `the_frontend_the_kernel_and_version_share_one_epoch` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `every_version_below_the_epoch_fails_closed` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
   - Note: This claim covers only the required manifest string edition = "2026", the fixed edition of protected flat and --lib envelopes, and independent Lean rejection of missing, different or non-string wire editions in every package. Source check/build reject before a backend runs; raw-wire check/emit use the real kernel. Package identities and wire epoch 10 are unchanged. CI builds the kernel before `cargo test --locked --all-targets`. This is regression evidence, not a source-to-Core theorem or acceptance of the planned fn, assemble, finite-indexed and numerical-realization grammar.
+- `manifest-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_manifest_metadata`
+    - [`VastitasOracle.BoxedCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BoxedCertificate.lean): `VastitasOracle.BoxedCertificate.published_manifest_metadata`
+  - Premises:
+    - the independent protocol-10 checker accepted a file-backed program
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Each accepted package has a manifest record at its own path among the physical inputs. Reading package.name and package.version from its text yields the nominal owner recorded in the wire. Reading package.edition yields the current edition. This covers root and unused dependency manifests. For a boxed program, the publication witness and valid stage certificate identify the same manifest in the certificate's physical files. The loader supplies the file contents and checks the rest of the TOML manifest schema. Flat inputs carry their edition in the protected package envelope.
 - `finite-tables`: [Tested](../specifications.md#tested)
   - Evidence:
     - `forward_references_and_degenerate_products_are_checked_on_wire` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
     - `unknown_output_points_to_original_tag` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
+    - `finite_declarations_match_their_files_even_when_the_other_table_is_valid` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
+    - `category_and_monad_fields_match_the_selected_source_operands` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
+    - `changing_a_physical_nullary_table_changes_the_llvm_case_and_revision` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
     - `native_branch_compares_members_of_a_visible_carrier` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
     - `finite_value_has_no_integer_or_cross_owner_conversion` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
     - `changing_a_member_in_the_wire_reaches_the_independent_checker` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
-  - Note: Protocol 10 resolves nominal carriers and checks totality over bounded products, including empty factors and nullary tables. Ordinary first-order functions can accept, return and compare tags of a nominal carrier. The public native branch test uses the existing checked Lean backend. The finite-binder claims cover concrete Hom and static category and object parameters. Functor and Monad parameters remain pending.
+  - Note: Protocol 10 resolves nominal carriers and checks totality over bounded products, including empty factors and nullary tables. Ordinary first-order functions can accept, return and compare tags of a nominal carrier. The public native branch test uses the existing checked Lean backend. The finite-binder claims below describe concrete Hom and the implemented static category, object and Monad parameters.
+- `finite-declaration-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_finite_declarations`, `VastitasOracle.ResourceSource.physical_finite_function`
+  - Premises:
+    - the public protocol-10 request passed the independent checker
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
+- `namespace-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_import`, `VastitasOracle.ResourceSource.physical_module`
+  - Premises:
+    - the public protocol-10 request passed the independent checker
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Each non-root module and each import in the accepted input replays in its declaring file. Inline modules retain the mod keyword span and external modules the full declaration span. Import resolution uses the written path, alias and visibility, including when two dependency aliases resolve to the same already-assembled family. The loader supplies the physical inputs and manifest dependency mapping.
 - `correspondence`: [Planned](../specifications.md#planned)
   - Issue: [#533](https://github.com/MGYamada/Vastitas/issues/533)
 
@@ -125,22 +156,54 @@ Claims:
     - `assembly_binds_the_resolved_family_even_without_installing_a_method` in [`tests/structured_assemble.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/structured_assemble.rs)
     - `a_reexport_preserves_the_unedited_singleton_family_identity` in [`tests/structured_assemble.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/structured_assemble.rs)
     - `independently_replays_source_operands_labels_and_closing_braces` in [`tests/structured_assemble.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/structured_assemble.rs)
+    - `physical_declarations_bind_unused_authority_and_contributed_signatures` in [`tests/edit_authority.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_authority.rs)
+    - `physical_dependency_files_reject_omitted_edits_and_retired_declarations` in [`tests/edit_authority.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_authority.rs)
+    - `flat_library_bytes_cannot_supply_an_unreported_assembly` in [`tests/edit_authority.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_authority.rs)
+    - `edits_bind_the_selected_fallback_and_unapplied_method_bodies` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `unedited_package_families_bind_domains_contracts_visibility_and_bodies` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `flat_libraries_bind_inferred_methods_to_their_own_file` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `omitting_a_whole_dispatch_family_cannot_turn_its_bodies_into_singletons` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `unused_selector_parents_and_memberships_replay_at_their_physical_tokens` in [`tests/abstract_types.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/abstract_types.rs)
+    - `assembled_selector_hierarchy_binds_the_winner_on_every_kernel_route` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `promotion_policy_mutations_are_real_frontend_requests` in [`tests/promotion.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/promotion.rs)
+    - `contributed_method_reads_indexed_pack_unpack_and_nominal_types` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `contributed_finite_calls_keep_index_paths_and_lookup_operands` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `a_defining_method_checks_legacy_pack_pairs_and_static_function_values` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
     - `entry_bytes_bind_every_assembly_even_if_the_entire_trace_is_removed` in [`tests/structured_assemble.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/structured_assemble.rs)
+    - `unused_singletons_replay_bodies_signatures_visibility_and_spans_in_their_module` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
+    - `raw_flat_singletons_require_the_physical_show_initializer_and_the_same_expression` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
+    - `empty_singleton_requirements_replay_on_each_side_of_the_arrow` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
+    - `flat_main_belongs_to_the_entry_file_on_every_kernel_route` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
   - Note: Public syntax, native behavior on the current backend, and independently rejected tampered edit events. These tests do not establish a universal family revision or LLVM correspondence.
+- `singleton-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_singleton_function`
+  - Premises:
+    - the public protocol-10 request passed the independent checker
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Every ordinary singleton in the accepted program has a defining package, lexical module and physical declaration site. Lean replays its name, visibility, parameters, return type, body and spans there. The observation indices select the top-level initializers wrapped in show!. In a flat program main belongs to the entry file, including when its libraries share the protected package identity. The loader supplies the physical files and their global offsets.
 - `revision-replay`: [Tested](../specifications.md#tested)
   - Evidence:
     - `selected_contribution_and_core_symbol_share_one_exact_revision` in [`tests/function_revision.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision.rs)
     - `resource_values_cannot_replay_another_specialization_table` in [`tests/function_revision.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision.rs)
     - `build_rechecks_the_captured_assembly_and_preserves_output_on_mismatch` in [`tests/function_revision_cli.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision_cli.rs)
     - `unchanged_llvm_bytes_do_not_authorize_an_edited_library_or_manifest` in [`tests/function_revision_cli.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision_cli.rs)
+    - `assembled_owners_come_from_their_physical_package_manifests` in [`tests/function_revision.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision.rs)
   - Note: The optional receipt binds a whole protocol-10 input to its kernel-reconstructed families, selected ordinary or contributed methods and emitted Core symbols. The physical inputs include each loaded manifest, module and flat library. A byte edit in an unused comment invalidates replay even when all LLVM bytes match.
+- `selector-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_selector_hierarchy`
+  - Premises:
+    - the public protocol-10 request passed the independent checker
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Every user-declared abstract selector and scalar membership belongs to a physical declaration in the same package and lexical module. Lean checks the ordered parent paths, scalar and membership target, visibility and source spans against the files and offsets supplied by the loader. The same checked request determines which method the assembly selects.
 - `revision-selection`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.expected_function_revision_exact`, `VastitasOracle.ResourceSource.expected_revision_selects_method`, `VastitasOracle.ResourceSource.structured_assembly_trace`
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.expected_function_revision_exact`, `VastitasOracle.ResourceSource.expected_revision_selects_method`, `VastitasOracle.ResourceSource.structured_assembly_trace`, `VastitasOracle.ResourceSource.physical_edit_declarations`, `VastitasOracle.ResourceSource.contributed_method_body`, `VastitasOracle.ResourceSource.defining_method_body`
   - Premises:
     - the public protocol-10 request is accepted with the expected function revision present
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises.
+  - Note: Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan consumes the declared edit permissions, explicit domains, bodyless contracts and defining method signatures. An inferred family header uses the span and parameters of its first declaration. Each contributed method and each defining family method has a checked replay of its full body in the physical file, bound to its package, module, family path, contribution and declaration span. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises.
 - `assembly`: [Planned](../specifications.md#planned)
   - Issue: [#455](https://github.com/MGYamada/Vastitas/issues/455)
 - `static-retention`: [Proved (oracle)](../specifications.md#proved-oracle)
@@ -233,11 +296,11 @@ Claims:
   - Issue: [#750](https://github.com/MGYamada/Vastitas/issues/750)
 - `pure-cfg`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.MidIR.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/MidIR/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.MidIR.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/MidIR/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The adapter consumes a checked wire request and a selected singleton. Regressions exercise typed block arguments, ordering tokens, SSA dominance, nominal comparison and rejection of unsupported Core. The public preview admits selected complete modules. General whole-module lowering remains pending.
 - `direct-call`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.MidIR.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/MidIR/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.MidIR.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/MidIR/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The pure module checker accepts an ordered direct call with the selected family, symbol, specialization key and nominal parameter and result types. Regressions change each field and reorder the functions. Resource effects and foreign calls remain open.
 - `finite-lookup`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
@@ -271,7 +334,7 @@ Claims:
   - Note: Negation and disjunction return the same Boolean as the corresponding Core operation. The phase conversion preserves their denotations.
 - `int-literal`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: For a selected argument-free main, the int.const.v1 opcode keeps the complete unbounded Int until the exit ABI projection. Kernel regressions exercise the actual checked wire entry and reject unsupported arithmetic. General integer operations still require a qualified runtime.
 - `exact-arithmetic`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
@@ -279,6 +342,12 @@ Claims:
   - Premises:
     - Arguments have the exact Nat/Int sorts in the opcode signature.
   - Note: Both MidIR phases preserve unbounded addition, subtraction, multiplication and division. Nat subtraction saturates. Mixed division has a distinct opcode for each operand order. Negation and explicit conversion have unary signatures.
+- `pair-operations`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.MidIR`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/MidIR.lean): `VastitasOracle.MidIR.pair_from_core`, `VastitasOracle.MidIR.pair_projections`, `VastitasOracle.MidIR.execute_denote_with`
+  - Premises:
+    - A homogeneous pair has element sort Nat or Int. The projection equations apply when construction succeeds for the supplied Core values.
+  - Note: Construction and ordered projection use the Core semantics at the declared arity. Projecting a constructed pair recovers each unbounded component in either MidIR phase. Native allocation and reference counting have separate tests.
 
 <a id="compiler-ir.semantics"></a>
 
@@ -399,10 +468,10 @@ Claims:
   - Note: Both precisions of RR and CC have typed buffers and exact component payloads. Storage rejects cross-representation access, unknown tags and oversized binary32 payloads.
 - `reference-laws`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.SafeFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SafeFloat.lean): `VastitasOracle.SafeFloat.flags_left_unit`, `VastitasOracle.SafeFloat.flags_right_unit`, `VastitasOracle.SafeFloat.flags_assoc`, `VastitasOracle.SafeFloat.raw_left_unit`, `VastitasOracle.SafeFloat.raw_right_unit`, `VastitasOracle.SafeFloat.raw_assoc`, `VastitasOracle.SafeFloat.safe_left_unit`, `VastitasOracle.SafeFloat.safe_right_unit`, `VastitasOracle.SafeFloat.safe_assoc`, `VastitasOracle.SafeFloat.lift_pure`, `VastitasOracle.SafeFloat.lift_bind`, `VastitasOracle.SafeFloat.raw_projection`, `VastitasOracle.SafeFloat.safe_projection`, `VastitasOracle.SafeFloat.raw_congr`, `VastitasOracle.SafeFloat.safe_congr`, `VastitasOracle.SafeFloat.zero_patterns`, `VastitasOracle.SafeFloat.guard_fail`, `VastitasOracle.SafeFloat.guard_pass`, `VastitasOracle.SafeFloat.first_error`, `VastitasOracle.SafeFloat.divide_order`
+    - [`VastitasOracle.SafeFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SafeFloat.lean): `VastitasOracle.SafeFloat.flags_left_unit`, `VastitasOracle.SafeFloat.flags_right_unit`, `VastitasOracle.SafeFloat.flags_assoc`, `VastitasOracle.SafeFloat.raw_left_unit`, `VastitasOracle.SafeFloat.raw_right_unit`, `VastitasOracle.SafeFloat.raw_assoc`, `VastitasOracle.SafeFloat.safe_left_unit`, `VastitasOracle.SafeFloat.safe_right_unit`, `VastitasOracle.SafeFloat.safe_assoc`, `VastitasOracle.SafeFloat.lift_pure`, `VastitasOracle.SafeFloat.lift_bind`, `VastitasOracle.SafeFloat.raw_projection`, `VastitasOracle.SafeFloat.safe_projection`, `VastitasOracle.SafeFloat.raw_congr`, `VastitasOracle.SafeFloat.safe_congr`, `VastitasOracle.SafeFloat.zero_patterns`, `VastitasOracle.SafeFloat.guard_fail`, `VastitasOracle.SafeFloat.guard_pass`, `VastitasOracle.SafeFloat.recover_checked_real_div`, `VastitasOracle.SafeFloat.first_error`, `VastitasOracle.SafeFloat.divide_order`
   - Premises:
     - The fixed reference profile admits deterministic pure Lean continuations and observes represented values and the union of the five operation-local symbolic flags. The checked division statements concern binary32 and binary64 real scalars.
-  - Note: Both unit and associativity laws preserve ordered events, as do the pure and bind equations for lift. Projection forgets event identity and ordering while retaining the result and accumulated flags. Both signed-zero guard inputs produce the declared error without invoking division. These proof-only computations give no public SafeFloat execution or hardware flag observations.
+  - Note: Both unit and associativity laws preserve ordered events, as do the pure and bind equations for lift. Projection retains the result and accumulated flags. Recovering a failed real zero guard by multiplying the two operands gives ordinary totalized division on every input pattern, including its five reference flags. The checked trace still records the guard.
 
 <a id="compiler-ir.realization"></a>
 
@@ -415,7 +484,7 @@ Claims:
 Canonical realize::&lt;R&gt; binds a mathematical object, its base or site, chart, dimension, representation, reference and execution profiles and revisions. interpret binds the selected computation graph; run executes through resource buffers. Affine wrappers lower to this canonical form. A real wrapper creates a fresh smooth Affine(n) object; a complex wrapper creates a fresh algebraic Affine(CC,n) object. Realizing an existing object preserves its nominal identity. Exact mathematical CC is built over RR with a selected commutative ring reduct and separate field evidence. Finite executable coordinates embed QQ(i) into CC; they do not identify QQ(i) with CC. Numerical representations have a different Kind and gain no exact Field or CommRing authority.
 
 - Example: The canonical realization of an existing object and its documented wrapper agree only under the wrapper's explicit fresh-object and chart construction.
-- Not executed: Selected mathematical affine charts have source and Core evidence. Identity realization is tested at both widths on the selected complex chart. Four wrapper-to-Core correspondences remain pending.
+- Not executed: Selected mathematical affine charts have source and Core evidence. Identity realization is tested at both widths on the selected complex chart. Nonstandard chart execution and further numerical graphs remain open.
 
 Claims:
 
@@ -466,6 +535,17 @@ Claims:
   - Note: These proof-only descriptors support both real widths. The executable identity supports both real widths on the selected smooth affine.
 - `source`: [Planned](../specifications.md#planned)
   - Issue: [#686](https://github.com/MGYamada/Vastitas/issues/686)
+- `affine-wrappers`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `affine_wrappers_run_the_same_identity_bytes_at_all_four_representations` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `affine_wrappers_bind_fresh_subjects_constructor_dimension_and_physical_source` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+  - Note: Each fresh standard-chart identity produces the same complete LLVM bytes as the explicit identity at that representation. The revision binds both the constructor and realize family. Regressions change the subject, lexical constructor, representation, dimension and revision.
+- `affine-expansion`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.NumericalRealization`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NumericalRealization.lean): `VastitasOracle.NumericalRealization.checked_affine_realization`, `VastitasOracle.NumericalRealization.affine_subjects_distinct`
+  - Premises:
+    - A checked wire input contains the written affine site in its lowered realization sites. Distinct constructor occurrences have distinct physical start offsets in the input.
+  - Note: The site selects the protected realize family and the canonical descriptor of its generated subject. The checked chart has the written dimension. Different physical occurrences produce distinct nominal owners.
 - `identity-source`: [Tested](../specifications.md#tested)
   - Evidence:
     - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
@@ -478,6 +558,11 @@ Claims:
     - `dependency_names_do_not_grant_the_protected_float_identity` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
   - Note: Edition 2026 resolves the protected float module through its namespace, selects a smooth real affine or a named exact complex affine and its own standard chart at either supported precision, interprets its declared identity under NativeFast and binds both point loans explicitly. The checked function revision records the sites, coordinates, graph, representation, policy and executed copy.
+- `physical-calls`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `physical_source_binds_realizations_even_when_the_descriptor_is_unused` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+    - `realization_calls_in_an_external_module_keep_their_owner_and_order` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+  - Note: The kernel compares calls with the submitted physical files, including an unused descriptor in a branch and a pair of unused calls in an external module. Regressions cover a changed precision, namespace alias, result name, argument column, function, visibility, branch condition or arm, swapped calls and omissions.
 - `identity-origin`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.NumericalRealization`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/NumericalRealization.lean): `VastitasOracle.NumericalRealization.checked_site`, `VastitasOracle.NumericalRealization.profile_equations`, `VastitasOracle.NumericalRealization.executed_source_identity`, `VastitasOracle.NumericalRealization.executed_complex_model`, `VastitasOracle.NumericalRealization.executed_copy`, `VastitasOracle.NumericalRealization.point_scalar`
@@ -529,12 +614,18 @@ Claims:
 
 - `reference`: [Planned](../specifications.md#planned)
   - Issue: [#758](https://github.com/MGYamada/Vastitas/issues/758)
+- `one-step`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.BinaryFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryFloat.lean): `VastitasOracle.BinaryFloat.observe_eq_iff`, `VastitasOracle.BinaryFloat.add_one_step`, `VastitasOracle.BinaryFloat.sub_one_step`, `VastitasOracle.BinaryFloat.mul_one_step`, `VastitasOracle.BinaryFloat.realDiv_one_step`, `VastitasOracle.BinaryFloat.comparisons_one_step`, `VastitasOracle.BinaryFloat.infinity_zero_invalid`, `VastitasOracle.BinaryFloat.raw_division_separates_zeros`
+  - Premises:
+    - The pure binary32 or binary64 profile uses ties-to-even and gradual underflow. Each pair of real input operands consists of identical non-NaNs or two signed zeros. The arithmetic result is observed once, together with its five local flags.
+  - Note: Addition, subtraction, multiplication and totalized division preserve the stated one-step observation and local flags. Equality and strict order return the same Booleans. Infinity times either zero and its totalized quotient produce an invalid NaN. Raw division of one by the two zeros produces opposite infinities. NaN results fall outside the input relation, so applying the theorem to a continuation requires further hypotheses. The validation contract requires the actual foreign calls and bits.
 - `reference-boundaries`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.BinaryFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryFloat.lean): `VastitasOracle.BinaryFloat.finite_realDiv_zero`, `VastitasOracle.BinaryFloat.empty_dot_preserves`
+    - [`VastitasOracle.BinaryFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryFloat.lean): `VastitasOracle.BinaryFloat.finite_realDiv_zero`, `VastitasOracle.BinaryFloat.empty_dot_preserves`, `VastitasOracle.BinaryFloat.zero_alpha_skips_inputs`, `VastitasOracle.BinaryFloat.zero_beta_skips_old`
   - Premises:
-    - For real division the numerator is finite and the divisor is a signed zero in binary32 or binary64. For an empty dot update the cell predicates recognize beta as nonzero and one.
-  - Note: A finite numerator divided by either signed zero returns zero with the exclusive-or sign and empty reference flags. An empty dot with unit beta returns the prior cell unchanged with empty local flags. Separately, scripts/check_float_kernels.py compares 828 input tuples across both widths against the C real quotient, ordered complex quotient and inverse adapters. The harness compares arithmetic NaNs by class and other values by bits. These direct adapter tests do not exercise a public arithmetic instruction.
+    - For real division the numerator is finite and the divisor is a signed zero in binary32 or binary64. The empty dot keeps its cell when beta tests as nonzero and one. For input independence the corresponding alpha or beta zero predicate must hold.
+  - Note: A finite numerator divided by either signed zero returns zero with the exclusive-or sign and empty reference flags. An empty dot with unit beta returns the prior cell with empty flags. Zero alpha makes both inputs irrelevant, and zero beta makes the old destination irrelevant, including their contributions to flags. On 828 input tuples across both widths, scripts/check_float_kernels.py compares Lean with the independent integer and rational reference on scalar and complex result bits and local flags. It also compares C real division, ordered complex division and inverse, including aliased outputs. The C comparison checks arithmetic NaNs by class and every other result by bits. scripts/check_dot_kernel.py compares the production scalar-output GEMM adapter with Lean on 948 dots across the four representations. Its unit-beta copy cases also check the full signaling NaN payload.
 - `lowering`: [Planned](../specifications.md#planned)
   - Issue: [#751](https://github.com/MGYamada/Vastitas/issues/751)
 
@@ -703,12 +794,13 @@ Claims:
     - `derived_view_declarations_require_the_exact_kind_schema_and_direct_monad` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `distinct_views_of_one_monad_share_specialization_and_reject_stale_public_revision` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `direct_function_producing_a_represented_arrow_precedes_bind_and_compose_in_llvm` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
+    - `kleisli_callback_and_forwarded_operand_execute_both_producer_results` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `static_hom_callables_keep_their_declaring_package_and_fiber` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `finite_callable_methods_are_audited_before_selection` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `kleisli_forwarding_requires_declared_positions_and_exact_producer_fibers` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `nested_callbacks_with_an_empty_hom_result_are_audited_without_a_sample_arrow` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend), [Lean-to-C toolchain and C compiler](assumptions.md#assumption.lean-to-c)
-  - Note: The closure example selects unit, bind, compose and lift through its two named views. The checked Lean/C executable also distinguishes both orders of two S3 arrows for bind and compose. On a one-object group two structures with the same endofunctor produce distinct extensions and specialized symbols. Changing the view while keeping its underlying Monad preserves the specialization key and invalidates the saved source revision. Production LLVM delivery has its own execution obligation.
+  - Note: The closure example selects unit, bind, compose and lift through its two named views. The checked Lean/C executable also distinguishes both orders of two S3 arrows for bind and compose. On a one-object group two structures with the same endofunctor produce distinct extensions and specialized symbols. Changing the view while keeping its underlying Monad preserves the specialization key and invalidates the saved source revision. The native callback fixtures execute both possible results of the same producer. Passing it to bind and calling it explicitly both give exit 42 or 7 under the selected Monad. Both forms reject a stale revision after the producer changes.
 
 <a id="compiler-ir.finite-binders"></a>
 
@@ -740,6 +832,8 @@ Claims:
     - `inferred_and_explicit_indices_select_the_same_nominal_specialization` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
     - `symbolic_composition_preserves_noncommuting_order` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
     - `an_unused_template_is_checked_without_any_inhabited_model` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
+    - `unused_finite_functions_bind_their_schema_signature_and_body_to_the_original_file` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
+    - `changing_a_finite_function_result_changes_its_ssa_operand_and_revision` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
     - `inference_rejects_foreign_models_ambiguous_indices_and_conflicting_endpoints` in [`tests/finite_binders.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_binders.rs)
     - `standard_category_composes_an_applications_noncommuting_arrows` in [`tests/finite_lookup.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_lookup.rs)
   - Note: A category schema and its objects can index an ordinary named function over Hom and Bool. The checked Lean backend executes noncommuting composition, and the receipt binds each specialized symbol to its model and endpoints.
@@ -772,6 +866,12 @@ Each validator receives the before and after artifacts plus a typed, untrusted d
 
 Claims:
 
+- `literal-comparison`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ExactFold`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactFold.lean): `VastitasOracle.ExactFold.literal_comparison_evaluates`
+  - Premises:
+    - The literal comparison folder returns a Boolean for two operands in the checked Core.
+  - Note: For every caller environment and module, evaluation of the original comparison with sufficient fuel yields that Boolean. The fold compares two Nat literals or two Int literals at full precision. The selected and fallback methods in the literal-comparison corpus use this rule before their Boolean arguments are known.
 - `soundness`: [Planned](../specifications.md#planned)
   - Issue: [#752](https://github.com/MGYamada/Vastitas/issues/752)
 - `pure-cfg`: [Proved (oracle)](../specifications.md#proved-oracle)
@@ -854,11 +954,11 @@ Claims:
   - Issue: [#753](https://github.com/MGYamada/Vastitas/issues/753)
 - `lexical`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The isolated lexical component has 26 official-kernel reduction regressions for canonical quoted bytes, closed scalar/result spellings and bounded target/layout headers. Its general Lean theorems establish roundtrip and arbitrary-input canonicality for those codecs, including full consumption and size bounds. This test claim does not cover instructions, functions, CFG/phi, module well-formedness, external LLVM semantics or accepted Core. Lexically valid target strings do not establish a qualified target or ABI. The public preview uses these codecs for its target headers and complete modules.
 - `switch-regression`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The complete unary finite-table function round-trips. Regressions check empty and nonempty tables, mismatched return values and a trailing byte. The separate unary-switch claim states the semantics of accepted bytes.
 - `unary-switch`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
@@ -928,7 +1028,7 @@ Claims:
   - Note: The selected row, contribution and call target belong to the same checked revision. The actual Core and both MidIR invocations agree on the integer result. The LLVM module calls the selected body, branches on its i1 and joins the two exit values with an i32 phi. Every remaining specialized body has its own internal definition.
 - `entry-regression`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The kernel regressions check canonical exit-module bytes, negative and large exit statuses, changed values, an invalid entry ABI and a return outside the byte range.
 - `folded-entry`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
@@ -942,7 +1042,7 @@ Claims:
   - Evidence:
     - [`VastitasOracle.ExactLibrary`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactLibrary.lean): `VastitasOracle.ExactLibrary.bytes_correspondence`
   - Premises:
-    - The complete checked public module is a single straight-line boxed integer export. Its bytes parse to its emitted model. Literal allocation succeeds. The modeled foreign call has no result on malformed argument lists. On its declared operand kinds it implements the unbounded operation on borrowed inputs and returns an owned value.
+    - The complete checked public module is a single straight-line export over boxed integers and homogeneous pairs. Its bytes parse to its emitted model. Literal allocation succeeds. The modeled foreign call has no result on malformed argument lists. On its declared operand kinds it implements the unbounded operation on borrowed inputs and returns an owned value.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: The model reconstructs the checked execution SSA block including every typed parameter, literal, operand and return slot. Both checked MidIR phases and the parsed model have the same return observation for every argument list under the runtime contract. The proof also identifies the target header, result sort, current revision and complete bytes. Machine code, runtime memory management and general source-to-SSA refinement have separate obligations.
 - `boxed-program`: [Proved (oracle)](../specifications.md#proved-oracle)
@@ -954,10 +1054,12 @@ Claims:
   - Note: The original Core, the optimization and execution MidIR and the reconstructed module agree on the entire Int at the entry. The byte equation binds the target, typed direct calls, ownership instructions and hosted status projection. Runtime initialization, allocation, reference counting, object code and the host linker require native qualification.
 - `boxed-regression`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - `boxed_integer_exports_bind_their_argument_order_and_full_revision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `boxed_program_preserves_call_targets_and_borrowed_returns` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
-  - Note: The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls.
+    - `singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `boxed_pair_results_bind_both_methods_to_the_revision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+  - Note: The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls. A singleton entry uses the same checked runtime operations when its intermediate squares exceed the folding budget. Named and symbolic multiplication produce the same bytes and retain their source revisions. A linked pair-valued family retains both methods. Editing its unselected body or removing the applied contribution invalidates the saved revision.
 
 <a id="compiler-ir.verification-modes"></a>
 

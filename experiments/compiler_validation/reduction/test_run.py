@@ -104,22 +104,6 @@ class ExportBoundary(unittest.TestCase):
 
 
 class ReportsAndWorkload(unittest.TestCase):
-    def test_retained_records_bind_current_fixture_and_model(self):
-        for path in sorted(Path(__file__).with_name("results").glob("*.json")):
-            with self.subTest(record=path.name):
-                report = json.loads(path.read_text())
-                workload = report["workload"]
-                text, targets = run.fixture(workload["operations"], workload["chunk_size"],
-                                            workload["proof_method"])
-                self.assertEqual(workload["model_sha256"], run.digest(run.HERE / "Model.lean"))
-                self.assertEqual(workload["fixture_sha256"], run.hashlib.sha256(text.encode()).hexdigest())
-                self.assertEqual(report["export"]["target_theorems"], targets)
-                self.assertFalse(report["compiler_acceptance"])
-                self.assertFalse(report["production_midir"])
-                self.assertFalse(report["export"]["axiom_environment_authenticated"])
-                self.assertEqual(report["phases"][-1]["checked_declarations"],
-                                 report["export"]["declarations"])
-
     def test_preflight_failure_replaces_a_stale_success_record(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "report.json"

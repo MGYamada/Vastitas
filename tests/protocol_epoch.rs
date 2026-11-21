@@ -170,6 +170,86 @@ fn root_source_is_the_physical_package_entry_at_its_global_byte_offset() {
 }
 
 #[test]
+fn physical_manifest_editions_bind_the_root_and_unused_dependencies() {
+    let s = common::Scratch::empty("physical manifest edition");
+    s.write_package("dep", "pub fn answer() -> Int { 9 }", "");
+    s.write_package("app", PROGRAM, "dep={path='../dep'}");
+    let raw = s.captured("app/Vastitas.toml", CURRENT_PROTOCOL);
+    let target = &[
+        "llvm-check",
+        "aarch64-apple-darwin",
+        "e-m:o-i64:64-n32:64-S128",
+    ];
+    let build = &["llvm-build", target[1], target[2]];
+    let routes = [
+        &["check"][..],
+        &["emit"],
+        &["function-revision"],
+        target,
+        build,
+    ];
+    for args in routes {
+        let result = common::kernel_with_args(&raw, args);
+        assert_eq!(result["ok"], true, "{result}");
+    }
+    // All following spans stay fixed because each edit preserves the byte count.
+    for row in [0, 1] {
+        for (old, new) in [
+            ("2026", "2025"),
+            ("edition =", "missing ="),
+            ("\"2026\"", "2026  "),
+        ] {
+            let mut changed = raw.clone();
+            let text = &mut changed["root_source"]["files"][row]["text"];
+            *text = common::checked_replace(text.as_str().unwrap(), old, new).into();
+            for args in routes {
+                let result = common::kernel_with_args(&changed, args);
+                assert_wire_rejected(&result, "E_PROTOCOL");
+                assert!(
+                    result["diagnostics"][0]["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains("package.edition")
+                );
+                assert!(result.get("llvm").is_none() && result.get("function_revision").is_none());
+            }
+        }
+    }
+    let mut detached = raw;
+    detached["file"] = json!("main.vast");
+    detached["root_source"] = json!({"offset":0,"text":PROGRAM});
+    assert_wire_rejected(&kernel(detached, "check"), "E_PROTOCOL");
+}
+
+#[test]
+fn physical_edition_accepts_equivalent_toml_and_ignores_decoys() {
+    let s = common::Scratch::empty("manifest edition syntax");
+    s.write("app/main.vast", PROGRAM);
+    let manifest = "app/Vastitas.toml";
+    for doc in [
+        "[package]\nedition='2026'\nname='app'\nversion='0.1.0'\nroot='main.vast'",
+        "package={ edition='2026', name='app', version='0.1.0', root='main.vast' }",
+        "package.\"ed\\u0069tion\"=\"20\\u00326\"\r\npackage.name='app'\r\npackage.version='0.1.0'\r\npackage.root='main.vast'",
+        "[package]\nname='''edition = \"2025\"\n[other]'''\nversion='0.1.0'\nroot='main.vast'\nedition=\"\"\"\n20\\\n 26\"\"\" # edition = '2025'",
+    ] {
+        s.write(manifest, doc);
+        common::success(&s.check_manifest(manifest));
+    }
+    let doc =
+        "[package]\n#dition='2026'\nedition='2026'\nname='app'\nversion='0.1.0'\nroot='main.vast'";
+    s.write(manifest, doc);
+    let raw = s.captured(manifest, CURRENT_PROTOCOL);
+    for (old, new) in [
+        ("#dition", "edition"),
+        ("\nedition='2026'", "\nedition='2025'"),
+    ] {
+        let mut changed = raw.clone();
+        changed["root_source"]["files"][0]["text"] = common::checked_replace(doc, old, new).into();
+        assert_wire_rejected(&kernel(changed, "check"), "E_PROTOCOL");
+    }
+}
+
+#[test]
 fn every_package_carries_the_edition_including_flat_library_inputs() {
     let s = common::Scratch::empty("flat edition");
     let entry = "fn main() -> Int { answer() }";

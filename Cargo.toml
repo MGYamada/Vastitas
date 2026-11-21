@@ -16,6 +16,7 @@ include = [
     "/scripts/check_conformance_corpus.py",
     "/nature/", "/monad/", "/llvm/fixtures/", "/llvm/runtime/exact.c", "/llvm/runtime/storage.c",
     "/llvm/runtime/storage_abi.h", "/llvm/runtime/gemm.c",
+    "/llvm/src/float-identity.ll", "/llvm/src/float-complex-identity.ll",
     "/scripts/build_openblas.py",
     # The ignore rules of .gitignore for environment settings and Finder
     # metadata, at every directory level.

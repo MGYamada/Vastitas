@@ -1,3 +1,4 @@
+import VastitasPublicTest.SingletonFixtures
 import VastitasKernel.MidIR.PackageLink
 import VastitasKernel.RegressionRequest
 import VastitasKernel.RegressionSupport
@@ -12,6 +13,13 @@ private def other : FiniteSort := .carrier (owner "Other")
 private def env : Environment :=
   [⟨owner "Bit", .finiteCarrier ["off", "on"]⟩, ⟨owner "Other", .finiteCarrier ["off", "on"]⟩]
 private def check := RegressionSupport.check "finite MidIR regression"
+
+#guard ExactFold.literalComparison .ne (.ascribe (.pure .nat) (.natural (2^128))) (.natural 0) == some true
+#guard ExactFold.literalComparison .eq (.natural (2^128)) (.natural (2^128)) == some true
+#guard (ExactFold.literalComparison .eq (.integer 0) (.natural 0)).isNone
+#guard (ExactFold.literalComparison .ne (.ascribe (.pure .int) (.natural 0)) (.integer 1)).isNone
+#guard (ExactFold.literalComparison .eq (.variable 0 ⟨.pure .int, none⟩) (.integer 0)).isNone
+
 private def fn (blocks : Array (Block .optimization)) : Function .optimization :=
   ⟨⟨owner "flip"⟩, 0, ⟨0, []⟩, #[.finite bit], .finite bit, blocks⟩
 private def graph : Array (Block .optimization) := #[
@@ -134,15 +142,8 @@ private def core (body : Core.Term) : Core.Function :=
     (lowerFunction env ⟨2,[]⟩ {core bad with returnType := .pure .bool}).isNone)
 
 open Lean
-private def request (value : Bool) : Json := Id.run do
-  let span := Json.mkObj [("start", 0), ("end", 1), ("line", 1), ("column", 1)]
-  let expr := Json.mkObj [("kind", "boolean"), ("value", toJson value), ("span", span)]
-  let body := Json.mkObj [("result", expr), ("statements", .arr #[]), ("span", span)]
-  let fn := Json.mkObj [("name", "choice"), ("return_type", Json.mkObj [("kind", "named"), ("name", "Bool")]),
-    ("params", .arr #[]), ("body", body), ("public", true), ("span", span)]
-  let mod := Json.mkObj [("path", .arr #[]), ("public", true), ("span", span), ("imports", .arr #[]),
-    ("generics", .arr #[]), ("methods", .arr #[]), ("functions", .arr #[fn])]
-  return RegressionRequest.package "mid" [mod]
+private def request (value : Bool) : Json :=
+  RegressionRequest.physical (if value then "choiceTrue" else "choiceFalse")
 
 #eval check "same-identity functions with different bodies retain different checked revisions" (Id.run do
   let .ok a := ResourceSource.Wire.check (request true) false | return false

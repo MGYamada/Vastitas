@@ -5,9 +5,9 @@ set -euo pipefail
 # the wire regressions exercise Main's route, ResourceSource.Wire.
 cd "$(dirname "$0")/.."
 lake -d lean-kernel build \
-  VastitasKernel.MidIR.Regression \
+  VastitasPublicTest.MidIR.Regression \
   VastitasKernel.LLVM.StorageRegression \
-  VastitasKernel.LLVM.Regression \
+  VastitasPublicTest.LLVM.Regression \
   VastitasKernel.TypeAuditRegression \
   VastitasKernel.DispatchRegression \
   VastitasKernel.NamespaceRegression \
@@ -36,7 +36,7 @@ lake -d lean-kernel build \
   VastitasKernel.MetricFormRegression \
   VastitasKernel.FrameRuntimeRegression \
   VastitasKernel.FrameDeclarationRegression \
-  VastitasKernel.NatureRegression \
+  VastitasPublicTest.NatureRegression \
   VastitasKernel.FrameRegression \
   VastitasKernel.SpectralRuntimeRegression \
   VastitasKernel.SpectralDeclarationRegression \
@@ -50,11 +50,11 @@ lake -d lean-kernel build \
   VastitasKernel.GraphRegression \
   VastitasKernel.IndexedDispatchRegression \
   VastitasKernel.IndexedAuthorityRegression \
-  VastitasKernel.IndexedWireRegression \
-  VastitasKernel.ObservationRegression \
+  VastitasPublicTest.IndexedWireRegression \
+  VastitasPublicTest.ObservationRegression \
   VastitasKernel.GeometryCompatibilityRegression \
   VastitasKernel.ReviewRegression \
-  VastitasKernel.CompatibilityProfileRegression \
+  VastitasPublicTest.CompatibilityProfileRegression \
   VastitasPublicTest.AuthorityRegression \
   VastitasKernel.StorageRegression \
   VastitasStorageTest.Regression \

@@ -177,7 +177,10 @@ private def evalFn (functions : Array Function) : Nat → Nat → List Value →
         | .invoke idx refs => evalFn functions depth idx (← liftM (refs.mapM (values[·]?)))
       -- Every operand has already passed this bound before multiplication.
       let bounded : Bool := match v with
-        | .natural n => n.log2 < 4096 | .integer n => n.natAbs.log2 < 4096 | _ => false
+        | .natural n => n.log2 < 4096 | .integer n => n.natAbs.log2 < 4096
+        | .pairNat a b => a.log2 < 4096 && b.log2 < 4096
+        | .pairInt a b => a.natAbs.log2 < 4096 && b.natAbs.log2 < 4096
+        | _ => false
       guard bounded
       values := values.push v
     liftM (values[f.result]?)
@@ -206,9 +209,6 @@ def compile {json : Lean.Json} {main : Bool} (req : Wire.CheckedInput json main)
     Option (Artifact req header) := do
   let linked ← PackageLink.compile req
   let ⟨model,lowered⟩ ← getChecked (translate linked.exe header)
-  -- A root declaration or a sealed family can require a linked body even when
-  -- the entry has no calls. Single-function entries use the scalar profile.
-  guard (model.functions.size > 1)
   let ⟨target⟩ ← confirm (model.header = header)
   let ⟨fuel,cost⟩ ← getChecked (FiniteCost.entryWith true (PackageLink.core req))
   let ⟨value,modeled⟩ ← getChecked model.entryValue

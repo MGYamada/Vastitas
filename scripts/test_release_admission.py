@@ -164,6 +164,24 @@ class AdmissionTests(unittest.TestCase):
         cell['claims'] = ['compiler-ir.edition@manifest']
         self.assertTrue(any('missing mandatory' in error for error in self.errors()))
 
+    def test_source_replays_require_oracle_proofs_in_complete_core_rows(self):
+        for name, obligations in (
+            ('functions', ('compiler-ir.families@singleton-source', 'compiler-ir.edition@namespace-source')),
+            ('edition-verification', ('compiler-ir.edition@finite-declaration-source',
+                                      'compiler-ir.families@singleton-source', 'compiler-ir.edition@namespace-source')),
+        ):
+            cell = next(row for row in self.data['row'] if row['id'] == name)['dimension']['core']
+            cell['state'] = 'complete'
+            for ref in cell['claims']:
+                self.claims[ref][2].status = admission.required_status('core', ref)
+            for ref in obligations:
+                with self.subTest(row=name, claim=ref):
+                    self.assertIn(ref, cell['claims'])
+                    self.claims[ref][2].status = 'tested'
+                    self.assertTrue(any(ref in error and 'proved-oracle' in error for error in self.errors()))
+                    self.claims[ref][2].status = 'proved-oracle'
+            self.assertEqual(self.errors(), [])
+
     def test_every_required_claim_must_have_the_required_status(self):
         cell = self.data['row'][-2]['dimension']['source']
         cell['state'] = 'complete'

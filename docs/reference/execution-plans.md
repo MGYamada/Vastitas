@@ -678,8 +678,9 @@ execution extensions. Unsupported primitive names/configurations are rejected.
 conventions as the original binary64 reference: exact `Fraction` conversion,
 roundTiesToEven, gradual underflow/tininess after rounding, chosen left-first
 NaN propagation, signaling NaN quieting, and five symbolic local flags. No
-operation implicitly converts F32 to F64. Scalar `rdiv(a, ±0)` evaluates
-`mul(a, +0)` and takes that multiplication's flags; nonzero denominators use
+operation implicitly converts F32 to F64. On either signed zero divisor
+`b`, scalar `rdiv(a, b)` evaluates `mul(a, b)` and retains its flags. A
+finite numerator thus produces the zero with sign `sign(a) XOR sign(b)`. Nonzero denominators use
 the existing raw division. `abs_bits` clears the sign without quieting a NaN.
 
 `complex_division_reference.py` pins
@@ -836,7 +837,7 @@ site-observing profile requires its own explicit trace-refinement theorem.
 | --- | --- |
 | Executable reference | Python covers binary64. Lean covers binary32 and binary64 conversion, raw arithmetic, checked division and lazy branches. |
 | Lean sequencing proofs | Flag union has an identity and is associative, commutative and idempotent. Both bind operations satisfy their unit and associativity laws, and lift preserves pure and bind. The signed-zero guard rejects both zero bit patterns. The first error retains previously executed events and flags and skips every continuation. |
-| Lean arithmetic proofs | Totalized real division by signed zero and the empty-dot unit-beta case have separate theorems. General rounding and operation-by-operation IEEE refinement remain open. |
+| Lean arithmetic proofs | For non-NaN real inputs differing only in zero signs, one addition, subtraction, multiplication or totalized division preserves the result observation and all five flags. Equality and strict order agree. Infinity times zero can produce a NaN, so a subsequent operation needs its own input-domain proof. Recovering a failed real zero guard with the original operands’ product agrees with totalized division for all bits. General IEEE refinement remains open. |
 | Production Source/Core connection | The smooth real and exact complex identities bind chart and graph to checked resource storage at both widths. Public SafeFloat sequencing and public floating Monad instances remain outside the edition. |
 | Native refinement | NativeFast identity copies report flags as unavailable for all four representations. Direct C quotient and inverse tests cover both widths. General source-to-native numerical refinement remains open. |
 | Mathematical accuracy/certification | **Not implemented.** Selected ideal RR/CC specifications, error/enclosure proofs and ideal nonzero evidence remain distinct obligations under #244/#313. |

@@ -2,6 +2,7 @@
 """Compare checked boxed libraries and hosted programs with generated Lean controls."""
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -101,6 +102,20 @@ def native(args, work):
         subprocess.run(cmd, cwd=work, check=True)
 
     run([leanc, *sdk, "-O2", "-c", ROOT / "llvm/runtime/exact.c", "-o", "shim.o"])
+    run([leanc, *sdk, "-O2", "-Dvastitas_exit_status_v1=original_exit_status",
+         "-c", ROOT / "llvm/runtime/exact.c", "-o", "observed-shim.o"])
+    run(["cc", *sdk, "-std=c11", "-O2", "-I", prefix / "include",
+         "-c", ROOT / "llvm/fixtures/BoxedResultProbe.c", "-o", "probe.o"])
+
+    def check_integer(obj, expected):
+        # Relink the same object. The probe borrows the entire Int before the
+        # production projection consumes it. Both controls have the same status.
+        run([leanc, *sdk, obj, "observed-shim.o", "probe.o", "-o", "observed"])
+        for candidate, verdict in [(expected, "match"), (expected + 256, "mismatch")]:
+            child = subprocess.run([work / "observed"], cwd=work, capture_output=True, text=True,
+                                   env={**os.environ, "VASTITAS_TEST_EXPECT_INTEGER": str(candidate)})
+            if child.returncode != expected % 256 or child.stdout != verdict + "\n" or child.stderr:
+                raise ValueError(f"{obj}: full integer comparison failed for {candidate}")
     (work / "Vastitas.toml").write_text('[package]\nname = "exact"\nversion = "0.1.0"\n'
                                        'edition = "2026"\nroot = "main.vast"\n')
     check = [args.frontend, "check", "--manifest-path", work / "Vastitas.toml"]
@@ -150,6 +165,34 @@ def native(args, work):
         run([work / "compare"])
         count += 1
         examples += len(rows)
+    for kind in ("Nat", "Int"):
+        obj = f"swap-{kind}.o"
+        emit(f"pub fn swap(p: Pair<{kind}>) -> Pair<{kind}> {{ pair(pair_second(p), pair_first(p)) }}", obj)
+        pair_type = f"({kind} × {kind})"
+        left = BIG if kind == "Nat" else -BIG
+        control = [
+            '@[extern "vq_pair_ownership"] opaque ownership (useNat : UInt8) : Bool',
+            f'@[extern "vq_exact"] opaque candidate (p : @& {pair_type}) : {pair_type}',
+            f"@[noinline] def reference (p : @& {pair_type}) : {pair_type} := (p.2, p.1)",
+            "def main : IO Unit := do",
+            f'  unless ownership {int(kind == "Nat")} do throw (IO.userError "incorrect pair reference counts")',
+            f"  for input in [(({left}), {BIG + 2}), (({left}), ({left})), (0, 1)] do",
+            "    unless candidate input == reference input && candidate input == (input.2, input.1) do",
+            '      throw (IO.userError "incorrect ordered pair components")',
+        ]
+        (work / "SwapControl.lean").write_text("\n".join(control) + "\n")
+        run([prefix / "bin/lean", "-c", "SwapControl.c", "SwapControl.lean"])
+        run([leanc, *sdk, "SwapControl.c", ROOT / "llvm/fixtures/PairOwnership.c", "shim.o", obj, "-o", "swap"])
+        run([work / "swap"])
+
+    pair_source = (ROOT / "llvm/fixtures/BoxedPairs.vast").read_text()
+    for source, obj, expected in [(pair_source, "applied-pair.o", 42),
+                                  (pair_source.replace("apply prioritized;", ""), "default-pair.o", 2**128 + 43)]:
+        emit(source, obj)
+        check_integer(obj, expected)
+        run([leanc, *sdk, "shim.o", obj, "-o", "pairs"])
+        if subprocess.run([work / "pairs"], cwd=work).returncode != expected % 256:
+            raise ValueError("pair-returning method selected the wrong exit")
     hosted = (ROOT / "llvm/fixtures/BoxedProgram.vast").read_text()
     numerator = -(2**128 + 1)
     divisors = [3, 0, 1]
@@ -164,11 +207,25 @@ def native(args, work):
         (work / "HostedControl.lean").write_text("\n".join(control) + "\n")
         run([prefix / "bin/lean", "-c", "HostedControl.c", "HostedControl.lean"])
         run([leanc, *sdk, "HostedControl.c", "-o", "control"])
-        expected = quotient(2 * numerator, divisor) % 256
+        full = quotient(2 * numerator, divisor)
+        check_integer(obj, full)
+        expected = full % 256
         for executable in ["hosted", "control"]:
             observed = subprocess.run([work / executable], cwd=work).returncode
             if observed != expected:
                 raise ValueError(f"{executable} with divisor {divisor}: expected {expected}, got {observed}")
+    emit((ROOT / "llvm/fixtures/SingletonPower.vast").read_text(), "power.o")
+    check_integer("power.o", 3**256 // 7)
+    run([leanc, *sdk, "shim.o", "power.o", "-o", "power"])
+    control = ["@[noinline] def powerQuotient (x0 : @& Int) : Int :="]
+    control.extend(f"  let x{i+1} := x{i} * x{i}" for i in range(8))
+    control += ["  x8 / 7", "def main : IO UInt32 := pure (((powerQuotient 3) % 256).toNat.toUInt32)"]
+    (work / "PowerControl.lean").write_text("\n".join(control) + "\n")
+    run([prefix / "bin/lean", "-c", "PowerControl.c", "PowerControl.lean"])
+    run([leanc, *sdk, "PowerControl.c", "-o", "power-control"])
+    for executable in ["power", "power-control"]:
+        if subprocess.run([work / executable], cwd=work).returncode != (3**256 // 7) % 256:
+            raise ValueError(f"{executable}: incorrect singleton quotient status")
     # The two adjust methods share a family and ABI. The revision also records
     # the arithmetic site in the checked, nonwinning method.
     obj = "assembled.o"
@@ -200,6 +257,7 @@ fn main() -> Int { adjust(40) }
     if invalid.returncode == 0 or invalid.stdout or b"E_FUNCTION_REVISION" not in invalid.stderr:
         raise ValueError("accepted a nonwinning method from the same family and ABI")
     run([leanc, *sdk, "shim.o", obj, "-o", "assembled"])
+    check_integer(obj, 42)
     if subprocess.run([work / "assembled"], cwd=work).returncode != 42:
         raise ValueError("assembled integer entry did not call the selected method")
     for fixture, control, expected in [("borrowed-operator", "chosen 40 2", 42),
@@ -209,6 +267,7 @@ fn main() -> Int { adjust(40) }
         emit_preview([args.frontend, "check", "--manifest-path", manifest, "--llvm-preview",
                       "--target-triple", target["triple"], "--data-layout", target["layout"]], obj)
         run([leanc, *sdk, "shim.o", obj, "-o", fixture])
+        check_integer(obj, expected)
         (work / "BorrowedControl.lean").write_text(
             "@[noinline] def chosen (x y : @& Int) : Int := x + y\n"
             f"def main : IO UInt32 := pure (({control}) % 256).toNat.toUInt32\n")
@@ -217,7 +276,7 @@ fn main() -> Int { adjust(40) }
         for executable in [fixture, "borrowed-control"]:
             if subprocess.run([work / executable], cwd=work).returncode != expected:
                 raise ValueError(f"{fixture}: {executable} must return {expected}")
-    return count, examples, len(divisors)
+    return count, examples, len(divisors) + 1
 
 
 def main():
@@ -234,6 +293,9 @@ def main():
         count, examples, programs = native(args, Path(tmp))
     print(f"{count} checked libraries, {examples} native results matched Lean and exact integer expectations; {count} heap ownership probes passed")
     print(f"{programs} hosted executable statuses matched generated Lean and independent expectations")
+    print("both pair exports matched compiled Lean on heap and immediate values; distinct and aliased field counts matched before and after release")
+    print("pair-returning assembly selected full integer results 42 and 2^128 + 43")
+    print("hosted result probes matched each full integer and distinguished a value larger by 256")
     print("assembled integer entry returned 42 and rejected the sibling method in the expected revision")
     print("called and uncalled cross-package methods matched the generated Lean controls at exit 42 and 7")
 

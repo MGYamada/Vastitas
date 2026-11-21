@@ -1,3 +1,4 @@
+import VastitasPublicTest.SingletonFixtures
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.RegressionRequest
 import VastitasKernel.RegressionSupport
@@ -33,12 +34,9 @@ private def implementation (capabilities : List String) : Json := Json.mkObj [
   ("kind", toJson "implementation"), ("name", toJson "Implementation"), ("public", toJson false),
   ("span", span), ("marker", reference "Marker"), ("representation", toJson "affine_descriptor"),
   ("capabilities", toJson capabilities)]
-private def mod : Json := Json.mkObj [
-  ("path", toJson ([] : List String)), ("public", toJson true), ("span", span),
-  ("imports", toJson ([] : List Json)), ("generics", toJson ([] : List Json)),
-  ("methods", toJson ([] : List Json)), ("functions", toJson [fn]),
-  ("indexed_declarations", toJson [marker])]
-private def input (m := mod) : Json := RegressionRequest.package "wire" [m] (packageVersion := "1.0.0")
+private def baseline := RegressionRequest.physical "wire"
+private def mod : Json := RegressionRequest.rootModule baseline
+private def input (m := mod) : Json := RegressionRequest.withRootModule baseline m
 
 private def declarations (items : List Json) : Json := input (withField mod "indexed_declarations" (toJson items))
 
@@ -49,10 +47,11 @@ private def answer (json : Json) (requireMain : Bool) : Option (String × String
   | .error d => some (d.code, d.message)
 
 #eval show IO Unit from do
+  let library := RegressionRequest.physical "wireLib"
   let tests : List (String × Json × Bool × Option (String × String)) := [
     ("actual acceptance", input, true, none),
-    ("library", input (withField mod "functions" (toJson ([] : List Json))), false, none),
-    ("library needs main for emit", input (withField mod "functions" (toJson ([] : List Json))), true,
+    ("library", library, false, none),
+    ("library needs main for emit", library, true,
       some ("E_MAIN", "entry point must have signature fn main() -> Int")),
     -- `Wire.check` checks the version itself, after `Main`'s own check.
     ("a retired version", withField input "version" (toJson (9 : Nat)), true,
@@ -67,7 +66,7 @@ private def answer (json : Json) (requireMain : Bool) : Option (String × String
       some ("E_PROTOCOL", "unknown protocol field 'owner'")),
     ("reserved declaration", declarations [withField marker "name" (toJson "Int")], true,
       some ("E_RESERVED", "'Int' is reserved")),
-    ("the capabilities origin and dim of an implementation", declarations [marker, implementation ["origin", "dim"]],
+    ("the capabilities origin and dim of an implementation", RegressionRequest.physical "wireImplementation",
       true, none),
     ("the spelling dimension of the capability dim", declarations [marker, implementation ["dimension"]], true,
       some ("E_PROTOCOL", "unsupported implementation capability")),

@@ -23,9 +23,13 @@ GOAL = "VastitasProof.obligation"
 THEOREM = "VastitasProof.checked"
 ROOTS = [*fast.AXIOMS, "Eq.refl", "id", "VastitasOracle.BoxedCertificate.Valid.mk",
          "VastitasOracle.BoxedCertificate.printedLines", GOAL]
-KINDS = {"Int": ".int", "Nat": ".nat"}
+KINDS = {"Int": ".int", "Nat": ".nat", "Pair<Int>": "(.pair .int)", "Pair<Nat>": "(.pair .nat)"}
 OPS = {f"{k}_{op}": f"(.{k} .{op})" for k in ("int", "nat") for op in ("add", "sub", "mul", "div")}
 OPS.update(nat_int_div=".natIntDiv", int_nat_div=".intNatDiv", int_neg=".neg", nat_to_int=".natToInt")
+for element in ("nat", "int"):
+    OPS[f"{element}_pair"] = f"(.pair .{element})"
+    OPS[f"{element}_pair_first"] = f"(.project .{element} true)"
+    OPS[f"{element}_pair_second"] = f"(.project .{element} false)"
 PROOF = """by
   refine ⟨rfl, ?_, rfl, rfl, rfl, ?_⟩
   · with_unfolding_all rfl
@@ -73,7 +77,9 @@ def check_manifest_inputs(wire, manifest, files, entry):
         rows = by_path.get(os.fsencode(path), [])
         require(len(rows) == 1 and str(path) in packages, "missing or duplicate physical package manifest")
         package = packages[str(path)]
-        doc = tomllib.loads(rows[0][1])
+        # The frontend accepts one UTF-8 BOM at the start of a manifest.
+        # Keep the original text in the certificate's physical layout.
+        doc = tomllib.loads(rows[0][1].removeprefix("\ufeff"))
         metadata = doc["package"]
         require(metadata["edition"] == "2026" and all(metadata[key] == package[key]
                 for key in ("name", "version", "edition")), "manifest and wire package identities differ")

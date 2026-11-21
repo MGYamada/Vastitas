@@ -864,6 +864,13 @@ pub mod source {
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Statement {
+        AffineRealization {
+            callee: TypePath,
+            representation: NumericalRepresentation,
+            dimension: u64,
+            result: String,
+            span: Span,
+        },
         Realization {
             callee: TypePath,
             representation: Option<NumericalRepresentation>,

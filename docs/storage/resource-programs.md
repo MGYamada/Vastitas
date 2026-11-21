@@ -313,6 +313,9 @@ For binary32 cells, use `f32` or `complex32` for exactly representable finite
 numbers, and `f32_bits` or `complex32_bits` for unsigned 32-bit component
 patterns, including negative zero, infinity and NaNs. For example,
 `f32(0x1p-149)` and `f32_bits(1)` denote the smallest positive binary32 value.
+The integer `16777217` is exact in `f64` and raises `E_RESOURCE_LITERAL`
+in `f32`. Rust checks exactness before constructing the wire literal. Lean
+checks the component bits and storage representation.
 
 Rules:
 

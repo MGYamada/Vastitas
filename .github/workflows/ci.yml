@@ -124,11 +124,15 @@ jobs:
             /stdlib/
             /monad/
             /llvm/fixtures/
+            /llvm/src/borrowed-operator.ll
+            /llvm/src/float-identity.ll
+            /llvm/src/float-complex-identity.ll
             /llvm/runtime/
             /llvm/check_exact_native.py
             /nature/
             /scripts/
             /lean-kernel/
+            /experiments/compiler_validation/llvm/results/macos-arm64/unary-table.json
             /experiments/compiler_validation/reduction/
             /docs/appendix/grammar.md
             /Cargo.toml
@@ -250,10 +254,11 @@ jobs:
       - uses: ./.github/actions/setup-elan
       - name: Build the independent resource checker
         run: lake -d lean-kernel build vastitas-kernel storage-native-fixture
-      - name: Compare fixed-width scalar adapters against the Lean reference
+      - name: Compare scalar and fixed-order dot adapters against the Lean reference
         run: |
           lake -d lean build VastitasOracle.BinaryFloat
           python3 scripts/check_float_kernels.py
+          python3 scripts/check_dot_kernel.py --prefix "$RUNNER_TEMP/vastitas-openblas"
       - name: Calibrate stock Lean allocation observation (no timing)
         run: |
           python3 experiments/stock_allocation_capabilities/run.py --out "$RUNNER_TEMP/vastitas-stock-capabilities" --cc cc

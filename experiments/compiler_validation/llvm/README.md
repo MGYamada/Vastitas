@@ -82,21 +82,25 @@ layout create no object. An existing object is never overwritten. Failures
 write a `blocked` report and return a nonzero exit status; there is no
 different-version or Lean/C fallback.
 
-## Linux CI
+## Linux and macOS CI
 
-The [Linux qualification workflow](../../../.github/workflows/llvm-linux.yml)
+The [native qualification workflow](../../../.github/workflows/llvm-linux.yml)
 runs when a pull request changes the native adapter, its qualification suite
 or the LLVM corpus. It also accepts a manual dispatch. The runner verifies
-the upstream LLVM 23.1.4 Linux x86-64 SDK archive against its SHA-256 before
-extracting the libraries and headers. It builds the same static qualification
+the SHA-256 of the upstream LLVM 23.1.4 SDK for Linux x86-64 or macOS arm64
+before extracting the libraries and headers. Each job builds the static qualification
 executable, runs the public native driver and compares the checked boxed
 integer programs with Lean-generated controls. On Linux the foreign archive
 links with the host C compiler selected through `leanc`, using the same libc
 as the OpenBLAS build. The host linker uses the C++, C++ ABI, unwind, uv and
 GMP archives supplied by the selected Lean release. The ABI report records
-their names and hashes, along with the link driver. The artifact contains the
+their names and hashes, along with the link driver. Each platform artifact contains the
 ABI report, the exact LLVM input to the ABI experiment, any upstream
 disassembly and the public conformance test summary.
+
+On macOS the upstream SDK contains bitcode in its static libraries. Cargo
+links these libraries with Xcode's Clang driver and the SDK's `ld64.lld`.
+The workflow records the linker's version alongside the macOS ABI report.
 
 ## Measurements and comparison
 
@@ -202,10 +206,10 @@ must be nonempty bounded ASCII atoms; those lexical conditions do not prove
 that LLVM recognizes a target or that its layout matches a runtime ABI.
 
 The 26 named theorems in
-[`Regression.lean`](../../../lean-kernel/VastitasKernel/LLVM/Regression.lean)
+[`Regression.lean`](../../../lean-kernel/VastitasPublicTest/LLVM/Regression.lean)
 check escapes, exact bounds, trailing bytes, unsupported type spellings and
 target injection cases with official-kernel reduction. Run them with
-`lake -d lean-kernel build VastitasKernel.LLVM.Regression`; the kernel regression
+`lake -d lean-kernel build VastitasPublicTest.LLVM.Regression`; the kernel regression
 script includes that root. No public checker route imports these modules.
 Typed instructions, CFG/phi validation, a whole-module parser, independent
 LLVM semantics and MidIR refinement remain outside this lexical component.

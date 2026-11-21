@@ -1,7 +1,7 @@
 //! Bodyless contracts extend callable domains, without entering dispatch selection.
 mod common;
 use common::{Scratch, check, cli, exits, flat_module, kernel, native, ran, request, success};
-use serde_json::{Value, json};
+use serde_json::json;
 use std::process::Command;
 
 const TYPES: &str = "abstract type Numeric; subtype Nat <: Numeric; subtype Int <: Numeric;";
@@ -296,31 +296,31 @@ fn package_contracts_resolve_aliases_but_keep_exact_generic_owner_authority() {
     }
 }
 
-/// The root module of the request of the flat unit `source`, in which every
-/// function, generic and abstract type is public.
-fn raw_module(source: &str) -> Value {
-    flat_module(&mut request(source, "contracts.vast")).take()
-}
 #[test]
 fn raw_package_contracts_cannot_forge_edit_rights_or_erase_contracts() {
-    let lib = raw_module(
-        "fn f(x) domain(); fn f(x: Int) -> Int domain((Int)); fn f(x: Int) -> Int { x }",
+    let s = Scratch::empty("contract authority");
+    s.write_package(
+        "lib",
+        "pub fn f(x) domain(); fn f(x: Int) -> Int domain((Int)); fn f(x: Int) -> Int { x }",
+        "",
     );
-    let source = "fn main() -> Int { 42 }";
-    let mut app = raw_module(source);
-    app["functions"][0]["body"]["result"] = json!({"kind":"call","callee":"dep::f","args":[{"kind":"integer","value":"42","span":{"start":0,"end":0,"line":1,"column":1}}],"span":{"start":0,"end":0,"line":1,"column":1}});
-    let raw = json!({"version":common::CURRENT_PROTOCOL,"file":"contracts.vast","root":"/app","root_source":{"offset":0,"text":source},"packages":[
-        {"source":"/app","name":"app","version":"0.1.0","edition":"2026","dependencies":[{"alias":"dep","target":"/lib"}],"modules":[app]},
-        {"source":"/lib","name":"lib","version":"0.1.0","edition":"2026","dependencies":[],"modules":[lib]}
-    ]});
+    s.write_package(
+        "app",
+        "fn main() -> Int { dep::f(42) }",
+        "dep={path='../lib'}",
+    );
+    let raw = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
     assert_eq!(kernel(&raw, "check")["ok"], true);
+    let packages = raw["packages"].as_array().unwrap();
+    let lib = packages.iter().position(|p| p["name"] == "lib").unwrap();
+    let app = packages.iter().position(|p| p["name"] == "app").unwrap();
     let mut bad = raw.clone();
-    let mut contract = bad["packages"][1]["modules"][0]["abstract_methods"][0].clone();
+    let mut contract = bad["packages"][lib]["modules"][0]["abstract_methods"][0].clone();
     contract["name"] = json!("dep::f");
-    bad["packages"][0]["modules"][0]["abstract_methods"] = json!([contract]);
+    bad["packages"][app]["modules"][0]["abstract_methods"] = json!([contract]);
     common::assert_rejected(bad, "E_OWNER");
     let mut bad = raw;
-    bad["packages"][1]["modules"][0]["abstract_methods"][0]["domain"][0][0]["path"] =
+    bad["packages"][lib]["modules"][0]["abstract_methods"][0]["domain"][0][0]["path"] =
         json!(["Nat"]);
     common::assert_rejected(bad, "E_CONTRACT_DOMAIN");
 }

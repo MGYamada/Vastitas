@@ -40,12 +40,12 @@ def layout (json : Json) : Except String Layout := do
   let filename ← str json "file"
   let root ← str json "root"
   let flat := root == flatPackageId.source
-  let manifest := !flat && filename == root
+  let manifest := !flat
+  if manifest && filename != root then throw "physical package file must name the root manifest"
   let fileLimit := 16 * 1024 * 1024
   let .ok raw := source.getObjVal? "files" | do
     unless base == 0 && !manifest do throw "missing physical inputs preceding the entry"
     return ⟨#[⟨← pathBytes (.str filename), 0, entryText⟩], 0⟩
-  unless flat || manifest do throw "physical package file must name the root manifest"
   let rows ← raw.getArr?
   if rows.isEmpty || rows.size > 8192 then throw "invalid physical input count"
   let mut files := #[]

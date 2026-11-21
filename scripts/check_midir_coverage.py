@@ -28,7 +28,7 @@ SOURCE_NAMES = (
     "StorageNumerical", "StorageRealization", "StorageOwnedPackages", "StorageFunctionReceipts", "StorageFunctionContext",
     "NumericalCoverage", "StorageShapeExpr", "StorageShapes",
     "StorageShapeNumerical", "StorageShapeFunctions", "StorageValueFlow",
-    "TensorNumerical", "TensorNetwork", "TensorTree", "ResourceSource", "MidIR/IR",
+    "TensorNumerical", "TensorNetwork", "TensorTree", "AffineRealizationProfile", "ResourceSource", "MidIR/IR",
 )
 SOURCES = tuple(f"lean-kernel/VastitasKernel/{name}.lean" for name in SOURCE_NAMES)
 NAME = r"(?:[A-Za-z_][A-Za-z_0-9']*|«[^»\n]+»)(?:\.(?:[A-Za-z_][A-Za-z_0-9']*|«[^»\n]+»))*"

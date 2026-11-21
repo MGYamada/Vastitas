@@ -48,6 +48,17 @@ graph. General floating evaluation must preserve the original operation order.
 
 ### Identity maps on represented points
 
+`let r = Affine(F32<CC>, 2);` creates a fresh mathematical affine with
+two complex coordinates and selects its standard chart. The same form accepts
+`F64<CC>`, `F32<RR>` and `F64<RR>`. Real representations select the canonical
+smooth affine. Complex representations select the canonical paired meadow over
+the rational Cauchy completion. Each source occurrence has its own object identity.
+To interpret its identity, write `float::interpret(r::identity, r, NativeFast)`.
+The revision records the edition's `std::geometry::Affine` constructor, the
+`monad::float::realize` function, the mathematical base and the ordered
+coordinates. To keep a previously declared object's identity and its selected
+model, pass that object and its standard chart to `float::realize`.
+
 A resource function can import `monad::float` and choose the representation
 `F32<RR>` or `F64<RR>` for the standard chart of a smooth affine object. A point uses
 a borrowed column of coordinates. The identity map reads its input point

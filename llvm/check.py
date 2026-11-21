@@ -24,13 +24,17 @@ CASES = [
     Sample("exit-status", HERE / "fixtures/ExitStatus.vast", "exit_status"),
     Sample("folded-arithmetic", HERE / "fixtures/FoldedArithmetic.vast", "folded_arithmetic"),
     Sample("boxed-program", HERE / "fixtures/BoxedProgram.vast", "boxed_program"),
+    Sample("boxed-pairs", HERE / "fixtures/BoxedPairs.vast", "boxed_pairs"),
+    Sample("singleton-power", HERE / "fixtures/SingletonPower.vast", "singleton_power"),
     Sample("borrowed-operator", HERE / "fixtures/borrowed-operator/Vastitas.toml", None),
     Sample("uncalled-operator", HERE / "fixtures/uncalled-operator/Vastitas.toml", None),
     Sample("boxed-arithmetic", HERE / "fixtures/BoxedArithmetic.vast", "boxed_arithmetic"),
     Sample("assembled-bool", HERE / "fixtures/AssembledBool.vast", "assembled_bool"),
     Sample("structured-lookup", HERE / "fixtures/StructuredLookup.vast", "structured_lookup"),
     Sample("structured-lookup-linux-x86_64", HERE / "fixtures/StructuredLookup.vast", "structured_lookup", "linux-x86_64"),
+    Sample("finite-projection", HERE / "fixtures/FiniteProjection.vast", "finite_projection"),
     Sample("static-selection", HERE / "fixtures/StaticSelection.vast", "static_selection"),
+    Sample("literal-comparison", HERE / "fixtures/LiteralComparison.vast", "literal_comparison"),
     Sample("empty-lookup", HERE / "fixtures/EmptyLookup.vast", "empty_lookup"),
     Sample("closure-unit", HERE / "fixtures/ClosureUnit.vast", "closure_unit"),
     Sample("gemm-coefficients", ROOT / "examples/packages/numerical/gemm-coefficients/Vastitas.toml", None),
@@ -41,6 +45,7 @@ CASES = [
     Sample("finite-kleisli", ROOT / "examples/packages/finite-kleisli/Vastitas.toml", None),
     Sample("kleisli-callback", HERE / "fixtures/kleisli-callback/Vastitas.toml", None),
     Sample("kleisli-forward", HERE / "fixtures/kleisli-forward/Vastitas.toml", None),
+    Sample("kleisli-forward-linux-x86_64", HERE / "fixtures/kleisli-forward/Vastitas.toml", None, "linux-x86_64"),
     Sample("unary-table", EXPERIMENT / "TableComparison.vast", "table_fixture"),
     Sample("s3-composition", HERE / "fixtures/S3Composition.vast", "s3_composition"),
     Sample("static-call", EXPERIMENT / "CallComparison.vast", "call_fixture"),
@@ -236,7 +241,7 @@ def main():
                 check_structured_targets(command, targets, work)
             elif name == "kleisli-callback":
                 check_callback_revision(command, target_args, expected, work)
-            elif name == "kleisli-forward":
+            elif source == HERE / "fixtures/kleisli-forward/Vastitas.toml":
                 check_forward_revision(command, target_args, expected, work)
             print(f"{name}: {len(expected)} bytes matched")
 

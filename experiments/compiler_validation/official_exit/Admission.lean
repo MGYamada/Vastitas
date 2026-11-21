@@ -32,6 +32,7 @@ theorem wire_from_checked {j : Json} {p : ResourceSource.Program} {main : Bool}
     (price : Namespace.priceInput p.pureProgram.source.headers.indexed j = .ok u)
     (bound : u.val + ResourceSource.Wire.namespaceUnits c ≤ Limits.namespaceProgramWork)
     (trace : (AssemblySource.check j c.pureProgram.authority.headers.assembled.prepared.core.assembly).isOk = true)
+    (edits : EditSourceFiles.check j p = .ok ())
     (revision : ResourceSource.Wire.RevisionMatches j c) :
     (ResourceSource.Wire.check j main).isOk = true := by
   unfold ResourceSource.Wire.check
@@ -53,7 +54,11 @@ theorem wire_from_checked {j : Json} {p : ResourceSource.Program} {main : Bool}
       | ok result =>
         have hrev : ResourceSource.Wire.RevisionMatches j r.value := same ▸ revision
         simp [hrev,bind,Except.bind]
-        rfl
+        split
+        · rename_i _ mismatch
+          rw [edits] at mismatch
+          contradiction
+        · rfl
 
 theorem resourceFromPure (pure : Indexed.AuthoritySource.CheckedProgram candidate.pureProgram true)
     (accepted : Indexed.AuthoritySource.checkProgram candidate.pureProgram true = .ok pure) :
@@ -73,9 +78,6 @@ theorem resourceFromPure (pure : Indexed.AuthoritySource.CheckedProgram candidat
       replace actual := Except.ok.inj (actual.symm.trans accepted)
       subst a
       exact ⟨_,rfl,rfl⟩
-scoped notation "physicalExitText" => "// The executable status is the Euclidean remainder modulo 256.\nfn main() -> Int { -340282366920938463463374607431768211457 }\n"
-
-def text := physicalExitText
 theorem file : AssemblySource.rootFile wire = .ok ⟨0,text⟩ := by rfl
 theorem readEvents : AssemblySource.read wire = .ok [] := by rfl
 
@@ -112,6 +114,7 @@ theorem checkedIf (lexical : AssemblyText.parse text 0 = .ok []) (c : ResourceSo
       exact congrArg (fun es => Namespace.Assembly.mk es a.span) events
     rw [show c.pureProgram.authority.headers.assembled.prepared.core.assembly = ⟨[], a.span⟩ from eqn]
     exact eventsChecked lexical _
+  · exact physicalEdits
   · unfold ResourceSource.Wire.RevisionMatches
     change True
     trivial

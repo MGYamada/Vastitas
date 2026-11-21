@@ -1,0 +1,19 @@
+fn neighbors(x: Nat) -> Pair<Nat> { pair(x - 1, x) }
+
+fn split(x: Int) -> Pair<Int> { pair(0, x) }
+
+contribution prioritized : split {
+    fn split(x: Int) requires (HasEq) -> Pair<Int> { pair(x, 0) }
+}
+
+assemble split { apply prioritized; }
+
+fn swap(p: Pair<Int>) -> Pair<Int> { pair(pair_second(p), pair_first(p)) }
+
+fn main() -> Int {
+    let big: Nat = 340282366920938463463374607431768211457;
+    let ns = neighbors(big);
+    let signed = swap(split(-340282366920938463463374607431768211457));
+    let width = pair_second(ns) - pair_first(ns);
+    pair_second(signed) + int(pair_first(ns)) + int(width) + 42
+}

@@ -6,6 +6,99 @@ use serde_json::{Value, json};
 const MAIN: &str = include_str!("../examples/packages/float-identity/src/main.vast");
 const MANIFEST: &str = "app/Vastitas.toml";
 
+#[test]
+fn physical_source_binds_realizations_even_when_the_descriptor_is_unused() {
+    let source = "use monad::float; use monad::float as other;
+        use std::geometry::smooth::affine::SmoothR;
+        indexed affine Plane(SmoothR) = Affine(2)[x, y];
+        resource fn main() -> Int {
+            if true {
+                let r = float::realize::<F32<RR>>(Plane, Plane::standard_chart,);
+            } else { }
+            value { 0 }
+        }";
+    let s = fixture(source);
+    let wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for change in [
+        "precision",
+        "callee",
+        "result",
+        "location",
+        "branch",
+        "condition",
+        "omit",
+    ] {
+        let mut changed = wire.clone();
+        let branch = &mut body(&mut changed)[0];
+        let site = &mut branch["yes"][0];
+        match change {
+            "precision" => site["representation"] = json!("real64"),
+            "callee" => site["callee"]["path"][0] = json!("other"),
+            "result" => site["result"] = json!("renamed"),
+            "location" => site["arguments"][0]["span"]["column"] = json!(1),
+            "branch" => {
+                branch["no"] = branch["yes"].take();
+                branch["yes"] = json!([]);
+            }
+            "condition" => branch["condition"] = json!(false),
+            "omit" => branch["yes"] = json!([]),
+            _ => unreachable!(),
+        }
+        for mode in ["check", "emit"] {
+            assert_wire_rejected(&kernel(&changed, mode), "E_PROTOCOL");
+        }
+    }
+}
+
+#[test]
+fn realization_calls_in_an_external_module_keep_their_owner_and_order() {
+    let s = fixture("mod model; resource fn main() -> Int { value { 0 } }");
+    let source = "use monad::float;
+        use std::geometry::smooth::affine::SmoothR;
+        indexed affine Plane(SmoothR) = Affine(2)[x, y];
+        pub resource fn first() -> Unit {
+            // 数値: this comment contains let fake = float::run(a,b) -> q;
+            let a = float::realize::<F32<RR>>(Plane, Plane::standard_chart);
+            let b = float :: realize :: < F64 < RR > >(Plane, Plane :: standard_chart,);
+            value { () }
+        }
+        pub resource fn second() -> Unit { value { () } }";
+    s.write("app/model.vast", &source.replace('\n', "\r\n"));
+    let wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for change in ["order", "function", "visibility", "omit function"] {
+        let mut changed = wire.clone();
+        let module = changed["packages"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .flat_map(|p| p["modules"].as_array_mut().unwrap())
+            .find(|m| m["path"] == json!(["model"]))
+            .unwrap();
+        let functions = module["resource_functions"].as_array_mut().unwrap();
+        let first = functions.iter().position(|f| f["name"] == "first").unwrap();
+        match change {
+            "order" => functions[first]["body"].as_array_mut().unwrap().swap(0, 1),
+            "function" => {
+                let moved = functions[first]["body"].take();
+                functions[first]["body"] = json!([]);
+                let second = functions
+                    .iter_mut()
+                    .find(|f| f["name"] == "second")
+                    .unwrap();
+                second["body"] = moved;
+            }
+            "visibility" => functions[first]["public"] = json!(false),
+            "omit function" => {
+                functions.remove(first);
+            }
+            _ => unreachable!(),
+        }
+        assert_wire_rejected(&kernel(&changed, "check"), "E_PROTOCOL");
+    }
+}
+
 fn fixture(main: &str) -> common::Scratch {
     let manifest = include_str!("../examples/packages/float-identity/Vastitas.toml")
         .replace("../../../stdlib", "../stdlib")
@@ -27,20 +120,25 @@ fn body(wire: &mut Value) -> &mut Vec<Value> {
         .unwrap()
 }
 
-fn check_llvm_identity(s: &common::Scratch, scalar: u8) {
+fn preview_bytes(s: &common::Scratch, triple: &str, layout: &str) -> Vec<u8> {
     let output = s
         .command("check", MANIFEST)
         .args([
             "--llvm-preview",
             "--target-triple",
-            "x86_64-unknown-linux-gnu",
+            triple,
             "--data-layout",
-            "e-p:64:64",
+            layout,
         ])
         .output()
         .unwrap();
     common::success(&output);
-    let ir = std::str::from_utf8(&output.stdout).unwrap();
+    output.stdout
+}
+
+fn check_llvm_identity(s: &common::Scratch, scalar: u8) -> Vec<u8> {
+    let bytes = preview_bytes(s, "x86_64-unknown-linux-gnu", "e-p:64:64");
+    let ir = std::str::from_utf8(&bytes).unwrap();
     assert!(ir.contains(&format!(
         "call i32 @vq_storage_allocate(ptr %arena, i64 0, i64 {scalar}, i64 2)"
     )));
@@ -68,6 +166,7 @@ fn check_llvm_identity(s: &common::Scratch, scalar: u8) {
             exits(0)
         );
     }
+    bytes
 }
 
 #[test]
@@ -315,12 +414,15 @@ fn dependency_names_do_not_grant_the_protected_float_identity() {
 fn realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans() {
     let s = fixture(MAIN);
     let wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
-    let mut unknown = wire.clone();
+    s.write(
+        "app/main.vast",
+        &checked_replace(MAIN, "Plane::standard_chart", "Plane::wrong_chart"),
+    );
+    let mut unknown = s.captured(MANIFEST, CURRENT_PROTOCOL);
     let site = body(&mut unknown)
         .iter_mut()
         .find(|s| s["callee"]["path"] == json!(["float", "realize"]))
         .unwrap();
-    site["arguments"][1]["path"][1] = json!("wrong_chart");
     let expected = site["arguments"][1]["span"].clone();
     for mode in ["check", "emit"] {
         let response = kernel(&unknown, mode);
@@ -347,6 +449,109 @@ fn realization_paths_keep_argument_diagnostics_and_reject_misplaced_spans() {
 }
 
 const COMPLEX: &str = include_str!("../examples/packages/float-complex-identity/src/main.vast");
+
+#[test]
+fn affine_wrappers_run_the_same_identity_bytes_at_all_four_representations() {
+    let s = fixture(MAIN);
+    for (repr, template, scalar) in [
+        ("F64<RR>", MAIN, 0),
+        ("F64<CC>", COMPLEX, 1),
+        ("F32<RR>", MAIN, 2),
+        ("F32<CC>", COMPLEX, 3),
+    ] {
+        let canonical = if repr.starts_with("F32") {
+            template
+                .replace("F64<", "F32<")
+                .replace("f64_bits", "f32_bits")
+                .replace("complex_bits", "complex32_bits")
+                .replace("9223372036854775808", "2147483648")
+                .replace("9218868437227405378", "2139095106")
+        } else {
+            template.to_owned()
+        };
+        s.write("app/main.vast", &canonical);
+        let bytes = preview_bytes(&s, "x86_64-unknown-linux-gnu", "e-p:64:64");
+        let resource = canonical.split_once("resource fn main").unwrap().1;
+        let wrapper = format!("use monad::float;\nresource fn main{resource}")
+            .replace(
+                &format!("float::realize::<{repr}>(Plane, Plane::standard_chart)"),
+                &format!("Affine({repr}, 2)"),
+            )
+            .replace("interpret(idP,", "interpret(r::identity,");
+        s.write("app/main.vast", &wrapper);
+        assert_eq!(s.check_build_and_run(MANIFEST), exits(0));
+        assert_eq!(check_llvm_identity(&s, scalar), bytes, "{repr}");
+        let corpus = match scalar {
+            0 => Some(include_bytes!("../llvm/src/float-identity.ll").as_slice()),
+            1 => Some(include_bytes!("../llvm/src/float-complex-identity.ll").as_slice()),
+            _ => None,
+        };
+        if let Some(retained) = corpus {
+            let emitted = preview_bytes(
+                &s,
+                "arm64-apple-darwin27.2.0",
+                "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
+            );
+            assert_eq!(emitted, retained, "{repr}");
+        }
+        let mut wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
+        let response = kernel(&wire, "function-revision");
+        let rev = &response["function_revision"];
+        let site = &rev["resource_realizations"]["sites"][0];
+        assert_eq!(site["constructor"]["name"], "Affine");
+        assert_eq!(site["constructor"]["module"], json!(["geometry"]));
+        assert_eq!(site["id"]["name"], "realize");
+        assert_eq!(site["subject"], site["chart"]);
+        assert_eq!(site["representation"], repr);
+        wire["expected_function_revision"] = rev.clone();
+        assert_eq!(kernel(&wire, "check")["function_revision_matched"], true);
+        wire["expected_function_revision"]["resource_realizations"]["sites"][0]["constructor"] =
+            site["id"].clone();
+        assert_wire_rejected(&kernel(&wire, "check"), "E_FUNCTION_REVISION");
+    }
+}
+
+#[test]
+fn affine_wrappers_bind_fresh_subjects_constructor_dimension_and_physical_source() {
+    let source = "use monad::float;
+        resource fn main() -> Int {
+            let a = Affine(F32<CC>, 2);
+            let b = Affine(F32<CC>, 2,);
+            let e = float::interpret(b::identity, b, NativeFast);
+            value { 0 }
+        }";
+    let s = fixture(source);
+    let wire = s.captured(MANIFEST, CURRENT_PROTOCOL);
+    let response = kernel(&wire, "function-revision");
+    assert_eq!(response["ok"], true, "{response}");
+    let charts = response["function_revision"]["resource_realizations"]["charts"]
+        .as_array()
+        .unwrap();
+    assert_eq!(charts.len(), 2);
+    assert_ne!(charts[0]["subject"], charts[1]["subject"]);
+    for (key, value) in [
+        ("dimension", json!(3)),
+        ("representation", json!("real32")),
+        ("result", json!("other")),
+    ] {
+        let mut forged = wire.clone();
+        body(&mut forged)[0][key] = value;
+        assert_wire_rejected(&kernel(&forged, "check"), "E_PROTOCOL");
+    }
+    for (from, to, code) in [
+        ("b::identity, b", "a::identity, b", "E_REALIZATION"),
+        ("= Affine(", "= foreign(", "E_REALIZATION"),
+        (
+            "use monad::float;",
+            "mod Affine {} use monad::float;",
+            "E_REALIZATION",
+        ),
+        ("F32<CC>, 2", "F32<CC>, 17", "E_LIMIT"),
+    ] {
+        s.write("app/main.vast", &source.replace(from, to));
+        common::expect_code(&s.check_manifest(MANIFEST), code);
+    }
+}
 
 #[test]
 fn complex_charts_copy_both_components_and_bind_the_full_model_chain() {

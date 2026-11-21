@@ -1,3 +1,4 @@
+import VastitasPublicTest.SingletonFixtures
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.RegressionRequest
 import VastitasKernel.RegressionSupport
@@ -20,37 +21,18 @@ private def span : Json := Json.mkObj [
   ("start", toJson (0 : Nat)), ("end", toJson (1 : Nat)),
   ("line", toJson (1 : Nat)), ("column", toJson (1 : Nat))]
 private def named (name : String) : Json := Json.mkObj [("kind", toJson "named"), ("name", toJson name)]
-/-- `Point<X, Base(QQ)>`. -/
-private def point : Json := Json.mkObj [("kind", toJson "point"),
-  ("target", Json.mkObj [("kind", toJson "name"), ("name", toJson "X")]),
-  ("source", Json.mkObj [("kind", toJson "base"), ("ring", toJson "QQ")])]
 private def integer (value : String) : Json := Json.mkObj [
   ("kind", toJson "integer"), ("value", toJson value), ("span", span)]
-private def var (name : String) : Json := Json.mkObj [
-  ("kind", toJson "variable"), ("name", toJson name), ("span", span)]
-private def call (callee : String) (args : List Json) : Json := Json.mkObj [
-  ("kind", toJson "call"), ("callee", toJson callee), ("args", toJson args), ("span", span)]
 private def block (result : Json) (statements : List Json := []) : Json := Json.mkObj [
   ("statements", toJson statements), ("result", result), ("span", span)]
-private def letE (name : String) (value : Json) (annotation : Json := .null) : Json := Json.mkObj [
-  ("kind", toJson "let"), ("name", toJson name), ("annotation", annotation), ("value", value), ("span", span)]
-private def param (name : String) (ty : Json) : Json := Json.mkObj [
-  ("name", toJson name), ("ty", ty), ("span", span)]
 private def fn (name : String) (params : List Json) (result : Json) (body : Json) : Json := Json.mkObj [
   ("name", toJson name), ("params", toJson params), ("return_type", result), ("body", body), ("span", span)]
 
-/-- `fn carry(X: Scheme, p: Point<X, Base(QQ)>) -> Point<X, Base(QQ)> { p }` and
-`fn main() -> Int { let X = Affine(QQ, 2); let p = origin(X);
-let q: Point<X, Base(QQ)> = carry(X, p); if dim(X) == 2 { 0 } else { 1 } }`. -/
-private def functions : List Json := [
-  fn "carry" [param "X" (named "Scheme"), param "p" point] point (block (var "p")),
-  fn "main" [] (named "Int") (block
-    (Json.mkObj [("kind", toJson "if"),
-      ("condition", Json.mkObj [("kind", toJson "binary"), ("op", toJson "=="),
-        ("left", call "dim" [var "X"]), ("right", integer "2"), ("span", span)]),
-      ("then_branch", block (integer "0")), ("else_branch", block (integer "1")), ("span", span)])
-    [letE "X" (call "Affine" [var "QQ", integer "2"]), letE "p" (call "origin" [var "X"]),
-     letE "q" (call "carry" [var "X", var "p"]) point])]
+private def physical (isFlat : Bool) : Json :=
+  RegressionRequest.physical (if isFlat then "geometryFlat" else "geometryPackage")
+
+private def functions (isFlat := true) : List Json :=
+  ((RegressionRequest.rootModule (physical isFlat)).getObjValAs? (List Json) "functions").toOption.getD []
 
 private def publish (isPublic : Bool) (item : Json) : Json := item.setObjVal! "public" (toJson isPublic)
 
@@ -65,14 +47,16 @@ private def sourcePackage (source name : String) (isPublic : Bool) (dependencies
     (extra : List (String × Json) := []) : Json := Json.mkObj ([
   ("source", toJson source), ("name", toJson name), ("version", toJson "1.0.0"), ("edition", toJson currentEdition),
   ("dependencies", toJson dependencies),
-  ("modules", toJson [rootModule (functions.map (publish isPublic))])] ++ extra)
+  ("modules", toJson [RegressionRequest.rootModule (physical isPublic)])] ++ extra)
 
 /-- The request at `version` of `packages` with the root `root`, with the
 field `legacy_geometry` set to `flag` when there is one. -/
 private def request (root : String) (packages : List Json) (flag : Option Json := some (toJson true))
-    (version : Nat := RegressionRequest.currentProtocol) : Json := Json.mkObj ([
-  ("version", toJson version), ("file", toJson "legacy.vast"), ("root", toJson root),
-  ("root_source", RegressionRequest.emptyRootSource), ("packages", toJson packages)] ++
+    (version : Nat := RegressionRequest.currentProtocol) : Json :=
+  let sample := physical (root == flatPackageId.source)
+  Json.mkObj ([
+  ("version", toJson version), ("file", (sample.getObjVal? "file").toOption.getD .null), ("root", toJson root),
+  ("root_source", (sample.getObjVal? "root_source").toOption.getD .null), ("packages", toJson packages)] ++
   match flag with | some value => [("legacy_geometry", value)] | none => [])
 
 /-- The request that `packages::flat_request` writes for the flat unit of
@@ -162,16 +146,17 @@ private def answer (json : Json) : Option (String × String × Span) :=
 #eval show IO Unit from do
   let flagged := (flatPackage (some (toJson true))).setObjVal! "packages"
     (toJson [(sourcePackage flatPackageId.source flatPackageId.name true).setObjVal! "modules"
-      (toJson [rootModule ((functions ++ [badSignature]).map (publish true))])])
+      (toJson [rootModule ((functions true ++ [badSignature]).map (publish true))])])
   check s!"an invalid Fn signature of a flat unit: {repr (answer flagged)}"
     ((answer flagged).any fun (code, message, span) => code == "E_TYPE" &&
       message == "Fn signatures support scalars, finite Hom and recursive Fn types" && span.start == 5)
   let importOf (path alias : String) : Json := Json.mkObj [("path", toJson [path]), ("alias", toJson alias),
     ("public", toJson false), ("span", span)]
+  let invalidFunctions := (functions false ++ [badSignature]).map (publish false)
+  let moduleWithBad := (RegressionRequest.rootModule (physical false)).setObjVal! "functions" (toJson invalidFunctions)
   let importingWith (anImport : Json) (flag : Option Json) : Json :=
     request source [(sourcePackage source "legacy" false).setObjVal! "modules"
-      (toJson [(rootModule ((functions ++ [badSignature]).map (publish false))).setObjVal! "imports"
-        (toJson [anImport])])] flag
+      (toJson [moduleWithBad.setObjVal! "imports" (toJson [anImport])])] flag
   -- `missing` as `missing` names its own alias, so the import is cyclic.
   let importing := importingWith (importOf "missing" "missing")
   check s!"a cyclic import before the signature: {repr (answer (importing (some (toJson true))))}"

@@ -11,12 +11,12 @@ import verify
 from verify import fast, require
 
 
-def run(work, suite):
+def run(work, suite, frontend):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
     target = json.loads(verify.official.TARGET_REPORT.read_bytes())["target"]
-    args = Namespace(source=source, lib=[], manifest_path=None, frontend=verify.ROOT / "target/debug/vastitas",
+    args = Namespace(source=source, lib=[], manifest_path=None, frontend=frontend,
                      mode="official", candidate=None, save_candidate=None, timeout=120,
                      target_triple=target["triple"], data_layout=target["layout"])
 
@@ -41,6 +41,19 @@ def run(work, suite):
         check_physical_inputs(work, args, source, check)
         return
     if suite == "assembly":
+        source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedPairs.vast").read_bytes())
+        args.source = None
+        args.manifest_path = work / "Vastitas.toml"
+        args.manifest_path.write_text('[package]\nname = "boxed_pairs"\nversion = "0.1.0"\n'
+                                      'edition = "2026"\nroot = "main.vast"\n')
+        checked, _ = check("pairs", "official")
+        pair_dir = work / "pairs"
+        replay, _ = check("pairs-fast", "fast", candidate=pair_dir / "sealed.ndjson")
+        require(checked["certificate"] == replay["certificate"] and checked["physical_inputs"] == 2
+                and checked["functions"] == 5
+                and checked["integer_result"] == "42", "wrong assembled pair method or entry value")
+        require((pair_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/boxed-pairs.ll").read_bytes(),
+                "pair certificate differs from the retained LLVM module")
         check_borrowed_operator(work, args, check)
         return
 
@@ -133,6 +146,16 @@ def run(work, suite):
     require(stale["llvm_sha256"] == official["llvm_sha256"] and stale["revision_sha256"] != official["revision_sha256"],
             "stale-source control must preserve exactly the emitted bytes")
 
+    source.write_bytes((verify.ROOT / "llvm/fixtures/SingletonPower.vast").read_bytes())
+    single, _ = check("singleton", "official")
+    single_dir = work / "singleton"
+    replay, _ = check("singleton-fast", "fast", candidate=single_dir / "sealed.ndjson")
+    require(single["functions"] == 1 and int(single["integer_result"]) == 3**256 // 7
+            and single["certificate"] == replay["certificate"],
+            "the single-function runtime certificate must cover the full quotient in both modes")
+    require((single_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/singleton-power.ll").read_bytes(),
+            "single-function certificate differs from the retained LLVM module")
+
 
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""
@@ -145,7 +168,7 @@ def check_physical_inputs(work, args, source, check):
     dep = work / "dep"
     dep.mkdir()
     dep_manifest = dep / "Vastitas.toml"
-    metadata = '[package]\nedition="2026"\nname="dep"\nversion="0.1.0"\nroot="main.vast"\n'
+    metadata = '\ufeff[package]\nedition="2026"\nname="dep"\nversion="0.1.0"\nroot="main.vast"\n'
     dep_manifest.write_text(metadata + "# revision A")
     (dep / "main.vast").write_text("pub " + helper)
     for label, changed_file, replacement, count in [
@@ -227,7 +250,8 @@ if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
     suites = ["boxed", "inputs", "assembly"]
     parser.add_argument("--suite", choices=suites, help="run one suite (default: all)")
+    parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
     args = parser.parse_args()
     for suite in ([args.suite] if args.suite else suites):
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
-            run(Path(tmp), suite)
+            run(Path(tmp), suite, args.frontend.resolve())

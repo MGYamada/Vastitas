@@ -39,7 +39,7 @@ Claims:
   - Evidence:
     - `the_scaled_metric_is_accepted_and_its_gradient_is_nine_four` in [`tests/nature_dimension.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/nature_dimension.rs)
     - `scaled_interpretations_must_match_the_metric_and_its_dimensions` in [`tests/nature_dimension.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/nature_dimension.rs)
-    - [`VastitasKernel.NatureRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/NatureRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.NatureRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/NatureRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
 
 <a id="dimension.euclid-rejected"></a>
 
@@ -65,7 +65,7 @@ Claims:
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `euclid_under_length_and_time_is_rejected_naming_l2_and_t2` in [`tests/nature_dimension.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/nature_dimension.rs)
-    - [`VastitasKernel.NatureRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/NatureRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.NatureRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/NatureRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
 
 <a id="dimension.kinds"></a>
 
@@ -91,7 +91,7 @@ Claims:
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `normalized_needs_the_kind_of_each_coordinate` in [`tests/nature_dimension.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/nature_dimension.rs)
-    - [`VastitasKernel.NatureRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/NatureRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.NatureRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/NatureRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
 
 <a id="dimension.std-independent"></a>
 

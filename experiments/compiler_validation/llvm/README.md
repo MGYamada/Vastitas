@@ -98,6 +98,10 @@ their names and hashes, along with the link driver. Each platform artifact conta
 ABI report, the exact LLVM input to the ABI experiment, any upstream
 disassembly and the public conformance test summary.
 
+On macOS the upstream SDK contains bitcode in its static libraries. Cargo
+links these libraries with Xcode's Clang driver and the SDK's `ld64.lld`.
+The workflow records the linker's version alongside the macOS ABI report.
+
 ## Measurements and comparison
 
 `report.json` records input and tool/library hashes, target/layout, link mode,

@@ -40,7 +40,8 @@ def validate_version(value, expected, name):
 
 def environment(llvm, target):
     allowed = ("PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME", "TMPDIR", "LANG", "LC_ALL",
-               "SDKROOT", "DEVELOPER_DIR", "MACOSX_DEPLOYMENT_TARGET", "LIBRARY_PATH")
+               "SDKROOT", "DEVELOPER_DIR", "MACOSX_DEPLOYMENT_TARGET", "LIBRARY_PATH",
+               "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER")
     env = {key: os.environ[key] for key in allowed if key in os.environ}
     env.update(LLVM_SYS_231_PREFIX=str(llvm), CARGO_TARGET_DIR=str(target))
     return env

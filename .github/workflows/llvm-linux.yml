@@ -102,12 +102,24 @@ jobs:
           tar_tool=tar
           if [[ "$RUNNER_OS" == macOS ]]; then tar_tool=gtar; fi
           read_sdk() { zstd --decompress --stdout --memory=1024MB -- "$archive"; }
-          read_sdk | "$tar_tool" -tf - | grep -E '(^|/)(bin/(llvm|llvm-config|llvm-dis)$|include/(llvm|llvm-c)/|lib(64)?/([^/]+/)?(libLLVM|libPolly|LLVMPolly))' > llvm-sdk-members.txt
+          read_sdk | "$tar_tool" -tf - | grep -E '(^|/)(bin/(llvm|llvm-config|llvm-dis|lld|ld64.lld)$|include/(llvm|llvm-c)/|lib(64)?/([^/]+/)?(libLLVM|libPolly|LLVMPolly))' > llvm-sdk-members.txt
           read_sdk | "$tar_tool" --no-recursion -xf - -C llvm-sdk -T llvm-sdk-members.txt
           rm -- "$archive"
           prefix=$(python3 -c 'from pathlib import Path; (config,) = Path("llvm-sdk").rglob("bin/llvm-config"); print(config.parent.parent.resolve())')
           test "$("$prefix/bin/llvm-config" --version)" = 23.1.4
           echo "LLVM_SYS_231_PREFIX=$prefix" >> "$GITHUB_ENV"
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            # The upstream static archives contain LLVM 23 bitcode. The Xcode
+            # driver knows the platform SDK, and the matching LLD reads that bitcode.
+            "$prefix/bin/ld64.lld" --version | tee sdk-linker.txt
+            grep -Fq 'LLD 23.1.4' sdk-linker.txt
+            cat > llvm-sdk-linker <<'SH'
+          #!/bin/sh
+          exec /usr/bin/clang "-fuse-ld=$LLVM_SYS_231_PREFIX/bin/ld64.lld" "$@"
+          SH
+            chmod +x llvm-sdk-linker
+            echo "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=$RUNNER_TEMP/llvm-sdk-linker" >> "$GITHUB_ENV"
+          fi
       - name: Qualify static LLVM, the Lean runtime and all four BLAS calls
         run: |
           python3 experiments/compiler_validation/llvm/run.py \
@@ -138,3 +150,4 @@ jobs:
             ${{ runner.temp }}/llvm-qualification/authorized.ll
             ${{ runner.temp }}/llvm-qualification/*Comparison.ll
             ${{ runner.temp }}/llvm-qualification/checked-integers.log
+            ${{ runner.temp }}/sdk-linker.txt

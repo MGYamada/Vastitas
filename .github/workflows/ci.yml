@@ -124,6 +124,7 @@ jobs:
             /stdlib/
             /monad/
             /llvm/fixtures/
+            /llvm/src/borrowed-operator.ll
             /llvm/src/float-identity.ll
             /llvm/src/float-complex-identity.ll
             /llvm/runtime/
@@ -131,6 +132,7 @@ jobs:
             /nature/
             /scripts/
             /lean-kernel/
+            /experiments/compiler_validation/llvm/results/macos-arm64/unary-table.json
             /experiments/compiler_validation/reduction/
             /docs/appendix/grammar.md
             /Cargo.toml

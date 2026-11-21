@@ -77,6 +77,7 @@ import VastitasOracle.ExactLibrary
 import VastitasOracle.BoxedCertificate
 import VastitasOracle.ExactProgram
 import VastitasOracle.MidIRRegression
+import VastitasOracle.LiteralCoverage
 import VastitasOracle.PackageLink
 import VastitasOracle.FiniteLookupLayout
 import VastitasOracle.FiniteHom

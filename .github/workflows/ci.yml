@@ -413,6 +413,8 @@ jobs:
           ref: 46024e005996495c65ef609368e11ab39c4222e3 # v0.1.2
           path: .ci-tools/axiom-audit
           persist-credentials: false
+      - name: Compare reviewed constructor mappings with the compiled Oracle
+        run: python3 scripts/check_midir_coverage.py --check-lowerings
       - name: Build and run the external axiom auditor
         run: |
           cp lean/lean-toolchain .ci-tools/axiom-audit/lean-toolchain

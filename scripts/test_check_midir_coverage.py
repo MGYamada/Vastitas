@@ -139,7 +139,7 @@ class CoverageTests(unittest.TestCase):
                               guard.inventory(self.root), complete)
 
     def test_current_snapshot_is_covered_but_not_admitted(self):
-        self.assertEqual(self.check(), {"pending": 4, "admitted": 0, "rejected": 0})
+        self.assertEqual(self.check(), {"pending": 4, "lowered": 0, "admitted": 0, "rejected": 0})
         with self.assertRaisesRegex(guard.CoverageError, "not release acceptance"):
             self.check(complete=True)
 
@@ -210,6 +210,21 @@ class CoverageTests(unittest.TestCase):
             change(ledger["coverage"])
             with self.subTest(change=change), self.assertRaises(guard.CoverageError):
                 self.check(ledger)
+
+    def test_local_mappings_require_the_compiled_origin_and_opcode(self):
+        ledger = copy.deepcopy(self.ledger)
+        row = ledger["coverage"][0]
+        row.update(disposition="lowered", planned_opcode="midir.unit.const.v1", evidence=[guard.LITERAL_THEOREM])
+        self.assertEqual(self.check(ledger)["lowered"], 1)
+        compiled = {"origin": row["origin"], "opcode": "unit.const.v1"}
+        guard.check_lowerings(ledger, [compiled])
+        for forged in [[], [compiled, compiled], [{**compiled, "opcode": "bool.const.v1"}],
+                       [{**compiled, "origin": "Example.Term.other"}]]:
+            with self.subTest(forged=forged), self.assertRaises(guard.CoverageError):
+                guard.check_lowerings(ledger, forged)
+        row["evidence"] = []
+        with self.assertRaises(guard.CoverageError):
+            self.check(ledger)
 
     def test_no_json_only_admission_or_wildcard_opcode(self):
         for fields in [{"disposition": "admitted"}, {"disposition": "unknown"},

@@ -5168,11 +5168,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.boolean",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.boolean",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.bool.const.v1",
+      "reason": "Emits one nullary instruction into the live SSA block. Optimization and execution denote the checked Core value. Whole-module and ABI admission remain open.",
+      "evidence": [
+        "VastitasOracle.MidIR.literal_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.branch",
@@ -5208,11 +5210,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.integer",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.integer",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.int.const.v1",
+      "reason": "Emits one nullary instruction into the live SSA block. Optimization and execution denote the checked Core value. Whole-module and ABI admission remain open.",
+      "evidence": [
+        "VastitasOracle.MidIR.literal_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.letE",
@@ -5232,11 +5236,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.natural",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.natural",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.nat.const.v1",
+      "reason": "Emits one nullary instruction into the live SSA block. Optimization and execution denote the checked Core value. Whole-module and ABI admission remain open.",
+      "evidence": [
+        "VastitasOracle.MidIR.literal_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.pack",
@@ -5288,11 +5294,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.unit",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.unit",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.unit.const.v1",
+      "reason": "Emits one nullary instruction into the live SSA block. Optimization and execution denote the checked Core value. Whole-module and ABI admission remain open.",
+      "evidence": [
+        "VastitasOracle.MidIR.literal_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.unpack",

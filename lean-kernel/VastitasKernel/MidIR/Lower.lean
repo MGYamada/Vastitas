@@ -1,5 +1,6 @@
 import VastitasKernel.MidIR.Check
 import VastitasKernel.MidIR.ExactFold
+import VastitasKernel.MidIR.Literal
 
 set_option autoImplicit false
 
@@ -108,6 +109,25 @@ private def lowerArguments (resolve : Nat → Option CallTarget) (ctx : List (Na
     let ref ← lowerTerm resolve ctx arg
     return ref :: (← lowerArguments resolve ctx rest)
 end
+
+private theorem lower_literal_action (lit : Literal) (resolve : Nat → Option CallTarget) (ctx : List (Nat × Ref)) :
+    lowerTerm resolve ctx lit.term = emit (lit.opcode .optimization) [] := by
+  cases lit <;> rfl
+
+/-- A literal appends precisely one instruction in a live block, preserves the
+preceding blocks and operations, and returns the new SSA slot. -/
+def AppendsLiteral (lit : Literal) : Prop :=
+  ∀ resolve ctx (prior : Array Draft) (params : Array Ty) (prefixOps : Array (Op .optimization)),
+    (lowerTerm resolve ctx lit.term).run (prior.push {params, ops := prefixOps}) =
+      some (⟨prior.size, params.size + prefixOps.size⟩,
+        prior.push {params, ops := prefixOps.push ⟨lit.opcode .optimization, []⟩})
+
+theorem appends_literal (lit : Literal) : AppendsLiteral lit := by
+  intro resolve ctx prior params prefixOps
+  rw [lower_literal_action lit resolve ctx]
+  simp [emit, active, StateT.run, bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get,
+    pure, guard, StateT.pure, liftM, monadLift, MonadLift.monadLift, StateT.lift,
+    set, StateT.set, Array.set!, Array.setIfInBounds, Array.set_push]
 
 /-- Structural lowering of one exact body. Acceptance of a source module and
 its family identities belongs to the checked request adapter in MidIR.Checked. -/

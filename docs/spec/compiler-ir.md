@@ -12,7 +12,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
-| [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
+| [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested, Proved (oracle) |
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle), Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
@@ -315,7 +315,7 @@ Claims:
 A ledger at a named source revision must enumerate every accepted Core, storage action, native storage instruction and runtime-extent constructor. For each constructor it records an admitted typed MidIR mapping or an explicit finite-profile rejection. Each admitted entry identifies its source fixture, family and method, model, ownership facts, opcode and downstream proof obligation. Any constructor or runtime change regenerates the ledger. The runtime inventory follows the transitive closure of the admitted snapshot, including frame and spectral runtimes where used; an older list of runtime modules is not a completeness argument. Missing entries must fail the coverage check instead of silently inheriting admission.
 
 - Example: Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing.
-- Not executed: The source-schema drift guard is implemented; admitted MidIR mappings and their preservation evidence remain pending.
+- Not executed: The source-schema guard and four local literal mappings run in CI. Whole-module release coverage remains pending.
 
 Claims:
 
@@ -327,7 +327,13 @@ Claims:
     - `CoverageTests.test_constructor_coverage_has_no_missing_unknown_or_duplicate_rows` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `CoverageTests.test_no_json_only_admission_or_wildcard_opcode` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `CoverageTests.test_new_runtime_root_and_import_change_fail` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
-  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. Every current constructor remains pending. The regular CI checker verifies inventory consistency; --require-complete intentionally fails. This is neither a typed MidIR mapping nor a proof that the selected source inventory exhausts future language extensions.
+  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. The four ground literals have local lowering proofs. The Oracle job compares their origins and actual opcode tags with the compiled Lean registry. The other 604 rows await review. Whole-module acceptance remains a separate obligation for every row. The release coverage check enforces that distinction.
+- `literal-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.LiteralCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/LiteralCoverage.lean): `VastitasOracle.MidIR.literal_constructor_coverage`
+  - Premises:
+    - the SSA builder is appending a nested Core term to an open block
+  - Note: For Unit, Bool, Nat and Int literals, lowering preserves preceding blocks and instructions, appends one instruction with zero operands and returns its slot. Both phases give the same value as the Core evaluator for every literal payload, environment and call resolver. An unexpected operand rejects. The compiled registry exports the four constructor identities and opcode tags for comparison with the coverage ledger.
 
 <a id="compiler-ir.midir"></a>
 

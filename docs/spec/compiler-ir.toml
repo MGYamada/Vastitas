@@ -334,12 +334,12 @@ issue = 750
 
 [property."compiler-ir.midir".claim.pure-cfg]
 status = "tested"
-evidence = ["VastitasKernel.MidIR.Regression"]
+evidence = ["VastitasPublicTest.MidIR.Regression"]
 note = "The adapter consumes a checked wire request and a selected singleton. Regressions exercise typed block arguments, ordering tokens, SSA dominance, nominal comparison and rejection of unsupported Core. The public preview admits selected complete modules. General whole-module lowering remains pending."
 
 [property."compiler-ir.midir".claim.direct-call]
 status = "tested"
-evidence = ["VastitasKernel.MidIR.Regression"]
+evidence = ["VastitasPublicTest.MidIR.Regression"]
 note = "The pure module checker accepts an ordered direct call with the selected family, symbol, specialization key and nominal parameter and result types. Regressions change each field and reorder the functions. Resource effects and foreign calls remain open."
 
 [property."compiler-ir.midir".claim.finite-lookup]
@@ -377,7 +377,7 @@ note = "Negation and disjunction return the same Boolean as the corresponding Co
 
 [property."compiler-ir.registry".claim.int-literal]
 status = "tested"
-evidence = ["VastitasKernel.LLVM.Regression"]
+evidence = ["VastitasPublicTest.LLVM.Regression"]
 note = "For a selected argument-free main, the int.const.v1 opcode keeps the complete unbounded Int until the exit ABI projection. Kernel regressions exercise the actual checked wire entry and reject unsupported arithmetic. General integer operations still require a qualified runtime."
 
 [property."compiler-ir.registry".claim.exact-arithmetic]
@@ -1255,7 +1255,7 @@ issue = 753
 
 [property."compiler-ir.llvm-bytes".claim.lexical]
 status = "tested"
-evidence = ["VastitasKernel.LLVM.Regression"]
+evidence = ["VastitasPublicTest.LLVM.Regression"]
 note = """
 The isolated lexical component has 26 official-kernel reduction regressions
 for canonical quoted bytes, closed scalar/result spellings and bounded
@@ -1269,7 +1269,7 @@ The public preview uses these codecs for its target headers and complete modules
 
 [property."compiler-ir.llvm-bytes".claim.switch-regression]
 status = "tested"
-evidence = ["VastitasKernel.LLVM.Regression"]
+evidence = ["VastitasPublicTest.LLVM.Regression"]
 note = "The complete unary finite-table function round-trips. Regressions check empty and nonempty tables, mismatched return values and a trailing byte. The separate unary-switch claim states the semantics of accepted bytes."
 
 [property."compiler-ir.llvm-bytes".claim.unary-switch]
@@ -1332,7 +1332,7 @@ note = "The selected row, contribution and call target belong to the same checke
 
 [property."compiler-ir.llvm-bytes".claim.entry-regression]
 status = "tested"
-evidence = ["VastitasKernel.LLVM.Regression"]
+evidence = ["VastitasPublicTest.LLVM.Regression"]
 note = "The kernel regressions check canonical exit-module bytes, negative and large exit statuses, changed values, an invalid entry ABI and a return outside the byte range."
 
 [property."compiler-ir.llvm-bytes".claim.folded-entry]
@@ -1358,7 +1358,7 @@ note = "The original Core, the optimization and execution MidIR and the reconstr
 
 [property."compiler-ir.llvm-bytes".claim.boxed-regression]
 status = "tested"
-evidence = ["VastitasKernel.LLVM.Regression", "tests/llvm_preview.rs::boxed_integer_exports_bind_their_argument_order_and_full_revision", "tests/llvm_preview.rs::boxed_program_preserves_call_targets_and_borrowed_returns", "tests/llvm_preview.rs::singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget"]
+evidence = ["VastitasPublicTest.LLVM.Regression", "tests/llvm_preview.rs::boxed_integer_exports_bind_their_argument_order_and_full_revision", "tests/llvm_preview.rs::boxed_program_preserves_call_targets_and_borrowed_returns", "tests/llvm_preview.rs::singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget"]
 note = "The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls. A singleton entry uses the same checked runtime operations when its intermediate squares exceed the folding budget. Named and symbolic multiplication produce the same bytes and retain their source revisions."
 
 [property."compiler-ir.verification-modes"]

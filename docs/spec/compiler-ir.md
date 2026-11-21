@@ -276,11 +276,11 @@ Claims:
   - Issue: [#750](https://github.com/MGYamada/Vastitas/issues/750)
 - `pure-cfg`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.MidIR.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/MidIR/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.MidIR.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/MidIR/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The adapter consumes a checked wire request and a selected singleton. Regressions exercise typed block arguments, ordering tokens, SSA dominance, nominal comparison and rejection of unsupported Core. The public preview admits selected complete modules. General whole-module lowering remains pending.
 - `direct-call`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.MidIR.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/MidIR/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.MidIR.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/MidIR/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The pure module checker accepts an ordered direct call with the selected family, symbol, specialization key and nominal parameter and result types. Regressions change each field and reorder the functions. Resource effects and foreign calls remain open.
 - `finite-lookup`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
@@ -314,7 +314,7 @@ Claims:
   - Note: Negation and disjunction return the same Boolean as the corresponding Core operation. The phase conversion preserves their denotations.
 - `int-literal`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: For a selected argument-free main, the int.const.v1 opcode keeps the complete unbounded Int until the exit ABI projection. Kernel regressions exercise the actual checked wire entry and reject unsupported arithmetic. General integer operations still require a qualified runtime.
 - `exact-arithmetic`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
@@ -927,11 +927,11 @@ Claims:
   - Issue: [#753](https://github.com/MGYamada/Vastitas/issues/753)
 - `lexical`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The isolated lexical component has 26 official-kernel reduction regressions for canonical quoted bytes, closed scalar/result spellings and bounded target/layout headers. Its general Lean theorems establish roundtrip and arbitrary-input canonicality for those codecs, including full consumption and size bounds. This test claim does not cover instructions, functions, CFG/phi, module well-formedness, external LLVM semantics or accepted Core. Lexically valid target strings do not establish a qualified target or ABI. The public preview uses these codecs for its target headers and complete modules.
 - `switch-regression`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The complete unary finite-table function round-trips. Regressions check empty and nonempty tables, mismatched return values and a trailing byte. The separate unary-switch claim states the semantics of accepted bytes.
 - `unary-switch`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
@@ -1001,7 +1001,7 @@ Claims:
   - Note: The selected row, contribution and call target belong to the same checked revision. The actual Core and both MidIR invocations agree on the integer result. The LLVM module calls the selected body, branches on its i1 and joins the two exit values with an i32 phi. Every remaining specialized body has its own internal definition.
 - `entry-regression`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The kernel regressions check canonical exit-module bytes, negative and large exit statuses, changed values, an invalid entry ABI and a return outside the byte range.
 - `folded-entry`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
@@ -1027,7 +1027,7 @@ Claims:
   - Note: The original Core, the optimization and execution MidIR and the reconstructed module agree on the entire Int at the entry. The byte equation binds the target, typed direct calls, ownership instructions and hosted status projection. Runtime initialization, allocation, reference counting, object code and the host linker require native qualification.
 - `boxed-regression`: [Tested](../specifications.md#tested)
   - Evidence:
-    - [`VastitasKernel.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - `boxed_integer_exports_bind_their_argument_order_and_full_revision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `boxed_program_preserves_call_targets_and_borrowed_returns` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)

@@ -206,10 +206,10 @@ must be nonempty bounded ASCII atoms; those lexical conditions do not prove
 that LLVM recognizes a target or that its layout matches a runtime ABI.
 
 The 26 named theorems in
-[`Regression.lean`](../../../lean-kernel/VastitasKernel/LLVM/Regression.lean)
+[`Regression.lean`](../../../lean-kernel/VastitasPublicTest/LLVM/Regression.lean)
 check escapes, exact bounds, trailing bytes, unsupported type spellings and
 target injection cases with official-kernel reduction. Run them with
-`lake -d lean-kernel build VastitasKernel.LLVM.Regression`; the kernel regression
+`lake -d lean-kernel build VastitasPublicTest.LLVM.Regression`; the kernel regression
 script includes that root. No public checker route imports these modules.
 Typed instructions, CFG/phi validation, a whole-module parser, independent
 LLVM semantics and MidIR refinement remain outside this lexical component.

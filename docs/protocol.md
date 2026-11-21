@@ -1742,22 +1742,22 @@ receipts, doctest execution, or official package admission.
   `the_kernel_refuses_tampered_observations` refuses an observation
   outside `main`, of a function value, of a missing statement, an empty list
   and a foreign field. The kernel regression
-  `VastitasKernel.ObservationRegression` decodes, checks and generates the
+  `VastitasPublicTest.ObservationRegression` decodes, checks and generates the
   observations without the driver.
 - `tests/protocol_shape.rs::package_requests_carry_legacy_geometry_exactly_without_indexed_records`
   and `flat_requests_carry_legacy_geometry` pin the requests that carry
   `legacy_geometry`: every flat program and the package programs without a
   record of [Flat programs and the legacy geometry](#flat-programs-and-the-legacy-geometry),
   and no other. The kernel regression
-  `VastitasKernel.CompatibilityProfileRegression` checks that the kernel
+  `VastitasPublicTest.CompatibilityProfileRegression` checks that the kernel
   accepts and generates a flat and a package program with the legacy geometry
   with the field and rejects them without it. It rejects the field with a
   value other than `true` and beside a `geometry_compat` export, and the
   profile's identity in a request.
-- The kernel regressions `VastitasKernel.IndexedWireRegression` and
+- The kernel regressions `VastitasPublicTest.IndexedWireRegression` and
   `VastitasPublicTest.AuthorityRegression` decode and check requests without
   the driver. `VastitasKernel.FrameDeclarationRegression`,
-  `VastitasKernel.FrameRegression` and `VastitasKernel.NatureRegression`
+  `VastitasKernel.FrameRegression` and `VastitasPublicTest.NatureRegression`
   decode every frame and physical-dimension form.
   `VastitasKernel.SpectralDeclarationRegression` and
   `VastitasKernel.SpectralRegression` do the same for the spectral forms.

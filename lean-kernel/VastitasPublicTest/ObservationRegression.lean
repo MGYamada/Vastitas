@@ -60,7 +60,7 @@ private def observed (observations : Option (List Json) := some shown) : Json :=
   fn "main" statements (binary "-" (var "a") (integer "342")) observations
 private def helper : Json := fn "helper" [] (integer "1")
 
-private def code (result : Except Diagnostic α) : String :=
+private def code {α : Type} (result : Except Diagnostic α) : String :=
   match result with | .ok _ => "ok" | .error diagnostic => diagnostic.code
 
 /-- The positions of `parts` in `text`, which must occur in this order. -/

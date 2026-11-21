@@ -58,7 +58,10 @@ text = true
 [[lean_lib]]
 name = "VastitasPublicTest"
 leanOptions = { autoImplicit = false }
-roots = ["VastitasPublicTest.AuthorityRegression", "VastitasPublicTest.SingletonFixtures"]
+roots = ["VastitasPublicTest.AuthorityRegression", "VastitasPublicTest.SingletonFixtures",
+  "VastitasPublicTest.CompatibilityProfileRegression", "VastitasPublicTest.IndexedWireRegression",
+  "VastitasPublicTest.LLVM.Regression", "VastitasPublicTest.MidIR.Regression",
+  "VastitasPublicTest.NatureRegression", "VastitasPublicTest.ObservationRegression"]
 needs = ["recipientFixture", "singletonSourceFixture"]
 
 # `Main` embeds a digest of its own source, of the kernel modules it imports

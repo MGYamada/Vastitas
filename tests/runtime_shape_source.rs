@@ -755,3 +755,28 @@ fn runtime_ownership_checks_physical_slots_layout_and_cleanup() {
         assert!(changed.lines().nth(line - 1).unwrap().contains(new));
     }
 }
+
+#[test]
+fn runtime_function_ports_replay_paths_extents_access_and_initialization() {
+    let source = source(false, 1, 1, 1, 0);
+    let wire = request(&fixture(&source));
+    let genuine = kernel(&wire, "check");
+    assert_eq!(genuine["ok"], true, "{genuine}");
+    for (written, changed) in [
+        ("RealSmooth, m>", "RealSmooth, k>"),
+        ("profiles::RealSmooth, m>", "profiles::FakeSmooth, m>"),
+        ("RuntimeBasis<u>", "RuntimeBasis<v>"),
+        ("RuntimeMap<bv, bu, read>", "RuntimeMap<bu, bv, read>"),
+        ("write> initializes", "write>            "),
+    ] {
+        let replacement = source.replacen(written, changed, 1);
+        assert_ne!(source, replacement);
+        assert_eq!(source.len(), replacement.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(replacement);
+        let response = kernel(stale, "check");
+        common::assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+        let line = response["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+        assert!(replacement.lines().nth(line - 1).unwrap().contains(changed));
+    }
+}

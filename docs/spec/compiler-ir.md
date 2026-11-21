@@ -148,9 +148,12 @@ Claims:
   - Premises:
     - the public protocol-10 checker accepted the resource program
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: The physical inventory includes each resource function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span.
+  - Note: The physical inventory includes every resource signature with its ordered parameters, port types, source spans and results. Each conditional guard replays at its branch position even when both arms are empty. It includes each function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span.
 - `resource-value-replay`: [Tested](../specifications.md#tested)
   - Evidence:
+    - `resource_signatures_match_the_physical_parameters_and_return_ports` in [`tests/resource_value_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_value_source.rs)
+    - `even_empty_resource_branches_replay_their_guard_and_position` in [`tests/resource_value_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_value_source.rs)
+    - `runtime_function_ports_replay_paths_extents_access_and_initialization` in [`tests/runtime_shape_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/runtime_shape_source.rs)
     - `resource_values_calls_and_final_blocks_replay_in_their_owning_function` in [`tests/resource_value_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_value_source.rs)
     - `changing_the_storage_entry_result_requires_new_checked_bytes` in [`tests/resource_value_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_value_source.rs)
   - Note: A changed initializer, function result, callee or port fails at the physical statement. Changing a storage entry result from 0 to 7 and regenerating the request changes the successful LLVM return and preserves every other byte. A stale request produces no LLVM module.

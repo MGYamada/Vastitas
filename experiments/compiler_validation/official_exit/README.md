@@ -226,6 +226,13 @@ official replay took 15.20 seconds with 1,919,614,976 bytes peak RSS.
 The report records each proof source digest and the inventory digest of the
 frozen local imports.
 
+The [35-module run with composed emission](results/macos-arm64-composed-artifact.json)
+at `9f9fbc48` checked the signed 126-byte source and the complete 374-byte
+LLVM module. All 35 elaborations and 35 Official replays passed with 120 seconds
+and 2,500 MiB per process. Final elaboration took 0.81 seconds and 1,043,890,176
+bytes peak RSS. Final replay took 1.14 seconds and 914,489,344 bytes. The
+largest phase was `RevisionBound` at 2,387,263,488 bytes.
+
 The [live public comparison](results/macos-arm64-live.json) records the current
 default compiler binaries. The [frozen toolpair comparison](results/macos-arm64-pinned-live.json)
 records the binaries that supplied the proof fixture. The full printed nominal

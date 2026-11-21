@@ -62,7 +62,7 @@ private def coefficients (alpha beta : Option Coefficient) : Parser Unit := do
     if isAlpha then a := none else b := none
   unless a.isNone && b.isNone do throw (diagnostic (← next).span "product coefficient missing in physical source")
 
-def replay : Replay Product := fun f before product span => do
+def replay : Replay Product := fun f site product span => do
   let parser : Parser Unit := do
     token (.ident (match product.kind with
       | .gemm => "gemm" | .runtimeGemm => "runtime_gemm" | .dual => "evaluate" | .hermitian _ => "hermitian"))
@@ -78,7 +78,7 @@ def replay : Replay Product := fun f before product span => do
     token (.ident "NativeFast")
     coefficients product.alpha product.beta
     token (.punctuation ')')
-  runStatement parser f before span
+  runStatement parser f site.before span
 
 abbrev items := ResourceStatementSource.items product?
 abbrev Corresponds := ResourceStatementSource.Corresponds replay

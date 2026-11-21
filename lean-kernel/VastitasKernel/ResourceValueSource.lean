@@ -1,5 +1,5 @@
 import VastitasKernel.MethodBodyText
-import VastitasKernel.ResourceStatementSource
+import VastitasKernel.ResourceHeaderSource
 
 set_option autoImplicit false
 
@@ -9,34 +9,30 @@ namespace VastitasKernel.ResourceValueSource
 open AssemblyText ResourceSource ResourceStatementSource SourceText Indexed
 
 inductive ValueSite where
+  | signature (header : ResourceHeaderSource.Signature)
+  | guard (condition : ResourceCondition)
   | binding (name : String) (type : Core.PureType) (body : FunctionSource.Block)
   | call (binding : Option (String × Core.PureType)) (callee : List String) (arguments results : List String)
   | result (body : FunctionSource.Block) (functionEnd : Nat)
 
 private def select : Statement → Option (ValueSite × Span)
+  | .branch b _ _ s => some (.guard (.literal b), s)
+  | .branchValue n _ _ s => some (.guard (.binding n), s)
   | .value name type body s => some (.binding name type body, s)
   | .callValue path args outs name type s => some (.call (some (name,type)) path.path args outs, s)
   | .call path args outs s => some (.call none path.path args outs, s)
   | _ => none
 
-private def finalResult (fn : Function) : Option (ValueSite × Span) :=
+private def boundaries (fn : Function) : List (Nat × ValueSite × Span) :=
   let .mk _ _ span := fn.valueBody
-  some (.result fn.valueBody fn.span.end, span)
+  [(0, .signature ⟨fn.name, fn.parameters, fn.results, fn.valueType⟩, fn.span),
+   (fn.body.length, .result fn.valueBody fn.span.end, span)]
 
 private def annotation (name : String) (type : Core.PureType) : Parser Unit := do
   token (.ident "let")
   token (.ident name)
   token (.punctuation ':')
-  match type with
-  | .unit => token (.ident "Unit")
-  | .nat => token (.ident "Nat")
-  | .int => token (.ident "Int")
-  | .bool => token (.ident "Bool")
-  | .pair elem =>
-    token (.ident "Pair")
-    token (.punctuation '<')
-    token (.ident (match elem with | .nat => "Nat" | .int => "Int"))
-    token (.punctuation '>')
+  tokens (pureTypeTokens type)
   token (.punctuation '=')
 
 private def block (file : File) (before : Cursor) (body : FunctionSource.Block) (span : Span) :
@@ -49,8 +45,19 @@ private def names (xs : List String) : Parser Unit := do
   token (.punctuation '(')
   for field in listLexemes (xs.map fun name => [.ident name]) ')' do token field
 
-def replay (file : File) (before : Cursor) (v : ValueSite) (span : Span) : Except Diagnostic Token := do
+def replay (file : File) (site : ResourceStatementSite) (v : ValueSite) (span : Span) : Except Diagnostic Token := do
+  let before := site.before
   match v with
+  | .signature header => runGroup (ResourceHeaderSource.header header) file site
+  | .guard cond =>
+    runGroup (do
+      token (.ident "if")
+      consume fun f c => do
+        let guard ← f.next c
+        let .word name := guard.kind | throw "expected a resource branch condition"
+        unless ResourceCondition.ofWord name == cond do throw "resource branch condition differs from the source"
+        return guard.after
+      token (.punctuation '{')) file site
   | .result body functionEnd =>
     let last ← block file before body span
     let close ← (file.next last.after).mapError (diagnostic last.span)
@@ -74,7 +81,7 @@ def replay (file : File) (before : Cursor) (v : ValueSite) (span : Span) : Excep
       token .arrow
       names results) file before span
 
-abbrev items := ResourceStatementSource.itemsWithResult select finalResult
+abbrev items := ResourceStatementSource.itemsWithBoundaries select boundaries
 abbrev Corresponds := ResourceStatementSource.Corresponds replay
 abbrev check := ResourceStatementSource.check replay
 

@@ -213,6 +213,11 @@ inductive ResourceCondition where
   | binding (name : String)
   deriving BEq, DecidableEq
 
+def ResourceCondition.ofWord : String → ResourceCondition
+  | "true" => .literal true
+  | "false" => .literal false
+  | name => .binding name
+
 structure ResourceBranch where
   index : Nat
   condition : ResourceCondition
@@ -226,6 +231,9 @@ structure ResourceStatementSite where
   fileIndex : Nat
   before : Cursor
   span : Span
+  /-- For a function or conditional, the scope scan matched both braces.
+  Signature and guard replay verify the opening, then reuse the scanned close. -/
+  group : Option (Nat × Token) := none
 
 structure RealizationCall where
   owner : ResourceOwner
@@ -525,7 +533,7 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
       let close ← f.next body.after
       requireSymbol close '}'
       let checks := if checks.edits.isSome then
-        let site := ResourceStatementSite.mk owner branches index checks.fileIndex head.after (through start body)
+        let site := ResourceStatementSite.mk owner branches index checks.fileIndex head.after (through start body) none
         {checks with values := checks.values.insert start.span.start site}
       else checks
       return (close, checks)
@@ -533,8 +541,7 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
       unless branches.length < Limits.sourceNesting do throw "resource branch nesting limit"
       let test ← f.next head.after
       let .word name := test.kind | throw "expected resource branch condition"
-      let condition := match name with
-        | "true" => ResourceCondition.literal true | "false" => .literal false | name => .binding name
+      let condition := ResourceCondition.ofWord name
       let openYes ← f.next test.after
       requireSymbol openYes '{'
       let (yes, checks) ← resourceBlock f owner fuel openYes.after (⟨index, condition, true⟩ :: branches) 0 checks
@@ -542,6 +549,11 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
       let openNo ← f.next otherwise.after
       requireSymbol openNo '{'
       let (no, checks) ← resourceBlock f owner fuel openNo.after (⟨index, condition, false⟩ :: branches) 0 checks
+      let checks := if checks.edits.isSome then
+        let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head no)
+          (some (openYes.span.end, no))
+        {checks with values := checks.values.insert head.span.start site}
+      else checks
       resourceBlock f owner fuel no.after branches (index + 1) checks
     | .word "contract" | .word "contract_tree" =>
       let start ← untilSymbol f '{' head.after
@@ -560,7 +572,7 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
         return ← resourceBlock f owner fuel last.after branches (index + 1)
           {checks with calls := checks.calls.erase head.span.start}
       let last ← untilSymbol f ';' head.after
-      let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head last)
+      let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head last) none
       let valueBinding ← match checks.edits, head.kind with
         | some _, .word "let" => do
           let name ← f.next head.after
@@ -720,6 +732,10 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
         let owner := ResourceOwner.mk pkg reversedPath.reverse fnName t.span.start (scope.place == .afterPub)
         let start ← untilSymbol f '{' name.after
         let (close, checks) ← resourceBlock f owner (f.remaining start.after) start.after [] 0 checks
+        let checks := if checks.edits.isSome then
+          let site := ResourceStatementSite.mk owner [] 0 checks.fileIndex c (through t close) (some (start.span.end, close))
+          {checks with values := checks.values.insert t.span.start site}
+        else checks
         return ← scanExact f pkg fuel close.after {scope with place := .declaration} reversedPath external checks
     let next ← ordinary scope t.kind
     let path := if next.modules < scope.modules then reversedPath.drop 1 else reversedPath

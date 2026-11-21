@@ -189,6 +189,14 @@ The four `Affine(R, 2)` fixtures compare every byte of their LLVM module with th
 
 In the real identity example, the physical declaration supplies the dimension and the order of the chart coordinates. Changing `Affine(2)[x, y]` to `Affine(2)[y, x]` while retaining the original wire fails at `y` before the storage copy can be emitted. Substituting `pullback(x -> x, y -> y)` for the written `identity` also fails before emission, even though the exact coordinate maps agree. [Physical chart and graph regressions](../../tests/numerical_realization.rs)
 
+The physical return type of that resource entry is checked before LLVM emission.
+Changing only `main() -> Int` to `main() -> Nat` in its saved protocol request
+fails at the result type and produces no module. Lean 4.35.0's `emitFnDeclAux`
+reads its result and parameter types from the Lean IR declaration when constructing
+an LLVM function type. Vastitas checks resource signatures against the edition
+source before the storage entry uses its fixed process ABI.
+[Pinned function declaration](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L490-L517) · [Signature regression](../../tests/resource_value_source.rs)
+
 The same GEMM program can return 0 or 7 after its successful cleanup.
 Changing only the physical return literal in a saved request is rejected.
 Regenerating the request changes just `ret i32 0` to `ret i32 7`. Each failure

@@ -1,4 +1,3 @@
-import VastitasKernel.ResourceLiteralText
 import VastitasKernel.ResourceStatementSource
 
 set_option autoImplicit false
@@ -8,19 +7,6 @@ transfer and release them in each physical function. Loan legality and byte
 initialization are checked by the storage checker. -/
 namespace VastitasKernel.ResourceOwnershipSource
 open AssemblyText ResourceSource SourceText ResourceStatementSource
-
-private def accessName : Storage.Access → String
-  | .read => "read" | .write => "write" | .readWrite => "read_write"
-
-private def extent : RuntimeExtent → ExactLexeme
-  | .literal n => .dimension n
-  | .slot name => .ident name
-
-private def layoutFields (offset : Option Nat) (rows columns leading : ExactLexeme)
-    (transposed : Bool) : List ExactLexeme :=
-  [.ident (if offset.isSome then "layout" else "runtime_layout"), .punctuation '('] ++
-  ((offset.toList.map ExactLexeme.dimension ++ [rows, columns, leading, .ident (toString transposed)]).intersperse
-    (.punctuation ',')) ++ [.punctuation ')']
 
 private def allocation (keyword owner : String) (scalar : Storage.Scalar) (elements : ExactLexeme) : List ExactLexeme :=
   [.ident keyword, .ident owner, .punctuation ':'] ++ ExactModelSource.storageRepresentation scalar ++
@@ -54,12 +40,8 @@ def spelling? : Statement → Option (List ExactLexeme × Span)
     some ([.ident "copy", .punctuation '(', .ident src, .punctuation ',', .ident dst, .punctuation ')'], s)
   | _ => none
 
-def replay (f : File) (before : Cursor) (fields : List ExactLexeme) (span : Span) : Except Diagnostic Token :=
-  runStatement (do
-    for field in fields do
-      match field with
-      | .dimension n => consume fun file cursor => ResourceLiteralText.expectNat file cursor n
-      | _ => token field) f before span
+def replay (f : File) (site : ResourceStatementSite) (fields : List ExactLexeme) (span : Span) : Except Diagnostic Token :=
+  runStatement (tokens fields) f site.before span
 
 abbrev items := ResourceStatementSource.items spelling?
 abbrev Corresponds := ResourceStatementSource.Corresponds replay

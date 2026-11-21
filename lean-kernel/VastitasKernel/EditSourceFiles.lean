@@ -14,20 +14,12 @@ binds the declarations, signatures and method bodies to their physical files. -/
 namespace VastitasKernel.EditSourceFiles
 open Indexed AssemblyText
 
-private def resultTokens : Core.PureType → List ExactLexeme
-  | .nat => [.ident "Nat"]
-  | .int => [.ident "Int"]
-  | .unit => [.ident "Unit"]
-  | .bool => [.ident "Bool"]
-  | .pair element =>
-    [.ident "Pair", .punctuation '<', .ident (match element with | .nat => "Nat" | .int => "Int"), .punctuation '>']
-
 private def method (m : DispatchSource.Method) : Except String EditMethod := do
   let params ← m.params.mapM fun p => do
     let .data (.named ty) := p.ty | throw "contributed fn requires a named selector"
     pure (p.name, ty.splitOn "::", p.span)
   let .mk _ _ body := m.body
-  return ⟨⟨m.target.path, params, m.requirements, resultTokens m.result⟩, m.span, body⟩
+  return ⟨⟨m.target.path, params, m.requirements, ResourceStatementSource.pureTypeTokens m.result⟩, m.span, body⟩
 
 private def header (kind name : String) (target : List String) : List ExactLexeme :=
   [.ident kind, .ident name, .punctuation ':'] ++ pathLexemes target

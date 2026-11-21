@@ -695,12 +695,18 @@ fn changing_the_storage_entry_result_requires_new_checked_bytes() {
     };
     let before = checked(&original, "llvm-check");
     assert_eq!(before["ok"], true, "{before}");
-    let mut stale = original;
-    stale["root_source"]["text"] = json!(changed);
-    for mode in ["llvm-check", "llvm-build"] {
-        let rejected = checked(&stale, mode);
-        common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
-        assert!(rejected.get("llvm").is_none());
+    for physical in [
+        source.replace("main() -> Int", "main() -> Nat"),
+        changed.clone(),
+    ] {
+        assert_ne!(physical, source);
+        let mut stale = original.clone();
+        stale["root_source"]["text"] = json!(physical);
+        for mode in ["llvm-check", "llvm-build"] {
+            let rejected = checked(&stale, mode);
+            common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+            assert!(rejected.get("llvm").is_none());
+        }
     }
     package.write("main.vast", &changed);
     let after = checked(
@@ -714,4 +720,66 @@ fn changing_the_storage_entry_result_requires_new_checked_bytes() {
         after["llvm"]["ir"].as_str().unwrap(),
         bytes.replace("ret i32 0\n", "ret i32 7\n")
     );
+}
+
+#[test]
+fn resource_signatures_match_the_physical_parameters_and_return_ports() {
+    let source = source(true).replace(
+        "resource fn main()",
+        "resource fn unused(input: Owned<F32<CC>, 0001> initialized [],) returns() -> Unit { drop(input); value { () } }\nresource fn main()",
+    );
+    let wire = request(&fixture(&source));
+    let genuine = kernel(&wire, "check");
+    assert_eq!(genuine["ok"], true, "{genuine}");
+    for (written, changed) in [
+        ("main() -> Int", "main() -> Nat"),
+        ("n: Nat, delta: Int", "n: Int, delta: Nat"),
+        ("returns (data:", "returns (date:"),
+        ("1> initialized [layout(0,", "1> initialized [layout(8,"),
+        ("unused(input:", "unused(other:"),
+        ("Owned<F32<CC>, 0001>", "Owned<F32<RR>, 0001>"),
+        ("Owned<F32<CC>, 0001>", "Owned<F32<CC>, 0010>"),
+    ] {
+        let replacement = source.replacen(written, changed, 1);
+        assert_ne!(source, replacement);
+        assert_eq!(source.len(), replacement.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(replacement);
+        for args in [
+            vec!["check"],
+            vec!["emit"],
+            vec!["function-revision"],
+            vec!["llvm-check", "x86_64-unknown-linux-gnu", "e-p:64:64"],
+            vec!["llvm-build", "x86_64-unknown-linux-gnu", "e-p:64:64"],
+        ] {
+            let response = common::kernel_with_args(&stale, &args);
+            common::assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+            let line = response["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+            assert!(replacement.lines().nth(line - 1).unwrap().contains(changed));
+            assert!(response.get("llvm").is_none());
+        }
+    }
+
+    let mut misplaced = wire;
+    let span = &mut misplaced["packages"][0]["modules"][0]["resource_functions"][0]["parameters"]
+        [0]["span"];
+    span["end"] = json!(span["end"].as_u64().unwrap() - 1);
+    common::assert_wire_rejected(&kernel(misplaced, "check"), "E_RESOURCE_SOURCE");
+}
+
+#[test]
+fn even_empty_resource_branches_replay_their_guard_and_position() {
+    let text = "resource fn main() -> Int {\n    let flag: Bool = value { true };\n    if flag { if true {} else {} } else {}\n    value { 0 }\n}\n";
+    let wire = request(&fixture(text));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (written, changed) in [("if flag", "if true"), ("if true", "if flag")] {
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(text.replacen(written, changed, 1));
+        let response = kernel(&stale, "check");
+        common::assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+        assert_eq!(response["diagnostics"][0]["span"]["line"], 3);
+    }
+    let mut omitted = wire;
+    omitted["packages"][0]["modules"][0]["resource_functions"][0]["body"][1]["yes"] = json!([]);
+    common::assert_wire_rejected(&kernel(omitted, "check"), "E_RESOURCE_SOURCE");
 }

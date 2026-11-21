@@ -898,6 +898,13 @@ branch conditions to the wire. The callee, representation, ordered paths,
 binding or destination, and UTF-8 source spans must agree. This check
 also covers discarded descriptors and functions outside the entry's call graph.
 
+Lean checks the name, parameter order, parameter spans, return ports and pure
+result type of each `resource fn` against its declaration. Owned initialization
+regions, nominal paths and their spans, runtime extent slots, access modes,
+map endpoints and representation widths all participate. The scope scan records
+the opening and closing braces. Signature and guard checks reuse those boundaries,
+including the guards of empty branches in uncalled functions.
+
 Lean reads the pure blocks inside typed resource bindings and the final
 `value` block in each resource function. It checks their expression spans
 and the position of the final block after the last resource statement. For

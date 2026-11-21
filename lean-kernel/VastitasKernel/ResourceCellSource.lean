@@ -22,7 +22,7 @@ def cell? : Statement → Option (Cell × Span)
   | .runtime (.expect loan r c v) s => some (⟨"runtime_expect", loan, some (r,c), v⟩, s)
   | _ => none
 
-def replay (f : File) (before : Cursor) (cell : Cell) (span : Span) : Except Diagnostic Token := do
+def replay (f : File) (site : ResourceStatementSite) (cell : Cell) (span : Span) : Except Diagnostic Token := do
   let parser : Parser Unit := do
     token (.ident cell.operation)
     token (.punctuation '(')
@@ -35,7 +35,7 @@ def replay (f : File) (before : Cursor) (cell : Cell) (span : Span) : Except Dia
       token (.punctuation ',')
     consume fun f p => ResourceLiteralText.check f p cell.literal
     token (.punctuation ')')
-  runStatement parser f before span
+  runStatement parser f site.before span
 
 abbrev items := ResourceStatementSource.items cell?
 abbrev Corresponds := ResourceStatementSource.Corresponds replay

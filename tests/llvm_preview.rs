@@ -30,6 +30,91 @@ fn preview(s: &Scratch, source: &str) -> Output {
 
 const LITERAL_COMPARISON: &str = include_str!("../llvm/fixtures/LiteralComparison.vast");
 
+fn assembled_selectors(parent: &str, child: &str) -> String {
+    format!(
+        "abstract type {parent};
+abstract type {child} <: {parent};
+subtype Bool <: {child};
+fn pick(x) domain((Bool));
+contribution methods : pick {{
+    fn pick(x: Cold) -> Bool {{ false }}
+    fn pick(x: Warm) -> Bool {{ true }}
+}}
+assemble pick {{ apply methods; }}
+fn main() -> Int {{ if pick(false) {{ 42 }} else {{ 7 }} }}"
+    )
+}
+
+#[test]
+fn assembled_selector_hierarchy_binds_the_winner_on_every_kernel_route() {
+    let s = Scratch::empty("physical selector revision");
+    let compile = |parent, child| {
+        let output = preview(&s, &assembled_selectors(parent, child));
+        success(&output);
+        let raw = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+        let revision = common::kernel(&raw, "function-revision");
+        let text = String::from_utf8(output.stdout).unwrap();
+        (raw, revision["function_revision"].clone(), text)
+    };
+    let (warm, revision, warm_ir) = compile("Cold", "Warm");
+    let (mut cold, other, cold_ir) = compile("Warm", "Cold");
+    let call = "/pure/dispatch_calls/0";
+    let a = revision.pointer(call).unwrap();
+    let b = other.pointer(call).unwrap();
+    assert_eq!(a["id"], b["id"]);
+    assert_eq!(a["key"], b["key"]);
+    assert_ne!(a["method"], b["method"]);
+    for (ir, value) in [(&warm_ir, 1), (&cold_ir, 0)] {
+        assert!(ir.contains(&format!(
+            "define internal i1 @vq_selected(i1 %arg) {{\nentry:\n  ret i1 {value}\n}}"
+        )));
+    }
+    cold["expected_function_revision"] = revision;
+    common::assert_wire_rejected(&common::kernel(&cold, "check"), "E_FUNCTION_REVISION");
+    cold.as_object_mut()
+        .unwrap()
+        .remove("expected_function_revision");
+    // Both decoded hierarchies are lawful. Only the original .vast bytes
+    // determine which of the two contributed definitions is more specific.
+    cold["root_source"] = warm["root_source"].clone();
+    for args in [
+        &["check"][..],
+        &["emit"],
+        &["function-revision"],
+        &["llvm-check", TARGET[2], TARGET[4]],
+        &["llvm-build", TARGET[2], TARGET[4]],
+    ] {
+        let response = common::kernel_with_args(&cold, args);
+        common::assert_wire_rejected(&response, "E_HIERARCHY_SOURCE");
+        assert!(response.get("llvm").is_none());
+    }
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
+fn assembled_selector_order_drives_both_native_exit_edges() {
+    let s = Scratch::empty("native selector order");
+    for (parent, child, status) in [("Cold", "Warm", 42), ("Warm", "Cold", 7)] {
+        s.write_package("app", &assembled_selectors(parent, child), "");
+        for (name, flags) in [("lean", &[][..]), ("llvm", &["--llvm-preview"][..])] {
+            let build = s
+                .command("build", "app/Vastitas.toml")
+                .args(flags)
+                .args(["-o", name])
+                .output()
+                .unwrap();
+            success(&build);
+            assert_eq!(
+                std::process::Command::new(s.0.join(name))
+                    .status()
+                    .unwrap()
+                    .code(),
+                Some(status)
+            );
+        }
+    }
+}
+
 #[test]
 fn literal_comparisons_bind_both_assembled_bodies_to_the_revision() {
     let s = Scratch::empty("exact literal comparison");

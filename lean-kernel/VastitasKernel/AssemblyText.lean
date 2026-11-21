@@ -188,6 +188,7 @@ inductive ExactLexeme where
   | separator
   | arrow
   | rowArrow
+  | subtypeMark
   | closeList (ch : Char) (allowTrailingComma : Bool)
   deriving Inhabited
 
@@ -277,7 +278,7 @@ structure MethodSite where
   closing : Span
 
 inductive SiteKind where
-  | indexed | finiteFunction | singleton | namespaceImport | namespaceModule
+  | indexed | finiteFunction | singleton | namespaceImport | namespaceModule | hierarchy
   deriving Inhabited, DecidableEq
 
 structure FiniteSite where
@@ -312,13 +313,13 @@ private def expectIdentifier (f : File) (c : Cursor) (name : String) : Except St
   unless found == name do throw "identifier differs from the physical source"
   return t
 
-private def expectArrow (f : File) (c : Cursor) (first : Char) : Except String Cursor := do
+private def expectPair (f : File) (c : Cursor) (first second : Char) : Except String Cursor := do
   let t ← f.next c
   requireSymbol t first
-  let gt ← f.next t.after
-  requireSymbol gt '>'
-  unless t.span.end == gt.span.start do throw "expected adjacent arrow characters"
-  return gt.after
+  let next ← f.next t.after
+  requireSymbol next second
+  unless t.span.end == next.span.start do throw s!"expected adjacent characters in {first}{second}"
+  return next.after
 
 def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String Cursor
   | .ident name => return (← expectIdentifier f c name).after
@@ -341,8 +342,9 @@ def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String Cursor
     let t ← f.next c
     let .separator := t.kind | throw "expected qualified call separator"
     return t.after
-  | .arrow => expectArrow f c '-'
-  | .rowArrow => expectArrow f c '='
+  | .arrow => expectPair f c '-' '>'
+  | .rowArrow => expectPair f c '=' '>'
+  | .subtypeMark => expectPair f c '<' ':'
   | .closeList ch allowComma => do
     let next ← f.next c
     let close ← match next.kind with
@@ -604,6 +606,12 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
           if keyword == "generic" || keyword == "method" ||
               (keyword == "abstract" && ((← f.next t.after).kind matches .word "method")) then
             throw "edition 2026 requires fn for a function family, method or contract"
+          if keyword == "abstract" || keyword == "subtype" then
+            if checks.flat && scope.place == .afterPub then throw "flat declarations have implicit visibility"
+            let visible := scope.place == .afterPub || (checks.flat && keyword == "abstract")
+            let site := FiniteSite.mk pkg reversedPath.reverse visible checks.fileIndex c t.span .hierarchy
+            return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
+              {checks with finiteSites := checks.finiteSites.insert t.span.start site}
           if keyword == "fn" then
             if let some decl := edits.families[t.span.start]? then
               let (after, checks) ← checkFamily f c t pkg reversedPath.reverse (scope.place == .afterPub) checks decl
@@ -671,7 +679,8 @@ def mayHaveExactHeaders (text : String) : Bool :=
 
 def mayHaveFiniteDeclarations (text : String) : Bool :=
   (text.contains "indexed" && ["finite", "table", "schema", "instance"].any (fun word => text.contains word)) ||
-    text.contains "fn" || text.contains "use" || text.contains "mod"
+    text.contains "fn" || text.contains "use" || text.contains "mod" ||
+    text.contains "abstract" || text.contains "subtype"
 
 def checkExactHeaders (text : String) (base : Nat) (pkg : String) (path : List String)
     (checks : SourceChecks) : Except String (Array (List String) × SourceChecks) :=

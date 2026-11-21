@@ -1289,6 +1289,14 @@ type and membership declaration lists. `selected_nominal_target` connects the
 actual family `checkWith` equation to the finite engine's selection theorem.
 This is nominal order, not containment of current inhabitant sets.
 
+For every module of an accepted protocol-10 request,
+`ResourceSource.physical_selector_hierarchy` locates each abstract type and
+scalar membership in the supplied physical source. The replay checks every
+parent and target path at its byte span. The declaration inventory also
+accounts for unused selectors. The assembled Boolean regression changes the
+parent order in the source to select each of two contributed methods.
+[Kernel and LLVM regression](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+
 `Namespaces.membership_owner` establishes exact defining-module authority from
 the independently re-resolved ledger; alias visibility follows the same resolver
 as calls. `AbstractRegression` and `tests/abstract_types.rs` cover multiple

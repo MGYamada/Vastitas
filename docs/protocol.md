@@ -144,6 +144,12 @@ parent's module scope, including empty modules. The inline record uses the
 `mod` keyword span. The external record extends through the semicolon.
 A mismatch in either declaration yields `E_MODULE_SOURCE`.
 
+For `abstract type` and `subtype`, Lean checks the declaring module,
+visibility, ordered parent paths, scalar membership and original spans.
+Both declarations participate even when no function uses the selector.
+A decoded hierarchy that type-checks but differs from the source yields
+`E_HIERARCHY_SOURCE` before a function revision or LLVM module is returned.
+
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record
 with four paths named `source`, `target`, `objects` and `arrows`. Each

@@ -122,6 +122,17 @@ For an object-valued Nat literal, Lean's `emitNumLit` calls `lean_unsigned_to_na
 
 For a jump to a join point, Lean's `emitJmp` checks the number of arguments, writes each incoming value to the formal parameter's slot and branches. The assembled Boolean example uses an `i1` call and branch. Its exit block reads a single `i32 phi` with an incoming value from each predecessor. The correspondence theorem identifies the checked winner and contribution. A second theorem covers both Boolean inputs for every method body in the module. [Pinned emitJmp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050) · [Dispatch theorems](../../lean/VastitasOracle/DispatchFunction.lean)
 
+Two edition 2026 packages give `Cold` and `Warm` opposite parent orders. Both
+use the same `Bool` dispatch key and assemble the same two methods. The more
+specific method returns true in one package and false in the other. In each
+532-byte reference module, `@main` calls `@vq_selected` and the two edges of
+an `i32 phi` supply 42 and 7. The macOS arm64 executables produced by libLLVM
+and by the Lean/C path returned 42 and 7 for their respective packages.
+Changing only the decoded hierarchy now fails at the original selector span.
+Lean 4.35.0's `emitFullApp` resolves the callee by function ID and its
+`emitJmp` writes join arguments to slots before branching.
+[Public and native regression](../../tests/llvm_preview.rs) · [Pinned call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774) · [Pinned join emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
+
 The finite Kleisli application has six linked Core functions and eight finite-table helpers. Its hosted `@main` calls `@f5`, which calls the five other functions. The typed Hom fibers in this example are singletons, so their sole legal tag has ordinal 0. The public link records the original Core symbols and the four specializations of the optional `monad::kleisli` package. The package qualification includes a separate variant that calls `extend` on the named `Triple`. In that variant, `@f4` calls `@t4_0_2` with its arrow argument, then calls `@t4_0_3` with the multiplication ordinal followed by the mapped arrow. The report retains the complete seven-line function body and the checked table identities. Lean's `emitFullApp` loads arguments from slots before a typed call, and its `emitCase` builds a switch for a single tag. Both Vastitas helpers switch on an `i32` ordinal. [Package qualification](../../experiments/compiler_validation/llvm/results/macos-arm64/finite-kleisli.json) · [Closed entry semantics](../../lean/VastitasOracle/PackageLink.lean) · [Pinned emitFullApp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755) · [Pinned emitCase](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1104)
 
 Lean 4.35.0's `emitFullApp` looks up a resolved `FunId`. In the

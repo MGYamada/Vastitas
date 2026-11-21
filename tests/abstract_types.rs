@@ -84,21 +84,75 @@ fn choose(x: Other) -> Bool { true }",
 
 #[test]
 fn raw_indirect_membership_authority_is_recomputed_after_input_changes() {
-    let source = "abstract type Child; subtype Int <: Child;";
-    let mut app = raw_module(source);
-    app["abstract_types"][0]["parents"] =
-        json!([{"path":["lib","Parent"],"span":{"start":0,"end":0,"line":1,"column":1}}]);
-    let mut raw = json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","root_source":{"offset":0,"text":source},"packages":[
-        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","edition":"2026","dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
-        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","edition":"2026","dependencies":[],"modules":[raw_module("abstract type Parent; subtype Int <: Parent;")]}
-    ]});
+    let s = Scratch::empty("inherited membership wire");
+    let app = "abstract type Child <: (lib::Parent); subtype Int <: Child;";
+    let library = "pub abstract type Parent; subtype Int <: Parent;";
+    s.write_package("app", app, "lib={path='../lib'}");
+    s.write_package("lib", library, "");
+    let capture = || s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+    let mut raw = capture();
+    let package_index = |name| {
+        raw["packages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|p| p["name"] == name)
+            .unwrap()
+    };
+    let app_index = package_index("app");
+    let lib_index = package_index("lib");
     assert_eq!(kernel(&raw, "check")["ok"], true);
-    raw["packages"][0]["modules"][0]["subtypes"][0]["scalar"] = json!("Nat");
+    raw["packages"][app_index]["modules"][0]["subtypes"][0]["scalar"] = json!("Nat");
     common::assert_wire_rejected(&kernel(&raw, "check"), "E_OWNER");
-    raw["packages"][1]["modules"][0]["subtypes"][0]["scalar"] = json!("Nat");
+    raw["packages"][lib_index]["modules"][0]["subtypes"][0]["scalar"] = json!("Nat");
+    common::assert_wire_rejected(&kernel(&raw, "check"), "E_HIERARCHY_SOURCE");
+    s.write("app/main.vast", &app.replace("Int", "Nat"));
+    s.write("lib/main.vast", &library.replace("Int", "Nat"));
+    let mut raw = capture();
     assert_eq!(kernel(&raw, "check")["ok"], true);
-    raw["packages"][1]["modules"][0]["subtypes"] = json!([]);
+    raw["packages"][lib_index]["modules"][0]["subtypes"] = json!([]);
     common::assert_wire_rejected(&kernel(&raw, "check"), "E_OWNER");
+}
+
+#[test]
+fn unused_selector_parents_and_memberships_replay_at_their_physical_tokens() {
+    let s = Scratch::empty("unused selector hierarchy");
+    s.write_package("app", "mod axes; fn main() -> Int { 0 }", "");
+    let source = "// λ\r\npub abstract type Axis;\nabstract type Axis2;\nabstract type Plane <: (Axis, Axis2);\nsubtype Int <: Plane;";
+    s.write("app/axes.vast", source);
+    let raw = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+    let modules = raw["packages"][0]["modules"].as_array().unwrap();
+    let module = modules
+        .iter()
+        .position(|m| m["path"] == json!(["axes"]))
+        .unwrap();
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    let base = format!("/packages/0/modules/{module}");
+    let parent = format!("{base}/abstract_types/2/parents/0");
+    let membership = format!("{base}/subtypes/0");
+    for (path, changed, line) in [
+        (format!("{base}/abstract_types/0/public"), json!(false), 2),
+        (format!("{parent}/path"), json!(["Any"]), 4),
+        (format!("{parent}/span/column"), json!(1), 4),
+        (format!("{membership}/scalar"), json!("Nat"), 5),
+        (format!("{membership}/target/path"), json!(["Axis"]), 5),
+        (format!("{base}/subtypes"), json!([]), 5),
+    ] {
+        let mut tampered = raw.clone();
+        *tampered.pointer_mut(&path).unwrap() = changed;
+        let result = kernel(&tampered, "check");
+        common::assert_wire_rejected(&result, "E_HIERARCHY_SOURCE");
+        assert_eq!(result["diagnostics"][0]["span"]["line"], line);
+    }
+    // With no function, manifest or edit declaration, a flat file containing
+    // just this unused selector must still contribute to the inventory.
+    let mut flat = request("abstract type Alone;", "alone.vast");
+    assert_eq!(kernel(&flat, "check")["ok"], true);
+    flat_module(&mut flat)["abstract_types"] = json!([]);
+    common::assert_wire_rejected(&kernel(&flat, "check"), "E_HIERARCHY_SOURCE");
+    let mut split = request("abstract type X <: (Any);", "split.vast");
+    split["root_source"]["text"] = json!("abstract type X < :(Any);");
+    common::assert_wire_rejected(&kernel(&split, "check"), "E_HIERARCHY_SOURCE");
 }
 
 #[test]
@@ -333,12 +387,6 @@ fn package_aliases_preserve_nominal_identity_and_exact_module_membership_authori
     );
     let output = package_check(&s);
     common::expect_code(&output, "E_VISIBILITY");
-}
-
-/// The root module of the request of the flat unit `source`, in which every
-/// function, generic and abstract type is public.
-fn raw_module(source: &str) -> serde_json::Value {
-    flat_module(&mut request(source, "abstract-package.vast")).take()
 }
 
 #[test]

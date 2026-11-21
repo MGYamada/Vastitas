@@ -59,6 +59,8 @@ def form (d : Source.Declaration) : Option Form :=
 inductive DeclarationSyntax where
   | namespaceModule (name : String)
   | namespaceImport (declaration : Namespace.Import)
+  | abstractType (declaration : Namespace.AbstractType)
+  | subtype (declaration : RawSubtype)
   | indexed (declaration : Form)
   | function (declaration : FunctionSource.Function)
   /-- Ordinary singleton and the top-level statement indices observed in main. -/
@@ -78,9 +80,11 @@ def declarations (program : ResourceSource.Program) : List Item :=
       (form d).map fun shape => item d.span d.isPublic (.indexed shape)
     let imports := m.pureModule.module.imports.map fun i => item i.span i.isPublic (.namespaceImport i)
     let mod := m.pureModule.module
+    let types := mod.abstractTypes.map fun t => item t.span t.isPublic (.abstractType t)
+    let subtypes := mod.subtypes.map fun s => item s.span false (.subtype s)
     let modules := mod.path.getLast?.toList.map fun name =>
       Item.mk pkg.id.source mod.path.dropLast mod.span mod.isPublic (.namespaceModule name)
-    ((modules ++ imports) ++ indexed) ++ m.pureModule.functions.map fun f =>
+    ((modules ++ imports) ++ ((types ++ subtypes) ++ indexed)) ++ m.pureModule.functions.map fun f =>
       if f.finiteBinders.isEmpty then
         let shown := ((m.observations.lookup f.name).getD []).map (·.statement)
         item f.span f.isPublic (.singleton f shown)
@@ -93,12 +97,14 @@ private def sourceError (kind : SiteKind) (span : Span) (message : String) : Dia
   | .namespaceModule => {code := "E_MODULE_SOURCE", span, message}
   | .namespaceImport => {code := "E_IMPORT_SOURCE", span, message}
   | .singleton => {code := "E_FUNCTION_SOURCE", span, message}
+  | .hierarchy => {code := "E_HIERARCHY_SOURCE", span, message}
   | .indexed | .finiteFunction => errorAt span message
 
 def Item.kind (item : Item) : SiteKind :=
   match item.syntax_ with
   | .namespaceModule _ => .namespaceModule
   | .namespaceImport _ => .namespaceImport
+  | .abstractType _ | .subtype _ => .hierarchy
   | .indexed _ => .indexed
   | .function _ => .finiteFunction
   | .singleton .. => .singleton
@@ -109,7 +115,7 @@ def Item.inFile (item : Item) (index entry : Nat) : Bool :=
   index == entry || item.packageSource != flatPackageId.source ||
     match item.syntax_ with
     | .singleton f _ | .function f => f.name != "main"
-    | .indexed _ | .namespaceImport _ | .namespaceModule _ => true
+    | .indexed _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
 
 private def readTokens (file : File) (before : Cursor) (tokens : List ExactLexeme)
     (report : Span → String → Diagnostic := errorAt) : Except Diagnostic Cursor :=
@@ -159,11 +165,42 @@ private def replayImport (file : File) (first : Token) (entry : Namespace.Import
   let closed ← readTokens file beforeSemi [.punctuation ';'] report
   unless sameSpan file first closed entry.span do throw (report first.span "use declaration span differs from its source")
 
+private def selectorPath (flat : Bool) (p : TypePath) : Except Diagnostic ExactLexeme := do
+  if flat && p.path.length != 1 then
+    throw ⟨"E_NAME", "qualified type paths require package input", p.span, []⟩
+  return .reference p.path p.span
+
+/-- A single parent can be written with or without parentheses. In a parent list
+the parser requires a path after every comma and records the span of each path. -/
+private def hierarchyParents (file : File) (cursor : Cursor) (flat : Bool) (parents : List TypePath) :
+    Except Diagnostic Cursor := do
+  let head :: rest := parents | return cursor
+  let report := sourceError .hierarchy
+  let after ← readTokens file cursor [.subtypeMark] report
+  let first ← (file.next after).mapError (report head.span)
+  if first.kind matches .symbol '(' then
+    let paths ← (head :: rest).mapM (selectorPath flat)
+    return ← readTokens file first.after (paths.intersperse (.punctuation ',') ++ [.punctuation ')']) report
+  unless rest.isEmpty do throw (report first.span "expected a parenthesized list of abstract selectors")
+  readTokens file after [← selectorPath flat head] report
+
+private def endHierarchy (file : File) (first : Token) (cursor : Cursor) (span : Span) : Except Diagnostic Unit := do
+  let report := sourceError .hierarchy
+  let end_ ← readTokens file cursor [.punctuation ';'] report
+  unless sameSpan file first end_ span do throw (report first.span "selector declaration span differs from its source")
+
 def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Unit := do
   let first ← (file.next before).mapError (errorAt item.span)
   match item.syntax_ with
   | .namespaceModule name => replayModule file first name item.span
   | .namespaceImport entry => replayImport file first entry
+  | .abstractType t =>
+    let after ← readTokens file before [.ident "abstract", .ident "type", .ident t.name] (sourceError .hierarchy)
+    endHierarchy file first (← hierarchyParents file after (item.packageSource == flatPackageId.source) t.parents) item.span
+  | .subtype s =>
+    let after ← readTokens file before [.ident "subtype", .ident s.scalar, .subtypeMark,
+      ← selectorPath (item.packageSource == flatPackageId.source) s.target] (sourceError .hierarchy)
+    endHierarchy file first after item.span
   | .indexed shape => replayIndexed file first shape item.span
   | .function f => MethodBodyText.checkFunction file first f []
   | .singleton f shown => MethodBodyText.checkFunction file first f shown

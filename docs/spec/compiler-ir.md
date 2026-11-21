@@ -10,7 +10,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
 | [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Tested, Proved (oracle), Proved (oracle), Planned |
-| [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle) |
+| [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
@@ -153,6 +153,8 @@ Claims:
     - `unedited_package_families_bind_domains_contracts_visibility_and_bodies` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
     - `flat_libraries_bind_inferred_methods_to_their_own_file` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
     - `omitting_a_whole_dispatch_family_cannot_turn_its_bodies_into_singletons` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
+    - `unused_selector_parents_and_memberships_replay_at_their_physical_tokens` in [`tests/abstract_types.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/abstract_types.rs)
+    - `assembled_selector_hierarchy_binds_the_winner_on_every_kernel_route` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `promotion_policy_mutations_are_real_frontend_requests` in [`tests/promotion.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/promotion.rs)
     - `contributed_method_reads_indexed_pack_unpack_and_nominal_types` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
     - `contributed_finite_calls_keep_index_paths_and_lookup_operands` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
@@ -177,6 +179,13 @@ Claims:
     - `build_rechecks_the_captured_assembly_and_preserves_output_on_mismatch` in [`tests/function_revision_cli.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision_cli.rs)
     - `unchanged_llvm_bytes_do_not_authorize_an_edited_library_or_manifest` in [`tests/function_revision_cli.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision_cli.rs)
   - Note: The optional receipt binds a whole protocol-10 input to its kernel-reconstructed families, selected ordinary or contributed methods and emitted Core symbols. The physical inputs include each loaded manifest, module and flat library. A byte edit in an unused comment invalidates replay even when all LLVM bytes match.
+- `selector-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_selector_hierarchy`
+  - Premises:
+    - the public protocol-10 request passed the independent checker
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Every user-declared abstract selector and scalar membership belongs to a physical declaration in the same package and lexical module. Lean checks the ordered parent paths, scalar and membership target, visibility and source spans against the files and offsets supplied by the loader. The same checked request determines which method the assembly selects.
 - `revision-selection`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.expected_function_revision_exact`, `VastitasOracle.ResourceSource.expected_revision_selects_method`, `VastitasOracle.ResourceSource.structured_assembly_trace`, `VastitasOracle.ResourceSource.physical_edit_declarations`, `VastitasOracle.ResourceSource.contributed_method_body`, `VastitasOracle.ResourceSource.defining_method_body`

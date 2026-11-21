@@ -225,6 +225,32 @@ theorem physical_import {json : Lean.Json} (input : Wire.CheckedInput json requi
   refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_left _ (List.mem_append_left _ (List.mem_append_right _ ?_))⟩⟩
   exact List.mem_map.mpr ⟨i, hi, rfl⟩
 
+/-- The abstract parents and concrete memberships used by dispatch come from the
+same accepted request as its assembly. This includes selectors without a call. -/
+theorem physical_selector_hierarchy {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      (∀ t ∈ m.pureModule.module.abstractTypes, FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, t.span, t.isPublic, .abstractType t⟩) ∧
+      (∀ s ∈ m.pureModule.module.subtypes, FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, s.span, false, .subtype s⟩) := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, ?_, ?_⟩
+  · intro t ht
+    apply all
+    apply List.mem_flatMap.mpr
+    refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, ?_⟩⟩
+    exact List.mem_append_left _ (List.mem_append_right _ (List.mem_append_left _
+      (List.mem_append_left _ (List.mem_map.mpr ⟨t, ht, rfl⟩))))
+  · intro s hs
+    apply all
+    apply List.mem_flatMap.mpr
+    refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, ?_⟩⟩
+    exact List.mem_append_left _ (List.mem_append_right _ (List.mem_append_left _
+      (List.mem_append_right _ (List.mem_map.mpr ⟨s, hs, rfl⟩))))
+
 /-- Each finite-indexed function, including an unused overload, replays its own
 binders, parameter and result types and body in its declaring module. -/
 theorem physical_finite_function {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

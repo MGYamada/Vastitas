@@ -78,9 +78,6 @@ theorem resourceFromPure (pure : Indexed.AuthoritySource.CheckedProgram candidat
       replace actual := Except.ok.inj (actual.symm.trans accepted)
       subst a
       exact ⟨_,rfl,rfl⟩
-scoped notation "physicalExitText" => "// The executable status is the Euclidean remainder modulo 256.\nfn main() -> Int { -340282366920938463463374607431768211457 }\n"
-
-def text := physicalExitText
 theorem file : AssemblySource.rootFile wire = .ok ⟨0,text⟩ := by rfl
 theorem readEvents : AssemblySource.read wire = .ok [] := by rfl
 

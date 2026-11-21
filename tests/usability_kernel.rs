@@ -88,13 +88,12 @@ fn frontend_and_kernel_use_the_same_name_violation_codes() {
 
 #[test]
 fn forged_ir_cannot_bypass_the_natural_to_integer_contract() {
-    let mut raw = request("fn convert(n: Nat) -> Int { 0 }");
+    let mut raw = request("fn convert(n: Nat) -> Int { int(n) }");
     let span = common::flat_module(&mut raw)["functions"][0]["body"]["result"]["span"].clone();
-    common::flat_module(&mut raw)["functions"][0]["body"]["result"] = json!({
-        "kind": "call", "callee": "int", "span": span,
-        "args": [{"kind": "variable", "name": "n", "span": span}],
-    });
     assert_eq!(check(&raw)["ok"], true);
+    let mut different = raw.clone();
+    different["root_source"]["text"] = json!("fn convert(n: Nat) -> Int { 0      }");
+    diagnostic(&check(&different), "E_FUNCTION_SOURCE");
 
     common::flat_module(&mut raw)["functions"][0]["params"][0]["ty"]["name"] = json!("Int");
     let d = diagnostic(&check(&raw), "E_TYPE");

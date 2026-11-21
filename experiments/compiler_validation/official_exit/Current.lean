@@ -60,6 +60,13 @@ def Observes (wire : Json) (target : TargetHeader) (bytes : List UInt8) (v : Int
     VastitasOracle.ExitFunction.midEntry c.linked.exe = some (.integer v) ∧
     (ExitMain.evaluate c.linked.toModule).toNat = (v % 256).toNat
 
+theorem of_current {wire : Json} {target : TargetHeader} {bytes : List UInt8}
+    (c : Current wire target bytes) : Observes wire target bytes c.linked.literal.value := by
+  have parsed := c.complete ▸ c.parsed
+  have all := VastitasOracle.ExitFunction.correspondence c.linked bytes parsed
+  obtain ⟨printed, _, opt, exe, status, _⟩ := all 0
+  exact ⟨c, rfl, c.linked.revision, printed, fun fuel => (all fuel).2.1, opt, exe, status⟩
+
 def validate (wire : Json) (target : TargetHeader) (bytes : List UInt8) (v : Int) : Bool :=
   (witness wire target bytes).any fun c => c.linked.literal.value == v
 
@@ -70,9 +77,6 @@ theorem of_validate {wire : Json} {target : TargetHeader} {bytes : List UInt8} {
   | some c =>
     have value : c.linked.literal.value = v := by simpa [validate,found] using h
     subst v
-    have parsed := c.complete ▸ c.parsed
-    have all := VastitasOracle.ExitFunction.correspondence c.linked bytes parsed
-    obtain ⟨printed, _, opt, exe, status, _⟩ := all 0
-    exact ⟨c, rfl, c.linked.revision, printed, fun fuel => (all fuel).2.1, opt, exe, status⟩
+    exact of_current c
 
 end VastitasQualification.OfficialExit

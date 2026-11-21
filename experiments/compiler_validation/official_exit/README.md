@@ -202,13 +202,16 @@ and `MidIR.Module.execute`. Both modules contain the same source owner, symbol
 
 [SignedArtifact.lean](SignedArtifact.lean) identifies the artifact returned by
 `ExitFunction.compile`. [PublicArtifact.lean](PublicArtifact.lean) recovers
-the exact result of `Emission.check wire target true`. The final `Observes`
+the exact result of `Emission.check wire target true`. The kernel theorem
+`Emission.check_literal` selects the literal branch from the checked request,
+the compiler result and the parser equation. The fixture checks the parser on all
+374 retained bytes. The final `Observes`
 theorem uses the accepted request, the Core entry evaluation at every
 sufficient fuel, the two MidIR observations and all 374 bytes of the retained
 LLVM module. The modeled `main` returns status 255. Reproduce the run with
 
 ```sh
-python3 experiments/compiler_validation/official_exit/run.py --artifact --timeout 100 --memory 2048
+python3 experiments/compiler_validation/official_exit/run.py --artifact --timeout 120 --memory 2500
 ```
 
 The certificate covers one signed-literal program on the retained arm64 target.

@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
@@ -133,13 +133,27 @@ Claims:
   - Premises:
     - the public protocol-10 checker accepted the resource program
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Every static fill, store or expect and every runtime fill or expect in a resource statement list replays at its physical span with its package, module, function, branch path and statement index. The physical and decoded inventories have the same counts. Each literal has the declared precision and carrier. The checker compares raw components as unsigned integers and exact decimal or hexadecimal spellings with the dyadic value of each component. For every binary32 and binary64 bit pattern, the finite classification and signed dyadic fields used in that comparison have the independent binary-float Oracle’s rational denotation. The loader supplies the source files. GEMM coefficients and nested contraction-plan actions have separate proof obligations.
+  - Note: Every static fill, store or expect and every runtime fill or expect in a resource statement list replays at its physical span with its package, module, function, branch path and statement index. The physical and decoded inventories have the same counts. Each literal has the declared precision and carrier. The checker compares raw components as unsigned integers and exact decimal or hexadecimal spellings with the dyadic value of each component. For every binary32 and binary64 bit pattern, the finite classification and signed dyadic fields used in that comparison have the independent binary-float Oracle’s rational denotation. The loader supplies the source files. Nested contraction-plan actions have a separate proof obligation.
 - `resource-cell-replay`: [Tested](../specifications.md#tested)
   - Evidence:
     - `cell_payloads_and_coordinates_match_the_physical_source_before_llvm` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `even_uncalled_cell_statements_keep_their_physical_branch_and_inventory` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `exact_payload_spellings_emit_identical_bits_and_execute_without_blas` in [`tests/resource_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_source.rs)
   - Note: The LLVM check and build paths reject source-only changes to signed zero, a NaN payload and a coordinate at all four representations. A genuine change to both stores and expectations changes the emitted shim operands. Decimal, hexadecimal and runtime-extent cell operations also replay against their original bits.
+- `resource-product-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_resource_products`
+  - Premises:
+    - the public protocol-10 checker accepted the resource program
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: For static and runtime GEMM, dual evaluation and Hermitian evaluation, the physical and decoded inventories agree. Each operation replays in its owning file, function and branch, at its statement index and span. Replay matches ordered operands, metric, write mode, NativeFast policy and the complete set of named coefficients. Each coefficient preserves the written literal payload or the loan name used by the storage checker.
+- `resource-product-replay`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `product_coefficients_and_operands_match_the_physical_source_before_llvm` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `dual_and_hermitian_evaluation_replay_physical_operands_and_metric` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `runtime_product_coefficient_matches_the_literal_in_the_declaring_function` in [`tests/runtime_shape_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/runtime_shape_source.rs)
+    - `physical_gemm_alpha_changes_the_computed_cells_on_the_llvm_route` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+  - Note: A changed physical coefficient, argument or metric rejects in an otherwise valid request. Both named-coefficient orders give identical LLVM bytes. Reparsing a changed hexadecimal alpha changes the literal bits in the storage call. The native control computes 1.5 and 27 after changing alpha to one quarter. Its first comparison reports the observed 1.5 when the original expectation of 3 is retained.
 - `affine-replay`: [Tested](../specifications.md#tested)
   - Evidence:
     - `physical_affine_relations_and_substitutions_match_before_normalization` in [`tests/affine_geometry.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/affine_geometry.rs)

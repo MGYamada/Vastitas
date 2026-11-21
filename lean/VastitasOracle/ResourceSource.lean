@@ -259,11 +259,24 @@ theorem physical_resource_cells {json : Lean.Json} (input : Wire.CheckedInput js
     ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
       PhysicalSources.layout json = .ok layout ∧
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
-      Finite.sameCounts checked.cells.keys ((ResourceCellSource.items input.input).map (·.cell.span.start)) = true ∧
+      Finite.sameCounts checked.cells.keys ((ResourceCellSource.items input.input).map (·.span.start)) = true ∧
       ∀ i ∈ ResourceCellSource.items input.input, ResourceCellSource.Corresponds layout checked.cells i := by
-  obtain ⟨expected, layout, checked, collected, physical, scan, _, cells, _, _⟩ :=
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, cells, _, _, _⟩ :=
     EditSourceFiles.all_evidence input.editSources
   obtain ⟨inventory, all⟩ := ResourceCellSource.check_sound cells
+  exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
+
+/-- Every accepted product operation matches the physical operands, mode, policy and
+optional literal or loan coefficients in the statement at its lexical position. -/
+theorem physical_resource_products {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      Finite.sameCounts checked.products.keys ((ResourceProductSource.items input.input).map (·.span.start)) = true ∧
+      ∀ i ∈ ResourceProductSource.items input.input, ResourceProductSource.Corresponds layout checked.products i := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, products, _, _⟩ :=
+    EditSourceFiles.all_evidence input.editSources
+  obtain ⟨inventory, all⟩ := ResourceStatementSource.check_sound products
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
 
 /-- Every finite carrier, table, schema, instance and static-indexed function in this accepted program

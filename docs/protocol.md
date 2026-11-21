@@ -931,8 +931,10 @@ bits in the storage plan. For top-level and branched resource statements
 replays the literal in its declaring function. It checks the loan or vector,
 indices, precision and each component, including the NaN payload and the sign
 of zero. A mismatch in an otherwise well-typed request yields
-`E_RESOURCE_SOURCE` before code generation. Conversion of GEMM coefficients
-from their original source spelling remains a frontend assumption. [Literal admission](storage/resource-programs.md#payloads)
+`E_RESOURCE_SOURCE` before code generation. For `gemm`, `runtime_gemm`, `evaluate` and `hermitian`, Lean checks the physical
+operand order, metric (where applicable), write mode and policy. It reads each
+written `alpha` or `beta` exactly once and compares its literal components or
+coefficient loan name. Either order of the two named coefficients is valid. [Literal admission](storage/resource-programs.md#payloads)
 Absent fields retain alpha one and beta zero/one. Explicit null and unknown
 fields reject. Overwrite accepts no beta operand; accumulate requires initialized
 output even for beta zero. A coefficient loan must be a matching initialized

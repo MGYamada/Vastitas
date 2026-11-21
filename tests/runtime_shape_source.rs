@@ -687,3 +687,26 @@ resource fn main() -> Int {
     let output = Command::new(program).output().unwrap();
     assert_eq!(common::ran(&output), common::exits(42));
 }
+
+#[test]
+fn runtime_product_coefficient_matches_the_literal_in_the_declaring_function() {
+    let source = source(false, 2, 3, 2, 1).replace(
+        "overwrite, NativeFast);",
+        "overwrite, NativeFast, alpha=f64(1.0));",
+    );
+    let mut wire = request(&fixture(&source));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    let changed = source.replace("alpha=f64(1.0)", "alpha=f64(1.5)");
+    assert_ne!(source, changed);
+    wire["root_source"]["text"] = json!(changed);
+    let rejected = kernel(&wire, "check");
+    common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+    let line = rejected["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+    assert!(
+        changed
+            .lines()
+            .nth(line - 1)
+            .unwrap()
+            .contains("alpha=f64(1.5)")
+    );
+}

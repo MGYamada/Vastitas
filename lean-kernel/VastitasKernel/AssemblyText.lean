@@ -219,7 +219,7 @@ structure ResourceBranch where
   yes : Bool
   deriving BEq, DecidableEq
 
-structure CellSite where
+structure ResourceStatementSite where
   owner : ResourceOwner
   branches : List ResourceBranch
   index : Nat
@@ -301,7 +301,8 @@ structure FiniteSite where
 structure SourceChecks where
   headers : Std.HashMap Nat ExactHeader := {}
   calls : Std.HashMap Nat RealizationCall := {}
-  cells : Std.HashMap Nat CellSite := {}
+  cells : Std.HashMap Nat ResourceStatementSite := {}
+  products : Std.HashMap Nat ResourceStatementSite := {}
   /-- Set only for the post-authority comparison with original edit declarations. -/
   edits : Option EditDeclarations := none
   allowAssembly : Bool := false
@@ -551,11 +552,14 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
         return ← resourceBlock f owner fuel last.after branches (index + 1)
           {checks with calls := checks.calls.erase head.span.start}
       let last ← untilSymbol f ';' head.after
+      let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head last)
       let checks := match checks.edits, head.kind with
         | some _, .word "fill" | some _, .word "store" | some _, .word "expect"
         | some _, .word "runtime_fill" | some _, .word "runtime_expect" =>
-          let site := CellSite.mk owner branches index checks.fileIndex c (through head last)
           {checks with cells := checks.cells.insert head.span.start site}
+        | some _, .word "gemm" | some _, .word "runtime_gemm"
+        | some _, .word "evaluate" | some _, .word "hermitian" =>
+          {checks with products := checks.products.insert head.span.start site}
         | _, _ => checks
       resourceBlock f owner fuel last.after branches (index + 1) checks
 

@@ -137,7 +137,7 @@ status = "proved-oracle"
 evidence = ["VastitasOracle.ResourceSource.physical_resource_cells", "VastitasOracle.ResourceSource.literal_component_value"]
 premises = ["the public protocol-10 checker accepted the resource program"]
 assumes = ["rust-frontend"]
-note = "Every static fill, store or expect and every runtime fill or expect in a resource statement list replays at its physical span with its package, module, function, branch path and statement index. The physical and decoded inventories have the same counts. Each literal has the declared precision and carrier. The checker compares raw components as unsigned integers and exact decimal or hexadecimal spellings with the dyadic value of each component. For every binary32 and binary64 bit pattern, the finite classification and signed dyadic fields used in that comparison have the independent binary-float Oracle’s rational denotation. The loader supplies the source files. GEMM coefficients and nested contraction-plan actions have separate proof obligations."
+note = "Every static fill, store or expect and every runtime fill or expect in a resource statement list replays at its physical span with its package, module, function, branch path and statement index. The physical and decoded inventories have the same counts. Each literal has the declared precision and carrier. The checker compares raw components as unsigned integers and exact decimal or hexadecimal spellings with the dyadic value of each component. For every binary32 and binary64 bit pattern, the finite classification and signed dyadic fields used in that comparison have the independent binary-float Oracle’s rational denotation. The loader supplies the source files. Nested contraction-plan actions have a separate proof obligation."
 
 [property."compiler-ir.edition".claim.resource-cell-replay]
 status = "tested"
@@ -145,6 +145,21 @@ evidence = ["tests/numerical_realization.rs::cell_payloads_and_coordinates_match
             "tests/numerical_realization.rs::even_uncalled_cell_statements_keep_their_physical_branch_and_inventory",
             "tests/resource_source.rs::exact_payload_spellings_emit_identical_bits_and_execute_without_blas"]
 note = "The LLVM check and build paths reject source-only changes to signed zero, a NaN payload and a coordinate at all four representations. A genuine change to both stores and expectations changes the emitted shim operands. Decimal, hexadecimal and runtime-extent cell operations also replay against their original bits."
+
+[property."compiler-ir.edition".claim.resource-product-source]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ResourceSource.physical_resource_products"]
+premises = ["the public protocol-10 checker accepted the resource program"]
+assumes = ["rust-frontend"]
+note = "For static and runtime GEMM, dual evaluation and Hermitian evaluation, the physical and decoded inventories agree. Each operation replays in its owning file, function and branch, at its statement index and span. Replay matches ordered operands, metric, write mode, NativeFast policy and the complete set of named coefficients. Each coefficient preserves the written literal payload or the loan name used by the storage checker."
+
+[property."compiler-ir.edition".claim.resource-product-replay]
+status = "tested"
+evidence = ["tests/numerical_source.rs::product_coefficients_and_operands_match_the_physical_source_before_llvm",
+            "tests/numerical_source.rs::dual_and_hermitian_evaluation_replay_physical_operands_and_metric",
+            "tests/runtime_shape_source.rs::runtime_product_coefficient_matches_the_literal_in_the_declaring_function",
+            "tests/numerical_source.rs::physical_gemm_alpha_changes_the_computed_cells_on_the_llvm_route"]
+note = "A changed physical coefficient, argument or metric rejects in an otherwise valid request. Both named-coefficient orders give identical LLVM bytes. Reparsing a changed hexadecimal alpha changes the literal bits in the storage call. The native control computes 1.5 and 27 after changing alpha to one quarter. Its first comparison reports the observed 1.5 when the original expectation of 3 is retained."
 
 [property."compiler-ir.edition".claim.affine-replay]
 status = "tested"

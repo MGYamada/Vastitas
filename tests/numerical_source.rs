@@ -2726,3 +2726,114 @@ fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
     // The example's entry point returns 0 (#836).
     assert_eq!(common::ran(&output), common::exits(0));
 }
+
+#[test]
+fn product_coefficients_and_operands_match_the_physical_source_before_llvm() {
+    let source = include_str!("../examples/packages/numerical/gemm-coefficients/main.vast");
+    let package = common::example_package(
+        "physical GEMM coefficients",
+        "examples/packages/numerical/gemm-coefficients",
+        &[],
+    );
+    let wire = captured(&package);
+    let triple = "x86_64-unknown-linux-gnu";
+    let layout = "e-p:64:64";
+    let check = |request: &Value, mode| common::kernel_with_args(request, &[mode, triple, layout]);
+    let accepted = check(&wire, "llvm-check");
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    let bytes = accepted["llvm"]["ir"].as_str().unwrap();
+    for (old, new) in [
+        ("alpha=f64(0x1p-1)", "alpha=f64(0x1p-2)"),
+        ("alpha=coefficient(scale)", "alpha=coefficient(stale)"),
+        ("beta=f64(2)", "beta=f64(3)"),
+        ("beta=f64(2)", "beta=f32(2)"),
+        (", beta=f64(2)", ",alpha=f64(2)"),
+        ("beta=f64(2)", "zzz =f64(2)"),
+        ("gemm(left, right,", "gemm(right, left,"),
+        (", beta=f64(2)", "             "),
+    ] {
+        let changed = source.replacen(old, new, 1);
+        assert_ne!(changed, source);
+        assert_eq!(changed.len(), source.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        for mode in ["llvm-check", "llvm-build"] {
+            let rejected = check(&stale, mode);
+            common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+            let line = rejected["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+            assert!(changed.lines().nth(line - 1).unwrap().contains("gemm("));
+            assert!(rejected.get("llvm").is_none());
+        }
+    }
+    let reordered = source.replace(
+        "alpha=coefficient(scale), beta=f64(2)",
+        "beta=f64(2), alpha=coefficient(scale)",
+    );
+    let mut equivalent = wire;
+    equivalent["root_source"]["text"] = json!(reordered);
+    assert_eq!(
+        check(&equivalent, "llvm-check")["llvm"]["ir"].as_str(),
+        Some(bytes)
+    );
+
+    package.write("main.vast", &source.replace("0x1p-1", "0x1p-2"));
+    let genuine = check(&captured(&package), "llvm-check");
+    assert_eq!(genuine["ok"], true, "{genuine}");
+    let new_bytes = genuine["llvm"]["ir"].as_str().unwrap();
+    assert_ne!(new_bytes, bytes);
+    assert!(new_bytes.contains(&0.25f64.to_bits().to_string()));
+}
+
+#[test]
+fn dual_and_hermitian_evaluation_replay_physical_operands_and_metric() {
+    let wire = captured(&evaluation_fixture(EVALUATION));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (old, new) in [
+        ("evaluate(phi, x,", "evaluate(x, phi,"),
+        ("hermitian(x, y,", "hermitian(y, x,"),
+        ("output, h, overwrite", "output, g, overwrite"),
+    ] {
+        let changed = EVALUATION.replacen(old, new, 1);
+        assert_ne!(changed, EVALUATION);
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        let rejected = kernel(&stale, "check");
+        common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+        let line = rejected["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+        assert!(changed.lines().nth(line - 1).unwrap().contains(new));
+    }
+}
+
+#[test]
+#[ignore = "requires the pinned OpenBLAS prefix and the public LLVM native compiler"]
+fn physical_gemm_alpha_changes_the_computed_cells_on_the_llvm_route() {
+    let source = include_str!("../examples/packages/numerical/gemm-coefficients/main.vast");
+    let package = common::example_package(
+        "native physical product coefficients",
+        "examples/packages/numerical/gemm-coefficients",
+        &[],
+    );
+    let quarter = source.replace("0x1p-1", "0x1p-2");
+    let updated = quarter
+        .replace(
+            "expect(updated, 0, 0, f64(3))",
+            "expect(updated, 0, 0, f64(1.5))",
+        )
+        .replace("f64(30)", "f64(27)");
+    for (text, expected) in [(source, 0), (&quarter, 1), (&updated, 0)] {
+        package.write("main.vast", text);
+        success(
+            &command(&package, "build")
+                .args(["--llvm-preview", "-o", "program"])
+                .args(common::numerical_build_options(None))
+                .output()
+                .unwrap(),
+        );
+        let output = Command::new(package.0.join("program")).output().unwrap();
+        assert_eq!(output.status.code(), Some(expected));
+        if expected == 1 {
+            common::expect_code(&output, "E_NATIVE_EXPECT");
+            assert!(String::from_utf8_lossy(&output.stderr).contains("4609434218613702656"));
+        }
+    }
+}

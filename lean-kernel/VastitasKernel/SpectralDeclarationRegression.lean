@@ -797,4 +797,8 @@ private def observationRejections : List (String × Source.Declaration × String
     check s!"{label}: rejected with {expected} ({lowerCode (stage5 ++ [d])}: {lowerMessage (stage5 ++ [d])})"
       (lowerRejects (stage5 ++ [d]) expected text)
 
+/-- The public frontend reparses the physical source of this wire regression. -/
+def roundTripRequest : Json := request currentProtocol
+  (smoothBase ++ spectralFamilies ++ [moduleV, endoH, spectrumS, branchB])
+
 end VastitasKernel.Indexed.SpectralDeclarationRegression

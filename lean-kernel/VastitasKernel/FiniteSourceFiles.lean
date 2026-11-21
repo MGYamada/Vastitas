@@ -57,12 +57,58 @@ def form (d : Source.Declaration) : Option Form :=
   | .finiteKleisli k s m => some (instance_ s (application (kleisliName k) [m]))
   | _ => none
 
+/-- Surface declaration keyword for every decoded indexed constructor. Several
+constructors share a keyword and select their detailed form in the body. -/
+def indexedKeyword : Source.Body → String
+  | .finiteCarrier .. => "finite"
+  | .finiteTable .. | .composableTable .. => "table"
+  | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema | .kleisliSchema .. => "schema"
+  | .finiteCategory .. | .finiteOpposite .. | .finiteFunctor .. | .finiteIso ..
+  | .finiteNatTrans .. | .finiteMonad .. | .finiteKleisli .. => "instance"
+  | .exactGeometry (.cauchyQQ) | .exactGeometry (.complexPairs ..) => "carrier"
+  | .exactGeometry (.realMeadow ..) | .exactGeometry (.complexMeadow ..) => "meadow"
+  | .exactGeometry (.affine ..) | .affine .. | .affineFiber .. | .affineLocalization .. | .smoothAffine .. => "affine"
+  | .exactGeometry (.identity ..) | .morphism .. => "morphism"
+  | .marker => "marker"
+  | .implementation .. => "implementation"
+  | .classification .. => "classification"
+  | .global .. => "global"
+  | .family .. => "family"
+  | .package .. => "package"
+  | .primitive .. => "primitive"
+  | .iso .. => "iso"
+  | .cartesian .. => "cartesian"
+  | .metric .. => "metric"
+  | .evidence .. => "evidence"
+  | .frame .. => "frame"
+  | .baseDimension => "base_dimension"
+  | .quantity .. => "quantity"
+  | .reading .. => "reading"
+  | .scale .. => "scale"
+  | .physicalMetric .. => "physical"
+  | .freeModule .. => "free_module"
+  | .endomorphism .. => "endomorphism"
+  | .spectrum .. => "spectrum"
+  | .branch .. => "branch"
+  | .transitionAverage .. => "average"
+  | .convention .. => "convention"
+  | .model .. => "model"
+  | .calibration .. => "calibration"
+  | .dataset .. => "dataset"
+  | .comparison .. => "comparison"
+  | .glued .. => "glued"
+  | .cover .. => "cover"
+  | .separated .. => "separated"
+  | .manifold .. => "manifold"
+  | .projective .. => "projective"
+
 inductive DeclarationSyntax where
   | namespaceModule (name : String)
   | namespaceImport (declaration : Namespace.Import)
   | abstractType (declaration : Namespace.AbstractType)
   | subtype (declaration : RawSubtype)
   | indexed (declaration : Form)
+  | indexedHeader (keyword name : String)
   | affine (declaration : Source.Declaration)
   | function (declaration : FunctionSource.Function)
   /-- Ordinary singleton and the top-level statement indices observed in main. -/
@@ -75,12 +121,16 @@ structure Item where
   isPublic : Bool
   syntax_ : DeclarationSyntax
 
+def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
+  if AffineDeclarationText.applies d then .affine d else
+    match form d with
+    | some shape => .indexed shape
+    | none => .indexedHeader (indexedKeyword d.body) d.name
+
 def declarations (program : ResourceSource.Program) : List Item :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
     let item := fun span visibility syntax_ => Item.mk pkg.id.source m.pureModule.module.path span visibility syntax_
-    let indexed := m.pureModule.declarations.filterMap fun d =>
-      if AffineDeclarationText.applies d then some (item d.span d.isPublic (.affine d))
-      else (form d).map fun shape => item d.span d.isPublic (.indexed shape)
+    let indexed := m.pureModule.declarations.map fun d => item d.span d.isPublic (indexedSyntax d)
     let imports := m.pureModule.module.imports.map fun i => item i.span i.isPublic (.namespaceImport i)
     let mod := m.pureModule.module
     let types := mod.abstractTypes.map fun t => item t.span t.isPublic (.abstractType t)
@@ -102,6 +152,7 @@ private def sourceError (kind : SiteKind) (span : Span) (message : String) : Dia
   | .singleton => {code := "E_FUNCTION_SOURCE", span, message}
   | .hierarchy => {code := "E_HIERARCHY_SOURCE", span, message}
   | .affine => {code := "E_AFFINE_SOURCE", span, message}
+  | .indexedHeader => {code := "E_MODULE_SOURCE", span, message}
   | .indexed | .finiteFunction => errorAt span message
 
 def Item.kind (item : Item) : SiteKind :=
@@ -110,6 +161,7 @@ def Item.kind (item : Item) : SiteKind :=
   | .namespaceImport _ => .namespaceImport
   | .abstractType _ | .subtype _ => .hierarchy
   | .indexed _ => .indexed
+  | .indexedHeader .. => .indexedHeader
   | .affine _ => .affine
   | .function _ => .finiteFunction
   | .singleton .. => .singleton
@@ -120,7 +172,7 @@ def Item.inFile (item : Item) (index entry : Nat) : Bool :=
   index == entry || item.packageSource != flatPackageId.source ||
     match item.syntax_ with
     | .singleton f _ | .function f => f.name != "main"
-    | .indexed _ | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
+    | .indexed _ | .indexedHeader .. | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
 
 private def readTokens (file : File) (before : Cursor) (tokens : List ExactLexeme)
     (report : Span → String → Diagnostic := errorAt) : Except Diagnostic Cursor :=
@@ -207,6 +259,14 @@ def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Uni
       ← selectorPath (item.packageSource == flatPackageId.source) s.target] (sourceError .hierarchy)
     endHierarchy file first after item.span
   | .indexed shape => replayIndexed file first shape item.span
+  | .indexedHeader keyword name =>
+    let report := sourceError .indexedHeader
+    let after ← readTokens file before [.ident "indexed", .ident keyword, .ident name] report
+    let last ← if keyword == "marker" || keyword == "base_dimension" then
+      (file.next after).mapError (report item.span)
+    else (indexedEnd file first).mapError (report item.span)
+    unless (last.kind matches .symbol ';') && {first.span with «end» := last.span.end} == item.span do
+      throw (report last.span "indexed declaration differs from its physical extent")
   | .affine d => AffineDeclarationText.check file first d
   | .function f => MethodBodyText.checkFunction file first f []
   | .singleton f shown => MethodBodyText.checkFunction file first f shown

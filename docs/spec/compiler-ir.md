@@ -117,11 +117,11 @@ Claims:
   - Note: Protocol 10 resolves nominal carriers and checks totality over bounded products, including empty factors and nullary tables. Ordinary first-order functions can accept, return and compare tags of a nominal carrier. The public native branch test uses the existing checked Lean backend. The finite-binder claims below describe concrete Hom and the implemented static category, object and Monad parameters.
 - `finite-declaration-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_finite_declarations`, `VastitasOracle.ResourceSource.physical_finite_function`
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_finite_declarations`, `VastitasOracle.ResourceSource.physical_indexed_item`, `VastitasOracle.ResourceSource.physical_finite_function`
   - Premises:
     - the public protocol-10 request passed the independent checker
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
+  - Note: The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
 - `affine-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_affine_declaration`, `VastitasOracle.ResourceSource.physical_morphism`
@@ -253,6 +253,9 @@ Claims:
     - `raw_flat_singletons_require_the_physical_show_initializer_and_the_same_expression` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
     - `empty_singleton_requirements_replay_on_each_side_of_the_arrow` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
     - `flat_main_belongs_to_the_entry_file_on_every_kernel_route` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
+    - `complete_llvm_requires_valid_physical_item_boundaries` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
+    - `physical_indexed_headers_include_unreferenced_external_declarations` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
+    - `inline_modules_and_empty_flat_libraries_check_item_boundaries` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
   - Note: Public syntax, native behavior on the current backend, and independently rejected tampered edit events. These tests do not establish a universal family revision or LLVM correspondence.
 - `singleton-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:

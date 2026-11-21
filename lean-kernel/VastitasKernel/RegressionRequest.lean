@@ -1,4 +1,4 @@
-import Lean.Data.Json
+import VastitasKernel.RegressionIndexedText
 import VastitasKernel.Protocol
 
 set_option autoImplicit false
@@ -35,8 +35,18 @@ private def smoothLine (d : Json) (offset line : Nat) : Option (String × Json) 
   let implSpan := sourceSpan (offset + head.utf8ByteSize) implName.utf8ByteSize line (head.length + 1)
   return (text, (d.setObjVal! "span" declarationSpan).setObjVal! "implementation" (impl.setObjVal! "span" implSpan))
 
-/-- Handwritten regression requests have a physical manifest. Root smooth
-spaces also have source text; other raw inputs exercise their wire checks. -/
+private def indexedLine (d : Json) (offset line : Nat) : Option (String × Json) := do
+  if let some smooth := smoothLine d offset line then return smooth
+  let (keyword, suffix) ← RegressionIndexedText.syntaxOf d
+  let name ← (d.getObjValAs? String "name").toOption
+  let visible ← (d.getObjValAs? Bool "public").toOption
+  let visibility := if visible then "pub " else ""
+  let item := "indexed " ++ keyword ++ " " ++ name ++ suffix ++ ";"
+  return (visibility ++ item, d.setObjVal! "span" (sourceSpan (offset + visibility.utf8ByteSize)
+    item.utf8ByteSize line (visibility.length + 1)))
+
+/-- Handwritten regression requests carry their physical manifest and source.
+Malformed raw records still reach the wire decoder and semantic diagnostics. -/
 def package (name : String) (modules : List Json) (version : Nat := currentProtocol)
     (packageVersion : String := "0.1.0") : Json := Id.run do
   let owner := s!"/{name}/Vastitas.toml"
@@ -55,7 +65,7 @@ def package (name : String) (modules : List Json) (version : Nat := currentProto
       if let .ok ds := m.getObjValAs? (Array Json) "indexed_declarations" then
         let mut declarations := #[]
         for d in ds do
-          if let some (source, positioned) := smoothLine d (offset + text.utf8ByteSize) line then
+          if let some (source, positioned) := indexedLine d (offset + text.utf8ByteSize) line then
             text := text ++ source ++ "\n"
             line := line + 1
             declarations := declarations.push positioned

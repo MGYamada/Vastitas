@@ -296,7 +296,7 @@ structure MethodSite where
   closing : Span
 
 inductive SiteKind where
-  | indexed | finiteFunction | singleton | namespaceImport | namespaceModule | hierarchy | affine
+  | indexed | indexedHeader | finiteFunction | singleton | namespaceImport | namespaceModule | hierarchy | affine
   deriving Inhabited, DecidableEq
 
 structure FiniteSite where
@@ -322,6 +322,8 @@ structure SourceChecks where
   fileIndex : Nat := 0
   bodies : Std.HashMap Nat MethodSite := {}
   finiteSites : Std.HashMap Nat FiniteSite := {}
+  /-- First token outside the item grammar in the physical module inventory. -/
+  unexpectedItem : Option Span := none
   /-- Repeated static-indexed functions form their own finite family. Repeated
   ordinary bodies must have appeared in the dispatch declaration inventory. -/
   singletonNames : Std.HashMap (String × List String × List String) Bool := {}
@@ -396,15 +398,15 @@ private def isExactHeader (f : File) (indexed : Token) : Except String Bool := d
 
 /-- Exact model constructors use `=` after the name. Affine objects with an
 implementation and morphisms with a family signature use their own checker. -/
-private def indexedSite (f : File) (indexed : Token) : Except String (Option SiteKind) := do
+private def indexedSite (f : File) (indexed : Token) : Except String SiteKind := do
   let kind ← f.next indexed.after
   match kind.kind with
-  | .word "finite" | .word "table" | .word "schema" | .word "instance" => return some .indexed
+  | .word "finite" | .word "table" | .word "schema" | .word "instance" => return .indexed
   | .word "affine" | .word "morphism" =>
     let name ← f.next kind.after
     let op ← f.next name.after
-    return if op.kind matches .symbol '=' then none else some .affine
-  | _ => return none
+    return if op.kind matches .symbol '=' then .indexedHeader else .affine
+  | _ => return .indexedHeader
 
 /-- Skip complete nested groups while finding the terminator of a statement
 or signature. Strings and comments have already been consumed by the lexer. -/
@@ -636,6 +638,35 @@ private def singletonOpening (f : File) (finite : Bool) : Nat → Token → Exce
     | _ => pure ()
     singletonOpening f finite fuel (← f.next t.after)
 
+private def visibleItem : Kind → Bool
+  | .word "fn" | .word "abstract" | .word "indexed" | .word "resource"
+  | .word "mod" | .word "use" | .word "grant" | .word "delegation"
+  | .word "transfer" | .word "contribution" => true
+  | _ => false
+
+/-- At an item boundary the closing brace belongs to an inline module. A
+visibility modifier must introduce an item that admits public visibility. -/
+private def itemStart (f : File) (scope : Scope) (flat : Bool) (t : Token) : Except String Bool := do
+  if flat then
+    return scope.place == .declaration && (t.kind matches .word "fn" | .word "abstract" | .word "subtype")
+  if visibleItem t.kind then return true
+  match t.kind with
+  | .word "pub" =>
+    return scope.place == .declaration && visibleItem (← f.next t.after).kind
+  | .word "subtype" | .word "assemble" => return scope.place == .declaration
+  | .symbol '}' => return scope.place == .declaration && scope.modules > 0
+  | _ => return false
+
+/-- Finite carriers and tables end at their body brace. Other indexed items
+end at a semicolon outside every argument list, record and table. -/
+def indexedEnd (f : File) (indexed : Token) : Except String Token := do
+  let kind ← f.next indexed.after
+  match kind.kind with
+  | .word "finite" | .word "table" =>
+    let opening ← untilSymbol f '{' kind.after
+    untilSymbol f '}' opening.after
+  | _ => untilSymbol f ';' kind.after
+
 /-- Scan a file in its lexical module, collecting external modules in source
 order. A declaration inside a function body cannot change the module path. -/
 private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → List String →
@@ -647,6 +678,9 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
       unless scope.between && scope.modules == 0 do throw "unclosed source delimiter"
       return (external, checks)
     let atDeclaration := scope.place == .declaration || scope.place == .afterPub
+    let checks ← if atDeclaration && checks.edits.isSome && checks.unexpectedItem.isNone then do
+      if ← itemStart f scope checks.flat t then pure checks else pure {checks with unexpectedItem := some t.span}
+    else pure checks
     if atDeclaration then
       if let .word "mod" := t.kind then
         let name ← f.next t.after
@@ -672,10 +706,11 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
             return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
               {checks with finiteSites := checks.finiteSites.insert t.span.start site}
           if keyword == "indexed" then
-            if let some kind ← indexedSite f t then
-              let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span kind
-              return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
-                {checks with finiteSites := checks.finiteSites.insert t.span.start site}
+            let kind ← indexedSite f t
+            let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span kind
+            let checks := {checks with finiteSites := checks.finiteSites.insert t.span.start site}
+            let last ← indexedEnd f t
+            return ← scanExact f pkg fuel last.after {scope with place := .declaration} reversedPath external checks
           if keyword == "assembly" then throw "retired assembly declaration"
           if keyword == "assemble" && (!checks.allowAssembly || scope.modules != 0 || scope.place == .afterPub) then
             throw "assemble is allowed only in the entry module of the root package"
@@ -756,11 +791,6 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
 def mayHaveExactHeaders (text : String) : Bool :=
   text.contains "resource" ||
     (text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine" || text.contains "identity"))
-
-def mayHaveFiniteDeclarations (text : String) : Bool :=
-  (text.contains "indexed" && ["finite", "table", "schema", "instance", "affine", "morphism"].any (fun word => text.contains word)) ||
-    text.contains "fn" || text.contains "use" || text.contains "mod" ||
-    text.contains "abstract" || text.contains "subtype"
 
 def checkExactHeaders (text : String) (base : Nat) (pkg : String) (path : List String)
     (checks : SourceChecks) : Except String (Array (List String) × SourceChecks) :=

@@ -189,26 +189,16 @@ theorem checkBodies_sound {layout : PhysicalSources.Layout} {checked : SourceChe
       · exact proof.down
       · exact ih accepted later
 
-/-- Stop at the second possible function keyword without allocating substrings.
-The declaration scanner subsequently classifies the tokens in their scopes. -/
-private def secondFnMarker (bytes : ByteArray) : Nat → Nat → Bool → Bool
-  | 0, _, _ => false
-  | left + 1, i, seen =>
-    if bytes[i]? == some 'f'.toUInt8 && bytes[i + 1]? == some 'n'.toUInt8 then
-      seen || secondFnMarker bytes left (i + 1) true
-    else secondFnMarker bytes left (i + 1) seen
-
-def relevant (source : String) : Bool :=
-  -- A single file with just one nullary definition and no contract, selector,
-  -- qualification or requirement cannot introduce dispatch on its own.
-  (source.contains "fn" && (source.contains ":" || source.contains ";" ||
-    source.contains "requires" || secondFnMarker source.toUTF8 (source.utf8ByteSize - 1) 0 false)) ||
-  ["grant", "delegation", "transfer", "contribution", "assembl", "generic", "method"].any fun word => source.contains word
+/-- The edit and declaration pass inspects every physical source, including
+empty modules and flat libraries with no declaration on the wire. -/
+def relevant (_ : String) : Bool := true
 
 def check (json : Lean.Json) (program : ResourceSource.Program) : Except Diagnostic Unit := do
   let expected ← (collect program).mapError (diagnostic {})
   let layout ← (PhysicalSources.layout json).mapError (diagnostic {})
   let checked ← (ExactModelSource.scanFiles layout program relevant {edits := some expected}).mapError (diagnostic {})
+  if let some span := checked.unexpectedItem then
+    throw {code := "E_MODULE_SOURCE", span, message := "expected a module declaration at this source position"}
   unless checked.edits.any (·.isEmpty) do
     throw (diagnostic {} "edit declaration has no matching physical source")
   ManifestBindings.check layout program
@@ -218,6 +208,15 @@ def check (json : Lean.Json) (program : ResourceSource.Program) : Except Diagnos
   ResourceValueSource.check layout checked.values (ResourceValueSource.items program)
   checkBodies layout checked (sourceMethods program)
   FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program)
+
+theorem valid_item_boundaries {json program expected layout checked}
+    (accepted : check json program = .ok ()) (collected : collect program = .ok expected)
+    (physical : PhysicalSources.layout json = .ok layout)
+    (scan : ExactModelSource.scanFiles layout program relevant {edits := some expected} = .ok checked) :
+    checked.unexpectedItem = none := by
+  cases bad : checked.unexpectedItem with
+  | none => rfl
+  | some span => simp [check, collected, physical, scan, bad, throw, bind, Except.bind, Except.mapError] at accepted
 
 theorem all_evidence {json : Lean.Json} {program : ResourceSource.Program}
     (accepted : check json program = .ok ()) :
@@ -238,7 +237,8 @@ theorem all_evidence {json : Lean.Json} {program : ResourceSource.Program}
   cases s : ExactModelSource.scanFiles layout program relevant {edits := some expected} <;>
     simp [s] at accepted
   rename_i checked
-  cases e : checked.edits.any (·.isEmpty) <;> simp [e, throw] at accepted
+  cases u : checked.unexpectedItem <;> simp [u, throw] at accepted
+  cases e : checked.edits.any (·.isEmpty) <;> simp [e] at accepted
   cases bindings : ManifestBindings.check layout program <;> simp [bindings] at accepted
   cases cells : ResourceCellSource.check layout checked.cells (ResourceCellSource.items program) <;> simp [cells] at accepted
   cases products : ResourceProductSource.check layout checked.products (ResourceProductSource.items program) <;> simp [products] at accepted

@@ -120,6 +120,13 @@ entry carries its selected target and its full nullary Hom signature. The
 checker reads the returned Core at the caller's first argument binding and
 checks the input bindings, producer calls and final call in order.
 
+At a file or inline module boundary, Lean requires a declaration permitted in
+that scope. A visibility modifier must be followed by a public item kind.
+Each decoded indexed declaration has a matching keyword, name, visibility,
+module and extent in the physical file. A finite carrier or table ends at
+its closing brace. Other indexed declarations end at the outer semicolon.
+For a marker or base dimension that semicolon immediately follows the name.
+
 Lean replays each finite carrier, table, schema and instance in the source
 file supplied for its package and lexical module. It checks visibility, tag
 order, qualified path spans and both ends of every table row. Finite-indexed functions participate in the same inventory, including uncalled

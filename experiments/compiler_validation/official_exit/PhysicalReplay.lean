@@ -26,7 +26,8 @@ private theorem collected : EditSourceFiles.collect candidate = .ok {} := by cbv
 
 theorem physicalEditsOfLayout {j : Json} (h : PhysicalSources.layout j = .ok entryLayout) :
     EditSourceFiles.check j candidate = .ok () := by
-  simp only [EditSourceFiles.check, collected, h, Except.mapError, bind, Except.bind, scannedEntry]
+  have allItems : entrySites.unexpectedItem = none := rfl
+  simp only [EditSourceFiles.check, collected, h, Except.mapError, bind, Except.bind, scannedEntry, allItems]
   have flat : ManifestBindings.check entryLayout candidate = .ok () := by rfl
   rw [ite_eq_left (by rfl), flat, noCells, noProducts, noOwnership, noValues]
   exact replayedDeclaration

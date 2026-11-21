@@ -693,4 +693,9 @@ private def broken : Environment := replaced "PE" (physical "Chart" "E" "phys" n
 #eval check "an invalid nature entry leaves the std entries valid"
   (!validEnvironment broken && stdUnchanged broken && stdEnv.all (validEntry broken (classRanks broken)))
 
+/-- The public frontend reparses the physical source of this wire regression. -/
+def roundTripRequest : Json := request currentProtocol
+  (program [interpret "PG" "Chart" "G" "phys" (some []) (scaled "l0" "t0"),
+    interpret "PN" "Chart" "G" "phys" none (normalized [("x","l0"), ("t","t0")])])
+
 end VastitasKernel.Indexed.NatureRegression

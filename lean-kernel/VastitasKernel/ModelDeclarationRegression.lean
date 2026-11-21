@@ -380,4 +380,8 @@ private def averageBinding : PrimitiveBinding := .averageAt (sid "Smooth") (sid 
   (!(averageBinding.contract.render { literals := [] } []).toBool &&
     match averageBinding.contract.reverse with | .none => true | _ => false)
 
+/-- The public frontend reparses the physical source of this wire regression. -/
+def roundTripRequest : Json := request currentProtocol
+  (smoothBase ++ stage6Families ++ [conventionJson "c", calibrationJson "K"])
+
 end VastitasKernel.Indexed.ModelDeclarationRegression

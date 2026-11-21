@@ -347,6 +347,25 @@ theorem physical_finite_declarations {json : Lean.Json} (input : Wire.CheckedInp
   obtain ⟨inventory, all⟩ := FiniteSourceFiles.check_sound finite
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
 
+/-- Every indexed declaration has a corresponding physical item in the scanned
+module. The envelope records its keyword, name, owner, visibility and extent.
+The selected syntax determines which fields also have full token replay. -/
+theorem physical_indexed_item {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      checked.unexpectedItem = none ∧ FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, d.span, d.isPublic, FiniteSourceFiles.indexedSyntax d⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan,
+    EditSourceFiles.valid_item_boundaries input.editSources collected physical scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm,
+    List.mem_append_left _ (List.mem_append_right _ (List.mem_append_right _ ?_))⟩⟩
+  exact List.mem_map.mpr ⟨d, hd, rfl⟩
+
 /-- Each presented affine object, fiber product, localization and smooth
 affine space in an accepted request replays at its original declaration. -/
 theorem physical_affine_declaration {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
@@ -358,12 +377,8 @@ theorem physical_affine_declaration {json : Lean.Json} (input : Wire.CheckedInpu
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       FiniteSourceFiles.Corresponds layout checked.finiteSites
         ⟨pkg.id.source, m.pureModule.module.path, d.span, d.isPublic, .affine d⟩ := by
-  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
-  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
-  apply List.mem_flatMap.mpr
-  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm,
-    List.mem_append_left _ (List.mem_append_right _ (List.mem_append_right _ ?_))⟩⟩
-  exact List.mem_filterMap.mpr ⟨d, hd, by simp [selected]⟩
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  exact ⟨expected, layout, checked, collected, physical, scan, by simpa [FiniteSourceFiles.indexedSyntax, selected] using site⟩
 
 /-- Locate the actual token stream for a named map in the accepted package.
 The replay compares its family, endpoints and the complete defining graph. -/

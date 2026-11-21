@@ -663,4 +663,8 @@ private def charged {α : Type} (action : AlgebraBasis.Work α) (used : Nat := 0
     [FrameDeclarations.Failure.shape false, .shape true, .constantInverse, .leftInverse, .rightInverse].all
       (·.code == "E_FRAME"))
 
+/-- The public frontend reparses the physical source of this wire regression. -/
+def roundTripRequest : Json := request currentProtocol
+  (smoothBase ++ frameFamilies ++ frames.map (·.2))
+
 end VastitasKernel.Indexed.FrameDeclarationRegression

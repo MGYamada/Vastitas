@@ -123,11 +123,12 @@ note = "Protocol 10 resolves nominal carriers and checks totality over bounded p
 status = "proved-oracle"
 evidence = [
   "VastitasOracle.ResourceSource.physical_finite_declarations",
+  "VastitasOracle.ResourceSource.physical_indexed_item",
   "VastitasOracle.ResourceSource.physical_finite_function",
 ]
 premises = ["the public protocol-10 request passed the independent checker"]
 assumes = ["rust-frontend"]
-note = "The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input."
+note = "The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input."
 
 [property."compiler-ir.edition".claim.affine-source]
 status = "proved-oracle"
@@ -276,6 +277,9 @@ evidence = [
   "tests/singleton_source.rs::raw_flat_singletons_require_the_physical_show_initializer_and_the_same_expression",
   "tests/singleton_source.rs::empty_singleton_requirements_replay_on_each_side_of_the_arrow",
   "tests/singleton_source.rs::flat_main_belongs_to_the_entry_file_on_every_kernel_route",
+  "tests/singleton_source.rs::complete_llvm_requires_valid_physical_item_boundaries",
+  "tests/singleton_source.rs::physical_indexed_headers_include_unreferenced_external_declarations",
+  "tests/singleton_source.rs::inline_modules_and_empty_flat_libraries_check_item_boundaries",
 ]
 note = "Public syntax, native behavior on the current backend, and independently rejected tampered edit events. These tests do not establish a universal family revision or LLVM correspondence."
 

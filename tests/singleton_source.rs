@@ -183,3 +183,101 @@ fn flat_main_belongs_to_the_entry_file_on_every_kernel_route() {
         assert!(result.get("llvm").is_none());
     }
 }
+
+#[test]
+fn complete_llvm_requires_valid_physical_item_boundaries() {
+    let source = "//AAA\nfn main() -> Int { 42 }\n//BBB\n";
+    let project = Scratch::empty("physical module items");
+    project.write_package("app", source, "");
+    let manifest = "app/Vastitas.toml";
+    let flat = common::request(source, "entry.vast");
+    let package = project.captured(manifest, CURRENT_PROTOCOL);
+    let triple = "x86_64-unknown-linux-gnu";
+    let layout = "e-p:64:64";
+    for wire in [flat, package] {
+        let original = common::kernel_with_args(&wire, &["llvm-check", triple, layout]);
+        assert_eq!(original["ok"], true, "{original}");
+        assert!(original["llvm"]["ir"].as_str().unwrap().contains("@main"));
+        for (comment, replacement, line) in [
+            ("//AAA", "oops;", 1),
+            ("//BBB", "oops;", 3),
+            ("//BBB", "pub  ", 3),
+            ("//BBB", ";    ", 3),
+        ] {
+            let mut changed = wire.clone();
+            changed["root_source"]["text"] = json!(source.replace(comment, replacement));
+            for args in [
+                &["check"][..],
+                &["emit"],
+                &["function-revision"],
+                &["llvm-check", triple, layout],
+                &["llvm-build", triple, layout],
+            ] {
+                let response = common::kernel_with_args(&changed, args);
+                assert_wire_rejected(&response, "E_MODULE_SOURCE");
+                let span = &response["diagnostics"][0]["span"];
+                assert_eq!(span["line"], line);
+                assert_eq!(span["column"], 1);
+                assert!(response.get("llvm").is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn physical_indexed_headers_include_unreferenced_external_declarations() {
+    let project = Scratch::empty("indexed declarations in an external module");
+    project.write_package("app", "mod defs; fn main() -> Int { 42 }", "");
+    let source = "indexed marker First      ;\n// indexed marker Ghost;\n";
+    project.write("app/defs.vast", source);
+    let wire = project.captured("app/Vastitas.toml", CURRENT_PROTOCOL);
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (from, to, line) in [
+        ("marker First", "marker Other", 1),
+        ("marker First", "xxxxxx First", 1),
+        ("First      ;", "First = bad;", 1),
+        ("// indexed", "   indexed", 2),
+    ] {
+        let mut changed = wire.clone();
+        let file = changed["root_source"]["files"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|f| f["text"].as_str() == Some(source))
+            .unwrap();
+        file["text"] = json!(common::checked_replace(source, from, to));
+        let response = kernel(&changed, "function-revision");
+        assert_wire_rejected(&response, "E_MODULE_SOURCE");
+        assert_eq!(response["diagnostics"][0]["span"]["line"], line);
+    }
+}
+
+#[test]
+fn inline_modules_and_empty_flat_libraries_check_item_boundaries() {
+    let project = Scratch::empty("boundaries of nested and empty source files");
+    let inline = "mod inner {\n //AAA\n}\nfn main() -> Int { 42 }";
+    project.write_package("app", inline, "");
+    let mut package = project.captured("app/Vastitas.toml", CURRENT_PROTOCOL);
+    assert_eq!(kernel(&package, "check")["ok"], true);
+    package["root_source"]["text"] = json!(inline.replace("//AAA", "oops;"));
+
+    project.write("root.vast", "fn main() -> Int { 42 }");
+    project.write("lib.vast", "\n //AAA\n");
+    let mut command = project.cli();
+    command.args(["check", "root.vast", "--lib", "lib.vast"]);
+    let mut flat = common::captured_wire(command, CURRENT_PROTOCOL);
+    assert_eq!(kernel(&flat, "check")["ok"], true);
+    let library = flat["root_source"]["files"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|f| f["path"] == "lib.vast")
+        .unwrap();
+    library["text"] = json!("\n oops;\n");
+    for changed in [package, flat] {
+        let response = kernel(changed, "check");
+        assert_wire_rejected(&response, "E_MODULE_SOURCE");
+        assert_eq!(response["diagnostics"][0]["span"]["line"], 2);
+        assert_eq!(response["diagnostics"][0]["span"]["column"], 2);
+    }
+}

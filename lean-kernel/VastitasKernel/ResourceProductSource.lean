@@ -28,12 +28,6 @@ def product? : Statement → Option (Product × Span)
     some (⟨kind,l,r,o,m,a,b⟩,s)
   | _ => none
 
-private def next : Parser Token := do
-  let f ← read
-  match f.next (← get) with
-  | .ok t => pure t
-  | .error msg => throw (diagnostic {} msg)
-
 private def coefficient : Coefficient → Parser Unit
   | .literal v => consume fun f p => ResourceLiteralText.check f p v
   | .loan name => do
@@ -48,9 +42,9 @@ private def coefficients (alpha beta : Option Coefficient) : Parser Unit := do
   let mut a := alpha
   let mut b := beta
   for _ in [:2] do
-    unless (← next).kind matches .symbol ',' do break
+    unless (← peek).kind matches .symbol ',' do break
     token (.punctuation ',')
-    let t ← next
+    let t ← peek
     let (value, isAlpha) ← match t.kind with
       | .word "alpha" => pure (a, true)
       | .word "beta" => pure (b, false)
@@ -60,7 +54,7 @@ private def coefficients (alpha beta : Option Coefficient) : Parser Unit := do
     token (.punctuation '=')
     coefficient v
     if isAlpha then a := none else b := none
-  unless a.isNone && b.isNone do throw (diagnostic (← next).span "product coefficient missing in physical source")
+  unless a.isNone && b.isNone do throw (diagnostic (← peek).span "product coefficient missing in physical source")
 
 def replay : Replay Product := fun f site product span => do
   let parser : Parser Unit := do

@@ -2995,3 +2995,33 @@ fn physical_metric_entries_and_transformed_views_keep_their_module_and_role() {
     package.write("src/real/mod.vast", &source.replace("[2, -4]", "[2, -4,]"));
     success(&command(&package, "check").output().unwrap());
 }
+
+#[test]
+fn finite_network_declarations_replay_their_physical_occurrences_and_port_roles() {
+    let package = common::example_package(
+        "physical finite network",
+        "examples/packages/numerical/finite_network",
+        &[],
+    );
+    let wire = captured(&package);
+    let genuine = kernel(&wire, "check");
+    assert_eq!(genuine["ok"], true, "{genuine}");
+    common::assert_stale_module_rejected(
+        &wire,
+        "/src/real/mod.vast",
+        &[
+            ("occurrence b = right", "occurrence b = wrong"),
+            ("edge(a.input, b.output)", "edge(b.input, a.output)"),
+            ("input(b.input)", "input(a.input)"),
+            ("output(a.output)", "output(b.output)"),
+        ],
+    );
+    let reordered = NETWORK_REAL.replace(
+        "edge(a.input, b.output);\n        input(b.input);",
+        "input(b.input);\n        edge(a.input, b.output);",
+    );
+    assert_ne!(reordered, NETWORK_REAL);
+    package.write("src/real/mod.vast", &reordered);
+    let equivalent = kernel(captured(&package), "check");
+    assert_eq!(equivalent["ok"], true, "{equivalent}");
+}

@@ -87,13 +87,37 @@ def tokens (fields : List ExactLexeme) : Parser Unit := do
     | .dimension n => consume fun f c => ResourceLiteralText.expectNat f c n
     | _ => token field
 
-def runStatement (p : Parser Unit) (f : File) (before : Cursor) (span : Span) : Except Diagnostic Token := do
+def peek : Parser Token := do
+  let f ← read
+  match f.next (← get) with
+  | .ok t => return t
+  | .error msg => throw (diagnostic {} msg)
+
+def delimited {α : Type} (opening closing : Char) (xs : List α) (item : α → Parser Unit) :
+    Parser Unit := do
+  token (.punctuation opening)
+  for (x, i) in xs.zipIdx do
+    if i != 0 then token (.punctuation ',')
+    item x
+  token (.closeList closing (!xs.isEmpty))
+
+def callFields (name : String) (arguments : List (List ExactLexeme)) : List ExactLexeme :=
+  [.ident name, .punctuation '('] ++ (arguments.intersperse [.punctuation ',']).flatten ++ [.punctuation ')']
+
+def nameFields (ns : List String) : List (List ExactLexeme) :=
+  ns.map fun name => [.ident name]
+
+def runTerminated (closing : Char) (p : Parser Unit) (f : File) (before : Cursor) (span : Span) :
+    Except Diagnostic Token := do
   match (p f) before with
   | .error e _ => throw e
   | .ok () after =>
-    let semi ← (f.next after).mapError (diagnostic span)
-    unless semi.kind matches .symbol ';' do throw (diagnostic semi.span "expected the end of the resource statement")
-    return semi
+    let last ← (f.next after).mapError (diagnostic span)
+    unless (match last.kind with | .symbol ch => ch == closing | _ => false) do
+      throw (diagnostic last.span s!"expected '{closing}' at the end of the resource statement")
+    return last
+
+abbrev runStatement := runTerminated ';'
 
 /-- The scope scan already traversed the body. Check that the parsed header
 ends at exactly its opening brace and return its actual matching end token. -/

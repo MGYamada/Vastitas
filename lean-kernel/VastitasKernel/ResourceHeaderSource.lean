@@ -12,20 +12,6 @@ structure Signature where
   results : List (String × Storage.Functions.ResultType String)
   valueType : Indexed.Core.PureType
 
-private def peek : Parser Token := do
-  let f ← read
-  match f.next (← get) with
-  | .ok t => return t
-  | .error msg => throw (diagnostic {} msg)
-
-private def delimited {α : Type} (opening closing : Char) (xs : List α) (item : α → Parser Unit) :
-    Parser Unit := do
-  token (.punctuation opening)
-  for (x, i) in xs.zipIdx do
-    if i != 0 then token (.punctuation ',')
-    item x
-  token (.closeList closing (!xs.isEmpty))
-
 private def applied (name : String) (args : List (List ExactLexeme)) : Parser Unit :=
   tokens ([.ident name, .punctuation '<'] ++ (args.intersperse [.punctuation ',']).flatten ++ [.punctuation '>'])
 

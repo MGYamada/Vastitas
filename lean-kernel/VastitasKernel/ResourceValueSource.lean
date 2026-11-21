@@ -1,6 +1,7 @@
 import VastitasKernel.MethodBodyText
 import VastitasKernel.ResourceHeaderSource
 import VastitasKernel.ResourceViewSource
+import VastitasKernel.ResourceTensorSource
 
 set_option autoImplicit false
 
@@ -12,6 +13,9 @@ open AssemblyText ResourceSource ResourceStatementSource SourceText Indexed
 inductive ValueSite where
   | signature (header : ResourceHeaderSource.Signature)
   | view (operation : ResourceViewSource.View)
+  | tensor (op : Storage.Tensor.Operation String)
+  | network (graph : Storage.TensorNetwork.Graph String) (output : String)
+  | tree (graph : Storage.TensorTree.Graph String) (output : String) (plan : List (Storage.TensorTree.PlanStep String Action))
   | guard (condition : ResourceCondition)
   | binding (name : String) (type : Core.PureType) (body : FunctionSource.Block)
   | call (binding : Option (String × Core.PureType)) (callee : List String) (arguments results : List String)
@@ -23,6 +27,9 @@ private def select : Statement → Option (ValueSite × Span)
   | .value name type body s => some (.binding name type body, s)
   | .callValue path args outs name type s => some (.call (some (name,type)) path.path args outs, s)
   | .call path args outs s => some (.call none path.path args outs, s)
+  | .tensor op s => some (.tensor op, s)
+  | .network g out .nativeFast s => some (.network g out, s)
+  | .tree g out .nativeFast plan s => some (.tree g out plan, s)
   | stmt => (ResourceViewSource.select stmt).map fun (op, span) => (.view op, span)
 
 private def boundaries (fn : Function) : List (Nat × ValueSite × Span) :=
@@ -52,6 +59,9 @@ def replay (file : File) (site : ResourceStatementSite) (v : ValueSite) (span : 
   match v with
   | .signature header => runGroup (ResourceHeaderSource.header header) file site
   | .view op => runStatement (ResourceViewSource.spelling op) file before span
+  | .tensor op => runStatement (ResourceTensorSource.operation op) file before span
+  | .network g output => runTerminated '}' (ResourceTensorSource.network g output) file before span
+  | .tree g output plan => runTerminated '}' (ResourceTensorSource.tree g output plan) file before span
   | .guard cond =>
     runGroup (do
       token (.ident "if")

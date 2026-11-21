@@ -26,6 +26,7 @@ The corpus contains 30 complete LLVM assembly files from edition 2026 Vastitas s
 | [float-complex-identity.ll](../src/float-complex-identity.ll) · 2,821 bytes | [Complex identity](../../examples/packages/float-complex-identity/src/main.vast) | The complex tag selects two binary64 components. Each store and expect receives both bit strings, including a subnormal imaginary component. | `complex_identity_verified` |
 | [float32-identity.ll](../src/float32-identity.ll) · 2,785 bytes | [Real binary32 identity](../fixtures/float32-identity/main.vast) | Tag 2 selects binary32. The written negative zero and signaling NaN reach the store and expect calls as integer operands. | `real32_identity_verified` |
 | [float32-complex-identity.ll](../src/float32-complex-identity.ll) · 2,785 bytes | [Complex binary32 identity](../fixtures/float32-complex-identity/main.vast) | Tag 3 carries both components. The first imaginary component is the smallest positive subnormal. | `complex32_identity_verified` |
+| [tensor-column.ll](../src/tensor-column.ll) · 3,350 bytes | [Complex matrix–column contraction](../fixtures/tensor-column/src/product/mod.vast) | A 2×3 matrix times a column in `F32<CC>`. One bilinear GEMM call produces 33+6i in each of two checked cells. |
 | [gemm-coefficients.ll](../src/gemm-coefficients.ll) · 4,293 bytes | [Scaled products](../../examples/packages/numerical/gemm-coefficients/main.vast) | Two binary64 products compute 3 and 30. The first call uses literal alpha and the second reads alpha from a live allocation. Each result is checked before the next write. | `gemm_coefficients_verified` |
 | [opposite-s3.ll](../src/opposite-s3.ll) · 5,452 bytes | [Permutation inversion](../fixtures/opposite-s3/main.vast) | Two 36-row switches encode composition of the six permutations in reversed and original order. A six-row switch calculates the inverse. The entry distinguishes the two products and exits with 42. | `opposite_s3_verified` |
 | [finite-iso.ll](../src/finite-iso.ll) · 2,515 bytes | [Two-object isomorphism](../fixtures/finite-iso/main.vast) | Two nullary lookups select arrows with opposite endpoints. Two composition functions check the inverse equations. The nested joins each have two predecessors. | `finite_iso_verified` |
@@ -188,6 +189,15 @@ For a runnable check of the component ABI, the Lean 4.35.0 control exported two 
 The four `Affine(R, 2)` fixtures compare every byte of their LLVM module with the corresponding explicit `realize::<R>` identity at a fixed triple and layout. The fresh mathematical subject and its selected constructor appear in the function revision. Both sources reach the same storage copy and cleanup calls. Lean 4.35.0’s `emitFullApp` emits a call from the function and argument slots of its own IR. The comparison here is with that emitter source. [Wrapper regression](../../tests/numerical_realization.rs) · [Pinned call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774)
 
 In the real identity example, the physical declaration supplies the dimension and the order of the chart coordinates. Changing `Affine(2)[x, y]` to `Affine(2)[y, x]` while retaining the original wire fails at `y` before the storage copy can be emitted. Substituting `pullback(x -> x, y -> y)` for the written `identity` also fails before emission, even though the exact coordinate maps agree. [Physical chart and graph regressions](../../tests/numerical_realization.rs)
+
+For the complex tensor-column fixture, the graph selects the matrix's dual
+axis and the vector's primal axis. Its sole join uses the caller's output
+buffer. The expected schedule constructs the two layouts, the four input
+components and both expected results independently of the printer. Lean checks
+all 3,350 bytes, including the F32 complex tag and the ordered external
+call arguments. Lean 4.35.0's external-call emitter also follows parameter
+order. The tensor axes and nonconjugating product are Vastitas source and
+storage checks. [Pinned argument emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L679) · [Complete bytes proof](../Corpus.lean)
 
 The GEMM coefficient fixture has two read-only input buffers. For the Linux
 x86-64 target the original source and a dimension spelled `0001` produce identical 4,317-byte

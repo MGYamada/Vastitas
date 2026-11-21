@@ -558,6 +558,10 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
     | .word "contract" | .word "contract_tree" =>
       let start ← untilSymbol f '{' head.after
       let endBlock ← untilSymbol f '}' start.after
+      let checks := if checks.edits.isSome then
+        let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head endBlock) none
+        {checks with values := checks.values.insert head.span.start site}
+      else checks
       resourceBlock f owner fuel endBlock.after branches (index + 1) checks
     | _ =>
       if ← (if checks.edits.isNone then realizationForm f head else pure false) then
@@ -581,7 +585,8 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
         | some _, .word "runtime_map" | some _, .word "space" | some _, .word "basis"
         | some _, .word "involution" | some _, .word "metric" | some _, .word "map"
         | some _, .word "vector" | some _, .word "unpack" | some _, .word "adjoint_into"
-        | some _, .word "hermitian_diagonal" => pure true
+        | some _, .word "hermitian_diagonal" | some _, .word "tensor" | some _, .word "cache"
+        | some _, .word "pack3" | some _, .word "contract3" | some _, .word "contract3_cached" => pure true
         | _, _ => pure false
       let checks := if valueBinding then
         {checks with values := checks.values.insert head.span.start site}

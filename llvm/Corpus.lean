@@ -585,6 +585,32 @@ def gemmCoefficients : StorageModule.Code :=
      ⟨.gemm, matrices ++ [1, 2,0,0,0,3,0, 1,0,two,0,0,0]⟩, expect thirty] ++
     ([3,2,1,0].map fun id => ⟨.drop, [id]⟩), 0⟩
 
+/-- A 2×3 matrix with every element 1+2i times a three-element column
+with every element 3-4i. The bilinear sum in each row is 33+6i. -/
+def tensorColumn : StorageModule.Code :=
+  let matrix := [0,0,2,3,2,0]
+  let column := [1,0,3,1,3,0]
+  let output := [2,0,2,1,2,0]
+  let unit := 2^23
+  let three := 128 * unit + 2^22
+  let minusFour := 2^31 + 129 * unit
+  let thirtyThree := 132 * unit + 2^18
+  let six := 129 * unit + 2^22
+  let expect := fun row => VastitasKernel.MidIR.StorageEffects.Call.mk .expect (output ++ [row,0,3,thirtyThree,six])
+  ⟨header,[⟨.allocate,[0,3,6]⟩, ⟨.allocate,[1,3,3]⟩, ⟨.allocate,[2,3,2]⟩,
+    ⟨.fill,matrix ++ [3,127 * unit,128 * unit]⟩, ⟨.fill,column ++ [3,three,minusFour]⟩,
+    ⟨.gemm,[3] ++ matrix ++ [0] ++ column ++ [0] ++ output ++ List.replicate 13 0⟩,
+    expect 0, expect 1, ⟨.drop,[2]⟩, ⟨.drop,[1]⟩, ⟨.drop,[0]⟩],0⟩
+
+def tensorColumnBytes := storage_file "src/tensor-column.ll"
+
+set_option maxRecDepth 65536 in
+theorem tensor_column_verified : tensorColumnBytes = tensorColumn.print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+
 def gemmCoefficientBytes := storage_file "src/gemm-coefficients.ll"
 
 set_option maxRecDepth 65536 in
@@ -615,6 +641,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("unary-table.ll", forLookup unary_table_verified),
    ("closure-unit.ll", forLookup closure_unit_verified),
    ("gemm-coefficients.ll", forStorage gemm_coefficients_verified),
+   ("tensor-column.ll", forStorage tensor_column_verified),
    ("float-identity.ll", forStorage real_identity_verified),
    ("float-complex-identity.ll", forStorage complex_identity_verified),
    ("float32-identity.ll", forStorage real32_identity_verified),
@@ -698,6 +725,7 @@ def main (args : List String) : IO Unit := do
       (Vastitas.LLVMCorpus.affineIdentity .complexF64, Vastitas.LLVMCorpus.complexIdentityBytes),
       (Vastitas.LLVMCorpus.affineIdentity .f32, Vastitas.LLVMCorpus.real32IdentityBytes),
       (Vastitas.LLVMCorpus.affineIdentity .complexF32, Vastitas.LLVMCorpus.complex32IdentityBytes),
+      (Vastitas.LLVMCorpus.tensorColumn, Vastitas.LLVMCorpus.tensorColumnBytes),
       (Vastitas.LLVMCorpus.gemmCoefficients, Vastitas.LLVMCorpus.gemmCoefficientBytes)] do
     let some parsed := VastitasKernel.LLVM.StorageModule.parse bytes
       | throw (IO.userError "storage entry: cannot parse the complete entry")

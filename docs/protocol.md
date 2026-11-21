@@ -912,6 +912,13 @@ involution or metrics. A metric replays its signed Gram entries in order.
 The checks also bind owned map layouts, packing and unpacking, and the scratch
 view of a diagonal Hermitian evaluation to their source.
 
+Lean also checks each tensor view against the written loan, ordered axes and
+grouping, including the implicit grouping allowed for ranks one and two. Pack operations and cached contractions retain their named buffers.
+Graph declarations can be interleaved. The checker matches occurrences and
+named edges by name, then compares the boundary ports and plan steps in order.
+Each plan borrow, release, tensor view, regroup, rebind and join must match
+the original tokens and operands.
+
 Lean reads the pure blocks inside typed resource bindings and the final
 `value` block in each resource function. It checks their expression spans
 and the position of the final block after the last resource statement. For

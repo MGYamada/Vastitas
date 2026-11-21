@@ -142,7 +142,7 @@ status = "proved-oracle"
 evidence = ["VastitasOracle.ResourceSource.physical_resource_cells", "VastitasOracle.ResourceSource.literal_component_value"]
 premises = ["the public protocol-10 checker accepted the resource program"]
 assumes = ["rust-frontend"]
-note = "Every static fill, store or expect and every runtime fill or expect in a resource statement list replays at its physical span with its package, module, function, branch path and statement index. The physical and decoded inventories have the same counts. Each literal has the declared precision and carrier. The checker compares raw components as unsigned integers and exact decimal or hexadecimal spellings with the dyadic value of each component. For every binary32 and binary64 bit pattern, the finite classification and signed dyadic fields used in that comparison have the independent binary-float Oracle’s rational denotation. The loader supplies the source files. Nested contraction-plan actions have a separate proof obligation."
+note = "Every static fill, store or expect and every runtime fill or expect in a resource statement list replays at its physical span with its package, module, function, branch path and statement index. The physical and decoded inventories have the same counts. Each literal has the declared precision and carrier. The checker compares raw components as unsigned integers and exact decimal or hexadecimal spellings with the dyadic value of each component. For every binary32 and binary64 bit pattern, the finite classification and signed dyadic fields used in that comparison have the independent binary-float Oracle’s rational denotation. The loader supplies the source files. Contraction plans admit borrow and release as nested storage actions; the resource source inventory replays these in plan order."
 
 [property."compiler-ir.edition".claim.resource-cell-replay]
 status = "tested"
@@ -156,11 +156,14 @@ status = "proved-oracle"
 evidence = ["VastitasOracle.ResourceSource.physical_resource_values"]
 premises = ["the public protocol-10 checker accepted the resource program"]
 assumes = ["rust-frontend"]
-note = "The physical inventory includes every resource signature with its ordered parameters, port types, source spans and results. Each conditional guard replays at its branch position even when both arms are empty. The same inventory binds static and runtime numerical spaces, bases, nominal vector and map views, signed Gram entries, transformed endpoints, and the operands of adjoint and diagonal evaluation calls to their physical source. It includes each function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span."
+note = "The physical inventory includes every resource signature with its ordered parameters, port types, source spans and results. Each conditional guard replays at its branch position even when both arms are empty. The inventory checks tensor rank, axis grouping, packing and cached contraction. Named graph occurrences and edges, ordered boundary ports and every explicit plan step replay inside the enclosing function. The same inventory binds static and runtime numerical spaces, bases, nominal vector and map views, signed Gram entries, transformed endpoints, and the operands of adjoint and diagonal evaluation calls to their physical source. It includes each function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span."
 
 [property."compiler-ir.edition".claim.resource-value-replay]
 status = "tested"
-evidence = ["tests/numerical_source.rs::physical_spaces_bases_and_map_views_precede_storage_llvm",
+evidence = ["tests/tensor_source.rs::tensor_axes_groupings_and_contraction_operands_replay_the_written_view",
+            "tests/tree_source.rs::the_physical_tree_binds_its_graph_ports_and_every_ordered_plan_step",
+            "tests/numerical_source.rs::finite_network_declarations_replay_their_physical_occurrences_and_port_roles",
+            "tests/numerical_source.rs::physical_spaces_bases_and_map_views_precede_storage_llvm",
             "tests/numerical_source.rs::physical_metric_entries_and_transformed_views_keep_their_module_and_role",
             "tests/runtime_shape_source.rs::runtime_spaces_and_views_replay_their_physical_extent_and_endpoints",
             "tests/resource_value_source.rs::resource_signatures_match_the_physical_parameters_and_return_ports",

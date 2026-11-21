@@ -54,13 +54,16 @@ jobs:
             sdk: Linux-X64
             sha256: efdd1dbd089b99bfcfcde7b8eb1236163f2e88df5a981cca4f783ec9cb5e0378
             artifact: linux-x64
+            timeout: 45
           - platform: macOS arm64
             runner: macos-latest
             sdk: macOS-ARM64
             sha256: 0f8b0db925ab54a63028d788e85b14abaa25492e9608819728c17f6786948da4
             artifact: macos-arm64
+            # Static LLVM 23 bitcode is linked into each Rust test binary.
+            timeout: 75
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
+    timeout-minutes: ${{ matrix.timeout }}
     env:
       CARGO_PROFILE_DEV_DEBUG: '0'
       CARGO_INCREMENTAL: '0'

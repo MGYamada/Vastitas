@@ -79,7 +79,7 @@ number = 758
 title = "Fixed-order numerical references"
 state = "open"
 depends = []
-remaining = "Lean models binary32/64 rounding, special values, flags and fixed-order kernels. The real zero-divisor and empty-dot laws are proved. On 828 tuples the independent references agree on scalar and complex bits and flags. C real division, complex division and inverse match the native observation for both widths and permitted aliases. Dot and diagonal kernel differentials, reference laws and public arithmetic integration remain."
+remaining = "Lean models binary32/64 rounding, special values, flags and fixed-order kernels. The real zero-divisor and empty-dot laws are proved. On 828 tuples the independent references agree on scalar and complex bits and flags. C real division, complex division and inverse match the native observation for both widths and permitted aliases. The production one-cell dot adapter matches 948 Lean cases across all four representations. Zero alpha and zero beta have independent input and prior-destination irrelevance proofs. Diagonal kernel differentials, further reference laws and public arithmetic integration remain."
 
 [[issue]]
 number = 318
@@ -390,7 +390,7 @@ document = ""
 [row.dimension.native]
 state = "partial"
 claims = ["compiler-ir.native-fast@profile", "compiler-ir.native-fast@identity-run", "compiler-ir.storage@static-native", "compiler-ir.storage@gemm-native"]
-note = "The LLVM preview executes the four identity variants and eight static matrix products with pinned OpenBLAS. The Lean/C control agrees. Separately, 828 direct C cases cover division and complex inverse. Public scalar arithmetic remains open."
+note = "The LLVM preview executes the four identity variants and eight static matrix products with pinned OpenBLAS. The Lean/C control agrees. The direct adapter comparisons cover 828 division and inverse inputs and 948 fixed-order one-cell dot updates across all four representations. Public scalar arithmetic remains open."
 document = ""
 
 [row.dimension.performance]

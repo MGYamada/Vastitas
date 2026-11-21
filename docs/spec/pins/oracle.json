@@ -79,6 +79,8 @@
     {"name": "VastitasKernel.SmoothDeclarations.certifyRiemannian", "module": "VastitasKernel.SmoothDeclarations", "kind": "definition"},
     {"name": "VastitasOracle.BinaryFloat.empty_dot_preserves", "module": "VastitasOracle.BinaryFloat", "kind": "theorem", "statement": "sha256:a93ce68ecd66b6e69c07ff8af81606c0661338e1669371f50a1988f183530558"},
     {"name": "VastitasOracle.BinaryFloat.finite_realDiv_zero", "module": "VastitasOracle.BinaryFloat", "kind": "theorem", "statement": "sha256:7cd744a52d38ddb009a52f6ff3467f8e702d71fe118946e704aaaadc4be25d2a"},
+    {"name": "VastitasOracle.BinaryFloat.zero_alpha_skips_inputs", "module": "VastitasOracle.BinaryFloat", "kind": "theorem", "statement": "sha256:ddf6913021ad0ef9b9d66a7af48359c72a5fa7aa5a611064abdfe7608521577d"},
+    {"name": "VastitasOracle.BinaryFloat.zero_beta_skips_old", "module": "VastitasOracle.BinaryFloat", "kind": "theorem", "statement": "sha256:c5efc86f4c20d4f3da464cda1c412c5e387b22e9b57d38c56930499d680a4079"},
     {"name": "VastitasOracle.BinaryFunction.correspondence", "module": "VastitasOracle.BinaryFunction", "kind": "theorem", "statement": "sha256:890bb6a24f5c142eb7e54c75911eac41d80d1ca859ff779682e34a431db5babc"},
     {"name": "VastitasOracle.BinaryFunction.foreign_miss", "module": "VastitasOracle.BinaryFunction", "kind": "theorem", "statement": "sha256:c2b9150bca1112999308551c898943a185087c010f28b7db68499a313ec5ef48"},
     {"name": "VastitasOracle.BinaryFunction.word_result", "module": "VastitasOracle.BinaryFunction", "kind": "theorem", "statement": "sha256:9c625c73415c1955482d040e5e22c4a5331210db10fc4fbeefd887973223f2ac"},

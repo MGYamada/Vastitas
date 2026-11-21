@@ -282,4 +282,20 @@ theorem empty_dot_preserves {α : Type} (op : CellOps α) (alpha beta : α)
     dotUpdate op alpha beta old 0 input = ⟨old (), {}⟩ := by
   simp [dotUpdate, nz, oneBeta, bind, pure, Flags.merge]
 
+/-- With a zero alpha, even nonempty or exceptional input cells cannot
+contribute a result or a local exception. -/
+theorem zero_alpha_skips_inputs {α : Type} (op : CellOps α) (alpha beta : α)
+    (old : Unit → α) (count : Nat) (input other : Nat → α × α)
+    (ha : op.isZero alpha = true) :
+    dotUpdate op alpha beta old count input = dotUpdate op alpha beta old count other := by
+  simp [dotUpdate, ha]
+
+/-- Zero beta discards the prior destination, including its payload bits.
+The two evaluations agree on both the returned cell and the local flags. -/
+theorem zero_beta_skips_old {α : Type} (op : CellOps α) (alpha beta : α)
+    (old other : Unit → α) (count : Nat) (input : Nat → α × α)
+    (hb : op.isZero beta = true) :
+    dotUpdate op alpha beta old count input = dotUpdate op alpha beta other count input := by
+  simp [dotUpdate, hb]
+
 end VastitasOracle.BinaryFloat

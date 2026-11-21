@@ -114,6 +114,13 @@ premises = ["the public protocol-10 request passed the independent checker"]
 assumes = ["rust-frontend"]
 note = "The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input."
 
+[property."compiler-ir.edition".claim.namespace-source]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ResourceSource.physical_import", "VastitasOracle.ResourceSource.physical_module"]
+premises = ["the public protocol-10 request passed the independent checker"]
+assumes = ["rust-frontend"]
+note = "Each non-root module and each import in the accepted input replays in its declaring file. Inline modules retain the mod keyword span and external modules the full declaration span. Import resolution uses the written path, alias and visibility, including when two dependency aliases resolve to the same already-assembled family. The loader supplies the physical inputs and manifest dependency mapping."
+
 [property."compiler-ir.edition".claim.correspondence]
 status = "planned"
 issue = 533

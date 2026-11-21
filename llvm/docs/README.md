@@ -124,6 +124,15 @@ For a jump to a join point, Lean's `emitJmp` checks the number of arguments, wri
 
 The finite Kleisli application has six linked Core functions and eight finite-table helpers. Its hosted `@main` calls `@f5`, which calls the five other functions. The typed Hom fibers in this example are singletons, so their sole legal tag has ordinal 0. The public link records the original Core symbols and the four specializations of the optional `monad::kleisli` package. The package qualification includes a separate variant that calls `extend` on the named `Triple`. In that variant, `@f4` calls `@t4_0_2` with its arrow argument, then calls `@t4_0_3` with the multiplication ordinal followed by the mapped arrow. The report retains the complete seven-line function body and the checked table identities. Lean's `emitFullApp` loads arguments from slots before a typed call, and its `emitCase` builds a switch for a single tag. Both Vastitas helpers switch on an `i32` ordinal. [Package qualification](../../experiments/compiler_validation/llvm/results/macos-arm64/finite-kleisli.json) · [Closed entry semantics](../../lean/VastitasOracle/PackageLink.lean) · [Pinned emitFullApp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755) · [Pinned emitCase](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1104)
 
+Lean 4.35.0's `emitFullApp` looks up a resolved `FunId`. In the
+nonempty-argument case it loads the arguments and calls `LLVM.buildCall2`.
+The Vastitas namespace test imports one of two nullary integer functions under
+the name `picked`. On its reference target both modules have 983 bytes. Each
+contains a direct call to `@vq_f0`. Resolving the other import changes which
+integer that function returns. The two macOS executables and their generated
+Lean/C controls exit with 42 and 7. A wire-only substitution fails at the
+written target, before LLVM emission. [Pinned call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774) · [Namespace regressions](../../tests/namespaces.rs)
+
 Lean 4.35.0's `hasMainFn` searches the IR environment for a declaration named
 `main`. After emitting the functions and initializer, `emitMainFnIfNeeded`
 uses that result to decide whether to build a host entry. Vastitas checks the

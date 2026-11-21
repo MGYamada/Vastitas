@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Tested, Proved (oracle), Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Tested, Proved (oracle), Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
@@ -110,6 +110,13 @@ Claims:
     - the public protocol-10 request passed the independent checker
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
+- `namespace-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_import`, `VastitasOracle.ResourceSource.physical_module`
+  - Premises:
+    - the public protocol-10 request passed the independent checker
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Each non-root module and each import in the accepted input replays in its declaring file. Inline modules retain the mod keyword span and external modules the full declaration span. Import resolution uses the written path, alias and visibility, including when two dependency aliases resolve to the same already-assembled family. The loader supplies the physical inputs and manifest dependency mapping.
 - `correspondence`: [Planned](../specifications.md#planned)
   - Issue: [#533](https://github.com/MGYamada/Vastitas/issues/533)
 

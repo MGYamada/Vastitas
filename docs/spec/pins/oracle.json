@@ -254,6 +254,8 @@
     {"name": "VastitasOracle.ResourceSource.physical_edit_declarations", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:8d6d0ec58d2e850dc5455fb881221b3b0807fdc37d11dce407b00fe5dd11eb7c"},
     {"name": "VastitasOracle.ResourceSource.physical_finite_declarations", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:ecb6dfe56730da9f51d189a2950befb7ab65882ec65a8b222dd6c18d48fec5e0"},
     {"name": "VastitasOracle.ResourceSource.physical_finite_function", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:823f2a7604b01079c2be39be5f7d2fdafa0ab8c0a5ee19164564a917166fe933"},
+    {"name": "VastitasOracle.ResourceSource.physical_import", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:786f57209eb1d942062ce2c2161ab1fde1efc5c0b05e346179db4f1771e7a122"},
+    {"name": "VastitasOracle.ResourceSource.physical_module", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:e69f34547d33c963ebf6176ee944eee7f949281b635544084605439c95da9ce2"},
     {"name": "VastitasOracle.ResourceSource.physical_singleton_function", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:6c42c2c39347f659d27381643b2be18e7b4f559a2f58fa03d0247c118ab0c15d"},
     {"name": "VastitasOracle.ResourceSource.public_finite_functor", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:a52864a8dbb01d19f3674d9d0a2980d5313fd1d159e1c5d7008033df90c86f4e"},
     {"name": "VastitasOracle.ResourceSource.public_finite_iso", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:9accb28551d9c6b4551613436c073c53d5dc7c681342bde2983d90cd7f642ce2"},

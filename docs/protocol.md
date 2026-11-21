@@ -136,6 +136,14 @@ or its body has diagnostic `E_FUNCTION_SOURCE`. In a protected flat input,
 `main` belongs to the entry file. A definition of `main` in a `--lib` file
 has diagnostic `E_LIBRARY` at its declaration span.
 
+The checker matches each `use` and `pub use` to the path, alias, visibility
+and full declaration span in the file that contains it. An unused re-export
+participates in the same check. Omitting an import or changing its path yields
+`E_IMPORT_SOURCE`. Inline and external `mod` declarations are checked in the
+parent's module scope, including empty modules. The inline record uses the
+`mod` keyword span. The external record extends through the semicolon.
+A mismatch in either declaration yields `E_MODULE_SOURCE`.
+
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record
 with four paths named `source`, `target`, `objects` and `arrows`. Each

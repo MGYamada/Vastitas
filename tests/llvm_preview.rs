@@ -773,6 +773,56 @@ fn checked_llvm_executable_installs_atomically_and_rejects_unsupported_replaceme
 
 #[cfg(feature = "llvm-native")]
 #[test]
+fn imported_callees_execute_only_with_their_current_source_revision() {
+    let s = Scratch::empty("LLVM imported function");
+    let manifest = "app/Vastitas.toml";
+    let build = || {
+        s.command("build", manifest)
+            .args([
+                "--llvm-preview",
+                "--expect-function-revision",
+                "revision.json",
+                "-o",
+                "llvm-program",
+            ])
+            .output()
+            .unwrap()
+    };
+    s.write(
+        "app/defs.vast",
+        "pub fn left() -> Int { 42 } pub fn next() -> Int { 7 }",
+    );
+    let installed = s.0.join("llvm-program");
+    for (name, status) in [("left", 42), ("next", 7)] {
+        let source =
+            format!("mod defs; use defs::{name} as picked; fn main() -> Int {{ picked() }}");
+        s.write_package("app", &source, "");
+        if name == "next" {
+            let previous = std::fs::read(&installed).unwrap();
+            expect_code(&build(), "E_FUNCTION_REVISION");
+            assert_eq!(std::fs::read(&installed).unwrap(), previous);
+        }
+        let revision = s
+            .command("check", manifest)
+            .arg("--print-function-revision")
+            .output()
+            .unwrap();
+        success(&revision);
+        std::fs::write(s.0.join("revision.json"), revision.stdout).unwrap();
+        success(&build());
+        assert_eq!(
+            std::process::Command::new(&installed)
+                .status()
+                .unwrap()
+                .code(),
+            Some(status)
+        );
+        assert_eq!(s.build_and_run(manifest), common::exits(status));
+    }
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
 fn assembled_method_result_selects_the_native_exit_edge() {
     let s = Scratch::empty("LLVM assembled executable");
     for (argument, status) in [("false", 9), ("true", 58)] {

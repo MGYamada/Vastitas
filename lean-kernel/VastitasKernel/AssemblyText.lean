@@ -276,6 +276,10 @@ structure MethodSite where
   opening : Span
   closing : Span
 
+inductive SiteKind where
+  | indexed | finiteFunction | singleton | namespaceImport | namespaceModule
+  deriving Inhabited, DecidableEq
+
 structure FiniteSite where
   packageSource : String
   modulePath : List String
@@ -283,8 +287,7 @@ structure FiniteSite where
   fileIndex : Nat
   before : Cursor
   span : Span
-  /-- Ordinary singletons have their own source diagnostic. -/
-  ordinaryFunction : Bool := false
+  kind : SiteKind
 
 structure SourceChecks where
   headers : Std.HashMap Nat ExactHeader := {}
@@ -570,6 +573,10 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
         let .word child := name.kind | throw "expected module name"
         let delimiter ← f.next name.after
         let path := child :: reversedPath
+        let checks := if checks.edits.isSome then
+          let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span .namespaceModule
+          {checks with finiteSites := checks.finiteSites.insert t.span.start site}
+        else checks
         match delimiter.kind with
         | .symbol ';' =>
           return ← scanExact f pkg fuel delimiter.after {scope with place := .declaration}
@@ -580,11 +587,15 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
         | _ => throw "expected module body or semicolon"
       if let some edits := checks.edits then
         if let .word keyword := t.kind then
+          if keyword == "use" then
+            let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span .namespaceImport
+            return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
+              {checks with finiteSites := checks.finiteSites.insert t.span.start site}
           if keyword == "indexed" then
             let kind ← f.next t.after
             if let .word kind := kind.kind then
               if ["finite", "table", "schema", "instance"].contains kind then
-                let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span false
+                let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span .indexed
                 return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
                   {checks with finiteSites := checks.finiteSites.insert t.span.start site}
           if keyword == "assembly" then throw "retired assembly declaration"
@@ -612,7 +623,7 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
             let close ← untilSymbol f '}' opening.after
             let checks := {checks with singletonNames := checks.singletonNames.insert key finite}
             let site := FiniteSite.mk pkg reversedPath.reverse (checks.flat || scope.place == .afterPub)
-              checks.fileIndex c t.span (!finite)
+              checks.fileIndex c t.span (if finite then .finiteFunction else .singleton)
             let checks := {checks with finiteSites := checks.finiteSites.insert t.span.start site}
             return ← scanExact f pkg fuel close.after {scope with place := .declaration} reversedPath external checks
           if ["grant", "delegation", "transfer", "contribution"].contains keyword then
@@ -660,7 +671,7 @@ def mayHaveExactHeaders (text : String) : Bool :=
 
 def mayHaveFiniteDeclarations (text : String) : Bool :=
   (text.contains "indexed" && ["finite", "table", "schema", "instance"].any (fun word => text.contains word)) ||
-    text.contains "fn"
+    text.contains "fn" || text.contains "use" || text.contains "mod"
 
 def checkExactHeaders (text : String) (base : Nat) (pkg : String) (path : List String)
     (checks : SourceChecks) : Except String (Array (List String) × SourceChecks) :=

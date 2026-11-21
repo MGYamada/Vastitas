@@ -191,6 +191,40 @@ theorem physical_finite_declarations {json : Lean.Json} (input : Wire.CheckedInp
   obtain ⟨inventory, all⟩ := FiniteSourceFiles.check_sound finite
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
 
+/-- An accepted non-root module carries its visibility and its declaring
+module's path at the original inline or external declaration. -/
+theorem physical_module {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {name : String} (named : m.pureModule.module.path.getLast? = some name) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path.dropLast, m.pureModule.module.span,
+          m.pureModule.module.isPublic, .namespaceModule name⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm,
+    List.mem_append_left _ (List.mem_append_left _ (List.mem_append_left _ ?_))⟩⟩
+  exact List.mem_map.mpr ⟨name, by simp [named], rfl⟩
+
+/-- Every import in the checked program replays the written target, its explicit
+or implicit alias, visibility and terminator in its declaring module. -/
+theorem physical_import {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {i : Namespace.Import} (hi : i ∈ m.pureModule.module.imports) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, i.span, i.isPublic, .namespaceImport i⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_left _ (List.mem_append_left _ (List.mem_append_right _ ?_))⟩⟩
+  exact List.mem_map.mpr ⟨i, hi, rfl⟩
+
 /-- Each finite-indexed function, including an unused overload, replays its own
 binders, parameter and result types and body in its declaring module. -/
 theorem physical_finite_function {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

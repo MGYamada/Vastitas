@@ -220,6 +220,12 @@ file index equals the entry index. The checker replays the body even
 when no call uses it. In `main`, it checks which top-level initializers use
 `show!`. The observation label remains presentation metadata.
 
+`VastitasOracle.ResourceSource.physical_import` binds each import in the
+accepted input to its lexical owner, visibility, path, alias and terminating
+semicolon. `VastitasOracle.ResourceSource.physical_module` binds each named
+child module to its declaration in the parent file. The loader supplies the
+manifest dependency mapping and the file contents.
+
 `VastitasOracle.FiniteProgram.correspondence` applies to the public
 checker route when it returns a finite executable artifact and the complete
 input bytes parse to its modeled module. The theorem identifies those bytes

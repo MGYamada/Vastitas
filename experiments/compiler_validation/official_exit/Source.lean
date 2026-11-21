@@ -42,7 +42,7 @@ private def physicalText : String := "// The executable status is the Euclidean 
 private def physicalFile : PhysicalSources.File := ⟨"ExitStatus.vast".toUTF8, 0, physicalText⟩
 private def layout : PhysicalSources.Layout := ⟨#[physicalFile], 0⟩
 private def site : AssemblyText.FiniteSite :=
-  ⟨owner.scope.package.source, [], true, 0, {}, ⟨64,66,2,1⟩, true⟩
+  ⟨owner.scope.package.source, [], true, 0, {}, ⟨64,66,2,1⟩, .singleton⟩
 private def item : FiniteSourceFiles.Item := ⟨owner.scope.package.source, [], mainFn.span, true, .singleton mainFn []⟩
 private def checkedSites : AssemblyText.SourceChecks := {
   edits := some {}, flat := true

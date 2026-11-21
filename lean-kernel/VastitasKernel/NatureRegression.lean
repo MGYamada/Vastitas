@@ -1,6 +1,7 @@
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.RegressionSupport
 import VastitasKernel.RegressionRequest
+import VastitasPublicTest.SingletonFixtures
 
 set_option autoImplicit false
 
@@ -459,12 +460,14 @@ private def diagonalOf (value : Option (List (String × String))) (entry : Json)
       "have dimension L^130, which raises `nature::L` to the power 130" &&
     limitError (diagonalOf none (term (natural 1) [("unit", "-64"), ("unit2", "-3")])) "to the power -65")
 
-/-- The module `mine` with its own base dimension `L` and the quantity
-`Len = L`. -/
-private def mine : Json := modAt ["mine"] [base "L", quantity "Len" [("L", "1")]]
-
-/-- `program extra` with the module `mine`. -/
-private def withMine (extra : List Json) : String × String := outcomeOf (requestOf currentProtocol [mod (program extra), mine])
+/-- Append the raw diagnostic cases to a frontend-captured package with
+distinct base dimensions `nature::L` and `nature::mine::L`. -/
+private def withMine (extra : List Json) : String × String := Id.run do
+  let request := RegressionRequest.physical "physical-dimensions"
+  let root := RegressionRequest.rootModule request
+  let .ok ds := root.getObjValAs? (Array Json) "indexed_declarations" | return ("invalid fixture", "")
+  return outcomeOf (RegressionRequest.withRootModule request
+    (root.setObjVal! "indexed_declarations" (.arr (ds ++ extra.toArray))))
 
 private def minePath (name : String) : Json := Json.mkObj [("path", toJson ["mine", name]), ("span", span)]
 

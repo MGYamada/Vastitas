@@ -314,6 +314,25 @@ theorem physical_resource_values {json : Lean.Json} (input : Wire.CheckedInput j
   obtain ⟨inventory, all⟩ := ResourceStatementSource.check_sound values
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
 
+/-- The physical scan counts both arms, including trailing statements with no
+decoded counterpart. Each accepted guard carries exactly the two scanned counts. -/
+theorem physical_resource_branch_lengths {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      ∀ i ∈ ResourceValueSource.items input.input, ∀ condition yes no,
+        i.operation = .guard condition yes no → ∃ site, checked.values[i.span.start]? = some site ∧
+          site.branchLengths = some (yes, no) := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_resource_values input
+  refine ⟨expected, layout, checked, collected, physical, scan, ?_⟩
+  intro i hi condition yes no guard
+  obtain ⟨site, file, last, found, _, _, _, _, _, accepted, _⟩ := all i hi
+  refine ⟨site, found, ?_⟩
+  rw [guard] at accepted
+  by_cases same : site.branchLengths = some (yes, no)
+  · exact same
+  · simp [ResourceValueSource.replay, same, bind, Except.bind, throw] at accepted
+
 /-- Every finite carrier, table, schema, instance and static-indexed function in this accepted program
 replays in its declaring file. The inventory also accounts for uncalled and
 unused declarations in the physical modules. -/

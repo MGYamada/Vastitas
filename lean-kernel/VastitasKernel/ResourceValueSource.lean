@@ -16,14 +16,14 @@ inductive ValueSite where
   | tensor (op : Storage.Tensor.Operation String)
   | network (graph : Storage.TensorNetwork.Graph String) (output : String)
   | tree (graph : Storage.TensorTree.Graph String) (output : String) (plan : List (Storage.TensorTree.PlanStep String Action))
-  | guard (condition : ResourceCondition)
+  | guard (condition : ResourceCondition) (yesLength noLength : Nat)
   | binding (name : String) (type : Core.PureType) (body : FunctionSource.Block)
   | call (binding : Option (String × Core.PureType)) (callee : List String) (arguments results : List String)
   | result (body : FunctionSource.Block) (functionEnd : Nat)
 
 private def select : Statement → Option (ValueSite × Span)
-  | .branch b _ _ s => some (.guard (.literal b), s)
-  | .branchValue n _ _ s => some (.guard (.binding n), s)
+  | .branch b yes no s => some (.guard (.literal b) yes.length no.length, s)
+  | .branchValue n yes no s => some (.guard (.binding n) yes.length no.length, s)
   | .value name type body s => some (.binding name type body, s)
   | .callValue path args outs name type s => some (.call (some (name,type)) path.path args outs, s)
   | .call path args outs s => some (.call none path.path args outs, s)
@@ -62,7 +62,9 @@ def replay (file : File) (site : ResourceStatementSite) (v : ValueSite) (span : 
   | .tensor op => runStatement (ResourceTensorSource.operation op) file before span
   | .network g output => runTerminated '}' (ResourceTensorSource.network g output) file before span
   | .tree g output plan => runTerminated '}' (ResourceTensorSource.tree g output plan) file before span
-  | .guard cond =>
+  | .guard cond yesLength noLength =>
+    unless site.branchLengths == some (yesLength, noLength) do
+      throw (diagnostic span "the number of statements in a resource branch differs from its source")
     runGroup (do
       token (.ident "if")
       consume fun f c => do

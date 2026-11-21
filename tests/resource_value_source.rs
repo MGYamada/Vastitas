@@ -783,3 +783,36 @@ fn even_empty_resource_branches_replay_their_guard_and_position() {
     omitted["packages"][0]["modules"][0]["resource_functions"][0]["body"][1]["yes"] = json!([]);
     common::assert_wire_rejected(&kernel(omitted, "check"), "E_RESOURCE_SOURCE");
 }
+
+#[test]
+fn resource_branch_lengths_include_trailing_source_statements_in_each_arm() {
+    let text = "resource fn main() -> Int {
+    let flag: Bool = value { true };
+    if flag {
+        if true { //AAA
+        } else { //BBB
+        }
+        //CCC
+    } else { //DDD
+    }
+    value { 0 }
+}";
+    let wire = request(&fixture(text));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (comment, guard_line) in [("//AAA", 4), ("//BBB", 4), ("//CCC", 3), ("//DDD", 3)] {
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(text.replace(comment, "oops;"));
+        for args in [
+            vec!["check"],
+            vec!["emit"],
+            vec!["function-revision"],
+            vec!["llvm-check", "x86_64-unknown-linux-gnu", "e-p:64:64"],
+            vec!["llvm-build", "x86_64-unknown-linux-gnu", "e-p:64:64"],
+        ] {
+            let response = common::kernel_with_args(&stale, &args);
+            common::assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+            assert_eq!(response["diagnostics"][0]["span"]["line"], guard_line);
+            assert!(response.get("llvm").is_none());
+        }
+    }
+}

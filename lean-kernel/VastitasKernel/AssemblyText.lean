@@ -234,6 +234,8 @@ structure ResourceStatementSite where
   /-- For a function or conditional, the scope scan matched both braces.
   Signature and guard replay verify the opening, then reuse the scanned close. -/
   group : Option (Nat × Token) := none
+  /-- Counts of the immediate physical statements in each arm of a conditional. -/
+  branchLengths : Option (Nat × Nat) := none
 
 structure RealizationCall where
   owner : ResourceOwner
@@ -516,7 +518,7 @@ private def realizationForm (f : File) (head : Token) : Except String Bool := do
 statements contribute to the index, including compound contractions. Pure
 value blocks contain their own language and are skipped as balanced groups. -/
 private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor → List ResourceBranch → Nat →
-    SourceChecks → Except String (Token × SourceChecks)
+    SourceChecks → Except String (Token × Nat × SourceChecks)
   | 0, _, _, _, _ => .error "resource scan exceeded its file extent"
   | fuel + 1, c, branches, index, checks => do
     let head ← f.next c
@@ -524,7 +526,7 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
     | .eof => throw "unterminated resource function"
     | .symbol '}' =>
       if branches.isEmpty && checks.edits.isSome then throw "resource function has no final value block"
-      return (head, checks)
+      return (head, index, checks)
     | .word "value" =>
       unless branches.isEmpty do throw "unexpected value return inside a resource branch"
       let start ← f.next head.after
@@ -533,10 +535,10 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
       let close ← f.next body.after
       requireSymbol close '}'
       let checks := if checks.edits.isSome then
-        let site := ResourceStatementSite.mk owner branches index checks.fileIndex head.after (through start body) none
+        let site := ResourceStatementSite.mk owner branches index checks.fileIndex head.after (through start body) none none
         {checks with values := checks.values.insert start.span.start site}
       else checks
-      return (close, checks)
+      return (close, index, checks)
     | .word "if" =>
       unless branches.length < Limits.sourceNesting do throw "resource branch nesting limit"
       let test ← f.next head.after
@@ -544,14 +546,14 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
       let condition := ResourceCondition.ofWord name
       let openYes ← f.next test.after
       requireSymbol openYes '{'
-      let (yes, checks) ← resourceBlock f owner fuel openYes.after (⟨index, condition, true⟩ :: branches) 0 checks
+      let (yes, yesLength, checks) ← resourceBlock f owner fuel openYes.after (⟨index, condition, true⟩ :: branches) 0 checks
       let otherwise ← expectIdentifier f yes.after "else"
       let openNo ← f.next otherwise.after
       requireSymbol openNo '{'
-      let (no, checks) ← resourceBlock f owner fuel openNo.after (⟨index, condition, false⟩ :: branches) 0 checks
+      let (no, noLength, checks) ← resourceBlock f owner fuel openNo.after (⟨index, condition, false⟩ :: branches) 0 checks
       let checks := if checks.edits.isSome then
         let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head no)
-          (some (openYes.span.end, no))
+          (some (openYes.span.end, no)) (some (yesLength, noLength))
         {checks with values := checks.values.insert head.span.start site}
       else checks
       resourceBlock f owner fuel no.after branches (index + 1) checks
@@ -559,7 +561,7 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
       let start ← untilSymbol f '{' head.after
       let endBlock ← untilSymbol f '}' start.after
       let checks := if checks.edits.isSome then
-        let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head endBlock) none
+        let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head endBlock) none none
         {checks with values := checks.values.insert head.span.start site}
       else checks
       resourceBlock f owner fuel endBlock.after branches (index + 1) checks
@@ -576,7 +578,7 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
         return ← resourceBlock f owner fuel last.after branches (index + 1)
           {checks with calls := checks.calls.erase head.span.start}
       let last ← untilSymbol f ';' head.after
-      let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head last) none
+      let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head last) none none
       let valueBinding ← match checks.edits, head.kind with
         | some _, .word "let" => do
           let name ← f.next head.after
@@ -741,9 +743,9 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
         let .word fnName := name.kind | throw "expected resource function name"
         let owner := ResourceOwner.mk pkg reversedPath.reverse fnName t.span.start (scope.place == .afterPub)
         let start ← untilSymbol f '{' name.after
-        let (close, checks) ← resourceBlock f owner (f.remaining start.after) start.after [] 0 checks
+        let (close, _, checks) ← resourceBlock f owner (f.remaining start.after) start.after [] 0 checks
         let checks := if checks.edits.isSome then
-          let site := ResourceStatementSite.mk owner [] 0 checks.fileIndex c (through t close) (some (start.span.end, close))
+          let site := ResourceStatementSite.mk owner [] 0 checks.fileIndex c (through t close) (some (start.span.end, close)) none
           {checks with values := checks.values.insert t.span.start site}
         else checks
         return ← scanExact f pkg fuel close.after {scope with place := .declaration} reversedPath external checks

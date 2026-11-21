@@ -903,7 +903,10 @@ result type of each `resource fn` against its declaration. Owned initialization
 regions, nominal paths and their spans, runtime extent slots, access modes,
 map endpoints and representation widths all participate. The scope scan records
 the opening and closing braces. Signature and guard checks reuse those boundaries,
-including the guards of empty branches in uncalled functions.
+including the guards of empty branches in uncalled functions. For each guard
+the scan counts the immediate statements in its two arms independently. A
+trailing physical statement changes that arm's count even if every recorded
+statement and brace keeps its byte position.
 
 Each numerical space, basis, vector and map declaration replays its operands
 in the defining module. A runtime dimension refers to the written extent slot

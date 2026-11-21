@@ -283,6 +283,7 @@
     {"name": "VastitasOracle.ResourceSource.physical_manifest_metadata", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:cd5878059e425752bc9b143c844a75cbdaebbe51558818b152f014633b8abcf8"},
     {"name": "VastitasOracle.ResourceSource.physical_module", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:6d1abf5fb29354739c03b855836ed60c265c82b8d8229e387d621c7b851a64e1"},
     {"name": "VastitasOracle.ResourceSource.physical_morphism", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:987855fc05c7b63410fd7942db95dd9efecad9ef3af9d3486280ec4441a4a4af"},
+    {"name": "VastitasOracle.ResourceSource.physical_resource_branch_lengths", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:0c9fa19334c22057a0a32bd7c53f392d2baee3d09434087c9b60c2b8305b8923"},
     {"name": "VastitasOracle.ResourceSource.physical_resource_cells", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:70dac062cb1f371dbda04b251eaa49d75e9315ab3d00386567aceccf7ac775ee"},
     {"name": "VastitasOracle.ResourceSource.physical_resource_ownership", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:fe961915c5ffe8a68da36296638315970f89dce437feaa86a6e90706cc48998d"},
     {"name": "VastitasOracle.ResourceSource.physical_resource_products", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:b2a5d91182e7d3572542d615871296a9615806d11b078ffbf5bdffc8970c2354"},

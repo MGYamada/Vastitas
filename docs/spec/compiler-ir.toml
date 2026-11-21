@@ -153,10 +153,10 @@ note = "The LLVM check and build paths reject source-only changes to signed zero
 
 [property."compiler-ir.edition".claim.resource-value-source]
 status = "proved-oracle"
-evidence = ["VastitasOracle.ResourceSource.physical_resource_values"]
+evidence = ["VastitasOracle.ResourceSource.physical_resource_values", "VastitasOracle.ResourceSource.physical_resource_branch_lengths"]
 premises = ["the public protocol-10 checker accepted the resource program"]
 assumes = ["rust-frontend"]
-note = "The physical inventory includes every resource signature with its ordered parameters, port types, source spans and results. Each conditional guard replays at its branch position even when both arms are empty. The inventory checks tensor rank, axis grouping, packing and cached contraction. Named graph occurrences and edges, ordered boundary ports and every explicit plan step replay inside the enclosing function. The same inventory binds static and runtime numerical spaces, bases, nominal vector and map views, signed Gram entries, transformed endpoints, and the operands of adjoint and diagonal evaluation calls to their physical source. It includes each function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span."
+note = "The physical inventory includes every resource signature with its ordered parameters, port types, source spans and results. Each conditional guard replays at its branch position. Both arms have their independently scanned statement counts, even when empty or nested. The inventory checks tensor rank, axis grouping, packing and cached contraction. Named graph occurrences and edges, ordered boundary ports and every explicit plan step replay inside the enclosing function. The same inventory binds static and runtime numerical spaces, bases, nominal vector and map views, signed Gram entries, transformed endpoints, and the operands of adjoint and diagonal evaluation calls to their physical source. It includes each function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span."
 
 [property."compiler-ir.edition".claim.resource-value-replay]
 status = "tested"
@@ -167,6 +167,7 @@ evidence = ["tests/tensor_source.rs::tensor_axes_groupings_and_contraction_opera
             "tests/numerical_source.rs::physical_metric_entries_and_transformed_views_keep_their_module_and_role",
             "tests/runtime_shape_source.rs::runtime_spaces_and_views_replay_their_physical_extent_and_endpoints",
             "tests/resource_value_source.rs::resource_signatures_match_the_physical_parameters_and_return_ports",
+            "tests/resource_value_source.rs::resource_branch_lengths_include_trailing_source_statements_in_each_arm",
             "tests/resource_value_source.rs::even_empty_resource_branches_replay_their_guard_and_position",
             "tests/runtime_shape_source.rs::runtime_function_ports_replay_paths_extents_access_and_initialization",
             "tests/resource_value_source.rs::resource_values_calls_and_final_blocks_replay_in_their_owning_function",

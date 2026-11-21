@@ -197,8 +197,10 @@ Monad ID. The complete function revision also retains the source view
 reference, so changing that reference requires a fresh receipt.
 
 Each `operator_sites` row names its Core function, the defining operator
-and its ordered operand types. In particular, `(Nat, Int)` and `(Int, Nat)`
-are distinct division keys. Glyphs and direct named calls need only these
+and its ordered operand types. Its `method` object records the zero-based
+ordinal in that family's method list and the Core result type. In particular,
+`(Nat, Int)` and `(Int, Nat)` select division methods 1 and 2, respectively.
+Both return `Int`. Changing either field in a saved revision fails replay. Glyphs and direct named calls need only these
 Core operations. When a program refers to an operator as a function value,
 the kernel supplies ordinary finite method bodies for that family. The
 bodies appear under the protected package source `vastitas:compat:operators`

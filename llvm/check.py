@@ -54,8 +54,15 @@ CASES = [
 
 def check_boxed_operators(command, target_args, expected, work):
     package = {"name": "std", "source": "vastitas:compat:operators", "version": "2026.0.0"}
-    sites = [{"core": 0, "id": {"module": ["operator"], "name": name, "package": package}, "key": key}
-             for name, key in [("sub", ["Nat", "Nat"]), ("div", ["Nat", "Int"]), ("add", ["Int", "Int"])]]
+    sites = [
+        {"core": 0, "id": {"module": ["operator"], "name": name, "package": package},
+         "key": key, "method": {"ordinal": ordinal, "result": result}}
+        for name, key, ordinal, result in [
+            ("sub", ["Nat", "Nat"], 0, "Nat"),
+            ("div", ["Nat", "Int"], 1, "Int"),
+            ("add", ["Int", "Int"], 1, "Int"),
+        ]
+    ]
     source = work / "main.vast"
     original = source.read_text(encoding="utf-8")
     alternate = original.replace("n - 5", "std::operator::sub(n, 5)").replace(
@@ -70,6 +77,14 @@ def check_boxed_operators(command, target_args, expected, work):
             raise ValueError("named calls and operators must select the same protected owners and ordered keys")
         if subprocess.check_output([*command, *target_args], cwd=ROOT) != expected:
             raise ValueError("changing the operator spelling changed the boxed LLVM library")
+
+    revision["pure"]["operator_sites"][1]["method"]["ordinal"] = 2
+    receipt = work / "swapped-division.json"
+    receipt.write_text(json.dumps(revision), encoding="utf-8")
+    forged = subprocess.run([*command, *target_args, "--expect-function-revision", receipt],
+                            cwd=ROOT, capture_output=True)
+    if forged.returncode == 0 or forged.stdout or b"E_FUNCTION_REVISION" not in forged.stderr:
+        raise ValueError("mixed division produced LLVM with the reversed key's method ordinal")
 
 
 def check_static_revision(command, target_args, expected, work):

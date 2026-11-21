@@ -11,7 +11,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
 | [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
-| [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
+| [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle), Proved (oracle) |
@@ -248,12 +248,20 @@ Claims:
 
 - `binding`: [Planned](../specifications.md#planned)
   - Issue: [#462](https://github.com/MGYamada/Vastitas/issues/462)
+- `selected-method`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.published_operator_method`
+  - Premises:
+    - the independent protocol-10 checker accepted the input
+    - the site belongs to the returned pure Core module
+  - Note: For each exact arithmetic site in that module, the revision records the unique method of the protected family at the ordered argument key. Its ordinal is local to the family. Its result is the type specified by that method. The proof covers operations inside branches, function arguments and scoped bindings.
 - `exact-integers`: [Tested](../specifications.md#tested)
   - Evidence:
     - `named_and_glyph_exact_methods_agree_on_all_integer_keys` in [`tests/exact_operators.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_operators.rs)
     - `imported_operator_alias_and_same_spelling_local_family_are_distinct` in [`tests/exact_operators.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_operators.rs)
     - `division_promotion_does_not_admit_other_mixed_keys_or_nat_negation` in [`tests/exact_operators.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_operators.rs)
     - `returned_revision_binds_spelling_and_both_mixed_division_keys` in [`tests/exact_operators.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_operators.rs)
+    - `the_revision_names_the_sole_method_and_result_at_every_integer_key` in [`tests/exact_operators.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_operators.rs)
     - `exact_operator_families_are_static_values_with_checked_method_bodies` in [`tests/exact_operators.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_operators.rs)
     - `a_lifted_lambda_cannot_capture_or_reinterpret_a_div_binding` in [`tests/exact_operators.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_operators.rs)
     - `short_qualified_and_glyph_spelling_record_the_same_checked_site` in [`tests/exact_operators.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/exact_operators.rs)

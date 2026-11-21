@@ -285,6 +285,12 @@ example_not_executed = "The exact Nat/Int subset has public tests; represented s
 status = "planned"
 issue = 462
 
+[property."compiler-ir.operators".claim.selected-method]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ResourceSource.published_operator_method"]
+premises = ["the independent protocol-10 checker accepted the input", "the site belongs to the returned pure Core module"]
+note = "For each exact arithmetic site in that module, the revision records the unique method of the protected family at the ordered argument key. Its ordinal is local to the family. Its result is the type specified by that method. The proof covers operations inside branches, function arguments and scoped bindings."
+
 [property."compiler-ir.operators".claim.exact-integers]
 status = "tested"
 evidence = [
@@ -292,6 +298,7 @@ evidence = [
   "tests/exact_operators.rs::imported_operator_alias_and_same_spelling_local_family_are_distinct",
   "tests/exact_operators.rs::division_promotion_does_not_admit_other_mixed_keys_or_nat_negation",
   "tests/exact_operators.rs::returned_revision_binds_spelling_and_both_mixed_division_keys",
+  "tests/exact_operators.rs::the_revision_names_the_sole_method_and_result_at_every_integer_key",
   "tests/exact_operators.rs::exact_operator_families_are_static_values_with_checked_method_bodies",
   "tests/exact_operators.rs::a_lifted_lambda_cannot_capture_or_reinterpret_a_div_binding",
   "tests/exact_operators.rs::short_qualified_and_glyph_spelling_record_the_same_checked_site",

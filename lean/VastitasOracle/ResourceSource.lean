@@ -55,6 +55,28 @@ theorem original_authority {program : Program} (checked : Checked program requir
     checked.pureProgram.authority.headers.assembled.state.loans = [] :=
   IndexedAuthority.authority_trace checked.pureProgram
 
+/-- Every exact arithmetic site in the returned pure Core is present in the
+published revision. Its ordinal and result identify the sole protected
+method for that family's ordered argument key. -/
+theorem published_operator_method {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (site : Nat × Indexed.ExactOperators.Selection)
+    (member : site ∈ Indexed.ExactOperators.selections input.checked.pureProgram.executable.core.module) :
+    let typed := input.checked.pureProgram.executable.core.typed
+    let row := FunctionRevision.operatorSite typed site member
+    let revision := FunctionRevision.artifact (Wire.revisionInput json) input.checked
+    ∃ ordinal result, ∃ rows : List Lean.Json,
+      Indexed.ExactOperators.candidates site.2 = [(ordinal, result)] ∧
+      row.getObjVal? "method" = .ok (FunctionRevision.operatorMethod (ordinal, result)) ∧
+      (revision.getObjVal? "pure").bind (·.getObjVal? "operator_sites") = .ok (Lean.toJson rows) ∧
+      row ∈ rows := by
+  let typed := input.checked.pureProgram.executable.core.typed
+  let selected := Indexed.ExactOperators.methodAt typed site member
+  refine ⟨selected.1, selected.2, FunctionRevision.operatorSites typed,
+    Indexed.ExactOperators.methodAt_sole typed site member, ?_,
+    FunctionRevision.artifact_operators _ input.checked, ?_⟩
+  · rfl
+  · exact List.mem_map.mpr ⟨⟨site, member⟩, List.mem_attach _ _, rfl⟩
+
 theorem pure_value_bodies_typed {program : Program} (checked : Checked program requireMain) :
     Core.Typing.ModuleTyped checked.values.audit.lowered.module ∧
     Core.Typing.ModuleTyped checked.values.executable.lowered.module :=

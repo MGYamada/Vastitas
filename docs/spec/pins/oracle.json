@@ -279,6 +279,7 @@
     {"name": "VastitasOracle.ResourceSource.public_finite_monad", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:6d21e350d35d66254f41e83bf2a32d2c1e9dcd04f36027e7df98d841b899465a"},
     {"name": "VastitasOracle.ResourceSource.public_finite_nat_trans", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:3ebacd4621ca3fb555dee24c2a285402e78dbc9919bb24f0246018a2c97e55bb"},
     {"name": "VastitasOracle.ResourceSource.public_opposite_functor", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:44f4c22b2794533de0f9199c4c1d43f909987259eedee86e2380a79d4816a18a"},
+    {"name": "VastitasOracle.ResourceSource.published_operator_method", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:0b3e20a30ebf7c8bd5075a91482344a130a4406c8bf24f6fc761b854c31d061f"},
     {"name": "VastitasOracle.ResourceSource.structured_assembly_trace", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:74c7bd45c0f7d86cac7df104480524cf747e94b264e34001c9cc3decd76c6b35"},
     {"name": "VastitasOracle.SafeFloat.divide_order", "module": "VastitasOracle.SafeFloat", "kind": "theorem", "statement": "sha256:075dafaefa0e014c81e16073b291efea6415a84a06def83ae581c2078befb00b"},
     {"name": "VastitasOracle.SafeFloat.first_error", "module": "VastitasOracle.SafeFloat", "kind": "theorem", "statement": "sha256:778907a494628270ec87a78aa71221a017e0c324955710a1a0b4f4bd62f56db3"},

@@ -132,18 +132,8 @@ def integer (t : Core.Term) : Option {n : Int // Folded [] t (.int n)} := do
   let ⟨.int n, h⟩ ← visit (bitBudget t) [] t | none
   return ⟨n,h⟩
 
-/-- Select against the protected package by defining owner and concrete
-operands alone. The index is relative to this family's immutable method list. -/
-def candidates (selection : ExactOperators.Selection) : List (Nat × Core.DataType) := Id.run do
-  let pkg := OperatorProfile.package [selection.family.owner.name]
-  return pkg.modules.flatMap fun m =>
-    if selection.family.owner.scope == ⟨pkg.id,m.module.path⟩ then
-      m.methods.zipIdx.filterMap fun (method, i) =>
-        if method.target.path == [selection.family.owner.name] &&
-            method.params.map (·.ty) == selection.scalarKey.map (fun n => Surface.TypeExpr.data (.named n)) then
-          some (i, .pure method.result)
-        else none
-    else []
+/-- The same family-local methods used in the wire revision. -/
+abbrev candidates := ExactOperators.candidates
 
 structure Method (selection : ExactOperators.Selection) where
   ordinal : Nat

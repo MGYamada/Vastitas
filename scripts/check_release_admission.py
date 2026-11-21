@@ -40,7 +40,7 @@ ROW_OBLIGATIONS = {
         'source': ('compiler-ir.families@family', 'compiler-ir.families@public-syntax'),
         'core': ('compiler-ir.families@assembly', 'compiler-ir.families@public-syntax', 'compiler-ir.edition@manifest-source',
                  'compiler-ir.families@revision-replay', 'compiler-ir.families@singleton-source',
-                 'compiler-ir.edition@namespace-source', 'compiler-ir.families@selector-source'),
+                 'compiler-ir.edition@namespace-source', 'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'),
         'midir': ('compiler-ir.midir@representation', 'compiler-ir.midir@pure-cfg', 'compiler-ir.midir@direct-call'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@static-call',
                  'compiler-ir.llvm-bytes@assembled-bool'),
@@ -92,7 +92,7 @@ ROW_OBLIGATIONS = {
     },
     'scalar-indexed': {
         'source': ('compiler-ir.operators@binding', 'compiler-ir.operators@exact-integers'),
-        'core': ('compiler-ir.coverage@ledger', 'compiler-ir.coverage@inventory'),
+        'core': ('compiler-ir.coverage@ledger', 'compiler-ir.coverage@inventory', 'compiler-ir.operators@selected-method'),
         'midir': ('compiler-ir.registry@opcodes', 'compiler-ir.registry@int-literal',
                   'compiler-ir.registry@exact-arithmetic', 'compiler-ir.registry@pair-operations'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@entry-status',
@@ -144,7 +144,7 @@ def required_status(dimension, claim):
         return 'proved-bridge'
     if (claim in {'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@erased-unit',
                   'compiler-ir.edition@manifest-source', 'compiler-ir.edition@finite-declaration-source', 'compiler-ir.families@singleton-source',
-                  'compiler-ir.edition@namespace-source', 'compiler-ir.edition@affine-source', 'compiler-ir.families@selector-source'}
+                  'compiler-ir.edition@namespace-source', 'compiler-ir.edition@affine-source', 'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'}
             or dimension == 'official'
             or (dimension == 'llvm' and claim in LLVM_PROOFS)
             or (dimension == 'midir' and claim in {'compiler-ir.midir@finite-lookup', 'compiler-ir.registry@exact-arithmetic',

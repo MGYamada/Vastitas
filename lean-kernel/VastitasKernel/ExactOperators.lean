@@ -1,5 +1,5 @@
 import VastitasKernel.OperatorNames
-import VastitasKernel.IndexedCore
+import VastitasKernel.OperatorProfile
 
 namespace VastitasKernel.Indexed.ExactOperators
 
@@ -19,7 +19,8 @@ def selection? : Core.Term → Option Selection
     return ⟨Namespace.operatorId name, [a.result.type, b.result.type]⟩
   | _ => none
 
-private def collect (t : Core.Term) : List Selection :=
+/-- Ordered exact operator sites within a checked function body. -/
+def collect (t : Core.Term) : List Selection :=
   (selection? t).toList ++ match t with
   | .call _ args _ _ | .primitive _ args _ => args.flatMap collect
   | .unary _ v _ | .project _ _ v | .ascribe _ v | .natToInt v | .scope v => collect v
@@ -30,5 +31,18 @@ private def collect (t : Core.Term) : List Selection :=
 
 def selections (m : Core.Module) : List (Nat × Selection) :=
   m.functions.flatMap fun f => (collect f.body).map fun s => (f.id, s)
+
+/-- Select against the protected package by defining owner and concrete
+operands alone. The index is relative to this family's immutable method list. -/
+def candidates (selection : Selection) : List (Nat × Core.DataType) := Id.run do
+  let pkg := OperatorProfile.package [selection.family.owner.name]
+  return pkg.modules.flatMap fun m =>
+    if selection.family.owner.scope == ⟨pkg.id,m.module.path⟩ then
+      m.methods.zipIdx.filterMap fun (method, i) =>
+        if method.target.path == [selection.family.owner.name] &&
+            method.params.map (·.ty) == selection.scalarKey.map (fun n => Surface.TypeExpr.data (.named n)) then
+          some (i, .pure method.result)
+        else none
+    else []
 
 end VastitasKernel.Indexed.ExactOperators

@@ -79,7 +79,7 @@ number = 758
 title = "Fixed-order numerical references"
 state = "open"
 depends = []
-remaining = "Lean models binary32/64 rounding, special values, flags and fixed-order kernels. The real zero-divisor and empty-dot laws are proved. The C quotient and inverse adapters agree on 828 input tuples. Full kernel differentials, reference laws and public arithmetic integration remain."
+remaining = "Lean models binary32/64 rounding, special values, flags and fixed-order kernels. The real zero-divisor and empty-dot laws are proved. On 828 tuples the independent references agree on scalar and complex bits and flags. C real division, complex division and inverse match the native observation for both widths and permitted aliases. Dot and diagonal kernel differentials, reference laws and public arithmetic integration remain."
 
 [[issue]]
 number = 318

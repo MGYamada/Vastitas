@@ -593,7 +593,7 @@ Claims:
     - [`VastitasOracle.BinaryFloat`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryFloat.lean): `VastitasOracle.BinaryFloat.finite_realDiv_zero`, `VastitasOracle.BinaryFloat.empty_dot_preserves`
   - Premises:
     - For real division the numerator is finite and the divisor is a signed zero in binary32 or binary64. For an empty dot update the cell predicates recognize beta as nonzero and one.
-  - Note: A finite numerator divided by either signed zero returns zero with the exclusive-or sign and empty reference flags. An empty dot with unit beta returns the prior cell unchanged with empty local flags. Separately, scripts/check_float_kernels.py compares 828 input tuples across both widths against the C real quotient, ordered complex quotient and inverse adapters. The harness compares arithmetic NaNs by class and other values by bits. These direct adapter tests do not exercise a public arithmetic instruction.
+  - Note: A finite numerator divided by either signed zero returns zero with the exclusive-or sign and empty reference flags. An empty dot with unit beta returns the prior cell unchanged with empty local flags. On 828 input tuples across both widths, scripts/check_float_kernels.py compares Lean with the independent integer and rational reference on scalar and complex result bits and local flags. It also compares C real division, ordered complex division and inverse, including aliased outputs. The C comparison checks arithmetic NaNs by class and every other result by bits.
 - `lowering`: [Planned](../specifications.md#planned)
   - Issue: [#751](https://github.com/MGYamada/Vastitas/issues/751)
 

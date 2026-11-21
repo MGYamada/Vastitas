@@ -6,6 +6,7 @@ import random
 import subprocess
 import tempfile
 
+import complex_division_reference as graph
 import float_reference as reference
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -75,35 +76,6 @@ def check_boundaries(width, a, b, values):
             raise ValueError(f"boundary bits/flags {values[pos:pos+2]} != {[bits, flags]}")
 
 
-def complex64_reference(x, y):
-    # The strict reference selects exact NaN bits and accumulates local flags
-    # for each node. The native adapter exposes only its two output words.
-    flags = reference.Flags.NONE
-
-    def step(op, a, b):
-        nonlocal flags
-        result = op(a, b)
-        flags |= result.flags
-        return result.value
-
-    one = reference.F64(0x3ff0000000000000)
-
-    def reciprocal(v):
-        return step(reference.mul if v.is_zero else reference.div, one, v)
-
-    a, b = x
-    c, d = y
-    t = reciprocal(step(reference.add, reference.F64(c.bits & ~reference.SIGN),
-                        reference.F64(d.bits & ~reference.SIGN)))
-    a, b, c, d = [step(reference.mul, component, t) for component in (a, b, c, d)]
-    u = reciprocal(step(reference.add, step(reference.mul, c, c), step(reference.mul, d, d)))
-    real_sum = step(reference.add, step(reference.mul, a, c), step(reference.mul, b, d))
-    real = step(reference.mul, real_sum, u)
-    imag_diff = step(reference.sub, step(reference.mul, b, c), step(reference.mul, a, d))
-    imag = step(reference.mul, imag_diff, u)
-    return [real.bits, imag.bits, int(flags)]
-
-
 def verify(lib, case, values):
     width, a, b, c, d = case
     if len(values) != 16:
@@ -119,24 +91,36 @@ def verify(lib, case, values):
     cd = function("cdiv", [ct.POINTER(word)] * 3, None)
     inv = function("cinv", [ct.POINTER(word)] * 2, None)
     compare_bits(width, rd(a, b), values[8])
-    # Outputs may alias either input; calculate both components before writing.
-    x, y = pair(a, b), pair(c, d)
-    cd(x, y, x)
-    inv(y, y)
-    for actual, expected in zip([*x, *y], [*values[10:12], *values[13:15]], strict=True):
-        compare_bits(width, actual, expected)
-    if width == 64:
-        x, y = reference.F64(a), reference.F64(b)
-        ops = [reference.add, reference.sub, reference.mul, reference.div,
-               reference.mul if y.is_zero else reference.div]
-        for i, op in enumerate(ops):
-            r = op(x, y)
-            if [r.value.bits, int(r.flags)] != values[i * 2:i * 2 + 2]:
-                raise ValueError(f"{op.__name__} differs from the binary64 Fraction reference")
-        denominator = (reference.F64(c), reference.F64(d))
-        for pos, numerator in [(10, (x, y)), (13, (reference.F64(0x3ff0000000000000), reference.zero()))]:
-            if complex64_reference(numerator, denominator) != values[pos:pos + 3]:
-                raise ValueError("complex quotient bits or flags differ from the binary64 Fraction reference")
+    # Compare independent output as well as each permitted input/output alias.
+    for alias in (None, "numerator", "denominator"):
+        x, y = pair(a, b), pair(c, d)
+        out = x if alias == "numerator" else y if alias == "denominator" else pair()
+        cd(x, y, out)
+        if (alias != "numerator" and list(x) != [a, b]) or (alias != "denominator" and list(y) != [c, d]):
+            raise ValueError("complex division modified an input outside its output")
+        for actual, expected in zip(out, values[10:12], strict=True):
+            compare_bits(width, actual, expected)
+    for in_place in (False, True):
+        y = pair(c, d)
+        out = y if in_place else pair()
+        inv(y, out)
+        if not in_place and list(y) != [c, d]:
+            raise ValueError("inverse modified its input")
+        for actual, expected in zip(out, values[13:15], strict=True):
+            compare_bits(width, actual, expected)
+
+    scalar = reference.F32 if width == 32 else reference.F64
+    x, y = scalar(a), scalar(b)
+    ops = [reference.add, reference.sub, reference.mul, reference.div, reference.rdiv]
+    for i, op in enumerate(ops):
+        result = op(x, y)
+        if [result.value.bits, int(result.flags)] != values[i * 2:i * 2 + 2]:
+            raise ValueError(f"{op.__name__} bits or flags differ from the binary{width} reference")
+    numerator = graph.ComplexBits(x, y)
+    denominator = graph.ComplexBits(scalar(c), scalar(d))
+    for pos, result in [(10, graph.divide(numerator, denominator)), (13, graph.reciprocal(denominator))]:
+        if [result.value.real.bits, result.value.imag.bits, int(result.flags)] != values[pos:pos + 3]:
+            raise ValueError(f"complex bits or flags differ from the binary{width} quotient graph")
 
 
 def main():
@@ -157,7 +141,8 @@ def main():
                 verify(lib, case, list(map(int, line.split())))
             except ValueError as error:
                 raise SystemExit(f"input {case}: {error}") from error
-    print(f"{len(rows)} input tuples agreed on real quotient, complex quotient and inverse across both widths")
+    print(f"{len(rows)} tuples matched Lean and the independent binary32/64 reference on quotient graphs, scalar bits and local flags")
+    print("C real division, complex division and inverse matched, including separate and aliased outputs")
 
 
 if __name__ == "__main__":

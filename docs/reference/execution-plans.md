@@ -678,8 +678,9 @@ execution extensions. Unsupported primitive names/configurations are rejected.
 conventions as the original binary64 reference: exact `Fraction` conversion,
 roundTiesToEven, gradual underflow/tininess after rounding, chosen left-first
 NaN propagation, signaling NaN quieting, and five symbolic local flags. No
-operation implicitly converts F32 to F64. Scalar `rdiv(a, ±0)` evaluates
-`mul(a, +0)` and takes that multiplication's flags; nonzero denominators use
+operation implicitly converts F32 to F64. On either signed zero divisor
+`b`, scalar `rdiv(a, b)` evaluates `mul(a, b)` and retains its flags. A
+finite numerator thus produces the zero with sign `sign(a) XOR sign(b)`. Nonzero denominators use
 the existing raw division. `abs_bits` clears the sign without quieting a NaN.
 
 `complex_division_reference.py` pins

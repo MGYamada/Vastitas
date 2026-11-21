@@ -32,13 +32,13 @@ structure ScalarOps (α : Type u) where
   mul : α → α → Local α
   rawDiv : α → α → Local α
 
-/-- #318 totalization: `a / ±0` evaluates `a * +0`, with *multiplication*
-flags, rather than emitting a raw IEEE division. -/
+/-- On a signed zero divisor, multiply the actual operands and retain the
+multiplication's flags (#318 §4.1). -/
 def rdiv (ops : ScalarOps α) (a b : α) : Local α :=
-  if ops.isZero b then ops.mul a ops.plusZero else ops.rawDiv a b
+  if ops.isZero b then ops.mul a b else ops.rawDiv a b
 
 theorem rdiv_zero_uses_mul (ops : ScalarOps α) (a b : α)
-    (h : ops.isZero b = true) : rdiv ops a b = ops.mul a ops.plusZero := by
+    (h : ops.isZero b = true) : rdiv ops a b = ops.mul a b := by
   simp [rdiv, h]
 
 theorem rdiv_nonzero_uses_raw_div (ops : ScalarOps α) (a b : α)

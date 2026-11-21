@@ -102,7 +102,7 @@ jobs:
           tar_tool=tar
           if [[ "$RUNNER_OS" == macOS ]]; then tar_tool=gtar; fi
           read_sdk() { zstd --decompress --stdout --memory=1024MB -- "$archive"; }
-          read_sdk | "$tar_tool" -tf - | awk '/(^|\/)bin\/(llvm|llvm-config|llvm-dis)$/ || /(^|\/)include\/(llvm|llvm-c)\// || /(^|\/)lib(64)?\/([^/]+\/)?(libLLVM|libPolly|LLVMPolly)/' > llvm-sdk-members.txt
+          read_sdk | "$tar_tool" -tf - | grep -E '(^|/)(bin/(llvm|llvm-config|llvm-dis)$|include/(llvm|llvm-c)/|lib(64)?/([^/]+/)?(libLLVM|libPolly|LLVMPolly))' > llvm-sdk-members.txt
           read_sdk | "$tar_tool" --no-recursion -xf - -C llvm-sdk -T llvm-sdk-members.txt
           rm -- "$archive"
           prefix=$(python3 -c 'from pathlib import Path; (config,) = Path("llvm-sdk").rglob("bin/llvm-config"); print(config.parent.parent.resolve())')

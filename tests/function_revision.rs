@@ -16,6 +16,91 @@ fn revision(input: &Value) -> Value {
 }
 
 #[test]
+fn assembled_owners_come_from_their_physical_package_manifests() {
+    let raw = common::captured_wire(
+        common::manifest_command(
+            "check",
+            common::root().join("llvm/fixtures/borrowed-operator/Vastitas.toml"),
+        ),
+        CURRENT_PROTOCOL,
+    );
+    let evidence = revision(&raw);
+    let target: Value = serde_json::from_str(include_str!(
+        "../experiments/compiler_validation/llvm/results/macos-arm64/unary-table.json"
+    ))
+    .unwrap();
+    let triple = target["target"]["triple"].as_str().unwrap();
+    let layout = target["target"]["layout"].as_str().unwrap();
+    let llvm = ["llvm-check", triple, layout];
+    let expected = include_str!("../llvm/src/borrowed-operator.ll");
+    assert_eq!(
+        common::kernel_with_args(pin(&raw, &evidence), &llvm)["llvm"]["ir"],
+        expected
+    );
+
+    for (i, pkg) in raw["packages"].as_array().unwrap().iter().enumerate() {
+        let path = pkg["source"].as_str().unwrap();
+        for (field, replacement) in [("name", "other"), ("version", "0.2.0")] {
+            let mut changed = raw.clone();
+            changed["packages"][i][field] = json!(replacement);
+            for args in [
+                &["check"][..],
+                &["emit"],
+                &["function-revision"],
+                &llvm,
+                &["llvm-build", triple, layout],
+            ] {
+                let response = common::kernel_with_args(&changed, args);
+                assert_wire_rejected(&response, "E_PROTOCOL");
+                assert!(
+                    response["diagnostics"][0]["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains(path)
+                );
+                assert!(
+                    response.get("function_revision").is_none() && response.get("llvm").is_none()
+                );
+            }
+        }
+    }
+
+    // Releasing the defining package under a new version preserves its code and
+    // its chosen method's ordinal, but changes the family ID in the revision.
+    let mut changed = raw.clone();
+    let pkg = changed["packages"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|p| p["name"] == "edit_base")
+        .unwrap();
+    pkg["version"] = json!("0.2.0");
+    let path = pkg["source"].clone();
+    let file = changed["root_source"]["files"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|f| f["path"] == path)
+        .unwrap();
+    file["text"] = common::checked_replace(file["text"].as_str().unwrap(), "0.1.0", "0.2.0").into();
+    let revised = revision(&changed);
+    let call = &revised["pure"]["dispatch_calls"][0];
+    assert_eq!(call["id"]["package"]["version"], "0.2.0");
+    assert_eq!(
+        call["method"],
+        evidence["pure"]["dispatch_calls"][0]["method"]
+    );
+    assert_eq!(
+        common::kernel_with_args(pin(&changed, &revised), &llvm)["llvm"]["ir"],
+        expected
+    );
+    assert_wire_rejected(
+        &common::kernel_with_args(pin(&changed, &evidence), &llvm),
+        "E_FUNCTION_REVISION",
+    );
+}
+
+#[test]
 fn selected_contribution_and_core_symbol_share_one_exact_revision() {
     let s = Scratch::empty("exact family revision");
     let base =

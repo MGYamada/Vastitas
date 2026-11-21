@@ -2,10 +2,16 @@ import Init
 
 set_option autoImplicit false
 
-/-! Read the physical package.edition field in the TOML grammar of a Vastitas
-manifest. Manifest leaves are strings. Dotted keys, table headers and inline
-tables select the same field. Comments and strings are lexically distinct. -/
-namespace VastitasKernel.ManifestEdition
+/-! Read the fields that identify a package and select its edition in a Vastitas
+manifest. All leaves of this manifest schema are strings. Table headers,
+dotted keys and inline tables can address the same fields. -/
+namespace VastitasKernel.ManifestMetadata
+
+structure Metadata where
+  name : String
+  version : String
+  edition : String
+  deriving DecidableEq, BEq, ReflBEq, LawfulBEq
 
 private abbrev Parse := ReaderT String (StateT String.Pos.Raw Option)
 
@@ -20,7 +26,9 @@ private def take : Parse Char := do
   return c
 
 private def accept (c : Char) : Parse Bool := do
-  if (← peek) == some c then discard take; return true
+  if (← peek) == some c then
+    discard take
+    return true
   return false
 
 private def skipWhile (f : Char → Bool) : Parse Unit := do
@@ -29,7 +37,9 @@ private def skipWhile (f : Char → Bool) : Parse Unit := do
 private def space : Parse Unit := skipWhile fun c => c == ' ' || c == '\t'
 
 private def newline : Parse Bool := do
-  if ← accept '\r' then guard (← accept '\n'); return true
+  if ← accept '\r' then
+    guard (← accept '\n')
+    return true
   return ← accept '\n'
 
 private def comment : Parse Unit := do
@@ -115,7 +125,7 @@ private def key : Parse String := do
   set stop
   return String.Pos.Raw.extract text start stop
 
-private inductive Field where | root | package | edition | other
+private inductive Field where | root | package | name | version | edition | other
   deriving BEq
 
 private def path (base : Field) : Parse Field := do
@@ -125,18 +135,26 @@ private def path (base : Field) : Parse Field := do
     let name ← key
     field ← match field with
       | .root => pure (if name == "package" then .package else .other)
-      | .package => pure (if name == "edition" then .edition else .other)
-      | .edition => failure
+      | .package => pure <| match name with
+        | "name" => .name
+        | "version" => .version
+        | "edition" => .edition
+        | _ => .other
+      | .name | .version | .edition => failure
       | .other => pure .other
     space
     unless ← accept '.' do return field
   failure
 
-private def document : Parse String := do
+private def Field.table (field : Field) : Bool := field == .package || field == .other
+
+private def document : Parse Metadata := do
   let text ← read
   discard (accept '\uFEFF')
   let mut tableField := Field.root
   let mut inlineTables : List Field := []
+  let mut name := none
+  let mut version := none
   let mut edition := none
   let mut endValue := false
   for _ in [:text.utf8ByteSize + 2] do
@@ -145,7 +163,9 @@ private def document : Parse String := do
       match inlineTables with
       | _ :: rest =>
         if ← accept '}' then inlineTables := rest
-        else guard (← accept ','); endValue := false
+        else
+          guard (← accept ',')
+          endValue := false
       | [] =>
         comment
         if (← peek).isNone then break
@@ -158,28 +178,38 @@ private def document : Parse String := do
         if ← newline then continue
         if ← accept '[' then
           tableField ← path .root
-          guard (tableField != .edition && (← accept ']'))
+          guard (tableField.table && (← accept ']'))
           endValue := true
           continue
       let field ← path (inlineTables.headD tableField)
       guard (← accept '=')
       space
       if ← accept '{' then
-        guard (field != .edition)
+        guard field.table
         space
         if ← accept '}' then endValue := true
         else inlineTables := field :: inlineTables
       else
         guard (field != .package)
         let value ← quoted true
-        if field == .edition then
+        match field with
+        | .name =>
+          guard name.isNone
+          name := some value
+        | .version =>
+          guard version.isNone
+          version := some value
+        | .edition =>
           guard edition.isNone
           edition := some value
+        | _ => pure ()
         endValue := true
   guard (inlineTables.isEmpty && (← peek).isNone)
-  let some result := edition | failure
-  return result
+  let some packageName := name | failure
+  let some packageVersion := version | failure
+  let some packageEdition := edition | failure
+  return ⟨packageName, packageVersion, packageEdition⟩
 
-def readEdition (text : String) : Option String := (document.run text).run' 0
+def read? (text : String) : Option Metadata := (document.run text).run' 0
 
-end VastitasKernel.ManifestEdition
+end VastitasKernel.ManifestMetadata

@@ -168,7 +168,7 @@ def check_physical_inputs(work, args, source, check):
     dep = work / "dep"
     dep.mkdir()
     dep_manifest = dep / "Vastitas.toml"
-    metadata = '[package]\nedition="2026"\nname="dep"\nversion="0.1.0"\nroot="main.vast"\n'
+    metadata = '\ufeff[package]\nedition="2026"\nname="dep"\nversion="0.1.0"\nroot="main.vast"\n'
     dep_manifest.write_text(metadata + "# revision A")
     (dep / "main.vast").write_text("pub " + helper)
     for label, changed_file, replacement, count in [

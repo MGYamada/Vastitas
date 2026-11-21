@@ -1,4 +1,4 @@
-import VastitasKernel.ManifestEdition
+import VastitasKernel.ManifestMetadata
 import VastitasKernel.EditSourceFiles
 import VastitasKernel.FunctionRevision
 import VastitasKernel.ResourceCodegen
@@ -587,16 +587,18 @@ def manifestFile? (layout : PhysicalSources.Layout) (index : Std.TreeMap String 
   guard (file.path.data = owner.toUTF8.data)
   return file
 
-def editionsMatch (layout : PhysicalSources.Layout) (p : Program) : Bool :=
-  p.root == flatPackageId.source || Id.run do
-    let index := physicalFileIndex layout
-    return p.packages.all fun pkg => (manifestFile? layout index pkg.id.source).any fun file =>
-      ManifestEdition.readEdition file.text == some currentEdition
+def mismatchedManifest? (layout : PhysicalSources.Layout) (p : Program) : Option Package :=
+  if p.root == flatPackageId.source then none else
+  let index := physicalFileIndex layout
+  p.packages.find? fun pkg =>
+    ((manifestFile? layout index pkg.id.source).bind fun file => ManifestMetadata.read? file.text) !=
+      some ⟨pkg.id.name, pkg.id.version, currentEdition⟩
 
 /-- Check the manifest of each physical package and the mathematical declarations of its modules. -/
 def exactSources (j : Json) (p : Program) : Except String Unit := do
   let layout ← PhysicalSources.layout j
-  unless editionsMatch layout p do throw "physical package manifest requires package.edition = \"2026\""
+  if let some pkg := mismatchedManifest? layout p then
+    throw s!"manifest {toJson pkg.id.source} must match the wire package name, version and package.edition = \"{currentEdition}\""
   ExactModelSource.check layout p
 
 def program (j : Json) : Except String Program := do

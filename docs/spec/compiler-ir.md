@@ -96,11 +96,12 @@ Claims:
   - Note: This claim covers only the required manifest string edition = "2026", the fixed edition of protected flat and --lib envelopes, and independent Lean rejection of missing, different or non-string wire editions in every package. Source check/build reject before a backend runs; raw-wire check/emit use the real kernel. Package identities and wire epoch 10 are unchanged. CI builds the kernel before `cargo test --locked --all-targets`. This is regression evidence, not a source-to-Core theorem or acceptance of the planned fn, assemble, finite-indexed and numerical-realization grammar.
 - `manifest-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_manifest_edition`
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_manifest_metadata`
+    - [`VastitasOracle.BoxedCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BoxedCertificate.lean): `VastitasOracle.BoxedCertificate.published_manifest_metadata`
   - Premises:
     - the independent protocol-10 checker accepted a file-backed program
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Each accepted package has a manifest record at its own path among the physical inputs. Reading package.edition from its text yields the current edition, including for unused dependencies. The loader supplies the file contents and checks the rest of the TOML manifest schema. Flat inputs carry their edition in the protected package envelope.
+  - Note: Each accepted package has a manifest record at its own path among the physical inputs. Reading package.name and package.version from its text yields the nominal owner recorded in the wire. Reading package.edition yields the current edition. This covers root and unused dependency manifests. For a boxed program, the publication witness and valid stage certificate identify the same manifest in the certificate's physical files. The loader supplies the file contents and checks the rest of the TOML manifest schema. Flat inputs carry their edition in the protected package envelope.
 - `finite-tables`: [Tested](../specifications.md#tested)
   - Evidence:
     - `forward_references_and_degenerate_products_are_checked_on_wire` in [`tests/finite_tables.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_tables.rs)
@@ -187,6 +188,7 @@ Claims:
     - `resource_values_cannot_replay_another_specialization_table` in [`tests/function_revision.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision.rs)
     - `build_rechecks_the_captured_assembly_and_preserves_output_on_mismatch` in [`tests/function_revision_cli.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision_cli.rs)
     - `unchanged_llvm_bytes_do_not_authorize_an_edited_library_or_manifest` in [`tests/function_revision_cli.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision_cli.rs)
+    - `assembled_owners_come_from_their_physical_package_manifests` in [`tests/function_revision.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision.rs)
   - Note: The optional receipt binds a whole protocol-10 input to its kernel-reconstructed families, selected ordinary or contributed methods and emitted Core symbols. The physical inputs include each loaded manifest, module and flat library. A byte edit in an unused comment invalidates replay even when all LLVM bytes match.
 - `selector-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:

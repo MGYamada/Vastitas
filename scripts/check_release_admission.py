@@ -38,7 +38,7 @@ COMMON_OBLIGATIONS = {
 ROW_OBLIGATIONS = {
     'functions': {
         'source': ('compiler-ir.families@family', 'compiler-ir.families@public-syntax'),
-        'core': ('compiler-ir.families@assembly', 'compiler-ir.families@public-syntax',
+        'core': ('compiler-ir.families@assembly', 'compiler-ir.families@public-syntax', 'compiler-ir.edition@manifest-source',
                  'compiler-ir.families@revision-replay', 'compiler-ir.families@singleton-source',
                  'compiler-ir.edition@namespace-source', 'compiler-ir.families@selector-source'),
         'midir': ('compiler-ir.midir@representation', 'compiler-ir.midir@pure-cfg', 'compiler-ir.midir@direct-call'),

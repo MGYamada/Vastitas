@@ -33,9 +33,10 @@ Rules:
 - `edition` must be the string `"2026"` in every package, including dependencies.
   The loader reports another value as `E_MANIFEST`. The Lean checker reads
   `package.edition` from the manifest text supplied for each package, even
-  when the program uses none of its exports. It requires the same edition
-  in the wire record. Flat programs, including `--lib` inputs, use edition
-  2026 through their protected synthetic package.
+  when the program uses none of its exports. It checks the edition, package
+  name and version against the corresponding wire record. Flat programs,
+  including `--lib` inputs, use edition 2026 through their protected
+  synthetic package.
 - `root` must name a file inside the package directory whose name ends in
   `.vast`. Another file is an error (`E_INPUT`).
 - A dependency alias must be an ASCII

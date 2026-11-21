@@ -77,7 +77,9 @@ def check_manifest_inputs(wire, manifest, files, entry):
         rows = by_path.get(os.fsencode(path), [])
         require(len(rows) == 1 and str(path) in packages, "missing or duplicate physical package manifest")
         package = packages[str(path)]
-        doc = tomllib.loads(rows[0][1])
+        # The frontend accepts one UTF-8 BOM at the start of a manifest.
+        # Keep the original text in the certificate's physical layout.
+        doc = tomllib.loads(rows[0][1].removeprefix("\ufeff"))
         metadata = doc["package"]
         require(metadata["edition"] == "2026" and all(metadata[key] == package[key]
                 for key in ("name", "version", "edition")), "manifest and wire package identities differ")

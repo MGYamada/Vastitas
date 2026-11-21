@@ -1,4 +1,4 @@
-import Init
+import Std.Data.TreeMap.Basic
 
 set_option autoImplicit false
 
@@ -125,16 +125,40 @@ private def key : Parse String := do
   set stop
   return String.Pos.Raw.extract text start stop
 
-private inductive Field where | root | package | name | version | edition | other
+structure Written where
+  text : String
+  start : Nat
+  stop : Nat
+  deriving BEq
+
+structure Dependency where
+  alias : Written
+  path : Written
+
+/-- Key segments stay separate so quoted TOML keys containing periods cannot introduce a nested role. -/
+private inductive Field where
+  | root | package | name | version | edition | other
+  | dependencies | dependency (alias : Written) | dependencyPath (alias : Written)
+  | geometry | setting (name : String) | role (key : List String)
   deriving BEq
 
 private def path (base : Field) : Parse Field := do
   let mut field := base
   let text ← read
   for _ in [:text.utf8ByteSize - (← get).byteIdx + 1] do
+    space
+    let beginKey ← get
     let name ← key
+    let endKey ← get
     field ← match field with
-      | .root => pure (if name == "package" then .package else .other)
+      | .root => pure <| match name with
+        | "package" => .package | "dependencies" => .dependencies | "geometry_compat" => .geometry | _ => .other
+      | .dependencies => pure (.dependency ⟨name, beginKey.byteIdx, endKey.byteIdx⟩)
+      | .dependency alias => do guard (name == "path"); pure (.dependencyPath alias)
+      | .geometry =>
+        pure (if name == "scheme" || name == "smooth" then .setting name else .role [name])
+      | .setting setting => pure (.role [setting, name])
+      | .role _ | .dependencyPath _ => failure
       | .package => pure <| match name with
         | "name" => .name
         | "version" => .version
@@ -146,9 +170,38 @@ private def path (base : Field) : Parse Field := do
     unless ← accept '.' do return field
   failure
 
-private def Field.table (field : Field) : Bool := field == .package || field == .other
+private def Field.table : Field → Bool
+  | .package | .other | .dependencies | .dependency _ | .geometry | .setting _ => true
+  | _ => false
 
-private def document : Parse Metadata := do
+structure Document where
+  metadata : Metadata
+  paths : Std.TreeMap String Dependency
+  geometry : Option (List (List String × Written))
+
+private structure Declarations where
+  deps : Std.TreeMap String (Option Dependency) := {}
+  geometry : Option (List (List String × Written)) := none
+
+private def Declarations.table (d : Declarations) : Field → Declarations
+  | .dependency alias => {d with deps := d.deps.insertIfNew alias.text none}
+  | .geometry | .setting _ => {d with geometry := some (d.geometry.getD [])}
+  | _ => d
+
+private def Declarations.leaf (d : Declarations) (field : Field) (value : Written) : Option Declarations := do
+  match field with
+  | .dependencyPath alias =>
+    guard ((d.deps.get? alias.text).join.isNone)
+    return {d with deps := d.deps.insert alias.text (some ⟨alias, value⟩)}
+  | .role key =>
+    let rows := d.geometry.getD []
+    -- Exactly 21 roles exist in a complete profile, so the duplicate check is bounded.
+    guard (rows.length < 21 && !(rows.any (fun row => row.1 == key)))
+    return {d with geometry := some ((key, value) :: rows)}
+  | .dependencies | .dependency _ | .geometry | .setting _ => failure
+  | _ => return d
+
+private def document : Parse Document := do
   let text ← read
   discard (accept '\uFEFF')
   let mut tableField := Field.root
@@ -156,6 +209,7 @@ private def document : Parse Metadata := do
   let mut name := none
   let mut version := none
   let mut edition := none
+  let mut decls : Declarations := {}
   let mut endValue := false
   for _ in [:text.utf8ByteSize + 2] do
     space
@@ -179,6 +233,7 @@ private def document : Parse Metadata := do
         if ← accept '[' then
           tableField ← path .root
           guard (tableField.table && (← accept ']'))
+          decls := decls.table tableField
           endValue := true
           continue
       let field ← path (inlineTables.headD tableField)
@@ -186,11 +241,13 @@ private def document : Parse Metadata := do
       space
       if ← accept '{' then
         guard field.table
+        decls := decls.table field
         space
         if ← accept '}' then endValue := true
         else inlineTables := field :: inlineTables
       else
         guard (field != .package)
+        let start ← get
         let value ← quoted true
         match field with
         | .name =>
@@ -202,14 +259,22 @@ private def document : Parse Metadata := do
         | .edition =>
           guard edition.isNone
           edition := some value
-        | _ => pure ()
+        | field =>
+          let some next := decls.leaf field ⟨value, start.byteIdx, (← get).byteIdx⟩ | failure
+          decls := next
         endValue := true
   guard (inlineTables.isEmpty && (← peek).isNone)
   let some packageName := name | failure
   let some packageVersion := version | failure
   let some packageEdition := edition | failure
-  return ⟨packageName, packageVersion, packageEdition⟩
+  let mut paths := {}
+  for (alias, path) in decls.deps do
+    let some value := path | failure
+    paths := paths.insert alias value
+  return ⟨⟨packageName, packageVersion, packageEdition⟩, paths, decls.geometry⟩
 
-def read? (text : String) : Option Metadata := (document.run text).run' 0
+def readDocument? (text : String) : Option Document := (document.run text).run' 0
+
+def read? (text : String) : Option Metadata := (readDocument? text).map (·.metadata)
 
 end VastitasKernel.ManifestMetadata

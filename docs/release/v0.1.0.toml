@@ -180,7 +180,7 @@ document = ""
 [row.dimension.core]
 state = "partial"
 claims = ["compiler-ir.families@assembly", "compiler-ir.families@public-syntax", "compiler-ir.edition@manifest-source", "compiler-ir.families@revision-replay", "compiler-ir.families@singleton-source", "compiler-ir.edition@namespace-source", "compiler-ir.families@selector-source", "compiler-ir.operators@selected-method"]
-note = "Structured borrow, apply, return and seal lower to the checked edit trace. The checked revision binds the trace and selected method. The defining package and the contribution owner take their names and versions from their physical manifests."
+note = "Structured borrow, apply, return and seal lower to the checked edit trace. The checked revision binds the trace and selected method. The defining package and the contribution owner take their names and versions from their physical manifests. Each file-backed package declares its wire dependency aliases and its optional 21-role geometry export in that manifest."
 document = ""
 
 [row.dimension.midir]

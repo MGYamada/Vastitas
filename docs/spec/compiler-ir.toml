@@ -78,11 +78,14 @@ evidence = [
   "tests/protocol_epoch.rs::every_package_carries_the_edition_including_flat_library_inputs",
   "tests/protocol_epoch.rs::physical_manifest_editions_bind_the_root_and_unused_dependencies",
   "tests/protocol_epoch.rs::physical_edition_accepts_equivalent_toml_and_ignores_decoys",
+  "tests/protocol_epoch.rs::each_physical_dependency_alias_belongs_to_the_manifest_that_declares_it",
+  "tests/protocol_epoch.rs::legacy_geometry_exports_replay_the_physical_manifest_roles_and_presence",
   "tests/protocol_epoch.rs::the_frontend_the_kernel_and_version_share_one_epoch",
   "tests/protocol_epoch.rs::every_version_below_the_epoch_fails_closed",
 ]
 note = """
-This claim covers only the required manifest string edition = "2026", the
+This claim covers manifest dependency aliases, the physical legacy geometry export,
+the required manifest string edition = "2026", the
 fixed edition of protected flat and --lib envelopes, and independent Lean
 rejection of missing, different or non-string wire editions in every package.
 Source check/build reject before a backend runs; raw-wire check/emit use the
@@ -95,10 +98,12 @@ assemble, finite-indexed and numerical-realization grammar.
 [property."compiler-ir.edition".claim.manifest-source]
 status = "proved-oracle"
 evidence = ["VastitasOracle.ResourceSource.physical_manifest_metadata",
-            "VastitasOracle.BoxedCertificate.published_manifest_metadata"]
+            "VastitasOracle.BoxedCertificate.published_manifest_metadata",
+            "VastitasOracle.ResourceSource.physical_manifest_bindings",
+            "VastitasOracle.BoxedCertificate.published_manifest_bindings"]
 premises = ["the independent protocol-10 checker accepted a file-backed program"]
 assumes = ["rust-frontend"]
-note = "Each accepted package has a manifest record at its own path among the physical inputs. Reading package.name and package.version from its text yields the nominal owner recorded in the wire. Reading package.edition yields the current edition. This covers root and unused dependency manifests. For a boxed program, the publication witness and valid stage certificate identify the same manifest in the certificate's physical files. The loader supplies the file contents and checks the rest of the TOML manifest schema. Flat inputs carry their edition in the protected package envelope."
+note = "Each accepted package has a manifest record at its own path among the physical inputs. Reading package.name and package.version from its text yields the nominal owner recorded in the wire. Reading package.edition yields the current edition. The same manifest declares each admitted dependency alias exactly once. Its optional geometry_compat export agrees with the wire on presence and on all 21 role paths, including the separate scheme and smooth settings. This covers root and unused dependency manifests. For a boxed program, the publication witness and valid stage certificate identify the same manifest in the certificate's physical files. The loader supplies the file contents and checks the rest of the TOML manifest schema. Flat inputs carry their edition in the protected package envelope."
 
 [property."compiler-ir.edition".claim.finite-tables]
 status = "tested"

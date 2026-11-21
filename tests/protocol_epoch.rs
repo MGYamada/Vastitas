@@ -599,3 +599,115 @@ fn rewrite_geometry(value: &Value, edit: &impl Fn(&mut Value) -> bool) -> Value 
         edit(&mut profile["smooth"]) || scheme
     })
 }
+
+#[test]
+fn each_physical_dependency_alias_belongs_to_the_manifest_that_declares_it() {
+    let s = common::Scratch::empty("manifest dependency declarations");
+    s.write_package("dep", "pub fn answer() -> Int { 9 }", "");
+    s.write_package(
+        "app",
+        PROGRAM,
+        "alpha={path='../dep'}\nomega={path='../linked'}",
+    );
+    std::os::unix::fs::symlink(s.0.join("dep"), s.0.join("linked")).unwrap();
+    let root = "app/Vastitas.toml";
+    let raw = s.captured(root, CURRENT_PROTOCOL);
+    let triple = "aarch64-apple-darwin";
+    let layout = "e-m:o-i64:64-n32:64-S128";
+    let accepted = common::kernel_with_args(&raw, &["llvm-check", triple, layout]);
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    let mut stale = raw.clone();
+    let row = &mut stale["root_source"]["files"][0];
+    let offset = row["offset"].as_u64().unwrap() as usize;
+    let text = common::checked_replace(row["text"].as_str().unwrap(), "omega=", "theta=");
+    let start = text.find("theta=").unwrap();
+    row["text"] = json!(text);
+    for route in [
+        &["check"][..],
+        &["emit"],
+        &["function-revision"],
+        &["llvm-check", triple, layout],
+        &["llvm-build", triple, layout],
+    ] {
+        let response = common::kernel_with_args(&stale, route);
+        assert_wire_rejected(&response, "E_MANIFEST_SOURCE");
+        let diagnostic = &response["diagnostics"][0];
+        assert_eq!(diagnostic["span"]["start"], offset + start);
+        assert_eq!(diagnostic["span"]["end"], offset + start + "theta".len());
+        assert!(diagnostic["message"].as_str().unwrap().contains("theta"));
+        assert!(response.get("llvm").is_none() && response.get("function_revision").is_none());
+    }
+
+    // The two written aliases can legitimately point to one canonical package.
+    // Equivalent dotted, quoted and table syntax preserves the same LLVM bytes.
+    let path = s.0.join(root);
+    let manifest = std::fs::read_to_string(&path).unwrap();
+    let start = manifest.find("[dependencies]").unwrap();
+    let alternate = format!(
+        "dependencies.\"o\\u006dega\".path='../linked'\n{}[dependencies.alpha]\npath='../dep'\n",
+        &manifest[..start],
+    );
+    s.write(root, &alternate);
+    let reordered = s.captured(root, CURRENT_PROTOCOL);
+    assert_eq!(
+        common::kernel_with_args(&reordered, &["llvm-check", triple, layout])["llvm"],
+        accepted["llvm"]
+    );
+}
+
+#[test]
+fn legacy_geometry_exports_replay_the_physical_manifest_roles_and_presence() {
+    let raw = geometry_request();
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    let old = "identity = \"self::scheme::id\"";
+    for (from, to, written) in [
+        (
+            old,
+            "identity = \"self::smooth::id\"",
+            "\"self::smooth::id\"",
+        ),
+        (
+            "point = \"self::Point\"",
+            "point = \"self::Other\"",
+            "\"self::Other\"",
+        ),
+        (
+            "dimension = \"self::scheme::dim\"",
+            "dimension = \"self::smooth::dim\"",
+            "\"self::smooth::dim\"",
+        ),
+    ] {
+        let mut changed = raw.clone();
+        let row = changed["root_source"]["files"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|f| f["text"].as_str().is_some_and(|s| s.contains(old)))
+            .unwrap();
+        let offset = row["offset"].as_u64().unwrap() as usize;
+        let source = row["text"].as_str().unwrap();
+        let start = source.find(from).unwrap() + to.find(written).unwrap();
+        let source = source.replacen(from, to, 1);
+        row["text"] = json!(source);
+        let response = kernel(&changed, "check");
+        assert_wire_rejected(&response, "E_MANIFEST_SOURCE");
+        let span = &response["diagnostics"][0]["span"];
+        assert_eq!(span["start"], offset + start);
+        assert_eq!(span["end"], offset + start + written.len());
+        assert_eq!(span["line"], source[..start].lines().count());
+    }
+    let mut missing = raw;
+    let row = missing["root_source"]["files"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|f| f["text"].as_str().is_some_and(|s| s.contains(old)))
+        .unwrap();
+    let source = row["text"].as_str().unwrap();
+    let start = source.find("[geometry_compat]").unwrap();
+    let absent = format!("{}{}", &source[..start], " ".repeat(source.len() - start));
+    row["text"] = json!(absent);
+    let response = kernel(&missing, "function-revision");
+    assert_wire_rejected(&response, "E_MANIFEST_SOURCE");
+    assert!(response.get("function_revision").is_none());
+}

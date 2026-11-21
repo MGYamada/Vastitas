@@ -275,6 +275,13 @@ package ID used in function families and edit authority.
 Table headers, dotted keys and inline tables can all select these fields.
 A comment or a string containing the field's spelling cannot supply it.
 The decoded field and the wire edition must both equal the string `"2026"`.
+For every file-backed package, Lean also compares the declared dependency aliases
+and all roles in its optional `geometry_compat` export. Each scheme and smooth
+role retains its own qualified name. A differing alias or role in an otherwise
+valid request produces `E_MANIFEST_SOURCE` at the physical key or value.
+Filesystem resolution of dependency paths, including symlinks, belongs to the
+loader. Two aliases may resolve to one package.
+
 The function revision includes the ordered files. Even a comment-only change in a
 library or dependency manifest invalidates its replay. Filesystem discovery
 and the translation of source declarations into wire records use the Rust

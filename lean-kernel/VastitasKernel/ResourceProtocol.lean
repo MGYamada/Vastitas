@@ -573,19 +573,8 @@ private def decodedProgram (j : Json) : Except String Program := do
   let names ← raw.valueFamilies.mapError (·.message)
   return {raw with operatorValues := names}
 
-/-- Index physical UTF-8 paths once for the entire closure. Module paths may
-repeat. The physical layout requires a unique record per package manifest. -/
-def physicalFileIndex (layout : PhysicalSources.Layout) : Std.TreeMap String Nat := Id.run do
-  let mut index := {}
-  for file in layout.files, i in [:layout.files.size] do
-    if let some path := String.fromUTF8? file.path then index := index.insert path i
-  return index
-
-def manifestFile? (layout : PhysicalSources.Layout) (index : Std.TreeMap String Nat)
-    (owner : String) : Option PhysicalSources.File := do
-  let file ← layout.files[← index.get? owner]?
-  guard (file.path.data = owner.toUTF8.data)
-  return file
+abbrev physicalFileIndex := ManifestBindings.physicalFileIndex
+abbrev manifestFile? := ManifestBindings.manifestFile?
 
 def mismatchedManifest? (layout : PhysicalSources.Layout) (p : Program) : Option Package :=
   if p.root == flatPackageId.source then none else

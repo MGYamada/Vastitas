@@ -209,11 +209,20 @@ theorem physical_manifest_metadata {json : Lean.Json} (input : Wire.CheckedInput
       | some file =>
         have fields : ManifestMetadata.read? file.text = some ⟨pkg.id.name, pkg.id.version, currentEdition⟩ := by
           simpa [f] using found
-        simp only [Wire.manifestFile?, Option.bind_eq_some_iff, bind] at f
+        simp only [Wire.manifestFile?, ManifestBindings.manifestFile?, Option.bind_eq_some_iff, bind] at f
         obtain ⟨i, _, record, situated, accepted⟩ := f
         simp [guard, pure] at accepted
         obtain ⟨path, rfl⟩ := accepted
         exact ⟨layout, i, record, rfl, situated, congrArg ByteArray.mk path, fields⟩
+
+/-- Every file-backed package declares exactly its admitted dependency aliases and its
+exported legacy geometry roles. The loader resolves paths relative to the manifest. -/
+theorem physical_manifest_bindings {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (disk : input.input.root ≠ flatPackageId.source) :
+    ∃ layout, PhysicalSources.layout json = .ok layout ∧
+      ∀ pkg ∈ input.input.packages, ManifestBindings.Corresponds layout pkg := by
+  obtain ⟨_, layout, _, _, physical, _, _, bindings, _⟩ := EditSourceFiles.all_evidence input.editSources
+  exact ⟨layout, physical, fun _ member => ManifestBindings.check_sound bindings disk member⟩
 
 /-- The public request carries the physical edit declaration comparison for
 the very program whose contributions and assembly passed the authority checker. -/
@@ -261,7 +270,7 @@ theorem physical_resource_cells {json : Lean.Json} (input : Wire.CheckedInput js
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       Finite.sameCounts checked.cells.keys ((ResourceCellSource.items input.input).map (·.span.start)) = true ∧
       ∀ i ∈ ResourceCellSource.items input.input, ResourceCellSource.Corresponds layout checked.cells i := by
-  obtain ⟨expected, layout, checked, collected, physical, scan, _, cells, _, _, _⟩ :=
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, cells, _, _, _⟩ :=
     EditSourceFiles.all_evidence input.editSources
   obtain ⟨inventory, all⟩ := ResourceCellSource.check_sound cells
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
@@ -274,7 +283,7 @@ theorem physical_resource_products {json : Lean.Json} (input : Wire.CheckedInput
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       Finite.sameCounts checked.products.keys ((ResourceProductSource.items input.input).map (·.span.start)) = true ∧
       ∀ i ∈ ResourceProductSource.items input.input, ResourceProductSource.Corresponds layout checked.products i := by
-  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, products, _, _⟩ :=
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, _, products, _, _⟩ :=
     EditSourceFiles.all_evidence input.editSources
   obtain ⟨inventory, all⟩ := ResourceStatementSource.check_sound products
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩

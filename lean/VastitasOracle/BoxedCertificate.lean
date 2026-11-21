@@ -60,6 +60,16 @@ theorem published_manifest_metadata {s : Subject} (valid : Valid s) {requireMain
   have same := Except.ok.inj (physical.symm.trans valid.physical)
   exact ⟨i, file, same ▸ atIndex, path, fields⟩
 
+/-- The physical inputs of the selected certificate also fix each package's dependency
+aliases and its complete optional legacy geometry export. -/
+theorem published_manifest_bindings {s : Subject} (valid : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain) (disk : p.req.input.root ≠ flatPackageId.source)
+    {pkg : VastitasKernel.ResourceSource.Package} (member : pkg ∈ p.req.input.packages) :
+    ManifestBindings.Corresponds s.sources pkg := by
+  obtain ⟨layout, physical, bindings⟩ := ResourceSource.physical_manifest_bindings p.req disk
+  have same := Except.ok.inj (physical.symm.trans valid.physical)
+  exact same ▸ bindings pkg member
+
 /-- Capture all fields in one execution of the real public emitter. The typed
 publication equation stays available to the composition theorem. -/
 def capture (wire : Lean.Json) (header : TargetHeader) (requireMain : Bool) :

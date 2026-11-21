@@ -14,6 +14,7 @@ on:
       - 'tests/llvm_*.rs'
       - 'tests/finite_binders.rs'
       - 'tests/finite_iso.rs'
+      - 'tests/finite_monads.rs'
       - 'tests/finite_opposite.rs'
       - 'tests/numerical_realization.rs'
       - 'tests/numerical_source.rs'
@@ -22,6 +23,10 @@ on:
       - 'examples/packages/numerical/**'
       - 'examples/packages/float-identity/**'
       - 'examples/packages/float-complex-identity/**'
+      - 'monad/Vastitas.toml'
+      - 'monad/src/**'
+      - 'stdlib/Vastitas.toml'
+      - 'stdlib/src/category/**'
       - 'tests/fixtures/FamilyComparison.vast'
       - 'scripts/build_openblas.py'
       - 'Cargo.lock'
@@ -137,6 +142,8 @@ jobs:
           export CARGO_TARGET_DIR="$RUNNER_TEMP/llvm-target"
           cargo test --locked --manifest-path experiments/compiler_validation/llvm/Cargo.toml --test handoff
           cargo test --locked --features llvm-native --test llvm_preview --test llvm_package_roots --test finite_binders --test finite_iso --test finite_opposite --test numerical_realization
+          cargo test --locked --features llvm-native --test finite_monads -- --test-threads=1 \
+            | tee "$RUNNER_TEMP/llvm-qualification/kleisli-native.log"
           export VASTITAS_TEST_OPENBLAS_PREFIX="$RUNNER_TEMP/vastitas-openblas" VASTITAS_TEST_NATIVE_CC=cc
           cargo test --locked --features llvm-native --test numerical_source four_representations_execute_through_forwarded_public_maps -- --ignored --exact
           cargo test --locked --features llvm-native --test tree_source tensor_column_contraction_executes_without_implicit_conjugation -- --ignored --exact
@@ -154,4 +161,5 @@ jobs:
             ${{ runner.temp }}/llvm-qualification/authorized.ll
             ${{ runner.temp }}/llvm-qualification/*Comparison.ll
             ${{ runner.temp }}/llvm-qualification/checked-integers.log
+            ${{ runner.temp }}/llvm-qualification/kleisli-native.log
             ${{ runner.temp }}/sdk-linker.txt

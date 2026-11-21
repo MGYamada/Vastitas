@@ -794,12 +794,13 @@ Claims:
     - `derived_view_declarations_require_the_exact_kind_schema_and_direct_monad` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `distinct_views_of_one_monad_share_specialization_and_reject_stale_public_revision` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `direct_function_producing_a_represented_arrow_precedes_bind_and_compose_in_llvm` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
+    - `kleisli_callback_and_forwarded_operand_execute_both_producer_results` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `static_hom_callables_keep_their_declaring_package_and_fiber` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `finite_callable_methods_are_audited_before_selection` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `kleisli_forwarding_requires_declared_positions_and_exact_producer_fibers` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
     - `nested_callbacks_with_an_empty_hom_result_are_audited_without_a_sample_arrow` in [`tests/finite_monads.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_monads.rs)
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend), [Lean-to-C toolchain and C compiler](assumptions.md#assumption.lean-to-c)
-  - Note: The closure example selects unit, bind, compose and lift through its two named views. The checked Lean/C executable also distinguishes both orders of two S3 arrows for bind and compose. On a one-object group two structures with the same endofunctor produce distinct extensions and specialized symbols. Changing the view while keeping its underlying Monad preserves the specialization key and invalidates the saved source revision. Production LLVM delivery has its own execution obligation.
+  - Note: The closure example selects unit, bind, compose and lift through its two named views. The checked Lean/C executable also distinguishes both orders of two S3 arrows for bind and compose. On a one-object group two structures with the same endofunctor produce distinct extensions and specialized symbols. Changing the view while keeping its underlying Monad preserves the specialization key and invalidates the saved source revision. The native callback fixtures execute both possible results of the same producer. Passing it to bind and calling it explicitly both give exit 42 or 7 under the selected Monad. Both forms reject a stale revision after the producer changes.
 
 <a id="compiler-ir.finite-binders"></a>
 

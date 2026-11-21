@@ -19,6 +19,10 @@ def header : TargetHeader :=
   ⟨⟨TableSwitch.ascii "arm64-apple-darwin27.2.0", by decide⟩,
    ⟨TableSwitch.ascii "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32", by decide⟩⟩
 
+def linuxHeader : TargetHeader :=
+  ⟨⟨TableSwitch.ascii "x86_64-unknown-linux-gnu", by decide⟩,
+   ⟨TableSwitch.ascii "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", by decide⟩⟩
+
 def emptyModel : TableSwitch.Module := ⟨header, [], by decide⟩
 def lookupModel : TableSwitch.Module := ⟨header, [1, 0, 1], by decide⟩
 def closureUnitModel : TableSwitch.Module := ⟨header, [1, 2], by decide⟩
@@ -138,6 +142,7 @@ def isoBytes := corpus_bytes "src/finite-iso.ll"
 def kleisliBytes := corpus_bytes "src/finite-kleisli.ll"
 def kleisliCallbackBytes := corpus_bytes "src/kleisli-callback.ll"
 def kleisliForwardBytes := corpus_bytes "src/kleisli-forward.ll"
+def kleisliForwardLinuxBytes := corpus_bytes "src/kleisli-forward-linux-x86_64.ll"
 def structuredLookupBytes := corpus_bytes "src/structured-lookup.ll"
 def structuredLookupLinuxBytes := corpus_bytes "src/structured-lookup-linux-x86_64.ll"
 def staticSelectionBytes := corpus_bytes "src/static-selection.ll"
@@ -277,6 +282,8 @@ before invoking its selected target and passing its result to bind. -/
 def forwarded : Code := withAdapter (straight "f2" 1
   [.binary (slot 1) .bor .bit (.literal 0) (.literal 0), call 2 "f0" [], call 3 "f1" [0,2]] 3)
 
+def forwardedLinux : Code := { forwarded with header := linuxHeader }
+
 end KleisliCallback
 
 private def bit (dst : Nat) (b : Bool) : Instr :=
@@ -375,9 +382,7 @@ def code : Code :=
     ⟨"main", false, .word, [], [⟨"start", [.call "result" .word "f2" []], ret "result"⟩]⟩]⟩
 
 /-- The same function model printed with LLVM 23.1.4's x86-64 Linux target. -/
-def linuxCode : Code := { code with header :=
-  ⟨⟨TableSwitch.ascii "x86_64-unknown-linux-gnu", by decide⟩,
-   ⟨TableSwitch.ascii "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", by decide⟩⟩ }
+def linuxCode : Code := { code with header := linuxHeader }
 
 end StructuredLookup
 
@@ -416,6 +421,10 @@ theorem kleisli_callback_verified : kleisliCallbackBytes = KleisliCallback.code.
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 3000000 in
 theorem kleisli_forward_verified : kleisliForwardBytes = KleisliCallback.forwarded.print := rfl
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 3000000 in
+theorem kleisli_forward_linux_verified : kleisliForwardLinuxBytes = KleisliCallback.forwardedLinux.print := rfl
 
 private theorem parse_printed {bytes : List UInt8} {code : FiniteModule.Code} {model : FiniteModule.Module}
     (printed : bytes = code.print) (certified : FiniteModule.certify code = some model) :
@@ -594,6 +603,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("finite-kleisli.ll", forCode finite_kleisli_verified),
    ("kleisli-callback.ll", forCode kleisli_callback_verified),
    ("kleisli-forward.ll", forCode kleisli_forward_verified),
+   ("kleisli-forward-linux-x86_64.ll", forCode kleisli_forward_linux_verified),
    ("structured-lookup.ll", forCode structured_lookup_verified),
    ("structured-lookup-linux-x86_64.ll", forCode structured_lookup_linux_verified),
    ("finite-projection.ll", forCode finite_projection_verified),
@@ -655,6 +665,8 @@ def main (args : List String) : IO Unit := do
   checkEntry "finite-kleisli.ll" Vastitas.LLVMCorpus.kleisliBytes Vastitas.LLVMCorpus.Kleisli.code 0
   checkEntry "kleisli-callback.ll" Vastitas.LLVMCorpus.kleisliCallbackBytes Vastitas.LLVMCorpus.KleisliCallback.code 42
   checkEntry "kleisli-forward.ll" Vastitas.LLVMCorpus.kleisliForwardBytes Vastitas.LLVMCorpus.KleisliCallback.forwarded 42
+  checkEntry "kleisli-forward-linux-x86_64.ll" Vastitas.LLVMCorpus.kleisliForwardLinuxBytes
+    Vastitas.LLVMCorpus.KleisliCallback.forwardedLinux 42
   checkEntry "structured-lookup.ll" Vastitas.LLVMCorpus.structuredLookupBytes Vastitas.LLVMCorpus.StructuredLookup.code 42
   checkEntry "structured-lookup-linux-x86_64.ll" Vastitas.LLVMCorpus.structuredLookupLinuxBytes
     Vastitas.LLVMCorpus.StructuredLookup.linuxCode 42

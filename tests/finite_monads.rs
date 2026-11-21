@@ -44,6 +44,66 @@ fn local_example() -> String {
 }
 
 #[test]
+fn kleisli_callback_and_forwarded_operand_execute_both_producer_results() {
+    let work = Scratch::empty("native Kleisli producers");
+    let packages = [
+        "llvm/fixtures/kleisli-callback",
+        "llvm/fixtures/kleisli-forward",
+    ];
+    work.copy_stdlib(&common::STDLIB_PACKAGES, &[]);
+    for package in ["monad", packages[0], packages[1]] {
+        work.copy_sources(&common::root().join(package), package, &[]);
+    }
+    let path = "llvm/fixtures/kleisli-callback/main.vast";
+    let original = std::fs::read_to_string(work.0.join(path)).unwrap();
+    let alternative = checked_replace(&original, "Obj::o> { C::s }", "Obj::o> { C::e }");
+    let backends: &[&[&str]] = &[
+        &[],
+        #[cfg(feature = "llvm-native")]
+        &["--llvm-preview"],
+    ];
+    for (source, expected) in [(&original, 42), (&alternative, 7)] {
+        work.write(path, source);
+        for (index, package) in packages.iter().enumerate() {
+            let manifest = format!("{package}/Vastitas.toml");
+            let receipt = work.0.join(format!("revision-{index}.json"));
+            let build = |flags: &[&str]| {
+                work.command("build", &manifest)
+                    .args(flags)
+                    .arg("--expect-function-revision")
+                    .arg(&receipt)
+                    .args(["-o", "native"])
+                    .output()
+                    .unwrap()
+            };
+            if receipt.exists() {
+                for flags in backends {
+                    expect_code(&build(flags), "E_FUNCTION_REVISION");
+                }
+            }
+            let revision = work
+                .command("check", &manifest)
+                .arg("--print-function-revision")
+                .output()
+                .unwrap();
+            common::success(&revision);
+            std::fs::write(&receipt, revision.stdout).unwrap();
+            for flags in backends {
+                common::success(&build(flags));
+                assert_eq!(
+                    std::process::Command::new(work.0.join("native"))
+                        .status()
+                        .unwrap()
+                        .code(),
+                    Some(expected),
+                    "{package} {flags:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn static_hom_callables_keep_their_declaring_package_and_fiber() {
     let (chain, _) = include_str!("fixtures/finite-chain.vast")
         .split_once("fn main")

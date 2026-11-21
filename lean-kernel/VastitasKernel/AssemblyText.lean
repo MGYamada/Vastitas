@@ -303,6 +303,8 @@ structure SourceChecks where
   calls : Std.HashMap Nat RealizationCall := {}
   cells : Std.HashMap Nat ResourceStatementSite := {}
   products : Std.HashMap Nat ResourceStatementSite := {}
+  ownership : Std.HashMap Nat ResourceStatementSite := {}
+  values : Std.HashMap Nat ResourceStatementSite := {}
   /-- Set only for the post-authority comparison with original edit declarations. -/
   edits : Option EditDeclarations := none
   allowAssembly : Bool := false
@@ -512,7 +514,9 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
     let head ← f.next c
     match head.kind with
     | .eof => throw "unterminated resource function"
-    | .symbol '}' => return (head, checks)
+    | .symbol '}' =>
+      if branches.isEmpty && checks.edits.isSome then throw "resource function has no final value block"
+      return (head, checks)
     | .word "value" =>
       unless branches.isEmpty do throw "unexpected value return inside a resource branch"
       let start ← f.next head.after
@@ -520,6 +524,10 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
       let body ← untilSymbol f '}' start.after
       let close ← f.next body.after
       requireSymbol close '}'
+      let checks := if checks.edits.isSome then
+        let site := ResourceStatementSite.mk owner branches index checks.fileIndex head.after (through start body)
+        {checks with values := checks.values.insert start.span.start site}
+      else checks
       return (close, checks)
     | .word "if" =>
       unless branches.length < Limits.sourceNesting do throw "resource branch nesting limit"
@@ -553,6 +561,14 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
           {checks with calls := checks.calls.erase head.span.start}
       let last ← untilSymbol f ';' head.after
       let site := ResourceStatementSite.mk owner branches index checks.fileIndex c (through head last)
+      let valueBinding ← match checks.edits, head.kind with
+        | some _, .word "let" => do
+          let name ← f.next head.after
+          pure ((← f.next name.after).kind matches .symbol ':')
+        | _, _ => pure false
+      let checks := if valueBinding || (checks.edits.isSome && (head.kind matches .word "call")) then
+        {checks with values := checks.values.insert head.span.start site}
+      else checks
       let checks := match checks.edits, head.kind with
         | some _, .word "fill" | some _, .word "store" | some _, .word "expect"
         | some _, .word "runtime_fill" | some _, .word "runtime_expect" =>
@@ -560,6 +576,13 @@ private def resourceBlock (f : File) (owner : ResourceOwner) : Nat → Cursor �
         | some _, .word "gemm" | some _, .word "runtime_gemm"
         | some _, .word "evaluate" | some _, .word "hermitian" =>
           {checks with products := checks.products.insert head.span.start site}
+        | some _, .word "allocate" | some _, .word "runtime_allocate"
+        | some _, .word "borrow" | some _, .word "runtime_borrow"
+        | some _, .word "move" | some _, .word "runtime_move"
+        | some _, .word "release" | some _, .word "runtime_release"
+        | some _, .word "drop" | some _, .word "runtime_drop"
+        | some _, .word "transpose" | some _, .word "copy" =>
+          {checks with ownership := checks.ownership.insert head.span.start site}
         | _, _ => checks
       resourceBlock f owner fuel last.after branches (index + 1) checks
 

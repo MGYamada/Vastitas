@@ -29,13 +29,20 @@ private def collect {α : Type} (select : Statement → Option (α × Span)) (ow
         | none => found
     collect select owner branches (index + 1) rest found
 
-def items {α : Type} (select : Statement → Option (α × Span)) (p : Program) : List (Item α) := Id.run do
+def itemsWithResult {α : Type} (select : Statement → Option (α × Span))
+    (finalResult : Function → Option (α × Span)) (p : Program) : List (Item α) := Id.run do
   let mut found := #[]
   for pkg in p.packages do
     for m in pkg.modules do
       for fn in m.functions do
-        found := collect select ⟨pkg.id.source, m.pureModule.module.path, fn.name, fn.span.start, fn.isPublic⟩ [] 0 fn.body found
+        let owner : ResourceOwner := ⟨pkg.id.source, m.pureModule.module.path, fn.name, fn.span.start, fn.isPublic⟩
+        found := collect select owner [] 0 fn.body found
+        if let some (op, span) := finalResult fn then
+          found := found.push ⟨owner, [], fn.body.length, op, span⟩
   return found.toList
+
+def items {α : Type} (select : Statement → Option (α × Span)) (p : Program) : List (Item α) :=
+  itemsWithResult select (fun _ => none) p
 
 def diagnostic (span : Span) (message : String) : Diagnostic :=
   {code := "E_RESOURCE_SOURCE", span, message}
@@ -107,6 +114,11 @@ private def inventoryError (sites : Sites) (operations : List (Item α)) : Diagn
 def check (replay : Replay α) (layout : PhysicalSources.Layout) (sites : Sites) (operations : List (Item α)) : Except Diagnostic Unit :=
   if Finite.sameCounts sites.keys (operations.map (·.span.start)) then checkAll replay layout sites operations
   else .error (inventoryError sites operations)
+
+theorem check_empty (replay : Replay α) (layout : PhysicalSources.Layout) :
+    check replay layout {} [] = .ok () := by
+  simp only [check, Std.HashMap.keys_empty, List.map_nil]
+  rfl
 
 theorem check_sound {replay : Replay α} {layout : PhysicalSources.Layout} {sites : Sites} {operations : List (Item α)}
     (h : check replay layout sites operations = .ok ()) :

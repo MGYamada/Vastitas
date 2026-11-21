@@ -2843,3 +2843,58 @@ fn physical_gemm_alpha_changes_the_computed_cells() {
     #[cfg(feature = "llvm-native")]
     check(&["--llvm-preview"]);
 }
+
+#[test]
+fn storage_owners_and_layouts_match_the_source_before_llvm() {
+    let source = include_str!("../examples/packages/numerical/gemm-coefficients/main.vast");
+    let package = common::example_package(
+        "physical storage ownership",
+        "examples/packages/numerical/gemm-coefficients",
+        &[],
+    );
+    let wire = captured(&package);
+    let llvm = |wire: &Value, mode| {
+        common::kernel_with_args(wire, &[mode, "x86_64-unknown-linux-gnu", "e-p:64:64"])
+    };
+    let accepted = llvm(&wire, "llvm-check");
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    let old_bytes = accepted["llvm"]["ir"].as_str().unwrap();
+    for (old, new) in [
+        ("allocate a: F64<RR>", "allocate a: F32<CC>"),
+        ("allocate a: F64<RR>[1]", "allocate a: F64<RR>[2]"),
+        ("borrow init_a = write(a", "borrow init_a = write(b"),
+        ("borrow input_a = read(a", "borrow input_b = read(a"),
+        ("write(a, layout", "read (a, layout"),
+        ("layout(0, 1, 1, 1, false)", "layout(8, 1, 1, 1, false)"),
+        ("layout(0, 1, 1, 1, false)", "layout(0, 1, 1, 2, false)"),
+        ("layout(0, 1, 1, 1, false)", "layout(0, 1, 1, 1, true )"),
+        ("release(init_a);", "release(init_b);"),
+        ("drop(a);", "drop(b);"),
+    ] {
+        let changed = source.replacen(old, new, 1);
+        assert_ne!(changed, source);
+        assert_eq!(changed.len(), source.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        for mode in ["llvm-check", "llvm-build"] {
+            let rejected = llvm(&stale, mode);
+            common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+            assert!(rejected.get("llvm").is_none());
+            let line = rejected["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+            assert!(changed.lines().nth(line - 1).unwrap().contains(new));
+        }
+    }
+    package.write(
+        "main.vast",
+        &source.replace("allocate a: F64<RR>[1]", "allocate a: F64<RR>[2]"),
+    );
+    let genuine = llvm(&captured(&package), "llvm-check");
+    assert_eq!(genuine["ok"], true, "{genuine}");
+    let original_call = "@vq_storage_allocate(ptr %arena, i64 0, i64 0, i64 1)";
+    let changed_call = "@vq_storage_allocate(ptr %arena, i64 0, i64 0, i64 2)";
+    assert_eq!(old_bytes.matches(original_call).count(), 1);
+    assert_eq!(
+        genuine["llvm"]["ir"].as_str().unwrap(),
+        old_bytes.replace(original_call, changed_call)
+    );
+}

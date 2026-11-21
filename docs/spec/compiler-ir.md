@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested, Proved (oracle) |
@@ -142,6 +142,31 @@ Claims:
     - `even_uncalled_cell_statements_keep_their_physical_branch_and_inventory` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `exact_payload_spellings_emit_identical_bits_and_execute_without_blas` in [`tests/resource_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_source.rs)
   - Note: The LLVM check and build paths reject source-only changes to signed zero, a NaN payload and a coordinate at all four representations. A genuine change to both stores and expectations changes the emitted shim operands. Decimal, hexadecimal and runtime-extent cell operations also replay against their original bits.
+- `resource-value-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_resource_values`
+  - Premises:
+    - the public protocol-10 checker accepted the resource program
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: The physical inventory includes each resource function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span.
+- `resource-value-replay`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `resource_values_calls_and_final_blocks_replay_in_their_owning_function` in [`tests/resource_value_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_value_source.rs)
+    - `changing_the_storage_entry_result_requires_new_checked_bytes` in [`tests/resource_value_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_value_source.rs)
+  - Note: A changed initializer, function result, callee or port fails at the physical statement. Changing a storage entry result from 0 to 7 and regenerating the request changes the successful LLVM return and preserves every other byte. A stale request produces no LLVM module.
+- `resource-ownership-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_resource_ownership`
+  - Premises:
+    - the public protocol-10 checker accepted the resource program
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: The physical inventory covers allocation, borrow, move, release, drop, transpose and copy, including borrowing an owned map. For runtime allocation, each extent is checked as its literal or named slot. Each operand, access mode, representation and layout replays in the declaring file at the original function, branch, index and span. The storage checker supplies the ownership judgments.
+- `resource-ownership-replay`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `storage_owners_and_layouts_match_the_source_before_llvm` in [`tests/numerical_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_source.rs)
+    - `runtime_ownership_checks_physical_slots_layout_and_cleanup` in [`tests/runtime_shape_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/runtime_shape_source.rs)
+    - `moves_and_borrowed_views_replay_in_both_resource_branches` in [`tests/resource_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/resource_source.rs)
+  - Note: A stale source request fails before LLVM publication when the owner, loan, access mode, precision, capacity, stride or transpose changes. Runtime shapes retain their ordered slot names. Both branches of a checked storage program retain their moves and views.
 - `resource-product-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_resource_products`

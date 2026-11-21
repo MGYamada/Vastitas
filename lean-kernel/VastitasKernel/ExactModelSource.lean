@@ -26,14 +26,14 @@ private def lexemes (name : String) : ExactConstruction Source.Path → List Exa
       .punctuation ',', .dimension n, .punctuation ')', .punctuation '['] ++
       (coordinates.map ExactLexeme.ident).intersperse (.punctuation ',') ++ [.closeList ']' (!coordinates.isEmpty)]
 
-private def representation (r : ResourceSource.FloatRepresentation) : List ExactLexeme :=
+def storageRepresentation (r : Storage.Scalar) : List ExactLexeme :=
   let (width, carrier) := match r with
-    | .real32 => ("F32", "RR") | .complex32 => ("F32", "CC")
-    | .real64 => ("F64", "RR") | .complex64 => ("F64", "CC")
+    | .f32 => ("F32", "RR") | .complexF32 => ("F32", "CC")
+    | .f64 => ("F64", "RR") | .complexF64 => ("F64", "CC")
   [.ident width, .punctuation '<', .ident carrier, .punctuation '>']
 
 private def precision (r : ResourceSource.FloatRepresentation) : List ExactLexeme :=
-  [.separator, .punctuation '<'] ++ representation r ++ [.punctuation '>']
+  [.separator, .punctuation '<'] ++ storageRepresentation r.scalar ++ [.punctuation '>']
 
 private def collectCalls (owner : ResourceOwner) (branches : List ResourceBranch) (index : Nat) :
     List ResourceSource.Statement → SourceChecks → Except String SourceChecks
@@ -43,7 +43,7 @@ private def collectCalls (owner : ResourceOwner) (branches : List ResourceBranch
       | .affineRealization callee site result => do
         if checks.calls.contains site.span.start then throw "duplicate physical realization statement"
         let tokens := [.ident "let", .ident result, .punctuation '=', ref callee, .punctuation '('] ++
-          representation site.representation ++ [.punctuation ',', .dimension site.dimension, .closeList ')' true]
+          storageRepresentation site.representation.scalar ++ [.punctuation ',', .dimension site.dimension, .closeList ')' true]
         pure {checks with calls := checks.calls.insert site.span.start ⟨owner, branches, index, site.span, tokens⟩}
       | .realization callee rep args result into span => do
         if checks.calls.contains span.start then throw "duplicate physical realization statement"

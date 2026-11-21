@@ -151,6 +151,33 @@ evidence = ["tests/numerical_realization.rs::cell_payloads_and_coordinates_match
             "tests/resource_source.rs::exact_payload_spellings_emit_identical_bits_and_execute_without_blas"]
 note = "The LLVM check and build paths reject source-only changes to signed zero, a NaN payload and a coordinate at all four representations. A genuine change to both stores and expectations changes the emitted shim operands. Decimal, hexadecimal and runtime-extent cell operations also replay against their original bits."
 
+[property."compiler-ir.edition".claim.resource-value-source]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ResourceSource.physical_resource_values"]
+premises = ["the public protocol-10 checker accepted the resource program"]
+assumes = ["rust-frontend"]
+note = "The physical inventory includes each resource function's final value block at its last statement position and each typed value binding and resource call. The body parser checks the original tokens and expression spans. Calls retain the written callee components, ordered arguments, result names and the enclosing statement span."
+
+[property."compiler-ir.edition".claim.resource-value-replay]
+status = "tested"
+evidence = ["tests/resource_value_source.rs::resource_values_calls_and_final_blocks_replay_in_their_owning_function",
+            "tests/resource_value_source.rs::changing_the_storage_entry_result_requires_new_checked_bytes"]
+note = "A changed initializer, function result, callee or port fails at the physical statement. Changing a storage entry result from 0 to 7 and regenerating the request changes the successful LLVM return and preserves every other byte. A stale request produces no LLVM module."
+
+[property."compiler-ir.edition".claim.resource-ownership-source]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ResourceSource.physical_resource_ownership"]
+premises = ["the public protocol-10 checker accepted the resource program"]
+assumes = ["rust-frontend"]
+note = "The physical inventory covers allocation, borrow, move, release, drop, transpose and copy, including borrowing an owned map. For runtime allocation, each extent is checked as its literal or named slot. Each operand, access mode, representation and layout replays in the declaring file at the original function, branch, index and span. The storage checker supplies the ownership judgments."
+
+[property."compiler-ir.edition".claim.resource-ownership-replay]
+status = "tested"
+evidence = ["tests/numerical_source.rs::storage_owners_and_layouts_match_the_source_before_llvm",
+            "tests/runtime_shape_source.rs::runtime_ownership_checks_physical_slots_layout_and_cleanup",
+            "tests/resource_source.rs::moves_and_borrowed_views_replay_in_both_resource_branches"]
+note = "A stale source request fails before LLVM publication when the owner, loan, access mode, precision, capacity, stride or transpose changes. Runtime shapes retain their ordered slot names. Both branches of a checked storage program retain their moves and views."
+
 [property."compiler-ir.edition".claim.resource-product-source]
 status = "proved-oracle"
 evidence = ["VastitasOracle.ResourceSource.physical_resource_products"]

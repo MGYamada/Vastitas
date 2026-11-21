@@ -2,6 +2,8 @@ import VastitasKernel.FiniteSourceFiles
 import VastitasKernel.MethodBodyText
 import VastitasKernel.ResourceCellSource
 import VastitasKernel.ResourceProductSource
+import VastitasKernel.ResourceOwnershipSource
+import VastitasKernel.ResourceValueSource
 import VastitasKernel.ManifestBindings
 
 set_option autoImplicit false
@@ -220,6 +222,8 @@ def check (json : Lean.Json) (program : ResourceSource.Program) : Except Diagnos
   ManifestBindings.check layout program
   ResourceCellSource.check layout checked.cells (ResourceCellSource.items program)
   ResourceProductSource.check layout checked.products (ResourceProductSource.items program)
+  ResourceOwnershipSource.check layout checked.ownership (ResourceOwnershipSource.items program)
+  ResourceValueSource.check layout checked.values (ResourceValueSource.items program)
   checkBodies layout checked (sourceMethods program)
   FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program)
 
@@ -231,6 +235,8 @@ theorem all_evidence {json : Lean.Json} {program : ResourceSource.Program}
       ManifestBindings.check layout program = .ok () ∧
       ResourceCellSource.check layout checked.cells (ResourceCellSource.items program) = .ok () ∧
       ResourceProductSource.check layout checked.products (ResourceProductSource.items program) = .ok () ∧
+      ResourceOwnershipSource.check layout checked.ownership (ResourceOwnershipSource.items program) = .ok () ∧
+      ResourceValueSource.check layout checked.values (ResourceValueSource.items program) = .ok () ∧
       checkBodies layout checked (sourceMethods program) = .ok () ∧
       FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program) = .ok () := by
   cases h : collect program <;> simp [check, Except.mapError, bind, Except.bind, h] at accepted
@@ -244,8 +250,10 @@ theorem all_evidence {json : Lean.Json} {program : ResourceSource.Program}
   cases bindings : ManifestBindings.check layout program <;> simp [bindings] at accepted
   cases cells : ResourceCellSource.check layout checked.cells (ResourceCellSource.items program) <;> simp [cells] at accepted
   cases products : ResourceProductSource.check layout checked.products (ResourceProductSource.items program) <;> simp [products] at accepted
+  cases ownership : ResourceOwnershipSource.check layout checked.ownership (ResourceOwnershipSource.items program) <;> simp [ownership] at accepted
+  cases values : ResourceValueSource.check layout checked.values (ResourceValueSource.items program) <;> simp [values] at accepted
   cases b : checkBodies layout checked (sourceMethods program) <;> simp [b] at accepted
-  exact ⟨expected, layout, checked, rfl, rfl, s, e, bindings, cells, products, b, accepted⟩
+  exact ⟨expected, layout, checked, rfl, rfl, s, e, bindings, cells, products, ownership, values, b, accepted⟩
 
 theorem check_evidence {json : Lean.Json} {program : ResourceSource.Program}
     (accepted : check json program = .ok ()) :
@@ -253,7 +261,7 @@ theorem check_evidence {json : Lean.Json} {program : ResourceSource.Program}
       ExactModelSource.scanFiles layout program relevant {edits := some expected} = .ok checked ∧
       checked.edits.any (·.isEmpty) = true ∧ checkBodies layout checked (sourceMethods program) = .ok () ∧
       FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program) = .ok () := by
-  obtain ⟨expected, layout, checked, inputs, files, scan, edits, _, _, _, bodies, finite⟩ := all_evidence accepted
+  obtain ⟨expected, layout, checked, inputs, files, scan, edits, _, _, _, _, _, bodies, finite⟩ := all_evidence accepted
   exact ⟨expected, layout, checked, inputs, files, scan, edits, bodies, finite⟩
 
 end VastitasKernel.EditSourceFiles

@@ -710,3 +710,48 @@ fn runtime_product_coefficient_matches_the_literal_in_the_declaring_function() {
             .contains("alpha=f64(1.5)")
     );
 }
+
+#[test]
+fn runtime_ownership_checks_physical_slots_layout_and_cleanup() {
+    let source = source(false, 2, 3, 2, 1);
+    let wire = request(&fixture(&source));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (old, new) in [
+        ("data_a: F64<RR>[cap_a]", "data_a: F32<CC>[cap_a]"),
+        ("data_a: F64<RR>[cap_a]", "data_a: F64<RR>[cap_b]"),
+        (
+            "runtime_layout(m, k, lda, false)",
+            "runtime_layout(k, m, lda, false)",
+        ),
+        (
+            "runtime_layout(m, k, lda, false)",
+            "runtime_layout(m, k, ldb, false)",
+        ),
+        (
+            "runtime_layout(m, k, lda, false)",
+            "runtime_layout(m, k, lda, true )",
+        ),
+        ("init_a = write(data_a)", "init_a = write(data_b)"),
+        ("init_a = write(data_a)", "init_a = read (data_a)"),
+        ("runtime_release(init_a)", "runtime_release(init_b)"),
+        (
+            "runtime_move data_a -> moved_a",
+            "runtime_move data_b -> moved_a",
+        ),
+        (
+            "runtime_move data_a -> moved_a",
+            "runtime_move data_a -> moved_c",
+        ),
+        ("runtime_drop(data_b)", "runtime_drop(data_c)"),
+    ] {
+        let changed = source.replacen(old, new, 1);
+        assert_ne!(changed, source);
+        assert_eq!(changed.len(), source.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        let rejected = kernel(&stale, "check");
+        common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+        let line = rejected["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+        assert!(changed.lines().nth(line - 1).unwrap().contains(new));
+    }
+}

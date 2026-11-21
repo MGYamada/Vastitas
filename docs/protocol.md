@@ -898,6 +898,20 @@ branch conditions to the wire. The callee, representation, ordered paths,
 binding or destination, and UTF-8 source spans must agree. This check
 also covers discarded descriptors and functions outside the entry's call graph.
 
+Lean reads the pure blocks inside typed resource bindings and the final
+`value` block in each resource function. It checks their expression spans
+and the position of the final block after the last resource statement. For
+resource calls, the callee components and argument and result names must
+occur in the written order. The wire records the enclosing call span.
+
+For storage operations, Lean matches the physical allocation, move, borrow,
+release, drop, transpose and copy statements to their decoded operands.
+The comparison includes the allocation representation, capacity, loan name,
+access mode, offset, shape, leading dimension and transpose flag. Runtime
+allocation retains each literal extent or slot name. Both arms of a resource
+branch retain their own statement positions. A mismatch produces
+`E_RESOURCE_SOURCE` before a function revision or LLVM module is published.
+
 The [runtime-extent profile](storage/resource-programs.md#runtime-extents) adds parameter kinds
 `runtime_space` (`name`, `implementation`, `dimension`, `span`), `runtime_basis`
 (`name`, `space`, `span`) and `runtime_map` (`name`, `source`, `target`, `access`,

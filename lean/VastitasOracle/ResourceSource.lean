@@ -270,7 +270,7 @@ theorem physical_resource_cells {json : Lean.Json} (input : Wire.CheckedInput js
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       Finite.sameCounts checked.cells.keys ((ResourceCellSource.items input.input).map (·.span.start)) = true ∧
       ∀ i ∈ ResourceCellSource.items input.input, ResourceCellSource.Corresponds layout checked.cells i := by
-  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, cells, _, _, _⟩ :=
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, cells, _, _, _, _, _⟩ :=
     EditSourceFiles.all_evidence input.editSources
   obtain ⟨inventory, all⟩ := ResourceCellSource.check_sound cells
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
@@ -283,9 +283,35 @@ theorem physical_resource_products {json : Lean.Json} (input : Wire.CheckedInput
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       Finite.sameCounts checked.products.keys ((ResourceProductSource.items input.input).map (·.span.start)) = true ∧
       ∀ i ∈ ResourceProductSource.items input.input, ResourceProductSource.Corresponds layout checked.products i := by
-  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, _, products, _, _⟩ :=
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, _, products, _, _, _, _⟩ :=
     EditSourceFiles.all_evidence input.editSources
   obtain ⟨inventory, all⟩ := ResourceStatementSource.check_sound products
+  exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
+
+/-- The selected allocation, borrow, transfer and cleanup statements have exactly
+the scanned positions and operands, including runtime dimension slots and layouts. -/
+theorem physical_resource_ownership {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      Finite.sameCounts checked.ownership.keys ((ResourceOwnershipSource.items input.input).map (·.span.start)) = true ∧
+      ∀ i ∈ ResourceOwnershipSource.items input.input, ResourceOwnershipSource.Corresponds layout checked.ownership i := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, _, _, ownership, _, _, _⟩ :=
+    EditSourceFiles.all_evidence input.editSources
+  obtain ⟨inventory, all⟩ := ResourceStatementSource.check_sound ownership
+  exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
+
+/-- Resource value bindings and calls replay their source operands; each
+function's final result block replays at the position following its last statement. -/
+theorem physical_resource_values {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      Finite.sameCounts checked.values.keys ((ResourceValueSource.items input.input).map (·.span.start)) = true ∧
+      ∀ i ∈ ResourceValueSource.items input.input, ResourceValueSource.Corresponds layout checked.values i := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, _, _, _, _, values, _, _⟩ :=
+    EditSourceFiles.all_evidence input.editSources
+  obtain ⟨inventory, all⟩ := ResourceStatementSource.check_sound values
   exact ⟨expected, layout, checked, collected, physical, scan, inventory, all⟩
 
 /-- Every finite carrier, table, schema, instance and static-indexed function in this accepted program

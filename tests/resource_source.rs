@@ -1142,3 +1142,31 @@ fn resource_source_keeps_nonwinning_pure_bodies_and_library_entry_rules() {
     let response = kernel(request(&s), "emit");
     common::assert_wire_rejected(&response, "E_MAIN");
 }
+
+#[test]
+fn moves_and_borrowed_views_replay_in_both_resource_branches() {
+    let source = SELF_COPY
+        .replace(
+            "copy(l, l);",
+            "if true { transpose(l); transpose(l); copy(l, l); } else { copy(l, l); }",
+        )
+        .replace("drop(data);", "move data -> next; drop(next);");
+    let wire = request(&fixture(&source, OPERATIONS));
+    let good = kernel(&wire, "check");
+    assert_eq!(good["ok"], true, "{good}");
+    for (old, new) in [
+        ("if true {", "if false{"),
+        ("transpose(l);", "transpose(w);"),
+        ("else { copy(l, l);", "else { copy(w, l);"),
+        ("move data -> next", "move next -> data"),
+        ("drop(next)", "drop(data)"),
+    ] {
+        let changed = source.replacen(old, new, 1);
+        assert_ne!(source, changed);
+        assert_eq!(source.len(), changed.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        let rejected = kernel(&stale, "check");
+        common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+    }
+}

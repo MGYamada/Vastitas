@@ -643,3 +643,75 @@ fn value_fragments_take_only_the_scalar_bindings_they_name() {
     assert!(lean.len() < 100_000, "{} bytes", lean.len());
     success(&check(&fixture(&constants(1600))));
 }
+
+#[test]
+fn resource_values_calls_and_final_blocks_replay_in_their_owning_function() {
+    let source = source(true);
+    let wire = request(&fixture(&source));
+    let original = kernel(&wire, "check");
+    assert_eq!(original["ok"], true, "{original}");
+    for (written, changed) in [
+        ("seed + 1", "seed - 1"),
+        ("let next: Int", "let next: Nat"),
+        ("let next: Int", "let seed: Int"),
+        ("value { next }", "value { seed }"),
+        ("seed: Int = value { 40 }", "seed: Int = value { 41 }"),
+        ("call choose(", "call finish("),
+        ("call finish(data, seed)", "call finish(seed, data)"),
+        ("token) -> (data)", "token) -> (seed)"),
+        ("value { answer + 1 }", "value { answer + 2 }"),
+    ] {
+        let replacement = source.replacen(written, changed, 1);
+        assert_ne!(source, replacement);
+        assert_eq!(source.len(), replacement.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(replacement);
+        for mode in ["check", "emit", "function-revision"] {
+            let rejected = kernel(&stale, mode);
+            common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+            let line = rejected["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+            assert!(replacement.lines().nth(line - 1).unwrap().contains(changed));
+        }
+    }
+
+    let source = source.replace("call finish(data, seed)", "call finish(data, seed,)");
+    let genuine = kernel(request(&fixture(&source)), "check");
+    assert_eq!(genuine["ok"], true, "{genuine}");
+}
+
+#[test]
+fn changing_the_storage_entry_result_requires_new_checked_bytes() {
+    let package = common::example_package(
+        "physical storage result",
+        "examples/packages/numerical/gemm-coefficients",
+        &[],
+    );
+    let source = include_str!("../examples/packages/numerical/gemm-coefficients/main.vast");
+    let changed = source.replace("value { 0 }", "value { 7 }");
+    assert_ne!(source, changed);
+    let original = package.captured("Vastitas.toml", common::CURRENT_PROTOCOL);
+    let checked = |input: &Value, mode| {
+        common::kernel_with_args(input, &[mode, "x86_64-unknown-linux-gnu", "e-p:64:64"])
+    };
+    let before = checked(&original, "llvm-check");
+    assert_eq!(before["ok"], true, "{before}");
+    let mut stale = original;
+    stale["root_source"]["text"] = json!(changed);
+    for mode in ["llvm-check", "llvm-build"] {
+        let rejected = checked(&stale, mode);
+        common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+        assert!(rejected.get("llvm").is_none());
+    }
+    package.write("main.vast", &changed);
+    let after = checked(
+        &package.captured("Vastitas.toml", common::CURRENT_PROTOCOL),
+        "llvm-check",
+    );
+    assert_eq!(after["ok"], true, "{after}");
+    let bytes = before["llvm"]["ir"].as_str().unwrap();
+    assert_eq!(bytes.matches("ret i32 0\n").count(), 1);
+    assert_eq!(
+        after["llvm"]["ir"].as_str().unwrap(),
+        bytes.replace("ret i32 0\n", "ret i32 7\n")
+    );
+}

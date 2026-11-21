@@ -8,17 +8,19 @@ set_option maxHeartbeats 3000000
 
 private theorem noCells : ResourceCellSource.check entryLayout entrySites.cells
     (ResourceCellSource.items candidate) = .ok () := by
-  change ResourceCellSource.check entryLayout {} [] = .ok ()
-  simp only [ResourceCellSource.check, ResourceStatementSource.check, Std.HashMap.keys_empty,
-    List.map_nil]
-  rfl
+  exact ResourceStatementSource.check_empty _ _
 
 private theorem noProducts : ResourceProductSource.check entryLayout entrySites.products
     (ResourceProductSource.items candidate) = .ok () := by
-  change ResourceProductSource.check entryLayout {} [] = .ok ()
-  simp only [ResourceProductSource.check, ResourceStatementSource.check, Std.HashMap.keys_empty,
-    List.map_nil]
-  rfl
+  exact ResourceStatementSource.check_empty _ _
+
+private theorem noOwnership : ResourceOwnershipSource.check entryLayout entrySites.ownership
+    (ResourceOwnershipSource.items candidate) = .ok () := by
+  exact ResourceStatementSource.check_empty _ _
+
+private theorem noValues : ResourceValueSource.check entryLayout entrySites.values
+    (ResourceValueSource.items candidate) = .ok () := by
+  exact ResourceStatementSource.check_empty _ _
 
 private theorem collected : EditSourceFiles.collect candidate = .ok {} := by cbv
 
@@ -26,7 +28,7 @@ theorem physicalEditsOfLayout {j : Json} (h : PhysicalSources.layout j = .ok ent
     EditSourceFiles.check j candidate = .ok () := by
   simp only [EditSourceFiles.check, collected, h, Except.mapError, bind, Except.bind, scannedEntry]
   have flat : ManifestBindings.check entryLayout candidate = .ok () := by rfl
-  rw [ite_eq_left (by rfl), flat, noCells, noProducts]
+  rw [ite_eq_left (by rfl), flat, noCells, noProducts, noOwnership, noValues]
   exact replayedDeclaration
 
 end VastitasQualification.ExitAdmission

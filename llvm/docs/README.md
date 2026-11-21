@@ -189,6 +189,21 @@ The four `Affine(R, 2)` fixtures compare every byte of their LLVM module with th
 
 In the real identity example, the physical declaration supplies the dimension and the order of the chart coordinates. Changing `Affine(2)[x, y]` to `Affine(2)[y, x]` while retaining the original wire fails at `y` before the storage copy can be emitted. Substituting `pullback(x -> x, y -> y)` for the written `identity` also fails before emission, even though the exact coordinate maps agree. [Physical chart and graph regressions](../../tests/numerical_realization.rs)
 
+The same GEMM program can return 0 or 7 after its successful cleanup.
+Changing only the physical return literal in a saved request is rejected.
+Regenerating the request changes just `ret i32 0` to `ret i32 7`. Each failure
+edge still returns 1. The pinned Lean backend emits a return of the lowered
+argument at `FnBody.ret`; the Vastitas storage entry returns the checked
+process status after deleting its arena. [Pinned return emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1176-L1178) · [Physical result regression](../../tests/resource_value_source.rs)
+
+In the GEMM coefficient example, changing the first allocation from one element
+to two changes just the final `i64` operand of its `vq_storage_allocate` call.
+Both Linux x86-64 modules contain 4,317 bytes. Both macOS arm64 executables
+pass the same GEMM expectations. Lean 4.35.0's `emitSimpleExternalCall`
+pairs each argument with its parameter, skips erased parameters and builds a
+typed external call. The Vastitas shim receives the arena, owner slot,
+representation and element count in that order. [Pinned external call](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L671) · [Allocation regression](../../tests/numerical_source.rs)
+
 In the real and complex identity modules, `vq_storage_store` and `vq_storage_expect` receive integer constants for the IEEE components. Lean checks each physical cell statement, including its position in the resource function, before constructing these calls. Changing a sign-of-zero payload to the adjacent subnormal in the source and regenerating the request changes the call operands. Submitting the old wire with the edited source yields `E_RESOURCE_SOURCE`. The four width and carrier combinations run the same comparison. In Lean 4.35.0, `emitLit` allocates a slot for the declared IR type and uses `emitNumLit` for numeric literals. Vastitas passes the integer constants directly to the storage calls. [Pinned literal emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L777-L783) · [Cell regression](../../tests/numerical_realization.rs) · [Pinned typed call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774)
 
 For the two binary32 files, LLVM 23.1.4 assembled the 2,785 bytes and verified each module. Disassembly preserved the integer operands 2147483648 (negative zero) and 2139095106 (signaling NaN) in the two stores and expectations. The Linux x86-64 preview changed the header and kept the call bodies byte-identical. On the arm64 host, LLVM 23.1.4 `llc` produced two 1,968-byte ELF relocatable objects from those Linux modules. Running the UInt32 control under Lean 4.35.0 printed the same integers, and `lean -c` returned those constants from the two branches. On the tested arm64 toolchain, `lean -b` reported that it requires a build with `-DLLVM=ON`. Upstream `emitNumLit` uses `LLVM.constInt` for a numeric literal of an unboxed type. [UInt32 control](../fixtures/Float32ComponentControl.lean) · [Pinned numeric literal emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L626-L634)

@@ -155,7 +155,11 @@ pub fn assert_rejected(request: Value, code: &str) -> Value {
 /// The response of the built kernel in `mode` to the wire request `request`,
 /// whose success must agree with the exit status.
 pub fn kernel(request: impl std::borrow::Borrow<Value>, mode: &str) -> Value {
-    let output = kernel_bytes(mode, serde_json::to_vec(request.borrow()).unwrap());
+    kernel_with_args(request, &[mode])
+}
+
+pub fn kernel_with_args(request: impl std::borrow::Borrow<Value>, args: &[&str]) -> Value {
+    let output = kernel_bytes_with_args(args, serde_json::to_vec(request.borrow()).unwrap());
     let response: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
         panic!(
             "invalid response: {error}; {}",
@@ -173,13 +177,17 @@ pub fn kernel(request: impl std::borrow::Borrow<Value>, mode: &str) -> Value {
 /// truncated request would arrive, under the 60-second regression deadline.
 /// The input must be written whole; returns the exit status and both outputs.
 pub fn kernel_bytes(mode: &str, input: Vec<u8>) -> Output {
+    kernel_bytes_with_args(&[mode], input)
+}
+
+fn kernel_bytes_with_args(args: &[&str], input: Vec<u8>) -> Output {
     let path = kernel_path();
     assert!(
         path.is_file(),
         "Build backend first: lake -d lean-kernel build vastitas-kernel"
     );
     let mut child = Command::new(path)
-        .arg(mode)
+        .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

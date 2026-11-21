@@ -30,6 +30,16 @@ name = "promotionPolicyFixture"
 path = "../tests/fixtures/promotion-policy.json"
 text = true
 
+[[input_file]]
+name = "promotionEntryFixture"
+path = "../tests/fixtures/promotion-entry.json"
+text = true
+
+[[input_file]]
+name = "singletonSourceFixture"
+path = "../tests/fixtures/singleton-source.json"
+text = true
+
 # Test/proof fixtures are separate from the ordinary compiler library.
 # Targets with `autoImplicit = false` reject an undeclared name instead of
 # silently binding it; VastitasKernel itself still relies on auto-bound
@@ -38,7 +48,7 @@ text = true
 name = "VastitasPromotion"
 leanOptions = { autoImplicit = false }
 roots = ["VastitasPromotion.IndexedFixture", "VastitasPromotion.IndexedRegression"]
-needs = ["promotionFixture", "promotionPolicyFixture"]
+needs = ["promotionFixture", "promotionPolicyFixture", "promotionEntryFixture"]
 
 [[input_file]]
 name = "recipientFixture"
@@ -48,8 +58,8 @@ text = true
 [[lean_lib]]
 name = "VastitasPublicTest"
 leanOptions = { autoImplicit = false }
-roots = ["VastitasPublicTest.AuthorityRegression"]
-needs = ["recipientFixture"]
+roots = ["VastitasPublicTest.AuthorityRegression", "VastitasPublicTest.SingletonFixtures"]
+needs = ["recipientFixture", "singletonSourceFixture"]
 
 # `Main` embeds a digest of its own source, of the kernel modules it imports
 # and of the compiler limits (`VastitasKernel/BuildIdentity.lean`). Lake

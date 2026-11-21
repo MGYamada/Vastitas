@@ -439,21 +439,25 @@ fn missing_homogeneous_delegation_is_an_error() {
 /// `VASTITAS_UPDATE_PROMOTION_FIXTURE=1` rewrites it.
 #[test]
 fn stdlib_ir_matches_proof_fixture() {
-    let actual = flat_request("");
-    let path = root().join("tests/fixtures/promotion.json");
-    if common::regenerate_fixture("VASTITAS_UPDATE_PROMOTION_FIXTURE") {
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(&path, serde_json::to_string(&actual).unwrap() + "\n").unwrap();
+    for (name, source) in [
+        ("promotion.json", ""),
+        (
+            "promotion-entry.json",
+            "fn main() -> Int { self::add(20, 22) }\n",
+        ),
+    ] {
+        let actual = flat_request(source);
+        let path = root().join("tests/fixtures").join(name);
+        if common::regenerate_fixture("VASTITAS_UPDATE_PROMOTION_FIXTURE") {
+            fs::write(&path, serde_json::to_string(&actual).unwrap() + "\n").unwrap();
+        }
+        let expected: Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+        assert_eq!(
+            actual, expected,
+            "stdlib frontend request differs from {name}"
+        );
+        assert_eq!(check_raw(&expected)["ok"], true);
     }
-    let expected: Value = serde_json::from_slice(
-        &fs::read(path).expect("regenerate the promotion fixture as documented"),
-    )
-    .unwrap();
-    assert_eq!(
-        actual, expected,
-        "stdlib frontend request differs from the numerical proof fixture promotion.json"
-    );
-    assert_eq!(check_raw(&expected)["ok"], true);
 }
 
 /// Replacing one declaration with another of the same byte length keeps the

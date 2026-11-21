@@ -10,7 +10,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
 | [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Tested, Proved (oracle), Planned |
-| [One owned static function family](#compiler-ir.families) | Planned, Tested, Tested, Proved (oracle), Planned, Proved (oracle) |
+| [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
@@ -151,7 +151,18 @@ Claims:
     - `contributed_finite_calls_keep_index_paths_and_lookup_operands` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
     - `a_defining_method_checks_legacy_pack_pairs_and_static_function_values` in [`tests/edit_method_bodies.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/edit_method_bodies.rs)
     - `entry_bytes_bind_every_assembly_even_if_the_entire_trace_is_removed` in [`tests/structured_assemble.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/structured_assemble.rs)
+    - `unused_singletons_replay_bodies_signatures_visibility_and_spans_in_their_module` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
+    - `raw_flat_singletons_require_the_physical_show_initializer_and_the_same_expression` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
+    - `empty_singleton_requirements_replay_on_each_side_of_the_arrow` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
+    - `flat_main_belongs_to_the_entry_file_on_every_kernel_route` in [`tests/singleton_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/singleton_source.rs)
   - Note: Public syntax, native behavior on the current backend, and independently rejected tampered edit events. These tests do not establish a universal family revision or LLVM correspondence.
+- `singleton-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_singleton_function`
+  - Premises:
+    - the public protocol-10 request passed the independent checker
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Every ordinary singleton in the accepted program has a defining package, lexical module and physical declaration site. Lean replays its name, visibility, parameters, return type, body and spans there. The observation indices select the top-level initializers wrapped in show!. In a flat program main belongs to the entry file, including when its libraries share the protected package identity. The loader supplies the physical files and their global offsets.
 - `revision-replay`: [Tested](../specifications.md#tested)
   - Evidence:
     - `selected_contribution_and_core_symbol_share_one_exact_revision` in [`tests/function_revision.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/function_revision.rs)

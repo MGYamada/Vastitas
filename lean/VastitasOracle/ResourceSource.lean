@@ -205,7 +205,25 @@ theorem physical_finite_function {json : Lean.Json} (input : Wire.CheckedInput j
   refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
   apply List.mem_flatMap.mpr
   refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_right _ ?_⟩⟩
-  exact List.mem_filterMap.mpr ⟨f, hf, by simp [finite]⟩
+  exact List.mem_map.mpr ⟨f, hf, by simp [finite]⟩
+
+/-- Each ordinary singleton replays at its defining file's tokens. The list
+of observations selects exactly the top-level source initializers wrapped in
+`show!`; labels remain presentation metadata. -/
+theorem physical_singleton_function {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {f : Indexed.FunctionSource.Function} (hf : f ∈ m.pureModule.functions) (ordinary : f.finiteBinders.isEmpty = true) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, f.span, f.isPublic,
+          .singleton f (((m.observations.lookup f.name).getD []).map (·.statement))⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, all⟩ := physical_finite_declarations input
+  refine ⟨expected, layout, checked, collected, physical, scan, all _ ?_⟩
+  apply List.mem_flatMap.mpr
+  refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_append_right _ ?_⟩⟩
+  exact List.mem_map.mpr ⟨f, hf, by simp [ordinary]⟩
 
 /-- Even an unapplied contribution has a replay of its decoded method's
 complete syntax, in its original package, module and physical file. -/

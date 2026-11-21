@@ -283,6 +283,8 @@ structure FiniteSite where
   fileIndex : Nat
   before : Cursor
   span : Span
+  /-- Ordinary singletons have their own source diagnostic. -/
+  ordinaryFunction : Bool := false
 
 structure SourceChecks where
   headers : Std.HashMap Nat ExactHeader := {}
@@ -582,7 +584,7 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
             let kind ← f.next t.after
             if let .word kind := kind.kind then
               if ["finite", "table", "schema", "instance"].contains kind then
-                let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span
+                let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span false
                 return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
                   {checks with finiteSites := checks.finiteSites.insert t.span.start site}
           if keyword == "assembly" then throw "retired assembly declaration"
@@ -602,17 +604,16 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
             if target.length > 1 || edits.targets.contains key then
               throw "physical function family declaration missing from request"
             let finite := next.kind matches .symbol '<'
-            if finite && checks.flat && scope.place == .afterPub then
-              throw "flat finite-indexed functions have implicit public visibility"
+            if checks.flat && scope.place == .afterPub then
+              throw "flat functions have implicit public visibility"
             if checks.singletonNames[key]?.any (fun previous => !finite || !previous) then
               throw "physical function overloads missing from request"
             let opening ← singletonOpening f finite (f.remaining t.after) next
             let close ← untilSymbol f '}' opening.after
             let checks := {checks with singletonNames := checks.singletonNames.insert key finite}
-            let checks := if finite then
-              let site := FiniteSite.mk pkg reversedPath.reverse (checks.flat || scope.place == .afterPub) checks.fileIndex c t.span
-              {checks with finiteSites := checks.finiteSites.insert t.span.start site}
-            else checks
+            let site := FiniteSite.mk pkg reversedPath.reverse (checks.flat || scope.place == .afterPub)
+              checks.fileIndex c t.span (!finite)
+            let checks := {checks with finiteSites := checks.finiteSites.insert t.span.start site}
             return ← scanExact f pkg fuel close.after {scope with place := .declaration} reversedPath external checks
           if ["grant", "delegation", "transfer", "contribution"].contains keyword then
             let some h := edits.headers[t.span.start]? | throw "physical edit declaration missing from the request"
@@ -659,7 +660,7 @@ def mayHaveExactHeaders (text : String) : Bool :=
 
 def mayHaveFiniteDeclarations (text : String) : Bool :=
   (text.contains "indexed" && ["finite", "table", "schema", "instance"].any (fun word => text.contains word)) ||
-    (text.contains "fn" && text.contains "<" && text.contains ":")
+    text.contains "fn"
 
 def checkExactHeaders (text : String) (base : Nat) (pkg : String) (path : List String)
     (checks : SourceChecks) : Except String (Array (List String) × SourceChecks) :=

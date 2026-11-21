@@ -624,16 +624,13 @@ fn a_long_chain_of_imports_preserves_the_reserved_module_diagnostic() {
 #[test]
 fn the_kernel_checks_geometric_module_names_independently() {
     let s = Scratch::empty("packages");
-    s.package(
-        "app",
-        "mod dim { pub fn value() -> Int { 42 } }\nmod units { pub mod length { pub fn value() -> Int { 1 } } }\nuse units::length as metres;\nfn main() -> Int { dim::value() + metres::value() - 1 }",
-        "",
-    );
-    let raw = common::captured_wire(
-        s.cli()
-            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
-        common::CURRENT_PROTOCOL,
-    );
+    let source = "mod dim { pub fn value() -> Int { 42 } }\nmod units { pub mod length { pub fn value() -> Int { 1 } } }\nuse units::length as metres;\nfn main() -> Int { dim::value() + metres::value() - 1 }";
+    s.package("app", source, "");
+    let capture = |text: &str| {
+        s.write("app/src/main.vast", text);
+        s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL)
+    };
+    let raw = capture(source);
     assert_eq!(common::kernel(&raw, "check")["ok"], true, "{raw}");
     let modules = raw["packages"][0]["modules"].as_array().unwrap();
     let at = |path: serde_json::Value| {
@@ -645,43 +642,33 @@ fn the_kernel_checks_geometric_module_names_independently() {
     let dim = at(serde_json::json!(["dim"]));
     let root = at(serde_json::json!([]));
     // Other reserved names of modules, and `dimension`, which is ordinary.
-    for (name, ok) in [
-        ("int", false),
-        ("Nat", false),
-        ("QQ", false),
-        ("self", false),
-        ("dimension", true),
-    ] {
+    for name in ["int", "Nat", "QQ", "self"] {
         let mut forged = raw.clone();
         forged["packages"][0]["modules"][dim]["path"] = serde_json::json!([name]);
-        if ok {
-            let root_calls = &mut forged["packages"][0]["modules"][root]["functions"][0];
-            let text = root_calls
-                .to_string()
-                .replace("dim::value", "dimension::value");
-            *root_calls = serde_json::from_str(&text).unwrap();
-            assert_eq!(common::kernel(&forged, "check")["ok"], true, "{forged}");
-        } else {
-            common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
-        }
+        common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
     }
+    let renamed_module = |name: &str| {
+        source
+            .replace("mod dim {", &format!("mod {name} {{"))
+            .replace("dim::value", &format!("{name}::value"))
+    };
+    let dimension = capture(&renamed_module("dimension"));
+    assert_eq!(common::kernel(&dimension, "check")["ok"], true);
     // A function of a geometric operation's name; `dimension` is ordinary.
     let mut forged = raw.clone();
     forged["packages"][0]["modules"][dim]["functions"][0]["name"] = "dim".into();
     common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
-    let mut forged = raw.clone();
-    forged["packages"][0]["modules"][dim]["functions"][0]["name"] = "dimension".into();
-    let text = forged.to_string().replace("dim::value", "dim::dimension");
-    let forged: serde_json::Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(common::kernel(&forged, "check")["ok"], true, "{forged}");
-    // A `use` that binds a geometric operation's name to a module. The module
-    // `dim` takes another name first, so that `dim` names nothing else.
-    let mut spare = raw.clone();
-    spare["packages"][0]["modules"][dim]["path"] = serde_json::json!(["spare"]);
-    let spare: serde_json::Value =
-        serde_json::from_str(&spare.to_string().replace("dim::value", "spare::value")).unwrap();
-    assert_eq!(common::kernel(&spare, "check")["ok"], true, "{spare}");
-    for (alias, ok) in [("origin", false), ("dim", false), ("dimension", true)] {
+    let dimension = capture(
+        &source
+            .replace("fn value() -> Int { 42 }", "fn dimension() -> Int { 42 }")
+            .replace("dim::value", "dim::dimension"),
+    );
+    assert_eq!(common::kernel(&dimension, "check")["ok"], true);
+    // Move the module out of the way before exercising import alias names.
+    let spare_source = renamed_module("spare");
+    let spare = capture(&spare_source);
+    assert_eq!(common::kernel(&spare, "check")["ok"], true);
+    for alias in ["origin", "dim"] {
         let mut forged = spare.clone();
         let import = &mut forged["packages"][0]["modules"][root]["imports"][0];
         assert_eq!(import["alias"], "metres");
@@ -690,13 +677,10 @@ fn the_kernel_checks_geometric_module_names_independently() {
             .to_string()
             .replace("metres::value", &format!("{alias}::value"));
         let forged: serde_json::Value = serde_json::from_str(&text).unwrap();
-        let response = common::kernel(&forged, "check");
-        if ok {
-            assert_eq!(response["ok"], true, "{response}");
-        } else {
-            common::assert_wire_rejected(&response, "E_RESERVED");
-        }
+        common::assert_wire_rejected(&common::kernel(&forged, "check"), "E_RESERVED");
     }
+    let ordinary = capture(&spare_source.replace("metres", "dimension"));
+    assert_eq!(common::kernel(&ordinary, "check")["ok"], true);
     // #759: a `use … as` that binds a reserved spelling to an `indexed`
     // declaration. Only a `use` without `as`, whose alias is the last segment
     // of its path, binds such a name; the request has no other error.
@@ -724,28 +708,19 @@ fn the_kernel_checks_geometric_module_names_independently() {
         .iter()
         .position(|module| module["path"] == serde_json::json!([]))
         .unwrap();
-    for alias in [
-        "dim",
-        "dimension",
-        "origin",
-        "compose",
-        "id",
-        "Base",
-        "Point",
-        "QQ",
-    ] {
+    for alias in ["origin", "compose", "id", "Base", "Point", "QQ"] {
         let mut forged = raw.clone();
         let import = &mut forged["packages"][app]["modules"][root]["imports"][0];
         assert_eq!(import["alias"], "measure");
         import["alias"] = alias.into();
         for mode in ["check", "emit"] {
-            let response = common::kernel(&forged, mode);
-            // The request of `use dep::dim;`, and an ordinary alias.
-            if alias == "dim" || alias == "dimension" {
-                assert_eq!(response["ok"], true, "{response}");
-            } else {
-                common::assert_wire_rejected(&response, "E_RESERVED");
-            }
+            common::assert_wire_rejected(&common::kernel(&forged, mode), "E_RESERVED");
+        }
+    }
+    for declaration in ["use dep::dim;", "use dep::dim as dimension;"] {
+        let valid = capture(&format!("{declaration}\nfn main() -> Int {{ 42 }}"));
+        for mode in ["check", "emit"] {
+            assert_eq!(common::kernel(&valid, mode)["ok"], true, "{declaration}");
         }
     }
 }
@@ -819,9 +794,18 @@ pub indexed primitive size = dim((Scheme, QQ));
     ] {
         assert_eq!(common::kernel(&raw, "check")["ok"], true, "{raw}");
         assert!(raw.to_string().contains(call), "{raw}");
-        // `helper` renamed `dimension`, with its call.
-        let renamed: serde_json::Value =
-            serde_json::from_str(&raw.to_string().replace("\"helper\"", "\"dimension\"")).unwrap();
+        // A renamed declaration carries its spelling and new byte spans in both files and wire.
+        let source = raw["root_source"]["text"]
+            .as_str()
+            .unwrap()
+            .replace("helper", "dimension");
+        let dependencies = if label == "exported" {
+            "std = { path = '../stdlib' }"
+        } else {
+            ""
+        };
+        s.package("app", &source, dependencies);
+        let renamed = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
         let response = common::kernel(&renamed, "check");
         assert_eq!(response["ok"], true, "{label}: {response}");
         // `helper` renamed `dim`.

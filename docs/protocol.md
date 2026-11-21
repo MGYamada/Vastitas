@@ -128,6 +128,14 @@ the parameter and result types, and the expression body. An otherwise valid
 substitution in a declaration fails with `E_FINITE_SOURCE` at the source token. Ill-typed tables
 and false categorical laws retain their own diagnostics.
 
+For an ordinary singleton `fn`, the same inventory includes each unused
+function. Lean checks its name, visibility, parameters, return type and body
+against the declaring file. The statement indices in `observations` select
+the initializers wrapped in `show!`. A mismatch in the physical singleton
+or its body has diagnostic `E_FUNCTION_SOURCE`. In a protected flat input,
+`main` belongs to the entry file. A definition of `main` in a `--lib` file
+has diagnostic `E_LIBRARY` at its declaration span.
+
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record
 with four paths named `source`, `target`, `objects` and `arrows`. Each

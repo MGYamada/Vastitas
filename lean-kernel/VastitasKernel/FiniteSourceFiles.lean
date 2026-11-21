@@ -4,8 +4,8 @@ import VastitasKernel.MethodBodyText
 set_option autoImplicit false
 
 /-! Replay finite declarations from the original file after the independent
-table, endpoint and law checks. Match table rows and finite-indexed function
-signatures and bodies at their original source spans. -/
+table, endpoint and law checks. Match table rows and named function signatures and bodies at their original
+source spans, including the top-level observed initializers in main. -/
 namespace VastitasKernel.FiniteSourceFiles
 open Indexed AssemblyText SourceText
 
@@ -59,6 +59,8 @@ def form (d : Source.Declaration) : Option Form :=
 inductive DeclarationSyntax where
   | indexed (declaration : Form)
   | function (declaration : FunctionSource.Function)
+  /-- Ordinary singleton and the top-level statement indices observed in main. -/
+  | singleton (declaration : FunctionSource.Function) (shown : List Nat)
 
 structure Item where
   packageSource : String
@@ -72,10 +74,30 @@ def declarations (program : ResourceSource.Program) : List Item :=
     let item := fun span visibility syntax_ => Item.mk pkg.id.source m.pureModule.module.path span visibility syntax_
     let indexed := m.pureModule.declarations.filterMap fun d =>
       (form d).map fun shape => item d.span d.isPublic (.indexed shape)
-    indexed ++ m.pureModule.functions.filterMap fun f =>
-      if f.finiteBinders.isEmpty then none else some (item f.span f.isPublic (.function f))
+    indexed ++ m.pureModule.functions.map fun f =>
+      if f.finiteBinders.isEmpty then
+        let shown := ((m.observations.lookup f.name).getD []).map (·.statement)
+        item f.span f.isPublic (.singleton f shown)
+      else item f.span f.isPublic (.function f)
 
 private def errorAt (span : Span) (message : String) : Diagnostic := {code := "E_FINITE_SOURCE", span, message}
+
+private def sourceError (ordinary : Bool) (span : Span) (message : String) : Diagnostic :=
+  if ordinary then {code := "E_FUNCTION_SOURCE", span, message} else errorAt span message
+
+def Item.ordinaryFunction (item : Item) : Bool :=
+  match item.syntax_ with
+  | .indexed _ => false
+  | .function _ => false
+  | .singleton .. => true
+
+/-- The flat frontend admits main only in the entry file. The other physical
+files under the same protected package identity are `--lib` inputs. -/
+def Item.inFile (item : Item) (index entry : Nat) : Bool :=
+  index == entry || item.packageSource != flatPackageId.source ||
+    match item.syntax_ with
+    | .singleton f _ | .function f => f.name != "main"
+    | .indexed _ => true
 
 private def readTokens (file : File) (before : Cursor) (tokens : List ExactLexeme) : Except Diagnostic Cursor :=
   tokens.foldlM (init := before) fun cursor token =>
@@ -98,28 +120,49 @@ def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Uni
   let first ← (file.next before).mapError (errorAt item.span)
   match item.syntax_ with
   | .indexed shape => replayIndexed file first shape item.span
-  | .function f => MethodBodyText.checkFiniteFunction file first f
+  | .function f => MethodBodyText.checkFunction file first f []
+  | .singleton f shown => MethodBodyText.checkFunction file first f shown
 
 abbrev Sites := Std.HashMap Nat FiniteSite
 
 def Corresponds (layout : PhysicalSources.Layout) (sites : Sites) (item : Item) : Prop :=
   ∃ site file, sites[item.span.start]? = some site ∧ layout.files[site.fileIndex]? = some file ∧
     (site.packageSource, site.modulePath, site.isPublic) = (item.packageSource, item.modulePath, item.isPublic) ∧
+    site.ordinaryFunction = item.ordinaryFunction ∧ item.inFile site.fileIndex layout.entry = true ∧
     replay ⟨file.text, file.offset⟩ site.before item = .ok ()
 
 private def checkOne (layout : PhysicalSources.Layout) (sites : Sites) (item : Item) :
-    Except Diagnostic (PLift (Corresponds layout sites item)) := do
-  match hs : sites[item.span.start]? with
-  | none => throw (errorAt item.span "finite declaration missing from physical source")
+    Except Diagnostic Unit := do
+  let some site := sites[item.span.start]? |
+    throw (sourceError item.ordinaryFunction item.span "declaration missing from physical source")
+  unless site.ordinaryFunction == item.ordinaryFunction do
+    throw (errorAt site.span "finite function declaration differs from the physical source")
+  let some file := layout.files[site.fileIndex]? |
+    throw (sourceError site.ordinaryFunction site.span "missing physical declaration file")
+  unless (site.packageSource, site.modulePath, site.isPublic) = (item.packageSource, item.modulePath, item.isPublic) do
+    throw (sourceError site.ordinaryFunction site.span "declaration owner or visibility differs from physical source")
+  unless item.inFile site.fileIndex layout.entry do
+    throw ⟨"E_LIBRARY", "a --lib file cannot provide main; define the entrypoint in the input file", item.span, []⟩
+  replay ⟨file.text, file.offset⟩ site.before item
+
+private theorem checkOne_sound {layout : PhysicalSources.Layout} {sites : Sites} {item : Item}
+    (h : checkOne layout sites item = .ok ()) : Corresponds layout sites item := by
+  cases hs : sites[item.span.start]? with
+  | none => simp [checkOne, hs, throw] at h
   | some site =>
-    match hf : layout.files[site.fileIndex]? with
-    | none => throw (errorAt site.span "missing physical finite declaration file")
-    | some file =>
-      if h : (site.packageSource, site.modulePath, site.isPublic) = (item.packageSource, item.modulePath, item.isPublic) then
-        match hr : replay ⟨file.text, file.offset⟩ site.before item with
-        | .ok () => return ⟨⟨site,file,hs,hf,h,hr⟩⟩
-        | .error err => throw err
-      else throw (errorAt site.span "finite declaration owner or visibility differs from physical source")
+    by_cases kind : site.ordinaryFunction = item.ordinaryFunction
+    · cases hf : layout.files[site.fileIndex]? with
+      | none => simp [checkOne, hs, kind, hf, throw] at h
+      | some file =>
+        by_cases owner : (site.packageSource, site.modulePath, site.isPublic) =
+            (item.packageSource, item.modulePath, item.isPublic)
+        · cases located : item.inFile site.fileIndex layout.entry with
+          | false => simp [checkOne, hs, kind, hf, owner, located, bind, Except.bind, throw] at h
+          | true =>
+            refine ⟨site, file, hs, hf, owner, kind, located, ?_⟩
+            simpa [checkOne, hs, kind, hf, owner, located, bind, Except.bind, pure] using h
+        · simp [checkOne, hs, kind, hf, owner, throw, bind, Except.bind] at h
+    · simp [checkOne, hs, kind, throw, bind, Except.bind] at h
 
 def checkAll (layout : PhysicalSources.Layout) (sites : Sites) : List Item → Except Diagnostic Unit
   | [] => .ok ()
@@ -138,20 +181,36 @@ theorem checkAll_sound {layout : PhysicalSources.Layout} {sites : Sites} {items 
       simp [checkAll, e, bind, Except.bind] at h
       intro i member
       rcases List.mem_cons.mp member with rfl | later
-      · exact proof.down
+      · exact checkOne_sound e
       · exact ih h _ later
 
 private def inventoryError (sites : Sites) (items : List Item) : Diagnostic :=
   let expected : Std.HashSet Nat := .ofList (items.map (·.span.start))
   if let some (_, missing) := sites.toList.find? (fun (k,_) => !expected.contains k) then
-    errorAt missing.span "physical finite declaration omitted from the request"
+    sourceError missing.ordinaryFunction missing.span "physical declaration omitted from the request"
   else
-    let span := (items.find? (fun item => !sites.contains item.span.start)).map (·.span)
-    errorAt (span.getD {}) "finite declaration inventory differs from physical source"
+    match items.find? (fun item => !sites.contains item.span.start) with
+    | some item => sourceError item.ordinaryFunction item.span "declaration inventory differs from physical source"
+    | none => errorAt {} "duplicate physical declaration start"
 
 def check (layout : PhysicalSources.Layout) (sites : Sites) (items : List Item) : Except Diagnostic Unit :=
   if Finite.sameCounts sites.keys (items.map (·.span.start)) then checkAll layout sites items
   else .error (inventoryError sites items)
+
+/-- A single concrete declaration can be replayed by separately proving the
+inventory, its physical owner and the syntax at that location. -/
+theorem check_singleton {layout : PhysicalSources.Layout} {sites : Sites} {item : Item}
+    {site : FiniteSite} {file : PhysicalSources.File}
+    (keys : sites.keys = [item.span.start]) (lookup : sites[item.span.start]? = some site)
+    (physical : layout.files[site.fileIndex]? = some file)
+    (kind : site.ordinaryFunction = item.ordinaryFunction)
+    (owner : (site.packageSource, site.modulePath, site.isPublic) = (item.packageSource, item.modulePath, item.isPublic))
+    (location : item.inFile site.fileIndex layout.entry = true)
+    (parsed : replay ⟨file.text, file.offset⟩ site.before item = .ok ()) :
+    check layout sites [item] = .ok () := by
+  have covered : Finite.sameCounts [item.span.start] [item.span.start] = true := by
+    simp [Finite.sameCounts, Finite.countIndex]
+  simp [check, keys, covered, checkAll, checkOne, lookup, physical, kind, owner, location, parsed, bind, Except.bind]
 
 theorem check_sound {layout : PhysicalSources.Layout} {sites : Sites} {items : List Item}
     (h : check layout sites items = .ok ()) :

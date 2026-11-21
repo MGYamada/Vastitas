@@ -19,17 +19,26 @@ fn module(source: &str) -> Value {
         "functions":flat["functions"],"generics":flat["generics"],"methods":flat["methods"]})
 }
 
+const LIBRARY: &str = "pub fn value() -> Int { 42 }";
+
+fn request_with(alias: &str, library: &str) -> Value {
+    let scratch = common::Scratch::empty("physical namespace request");
+    scratch.write_package("lib", library, "");
+    scratch.write_package(
+        "app",
+        &format!("fn main() -> Int {{ {alias}::value() }}"),
+        &format!("{alias}={{path='../lib'}}"),
+    );
+    let mut wire = scratch.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+    wire["packages"]
+        .as_array_mut()
+        .unwrap()
+        .sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
+    wire
+}
+
 fn request() -> Value {
-    let source = "fn main() -> Int { 0 }";
-    let mut app = module(source);
-    app["functions"][0]["body"]["result"] =
-        json!({"kind":"call","callee":"lib::value","args":[],"span":span()});
-    json!({"version":common::CURRENT_PROTOCOL,"file":"raw.vast","root":"/app/Vastitas.toml","root_source":{"offset":0,"text":source},"packages":[
-        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","edition":"2026",
-         "dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
-        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","edition":"2026",
-         "dependencies":[],"modules":[module("fn value() -> Int { 42 }")]}
-    ]})
+    request_with("lib", LIBRARY)
 }
 
 fn check(raw: &Value) -> Value {
@@ -49,10 +58,13 @@ fn package_order_and_aliases_preserve_resolution() {
     assert_eq!(check(&raw)["ok"], true);
     raw["packages"].as_array_mut().unwrap().reverse();
     assert_eq!(check(&raw)["ok"], true);
-    raw["packages"][1]["dependencies"][0]["alias"] = json!("renamed");
+    // A coherent alias change updates its physical spelling and envelope together.
+    let renamed = request_with("renamed", LIBRARY);
+    assert_eq!(check(&renamed)["ok"], true);
+    raw["packages"][1]["dependencies"][0]["alias"] = json!("alt");
     raw["packages"][1]["modules"][0]["functions"][0]["body"]["result"]["callee"] =
-        json!("renamed::value");
-    assert_eq!(check(&raw)["ok"], true);
+        json!("alt::value");
+    rejects(&raw, "E_FUNCTION_SOURCE");
 }
 
 #[test]
@@ -98,14 +110,13 @@ fn unused_dependency_functions_remain_checked() {
 
 #[test]
 fn many_declarations_share_indexed_resolution_and_retain_visibility() {
-    let mut raw = request();
-    let mut source = String::from("fn value() -> Int { 42 }\n");
+    let mut source = format!("{LIBRARY}\n");
     for i in 0..1500 {
         source.push_str(&format!(
             "fn check{i}() -> Int {{ let local = value(); local }}\n"
         ));
     }
-    raw["packages"][1]["modules"][0] = module(&source);
+    let mut raw = request_with("lib", &source);
     assert_eq!(check(&raw)["ok"], true);
     // Reordering the declaration table cannot change identity or visibility.
     raw["packages"][1]["modules"][0]["functions"]

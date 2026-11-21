@@ -68,10 +68,7 @@ private def entryCore (input : Json) : Except Diagnostic (Typing.CheckedModule t
     for (key, winner) in [[0, 0], [0, 1], [1, 0], [1, 1]].zip winners do
       checkCase "public checked family selects the actual method" (family.checked.winner key == some winner)
   checkCase "all public families accounted for" (actual.checked.pureProgram.authority.headers.assembled.families.length == 3)
-  let entry := Json.mkObj [("name", toJson "main"), ("params", toJson ([] : List Json)),
-    ("return_type", named "Int"), ("body", block (call "self::add" [integer "20", integer "22"])),
-    ("public", toJson true), ("span", span)]
-  let executable := changeUnit fun m => m.setObjVal! "functions" (toJson ((values m "functions").push entry))
+  let executable ← IO.ofExcept <| Json.parse (include_str "../../tests/fixtures/promotion-entry.json")
   let .ok core := entryCore executable
     | throw (IO.userError "public stdlib entry rejected")
   checkCase "public entry numerical contract" (numericalContract core.module)

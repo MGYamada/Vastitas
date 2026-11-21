@@ -4,7 +4,7 @@ import VastitasKernel.IndexedFunctionSource
 
 set_option autoImplicit false
 
-/-! Check a family method's decoded syntax against its original tokens.
+/-! Check named function and family method syntax against the original tokens.
 The authority checker has already typed the decoded body. Consume the physical
 tokens in order, checking spans, operator precedence and the parentheses erased
 by the frontend. The reader holds one lookahead token. -/
@@ -44,7 +44,7 @@ private def here : Parser Span := do return (← look).2.span
 
 private def takeText (s : String) : Parser Unit := do
   let (found, t) ← look
-  unless found == s do throw "family method token differs from its source"
+  unless found == s do throw "function token differs from its source"
   set (Stream.mk t none)
 
 private def spell (tokens : List String) : Parser Unit :=
@@ -58,7 +58,7 @@ private def optional (s : String) : Parser Bool := do
 
 private def sameSpan (first expected : Span) : Parser Unit := do
   unless {first with «end» := (← get).last.span.end} == expected do
-    throw "family method node span differs from its source"
+    throw "function node span differs from its source"
 
 private def separated {α : Type} (items : List α) (check : α → Parser Unit)
     (endToken : String) (trailing := true) : Parser Unit := do
@@ -247,7 +247,7 @@ mutual
         separated params parameter ")"
         operator "->"
         fnType result
-        block fuel body
+        block [] fuel body
       | .lifted .. => throw "a lifted symbol has no source spelling"
       | .unary op operand _ =>
         unless ["!", "-"].contains op && required ≤ 13 do throw "invalid unary operator or grouping"
@@ -262,14 +262,14 @@ mutual
       | .branch condition yes no _ =>
         takeText "if"
         expr fuel 0 condition
-        block fuel yes
+        block [] fuel yes
         takeText "else"
         if (← peek) == "if" then
           let .mk [] inner s := no | throw "expected an else-if branch"
           unless (inner matches .branch ..) && inner.span == s do throw "invalid synthetic else-if span"
           expr fuel 0 inner
-        else block fuel no
-      | .block body _ => block fuel body
+        else block [] fuel no
+      | .block body _ => block [] fuel body
       | .pack ty witness fields _ =>
         takeText "pack"
         if ty matches .inferredPackage then
@@ -289,12 +289,17 @@ mutual
       for _ in [:grouped] do takeText ")"
       sameSpan start e.span
 
-  private def block : Nat → Block → Parser Unit
+  private def block (shown : List Nat) : Nat → Block → Parser Unit
     | 0, _ => throw "method block nesting limit"
     | fuel + 1, .mk statements result span => do
       let start ← here
       takeText "{"
-      for s in statements do statement fuel s
+      let mut pending := shown
+      for (s, i) in statements.zipIdx do
+        let observed := pending.head? == some i
+        if observed then pending := pending.drop 1
+        statement observed fuel s
+      unless pending.isEmpty do throw "observation outside the source block"
       if (← peek) == "}" then
         let .unit s := result | throw "an empty method block returns Unit"
         unless s == (← here) do throw "invalid implicit Unit span"
@@ -302,7 +307,7 @@ mutual
       takeText "}"
       sameSpan start span
 
-  private def statement : Nat → Stmt → Parser Unit
+  private def statement (observed : Bool) : Nat → Stmt → Parser Unit
     | 0, _ => throw "method statement nesting limit"
     | fuel + 1, s => do
       let start ← here
@@ -314,9 +319,12 @@ mutual
             takeText ":"
             fnType ty
           takeText "="
+          if observed then spell ["show", "!", "("]
           expr fuel 0 value
+          if observed then takeText ")"
           pure span
         | .unpack value witness fields span => do
+          if observed then throw "an observation requires a top-level let statement"
           takeText "unpack"
           expr fuel 0 value
           spell ["as", "{"]
@@ -339,6 +347,9 @@ mutual
       sameSpan start span
 end
 
+-- Evaluate concrete syntax with the unconditional equations of this mutual parser.
+attribute [cbv_eval] expr.eq_def block.eq_def statement.eq_def
+
 private def staticBinder (b : StaticBinder) : Parser Unit := do
   let start ← here
   let span ← match b with
@@ -356,27 +367,38 @@ private def staticBinder (b : StaticBinder) : Parser Unit := do
       pure span
   sameSpan start span
 
-/-- Replay the whole finite-indexed declaration, including binder and schema
+private def emptyRequires (permitted : Bool) : Parser Bool := do
+  if ← optional "requires" then
+    unless permitted do throw "unexpected dispatch requirement on a function"
+    spell ["(", ")"]
+    return true
+  return false
+
+/-- Replay the whole named declaration, including finite binder and schema
 spans. The scanner supplied the original fn token in the declaring module. -/
-def checkFiniteFunction (file : File) (first : Token) (function : Function) : Except Diagnostic Unit := do
+def checkFunction (file : File) (first : Token) (function : Function) (shown : List Nat) : Except Diagnostic Unit := do
   let check : Parser Unit := do
     takeText "fn"
     identifier function.name
-    takeText "<"
-    separated function.finiteBinders staticBinder ">"
+    unless function.finiteBinders.isEmpty do
+      takeText "<"
+      separated function.finiteBinders staticBinder ">"
     takeText "("
     separated function.params parameter ")"
+    let before ← emptyRequires function.finiteBinders.isEmpty
     operator "->"
     fnType function.result
-    block Limits.sourceNesting function.body
+    discard <| emptyRequires (function.finiteBinders.isEmpty && !before)
+    block shown Limits.sourceNesting function.body
     sameSpan first.span function.span
+  let code := if function.finiteBinders.isEmpty then "E_FUNCTION_SOURCE" else "E_FINITE_SOURCE"
   unless first.kind matches .word "fn" do
-    throw ⟨"E_FINITE_SOURCE", "expected a finite-indexed function", first.span, []⟩
+    throw ⟨code, "expected a named function", first.span, []⟩
   match check.run file ⟨first, some ("fn", first)⟩ with
   | .ok _ _ => return ()
   | .error message state =>
     let token := state.ahead.map Prod.snd |>.getD state.last
-    throw ⟨"E_FINITE_SOURCE", message, token.span, []⟩
+    throw ⟨code, message, token.span, []⟩
 
 def check (f : File) (opening : Span) (body : Block) : Except Diagnostic Token := do
   let errorAt := fun (span : Span) (message : String) => Diagnostic.mk "E_ASSEMBLY" message span []
@@ -385,7 +407,7 @@ def check (f : File) (opening : Span) (body : Block) : Except Diagnostic Token :
   let first ← (f.next ⟨⟨opening.start - f.base⟩, opening.line, opening.column⟩).mapError (errorAt opening)
   unless (first.kind matches .symbol '{') && first.span == opening do
     throw (errorAt first.span "missing method opening brace")
-  match (block Limits.sourceNesting body).run f ⟨first, some ("{", first)⟩ with
+  match (block [] Limits.sourceNesting body).run f ⟨first, some ("{", first)⟩ with
   | .ok _ state => return state.last
   | .error message state =>
     let token := state.ahead.map Prod.snd |>.getD state.last

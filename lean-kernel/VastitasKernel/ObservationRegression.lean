@@ -1,3 +1,4 @@
+import VastitasPublicTest.SingletonFixtures
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.RegressionRequest
 
@@ -88,11 +89,11 @@ private def inOrder (text : String) (parts : List String) : Bool :=
       unless actual == expected do
         throw (IO.userError s!"observation regression: {name}: expected {expected}, got {actual}")
   -- `vastitas check` accepts what `build` accepts, and both see the observations.
-  let .ok accepted := check (input [mod [observed]]) false
+  let .ok accepted := check (RegressionRequest.physical "observed") false
     | throw (IO.userError "observation regression: the observed program is rejected")
   unless accepted.checked.observations.map (·.statement) == [0, 1, 2, 3, 4] do
     throw (IO.userError "observation regression: the checked observations differ from the wire")
-  let .ok generated := emit (input [mod [observed]])
+  let .ok generated := emit (RegressionRequest.physical "observed")
     | throw (IO.userError "observation regression: the observed program is not generated")
   let text := generated.source
   unless inOrder text ["def main : IO UInt32 := do\n",
@@ -107,12 +108,16 @@ private def inOrder (text : String) (parts : List String) : Bool :=
   unless (text.splitOn "IO.println").length == 1 do
     throw (IO.userError "observation regression: an observed value is written on standard output")
   -- A label is data: it reaches the program only as a quoted string literal.
-  let .ok quoted := emit (input [mod [observed (some [observation 0 "\"); IO.Process.exit 9; (\"\\"])]])
+  let sample := RegressionRequest.physical "quoted"
+  let m := RegressionRequest.rootModule sample
+  let .ok functions := m.getObjValAs? (Array Json) "functions" | throw (IO.userError "missing observed main")
+  let changed := functions[0]!.setObjVal! "observations" (toJson [observation 0 "\"); IO.Process.exit 9; (\"\\"])
+  let .ok quoted := emit (RegressionRequest.withRootModule sample (m.setObjVal! "functions" (.arr #[changed])))
     | throw (IO.userError "observation regression: a label changed acceptance")
   unless inOrder quoted.source ["IO.eprintln (\"\\\"); IO.Process.exit 9; (\\\"\\\\\" ++ \" = \""] do
     throw (IO.userError s!"observation regression: a label is not quoted:\n{quoted.source}")
   -- Without observations the entry point returns the exit status and writes nothing.
-  let .ok plain := emit (input [mod [observed none]])
+  let .ok plain := emit (RegressionRequest.physical "plain")
     | throw (IO.userError "observation regression: the plain program is not generated")
   unless inOrder plain.source ["\ndef main : IO UInt32 :=\n  pure (UInt32.ofNat (Int.toNat (Int.emod VastitasGenerated.f_"]
       && (plain.source.splitOn "IO.println").length == 1 && (plain.source.splitOn "IO.eprintln").length == 1 do

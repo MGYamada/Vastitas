@@ -23,7 +23,7 @@ number = 462
 title = "Static fn families"
 state = "open"
 depends = []
-remaining = "The revision records every loaded manifest and source file, the selected family, key, contribution and Core symbol. A library or dependency-manifest edit invalidates replay even if the complete LLVM module stays identical. Closed Nat/Int arithmetic reaches complete LLVM bytes with the ordered canonical operator keys and sole protected methods checked. Boxed functions retain the operator sites for runtime arguments. A linked integer executable checks its direct calls and every operator site in the same revision. Swapping the operands of named mixed division selects the other ABI and invalidates the previous revision. A selected Bool method can pass through a function returning Fn. Two specializations then call that method and a lambda in the same native module. The compiler folds full-width literal equality and inequality inside parameterized methods. A checked edition 2026 example retains both assembled bodies. Editing either integer invalidates revision replay even when all 924 LLVM bytes stay identical. Lean replays defining method bodies in every accepted dispatch family, including flat libraries. Explicit domains, bodyless contracts and inferred headers are checked in their declaring scope. More general LLVM method bodies, argument types and module shapes remain."
+remaining = "The revision records every loaded manifest and source file, the selected family, key, contribution and Core symbol. A library or dependency-manifest edit invalidates replay even if the complete LLVM module stays identical. Closed Nat/Int arithmetic reaches complete LLVM bytes with the ordered canonical operator keys and sole protected methods checked. Boxed functions retain the operator sites for runtime arguments. A linked integer executable checks its direct calls and every operator site in the same revision. Swapping the operands of named mixed division selects the other ABI and invalidates the previous revision. A selected Bool method can pass through a function returning Fn. Two specializations then call that method and a lambda in the same native module. The compiler folds full-width literal equality and inequality inside parameterized methods. A checked edition 2026 example retains both assembled bodies. Editing either integer invalidates revision replay even when all 924 LLVM bytes stay identical. Lean replays the defining methods of every accepted dispatch family and the complete source of each ordinary singleton, including unused functions and flat libraries. Explicit domains, bodyless contracts and inferred headers are checked in their declaring scope. More general LLVM method bodies, argument types and module shapes remain."
 
 [[issue]]
 number = 455
@@ -37,7 +37,7 @@ number = 762
 title = "Finite edition 2026"
 state = "open"
 depends = [462, 455]
-remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Fresh Affine identities execute at all four representations. Lean replays finite carriers, tables, schemas and named instances in the files that declare them. This includes unused tables, row extents, selected Monad fields and associated paths. Lean replays finite-indexed function binders, nominal schemas, signatures and bodies, including uncalled functions. Source correspondence for ordinary non-indexed functions remains partial."
+remaining = "Edition 2026 admits category-indexed functions, named finite functors, natural transformations, isomorphisms, named Opposite views, selected Monads and the canonical `F32<RR>` and `F64<RR>` identity realizations on a smooth affine standard chart. Public tensor views cover ranks one through three, including a rank-one contraction boundary. Named exact real and complex meadows and their mathematical standard affine charts are admitted. Both widths execute the identity on a named exact complex affine. Fresh Affine identities execute at all four representations. Lean replays finite carriers, tables, schemas and named instances in the files that declare them. This includes unused tables, row extents, selected Monad fields and associated paths. Lean replays finite-indexed function binders, nominal schemas, signatures and bodies, including uncalled functions. Ordinary singletons replay their signatures, bodies and observed initializers at their original source tokens. The full edition-to-Core correspondence remains open."
 
 [[issue]]
 number = 533
@@ -179,7 +179,7 @@ document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.families@assembly", "compiler-ir.families@public-syntax", "compiler-ir.families@revision-replay"]
+claims = ["compiler-ir.families@assembly", "compiler-ir.families@public-syntax", "compiler-ir.families@revision-replay", "compiler-ir.families@singleton-source"]
 note = "Structured borrow, apply, return and seal lower to the checked edit trace. The checked revision binds the trace and selected method."
 document = ""
 
@@ -534,13 +534,13 @@ requirement = "Packages and normalized flat input use edition 2026 and wire epoc
 [row.dimension.source]
 state = "partial"
 claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@admission", "compiler-ir.edition@finite-tables", "compiler-ir.finite-binders@category-functions", "compiler-ir.realization@affine-wrappers", "compiler-ir.realization@identity-source", "compiler-ir.realization@exact-chart-source"]
-note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Physical Affine calls bind the constructor, precision and coordinate dimension in the same edition. The source and wire agree on each finite schema, instance, carrier and ordered row. Finite-indexed functions replay their schema references, signatures and bodies even without an application. Ordinary singleton function correspondence remains partial."
+note = "Manifest editions, finite category functions and chart-bound real and complex identity calls at both precisions have public and tampered-wire tests. Physical Affine calls bind the constructor, precision and coordinate dimension in the same edition. The source and wire agree on each finite schema, instance, carrier and ordered row. Finite-indexed functions replay their schema references, signatures and bodies even without an application. Uncalled ordinary singletons also replay against the physical files. Tampered observation sites fail the independent check. A flat main belongs to the entry file even when all wire spans match a library definition."
 document = ""
 
 [row.dimension.core]
 state = "partial"
-claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@correspondence", "compiler-ir.edition@finite-tables", "compiler-ir.edition@finite-declaration-source"]
-note = "Lean checks the physical finite declarations against the accepted input, including uncalled finite functions, their binders, signatures and bodies, and the nominal paths and row spans of finite tables. The public checker also binds package editions. Correspondence for the rest of the edition remains open."
+claims = ["compiler-ir.edition@manifest", "compiler-ir.edition@correspondence", "compiler-ir.edition@finite-tables", "compiler-ir.edition@finite-declaration-source", "compiler-ir.families@singleton-source"]
+note = "Lean checks the physical finite declarations against the accepted input, including uncalled finite functions, their binders, signatures and bodies, and the nominal paths and row spans of finite tables. Each ordinary singleton replays at its physical declaration, including its visibility, body and observed initializers. The public checker also binds package editions. Correspondence for the rest of the edition remains open."
 document = ""
 
 [row.dimension.midir]

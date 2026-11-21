@@ -214,6 +214,12 @@ object binders, parameters, result and body against the source file even
 when no call selects the function. The Rust loader supplies the file bytes
 and their global offsets. [Protocol 10](protocol.md)
 
+For an ordinary singleton, `VastitasOracle.ResourceSource.physical_singleton_function`
+identifies its declaration in the same input. For a flat `main`, its physical
+file index equals the entry index. The checker replays the body even
+when no call uses it. In `main`, it checks which top-level initializers use
+`show!`. The observation label remains presentation metadata.
+
 `VastitasOracle.FiniteProgram.correspondence` applies to the public
 checker route when it returns a finite executable artifact and the complete
 input bytes parse to its modeled module. The theorem identifies those bytes

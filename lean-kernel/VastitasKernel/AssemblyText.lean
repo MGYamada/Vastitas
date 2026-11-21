@@ -372,13 +372,13 @@ private def isExactHeader (f : File) (indexed : Token) : Except String Bool := d
     return match op.kind with | .symbol '=' => true | _ => false
   | _ => return false
 
-/-- Exact affine model declarations use `=` after the name. Presented and
-smooth objects instead carry an implementation path in parentheses. -/
+/-- Exact model constructors use `=` after the name. Affine objects with an
+implementation and morphisms with a family signature use their own checker. -/
 private def indexedSite (f : File) (indexed : Token) : Except String (Option SiteKind) := do
   let kind ← f.next indexed.after
   match kind.kind with
   | .word "finite" | .word "table" | .word "schema" | .word "instance" => return some .indexed
-  | .word "affine" =>
+  | .word "affine" | .word "morphism" =>
     let name ← f.next kind.after
     let op ← f.next name.after
     return if op.kind matches .symbol '=' then none else some .affine
@@ -688,7 +688,7 @@ def mayHaveExactHeaders (text : String) : Bool :=
     (text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine" || text.contains "identity"))
 
 def mayHaveFiniteDeclarations (text : String) : Bool :=
-  (text.contains "indexed" && ["finite", "table", "schema", "instance", "affine"].any (fun word => text.contains word)) ||
+  (text.contains "indexed" && ["finite", "table", "schema", "instance", "affine", "morphism"].any (fun word => text.contains word)) ||
     text.contains "fn" || text.contains "use" || text.contains "mod" ||
     text.contains "abstract" || text.contains "subtype"
 

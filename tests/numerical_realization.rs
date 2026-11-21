@@ -31,6 +31,41 @@ fn standard_chart_coordinates_are_checked_before_emitting_identity_llvm() {
 }
 
 #[test]
+fn a_coordinate_pullback_cannot_impersonate_the_declared_identity_in_llvm() {
+    let written = "pullback(x -> x, y -> y)";
+    let padded = format!("{:width$}", "identity", width = written.len());
+    let source = checked_replace(MAIN, "= identity;", &format!("= {padded};"));
+    let s = fixture(&source);
+    let mut raw = s.captured(MANIFEST, CURRENT_PROTOCOL);
+    let triple = "x86_64-unknown-linux-gnu";
+    let layout = "e-p:64:64";
+    assert_eq!(
+        common::kernel_with_args(&raw, &["llvm-check", triple, layout])["ok"],
+        true
+    );
+
+    let substituted = checked_replace(&source, &padded, written);
+    let start = substituted.find(written).unwrap();
+    raw["root_source"]["text"] = substituted.clone().into();
+    for mode in ["llvm-check", "llvm-build"] {
+        let result = common::kernel_with_args(&raw, &[mode, triple, layout]);
+        assert_wire_rejected(&result, "E_AFFINE_SOURCE");
+        assert_eq!(
+            result["diagnostics"][0]["span"]["column"],
+            substituted[..start].rsplit('\n').next().unwrap().len() + 1
+        );
+        assert!(result.get("llvm").is_none());
+    }
+    // The genuine map type-checks as a polynomial pullback. The restricted
+    // numerical profile requires the explicit identity construction.
+    s.write("app/main.vast", &substituted);
+    common::expect_code(
+        &s.command("check", MANIFEST).output().unwrap(),
+        "E_REALIZATION",
+    );
+}
+
+#[test]
 fn physical_source_binds_realizations_even_when_the_descriptor_is_unused() {
     let source = "use monad::float; use monad::float as other;
         use std::geometry::smooth::affine::SmoothR;

@@ -238,6 +238,32 @@ theorem physical_affine_declaration {json : Lean.Json} (input : Wire.CheckedInpu
     List.mem_append_left _ (List.mem_append_right _ (List.mem_append_right _ ?_))⟩⟩
   exact List.mem_filterMap.mpr ⟨d, hd, by simp [selected]⟩
 
+/-- Locate the actual token stream for a named map in the accepted package.
+The replay compares its family, endpoints and the complete defining graph. -/
+theorem physical_morphism {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    {family : Indexed.Source.Path} {indices : List Indexed.Source.Path} {definition : Indexed.Source.MorphismDefinition}
+    (body : d.body = .morphism family indices definition) :
+    ∃ expected layout, ∃ (checked : AssemblyText.SourceChecks) (site : AssemblyText.FiniteSite)
+      (file : PhysicalSources.File) (first : SourceText.Token),
+      EditSourceFiles.collect input.input = .ok expected ∧ PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      checked.finiteSites[d.span.start]? = some site ∧
+      layout.files[site.fileIndex]? = some file ∧
+      (site.packageSource, site.modulePath, site.isPublic) = (pkg.id.source, m.pureModule.module.path, d.isPublic) ∧
+      (SourceText.File.mk file.text file.offset).next site.before = .ok first ∧
+      AffineDeclarationText.check ⟨file.text, file.offset⟩ first d = .ok () := by
+  obtain ⟨expected, layout, checked, edits, physical, scan, site, file, atSite, atFile, owner, _, _, replay⟩ :=
+    physical_affine_declaration input hp hm hd (by simp [AffineDeclarationText.applies, body])
+  let source := SourceText.File.mk file.text file.offset
+  change FiniteSourceFiles.replay source site.before _ = .ok () at replay
+  cases tok : source.next site.before with
+  | error msg => simp [FiniteSourceFiles.replay, tok, Except.mapError, Bind.bind, Except.bind] at replay
+  | ok first =>
+    refine ⟨expected, layout, checked, site, file, first, edits, physical, scan, atSite, atFile, owner, tok, ?_⟩
+    simpa [FiniteSourceFiles.replay, tok, Except.mapError, Bind.bind, Except.bind] using replay
+
 /-- An accepted non-root module carries its visibility and its declaring
 module's path at the original inline or external declaration. -/
 theorem physical_module {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

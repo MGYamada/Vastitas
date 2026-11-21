@@ -4,7 +4,7 @@ import VastitasKernel.IndexedSource
 set_option autoImplicit false
 
 /-! Physical syntax of presented affine objects, fiber products, localizations
-and standard affine spaces. The algebra checker consumes the decoded polynomial
+and standard affine spaces, including the definitions of maps between them. The algebra checker consumes the decoded polynomial
 tree. Compare that tree before any evaluation or normalization. -/
 namespace VastitasKernel.AffineDeclarationText
 open SourceText AssemblyText Indexed
@@ -195,10 +195,47 @@ private def implementation (p : Source.Path) : Parser Unit := do
   symbol ')'
   symbol '='
 
-private def declaration (d : Source.Declaration) : Parser Unit := do
-  word "affine"
-  word d.name
-  match d.body with
+private def invariant (keyword : String) (subject : Source.Path) (index : Nat) : Parser Unit := do
+  word keyword
+  symbol '('
+  reference subject
+  symbol ','
+  let start ← get
+  unless (← natural) == index do
+    set start
+    throw "spectral morphism index differs from its source"
+  symbol ')'
+
+private def morphism (family : Source.Path) (indices : List Source.Path)
+    (definition : Source.MorphismDefinition) : Parser Unit := do
+  symbol ':'
+  reference family
+  symbol '<'
+  let first :: rest := indices | throw "expected morphism endpoints"
+  reference first
+  for index in rest do
+    symbol ','
+    reference index
+  symbol '>'
+  symbol '='
+  match definition with
+  | .pullback images =>
+    word "pullback"
+    bindings images
+  | .identity => word "identity"
+  | .structureMap => word "structure"
+  | .first => word "first"
+  | .second => word "second"
+  | .restrict p =>
+    word "restrict"
+    symbol '('
+    reference p
+    symbol ')'
+  | .tracePower p n => invariant "trace_power" p n
+  | .charCoefficient p n => invariant "char_coefficient" p n
+
+private def object (body : Source.Body) : Parser Unit := do
+  match body with
   | .affine impl generators relations base maps =>
     implementation impl
     if ← acceptWord "Affine" then
@@ -254,16 +291,27 @@ private def declaration (d : Source.Declaration) : Parser Unit := do
     symbol ')'
     names coordinates
   | _ => throw "expected a presented or smooth affine declaration"
+
+private def declaration (d : Source.Declaration) : Parser Unit := do
+  match d.body with
+  | .morphism family indices definition =>
+    word "morphism"
+    word d.name
+    morphism family indices definition
+  | body =>
+    word "affine"
+    word d.name
+    object body
   symbol ';'
 
 def applies (d : Source.Declaration) : Bool :=
   match d.body with
-  | .affine .. | .affineFiber .. | .affineLocalization .. | .smoothAffine .. => true
+  | .affine .. | .affineFiber .. | .affineLocalization .. | .smoothAffine .. | .morphism .. => true
   | _ => false
 
 def check (file : File) (first : Token) (d : Source.Declaration) : Except Diagnostic Unit := do
   let error := fun span msg => (⟨"E_AFFINE_SOURCE", msg, span, []⟩ : Diagnostic)
-  unless first.kind matches .word "indexed" do throw (error first.span "expected indexed affine")
+  unless first.kind matches .word "indexed" do throw (error first.span "expected an indexed geometry declaration")
   match ((declaration d).run file).run first.after with
   | .ok _ after =>
     unless sameSpan file first after d.span do throw (error first.span "affine declaration span differs from its source")

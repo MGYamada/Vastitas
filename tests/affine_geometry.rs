@@ -176,6 +176,10 @@ fn physical_affine_relations_and_substitutions_match_before_normalization() {
             "0)",
         ),
         ("localize(Line, t^2)", "localize(Line, t^3)", "t^3"),
+        ("pullback(t -> t^2)", "pullback(t -> t^3)", "t^3"),
+        ("pullback(e -> X::x)", "pullback(e -> X::t)", "X::t"),
+        ("restrict(sq)", "restrict(to)", "to"),
+        ("dsToS: Over<DS, S, S>", "dsToS: Over<DS, X, S>", "X"),
     ] {
         let mut changed = raw.clone();
         let source = common::checked_replace(&main, from, to);

@@ -155,7 +155,9 @@ implementation, ordered coordinates, base paths, relations and bindings in
 the declaring file. It checks each polynomial before algebraic normalization.
 This also covers fiber products, principal localizations and unused declarations.
 A mismatch yields `E_AFFINE_SOURCE`; a changed polynomial points to the
-beginning of the expression.
+beginning of the expression. A typed `indexed morphism` also replays the family,
+each endpoint path and the defining operation. A smooth identity used for
+numerical interpretation must have the literal `identity` at that declaration.
 
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record

@@ -150,6 +150,13 @@ Both declarations participate even when no function uses the selector.
 A decoded hierarchy that type-checks but differs from the source yields
 `E_HIERARCHY_SOURCE` before a function revision or LLVM module is returned.
 
+For presented and smooth `indexed affine` objects, the checker reads the
+implementation, ordered coordinates, base paths, relations and bindings in
+the declaring file. It checks each polynomial before algebraic normalization.
+This also covers fiber products, principal localizations and unused declarations.
+A mismatch yields `E_AFFINE_SOURCE`; a changed polynomial points to the
+beginning of the expression.
+
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record
 with four paths named `source`, `target`, `objects` and `arrows`. Each

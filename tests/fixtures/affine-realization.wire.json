@@ -1,0 +1,379 @@
+{
+  "version": 10,
+  "file": "/subject/Vastitas.toml",
+  "root": "/subject/Vastitas.toml",
+  "root_source": {
+    "offset": 85,
+    "text": "pub indexed marker R;\npub indexed implementation SmoothR(R, smooth_affine) capabilities();\npub indexed classification Spaces { parents(); domain(SmoothR); };\npub indexed family Smooth(object(Spaces), object(Spaces)) = smooth constraints(canonical(0), canonical(1));\npub indexed affine X(SmoothR) = Affine(1)[t];\npub indexed affine Y(SmoothR) = Affine(1)[t];\npub indexed morphism idX: Smooth<X, X> = identity;\npub indexed morphism writtenT: Smooth<X, X> = pullback(t -> t);\npub indexed morphism negativeT: Smooth<X, X> = pullback(t -> -t);\n",
+    "files": [
+      {
+        "path": "/subject/Vastitas.toml",
+        "offset": 0,
+        "text": "[package]\nname = \"subject\"\nversion = \"0.1.0\"\nedition = \"2026\"\nroot = \"subject.vast\"\n"
+      },
+      {
+        "path": "/subject/subject.vast",
+        "offset": 85
+      }
+    ]
+  },
+  "packages": [
+    {
+      "source": "/subject/Vastitas.toml",
+      "name": "subject",
+      "version": "0.1.0",
+      "edition": "2026",
+      "dependencies": [],
+      "modules": [
+        {
+          "path": [],
+          "public": true,
+          "imports": [],
+          "functions": [],
+          "generics": [],
+          "methods": [],
+          "indexed_declarations": [
+            {
+              "name": "R",
+              "kind": "marker",
+              "span": {
+                "start": 89,
+                "end": 106,
+                "line": 1,
+                "column": 5
+              },
+              "public": true
+            },
+            {
+              "name": "SmoothR",
+              "kind": "implementation",
+              "marker": {
+                "path": [
+                  "R"
+                ],
+                "span": {
+                  "start": 142,
+                  "end": 143,
+                  "line": 2,
+                  "column": 36
+                }
+              },
+              "representation": "smooth_affine",
+              "capabilities": [],
+              "span": {
+                "start": 111,
+                "end": 175,
+                "line": 2,
+                "column": 5
+              },
+              "public": true
+            },
+            {
+              "name": "Spaces",
+              "kind": "classification",
+              "parents": [],
+              "domain": [
+                {
+                  "path": [
+                    "SmoothR"
+                  ],
+                  "span": {
+                    "start": 230,
+                    "end": 237,
+                    "line": 3,
+                    "column": 55
+                  }
+                }
+              ],
+              "span": {
+                "start": 180,
+                "end": 242,
+                "line": 3,
+                "column": 5
+              },
+              "public": true
+            },
+            {
+              "name": "Smooth",
+              "kind": "family",
+              "parameters": [
+                {
+                  "kind": "object",
+                  "domain": {
+                    "path": [
+                      "Spaces"
+                    ],
+                    "span": {
+                      "start": 276,
+                      "end": 282,
+                      "line": 4,
+                      "column": 34
+                    }
+                  }
+                },
+                {
+                  "kind": "object",
+                  "domain": {
+                    "path": [
+                      "Spaces"
+                    ],
+                    "span": {
+                      "start": 292,
+                      "end": 298,
+                      "line": 4,
+                      "column": 50
+                    }
+                  }
+                }
+              ],
+              "constraints": [
+                {
+                  "kind": "canonical",
+                  "object": 0
+                },
+                {
+                  "kind": "canonical",
+                  "object": 1
+                }
+              ],
+              "representation": "smooth",
+              "span": {
+                "start": 247,
+                "end": 350,
+                "line": 4,
+                "column": 5
+              },
+              "public": true
+            },
+            {
+              "name": "X",
+              "kind": "smooth_affine",
+              "implementation": {
+                "path": [
+                  "SmoothR"
+                ],
+                "span": {
+                  "start": 372,
+                  "end": 379,
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "dimension": "1",
+              "coordinates": [
+                "t"
+              ],
+              "span": {
+                "start": 355,
+                "end": 396,
+                "line": 5,
+                "column": 5
+              },
+              "public": true
+            },
+            {
+              "name": "Y",
+              "kind": "smooth_affine",
+              "implementation": {
+                "path": [
+                  "SmoothR"
+                ],
+                "span": {
+                  "start": 418,
+                  "end": 425,
+                  "line": 6,
+                  "column": 22
+                }
+              },
+              "dimension": "1",
+              "coordinates": [
+                "t"
+              ],
+              "span": {
+                "start": 401,
+                "end": 442,
+                "line": 6,
+                "column": 5
+              },
+              "public": true
+            },
+            {
+              "name": "idX",
+              "kind": "morphism",
+              "family": {
+                "path": [
+                  "Smooth"
+                ],
+                "span": {
+                  "start": 469,
+                  "end": 475,
+                  "line": 7,
+                  "column": 27
+                }
+              },
+              "indices": [
+                {
+                  "path": [
+                    "X"
+                  ],
+                  "span": {
+                    "start": 476,
+                    "end": 477,
+                    "line": 7,
+                    "column": 34
+                  }
+                },
+                {
+                  "path": [
+                    "X"
+                  ],
+                  "span": {
+                    "start": 479,
+                    "end": 480,
+                    "line": 7,
+                    "column": 37
+                  }
+                }
+              ],
+              "definition": {
+                "kind": "identity"
+              },
+              "span": {
+                "start": 447,
+                "end": 493,
+                "line": 7,
+                "column": 5
+              },
+              "public": true
+            },
+            {
+              "name": "writtenT",
+              "kind": "morphism",
+              "family": {
+                "path": [
+                  "Smooth"
+                ],
+                "span": {
+                  "start": 525,
+                  "end": 531,
+                  "line": 8,
+                  "column": 32
+                }
+              },
+              "indices": [
+                {
+                  "path": [
+                    "X"
+                  ],
+                  "span": {
+                    "start": 532,
+                    "end": 533,
+                    "line": 8,
+                    "column": 39
+                  }
+                },
+                {
+                  "path": [
+                    "X"
+                  ],
+                  "span": {
+                    "start": 535,
+                    "end": 536,
+                    "line": 8,
+                    "column": 42
+                  }
+                }
+              ],
+              "definition": {
+                "kind": "pullback",
+                "images": [
+                  {
+                    "name": "t",
+                    "image": {
+                      "op": "coordinate",
+                      "name": "t"
+                    }
+                  }
+                ]
+              },
+              "span": {
+                "start": 498,
+                "end": 557,
+                "line": 8,
+                "column": 5
+              },
+              "public": true
+            },
+            {
+              "name": "negativeT",
+              "kind": "morphism",
+              "family": {
+                "path": [
+                  "Smooth"
+                ],
+                "span": {
+                  "start": 590,
+                  "end": 596,
+                  "line": 9,
+                  "column": 33
+                }
+              },
+              "indices": [
+                {
+                  "path": [
+                    "X"
+                  ],
+                  "span": {
+                    "start": 597,
+                    "end": 598,
+                    "line": 9,
+                    "column": 40
+                  }
+                },
+                {
+                  "path": [
+                    "X"
+                  ],
+                  "span": {
+                    "start": 600,
+                    "end": 601,
+                    "line": 9,
+                    "column": 43
+                  }
+                }
+              ],
+              "definition": {
+                "kind": "pullback",
+                "images": [
+                  {
+                    "name": "t",
+                    "image": {
+                      "op": "neg",
+                      "operand": {
+                        "op": "coordinate",
+                        "name": "t"
+                      }
+                    }
+                  }
+                ]
+              },
+              "span": {
+                "start": 562,
+                "end": 623,
+                "line": 9,
+                "column": 5
+              },
+              "public": true
+            }
+          ],
+          "span": {
+            "start": 85,
+            "end": 88,
+            "line": 1,
+            "column": 1
+          }
+        }
+      ]
+    }
+  ]
+}

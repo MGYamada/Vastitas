@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested |
@@ -120,6 +120,19 @@ Claims:
     - the public protocol-10 request passed the independent checker
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: The physical files and global offsets are supplied by the loader. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
+- `affine-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_affine_declaration`
+  - Premises:
+    - the public protocol-10 checker accepted the request
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: For each presented affine object, fiber product, principal localization and smooth affine space, Lean checks the declaration in its physical package and module. It checks visibility, declaration extent, implementation and base paths, ordered coordinates, relations and substitutions. Polynomial comparison preserves the decoded expression tree before normalization, including the order of summands and factors. The loader supplies the physical files.
+- `affine-replay`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `physical_affine_relations_and_substitutions_match_before_normalization` in [`tests/affine_geometry.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/affine_geometry.rs)
+    - `even_an_unused_affine_object_must_match_its_declaring_module` in [`tests/affine_geometry.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/affine_geometry.rs)
+    - `standard_chart_coordinates_are_checked_before_emitting_identity_llvm` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
+  - Note: Changing only the physical exponent, sign, fraction, substitution image, smooth chart dimension or coordinate order rejects the request at the original expression or token. The check includes unused declarations in imported modules.
 - `namespace-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_import`, `VastitasOracle.ResourceSource.physical_module`

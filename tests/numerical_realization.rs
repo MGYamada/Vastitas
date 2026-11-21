@@ -7,6 +7,30 @@ const MAIN: &str = include_str!("../examples/packages/float-identity/src/main.va
 const MANIFEST: &str = "app/Vastitas.toml";
 
 #[test]
+fn standard_chart_coordinates_are_checked_before_emitting_identity_llvm() {
+    let s = fixture(MAIN);
+    let raw = s.captured(MANIFEST, CURRENT_PROTOCOL);
+    let args = ["llvm-check", "x86_64-unknown-linux-gnu", "e-p:64:64"];
+    assert_eq!(common::kernel_with_args(&raw, &args)["ok"], true);
+    for (replacement, token) in [("Affine(3)[x, y]", "3"), ("Affine(2)[y, x]", "y")] {
+        let mut changed = raw.clone();
+        let source = checked_replace(MAIN, "Affine(2)[x, y]", replacement);
+        let start = source.find(replacement).unwrap() + replacement.find(token).unwrap();
+        changed["root_source"]["text"] = source.into();
+        for mode in ["llvm-check", "llvm-build"] {
+            let result = common::kernel_with_args(&changed, &[mode, args[1], args[2]]);
+            assert_wire_rejected(&result, "E_AFFINE_SOURCE");
+            let original = MAIN[..start].rsplit('\n').next().unwrap();
+            assert_eq!(
+                result["diagnostics"][0]["span"]["column"],
+                original.len() + 1
+            );
+            assert!(result.get("llvm").is_none());
+        }
+    }
+}
+
+#[test]
 fn physical_source_binds_realizations_even_when_the_descriptor_is_unused() {
     let source = "use monad::float; use monad::float as other;
         use std::geometry::smooth::affine::SmoothR;

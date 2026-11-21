@@ -278,7 +278,7 @@ structure MethodSite where
   closing : Span
 
 inductive SiteKind where
-  | indexed | finiteFunction | singleton | namespaceImport | namespaceModule | hierarchy
+  | indexed | finiteFunction | singleton | namespaceImport | namespaceModule | hierarchy | affine
   deriving Inhabited, DecidableEq
 
 structure FiniteSite where
@@ -371,6 +371,18 @@ private def isExactHeader (f : File) (indexed : Token) : Except String Bool := d
     let op ← f.next name.after
     return match op.kind with | .symbol '=' => true | _ => false
   | _ => return false
+
+/-- Exact affine model declarations use `=` after the name. Presented and
+smooth objects instead carry an implementation path in parentheses. -/
+private def indexedSite (f : File) (indexed : Token) : Except String (Option SiteKind) := do
+  let kind ← f.next indexed.after
+  match kind.kind with
+  | .word "finite" | .word "table" | .word "schema" | .word "instance" => return some .indexed
+  | .word "affine" =>
+    let name ← f.next kind.after
+    let op ← f.next name.after
+    return if op.kind matches .symbol '=' then none else some .affine
+  | _ => return none
 
 /-- Skip complete nested groups while finding the terminator of a statement
 or signature. Strings and comments have already been consumed by the lexer. -/
@@ -594,12 +606,10 @@ private def scanExact (f : File) (pkg : String) : Nat → Cursor → Scope → L
             return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
               {checks with finiteSites := checks.finiteSites.insert t.span.start site}
           if keyword == "indexed" then
-            let kind ← f.next t.after
-            if let .word kind := kind.kind then
-              if ["finite", "table", "schema", "instance"].contains kind then
-                let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span .indexed
-                return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
-                  {checks with finiteSites := checks.finiteSites.insert t.span.start site}
+            if let some kind ← indexedSite f t then
+              let site := FiniteSite.mk pkg reversedPath.reverse (scope.place == .afterPub) checks.fileIndex c t.span kind
+              return ← scanExact f pkg fuel t.after (← ordinary scope t.kind) reversedPath external
+                {checks with finiteSites := checks.finiteSites.insert t.span.start site}
           if keyword == "assembly" then throw "retired assembly declaration"
           if keyword == "assemble" && (!checks.allowAssembly || scope.modules != 0 || scope.place == .afterPub) then
             throw "assemble is allowed only in the entry module of the root package"
@@ -678,7 +688,7 @@ def mayHaveExactHeaders (text : String) : Bool :=
     (text.contains "indexed" && (text.contains "carrier" || text.contains "meadow" || text.contains "Affine" || text.contains "identity"))
 
 def mayHaveFiniteDeclarations (text : String) : Bool :=
-  (text.contains "indexed" && ["finite", "table", "schema", "instance"].any (fun word => text.contains word)) ||
+  (text.contains "indexed" && ["finite", "table", "schema", "instance", "affine"].any (fun word => text.contains word)) ||
     text.contains "fn" || text.contains "use" || text.contains "mod" ||
     text.contains "abstract" || text.contains "subtype"
 

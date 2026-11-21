@@ -1,3 +1,4 @@
+import VastitasKernel.AffineDeclarationText
 import VastitasKernel.ExactModelSource
 import VastitasKernel.MethodBodyText
 
@@ -62,6 +63,7 @@ inductive DeclarationSyntax where
   | abstractType (declaration : Namespace.AbstractType)
   | subtype (declaration : RawSubtype)
   | indexed (declaration : Form)
+  | affine (declaration : Source.Declaration)
   | function (declaration : FunctionSource.Function)
   /-- Ordinary singleton and the top-level statement indices observed in main. -/
   | singleton (declaration : FunctionSource.Function) (shown : List Nat)
@@ -77,7 +79,8 @@ def declarations (program : ResourceSource.Program) : List Item :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
     let item := fun span visibility syntax_ => Item.mk pkg.id.source m.pureModule.module.path span visibility syntax_
     let indexed := m.pureModule.declarations.filterMap fun d =>
-      (form d).map fun shape => item d.span d.isPublic (.indexed shape)
+      if AffineDeclarationText.applies d then some (item d.span d.isPublic (.affine d))
+      else (form d).map fun shape => item d.span d.isPublic (.indexed shape)
     let imports := m.pureModule.module.imports.map fun i => item i.span i.isPublic (.namespaceImport i)
     let mod := m.pureModule.module
     let types := mod.abstractTypes.map fun t => item t.span t.isPublic (.abstractType t)
@@ -98,6 +101,7 @@ private def sourceError (kind : SiteKind) (span : Span) (message : String) : Dia
   | .namespaceImport => {code := "E_IMPORT_SOURCE", span, message}
   | .singleton => {code := "E_FUNCTION_SOURCE", span, message}
   | .hierarchy => {code := "E_HIERARCHY_SOURCE", span, message}
+  | .affine => {code := "E_AFFINE_SOURCE", span, message}
   | .indexed | .finiteFunction => errorAt span message
 
 def Item.kind (item : Item) : SiteKind :=
@@ -106,6 +110,7 @@ def Item.kind (item : Item) : SiteKind :=
   | .namespaceImport _ => .namespaceImport
   | .abstractType _ | .subtype _ => .hierarchy
   | .indexed _ => .indexed
+  | .affine _ => .affine
   | .function _ => .finiteFunction
   | .singleton .. => .singleton
 
@@ -115,7 +120,7 @@ def Item.inFile (item : Item) (index entry : Nat) : Bool :=
   index == entry || item.packageSource != flatPackageId.source ||
     match item.syntax_ with
     | .singleton f _ | .function f => f.name != "main"
-    | .indexed _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
+    | .indexed _ | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
 
 private def readTokens (file : File) (before : Cursor) (tokens : List ExactLexeme)
     (report : Span → String → Diagnostic := errorAt) : Except Diagnostic Cursor :=
@@ -202,6 +207,7 @@ def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Uni
       ← selectorPath (item.packageSource == flatPackageId.source) s.target] (sourceError .hierarchy)
     endHierarchy file first after item.span
   | .indexed shape => replayIndexed file first shape item.span
+  | .affine d => AffineDeclarationText.check file first d
   | .function f => MethodBodyText.checkFunction file first f []
   | .singleton f shown => MethodBodyText.checkFunction file first f shown
 

@@ -6,7 +6,7 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 72 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 73 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 3 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
 | [mathlib](#assumption.mathlib) | 17 |
@@ -24,6 +24,7 @@ Cited by:
 
 - [`compiler-ir.edition`](compiler-ir.md#compiler-ir.edition) (`manifest-source`)
 - [`compiler-ir.edition`](compiler-ir.md#compiler-ir.edition) (`finite-declaration-source`)
+- [`compiler-ir.edition`](compiler-ir.md#compiler-ir.edition) (`affine-source`)
 - [`compiler-ir.edition`](compiler-ir.md#compiler-ir.edition) (`namespace-source`)
 - [`compiler-ir.families`](compiler-ir.md#compiler-ir.families) (`singleton-source`)
 - [`compiler-ir.families`](compiler-ir.md#compiler-ir.families) (`selector-source`)

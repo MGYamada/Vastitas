@@ -194,7 +194,7 @@ For these groups a valid decoded declaration can still select different
 operands from the file. Closing the gap requires replay of the fields on the
 same public request, including unreferenced declarations. The issue also
 tracks correspondence for functions, resource operations and the resulting
-Core. [Edition 2026 acceptance](https://github.com/MGYamada/Vastitas/issues/762)
+Core. [Edition, wire and compiler verification](v0.1.0-admission.md#edition-wire-and-compiler-verification)
 
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record

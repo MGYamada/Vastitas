@@ -258,7 +258,11 @@ The typed-forwarding regression replaces a direct parameter return with a
 typed local in a singleton, a selected method and its fallback. Both versions
 produce the same 1,237 bytes on the macOS target. All three functions retain
 and return their input pointer. Reusing the first source revision with the
-second source fails. [Public regression](../../tests/llvm_preview.rs)
+second source fails. On macOS arm64, LLVM 23.1.4 assembled and verified both
+modules. Both objects linked with the boxed runtime and exited with status 42.
+A Lean 4.35.0 control with the same typed local also returned 42. Its installed
+compiler reported that bitcode output requires a build with `-DLLVM=ON`.
+[Public regression](../../tests/llvm_preview.rs)
 [Boxed pairs](../src/boxed-pairs.ll) · [Binding proofs](../../lean/VastitasOracle/BindingCoverage.lean) · [Lean variable declarations](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L979-L1007) · [Lean block emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1153-L1164)
 
 The two-object isomorphism module passes the two arrows to the composition

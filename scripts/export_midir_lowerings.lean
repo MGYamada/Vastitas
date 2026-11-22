@@ -1,8 +1,9 @@
 import VastitasOracle.LiteralCoverage
 import VastitasOracle.FiniteOpcodeCoverage
+import VastitasOracle.BindingCoverage
 import Lean.Data.Json
 
-open Lean VastitasKernel.MidIR
+open Lean VastitasKernel.Indexed VastitasKernel.MidIR
 
 -- Each exported origin/opcode pair is associated with its checked local theorem.
 example := @VastitasOracle.MidIR.literal_constructor_coverage
@@ -20,4 +21,11 @@ def main : IO Unit := do
   let literals := literalRegistry.map fun entry => row entry ``VastitasOracle.MidIR.literal_constructor_coverage
   let finite := row finiteTagRegistryRow ``VastitasOracle.MidIR.finite_tag_constructor_coverage
   let lookup := row lookupRegistryRow ``VastitasOracle.MidIR.finite_lookup_constructor_coverage
-  IO.println (toJson (literals ++ [finite, lookup])).compress
+  let binding (origin proof : Name) := Json.mkObj [
+    ("origin", toJson origin.toString), ("opcode", Json.null), ("theorem", toJson proof.toString)]
+  let bindings := [
+    binding ``Core.Term.variable ``VastitasOracle.MidIR.variable_constructor_coverage,
+    binding ``Core.Term.scope ``VastitasOracle.MidIR.scope_constructor_coverage,
+    binding ``Core.Term.ascribe ``VastitasOracle.MidIR.ascription_constructor_coverage,
+    binding ``Core.Term.letE ``VastitasOracle.MidIR.let_constructor_coverage]
+  IO.println (toJson (literals ++ [finite, lookup] ++ bindings)).compress

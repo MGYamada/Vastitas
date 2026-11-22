@@ -168,6 +168,47 @@ theorem appends_lookup (site : FiniteLookup) (symbols : List Nat) : AppendsLooku
 
 def lookupRegistryRow : Lean.Name × String := (``Core.Term.finiteLookup, "finite.lookup.tag.v1")
 
+/-- Variables reuse the defining SSA reference in every builder state. An
+unbound symbol fails before changing any block. -/
+def ReadsVariable (symbol : Nat) (result : Core.Result) : Prop :=
+  ∀ resolve (ctx : List (Nat × Ref)) blocks,
+    (lowerTerm resolve ctx (.variable symbol result)).run blocks =
+      (ctx.lookup symbol).map fun ref => (ref, blocks)
+
+theorem reads_variable (symbol : Nat) (result : Core.Result) : ReadsVariable symbol result := by
+  intro resolve ctx blocks
+  cases found : ctx.lookup symbol <;> simp [lowerTerm, found, liftM, monadLift,
+    MonadLift.monadLift, StateT.lift, StateT.run]
+
+/-- A lexical scope forwards the entire child action, including failure and
+changes to the active block inside the child. -/
+def ForwardsScope (body : Core.Term) : Prop :=
+  ∀ resolve ctx, lowerTerm resolve ctx (.scope body) = lowerTerm resolve ctx body
+
+theorem forwards_scope (body : Core.Term) : ForwardsScope body := fun _ _ => rfl
+
+/-- Ascription checks the exact Core type before forwarding the child. -/
+def ChecksAscription (annotation : Core.DataType) (body : Core.Term) : Prop :=
+  ∀ resolve ctx blocks, (lowerTerm resolve ctx (.ascribe annotation body)).run blocks =
+    if annotation = body.result.type then (lowerTerm resolve ctx body).run blocks else none
+
+theorem checks_ascription (annotation : Core.DataType) (body : Core.Term) :
+    ChecksAscription annotation body := by
+  intro resolve ctx blocks
+  by_cases h : annotation = body.result.type <;>
+    simp [lowerTerm, h, guard, bind, StateT.run, StateT.bind, pure, StateT.pure,
+      failure, Alternative.failure, StateT.failure]
+
+/-- Lower the initializer once and pass its returned SSA reference and updated
+blocks to the body. Failure of either action propagates. -/
+def BindsLet (symbol : Nat) (rhs body : Core.Term) : Prop :=
+  ∀ resolve ctx blocks, (lowerTerm resolve ctx (.letE symbol rhs body)).run blocks =
+    (do let (ref, after) ← (lowerTerm resolve ctx rhs).run blocks
+        (lowerTerm resolve ((symbol, ref) :: ctx) body).run after)
+
+theorem binds_let (symbol : Nat) (rhs body : Core.Term) : BindsLet symbol rhs body :=
+  fun _ _ _ => rfl
+
 /-- Structural lowering of one exact body. Acceptance of a source module and
 its family identities belongs to the checked request adapter in MidIR.Checked. -/
 def lowerLinkedFunction (env : Environment) (origin : FunctionSource.Compiler.Key)

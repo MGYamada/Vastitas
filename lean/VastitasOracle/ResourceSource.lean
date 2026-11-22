@@ -366,6 +366,24 @@ theorem physical_indexed_item {json : Lean.Json} (input : Wire.CheckedInput json
     List.mem_append_left _ (List.mem_append_right _ (List.mem_append_right _ ?_))⟩⟩
   exact List.mem_map.mpr ⟨d, hd, rfl⟩
 
+/-- The implementation selected by an accepted global is the reference at its
+original source span, including every component of a qualified path. -/
+theorem physical_global_declaration {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    {implementation : Indexed.Source.Path} (body : d.body = .global implementation) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, d.span, d.isPublic,
+          .indexedHeader "global" d.name (some [.punctuation '(', .reference implementation.path implementation.span,
+            .punctuation ')'])⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  refine ⟨expected, layout, checked, collected, physical, scan, ?_⟩
+  simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form,
+    FiniteSourceFiles.indexedKeyword, body] using site
+
 /-- Each presented affine object, fiber product, localization and smooth
 affine space in an accepted request replays at its original declaration. -/
 theorem physical_affine_declaration {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

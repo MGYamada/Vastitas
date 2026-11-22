@@ -243,6 +243,24 @@ The preview emits a direct storage call for each allocation, store, copy, expect
 To add a sample, retain the complete public preview output in `llvm/src/`, register the source and its package in the replay runner, and register a closed theorem over that file in `Corpus.lean` under `checkedFiles`. Put commentary here so the file continues to match the bytes the theorem checks.
 
 
+In the boxed-pairs fixture the accepted entry contains seven Core lets, a type
+ascription and nine variable references. Both bodies of the assembled split
+family also contain a scope and a variable reference. The MidIR builder gives
+each bound name the initializer's existing SSA reference. Scope and a matching
+ascription forward the child, so no instruction or stack slot is needed for
+the binding itself. In Lean 4.35.0, `declareVars` visits each `FnBody.vdecl`
+and `declareVar` allocates a prologue slot. On the ordinary declaration path
+`emitBlock` calls `emitVDecl` on the initializer before visiting the rest of
+the body. This comparison uses the pinned upstream source. The retained
+4,157 bytes come from the Vastitas emitter.
+
+The typed-forwarding regression replaces a direct parameter return with a
+typed local in a singleton, a selected method and its fallback. Both versions
+produce the same 1,237 bytes on the macOS target. All three functions retain
+and return their input pointer. Reusing the first source revision with the
+second source fails. [Public regression](../../tests/llvm_preview.rs)
+[Boxed pairs](../src/boxed-pairs.ll) · [Binding proofs](../../lean/VastitasOracle/BindingCoverage.lean) · [Lean variable declarations](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L979-L1007) · [Lean block emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1153-L1164)
+
 The two-object isomorphism module passes the two arrows to the composition
 functions in opposite orders. Its nested conditions join the exit values 42,
 7 and 9 using two LLVM phi nodes. Lean 4.35.0's `emitJmp` stores join

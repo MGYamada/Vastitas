@@ -414,6 +414,44 @@ fn boxed_program_preserves_call_targets_and_borrowed_returns() {
 }
 
 #[test]
+fn typed_forwarding_preserves_the_llvm_module_for_singleton_and_assembled_methods() {
+    let project = Scratch::empty("typed forwarding in a sealed family");
+    let direct = "fn relay(x: Int) -> Int { x }
+fn keep(x: Int) -> Int { x }
+contribution prefer : keep { fn keep(x: Int) requires (HasEq) -> Int { x } }
+assemble keep { apply prefer; }
+fn main() -> Int { relay(keep(42)) }";
+    let original = preview(&project, direct);
+    success(&original);
+    let revision = project
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&revision);
+    project.write(
+        "direct.json",
+        std::str::from_utf8(&revision.stdout).unwrap(),
+    );
+
+    let bound = direct.replace("{ x }", "{ let y: Int = x; y }");
+    let forwarded = preview(&project, &bound);
+    success(&forwarded);
+    assert_eq!(forwarded.stdout, original.stdout);
+    let text = std::str::from_utf8(&forwarded.stdout).unwrap();
+    assert_eq!(text.matches("; boxed (Int) -> Int").count(), 3);
+    assert_eq!(text.matches("ret ptr %v0").count(), 3);
+    let stale = project
+        .command("check", "app/Vastitas.toml")
+        .args(TARGET)
+        .args(["--expect-function-revision", "direct.json"])
+        .output()
+        .unwrap();
+    expect_code(&stale, "E_FUNCTION_REVISION");
+    assert!(stale.stdout.is_empty());
+}
+
+#[test]
 fn boxed_pair_results_bind_both_methods_to_the_revision() {
     let s = Scratch::empty("pair-valued method revision");
     let original = preview(&s, BOXED_PAIRS);

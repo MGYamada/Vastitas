@@ -126,6 +126,10 @@ Each decoded indexed declaration has a matching keyword, name, visibility,
 module and extent in the physical file. A finite carrier or table ends at
 its closing brace. Other indexed declarations end at the outer semicolon.
 For a marker or base dimension that semicolon immediately follows the name.
+For an indexed global, Lean reads the parenthesized implementation path at its
+original span before consuming the semicolon. An unused global participates
+in this check. Substituting a different valid implementation yields
+`E_MODULE_SOURCE` at the first differing token.
 
 Lean replays each finite carrier, table, schema and instance in the source
 file supplied for its package and lexical module. It checks visibility, tag
@@ -165,6 +169,32 @@ A mismatch yields `E_AFFINE_SOURCE`; a changed polynomial points to the
 beginning of the expression. A typed `indexed morphism` also replays the family,
 each endpoint path and the defining operation. A smooth identity used for
 numerical interpretation must have the literal `identity` at that declaration.
+
+#### Indexed declaration coverage in edition 2026
+
+Of the 54 constructors of `Indexed.Source.Body`, 25 have their fields checked
+against physical source. These comprise 16 finite forms, five affine and
+morphism forms, one exact-geometry constructor with six variants, and
+`marker`, `baseDimension` and `global`. The public checker uses the decoded
+declarations from that same request to elaborate Core. The following 29
+constructors have item-boundary checks, but still need a comparison of their
+operands with the original file. The names below are Lean constructors.
+
+| Declaration group | Operands awaiting physical replay |
+| --- | --- |
+| Indexed definitions | `implementation`, `classification`, `family`, `package`, `primitive` |
+| Geometry witnesses | `iso`, `cartesian` |
+| Frames and metrics | `metric`, `evidence`, `frame` |
+| Physical dimensions | `quantity`, `reading`, `scale`, `physicalMetric` |
+| Spectral and transition data | `freeModule`, `endomorphism`, `spectrum`, `branch`, `transitionAverage` |
+| Physical models | `convention`, `model`, `calibration`, `dataset`, `comparison` |
+| Gluing and global geometry | `glued`, `cover`, `separated`, `manifold`, `projective` |
+
+For these groups a valid decoded declaration can still select different
+operands from the file. Closing the gap requires replay of the fields on the
+same public request, including unreferenced declarations. The issue also
+tracks correspondence for functions, resource operations and the resulting
+Core. [Edition 2026 acceptance](https://github.com/MGYamada/Vastitas/issues/762)
 
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record

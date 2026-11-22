@@ -139,7 +139,7 @@ class CoverageTests(unittest.TestCase):
                               guard.inventory(self.root), complete)
 
     def test_current_snapshot_is_covered_but_not_admitted(self):
-        self.assertEqual(self.check(), {"pending": 4, "lowered": 0, "admitted": 0, "rejected": 0})
+        self.assertEqual(self.check(), {"pending": 4, "lowered": 0, "structural": 0, "admitted": 0, "rejected": 0})
         with self.assertRaisesRegex(guard.CoverageError, "not release acceptance"):
             self.check(complete=True)
 
@@ -308,6 +308,22 @@ class RepositoryTests(unittest.TestCase):
                          "VastitasKernel.Storage.NumericalCoverage.Family.realizationRun"} <= origins)
         runtime = {item["module"] for item in actual["runtime"]["modules"]}
         self.assertTrue({"VastitasKernel.SpectralRuntime", "VastitasKernel.FrameRuntime"} <= runtime)
+
+    def test_structural_rows_require_the_matching_proof_and_no_instruction(self):
+        ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
+        selected = [r for r in ledger["coverage"] if r["disposition"] == "structural"]
+        self.assertEqual({r["origin"] for r in selected}, set(guard.STRUCTURAL_THEOREMS))
+        compiled = [{"origin": r["origin"], "opcode": None, "theorem": r["evidence"][0]} for r in selected]
+        guard.check_lowerings({"coverage": selected}, compiled)
+        first, second = selected[:2]
+        for fields in [{"planned_opcode": "midir.unit.const.v1"}, {"evidence": second["evidence"]}]:
+            with self.subTest(fields=fields), self.assertRaisesRegex(guard.CoverageError, "structural lowering"):
+                guard.validate({**ledger, "coverage": [{**r, **fields} if r is first else r
+                                                       for r in ledger["coverage"]]}, ledger["schema"])
+        for rows in [compiled[1:], [{**compiled[0], "opcode": "unit.const.v1"}, *compiled[1:]],
+                     [{**compiled[0], "theorem": second["evidence"][0]}, *compiled[1:]]]:
+            with self.subTest(rows=rows), self.assertRaisesRegex(guard.CoverageError, "compiled lowering differs"):
+                guard.check_lowerings({"coverage": selected}, rows)
 
     def test_complete_cli_rejects_the_current_pending_inventory(self):
         run = subprocess.run([sys.executable, str(guard.ROOT / "scripts/check_midir_coverage.py"),

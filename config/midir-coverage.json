@@ -5152,11 +5152,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.ascribe",
-      "disposition": "pending",
-      "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.ascribe",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "disposition": "structural",
+      "owner": "#750",
+      "planned_opcode": null,
+      "reason": "Check the exact Core type before forwarding the child action. A mismatched annotation fails.",
+      "evidence": [
+        "VastitasOracle.MidIR.ascription_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.binary",
@@ -5224,11 +5226,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.letE",
-      "disposition": "pending",
-      "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.letE",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "disposition": "structural",
+      "owner": "#750",
+      "planned_opcode": null,
+      "reason": "Evaluate the initializer once and extend the symbol context with its SSA reference. Preserve the body result and failures.",
+      "evidence": [
+        "VastitasOracle.MidIR.let_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.natToInt",
@@ -5282,11 +5286,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.scope",
-      "disposition": "pending",
-      "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.scope",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "disposition": "structural",
+      "owner": "#750",
+      "planned_opcode": null,
+      "reason": "Forward the child action and its complete builder state. Core evaluation uses the same environment.",
+      "evidence": [
+        "VastitasOracle.MidIR.scope_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.unary",
@@ -5316,11 +5322,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.variable",
-      "disposition": "pending",
-      "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.variable",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "disposition": "structural",
+      "owner": "#750",
+      "planned_opcode": null,
+      "reason": "Resolve the symbol to its existing SSA reference. The builder preserves every block and an unbound name fails.",
+      "evidence": [
+        "VastitasOracle.MidIR.variable_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Declaration.affine",

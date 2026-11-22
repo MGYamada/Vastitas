@@ -124,11 +124,12 @@ status = "proved-oracle"
 evidence = [
   "VastitasOracle.ResourceSource.physical_finite_declarations",
   "VastitasOracle.ResourceSource.physical_indexed_item",
+  "VastitasOracle.ResourceSource.physical_global_declaration",
   "VastitasOracle.ResourceSource.physical_finite_function",
 ]
 premises = ["the public protocol-10 request passed the independent checker"]
 assumes = ["rust-frontend"]
-note = "The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input."
+note = "The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. Each global selects the implementation written at its original path span. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input."
 
 [property."compiler-ir.edition".claim.affine-source]
 status = "proved-oracle"
@@ -405,7 +406,7 @@ coverage check instead of silently inheriting admission.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.coverage)"
 example = "Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing."
-example_not_executed = "The source-schema guard and six local constructor mappings run in CI. Whole-module release coverage remains pending."
+example_not_executed = "The source-schema guard, six instruction mappings and four structural mappings run in CI. Whole-module release coverage remains pending."
 
 [property."compiler-ir.coverage".claim.ledger]
 status = "planned"
@@ -418,16 +419,27 @@ evidence = [
   "scripts/test_check_midir_coverage.py::CoverageTests::test_constructor_coverage_has_no_missing_unknown_or_duplicate_rows",
   "scripts/test_check_midir_coverage.py::CoverageTests::test_no_json_only_admission_or_wildcard_opcode",
   "scripts/test_check_midir_coverage.py::CoverageTests::test_new_runtime_root_and_import_change_fail",
+  "scripts/test_check_midir_coverage.py::RepositoryTests::test_structural_rows_require_the_matching_proof_and_no_instruction",
 ]
 note = """
 This claim covers the reviewed constructor signatures, referenced record schemas
 and runtime manifest closure in config/midir-coverage.json. The guard rejects
 source drift, incomplete inventories and JSON-only promotion to admission.
 Four ground literals, finite tags and finite lookups have local lowering proofs.
-CI checks each origin, opcode and theorem against the compiled Lean registry.
-The other 602 rows await review. Whole-module acceptance remains a separate obligation
+Variable references, scopes, typed ascriptions and let bindings have structural
+mappings without an opcode. CI checks each origin, optional opcode and theorem
+against the compiled Lean registry. The other 598 rows await review. Whole-module acceptance remains a separate obligation
 for every row. The release coverage check enforces that distinction.
 """
+
+[property."compiler-ir.coverage".claim.binding-lowering]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.variable_constructor_coverage", "VastitasOracle.MidIR.scope_constructor_coverage",
+            "VastitasOracle.MidIR.ascription_constructor_coverage", "VastitasOracle.MidIR.let_constructor_coverage",
+            "VastitasOracle.MidIR.lower_linked_typed_forwarder", "VastitasOracle.MidIR.execute_linked_typed_forwarder"]
+premises = ["the production SSA builder is lowering a nested Core term",
+            "for a successful let, the initializer slot holds its Core value and earlier live bindings retain their values"]
+note = "A variable reads its existing SSA reference. A scope forwards its body. A type ascription checks the exact type before forwarding. A let lowers its initializer once and passes its returned reference and block state to the body. These four forms introduce no binding instruction. The equations include builder failure, partial slot reads and the fuelled Core evaluator. Returning a typed local initialized from a parameter yields the same Core value and the same complete optimization and execution functions as returning the parameter directly, for the same input function identity and specialization key."
 
 [property."compiler-ir.coverage".claim.finite-lowering]
 status = "proved-oracle"
@@ -1499,7 +1511,7 @@ note = "The original Core, the optimization and execution MidIR and the reconstr
 
 [property."compiler-ir.llvm-bytes".claim.boxed-regression]
 status = "tested"
-evidence = ["VastitasPublicTest.LLVM.Regression", "tests/llvm_preview.rs::boxed_integer_exports_bind_their_argument_order_and_full_revision", "tests/llvm_preview.rs::boxed_program_preserves_call_targets_and_borrowed_returns", "tests/llvm_preview.rs::singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget", "tests/llvm_preview.rs::boxed_pair_results_bind_both_methods_to_the_revision"]
+evidence = ["VastitasPublicTest.LLVM.Regression", "tests/llvm_preview.rs::boxed_integer_exports_bind_their_argument_order_and_full_revision", "tests/llvm_preview.rs::boxed_program_preserves_call_targets_and_borrowed_returns", "tests/llvm_preview.rs::singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget", "tests/llvm_preview.rs::boxed_pair_results_bind_both_methods_to_the_revision", "tests/llvm_preview.rs::typed_forwarding_preserves_the_llvm_module_for_singleton_and_assembled_methods"]
 note = "The public preview distinguishes the two mixed divisions and rejects stale revisions, private exports and additional bodies. The library parser checks operand kinds, dominance, RC calls, declarations and the last byte. The hosted program keeps its direct calls and borrowed identity return, rejects the old operator revision after a body edit and bounds repeated squaring across calls. A singleton entry uses the same checked runtime operations when its intermediate squares exceed the folding budget. Named and symbolic multiplication produce the same bytes and retain their source revisions. A linked pair-valued family retains both methods. Editing its unselected body or removing the applied contribution invalidates the saved revision."
 
 [property."compiler-ir.verification-modes"]

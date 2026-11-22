@@ -253,6 +253,57 @@ fn physical_indexed_headers_include_unreferenced_external_declarations() {
 }
 
 #[test]
+fn indexed_global_replays_its_selected_implementation_and_path_span() {
+    let project = Scratch::empty("physical global implementation");
+    let source = concat!(
+        "indexed marker Coeff;\n",
+        "indexed implementation LeftA(Coeff, scalar_base(smooth, real)) capabilities();\n",
+        "indexed implementation Right(Coeff, scalar_base(scheme, real)) capabilities();\n",
+        "indexed global Chosen(LeftA);\n",
+        "fn main() -> Int { 42 }\n",
+    );
+    let manifest = "app/Vastitas.toml";
+    project.write_package("app", source, "");
+    let left = project.captured(manifest, CURRENT_PROTOCOL);
+    project.write_package("app", &source.replace("Chosen(LeftA)", "Chosen(Right)"), "");
+    let right = project.captured(manifest, CURRENT_PROTOCOL);
+    let triple = "x86_64-unknown-linux-gnu";
+    let layout = "e-p:64:64";
+    for wire in [&left, &right] {
+        let checked = common::kernel_with_args(wire, &["llvm-check", triple, layout]);
+        assert_eq!(checked["ok"], true, "{checked}");
+    }
+
+    let mut stale = left.clone();
+    stale["root_source"] = right["root_source"].clone();
+    let mut moved = left;
+    let decl = moved["packages"][0]["modules"][0]["indexed_declarations"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|d| d["name"] == "Chosen")
+        .unwrap();
+    assert_eq!(decl["implementation"]["path"], json!(["LeftA"]));
+    decl["implementation"]["span"]["column"] = json!(24);
+    for wire in [&stale, &moved] {
+        for args in [
+            &["check"][..],
+            &["emit"],
+            &["function-revision"],
+            &["llvm-check", triple, layout],
+            &["llvm-build", triple, layout],
+        ] {
+            let checked = common::kernel_with_args(wire, args);
+            assert_wire_rejected(&checked, "E_MODULE_SOURCE");
+            let span = &checked["diagnostics"][0]["span"];
+            assert_eq!(span["line"], 4);
+            assert_eq!(span["column"], 23);
+            assert!(checked.get("llvm").is_none());
+        }
+    }
+}
+
+#[test]
 fn inline_modules_and_empty_flat_libraries_check_item_boundaries() {
     let project = Scratch::empty("boundaries of nested and empty source files");
     let inline = "mod inner {\n //AAA\n}\nfn main() -> Int { 42 }";

@@ -108,7 +108,7 @@ inductive DeclarationSyntax where
   | abstractType (declaration : Namespace.AbstractType)
   | subtype (declaration : RawSubtype)
   | indexed (declaration : Form)
-  | indexedHeader (keyword name : String)
+  | indexedHeader (keyword name : String) (fields : Option (List ExactLexeme))
   | affine (declaration : Source.Declaration)
   | function (declaration : FunctionSource.Function)
   /-- Ordinary singleton and the top-level statement indices observed in main. -/
@@ -125,7 +125,13 @@ def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
   if AffineDeclarationText.applies d then .affine d else
     match form d with
     | some shape => .indexed shape
-    | none => .indexedHeader (indexedKeyword d.body) d.name
+    | none =>
+      let fields := match d.body with
+        | .marker | .baseDimension => some []
+        | .global implementation =>
+          some [.punctuation '(', .reference implementation.path implementation.span, .punctuation ')']
+        | _ => none
+      .indexedHeader (indexedKeyword d.body) d.name fields
 
 def declarations (program : ResourceSource.Program) : List Item :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
@@ -259,12 +265,14 @@ def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Uni
       ← selectorPath (item.packageSource == flatPackageId.source) s.target] (sourceError .hierarchy)
     endHierarchy file first after item.span
   | .indexed shape => replayIndexed file first shape item.span
-  | .indexedHeader keyword name =>
+  | .indexedHeader keyword name fields =>
     let report := sourceError .indexedHeader
     let after ← readTokens file before [.ident "indexed", .ident keyword, .ident name] report
-    let last ← if keyword == "marker" || keyword == "base_dimension" then
-      (file.next after).mapError (report item.span)
-    else (indexedEnd file first).mapError (report item.span)
+    let last ← match fields with
+      | some tokens => do
+        let cursor ← readTokens file after tokens report
+        (file.next cursor).mapError (report item.span)
+      | none => (indexedEnd file first).mapError (report item.span)
     unless (last.kind matches .symbol ';') && {first.span with «end» := last.span.end} == item.span do
       throw (report last.span "indexed declaration differs from its physical extent")
   | .affine d => AffineDeclarationText.check file first d

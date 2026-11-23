@@ -25,6 +25,56 @@ theorem static_call_package_identity {json main} {req : PackageLink.Request json
   intro depth args
   rw [checked_invoke, checked_invoke, execute_invoke _ _ a.executed]
 
+private theorem mapped_at {α β : Type} {f : α → Option β} {xs : Array α} {ys : Array β}
+    (mapped : xs.mapM f = some ys) {i : Nat} {x y}
+    (input : xs[i]? = some x) (output : ys[i]? = some y) : f x = some y := by
+  have lists := congrArg (Option.map Array.toList) mapped
+  have onLists : xs.toList.mapM f = some ys.toList := by
+    simpa only [← Array.toList_mapM, Functor.map, Option.map_some] using lists
+  suffices ∀ (inputs : List α) (outputs : List β) (j : Nat), inputs.mapM f = some outputs →
+      inputs[j]? = some x → outputs[j]? = some y → f x = some y by
+    exact this _ _ i onLists (by simpa using input) (by simpa using output)
+  intro inputs
+  induction inputs with
+  | nil => simp
+  | cons head tail ih =>
+    intro outputs j ok atInput atOutput
+    cases h : f head with
+    | none => simp [List.mapM_cons, h] at ok
+    | some v =>
+      cases t : tail.mapM f with
+      | none => simp [List.mapM_cons, h, t] at ok
+      | some rest =>
+        simp [List.mapM_cons, h, t] at ok
+        subst outputs
+        cases j with
+        | zero => simp_all
+        | succ j => exact ih rest j t atInput atOutput
+
+/-- Recover the production lowering of a particular retained function from
+the whole link. The input Core body and specialization come from the same
+request; only the local symbol is remapped. -/
+theorem linked_function_lowering {json main} {req : PackageLink.Request json main}
+    (a : PackageLink.Artifact req) {i id : Nat} {f : MidIR.Function .optimization}
+    (original : a.originals[i]? = some id) (present : a.opt.functions[i]? = some f) :
+    ∃ orig key localId resolve,
+      (PackageLink.core req).functions.toArray[id]? = some orig ∧
+      req.checked.pureProgram.executable.lowered.origins[id]? = some key ∧
+      (Std.HashMap.ofList a.originals.toList.zipIdx)[id]? = some localId ∧
+      lowerLinkedFunction (PackageLink.core req).declarations.indexed key
+        {orig with id := localId} resolve = some f := by
+  have built := a.bodies
+  unfold PackageLink.lowerFunctions at built
+  obtain ⟨fs, mapped, rest⟩ := Option.bind_eq_some_iff.mp built
+  obtain ⟨_, _, guarded⟩ := Option.bind_eq_some_iff.mp rest
+  obtain ⟨_, _, returned⟩ := Option.bind_eq_some_iff.mp guarded
+  change some fs = some a.opt.functions at returned
+  cases Option.some.inj returned
+  have one := mapped_at mapped original present
+  simp only [bind, Option.bind_eq_some_iff] at one
+  obtain ⟨orig, atFn, key, atKey, localId, atLocal, lowered⟩ := one
+  exact ⟨orig, key, localId, _, atFn, atKey, atLocal, lowered⟩
+
 /-- The induction premise concerns the selected callee's body on its bound
 parameters. The call site evaluates arguments in Core order and reaches that
 body through the actual module invoker in both MidIR phases. Failures in

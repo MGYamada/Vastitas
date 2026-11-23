@@ -338,6 +338,15 @@ class RepositoryTests(unittest.TestCase):
         with self.assertRaisesRegex(guard.CoverageError, "missing checked local lowering"):
             guard.validate({**ledger, "coverage": rows}, ledger["schema"])
 
+    def test_conversion_rejects_an_integer_negation_or_a_static_call_proof(self):
+        ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
+        entry = next(row for row in ledger["coverage"] if row["origin"] == guard.CONVERSION_ORIGIN)
+        self.assertEqual(entry["disposition"], "lowered")
+        for change in [{"planned_opcode": "midir.int_neg.v1"}, {"evidence": [guard.STATIC_CALL_THEOREM]}]:
+            rows = [{**row, **change} if row is entry else row for row in ledger["coverage"]]
+            with self.subTest(change=change), self.assertRaisesRegex(guard.CoverageError, "Nat-to-Int conversion"):
+                guard.validate({**ledger, "coverage": rows}, ledger["schema"])
+
     def test_complete_cli_rejects_the_current_pending_inventory(self):
         run = subprocess.run([sys.executable, str(guard.ROOT / "scripts/check_midir_coverage.py"),
                               "--require-complete"], text=True, capture_output=True, check=False)

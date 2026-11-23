@@ -54,14 +54,23 @@ def run(work, suite, frontend):
                 and checked["integer_result"] == "42", "wrong assembled pair method or entry value")
         require((pair_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/boxed-pairs.ll").read_bytes(),
                 "pair certificate differs from the retained LLVM module")
-        source.write_bytes((verify.ROOT / "llvm/fixtures/AssembledConversion.vast").read_bytes())
+        conversion_source = (verify.ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
+        source.write_text(conversion_source)
         converted, _ = check("conversion", "official")
         conversion = work / "conversion"
-        fast, _ = check("conversion-fast", "fast", candidate=conversion / "sealed.ndjson")
+        conversion_replay, _ = check("conversion-fast", "fast", candidate=conversion / "sealed.ndjson")
         require(converted["integer_result"] == str(2**128 + 43) and converted["functions"] == 3
-                and converted["certificate"] == fast["certificate"], "wrong assembled Nat conversion")
+                and converted["certificate"] == conversion_replay["certificate"], "wrong assembled Nat conversion")
         require((conversion / "preview.ll").read_bytes() ==
                 (verify.ROOT / "llvm/src/assembled-conversion.ll").read_bytes(), "different conversion module")
+        body = "{ int(x) }"
+        require(conversion_source.count(body) == 1, "expected one selected conversion body")
+        source.write_text(conversion_source.replace(body, "{ let y: Nat = x; int(y) }"))
+        stale, _ = check("conversion-stale-body", "fast", candidate=conversion / "sealed.ndjson",
+                         rejection="declaration environment differs")
+        require((work / "conversion-stale-body/preview.ll").read_bytes() == (conversion / "preview.ll").read_bytes()
+                and stale["revision_sha256"] != converted["revision_sha256"],
+                "the method-local binding must preserve the LLVM bytes and change the function revision")
         check_borrowed_operator(work, args, check)
         return
 

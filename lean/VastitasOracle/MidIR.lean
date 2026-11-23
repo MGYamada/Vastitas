@@ -234,16 +234,23 @@ theorem checked_invoke {p : Phase} (m : Module p) (depth : Nat) :
     funext target args
     simp only [Evaluation.invoke, invoke, ih, checked_runWith]
 
+/-- A one-operand block reads the incoming SSA slot and returns the result of
+its instruction, including an invalid operand's missing result. -/
+theorem runWith_single_operand {p : Phase} (resolve : Resolver) (env : Environment)
+    (f : MidIR.Function p) (op : Opcode p) (type : VastitasKernel.MidIR.Ty) (arg : Value)
+    (shape : f.blocks = #[⟨#[type], #[⟨op,[⟨0,0⟩]⟩], .ret ⟨0⟩ ⟨0,1⟩⟩]) :
+    runWith env f resolve [arg] = denote env op [arg] resolve := by
+  unfold runWith
+  rw [shape]
+  cases h : denote env op [arg] resolve <;>
+    simp [runGraph, Evaluation.runGraph.go, observeBlock, observeOp, guard, h]
+
 /-- The single unary lookup block reads its argument and returns the result
 of the lookup. The statement also covers a missing logical result. -/
 theorem runWith_unary (resolve : Resolver) {p : Phase} (env : Environment) (s : UnaryLookup) (f : MidIR.Function p)
     (shape : f.blocks = #[s.block p]) (arg : Value) :
     runWith env f resolve [arg] = lookupValue env s.site [arg] := by
-  unfold runWith
-  rw [shape]
-  cases found : lookupValue env s.site [arg] <;> cases p <;>
-    simp [runGraph, Evaluation.runGraph.go, observeBlock, observeOp, UnaryLookup.block,
-      UnaryLookup.code, denote, guard, found]
+  cases p <;> exact runWith_single_operand resolve env f _ _ arg shape
 
 theorem run_unary {p : Phase} (env : Environment) (s : UnaryLookup) (f : MidIR.Function p)
     (shape : f.blocks = #[s.block p]) (arg : Value) :

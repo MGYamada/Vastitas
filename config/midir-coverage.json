@@ -5238,11 +5238,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.natToInt",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.natToInt",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.nat_to_int.v1",
+      "reason": "The builder appends the conversion of the operand’s SSA reference. Both phases preserve the Core operand result and reject malformed inputs. A retained one-parameter conversion lowers to a validated block under its actual method key.",
+      "evidence": [
+        "VastitasOracle.MidIR.nat_to_int_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.natural",

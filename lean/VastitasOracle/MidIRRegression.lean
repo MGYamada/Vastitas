@@ -44,6 +44,33 @@ private def choose : Core.Function :=
         return false
   return true)
 
+/- Lowering the operand of int(...) may change the active block. Read the
+post-join Nat, including a value too large for a machine integer. -/
+#eval VastitasKernel.RegressionSupport.check "MidIR Nat conversion"
+    "both branch values reach the conversion; forged Bool, duplicate and non-dominating operands fail" (Id.run do
+  let nat : Result := ⟨.pure .nat, none⟩
+  let large := 2^128 + 43
+  let body := Term.natToInt (.branch (.variable 1 bool) (.natural large) (.natural 0) nat)
+  let source : Core.Function := ⟨0, owner "convert", [⟨1, bool⟩], .pure .int, body, {}⟩
+  let m : Core.Module := ⟨⟨env, [], []⟩, [source], none⟩
+  let .ok checked := Typing.checkModule m false | return false
+  let [f] := checked.module.functions | return false
+  let some opt := VastitasKernel.MidIR.lowerFunction env ⟨0, []⟩ f | return false
+  let some exe := opt.execute env | return false
+  let some join := opt.blocks[3]? | return false
+  let #[op] := join.ops | return false
+  unless join.params == #[.nat] && op.code.tag == "nat_to_int.v1" && op.args == [⟨3,0⟩] do return false
+  for b in [true, false] do
+    let args := [Value.boolean b]
+    let some values := bindArguments f.parameters args | return false
+    let expected := some (Value.integer (if b then Int.ofNat large else 0))
+    unless eval checked.module 8 values body == expected && run env opt args == expected &&
+      run env exe args == expected do return false
+  for args in [[], [⟨0,0⟩], [⟨3,0⟩, ⟨3,0⟩], [⟨1,0⟩]] do
+    let forged := {opt with blocks := opt.blocks.set! 3 {join with ops := #[{op with args}]}}
+    if (forged.execute env).isSome then return false
+  return true)
+
 /- Argument order remains observable even when both formal types are the
 same nominal carrier. Run the exact checked Core and both linked phases. -/
 #eval VastitasKernel.RegressionSupport.check "MidIR static call regression"

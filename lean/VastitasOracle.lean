@@ -77,6 +77,7 @@ import VastitasOracle.ExactLibrary
 import VastitasOracle.BoxedCertificate
 import VastitasOracle.ExactProgram
 import VastitasOracle.MidIRRegression
+import VastitasOracle.ConversionCoverage
 import VastitasOracle.LiteralCoverage
 import VastitasOracle.FiniteOpcodeCoverage
 import VastitasOracle.StaticCallCoverage

@@ -425,7 +425,7 @@ coverage check instead of silently inheriting admission.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.coverage)"
 example = "Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing."
-example_not_executed = "The source-schema guard, seven instruction mappings and four structural mappings run in CI. Whole-module release coverage remains pending."
+example_not_executed = "The source-schema guard, eight instruction mappings and four structural mappings run in CI. Whole-module release coverage remains pending."
 
 [property."compiler-ir.coverage".claim.ledger]
 status = "planned"
@@ -440,16 +440,31 @@ evidence = [
   "scripts/test_check_midir_coverage.py::CoverageTests::test_new_runtime_root_and_import_change_fail",
   "scripts/test_check_midir_coverage.py::RepositoryTests::test_structural_rows_require_the_matching_proof_and_no_instruction",
   "scripts/test_check_midir_coverage.py::RepositoryTests::test_static_call_mapping_requires_the_exact_constructor_opcode_and_theorem",
+  "scripts/test_check_midir_coverage.py::RepositoryTests::test_conversion_rejects_an_integer_negation_or_a_static_call_proof",
 ]
 note = """
 This claim covers the reviewed constructor signatures, referenced record schemas
 and runtime manifest closure in config/midir-coverage.json. The guard rejects
 source drift, incomplete inventories and JSON-only promotion to admission.
-Four ground literals, finite tags, finite lookups and first-order static calls have local lowering proofs.
+Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion and first-order static calls have local lowering proofs.
 Variable references, scopes, typed ascriptions and let bindings have structural
 mappings without an opcode. CI checks each origin, optional opcode and theorem
-against the compiled Lean registry. The other 597 rows await review. Whole-module acceptance remains a separate obligation
+against the compiled Lean registry. The other 596 rows await review. Whole-module acceptance remains a separate obligation
 for every row. The release coverage check enforces that distinction.
+"""
+
+[property."compiler-ir.coverage".claim.conversion-lowering]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.nat_to_int_constructor_coverage", "VastitasOracle.MidIR.linked_function_lowering",
+            "VastitasOracle.MidIR.linked_nat_to_int_method"]
+premises = ["the package linker produced an artifact for the independently checked public request",
+            "the retained original is the single-parameter Nat-to-Int method identified in the Core"]
+note = """
+The builder lowers the operand once and appends nat_to_int.v1 with the resulting SSA reference.
+Both phases preserve failure and convert every natural to its unbounded integer.
+For a retained method returning int(n), the linker's own lowering yields the validated single block.
+The Core call and both module invokers return the same value for every natural under the checked revision,
+family identity, specialization and remapped local symbol.
 """
 
 [property."compiler-ir.coverage".claim.static-call-lowering]

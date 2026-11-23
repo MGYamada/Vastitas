@@ -302,6 +302,24 @@ borrowed parameter, Lean’s generated C called `lean_inc` immediately before
 `lean_nat_to_int`; Clang 23.1.4 compiled the control and it returned status
 43. [Checked conversion](../src/assembled-conversion.ll) · [Vastitas runtime shim](../runtime/exact.c) · [Lean reference-count emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L610-L624)
 
+For every natural argument, the scoped conversion method returns the same
+unbounded integer through its retained Core call and both checked MidIR
+module invokers. When the operand is a branch, the Core-to-MidIR regression
+selects a Nat block parameter before emitting the conversion. Both branch
+outcomes pass. Validation rejects missing, mistyped, duplicated and
+non-dominating operands. The public LLVM preview currently rejects this
+branch-inside-conversion program. [Conversion proofs](../../lean/VastitasOracle/ConversionCoverage.lean) · [Branch regression](../../lean/VastitasOracle/MidIRRegression.lean)
+
+Lean 4.35.0’s `emitJmp` checks join arity, stores incoming values in the
+join parameter slots and emits a branch. For the control
+`Int.ofNat (if pickHigh then high else low)` with borrowed operands, the
+generated C retained and converted the chosen argument in each arm. Clang
+23.1.4 at `-O1` emitted a pointer phi before the return. Its verified,
+linked object selected the correct full integer in both directions for five
+pairs, from 0 and 256 to 2¹⁰²⁴ + 43 and 2¹⁰²⁴ + 299. The installed Lean
+toolchain rejected direct bitcode emission because it was built without
+LLVM support. [Pinned join emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1059)
+
 In the four-file ordered-calls package, the dependency’s `same_base(0, 1)`
 constrains an indexed family. Swapping these positions changes the function
 revision while preserving both operands of `@vq_f1(ptr %v2, ptr %v5)` and the

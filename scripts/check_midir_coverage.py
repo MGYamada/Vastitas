@@ -43,6 +43,12 @@ FINITE_TAG_THEOREM = "VastitasOracle.MidIR.finite_tag_constructor_coverage"
 LOOKUP_THEOREM = "VastitasOracle.MidIR.finite_lookup_constructor_coverage"
 STATIC_CALL_THEOREM = "VastitasOracle.MidIR.static_call_constructor_coverage"
 STATIC_CALL_ORIGIN = "VastitasKernel.Indexed.Core.Term.call"
+CONVERSION_ORIGIN = "VastitasKernel.Indexed.Core.Term.natToInt"
+CONVERSION_THEOREM = "VastitasOracle.MidIR.nat_to_int_constructor_coverage"
+EXACT_MAPPINGS = {
+    STATIC_CALL_ORIGIN: ("static call", "midir.static.call.v1", STATIC_CALL_THEOREM),
+    CONVERSION_ORIGIN: ("Nat-to-Int conversion", "midir.nat_to_int.v1", CONVERSION_THEOREM),
+}
 STRUCTURAL_THEOREMS = {
     "VastitasKernel.Indexed.Core.Term." + origin: "VastitasOracle.MidIR." + theorem + "_constructor_coverage"
     for origin, theorem in [("variable", "variable"), ("scope", "scope"), ("ascribe", "ascription"), ("letE", "let")]
@@ -441,9 +447,10 @@ def validate(ledger, actual, require_complete=False):
         if status == "admitted":
             raise CoverageError(f"admission unavailable before closed-registry evidence checking: {origin}")
         if status == "lowered":
-            if origin == STATIC_CALL_ORIGIN:
-                if (opcode, item["evidence"]) != ("midir.static.call.v1", [STATIC_CALL_THEOREM]):
-                    raise CoverageError(f"static call requires its checked opcode and constructor theorem: {origin}")
+            if origin in EXACT_MAPPINGS:
+                label, expected_opcode, theorem = EXACT_MAPPINGS[origin]
+                if (opcode, item["evidence"]) != (expected_opcode, [theorem]):
+                    raise CoverageError(f"{label} requires its checked opcode and constructor theorem: {origin}")
             elif item["evidence"] not in ([LITERAL_THEOREM], [FINITE_TAG_THEOREM], [LOOKUP_THEOREM]):
                 raise CoverageError(f"missing checked local lowering theorem for {origin}")
         elif status != "structural" and item["evidence"]:

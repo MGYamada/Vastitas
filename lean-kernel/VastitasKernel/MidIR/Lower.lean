@@ -175,6 +175,32 @@ private theorem lowerArguments_in_order (resolve : Nat → Option CallTarget) (c
   | nil => rfl
   | cons arg rest ih => simp [lowerArguments, List.mapM_cons, ih]
 
+/-- The conversion evaluates its operand once, threading any blocks it
+introduces. On a live exit it appends one instruction using the returned
+reference. If lowering the operand fails, the entire action fails. -/
+def AppendsNatToInt (arg : Core.Term) : Prop :=
+  ∀ resolve ctx blocks,
+    (lowerTerm resolve ctx (.natToInt arg)).run blocks =
+      (do let (ref, after) ← (lowerTerm resolve ctx arg).run blocks
+          (emit (.exactOp .natToInt) [ref]).run after) ∧
+    ∀ ref (prior : Array Draft) (params : Array Ty) (ops : Array (Op .optimization)),
+      (lowerTerm resolve ctx arg).run blocks = some (ref, prior.push {params, ops}) →
+      (lowerTerm resolve ctx (.natToInt arg)).run blocks =
+        some (⟨prior.size, params.size + ops.size⟩,
+          prior.push {params, ops := ops.push ⟨.exactOp .natToInt, [ref]⟩})
+
+theorem appends_nat_to_int (arg : Core.Term) : AppendsNatToInt arg := by
+  intro resolve ctx blocks
+  constructor
+  · rfl
+  · intro ref prior params ops lowered
+    change ((lowerTerm resolve ctx arg).run blocks >>= fun (r, bs) =>
+      (emit (.exactOp .natToInt) [r]).run bs) = _
+    rw [lowered]
+    exact emit_live _ _ _ _ _
+
+def natToIntRegistryRow : Lean.Name × String := (``Core.Term.natToInt, "nat_to_int.v1")
+
 /-- The call checks its resolved result and then threads the builder through
 each actual argument in source order, including any blocks they introduce. -/
 def LowersStaticCall (id : Nat) (terms : List Core.Term) (annotation : Core.Result) : Prop :=
@@ -304,6 +330,30 @@ def lowerLinkedFunction (env : Environment) (origin : FunctionSource.Compiler.Ke
     params := params.toArray, result, blocks }
   guard (validFunction env out)
   return out
+
+/-- Complete lowering of the explicit conversion in a one-parameter method.
+The selected definition, local symbol and specialization carry through the
+ordinary function compiler and its SSA validator. -/
+theorem lower_nat_to_int_parameter (env : Environment) (key : FunctionSource.Compiler.Key)
+    (id : Nat) (owner : Namespace.Owner) (symbol : Nat) (span : Span) (resolve : Nat → Option CallTarget) :
+    let ann : Core.Result := ⟨.pure .nat, none⟩
+    let body := Core.Term.scope (.natToInt (.variable symbol ann))
+    lowerLinkedFunction env key ⟨id, owner, [⟨symbol, ann⟩], .pure .int, body, span⟩ resolve =
+      some ⟨⟨owner⟩, id, key, #[.nat], .int,
+        #[⟨#[.nat], #[⟨.exactOp .natToInt, [⟨0,0⟩]⟩], .ret ⟨0⟩ ⟨0,1⟩⟩]⟩ := by
+  dsimp only
+  let ann : Core.Result := ⟨.pure .nat, none⟩
+  let ctx : List (Nat × Ref) := [(symbol, ⟨0,0⟩)]
+  let start : Array Draft := #[{params := #[.nat]}]
+  have arg : (lowerTerm resolve ctx (.variable symbol ann)).run start = some (⟨0,0⟩, start) := by
+    rw [reads_variable symbol ann resolve ctx start]
+    simp [ctx]
+  have step := (appends_nat_to_int (.variable symbol ann) resolve ctx start).2
+    ⟨0,0⟩ #[] #[.nat] #[] arg
+  simp [lowerLinkedFunction, Ty.ofCore]
+  rw [forwards_scope (.natToInt (.variable symbol ann)) resolve ctx, step]
+  set_option maxRecDepth 8192 in
+    with_unfolding_all rfl
 
 /-- Full modules keep the original dense Core symbol numbers. -/
 def lowerFunction (env : Environment) (origin : FunctionSource.Compiler.Key)

@@ -1098,9 +1098,25 @@ fn raw_wire_rejects_forged_fiber_and_tape_records() {
     ] {
         assert_wire_rejected(&kernel(forged(&path, value), "emit"), code);
     }
-    // The recomputing mode is a different, equally valid binding.
     let recomputed = forged(&format!("{pullback}/binding/mode"), json!("recomputed"));
-    assert_eq!(kernel(recomputed, "emit")["ok"], true);
+    assert_wire_rejected(&kernel(recomputed, "emit"), "E_MODULE_SOURCE");
+
+    let s = cotangent_fixture(COTANGENT_MAIN);
+    s.write(
+        "src/profile.vast",
+        &common::checked_replace(
+            COTANGENT_PROFILE,
+            "cotangent_pullback(Smooth, Cotangent, saved)",
+            "cotangent_pullback(Smooth, Cotangent, recomputed)",
+        ),
+    );
+    let request = request(&s);
+    let current = &request
+        .pointer(&declaration_pointer(&request, "pullback"))
+        .unwrap()["binding"];
+    assert_eq!(current["mode"], "recomputed");
+    let emitted = kernel(request, "emit");
+    assert_eq!(emitted["ok"], true, "{emitted}");
 }
 
 // Metrics, evidence, flat and sharp. The differential needs no

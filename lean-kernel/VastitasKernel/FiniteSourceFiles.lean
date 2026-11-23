@@ -65,10 +65,9 @@ def indexedKeyword : Source.Body → String
   | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema | .kleisliSchema .. => "schema"
   | .finiteCategory .. | .finiteOpposite .. | .finiteFunctor .. | .finiteIso ..
   | .finiteNatTrans .. | .finiteMonad .. | .finiteKleisli .. => "instance"
-  | .exactGeometry (.cauchyQQ) | .exactGeometry (.complexPairs ..) => "carrier"
-  | .exactGeometry (.realMeadow ..) | .exactGeometry (.complexMeadow ..) => "meadow"
-  | .exactGeometry (.affine ..) | .affine .. | .affineFiber .. | .affineLocalization .. | .smoothAffine .. => "affine"
-  | .exactGeometry (.identity ..) | .morphism .. => "morphism"
+  | .exactGeometry c => ExactModelSource.keyword c
+  | .affine .. | .affineFiber .. | .affineLocalization .. | .smoothAffine .. => "affine"
+  | .morphism .. => "morphism"
   | .marker => "marker"
   | .implementation .. => "implementation"
   | .classification .. => "classification"
@@ -197,6 +196,7 @@ def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
       if let .primitive binding := d.body then return .indexedPrimitive d.name binding
       if metricOrFrame d.body then return .indexedMetricOrFrame d
       let fields := match d.body with
+        | .exactGeometry c => some (ExactModelSource.fields c)
         | .marker | .baseDimension => some []
         | .implementation marker representation capabilities => some (implementationFields marker representation capabilities)
         | .classification parents domain => some (classificationFields parents domain)
@@ -207,6 +207,14 @@ def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
       return match fields with
         | some tokens => .indexedHeader (indexedKeyword d.body) d.name tokens
         | none => .indexedOperands d
+
+/-- A declaration routed to the record parser always has an implemented grammar.
+An added or misrouted constructor must also satisfy this exhaustive check. -/
+theorem indexedOperands_supported (d : Source.Declaration)
+    (routed : indexedSyntax d = .indexedOperands d) : (IndexedRecordText.grammar d.body).isSome = true := by
+  cases h : d.body <;>
+    simp [indexedSyntax, AffineDeclarationText.applies, form, metricOrFrame, h] at routed <;>
+    first | rfl | rename_i convention; cases convention; rfl
 
 theorem metricOrFrame_syntax (d : Source.Declaration) (selected : metricOrFrame d.body = true) :
     indexedSyntax d = .indexedMetricOrFrame d ∧ d.body.category = 0 := by

@@ -214,6 +214,12 @@ original file, including declarations that no function calls. For a metric it
 checks the ordered Gram polynomials. For evidence it checks the requested kind
 and metric. A frame retains its columns and optional inverse.
 
+The exact-model scan and the declaration inventory use the same grammar for
+real and complex carriers, their meadows, affine charts and identity morphisms.
+It preserves each qualified path and its span, the chart dimension and coordinate
+order. Lean proves by cases on `Indexed.Source.Body` that every declaration
+routed to the record parser has an implemented grammar.
+
 | Declaration group | Physical fields |
 | --- | --- |
 | Quantities, readings, scales and physical metrics | Ordered paths and integer powers, coordinate names, magnitude, normalized scales, Gram monomials and optional value dimension |

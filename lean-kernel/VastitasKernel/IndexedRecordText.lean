@@ -135,14 +135,14 @@ private def projectiveChart (c : Source.SourceChart) : Parser Unit := do
   word "inverse"
   bindings c.inverse
 
-private def operands : Source.Body → Parser Unit
-  | .quantity factors => symbol '=' *> dimension factors
-  | .scale quantity mag => symbol '=' *> polynomial mag *> word "of" *> reference quantity
-  | .reading family indices quantities => do
+def grammar : Source.Body → Option (Parser Unit)
+  | .quantity factors => some (symbol '=' *> dimension factors)
+  | .scale quantity mag => some (symbol '=' *> polynomial mag *> word "of" *> reference quantity)
+  | .reading family indices quantities => some do
     application family indices
     symbol '('
     separated quantities coordinatePath ')'
-  | .physicalMetric family indices metric reading value entries => do
+  | .physicalMetric family indices metric reading value entries => some do
     application family indices
     call "interpret"
     reference metric
@@ -154,25 +154,25 @@ private def operands : Source.Body → Parser Unit
       field "value"
       dimension factors
     symbol ')'
-  | .freeModule family indices basis => do
+  | .freeModule family indices basis => some do
     application family indices
     call "basis"
     separated basis (matchingName component) ')'
-  | .endomorphism family indices module rows symmetric => do
+  | .endomorphism family indices module rows symmetric => some do
     application family indices
     word "rows"
     matrix rows
     word "of"
     reference module
     if symmetric then word "symmetric"
-  | .spectrum family indices endomorphism fiber => do
+  | .spectrum family indices endomorphism fiber => some do
     application family indices
     call "eigen"
     reference endomorphism
     symbol ','
     matchingName component fiber
     symbol ')'
-  | .branch family indices spectrum localize witness exponent => do
+  | .branch family indices spectrum localize witness exponent => some do
     application family indices
     call "simple"
     reference spectrum
@@ -183,7 +183,7 @@ private def operands : Source.Body → Parser Unit
     field "exponent"
     sameNatural exponent
     symbol ')'
-  | .transitionAverage family indices branch source target numerator denominator => do
+  | .transitionAverage family indices branch source target numerator denominator => some do
     application family indices
     call "transition_average"
     reference branch
@@ -198,8 +198,8 @@ private def operands : Source.Body → Parser Unit
     symbol ','
     polynomial denominator
     symbol ')'
-  | .convention .hbarOne => symbol '=' *> word "hbar_one"
-  | .model family indices hamiltonian reading convention prepare observe predicts regime => do
+  | .convention .hbarOne => some (symbol '=' *> word "hbar_one")
+  | .model family indices hamiltonian reading convention prepare observe predicts regime => some do
     application family indices
     call "model"
     named "hamiltonian"
@@ -219,7 +219,7 @@ private def operands : Source.Body → Parser Unit
     recordText regime
     symbol ')'
     symbol ')'
-  | .calibration family indices parameters method ref revision => do
+  | .calibration family indices parameters method ref revision => some do
     application family indices
     call "calibrate"
     for param in parameters do
@@ -234,7 +234,7 @@ private def operands : Source.Body → Parser Unit
     field "revision"
     recordText revision
     symbol ')'
-  | .dataset family indices model calibration coverage points => do
+  | .dataset family indices model calibration coverage points => some do
     application family indices
     call "measure"
     named "model"
@@ -247,7 +247,7 @@ private def operands : Source.Body → Parser Unit
     symbol '['
     separated points point ']'
     symbol ')'
-  | .comparison family indices dataset calibration fingerprint verdict => do
+  | .comparison family indices dataset calibration fingerprint verdict => some do
     application family indices
     call "compare"
     reference dataset
@@ -258,7 +258,7 @@ private def operands : Source.Body → Parser Unit
     field "verdict"
     word (match verdict with | .consistent => "consistent" | .inconsistent => "inconsistent")
     symbol ')'
-  | .glued impl opens forward inverse => do
+  | .glued impl opens forward inverse => some do
     implementation impl
     call "glue"
     separated opens reference ')'
@@ -266,20 +266,20 @@ private def operands : Source.Body → Parser Unit
     bindings forward
     word "inverse"
     bindings inverse
-  | .cover object opens coefficients => do
+  | .cover object opens coefficients => some do
     symbol '='
     call "cover"
     separated (object :: opens) reference ')'
     call "by"
     separated coefficients polynomial ')'
-  | .separated glued inverse witness => do
+  | .separated glued inverse witness => some do
     symbol '='
     call "separated"
     reference glued
     symbol ')'
     word "by"
     bindings [(inverse, witness)]
-  | .manifold glued dim inverse witness => do
+  | .manifold glued dim inverse witness => some do
     symbol '='
     call "manifold"
     reference glued
@@ -288,16 +288,19 @@ private def operands : Source.Body → Parser Unit
     symbol ')'
     word "by"
     bindings [(inverse, witness)]
-  | .projective glued homogeneous charts => do
+  | .projective glued homogeneous charts => some do
     symbol '='
     call "proj"
     reference glued
     symbol ')'
     names homogeneous
     for c in charts do projectiveChart c
-  | _ => throw "no physical record grammar for this indexed declaration"
+  | _ => none
 
 def check (file : File) (first : Token) (keyword : String) (d : Source.Declaration) : Except Diagnostic Unit :=
-  checkAt file first d.span (word keyword *> word d.name *> operands d.body *> symbol ';') "E_MODULE_SOURCE" keyword
+  let parser : Parser Unit := do
+    let some fields := grammar d.body | throw "no physical record grammar for this indexed declaration"
+    fields
+  checkAt file first d.span (word keyword *> word d.name *> parser *> symbol ';') "E_MODULE_SOURCE" keyword
 
 end VastitasKernel.IndexedRecordText

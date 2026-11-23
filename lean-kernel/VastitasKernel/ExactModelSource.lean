@@ -10,21 +10,32 @@ open Indexed AssemblyText
 
 private def ref (p : Source.Path) : ExactLexeme := .reference p.path p.span
 
-private def lexemes (name : String) : ExactConstruction Source.Path → List ExactLexeme
-  | .cauchyQQ => [.ident "carrier", .ident name, .punctuation '=', .ident "cauchy_qq"]
+def keyword : ExactConstruction Source.Path → String
+  | .cauchyQQ | .complexPairs .. => "carrier"
+  | .realMeadow .. | .complexMeadow .. => "meadow"
+  | .affine .. => "affine"
+  | .identity .. => "morphism"
+
+/-- The exact-model owner scan and the complete declaration inventory compare
+the same constructor, operand paths, chart dimension and coordinate order. -/
+def fields : ExactConstruction Source.Path → List ExactLexeme
+  | .cauchyQQ => [.punctuation '=', .ident "cauchy_qq"]
   | .complexPairs real =>
-    [.ident "carrier", .ident name, .punctuation '=', .ident "complex_pairs", .punctuation '(', ref real, .punctuation ')']
+    [.punctuation '=', .ident "complex_pairs", .punctuation '(', ref real, .punctuation ')']
   | .realMeadow carrier =>
-    [.ident "meadow", .ident name, .punctuation '=', .ident "real_meadow", .punctuation '(', ref carrier, .punctuation ')']
+    [.punctuation '=', .ident "real_meadow", .punctuation '(', ref carrier, .punctuation ')']
   | .complexMeadow carrier real =>
-    [.ident "meadow", .ident name, .punctuation '=', .ident "complex_meadow", .punctuation '(', ref carrier,
+    [.punctuation '=', .ident "complex_meadow", .punctuation '(', ref carrier,
       .punctuation ',', ref real, .punctuation ')']
   | .identity subject =>
-    [.ident "morphism", .ident name, .punctuation '=', .ident "identity", .punctuation '(', ref subject, .punctuation ')']
+    [.punctuation '=', .ident "identity", .punctuation '(', ref subject, .punctuation ')']
   | .affine model n coordinates =>
-    [.ident "affine", .ident name, .punctuation '=', .ident "Affine", .punctuation '(', ref model,
+    [.punctuation '=', .ident "Affine", .punctuation '(', ref model,
       .punctuation ',', .dimension n, .punctuation ')', .punctuation '['] ++
       (coordinates.map ExactLexeme.ident).intersperse (.punctuation ',') ++ [.closeList ']' (!coordinates.isEmpty)]
+
+private def lexemes (name : String) (construction : ExactConstruction Source.Path) : List ExactLexeme :=
+  .ident (keyword construction) :: .ident name :: fields construction
 
 def storageRepresentation (r : Storage.Scalar) : List ExactLexeme :=
   let (width, carrier) := match r with

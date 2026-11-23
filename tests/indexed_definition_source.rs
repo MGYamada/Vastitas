@@ -755,3 +755,83 @@ fn native_cells_follow_the_written_linear_implementation() {
     #[cfg(feature = "llvm-native")]
     check(&["--llvm-preview"]);
 }
+
+const METRIC_FRAME_DEFINITIONS: &str = include_str!("fixtures/metric-frame-source.vast");
+
+#[test]
+fn metric_evidence_and_frame_declarations_replay_all_physical_operands() {
+    let s = Scratch::empty("physical metric and frame declarations");
+    let root = "mod defs;\nfn main() -> Int { 10 }\n";
+    let original = request(&s, root, METRIC_FRAME_DEFINITIONS);
+    assert_folded(&original);
+    for (from, to, token) in [
+        ("gram((2,", "gram((3,", "3"),
+        ("Written: G<Plane>", "Written: G<Other>", "Other"),
+        ("= riemannian(", "= ritmannian(", "ritmannian"),
+        (
+            "nondegenerate(Written)",
+            "nondegenerate(WrittEn)",
+            "WrittEn",
+        ),
+        ("(x, 1,)", "(y, 1,)", "y"),
+        ("(-x, 1,)", "(-y, 1,)", "-y"),
+        ("= coordinates", "= coordimates", "coordimates"),
+    ] {
+        let offset = METRIC_FRAME_DEFINITIONS.find(from).unwrap();
+        let edit = checked_replace(METRIC_FRAME_DEFINITIONS, from, to);
+        let start = offset + to.find(token).unwrap();
+        let mut stale = original.clone();
+        file_mut(&mut stale, "defs.vast")["text"] = json!(edit);
+        assert_physical_rejection(&stale, &edit[..start]);
+    }
+    let old = kernel_with_args(&original, &["function-revision"]);
+    let changed = checked_replace(METRIC_FRAME_DEFINITIONS, "gram((2,", "gram((3,");
+    let refreshed = request(&s, root, &changed);
+    assert_folded(&refreshed);
+    let new = kernel_with_args(&refreshed, &["function-revision"]);
+    assert!(old["function_revision"].is_object() && new["function_revision"].is_object());
+    assert_ne!(new["function_revision"], old["function_revision"]);
+}
+
+#[test]
+fn a_written_metric_and_frame_column_determine_the_native_gram_entry() {
+    let s = common::example_package(
+        "native metric and frame source",
+        "examples/packages/geometry/frames",
+        &[],
+    );
+    let declarations = include_str!("../examples/packages/geometry/frames/src/main.vast")
+        .split_once("fn main() -> Int {")
+        .unwrap()
+        .0;
+    let original = format!(
+        "{declarations}fn main() -> Int {{ pair_first(cofirst(gram_column(plane_at(1, 2), 1, 0))) }}\n"
+    );
+    // The observed entry is b_0ᵀ G b_0 for the first written frame column.
+    let metric = checked_replace(&original, "gram((2, 1), (1, 1))", "gram((3, 1), (1, 1))");
+    let frame = checked_replace(
+        &original,
+        "b: Frame<Plane> = columns((1, 0)",
+        "b: Frame<Plane> = columns((1, 1)",
+    );
+    for (source, expected) in [(original, 2), (metric, 3), (frame, 5)] {
+        s.write("src/main.vast", &source);
+        assert_eq!(
+            s.check_build_and_run("Vastitas.toml"),
+            common::exits(expected)
+        );
+        let preview = s
+            .command("check", "Vastitas.toml")
+            .args([
+                "--llvm-preview",
+                "--target-triple",
+                TRIPLE,
+                "--data-layout",
+                LAYOUT,
+            ])
+            .output()
+            .unwrap();
+        common::expect_code(&preview, "E_UNSUPPORTED");
+        assert!(preview.stdout.is_empty());
+    }
+}

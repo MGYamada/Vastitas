@@ -62,6 +62,7 @@ def run(work, suite, frontend):
                 and checked["integer_result"] == "42", "wrong assembled pair method or entry value")
         require((pair_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/boxed-pairs.ll").read_bytes(),
                 "pair certificate differs from the retained LLVM module")
+        (pair_dir / "sealed.ndjson").unlink()
         projection = (verify.ROOT / "llvm/fixtures/SelectedProjection.vast").read_text()
         source.write_text(projection)
         selected, _ = check("selected-projection", "official")
@@ -77,6 +78,8 @@ def run(work, suite, frontend):
                 "the default method must select the first pair field")
         check("stale-projection", "fast", candidate=selection / "sealed.ndjson",
               rejection="declaration environment differs")
+        (selection / "sealed.ndjson").unlink()
+        (work / "default-projection/sealed.ndjson").unlink()
         conversion_source = (verify.ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
         source.write_text(conversion_source)
         converted, _ = check("conversion", "official")
@@ -100,6 +103,8 @@ def run(work, suite, frontend):
                          rejection="declaration environment differs")
         require(stale["revision_sha256"] == converted["revision_sha256"],
                 "stale replay must check the restored unbound method")
+        (conversion / "sealed.ndjson").unlink()
+        (bound_dir / "sealed.ndjson").unlink()
         check_borrowed_operator(work, args, check)
         return
 
@@ -244,6 +249,7 @@ def check_physical_inputs(work, args, source, check):
         stale, _ = check(label + "-stale", "fast", candidate=image, rejection="declaration environment differs")
         require(baseline["llvm_sha256"] == stale["llvm_sha256"]
                 and baseline["revision_sha256"] != stale["revision_sha256"], f"{label} stale control differs")
+        image.unlink()
 
     # A lawful field edit in a dependency can preserve every executable instruction.
     source.write_bytes((verify.ROOT / "llvm/fixtures/OrderedCalls.vast").read_bytes())
@@ -257,7 +263,7 @@ pub indexed family Rel(object(C), object(C)) = token constraints(same_base(0, 1)
 pub indexed family Tag(natural) = token constraints();
 pub indexed package Hidden { case(Y, A) { Tag(7); } };
 pub indexed primitive chosen = descriptor(Y);
-"""
+""" + (verify.ROOT / "tests/fixtures/metric-frame-source.vast").read_text()
     library.write_text(declarations)
     baseline, _ = check("indexed-definitions", "official")
     compiled = work / "indexed-definitions"
@@ -273,6 +279,10 @@ pub indexed primitive chosen = descriptor(Y);
         ("family-slot", "same_base(0, 1)", "same_base(1, 0)"),
         ("package-index", "Tag(7);", "Tag(8);"),
         ("primitive-argument", "descriptor(Y)", "descriptor(X)"),
+        ("metric-gram", "gram((2, 0,)", "gram((3, 0,)"),
+        ("evidence-subject", "nondegenerate(Written)", "nondegenerate(Default)"),
+        ("frame-inverse", "(x, 1,),) inverse = columns((1, 0,), (-x, 1,)",
+                          "(y, 1,),) inverse = columns((1, 0,), (-y, 1,)"),
     ]:
         require(declarations.count(old) == 1, "expected one " + label + " field")
         library.write_text(declarations.replace(old, new))
@@ -317,6 +327,7 @@ def check_borrowed_operator(work, args, check):
     require(result.returncode != 0 and not result.stdout and b"E_FUNCTION_REVISION" in result.stderr,
             "a same-signature sibling must fail before any module bytes are published")
     print("same-family (Int, Int) sibling rejected by the public emitter", flush=True)
+    (compiled / "sealed.ndjson").unlink()
 
     args.manifest_path = verify.ROOT / "llvm/fixtures/uncalled-operator/Vastitas.toml"
     uncalled, _ = check("uncalled-operator", "official")

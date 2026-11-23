@@ -209,17 +209,22 @@ elaborated binding, including resolved coordinate slots and frame data.
 
 #### Indexed declaration coverage in edition 2026
 
-Of the 54 constructors of `Indexed.Source.Body`, 32 have their fields checked
+Of the 54 constructors of `Indexed.Source.Body`, 35 have their fields checked
 against physical source. These comprise 16 finite forms, seven affine object, morphism and
 geometry witness forms, one exact-geometry constructor with six variants, and
-`marker`, `baseDimension`, `global`, `implementation`, `classification`, `family`, `package` and `primitive`.
-The public checker uses the decoded declarations from that same request to elaborate Core. The following 22
+`marker`, `baseDimension`, `global`, `implementation`, `classification`, `family`, `package`,
+`primitive`, `metric`, `evidence` and `frame`.
+For a metric, Lean reads each ordered row of the Gram matrix or the written `euclidean` form.
+For an evidence request it checks the kind and metric path. A frame replays its coordinate form
+or its ordered columns and any declared inverse. The source owner identifies the same completed
+declaration in Core and, for a published integer program, in both MidIR environments.
+
+The public checker uses the decoded declarations from that same request to elaborate Core. The following 19
 constructors have item-boundary checks, but still need a comparison of their
 operands with the original file. The names below are Lean constructors.
 
 | Declaration group | Operands awaiting physical replay |
 | --- | --- |
-| Frames and metrics | `metric`, `evidence`, `frame` |
 | Physical dimensions | `quantity`, `reading`, `scale`, `physicalMetric` |
 | Spectral and transition data | `freeModule`, `endomorphism`, `spectrum`, `branch`, `transitionAverage` |
 | Physical models | `convention`, `model`, `calibration`, `dataset`, `comparison` |

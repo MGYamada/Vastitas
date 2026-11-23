@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle) |
@@ -137,6 +137,20 @@ Claims:
     - the public protocol-10 request passed the independent checker
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. Each global selects the implementation written at its original path span. Every implementation replays its marker, representation and capabilities. Each classification replays its ordered parents and domain. Each indexed family replays parameter kinds and paths, its representation and all written constraint slots. Resolving these fields in the declaring namespace yields the corresponding entries of the exact Core environment used by emission. For boxed programs, the publication witness preserves each resolved entry in optimization and execution MidIR under the certificate’s revision, physical file layout and complete LLVM bytes. A written primitive replays its operation, path spans, object types, coordinates, polynomial trees, pullback mode and indices. Its owner resolves to the same fully elaborated binding in the declaration checker and the returned Core, including after reverse compilation. The boxed publication binds both lookups to the source layout, revision and complete bytes. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
+- `metric-frame-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_metric_or_frame`
+    - [`VastitasOracle.IndexedReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/IndexedReverseCore.lean): `VastitasOracle.IndexedReverseCore.elaborated_indexed`
+    - [`VastitasOracle.BoxedCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BoxedCertificate.lean): `VastitasOracle.BoxedCertificate.published_metric_or_frame`
+  - Premises:
+    - the public request passed the source checker
+    - publication requires an accepted boxed program
+  - Note: The file supplies the requested evidence kind and metric, each Gram row, each frame column and each optional inverse column. Paths replay at their original spans and polynomials before normalization. In a published program the same owner selects the completed declaration in the source elaborator, returned Core and both MidIR environments. Its certificate includes the full LLVM bytes and the checked function revision.
+- `metric-frame-regressions`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `metric_evidence_and_frame_declarations_replay_all_physical_operands` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+    - `a_written_metric_and_frame_column_determine_the_native_gram_entry` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+  - Note: Each stale operand is rejected at the edited token in all five kernel modes. In the executable frame example, changing the metric changes the first Gram entry from 2 to 3. Changing the first frame vector instead gives 5. The Lean/C executable supplies these results. The current LLVM preview rejects this used frame operation.
 - `affine-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_affine_declaration`, `VastitasOracle.ResourceSource.physical_morphism`

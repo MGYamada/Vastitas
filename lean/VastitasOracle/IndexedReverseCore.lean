@@ -423,6 +423,36 @@ theorem elaborated_primitive {program : VastitasKernel.Indexed.DispatchSource.Pr
   exact ⟨primitive_lookup (env ▸ checked.executable.core.typed.declarations.unique) member,
     primitive_lookup checked.compiled.core.typed.declarations.unique present⟩
 
+/-- Looking up an elaborated indexed declaration by its source owner returns
+the same complete value after reverse compilation, including matrices and evidence. -/
+theorem elaborated_indexed {program : VastitasKernel.Indexed.DispatchSource.Program}
+    (checked : VastitasKernel.Indexed.AuthoritySource.CheckedProgram program requireMain)
+    {entry : VastitasKernel.Indexed.Entry} (member : entry ∈ checked.authority.headers.declarations.resolved.declarations.indexed) :
+    VastitasKernel.Indexed.lookup checked.authority.headers.declarations.resolved.declarations.indexed entry.id = some entry.declaration ∧
+    VastitasKernel.Indexed.lookup checked.compiled.core.module.declarations.indexed entry.id = some entry.declaration := by
+  have env : checked.executable.core.module.declarations = checked.authority.headers.declarations.resolved.declarations := by
+    rw [checked.executable.coreInput, IndexedFunctions.pass_env checked.executable.reconstructed]
+    exact IndexedFunctions.prepared_env checked.prepareFrom
+  have same : checked.compiled.core.module.declarations.indexed =
+      checked.authority.headers.declarations.resolved.declarations.indexed := by
+    rw [(compiled_shape checked.compiled).1, env]
+  rw [same]
+  apply and_self_iff.mpr
+  have unique := checked.executable.core.typed.declarations.unique
+  rw [env] at unique
+  have indexed := (List.nodup_append.mp (List.nodup_append.mp unique).1).1
+  unfold VastitasKernel.Indexed.lookup
+  generalize checked.authority.headers.declarations.resolved.declarations.indexed = xs at indexed member ⊢
+  induction xs with
+  | nil => contradiction
+  | cons head rest ih =>
+    simp only [List.map_cons, List.nodup_cons] at indexed
+    rcases List.mem_cons.mp member with equal | member
+    · subst entry; simp
+    · have different : head.id ≠ entry.id := fun equal =>
+        indexed.1 (equal ▸ List.mem_map.mpr ⟨entry, member, rfl⟩)
+      simpa [List.find?_cons, different] using ih indexed.2 member
+
 theorem compiled_no_entries (compiled : Compiled source) (empty : compiled.entries = []) :
     compiled.core.module = source.module := by
   have same := compiled_generate compiled

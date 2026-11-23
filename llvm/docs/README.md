@@ -359,6 +359,18 @@ the same two coordinates. The control compares field selection. Frame layout
 and the mathematical interpretation of its coordinates belong to the Vastitas
 checker. [Lean field projection control](../fixtures/SelectedProjectionControl.lean) · [Physical primitive regressions](../../tests/indexed_definition_source.rs) · [Pinned Lean projection emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L796-L810)
 
+For the first frame vector `(1, s)` and a Gram matrix with rows `(g, 1)` and
+`(1, 1)`, its first Gram entry is `(g + s) + s * (1 + s)`. The Vastitas
+Lean/C executable returned 2, 3 and 5 for `(g, s) = (2, 0), (3, 0), (2, 1)`.
+These runs change the physical metric entry or the physical frame column.
+A separate Lean 4.35.0 function on two `Int` parameters generated three calls
+to `lean_int_add` and one to `lean_int_mul`. On macOS arm64, Clang 23.1.4
+emitted the LLVM module from its generated C. LLVM assembled and verified
+that module, and the linked control returned the same three results. In the
+Lean emitter, standard external calls construct a function type from retained
+arguments in order. The Vastitas LLVM preview reports `E_UNSUPPORTED` for the
+used frame operation. [Native frame regression](../../tests/indexed_definition_source.rs) · [Lean external call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L682)
+
 The two-object isomorphism module passes the two arrows to the composition
 functions in opposite orders. Its nested conditions join the exit values 42,
 7 and 9 using two LLVM phi nodes. Lean 4.35.0's `emitJmp` stores join

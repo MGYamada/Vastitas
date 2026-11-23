@@ -551,6 +551,37 @@ theorem physical_indexed_primitive {json : Lean.Json} (input : Wire.CheckedInput
     apply List.mem_map.mpr
     exact ⟨_, List.mem_filter.mpr ⟨physical_declaration_owned hp hm hd, by simp [body, Indexed.Source.Body.category]⟩, rfl⟩
 
+/-- The written Gram matrix, evidence request or frame columns replay in the file
+that owns the declaration. The same owner selects the completed indexed entry. -/
+theorem physical_metric_or_frame {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    (selected : FiniteSourceFiles.metricOrFrame d.body = true) :
+    let scope := (⟨pkg.id, m.pureModule.module.path⟩ : Namespace.Scope)
+    let headers := input.input.pureProgram.source.headers
+    let resolved := input.checked.pureProgram.authority.headers.declarations.resolved
+    (∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedMetricOrFrame d⟩) ∧
+    Indexed.Source.lower headers = .ok resolved ∧
+    ∃ entry ∈ resolved.declarations.indexed, entry.id = ⟨scope, d.name⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  have shape : FiniteSourceFiles.indexedSyntax d = .indexedMetricOrFrame d ∧ d.body.category = 0 := by
+    cases h : d.body <;> simp [h, FiniteSourceFiles.metricOrFrame] at selected <;>
+      simp [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form,
+        Indexed.Source.Body.category, h]
+  refine ⟨⟨expected, layout, checked, collected, physical, scan, shape.1 ▸ site⟩,
+    input.checked.pureProgram.authority.headers.declarations.lowered, ?_⟩
+  apply List.mem_map.mp
+  have names := congrArg (fun (t : List Indexed.DeclId × List Indexed.DeclId × List Indexed.DeclId) => t.1)
+    input.checked.pureProgram.authority.headers.declarations.tableIds
+  dsimp only at names
+  rw [names]
+  apply List.mem_map.mpr
+  exact ⟨_, List.mem_filter.mpr ⟨physical_declaration_owned hp hm hd, by simp [shape.2]⟩, rfl⟩
+
 /-- The implementation selected by an accepted global is the reference at its
 original source span, including every component of a qualified path. -/
 theorem physical_global_declaration {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

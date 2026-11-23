@@ -206,18 +206,21 @@ private def invariant (keyword : String) (subject : Source.Path) (index : Nat) :
     throw "spectral morphism index differs from its source"
   symbol ')'
 
-private def morphism (family : Source.Path) (indices : List Source.Path)
-    (definition : Source.MorphismDefinition) : Parser Unit := do
+private def application (family : Source.Path) (indices : List Source.Path) : Parser Unit := do
   symbol ':'
   reference family
   symbol '<'
-  let first :: rest := indices | throw "expected morphism endpoints"
+  let first :: rest := indices | throw "expected a family index"
   reference first
   for index in rest do
     symbol ','
     reference index
   symbol '>'
   symbol '='
+
+private def morphism (family : Source.Path) (indices : List Source.Path)
+    (definition : Source.MorphismDefinition) : Parser Unit := do
+  application family indices
   match definition with
   | .pullback images =>
     word "pullback"
@@ -341,6 +344,46 @@ private def primitiveLabel (op field : String) : Option String :=
   | "source" | "target" => if op == "frame_matrix" || op == "frame_transition" then some field else none
   | _ => none
 
+private def matrix (entries : List (List Source.PolyExpr)) : Parser Unit := do
+  symbol '('
+  separated entries (fun row => do
+    symbol '('
+    separated row polynomial ')') ')'
+
+private def metricOrFrameDeclaration (d : Source.Declaration) : Parser Unit := do
+  let header := fun (kind : String) => word kind *> word d.name
+  match d.body with
+  | .metric family indices gram =>
+    header "metric"
+    application family indices
+    match gram with
+    | .euclidean => word "euclidean"
+    | .rows rows => word "gram" *> matrix rows
+  | .evidence metric kind =>
+    header "evidence"
+    symbol '='
+    word (match kind with | .nondegenerate => "nondegenerate" | .riemannian => "riemannian")
+    symbol '('
+    reference metric
+    symbol ')'
+  | .frame family indices columns inverse =>
+    header "frame"
+    application family indices
+    match columns with
+    | none =>
+      word "coordinates"
+      if inverse.isSome then throw "coordinate frames cannot declare an inverse"
+    | some cols =>
+      word "columns"
+      matrix cols
+      if let some inv := inverse then
+        word "inverse"
+        symbol '='
+        word "columns"
+        matrix inv
+  | _ => throw "expected a metric, evidence or frame declaration"
+  symbol ';'
+
 private def primitiveDeclaration (name : String) (p : Source.Primitive) : Parser Unit := do
   word "primitive"
   word name
@@ -388,5 +431,8 @@ def check (file : File) (first : Token) (d : Source.Declaration) : Except Diagno
 def checkPrimitive (file : File) (first : Token) (name : String) (p : Source.Primitive) (span : Span) :
     Except Diagnostic Unit :=
   checkAt file first span (primitiveDeclaration name p) "E_MODULE_SOURCE" "primitive"
+
+def checkMetricOrFrame (file : File) (first : Token) (d : Source.Declaration) : Except Diagnostic Unit :=
+  checkAt file first d.span (metricOrFrameDeclaration d) "E_MODULE_SOURCE" "metric, evidence or frame"
 
 end VastitasKernel.AffineDeclarationText

@@ -169,21 +169,23 @@ A mismatch yields `E_AFFINE_SOURCE`; a changed polynomial points to the
 beginning of the expression. A typed `indexed morphism` also replays the family,
 each endpoint path and the defining operation. A smooth identity used for
 numerical interpretation must have the literal `identity` at that declaration.
+An `indexed iso` replays its forward and inverse paths in order. An
+`indexed cartesian` replays both legs of the square, its fiber and its inverse.
+Each path must match its original spelling and span, even for an unused witness.
 
 #### Indexed declaration coverage in edition 2026
 
-Of the 54 constructors of `Indexed.Source.Body`, 25 have their fields checked
-against physical source. These comprise 16 finite forms, five affine and
-morphism forms, one exact-geometry constructor with six variants, and
+Of the 54 constructors of `Indexed.Source.Body`, 27 have their fields checked
+against physical source. These comprise 16 finite forms, seven affine object, morphism and
+geometry witness forms, one exact-geometry constructor with six variants, and
 `marker`, `baseDimension` and `global`. The public checker uses the decoded
-declarations from that same request to elaborate Core. The following 29
+declarations from that same request to elaborate Core. The following 27
 constructors have item-boundary checks, but still need a comparison of their
 operands with the original file. The names below are Lean constructors.
 
 | Declaration group | Operands awaiting physical replay |
 | --- | --- |
 | Indexed definitions | `implementation`, `classification`, `family`, `package`, `primitive` |
-| Geometry witnesses | `iso`, `cartesian` |
 | Frames and metrics | `metric`, `evidence`, `frame` |
 | Physical dimensions | `quantity`, `reading`, `scale`, `physicalMetric` |
 | Spectral and transition data | `freeModule`, `endomorphism`, `spectrum`, `branch`, `transitionAverage` |

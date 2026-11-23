@@ -384,8 +384,8 @@ theorem physical_global_declaration {json : Lean.Json} (input : Wire.CheckedInpu
   simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form,
     FiniteSourceFiles.indexedKeyword, body] using site
 
-/-- Each presented affine object, fiber product, localization and smooth
-affine space in an accepted request replays at its original declaration. -/
+/-- Every admitted affine object, morphism, isomorphism or Cartesian witness
+replays in its original file with the same decoded declaration. -/
 theorem physical_affine_declaration {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
     {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
     {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)

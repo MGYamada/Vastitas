@@ -402,6 +402,7 @@ private def indexedSite (f : File) (indexed : Token) : Except String SiteKind :=
   let kind ← f.next indexed.after
   match kind.kind with
   | .word "finite" | .word "table" | .word "schema" | .word "instance" => return .indexed
+  | .word "iso" | .word "cartesian" => return .affine
   | .word "affine" | .word "morphism" =>
     let name ← f.next kind.after
     let op ← f.next name.after

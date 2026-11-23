@@ -298,6 +298,28 @@ private def declaration (d : Source.Declaration) : Parser Unit := do
     word "morphism"
     word d.name
     morphism family indices definition
+  | .iso forward inverse =>
+    word "iso"
+    word d.name
+    symbol '='
+    word "forward"
+    reference forward
+    word "inverse"
+    reference inverse
+  | .cartesian first second fiber inverse =>
+    word "cartesian"
+    word d.name
+    symbol '='
+    word "square"
+    symbol '('
+    reference first
+    symbol ','
+    reference second
+    symbol ')'
+    word "through"
+    reference fiber
+    word "inverse"
+    reference inverse
   | body =>
     word "affine"
     word d.name
@@ -306,7 +328,8 @@ private def declaration (d : Source.Declaration) : Parser Unit := do
 
 def applies (d : Source.Declaration) : Bool :=
   match d.body with
-  | .affine .. | .affineFiber .. | .affineLocalization .. | .smoothAffine .. | .morphism .. => true
+  | .affine .. | .affineFiber .. | .affineLocalization .. | .smoothAffine .. | .morphism ..
+  | .iso .. | .cartesian .. => true
   | _ => false
 
 def check (file : File) (first : Token) (d : Source.Declaration) : Except Diagnostic Unit := do

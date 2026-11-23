@@ -282,6 +282,15 @@ Lean 4.35.0 emits `switch` for tagged cases and stores join arguments on a
 jump. Its pinned binary reports no LLVM backend feature.
 [Lean tagged cases](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1090-L1137) · [Lean join arguments](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
 
+Two valid affine isomorphisms can exchange their forward and inverse maps.
+A Cartesian square can also select a second declaration of the same inverse
+map. With an entry returning 10, all three source variants reproduce the 374
+bytes of the folded-arithmetic module. Mixing the physical source and decoded
+witness from different variants fails before emission. The witnesses are
+checked during elaboration and leave no calls in this closed entry. In Lean
+4.35.0, `emitMainFn` calls the program and unboxes its exit status.
+[LLVM file](../src/folded-arithmetic.ll) · [Public source regression](../../tests/affine_geometry.rs) · [Lean main emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1577-L1590)
+
 An edition-2026 package declaring an exact complex affine plane and returning
 the integer 42 emits the same complete module as the constant entry alone.
 On the retained macOS target it has 374 bytes and ends in `ret i32 u0x2A`.

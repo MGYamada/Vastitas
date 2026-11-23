@@ -128,7 +128,7 @@ Claims:
   - Premises:
     - the public protocol-10 checker accepted the request
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: For each presented affine object, fiber product, principal localization and smooth affine space, Lean checks the declaration in its physical package and module. It checks visibility, declaration extent, implementation and base paths, ordered coordinates, relations and substitutions. Polynomial comparison preserves the decoded expression tree before normalization, including the order of summands and factors. For each typed morphism the source inventory identifies the file and first token where its family, endpoints and defining operation replay. The loader supplies the physical files.
+  - Note: For each presented affine object, fiber product, principal localization and smooth affine space, Lean checks the declaration in its physical package and module. It checks visibility, declaration extent, implementation and base paths, ordered coordinates, relations and substitutions. Polynomial comparison preserves the decoded expression tree before normalization, including the order of summands and factors. For each typed morphism the source inventory identifies the file and first token where its family, endpoints and defining operation replay. Each affine isomorphism and Cartesian witness replays every ordered operand and its path span in the same declaration inventory. The loader supplies the physical files.
 - `resource-cell-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_resource_cells`, `VastitasOracle.ResourceSource.literal_component_value`
@@ -195,6 +195,7 @@ Claims:
   - Evidence:
     - `physical_affine_relations_and_substitutions_match_before_normalization` in [`tests/affine_geometry.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/affine_geometry.rs)
     - `even_an_unused_affine_object_must_match_its_declaring_module` in [`tests/affine_geometry.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/affine_geometry.rs)
+    - `valid_geometry_witnesses_reject_each_others_physical_inputs` in [`tests/affine_geometry.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/affine_geometry.rs)
     - `standard_chart_coordinates_are_checked_before_emitting_identity_llvm` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `a_coordinate_pullback_cannot_impersonate_the_declared_identity_in_llvm` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `invariant_morphisms_preserve_the_written_subject_and_index` in [`tests/spectral_declarations.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/spectral_declarations.rs)

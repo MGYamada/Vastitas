@@ -137,7 +137,7 @@ evidence = ["VastitasOracle.ResourceSource.physical_affine_declaration",
             "VastitasOracle.ResourceSource.physical_morphism"]
 premises = ["the public protocol-10 checker accepted the request"]
 assumes = ["rust-frontend"]
-note = "For each presented affine object, fiber product, principal localization and smooth affine space, Lean checks the declaration in its physical package and module. It checks visibility, declaration extent, implementation and base paths, ordered coordinates, relations and substitutions. Polynomial comparison preserves the decoded expression tree before normalization, including the order of summands and factors. For each typed morphism the source inventory identifies the file and first token where its family, endpoints and defining operation replay. The loader supplies the physical files."
+note = "For each presented affine object, fiber product, principal localization and smooth affine space, Lean checks the declaration in its physical package and module. It checks visibility, declaration extent, implementation and base paths, ordered coordinates, relations and substitutions. Polynomial comparison preserves the decoded expression tree before normalization, including the order of summands and factors. For each typed morphism the source inventory identifies the file and first token where its family, endpoints and defining operation replay. Each affine isomorphism and Cartesian witness replays every ordered operand and its path span in the same declaration inventory. The loader supplies the physical files."
 
 [property."compiler-ir.edition".claim.resource-cell-source]
 status = "proved-oracle"
@@ -210,6 +210,7 @@ status = "tested"
 evidence = [
   "tests/affine_geometry.rs::physical_affine_relations_and_substitutions_match_before_normalization",
   "tests/affine_geometry.rs::even_an_unused_affine_object_must_match_its_declaring_module",
+  "tests/affine_geometry.rs::valid_geometry_witnesses_reject_each_others_physical_inputs",
   "tests/numerical_realization.rs::standard_chart_coordinates_are_checked_before_emitting_identity_llvm",
   "tests/numerical_realization.rs::a_coordinate_pullback_cannot_impersonate_the_declared_identity_in_llvm",
   "tests/spectral_declarations.rs::invariant_morphisms_preserve_the_written_subject_and_index",

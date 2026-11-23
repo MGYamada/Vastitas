@@ -179,6 +179,12 @@ fn physical_affine_relations_and_substitutions_match_before_normalization() {
         ("pullback(t -> t^2)", "pullback(t -> t^3)", "t^3"),
         ("pullback(e -> X::x)", "pullback(e -> X::t)", "X::t"),
         ("restrict(sq)", "restrict(to)", "to"),
+        ("forward glue inverse", "forward copy inverse", "copy"),
+        ("inverse unglue;", "inverse reglue;", "reglue"),
+        ("square(toX,", "square(toS,", "toS"),
+        ("toX, toOrigin)", "toX, noOrigin)", "noOrigin"),
+        ("through Fiber inverse", "through Other inverse", "Other"),
+        ("Fiber inverse back;", "Fiber inverse twin;", "twin"),
         ("dsToS: Over<DS, S, S>", "dsToS: Over<DS, X, S>", "X"),
     ] {
         let mut changed = raw.clone();
@@ -213,6 +219,69 @@ fn physical_affine_relations_and_substitutions_match_before_normalization() {
             );
             assert!(response.get("llvm").is_none() && response.get("function_revision").is_none());
         }
+    }
+}
+
+#[test]
+fn valid_geometry_witnesses_reject_each_others_physical_inputs() {
+    let before = MAIN.split_once("fn verdict(").unwrap().0;
+    let main = format!("{before}fn main() -> Int {{ 10 }}");
+    let main = main.replace(
+        "indexed cartesian fiberIsDual",
+        "indexed morphism twin: Over<Fiber, DS, S> = pullback(e -> X::x);\nindexed cartesian fiberIsDual",
+    );
+    let s = fixture(&main);
+    let original = request(&s);
+    let qualification: Value = serde_json::from_str(include_str!(
+        "../experiments/compiler_validation/llvm/results/macos-arm64/unary-table.json"
+    ))
+    .unwrap();
+    let target = [
+        "llvm-check",
+        qualification["target"]["triple"].as_str().unwrap(),
+        qualification["target"]["layout"].as_str().unwrap(),
+    ];
+    let bytes = include_str!("../llvm/src/folded-arithmetic.ll");
+    let baseline = common::kernel_with_args(&original, &target);
+    assert_eq!(baseline["ok"], true, "{baseline}");
+    assert_eq!(baseline["llvm"]["ir"], bytes);
+    for (from, to, witness, field) in [
+        (
+            "forward glue inverse unglue",
+            "forward unglue inverse glue",
+            "transition",
+            "forward",
+        ),
+        (
+            "Fiber inverse back",
+            "Fiber inverse twin",
+            "fiberIsDual",
+            "inverse",
+        ),
+    ] {
+        let changed = common::checked_replace(&main, from, to);
+        s.write("src/main.vast", &changed);
+        let other = request(&s);
+        let accepted = common::kernel_with_args(&other, &target);
+        assert_eq!(accepted["ok"], true, "{accepted}");
+        assert_eq!(accepted["llvm"]["ir"], bytes);
+        let path = declaration_pointer(&other, witness);
+        assert_ne!(
+            original.pointer(&path).unwrap()[field],
+            other.pointer(&path).unwrap()[field]
+        );
+        for (wire, physical) in [(&original, &other), (&other, &original)] {
+            let mut stale = wire.clone();
+            stale["root_source"] = physical["root_source"].clone();
+            let rejected = common::kernel_with_args(&stale, &target);
+            common::assert_wire_rejected(&rejected, "E_AFFINE_SOURCE");
+            assert!(rejected.get("llvm").is_none());
+        }
+
+        let mut misplaced = other.clone();
+        let span = &mut misplaced.pointer_mut(&path).unwrap()[field]["span"];
+        span["column"] = json!(span["column"].as_u64().unwrap() + 1);
+        common::assert_wire_rejected(&kernel(&misplaced, "check"), "E_AFFINE_SOURCE");
     }
 }
 

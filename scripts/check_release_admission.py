@@ -95,9 +95,9 @@ ROW_OBLIGATIONS = {
         'core': ('compiler-ir.coverage@ledger', 'compiler-ir.coverage@inventory', 'compiler-ir.coverage@literal-lowering', 'compiler-ir.coverage@finite-lowering',
                  'compiler-ir.coverage@binding-lowering', 'compiler-ir.coverage@static-call-lowering',
                  'compiler-ir.coverage@conversion-lowering', 'compiler-ir.coverage@pair-lowering',
-                 'compiler-ir.coverage@unary-lowering', 'compiler-ir.coverage@branch-lowering', 'compiler-ir.operators@selected-method'),
+                 'compiler-ir.coverage@unary-lowering', 'compiler-ir.coverage@branch-lowering', 'compiler-ir.coverage@binary-lowering', 'compiler-ir.operators@selected-method'),
         'midir': ('compiler-ir.registry@opcodes', 'compiler-ir.registry@int-literal',
-                  'compiler-ir.registry@exact-arithmetic', 'compiler-ir.registry@pair-operations'),
+                  'compiler-ir.registry@exact-arithmetic', 'compiler-ir.registry@pair-operations', 'compiler-ir.registry@binary-signatures'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@entry-status',
                  'compiler-ir.llvm-bytes@folded-entry', 'compiler-ir.llvm-bytes@entry-regression',
                  'compiler-ir.llvm-bytes@boxed-library', 'compiler-ir.llvm-bytes@boxed-program',
@@ -158,7 +158,7 @@ def required_status(dimension, claim):
             or dimension == 'official'
             or (dimension == 'llvm' and claim in LLVM_PROOFS)
             or (dimension == 'midir' and claim in {'compiler-ir.midir@finite-lookup', 'compiler-ir.registry@exact-arithmetic',
-                                                   'compiler-ir.registry@pair-operations'})):
+                                                   'compiler-ir.registry@pair-operations', 'compiler-ir.registry@binary-signatures'})):
         return 'proved-oracle'
     return 'tested'
 

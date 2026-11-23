@@ -5,6 +5,7 @@ import VastitasOracle.PairCoverage
 import VastitasOracle.UnaryCoverage
 import VastitasOracle.BindingCoverage
 import VastitasOracle.BranchCoverage
+import VastitasOracle.BinaryCoverage
 import Lean.Data.Json
 
 open Lean VastitasKernel.Indexed VastitasKernel.MidIR
@@ -35,6 +36,7 @@ def main : IO Unit := do
   let alternatives (origin : Name) (tags : List String) (proof : Name) := Json.mkObj [
     ("origin", toJson origin.toString), ("opcode", toJson tags), ("theorem", toJson proof.toString)]
   let alternativesRows := [
+    alternatives ``Core.Term.binary VastitasOracle.MidIR.binaryTags ``VastitasOracle.MidIR.binary_constructor_coverage,
     alternatives ``Core.Term.unary VastitasOracle.MidIR.unaryTags ``VastitasOracle.MidIR.unary_constructor_coverage,
     alternatives ``Core.Term.pair VastitasOracle.MidIR.pairConstructionTags ``VastitasOracle.MidIR.pair_constructor_coverage,
     alternatives ``Core.Term.project VastitasOracle.MidIR.pairProjectionTags ``VastitasOracle.MidIR.projection_constructor_coverage]

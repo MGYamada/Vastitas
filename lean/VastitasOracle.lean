@@ -85,6 +85,7 @@ import VastitasOracle.FiniteOpcodeCoverage
 import VastitasOracle.StaticCallCoverage
 import VastitasOracle.BindingCoverage
 import VastitasOracle.BranchCoverage
+import VastitasOracle.BinaryCoverage
 import VastitasOracle.PackageLink
 import VastitasOracle.FiniteLookupLayout
 import VastitasOracle.FiniteHom

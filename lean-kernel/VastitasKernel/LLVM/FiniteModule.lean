@@ -112,8 +112,8 @@ private def operation (env : Environment) (entry : Bool) (fi : Nat) (dst : MidIR
     guard (n < 4096)
     return (.binary d .add .word (lit 0) (lit n),none)
   | .compare k t, [a,b] =>
-    guard (t != .int)
-    let cmp := match k with | .eq => Predicate.eq | .ne => .ne
+    guard (t != .int && t != .nat)
+    let cmp ← match k with | .eq => some Predicate.eq | .ne => some .ne | _ => none
     return (.compare d cmp (← widthOf t) (value a) (value b),none)
   | .call target, args =>
     guard (!target.params.contains .int && target.result != .int && args.length == target.params.length)

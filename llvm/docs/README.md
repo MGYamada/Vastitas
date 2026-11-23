@@ -448,3 +448,26 @@ Clang 23.1.4 compiled the generated Lean C at `-O0`. Its LLVM IR branches on an
 8-bit Boolean, releases the unselected boxed integer and returns the selected pointer
 through a stack slot. Upstream `emitJmp` checks the argument count, stores each argument
 in the join parameter's slot and branches to the join. [Lean control](../fixtures/ConditionalMethodControl.lean) · [Pinned jump emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
+
+
+### Comparisons on integer parameters
+
+The assembled `before(x, y)` compares its two parameters in their written
+order. Removing its contribution makes the default method compare them in
+reverse order. The public replay covers six comparisons for each of Nat and
+Int, including equal arguments and distinct integers with identical low bytes.
+It checks the selected callee, SSA operand order, common function revision
+and complete Core and MidIR observations. The macOS Lean/C executables returned
+42 and 7 for the two selections with either numeric type. Dynamic integer
+comparisons still report `E_UNSUPPORTED` at the Vastitas LLVM boundary.
+[Source](../fixtures/ComparisonMethod.vast) · [Public replay](../fixtures/ComparisonMethodReplay.lean)
+
+Lean 4.35.0's external-call emitter builds the function type and call from
+the ordered, retained parameters. In the generated C control, greater-than
+reverses the operands of `lean_nat_dec_lt` or `lean_int_dec_lt`.
+Greater-than-or-equal similarly reverses the less-than-or-equal call.
+On macOS arm64, Clang 23.1.4 emitted two pointer operands and an 8-bit
+Boolean result. The native control passed 24 cases for each type, with
+operands up to 1,025 bits. Direct upstream bitcode emission is disabled in the
+pinned Lean installation.
+[Lean comparison control](../fixtures/ComparisonMethodControl.lean) · [Pinned external-call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L673)

@@ -2,8 +2,8 @@
   "schema_version": 2,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "af43ec71a4ba34bc1f9b05e5950552b4be1ffa8c",
-    "schema_sha256": "0f51356512662fa643c9ae0ecc846049cac8eb633e2fbaf7467ba723556fc6a2"
+    "base_commit": "9c290239014cb30ea115e2882b83b33b548e966b",
+    "schema_sha256": "b211582018cc03a200c955caf6757e9d042623590f07fa09af272375f9f57b96"
   },
   "schema": {
     "sources": [
@@ -1231,6 +1231,22 @@
           {
             "id": "VastitasKernel.MidIR.Comparison.ne",
             "signature": "ne"
+          },
+          {
+            "id": "VastitasKernel.MidIR.Comparison.lt",
+            "signature": "lt"
+          },
+          {
+            "id": "VastitasKernel.MidIR.Comparison.le",
+            "signature": "le"
+          },
+          {
+            "id": "VastitasKernel.MidIR.Comparison.gt",
+            "signature": "gt"
+          },
+          {
+            "id": "VastitasKernel.MidIR.Comparison.ge",
+            "signature": "ge"
           }
         ]
       },
@@ -5162,11 +5178,33 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.binary",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.binary",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": [
+        "midir.bool.const.v1",
+        "midir.bool.and.v1",
+        "midir.bool.or.v1",
+        "midir.exact.eq.v1",
+        "midir.exact.ne.v1",
+        "midir.exact.lt.v1",
+        "midir.exact.le.v1",
+        "midir.exact.gt.v1",
+        "midir.exact.ge.v1",
+        "midir.nat_add.v1",
+        "midir.nat_sub.v1",
+        "midir.nat_mul.v1",
+        "midir.nat_div.v1",
+        "midir.int_add.v1",
+        "midir.int_sub.v1",
+        "midir.int_mul.v1",
+        "midir.int_div.v1",
+        "midir.nat_int_div.v1",
+        "midir.int_nat_div.v1"
+      ],
+      "reason": "The actual builder folds exact literal equality or evaluates both operands in order and appends the typed operation to their live exit. Both phases agree with Core on all admitted signatures and actual typed operands.",
+      "evidence": [
+        "VastitasOracle.MidIR.binary_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.boolean",
@@ -6287,6 +6325,38 @@
       "disposition": "pending",
       "owner": "#750",
       "planned_opcode": "midir.MidIR.Comparison.eq",
+      "reason": "MidIR type, control-flow or phase information in the finite fragment; its preservation in every accepted module remains pending.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.MidIR.Comparison.ge",
+      "disposition": "pending",
+      "owner": "#750",
+      "planned_opcode": "midir.MidIR.Comparison.ge",
+      "reason": "MidIR type, control-flow or phase information in the finite fragment; its preservation in every accepted module remains pending.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.MidIR.Comparison.gt",
+      "disposition": "pending",
+      "owner": "#750",
+      "planned_opcode": "midir.MidIR.Comparison.gt",
+      "reason": "MidIR type, control-flow or phase information in the finite fragment; its preservation in every accepted module remains pending.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.MidIR.Comparison.le",
+      "disposition": "pending",
+      "owner": "#750",
+      "planned_opcode": "midir.MidIR.Comparison.le",
+      "reason": "MidIR type, control-flow or phase information in the finite fragment; its preservation in every accepted module remains pending.",
+      "evidence": []
+    },
+    {
+      "origin": "VastitasKernel.MidIR.Comparison.lt",
+      "disposition": "pending",
+      "owner": "#750",
+      "planned_opcode": "midir.MidIR.Comparison.lt",
       "reason": "MidIR type, control-flow or phase information in the finite fragment; its preservation in every accepted module remains pending.",
       "evidence": []
     },

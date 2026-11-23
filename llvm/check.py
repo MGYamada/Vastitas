@@ -244,6 +244,46 @@ def check_conditional_method():
                     raise ValueError("the earlier conditional method revision should be stale")
 
 
+def check_comparison_method():
+    source = (HERE / "fixtures/ComparisonMethod.vast").read_text()
+    predicates = [("eq", "==", False), ("ne", "!=", False), ("lt", "<", True),
+                  ("le", "<=", True), ("gt", ">", True), ("ge", ">=", False)]
+    cases = []
+    with tempfile.TemporaryDirectory(prefix="vastitas-comparison-method-") as tmp:
+        work = Path(tmp)
+        manifest = work / "Vastitas.toml"
+        manifest.write_text('[package]\nname = "order_method"\nversion = "0.1.0"\n'
+                            'edition = "2026"\nroot = "main.vast"\n')
+        command = ["cargo", "run", "--locked", "--quiet", "--bin", "vastitas", "--",
+                   "check", "--manifest-path", manifest]
+        for kind in ["Int", "Nat"]:
+            for name, symbol, truth in predicates:
+                x = 2**128 + 1 if kind == "Nat" else -(2**128 + 1)
+                y = x if name in ("le", "ne") else x + 256
+                if name == "gt":
+                    x, y = y, x
+                text = (source.replace("x: Int, y: Int", f"x: {kind}, y: {kind}")
+                        .replace(" < ", f" {symbol} ")
+                        .replace("left: Int = -340282366920938463463374607431768211457;",
+                                 f"left: {kind} = {x};")
+                        .replace("right: Int = -1;", f"right: {kind} = {y};"))
+                for direction in (["forward", "reverse"] if name == "lt" else ["forward"]):
+                    forward = direction == "forward"
+                    (work / "main.vast").write_text(text if forward else text.replace("apply ordered;", ""))
+                    revision = work / f"{kind}-{name}-{direction}.json"
+                    revision.write_bytes(subprocess.check_output([*command, "--print-function-revision"], cwd=ROOT))
+                    answer = truth if forward else not truth
+                    cases.extend([str(revision), name, kind, "42" if answer else "7", direction])
+                    if not forward:
+                        earlier = work / f"{kind}-{name}-forward.json"
+                        stale = subprocess.run([*command, "--expect-function-revision", earlier],
+                                               cwd=ROOT, capture_output=True)
+                        if stale.returncode == 0 or stale.stdout or b"E_FUNCTION_REVISION" not in stale.stderr:
+                            raise ValueError("removing the comparison contribution must invalidate its revision")
+        subprocess.run(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
+                        HERE / "fixtures/ComparisonMethodReplay.lean", *cases], cwd=ROOT, check=True)
+
+
 def main():
     registered = {f"{sample.name}.ll" for sample in CASES}
     retained = {str(p.relative_to(HERE / "src")) for p in (HERE / "src").rglob("*.ll")}
@@ -269,6 +309,7 @@ def main():
                    cwd=ROOT, check=True)
     print("Lean corpus replay passed. Comparing the public compiler output.", flush=True)
     check_conditional_method()
+    check_comparison_method()
     for name, source, package, target_name in CASES:
         target = targets[target_name]
         with tempfile.TemporaryDirectory(prefix="vastitas-llvm-corpus-") as tmp:

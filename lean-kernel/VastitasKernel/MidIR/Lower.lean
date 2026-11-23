@@ -38,6 +38,19 @@ private def emit (code : Opcode .optimization) (args : List Ref) : Builder Ref :
   set (blocks.set! i { b with ops := b.ops.push ⟨code, args⟩ })
   return ⟨i, b.params.size + b.ops.size⟩
 
+/-- The static operand types choose an instruction only after literal folding. -/
+def binaryCode {phase : Phase} (op : BinaryOp) (left right : Core.DataType) : Option (Opcode phase) :=
+  match op with
+  | .and => some Opcode.boolAnd
+  | .or => some Opcode.boolOr
+  | .eq => (Ty.ofCore left).map (.compare .eq ·)
+  | .ne => (Ty.ofCore left).map (.compare .ne ·)
+  | .lt => (Ty.ofCore left).map (.compare .lt ·)
+  | .le => (Ty.ofCore left).map (.compare .le ·)
+  | .gt => (Ty.ofCore left).map (.compare .gt ·)
+  | .ge => (Ty.ofCore left).map (.compare .ge ·)
+  | _ => (ExactOp.binary op left right).map .exactOp
+
 mutual
 private def lowerTerm (resolve : Nat → Option CallTarget) (ctx : List (Nat × Ref)) : Core.Term → Builder Ref
   | .finiteLookup site symbols => do
@@ -76,12 +89,7 @@ private def lowerTerm (resolve : Nat → Option CallTarget) (ctx : List (Nat × 
   | .binary op left right _ => do
     if let some value := ExactFold.literalComparison op left right then
       return ← emit (.boolean value) []
-    let code ← liftM (match op with
-      | .and => some Opcode.boolAnd
-      | .or => some Opcode.boolOr
-      | .eq => (Ty.ofCore left.result.type).map (.compare .eq ·)
-      | .ne => (Ty.ofCore left.result.type).map (.compare .ne ·)
-      | _ => (ExactOp.binary op left.result.type right.result.type).map .exactOp)
+    let code ← liftM (binaryCode op left.result.type right.result.type)
     let l ← lowerTerm resolve ctx left
     let r ← lowerTerm resolve ctx right
     emit code [l, r]
@@ -175,34 +183,45 @@ private theorem lowerArguments_in_order (resolve : Nat → Option CallTarget) (c
   | nil => rfl
   | cons arg rest ih => simp [lowerArguments, List.mapM_cons, ih]
 
-/-- Lower a homogeneous pair left to right. Both operand actions may create
-blocks. Only the live exit of the second operand receives the pair instruction. -/
-def AppendsPair (element : PairElem) (left right : Core.Term) : Prop :=
+/-- Lower two operands left to right. Both operand actions may create
+blocks. Only the live exit of the second operand receives the instruction. -/
+def AppendsOperands (term left right : Core.Term) (code : Opcode .optimization) : Prop :=
   ∀ resolve ctx blocks,
-    (lowerTerm resolve ctx (.pair element left right)).run blocks =
+    (lowerTerm resolve ctx term).run blocks =
       (do let (a, intermediate) ← (lowerTerm resolve ctx left).run blocks
           let (b, after) ← (lowerTerm resolve ctx right).run intermediate
-          (emit (.exactOp (.pair element)) [a,b]).run after) ∧
+          (emit code [a,b]).run after) ∧
     ∀ a intermediate b (prior : Array Draft) (params : Array Ty) (ops : Array (Op .optimization)),
       (lowerTerm resolve ctx left).run blocks = some (a, intermediate) →
       (lowerTerm resolve ctx right).run intermediate = some (b, prior.push {params, ops}) →
-      (lowerTerm resolve ctx (.pair element left right)).run blocks =
+      (lowerTerm resolve ctx term).run blocks =
         some (⟨prior.size, params.size + ops.size⟩,
-          prior.push {params, ops := ops.push ⟨.exactOp (.pair element), [a,b]⟩})
+          prior.push {params, ops := ops.push ⟨code, [a,b]⟩})
 
-theorem appends_pair (element : PairElem) (left right : Core.Term) : AppendsPair element left right := by
+private theorem appends_operands {term left right : Core.Term} {code : Opcode .optimization}
+    (equation : ∀ resolve ctx, lowerTerm resolve ctx term =
+      (do let a ← lowerTerm resolve ctx left
+          let b ← lowerTerm resolve ctx right
+          emit code [a,b])) : AppendsOperands term left right code := by
   intro resolve ctx blocks
+  rw [equation]
   constructor
   · rfl
   · intro a intermediate b prior params ops first second
     change ((lowerTerm resolve ctx left).run blocks >>= fun (x, state) =>
       (lowerTerm resolve ctx right).run state >>= fun (y, after) =>
-        (emit (.exactOp (.pair element)) [x,y]).run after) = _
+        (emit code [x,y]).run after) = _
     rw [first]
     change ((lowerTerm resolve ctx right).run intermediate >>= fun (y, after) =>
-      (emit (.exactOp (.pair element)) [a,y]).run after) = _
+      (emit code [a,y]).run after) = _
     rw [second]
     exact emit_live _ _ _ _ _
+
+abbrev AppendsPair (element : PairElem) (left right : Core.Term) :=
+  AppendsOperands (.pair element left right) left right (.exactOp (.pair element))
+
+theorem appends_pair (element : PairElem) (left right : Core.Term) : AppendsPair element left right :=
+  appends_operands (fun _ _ => rfl)
 
 /-- Lower an operand once and append one operation at its live exit, including
 when the operand introduces control flow. -/
@@ -227,6 +246,38 @@ private theorem appends_operand {term arg : Core.Term} {code : Opcode .optimizat
   change ((lowerTerm resolve ctx arg).run blocks >>= fun (r, after) => (emit code [r]).run after) = _
   rw [lowered]
   exact emit_live _ _ _ _ _
+
+/-- The binary constructor has three routes. Fold an exact comparison of literals,
+emit the statically selected opcode after evaluating both operands, or reject. -/
+def LowersBinary (op : BinaryOp) (left right : Core.Term) (result : Core.Result) : Prop :=
+  let term := Core.Term.binary op left right result
+  match ExactFold.literalComparison op left right with
+  | some answer => AppendsNullary term (.boolean answer)
+  | none =>
+    match binaryCode (phase := .optimization) op left.result.type right.result.type with
+    | some code => AppendsOperands term left right code
+    | none => ∀ resolve ctx blocks, (lowerTerm resolve ctx term).run blocks = none
+
+theorem lowers_binary (op : BinaryOp) (left right : Core.Term) (result : Core.Result) :
+    LowersBinary op left right result := by
+  unfold LowersBinary
+  dsimp only
+  cases folded : ExactFold.literalComparison op left right with
+  | some answer =>
+    intro resolve ctx prior params ops
+    rw [lowerTerm, folded]
+    exact emit_live _ _ _ _ _
+  | none =>
+    cases selected : binaryCode (phase := .optimization) op left.result.type right.result.type with
+    | some code =>
+      apply appends_operands
+      intro resolve ctx
+      rw [lowerTerm, folded, selected]
+      rfl
+    | none =>
+      intro resolve ctx blocks
+      rw [lowerTerm, folded, selected]
+      rfl
 
 def unaryCode (phase : Phase) : UnaryOp → Opcode phase
   | .not => .boolNot

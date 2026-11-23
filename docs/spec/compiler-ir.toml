@@ -470,7 +470,7 @@ coverage check instead of silently inheriting admission.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.coverage)"
 example = "Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing."
-example_not_executed = "The source-schema guard, eleven instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending."
+example_not_executed = "The source-schema guard, twelve instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending."
 
 [property."compiler-ir.coverage".claim.ledger]
 status = "planned"
@@ -491,12 +491,18 @@ note = """
 This claim covers the reviewed constructor signatures, referenced record schemas
 and runtime manifest closure in config/midir-coverage.json. The guard rejects
 source drift, incomplete inventories and JSON-only promotion to admission.
-Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, and first-order static calls have local lowering proofs.
+Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, binary operators, and first-order static calls have local lowering proofs.
 Variable references, scopes, typed ascriptions, let bindings and conditionals have structural
 mappings without an opcode. A constructor with several opcodes names every alternative in registry order.
-CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 592 rows await review. Whole-module acceptance remains a separate obligation
+CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 595 rows await review. Whole-module acceptance remains a separate obligation
 for every row. The release coverage check enforces that distinction.
 """
+
+[property."compiler-ir.coverage".claim.binary-lowering]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.binary_constructor_coverage"]
+premises = ["the Core operator has an admitted signature and the supplied operands have its declared types"]
+note = "The actual builder folds pure literal equality and inequality. On the instruction path it evaluates the left and right operands in order and appends at the second operand's live exit. The typed selector covers Boolean operations, equality on nominal finite tags and Unit, all six Nat and Int comparisons, arithmetic and both orders of mixed division. In both MidIR phases the unbounded result agrees with Core. The compiled registry contains all nineteen opcode alternatives. The boxed LLVM emitter still needs an ABI for dynamic integer comparisons."
 
 [property."compiler-ir.coverage".claim.branch-lowering]
 status = "proved-oracle"
@@ -655,6 +661,12 @@ note = "Negation and disjunction return the same Boolean as the corresponding Co
 status = "tested"
 evidence = ["VastitasPublicTest.LLVM.Regression"]
 note = "For a selected argument-free main, the int.const.v1 opcode keeps the complete unbounded Int until the exit ABI projection. Kernel regressions exercise the actual checked wire entry and reject unsupported arithmetic. General integer operations still require a qualified runtime."
+
+[property."compiler-ir.registry".claim.binary-signatures]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.binary_signature_selected", "VastitasOracle.MidIR.selected_binary"]
+premises = ["the Core signature is admitted and both supplied values have their declared types"]
+note = "Each typed binary signature selects a registered opcode in both phases. The actual Core values establish the nominal sort for a finite equality. The instruction's two ordered operands and its result type correspond to Core, and both denotations return its full value. A boxed LLVM calling convention for dynamic numeric comparisons remains open."
 
 [property."compiler-ir.registry".claim.exact-arithmetic]
 status = "proved-oracle"

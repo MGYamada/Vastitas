@@ -12,12 +12,6 @@ namespace VastitasOracle.MidIR
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.MidIR
 open VastitasKernel.Indexed.Core.Semantics
 
-private def fits : VastitasKernel.MidIR.Ty → Value → Bool
-  | .unit, .unit => true
-  | .bool, .boolean _ => true
-  | .finite c, .finiteTag d _ => c == d
-  | _, _ => false
-
 /-- Read the ordered nominal arguments of a table, including the owner and
 endpoints of each Hom fiber. Arity mismatches have no value. -/
 def lookupKey : List FiniteSort → List Value → Option (List String)
@@ -98,9 +92,7 @@ def denote {p : Phase} (env : Environment) (op : Opcode p) (args : List Value)
   | .call target => resolve target args
   | .compare k t => do
     let [a, b] := args | none
-    guard (fits t a && fits t b)
-    let equal := decide (a = b)
-    return .boolean (match k with | .eq => equal | .ne => !equal)
+    Evaluation.compareValues k t a b
 
 /-- Resolving a tag to an ordinal in its checked nominal sort preserves its
 logical value, including the endpoints of a Hom sort. Covers every operand

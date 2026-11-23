@@ -206,4 +206,25 @@ number cannot authorize a duplicate key or let a call substitute its sibling. -/
     blocks := #[⟨#[.bool],#[⟨.call forged,[⟨0,0⟩]⟩],.ret ⟨0⟩ ⟨0,1⟩⟩] }
   return !(VastitasKernel.MidIR.validSymbols { module with functions := #[first,second,caller] }))
 
+/- The signed and natural orders use the full operand. A nominal tag needs
+its own sort on both sides; equality is the only relation on those tags. -/
+open VastitasKernel.MidIR in
+#eval VastitasKernel.RegressionSupport.check "MidIR comparison operands"
+    "reject mixed integers, ordered finite tags, wrong arities and a foreign sort" (Id.run do
+  let compare := fun (k : Comparison) (t : VastitasKernel.MidIR.Ty) (args : List Value) =>
+    denote env (.compare (p := .optimization) k t) args
+  let big : Nat := 2^128 + 1
+  unless compare .lt .nat [.natural big,.natural (big+256)] == some (.boolean true) &&
+      compare .ge .int [.integer (-(Int.ofNat big)),.integer (-(Int.ofNat big))] == some (.boolean true) do
+    return false
+  let other := FiniteSort.carrier (owner "Other")
+  let tag := Value.finiteTag carrier "blue"
+  return (compare .lt .nat [.integer 1,.natural 2]).isNone &&
+    (compare .eq .int [.integer 1]).isNone && (compare .eq .int [.integer 1,.integer 1,.integer 1]).isNone &&
+    (compare .eq (.finite carrier) [tag,.finiteTag other "blue"]).isNone &&
+    (compare .gt (.finite carrier) [tag,tag]).isNone &&
+    !(Opcode.compare (p := .execution) .le .bool).valid env &&
+    !(Opcode.compare (p := .execution) .lt (.finite carrier)).valid env &&
+    !(Opcode.compare (p := .execution) .eq (.pair .nat)).valid env)
+
 end VastitasOracle.MidIR.Regression

@@ -92,8 +92,8 @@ private def localWork (exact : Bool) (s : Sizes) : Indexed.Core.Term → Work
   | .binary op a b _ =>
     match op with
     | .eq | .ne | .and | .or => atom 1 + localWork exact s a + localWork exact s b
-    | .add | .sub | .mul | .div => if exact then atom 1 + localWork exact s a + localWork exact s b else atom outside
-    | _ => atom outside
+    | .add | .sub | .mul | .div | .lt | .le | .gt | .ge =>
+      if exact then atom 1 + localWork exact s a + localWork exact s b else atom outside
   | .call _ args [] _ => args.foldl (fun w t => w + localWork exact s t) (atom 1 s.symbols)
   | .scope body | .ascribe _ body => atom 1 + localWork exact s body
   | .letE _ a b => atom 1 + localWork exact s a + localWork exact s b

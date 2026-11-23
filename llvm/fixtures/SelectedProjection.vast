@@ -1,0 +1,10 @@
+fn left(p: Pair<Int>) -> Int { pair_first(p) }
+fn right(p: Pair<Int>) -> Int { pair_second(p) }
+
+fn select_field(x: Int, y: Int) -> Int { left(pair(x, y)) }
+contribution second_field : select_field {
+    fn select_field(x: Int, y: Int) requires (HasEq, HasEq) -> Int { right(pair(x, y)) }
+}
+assemble select_field { apply second_field; }
+
+fn main() -> Int { select_field(7, 19) }

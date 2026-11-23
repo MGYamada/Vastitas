@@ -353,6 +353,21 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(run.returncode, 1)
         self.assertIn("not release acceptance", run.stderr)
 
+    def test_pair_alternatives_cover_both_element_types_and_each_field(self):
+        ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
+        for form in ["pair", "project"]:
+            entry = next(r for r in ledger["coverage"] if r["origin"] == "VastitasKernel.Indexed.Core.Term." + form)
+            opcodes = [op.removeprefix("midir.") for op in entry["planned_opcode"]]
+            compiled = {"origin": entry["origin"], "opcode": opcodes, "theorem": entry["evidence"][0]}
+            guard.check_lowerings({"coverage": [entry]}, [compiled])
+            for bad in [opcodes[0], opcodes[:-1], opcodes[::-1], opcodes + [opcodes[0]], [None, 1]]:
+                with self.subTest(form=form, bad=bad), self.assertRaises(guard.CoverageError):
+                    guard.check_lowerings({"coverage": [entry]}, [dict(compiled, opcode=bad)])
+            entry["planned_opcode"].reverse()
+            with self.assertRaisesRegex(guard.CoverageError, "unknown opcode alternatives"):
+                guard.validate(ledger, ledger["schema"])
+            entry["planned_opcode"].reverse()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -32,6 +32,14 @@ def run(work, suite, frontend):
                 raise
             print(f"{label} rejected ({rejection})", flush=True)
             return report, None
+        finally:
+            # Input and assembly replays retain the official sealed candidate,
+            # revision, capture and .ll. The boxed suite also inspects the exports.
+            if suite in {"inputs", "assembly"}:
+                for name in ("authority.ndjson", "generated.ndjson", "Authority.olean", "Certificate.olean"):
+                    (private / name).unlink(missing_ok=True)
+                if candidate is not None:
+                    (private / "sealed.ndjson").unlink(missing_ok=True)
         require(rejection is None, f"{label} accepted an invalid candidate")
         print(f"{label} passed ({report['bytes']} LLVM bytes, "
               f"{report['exported_declarations']} exported declarations)", flush=True)
@@ -54,6 +62,21 @@ def run(work, suite, frontend):
                 and checked["integer_result"] == "42", "wrong assembled pair method or entry value")
         require((pair_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/boxed-pairs.ll").read_bytes(),
                 "pair certificate differs from the retained LLVM module")
+        projection = (verify.ROOT / "llvm/fixtures/SelectedProjection.vast").read_text()
+        source.write_text(projection)
+        selected, _ = check("selected-projection", "official")
+        selection = work / "selected-projection"
+        peer, _ = check("projection-fast", "fast", candidate=selection / "sealed.ndjson")
+        require(selected["integer_result"] == "19" and selected["functions"] == 5
+                and selected["certificate"] == peer["certificate"]
+                and (selection / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/selected-projection.ll").read_bytes(),
+                "the assembled method must select the second pair field")
+        source.write_text(projection.replace("apply second_field;", ""))
+        default, _ = check("default-projection", "official")
+        require(default["integer_result"] == "7" and default["revision_sha256"] != selected["revision_sha256"],
+                "the default method must select the first pair field")
+        check("stale-projection", "fast", candidate=selection / "sealed.ndjson",
+              rejection="declaration environment differs")
         conversion_source = (verify.ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
         source.write_text(conversion_source)
         converted, _ = check("conversion", "official")

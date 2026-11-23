@@ -1,6 +1,7 @@
 import VastitasOracle.LiteralCoverage
 import VastitasOracle.FiniteOpcodeCoverage
 import VastitasOracle.ConversionCoverage
+import VastitasOracle.PairCoverage
 import VastitasOracle.BindingCoverage
 import Lean.Data.Json
 
@@ -26,9 +27,14 @@ def main : IO Unit := do
   let call := row staticCallRegistryRow ``VastitasOracle.MidIR.static_call_constructor_coverage
   let binding (origin proof : Name) := Json.mkObj [
     ("origin", toJson origin.toString), ("opcode", Json.null), ("theorem", toJson proof.toString)]
+  let alternatives (origin : Name) (tags : List String) (proof : Name) := Json.mkObj [
+    ("origin", toJson origin.toString), ("opcode", toJson tags), ("theorem", toJson proof.toString)]
+  let pairs := [
+    alternatives ``Core.Term.pair VastitasOracle.MidIR.pairConstructionTags ``VastitasOracle.MidIR.pair_constructor_coverage,
+    alternatives ``Core.Term.project VastitasOracle.MidIR.pairProjectionTags ``VastitasOracle.MidIR.projection_constructor_coverage]
   let bindings := [
     binding ``Core.Term.variable ``VastitasOracle.MidIR.variable_constructor_coverage,
     binding ``Core.Term.scope ``VastitasOracle.MidIR.scope_constructor_coverage,
     binding ``Core.Term.ascribe ``VastitasOracle.MidIR.ascription_constructor_coverage,
     binding ``Core.Term.letE ``VastitasOracle.MidIR.let_constructor_coverage]
-  IO.println (toJson (literals ++ [finite, lookup, call, conversion] ++ bindings)).compress
+  IO.println (toJson (literals ++ [finite, lookup, call, conversion] ++ pairs ++ bindings)).compress

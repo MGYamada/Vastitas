@@ -96,6 +96,24 @@ theorem assembled_conversion_verified : conversionBytes = assembledConversion.pr
 
 theorem assembled_conversion_result : assembledConversion.entryValue = some (2^128 + 43) := by rfl
 
+/-- Both scalar methods construct the pair in argument order. The assembled
+method calls the second projection and its retained sibling calls the first. -/
+def selectedProjection : ExactProgram.Code :=
+  let project := fun field => ExactProgram.Function.mk [.pair .int] .int
+    [.primitive (.apply (.project .int field) [0])] 1
+  let select := fun target => ExactProgram.Function.mk [.int,.int] .int
+    [.primitive (.apply (.pair .int) [0,1]), .invoke target [2]] 3
+  let entry : ExactProgram.Function := ⟨[],.int,[.primitive (.int 7), .primitive (.int 19), .invoke 2 [0,1]],2⟩
+  ⟨header, #[project true, project false, select 1, entry, select 0], 3⟩
+
+def selectedProjectionBytes := corpus_bytes "src/selected-projection.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem selected_projection_verified : selectedProjectionBytes = selectedProjection.print := by rfl
+
+theorem selected_projection_result : selectedProjection.entryValue = some 19 := by rfl
+
 def boxedPairs : ExactProgram.Code :=
   let op := fun code refs => ExactProgram.Instruction.primitive (.apply code refs)
   let neighbors : ExactProgram.Function := ⟨[.nat],.pair .nat,
@@ -663,6 +681,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("ordered-calls.ll", forProgram ordered_calls_verified),
    ("assembled-conversion.ll", forProgram assembled_conversion_verified),
    ("boxed-pairs.ll", forProgram boxed_pairs_verified),
+   ("selected-projection.ll", forProgram selected_projection_verified),
    ("singleton-power.ll", forProgram singleton_power_verified),
    ("borrowed-operator.ll", forProgram borrowed_operator_verified),
    ("uncalled-operator.ll", forProgram uncalled_operator_verified),
@@ -722,6 +741,9 @@ def main (args : List String) : IO Unit := do
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.uncalledOperatorBytes == some uncalled &&
       uncalled.entryValue == some 7 do
     throw (IO.userError "uncalled-operator.ll: wrong retained functions or entry result")
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.selectedProjectionBytes ==
+      some Vastitas.LLVMCorpus.selectedProjection do
+    throw (IO.userError "selected-projection.ll: different construction, field or method")
   let pairs := Vastitas.LLVMCorpus.boxedPairs
   let pairText := String.fromUTF8! ⟨Vastitas.LLVMCorpus.pairBytes.toArray⟩
   unless VastitasKernel.LLVM.ExactProgram.parse pairText.toUTF8.data.toList == some pairs && pairs.entryValue == some 42 do

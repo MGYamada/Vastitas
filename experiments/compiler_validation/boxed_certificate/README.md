@@ -44,6 +44,11 @@ to `descriptor(X)`. Each edit invalidates the earlier certificate. [Ordered call
 
 The assembly suite replays the same certificate in both modes for a three-package program. Six physical files fix the owner of the family, the contribution selected by the borrow block, and the protected `Int + Int` operation. The 2,051 certified LLVM bytes contain the selected method and all four specializations of its unselected sibling. [Assembled program](../../../llvm/fixtures/borrowed-operator/main.vast) · [Checked LLVM](../../../llvm/src/borrowed-operator.ll)
 
+The selected-projection fixture retains both pair field functions and both scalar methods.
+The assembled contribution returns the second element, 19, while the default returns the first, 7.
+Official and Fast verify the 1,968-byte selected module. Changing the assembly invalidates its certificate.
+[Pair field selection](../../../llvm/fixtures/SelectedProjection.vast) · [Checked LLVM](../../../llvm/src/selected-projection.ll)
+
 The pair fixture uses an edition 2026 manifest and one source file. Both certificate workers check the same five-function module. The unbounded integer calculated by the selected method's caller is 42. Its bytes retain the default method and the selected contribution. [Pair-valued assembly](../../../llvm/fixtures/BoxedPairs.vast) · [Checked LLVM](../../../llvm/src/boxed-pairs.ll)
 
 The assembly suite also checks a `Nat → Int` method selected by `apply exact`.

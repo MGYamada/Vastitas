@@ -195,6 +195,17 @@ def native(args, work):
         run([leanc, *sdk, "shim.o", obj, "-o", "pairs"])
         if subprocess.run([work / "pairs"], cwd=work).returncode != expected % 256:
             raise ValueError("pair-returning method selected the wrong exit")
+    projection = (ROOT / "llvm/fixtures/SelectedProjection.vast").read_text()
+    (work / "ProjectionControl.lean").write_bytes((ROOT / "llvm/fixtures/SelectedProjectionControl.lean").read_bytes())
+    run([prefix / "bin/lean", "-c", "ProjectionControl.c", "ProjectionControl.lean"])
+    run([leanc, *sdk, "ProjectionControl.c", "-o", "projection-control"])
+    for source, obj, field, expected in [(projection, "applied-projection.o", ["second"], 19),
+                                         (projection.replace("apply second_field;", ""), "default-projection.o", [], 7)]:
+        emit(source, obj)
+        reference = subprocess.run([work / "projection-control", *field], cwd=work).returncode
+        if reference != expected:
+            raise ValueError("compiled Lean selected the wrong field")
+        check_integer(obj, reference)
     conversion = (ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
     if conversion.count("apply exact;") != 1:
         raise ValueError("expected one applied conversion method")
@@ -304,6 +315,7 @@ def main():
     print(f"{programs} hosted executable statuses matched generated Lean and independent expectations")
     print("both pair exports matched compiled Lean on heap and immediate values; distinct and aliased field counts matched before and after release")
     print("pair-returning assembly selected full integer results 42 and 2^128 + 43")
+    print("selected and default pair projections matched compiled Lean at 19 and 7")
     print("hosted result probes matched each full integer and distinguished a value larger by 256")
     print("assembled integer entry returned 42 and rejected the sibling method in the expected revision")
     print("called and uncalled cross-package methods matched the generated Lean controls at exit 42 and 7")

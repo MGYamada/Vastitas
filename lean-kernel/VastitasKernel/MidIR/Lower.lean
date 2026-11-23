@@ -175,6 +175,59 @@ private theorem lowerArguments_in_order (resolve : Nat → Option CallTarget) (c
   | nil => rfl
   | cons arg rest ih => simp [lowerArguments, List.mapM_cons, ih]
 
+/-- Lower a homogeneous pair left to right. Both operand actions may create
+blocks. Only the live exit of the second operand receives the pair instruction. -/
+def AppendsPair (element : PairElem) (left right : Core.Term) : Prop :=
+  ∀ resolve ctx blocks,
+    (lowerTerm resolve ctx (.pair element left right)).run blocks =
+      (do let (a, intermediate) ← (lowerTerm resolve ctx left).run blocks
+          let (b, after) ← (lowerTerm resolve ctx right).run intermediate
+          (emit (.exactOp (.pair element)) [a,b]).run after) ∧
+    ∀ a intermediate b (prior : Array Draft) (params : Array Ty) (ops : Array (Op .optimization)),
+      (lowerTerm resolve ctx left).run blocks = some (a, intermediate) →
+      (lowerTerm resolve ctx right).run intermediate = some (b, prior.push {params, ops}) →
+      (lowerTerm resolve ctx (.pair element left right)).run blocks =
+        some (⟨prior.size, params.size + ops.size⟩,
+          prior.push {params, ops := ops.push ⟨.exactOp (.pair element), [a,b]⟩})
+
+theorem appends_pair (element : PairElem) (left right : Core.Term) : AppendsPair element left right := by
+  intro resolve ctx blocks
+  constructor
+  · rfl
+  · intro a intermediate b prior params ops first second
+    change ((lowerTerm resolve ctx left).run blocks >>= fun (x, state) =>
+      (lowerTerm resolve ctx right).run state >>= fun (y, after) =>
+        (emit (.exactOp (.pair element)) [x,y]).run after) = _
+    rw [first]
+    change ((lowerTerm resolve ctx right).run intermediate >>= fun (y, after) =>
+      (emit (.exactOp (.pair element)) [a,y]).run after) = _
+    rw [second]
+    exact emit_live _ _ _ _ _
+
+/-- Project a field from the actual operand reference, preserving the element
+type and the field selector when that operand introduces a join. -/
+def AppendsProjection (element : PairElem) (first : Bool) (arg : Core.Term) : Prop :=
+  ∀ resolve ctx blocks,
+    (lowerTerm resolve ctx (.project element first arg)).run blocks =
+      (do let (ref, after) ← (lowerTerm resolve ctx arg).run blocks
+          (emit (.exactOp (.project element first)) [ref]).run after) ∧
+    ∀ ref (prior : Array Draft) (params : Array Ty) (ops : Array (Op .optimization)),
+      (lowerTerm resolve ctx arg).run blocks = some (ref, prior.push {params, ops}) →
+      (lowerTerm resolve ctx (.project element first arg)).run blocks =
+        some (⟨prior.size, params.size + ops.size⟩,
+          prior.push {params, ops := ops.push ⟨.exactOp (.project element first), [ref]⟩})
+
+theorem appends_projection (element : PairElem) (first : Bool) (arg : Core.Term) :
+    AppendsProjection element first arg := by
+  intro resolve ctx blocks
+  constructor
+  · rfl
+  · intro ref prior params ops lowered
+    change ((lowerTerm resolve ctx arg).run blocks >>= fun (r, after) =>
+      (emit (.exactOp (.project element first)) [r]).run after) = _
+    rw [lowered]
+    exact emit_live _ _ _ _ _
+
 /-- The conversion evaluates its operand once, threading any blocks it
 introduces. On a live exit it appends one instruction using the returned
 reference. If lowering the operand fails, the entire action fails. -/
@@ -354,6 +407,30 @@ theorem lower_nat_to_int_parameter (env : Environment) (key : FunctionSource.Com
   rw [forwards_scope (.natToInt (.variable symbol ann)) resolve ctx, step]
   set_option maxRecDepth 8192 in
     with_unfolding_all rfl
+
+/-- A method projecting a field of its pair parameter lowers to one
+instruction even when reached through an assembled specialization. -/
+theorem lower_project_parameter (env : Environment) (key : FunctionSource.Compiler.Key)
+    (id : Nat) (owner : Namespace.Owner) (symbol : Nat) (span : Span) (resolve : Nat → Option CallTarget)
+    (e : PairElem) (first : Bool) :
+    let ann : Core.Result := ⟨.pure (.pair e), none⟩
+    let projection := Core.Term.project e first (.variable symbol ann)
+    lowerLinkedFunction env key ⟨id, owner, [⟨symbol, ann⟩], projection.result.type, .scope projection, span⟩ resolve =
+      some ⟨⟨owner⟩, id, key, #[.pair e], pairScalar e,
+        #[⟨#[.pair e], #[⟨.exactOp (.project e first), [⟨0,0⟩]⟩], .ret ⟨0⟩ ⟨0,1⟩⟩]⟩ := by
+  dsimp only
+  let ann : Core.Result := ⟨.pure (.pair e), none⟩
+  let ctx : List (Nat × Ref) := [(symbol, ⟨0,0⟩)]
+  let start : Array Draft := #[{params := #[.pair e]}]
+  have arg : (lowerTerm resolve ctx (.variable symbol ann)).run start = some (⟨0,0⟩, start) := by
+    rw [reads_variable symbol ann resolve ctx start]
+    simp [ctx]
+  have step := (appends_projection e first (.variable symbol ann) resolve ctx start).2
+    ⟨0,0⟩ #[] #[.pair e] #[] arg
+  simp [lowerLinkedFunction, Ty.ofCore]
+  rw [forwards_scope (.project e first (.variable symbol ann)) resolve ctx, step]
+  set_option maxRecDepth 8192 in
+    cases e <;> cases first <;> with_unfolding_all rfl
 
 /-- Full modules keep the original dense Core symbol numbers. -/
 def lowerFunction (env : Environment) (origin : FunctionSource.Compiler.Key)

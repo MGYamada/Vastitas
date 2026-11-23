@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
     "base_commit": "af43ec71a4ba34bc1f9b05e5950552b4be1ffa8c",
@@ -5266,11 +5266,16 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.pair",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.pair",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": [
+        "midir.nat_pair.v1",
+        "midir.int_pair.v1"
+      ],
+      "reason": "The builder threads both operand actions in source order, then appends the typed pair instruction to the active block. Both phases use the Core constructor semantics.",
+      "evidence": [
+        "VastitasOracle.MidIR.pair_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.primitive",
@@ -5282,11 +5287,18 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.project",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.project",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": [
+        "midir.nat_pair_first.v1",
+        "midir.nat_pair_second.v1",
+        "midir.int_pair_first.v1",
+        "midir.int_pair_second.v1"
+      ],
+      "reason": "The builder uses the pair operand reference, element type and selected field. Both phases agree with Core projection for either field and reject wrong operand types or arities.",
+      "evidence": [
+        "VastitasOracle.MidIR.projection_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.scope",

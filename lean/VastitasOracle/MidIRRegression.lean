@@ -73,6 +73,38 @@ post-join Nat, including a value too large for a machine integer. -/
 
 /- Argument order remains observable even when both formal types are the
 same nominal carrier. Run the exact checked Core and both linked phases. -/
+/- Both pair operands introduce a join. The second projection must read
+the pair constructed from those two SSA results, in their original order. -/
+#eval VastitasKernel.RegressionSupport.check "MidIR pair operands"
+    "distinct joins preserve field order, signed heap values and pair element types" (Id.run do
+  let int : Result := ⟨.pure .int, none⟩
+  let large : Int := 2^128 + 43
+  let branch := fun symbol x y => Term.branch (.variable symbol bool) (.integer x) (.integer y) int
+  for first in [true, false] do
+    let pair := Term.pair .int (branch 1 (-large) 7) (branch 2 19 large)
+    let source : Core.Function := ⟨0, owner "field", [⟨1,bool⟩, ⟨2,bool⟩], .pure .int, .project .int first pair, {}⟩
+    let m : Core.Module := ⟨⟨env, [], []⟩, [source], none⟩
+    let .ok checked := Typing.checkModule m false | return false
+    let some opt := VastitasKernel.MidIR.lowerFunction env ⟨0,[]⟩ source | return false
+    let some exe := opt.execute env | return false
+    let some join := opt.blocks[6]? | return false
+    let #[make, read] := join.ops | return false
+    unless make.code.tag == "int_pair.v1" && make.args == [⟨3,0⟩, ⟨6,0⟩] &&
+        read.args == [⟨6,1⟩] && read.code.tag == (if first then "int_pair_first.v1" else "int_pair_second.v1") do
+      return false
+    for a in [true, false] do
+      for b in [true, false] do
+        let args := [Value.boolean a, .boolean b]
+        let some values := bindArguments source.parameters args | return false
+        let expected := some (Value.integer (if first then (if a then -large else 7) else (if b then 19 else large)))
+        unless eval checked.module 12 values source.body == expected && run env opt args == expected &&
+            run env exe args == expected do return false
+    for bad in [#[{make with args := [⟨3,0⟩]}, read],
+        #[make, {read with code := .exactOp (.project .nat first)}],
+        #[make, {read with args := [⟨6,0⟩]}]] do
+      if ({opt with blocks := opt.blocks.set! 6 {join with ops := bad}}.execute env).isSome then return false
+  return true)
+
 #eval VastitasKernel.RegressionSupport.check "MidIR static call regression"
     "a two-argument call forwards the chosen operand order" (Id.run do
   let pick : Core.Function := ⟨0, owner "first", [⟨10,color⟩,⟨11,color⟩], color.type,

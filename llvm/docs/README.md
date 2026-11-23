@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains 32 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 24. Replay parses each of those 24 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains 34 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 26. Replay parses each of those 26 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -10,7 +10,8 @@ The corpus contains 32 complete LLVM assembly files from edition 2026 Vastitas s
 | [folded-arithmetic.ll](../src/folded-arithmetic.ll) · 374 bytes | [FoldedArithmetic.vast](../fixtures/FoldedArithmetic.vast) | The source selects division for the ordered operands `(Nat, Int)`. Its Euclidean quotient for 7 and −3 is −2. Adding 12 gives the constant returned by `ret i32 u0x0A`. | `folded_arithmetic_verified` |
 | [boxed-program.ll](../src/boxed-program.ll) · 1,830 bytes | [BoxedProgram.vast](../fixtures/BoxedProgram.vast) | Four functions pass a borrowed heap integer through an identity, doubling and mixed division. The hosted entry initializes the runtime and consumes the owned result. | `boxed_program_verified` |
 | [ordered-calls.ll](../src/ordered-calls.ll) · 2,311 bytes | [OrderedCalls.vast](../fixtures/OrderedCalls.vast) | Two nested calls supply the left and right operands of an assembled subtraction method. The entry returns 23. | `ordered_calls_verified` |
-| [assembled-conversion.ll](../src/assembled-conversion.ll) · 1,376 bytes | [AssembledConversion.vast](../fixtures/AssembledConversion.vast) | An assembled `Nat → Int` method returns 2¹²⁸ + 43. Its sibling of the same signature returns zero. |
+| [assembled-conversion.ll](../src/assembled-conversion.ll) · 1,376 bytes | [AssembledConversion.vast](../fixtures/AssembledConversion.vast) | An assembled `Nat → Int` method returns 2¹²⁸ + 43. Its sibling of the same signature returns zero. | `assembled_conversion_verified` |
+| [selected-projection.ll](../src/selected-projection.ll) · 1,968 bytes | [SelectedProjection.vast](../fixtures/SelectedProjection.vast) | The assembled scalar method constructs `pair(7, 19)` and calls the second-field function. Its retained sibling calls the first. | `selected_projection_verified` |
 | [boxed-pairs.ll](../src/boxed-pairs.ll) · 4,157 bytes | [BoxedPairs.vast](../fixtures/BoxedPairs.vast) | Five functions construct and project homogeneous integer pairs. The selected method returns the large negative integer in its first field. Swapping the fields gives 42 at the entry. | `boxed_pairs_verified` |
 | [singleton-power.ll](../src/singleton-power.ll) · 1,977 bytes | [SingletonPower.vast](../fixtures/SingletonPower.vast) | One function squares a boxed integer eight times, divides by seven and passes the owned quotient to the hosted entry. | `singleton_power_verified` |
 | [borrowed-operator.ll](../src/borrowed-operator.ll) · 2,051 bytes | [Borrowed operator package](../fixtures/borrowed-operator/Vastitas.toml) | The caller borrows an edit grant on the imported family. Its selected implementation adds 40 and 2. The module also contains four unselected specializations of the method that returns zero. | `borrowed_operator_verified` |
@@ -341,6 +342,11 @@ both wrappers, with the operands in source order. This comparison covers
 argument erasure and order. The Vastitas certificate checks the boxed integer
 program against its own runtime ABI. [Certificate regression](../../experiments/compiler_validation/boxed_certificate/regression.py) · [Lean external call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L671)
 
+The selected-projection module calls the versioned boxed pair shim and its first- or second-field entry.
+The linked method proof covers both integer sorts and every argument value.
+Removing the assembly's `apply` selects the sibling that reads field zero.
+[Checked pair method](../fixtures/SelectedProjection.vast) · [Linked projection theorem](../../lean/VastitasOracle/PairCoverage.lean)
+
 The physical primitive comparison covers a used coordinate as well. In the
 frames package, `frame_component(Coords, 0)` and `frame_component(Coords, 1)`
 selected 7 and 19 from the same frame vector on the Lean/C native path.
@@ -351,7 +357,7 @@ In a separate two-field `Nat × Nat` control, Lean-generated C used indices
 and 16 on macOS arm64. The assembled and verified module linked and returned
 the same two coordinates. The control compares field selection. Frame layout
 and the mathematical interpretation of its coordinates belong to the Vastitas
-checker. [Physical primitive regressions](../../tests/indexed_definition_source.rs) · [Pinned Lean projection emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L796-L810)
+checker. [Lean field projection control](../fixtures/SelectedProjectionControl.lean) · [Physical primitive regressions](../../tests/indexed_definition_source.rs) · [Pinned Lean projection emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L796-L810)
 
 The two-object isomorphism module passes the two arrows to the composition
 functions in opposite orders. Its nested conditions join the exit values 42,

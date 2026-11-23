@@ -34,6 +34,7 @@ theorem wire_from_checked {j : Json} {p : ResourceSource.Program} {main : Bool}
     (trace : (AssemblySource.check j c.pureProgram.authority.headers.assembled.prepared.core.assembly).isOk = true)
     (edits : EditSourceFiles.check j p = .ok ())
     (definitions : ResourceSource.Wire.definitionsMatch c = true)
+    (packages : ResourceSource.Wire.packageShapesMatch c = true)
     (revision : ResourceSource.Wire.RevisionMatches j c) :
     (ResourceSource.Wire.check j main).isOk = true := by
   unfold ResourceSource.Wire.check
@@ -55,7 +56,8 @@ theorem wire_from_checked {j : Json} {p : ResourceSource.Program} {main : Bool}
       | ok result =>
         have hrev : ResourceSource.Wire.RevisionMatches j r.value := same ▸ revision
         have hdefs : ResourceSource.Wire.definitionsMatch r.value = true := same ▸ definitions
-        simp [hdefs,hrev,bind,Except.bind]
+        have hpackages : ResourceSource.Wire.packageShapesMatch r.value = true := same ▸ packages
+        simp [hdefs,hpackages,hrev,bind,Except.bind]
         split
         · rename_i _ mismatch
           rw [edits] at mismatch
@@ -112,6 +114,12 @@ theorem literalDefinitions (c : ResourceSource.Checked candidate true) :
   change ([] : List Indexed.Entry).isSublist _ = true
   simp
 
+/-- The literal contains no package cases to match against the returned Core. -/
+theorem literalPackages (c : ResourceSource.Checked candidate true) :
+    ResourceSource.Wire.packageShapesMatch c = true := by
+  change ([] : List Indexed.Core.NamedPackage).isSublist _ = true
+  simp
+
 theorem checkedIf (lexical : AssemblyText.parse text 0 = .ok []) (c : ResourceSource.Checked candidate true)
     (accepted : ResourceSource.check candidate true = .ok c)
     (cost : 34 + ResourceSource.Wire.namespaceUnits c ≤ Limits.namespaceProgramWork)
@@ -125,6 +133,7 @@ theorem checkedIf (lexical : AssemblyText.parse text 0 = .ok []) (c : ResourceSo
     exact eventsChecked lexical _
   · exact physicalEdits
   · exact literalDefinitions c
+  · exact literalPackages c
   · unfold ResourceSource.Wire.RevisionMatches
     change True
     trivial

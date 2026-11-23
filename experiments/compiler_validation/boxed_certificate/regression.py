@@ -66,11 +66,17 @@ def run(work, suite, frontend):
         body = "{ int(x) }"
         require(conversion_source.count(body) == 1, "expected one selected conversion body")
         source.write_text(conversion_source.replace(body, "{ let y: Nat = x; int(y) }"))
-        stale, _ = check("conversion-stale-body", "fast", candidate=conversion / "sealed.ndjson",
-                         rejection="declaration environment differs")
-        require((work / "conversion-stale-body/preview.ll").read_bytes() == (conversion / "preview.ll").read_bytes()
-                and stale["revision_sha256"] != converted["revision_sha256"],
+        bound, _ = check("conversion-bound-local", "official")
+        bound_dir = work / "conversion-bound-local"
+        require((bound_dir / "preview.ll").read_bytes() == (conversion / "preview.ll").read_bytes()
+                and bound["integer_result"] == converted["integer_result"]
+                and bound["revision_sha256"] != converted["revision_sha256"],
                 "the method-local binding must preserve the LLVM bytes and change the function revision")
+        source.write_text(conversion_source)
+        stale, _ = check("conversion-stale-body", "fast", candidate=bound_dir / "sealed.ndjson",
+                         rejection="declaration environment differs")
+        require(stale["revision_sha256"] == converted["revision_sha256"],
+                "stale replay must check the restored unbound method")
         check_borrowed_operator(work, args, check)
         return
 

@@ -49,8 +49,8 @@ The assembly suite also checks a `Nat → Int` method selected by `apply exact`.
 The module contains the selected conversion, the entry, and its zero-returning
 sibling. Both certificate workers check the full integer 2¹²⁸ + 43 and all
 1,376 bytes. Binding the argument to a local before conversion preserves every
-LLVM byte. Replaying the original certificate then fails because its function revision
-identifies the previous source. Native integer probes distinguish this result from 2¹²⁸ + 299,
+LLVM byte. Removing that local and replaying its certificate fails because the
+function revision identifies the body that introduced the local. Native integer probes distinguish this result from 2¹²⁸ + 299,
 which has the same exit status. [Conversion source](../../../llvm/fixtures/AssembledConversion.vast) · [LLVM module](../../../llvm/src/assembled-conversion.ll)
 
 The same suite checks a second package that seals the family and returns 7 without calling it. Official and Fast verify the 1,829-byte module, including all five method specializations and the entry. [Uncalled operator package](../../../llvm/fixtures/uncalled-operator/main.vast) · [Checked LLVM](../../../llvm/src/uncalled-operator.ll)

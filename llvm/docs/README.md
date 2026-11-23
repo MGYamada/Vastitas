@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains 35 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 27. Replay parses each of those 27 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains 36 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 28. Replay parses each of those 28 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -17,6 +17,7 @@ The corpus contains 35 complete LLVM assembly files from edition 2026 Vastitas s
 | [singleton-power.ll](../src/singleton-power.ll) · 1,977 bytes | [SingletonPower.vast](../fixtures/SingletonPower.vast) | One function squares a boxed integer eight times, divides by seven and passes the owned quotient to the hosted entry. | `singleton_power_verified` |
 | [borrowed-operator.ll](../src/borrowed-operator.ll) · 2,051 bytes | [Borrowed operator package](../fixtures/borrowed-operator/Vastitas.toml) | The caller borrows an edit grant on the imported family. Its selected implementation adds 40 and 2. The module also contains four unselected specializations of the method that returns zero. | `borrowed_operator_verified` |
 | [uncalled-operator.ll](../src/uncalled-operator.ll) · 1,829 bytes | [Uncalled operator package](../fixtures/uncalled-operator/Vastitas.toml) | The entry returns 7. Sealing the borrowed family retains its addition method and four fallback specializations. | `uncalled_operator_verified` |
+| [integer-predicate.ll](../src/integer-predicate.ll) · 873 bytes | [IntegerPredicate.vast](../fixtures/IntegerPredicate.vast) | Subtracts 256 from the first boxed integer, compares it with the second, releases both owned temporaries and returns a 32-bit Boolean. | `integer_predicate_verified` |
 | [boxed-arithmetic.ll](../src/boxed-arithmetic.ll) · 1,021 bytes | [BoxedArithmetic.vast](../fixtures/BoxedArithmetic.vast) | The two borrowed arguments determine the result. The function subtracts 5 from the Nat, divides by the Int, adds the quotient to itself, releases three intermediate references and returns an owned Int. | `boxed_arithmetic_verified` |
 | [assembled-bool.ll](../src/assembled-bool.ll) · 688 bytes | [AssembledBool.vast](../fixtures/AssembledBool.vast) | `main` calls the selected Boolean method and branches on the result. The two incoming edges supply 42 and 7 to the `phi`. The selected contribution returns its argument. The nonselected method also has a definition and returns false. | `assembled_bool_verified` |
 | [literal-comparison.ll](../src/literal-comparison.ll) · 924 bytes | [LiteralComparison.vast](../fixtures/LiteralComparison.vast) | The selected method distinguishes −(2¹²⁸+1) from −1. The fallback compares 0 with 256. Both pairs share their low byte. The two Boolean results survive in separate methods. | `literal_comparison_verified` |
@@ -42,7 +43,7 @@ The corpus contains 35 complete LLVM assembly files from edition 2026 Vastitas s
 | [s3-composition.ll](../src/s3-composition.ll) · 2,621 bytes | [S3Composition.vast](../fixtures/S3Composition.vast) | Two independently checked ordinals index the composition on six permutations. Row 1, column 2 gives ordinal 4. Reversing the inputs gives 3. | `s3_composition_verified` |
 | [static-call.ll](../src/static-call.ll) · 709 bytes | [CallComparison.vast](../../experiments/compiler_validation/llvm/CallComparison.vast) | The module defines the lookup and a second export, `@vq_forward`. Its single `call i32 @vq_lookup(i32 %tag)` passes the original tag and returns the result. | `static_call_verified` |
 
-Each file can be read or assembled independently. The 22 entry modules export `i32 @main()`. Four unary libraries export `i32 @vq_lookup(i32)`. The binary library exports `i32 @vq_lookup2(i32, i32)`. The call example also exports `i32 @vq_forward(i32)`. The boxed library exports `ptr @vq_exact(ptr, ptr)`. Its signature comment identifies the mathematical argument and result types.
+Each file can be read or assembled independently. The 29 entry modules export `i32 @main()`. Four unary libraries export `i32 @vq_lookup(i32)`. The binary library exports `i32 @vq_lookup2(i32, i32)`. The call example also exports `i32 @vq_forward(i32)`. The two exact libraries export `ptr @vq_exact(ptr, ptr)` for arithmetic and `i32 @vq_exact(ptr, ptr)` for the predicate. Their signature comments identify the mathematical argument and result types.
 
 The printer spells each target-header byte as an LLVM hexadecimal escape (for example, `\61` is `a`). Within the switch, `u0x0002` is the unsigned ordinal 2. The `i32 -1` at `%miss` has the unsigned value 4,294,967,295.
 
@@ -458,8 +459,8 @@ reverse order. The public replay covers six comparisons for each of Nat and
 Int, including equal arguments and distinct integers with identical low bytes.
 It checks the selected callee, SSA operand order, common function revision
 and complete Core and MidIR observations. The macOS Lean/C executables returned
-42 and 7 for the two selections with either numeric type. Dynamic integer
-comparisons still report `E_UNSUPPORTED` at the Vastitas LLVM boundary.
+42 and 7 for the two selections with either numeric type. These hosted programs
+still report `E_UNSUPPORTED` at the Vastitas LLVM boundary.
 [Source](../fixtures/ComparisonMethod.vast) · [Public replay](../fixtures/ComparisonMethodReplay.lean)
 
 Lean 4.35.0's external-call emitter builds the function type and call from
@@ -473,3 +474,15 @@ pinned Lean installation. The native qualification runs these 48 generated-C
 comparisons on both hosts. Its separate upstream emission record attempts
 source-to-bitcode and disassembly when the installed Lean exposes LLVM.
 [Native qualification](../check_exact_native.py) · [Upstream qualification](../../experiments/compiler_validation/llvm/run.py) · [Lean comparison control](../fixtures/ComparisonMethodControl.lean) · [Pinned external-call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L673)
+
+
+For a single exported straight-line function, the Vastitas LLVM ABI passes
+each integer as a borrowed pointer. The comparison shim calls the pinned
+Lean runtime and widens its Boolean to `uint32_t`. Clang 23.1.4 emitted a
+`zeroext` return attribute for a C `uint8_t` on both macOS arm64 and Linux
+x86-64. A C `uint32_t` has the plain LLVM return type `i32` on both targets.
+For `a - 256 <= b`, the library releases the subtraction result and the
+literal after the comparison. The C caller receives 0 or 1 directly. On macOS, LLVM 23.1.4 assembled and verified the 897-byte Linux-targeted variant and emitted a 1,344-byte x86-64 ELF object.
+The qualification compiles all twelve Nat/Int predicates and checks the
+two input reference counts, including cases with aliased heap integers.
+[Complete LLVM file](../src/integer-predicate.ll) · [Caller and ownership probe](../fixtures/IntegerPredicateProbe.c)

@@ -1,0 +1,4 @@
+pub fn before(a: Int, b: Int) -> Bool {
+    let offset: Int = a - 256;
+    offset <= b
+}

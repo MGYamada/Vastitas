@@ -114,7 +114,7 @@ number = 751
 title = "Closed opcode registry"
 state = "open"
 depends = [750]
-remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Construction and both projections preserve the element sort and order for homogeneous Nat and Int pairs. The registry distinguishes instruction mappings from the five structural forms, which need no opcode. Static storage opcodes bind allocation and view operands, component tags and exact payloads. All six dynamic Nat and Int comparison signatures have MidIR denotations. Their boxed LLVM ABI, dynamic resource plans and numerical arithmetic still need release evidence."
+remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Construction and both projections preserve the element sort and order for homogeneous Nat and Int pairs. The registry distinguishes instruction mappings from the five structural forms, which need no opcode. Static storage opcodes bind allocation and view operands, component tags and exact payloads. All six dynamic Nat and Int comparison signatures have MidIR denotations. Straight-line library comparisons borrow both integers and return a 32-bit Boolean through the shim. Branches on those results in hosted boxed programs, dynamic resource plans and numerical arithmetic still need release evidence."
 
 [[issue]]
 number = 752

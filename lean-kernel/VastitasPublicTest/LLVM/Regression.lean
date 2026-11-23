@@ -150,4 +150,22 @@ private def boxed : ExactLibrary.Code :=
     unless changed != text && (ExactLibrary.parse changed.toUTF8.data.toList).isNone do return false
   return true)
 
+#eval RegressionSupport.check "scalar predicate ABI" "operand types, return width and exact cleanup" (Id.run do
+  let code : ExactLibrary.Code := ⟨header,[.int,.int],.bool,
+    [.int 256,.apply (.int .sub) [0,2],.compare .int .le 3 1],4⟩
+  unless ExactLibrary.parse code.print == some code && code.releases == [3,2] do return false
+  let unused : ExactLibrary.Code := ⟨header,[.nat,.nat],.nat,[.compare .nat .eq 0 1],0⟩
+  unless ExactLibrary.parse unused.print == some unused && unused.releases.isEmpty do return false
+  for wrong in [{code with resultType := .int}, {code with params := [.nat,.int]},
+                {code with steps := [.compare .int .lt 0 2]}, {unused with result := 2}] do
+    unless (ExactLibrary.parse wrong.print).isNone do return false
+  let some text := String.fromUTF8? ⟨code.print.toArray⟩ | return false
+  for (a,b) in [("declare i32","declare zeroext i8"),("ret i32","ret ptr"),
+                ("  ret i32","  call void @vastitas_release_v1(ptr %v4)\n  ret i32"),
+                ("  call void @vastitas_release_v1(ptr %v3)\n",""),
+                ("call i32 @vastitas_int_le_v1","call i32 @vastitas_nat_le_v1")] do
+    let changed := text.replace a b
+    unless changed != text && (ExactLibrary.parse changed.toUTF8.data.toList).isNone do return false
+  return true)
+
 end VastitasKernel.LLVM.Regression

@@ -373,6 +373,44 @@ fn boxed_integer_exports_bind_their_argument_order_and_full_revision() {
 }
 
 #[test]
+fn integer_predicate_binds_operand_order_and_scalar_result_to_its_revision() {
+    let s = Scratch::empty("integer predicate revision");
+    let source = include_str!("../llvm/fixtures/IntegerPredicate.vast");
+    let original = preview(&s, source);
+    success(&original);
+    let text = String::from_utf8(original.stdout).unwrap();
+    assert!(text.contains("define i32 @vq_exact(ptr %v0, ptr %v1)"));
+    assert!(text.contains("call i32 @vastitas_int_le_v1(ptr %v3, ptr %v1)"));
+    assert!(text.contains("ret i32 %v4"));
+
+    let revision = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&revision);
+    let saved = s.0.join("revision.json");
+    std::fs::write(&saved, revision.stdout).unwrap();
+
+    let changed = preview(&s, &source.replace("offset <= b", "b <= offset"));
+    success(&changed);
+    assert!(
+        String::from_utf8(changed.stdout)
+            .unwrap()
+            .contains("call i32 @vastitas_int_le_v1(ptr %v1, ptr %v3)")
+    );
+    let stale = s
+        .command("check", "app/Vastitas.toml")
+        .args(TARGET)
+        .arg("--expect-function-revision")
+        .arg(saved)
+        .output()
+        .unwrap();
+    expect_code(&stale, "E_FUNCTION_REVISION");
+    assert!(stale.stdout.is_empty());
+}
+
+#[test]
 fn boxed_program_preserves_call_targets_and_borrowed_returns() {
     let s = Scratch::empty("boxed integer module");
     let source = include_str!("../llvm/fixtures/BoxedProgram.vast");
@@ -690,13 +728,20 @@ fn llvm_preview_rejects_unsupported_bodies_and_stale_revisions_before_printing()
         "fn f(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { 7 }",
         "fn main() -> Int { let x = show!(-1); x }",
         "resource fn main() -> Int { value { if true { 3 } else { 4 } } }",
-        "pub fn pick(a: Bool) -> Bool { a }",
+        "pub fn pick(a: Bool) -> Bool { !a }",
     ] {
         let o = preview(&s, source);
         success(&s.command("check", "app/Vastitas.toml").output().unwrap());
         expect_code(&o, "E_UNSUPPORTED");
         assert!(o.stdout.is_empty(), "partial bytes for {source}");
     }
+    let identity = preview(&s, "pub fn pick(a: Bool) -> Bool { a }");
+    success(&identity);
+    let text = String::from_utf8(identity.stdout).unwrap();
+    assert!(text.contains("define i32 @vq_exact(i32 %v0)"));
+    assert!(text.contains("ret i32 %v0"));
+    assert!(!text.contains("vastitas_retain") && !text.contains("vastitas_release"));
+
     let original = "fn main() -> Int { 7 }";
     s.write_package("app", original, "");
     let rev = s

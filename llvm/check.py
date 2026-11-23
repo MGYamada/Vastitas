@@ -32,6 +32,7 @@ CASES = [
     Sample("singleton-power", HERE / "fixtures/SingletonPower.vast", "singleton_power"),
     Sample("borrowed-operator", HERE / "fixtures/borrowed-operator/Vastitas.toml", None),
     Sample("uncalled-operator", HERE / "fixtures/uncalled-operator/Vastitas.toml", None),
+    Sample("integer-predicate", HERE / "fixtures/IntegerPredicate.vast", "integer_predicate"),
     Sample("boxed-arithmetic", HERE / "fixtures/BoxedArithmetic.vast", "boxed_arithmetic"),
     Sample("assembled-bool", HERE / "fixtures/AssembledBool.vast", "assembled_bool"),
     Sample("structured-lookup", HERE / "fixtures/StructuredLookup.vast", "structured_lookup"),
@@ -300,7 +301,8 @@ def main():
     subprocess.run(["lake", "-d", "lean-kernel", "build", "vastitas-kernel"], cwd=ROOT, check=True)
     subprocess.run(["lake", "-d", "lean", "build", "VastitasOracle.CallFunction", "VastitasOracle.ExitFunction",
                     "VastitasOracle.DispatchFunction", "VastitasOracle.BinaryFunction",
-                    "VastitasKernel.LLVM.FiniteExecution", "VastitasOracle.StorageProgram", "VastitasOracle.BranchCoverage"], cwd=ROOT, check=True)
+                    "VastitasKernel.LLVM.FiniteExecution", "VastitasOracle.StorageProgram",
+                    "VastitasOracle.BranchCoverage", "VastitasOracle.BinaryCoverage"], cwd=ROOT, check=True)
     # The closed equalities reduce large terms. Elaborating one declaration
     # at a time avoids holding several kernel reductions in memory at once.
     print(f"Checking closed Lean proofs for {len(registered)} LLVM files", flush=True)

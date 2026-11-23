@@ -18,6 +18,7 @@ def instruction : Step → Op .execution
   | .nat n => ⟨.natural n,[]⟩
   | .int n => ⟨.integer n,[]⟩
   | .apply op refs => ⟨.exactOp op,refs.map fun i => ⟨0,i⟩⟩
+  | .compare sort op a b => ⟨.compare op (pairScalar sort),[⟨0,a⟩,⟨0,b⟩]⟩
 
 def block (c : Code) : Block .execution :=
   ⟨(c.params.map slotType).toArray,(c.steps.map instruction).toArray,.ret ⟨0⟩ ⟨0,c.result⟩⟩
@@ -72,7 +73,9 @@ theorem reconstruct (target : LLVM.TargetHeader) (f : MidIR.Function .execution)
       split at h <;> try contradiction
       next holds =>
         cases h
-        simp [instruction, refs_inverse _ holds])
+        simp [instruction, refs_inverse _ holds]
+    · cases h; rfl
+    · cases h; rfl)
   have same : b.params = f.params := by
     simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq, guard] at checks
     split at checks <;> simp_all
@@ -88,16 +91,21 @@ structure Runtime where
   natural : Nat → Option Value
   integer : Int → Option Value
   call : ExactOp → List Value → Option Value
+  compare : PairElem → Comparison → Value → Value → Option Value
 
 structure Runtime.Exact (r : Runtime) : Prop where
   natural : ∀ n, r.natural n = some (.natural n)
   integer : ∀ n, r.integer n = some (.integer n)
   call : ∀ op args, r.call op args = Evaluation.exactValue op args
+  compare : ∀ sort op a b, r.compare sort op a b = Evaluation.compareValues op (pairScalar sort) a b
 
 private def foreignOp (runtime : Runtime) : Step → Evaluation.SemanticOp
   | .nat n => ⟨[], fun args => if args.isEmpty then runtime.natural n else none⟩
   | .int n => ⟨[], fun args => if args.isEmpty then runtime.integer n else none⟩
   | .apply op refs => ⟨refs.map (fun i => ⟨0,i⟩), runtime.call op⟩
+  | .compare sort op a b => ⟨[⟨0,a⟩,⟨0,b⟩], fun args => do
+      let [left,right] := args | none
+      runtime.compare sort op left right⟩
 
 /-- Observe the returned value of the parsed ABI module under the supplied
 runtime. Each call reads its explicit SSA arguments in order. -/
@@ -110,7 +118,17 @@ private theorem observe_instruction (rt : Runtime) (law : rt.Exact) (env : Index
     Evaluation.observeOp resolve env (instruction s) = foreignOp rt s := by
   cases s <;> simp [Evaluation.observeOp, Evaluation.denote, instruction, foreignOp,
     law.natural, law.integer]
-  exact funext fun args => (law.call _ args).symm
+  · exact funext fun args => (law.call _ args).symm
+  · funext args
+    cases args with
+    | nil => rfl
+    | cons a rest =>
+      cases rest with
+      | nil => rfl
+      | cons b tail =>
+        cases tail with
+        | nil => exact (law.compare _ _ a b).symm
+        | cons => rfl
 
 /-- All argument lists, including malformed ones, have the same partial
 return observation at the execution graph and the modeled foreign calls. -/
@@ -121,6 +139,17 @@ theorem run_from_execution (rt : Runtime) (law : rt.Exact) (env : Indexed.Enviro
   have graph := (reconstruct target f c lowered).2.2
   simp [Evaluation.runWith, graph, Evaluation.observeBlock, block, run, List.map_map,
     Function.comp_def, observe_instruction rt law]
+
+/-- Canonical bytes bind the release schedule. Each owned temporary other than
+the result is released once, and a numerical predicate cannot be released. -/
+theorem parsed_ownership {bytes : List UInt8} {c : Code} (parsed : parse bytes = some c) :
+    bytes = c.print ∧ c.releases.Nodup ∧
+    (∀ i, i ∈ c.releases ↔ c.arity ≤ i ∧ i < c.arity + c.steps.length ∧ i ≠ c.result ∧
+        c.steps.toArray[i - c.arity]?.any Step.owned = true) ∧
+    ∀ j sort op a b, c.steps[j]? = some (.compare sort op a b) → c.arity + j ∉ c.releases := by
+  refine ⟨(parse_sound parsed).2,c.releases_once,c.release_iff,?_⟩
+  intro j sort op a b step
+  simp [Code.release_iff, step, Step.owned]
 
 theorem bytes_correspondence {json : Lean.Json} {req : ResourceSource.Wire.CheckedInput json false}
     {header : LLVM.TargetHeader} (a : LLVM.ExactFunction.Artifact req header)

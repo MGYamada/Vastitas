@@ -190,6 +190,15 @@ set_option maxRecDepth 65536 in
 set_option maxHeartbeats 2000000 in
 theorem uncalled_operator_verified : uncalledOperatorBytes = uncalledOperator.print := by rfl
 
+def integerPredicate : ExactLibrary.Code :=
+  ⟨header,[.int,.int],.bool,[.int 256,.apply (.int .sub) [0,2],.compare .int .le 3 1],4⟩
+
+def integerPredicateBytes := corpus_bytes "src/integer-predicate.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem integer_predicate_verified : integerPredicateBytes = integerPredicate.print := by rfl
+
 def boxedModel : ExactLibrary.Code :=
   ⟨header,[.nat,.int],.int,[.nat 5,.apply (.nat .sub) [0,2],.apply .natIntDiv [3,1],
     .apply (.int .add) [4,4]],5⟩
@@ -701,6 +710,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("singleton-power.ll", forProgram singleton_power_verified),
    ("borrowed-operator.ll", forProgram borrowed_operator_verified),
    ("uncalled-operator.ll", forProgram uncalled_operator_verified),
+   ("integer-predicate.ll", forExact integer_predicate_verified),
    ("boxed-arithmetic.ll", forExact boxed_arithmetic_verified),
    ("assembled-bool.ll", forDispatch assembled_bool_verified),
    ("empty-lookup.ll", forLookup empty_lookup_verified),
@@ -785,6 +795,9 @@ def main (args : List String) : IO Unit := do
     let changed := moduleText.replace before after
     unless changed != moduleText && (VastitasKernel.LLVM.ExactProgram.parse changed.toUTF8.data.toList).isNone do
       throw (IO.userError "boxed-program.ll: accepted a damaged call, startup or ownership instruction")
+  unless VastitasKernel.LLVM.ExactLibrary.parse Vastitas.LLVMCorpus.integerPredicateBytes ==
+      some Vastitas.LLVMCorpus.integerPredicate do
+    throw (IO.userError "integer-predicate.ll: different typed comparison or release schedule")
   unless VastitasKernel.LLVM.ExactLibrary.parse Vastitas.LLVMCorpus.boxedBytes == some Vastitas.LLVMCorpus.boxedModel do
     throw (IO.userError "boxed-arithmetic.ll: different typed call graph or ownership schedule")
   checkEntry "opposite-s3.ll" Vastitas.LLVMCorpus.oppositeBytes Vastitas.LLVMCorpus.OppositeS3.code 42

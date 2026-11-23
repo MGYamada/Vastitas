@@ -87,23 +87,54 @@ def output(cmd, **opts):
     return subprocess.check_output(cmd, text=True, **opts).strip()
 
 
-def check_comparison_control(prefix, sdk, work):
+def check_comparison_control(prefix, sdk, work, emit):
     source = "ComparisonMethodControl.lean"
     shutil.copyfile(ROOT / "llvm/fixtures" / source, work / source)
     subprocess.run([prefix / "bin/lean", "-c", "predicates.c", source], check=True, cwd=work)
     subprocess.run([prefix / "bin/leanc", *sdk, "predicates.c", "-o", "predicates"], check=True, cwd=work)
     values = [(1, 1), (2**128 + 1, 2**128 + 257), (2**1024 + 1, 2**1024 - 255), (0, 2**128)]
-    predicates = [operator.eq, operator.ne, operator.lt, operator.le, operator.gt, operator.ge]
+    predicates = [("==", operator.eq), ("!=", operator.ne), ("<", operator.lt),
+                  ("<=", operator.le), (">", operator.gt), (">=", operator.ge)]
+    probe = ROOT / "llvm/fixtures/IntegerPredicateProbe.c"
+    subprocess.run(["cc", *sdk, "-std=c11", "-O2", "-I", prefix / "include", "-c", probe, "-o", "predicate-probe.o"],
+                   check=True, cwd=work)
+
+    def compile_candidate(name, source):
+        obj = f"predicate-{name}.o"
+        emit(source, obj)
+        subprocess.run([prefix / "bin/leanc", *sdk, "predicate-probe.o", obj, "shim.o",
+                        "-o", "candidate"], check=True, cwd=work)
+
+    def check_candidate(kind, a, b, expected, alias=False):
+        mode = "alias" if alias else "distinct"
+        actual = output([work / "candidate", kind, str(a), str(b), mode], cwd=work)
+        if actual != expected:
+            raise ValueError(f"{kind} comparison on {a} and {b} ({mode}): expected {expected}, got {actual}")
     count = 0
     for kind, sign in [("Nat", 1), ("Int", -1)]:
-        for code, predicate in enumerate(predicates):
+        for code, (glyph, predicate) in enumerate(predicates):
+            compile_candidate(f"{kind}-{code}", f"pub fn compare(a: {kind}, b: {kind}) -> Bool {{ a {glyph} b }}")
             for x, y in values:
                 a, b = sign * x, sign * y
                 result = output([work / "predicates", kind, str(code), str(a), str(b)], cwd=work)
-                if result != ("42" if predicate(a, b) else "7"):
+                expected = "42" if predicate(a, b) else "7"
+                check_candidate(kind, a, b, expected)
+                if result != expected:
                     raise ValueError(f"{kind} {predicate.__name__}: wrong native control result for {a} and {b}")
                 count += 1
-    print(f"{count} generated Lean/C integer predicate results matched the unbounded reference", flush=True)
+            heap = sign * (2**1024 + 1)
+            check_candidate(kind, heap, heap, "42" if predicate(heap, heap) else "7", alias=True)
+    compile_candidate("offset", (ROOT / "llvm/fixtures/IntegerPredicate.vast").read_text())
+    for delta in (-257, -256, -255, 1):
+        a, b = -(2**1024 + 1), -(2**1024 + 1) + delta
+        check_candidate("Int", a, b, "42" if a - 256 <= b else "7")
+    emit("pub fn pick(a: Bool) -> Bool { a }", "bool-id.o")
+    (work / "bool-id.c").write_text("#include <stdint.h>\nextern uint32_t vq_exact(uint32_t);\n"
+                                   "int main(void) { return vq_exact(0) != 0 || vq_exact(1) != 1; }\n")
+    subprocess.run(["cc", *sdk, "bool-id.c", "bool-id.o", "-o", "bool-id"], cwd=work, check=True)
+    subprocess.run([work / "bool-id"], cwd=work, check=True)
+    print(f"{count} compiled predicate results matched generated Lean/C and unbounded integers", flush=True)
+    print("12 aliased heap comparisons and 4 comparisons using owned temporaries passed", flush=True)
 
 
 def native(args, work):
@@ -111,7 +142,6 @@ def native(args, work):
     sdk = ["-isysroot", output(["xcrun", "--show-sdk-path"])] if sys.platform == "darwin" else []
     clang = prefix / "bin/clang"
     leanc = prefix / "bin/leanc"
-    check_comparison_control(prefix, sdk, work)
     if args.backend:
         target = dict(row.split("=", 1) for row in output([args.backend, "describe"]).splitlines())
         if target["llvm"] != "23.1.4":
@@ -158,6 +188,7 @@ def native(args, work):
         (work / "main.vast").write_text(source)
         emit_preview(preview, obj)
 
+    check_comparison_control(prefix, sdk, work, emit)
     count = examples = 0
     for kinds, result, vast_expr, lean_expr, evaluate in cases():
         names = "ab"[:len(kinds)]

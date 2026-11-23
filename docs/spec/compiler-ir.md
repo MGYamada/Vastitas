@@ -422,7 +422,7 @@ Claims:
     - [`VastitasOracle.BinaryCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryCoverage.lean): `VastitasOracle.MidIR.binary_constructor_coverage`
   - Premises:
     - the Core operator has an admitted signature and the supplied operands have its declared types
-  - Note: The actual builder folds pure literal equality and inequality. On the instruction path it evaluates the left and right operands in order and appends at the second operand's live exit. The typed selector covers Boolean operations, equality on nominal finite tags and Unit, all six Nat and Int comparisons, arithmetic and both orders of mixed division. In both MidIR phases the unbounded result agrees with Core. The compiled registry contains all nineteen opcode alternatives. The boxed LLVM emitter still needs an ABI for dynamic integer comparisons.
+  - Note: The actual builder folds pure literal equality and inequality. On the instruction path it evaluates the left and right operands in order and appends at the second operand's live exit. The typed selector covers Boolean operations, equality on nominal finite tags and Unit, all six Nat and Int comparisons, arithmetic and both orders of mixed division. In both MidIR phases the unbounded result agrees with Core. The compiled registry contains all nineteen opcode alternatives. The straight-line library emitter supports all six numerical predicates. Their conditional use in a hosted boxed module remains open.
 - `branch-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.BranchCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BranchCoverage.lean): `VastitasOracle.MidIR.branch_constructor_coverage`, `VastitasOracle.MidIR.linked_branch_method`
@@ -544,7 +544,7 @@ Claims:
     - [`VastitasOracle.BinaryCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryCoverage.lean): `VastitasOracle.MidIR.binary_signature_selected`, `VastitasOracle.MidIR.selected_binary`
   - Premises:
     - the Core signature is admitted and both supplied values have their declared types
-  - Note: Each typed binary signature selects a registered opcode in both phases. The actual Core values establish the nominal sort for a finite equality. The instruction's two ordered operands and its result type correspond to Core, and both denotations return its full value. A boxed LLVM calling convention for dynamic numeric comparisons remains open.
+  - Note: Each typed binary signature selects a registered opcode in both phases. The actual Core values establish the nominal sort for a finite equality. The instruction's two ordered operands and its result type correspond to Core, and both denotations return its full value. The straight-line library ABI returns each numerical predicate as 0 or 1 in an i32. Hosted branches on this result remain open.
 - `exact-arithmetic`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.MidIR`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/MidIR.lean): `VastitasOracle.MidIR.exact_binary_from_core`, `VastitasOracle.MidIR.exact_unary_from_core`
@@ -1256,11 +1256,11 @@ Claims:
   - Note: The checked Core evaluates with sufficient fuel to the full integer retained by both MidIR stages. The ordered operator sites match the revision pass and each has one protected method for its argument key. The emitted main returns the Euclidean residue modulo 256. Variables must come from local closed bindings and intermediate results must meet the folding budget.
 - `boxed-library`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.ExactLibrary`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactLibrary.lean): `VastitasOracle.ExactLibrary.bytes_correspondence`
+    - [`VastitasOracle.ExactLibrary`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactLibrary.lean): `VastitasOracle.ExactLibrary.bytes_correspondence`, `VastitasOracle.ExactLibrary.parsed_ownership`
   - Premises:
-    - The complete checked public module is a single straight-line export over boxed integers and homogeneous pairs. Its bytes parse to its emitted model. Literal allocation succeeds. The modeled foreign call has no result on malformed argument lists. On its declared operand kinds it implements the unbounded operation on borrowed inputs and returns an owned value.
+    - The complete checked public module is a single straight-line export over boxed integers, homogeneous pairs and Boolean scalars. Its bytes parse to its emitted model. Literal allocation succeeds. The modeled foreign call has no result on malformed argument lists. On its declared operand kinds it implements the unbounded operation on borrowed inputs, returning an owned object or a canonical Boolean scalar.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: The model reconstructs the checked execution SSA block including every typed parameter, literal, operand and return slot. Both checked MidIR phases and the parsed model have the same return observation for every argument list under the runtime contract. The proof also identifies the target header, result sort, current revision and complete bytes. Machine code, runtime memory management and general source-to-SSA refinement have separate obligations.
+  - Note: The model reconstructs the checked execution SSA block including every typed parameter, literal, operand and return slot. Both checked MidIR phases and the parsed model have the same return observation for every argument list under the runtime contract. The proof also identifies the target header, result sort, current revision and complete bytes. The printer releases each owned temporary other than the returned object and excludes Boolean comparison results from reference counting. Machine code, runtime memory management and general source-to-SSA refinement have separate obligations.
 - `boxed-program`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ExactProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactProgram.lean): `VastitasOracle.ExactProgram.correspondence`
@@ -1272,6 +1272,7 @@ Claims:
   - Evidence:
     - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - `boxed_integer_exports_bind_their_argument_order_and_full_revision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `integer_predicate_binds_operand_order_and_scalar_result_to_its_revision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `boxed_program_preserves_call_targets_and_borrowed_returns` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `singleton_uses_boxed_runtime_when_a_closed_fold_exceeds_its_budget` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `boxed_pair_results_bind_both_methods_to_the_revision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)

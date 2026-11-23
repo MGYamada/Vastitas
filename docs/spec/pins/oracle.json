@@ -133,6 +133,7 @@
     {"name": "VastitasOracle.ExactFold.evaluates", "module": "VastitasOracle.ExactFold", "kind": "theorem", "statement": "sha256:757d1dea8088f3905c54f4fbe536ba6ed9fdbf8c3878b6f33ac91c3541f8cfe7"},
     {"name": "VastitasOracle.ExactFold.literal_comparison_evaluates", "module": "VastitasOracle.ExactFold", "kind": "theorem", "statement": "sha256:910ae40a51d3d23e7216a211808d9868cdb9e7d54579b1dc32f22c50076d3337"},
     {"name": "VastitasOracle.ExactLibrary.bytes_correspondence", "module": "VastitasOracle.ExactLibrary", "kind": "theorem", "statement": "sha256:6ebec3f0433975bfa2bdc45b9e8a85da2f442052a61f7a3a00305d1290dbf3bb"},
+    {"name": "VastitasOracle.ExactLibrary.parsed_ownership", "module": "VastitasOracle.ExactLibrary", "kind": "theorem", "statement": "sha256:e77781c186a2ba86e3c71c6bd684cfa4c14372dcdff2fb86b6258a3ab64ff794"},
     {"name": "VastitasOracle.ExactOperators.selection_in_profile", "module": "VastitasOracle.ExactOperators", "kind": "theorem", "statement": "sha256:0d8f119094c565500d55d0f6de3497f61a3d6a85ea9692ecb3dcb70f1d4777a1"},
     {"name": "VastitasOracle.ExactProgram.correspondence", "module": "VastitasOracle.ExactProgram", "kind": "theorem", "statement": "sha256:0f7fbcb2d410f4466b641682edd17175735fa1d77a38c6317ed7abdb95556f3a"},
     {"name": "VastitasOracle.ExitFunction.correspondence", "module": "VastitasOracle.ExitFunction", "kind": "theorem", "statement": "sha256:d2f46f496b52601db48d7e64f0dd73674af02137b63376a56cfef7e060c23dbb"},

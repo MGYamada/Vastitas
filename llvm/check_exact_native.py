@@ -122,6 +122,8 @@ def native(args, work):
     preview = [*check, "--llvm-preview", "--target-triple", target["triple"], "--data-layout", target["layout"]]
 
     def emit_preview(command, obj):
+        if (work / obj).exists():
+            raise ValueError(f"duplicate native fixture output: {obj}")
         verified = subprocess.check_output(command, cwd=ROOT)
         (work / "checked.ll").write_bytes(verified)
         if args.backend:
@@ -196,9 +198,10 @@ def native(args, work):
     conversion = (ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
     if conversion.count("apply exact;") != 1:
         raise ValueError("expected one applied conversion method")
-    for body, expected in [(conversion, 2**128 + 43), (conversion.replace("apply exact;", ""), 0)]:
-        emit(body, "conversion.o")
-        check_integer("conversion.o", expected)
+    for body, obj, expected in [(conversion, "applied-conversion.o", 2**128 + 43),
+                                (conversion.replace("apply exact;", ""), "default-conversion.o", 0)]:
+        emit(body, obj)
+        check_integer(obj, expected)
     hosted = (ROOT / "llvm/fixtures/BoxedProgram.vast").read_text()
     numerator = -(2**128 + 1)
     divisors = [3, 0, 1]

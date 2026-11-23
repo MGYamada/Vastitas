@@ -15,9 +15,6 @@ def compare(expected, actual, field):
         if not isinstance(actual, dict) or actual.keys() != expected.keys():
             raise ValueError(f"{field}: different record fields")
         for key, value in expected.items():
-            # A zero-width span is a placeholder on a handwritten nested path.
-            if key == "span" and value["start"] == value["end"] == 0:
-                continue
             compare(value, actual[key], f"{field}.{key}")
     elif isinstance(expected, list):
         if not isinstance(actual, list) or len(actual) != len(expected):

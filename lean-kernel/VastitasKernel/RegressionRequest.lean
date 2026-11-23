@@ -91,9 +91,7 @@ private def indexedLine (d : Json) (offset line : Nat) : Option (String × Json)
       let (start, parents) ← appendPaths (head ++ " { parents(") (← (d.getObjValAs? (Array Json) "parents").toOption) offset line
       let (text, domain) ← appendPaths (start ++ "); domain(") (← (d.getObjValAs? (Array Json) "domain").toOption) offset line
       pure (text ++ "); };", (d.setObjVal! "parents" parents).setObjVal! "domain" domain)
-    | _ => do
-      let (keyword, suffix) ← RegressionIndexedText.syntaxOf d
-      pure (vis ++ "indexed " ++ keyword ++ " " ++ name ++ suffix ++ ";", d)
+    | _ => RegressionIndexedText.syntaxOf d vis kind name offset line
   return (text, positioned.setObjVal! "span" (sourceSpan (offset + vis.utf8ByteSize)
     (text.utf8ByteSize - vis.utf8ByteSize) line (vis.length + 1)))
 

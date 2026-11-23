@@ -173,19 +173,29 @@ An `indexed iso` replays its forward and inverse paths in order. An
 `indexed cartesian` replays both legs of the square, its fiber and its inverse.
 Each path must match its original spelling and span, even for an unused witness.
 
+An `indexed implementation` replays the marker, representation and ordered
+capability list. The five representation forms include the scalar setting
+and coefficient kind, the base path of a linear descriptor, and the rational
+field of a presented affine object. An `indexed classification` replays the
+parent and domain lists separately, in source order. Both forms check the full
+span of each path. After resolving the paths in the declaring namespace,
+the kernel checks that these entries occur in order in the exact Core
+environment supplied to code generation. This includes unused declarations
+in dependency packages.
+
 #### Indexed declaration coverage in edition 2026
 
-Of the 54 constructors of `Indexed.Source.Body`, 27 have their fields checked
+Of the 54 constructors of `Indexed.Source.Body`, 29 have their fields checked
 against physical source. These comprise 16 finite forms, seven affine object, morphism and
 geometry witness forms, one exact-geometry constructor with six variants, and
-`marker`, `baseDimension` and `global`. The public checker uses the decoded
-declarations from that same request to elaborate Core. The following 27
+`marker`, `baseDimension`, `global`, `implementation` and `classification`.
+The public checker uses the decoded declarations from that same request to elaborate Core. The following 25
 constructors have item-boundary checks, but still need a comparison of their
 operands with the original file. The names below are Lean constructors.
 
 | Declaration group | Operands awaiting physical replay |
 | --- | --- |
-| Indexed definitions | `implementation`, `classification`, `family`, `package`, `primitive` |
+| Indexed definitions | `family`, `package`, `primitive` |
 | Frames and metrics | `metric`, `evidence`, `frame` |
 | Physical dimensions | `quantity`, `reading`, `scale`, `physicalMetric` |
 | Spectral and transition data | `freeModule`, `endomorphism`, `spectrum`, `branch`, `transitionAverage` |
@@ -1614,14 +1624,25 @@ A declaration has `{kind,name,public,span,...}` with these additional fields:
 | Kind | Fields |
 | --- | --- |
 | `marker` | None |
-| `implementation` | `marker:TypePath`, `representation:"affine_descriptor"`, `capabilities:["origin"\|"dim"]` |
+| `implementation` | `marker:TypePath`, `representation:Representation`, `capabilities:["origin"\|"dim"]` |
 | `classification` | `parents:[TypePath]`, `domain:[TypePath]` |
 | `global` | `implementation:TypePath` |
 | `family` | `parameters:[Parameter]`, `constraints:[Constraint]`, `representation:"token"\|"point"\|"morphism"` |
 | `package` | `cases:[{witness_type:ObjectType,fields:[BoundApplication]}]` |
 | `primitive` | `binding:Primitive` |
 
-`TypePath` is `{path:[String],span}`; the path is unresolved and nonempty.
+`Representation` accepts the strings `"affine_descriptor"` and `"smooth_affine"`,
+or an object with exactly one of the following keys.
+
+| Key | Payload |
+| --- | --- |
+| `scalar_base` | `{setting,coefficient}` |
+| `linear_descriptor` | `{base:TypePath,coefficient}` |
+| `presented_affine` | `{field:"rational"}` |
+
+The setting is `"scheme"` or `"smooth"` and the coefficient is `"real"` or
+`"complex"`. A `TypePath` has the form `{path:[String],span}` and contains
+at least one unresolved name component.
 `ObjectType` is `{domain:TypePath,marker:TypePath}`.
 Parameter tags are `{kind:"domain"|"marker"|"natural"}` or
 `{kind:"object",domain:TypePath}`. Constraint tags are

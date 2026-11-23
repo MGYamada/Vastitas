@@ -366,6 +366,101 @@ theorem physical_indexed_item {json : Lean.Json} (input : Wire.CheckedInput json
     List.mem_append_left _ (List.mem_append_right _ (List.mem_append_right _ ?_))⟩⟩
   exact List.mem_map.mpr ⟨d, hd, rfl⟩
 
+private theorem resolved_member {α : Type} (actions : List (Namespace.Result α))
+    (action : Namespace.Result α) (member : action ∈ actions) (entries : List α)
+    (resolved : actions.mapM id = .ok entries) : ∃ e ∈ entries, action = .ok e := by
+  induction actions generalizing entries with
+  | nil => simp at member
+  | cons head tail ih =>
+    cases head with
+    | error err => simp [List.mapM_cons, bind, Except.bind] at resolved
+    | ok x =>
+      cases rest : tail.mapM id with
+      | error err => simp [List.mapM_cons, rest, bind, Except.bind] at resolved
+      | ok xs =>
+        have same : x :: xs = entries := by simpa [List.mapM_cons, rest, bind, Except.bind, pure, Except.pure] using resolved
+        subst entries
+        rcases List.mem_cons.mp member with same | inTail
+        · exact ⟨x, by simp, same⟩
+        · obtain ⟨e, present, eq⟩ := ih inTail xs rest
+          exact ⟨e, List.mem_cons_of_mem _ present, eq⟩
+
+/-- Every physical implementation and classification resolves to an entry of
+the exact Core environment consumed by emission, including an unused item. -/
+theorem resolved_physical_definition {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    (action : Indexed.Source.ResolveM Indexed.Entry)
+    (selected : Wire.definitionEntry? input.checked.pureProgram.compiler.input.body.index
+      ⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩ d.body = some action) :
+    ∃ entry ∈ input.checked.pureProgram.compiled.core.module.declarations.indexed,
+      action.run' [] = .ok entry := by
+  let actions := Wire.writtenDefinitions input.input input.checked.pureProgram.compiler.input.body.index
+  have member : action.run' [] ∈ actions := by
+    apply List.mem_flatMap.mpr
+    refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_filterMap.mpr ⟨d, hd, ?_⟩⟩⟩
+    simp [selected]
+  have matched := input.definitionEntries
+  unfold Wire.definitionsMatch at matched
+  cases h : actions.mapM id with
+  | error err => simp [actions] at h; rw [h] at matched; contradiction
+  | ok entries =>
+    have aligned : entries.Sublist input.checked.pureProgram.compiled.core.module.declarations.indexed := by
+      apply List.isSublist_iff_sublist.mp
+      dsimp only [actions] at h
+      rwa [h] at matched
+    obtain ⟨entry, present, resolved⟩ := resolved_member actions _ member entries h
+    exact ⟨entry, aligned.subset present, resolved⟩
+
+/-- The source marker, representation and capabilities replay in their
+declaring module. Resolving these fields must yield an entry in the returned Core. -/
+theorem physical_implementation {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    {marker : Indexed.Source.Path} {repr : Indexed.Source.Representation} {caps : List Indexed.Capability}
+    (body : d.body = .implementation marker repr caps) :
+    let scope := (⟨pkg.id, m.pureModule.module.path⟩ : Namespace.Scope)
+    let index := input.checked.pureProgram.compiler.input.body.index
+    (∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "implementation" d.name
+        (some (FiniteSourceFiles.implementationFields marker repr caps))⟩) ∧
+    ∃ entry ∈ input.checked.pureProgram.compiled.core.module.declarations.indexed,
+      ((do let markerId ← Indexed.Source.resolveId index scope marker
+           let representation ← Indexed.Source.resolveRepresentation index scope repr
+           return ⟨⟨scope, d.name⟩, .implementation markerId representation caps⟩) :
+        Indexed.Source.ResolveM Indexed.Entry).run' [] = .ok entry := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  refine ⟨⟨expected, layout, checked, collected, physical, scan, ?_⟩, resolved_physical_definition input hp hm hd _ ?_⟩
+  · simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form,
+      FiniteSourceFiles.indexedKeyword, body] using site
+  · rw [body]; rfl
+
+/-- Both written lists replay in order, including each path span. The same
+lists of resolved owners occur in the returned Core classification. -/
+theorem physical_classification {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    {parents domain : List Indexed.Source.Path} (body : d.body = .classification parents domain) :
+    let scope := (⟨pkg.id, m.pureModule.module.path⟩ : Namespace.Scope)
+    let index := input.checked.pureProgram.compiler.input.body.index
+    (∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "classification" d.name
+        (some (FiniteSourceFiles.classificationFields parents domain))⟩) ∧
+    ∃ entry ∈ input.checked.pureProgram.compiled.core.module.declarations.indexed,
+      ((do let parentIds ← parents.mapM (Indexed.Source.resolveId index scope)
+           let implementations ← domain.mapM (Indexed.Source.resolveId index scope)
+           return ⟨⟨scope, d.name⟩, .classification parentIds implementations⟩) :
+        Indexed.Source.ResolveM Indexed.Entry).run' [] = .ok entry := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  refine ⟨⟨expected, layout, checked, collected, physical, scan, ?_⟩, resolved_physical_definition input hp hm hd _ ?_⟩
+  · simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form,
+      FiniteSourceFiles.indexedKeyword, body] using site
+  · rw [body]; rfl
+
 /-- The implementation selected by an accepted global is the reference at its
 original source span, including every component of a qualified path. -/
 theorem physical_global_declaration {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

@@ -634,6 +634,32 @@ def RevisionMatches (json : Json) {p : Program} {requireMain : Bool}
 instance {json : Json} {p : Program} {requireMain : Bool} {checked : Checked p requireMain} :
     Decidable (RevisionMatches json checked) := by unfold RevisionMatches; split <;> infer_instance
 
+/-- Resolve a written implementation or classification with the namespace used
+by the body checker. The entry carries its physical package and module owner. -/
+def definitionEntry? (index : Namespace.Indexed) (owner : Indexed.DeclId) :
+    Indexed.Source.Body → Option (Indexed.Source.ResolveM Indexed.Entry)
+  | .implementation marker repr caps => some (do
+    let markerId ← Indexed.Source.resolveId index owner.scope marker
+    let representation ← Indexed.Source.resolveRepresentation index owner.scope repr
+    return ⟨owner, .implementation markerId representation caps⟩)
+  | .classification parents domain => some (do
+    let parentIds ← parents.mapM (Indexed.Source.resolveId index owner.scope)
+    let implementations ← domain.mapM (Indexed.Source.resolveId index owner.scope)
+    return ⟨owner, .classification parentIds implementations⟩)
+  | _ => none
+
+def writtenDefinitions (input : Program) (index : Namespace.Indexed) : List (Namespace.Result Indexed.Entry) :=
+  input.packages.flatMap fun pkg => pkg.modules.flatMap fun m => m.pureModule.declarations.filterMap fun d =>
+    let owner := (⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩ : Indexed.DeclId)
+    (definitionEntry? index owner d.body).map fun action => action.run' []
+
+/-- Check against the exact final Core consumed by emission. Other kinds of
+declarations and synthetic packages may occur between the physical entries. -/
+def definitionsMatch {input : Program} {main : Bool} (checked : Checked input main) : Bool :=
+  match (writtenDefinitions input checked.pureProgram.compiler.input.body.index).mapM id with
+  | .ok entries => entries.isSublist checked.pureProgram.compiled.core.module.declarations.indexed
+  | .error _ => false
+
 structure CheckedInput (json : Json) (requireMain : Bool) where
   input : Program
   decoded : program json = .ok input
@@ -641,6 +667,7 @@ structure CheckedInput (json : Json) (requireMain : Bool) where
   accepted : ResourceSource.check input requireMain = .ok checked
   assemblySource : AssemblySource.Corresponds json checked.pureProgram.authority.headers.assembled.prepared.core.assembly
   editSources : EditSourceFiles.check json input = .ok ()
+  definitionEntries : definitionsMatch checked = true
   revisionMatches : RevisionMatches json checked
   /-- The price of the request's JSON, in which the compatibility profile of
   `legacy_geometry` has no part, and the checked passes. -/
@@ -657,9 +684,11 @@ def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput j
       match edits : EditSourceFiles.check json input with
       | .error diagnostic => .error diagnostic
       | .ok () =>
-        if h : RevisionMatches json result.value then
-          .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, h, result.receipt⟩
-        else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
+        if definitions : definitionsMatch result.value then
+          if h : RevisionMatches json result.value then
+            .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, definitions, h, result.receipt⟩
+          else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
+        else .error { code := "E_MODULE_SOURCE", message := "source implementation or classification differs from the returned Core" }
 
 /-- Public generation consumes the budgeted wire request's exact checked program. -/
 def emit (json : Json) : Except Diagnostic Codegen.Generated := do

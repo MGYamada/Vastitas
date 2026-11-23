@@ -200,6 +200,18 @@ call arguments. Lean 4.35.0's external-call emitter also follows parameter
 order. The tensor axes and nonconjugating product are Vastitas source and
 storage checks. [Pinned argument emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L679) · [Complete bytes proof](../Corpus.lean)
 
+Changing the linear implementation of the column fixture from complex to real
+while keeping its complex buffers produces `E_TENSOR` before LLVM emission.
+With matching real buffers and literals, the complete module is 3,314 bytes.
+The first integer after the arena in the single `vq_storage_gemm` call changes
+from 3 (`F32<CC>`) to 2 (`F32<RR>`). On macOS arm64 the LLVM 23.1.4 and
+Lean/C executables linked with sequential LP64 OpenBLAS 0.3.34 both passed
+the two cell checks in each program. The complex product gives 33+6i per cell and the
+real product gives 9. Lean 4.35.0's `emitSimpleExternalCall` pairs parameters
+with arguments in order and constructs the call type from the non-erased
+parameters. In these Vastitas modules the storage ABI spells the representation
+as an `i64` argument. [Physical declaration and ABI regression](../../tests/indexed_definition_source.rs) · [Pinned external-call emitter](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L683)
+
 The GEMM coefficient fixture has two read-only input buffers. For the Linux
 x86-64 target the original source and a dimension spelled `0001` produce identical 4,317-byte
 modules. Rebinding the left map to the second input changes exactly one ordered

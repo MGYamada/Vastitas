@@ -86,10 +86,6 @@ def syntaxOf (d : Json) : Option (String × String) := do
   let kind ← str d "kind"
   match kind with
   | "marker" | "base_dimension" => return (kind, "")
-  | "implementation" =>
-    let caps := (← names d "capabilities").map fun c => if c == "dimension" then "dim" else c
-    return (kind, "(" ++ (← ref d "marker") ++ ", " ++ (← str d "representation") ++ ") capabilities(" ++ comma caps ++ ")")
-  | "classification" => return (kind, " { parents(" ++ (← paths d "parents") ++ "); domain(" ++ (← paths d "domain") ++ "); }")
   | "family" =>
     let params ← (← fields d "parameters").mapM fun j => do
       match ← str j "kind" with

@@ -121,6 +121,32 @@ structure Item where
   isPublic : Bool
   syntax_ : DeclarationSyntax
 
+private def coefficientToken : CoefficientKind → ExactLexeme
+  | .real => .ident "real"
+  | .complex => .ident "complex"
+
+private def representationTokens : Source.Representation → List ExactLexeme
+  | .affineDescriptor => [.ident "affine_descriptor"]
+  | .scalarBase setting coeff =>
+    let settingToken : ExactLexeme := match setting with | .scheme => .ident "scheme" | .smooth => .ident "smooth"
+    [.ident "scalar_base", .punctuation '(', settingToken, .punctuation ',', coefficientToken coeff, .punctuation ')']
+  | .linearDescriptor base coeff =>
+    [.ident "linear_descriptor", .punctuation '(', ref base, .punctuation ',', coefficientToken coeff, .punctuation ')']
+  | .presentedAffine .rational => [.ident "presented_affine", .punctuation '(', .ident "rational", .punctuation ')']
+  | .smoothAffine => [.ident "smooth_affine"]
+
+def implementationFields (marker : Source.Path) (representation : Source.Representation)
+    (capabilities : List Capability) : List ExactLexeme :=
+  let capabilityToken : Capability → ExactLexeme
+    | .origin => .ident "origin"
+    | .dimension => .ident "dim"
+  [.punctuation '(', ref marker, .punctuation ','] ++ representationTokens representation ++
+    [.punctuation ')', .ident "capabilities"] ++ tuple (capabilities.map capabilityToken)
+
+def classificationFields (parents domain : List Source.Path) : List ExactLexeme :=
+  [.punctuation '{', .ident "parents"] ++ tuple (parents.map ref) ++ [.punctuation ';', .ident "domain"] ++
+    tuple (domain.map ref) ++ [.punctuation ';', .punctuation '}']
+
 def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
   if AffineDeclarationText.applies d then .affine d else
     match form d with
@@ -128,6 +154,8 @@ def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
     | none =>
       let fields := match d.body with
         | .marker | .baseDimension => some []
+        | .implementation marker representation capabilities => some (implementationFields marker representation capabilities)
+        | .classification parents domain => some (classificationFields parents domain)
         | .global implementation =>
           some [.punctuation '(', .reference implementation.path implementation.span, .punctuation ')']
         | _ => none

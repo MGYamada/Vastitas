@@ -12,7 +12,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
-| [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle) |
+| [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle) |
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle), Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
@@ -401,7 +401,7 @@ Claims:
 A ledger at a named source revision must enumerate every accepted Core, storage action, native storage instruction and runtime-extent constructor. For each constructor it records an admitted typed MidIR mapping or an explicit finite-profile rejection. Each admitted entry identifies its source fixture, family and method, model, ownership facts, opcode and downstream proof obligation. Any constructor or runtime change regenerates the ledger. The runtime inventory follows the transitive closure of the admitted snapshot, including frame and spectral runtimes where used; an older list of runtime modules is not a completeness argument. Missing entries must fail the coverage check instead of silently inheriting admission.
 
 - Example: Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing.
-- Not executed: The source-schema guard, eight instruction mappings and four structural mappings run in CI. Whole-module release coverage remains pending.
+- Not executed: The source-schema guard, eleven instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending.
 
 Claims:
 
@@ -416,7 +416,14 @@ Claims:
     - `RepositoryTests.test_structural_rows_require_the_matching_proof_and_no_instruction` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `RepositoryTests.test_static_call_mapping_requires_the_exact_constructor_opcode_and_theorem` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `RepositoryTests.test_conversion_rejects_an_integer_negation_or_a_static_call_proof` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
-  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, and first-order static calls have local lowering proofs. Variable references, scopes, typed ascriptions and let bindings have structural mappings without an opcode. A constructor with several opcodes names every alternative in registry order. CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 593 rows await review. Whole-module acceptance remains a separate obligation for every row. The release coverage check enforces that distinction.
+  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, and first-order static calls have local lowering proofs. Variable references, scopes, typed ascriptions, let bindings and conditionals have structural mappings without an opcode. A constructor with several opcodes names every alternative in registry order. CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 592 rows await review. Whole-module acceptance remains a separate obligation for every row. The release coverage check enforces that distinction.
+- `branch-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.BranchCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BranchCoverage.lean): `VastitasOracle.MidIR.branch_constructor_coverage`, `VastitasOracle.MidIR.linked_branch_method`
+  - Premises:
+    - the checked package retains the method and its Core body selects one of two integer parameters with a Boolean parameter
+    - the three formal parameters have distinct symbols
+  - Note: The builder propagates failure from either arm. On success it uses the actual exits of the condition and both children, their effect tokens and the typed join parameter. The linked method theorem follows the source ascriptions and scopes. Core and both MidIR invokers return the selected integer for every input and call depth under one complete revision. The conditional method still needs a boxed LLVM lowering.
 - `unary-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.UnaryCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/UnaryCoverage.lean): `VastitasOracle.MidIR.unary_constructor_coverage`, `VastitasOracle.MidIR.linked_unary_method`

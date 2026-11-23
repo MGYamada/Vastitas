@@ -103,6 +103,34 @@ the pair constructed from those two SSA results, in their original order. -/
       if ({opt with blocks := opt.blocks.set! 6 {join with ops := bad}}.execute env).isSome then return false
   return true)
 
+open VastitasKernel.MidIR in
+#eval VastitasKernel.RegressionSupport.check "MidIR conditional method"
+    "the taken predecessor supplies its own integer, even when exchanging two SSA slots still typechecks" (Id.run do
+  let int : Result := ⟨.pure .int, none⟩
+  let large : Int := 2^128 + 43
+  let body := Term.scope (.branch (.variable 4 bool) (scopedIntParameter 5) (scopedIntParameter 6) int)
+  let f : Core.Function := ⟨0, owner "choose", [⟨4,bool⟩,⟨5,int⟩,⟨6,int⟩], int.type, body, {}⟩
+  let m : Core.Module := ⟨⟨env, [], []⟩, [f], none⟩
+  let .ok checked := Typing.checkModule m false | return false
+  let some source := checked.module.functions.head? | return false
+  let some opt := lowerFunction env ⟨0, []⟩ source | return false
+  let some exe := opt.execute env | return false
+  unless opt.blocks == parameterBranch .optimization && exe.blocks == parameterBranch .execution do return false
+  let some left := opt.blocks[1]? | return false
+  let some right := opt.blocks[2]? | return false
+  let withLeft := opt.blocks.set! 1 {left with term := .jump ⟨3,⟨1⟩,[⟨0,2⟩]⟩}
+  let swapped := {opt with blocks := withLeft.set! 2 {right with term := .jump ⟨3,⟨2⟩,[⟨0,1⟩]⟩}}
+  unless validFunction env swapped do return false
+  for choice in [true, false] do
+    let args := [Value.boolean choice, .integer large, .integer (-19)]
+    let some values := bindArguments source.parameters args | return false
+    let expected := some (Value.integer (if choice then large else -19))
+    unless eval checked.module 12 values source.body == expected && run env opt args == expected &&
+        run env exe args == expected && run env swapped args != expected do return false
+  for invalid in [Terminator.jump ⟨3,⟨2⟩,[⟨0,1⟩]⟩, .jump ⟨3,⟨1⟩,[⟨0,0⟩]⟩, .jump ⟨3,⟨1⟩,[]⟩] do
+    if ({opt with blocks := opt.blocks.set! 1 {left with term := invalid}}.execute env).isSome then return false
+  return true)
+
 #eval VastitasKernel.RegressionSupport.check "MidIR unary operators"
     "a negated guard and signed literals reach boxed negation through their join" (Id.run do
   let int : Result := ⟨.pure .int, none⟩

@@ -427,3 +427,24 @@ The declarations select a mathematical model during checking. This example
 exercises their erasure from a closed entry. Lean 4.35.0's hosted main obtains
 the result of a call and unboxes its status. [Public regression](../../tests/exact_affine_models.rs)
 · [Lean's main function](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1583)
+
+
+### A conditional that returns a parameter
+
+The assembled `choose(flag, left, right)` passes either the second or third parameter
+to a single integer block argument. The optimization and execution MidIR modules each
+contain four blocks for this method. The joined reference depends on the incoming edge.
+Exchanging the two integer references still satisfies the SSA type checker and changes
+the result. The Lean proof preserves their positions in the original scoped and ascribed
+Core arms. The public replay checks the exact called target and revision and compares
+the full Core integer with both MidIR observations. [Source](../fixtures/ConditionalMethod.vast) · [Public replay](../fixtures/ConditionalMethodReplay.lean)
+
+With the contribution applied, the two branches returned 2¹²⁸ + 43 and −19. The default
+method returned −19 on the same true input. Their Lean/C native exit statuses on macOS
+arm64 were 43, 237 and 237. The boxed Vastitas LLVM preview reported `E_UNSUPPORTED`
+for these programs. In the pinned Lean distribution, `lean --features` returned `[]`
+and `lean -b` reported that LLVM support was disabled. For the independent control,
+Clang 23.1.4 compiled the generated Lean C at `-O0`. Its LLVM IR branches on an
+8-bit Boolean, releases the unselected boxed integer and returns the selected pointer
+through a stack slot. Upstream `emitJmp` checks the argument count, stores each argument
+in the join parameter's slot and branches to the join. [Lean control](../fixtures/ConditionalMethodControl.lean) · [Pinned jump emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)

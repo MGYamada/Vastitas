@@ -95,7 +95,7 @@ ROW_OBLIGATIONS = {
         'core': ('compiler-ir.coverage@ledger', 'compiler-ir.coverage@inventory', 'compiler-ir.coverage@literal-lowering', 'compiler-ir.coverage@finite-lowering',
                  'compiler-ir.coverage@binding-lowering', 'compiler-ir.coverage@static-call-lowering',
                  'compiler-ir.coverage@conversion-lowering', 'compiler-ir.coverage@pair-lowering',
-                 'compiler-ir.coverage@unary-lowering', 'compiler-ir.operators@selected-method'),
+                 'compiler-ir.coverage@unary-lowering', 'compiler-ir.coverage@branch-lowering', 'compiler-ir.operators@selected-method'),
         'midir': ('compiler-ir.registry@opcodes', 'compiler-ir.registry@int-literal',
                   'compiler-ir.registry@exact-arithmetic', 'compiler-ir.registry@pair-operations'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@entry-status',

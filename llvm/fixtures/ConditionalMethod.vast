@@ -1,0 +1,10 @@
+fn choose(flag: Bool, left: Int, right: Int) -> Int { right }
+
+contribution conditional : choose {
+    fn choose(flag: Bool, left: Int, right: Int) requires (HasEq) -> Int {
+        if flag { left } else { right }
+    }
+}
+assemble choose { apply conditional; }
+
+fn main() -> Int { choose(true, 340282366920938463463374607431768211499, -19) }

@@ -323,6 +323,19 @@ theorem runWith_callBranch {p : Phase} (env : Environment) (resolve : Resolver) 
   cases choice <;> simp [runWith, shape, runGraph, Evaluation.runGraph.go, observeBlock, observeOp,
     denote, guard, selected]
 
+/-- The two branch arguments occupy distinct entry slots. Their types agree,
+so reversing them can change the observed value without breaking the SSA types. -/
+theorem runWith_parameterBranch {p : Phase} (env : Environment) (resolve : Resolver)
+    (f : MidIR.Function p) (choice : Bool) (y n : Int)
+    (shape : f.blocks = #[
+      ⟨#[.bool,.int,.int], #[], .branch ⟨0,0⟩ ⟨1,⟨0⟩,[]⟩ ⟨2,⟨0⟩,[]⟩⟩,
+      ⟨#[], #[], .jump ⟨3,⟨1⟩,[⟨0,1⟩]⟩⟩,
+      ⟨#[], #[], .jump ⟨3,⟨2⟩,[⟨0,2⟩]⟩⟩,
+      ⟨#[.int], #[], .ret ⟨3⟩ ⟨3,0⟩⟩]) :
+    runWith env f resolve [.boolean choice,.integer y,.integer n] =
+      some (.integer (if choice then y else n)) := by
+  cases choice <;> simp [runWith, shape, runGraph, Evaluation.runGraph.go, observeBlock, Std.HashMap.getElem?_insert, Std.HashMap.getElem_insert, Ref.mk.injEq, guard]
+
 /-- A successful, pointwise translation preserves the observations of the
 whole array. The same lemma applies to instruction sequences and to blocks. -/
 private theorem mapM_observes {α β γ : Type} (f : α → Option β) (a : α → γ) (b : β → γ)

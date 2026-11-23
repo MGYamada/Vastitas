@@ -394,6 +394,71 @@ def BindsLet (symbol : Nat) (rhs body : Core.Term) : Prop :=
 theorem binds_let (symbol : Nat) (rhs body : Core.Term) : BindsLet symbol rhs body :=
   fun _ _ _ => rfl
 
+/-- Each child may end in a different block from the one where it started.
+The branch uses those actual exits as predecessors and forwards their result
+references to the single typed join parameter. -/
+def JoinsBranches (condition yes no : Core.Term) (result : Core.Result) : Prop :=
+  ∀ resolve ctx blocks type choice y n
+      (cPrefix yPrefix nPrefix : Array Draft) (cLast yLast nLast : Draft),
+    Ty.ofCore result.type = some type →
+    (lowerTerm resolve ctx condition).run blocks = some (choice, cPrefix.push cLast) →
+    (lowerTerm resolve ctx yes).run ((cPrefix.push cLast).push {params := #[]}) = some (y, yPrefix.push yLast) →
+    (lowerTerm resolve ctx no).run ((yPrefix.push yLast).push {params := #[]}) = some (n, nPrefix.push nLast) →
+    let joinId := nPrefix.size + 1
+    (lowerTerm resolve ctx (.branch condition yes no result)).run blocks =
+      (do finishBlock cPrefix.size (.branch choice
+            ⟨cPrefix.size + 1, ⟨cPrefix.size⟩, []⟩ ⟨yPrefix.size + 1, ⟨cPrefix.size⟩, []⟩)
+          finishBlock yPrefix.size (.jump ⟨joinId, ⟨yPrefix.size⟩, [y]⟩)
+          finishBlock nPrefix.size (.jump ⟨joinId, ⟨nPrefix.size⟩, [n]⟩)
+          pure (⟨joinId, 0⟩ : Ref)).run ((nPrefix.push nLast).push {params := #[type]})
+
+private theorem active_push (pre : Array Draft) (last : Draft) :
+    active.run (pre.push last) = some (pre.size, pre.push last) := by
+  simp [active, StateT.run, bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get,
+    pure, guard, StateT.pure]
+
+private theorem runBind {α β : Type} (a : Builder α) (b : α → Builder β) (blocks : Array Draft) :
+    (a >>= b).run blocks = ((a.run blocks).bind fun (v, state) => (b v).run state) := rfl
+
+private theorem runNew (params : Array Ty) (blocks : Array Draft) :
+    (newBlock params).run blocks = some (blocks.size, blocks.push {params}) := rfl
+
+private theorem runLift {α : Type} (x : Option α) (blocks : Array Draft) :
+    (liftM x : Builder α).run blocks = x.map (fun v => (v, blocks)) := by cases x <;> rfl
+
+theorem joins_branches (condition yes no : Core.Term) (result : Core.Result) :
+    JoinsBranches condition yes no result := by
+  intro resolve ctx blocks type choice y n cp yp np cl yl nl htype hc hy hn
+  dsimp only
+  rw [lowerTerm]
+  simp only [runBind, runLift, htype, Option.map_some, Option.bind_some, hc, hy, hn,
+    active_push, runNew, Array.size_push]
+
+/-- Both arm actions must compile even for a statically known condition. A
+failure before the join is propagated without a partial function. -/
+def ChecksBothArms (condition yes no : Core.Term) (result : Core.Result) : Prop :=
+  ∀ resolve ctx blocks type choice (cp : Array Draft) (cl : Draft),
+    Ty.ofCore result.type = some type →
+    (lowerTerm resolve ctx condition).run blocks = some (choice, cp.push cl) →
+    let yesBlocks := (cp.push cl).push {params := #[]}
+    let whole := (lowerTerm resolve ctx (.branch condition yes no result)).run blocks
+    ((lowerTerm resolve ctx yes).run yesBlocks = none → whole = none) ∧
+    ∀ y (yp : Array Draft) (yl : Draft),
+      (lowerTerm resolve ctx yes).run yesBlocks = some (y, yp.push yl) →
+      (lowerTerm resolve ctx no).run ((yp.push yl).push {params := #[]}) = none → whole = none
+
+theorem checks_both_arms (condition yes no : Core.Term) (result : Core.Result) :
+    ChecksBothArms condition yes no result := by
+  intro resolve ctx blocks type choice cp cl htype hc
+  dsimp only
+  constructor
+  · intro hy
+    rw [lowerTerm]
+    simp only [runBind, runLift, htype, Option.map_some, Option.bind_some, hc, active_push, runNew, hy, Option.bind_none]
+  · intro y yp yl hy hn
+    rw [lowerTerm]
+    simp only [runBind, runLift, htype, Option.map_some, Option.bind_some, hc, active_push, runNew, hy, hn, Option.bind_none]
+
 /-- Structural lowering of one exact body. Acceptance of a source module and
 its family identities belongs to the checked request adapter in MidIR.Checked. -/
 def lowerLinkedFunction (env : Environment) (origin : FunctionSource.Compiler.Key)
@@ -491,6 +556,89 @@ theorem lower_unary_parameter (env : Environment) (key : FunctionSource.Compiler
   rw [forwards_scope, step]
   set_option maxRecDepth 8192 in
     cases op <;> with_unfolding_all rfl
+
+/-- The incoming integer on each edge is a different entry slot, even though
+the two parameters have identical types. Both jump to one typed join. -/
+def parameterBranch (p : Phase) : Array (Block p) := #[
+  ⟨#[.bool, .int, .int], #[], .branch ⟨0,0⟩ ⟨1,⟨0⟩,[]⟩ ⟨2,⟨0⟩,[]⟩⟩,
+  ⟨#[], #[], .jump ⟨3,⟨1⟩,[⟨0,1⟩]⟩⟩,
+  ⟨#[], #[], .jump ⟨3,⟨2⟩,[⟨0,2⟩]⟩⟩,
+  ⟨#[.int], #[], .ret ⟨3⟩ ⟨3,0⟩⟩]
+
+/-- Elaboration gives each arm of a written integer conditional a scope and a
+checked result ascription, including an arm that just returns a parameter. -/
+def scopedIntParameter (symbol : Nat) : Core.Term :=
+  let ann : Core.Result := ⟨.pure .int, none⟩
+  .ascribe ann.type (.scope (.variable symbol ann))
+
+private theorem read_scoped_int_parameter (symbol : Nat) (resolve : Nat → Option CallTarget)
+    (ctx : List (Nat × Ref)) (blocks : Array Draft) :
+    (lowerTerm resolve ctx (scopedIntParameter symbol)).run blocks =
+      (ctx.lookup symbol).map fun ref => (ref, blocks) := by
+  unfold scopedIntParameter
+  rw [checks_ascription]
+  change (lowerTerm resolve ctx (.scope (.variable symbol ⟨.pure .int, none⟩))).run blocks = _
+  rw [forwards_scope, reads_variable]
+
+set_option maxHeartbeats 400000 in
+theorem lower_parameter_branch (env : Environment) (key : FunctionSource.Compiler.Key)
+    (id : Nat) (owner : Namespace.Owner) (c y n : Nat) (span : Span) (resolve : Nat → Option CallTarget)
+    (cy : c ≠ y) (cn : c ≠ n) (yn : y ≠ n) :
+    let bool : Core.Result := ⟨.pure .bool, none⟩
+    let int : Core.Result := ⟨.pure .int, none⟩
+    let body := Core.Term.branch (.variable c bool) (scopedIntParameter y) (scopedIntParameter n) int
+    lowerLinkedFunction env key ⟨id, owner, [⟨c,bool⟩,⟨y,int⟩,⟨n,int⟩], int.type, .scope body, span⟩ resolve =
+      some ⟨⟨owner⟩, id, key, #[.bool,.int,.int], .int, parameterBranch .optimization⟩ := by
+  dsimp only
+  let bool : Core.Result := ⟨.pure .bool, none⟩
+  let int : Core.Result := ⟨.pure .int, none⟩
+  let ctx : List (Nat × Ref) := [(c,⟨0,0⟩),(y,⟨0,1⟩),(n,⟨0,2⟩)]
+  let entry : Draft := {params := #[.bool,.int,.int]}
+  let arm : Draft := {params := #[]}
+  have choice : (lowerTerm resolve ctx (.variable c bool)).run #[entry] = some (⟨0,0⟩, #[entry]) := by
+    rw [reads_variable c bool resolve ctx #[entry]]
+    simp [ctx]
+  have onYes : (lowerTerm resolve ctx (scopedIntParameter y)).run #[entry,arm] = some (⟨0,1⟩, #[entry,arm]) := by
+    rw [read_scoped_int_parameter y resolve ctx #[entry,arm]]
+    simp [ctx, List.lookup, beq_eq_false_iff_ne.mpr (Ne.symm cy)]
+  have onNo : (lowerTerm resolve ctx (scopedIntParameter n)).run #[entry,arm,arm] = some (⟨0,2⟩, #[entry,arm,arm]) := by
+    rw [read_scoped_int_parameter n resolve ctx #[entry,arm,arm]]
+    simp [ctx, List.lookup, beq_eq_false_iff_ne.mpr (Ne.symm cn), beq_eq_false_iff_ne.mpr (Ne.symm yn)]
+  have step := joins_branches (.variable c bool) (scopedIntParameter y) (scopedIntParameter n) int
+    resolve ctx #[entry] .int ⟨0,0⟩ ⟨0,1⟩ ⟨0,2⟩ #[] #[entry] #[entry,arm] entry arm arm rfl choice onYes onNo
+  simp [lowerLinkedFunction, Ty.ofCore]
+  rw [forwards_scope _ resolve ctx]
+  let branch := Terminator.branch ⟨0,0⟩ ⟨1,⟨0⟩,[]⟩ ⟨2,⟨0⟩,[]⟩
+  let left := Terminator.jump ⟨3,⟨1⟩,[⟨0,1⟩]⟩
+  let right := Terminator.jump ⟨3,⟨2⟩,[⟨0,2⟩]⟩
+  let join : Draft := {params := #[.int]}
+  let partialBlocks := #[{entry with terminator := branch}, {arm with terminator := left},
+    {arm with terminator := right}, join]
+  have ends : (lowerTerm resolve ctx (.branch (.variable c bool) (scopedIntParameter y) (scopedIntParameter n) int)).run #[entry] =
+      some (⟨3,0⟩, partialBlocks) := by
+    rw [step]
+    rfl
+  rw [ends]
+  simp only [Option.bind_some]
+  let ret := Terminator.ret ⟨3⟩ ⟨3,0⟩
+  let closed := #[{entry with terminator := branch}, {arm with terminator := left},
+    {arm with terminator := right}, {join with terminator := ret}]
+  have last : (finishBlock (partialBlocks.size - 1) (.ret ⟨partialBlocks.size - 1⟩ ⟨3,0⟩)).run partialBlocks =
+      some ((), closed) := rfl
+  rw [last]
+  simp only [Option.bind_some]
+  have finalize : (closed.mapM fun d => d.terminator.bind fun t => some (⟨d.params, d.ops, t⟩ : Block .optimization)) =
+      some (parameterBranch .optimization) := by
+    with_unfolding_all rfl
+  rw [finalize]
+  simp only [Option.bind_some]
+  let out : Function .optimization := ⟨⟨owner⟩, id, key, #[.bool,.int,.int], .int, parameterBranch .optimization⟩
+  change (do guard (validFunction env out); pure out) = some out
+  have valid : validFunction env out = true := by
+    set_option maxRecDepth 8192 in
+      with_unfolding_all rfl
+  rw [valid]
+  rfl
 
 /-- Full modules keep the original dense Core symbol numbers. -/
 def lowerFunction (env : Environment) (origin : FunctionSource.Compiler.Key)

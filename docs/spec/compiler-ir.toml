@@ -470,7 +470,7 @@ coverage check instead of silently inheriting admission.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.coverage)"
 example = "Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing."
-example_not_executed = "The source-schema guard, eight instruction mappings and four structural mappings run in CI. Whole-module release coverage remains pending."
+example_not_executed = "The source-schema guard, eleven instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending."
 
 [property."compiler-ir.coverage".claim.ledger]
 status = "planned"
@@ -492,11 +492,17 @@ This claim covers the reviewed constructor signatures, referenced record schemas
 and runtime manifest closure in config/midir-coverage.json. The guard rejects
 source drift, incomplete inventories and JSON-only promotion to admission.
 Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, and first-order static calls have local lowering proofs.
-Variable references, scopes, typed ascriptions and let bindings have structural
+Variable references, scopes, typed ascriptions, let bindings and conditionals have structural
 mappings without an opcode. A constructor with several opcodes names every alternative in registry order.
-CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 593 rows await review. Whole-module acceptance remains a separate obligation
+CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 592 rows await review. Whole-module acceptance remains a separate obligation
 for every row. The release coverage check enforces that distinction.
 """
+
+[property."compiler-ir.coverage".claim.branch-lowering]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.branch_constructor_coverage", "VastitasOracle.MidIR.linked_branch_method"]
+premises = ["the checked package retains the method and its Core body selects one of two integer parameters with a Boolean parameter", "the three formal parameters have distinct symbols"]
+note = "The builder propagates failure from either arm. On success it uses the actual exits of the condition and both children, their effect tokens and the typed join parameter. The linked method theorem follows the source ascriptions and scopes. Core and both MidIR invokers return the selected integer for every input and call depth under one complete revision. The conditional method still needs a boxed LLVM lowering."
 
 [property."compiler-ir.coverage".claim.unary-lowering]
 status = "proved-oracle"

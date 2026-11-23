@@ -5180,11 +5180,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.branch",
-      "disposition": "pending",
-      "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.branch",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "disposition": "structural",
+      "owner": "#750",
+      "planned_opcode": null,
+      "reason": "Check both arm actions. The condition branches to their entry blocks. Each actual predecessor passes its result and effect token to the typed join.",
+      "evidence": [
+        "VastitasOracle.MidIR.branch_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.call",

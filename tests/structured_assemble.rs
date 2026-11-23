@@ -336,3 +336,27 @@ fn protected_flat_entry_starts_at_zero_and_cannot_supply_edit_authority() {
             .contains("package source file")
     );
 }
+
+#[test]
+fn an_assembled_branch_returns_the_integer_from_the_taken_arm() {
+    let scratch = Scratch::empty("assembled branch");
+    let source = include_str!("../llvm/fixtures/ConditionalMethod.vast");
+    scratch.write_package("branch_method", source, "");
+    for (program, expected) in [
+        (source.to_owned(), 43),
+        (
+            common::checked_replace(source, "choose(true,", "choose(false,"),
+            237,
+        ),
+        (
+            common::checked_replace(source, "apply conditional;", ""),
+            237,
+        ),
+    ] {
+        scratch.write("branch_method/main.vast", &program);
+        assert_eq!(
+            scratch.check_build_and_run("branch_method/Vastitas.toml"),
+            common::exits(expected)
+        );
+    }
+}

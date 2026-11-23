@@ -407,7 +407,7 @@ coverage check instead of silently inheriting admission.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.coverage)"
 example = "Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing."
-example_not_executed = "The source-schema guard, six instruction mappings and four structural mappings run in CI. Whole-module release coverage remains pending."
+example_not_executed = "The source-schema guard, seven instruction mappings and four structural mappings run in CI. Whole-module release coverage remains pending."
 
 [property."compiler-ir.coverage".claim.ledger]
 status = "planned"
@@ -421,16 +421,36 @@ evidence = [
   "scripts/test_check_midir_coverage.py::CoverageTests::test_no_json_only_admission_or_wildcard_opcode",
   "scripts/test_check_midir_coverage.py::CoverageTests::test_new_runtime_root_and_import_change_fail",
   "scripts/test_check_midir_coverage.py::RepositoryTests::test_structural_rows_require_the_matching_proof_and_no_instruction",
+  "scripts/test_check_midir_coverage.py::RepositoryTests::test_static_call_mapping_requires_the_exact_constructor_opcode_and_theorem",
 ]
 note = """
 This claim covers the reviewed constructor signatures, referenced record schemas
 and runtime manifest closure in config/midir-coverage.json. The guard rejects
 source drift, incomplete inventories and JSON-only promotion to admission.
-Four ground literals, finite tags and finite lookups have local lowering proofs.
+Four ground literals, finite tags, finite lookups and first-order static calls have local lowering proofs.
 Variable references, scopes, typed ascriptions and let bindings have structural
 mappings without an opcode. CI checks each origin, optional opcode and theorem
-against the compiled Lean registry. The other 598 rows await review. Whole-module acceptance remains a separate obligation
+against the compiled Lean registry. The other 597 rows await review. Whole-module acceptance remains a separate obligation
 for every row. The release coverage check enforces that distinction.
+"""
+
+[property."compiler-ir.coverage".claim.static-call-lowering]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.static_call_constructor_coverage", "VastitasOracle.MidIR.static_call_package_identity",
+            "VastitasOracle.MidIR.static_call_int_subtraction", "VastitasOracle.MidIR.static_call_wrong_target"]
+premises = ["the source call has an empty substitution and a resolved unindexed result of the expected type",
+            "the Core evaluator finds the callee and the optimization module links the corresponding body",
+            "for general call evaluation, the selected callee body agrees on bound actual arguments",
+            "the optimization module successfully converts to the execution phase"]
+note = """
+The production builder lowers the arguments in source order. It stores their SSA references and the
+complete target in the next slot of the live block. An aligned package recovers the original Core
+symbol, validated origin, family, specialization and ABI for each local function under the request's
+full revision. Each phase rejects a mismatched target at an existing address. The call-site induction
+step includes argument and parameter-binding failures. For a scoped two-parameter Int subtraction
+and its corresponding single SSA block, evaluating the Core call and invoking both MidIR phases gives
+the first integer minus the second for all unbounded Int operands. Other callee bodies and general
+argument-to-SSA value correspondence still need their own preservation proofs.
 """
 
 [property."compiler-ir.coverage".claim.binding-lowering]

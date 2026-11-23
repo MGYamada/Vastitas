@@ -251,14 +251,20 @@ theorem run_unary {p : Phase} (env : Environment) (s : UnaryLookup) (f : MidIR.F
 
 /-- A two-argument SSA block passes its incoming values to its operation in
 parameter order and returns precisely the value of that operation. -/
+theorem runWith_binary {p : Phase} (resolve : Resolver) (env : Environment) (f : MidIR.Function p) (op : Opcode p)
+    (a b : VastitasKernel.MidIR.Ty) (row col : Value)
+    (shape : f.blocks = #[⟨#[a,b], #[⟨op,[⟨0,0⟩,⟨0,1⟩]⟩], .ret ⟨0⟩ ⟨0,2⟩⟩]) :
+    runWith env f resolve [row,col] = denote env op [row,col] resolve := by
+  unfold runWith
+  rw [shape]
+  cases h : denote env op [row,col] resolve <;>
+    simp [runGraph, Evaluation.runGraph.go, observeBlock, observeOp, Std.HashMap.getElem?_insert, guard, h]
+
 theorem run_binary {p : Phase} (env : Environment) (f : MidIR.Function p) (op : Opcode p)
     (a b : VastitasKernel.MidIR.Ty) (row col : Value)
     (shape : f.blocks = #[⟨#[a,b], #[⟨op,[⟨0,0⟩,⟨0,1⟩]⟩], .ret ⟨0⟩ ⟨0,2⟩⟩]) :
-    run env f [row,col] = denote env op [row,col] := by
-  unfold run
-  rw [shape]
-  cases h : denote env op [row,col] <;>
-    simp [runGraph, Evaluation.runGraph.go, observeBlock, observeOp, Std.HashMap.getElem?_insert, guard, h]
+    run env f [row,col] = denote env op [row,col] :=
+  runWith_binary _ env f op a b row col shape
 
 /-- The second argument can also occur first in the opcode's actual SSA operands. -/
 theorem run_binary_swapped {p : Phase} (env : Environment) (f : MidIR.Function p) (op : Opcode p)

@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains 30 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 22. Replay parses each of those 22 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains 32 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 24. Replay parses each of those 24 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -9,6 +9,7 @@ The corpus contains 30 complete LLVM assembly files from edition 2026 Vastitas s
 | [exit-status.ll](../src/exit-status.ll) · 374 bytes | [ExitStatus.vast](../fixtures/ExitStatus.vast) | A signed literal, −(2¹²⁸+1), stays unbounded through both MidIR phases. At the C entry point its residue modulo 256 gives `ret i32 u0xFF`. | `exit_status_verified` |
 | [folded-arithmetic.ll](../src/folded-arithmetic.ll) · 374 bytes | [FoldedArithmetic.vast](../fixtures/FoldedArithmetic.vast) | The source selects division for the ordered operands `(Nat, Int)`. Its Euclidean quotient for 7 and −3 is −2. Adding 12 gives the constant returned by `ret i32 u0x0A`. | `folded_arithmetic_verified` |
 | [boxed-program.ll](../src/boxed-program.ll) · 1,830 bytes | [BoxedProgram.vast](../fixtures/BoxedProgram.vast) | Four functions pass a borrowed heap integer through an identity, doubling and mixed division. The hosted entry initializes the runtime and consumes the owned result. | `boxed_program_verified` |
+| [ordered-calls.ll](../src/ordered-calls.ll) · 2,311 bytes | [OrderedCalls.vast](../fixtures/OrderedCalls.vast) | Two nested calls supply the left and right operands of an assembled subtraction method. The entry returns 23. | `ordered_calls_verified` |
 | [boxed-pairs.ll](../src/boxed-pairs.ll) · 4,157 bytes | [BoxedPairs.vast](../fixtures/BoxedPairs.vast) | Five functions construct and project homogeneous integer pairs. The selected method returns the large negative integer in its first field. Swapping the fields gives 42 at the entry. | `boxed_pairs_verified` |
 | [singleton-power.ll](../src/singleton-power.ll) · 1,977 bytes | [SingletonPower.vast](../fixtures/SingletonPower.vast) | One function squares a boxed integer eight times, divides by seven and passes the owned quotient to the hosted entry. | `singleton_power_verified` |
 | [borrowed-operator.ll](../src/borrowed-operator.ll) · 2,051 bytes | [Borrowed operator package](../fixtures/borrowed-operator/Vastitas.toml) | The caller borrows an edit grant on the imported family. Its selected implementation adds 40 and 2. The module also contains four unselected specializations of the method that returns zero. | `borrowed_operator_verified` |
@@ -264,6 +265,18 @@ A Lean 4.35.0 control with the same typed local also returned 42. Its installed
 compiler reported that bitcode output requires a build with `-DLLVM=ON`.
 [Public regression](../../tests/llvm_preview.rs)
 [Boxed pairs](../src/boxed-pairs.ll) · [Binding proofs](../../lean/VastitasOracle/BindingCoverage.lean) · [Lean variable declarations](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L979-L1007) · [Lean block emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1153-L1164)
+
+For the nested call `pick(delta(9, 4), delta(3, 1))`, both calls to `delta`
+use the same function address. The selected method receives their SSA results
+as `@vq_f1(ptr %v2, ptr %v5)`. Lean 4.35.0's `emitFullApp` resolves the
+function ID, traverses its argument array in order, loads each slot and passes
+those values to `LLVM.buildCall2`. For the retained 2,311 bytes, both the
+Official and Fast boxed-program certificates verified the result 23. On macOS
+arm64, LLVM 23.1.4 assembled, verified and compiled this file. With the final addition of 20, the
+linked program returned 23. Swapping the two arguments or removing the applied
+method returned 17 in each case. Lean/C controls produced the same three
+results. The installed Lean compiler requires an LLVM-enabled build for the
+upstream bitcode comparison. [Public call regression](../../tests/llvm_preview.rs) · [Call proofs](../../lean/VastitasOracle/StaticCallCoverage.lean) · [Pinned emitFullApp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774)
 
 The two-object isomorphism module passes the two arrows to the composition
 functions in opposite orders. Its nested conditions join the exit values 42,

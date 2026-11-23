@@ -41,6 +41,8 @@ MODULE = re.compile(r"[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*\Z")
 LITERAL_THEOREM = "VastitasOracle.MidIR.literal_constructor_coverage"
 FINITE_TAG_THEOREM = "VastitasOracle.MidIR.finite_tag_constructor_coverage"
 LOOKUP_THEOREM = "VastitasOracle.MidIR.finite_lookup_constructor_coverage"
+STATIC_CALL_THEOREM = "VastitasOracle.MidIR.static_call_constructor_coverage"
+STATIC_CALL_ORIGIN = "VastitasKernel.Indexed.Core.Term.call"
 STRUCTURAL_THEOREMS = {
     "VastitasKernel.Indexed.Core.Term." + origin: "VastitasOracle.MidIR." + theorem + "_constructor_coverage"
     for origin, theorem in [("variable", "variable"), ("scope", "scope"), ("ascribe", "ascription"), ("letE", "let")]
@@ -439,7 +441,10 @@ def validate(ledger, actual, require_complete=False):
         if status == "admitted":
             raise CoverageError(f"admission unavailable before closed-registry evidence checking: {origin}")
         if status == "lowered":
-            if item["evidence"] not in ([LITERAL_THEOREM], [FINITE_TAG_THEOREM], [LOOKUP_THEOREM]):
+            if origin == STATIC_CALL_ORIGIN:
+                if (opcode, item["evidence"]) != ("midir.static.call.v1", [STATIC_CALL_THEOREM]):
+                    raise CoverageError(f"static call requires its checked opcode and constructor theorem: {origin}")
+            elif item["evidence"] not in ([LITERAL_THEOREM], [FINITE_TAG_THEOREM], [LOOKUP_THEOREM]):
                 raise CoverageError(f"missing checked local lowering theorem for {origin}")
         elif status != "structural" and item["evidence"]:
             raise CoverageError(f"unrecognized evidence schema for {origin}")

@@ -24,6 +24,7 @@ CASES = [
     Sample("exit-status", HERE / "fixtures/ExitStatus.vast", "exit_status"),
     Sample("folded-arithmetic", HERE / "fixtures/FoldedArithmetic.vast", "folded_arithmetic"),
     Sample("boxed-program", HERE / "fixtures/BoxedProgram.vast", "boxed_program"),
+    Sample("ordered-calls", HERE / "fixtures/OrderedCalls.vast", "ordered_calls"),
     Sample("boxed-pairs", HERE / "fixtures/BoxedPairs.vast", "boxed_pairs"),
     Sample("singleton-power", HERE / "fixtures/SingletonPower.vast", "singleton_power"),
     Sample("borrowed-operator", HERE / "fixtures/borrowed-operator/Vastitas.toml", None),

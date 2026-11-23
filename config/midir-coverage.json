@@ -5188,11 +5188,13 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.call",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.call",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.static.call.v1",
+      "reason": "For empty substitutions and a resolved compatible result, the builder lowers actuals in order and appends the selected target. Both phase invokers agree with Core given the callee body correspondence.",
+      "evidence": [
+        "VastitasOracle.MidIR.static_call_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.finiteLookup",

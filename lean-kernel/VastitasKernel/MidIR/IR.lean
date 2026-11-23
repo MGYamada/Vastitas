@@ -22,7 +22,7 @@ inductive Ty where
   | int
   | pair (element : PairElem)
   | finite (carrier : FiniteSort)
-  deriving BEq, DecidableEq, Repr
+  deriving BEq, ReflBEq, LawfulBEq, DecidableEq, Repr
 
 def Ty.valid (env : Environment) : Ty → Bool
   | .unit | .bool | .nat | .int | .pair _ => true

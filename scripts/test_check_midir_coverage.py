@@ -325,6 +325,19 @@ class RepositoryTests(unittest.TestCase):
             with self.subTest(rows=rows), self.assertRaisesRegex(guard.CoverageError, "compiled lowering differs"):
                 guard.check_lowerings({"coverage": selected}, rows)
 
+    def test_static_call_mapping_requires_the_exact_constructor_opcode_and_theorem(self):
+        ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
+        call = next(r for r in ledger["coverage"] if r["origin"] == guard.STATIC_CALL_ORIGIN)
+        self.assertEqual(call["disposition"], "lowered")
+        for changed in [{"planned_opcode": "midir.int.const.v1"}, {"evidence": [guard.LITERAL_THEOREM]}]:
+            rows = [{**r, **changed} if r is call else r for r in ledger["coverage"]]
+            with self.subTest(changed=changed), self.assertRaisesRegex(guard.CoverageError, "static call"):
+                guard.validate({**ledger, "coverage": rows}, ledger["schema"])
+        fake = {**call, "origin": "VastitasKernel.Term.call"}
+        rows = [fake if r["origin"] == fake["origin"] else r for r in ledger["coverage"]]
+        with self.assertRaisesRegex(guard.CoverageError, "missing checked local lowering"):
+            guard.validate({**ledger, "coverage": rows}, ledger["schema"])
+
     def test_complete_cli_rejects_the_current_pending_inventory(self):
         run = subprocess.run([sys.executable, str(guard.ROOT / "scripts/check_midir_coverage.py"),
                               "--require-complete"], text=True, capture_output=True, check=False)

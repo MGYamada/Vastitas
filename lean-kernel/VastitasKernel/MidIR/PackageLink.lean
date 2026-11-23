@@ -137,24 +137,45 @@ def staticClosed {json main} (req : Request json main) (ids : Array Nat) : Bool 
         covered caller target.definition.owner
       | _, _ => false
 
+private def alignedFunction {json main} (req : Request json main) (fs : Array Core.Function)
+    (originals : Array Nat) (f : Function .optimization) (i : Nat) : Option Unit := do
+  let id ← originals[i]?
+  let orig ← fs[id]?
+  let key ← req.checked.pureProgram.executable.lowered.origins[id]?
+  let target ← CallTarget.ofCore orig key
+  let called ← (callIds f).mapM (originals[·]?)
+  guard (orig.id == id && validOrigin req.checked.pureProgram orig key &&
+    decide (f.target = {target with symbol := i}) && Finite.sameCounts called orig.body.callIds)
+
 /-- Structural witness on every local symbol, including original call edge
 multiplicity and finite-template origin. Calls can be spelled in a different
 order by A-normalization, so the CFG also remains part of the artifact. -/
 def aligned {json main} (req : Request json main) (originals : Array Nat)
-    (opt : Module .optimization) : Bool := Id.run do
-  let src := req.checked.pureProgram
+    (opt : Module .optimization) : Bool :=
   let fs := (core req).functions.toArray
-  unless originals.size == opt.functions.size do return false
-  for (f, i) in opt.functions.toList.zipIdx do
-    let some id := originals[i]? | return false
-    let some orig := fs[id]? | return false
-    let some key := src.executable.lowered.origins[id]? | return false
-    let some target := CallTarget.ofCore orig key | return false
-    let some called := (callIds f).mapM (originals[·]?) | return false
-    unless orig.id == id && validOrigin src orig key &&
-      decide (f.target = {target with symbol := i}) && Finite.sameCounts called orig.body.callIds do
-      return false
-  return true
+  originals.size == opt.functions.size && opt.functions.toList.zipIdx.all fun (f, i) =>
+    (alignedFunction req fs originals f i).isSome
+
+/-- Recover the checked Core origin and complete call ABI for any local
+address in an aligned package. Only its dense symbol address is remapped. -/
+theorem aligned_target {json main} (req : Request json main) (originals : Array Nat)
+    (opt : Module .optimization) (alignedAll : aligned req originals opt = true)
+    (i : Nat) (f : Function .optimization) (localFn : opt.functions[i]? = some f) :
+    ∃ id orig key target, originals[i]? = some id ∧ (core req).functions.toArray[id]? = some orig ∧
+      orig.id = id ∧ req.checked.pureProgram.executable.lowered.origins[id]? = some key ∧
+      validOrigin req.checked.pureProgram orig key = true ∧ CallTarget.ofCore orig key = some target ∧
+      f.target = {target with symbol := i} := by
+  have member : (f, i) ∈ opt.functions.toList.zipIdx :=
+    List.mk_mem_zipIdx_iff_getElem?.mpr (by simpa using localFn)
+  simp only [aligned, Bool.and_eq_true, List.all_eq_true] at alignedAll
+  have checked := alignedAll.2 (f,i) member
+  obtain ⟨_, success⟩ := Option.isSome_iff_exists.mp checked
+  simp only [alignedFunction, bind, Option.bind_eq_some_iff] at success
+  obtain ⟨id, atId, orig, atFn, key, atKey, target, atTarget, _, _, conditions⟩ := success
+  simp only [guard, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at conditions
+  split at conditions
+  next h => exact ⟨id, orig, key, target, atId, atFn, h.1.1.1, atKey, h.1.1.2, atTarget, h.1.2⟩
+  next => contradiction
 
 /-- Run structural lowering over each retained original body; the resolver
 remaps only checked direct calls. Every actual call must also occur in the

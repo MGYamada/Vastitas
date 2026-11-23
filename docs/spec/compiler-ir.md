@@ -12,7 +12,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
-| [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle) |
+| [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle) |
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle), Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
@@ -354,7 +354,7 @@ Claims:
 A ledger at a named source revision must enumerate every accepted Core, storage action, native storage instruction and runtime-extent constructor. For each constructor it records an admitted typed MidIR mapping or an explicit finite-profile rejection. Each admitted entry identifies its source fixture, family and method, model, ownership facts, opcode and downstream proof obligation. Any constructor or runtime change regenerates the ledger. The runtime inventory follows the transitive closure of the admitted snapshot, including frame and spectral runtimes where used; an older list of runtime modules is not a completeness argument. Missing entries must fail the coverage check instead of silently inheriting admission.
 
 - Example: Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing.
-- Not executed: The source-schema guard, six instruction mappings and four structural mappings run in CI. Whole-module release coverage remains pending.
+- Not executed: The source-schema guard, seven instruction mappings and four structural mappings run in CI. Whole-module release coverage remains pending.
 
 Claims:
 
@@ -367,7 +367,17 @@ Claims:
     - `CoverageTests.test_no_json_only_admission_or_wildcard_opcode` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `CoverageTests.test_new_runtime_root_and_import_change_fail` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `RepositoryTests.test_structural_rows_require_the_matching_proof_and_no_instruction` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
-  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. Four ground literals, finite tags and finite lookups have local lowering proofs. Variable references, scopes, typed ascriptions and let bindings have structural mappings without an opcode. CI checks each origin, optional opcode and theorem against the compiled Lean registry. The other 598 rows await review. Whole-module acceptance remains a separate obligation for every row. The release coverage check enforces that distinction.
+    - `RepositoryTests.test_static_call_mapping_requires_the_exact_constructor_opcode_and_theorem` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
+  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. Four ground literals, finite tags, finite lookups and first-order static calls have local lowering proofs. Variable references, scopes, typed ascriptions and let bindings have structural mappings without an opcode. CI checks each origin, optional opcode and theorem against the compiled Lean registry. The other 597 rows await review. Whole-module acceptance remains a separate obligation for every row. The release coverage check enforces that distinction.
+- `static-call-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StaticCallCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StaticCallCoverage.lean): `VastitasOracle.MidIR.static_call_constructor_coverage`, `VastitasOracle.MidIR.static_call_package_identity`, `VastitasOracle.MidIR.static_call_int_subtraction`, `VastitasOracle.MidIR.static_call_wrong_target`
+  - Premises:
+    - the source call has an empty substitution and a resolved unindexed result of the expected type
+    - the Core evaluator finds the callee and the optimization module links the corresponding body
+    - for general call evaluation, the selected callee body agrees on bound actual arguments
+    - the optimization module successfully converts to the execution phase
+  - Note: The production builder lowers the arguments in source order. It stores their SSA references and the complete target in the next slot of the live block. An aligned package recovers the original Core symbol, validated origin, family, specialization and ABI for each local function under the request's full revision. Each phase rejects a mismatched target at an existing address. The call-site induction step includes argument and parameter-binding failures. For a scoped two-parameter Int subtraction and its corresponding single SSA block, evaluating the Core call and invoking both MidIR phases gives the first integer minus the second for all unbounded Int operands. Other callee bodies and general argument-to-SSA value correspondence still need their own preservation proofs.
 - `binding-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.BindingCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BindingCoverage.lean): `VastitasOracle.MidIR.variable_constructor_coverage`, `VastitasOracle.MidIR.scope_constructor_coverage`, `VastitasOracle.MidIR.ascription_constructor_coverage`, `VastitasOracle.MidIR.let_constructor_coverage`, `VastitasOracle.MidIR.lower_linked_typed_forwarder`, `VastitasOracle.MidIR.execute_linked_typed_forwarder`

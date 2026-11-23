@@ -67,6 +67,21 @@ set_option maxRecDepth 65536 in
 set_option maxHeartbeats 2000000 in
 theorem boxed_program_verified : programBytes = boxedProgram.print := by rfl
 
+def orderedCalls : ExactProgram.Code :=
+  let subtract := fun refs => ExactProgram.Function.mk [.int,.int] .int
+    [.primitive (.apply (.int .sub) refs)] 2
+  let entry : ExactProgram.Function := ⟨[],.int,[
+    .primitive (.int 9), .primitive (.int 4), .invoke 0 [0,1],
+    .primitive (.int 3), .primitive (.int 1), .invoke 0 [3,4],
+    .invoke 1 [2,5], .primitive (.int 20), .primitive (.apply (.int .add) [6,7])],8⟩
+  ⟨header, #[subtract [0,1], subtract [0,1], entry, subtract [1,0]], 2⟩
+
+def orderedCallBytes := corpus_bytes "src/ordered-calls.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem ordered_calls_verified : orderedCallBytes = orderedCalls.print := by rfl
+
 def boxedPairs : ExactProgram.Code :=
   let op := fun code refs => ExactProgram.Instruction.primitive (.apply code refs)
   let neighbors : ExactProgram.Function := ⟨[.nat],.pair .nat,
@@ -631,6 +646,7 @@ def checkedFiles : List (String × ByteArray) :=
   [("exit-status.ll", forExit exit_status_verified),
    ("folded-arithmetic.ll", forExit folded_arithmetic_verified),
    ("boxed-program.ll", forProgram boxed_program_verified),
+   ("ordered-calls.ll", forProgram ordered_calls_verified),
    ("boxed-pairs.ll", forProgram boxed_pairs_verified),
    ("singleton-power.ll", forProgram singleton_power_verified),
    ("borrowed-operator.ll", forProgram borrowed_operator_verified),
@@ -676,6 +692,10 @@ def main (args : List String) : IO Unit := do
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.singletonPowerBytes == some power &&
       power.entryValue == some ((3^256 : Int) / 7) do
     throw (IO.userError "singleton-power.ll: wrong runtime operations or full quotient")
+  let ordered := Vastitas.LLVMCorpus.orderedCalls
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.orderedCallBytes == some ordered &&
+      ordered.entryValue == some 23 do
+    throw (IO.userError "ordered-calls.ll: different nested operands, target or integer result")
   let borrowed := Vastitas.LLVMCorpus.borrowedOperator
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.borrowedOperatorBytes == some borrowed &&
       borrowed.entryValue == some 42 do

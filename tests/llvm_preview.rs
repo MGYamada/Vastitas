@@ -20,6 +20,8 @@ contribution prefer : keep {
 assemble keep { apply prefer; }
 fn main() -> Int { if keep(false) { 314 } else { 9 } }";
 
+const ORDERED_CALLS: &str = include_str!("../llvm/fixtures/OrderedCalls.vast");
+
 fn preview(s: &Scratch, source: &str) -> Output {
     s.write_package("app", source, "");
     s.command("check", "app/Vastitas.toml")
@@ -411,6 +413,68 @@ fn boxed_program_preserves_call_targets_and_borrowed_returns() {
     }
     source.push_str("x12 }");
     expect_code(&preview(&s, &source), "E_UNSUPPORTED");
+}
+
+#[test]
+fn assembled_calls_keep_the_selected_target_and_ordered_nested_arguments() {
+    let s = Scratch::empty("assembled nested calls");
+    let original = preview(&s, ORDERED_CALLS);
+    success(&original);
+    let llvm = std::str::from_utf8(&original.stdout).unwrap();
+    let mut calls = llvm.lines().filter(|line| line.contains("call ptr @vq_f"));
+    assert_eq!(
+        calls.next().unwrap().trim(),
+        "%v2 = call ptr @vq_f0(ptr %v0, ptr %v1)"
+    );
+    assert_eq!(
+        calls.next().unwrap().trim(),
+        "%v5 = call ptr @vq_f0(ptr %v3, ptr %v4)"
+    );
+    assert_eq!(
+        calls.next().unwrap().trim(),
+        "%v6 = call ptr @vq_f1(ptr %v2, ptr %v5)"
+    );
+    let revision = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&revision);
+    s.write(
+        "original.json",
+        std::str::from_utf8(&revision.stdout).unwrap(),
+    );
+
+    for changed in [
+        ORDERED_CALLS.replace(
+            "pick(delta(9, 4), delta(3, 1))",
+            "let a = delta(9, 4); let b = delta(3, 1); pick(b, a)",
+        ),
+        ORDERED_CALLS.replace("apply forward;", ""),
+    ] {
+        let other = preview(&s, &changed);
+        success(&other);
+        assert_ne!(other.stdout, original.stdout);
+        let stale = s
+            .command("check", "app/Vastitas.toml")
+            .args(TARGET)
+            .args(["--expect-function-revision", "original.json"])
+            .output()
+            .unwrap();
+        expect_code(&stale, "E_FUNCTION_REVISION");
+        assert!(stale.stdout.is_empty());
+    }
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
+fn native_assembled_nested_calls_observe_argument_and_method_changes() {
+    check_native_status(ORDERED_CALLS, 23);
+    check_native_status(
+        &ORDERED_CALLS.replace("delta(9, 4), delta(3, 1)", "delta(3, 1), delta(9, 4)"),
+        17,
+    );
+    check_native_status(&ORDERED_CALLS.replace("apply forward;", ""), 17);
 }
 
 #[test]

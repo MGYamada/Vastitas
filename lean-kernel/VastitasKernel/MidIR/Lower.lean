@@ -168,6 +168,81 @@ theorem appends_lookup (site : FiniteLookup) (symbols : List Nat) : AppendsLooku
 
 def lookupRegistryRow : Lean.Name × String := (``Core.Term.finiteLookup, "finite.lookup.tag.v1")
 
+private theorem lowerArguments_in_order (resolve : Nat → Option CallTarget) (ctx : List (Nat × Ref))
+    (terms : List Core.Term) :
+    lowerArguments resolve ctx terms = terms.mapM (lowerTerm resolve ctx) := by
+  induction terms with
+  | nil => rfl
+  | cons arg rest ih => simp [lowerArguments, List.mapM_cons, ih]
+
+/-- The call checks its resolved result and then threads the builder through
+each actual argument in source order, including any blocks they introduce. -/
+def LowersStaticCall (id : Nat) (terms : List Core.Term) (annotation : Core.Result) : Prop :=
+  ∀ resolve ctx, lowerTerm resolve ctx (.call id terms [] annotation) = (do
+    let target ← liftM (resolve id)
+    guard (annotation.reference.isNone && Ty.ofCore annotation.type == some target.result)
+    let refs ← terms.mapM (lowerTerm resolve ctx)
+    emit (.call target) refs)
+
+theorem lowers_static_call (id : Nat) (terms : List Core.Term) (annotation : Core.Result) :
+    LowersStaticCall id terms annotation := by
+  intro resolve ctx
+  simp only [lowerTerm, lowerArguments_in_order]
+
+/-- After argument evaluation, the call appends the exact target and ordered
+references to the current live block and returns their instruction's slot. -/
+def AppendsStaticCall (id : Nat) (terms : List Core.Term) (annotation : Core.Result) : Prop :=
+  ∀ resolve ctx target blocks refs (prior : Array Draft) (params : Array Ty)
+    (prefixOps : Array (Op .optimization)), resolve id = some target →
+    (annotation.reference.isNone && Ty.ofCore annotation.type == some target.result) = true →
+    (terms.mapM (lowerTerm resolve ctx)).run blocks = some (refs, prior.push {params, ops := prefixOps}) →
+    (lowerTerm resolve ctx (.call id terms [] annotation)).run blocks =
+      some (⟨prior.size, params.size + prefixOps.size⟩,
+        prior.push {params, ops := prefixOps.push ⟨.call target, refs⟩})
+
+theorem appends_static_call (id : Nat) (terms : List Core.Term) (annotation : Core.Result) :
+    AppendsStaticCall id terms annotation := by
+  intro resolve ctx target blocks refs prior params prefixOps found fits args
+  rw [lowers_static_call id terms annotation resolve ctx]
+  simp only [found, fits, StateT.run, bind, StateT.bind, liftM, monadLift,
+    MonadLift.monadLift, StateT.lift, Option.bind_some, guard, pure, StateT.pure,
+    ↓reduceIte] at *
+  rw [args]
+  exact emit_live _ _ _ _ _
+
+/-- Unsupported substitutions, missing targets and conflicting result
+annotations reject at the call site before lowering any argument. -/
+def RejectsStaticCall (id : Nat) (terms : List Core.Term) (substitution : List (Indexed.ObjectRef × Indexed.ObjectRef))
+    (annotation : Core.Result) : Prop :=
+  ∀ resolve ctx blocks, (substitution ≠ [] ∨
+    (resolve id).all (fun target => !(annotation.reference.isNone && Ty.ofCore annotation.type == some target.result))) →
+    (lowerTerm resolve ctx (.call id terms substitution annotation)).run blocks = none
+
+theorem rejects_static_call (id : Nat) (terms : List Core.Term) (substitution : List (Indexed.ObjectRef × Indexed.ObjectRef))
+    (annotation : Core.Result) : RejectsStaticCall id terms substitution annotation := by
+  intro resolve ctx blocks invalid
+  cases substitution with
+  | cons => rfl
+  | nil =>
+    cases found : resolve id with
+    | none => simp [lowerTerm, found, StateT.run, bind, StateT.bind, liftM, monadLift,
+        MonadLift.monadLift, StateT.lift]
+    | some target =>
+      rcases invalid with impossible | rejected
+      · exact (impossible rfl).elim
+      rw [found] at rejected
+      change (!(annotation.reference.isNone && Ty.ofCore annotation.type == some target.result)) = true at rejected
+      rw [Bool.not_eq_true'] at rejected
+      rw [lowers_static_call id terms annotation resolve ctx]
+      simp only [found]
+      change ((do guard (annotation.reference.isNone && Ty.ofCore annotation.type == some target.result)
+                  let refs ← terms.mapM (lowerTerm resolve ctx)
+                  emit (.call target) refs) : Builder Ref).run blocks = none
+      rw [rejected]
+      rfl
+
+def staticCallRegistryRow : Lean.Name × String := (``Core.Term.call, "static.call.v1")
+
 /-- Variables reuse the defining SSA reference in every builder state. An
 unbound symbol fails before changing any block. -/
 def ReadsVariable (symbol : Nat) (result : Core.Result) : Prop :=

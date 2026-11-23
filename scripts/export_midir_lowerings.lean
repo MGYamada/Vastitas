@@ -1,5 +1,6 @@
 import VastitasOracle.LiteralCoverage
 import VastitasOracle.FiniteOpcodeCoverage
+import VastitasOracle.StaticCallCoverage
 import VastitasOracle.BindingCoverage
 import Lean.Data.Json
 
@@ -21,6 +22,7 @@ def main : IO Unit := do
   let literals := literalRegistry.map fun entry => row entry ``VastitasOracle.MidIR.literal_constructor_coverage
   let finite := row finiteTagRegistryRow ``VastitasOracle.MidIR.finite_tag_constructor_coverage
   let lookup := row lookupRegistryRow ``VastitasOracle.MidIR.finite_lookup_constructor_coverage
+  let call := row staticCallRegistryRow ``VastitasOracle.MidIR.static_call_constructor_coverage
   let binding (origin proof : Name) := Json.mkObj [
     ("origin", toJson origin.toString), ("opcode", Json.null), ("theorem", toJson proof.toString)]
   let bindings := [
@@ -28,4 +30,4 @@ def main : IO Unit := do
     binding ``Core.Term.scope ``VastitasOracle.MidIR.scope_constructor_coverage,
     binding ``Core.Term.ascribe ``VastitasOracle.MidIR.ascription_constructor_coverage,
     binding ``Core.Term.letE ``VastitasOracle.MidIR.let_constructor_coverage]
-  IO.println (toJson (literals ++ [finite, lookup] ++ bindings)).compress
+  IO.println (toJson (literals ++ [finite, lookup, call] ++ bindings)).compress

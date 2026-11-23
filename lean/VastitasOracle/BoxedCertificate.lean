@@ -103,7 +103,7 @@ theorem corresponds {s : Subject} (valid : Valid s) {requireMain : Bool} (p : Pu
   · exact value ▸ obs.2.2.2.2.2.2.1
   · simp [value, ExitMain.statusOf_exact]
 
-/-- A physical implementation or classification in a published boxed program
+/-- A physical implementation, classification or indexed family in a published boxed program
 resolves to the same entry in Core and both MidIR environments. Its source
 layout, function revision and complete LLVM bytes belong to this certificate. -/
 theorem published_indexed_definition {s : Subject} (valid : Valid s) {requireMain : Bool}

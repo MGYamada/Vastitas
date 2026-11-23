@@ -80,23 +80,23 @@ private def physicalEntries (j : Json) : Option String := do
   | "gram" => return "gram" ++ (← matrix j "rows" monomial)
   | _ => none
 
+def familyConstraint (j : Json) : Option String := do
+  let kind ← str j "kind"
+  let keys ← match kind with
+    | "canonical" => some ["object"]
+    | "same_object" | "same_base" => some ["left", "right"]
+    | "structural" => some ["object", "base"]
+    | "over" => some ["object", "marker"]
+    | _ => none
+  let slots ← keys.mapM fun key => (j.getObjValAs? Nat key).toOption
+  return kind ++ "(" ++ comma (slots.map toString) ++ ")"
+
 /-- Print a declaration's source keyword and its suffix after the declared name.
 Unsupported negative wire records have no invented source representation. -/
 def syntaxOf (d : Json) : Option (String × String) := do
   let kind ← str d "kind"
   match kind with
   | "marker" | "base_dimension" => return (kind, "")
-  | "family" =>
-    let params ← (← fields d "parameters").mapM fun j => do
-      match ← str j "kind" with
-      | "object" => return "object(" ++ (← ref j "domain") ++ ")"
-      | "frame" => return "frame(" ++ (← ref j "family") ++ ")"
-      | _ => none
-    let rules ← (← fields d "constraints").mapM fun j => do
-      guard (str j "kind" == some "canonical")
-      return "canonical(" ++ toString (← (j.getObjValAs? Nat "object").toOption) ++ ")"
-    let constraints := if rules.isEmpty then "" else " constraints(" ++ comma rules ++ ")"
-    return (kind, "(" ++ comma params ++ ") = " ++ (← str d "representation") ++ constraints)
   | "convention" => return (kind, " = " ++ (← str d "value"))
   | "calibration" =>
     let values ← (← fields d "parameters").mapM fun j => do

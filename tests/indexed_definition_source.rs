@@ -1,4 +1,4 @@
-//! Physical implementation and classification declarations through protocol 10.
+//! Physical indexed definitions through protocol 10.
 mod common;
 
 use common::{CURRENT_PROTOCOL, Scratch, assert_wire_rejected, checked_replace, kernel_with_args};
@@ -211,6 +211,134 @@ fn scalar_and_affine_representation_tokens_and_reference_spans_are_checked() {
         let prefix = &ROOT[..ROOT.find(physical).unwrap()];
         assert_physical_rejection(&stale, prefix);
     }
+}
+
+const FAMILIES: &str = "pub indexed classification Chart { parents(); domain(Smooth); };
+pub indexed family FrameA(object(Chart)) = frame constraints(canonical(0 ));
+pub indexed family FrameB(object(Chart)) = frame constraints(canonical(0 ));
+pub indexed family Coordinates(frame(FrameA ),) = frame_vector  ;
+pub indexed family Dual(frame(FrameA)) = frame_covector constraints( );
+pub indexed family Maps(frame(FrameA), frame(FrameB)) = frame_map;
+pub indexed family Empty() = token constraints();
+";
+const PROFILE_FAMILY: &str = "indexed family Profile(domain, marker, natural, object(defs::RootA), object(defs::RootB),)
+    = token constraints(over(3,1), same_object(3,4), same_base(4,3), structural(3,4), canonical(3),);
+";
+
+#[test]
+fn ordered_family_parameters_constraints_and_representation_bind_the_revision() {
+    let s = Scratch::empty("indexed family definition");
+    let root = format!("{ROOT}{PROFILE_FAMILY}");
+    let defs = format!("{DEFINITIONS}{FAMILIES}");
+    let original = request(&s, &root, &defs);
+    assert_folded(&original);
+    let rev = kernel_with_args(&original, &["function-revision"])["function_revision"].clone();
+    assert!(rev.is_object());
+    for (in_root, from, to, first_difference) in [
+        (
+            true,
+            "domain, marker, natural",
+            "natural, marker, domain",
+            "natural",
+        ),
+        (
+            true,
+            "object(defs::RootA)",
+            "object(defs::RootB)",
+            "defs::RootB",
+        ),
+        (true, "same_object(3,4)", "same_object(4,3)", "4"),
+        (
+            true,
+            "same_base(4,3), structural(3,4)",
+            "structural(3,4), same_base(4,3)",
+            "structural",
+        ),
+        (
+            false,
+            "Coordinates(frame(FrameA ",
+            "Coordinates(frame(FrameB ",
+            "FrameB",
+        ),
+        (
+            false,
+            "= frame_vector  ;",
+            "= frame_covector;",
+            "frame_covector",
+        ),
+    ] {
+        let source = if in_root { &root } else { &defs };
+        let edited = checked_replace(source, from, to);
+        let changed = if in_root {
+            request(&s, &edited, &defs)
+        } else {
+            request(&s, &root, &edited)
+        };
+        assert_folded(&changed);
+        let mut stale = original.clone();
+        stale["root_source"] = changed["root_source"].clone();
+        let offset = edited.find(to).unwrap() + to.find(first_difference).unwrap();
+        assert_physical_rejection(&stale, &edited[..offset]);
+        let mut replay = changed;
+        replay["expected_function_revision"] = rev.clone();
+        assert_wire_rejected(
+            &kernel_with_args(&replay, &["llvm-check", TRIPLE, LAYOUT]),
+            "E_FUNCTION_REVISION",
+        );
+    }
+}
+
+#[test]
+fn family_replay_checks_empty_lists_nested_punctuation_and_decimal_slots() {
+    let s = Scratch::empty("indexed family grammar");
+    let padded = format!("{}0", "0".repeat(70));
+    let defs = format!(
+        "{DEFINITIONS}{FAMILIES}pub indexed family Long(object(RootA)) = token constraints(canonical({padded}));\n"
+    );
+    let original = request(&s, ROOT, &defs);
+    assert_folded(&original);
+    for (from, to, token) in [
+        ("= token constraints();", "= token              ;", ";"),
+        (" constraints( );", " constraints(,);", ","),
+        ("frame(FrameA ),)", "frame(FrameA,),)", ","),
+        ("canonical(0 ));", "canonical(0,));", ","),
+    ] {
+        let start = defs.find(from).unwrap();
+        let edited = defs.replacen(from, to, 1);
+        let mut stale = original.clone();
+        file_mut(&mut stale, "defs.vast")["text"] = json!(edited);
+        assert_physical_rejection(&stale, &edited[..start + to.find(token).unwrap()]);
+    }
+    let mut stale = original;
+    let edited = checked_replace(&defs, &padded, &format!("{}1", "0".repeat(70)));
+    file_mut(&mut stale, "defs.vast")["text"] = json!(edited);
+    assert_physical_rejection(&stale, &edited[..defs.find(&padded).unwrap()]);
+}
+
+#[test]
+fn the_written_index_kinds_check_an_uncalled_function_signature() {
+    let package = "examples/packages/geometry/indexed-objects";
+    let s = common::example_package("indexed family signature", package, &[]);
+    common::success(&s.check_manifest("Vastitas.toml"));
+    let shapes = include_str!("../examples/packages/geometry/indexed-objects/shapes.vast");
+    let swapped = checked_replace(
+        shapes,
+        "object(Shape), marker, natural",
+        "object(Shape), natural, marker",
+    );
+    s.write(
+        "shapes.vast",
+        &checked_replace(&swapped, "over(0, 1)", "over(0, 2)"),
+    );
+    let result = s.check_manifest("Vastitas.toml");
+    let diagnostics = common::expect_code(&result, "E_TYPE");
+    assert!(diagnostics.contains("main.vast"), "{diagnostics}");
+    let main = include_str!("../examples/packages/geometry/indexed-objects/main.vast");
+    s.write(
+        "main.vast",
+        &checked_replace(main, "Label<X, shapes::QQ, 7>", "Label<X, 7, shapes::QQ>"),
+    );
+    common::success(&s.check_manifest("Vastitas.toml"));
 }
 
 const TENSOR_FIXTURE: &str = "llvm/fixtures/tensor-column";

@@ -295,6 +295,7 @@
     {"name": "VastitasOracle.ResourceSource.physical_global_declaration", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:304de2be1493f027958b0c70bd720b167c9d9f831c2d7253f0f718cd4046cb5c"},
     {"name": "VastitasOracle.ResourceSource.physical_implementation", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:d45b736e2044305492dda65f5271df8db25eb73151313b4b49019659be2c2851"},
     {"name": "VastitasOracle.ResourceSource.physical_import", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:11c85151dc06cb358382df6f1f800007c701897cd2dd65599ad9bedddb71aa11"},
+    {"name": "VastitasOracle.ResourceSource.physical_indexed_family", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:d874b80106f676a025abce7d717d7f1bdf8b32e14893aa1ac7ee35ead875f924"},
     {"name": "VastitasOracle.ResourceSource.physical_indexed_item", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:31644d5b8af2987c5b91dce5806afcfb89ad8a67f1d30eddebba3b72e1bf1ada"},
     {"name": "VastitasOracle.ResourceSource.physical_manifest_bindings", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:d4894bafe593a7027e00a2e33109c4fce3219e5cbec91263e252771c3b470bfe"},
     {"name": "VastitasOracle.ResourceSource.physical_manifest_metadata", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:cd5878059e425752bc9b143c844a75cbdaebbe51558818b152f014633b8abcf8"},

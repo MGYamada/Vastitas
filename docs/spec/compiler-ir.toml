@@ -126,9 +126,12 @@ evidence = [
   "tests/indexed_definition_source.rs::a_dependency_alias_resolves_definition_fields_in_their_declaring_package",
   "tests/indexed_definition_source.rs::scalar_and_affine_representation_tokens_and_reference_spans_are_checked",
   "tests/indexed_definition_source.rs::used_linear_implementation_and_tensor_buffers_agree_on_the_gemm_abi",
+  "tests/indexed_definition_source.rs::ordered_family_parameters_constraints_and_representation_bind_the_revision",
+  "tests/indexed_definition_source.rs::family_replay_checks_empty_lists_nested_punctuation_and_decimal_slots",
+  "tests/indexed_definition_source.rs::the_written_index_kinds_check_an_uncalled_function_signature",
   "tests/indexed_definition_source.rs::native_cells_follow_the_written_linear_implementation",
 ]
-note = "A changed declaration in an unused dependency preserves the complete folded module and invalidates the earlier revision. A used linear implementation selects the real or complex GEMM representation. Mismatched buffers fail before emission. Native execution checks both cells. With a false expectation for the second cell, the diagnostic identifies its observed real or complex component bits."
+note = "A changed declaration in an unused dependency preserves the complete folded module and invalidates the earlier revision. Swapping the marker and natural parameters of an indexed family requires swapping the arguments in a signature that uses it, even in an uncalled function. A used linear implementation selects the real or complex GEMM representation. Mismatched buffers fail before emission. Native execution checks both cells. With a false expectation for the second cell, the diagnostic identifies its observed real or complex component bits."
 
 [property."compiler-ir.edition".claim.finite-declaration-source]
 status = "proved-oracle"
@@ -138,12 +141,13 @@ evidence = [
   "VastitasOracle.ResourceSource.physical_global_declaration",
   "VastitasOracle.ResourceSource.physical_implementation",
   "VastitasOracle.ResourceSource.physical_classification",
+  "VastitasOracle.ResourceSource.physical_indexed_family",
   "VastitasOracle.BoxedCertificate.published_indexed_definition",
   "VastitasOracle.ResourceSource.physical_finite_function",
 ]
 premises = ["the public protocol-10 request passed the independent checker"]
 assumes = ["rust-frontend"]
-note = "The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. Each global selects the implementation written at its original path span. Every implementation replays its marker, representation and capabilities. Each classification replays its ordered parents and domain. Resolving these fields in the declaring namespace yields the corresponding entries of the exact Core environment used by emission. For boxed programs, the publication witness preserves each resolved entry in optimization and execution MidIR under the certificate’s revision, physical file layout and complete LLVM bytes. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input."
+note = "The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. Each global selects the implementation written at its original path span. Every implementation replays its marker, representation and capabilities. Each classification replays its ordered parents and domain. Each indexed family replays parameter kinds and paths, its representation and all written constraint slots. Resolving these fields in the declaring namespace yields the corresponding entries of the exact Core environment used by emission. For boxed programs, the publication witness preserves each resolved entry in optimization and execution MidIR under the certificate’s revision, physical file layout and complete LLVM bytes. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input."
 
 [property."compiler-ir.edition".claim.affine-source]
 status = "proved-oracle"
@@ -1376,7 +1380,7 @@ status = "proved-oracle"
 evidence = ["VastitasOracle.BoxedCertificate.published_indexed_definition", "VastitasOracle.BoxedCertificate.corresponds"]
 premises = ["A valid boxed-program stage certificate and its dependent public emission witness belong to the same subject."]
 assumes = ["rust-frontend"]
-note = "Every selected implementation or classification in the submitted packages replays in the certified physical layout. Its resolved entry belongs to the Core environment and both linked MidIR environments. Both phases belong to the certified revision, and the returned text has exactly the certified bytes."
+note = "Every selected implementation, classification or indexed family in the submitted packages replays in the certified physical layout. Its resolved entry belongs to the Core environment and both linked MidIR environments. Both phases belong to the certified revision, and the returned text has exactly the certified bytes."
 
 [property."compiler-ir.constitution"]
 title = "Finite constitutional claims need their own proofs"

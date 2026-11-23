@@ -290,6 +290,20 @@ method returned 17 in each case. Lean/C controls produced the same three
 results. The installed Lean compiler requires an LLVM-enabled build for the
 upstream bitcode comparison. [Public call regression](../../tests/llvm_preview.rs) · [Call proofs](../../lean/VastitasOracle/StaticCallCoverage.lean) · [Pinned emitFullApp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774)
 
+In the four-file ordered-calls package, the dependency’s `same_base(0, 1)`
+constrains an indexed family. Swapping these positions changes the function
+revision while preserving both operands of `@vq_f1(ptr %v2, ptr %v5)` and the
+complete module. Both inputs produced the same 2,311 bytes and a 2,256-byte
+macOS arm64 object with LLVM 23.1.4. Both linked executables returned 23.
+In Lean 4.35.0, `emitSimpleExternalCall` skips erased
+parameters when building both the argument types and the call. As a control,
+two Lean wrappers called the same external subtraction function with a static
+`Type` argument of `Nat` or `Int` and two `UInt64` operands. Compiling the
+generated C with Clang 23.1.4 produced `i64 @vast_family_sub(i64, i64)` in
+both wrappers, with the operands in source order. This comparison covers
+argument erasure and order. The Vastitas certificate checks the boxed integer
+program against its own runtime ABI. [Certificate regression](../../experiments/compiler_validation/boxed_certificate/regression.py) · [Lean external call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L671)
+
 The two-object isomorphism module passes the two arrows to the composition
 functions in opposite orders. Its nested conditions join the exit values 42,
 7 and 9 using two LLVM phi nodes. Lean 4.35.0's `emitJmp` stores join

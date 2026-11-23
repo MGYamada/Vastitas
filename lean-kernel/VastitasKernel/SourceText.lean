@@ -100,4 +100,17 @@ def File.next (f : File) (before : Cursor) : Except String Token := do
   if ch == '\uFEFF' then throw "unexpected byte order mark"
   return make (.symbol ch) (c.advance ch)
 
+/-- Compare decimal integers as digits, before converting any input to a bignum.
+The frontend accepts redundant leading zeros in unsigned integer spellings. -/
+def File.expectNat (f : File) (c : Cursor) (expected : Nat) (mismatch : String) : Except String Cursor := do
+  let t ← f.next c
+  let start : String.Pos.Raw := ⟨t.span.start - f.base⟩
+  let stop := String.Pos.Raw.nextWhile f.text Char.isDigit start
+  let raw := start.extract f.text stop
+  let significant := raw.dropWhile '0'
+  unless !raw.isEmpty && (if significant.isEmpty then expected == 0
+      else significant == (toString expected).toSlice) do
+    throw mismatch
+  return t.after.ascii (stop.byteIdx - t.after.pos.byteIdx)
+
 end VastitasKernel.SourceText

@@ -385,7 +385,7 @@ private theorem resolved_member {α : Type} (actions : List (Namespace.Result α
         · obtain ⟨e, present, eq⟩ := ih inTail xs rest
           exact ⟨e, List.mem_cons_of_mem _ present, eq⟩
 
-/-- Every physical implementation and classification resolves to an entry of
+/-- Every physical implementation, classification or indexed family resolves to an entry of
 the exact Core environment consumed by emission, including an unused item. -/
 theorem resolved_physical_definition {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
     {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
@@ -459,6 +459,29 @@ theorem physical_classification {json : Lean.Json} (input : Wire.CheckedInput js
   refine ⟨⟨expected, layout, checked, collected, physical, scan, ?_⟩, resolved_physical_definition input hp hm hd _ ?_⟩
   · simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form,
       FiniteSourceFiles.indexedKeyword, body] using site
+  · rw [body]; rfl
+
+/-- The written family contract replays at its own file span. Its parameter
+paths resolve in the declaring namespace, and the ordered constraints and
+representation belong to that same nominal family in the Core used for emission. -/
+theorem physical_indexed_family {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    {family : Indexed.Source.Family} (body : d.body = .family family) :
+    let scope := (⟨pkg.id, m.pureModule.module.path⟩ : Namespace.Scope)
+    let index := input.checked.pureProgram.compiler.input.body.index
+    (∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedFamily d.name family⟩) ∧
+    ∃ entry ∈ input.checked.pureProgram.compiled.core.module.declarations.indexed,
+      ((do let params ← family.parameters.mapM (Indexed.Source.resolveParameter index scope)
+           return ⟨⟨scope, d.name⟩, .family ⟨params, family.constraints, family.representation⟩⟩) :
+        Indexed.Source.ResolveM Indexed.Entry).run' [] = .ok entry := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  refine ⟨⟨expected, layout, checked, collected, physical, scan, ?_⟩, resolved_physical_definition input hp hm hd _ ?_⟩
+  · simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form, body] using site
   · rw [body]; rfl
 
 /-- The implementation selected by an accepted global is the reference at its

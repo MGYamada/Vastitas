@@ -38,6 +38,33 @@ inductive Parameter where
   | frame (family : Path)
   deriving Repr, Inhabited
 
+/-- Edition spelling shared by the physical source checker and diagnostics. -/
+def representationText : FamilyRepresentation → String
+  | .token => "token"
+  | .point => "point"
+  | .morphism => "morphism"
+  | .relative => "relative"
+  | .smooth => "smooth"
+  | .fiber .tangent => "tangent"
+  | .fiber .cotangent => "cotangent"
+  | .tape => "tape"
+  | .metricForm => "metric_form"
+  | .frame => "frame"
+  | .frameFiber .tangent => "frame_vector"
+  | .frameFiber .cotangent => "frame_covector"
+  | .frameMap => "frame_map"
+  | .reading => "reading"
+  | .physicalMetric => "physical_metric"
+  | .freeModule => "free_module"
+  | .endomorphism => "endomorphism"
+  | .spectrum => "spectrum"
+  | .branch => "branch"
+  | .transitionAverage => "transition_average"
+  | .model => "model"
+  | .calibration => "calibration"
+  | .dataset => "dataset"
+  | .comparison => "comparison"
+
 structure Family where
   parameters : List Parameter
   constraints : List Indexed.Constraint

@@ -183,19 +183,27 @@ the kernel checks that these entries occur in order in the exact Core
 environment supplied to code generation. This includes unused declarations
 in dependency packages.
 
+An `indexed family` replays its ordered parameters, representation and
+constraints. The checker resolves `object(path)` and `frame(path)` at their
+written spans in the declaring module. It compares each slot in
+`same_object`, `same_base`, `over`, `structural` and `canonical` before
+checking the family and its applications. Only `frame_vector`, `frame_covector`
+and `frame_map` may omit an empty `constraints()` clause. Unused families
+are present in the same Core environment as families used in function signatures.
+
 #### Indexed declaration coverage in edition 2026
 
-Of the 54 constructors of `Indexed.Source.Body`, 29 have their fields checked
+Of the 54 constructors of `Indexed.Source.Body`, 30 have their fields checked
 against physical source. These comprise 16 finite forms, seven affine object, morphism and
 geometry witness forms, one exact-geometry constructor with six variants, and
-`marker`, `baseDimension`, `global`, `implementation` and `classification`.
-The public checker uses the decoded declarations from that same request to elaborate Core. The following 25
+`marker`, `baseDimension`, `global`, `implementation`, `classification` and `family`.
+The public checker uses the decoded declarations from that same request to elaborate Core. The following 24
 constructors have item-boundary checks, but still need a comparison of their
 operands with the original file. The names below are Lean constructors.
 
 | Declaration group | Operands awaiting physical replay |
 | --- | --- |
-| Indexed definitions | `family`, `package`, `primitive` |
+| Indexed definitions | `package`, `primitive` |
 | Frames and metrics | `metric`, `evidence`, `frame` |
 | Physical dimensions | `quantity`, `reading`, `scale`, `physicalMetric` |
 | Spectral and transition data | `freeModule`, `endomorphism`, `spectrum`, `branch`, `transitionAverage` |

@@ -108,6 +108,7 @@ inductive DeclarationSyntax where
   | abstractType (declaration : Namespace.AbstractType)
   | subtype (declaration : RawSubtype)
   | indexed (declaration : Form)
+  | indexedFamily (name : String) (family : Source.Family)
   | indexedHeader (keyword name : String) (fields : Option (List ExactLexeme))
   | affine (declaration : Source.Declaration)
   | function (declaration : FunctionSource.Function)
@@ -147,11 +148,29 @@ def classificationFields (parents domain : List Source.Path) : List ExactLexeme 
   [.punctuation '{', .ident "parents"] ++ tuple (parents.map ref) ++ [.punctuation ';', .ident "domain"] ++
     tuple (domain.map ref) ++ [.punctuation ';', .punctuation '}']
 
+private def familyParameter : Source.Parameter → List ExactLexeme
+  | .domain => [.ident "domain"]
+  | .marker => [.ident "marker"]
+  | .natural => [.ident "natural"]
+  | .object domain => application "object" [domain]
+  | .frame family => application "frame" [family]
+
+private def familyConstraint (rule : Constraint) : List ExactLexeme :=
+  let slots (name : String) (args : List Nat) : List ExactLexeme :=
+    [.ident name, .punctuation '('] ++ (args.map ExactLexeme.constraintSlot).intersperse (.punctuation ',') ++ [.punctuation ')']
+  match rule with
+  | .sameObject i j => slots "same_object" [i,j]
+  | .sameBase i j => slots "same_base" [i,j]
+  | .over i j => slots "over" [i,j]
+  | .structural i j => slots "structural" [i,j]
+  | .canonical i => slots "canonical" [i]
+
 def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
   if AffineDeclarationText.applies d then .affine d else
     match form d with
     | some shape => .indexed shape
-    | none =>
+    | none => Id.run do
+      if let .family family := d.body then return .indexedFamily d.name family
       let fields := match d.body with
         | .marker | .baseDimension => some []
         | .implementation marker representation capabilities => some (implementationFields marker representation capabilities)
@@ -159,7 +178,7 @@ def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
         | .global implementation =>
           some [.punctuation '(', .reference implementation.path implementation.span, .punctuation ')']
         | _ => none
-      .indexedHeader (indexedKeyword d.body) d.name fields
+      return .indexedHeader (indexedKeyword d.body) d.name fields
 
 def declarations (program : ResourceSource.Program) : List Item :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
@@ -195,7 +214,7 @@ def Item.kind (item : Item) : SiteKind :=
   | .namespaceImport _ => .namespaceImport
   | .abstractType _ | .subtype _ => .hierarchy
   | .indexed _ => .indexed
-  | .indexedHeader .. => .indexedHeader
+  | .indexedHeader .. | .indexedFamily .. => .indexedHeader
   | .affine _ => .affine
   | .function _ => .finiteFunction
   | .singleton .. => .singleton
@@ -206,7 +225,7 @@ def Item.inFile (item : Item) (index entry : Nat) : Bool :=
   index == entry || item.packageSource != flatPackageId.source ||
     match item.syntax_ with
     | .singleton f _ | .function f => f.name != "main"
-    | .indexed _ | .indexedHeader .. | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
+    | .indexed _ | .indexedHeader .. | .indexedFamily .. | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
 
 private def readTokens (file : File) (before : Cursor) (tokens : List ExactLexeme)
     (report : Span → String → Diagnostic := errorAt) : Except Diagnostic Cursor :=
@@ -280,6 +299,20 @@ private def endHierarchy (file : File) (first : Token) (cursor : Cursor) (span :
   let end_ ← readTokens file cursor [.punctuation ';'] report
   unless sameSpan file first end_ span do throw (report first.span "selector declaration span differs from its source")
 
+private def replayFamily (file : File) (first : Token) (name : String) (family : Source.Family) (span : Span) :
+    Except Diagnostic Unit := do
+  let report := sourceError .indexedHeader
+  let head := [.ident "family", .ident name, .punctuation '('] ++ listLexemes (family.parameters.map familyParameter) ')' ++
+    [.punctuation '=', .ident (Source.representationText family.representation)]
+  let after ← readTokens file first.after head report
+  let next ← (file.next after).mapError (report span)
+  let optional := match family.representation with | .frameMap | .frameFiber _ => family.constraints.isEmpty | _ => false
+  let tail := if optional && (next.kind matches .symbol ';') then [] else
+    [.ident "constraints", .punctuation '('] ++ listLexemes (family.constraints.map familyConstraint) ')'
+  let ending ← readTokens file after (tail ++ [.punctuation ';']) report
+  unless (first.kind matches .word "indexed") && sameSpan file first ending span do
+    throw (report first.span "indexed family extent differs from the physical source")
+
 def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Unit := do
   let first ← (file.next before).mapError (errorAt item.span)
   match item.syntax_ with
@@ -292,6 +325,7 @@ def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Uni
     let after ← readTokens file before [.ident "subtype", .ident s.scalar, .subtypeMark,
       ← selectorPath (item.packageSource == flatPackageId.source) s.target] (sourceError .hierarchy)
     endHierarchy file first after item.span
+  | .indexedFamily name family => replayFamily file first name family item.span
   | .indexed shape => replayIndexed file first shape item.span
   | .indexedHeader keyword name fields =>
     let report := sourceError .indexedHeader

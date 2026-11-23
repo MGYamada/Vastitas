@@ -49,6 +49,28 @@ private def smoothLine (d : Json) (offset line : Nat) : Option (String × Json) 
     line (visibility.length + 1)
   return (text, (d.setObjVal! "span" declarationSpan).setObjVal! "implementation" impl)
 
+private def familyLine (d : Json) (head : String) (offset line : Nat) : Option (String × Json) := do
+  let mut text := head ++ "("
+  let mut params := #[]
+  for param in ← (d.getObjValAs? (Array Json) "parameters").toOption do
+    if !params.isEmpty then text := text ++ ", "
+    let kind ← (param.getObjValAs? String "kind").toOption
+    match kind with
+    | "object" | "frame" =>
+      let key := if kind == "object" then "domain" else "family"
+      let path ← (param.getObjVal? key).toOption
+      let (next, ref) ← appendPath (text ++ kind ++ "(") path offset line
+      text := next ++ ")"
+      params := params.push (param.setObjVal! key ref)
+    | "domain" | "marker" | "natural" =>
+      text := text ++ kind
+      params := params.push param
+    | _ => failure
+  let repr ← (d.getObjValAs? String "representation").toOption
+  let rules ← (← (d.getObjValAs? (List Json) "constraints").toOption).mapM RegressionIndexedText.familyConstraint
+  return (text ++ ") = " ++ repr ++ " constraints(" ++ String.intercalate ", " rules ++ ");",
+    d.setObjVal! "parameters" (.arr params))
+
 private def indexedLine (d : Json) (offset line : Nat) : Option (String × Json) := do
   if let some smooth := smoothLine d offset line then return smooth
   let name ← (d.getObjValAs? String "name").toOption
@@ -57,6 +79,7 @@ private def indexedLine (d : Json) (offset line : Nat) : Option (String × Json)
   let kind ← (d.getObjValAs? String "kind").toOption
   let head := vis ++ "indexed " ++ kind ++ " " ++ name
   let (text, positioned) : String × Json ← match kind with
+    | "family" => familyLine d head offset line
     | "implementation" => do
       let (start, marker) ← appendPath (head ++ "(") (← (d.getObjVal? "marker").toOption) offset line
       let repr ← (d.getObjValAs? String "representation").toOption

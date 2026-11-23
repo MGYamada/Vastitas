@@ -207,6 +207,7 @@ pub indexed marker B;
 pub indexed implementation X(A, affine_descriptor) capabilities();
 pub indexed implementation Y(A, affine_descriptor) capabilities();
 pub indexed classification C { parents(); domain(X, Y); };
+pub indexed family Rel(object(C), object(C)) = token constraints(same_base(0, 1));
 """
     library.write_text(declarations)
     baseline, _ = check("indexed-definitions", "official")
@@ -217,7 +218,11 @@ pub indexed classification C { parents(); domain(X, Y); };
     require(baseline["physical_inputs"] == 4 and baseline["integer_result"] == "23" and
             baseline["certificate"] == replay["certificate"] and (compiled / "preview.ll").read_bytes() == retained,
             "the dependency declarations and ordered calls must share one certificate")
-    for label, old, new in [("marker", "X(A,", "X(B,"), ("domain", "domain(X, Y)", "domain(Y, X)")]:
+    for label, old, new in [
+        ("marker", "X(A,", "X(B,"),
+        ("domain", "domain(X, Y)", "domain(Y, X)"),
+        ("family-slot", "same_base(0, 1)", "same_base(1, 0)"),
+    ]:
         require(declarations.count(old) == 1, "expected one " + label + " field")
         library.write_text(declarations.replace(old, new))
         stale, _ = check("indexed-stale-" + label, "fast", candidate=candidate,

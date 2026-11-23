@@ -634,7 +634,7 @@ def RevisionMatches (json : Json) {p : Program} {requireMain : Bool}
 instance {json : Json} {p : Program} {requireMain : Bool} {checked : Checked p requireMain} :
     Decidable (RevisionMatches json checked) := by unfold RevisionMatches; split <;> infer_instance
 
-/-- Resolve a written implementation or classification with the namespace used
+/-- Resolve a written implementation, classification or indexed family with the namespace used
 by the body checker. The entry carries its physical package and module owner. -/
 def definitionEntry? (index : Namespace.Indexed) (owner : Indexed.DeclId) :
     Indexed.Source.Body → Option (Indexed.Source.ResolveM Indexed.Entry)
@@ -646,6 +646,9 @@ def definitionEntry? (index : Namespace.Indexed) (owner : Indexed.DeclId) :
     let parentIds ← parents.mapM (Indexed.Source.resolveId index owner.scope)
     let implementations ← domain.mapM (Indexed.Source.resolveId index owner.scope)
     return ⟨owner, .classification parentIds implementations⟩)
+  | .family family => some (do
+    let params ← family.parameters.mapM (Indexed.Source.resolveParameter index owner.scope)
+    return ⟨owner, .family ⟨params, family.constraints, family.representation⟩⟩)
   | _ => none
 
 def writtenDefinitions (input : Program) (index : Namespace.Indexed) : List (Namespace.Result Indexed.Entry) :=
@@ -688,7 +691,7 @@ def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput j
           if h : RevisionMatches json result.value then
             .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, definitions, h, result.receipt⟩
           else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
-        else .error { code := "E_MODULE_SOURCE", message := "source implementation or classification differs from the returned Core" }
+        else .error { code := "E_MODULE_SOURCE", message := "source indexed definition differs from the returned Core" }
 
 /-- Public generation consumes the budgeted wire request's exact checked program. -/
 def emit (json : Json) : Except Diagnostic Codegen.Generated := do

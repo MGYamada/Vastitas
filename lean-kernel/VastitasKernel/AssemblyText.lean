@@ -185,6 +185,7 @@ inductive ExactLexeme where
   | punctuation (ch : Char)
   | reference (parts : List String) (span : Span)
   | dimension (value : Nat)
+  | constraintSlot (value : Nat)
   | separator
   | arrow
   | rowArrow
@@ -376,6 +377,9 @@ def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String Cursor
       | _ => pure next
     requireSymbol close ch
     return close.after
+  | .constraintSlot value => do
+    unless value < UInt32.size do throw "constraint slot exceeds u32"
+    f.expectNat c value "constraint slot differs from the physical source"
   | .dimension value => do
     let t ← f.next c
     let .symbol digit := t.kind | throw "expected a decimal affine dimension"

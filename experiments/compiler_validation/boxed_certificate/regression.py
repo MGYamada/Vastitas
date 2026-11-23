@@ -63,23 +63,29 @@ def run(work, suite, frontend):
         require((pair_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/boxed-pairs.ll").read_bytes(),
                 "pair certificate differs from the retained LLVM module")
         (pair_dir / "sealed.ndjson").unlink()
-        projection = (verify.ROOT / "llvm/fixtures/SelectedProjection.vast").read_text()
-        source.write_text(projection)
-        selected, _ = check("selected-projection", "official")
-        selection = work / "selected-projection"
-        peer, _ = check("projection-fast", "fast", candidate=selection / "sealed.ndjson")
-        require(selected["integer_result"] == "19" and selected["functions"] == 5
-                and selected["certificate"] == peer["certificate"]
-                and (selection / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/selected-projection.ll").read_bytes(),
-                "the assembled method must select the second pair field")
-        source.write_text(projection.replace("apply second_field;", ""))
-        default, _ = check("default-projection", "official")
-        require(default["integer_result"] == "7" and default["revision_sha256"] != selected["revision_sha256"],
-                "the default method must select the first pair field")
-        check("stale-projection", "fast", candidate=selection / "sealed.ndjson",
-              rejection="declaration environment differs")
-        (selection / "sealed.ndjson").unlink()
-        (work / "default-projection/sealed.ndjson").unlink()
+        magnitude = 2**128 + 43
+        for label, fixture, apply, functions, selected_result, default_result in [
+            ("selected-projection", "SelectedProjection", "apply second_field;", 5, 19, 7),
+            ("assembled-negation", "AssembledNegation", "apply reversing;", 4, -magnitude, magnitude),
+        ]:
+            body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()
+            require(body.count(apply) == 1, f"{label}: expected one selection")
+            source.write_text(body)
+            selected, _ = check(label, "official")
+            candidate = work / label / "sealed.ndjson"
+            peer, _ = check(f"{label}-fast", "fast", candidate=candidate)
+            retained = verify.ROOT / f"llvm/src/{label}.ll"
+            require(selected["integer_result"] == str(selected_result) and selected["functions"] == functions
+                    and selected["certificate"] == peer["certificate"]
+                    and (work / label / "preview.ll").read_bytes() == retained.read_bytes(),
+                    f"{label}: incorrect selected method, result or module")
+            source.write_text(body.replace(apply, ""))
+            default, _ = check(f"{label}-default", "official")
+            require(default["integer_result"] == str(default_result)
+                    and default["revision_sha256"] != selected["revision_sha256"], f"{label}: wrong default method")
+            check(f"{label}-stale", "fast", candidate=candidate, rejection="declaration environment differs")
+            candidate.unlink()
+            (work / f"{label}-default" / "sealed.ndjson").unlink()
         conversion_source = (verify.ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
         source.write_text(conversion_source)
         converted, _ = check("conversion", "official")

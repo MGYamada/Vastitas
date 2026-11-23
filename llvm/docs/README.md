@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains 34 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 26. Replay parses each of those 26 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains 35 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 27. Replay parses each of those 27 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -11,6 +11,7 @@ The corpus contains 34 complete LLVM assembly files from edition 2026 Vastitas s
 | [boxed-program.ll](../src/boxed-program.ll) · 1,830 bytes | [BoxedProgram.vast](../fixtures/BoxedProgram.vast) | Four functions pass a borrowed heap integer through an identity, doubling and mixed division. The hosted entry initializes the runtime and consumes the owned result. | `boxed_program_verified` |
 | [ordered-calls.ll](../src/ordered-calls.ll) · 2,311 bytes | [OrderedCalls.vast](../fixtures/OrderedCalls.vast) | Two nested calls supply the left and right operands of an assembled subtraction method. The entry returns 23. | `ordered_calls_verified` |
 | [assembled-conversion.ll](../src/assembled-conversion.ll) · 1,376 bytes | [AssembledConversion.vast](../fixtures/AssembledConversion.vast) | An assembled `Nat → Int` method returns 2¹²⁸ + 43. Its sibling of the same signature returns zero. | `assembled_conversion_verified` |
+| [assembled-negation.ll](../src/assembled-negation.ll) · 1,389 bytes | [AssembledNegation.vast](../fixtures/AssembledNegation.vast) | The selected method negates a boxed integer larger than 2¹²⁸. The module retains the identity sibling. | `assembled_negation_verified` |
 | [selected-projection.ll](../src/selected-projection.ll) · 1,968 bytes | [SelectedProjection.vast](../fixtures/SelectedProjection.vast) | The assembled scalar method constructs `pair(7, 19)` and calls the second-field function. Its retained sibling calls the first. | `selected_projection_verified` |
 | [boxed-pairs.ll](../src/boxed-pairs.ll) · 4,157 bytes | [BoxedPairs.vast](../fixtures/BoxedPairs.vast) | Five functions construct and project homogeneous integer pairs. The selected method returns the large negative integer in its first field. Swapping the fields gives 42 at the entry. | `boxed_pairs_verified` |
 | [singleton-power.ll](../src/singleton-power.ll) · 1,977 bytes | [SingletonPower.vast](../fixtures/SingletonPower.vast) | One function squares a boxed integer eight times, divides by seven and passes the owned quotient to the hosted entry. | `singleton_power_verified` |
@@ -341,6 +342,17 @@ generated C with Clang 23.1.4 produced `i64 @vast_family_sub(i64, i64)` in
 both wrappers, with the operands in source order. This comparison covers
 argument erasure and order. The Vastitas certificate checks the boxed integer
 program against its own runtime ABI. [Certificate regression](../../experiments/compiler_validation/boxed_certificate/regression.py) · [Lean external call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L671)
+
+On macOS arm64 the assembled negation calls `vastitas_int_neg_v1` with one borrowed
+pointer. The caller releases its temporary after the method returns. Switching to the
+identity method changes 1,389 bytes to 1,274 and invalidates the original function revision.
+LLVM 23.1.4 and the generated Lean/C control returned −(2¹²⁸ + 43) and 2¹²⁸ + 43
+for the two methods. The native probe checks the boxed integers before conversion to exit
+statuses 213 and 43. In Lean 4.35.0, `emitSimpleExternalCall` constructs the external
+function type and forwards its retained operands in order. The generated C for the exported
+control calls `lean_int_neg` and then drops its owned argument. Clang 23.1.4, `llvm-as`,
+`opt` and `llc` reproduced both results from that control.
+[Lean control](../fixtures/AssembledNegationControl.lean) · [Pinned external call](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L672)
 
 The selected-projection module calls the versioned boxed pair shim and its first- or second-field entry.
 The linked method proof covers both integer sorts and every argument value.

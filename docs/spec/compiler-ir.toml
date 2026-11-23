@@ -471,11 +471,22 @@ note = """
 This claim covers the reviewed constructor signatures, referenced record schemas
 and runtime manifest closure in config/midir-coverage.json. The guard rejects
 source drift, incomplete inventories and JSON-only promotion to admission.
-Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, and first-order static calls have local lowering proofs.
+Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, and first-order static calls have local lowering proofs.
 Variable references, scopes, typed ascriptions and let bindings have structural
 mappings without an opcode. A constructor with several opcodes names every alternative in registry order.
-CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 594 rows await review. Whole-module acceptance remains a separate obligation
+CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 593 rows await review. Whole-module acceptance remains a separate obligation
 for every row. The release coverage check enforces that distinction.
+"""
+
+[property."compiler-ir.coverage".claim.unary-lowering]
+status = "proved-oracle"
+evidence = ["VastitasOracle.MidIR.unary_constructor_coverage", "VastitasOracle.MidIR.linked_unary_method"]
+premises = ["the linked method has one parameter and negates that parameter under a checked function revision"]
+note = """
+The builder lowers each Boolean operand once. Integer negation uses the boxed opcode or folds an exact signed literal.
+Both phases preserve the Core value and reject wrong operand types and arities. Linked Core calls and both MidIR
+invokers agree for Boolean and integer parameter negation at every call depth. The assembled integer fixture
+returns the negative of 2^128 + 43. Its identity sibling returns the positive value under a different revision.
 """
 
 [property."compiler-ir.coverage".claim.pair-lowering]

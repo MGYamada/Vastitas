@@ -5312,11 +5312,17 @@
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.unary",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Indexed.Core.Term.unary",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": [
+        "midir.bool.not.v1",
+        "midir.int_neg.v1",
+        "midir.int.const.v1"
+      ],
+      "reason": "Boolean negation evaluates its operand once. Integer negation folds an exact signed literal or uses the returned operand reference. Both phases match Core evaluation and reject wrong types and arities.",
+      "evidence": [
+        "VastitasOracle.MidIR.unary_constructor_coverage"
+      ]
     },
     {
       "origin": "VastitasKernel.Indexed.Core.Term.unit",

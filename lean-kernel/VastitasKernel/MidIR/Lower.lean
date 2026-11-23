@@ -204,53 +204,84 @@ theorem appends_pair (element : PairElem) (left right : Core.Term) : AppendsPair
     rw [second]
     exact emit_live _ _ _ _ _
 
+/-- Lower an operand once and append one operation at its live exit, including
+when the operand introduces control flow. -/
+def AppendsOperand (term arg : Core.Term) (code : Opcode .optimization) : Prop :=
+  ∀ resolve ctx blocks,
+    (lowerTerm resolve ctx term).run blocks =
+      (do let (ref, after) ← (lowerTerm resolve ctx arg).run blocks
+          (emit code [ref]).run after) ∧
+    ∀ ref (prior : Array Draft) (params : Array Ty) (ops : Array (Op .optimization)),
+      (lowerTerm resolve ctx arg).run blocks = some (ref, prior.push {params, ops}) →
+      (lowerTerm resolve ctx term).run blocks =
+        some (⟨prior.size, params.size + ops.size⟩,
+          prior.push {params, ops := ops.push ⟨code, [ref]⟩})
+
+private theorem appends_operand {term arg : Core.Term} {code : Opcode .optimization}
+    (action : ∀ resolve ctx, lowerTerm resolve ctx term = (do emit code [← lowerTerm resolve ctx arg])) :
+    AppendsOperand term arg code := by
+  intro resolve ctx blocks
+  rw [action]
+  refine ⟨rfl, ?_⟩
+  intro ref prior params ops lowered
+  change ((lowerTerm resolve ctx arg).run blocks >>= fun (r, after) => (emit code [r]).run after) = _
+  rw [lowered]
+  exact emit_live _ _ _ _ _
+
+def unaryCode (phase : Phase) : UnaryOp → Opcode phase
+  | .not => .boolNot
+  | .neg => .exactOp .neg
+
+def unaryType : UnaryOp → VastitasKernel.MidIR.Ty
+  | .not => .bool
+  | .neg => .int
+
+def unaryParameter (op : UnaryOp) : Core.Result :=
+  ⟨match op with | .not => .pure .bool | .neg => .pure .int, none⟩
+
+/-- Boolean negation always lowers its operand. Integer negation has an
+additional path for an exact signed literal with the required Core result. -/
+def LowersUnary (op : UnaryOp) (arg : Core.Term) (result : Core.Result) : Prop :=
+  match op with
+  | .not => AppendsOperand (.unary .not arg result) arg .boolNot
+  | .neg =>
+    match IntLiteral.inspect (.unary .neg arg result) with
+    | some ⟨lit, _⟩ => AppendsNullary (.unary .neg arg result) (.integer lit.value)
+    | none => AppendsOperand (.unary .neg arg result) arg (.exactOp .neg)
+
+theorem lowers_unary (op : UnaryOp) (arg : Core.Term) (result : Core.Result) : LowersUnary op arg result := by
+  cases op with
+  | not => exact appends_operand (fun _ _ => rfl)
+  | neg =>
+    unfold LowersUnary
+    cases literal : IntLiteral.inspect (.unary .neg arg result) with
+    | none =>
+      apply appends_operand
+      intro resolve ctx
+      rw [lowerTerm]
+      simp only [literal]
+    | some witness =>
+      obtain ⟨lit, _⟩ := witness
+      apply appends_nullary
+      intro resolve ctx
+      rw [lowerTerm]
+      simp only [literal]
+
 /-- Project a field from the actual operand reference, preserving the element
 type and the field selector when that operand introduces a join. -/
 def AppendsProjection (element : PairElem) (first : Bool) (arg : Core.Term) : Prop :=
-  ∀ resolve ctx blocks,
-    (lowerTerm resolve ctx (.project element first arg)).run blocks =
-      (do let (ref, after) ← (lowerTerm resolve ctx arg).run blocks
-          (emit (.exactOp (.project element first)) [ref]).run after) ∧
-    ∀ ref (prior : Array Draft) (params : Array Ty) (ops : Array (Op .optimization)),
-      (lowerTerm resolve ctx arg).run blocks = some (ref, prior.push {params, ops}) →
-      (lowerTerm resolve ctx (.project element first arg)).run blocks =
-        some (⟨prior.size, params.size + ops.size⟩,
-          prior.push {params, ops := ops.push ⟨.exactOp (.project element first), [ref]⟩})
+  AppendsOperand (.project element first arg) arg (.exactOp (.project element first))
 
 theorem appends_projection (element : PairElem) (first : Bool) (arg : Core.Term) :
-    AppendsProjection element first arg := by
-  intro resolve ctx blocks
-  constructor
-  · rfl
-  · intro ref prior params ops lowered
-    change ((lowerTerm resolve ctx arg).run blocks >>= fun (r, after) =>
-      (emit (.exactOp (.project element first)) [r]).run after) = _
-    rw [lowered]
-    exact emit_live _ _ _ _ _
+    AppendsProjection element first arg :=
+  appends_operand (fun _ _ => rfl)
 
 /-- The conversion evaluates its operand once, threading any blocks it
 introduces. On a live exit it appends one instruction using the returned
 reference. If lowering the operand fails, the entire action fails. -/
-def AppendsNatToInt (arg : Core.Term) : Prop :=
-  ∀ resolve ctx blocks,
-    (lowerTerm resolve ctx (.natToInt arg)).run blocks =
-      (do let (ref, after) ← (lowerTerm resolve ctx arg).run blocks
-          (emit (.exactOp .natToInt) [ref]).run after) ∧
-    ∀ ref (prior : Array Draft) (params : Array Ty) (ops : Array (Op .optimization)),
-      (lowerTerm resolve ctx arg).run blocks = some (ref, prior.push {params, ops}) →
-      (lowerTerm resolve ctx (.natToInt arg)).run blocks =
-        some (⟨prior.size, params.size + ops.size⟩,
-          prior.push {params, ops := ops.push ⟨.exactOp .natToInt, [ref]⟩})
+def AppendsNatToInt (arg : Core.Term) : Prop := AppendsOperand (.natToInt arg) arg (.exactOp .natToInt)
 
-theorem appends_nat_to_int (arg : Core.Term) : AppendsNatToInt arg := by
-  intro resolve ctx blocks
-  constructor
-  · rfl
-  · intro ref prior params ops lowered
-    change ((lowerTerm resolve ctx arg).run blocks >>= fun (r, bs) =>
-      (emit (.exactOp .natToInt) [r]).run bs) = _
-    rw [lowered]
-    exact emit_live _ _ _ _ _
+theorem appends_nat_to_int (arg : Core.Term) : AppendsNatToInt arg := appends_operand (fun _ _ => rfl)
 
 def natToIntRegistryRow : Lean.Name × String := (``Core.Term.natToInt, "nat_to_int.v1")
 
@@ -431,6 +462,35 @@ theorem lower_project_parameter (env : Environment) (key : FunctionSource.Compil
   rw [forwards_scope (.project e first (.variable symbol ann)) resolve ctx, step]
   set_option maxRecDepth 8192 in
     cases e <;> cases first <;> with_unfolding_all rfl
+
+/-- A checked one-parameter Boolean or integer negation keeps its dense target
+and specialization. The operand is a parameter, so it always remains a runtime operation. -/
+theorem lower_unary_parameter (env : Environment) (key : FunctionSource.Compiler.Key)
+    (id : Nat) (owner : Namespace.Owner) (symbol : Nat) (span : Span) (resolve : Nat → Option CallTarget)
+    (op : UnaryOp) :
+    let ann := unaryParameter op
+    let body := Core.Term.unary op (.variable symbol ann) ann
+    lowerLinkedFunction env key ⟨id, owner, [⟨symbol, ann⟩], ann.type, .scope body, span⟩ resolve =
+      some ⟨⟨owner⟩, id, key, #[unaryType op], unaryType op,
+        #[⟨#[unaryType op], #[⟨unaryCode .optimization op, [⟨0,0⟩]⟩], .ret ⟨0⟩ ⟨0,1⟩⟩]⟩ := by
+  dsimp only
+  let ann := unaryParameter op
+  let ctx : List (Nat × Ref) := [(symbol, ⟨0,0⟩)]
+  let start : Array Draft := #[{params := #[unaryType op]}]
+  have arg : (lowerTerm resolve ctx (.variable symbol ann)).run start = some (⟨0,0⟩, start) := by
+    rw [reads_variable symbol ann resolve ctx start]
+    simp [ctx]
+  have append : AppendsOperand (.unary op (.variable symbol ann) ann) (.variable symbol ann)
+      (unaryCode .optimization op) := by
+    cases op with
+    | neg => exact lowers_unary .neg (.variable symbol ann) ann
+    | not => exact lowers_unary .not (.variable symbol ann) ann
+  have step := (append resolve ctx start).2 ⟨0,0⟩ #[] #[unaryType op] #[] arg
+  have type : Ty.ofCore (unaryParameter op).type = some (unaryType op) := by cases op <;> rfl
+  simp [lowerLinkedFunction, type]
+  rw [forwards_scope, step]
+  set_option maxRecDepth 8192 in
+    cases op <;> with_unfolding_all rfl
 
 /-- Full modules keep the original dense Core symbol numbers. -/
 def lowerFunction (env : Environment) (origin : FunctionSource.Compiler.Key)

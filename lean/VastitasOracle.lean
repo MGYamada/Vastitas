@@ -79,6 +79,7 @@ import VastitasOracle.ExactProgram
 import VastitasOracle.MidIRRegression
 import VastitasOracle.ConversionCoverage
 import VastitasOracle.PairCoverage
+import VastitasOracle.UnaryCoverage
 import VastitasOracle.LiteralCoverage
 import VastitasOracle.FiniteOpcodeCoverage
 import VastitasOracle.StaticCallCoverage

@@ -25,6 +25,7 @@ CASES = [
     Sample("folded-arithmetic", HERE / "fixtures/FoldedArithmetic.vast", "folded_arithmetic"),
     Sample("boxed-program", HERE / "fixtures/BoxedProgram.vast", "boxed_program"),
     Sample("ordered-calls", HERE / "fixtures/OrderedCalls.vast", "ordered_calls"),
+    Sample("assembled-negation", HERE / "fixtures/AssembledNegation.vast", "assembled_negation"),
     Sample("assembled-conversion", HERE / "fixtures/AssembledConversion.vast", "assembled_conversion"),
     Sample("selected-projection", HERE / "fixtures/SelectedProjection.vast", "selected_projection"),
     Sample("boxed-pairs", HERE / "fixtures/BoxedPairs.vast", "boxed_pairs"),

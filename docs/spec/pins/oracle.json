@@ -77,6 +77,7 @@
     "VastitasOracle.StorageProgram",
     "VastitasOracle.TensorContraction",
     "VastitasOracle.TensorNumerical",
+    "VastitasOracle.UnaryCoverage",
     "VastitasOracle.UnaryFunction"
   ],
   "entries": [
@@ -242,6 +243,7 @@
     {"name": "VastitasOracle.MidIR.linked_function_lowering", "module": "VastitasOracle.StaticCallCoverage", "kind": "theorem", "statement": "sha256:dc5a7c3dde97b5fabfdf393e27e311ff8b420557706121f9f1ad648c73bcf3a7"},
     {"name": "VastitasOracle.MidIR.linked_nat_to_int_method", "module": "VastitasOracle.ConversionCoverage", "kind": "theorem", "statement": "sha256:0450c0d2f96fb5a6fcd113ab757226d13fdc71e9a0ea4b4a01785d0eaa22eb2d"},
     {"name": "VastitasOracle.MidIR.linked_projection_method", "module": "VastitasOracle.PairCoverage", "kind": "theorem", "statement": "sha256:72b107f13857f9531900453b5b16902bc977e06eac1c7c38e43975d9ac532a04"},
+    {"name": "VastitasOracle.MidIR.linked_unary_method", "module": "VastitasOracle.UnaryCoverage", "kind": "theorem", "statement": "sha256:a7abd9ce283b9ffc4f1f9f8e426d9a53dea390520749be3d51aff1c713d77879"},
     {"name": "VastitasOracle.MidIR.literal_constructor_coverage", "module": "VastitasOracle.LiteralCoverage", "kind": "theorem", "statement": "sha256:422592eb5ba8159f5c4a21d0797ffcfefaf54769db36320a4494eddc168c1d5d"},
     {"name": "VastitasOracle.MidIR.lookup_from_core", "module": "VastitasOracle.MidIR", "kind": "theorem", "statement": "sha256:3b340355478e846ac0f6bd98f8069a8479fc5d5d6d08fc6e6f2f4674621a381b"},
     {"name": "VastitasOracle.MidIR.lower_linked_typed_forwarder", "module": "VastitasOracle.BindingCoverage", "kind": "theorem", "statement": "sha256:eae2ff8b37a27bbbc62bb9bd19c31e54c46d0fb3ed0c3a34ccb47f1cd8f3da2c"},
@@ -255,6 +257,7 @@
     {"name": "VastitasOracle.MidIR.static_call_int_subtraction", "module": "VastitasOracle.StaticCallCoverage", "kind": "theorem", "statement": "sha256:e57069b844903940b1d347893808ddf044bd2847def69b5465486a7bd2da6867"},
     {"name": "VastitasOracle.MidIR.static_call_package_identity", "module": "VastitasOracle.StaticCallCoverage", "kind": "theorem", "statement": "sha256:a8e05dfec29fe9586bdb0befd038f6632bfcbee9ab5fc21b6ac8e74bd54614d2"},
     {"name": "VastitasOracle.MidIR.static_call_wrong_target", "module": "VastitasOracle.StaticCallCoverage", "kind": "theorem", "statement": "sha256:119779c567662f931d48be80cb8dda0f04532a39c910e88da697cc82f27fb2cf"},
+    {"name": "VastitasOracle.MidIR.unary_constructor_coverage", "module": "VastitasOracle.UnaryCoverage", "kind": "theorem", "statement": "sha256:96d98961a3f06acc8daa6c4fed61b926085da0aff45d673d1e46387b79f0e2c6"},
     {"name": "VastitasOracle.MidIR.unit_from_core", "module": "VastitasOracle.MidIR", "kind": "theorem", "statement": "sha256:c6b6356352b8829015b34dbfffc5b5b9ee37e33d7f60bb649bec1b41eea88bb5"},
     {"name": "VastitasOracle.MidIR.variable_constructor_coverage", "module": "VastitasOracle.BindingCoverage", "kind": "theorem", "statement": "sha256:863e32ef8e61086f88fa297f39108c68498001cf34b27aaceff17b4049b1d02c"},
     {"name": "VastitasOracle.NatureDimension.euclidean_rejected", "module": "VastitasOracle.NatureDimension", "kind": "theorem", "statement": "sha256:903512badcb74f19c10d060191df28956a2cc4a61aa257cc43034a5c132633c0"},

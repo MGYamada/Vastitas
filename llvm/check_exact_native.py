@@ -206,6 +206,18 @@ def native(args, work):
         if reference != expected:
             raise ValueError("compiled Lean selected the wrong field")
         check_integer(obj, reference)
+    negation = (ROOT / "llvm/fixtures/AssembledNegation.vast").read_text()
+    (work / "NegationControl.lean").write_bytes((ROOT / "llvm/fixtures/AssembledNegationControl.lean").read_bytes())
+    run([prefix / "bin/lean", "-c", "NegationControl.c", "NegationControl.lean"])
+    run([leanc, *sdk, "NegationControl.c", "-o", "negation-control"])
+    magnitude = 2**128 + 43
+    for body, obj, argv, expected in [(negation, "applied-negation.o", ["flip"], -magnitude),
+                                      (negation.replace("apply reversing;", ""), "default-negation.o", [], magnitude)]:
+        emit(body, obj)
+        reference = int(output([work / "negation-control", *argv]))
+        if reference != expected:
+            raise ValueError("compiled Lean returned the wrong signed integer")
+        check_integer(obj, reference)
     conversion = (ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
     if conversion.count("apply exact;") != 1:
         raise ValueError("expected one applied conversion method")

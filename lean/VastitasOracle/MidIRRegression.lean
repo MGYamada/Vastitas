@@ -71,8 +71,6 @@ post-join Nat, including a value too large for a machine integer. -/
     if (forged.execute env).isSome then return false
   return true)
 
-/- Argument order remains observable even when both formal types are the
-same nominal carrier. Run the exact checked Core and both linked phases. -/
 /- Both pair operands introduce a join. The second projection must read
 the pair constructed from those two SSA results, in their original order. -/
 #eval VastitasKernel.RegressionSupport.check "MidIR pair operands"
@@ -105,6 +103,40 @@ the pair constructed from those two SSA results, in their original order. -/
       if ({opt with blocks := opt.blocks.set! 6 {join with ops := bad}}.execute env).isSome then return false
   return true)
 
+#eval VastitasKernel.RegressionSupport.check "MidIR unary operators"
+    "a negated guard and signed literals reach boxed negation through their join" (Id.run do
+  let int : Result := ⟨.pure .int, none⟩
+  let large : Int := 2^128 + 43
+  let signed := Term.unary .neg (.integer large) int
+  let cond := Term.unary .not (.variable 1 bool) bool
+  let body := Term.unary .neg (.branch cond signed (.integer 7) int) int
+  let f : Core.Function := ⟨0, owner "negate", [⟨1, bool⟩], int.type, body, {}⟩
+  let m : Core.Module := ⟨⟨env, [], []⟩, [f], none⟩
+  let .ok checked := Typing.checkModule m false | return false
+  let some opt := VastitasKernel.MidIR.lowerFunction env ⟨0, []⟩ f | return false
+  let some exe := opt.execute env | return false
+  let some entry := opt.blocks[0]? | return false
+  let some yes := opt.blocks[1]? | return false
+  let some join := opt.blocks[3]? | return false
+  let #[guardOp] := entry.ops | return false
+  let #[folded] := yes.ops | return false
+  let #[neg] := join.ops | return false
+  unless guardOp.code == .boolNot && folded.code == .integer (-large) && folded.args.isEmpty &&
+      neg.code == .exactOp .neg && neg.args == [⟨3,0⟩] do return false
+  for b in [true, false] do
+    let args := [Value.boolean b]
+    let some values := bindArguments f.parameters args | return false
+    let expected := some (Value.integer (if b then -7 else large))
+    unless eval checked.module 8 values body == expected && run env opt args == expected &&
+        run env exe args == expected do return false
+  for bad in [{neg with code := .boolNot}, {neg with args := []}, {neg with args := [⟨3,0⟩, ⟨3,0⟩]}] do
+    if ({opt with blocks := opt.blocks.set! 3 {join with ops := #[bad]}}.execute env).isSome then return false
+  let unsupported := {f with body := .unary .neg (.natural 1) int}
+  if (Typing.checkModule {m with functions := [unsupported]} false).isOk then return false
+  return true)
+
+/- Argument order remains observable even when both formal types are the
+same nominal carrier. Run the exact checked Core and both linked phases. -/
 #eval VastitasKernel.RegressionSupport.check "MidIR static call regression"
     "a two-argument call forwards the chosen operand order" (Id.run do
   let pick : Core.Function := ⟨0, owner "first", [⟨10,color⟩,⟨11,color⟩], color.type,

@@ -2,6 +2,7 @@ import VastitasOracle.LiteralCoverage
 import VastitasOracle.FiniteOpcodeCoverage
 import VastitasOracle.ConversionCoverage
 import VastitasOracle.PairCoverage
+import VastitasOracle.UnaryCoverage
 import VastitasOracle.BindingCoverage
 import Lean.Data.Json
 
@@ -14,6 +15,8 @@ example := @VastitasOracle.MidIR.finite_tag_missing_rejected
 example := @VastitasOracle.MidIR.finite_lookup_constructor_coverage
 example := @VastitasOracle.MidIR.finite_lookup_slots
 example := @VastitasOracle.MidIR.finite_lookup_wrong_sort
+
+example := @VastitasOracle.MidIR.linked_unary_method
 
 private def row (entry : Name × String) (proof : Name) : Json :=
   Json.mkObj [("origin", toJson entry.1.toString), ("opcode", toJson entry.2),
@@ -29,7 +32,8 @@ def main : IO Unit := do
     ("origin", toJson origin.toString), ("opcode", Json.null), ("theorem", toJson proof.toString)]
   let alternatives (origin : Name) (tags : List String) (proof : Name) := Json.mkObj [
     ("origin", toJson origin.toString), ("opcode", toJson tags), ("theorem", toJson proof.toString)]
-  let pairs := [
+  let alternativesRows := [
+    alternatives ``Core.Term.unary VastitasOracle.MidIR.unaryTags ``VastitasOracle.MidIR.unary_constructor_coverage,
     alternatives ``Core.Term.pair VastitasOracle.MidIR.pairConstructionTags ``VastitasOracle.MidIR.pair_constructor_coverage,
     alternatives ``Core.Term.project VastitasOracle.MidIR.pairProjectionTags ``VastitasOracle.MidIR.projection_constructor_coverage]
   let bindings := [
@@ -37,4 +41,4 @@ def main : IO Unit := do
     binding ``Core.Term.scope ``VastitasOracle.MidIR.scope_constructor_coverage,
     binding ``Core.Term.ascribe ``VastitasOracle.MidIR.ascription_constructor_coverage,
     binding ``Core.Term.letE ``VastitasOracle.MidIR.let_constructor_coverage]
-  IO.println (toJson (literals ++ [finite, lookup, call, conversion] ++ pairs ++ bindings)).compress
+  IO.println (toJson (literals ++ [finite, lookup, call, conversion] ++ alternativesRows ++ bindings)).compress

@@ -353,9 +353,9 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(run.returncode, 1)
         self.assertIn("not release acceptance", run.stderr)
 
-    def test_pair_alternatives_cover_both_element_types_and_each_field(self):
+    def test_opcode_alternatives_cover_unary_folds_and_both_pair_fields(self):
         ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
-        for form in ["pair", "project"]:
+        for form in ["unary", "pair", "project"]:
             entry = next(r for r in ledger["coverage"] if r["origin"] == "VastitasKernel.Indexed.Core.Term." + form)
             opcodes = [op.removeprefix("midir.") for op in entry["planned_opcode"]]
             compiled = {"origin": entry["origin"], "opcode": opcodes, "theorem": entry["evidence"][0]}

@@ -50,6 +50,11 @@ The assembled contribution returns the second element, 19, while the default ret
 Official and Fast verify the 1,968-byte selected module. Changing the assembly invalidates its certificate.
 [Pair field selection](../../../llvm/fixtures/SelectedProjection.vast) · [Checked LLVM](../../../llvm/src/selected-projection.ll)
 
+The assembly suite also selects a method that negates its boxed integer argument.
+Its retained caller and the identity sibling agree on their signature and produce opposite
+signs for 2¹²⁸ + 43. Switching the selected method invalidates the saved certificate.
+[Unary method](../../../llvm/fixtures/AssembledNegation.vast) · [Checked LLVM](../../../llvm/src/assembled-negation.ll)
+
 The pair fixture uses an edition 2026 manifest and one source file. Both certificate workers check the same five-function module. The unbounded integer calculated by the selected method's caller is 42. Its bytes retain the default method and the selected contribution. [Pair-valued assembly](../../../llvm/fixtures/BoxedPairs.vast) · [Checked LLVM](../../../llvm/src/boxed-pairs.ll)
 
 The assembly suite also checks a `Nat → Int` method selected by `apply exact`.

@@ -46,6 +46,9 @@ STATIC_CALL_ORIGIN = "VastitasKernel.Indexed.Core.Term.call"
 CONVERSION_ORIGIN = "VastitasKernel.Indexed.Core.Term.natToInt"
 CONVERSION_THEOREM = "VastitasOracle.MidIR.nat_to_int_constructor_coverage"
 EXACT_MAPPINGS = {
+    "VastitasKernel.Indexed.Core.Term.unary": (
+        "unary operator", ["midir.bool.not.v1", "midir.int_neg.v1", "midir.int.const.v1"],
+        "VastitasOracle.MidIR.unary_constructor_coverage"),
     "VastitasKernel.Indexed.Core.Term.pair": (
         "homogeneous pair", ["midir.nat_pair.v1", "midir.int_pair.v1"],
         "VastitasOracle.MidIR.pair_constructor_coverage"),

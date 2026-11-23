@@ -132,4 +132,32 @@ theorem published_indexed_definition {s : Subject} (valid : Valid s) {requireMai
   exact ⟨⟨expected, checked, collected, scan, site⟩, ⟨entry, resolved, member, optMember, env.symm ▸ optMember⟩,
     rev.symm.trans p.revision, p.revision, (corresponds valid p).1⟩
 
+/-- A published integer program retains the ordered, resolved package cases in
+its Core declaration table. Its source layout, function revision and emitted
+bytes all belong to that same publication. -/
+theorem published_indexed_package {s : Subject} (valid : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain)
+    {pkg : VastitasKernel.ResourceSource.Package} (hp : pkg ∈ p.req.input.packages)
+    {m : VastitasKernel.ResourceSource.Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    {cases : List Indexed.Source.PackageShape} (body : d.body = .package cases) :
+    let scope := (⟨pkg.id, m.pureModule.module.path⟩ : Namespace.Scope)
+    let index := p.req.checked.pureProgram.compiler.input.body.index
+    (∃ expected checked, EditSourceFiles.collect p.req.input = .ok expected ∧
+      ExactModelSource.scanFiles s.sources p.req.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds s.sources checked.finiteSites
+        ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "package" d.name (some (FiniteSourceFiles.packageFields cases))⟩) ∧
+    (∃ entry ∈ (VastitasKernel.MidIR.PackageLink.core p.req).declarations.packages,
+      ((do return ⟨⟨scope, d.name⟩, ← cases.mapM (Indexed.Source.resolveShape index scope)⟩) :
+        Indexed.Source.ResolveM Indexed.Core.NamedPackage).run' [] = .ok entry) ∧
+    p.artifact.linked.opt.revision = s.revision ∧ p.artifact.linked.exe.revision = s.revision ∧
+    p.text.toUTF8.data.toList = s.bytes := by
+  obtain ⟨⟨expected, layout, checked, collected, physical, scan, site⟩, member⟩ :=
+    ResourceSource.physical_indexed_package p.req hp hm hd body
+  have same := Except.ok.inj (physical.symm.trans valid.physical)
+  subst layout
+  exact ⟨⟨expected, checked, collected, scan, site⟩, member,
+    (VastitasKernel.MidIR.execute_identity _ _ p.artifact.linked.executed).2.symm.trans p.revision,
+    p.revision, (corresponds valid p).1⟩
+
 end VastitasOracle.BoxedCertificate

@@ -128,10 +128,12 @@ evidence = [
   "tests/indexed_definition_source.rs::used_linear_implementation_and_tensor_buffers_agree_on_the_gemm_abi",
   "tests/indexed_definition_source.rs::ordered_family_parameters_constraints_and_representation_bind_the_revision",
   "tests/indexed_definition_source.rs::family_replay_checks_empty_lists_nested_punctuation_and_decimal_slots",
+  "tests/indexed_definition_source.rs::package_cases_replay_witness_types_and_ordered_bound_fields",
+  "tests/indexed_definition_source.rs::an_uncalled_pack_body_requires_the_written_field_index",
   "tests/indexed_definition_source.rs::the_written_index_kinds_check_an_uncalled_function_signature",
   "tests/indexed_definition_source.rs::native_cells_follow_the_written_linear_implementation",
 ]
-note = "A changed declaration in an unused dependency preserves the complete folded module and invalidates the earlier revision. Swapping the marker and natural parameters of an indexed family requires swapping the arguments in a signature that uses it, even in an uncalled function. A used linear implementation selects the real or complex GEMM representation. Mismatched buffers fail before emission. Native execution checks both cells. With a false expectation for the second cell, the diagnostic identifies its observed real or complex component bits."
+note = "A changed declaration in an unused dependency preserves the complete folded module and invalidates the earlier revision. Swapping the marker and natural parameters of an indexed family requires swapping the arguments in a signature that uses it, even in an uncalled function. Changing the natural index in an indexed package field requires the corresponding argument type in a function that packs the witness, including an uncalled function. A used linear implementation selects the real or complex GEMM representation. Mismatched buffers fail before emission. Native execution checks both cells. With a false expectation for the second cell, the diagnostic identifies its observed real or complex component bits."
 
 [property."compiler-ir.edition".claim.finite-declaration-source]
 status = "proved-oracle"
@@ -142,6 +144,8 @@ evidence = [
   "VastitasOracle.ResourceSource.physical_implementation",
   "VastitasOracle.ResourceSource.physical_classification",
   "VastitasOracle.ResourceSource.physical_indexed_family",
+  "VastitasOracle.ResourceSource.physical_indexed_package",
+  "VastitasOracle.BoxedCertificate.published_indexed_package",
   "VastitasOracle.BoxedCertificate.published_indexed_definition",
   "VastitasOracle.ResourceSource.physical_finite_function",
 ]

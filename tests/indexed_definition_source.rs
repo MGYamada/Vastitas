@@ -341,6 +341,106 @@ fn the_written_index_kinds_check_an_uncalled_function_signature() {
     common::success(&s.check_manifest("Vastitas.toml"));
 }
 
+#[test]
+fn package_cases_replay_witness_types_and_ordered_bound_fields() {
+    let s = Scratch::empty("indexed package case source");
+    let declarations = "
+indexed family Entry(domain, marker, natural, object(defs::RootA), object(defs::Scalar)) = token constraints();
+indexed family Empty() = token constraints();
+indexed package Hidden {
+    case(defs::RootA, defs::MarkA) {
+        Entry(domain(defs::RootA), marker(defs::MarkA), 00018446744073709551616, witness, global(defs::BaseA),);
+        Empty();
+    }
+    case(defs::RootB, defs::MarkA) { }
+};
+";
+    let root = format!("{ROOT}{declarations}");
+    let original = request(&s, &root, DEFINITIONS);
+    assert_folded(&original);
+    let revision = kernel_with_args(&original, &["function-revision"])["function_revision"].clone();
+    assert!(revision.is_object());
+    for (from, to, token) in [
+        ("case(defs::RootA", "case(defs::RootB", "defs::RootB"),
+        ("defs::MarkA) { }", "defs::MarkB) { }", "defs::MarkB"),
+        ("Entry(domain(", "Empty(domain(", "Empty"),
+        ("domain(defs::RootA)", "marker(defs::RootA)", "marker"),
+        ("marker(defs::MarkA)", "marker(defs::MarkB)", "defs::MarkB"),
+        (
+            "00018446744073709551616",
+            "00018446744073709551617",
+            "00018446744073709551617",
+        ),
+        ("witness, global", "unknown, global", "unknown"),
+        ("global(defs::BaseA)", "global(defs::BaseB)", "defs::BaseB"),
+        ("Empty();", "Empty(,)", ","),
+    ] {
+        let edited = checked_replace(&root, from, to);
+        let mut stale = original.clone();
+        stale["root_source"]["text"] = json!(edited);
+        let offset = root.find(from).unwrap() + to.find(token).unwrap();
+        assert_physical_rejection(&stale, &edited[..offset]);
+    }
+    let mut changed = request(
+        &s,
+        &checked_replace(&root, "global(defs::BaseA)", "global(defs::BaseB)"),
+        DEFINITIONS,
+    );
+    assert_folded(&changed);
+    changed["expected_function_revision"] = revision;
+    assert_wire_rejected(
+        &kernel_with_args(&changed, &["llvm-check", TRIPLE, LAYOUT]),
+        "E_FUNCTION_REVISION",
+    );
+    let mut moved = original.clone();
+    let case = &mut decl_mut(&mut moved, "Hidden")["cases"][0];
+    case["fields"][0]["indices"][0]["declaration"]["span"] =
+        case["witness_type"]["domain"]["span"].clone();
+    let field = root.find("Entry(domain(defs::RootA)").unwrap();
+    assert_physical_rejection(&moved, &root[..field + "Entry(domain(".len()]);
+    let mut reversed = original.clone();
+    decl_mut(&mut reversed, "Hidden")["cases"]
+        .as_array_mut()
+        .unwrap()
+        .swap(0, 1);
+    let case = root.find("case(defs::RootA").unwrap();
+    assert_physical_rejection(&reversed, &root[..case + "case(".len()]);
+    let mut swapped = original;
+    decl_mut(&mut swapped, "Hidden")["cases"][0]["fields"]
+        .as_array_mut()
+        .unwrap()
+        .swap(0, 1);
+    assert_physical_rejection(&swapped, &root[..field]);
+}
+
+#[test]
+fn an_uncalled_pack_body_requires_the_written_field_index() {
+    let s = Scratch::empty("indexed package payload");
+    let root = "mod defs;
+indexed family Tag(natural) = token constraints();
+indexed package Tagged { case(defs::GridA, defs::MarkA) { Tag(7); } };
+fn wrap(X: Object<defs::GridA, defs::MarkA>, t: Tag<7>) -> Tagged<defs::GridA, defs::MarkA> {
+    pack Tagged<defs::GridA, defs::MarkA> { witness: X, fields: [t] }
+}
+fn main() -> Int { 10 }";
+    s.write_package("app", root, "");
+    s.write("app/defs.vast", DEFINITIONS);
+    common::success(&s.check_manifest("app/Vastitas.toml"));
+    let changed = checked_replace(root, "Tag(7);", "Tag(8);");
+    s.write("app/main.vast", &changed);
+    let output = s.check_manifest("app/Vastitas.toml");
+    let diagnostic = common::expect_code(&output, "E_ENDPOINT");
+    assert!(
+        diagnostic.contains("main.vast:5:5") && diagnostic.contains("Tag<7>"),
+        "{diagnostic}"
+    );
+    s.write(
+        "app/main.vast",
+        &checked_replace(&changed, "t: Tag<7>", "t: Tag<8>"),
+    );
+    common::success(&s.check_manifest("app/Vastitas.toml"));
+}
+
 const TENSOR_FIXTURE: &str = "llvm/fixtures/tensor-column";
 const PROFILE: &str = include_str!("../llvm/fixtures/tensor-column/src/profiles/mod.vast");
 const PRODUCT: &str = include_str!("../llvm/fixtures/tensor-column/src/product/mod.vast");

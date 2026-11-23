@@ -325,6 +325,13 @@ constrains an indexed family. Swapping these positions changes the function
 revision while preserving both operands of `@vq_f1(ptr %v2, ptr %v5)` and the
 complete module. Both inputs produced the same 2,311 bytes and a 2,256-byte
 macOS arm64 object with LLVM 23.1.4. Both linked executables returned 23.
+In a second comparison the dependency declared a package with a field
+`Tag(7)`. Changing the unused field to `Tag(8)` changed the checked function
+revision and preserved the same 2,311 bytes. The static LLVM 23.1.4 adapter
+produced a 2,176-byte macOS arm64 object in each run. Both linked programs
+returned 23. In a source that packs the witness, changing the index requires
+the corresponding field type in the packing function. [Physical package checks](../../tests/indexed_definition_source.rs) · [Publication theorem](../../lean/VastitasOracle/BoxedCertificate.lean)
+
 In Lean 4.35.0, `emitSimpleExternalCall` skips erased
 parameters when building both the argument types and the call. As a control,
 two Lean wrappers called the same external subtraction function with a static

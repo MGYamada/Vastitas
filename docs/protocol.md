@@ -191,19 +191,26 @@ checking the family and its applications. Only `frame_vector`, `frame_covector`
 and `frame_map` may omit an empty `constraints()` clause. Unused families
 are present in the same Core environment as families used in function signatures.
 
+An `indexed package` replays each case's witness domain and marker, its ordered
+fields, and each field's family and complete index list. The physical check
+compares qualified paths at their UTF-8 byte spans, recognizes the scoped
+`witness` token and compares decimal natural indices at arbitrary precision.
+The public checker resolves those cases in the declaring scope and finds the
+same named package in the Core declaration table.
+
 #### Indexed declaration coverage in edition 2026
 
-Of the 54 constructors of `Indexed.Source.Body`, 30 have their fields checked
+Of the 54 constructors of `Indexed.Source.Body`, 31 have their fields checked
 against physical source. These comprise 16 finite forms, seven affine object, morphism and
 geometry witness forms, one exact-geometry constructor with six variants, and
-`marker`, `baseDimension`, `global`, `implementation`, `classification` and `family`.
-The public checker uses the decoded declarations from that same request to elaborate Core. The following 24
+`marker`, `baseDimension`, `global`, `implementation`, `classification`, `family` and `package`.
+The public checker uses the decoded declarations from that same request to elaborate Core. The following 23
 constructors have item-boundary checks, but still need a comparison of their
 operands with the original file. The names below are Lean constructors.
 
 | Declaration group | Operands awaiting physical replay |
 | --- | --- |
-| Indexed definitions | `package`, `primitive` |
+| Indexed definitions | `primitive` |
 | Frames and metrics | `metric`, `evidence`, `frame` |
 | Physical dimensions | `quantity`, `reading`, `scale`, `physicalMetric` |
 | Spectral and transition data | `freeModule`, `endomorphism`, `spectrum`, `branch`, `transitionAverage` |

@@ -651,17 +651,35 @@ def definitionEntry? (index : Namespace.Indexed) (owner : Indexed.DeclId) :
     return ⟨owner, .family ⟨params, family.constraints, family.representation⟩⟩)
   | _ => none
 
-def writtenDefinitions (input : Program) (index : Namespace.Indexed) : List (Namespace.Result Indexed.Entry) :=
+def writtenDefinitionActions {α : Type} (input : Program) (index : Namespace.Indexed)
+    (select : Namespace.Indexed → Indexed.DeclId → Indexed.Source.Body → Option (Indexed.Source.ResolveM α)) :
+    List (Namespace.Result α) :=
   input.packages.flatMap fun pkg => pkg.modules.flatMap fun m => m.pureModule.declarations.filterMap fun d =>
     let owner := (⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩ : Indexed.DeclId)
-    (definitionEntry? index owner d.body).map fun action => action.run' []
+    (select index owner d.body).map fun action => action.run' []
+
+abbrev writtenDefinitions (input : Program) (index : Namespace.Indexed) :=
+  writtenDefinitionActions input index definitionEntry?
+
+def packageShape? (index : Namespace.Indexed) (owner : Indexed.DeclId) :
+    Indexed.Source.Body → Option (Indexed.Source.ResolveM Indexed.Core.NamedPackage)
+  | .package cases => some (do return ⟨owner, ← cases.mapM (Indexed.Source.resolveShape index owner.scope)⟩)
+  | _ => none
+
+def resolvedSublist {α : Type} [BEq α] (actions : List (Namespace.Result α)) (actual : List α) : Bool :=
+  match actions.mapM id with
+  | .ok entries => entries.isSublist actual
+  | .error _ => false
+
+def packageShapesMatch {input : Program} {main : Bool} (checked : Checked input main) : Bool :=
+  resolvedSublist (writtenDefinitionActions input checked.pureProgram.compiler.input.body.index packageShape?)
+    checked.pureProgram.compiled.core.module.declarations.packages
 
 /-- Check against the exact final Core consumed by emission. Other kinds of
 declarations and synthetic packages may occur between the physical entries. -/
 def definitionsMatch {input : Program} {main : Bool} (checked : Checked input main) : Bool :=
-  match (writtenDefinitions input checked.pureProgram.compiler.input.body.index).mapM id with
-  | .ok entries => entries.isSublist checked.pureProgram.compiled.core.module.declarations.indexed
-  | .error _ => false
+  resolvedSublist (writtenDefinitions input checked.pureProgram.compiler.input.body.index)
+    checked.pureProgram.compiled.core.module.declarations.indexed
 
 structure CheckedInput (json : Json) (requireMain : Bool) where
   input : Program
@@ -671,6 +689,7 @@ structure CheckedInput (json : Json) (requireMain : Bool) where
   assemblySource : AssemblySource.Corresponds json checked.pureProgram.authority.headers.assembled.prepared.core.assembly
   editSources : EditSourceFiles.check json input = .ok ()
   definitionEntries : definitionsMatch checked = true
+  packageShapes : packageShapesMatch checked = true
   revisionMatches : RevisionMatches json checked
   /-- The price of the request's JSON, in which the compatibility profile of
   `legacy_geometry` has no part, and the checked passes. -/
@@ -687,9 +706,9 @@ def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput j
       match edits : EditSourceFiles.check json input with
       | .error diagnostic => .error diagnostic
       | .ok () =>
-        if definitions : definitionsMatch result.value then
+        if definitions : definitionsMatch result.value = true ∧ packageShapesMatch result.value = true then
           if h : RevisionMatches json result.value then
-            .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, definitions, h, result.receipt⟩
+            .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, definitions.1, definitions.2, h, result.receipt⟩
           else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
         else .error { code := "E_MODULE_SOURCE", message := "source indexed definition differs from the returned Core" }
 

@@ -148,6 +148,21 @@ def classificationFields (parents domain : List Source.Path) : List ExactLexeme 
   [.punctuation '{', .ident "parents"] ++ tuple (parents.map ref) ++ [.punctuation ';', .ident "domain"] ++
     tuple (domain.map ref) ++ [.punctuation ';', .punctuation '}']
 
+private def boundIndexTokens : Source.BoundIndex → List ExactLexeme
+  | .witness => [.ident "witness"]
+  | .global path => application "global" [path]
+  | .domain path => application "domain" [path]
+  | .marker path => application "marker" [path]
+  | .natural n => [.boundNatural n]
+
+def packageFields (cases : List Source.PackageShape) : List ExactLexeme :=
+  let fieldTokens (field : Source.BoundApplication) :=
+    [ref field.family, .punctuation '('] ++ listLexemes (field.indices.map boundIndexTokens) ')' ++ [.punctuation ';']
+  let caseTokens (shape : Source.PackageShape) :=
+    [.ident "case", .punctuation '(', ref shape.witnessType.domain, .punctuation ',', ref shape.witnessType.marker,
+     .punctuation ')', .punctuation '{'] ++ shape.fields.flatMap fieldTokens ++ [.punctuation '}']
+  [.punctuation '{'] ++ cases.flatMap caseTokens ++ [.punctuation '}']
+
 private def familyParameter : Source.Parameter → List ExactLexeme
   | .domain => [.ident "domain"]
   | .marker => [.ident "marker"]
@@ -175,6 +190,7 @@ def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
         | .marker | .baseDimension => some []
         | .implementation marker representation capabilities => some (implementationFields marker representation capabilities)
         | .classification parents domain => some (classificationFields parents domain)
+        | .package cases => some (packageFields cases)
         | .global implementation =>
           some [.punctuation '(', .reference implementation.path implementation.span, .punctuation ')']
         | _ => none

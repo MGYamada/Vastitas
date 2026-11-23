@@ -185,6 +185,7 @@ inductive ExactLexeme where
   | punctuation (ch : Char)
   | reference (parts : List String) (span : Span)
   | dimension (value : Nat)
+  | boundNatural (value : Nat)
   | constraintSlot (value : Nat)
   | separator
   | arrow
@@ -377,6 +378,7 @@ def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String Cursor
       | _ => pure next
     requireSymbol close ch
     return close.after
+  | .boundNatural value => f.expectNat c value "package index differs from its physical source"
   | .constraintSlot value => do
     unless value < UInt32.size do throw "constraint slot exceeds u32"
     f.expectNat c value "constraint slot differs from the physical source"

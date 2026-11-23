@@ -385,6 +385,19 @@ private theorem resolved_member {α : Type} (actions : List (Namespace.Result α
         · obtain ⟨e, present, eq⟩ := ih inTail xs rest
           exact ⟨e, List.mem_cons_of_mem _ present, eq⟩
 
+private theorem resolved_definition_member {α : Type} [BEq α] [LawfulBEq α]
+    (actions : List (Namespace.Result α)) (action : Namespace.Result α) (member : action ∈ actions)
+    (actual : List α)
+    (matched : Wire.resolvedSublist actions actual = true) :
+    ∃ entry ∈ actual, action = .ok entry := by
+  unfold Wire.resolvedSublist at matched
+  cases h : actions.mapM id with
+  | error err => simp [h] at matched
+  | ok entries =>
+    have aligned : entries.Sublist actual := List.isSublist_iff_sublist.mp (by simpa only [h] using matched)
+    obtain ⟨entry, present, resolved⟩ := resolved_member actions action member entries h
+    exact ⟨entry, aligned.subset present, resolved⟩
+
 /-- Every physical implementation, classification or indexed family resolves to an entry of
 the exact Core environment consumed by emission, including an unused item. -/
 theorem resolved_physical_definition {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
@@ -400,17 +413,7 @@ theorem resolved_physical_definition {json : Lean.Json} (input : Wire.CheckedInp
     apply List.mem_flatMap.mpr
     refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_filterMap.mpr ⟨d, hd, ?_⟩⟩⟩
     simp [selected]
-  have matched := input.definitionEntries
-  unfold Wire.definitionsMatch at matched
-  cases h : actions.mapM id with
-  | error err => simp [actions] at h; rw [h] at matched; contradiction
-  | ok entries =>
-    have aligned : entries.Sublist input.checked.pureProgram.compiled.core.module.declarations.indexed := by
-      apply List.isSublist_iff_sublist.mp
-      dsimp only [actions] at h
-      rwa [h] at matched
-    obtain ⟨entry, present, resolved⟩ := resolved_member actions _ member entries h
-    exact ⟨entry, aligned.subset present, resolved⟩
+  exact resolved_definition_member actions _ member _ input.definitionEntries
 
 /-- The source marker, representation and capabilities replay in their
 declaring module. Resolving these fields must yield an entry in the returned Core. -/
@@ -483,6 +486,32 @@ theorem physical_indexed_family {json : Lean.Json} (input : Wire.CheckedInput js
   refine ⟨⟨expected, layout, checked, collected, physical, scan, ?_⟩, resolved_physical_definition input hp hm hd _ ?_⟩
   · simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form, body] using site
   · rw [body]; rfl
+
+/-- Every written package case and ordered field is replayed in its own file.
+Resolving its witness type, family and indices in that scope yields the cases
+stored under this package identity in the Core consumed by the emitter. -/
+theorem physical_indexed_package {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    {cases : List Indexed.Source.PackageShape} (body : d.body = .package cases) :
+    let scope := (⟨pkg.id, m.pureModule.module.path⟩ : Namespace.Scope)
+    let index := input.checked.pureProgram.compiler.input.body.index
+    (∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "package" d.name (some (FiniteSourceFiles.packageFields cases))⟩) ∧
+    ∃ entry ∈ input.checked.pureProgram.compiled.core.module.declarations.packages,
+      ((do return ⟨⟨scope, d.name⟩, ← cases.mapM (Indexed.Source.resolveShape index scope)⟩) :
+        Indexed.Source.ResolveM Indexed.Core.NamedPackage).run' [] = .ok entry := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  refine ⟨⟨expected, layout, checked, collected, physical, scan, ?_⟩, ?_⟩
+  · simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form,
+      FiniteSourceFiles.indexedKeyword, body] using site
+  · refine resolved_definition_member (Wire.writtenDefinitionActions input.input _ Wire.packageShape?) _ ?_ _ input.packageShapes
+    apply List.mem_flatMap.mpr
+    refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_filterMap.mpr ⟨d, hd, ?_⟩⟩⟩
+    simp [Wire.packageShape?, body]
 
 /-- The implementation selected by an accepted global is the reference at its
 original source span, including every component of a qualified path. -/

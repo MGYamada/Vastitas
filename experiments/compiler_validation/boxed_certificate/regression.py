@@ -225,6 +225,8 @@ pub indexed implementation X(A, affine_descriptor) capabilities();
 pub indexed implementation Y(A, affine_descriptor) capabilities();
 pub indexed classification C { parents(); domain(X, Y); };
 pub indexed family Rel(object(C), object(C)) = token constraints(same_base(0, 1));
+pub indexed family Tag(natural) = token constraints();
+pub indexed package Hidden { case(Y, A) { Tag(7); } };
 """
     library.write_text(declarations)
     baseline, _ = check("indexed-definitions", "official")
@@ -239,6 +241,7 @@ pub indexed family Rel(object(C), object(C)) = token constraints(same_base(0, 1)
         ("marker", "X(A,", "X(B,"),
         ("domain", "domain(X, Y)", "domain(Y, X)"),
         ("family-slot", "same_base(0, 1)", "same_base(1, 0)"),
+        ("package-index", "Tag(7);", "Tag(8);"),
     ]:
         require(declarations.count(old) == 1, "expected one " + label + " field")
         library.write_text(declarations.replace(old, new))

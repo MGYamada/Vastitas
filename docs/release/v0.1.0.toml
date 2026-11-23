@@ -558,7 +558,7 @@ document = ""
 [row.dimension.official]
 state = "partial"
 claims = ["compiler-ir.composition@theorem", "compiler-ir.composition@published-definitions"]
-note = "The Official verifier replayed the boxed certificate for the complete ordered-calls module with four physical input files. The publication proof binds its physical layout, Core, both MidIR environments, revision and complete bytes. Full module composition remains open."
+note = "The Official verifier replayed the boxed certificate for the complete ordered-calls module with four physical input files. The publication proof binds its physical layout, Core, both MidIR environments, revision and complete bytes. The assembled Nat-to-Int method also has a per-input certificate for the complete integer 2^128 + 43 and all 1,376 LLVM bytes. Full module composition remains open."
 document = ""
 
 [row.dimension.fast]

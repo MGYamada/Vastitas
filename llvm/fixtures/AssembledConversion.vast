@@ -1,0 +1,9 @@
+fn widen(x: Nat) -> Int { 0 }
+contribution exact : widen {
+    fn widen(x: Nat) requires (HasEq) -> Int { int(x) }
+}
+assemble widen { apply exact; }
+fn main() -> Int {
+    let n: Nat = 340282366920938463463374607431768211499;
+    widen(n)
+}

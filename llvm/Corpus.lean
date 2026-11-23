@@ -82,6 +82,20 @@ set_option maxRecDepth 65536 in
 set_option maxHeartbeats 2000000 in
 theorem ordered_calls_verified : orderedCallBytes = orderedCalls.print := by rfl
 
+def assembledConversion : ExactProgram.Code :=
+  ⟨header, #[
+    ⟨[.nat], .int, [.primitive (.apply .natToInt [0])], 1⟩,
+    ⟨[], .int, [.primitive (.nat (2^128 + 43)), .invoke 0 [0]], 1⟩,
+    ⟨[.nat], .int, [.primitive (.int 0)], 1⟩], 1⟩
+
+def conversionBytes := corpus_bytes "src/assembled-conversion.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem assembled_conversion_verified : conversionBytes = assembledConversion.print := by rfl
+
+theorem assembled_conversion_result : assembledConversion.entryValue = some (2^128 + 43) := by rfl
+
 def boxedPairs : ExactProgram.Code :=
   let op := fun code refs => ExactProgram.Instruction.primitive (.apply code refs)
   let neighbors : ExactProgram.Function := ⟨[.nat],.pair .nat,
@@ -647,6 +661,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("folded-arithmetic.ll", forExit folded_arithmetic_verified),
    ("boxed-program.ll", forProgram boxed_program_verified),
    ("ordered-calls.ll", forProgram ordered_calls_verified),
+   ("assembled-conversion.ll", forProgram assembled_conversion_verified),
    ("boxed-pairs.ll", forProgram boxed_pairs_verified),
    ("singleton-power.ll", forProgram singleton_power_verified),
    ("borrowed-operator.ll", forProgram borrowed_operator_verified),
@@ -696,6 +711,9 @@ def main (args : List String) : IO Unit := do
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.orderedCallBytes == some ordered &&
       ordered.entryValue == some 23 do
     throw (IO.userError "ordered-calls.ll: different nested operands, target or integer result")
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.conversionBytes ==
+      some Vastitas.LLVMCorpus.assembledConversion do
+    throw (IO.userError "assembled-conversion.ll: different conversion, fallback or call target")
   let borrowed := Vastitas.LLVMCorpus.borrowedOperator
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.borrowedOperatorBytes == some borrowed &&
       borrowed.entryValue == some 42 do

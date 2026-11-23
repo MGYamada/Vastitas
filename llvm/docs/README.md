@@ -10,6 +10,7 @@ The corpus contains 32 complete LLVM assembly files from edition 2026 Vastitas s
 | [folded-arithmetic.ll](../src/folded-arithmetic.ll) · 374 bytes | [FoldedArithmetic.vast](../fixtures/FoldedArithmetic.vast) | The source selects division for the ordered operands `(Nat, Int)`. Its Euclidean quotient for 7 and −3 is −2. Adding 12 gives the constant returned by `ret i32 u0x0A`. | `folded_arithmetic_verified` |
 | [boxed-program.ll](../src/boxed-program.ll) · 1,830 bytes | [BoxedProgram.vast](../fixtures/BoxedProgram.vast) | Four functions pass a borrowed heap integer through an identity, doubling and mixed division. The hosted entry initializes the runtime and consumes the owned result. | `boxed_program_verified` |
 | [ordered-calls.ll](../src/ordered-calls.ll) · 2,311 bytes | [OrderedCalls.vast](../fixtures/OrderedCalls.vast) | Two nested calls supply the left and right operands of an assembled subtraction method. The entry returns 23. | `ordered_calls_verified` |
+| [assembled-conversion.ll](../src/assembled-conversion.ll) · 1,376 bytes | [AssembledConversion.vast](../fixtures/AssembledConversion.vast) | An assembled `Nat → Int` method returns 2¹²⁸ + 43. Its sibling of the same signature returns zero. |
 | [boxed-pairs.ll](../src/boxed-pairs.ll) · 4,157 bytes | [BoxedPairs.vast](../fixtures/BoxedPairs.vast) | Five functions construct and project homogeneous integer pairs. The selected method returns the large negative integer in its first field. Swapping the fields gives 42 at the entry. | `boxed_pairs_verified` |
 | [singleton-power.ll](../src/singleton-power.ll) · 1,977 bytes | [SingletonPower.vast](../fixtures/SingletonPower.vast) | One function squares a boxed integer eight times, divides by seven and passes the owned quotient to the hosted entry. | `singleton_power_verified` |
 | [borrowed-operator.ll](../src/borrowed-operator.ll) · 2,051 bytes | [Borrowed operator package](../fixtures/borrowed-operator/Vastitas.toml) | The caller borrows an edit grant on the imported family. Its selected implementation adds 40 and 2. The module also contains four unselected specializations of the method that returns zero. | `borrowed_operator_verified` |
@@ -289,6 +290,17 @@ linked program returned 23. Swapping the two arguments or removing the applied
 method returned 17 in each case. Lean/C controls produced the same three
 results. The installed Lean compiler requires an LLVM-enabled build for the
 upstream bitcode comparison. [Public call regression](../../tests/llvm_preview.rs) · [Call proofs](../../lean/VastitasOracle/StaticCallCoverage.lean) · [Pinned emitFullApp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774)
+
+The assembled conversion takes a borrowed heap `Nat`. Its shim retains that
+reference before the consuming `lean_nat_to_int` call. The caller releases the
+original after the selected method returns. The fallback accepts the same
+argument and returns zero. LLVM 23.1.4 compiled both variants on macOS arm64.
+A native probe compared each full integer before exit-status projection and
+rejected a value larger by 256. Lean 4.35.0’s `emitInc` emits the reference
+count increment requested by Lean IR. For the control `Int.ofNat` on a
+borrowed parameter, Lean’s generated C called `lean_inc` immediately before
+`lean_nat_to_int`; Clang 23.1.4 compiled the control and it returned status
+43. [Checked conversion](../src/assembled-conversion.ll) · [Vastitas runtime shim](../runtime/exact.c) · [Lean reference-count emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L610-L624)
 
 In the four-file ordered-calls package, the dependency’s `same_base(0, 1)`
 constrains an indexed family. Swapping these positions changes the function

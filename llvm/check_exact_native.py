@@ -193,6 +193,12 @@ def native(args, work):
         run([leanc, *sdk, "shim.o", obj, "-o", "pairs"])
         if subprocess.run([work / "pairs"], cwd=work).returncode != expected % 256:
             raise ValueError("pair-returning method selected the wrong exit")
+    conversion = (ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
+    if conversion.count("apply exact;") != 1:
+        raise ValueError("expected one applied conversion method")
+    for body, expected in [(conversion, 2**128 + 43), (conversion.replace("apply exact;", ""), 0)]:
+        emit(body, "conversion.o")
+        check_integer("conversion.o", expected)
     hosted = (ROOT / "llvm/fixtures/BoxedProgram.vast").read_text()
     numerator = -(2**128 + 1)
     divisors = [3, 0, 1]

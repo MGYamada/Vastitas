@@ -54,6 +54,14 @@ def run(work, suite, frontend):
                 and checked["integer_result"] == "42", "wrong assembled pair method or entry value")
         require((pair_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/boxed-pairs.ll").read_bytes(),
                 "pair certificate differs from the retained LLVM module")
+        source.write_bytes((verify.ROOT / "llvm/fixtures/AssembledConversion.vast").read_bytes())
+        converted, _ = check("conversion", "official")
+        conversion = work / "conversion"
+        fast, _ = check("conversion-fast", "fast", candidate=conversion / "sealed.ndjson")
+        require(converted["integer_result"] == str(2**128 + 43) and converted["functions"] == 3
+                and converted["certificate"] == fast["certificate"], "wrong assembled Nat conversion")
+        require((conversion / "preview.ll").read_bytes() ==
+                (verify.ROOT / "llvm/src/assembled-conversion.ll").read_bytes(), "different conversion module")
         check_borrowed_operator(work, args, check)
         return
 

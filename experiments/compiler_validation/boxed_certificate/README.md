@@ -44,6 +44,12 @@ The assembly suite replays the same certificate in both modes for a three-packag
 
 The pair fixture uses an edition 2026 manifest and one source file. Both certificate workers check the same five-function module. The unbounded integer calculated by the selected method's caller is 42. Its bytes retain the default method and the selected contribution. [Pair-valued assembly](../../../llvm/fixtures/BoxedPairs.vast) · [Checked LLVM](../../../llvm/src/boxed-pairs.ll)
 
+The assembly suite also checks a `Nat → Int` method selected by `apply exact`.
+The module contains the selected conversion, the entry, and its zero-returning
+sibling. Both certificate workers check the full integer 2¹²⁸ + 43 and all
+1,376 bytes. Native integer probes distinguish this result from 2¹²⁸ + 299,
+which has the same exit status. [Conversion source](../../../llvm/fixtures/AssembledConversion.vast) · [LLVM module](../../../llvm/src/assembled-conversion.ll)
+
 The same suite checks a second package that seals the family and returns 7 without calling it. Official and Fast verify the 1,829-byte module, including all five method specializations and the entry. [Uncalled operator package](../../../llvm/fixtures/uncalled-operator/main.vast) · [Checked LLVM](../../../llvm/src/uncalled-operator.ll)
 
 The composition theorem takes the dependent publication witness from the public emitter and the checked stage certificate. It connects the returned Core, optimization and execution MidIR, complete LLVM module, parser and hosted status to the same integer. General per-build source admission proofs, additional LLVM profiles and native linking remain separate release obligations. [Composition theorem](../../../lean/VastitasOracle/BoxedCertificate.lean) · [LLVM corpus](../../../llvm/docs/README.md)

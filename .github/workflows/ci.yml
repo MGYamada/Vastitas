@@ -331,9 +331,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # macOS runs the complete corpus after a cold build, followed by three
-    # per-input certificate suites. Keep time for those suites on slower runners.
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 120 || 45 }}
+    # Both hosts run the corpus and three complete per-input suites after a cold
+    # build. The certificate runner limits each individual worker to 120 seconds.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

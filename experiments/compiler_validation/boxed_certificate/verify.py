@@ -140,16 +140,33 @@ def read_sources(wire, source, flat_names):
     return files, entry
 
 
+def string_literal(value):
+    # Reducing a long String literal unfolds the UTF-8 encoding of its entire
+    # character list. A balanced append keeps those reductions short.
+    if len(value) <= 24:
+        return official.lean_string(value)
+    middle = len(value) // 2
+    return f"({string_literal(value[:middle])} ++ {string_literal(value[middle:])})"
+
+
 def authority(revision, model, triple, layout, data, sources):
     # Only closed data is interpolated. All identifiers and proof syntax are fixed.
-    quote = official.lean_string
+    strings = {}
+
+    def quote(value):
+        if len(value) <= 40:
+            return official.lean_string(value)
+        if value not in strings:
+            strings[value] = f"text{len(strings)}"
+        return strings[value]
+
     header_lines = data.split(b"\n", 2)
     require(len(header_lines) == 3, "incomplete printed header")
     header_bytes = list(b"\n".join(header_lines[:2]) + b"\n")
     body = header_lines[2].decode("utf-8").split("\n")
     require(len(body) >= 3 and body[0] == body[-1] == "", "noncanonical body delimiters")
     lines = ", ".join(map(quote, body[1:-1]))
-    fields = [(quote(k), 'wire' if k == 'input' else official.json_term(revision[k])) for k in sorted(revision)]
+    fields = [(quote(k), 'wire' if k == 'input' else official.json_term(revision[k], quote)) for k in sorted(revision)]
     rev = ", ".join(f"({k}, {v})" for k, v in fields)
     files, entry = sources
     physical = []
@@ -164,17 +181,21 @@ def authority(revision, model, triple, layout, data, sources):
         args = ", ".join(KINDS[k] for k in f["params"])
         steps = ", ".join(map(instruction, f["ops"]))
         functions.append(f"⟨[{args}], {KINDS[f['result']]}, [{steps}], {natural(f['slot'])}⟩")
+    wire = official.json_term(revision["input"], quote)
+    triple_term, layout_term = quote(triple), quote(layout)
+    bindings = "\n".join(f"def {name} : String := {string_literal(value)}" for value, name in strings.items())
     return f"""import VastitasOracle.BoxedCertificate
 set_option autoImplicit false
 set_option maxRecDepth 65536
 set_option maxHeartbeats 8000000
 namespace VastitasProof
 open Lean VastitasKernel VastitasKernel.LLVM VastitasOracle.BoxedCertificate
-def wire : Json := {official.json_term(revision['input'])}
+{bindings}
+def wire : Json := {wire}
 def revision : Json := Json.mkObj [{rev}]
 def sources : PhysicalSources.Layout := ⟨#[{', '.join(physical)}], {natural(entry)}⟩
-def header : TargetHeader := ⟨⟨{quote(triple)}.toUTF8.data.toList, by decide⟩,
-  ⟨{quote(layout)}.toUTF8.data.toList, by decide⟩⟩
+def header : TargetHeader := ⟨⟨{triple_term}.toUTF8.data.toList, by decide⟩,
+  ⟨{layout_term}.toUTF8.data.toList, by decide⟩⟩
 def code : VastitasKernel.LLVM.ExactProgram.Code := ⟨header, #[{', '.join(functions)}], {natural(model['entry'])}⟩
 def headerBytes : List UInt8 := {header_bytes}
 def lines : List String := [{lines}]

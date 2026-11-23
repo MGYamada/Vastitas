@@ -216,7 +216,8 @@ def run(work, suite, frontend):
 
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""
-    helper = "fn helper(x: Int) -> Int { x + x } // λ1"
+    # The same long source text passes through both the wire and the physical layout.
+    helper = 'fn helper(x: Int) -> Int { x + x } // "λ1" 🪐 e\u0301 \\end\r\n'
     library = work / "helper.vast"
     library.write_text(helper)
     source.write_text("fn main() -> Int { helper(21) }")

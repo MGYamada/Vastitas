@@ -7,6 +7,8 @@ private def instruction : ExactProgram.Instruction → Json
   | .primitive (.nat n) => toJson ["nat", toString n]
   | .primitive (.int n) => toJson ["int", toString n]
   | .primitive (.apply op refs) => Json.arr #[toJson "apply", toJson op.name, toJson refs]
+  | .primitive (.compare sort op left right) =>
+    Json.arr #[toJson "compare", toJson sort.label, toJson op.tag, toJson left, toJson right]
   | .invoke callee refs => Json.arr #[toJson "invoke", toJson callee, toJson refs]
 
 private def body (f : ExactProgram.Function) := Json.mkObj [

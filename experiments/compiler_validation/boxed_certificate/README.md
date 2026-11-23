@@ -33,6 +33,12 @@ For each compilation the driver reopens the physical files, compares their bytes
 
 The boxed publication theorem places each resolved implementation, classification and indexed family
 in Core and in both MidIR environments for the same revision and complete bytes.
+The Lean certificate generator shares repeated source text and paths as closed string definitions.
+It constructs long strings by appending short literals. The physical layout equality still covers every UTF-8 byte.
+In a local macOS arm64 replay of the four-file indexed-record package, this changed certificate
+elaboration from 37.77 to 19.30 seconds. Lean 4.35.0 and nanoda both verified the same
+2,311 LLVM bytes under the 120-second per-worker limit.
+
 The input suite compiles the ordered calls against three separate dependency fixtures.
 Each compilation reads four physical files. Official and Fast replay the same certificate
 for that compilation. The first fixture changes an implementation marker, a classification

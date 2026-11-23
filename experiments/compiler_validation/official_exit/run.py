@@ -55,7 +55,7 @@ def lean_string(text):
     return ''.join(out) + '"'
 
 
-def json_term(value):
+def json_term(value, string_term=lean_string):
     if value is None:
         return ".null"
     if type(value) is bool:
@@ -63,12 +63,12 @@ def json_term(value):
     if type(value) is int:
         return f"(toJson ({value} : Int))"
     if type(value) is str:
-        return ".str " + lean_string(value)
+        return ".str " + string_term(value)
     if type(value) is list:
-        return ".arr #[" + ", ".join(map(json_term, value)) + "]"
+        return ".arr #[" + ", ".join(json_term(item, string_term) for item in value) + "]"
     if type(value) is dict:
         return "(Json.mkObj [" + ", ".join(
-            "(" + lean_string(key) + ", " + json_term(value[key]) + ")" for key in sorted(value)) + "])"
+            "(" + lean_string(key) + ", " + json_term(value[key], string_term) + ")" for key in sorted(value)) + "])"
     raise ValueError(f"unsupported protocol-10 JSON type {type(value).__name__}")
 
 

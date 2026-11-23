@@ -441,6 +441,197 @@ fn main() -> Int { 10 }";
     common::success(&s.check_manifest("app/Vastitas.toml"));
 }
 
+#[test]
+fn every_registered_primitive_has_a_physical_program_accepted_by_the_public_checker() {
+    use std::collections::BTreeSet;
+
+    let mut observed = BTreeSet::new();
+    for package in [
+        "examples/packages/geometry/frames",
+        "stdlib/src/geometry",
+        "tests/emit_corpus/spectral-primitives",
+        "examples/packages/stdlib/stdlib-affine",
+        "examples/packages/geometry/smooth-cotangent",
+    ] {
+        let manifest = common::root().join(package).join("Vastitas.toml");
+        let wire = common::captured_wire(
+            common::manifest_command("check", manifest),
+            CURRENT_PROTOCOL,
+        );
+        let reply = kernel_with_args(&wire, &["check"]);
+        assert_eq!(reply["ok"], true, "{package}: {reply}");
+        for package in wire["packages"].as_array().unwrap() {
+            for module in package["modules"].as_array().unwrap() {
+                let Some(declarations) = module.get("indexed_declarations") else {
+                    continue;
+                };
+                for d in declarations.as_array().unwrap() {
+                    if d["kind"] == "primitive" {
+                        observed.insert(d["binding"]["op"].as_str().unwrap().to_owned());
+                    }
+                }
+            }
+        }
+    }
+    let registry = vastitas::indexed::primitive_families()
+        .iter()
+        .map(|f| f.op.to_owned())
+        .collect();
+    assert_eq!(observed, registry);
+}
+
+#[test]
+fn a_primitive_binds_its_qualified_argument_and_revision_even_when_unused() {
+    let s = Scratch::empty("indexed primitive source");
+    let root = format!("{ROOT}indexed primitive base = descriptor(defs::GridA);\n");
+    let changed = checked_replace(&root, "descriptor(defs::GridA)", "descriptor(defs::GridB)");
+    let original = request(&s, &root, DEFINITIONS);
+    let mut current = request(&s, &changed, DEFINITIONS);
+    for wire in [&original, &current] {
+        assert_folded(wire);
+    }
+    current["expected_function_revision"] =
+        kernel_with_args(&original, &["function-revision"])["function_revision"].clone();
+    assert_wire_rejected(
+        &kernel_with_args(&current, &["llvm-check", TRIPLE, LAYOUT]),
+        "E_FUNCTION_REVISION",
+    );
+    let mut stale = original.clone();
+    stale["root_source"] = current["root_source"].clone();
+    assert_physical_rejection(&stale, &changed[..changed.rfind("defs::GridB").unwrap()]);
+    let mut forged = original;
+    let path = &mut decl_mut(&mut forged, "base")["binding"]["implementation"]["span"];
+    path["end"] = json!(path["end"].as_u64().unwrap() - 1);
+    assert_physical_rejection(&forged, &root[..root.rfind("defs::GridA").unwrap()]);
+}
+
+#[test]
+fn a_written_frame_component_selects_the_executed_coordinate() {
+    let s = common::example_package(
+        "primitive frame coordinate",
+        "examples/packages/geometry/frames",
+        &[],
+    );
+    let declarations = include_str!("../examples/packages/geometry/frames/src/main.vast")
+        .split_once("fn main() -> Int {")
+        .unwrap()
+        .0;
+    let source = format!(
+        "{declarations}fn main() -> Int {{ pair_first(first(in_b(plane_at(1, 2), 7, 19))) }}\n"
+    );
+    s.write("src/main.vast", &source);
+    assert_eq!(s.check_build_and_run("Vastitas.toml"), common::exits(7));
+    let wire = s.captured("Vastitas.toml", CURRENT_PROTOCOL);
+    let from = "primitive first = frame_component(Coords, 0)";
+    let changed = checked_replace(
+        &source,
+        from,
+        "primitive first = frame_component(Coords, 1)",
+    );
+    let index = source.find(from).unwrap() + from.find('0').unwrap();
+    let mut stale = wire.clone();
+    stale["root_source"]["text"] = json!(changed);
+    assert_physical_rejection(&stale, &source[..index]);
+    s.write("src/main.vast", &changed);
+    assert_eq!(s.check_build_and_run("Vastitas.toml"), common::exits(19));
+
+    // Padded values still count every decimal digit against the frontend bound.
+    let padded = checked_replace(
+        &source,
+        from,
+        &from.replace('0', &format!("{}0", " ".repeat(64))),
+    );
+    s.write("src/main.vast", &padded);
+    let mut wire = s.captured("Vastitas.toml", CURRENT_PROTOCOL);
+    assert_eq!(kernel_with_args(&wire, &["check"])["ok"], true);
+    wire["root_source"]["text"] =
+        json!(padded.replacen(&format!("{}0", " ".repeat(64)), &"0".repeat(65), 1));
+    assert_physical_rejection(&wire, &padded[..index]);
+}
+
+#[test]
+fn primitive_selectors_coordinates_polynomials_and_pullback_modes_replay() {
+    for (package, file, from, to, token) in [
+        (
+            "frames",
+            "main.vast",
+            "flat(Tangent, Cotangent, using = Skew)",
+            "flat(Tangent, Cotangent, other = Skew)",
+            "other",
+        ),
+        (
+            "frames",
+            "main.vast",
+            "source = b, target = l",
+            "source = c, target = l",
+            "c,",
+        ),
+        (
+            "frames",
+            "profile.vast",
+            "Cotangent, saved)",
+            "Cotangent, saves)",
+            "saves",
+        ),
+        (
+            "affine-geometry",
+            "main.vast",
+            "DS, Fiber, X::x, e",
+            "DS, Fiber, X::y, e",
+            "X::y",
+        ),
+        (
+            "affine-geometry",
+            "main.vast",
+            "DS, Fiber, X::x, e",
+            "DS, Fiber, X::x, x",
+            "x)",
+        ),
+        (
+            "spectral-observations",
+            "main.vast",
+            "spectrum = STwoI, element = t - 2, f1, f2",
+            "spectrum = STwoI, element = t + 2, f1, f2",
+            "t + 2",
+        ),
+        (
+            "spectral-observations",
+            "main.vast",
+            "p12 = branch_projector(Smooth, Line, branch = B, e1, e2)",
+            "p12 = branch_projector(Smooth, Line, branch = B, e1, e1)",
+            "e1)",
+        ),
+        (
+            "indexed-objects",
+            "shapes.vast",
+            "dim((Measured, QQ))",
+            "dim((Measured, QP))",
+            "QP",
+        ),
+    ] {
+        let manifest = common::root()
+            .join("examples/packages/geometry")
+            .join(package)
+            .join("Vastitas.toml");
+        let mut wire = common::captured_wire(
+            common::manifest_command("check", manifest),
+            CURRENT_PROTOCOL,
+        );
+        let is_root = file == "main.vast";
+        let field = if is_root {
+            &mut wire["root_source"]["text"]
+        } else {
+            &mut file_mut(&mut wire, file)["text"]
+        };
+        let source = field.as_str().unwrap();
+        let offset = source.find(from).unwrap();
+        let edited = source.replacen(from, to, 1);
+        let pos = offset + edited[offset..].find(token).unwrap();
+        *field = json!(edited);
+        assert_physical_rejection(&wire, &edited[..pos]);
+    }
+}
+
 const TENSOR_FIXTURE: &str = "llvm/fixtures/tensor-column";
 const PROFILE: &str = include_str!("../llvm/fixtures/tensor-column/src/profiles/mod.vast");
 const PRODUCT: &str = include_str!("../llvm/fixtures/tensor-column/src/product/mod.vast");

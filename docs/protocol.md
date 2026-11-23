@@ -198,19 +198,27 @@ compares qualified paths at their UTF-8 byte spans, recognizes the scoped
 The public checker resolves those cases in the declaring scope and finds the
 same named package in the Core declaration table.
 
+An `indexed primitive` replays its operation and every argument against the
+original file. Lean compares qualified paths and their spans, nested object
+types, coordinate names, ordered polynomial expressions, pullback modes and
+bounded decimal indices. Named selectors such as `using`, `frame` and
+`spectrum` must occur in the positions specified by the operation. After
+elaboration, the indexed, package and primitive tables each retain their own
+ordered source owners. Looking up a primitive in the final Core returns its
+elaborated binding, including resolved coordinate slots and frame data.
+
 #### Indexed declaration coverage in edition 2026
 
-Of the 54 constructors of `Indexed.Source.Body`, 31 have their fields checked
+Of the 54 constructors of `Indexed.Source.Body`, 32 have their fields checked
 against physical source. These comprise 16 finite forms, seven affine object, morphism and
 geometry witness forms, one exact-geometry constructor with six variants, and
-`marker`, `baseDimension`, `global`, `implementation`, `classification`, `family` and `package`.
-The public checker uses the decoded declarations from that same request to elaborate Core. The following 23
+`marker`, `baseDimension`, `global`, `implementation`, `classification`, `family`, `package` and `primitive`.
+The public checker uses the decoded declarations from that same request to elaborate Core. The following 22
 constructors have item-boundary checks, but still need a comparison of their
 operands with the original file. The names below are Lean constructors.
 
 | Declaration group | Operands awaiting physical replay |
 | --- | --- |
-| Indexed definitions | `primitive` |
 | Frames and metrics | `metric`, `evidence`, `frame` |
 | Physical dimensions | `quantity`, `reading`, `scale`, `physicalMetric` |
 | Spectral and transition data | `freeModule`, `endomorphism`, `spectrum`, `branch`, `transitionAverage` |

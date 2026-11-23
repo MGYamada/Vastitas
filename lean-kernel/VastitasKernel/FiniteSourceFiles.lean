@@ -108,6 +108,7 @@ inductive DeclarationSyntax where
   | abstractType (declaration : Namespace.AbstractType)
   | subtype (declaration : RawSubtype)
   | indexed (declaration : Form)
+  | indexedPrimitive (name : String) (binding : Source.Primitive)
   | indexedFamily (name : String) (family : Source.Family)
   | indexedHeader (keyword name : String) (fields : Option (List ExactLexeme))
   | affine (declaration : Source.Declaration)
@@ -186,6 +187,7 @@ def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
     | some shape => .indexed shape
     | none => Id.run do
       if let .family family := d.body then return .indexedFamily d.name family
+      if let .primitive binding := d.body then return .indexedPrimitive d.name binding
       let fields := match d.body with
         | .marker | .baseDimension => some []
         | .implementation marker representation capabilities => some (implementationFields marker representation capabilities)
@@ -230,7 +232,7 @@ def Item.kind (item : Item) : SiteKind :=
   | .namespaceImport _ => .namespaceImport
   | .abstractType _ | .subtype _ => .hierarchy
   | .indexed _ => .indexed
-  | .indexedHeader .. | .indexedFamily .. => .indexedHeader
+  | .indexedHeader .. | .indexedFamily .. | .indexedPrimitive .. => .indexedHeader
   | .affine _ => .affine
   | .function _ => .finiteFunction
   | .singleton .. => .singleton
@@ -241,7 +243,7 @@ def Item.inFile (item : Item) (index entry : Nat) : Bool :=
   index == entry || item.packageSource != flatPackageId.source ||
     match item.syntax_ with
     | .singleton f _ | .function f => f.name != "main"
-    | .indexed _ | .indexedHeader .. | .indexedFamily .. | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
+    | .indexed _ | .indexedHeader .. | .indexedFamily .. | .indexedPrimitive .. | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
 
 private def readTokens (file : File) (before : Cursor) (tokens : List ExactLexeme)
     (report : Span → String → Diagnostic := errorAt) : Except Diagnostic Cursor :=
@@ -341,6 +343,7 @@ def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Uni
     let after ← readTokens file before [.ident "subtype", .ident s.scalar, .subtypeMark,
       ← selectorPath (item.packageSource == flatPackageId.source) s.target] (sourceError .hierarchy)
     endHierarchy file first after item.span
+  | .indexedPrimitive name binding => AffineDeclarationText.checkPrimitive file first name binding item.span
   | .indexedFamily name family => replayFamily file first name family item.span
   | .indexed shape => replayIndexed file first shape item.span
   | .indexedHeader keyword name fields =>

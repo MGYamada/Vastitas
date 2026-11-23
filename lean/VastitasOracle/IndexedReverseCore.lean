@@ -406,6 +406,23 @@ theorem compiled_shape (compiled : Compiled source) :
       rewritten.map Function.span = source.module.functions.map Function.span := by
   simpa only [compiled_generate compiled] using generate_shape source.module
 
+/-- Source elaboration may fill metric matrices, frames and coordinate slots.
+Both the resolved and the final lookup return that same completed binding.
+Reverse compilation can append extra primitives to the table. -/
+theorem elaborated_primitive {program : VastitasKernel.Indexed.DispatchSource.Program}
+    (checked : VastitasKernel.Indexed.AuthoritySource.CheckedProgram program requireMain)
+    {entry : NamedPrimitive} (member : entry ∈ checked.authority.headers.declarations.resolved.declarations.primitives) :
+    checked.authority.headers.declarations.resolved.declarations.primitive? entry.id = some entry.binding ∧
+    checked.compiled.core.module.declarations.primitive? entry.id = some entry.binding := by
+  have env : checked.executable.core.module.declarations = checked.authority.headers.declarations.resolved.declarations := by
+    rw [checked.executable.coreInput, IndexedFunctions.pass_env checked.executable.reconstructed]
+    exact IndexedFunctions.prepared_env checked.prepareFrom
+  have present : entry ∈ checked.compiled.core.module.declarations.primitives := by
+    rw [(compiled_shape checked.compiled).1, env]
+    exact List.mem_append_left _ member
+  exact ⟨primitive_lookup (env ▸ checked.executable.core.typed.declarations.unique) member,
+    primitive_lookup checked.compiled.core.typed.declarations.unique present⟩
+
 theorem compiled_no_entries (compiled : Compiled source) (empty : compiled.entries = []) :
     compiled.core.module = source.module := by
   have same := compiled_generate compiled

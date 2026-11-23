@@ -513,6 +513,44 @@ theorem physical_indexed_package {json : Lean.Json} (input : Wire.CheckedInput j
     refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_filterMap.mpr ⟨d, hd, ?_⟩⟩⟩
     simp [Wire.packageShape?, body]
 
+/-- Every physical indexed declaration is in the source given to the actual
+declaration elaborator, at its original package and module owner. -/
+theorem physical_declaration_owned {input : Program} {pkg : Package} (hp : pkg ∈ input.packages)
+    {m : Module} (hm : m ∈ pkg.modules) {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations) :
+    (⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩, d) ∈ input.pureProgram.source.headers.owned := by
+  apply List.mem_flatMap.mpr
+  refine ⟨_, List.mem_map_of_mem (List.mem_map_of_mem (List.mem_append_left _ (List.mem_map_of_mem hp))), ?_⟩
+  apply List.mem_flatMap.mpr
+  exact ⟨_, List.mem_map_of_mem (List.mem_map_of_mem (List.mem_map_of_mem hm)), List.mem_map_of_mem hd⟩
+
+/-- Every operand of a primitive replays at its source span. The declaration
+elaborator selects the fully elaborated binding under its original owner. -/
+theorem physical_indexed_primitive {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    {binding : Indexed.Source.Primitive} (body : d.body = .primitive binding) :
+    let scope := (⟨pkg.id, m.pureModule.module.path⟩ : Namespace.Scope)
+    let headers := input.input.pureProgram.source.headers
+    let resolved := input.checked.pureProgram.authority.headers.declarations.resolved
+    (∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedPrimitive d.name binding⟩) ∧
+    Indexed.Source.lower headers = .ok resolved ∧
+    ∃ entry ∈ resolved.declarations.primitives, entry.id = ⟨scope, d.name⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  refine ⟨⟨expected, layout, checked, collected, physical, scan, ?_⟩,
+    input.checked.pureProgram.authority.headers.declarations.lowered, ?_⟩
+  · simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form, body] using site
+  · apply List.mem_map.mp
+    have names := congrArg (fun (t : List Indexed.DeclId × List Indexed.DeclId × List Indexed.DeclId) => t.2.2)
+      input.checked.pureProgram.authority.headers.declarations.tableIds
+    dsimp only at names
+    rw [names]
+    apply List.mem_map.mpr
+    exact ⟨_, List.mem_filter.mpr ⟨physical_declaration_owned hp hm hd, by simp [body, Indexed.Source.Body.category]⟩, rfl⟩
+
 /-- The implementation selected by an accepted global is the reference at its
 original source span, including every component of a qualified path. -/
 theorem physical_global_declaration {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

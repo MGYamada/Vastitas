@@ -1,5 +1,5 @@
 import VastitasOracle.ExactProgram
-import VastitasOracle.ResourceSource
+import VastitasOracle.IndexedReverseCore
 import VastitasKernel.LLVM.Emission
 
 set_option autoImplicit false
@@ -157,6 +157,36 @@ theorem published_indexed_package {s : Subject} (valid : Valid s) {requireMain :
   have same := Except.ok.inj (physical.symm.trans valid.physical)
   subst layout
   exact ⟨⟨expected, checked, collected, scan, site⟩, member,
+    (VastitasKernel.MidIR.execute_identity _ _ p.artifact.linked.executed).2.symm.trans p.revision,
+    p.revision, (corresponds valid p).1⟩
+
+/-- A published primitive retains its elaborated binding even when reverse
+compilation appends generated primitives. Both nominal lookups and the bytes
+are from the same physical program and checked function revision. -/
+theorem published_indexed_primitive {s : Subject} (valid : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain)
+    {pkg : VastitasKernel.ResourceSource.Package} (hp : pkg ∈ p.req.input.packages)
+    {m : VastitasKernel.ResourceSource.Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    {binding : Indexed.Source.Primitive} (body : d.body = .primitive binding) :
+    let owner : Indexed.DeclId := ⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩
+    let resolved := p.req.checked.pureProgram.authority.headers.declarations.resolved
+    (∃ expected checked, EditSourceFiles.collect p.req.input = .ok expected ∧
+      ExactModelSource.scanFiles s.sources p.req.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds s.sources checked.finiteSites
+        ⟨pkg.id.source, owner.scope.path, d.span, d.isPublic, .indexedPrimitive d.name binding⟩) ∧
+    Indexed.Source.lower p.req.input.pureProgram.source.headers = .ok resolved ∧
+    (∃ value, resolved.declarations.primitive? owner = some value ∧
+      (VastitasKernel.MidIR.PackageLink.core p.req).declarations.primitive? owner = some value) ∧
+    p.artifact.linked.opt.revision = s.revision ∧ p.artifact.linked.exe.revision = s.revision ∧
+    p.text.toUTF8.data.toList = s.bytes := by
+  obtain ⟨⟨expected, layout, checked, collected, physical, scan, site⟩, lowered, entry, member, owner⟩ :=
+    ResourceSource.physical_indexed_primitive p.req hp hm hd body
+  have same := Except.ok.inj (physical.symm.trans valid.physical)
+  subst layout
+  obtain ⟨resolved, returned⟩ := IndexedReverseCore.elaborated_primitive p.req.checked.pureProgram member
+  exact ⟨⟨expected, checked, collected, scan, site⟩, lowered,
+    ⟨entry.binding, owner ▸ resolved, owner ▸ returned⟩,
     (VastitasKernel.MidIR.execute_identity _ _ p.artifact.linked.executed).2.symm.trans p.revision,
     p.revision, (corresponds valid p).1⟩
 

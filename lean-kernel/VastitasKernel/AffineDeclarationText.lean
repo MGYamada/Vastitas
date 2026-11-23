@@ -332,13 +332,61 @@ def applies (d : Source.Declaration) : Bool :=
   | .iso .. | .cartesian .. => true
   | _ => false
 
-def check (file : File) (first : Token) (d : Source.Declaration) : Except Diagnostic Unit := do
-  let error := fun span msg => (⟨"E_AFFINE_SOURCE", msg, span, []⟩ : Diagnostic)
-  unless first.kind matches .word "indexed" do throw (error first.span "expected an indexed geometry declaration")
-  match ((declaration d).run file).run first.after with
+/-- Named selectors required by the surface primitive grammar. The remaining
+fields are positional, including source and target in relative operations. -/
+private def primitiveLabel (op field : String) : Option String :=
+  match field with
+  | "metric" => some "using"
+  | "evidence" | "frame" | "spectrum" | "element" | "branch" | "average" => some field
+  | "source" | "target" => if op == "frame_matrix" || op == "frame_transition" then some field else none
+  | _ => none
+
+private def primitiveDeclaration (name : String) (p : Source.Primitive) : Parser Unit := do
+  word "primitive"
+  word name
+  symbol '='
+  word p.op
+  symbol '('
+  for ((field, arg), i) in p.arguments.zipIdx do
+    if i != 0 then symbol ','
+    if let some label := primitiveLabel p.op field then
+      word label
+      symbol '='
+    match arg with
+    | .path path => reference path
+    | .objectType t =>
+      symbol '('
+      reference t.domain
+      symbol ','
+      reference t.marker
+      symbol ')'
+    | .coordinate coord =>
+      matchingName (if field == "row" || field == "column" then component else component >>= coordinateTail) coord
+    | .polynomial expr => polynomial expr
+    | .pullbackMode mode => word (match mode with | .saved => "saved" | .recomputed => "recomputed")
+    | .natural n =>
+      let start ← get
+      unless (← natural) == n do
+        set start
+        throw "primitive index differs from its source"
+  symbol ')'
+  symbol ';'
+
+private def checkAt (file : File) (first : Token) (span : Span) (parser : Parser Unit)
+    (code kind : String) : Except Diagnostic Unit := do
+  let error := fun at_ msg => (⟨code, msg, at_, []⟩ : Diagnostic)
+  unless first.kind matches .word "indexed" do throw (error first.span s!"expected an indexed {kind} declaration")
+  match (parser.run file).run first.after with
   | .ok _ after =>
-    unless sameSpan file first after d.span do throw (error first.span "affine declaration span differs from its source")
+    unless sameSpan file first after span do throw (error first.span s!"{kind} declaration span differs from its source")
   | .error msg at_ =>
     throw (error ((file.next at_).toOption.map (·.span) |>.getD first.span) msg)
+
+def check (file : File) (first : Token) (d : Source.Declaration) : Except Diagnostic Unit :=
+  checkAt file first d.span (declaration d) "E_AFFINE_SOURCE" "affine"
+
+def checkPrimitive (file : File) (first : Token) (name : String) (p : Source.Primitive) (span : Span) :
+    Except Diagnostic Unit :=
+  checkAt file first span (primitiveDeclaration name p) "E_MODULE_SOURCE" "primitive"
 
 end VastitasKernel.AffineDeclarationText

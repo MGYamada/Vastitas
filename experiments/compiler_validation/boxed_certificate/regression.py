@@ -233,6 +233,7 @@ pub indexed classification C { parents(); domain(X, Y); };
 pub indexed family Rel(object(C), object(C)) = token constraints(same_base(0, 1));
 pub indexed family Tag(natural) = token constraints();
 pub indexed package Hidden { case(Y, A) { Tag(7); } };
+pub indexed primitive chosen = descriptor(Y);
 """
     library.write_text(declarations)
     baseline, _ = check("indexed-definitions", "official")
@@ -248,6 +249,7 @@ pub indexed package Hidden { case(Y, A) { Tag(7); } };
         ("domain", "domain(X, Y)", "domain(Y, X)"),
         ("family-slot", "same_base(0, 1)", "same_base(1, 0)"),
         ("package-index", "Tag(7);", "Tag(8);"),
+        ("primitive-argument", "descriptor(Y)", "descriptor(X)"),
     ]:
         require(declarations.count(old) == 1, "expected one " + label + " field")
         library.write_text(declarations.replace(old, new))

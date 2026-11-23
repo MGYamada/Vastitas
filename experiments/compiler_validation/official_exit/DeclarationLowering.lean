@@ -37,6 +37,8 @@ theorem actualLowered : Source.lower headers = .ok resolved := by
   simp only [relative, gluing, exportResolved]
   rfl
 
+theorem tableIds : headers.SameTableIds accumulated := by rfl
+
 theorem namesPreserved : accumulated.ids = headers.declarationIds := by rfl
 
 theorem referenceValid (n : String) (h : n ∈ names) : (ref n).Valid idx := by

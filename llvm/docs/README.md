@@ -341,6 +341,18 @@ both wrappers, with the operands in source order. This comparison covers
 argument erasure and order. The Vastitas certificate checks the boxed integer
 program against its own runtime ABI. [Certificate regression](../../experiments/compiler_validation/boxed_certificate/regression.py) · [Lean external call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L671)
 
+The physical primitive comparison covers a used coordinate as well. In the
+frames package, `frame_component(Coords, 0)` and `frame_component(Coords, 1)`
+selected 7 and 19 from the same frame vector on the Lean/C native path.
+The public LLVM preview returned `E_UNSUPPORTED` for this frame program.
+Lean 4.35.0's `emitProj` passes the static field index to `lean_ctor_get`.
+In a separate two-field `Nat × Nat` control, Lean-generated C used indices
+0 and 1. Clang 23.1.4 at `-O1` lowered the payload reads to byte offsets 8
+and 16 on macOS arm64. The assembled and verified module linked and returned
+the same two coordinates. The control compares field selection. Frame layout
+and the mathematical interpretation of its coordinates belong to the Vastitas
+checker. [Physical primitive regressions](../../tests/indexed_definition_source.rs) · [Pinned Lean projection emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L796-L810)
+
 The two-object isomorphism module passes the two arrows to the composition
 functions in opposite orders. Its nested conditions join the exit values 42,
 7 and 9 using two LLVM phi nodes. Lean 4.35.0's `emitJmp` stores join

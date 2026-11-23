@@ -498,9 +498,14 @@ structure CheckedDeclarations (p : Program) where
   ownersUnique : Namespace.UniqueOwners p.indexed
   lowered : lower p = .ok resolved
   referencesValid : ReferencesValid p.indexed resolved
-  idsPreserved : resolved.declarations.ids = p.declarationIds
+  tableIds : p.SameTableIds resolved.declarations
   accepted : Core.validDeclarations resolved.declarations = true
   geometryAccepted : resolved.geometry.all (·.valid resolved.declarations) = true
+
+theorem CheckedDeclarations.idsPreserved {p : Program} (checked : CheckedDeclarations p) :
+    checked.resolved.declarations.ids = p.declarationIds := by
+  have eq := congrArg (fun (t : List DeclId × List DeclId × List DeclId) => t.1 ++ t.2.1 ++ t.2.2) checked.tableIds
+  simpa [Program.declarationIds, Core.Declarations.ids, List.append_assoc] using eq
 
 private def representationSpelling : Indexed.Representation → String
   | .affineDescriptor => "affine_descriptor"
@@ -825,11 +830,11 @@ def checkDeclarations (p : Program) : Except Diagnostic (CheckedDeclarations p) 
       | .error error => .error error
       | .ok resolved =>
         if referencesValid : ReferencesValid p.indexed resolved then
-          if idsPreserved : resolved.declarations.ids = p.declarationIds then
+          if tableIds : p.SameTableIds resolved.declarations then
             if accepted : Core.validDeclarations resolved.declarations = true then
               if geometryAccepted : resolved.geometry.all (·.valid resolved.declarations) = true then
                 return ⟨resolved, namespaceAccepted, ownersUnique, lowered,
-                  referencesValid, idsPreserved, accepted, geometryAccepted⟩
+                  referencesValid, tableIds, accepted, geometryAccepted⟩
               else Namespace.problem {} "E_TYPE" "geometry compatibility contract audit failed"
             else .error (invalidDeclaration p resolved.declarations)
           else Namespace.problem {} "E_OWNER" "indexed declaration identity audit failed"

@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle) |
@@ -137,6 +137,22 @@ Claims:
     - the public protocol-10 request passed the independent checker
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. Each global selects the implementation written at its original path span. Every implementation replays its marker, representation and capabilities. Each classification replays its ordered parents and domain. Each indexed family replays parameter kinds and paths, its representation and all written constraint slots. Resolving these fields in the declaring namespace yields the corresponding entries of the exact Core environment used by emission. For boxed programs, the publication witness preserves each resolved entry in optimization and execution MidIR under the certificate’s revision, physical file layout and complete LLVM bytes. A written primitive replays its operation, path spans, object types, coordinates, polynomial trees, pullback mode and indices. Its owner resolves to the same fully elaborated binding in the declaration checker and the returned Core, including after reverse compilation. The boxed publication binds both lookups to the source layout, revision and complete bytes. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
+- `indexed-value-source`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_indexed_value`
+    - [`VastitasOracle.IndexedReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/IndexedReverseCore.lean): `VastitasOracle.IndexedReverseCore.elaborated_indexed`
+    - [`VastitasOracle.BoxedCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BoxedCertificate.lean): `VastitasOracle.BoxedCertificate.published_indexed_value`
+  - Premises:
+    - the source checker accepted the file-backed declaration in the indexed-value table
+    - the final byte equality requires an accepted boxed program
+  - Note: The declaring package and module own the completed value under the same name in elaboration, returned Core and both linked MidIR environments. Each admitted indexed constructor has a physical operand grammar. The proof binds the written declaration, LLVM bytes and revision of a published program.
+- `indexed-record-replay`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `physical_dimensions_replay_scales_exponents_and_readings` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+    - `spectral_models_and_measurements_replay_their_written_fields` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+    - `gluing_witnesses_bind_each_ordered_chart_and_polynomial` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+    - `the_written_matrix_and_ordered_basis_select_the_action_entry` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+  - Note: Twenty-three changes to the physical files for dimensional quantities, the two-level model and projective gluing are rejected by every kernel entry point. All nineteen record constructors are represented. The original declarations pass the public checker. In a used spectral action, editing the upper-right entry of a Jordan block and interchanging the two basis names produce the native Lean/C results 1, 7 and 0.
 - `metric-frame-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_metric_or_frame`

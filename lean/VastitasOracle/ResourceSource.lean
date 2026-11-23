@@ -428,7 +428,7 @@ theorem physical_implementation {json : Lean.Json} (input : Wire.CheckedInput js
       PhysicalSources.layout json = .ok layout ∧
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       FiniteSourceFiles.Corresponds layout checked.finiteSites ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "implementation" d.name
-        (some (FiniteSourceFiles.implementationFields marker repr caps))⟩) ∧
+        (FiniteSourceFiles.implementationFields marker repr caps)⟩) ∧
     ∃ entry ∈ input.checked.pureProgram.compiled.core.module.declarations.indexed,
       ((do let markerId ← Indexed.Source.resolveId index scope marker
            let representation ← Indexed.Source.resolveRepresentation index scope repr
@@ -452,7 +452,7 @@ theorem physical_classification {json : Lean.Json} (input : Wire.CheckedInput js
       PhysicalSources.layout json = .ok layout ∧
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       FiniteSourceFiles.Corresponds layout checked.finiteSites ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "classification" d.name
-        (some (FiniteSourceFiles.classificationFields parents domain))⟩) ∧
+        (FiniteSourceFiles.classificationFields parents domain)⟩) ∧
     ∃ entry ∈ input.checked.pureProgram.compiled.core.module.declarations.indexed,
       ((do let parentIds ← parents.mapM (Indexed.Source.resolveId index scope)
            let implementations ← domain.mapM (Indexed.Source.resolveId index scope)
@@ -500,7 +500,7 @@ theorem physical_indexed_package {json : Lean.Json} (input : Wire.CheckedInput j
       PhysicalSources.layout json = .ok layout ∧
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       FiniteSourceFiles.Corresponds layout checked.finiteSites
-        ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "package" d.name (some (FiniteSourceFiles.packageFields cases))⟩) ∧
+        ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "package" d.name (FiniteSourceFiles.packageFields cases)⟩) ∧
     ∃ entry ∈ input.checked.pureProgram.compiled.core.module.declarations.packages,
       ((do return ⟨⟨scope, d.name⟩, ← cases.mapM (Indexed.Source.resolveShape index scope)⟩) :
         Indexed.Source.ResolveM Indexed.Core.NamedPackage).run' [] = .ok entry := by
@@ -551,6 +551,33 @@ theorem physical_indexed_primitive {json : Lean.Json} (input : Wire.CheckedInput
     apply List.mem_map.mpr
     exact ⟨_, List.mem_filter.mpr ⟨physical_declaration_owned hp hm hd, by simp [body, Indexed.Source.Body.category]⟩, rfl⟩
 
+/-- Every source declaration elaborated in the indexed-value table replays
+its complete physical grammar and resolves under its declaring owner. -/
+theorem physical_indexed_value {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    (indexed : d.body.category = 0) :
+    let scope := (⟨pkg.id, m.pureModule.module.path⟩ : Namespace.Scope)
+    let headers := input.input.pureProgram.source.headers
+    let resolved := input.checked.pureProgram.authority.headers.declarations.resolved
+    (∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, scope.path, d.span, d.isPublic, (FiniteSourceFiles.indexedSyntax d)⟩) ∧
+    Indexed.Source.lower headers = .ok resolved ∧
+    ∃ entry ∈ resolved.declarations.indexed, entry.id = ⟨scope, d.name⟩ := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  refine ⟨⟨expected, layout, checked, collected, physical, scan, site⟩,
+    input.checked.pureProgram.authority.headers.declarations.lowered, ?_⟩
+  apply List.mem_map.mp
+  have names := congrArg (fun (t : List Indexed.DeclId × List Indexed.DeclId × List Indexed.DeclId) => t.1)
+    input.checked.pureProgram.authority.headers.declarations.tableIds
+  dsimp only at names
+  rw [names]
+  apply List.mem_map.mpr
+  exact ⟨_, List.mem_filter.mpr ⟨physical_declaration_owned hp hm hd, by simp [indexed]⟩, rfl⟩
+
 /-- The written Gram matrix, evidence request or frame columns replay in the file
 that owns the declaration. The same owner selects the completed indexed entry. -/
 theorem physical_metric_or_frame {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
@@ -567,20 +594,8 @@ theorem physical_metric_or_frame {json : Lean.Json} (input : Wire.CheckedInput j
         ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedMetricOrFrame d⟩) ∧
     Indexed.Source.lower headers = .ok resolved ∧
     ∃ entry ∈ resolved.declarations.indexed, entry.id = ⟨scope, d.name⟩ := by
-  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
-  have shape : FiniteSourceFiles.indexedSyntax d = .indexedMetricOrFrame d ∧ d.body.category = 0 := by
-    cases h : d.body <;> simp [h, FiniteSourceFiles.metricOrFrame] at selected <;>
-      simp [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form,
-        Indexed.Source.Body.category, h]
-  refine ⟨⟨expected, layout, checked, collected, physical, scan, shape.1 ▸ site⟩,
-    input.checked.pureProgram.authority.headers.declarations.lowered, ?_⟩
-  apply List.mem_map.mp
-  have names := congrArg (fun (t : List Indexed.DeclId × List Indexed.DeclId × List Indexed.DeclId) => t.1)
-    input.checked.pureProgram.authority.headers.declarations.tableIds
-  dsimp only at names
-  rw [names]
-  apply List.mem_map.mpr
-  exact ⟨_, List.mem_filter.mpr ⟨physical_declaration_owned hp hm hd, by simp [shape.2]⟩, rfl⟩
+  have shape := FiniteSourceFiles.metricOrFrame_syntax d selected
+  simpa only [shape.1] using physical_indexed_value input hp hm hd shape.2
 
 /-- The implementation selected by an accepted global is the reference at its
 original source span, including every component of a qualified path. -/
@@ -593,8 +608,8 @@ theorem physical_global_declaration {json : Lean.Json} (input : Wire.CheckedInpu
       ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       FiniteSourceFiles.Corresponds layout checked.finiteSites
         ⟨pkg.id.source, m.pureModule.module.path, d.span, d.isPublic,
-          .indexedHeader "global" d.name (some [.punctuation '(', .reference implementation.path implementation.span,
-            .punctuation ')'])⟩ := by
+          .indexedHeader "global" d.name [.punctuation '(', .reference implementation.path implementation.span,
+            .punctuation ')']⟩ := by
   obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
   refine ⟨expected, layout, checked, collected, physical, scan, ?_⟩
   simpa [FiniteSourceFiles.indexedSyntax, AffineDeclarationText.applies, FiniteSourceFiles.form,

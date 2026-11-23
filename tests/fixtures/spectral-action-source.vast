@@ -1,0 +1,14 @@
+indexed marker Coeff;
+indexed implementation Chart(Coeff, smooth_affine) capabilities();
+indexed classification Objects { parents(); domain(Chart); };
+indexed family Smooth(object(Objects), object(Objects)) = smooth constraints(canonical(0), canonical(1));
+indexed family Free(object(Objects)) = free_module constraints(canonical(0));
+indexed family Endo(object(Objects)) = endomorphism constraints(canonical(0));
+indexed family Spec(object(Objects)) = spectrum constraints(canonical(0));
+indexed affine Pt(Chart) = Affine(0)[];
+indexed free_module V: Free<Pt> = basis(f1, f2);
+indexed endomorphism J: Endo<Pt> = rows((2, 1), (0, 2)) of V;
+indexed spectrum SJ: Spec<Pt> = eigen(J, t);
+indexed primitive pt = smooth_int_point(Smooth, Pt, Pt);
+indexed primitive entry = action_entry(Smooth, spectrum = SJ, element = t - 2, f1, f2);
+fn main() -> Int { pair_first(entry(pt())) }

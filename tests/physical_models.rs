@@ -444,12 +444,16 @@ fn forged_stage6_records_are_rejected_by_the_kernel() {
     ] {
         assert_wire_rejected(&forged(name, field, json!(text)), "E_PROTOCOL");
     }
-    let mut at_limit = wire.clone();
+    let maximum = "~".repeat(bytes);
+    assert_wire_rejected(&forged("M", "regime", json!(maximum)), "E_MODULE_SOURCE");
     let target = format!(
         "/packages/0/modules/0/indexed_declarations/{}/regime",
         index("M")
     );
-    *at_limit.pointer_mut(&target).unwrap() = json!("~".repeat(bytes));
+    let previous = wire.pointer(&target).unwrap().as_str().unwrap();
+    let source = common::checked_replace(&accepted(), previous, &maximum);
+    let at_limit = package(&source).captured("Vastitas.toml", common::CURRENT_PROTOCOL);
+    assert_eq!(at_limit.pointer(&target), Some(&json!(maximum)));
     let response = kernel(at_limit, "check");
     assert_eq!(response["ok"], true, "{response}");
 }

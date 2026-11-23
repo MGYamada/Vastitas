@@ -354,6 +354,17 @@ control calls `lean_int_neg` and then drops its owned argument. Clang 23.1.4, `l
 `opt` and `llc` reproduced both results from that control.
 [Lean control](../fixtures/AssembledNegationControl.lean) · [Pinned external call](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L672)
 
+The spectral action fixture reads the ordered entry of `J − 2I` for a two-dimensional
+Jordan block. Its Lean/C executable returned 1, then 7 after editing the upper-right
+coefficient, and 0 after interchanging the basis names. The boxed LLVM preview reports
+`E_UNSUPPORTED` for this operation. On macOS arm64 the separate Lean 4.35.0
+matrix control produced the same three results after C emission, Clang 23.1.4 IR
+generation, assembly, verification, object emission and linking. The control's generated
+C selects the row and column using `lean_ctor_get`. Lean's `emitProj` passes the field
+index to this same accessor. [Vastitas source](../../tests/fixtures/spectral-action-source.vast)
+· [Lean control](../fixtures/SpectralActionControl.lean)
+· [Pinned projection emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L795-L811)
+
 The selected-projection module calls the versioned boxed pair shim and its first- or second-field entry.
 The linked method proof covers both integer sorts and every argument value.
 Removing the assembly's `apply` selects the sibling that reads field zero.

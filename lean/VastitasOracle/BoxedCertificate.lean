@@ -146,7 +146,7 @@ theorem published_indexed_package {s : Subject} (valid : Valid s) {requireMain :
     (∃ expected checked, EditSourceFiles.collect p.req.input = .ok expected ∧
       ExactModelSource.scanFiles s.sources p.req.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
       FiniteSourceFiles.Corresponds s.sources checked.finiteSites
-        ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "package" d.name (some (FiniteSourceFiles.packageFields cases))⟩) ∧
+        ⟨pkg.id.source, scope.path, d.span, d.isPublic, .indexedHeader "package" d.name (FiniteSourceFiles.packageFields cases)⟩) ∧
     (∃ entry ∈ (VastitasKernel.MidIR.PackageLink.core p.req).declarations.packages,
       ((do return ⟨⟨scope, d.name⟩, ← cases.mapM (Indexed.Source.resolveShape index scope)⟩) :
         Indexed.Source.ResolveM Indexed.Core.NamedPackage).run' [] = .ok entry) ∧
@@ -190,6 +190,39 @@ theorem published_indexed_primitive {s : Subject} (valid : Valid s) {requireMain
     (VastitasKernel.MidIR.execute_identity _ _ p.artifact.linked.executed).2.symm.trans p.revision,
     p.revision, (corresponds valid p).1⟩
 
+/-- Publication retains each indexed value under its physical source owner in
+the elaborated table, Core and both MidIR phases, with the full LLVM bytes. -/
+theorem published_indexed_value {s : Subject} (valid : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain)
+    {pkg : VastitasKernel.ResourceSource.Package} (hp : pkg ∈ p.req.input.packages)
+    {m : VastitasKernel.ResourceSource.Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    (indexed : d.body.category = 0) :
+    let owner : Indexed.DeclId := ⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩
+    let resolved := p.req.checked.pureProgram.authority.headers.declarations.resolved
+    (∃ expected checked, EditSourceFiles.collect p.req.input = .ok expected ∧
+      ExactModelSource.scanFiles s.sources p.req.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds s.sources checked.finiteSites
+        ⟨pkg.id.source, owner.scope.path, d.span, d.isPublic, (FiniteSourceFiles.indexedSyntax d)⟩) ∧
+    Indexed.Source.lower p.req.input.pureProgram.source.headers = .ok resolved ∧
+    (∃ value, Indexed.lookup resolved.declarations.indexed owner = some value ∧
+      Indexed.lookup (VastitasKernel.MidIR.PackageLink.core p.req).declarations.indexed owner = some value ∧
+      Indexed.lookup p.artifact.linked.opt.env owner = some value ∧ Indexed.lookup p.artifact.linked.exe.env owner = some value) ∧
+    p.artifact.linked.opt.revision = s.revision ∧ p.artifact.linked.exe.revision = s.revision ∧
+    p.text.toUTF8.data.toList = s.bytes := by
+  obtain ⟨⟨expected, layout, checked, collected, physical, scan, site⟩, lowered, entry, member, owner⟩ :=
+    ResourceSource.physical_indexed_value p.req hp hm hd indexed
+  have same := Except.ok.inj (physical.symm.trans valid.physical)
+  subst layout
+  obtain ⟨resolved, returned⟩ := IndexedReverseCore.elaborated_indexed p.req.checked.pureProgram member
+  have opt := p.artifact.linked.environment
+  have exe := (VastitasKernel.MidIR.execute_identity _ _ p.artifact.linked.executed).1
+  exact ⟨⟨expected, checked, collected, scan, site⟩, lowered,
+    ⟨entry.declaration, owner ▸ resolved, owner ▸ returned,
+      by rw [opt]; exact owner ▸ returned, by rw [exe, opt]; exact owner ▸ returned⟩,
+    (VastitasKernel.MidIR.execute_identity _ _ p.artifact.linked.executed).2.symm.trans p.revision,
+    p.revision, (corresponds valid p).1⟩
+
 /-- A metric, evidence or frame in a published program has the same completed
 value under its source owner in elaboration, Core and both MidIR environments. -/
 theorem published_metric_or_frame {s : Subject} (valid : Valid s) {requireMain : Bool}
@@ -210,17 +243,7 @@ theorem published_metric_or_frame {s : Subject} (valid : Valid s) {requireMain :
       Indexed.lookup p.artifact.linked.opt.env owner = some value ∧ Indexed.lookup p.artifact.linked.exe.env owner = some value) ∧
     p.artifact.linked.opt.revision = s.revision ∧ p.artifact.linked.exe.revision = s.revision ∧
     p.text.toUTF8.data.toList = s.bytes := by
-  obtain ⟨⟨expected, layout, checked, collected, physical, scan, site⟩, lowered, entry, member, owner⟩ :=
-    ResourceSource.physical_metric_or_frame p.req hp hm hd selected
-  have same := Except.ok.inj (physical.symm.trans valid.physical)
-  subst layout
-  obtain ⟨resolved, returned⟩ := IndexedReverseCore.elaborated_indexed p.req.checked.pureProgram member
-  have opt := p.artifact.linked.environment
-  have exe := (VastitasKernel.MidIR.execute_identity _ _ p.artifact.linked.executed).1
-  exact ⟨⟨expected, checked, collected, scan, site⟩, lowered,
-    ⟨entry.declaration, owner ▸ resolved, owner ▸ returned,
-      by rw [opt]; exact owner ▸ returned, by rw [exe, opt]; exact owner ▸ returned⟩,
-    (VastitasKernel.MidIR.execute_identity _ _ p.artifact.linked.executed).2.symm.trans p.revision,
-    p.revision, (corresponds valid p).1⟩
+  have shape := FiniteSourceFiles.metricOrFrame_syntax d selected
+  simpa only [shape.1] using published_indexed_value valid p hp hm hd shape.2
 
 end VastitasOracle.BoxedCertificate

@@ -269,34 +269,47 @@ pub indexed family Rel(object(C), object(C)) = token constraints(same_base(0, 1)
 pub indexed family Tag(natural) = token constraints();
 pub indexed package Hidden { case(Y, A) { Tag(7); } };
 pub indexed primitive chosen = descriptor(Y);
-""" + (verify.ROOT / "tests/fixtures/metric-frame-source.vast").read_text()
-    library.write_text(declarations)
-    baseline, _ = check("indexed-definitions", "official")
-    compiled = work / "indexed-definitions"
-    candidate = compiled / "sealed.ndjson"
-    replay, _ = check("indexed-definitions-fast", "fast", candidate=candidate)
+"""
+    fixtures = verify.ROOT / "tests/fixtures"
+    groups = [
+        ("indexed-definitions", declarations, [
+            ("marker", "X(A,", "X(B,"),
+            ("domain", "domain(X, Y)", "domain(Y, X)"),
+            ("family-slot", "same_base(0, 1)", "same_base(1, 0)"),
+            ("package-index", "Tag(7);", "Tag(8);"),
+            ("primitive-argument", "descriptor(Y)", "descriptor(X)"),
+        ]),
+        ("metric-frames", (fixtures / "metric-frame-source.vast").read_text(), [
+            ("metric-gram", "gram((2, 0,)", "gram((3, 0,)"),
+            ("evidence-subject", "nondegenerate(Written)", "nondegenerate(Default)"),
+            ("frame-inverse", "(x, 1,),) inverse = columns((1, 0,), (-x, 1,)",
+                              "(y, 1,),) inverse = columns((1, 0,), (-y, 1,)"),
+        ]),
+        ("indexed-records", (fixtures / "indexed-record-source.vast").read_text(), [
+            ("scale-magnitude", "frac(1, 2) of Period", "frac(1, 3) of Period"),
+            ("module-basis", "basis(ground, excited)", "basis(excited, ground)"),
+            ("manifold-witness", "by(u -> South::y);", "by(u -> South::y + 0);"),
+        ]),
+    ]
     retained = (verify.ROOT / "llvm/src/ordered-calls.ll").read_bytes()
-    require(baseline["physical_inputs"] == 4 and baseline["integer_result"] == "23" and
-            baseline["certificate"] == replay["certificate"] and (compiled / "preview.ll").read_bytes() == retained,
-            "the dependency declarations and ordered calls must share one certificate")
-    for label, old, new in [
-        ("marker", "X(A,", "X(B,"),
-        ("domain", "domain(X, Y)", "domain(Y, X)"),
-        ("family-slot", "same_base(0, 1)", "same_base(1, 0)"),
-        ("package-index", "Tag(7);", "Tag(8);"),
-        ("primitive-argument", "descriptor(Y)", "descriptor(X)"),
-        ("metric-gram", "gram((2, 0,)", "gram((3, 0,)"),
-        ("evidence-subject", "nondegenerate(Written)", "nondegenerate(Default)"),
-        ("frame-inverse", "(x, 1,),) inverse = columns((1, 0,), (-x, 1,)",
-                          "(y, 1,),) inverse = columns((1, 0,), (-y, 1,)"),
-    ]:
-        require(declarations.count(old) == 1, "expected one " + label + " field")
-        library.write_text(declarations.replace(old, new))
-        stale, _ = check("indexed-stale-" + label, "fast", candidate=candidate,
-                         rejection="declaration environment differs")
-        require(stale["revision_sha256"] != baseline["revision_sha256"] and
-                (work / ("indexed-stale-" + label) / "preview.ll").read_bytes() == retained,
-                "a stale " + label + " must change the revision and preserve the LLVM bytes")
+    for group, declarations, edits in groups:
+        library.write_text(declarations)
+        baseline, _ = check(group, "official")
+        compiled = work / group
+        candidate = compiled / "sealed.ndjson"
+        replay, _ = check(group + "-fast", "fast", candidate=candidate)
+        require(baseline["physical_inputs"] == 4 and baseline["integer_result"] == "23" and
+                baseline["certificate"] == replay["certificate"] and (compiled / "preview.ll").read_bytes() == retained,
+                f"{group} and the ordered calls must share one certificate")
+        for label, old, new in edits:
+            require(declarations.count(old) == 1, "expected one " + label + " field")
+            library.write_text(declarations.replace(old, new))
+            stale, _ = check(group + "-stale-" + label, "fast", candidate=candidate,
+                             rejection="declaration environment differs")
+            require(stale["revision_sha256"] != baseline["revision_sha256"] and
+                    (work / (group + "-stale-" + label) / "preview.ll").read_bytes() == retained,
+                    "a stale " + label + " must change the revision and preserve the LLVM bytes")
+        candidate.unlink()
 
 
 def check_borrowed_operator(work, args, check):

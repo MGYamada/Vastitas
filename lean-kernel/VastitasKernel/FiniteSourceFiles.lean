@@ -1,4 +1,4 @@
-import VastitasKernel.AffineDeclarationText
+import VastitasKernel.IndexedRecordText
 import VastitasKernel.ExactModelSource
 import VastitasKernel.MethodBodyText
 
@@ -108,10 +108,11 @@ inductive DeclarationSyntax where
   | abstractType (declaration : Namespace.AbstractType)
   | subtype (declaration : RawSubtype)
   | indexed (declaration : Form)
+  | indexedOperands (declaration : Source.Declaration)
   | indexedMetricOrFrame (declaration : Source.Declaration)
   | indexedPrimitive (name : String) (binding : Source.Primitive)
   | indexedFamily (name : String) (family : Source.Family)
-  | indexedHeader (keyword name : String) (fields : Option (List ExactLexeme))
+  | indexedHeader (keyword name : String) (fields : List ExactLexeme)
   | affine (declaration : Source.Declaration)
   | function (declaration : FunctionSource.Function)
   /-- Ordinary singleton and the top-level statement indices observed in main. -/
@@ -203,7 +204,14 @@ def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
         | .global implementation =>
           some [.punctuation '(', .reference implementation.path implementation.span, .punctuation ')']
         | _ => none
-      return .indexedHeader (indexedKeyword d.body) d.name fields
+      return match fields with
+        | some tokens => .indexedHeader (indexedKeyword d.body) d.name tokens
+        | none => .indexedOperands d
+
+theorem metricOrFrame_syntax (d : Source.Declaration) (selected : metricOrFrame d.body = true) :
+    indexedSyntax d = .indexedMetricOrFrame d ∧ d.body.category = 0 := by
+  cases h : d.body <;> simp [h, metricOrFrame] at selected <;>
+    simp [indexedSyntax, AffineDeclarationText.applies, form, Source.Body.category, h]
 
 def declarations (program : ResourceSource.Program) : List Item :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
@@ -239,7 +247,7 @@ def Item.kind (item : Item) : SiteKind :=
   | .namespaceImport _ => .namespaceImport
   | .abstractType _ | .subtype _ => .hierarchy
   | .indexed _ => .indexed
-  | .indexedHeader .. | .indexedFamily .. | .indexedMetricOrFrame .. | .indexedPrimitive .. => .indexedHeader
+  | .indexedHeader .. | .indexedFamily .. | .indexedMetricOrFrame .. | .indexedOperands .. | .indexedPrimitive .. => .indexedHeader
   | .affine _ => .affine
   | .function _ => .finiteFunction
   | .singleton .. => .singleton
@@ -250,7 +258,7 @@ def Item.inFile (item : Item) (index entry : Nat) : Bool :=
   index == entry || item.packageSource != flatPackageId.source ||
     match item.syntax_ with
     | .singleton f _ | .function f => f.name != "main"
-    | .indexed _ | .indexedHeader .. | .indexedFamily .. | .indexedMetricOrFrame .. | .indexedPrimitive .. | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
+    | .indexed _ | .indexedHeader .. | .indexedFamily .. | .indexedMetricOrFrame .. | .indexedOperands .. | .indexedPrimitive .. | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
 
 private def readTokens (file : File) (before : Cursor) (tokens : List ExactLexeme)
     (report : Span → String → Diagnostic := errorAt) : Except Diagnostic Cursor :=
@@ -350,6 +358,7 @@ def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Uni
     let after ← readTokens file before [.ident "subtype", .ident s.scalar, .subtypeMark,
       ← selectorPath (item.packageSource == flatPackageId.source) s.target] (sourceError .hierarchy)
     endHierarchy file first after item.span
+  | .indexedOperands d => IndexedRecordText.check file first (indexedKeyword d.body) d
   | .indexedMetricOrFrame d => AffineDeclarationText.checkMetricOrFrame file first d
   | .indexedPrimitive name binding => AffineDeclarationText.checkPrimitive file first name binding item.span
   | .indexedFamily name family => replayFamily file first name family item.span
@@ -357,11 +366,8 @@ def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Uni
   | .indexedHeader keyword name fields =>
     let report := sourceError .indexedHeader
     let after ← readTokens file before [.ident "indexed", .ident keyword, .ident name] report
-    let last ← match fields with
-      | some tokens => do
-        let cursor ← readTokens file after tokens report
-        (file.next cursor).mapError (report item.span)
-      | none => (indexedEnd file first).mapError (report item.span)
+    let cursor ← readTokens file after fields report
+    let last ← (file.next cursor).mapError (report item.span)
     unless (last.kind matches .symbol ';') && {first.span with «end» := last.span.end} == item.span do
       throw (report last.span "indexed declaration differs from its physical extent")
   | .affine d => AffineDeclarationText.check file first d

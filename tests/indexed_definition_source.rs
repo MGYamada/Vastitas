@@ -835,3 +835,146 @@ fn a_written_metric_and_frame_column_determine_the_native_gram_entry() {
         assert!(preview.stdout.is_empty());
     }
 }
+
+fn replay_stale_records(example: &str, changes: &[(&str, &str, &str)]) {
+    let manifest = common::root()
+        .join("examples/packages")
+        .join(example)
+        .join("Vastitas.toml");
+    let mut command = common::cli();
+    command.args(["check", "--manifest-path"]).arg(manifest);
+    let original = common::captured_wire(command, CURRENT_PROTOCOL);
+    assert_eq!(kernel_with_args(&original, &["check"])["ok"], true);
+    let source = original["root_source"]["text"].as_str().unwrap();
+    for &(before, after, token) in changes {
+        assert_eq!(source.matches(before).count(), 1, "{before}");
+        assert_eq!(before.len(), after.len());
+        let offset = source.find(before).unwrap() + after.find(token).unwrap();
+        let mut stale = original.clone();
+        let edited = source.replacen(before, after, 1);
+        stale["root_source"]["text"] = json!(edited);
+        assert_physical_rejection(&stale, &edited[..offset]);
+    }
+}
+
+#[test]
+fn physical_dimensions_replay_scales_exponents_and_readings() {
+    replay_stale_records(
+        "nature/physical-dimensions",
+        &[
+            ("Frequency = T^-1;", "Frequency = T^-2;", "^"),
+            ("x: Length, t: Time", "x: Length, t: Timo", "Timo"),
+            ("scale l0 = 3 of", "scale l0 = 4 of", "4"),
+            ("gram((l0^-2, 0)", "gram((l0^-3, 0)", "^"),
+            ("normalized(x: l0, t: t0)", "normalized(x: t0, t: t0)", "t0"),
+            ("(0, -c^2)), value = L^2", "(0, -c^2)), value = T^2", "T^2"),
+        ],
+    );
+}
+
+#[test]
+fn spectral_models_and_measurements_replay_their_written_fields() {
+    replay_stale_records(
+        "nature/two-level",
+        &[
+            ("basis(g, e);", "basis(e, g);", "e, g"),
+            (
+                "frac(-1, 2) * delta)) of",
+                "frac(-1, 2) * omega)) of",
+                "frac",
+            ),
+            ("eigen(H, t);", "eigen(H, u);", "u"),
+            (
+                "witness = 2 * t, exponent = 1",
+                "witness = 3 * t, exponent = 1",
+                "3",
+            ),
+            ("exponent = 1);", "exponent = 2);", "2"),
+            (
+                "transition_average(B, from = g, to = e)",
+                "transition_average(B, from = e, to = e)",
+                "e, to",
+            ),
+            ("c = hbar_one;", "c = hbar_onE;", "hbar_onE"),
+            (
+                "assume(\"rotating-wave",
+                "assume(\"rotating-Wave",
+                "\"rotating",
+            ),
+            (
+                "method = type_b, reference",
+                "method = type_a, reference",
+                "type_a",
+            ),
+            (
+                "revision = \"2026-11-16\"",
+                "revision = \"2026-11-17\"",
+                "\"2026",
+            ),
+            (
+                "frac(43, 100), u = frac(1, 50)",
+                "frac(43, 100), u = frac(2, 50)",
+                "frac(2",
+            ),
+            (
+                "fingerprint = \"fnv1a64:fd1",
+                "fingerprint = \"fnv1a64:fd2",
+                "\"fnv1",
+            ),
+        ],
+    );
+}
+
+#[test]
+fn gluing_witnesses_bind_each_ordered_chart_and_polynomial() {
+    replay_stale_records(
+        "geometry/projective-line",
+        &[
+            ("glue(U1, U2) by", "glue(U2, U1) by", "U2,"),
+            (
+                "cover(Line, Dt, Dmt) by(1, 1)",
+                "cover(Line, Dt, Dmt) by(1, 2)",
+                "2)",
+            ),
+            (
+                "separated(P) by(xi -> L2::y)",
+                "separated(P) by(xi -> L1::y)",
+                "L1",
+            ),
+            ("manifold(RP1, 1)", "manifold(RP1, 2)", "2)"),
+            (
+                "chart(L2, t, y) inverse(y -> s)",
+                "chart(L2, t, y) inverse(y -> t)",
+                "t)",
+            ),
+        ],
+    );
+}
+
+#[test]
+fn the_written_matrix_and_ordered_basis_select_the_action_entry() {
+    let s = Scratch::empty("source spectral action");
+    let original = include_str!("fixtures/spectral-action-source.vast");
+    let changed = checked_replace(original, "rows((2, 1)", "rows((2, 7)");
+    let transposed = checked_replace(&changed, "t - 2, f1, f2", "t - 2, f2, f1");
+    for (source, value) in [(original, 1), (&changed, 7), (&transposed, 0)] {
+        s.write_package("action", source, "");
+        assert_eq!(
+            s.check_build_and_run("action/Vastitas.toml"),
+            common::exits(value)
+        );
+        let preview = s
+            .command("check", "action/Vastitas.toml")
+            .args([
+                "--llvm-preview",
+                "--target-triple",
+                TRIPLE,
+                "--data-layout",
+                LAYOUT,
+            ])
+            .output()
+            .unwrap();
+        common::expect_code(&preview, "E_UNSUPPORTED");
+        assert!(preview.stdout.is_empty());
+    }
+}

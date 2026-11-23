@@ -33,15 +33,14 @@ For each compilation the driver reopens the physical files, compares their bytes
 
 The boxed publication theorem places each resolved implementation, classification and indexed family
 in Core and in both MidIR environments for the same revision and complete bytes.
-The input suite also compiles the ordered calls with a dependency that declares
-markers, implementations, a classification, indexed families, a package,
-a descriptor primitive, metrics, metric evidence and frames. Official replays the proof for all four files and Fast checks the
-same certificate. Eight edits preserve the 2,311 bytes and result 23. They
-change an implementation marker, reverse the classification domain, swap the
-slots of the unused family’s `same_base` constraint, change the package
-field from `Tag(7)` to `Tag(8)`, switch the descriptor primitive, change a Gram
-entry, select another metric for the evidence, or edit a moving frame together
-with its inverse. Each edit invalidates the earlier certificate. [Ordered calls](../../../llvm/fixtures/OrderedCalls.vast) · [Retained LLVM](../../../llvm/src/ordered-calls.ll)
+The input suite compiles the ordered calls against three separate dependency fixtures.
+Each compilation reads four physical files. Official and Fast replay the same certificate
+for that compilation. The first fixture changes an implementation marker, a classification
+domain, the slots of a family constraint, a package index and a descriptor primitive.
+The second changes a Gram entry, the subject of metric evidence and a moving frame with
+its inverse. The third changes a scale magnitude, the order of a basis and an algebraically
+equal manifold witness. Each of the eleven edits preserves the 2,311 LLVM bytes and result
+23 and invalidates the certificate from before the edit. [Ordered calls](../../../llvm/fixtures/OrderedCalls.vast) · [Retained LLVM](../../../llvm/src/ordered-calls.ll)
 
 The assembly suite replays the same certificate in both modes for a three-package program. Six physical files fix the owner of the family, the contribution selected by the borrow block, and the protected `Int + Int` operation. The 2,051 certified LLVM bytes contain the selected method and all four specializations of its unselected sibling. [Assembled program](../../../llvm/fixtures/borrowed-operator/main.vast) · [Checked LLVM](../../../llvm/src/borrowed-operator.ll)
 

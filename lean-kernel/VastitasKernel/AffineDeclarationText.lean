@@ -9,9 +9,9 @@ tree. Compare that tree before any evaluation or normalization. -/
 namespace VastitasKernel.AffineDeclarationText
 open SourceText AssemblyText Indexed
 
-private abbrev Parser := ReaderT File (EStateM String Cursor)
+abbrev Parser := ReaderT File (EStateM String Cursor)
 
-private def next : Parser Token := do
+def next : Parser Token := do
   match (← read).next (← get) with
   | .ok t => return t
   | .error msg => throw msg
@@ -21,11 +21,11 @@ private def expect (lexeme : ExactLexeme) : Parser Unit := do
   | .ok after => set after
   | .error msg => throw msg
 
-private def symbol (ch : Char) := expect (.punctuation ch)
-private def word (s : String) := expect (.ident s)
-private def reference (p : Source.Path) := expect (.reference p.path p.span)
+def symbol (ch : Char) := expect (.punctuation ch)
+def word (s : String) := expect (.ident s)
+def reference (p : Source.Path) := expect (.reference p.path p.span)
 
-private def acceptSymbol (ch : Char) : Parser Bool := do
+def acceptSymbol (ch : Char) : Parser Bool := do
   let t ← next
   if let .symbol c := t.kind then
     if c == ch then
@@ -41,14 +41,14 @@ private def acceptWord (s : String) : Parser Bool := do
       return true
   return false
 
-private def component : Parser String := do
+def component : Parser String := do
   let t ← next
   let .word s := t.kind | throw "expected an affine coordinate name"
   if strictKeywords.contains s then throw "keyword in affine coordinate name"
   set t.after
   return s
 
-private def coordinateTail (head : String) : Parser String := do
+def coordinateTail (head : String) : Parser String := do
   let f ← read
   let mut names := [head]
   for _ in [:f.remaining (← get)] do
@@ -58,7 +58,7 @@ private def coordinateTail (head : String) : Parser String := do
     names := (← component) :: names
   return String.intercalate "::" names.reverse
 
-private def natural : Parser Nat := do
+def natural : Parser Nat := do
   let t ← next
   let .symbol ch := t.kind | throw "expected a polynomial literal"
   unless ch.isDigit do throw "expected a polynomial literal"
@@ -159,37 +159,37 @@ theorem samePoly_sound (fuel : Nat) (parsed expected : Source.PolyExpr)
       | exact ⟨ih _ _ h.2, h.1⟩
       | exact list_match_sound _ ih _ _ h
 
-private def polynomial (expected : Source.PolyExpr) : Parser Unit := do
+def polynomial (expected : Source.PolyExpr) : Parser Unit := do
   let cursor ← get
   let parsed ← (reader Limits.algebraNesting).expression
   unless samePoly Limits.algebraNesting parsed expected do
     set cursor
     throw "polynomial differs from its physical affine declaration"
 
-private def separated {α : Type} (items : List α) (check : α → Parser Unit) (close : Char) : Parser Unit := do
+def separated {α : Type} (items : List α) (check : α → Parser Unit) (close : Char) : Parser Unit := do
   for (x, i) in items.zipIdx do
     if i != 0 then symbol ','
     check x
   expect (.closeList close (!items.isEmpty))
 
-private def matchingName (name : Parser String) (expected : String) : Parser Unit := do
+def matchingName (name : Parser String) (expected : String) : Parser Unit := do
   let start ← get
   unless (← name) == expected do
     set start
     throw "affine coordinate name differs from its source"
 
-private def bindings (items : List (String × Source.PolyExpr)) : Parser Unit := do
+def bindings (items : List (String × Source.PolyExpr)) : Parser Unit := do
   symbol '('
   separated items (fun (name, image) => do
     matchingName (component >>= coordinateTail) name
     expect .arrow
     polynomial image) ')'
 
-private def names (items : List String) : Parser Unit := do
+def names (items : List String) : Parser Unit := do
   symbol '['
   separated items (matchingName component) ']'
 
-private def implementation (p : Source.Path) : Parser Unit := do
+def implementation (p : Source.Path) : Parser Unit := do
   symbol '('
   reference p
   symbol ')'
@@ -206,7 +206,7 @@ private def invariant (keyword : String) (subject : Source.Path) (index : Nat) :
     throw "spectral morphism index differs from its source"
   symbol ')'
 
-private def application (family : Source.Path) (indices : List Source.Path) : Parser Unit := do
+def application (family : Source.Path) (indices : List Source.Path) : Parser Unit := do
   symbol ':'
   reference family
   symbol '<'
@@ -344,7 +344,7 @@ private def primitiveLabel (op field : String) : Option String :=
   | "source" | "target" => if op == "frame_matrix" || op == "frame_transition" then some field else none
   | _ => none
 
-private def matrix (entries : List (List Source.PolyExpr)) : Parser Unit := do
+def matrix (entries : List (List Source.PolyExpr)) : Parser Unit := do
   symbol '('
   separated entries (fun row => do
     symbol '('
@@ -415,7 +415,7 @@ private def primitiveDeclaration (name : String) (p : Source.Primitive) : Parser
   symbol ')'
   symbol ';'
 
-private def checkAt (file : File) (first : Token) (span : Span) (parser : Parser Unit)
+def checkAt (file : File) (first : Token) (span : Span) (parser : Parser Unit)
     (code kind : String) : Except Diagnostic Unit := do
   let error := fun at_ msg => (⟨code, msg, at_, []⟩ : Diagnostic)
   unless first.kind matches .word "indexed" do throw (error first.span s!"expected an indexed {kind} declaration")

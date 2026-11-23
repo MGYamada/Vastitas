@@ -209,32 +209,32 @@ elaborated binding, including resolved coordinate slots and frame data.
 
 #### Indexed declaration coverage in edition 2026
 
-Of the 54 constructors of `Indexed.Source.Body`, 35 have their fields checked
-against physical source. These comprise 16 finite forms, seven affine object, morphism and
-geometry witness forms, one exact-geometry constructor with six variants, and
-`marker`, `baseDimension`, `global`, `implementation`, `classification`, `family`, `package`,
-`primitive`, `metric`, `evidence` and `frame`.
-For a metric, Lean reads each ordered row of the Gram matrix or the written `euclidean` form.
-For an evidence request it checks the kind and metric path. A frame replays its coordinate form
-or its ordered columns and any declared inverse. The source owner identifies the same completed
-declaration in Core and, for a published integer program, in both MidIR environments.
+Lean compares the fields of all 54 constructors of `Indexed.Source.Body` with the
+original file, including declarations that no function calls. For a metric it
+checks the ordered Gram polynomials. For evidence it checks the requested kind
+and metric. A frame retains its columns and optional inverse.
 
-The public checker uses the decoded declarations from that same request to elaborate Core. The following 19
-constructors have item-boundary checks, but still need a comparison of their
-operands with the original file. The names below are Lean constructors.
-
-| Declaration group | Operands awaiting physical replay |
+| Declaration group | Physical fields |
 | --- | --- |
-| Physical dimensions | `quantity`, `reading`, `scale`, `physicalMetric` |
-| Spectral and transition data | `freeModule`, `endomorphism`, `spectrum`, `branch`, `transitionAverage` |
-| Physical models | `convention`, `model`, `calibration`, `dataset`, `comparison` |
-| Gluing and global geometry | `glued`, `cover`, `separated`, `manifold`, `projective` |
+| Quantities, readings, scales and physical metrics | Ordered paths and integer powers, coordinate names, magnitude, normalized scales, Gram monomials and optional value dimension |
+| Free modules, endomorphisms, spectra, simple branches and transition averages | Basis order, matrix rows, symmetry, fiber name, localization, witness and exponent, ordered transition endpoints, numerator and denominator |
+| Conventions, models, calibrations, datasets and comparisons | Model references, prepared and observed basis names, recorded text, measured rational values and uncertainties, coverage, ordered data points, fingerprint and verdict |
+| Glued objects, covers, separation, manifolds and projective claims | Ordered opens, transition maps and inverses, cover coefficients, dimensions, homogeneous coordinates and the ordered chart maps |
 
-For these groups a valid decoded declaration can still select different
-operands from the file. Closing the gap requires replay of the fields on the
-same public request, including unreferenced declarations. The issue also
-tracks correspondence for functions, resource operations and the resulting
-Core. [Edition, wire and compiler verification](v0.1.0-admission.md#edition-wire-and-compiler-verification)
+Lean reads `frac` literals before rational normalization. In a physical Gram
+monomial, literal coefficients may be interleaved with scale factors. The two
+ordered lists reconstruct the coefficient expression and its scale product as in
+the frontend. A recorded assumption, calibration reference or fingerprint must
+match the quoted source bytes. Missing fields and changed values yield
+`E_MODULE_SOURCE` at the first mismatched token or the start of its expression.
+
+For every declaration in the indexed-value table, the source owner selects the
+same completed entry in elaboration and returned Core. Publication of a boxed
+program preserves that lookup in both MidIR environments and binds the complete
+LLVM bytes and function revision. Indexed source coverage also includes the
+separate package and primitive tables described above. The finite edition's
+release evidence tracks executable lowering for each profile.
+[Release evidence](v0.1.0-admission.md#edition-wire-and-compiler-verification)
 
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record

@@ -38,10 +38,10 @@ theorem actualResource : ResourceSource.check candidate true = .ok checkedResour
 def request (a : AssemblySource.Corresponds wire checkedResource.pureProgram.authority.headers.assembled.prepared.core.assembly)
     (receipt : Namespace.RequestReceipt idx wire (ResourceSource.Wire.namespaceUnits checkedResource)) :
     ResourceSource.Wire.CheckedInput wire true :=
-  ⟨candidate,decodedProgram,checkedResource,actualResource,a,physicalEdits,by change True; trivial,receipt⟩
+  ⟨candidate,decodedProgram,checkedResource,actualResource,a,physicalEdits,literalDefinitions checkedResource,by change True; trivial,receipt⟩
 
 theorem request_data (r : ResourceSource.Wire.CheckedInput wire true) : ∃ a units, r = request a units := by
-  obtain ⟨q,decoded,c,accepted,a,edits,rev,units⟩ := r
+  obtain ⟨q,decoded,c,accepted,a,edits,definitions,rev,units⟩ := r
   replace decoded := Except.ok.inj (decoded.symm.trans decodedProgram)
   subst q
   replace accepted := Except.ok.inj (accepted.symm.trans actualResource)

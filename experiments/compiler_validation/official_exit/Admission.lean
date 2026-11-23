@@ -33,6 +33,7 @@ theorem wire_from_checked {j : Json} {p : ResourceSource.Program} {main : Bool}
     (bound : u.val + ResourceSource.Wire.namespaceUnits c ≤ Limits.namespaceProgramWork)
     (trace : (AssemblySource.check j c.pureProgram.authority.headers.assembled.prepared.core.assembly).isOk = true)
     (edits : EditSourceFiles.check j p = .ok ())
+    (definitions : ResourceSource.Wire.definitionsMatch c = true)
     (revision : ResourceSource.Wire.RevisionMatches j c) :
     (ResourceSource.Wire.check j main).isOk = true := by
   unfold ResourceSource.Wire.check
@@ -53,7 +54,8 @@ theorem wire_from_checked {j : Json} {p : ResourceSource.Program} {main : Bool}
         contradiction
       | ok result =>
         have hrev : ResourceSource.Wire.RevisionMatches j r.value := same ▸ revision
-        simp [hrev,bind,Except.bind]
+        have hdefs : ResourceSource.Wire.definitionsMatch r.value = true := same ▸ definitions
+        simp [hdefs,hrev,bind,Except.bind]
         split
         · rename_i _ mismatch
           rw [edits] at mismatch
@@ -103,6 +105,13 @@ theorem noEvents (j : Json) (r : AssemblySource.RootFile) (s : Span)
 
 theorem eventsChecked (parsedEvents : AssemblyText.parse text 0 = .ok []) (s : Span) : (AssemblySource.check wire ⟨[],s⟩).isOk = true :=
   noEvents _ _ _ file readEvents parsedEvents
+/-- The literal's physical program has no indexed definition. The sublist
+check therefore succeeds for the actual Core returned by the checker. -/
+theorem literalDefinitions (c : ResourceSource.Checked candidate true) :
+    ResourceSource.Wire.definitionsMatch c = true := by
+  change ([] : List Indexed.Entry).isSublist _ = true
+  simp
+
 theorem checkedIf (lexical : AssemblyText.parse text 0 = .ok []) (c : ResourceSource.Checked candidate true)
     (accepted : ResourceSource.check candidate true = .ok c)
     (cost : 34 + ResourceSource.Wire.namespaceUnits c ≤ Limits.namespaceProgramWork)
@@ -115,6 +124,7 @@ theorem checkedIf (lexical : AssemblyText.parse text 0 = .ok []) (c : ResourceSo
     rw [show c.pureProgram.authority.headers.assembled.prepared.core.assembly = ⟨[], a.span⟩ from eqn]
     exact eventsChecked lexical _
   · exact physicalEdits
+  · exact literalDefinitions c
   · unfold ResourceSource.Wire.RevisionMatches
     change True
     trivial

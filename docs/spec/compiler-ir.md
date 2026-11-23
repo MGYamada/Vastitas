@@ -9,7 +9,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | Property | Claims |
 | --- | --- |
 | [Feasibility before backend admission](#compiler-ir.feasibility) | Tested |
-| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
+| [One finite edition and wire route](#compiler-ir.edition) | Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Tested, Tested, Proved (oracle), Planned |
 | [One owned static function family](#compiler-ir.families) | Planned, Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Planned, Proved (oracle) |
 | [Operator spelling preserves family identity](#compiler-ir.operators) | Planned, Proved (oracle), Tested, Proved (oracle) |
 | [Every constructor has an explicit disposition](#compiler-ir.coverage) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle) |
@@ -26,7 +26,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
 | [Finite binders do not admit general polymorphism](#compiler-ir.finite-binders) | Planned, Tested, Tested, Tested, Proved (oracle) |
 | [Every transformation checks an untrusted witness](#compiler-ir.stage-validation) | Proved (oracle), Planned, Proved (oracle) |
-| [Local proofs compose over the same module](#compiler-ir.composition) | Planned |
+| [Local proofs compose over the same module](#compiler-ir.composition) | Planned, Proved (oracle) |
 | [Finite constitutional claims need their own proofs](#compiler-ir.constitution) | Planned |
 | [The LLVM subset has explicit target and ABI semantics](#compiler-ir.llvm-model) | Planned |
 | [The theorem reaches every emitted LLVM byte](#compiler-ir.llvm-bytes) | Planned, Tested, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested |
@@ -115,13 +115,22 @@ Claims:
     - `finite_value_has_no_integer_or_cross_owner_conversion` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
     - `changing_a_member_in_the_wire_reaches_the_independent_checker` in [`tests/finite_values.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/finite_values.rs)
   - Note: Protocol 10 resolves nominal carriers and checks totality over bounded products, including empty factors and nullary tables. Ordinary first-order functions can accept, return and compare tags of a nominal carrier. The public native branch test uses the existing checked Lean backend. The finite-binder claims below describe concrete Hom and the implemented static category, object and Monad parameters.
+- `definition-replay`: [Tested](../specifications.md#tested)
+  - Evidence:
+    - `implementation_and_classification_edits_bind_the_source_revision_and_complete_bytes` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+    - `a_dependency_alias_resolves_definition_fields_in_their_declaring_package` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+    - `scalar_and_affine_representation_tokens_and_reference_spans_are_checked` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+    - `used_linear_implementation_and_tensor_buffers_agree_on_the_gemm_abi` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+    - `native_cells_follow_the_written_linear_implementation` in [`tests/indexed_definition_source.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/indexed_definition_source.rs)
+  - Note: A changed declaration in an unused dependency preserves the complete folded module and invalidates the earlier revision. A used linear implementation selects the real or complex GEMM representation. Mismatched buffers fail before emission. Native execution checks both cells. With a false expectation for the second cell, the diagnostic identifies its observed real or complex component bits.
 - `finite-declaration-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_finite_declarations`, `VastitasOracle.ResourceSource.physical_indexed_item`, `VastitasOracle.ResourceSource.physical_global_declaration`, `VastitasOracle.ResourceSource.physical_implementation`, `VastitasOracle.ResourceSource.physical_classification`, `VastitasOracle.ResourceSource.physical_finite_function`
+    - [`VastitasOracle.BoxedCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BoxedCertificate.lean): `VastitasOracle.BoxedCertificate.published_indexed_definition`
   - Premises:
     - the public protocol-10 request passed the independent checker
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. Each global selects the implementation written at its original path span. Every implementation replays its marker, representation and capabilities. Each classification replays its ordered parents and domain. Resolving these fields in the declaring namespace yields the corresponding entries of the exact Core environment used by emission. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
+  - Note: The physical files and global offsets are supplied by the loader. Every indexed item, including an unused declaration in an external module, has its source keyword, name, visibility, owner and byte extent checked. Marker and base-dimension declarations end at the semicolon immediately following their name. Each global selects the implementation written at its original path span. Every implementation replays its marker, representation and capabilities. Each classification replays its ordered parents and domain. Resolving these fields in the declaring namespace yields the corresponding entries of the exact Core environment used by emission. For boxed programs, the publication witness preserves each resolved entry in optimization and execution MidIR under the certificate’s revision, physical file layout and complete LLVM bytes. The module scanner rejects tokens between items, stray semicolons and dangling visibility modifiers before emitting LLVM. Every finite carrier, table, schema, instance and finite-indexed function in the decoded program has a matching declaration in its physical package and lexical module. Lean checks the declaration extent, visibility, ordered paths, tag occurrences, table row spans and written operands. For indexed functions it also checks each binder, schema reference, parameter, result type and body. The physical and decoded inventories have the same counts at every declaration start, including unused definitions. The existing endpoint and categorical law checks apply to the same accepted input.
 - `affine-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_affine_declaration`, `VastitasOracle.ResourceSource.physical_morphism`
@@ -1020,6 +1029,13 @@ Claims:
 
 - `theorem`: [Planned](../specifications.md#planned)
   - Issue: [#752](https://github.com/MGYamada/Vastitas/issues/752)
+- `published-definitions`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.BoxedCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BoxedCertificate.lean): `VastitasOracle.BoxedCertificate.published_indexed_definition`, `VastitasOracle.BoxedCertificate.corresponds`
+  - Premises:
+    - A valid boxed-program stage certificate and its dependent public emission witness belong to the same subject.
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: Every selected implementation or classification in the submitted packages replays in the certified physical layout. Its resolved entry belongs to the Core environment and both linked MidIR environments. Both phases belong to the certified revision, and the returned text has exactly the certified bytes.
 
 <a id="compiler-ir.constitution"></a>
 

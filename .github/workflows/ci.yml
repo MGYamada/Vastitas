@@ -315,7 +315,7 @@ jobs:
           VASTITAS_TEST_NATIVE_CC: ${{ runner.os == 'Linux' && 'cc' || '' }}
         run: |
           cargo test --locked --test examples --test numerical_source --test tensor_source --test tree_source \
-            --test cached_packing --test diagonal_metrics --test runtime_shape_source -- --ignored
+            --test cached_packing --test diagonal_metrics --test runtime_shape_source --test indexed_definition_source -- --ignored
       - name: Current public numerical harness entries and native results
         run: |
           if [ "$RUNNER_OS" = Linux ]; then

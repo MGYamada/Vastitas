@@ -199,6 +199,34 @@ def check_physical_inputs(work, args, source, check):
         require(baseline["llvm_sha256"] == stale["llvm_sha256"]
                 and baseline["revision_sha256"] != stale["revision_sha256"], f"{label} stale control differs")
 
+    # A lawful field edit in a dependency can preserve every executable instruction.
+    source.write_bytes((verify.ROOT / "llvm/fixtures/OrderedCalls.vast").read_bytes())
+    library = dep / "main.vast"
+    declarations = """pub indexed marker A;
+pub indexed marker B;
+pub indexed implementation X(A, affine_descriptor) capabilities();
+pub indexed implementation Y(A, affine_descriptor) capabilities();
+pub indexed classification C { parents(); domain(X, Y); };
+"""
+    library.write_text(declarations)
+    baseline, _ = check("indexed-definitions", "official")
+    compiled = work / "indexed-definitions"
+    candidate = compiled / "sealed.ndjson"
+    replay, _ = check("indexed-definitions-fast", "fast", candidate=candidate)
+    retained = (verify.ROOT / "llvm/src/ordered-calls.ll").read_bytes()
+    require(baseline["physical_inputs"] == 4 and baseline["integer_result"] == "23" and
+            baseline["certificate"] == replay["certificate"] and (compiled / "preview.ll").read_bytes() == retained,
+            "the dependency declarations and ordered calls must share one certificate")
+    for label, old, new in [("marker", "X(A,", "X(B,"), ("domain", "domain(X, Y)", "domain(Y, X)")]:
+        require(declarations.count(old) == 1, "expected one " + label + " field")
+        library.write_text(declarations.replace(old, new))
+        stale, _ = check("indexed-stale-" + label, "fast", candidate=candidate,
+                         rejection="declaration environment differs")
+        require(stale["revision_sha256"] != baseline["revision_sha256"] and
+                (work / ("indexed-stale-" + label) / "preview.ll").read_bytes() == retained,
+                "a stale " + label + " must change the revision and preserve the LLVM bytes")
+
+
 def check_borrowed_operator(work, args, check):
     args.source = None
     args.manifest_path = verify.ROOT / "llvm/fixtures/borrowed-operator/Vastitas.toml"

@@ -213,24 +213,35 @@ fn scalar_and_affine_representation_tokens_and_reference_spans_are_checked() {
     }
 }
 
+const TENSOR_FIXTURE: &str = "llvm/fixtures/tensor-column";
+const PROFILE: &str = include_str!("../llvm/fixtures/tensor-column/src/profiles/mod.vast");
+const PRODUCT: &str = include_str!("../llvm/fixtures/tensor-column/src/product/mod.vast");
+
+fn real_profile() -> String {
+    checked_replace(
+        PROFILE,
+        "ComplexSmooth(ComplexCoefficients, linear_descriptor(SmoothBase, complex))",
+        "ComplexSmooth(RealCoefficients, linear_descriptor(SmoothBase, real))",
+    )
+}
+
+fn real_product() -> String {
+    PRODUCT
+        .replace("F32<CC>", "F32<RR>")
+        .replace("complex32(1,2)", "f32_bits(1065353216)")
+        .replace("complex32(3,-4)", "f32_bits(1077936128)")
+        .replace("complex32(33,6)", "f32_bits(1091567616)")
+}
+
 #[test]
 fn used_linear_implementation_and_tensor_buffers_agree_on_the_gemm_abi() {
-    let s = Scratch::empty("physical implementation in a tensor contraction");
-    let manifest = "Vastitas.toml";
-    s.write(
-        manifest,
-        include_str!("../llvm/fixtures/tensor-column/Vastitas.toml"),
+    let s = common::example_package(
+        "physical implementation in a tensor contraction",
+        TENSOR_FIXTURE,
+        &[],
     );
-    s.write(
-        "src/main.vast",
-        include_str!("../llvm/fixtures/tensor-column/src/main.vast"),
-    );
-    let profile = include_str!("../llvm/fixtures/tensor-column/src/profiles/mod.vast");
-    let product = include_str!("../llvm/fixtures/tensor-column/src/product/mod.vast");
-    s.write("src/profiles/mod.vast", profile);
-    s.write("src/product/mod.vast", product);
     let preview = || {
-        s.command("check", manifest)
+        s.command("check", "Vastitas.toml")
             .args([
                 "--llvm-preview",
                 "--target-triple",
@@ -248,22 +259,12 @@ fn used_linear_implementation_and_tensor_buffers_agree_on_the_gemm_abi() {
         original.stdout,
         include_bytes!("../llvm/src/tensor-column.ll")
     );
-    let real = checked_replace(
-        profile,
-        "ComplexSmooth(ComplexCoefficients, linear_descriptor(SmoothBase, complex))",
-        "ComplexSmooth(RealCoefficients, linear_descriptor(SmoothBase, real))",
-    );
-    s.write("src/profiles/mod.vast", &real);
+    s.write("src/profiles/mod.vast", &real_profile());
     let mismatched = preview();
     common::expect_code(&mismatched, "E_TENSOR");
     assert!(mismatched.stdout.is_empty());
 
-    let real_product = product
-        .replace("F32<CC>", "F32<RR>")
-        .replace("complex32(1,2)", "f32_bits(1065353216)")
-        .replace("complex32(3,-4)", "f32_bits(1077936128)")
-        .replace("complex32(33,6)", "f32_bits(1091567616)");
-    s.write("src/product/mod.vast", &real_product);
+    s.write("src/product/mod.vast", &real_product());
     let real = preview();
     common::success(&real);
     for (output, tag) in [(original, "3"), (real, "2")] {
@@ -274,4 +275,64 @@ fn used_linear_implementation_and_tensor_buffers_agree_on_the_gemm_abi() {
         assert_eq!(calls.next().unwrap().1.split(',').next(), Some(tag));
         assert!(calls.next().is_none());
     }
+}
+
+#[test]
+#[ignore = "requires pinned sequential LP64 OpenBLAS"]
+fn native_cells_follow_the_written_linear_implementation() {
+    let s = common::example_package("native physical tensor representation", TENSOR_FIXTURE, &[]);
+    let real_profile = real_profile();
+    let real_product = real_product();
+    let options = common::numerical_build_options(None);
+    let check = |backend: &[&str]| {
+        for (profile, product, expected, wrong, observed) in [
+            (
+                PROFILE,
+                PRODUCT,
+                "complex32(33,6)",
+                "complex32(33,0)",
+                "complex32_bits(1107558400, 1086324736)",
+            ),
+            (
+                real_profile.as_str(),
+                real_product.as_str(),
+                "f32_bits(1091567616)",
+                "f32_bits(0)",
+                "f32_bits(1091567616)",
+            ),
+        ] {
+            s.write("src/profiles/mod.vast", profile);
+            let bad = checked_replace(
+                product,
+                &format!("expect(r,1,0,{expected})"),
+                &format!("expect(r,1,0,{wrong})"),
+            );
+            for (source, status) in [(product, 0), (bad.as_str(), 1)] {
+                s.write("src/product/mod.vast", source);
+                common::success(
+                    &s.command("build", "Vastitas.toml")
+                        .args(backend)
+                        .args(&options)
+                        .args(["-o", "product"])
+                        .output()
+                        .unwrap(),
+                );
+                let output = std::process::Command::new(s.0.join("product"))
+                    .output()
+                    .unwrap();
+                assert_eq!(output.status.code(), Some(status), "{output:?}");
+                if status == 1 {
+                    common::expect_code(&output, "E_NATIVE_EXPECT");
+                    let message = String::from_utf8_lossy(&output.stderr);
+                    assert!(
+                        message.contains(&format!("cell (1, 0): holds {observed}")),
+                        "{message}"
+                    );
+                }
+            }
+        }
+    };
+    check(&[]);
+    #[cfg(feature = "llvm-native")]
+    check(&["--llvm-preview"]);
 }

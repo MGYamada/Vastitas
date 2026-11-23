@@ -6,7 +6,7 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 77 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 78 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 3 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
 | [mathlib](#assumption.mathlib) | 17 |
@@ -45,6 +45,7 @@ Cited by:
 - [`compiler-ir.finite-models`](compiler-ir.md#compiler-ir.finite-models) (`isomorphism-equations`)
 - [`compiler-ir.finite-models`](compiler-ir.md#compiler-ir.finite-models) (`kleisli-equations`)
 - [`compiler-ir.finite-models`](compiler-ir.md#compiler-ir.finite-models) (`kleisli-run`)
+- [`compiler-ir.composition`](compiler-ir.md#compiler-ir.composition) (`published-definitions`)
 - [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`unary-function`)
 - [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`binary-function`)
 - [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`finite-entry`)

@@ -31,6 +31,15 @@ The single-function program computes the integer quotient of 3²⁵⁶ by 7. Its
 
 For each compilation the driver reopens the physical files, compares their bytes with the captured input and recomputes their offsets. The proof identifies this ordered snapshot with the layout decoded from the wire. For packages the driver independently follows the TOML dependencies from the root manifest and checks the package names, versions, editions and root module locations. External Vastitas module discovery and declaration parsing still use the frontend. A two-file flat program and a four-file package each return 42 and produce 1,127 LLVM bytes for the macOS arm64 target. Editing a comment in the library or dependency manifest preserves all 1,127 bytes and invalidates the earlier proof. [Physical input decoder](../../../lean-kernel/VastitasKernel/PhysicalSources.lean)
 
+The boxed publication theorem places each resolved implementation and classification
+in Core and in both MidIR environments for the same revision and complete bytes.
+The input suite also compiles the ordered calls with a dependency that declares
+two implementation markers and a classification. Official replays the proof
+for the four physical files and Fast checks the same certificate. Changing
+the marker of an unused implementation or reversing the classification domain
+preserves all 2,311 bytes and the result 23. Each edit causes the previous
+certificate to fail against the current declarations. [Ordered calls](../../../llvm/fixtures/OrderedCalls.vast) · [Retained LLVM](../../../llvm/src/ordered-calls.ll)
+
 The assembly suite replays the same certificate in both modes for a three-package program. Six physical files fix the owner of the family, the contribution selected by the borrow block, and the protected `Int + Int` operation. The 2,051 certified LLVM bytes contain the selected method and all four specializations of its unselected sibling. [Assembled program](../../../llvm/fixtures/borrowed-operator/main.vast) · [Checked LLVM](../../../llvm/src/borrowed-operator.ll)
 
 The pair fixture uses an edition 2026 manifest and one source file. Both certificate workers check the same five-function module. The unbounded integer calculated by the selected method's caller is 42. Its bytes retain the default method and the selected contribution. [Pair-valued assembly](../../../llvm/fixtures/BoxedPairs.vast) · [Checked LLVM](../../../llvm/src/boxed-pairs.ll)

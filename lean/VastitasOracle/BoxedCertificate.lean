@@ -103,4 +103,33 @@ theorem corresponds {s : Subject} (valid : Valid s) {requireMain : Bool} (p : Pu
   · exact value ▸ obs.2.2.2.2.2.2.1
   · simp [value, ExitMain.statusOf_exact]
 
+/-- A physical implementation or classification in a published boxed program
+resolves to the same entry in Core and both MidIR environments. Its source
+layout, function revision and complete LLVM bytes belong to this certificate. -/
+theorem published_indexed_definition {s : Subject} (valid : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain)
+    {pkg : VastitasKernel.ResourceSource.Package} (hp : pkg ∈ p.req.input.packages)
+    {m : VastitasKernel.ResourceSource.Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    (action : Indexed.Source.ResolveM Indexed.Entry)
+    (selected : ResourceSource.Wire.definitionEntry? p.req.checked.pureProgram.compiler.input.body.index
+      ⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩ d.body = some action) :
+    (∃ expected checked, EditSourceFiles.collect p.req.input = .ok expected ∧
+      ExactModelSource.scanFiles s.sources p.req.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds s.sources checked.finiteSites
+        ⟨pkg.id.source, m.pureModule.module.path, d.span, d.isPublic, FiniteSourceFiles.indexedSyntax d⟩) ∧
+    (∃ entry, action.run' [] = .ok entry ∧ entry ∈ (VastitasKernel.MidIR.PackageLink.core p.req).declarations.indexed ∧
+      entry ∈ p.artifact.linked.opt.env ∧ entry ∈ p.artifact.linked.exe.env) ∧
+    p.artifact.linked.opt.revision = s.revision ∧ p.artifact.linked.exe.revision = s.revision ∧
+    p.text.toUTF8.data.toList = s.bytes := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ :=
+    ResourceSource.physical_indexed_item p.req hp hm hd
+  have same := Except.ok.inj (physical.symm.trans valid.physical)
+  subst layout
+  obtain ⟨entry, member, resolved⟩ := ResourceSource.resolved_physical_definition p.req hp hm hd action selected
+  obtain ⟨env, rev⟩ := VastitasKernel.MidIR.execute_identity _ _ p.artifact.linked.executed
+  have optMember : entry ∈ p.artifact.linked.opt.env := p.artifact.linked.environment.symm ▸ member
+  exact ⟨⟨expected, checked, collected, scan, site⟩, ⟨entry, resolved, member, optMember, env.symm ▸ optMember⟩,
+    rev.symm.trans p.revision, p.revision, (corresponds valid p).1⟩
+
 end VastitasOracle.BoxedCertificate

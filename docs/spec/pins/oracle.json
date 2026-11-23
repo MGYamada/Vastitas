@@ -97,6 +97,7 @@
     {"name": "VastitasOracle.BinaryFunction.foreign_miss", "module": "VastitasOracle.BinaryFunction", "kind": "theorem", "statement": "sha256:c2b9150bca1112999308551c898943a185087c010f28b7db68499a313ec5ef48"},
     {"name": "VastitasOracle.BinaryFunction.word_result", "module": "VastitasOracle.BinaryFunction", "kind": "theorem", "statement": "sha256:9c625c73415c1955482d040e5e22c4a5331210db10fc4fbeefd887973223f2ac"},
     {"name": "VastitasOracle.BoxedCertificate.corresponds", "module": "VastitasOracle.BoxedCertificate", "kind": "theorem", "statement": "sha256:2d59a03e74ca99e91fb07289d4ea9c1448c1373ed258d2677c1b9cdaf22f36d6"},
+    {"name": "VastitasOracle.BoxedCertificate.published_indexed_definition", "module": "VastitasOracle.BoxedCertificate", "kind": "theorem", "statement": "sha256:5b70773aa2f1a4bd6106c7286435e72a8945ec73d7a2da432b0867dd598c845c"},
     {"name": "VastitasOracle.BoxedCertificate.published_manifest_bindings", "module": "VastitasOracle.BoxedCertificate", "kind": "theorem", "statement": "sha256:e2e5b8fcbb804da4c289dae5cbaeee835cabf980516a7442f1cc27ef12a96669"},
     {"name": "VastitasOracle.BoxedCertificate.published_manifest_metadata", "module": "VastitasOracle.BoxedCertificate", "kind": "theorem", "statement": "sha256:742df5d4d79bfa9c131d5c2a0031f9bbfe19c650adb2e65e186330ae5c6d4f6b"},
     {"name": "VastitasOracle.CallFunction.correspondence", "module": "VastitasOracle.CallFunction", "kind": "theorem", "statement": "sha256:f7eb89160a1b2ff0469dac5df41dc6b83f951bb9c1e1ad4d8bd6413d49311d4b"},

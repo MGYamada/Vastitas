@@ -469,5 +469,7 @@ Greater-than-or-equal similarly reverses the less-than-or-equal call.
 On macOS arm64, Clang 23.1.4 emitted two pointer operands and an 8-bit
 Boolean result. The native control passed 24 cases for each type, with
 operands up to 1,025 bits. Direct upstream bitcode emission is disabled in the
-pinned Lean installation.
-[Lean comparison control](../fixtures/ComparisonMethodControl.lean) · [Pinned external-call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L673)
+pinned Lean installation. The native qualification runs these 48 generated-C
+comparisons on both hosts. Its separate upstream emission record attempts
+source-to-bitcode and disassembly when the installed Lean exposes LLVM.
+[Native qualification](../check_exact_native.py) · [Upstream qualification](../../experiments/compiler_validation/llvm/run.py) · [Lean comparison control](../fixtures/ComparisonMethodControl.lean) · [Pinned external-call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L673)

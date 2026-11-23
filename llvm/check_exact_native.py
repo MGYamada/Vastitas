@@ -2,9 +2,11 @@
 """Compare checked boxed libraries and hosted programs with generated Lean controls."""
 import argparse
 import json
+import operator
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -85,11 +87,31 @@ def output(cmd, **opts):
     return subprocess.check_output(cmd, text=True, **opts).strip()
 
 
+def check_comparison_control(prefix, sdk, work):
+    source = "ComparisonMethodControl.lean"
+    shutil.copyfile(ROOT / "llvm/fixtures" / source, work / source)
+    subprocess.run([prefix / "bin/lean", "-c", "predicates.c", source], check=True, cwd=work)
+    subprocess.run([prefix / "bin/leanc", *sdk, "predicates.c", "-o", "predicates"], check=True, cwd=work)
+    values = [(1, 1), (2**128 + 1, 2**128 + 257), (2**1024 + 1, 2**1024 - 255), (0, 2**128)]
+    predicates = [operator.eq, operator.ne, operator.lt, operator.le, operator.gt, operator.ge]
+    count = 0
+    for kind, sign in [("Nat", 1), ("Int", -1)]:
+        for code, predicate in enumerate(predicates):
+            for x, y in values:
+                a, b = sign * x, sign * y
+                result = output([work / "predicates", kind, str(code), str(a), str(b)], cwd=work)
+                if result != ("42" if predicate(a, b) else "7"):
+                    raise ValueError(f"{kind} {predicate.__name__}: wrong native control result for {a} and {b}")
+                count += 1
+    print(f"{count} generated Lean/C integer predicate results matched the unbounded reference", flush=True)
+
+
 def native(args, work):
     prefix = Path(output(["lean", "--print-prefix"], cwd=ROOT))
     sdk = ["-isysroot", output(["xcrun", "--show-sdk-path"])] if sys.platform == "darwin" else []
     clang = prefix / "bin/clang"
     leanc = prefix / "bin/leanc"
+    check_comparison_control(prefix, sdk, work)
     if args.backend:
         target = dict(row.split("=", 1) for row in output([args.backend, "describe"]).splitlines())
         if target["llvm"] != "23.1.4":
